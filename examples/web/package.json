@@ -1,0 +1,17 @@
+{
+  "name": "@pixodesk/example-web",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "copy-umd": "cp ../../packages/svg-animator-web/dist/index.umd.js public/pixodesk-svg-animator.umd.js && cp ../../packages/svg-animator-web/dist/index.umd.min.js public/pixodesk-svg-animator.umd.min.js",
+    "predev": "pnpm copy-umd",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@pixodesk/svg-animator-web": "workspace:*"
+  }
+}
