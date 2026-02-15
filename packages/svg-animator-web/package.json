@@ -24,10 +24,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "npm run build && cp dist/index.umd.js e2e/fixtures/ && npx playwright test",
+    "test:e2e:headed": "npm run build && cp dist/index.umd.js e2e/fixtures/ && npx playwright test --headed",
     "test:e2e:ui": "npm run build && cp dist/index.umd.js e2e/fixtures/ && npx playwright test --ui",
     "test:e2e:update": "npm run build && cp dist/index.umd.js e2e/fixtures/ && npx playwright test --update-snapshots",
-    
+
     "wip-test:e2e": "npm run build && cp dist/index.umd.js e2e/fixtures/ && npx playwright test --grep @wip",
+    "wip-test:e2e:headed": "npm run build && cp dist/index.umd.js e2e/fixtures/ && npx playwright test --grep @wip --headed",
     "wip-test:e2e:ui": "npm run build && cp dist/index.umd.js e2e/fixtures/ && npx playwright test --grep @wip --ui",
     "wip-test:e2e:update": "npm run build && cp dist/index.umd.js e2e/fixtures/ && npx playwright test --grep @wip --update-snapshots"
   },

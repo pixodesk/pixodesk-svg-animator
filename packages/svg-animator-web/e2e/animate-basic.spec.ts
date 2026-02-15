@@ -1,0 +1,53 @@
+import { expect, Page, test } from "@playwright/test";
+
+
+const START_TIME = 100000000;
+
+async function sleep(t: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, t));
+}
+
+async function advanceTimeIncrementally(
+    page: Page,
+    fromTime: number,
+    toTime: number,
+    stepSize: number = 100,
+    pauseBetweenSteps: number = 10
+) {
+    for (let time = fromTime; time <= toTime; time += stepSize) {
+        await page.clock.setFixedTime(time);
+        await sleep(stepSize);
+        await page.waitForTimeout(pauseBetweenSteps);
+    }
+}
+
+test.describe("animate-basic", () => {
+
+    test.beforeEach(async ({ page }) => {
+
+        // Log browser console to terminal
+        page.on('console', msg => console.log('BROWSER:', msg.text()));
+
+        // Install fake timers before navigating
+        await page.clock.install({ time: START_TIME });
+        await page.clock.setFixedTime(START_TIME);
+        await page.goto("/animate-basic.html");
+    });
+
+    test("animation changes over time", async ({ page }) => {
+
+        const svg = page.locator("svg").first();
+
+        await expect(svg).toHaveScreenshot("animation-start.png");
+
+        await advanceTimeIncrementally(page, START_TIME + 0, START_TIME + 500);
+
+        await expect(svg).toHaveScreenshot("animation-middle.png");
+
+        await advanceTimeIncrementally(page, START_TIME + 500, START_TIME + 1000);
+
+        await expect(svg).toHaveScreenshot("animation-end.png");
+
+        await sleep(500);
+    });
+});
