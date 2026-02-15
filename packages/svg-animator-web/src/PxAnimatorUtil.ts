@@ -368,32 +368,14 @@ const SVG_CAMEL_CASE_ATTRS = new Set([
     'targetX',
     'targetY',
 
-    // Animation
-    'attributeName',
-    'attributeType',
-    'calcMode',
-    'keyTimes',
-    'keySplines',
-    'repeatCount',
-    'repeatDur',
-
-    // Presentation (when used as attributes)
-    'clipPath',
-    'fillOpacity',
-    'strokeOpacity',
-    'strokeWidth',
-    'strokeLinecap',
-    'strokeLinejoin',
-    'strokeMiterlimit',
-    'strokeDasharray',
-    'strokeDashoffset',
-    'fontFamily',
-    'fontSize',
-    'fontStyle',
-    'fontVariant',
-    'fontWeight',
-    'textAnchor',
-    'textDecoration'
+    // // Animation
+    // 'attributeName',
+    // 'attributeType',
+    // 'calcMode',
+    // 'keyTimes',
+    // 'keySplines',
+    // 'repeatCount',
+    // 'repeatDur'    
 ]);
 
 /**

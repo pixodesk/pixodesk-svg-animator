@@ -47,7 +47,5 @@ test.describe("animate-basic", () => {
         await advanceTimeIncrementally(page, START_TIME + 500, START_TIME + 1000);
 
         await expect(svg).toHaveScreenshot("animation-end.png");
-
-        await sleep(500);
     });
 });
