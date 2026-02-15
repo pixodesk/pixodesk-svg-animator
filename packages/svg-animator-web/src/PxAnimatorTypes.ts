@@ -203,9 +203,6 @@ export interface PxBinding {
  * Extends PxNode with SVG-specific properties and global configuration.
  */
 export interface PxSvgNode extends PxNode {
-    /** FIXME - do we need it?
-     * Must be "svg" for root element */
-    type: 'svg';
 
     /** FIXME - do we need it? 
      * SVG viewport width */

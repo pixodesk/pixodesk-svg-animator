@@ -1,13 +1,12 @@
 import { expect, Page, test } from "@playwright/test";
+import { isPxElementFileFormat, PxAnimatedSvgDocument } from "../src/index";
 import _animationJson from "./bouncing-ball-svga.json" with { type: "json" };
-import { PxAnimatedSvgDocument, isPxElementFileFormat } from "../src/index";
 
-
-const animationJson: PxAnimatedSvgDocument = _animationJson;
 
 if (!isPxElementFileFormat(_animationJson)) {
     throw new Error("Animation does not match PxAnimatedSvgDocument format");
 }
+const animationJson: PxAnimatedSvgDocument = _animationJson;
 
 
 const START_TIME = 100000000;
