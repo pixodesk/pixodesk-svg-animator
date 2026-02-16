@@ -19,6 +19,7 @@ describe("animateBackground", () => {
     });
 
     it("createAnimator", async () => {
+        
         createAnimator(getTestJson(), undefined, undefined, '#aaa');
 
         const ellipse = document.querySelector("ellipse");
@@ -41,10 +42,8 @@ describe("animateBackground", () => {
 function getTestJson(): PxAnimatedSvgDocument {
     return {
         type: "svg",
-        "data-px-id": "_px_2p4d44pl",
-        fill: "none",
         id: "_px_2p4d44pl",
-        className: "px-anim-enabled px-anim-playing",
+        fill: "none",
         viewBox: "0 0 400 400",
 
         animator: {
@@ -72,11 +71,10 @@ function getTestJson(): PxAnimatedSvgDocument {
         children: [
             {
                 type: "ellipse",
-                className: "px-anim-element _px_2pp00tne",
+                id: "_px_2pp00tnc",
                 fill: "#0087ff",
                 stroke: "#ffffff",
                 transform: "translate(200,100)",
-                "data-px-id": "_px_2pp00tnc",
                 rx: "50",
                 ry: "50"
             }
