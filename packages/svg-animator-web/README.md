@@ -6,6 +6,29 @@ A lightweight JavaScript library for playing SVG animations in the browser. Pixo
 
 ## Usage
 
+### Embed/Inline SVG with animation
+
+```html
+<body>
+  <svg width="200" height="200" viewBox="0 0 200 200">
+    <!-- animation here -->
+  </svg>
+</body>
+```
+
+#### CSS Keyframes
+
+```html
+<body>
+  <svg width="200" height="200" viewBox="0 0 200 200">
+    <!-- animation here -->
+  </svg>
+</body>
+```
+
+#### JS
+
+
 ### Declarative (HTML)
 
 Add a `data-px-animation-src` attribute to any element pointing to your animation JSON file, then call `loadTagAnimators()`:
@@ -49,19 +72,19 @@ animator.destroy();             // cleanup
 
 `createAnimator(docOrUrl, adapter?, callbacks?, containerElement?)` returns a `PxAnimatorAPI`:
 
-| Method | Description |
-|---|---|
-| `play()` | Start or resume playback |
-| `pause()` | Pause at the current time |
-| `cancel()` | Stop and reset to the start |
-| `finish()` | Jump to the end |
-| `setPlaybackRate(rate)` | Change speed (1 = normal, 2 = double, -1 = reverse) |
-| `getCurrentTime()` | Current time in ms |
-| `setCurrentTime(ms)` | Seek to a specific time |
-| `isPlaying()` | Whether the animation is currently playing |
-| `isReady()` | Whether the document has loaded (relevant for URL-based creation) |
-| `getRootElement()` | The rendered SVG DOM element |
-| `destroy()` | Remove the animation and clean up |
+| Method                  | Description                                                       |
+| ----------------------- | ----------------------------------------------------------------- |
+| `play()`                | Start or resume playback                                          |
+| `pause()`               | Pause at the current time                                         |
+| `cancel()`              | Stop and reset to the start                                       |
+| `finish()`              | Jump to the end                                                   |
+| `setPlaybackRate(rate)` | Change speed (1 = normal, 2 = double, -1 = reverse)               |
+| `getCurrentTime()`      | Current time in ms                                                |
+| `setCurrentTime(ms)`    | Seek to a specific time                                           |
+| `isPlaying()`           | Whether the animation is currently playing                        |
+| `isReady()`             | Whether the document has loaded (relevant for URL-based creation) |
+| `getRootElement()`      | The rendered SVG DOM element                                      |
+| `destroy()`             | Remove the animation and clean up                                 |
 
 ### Callbacks
 

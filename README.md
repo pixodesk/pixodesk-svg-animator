@@ -7,6 +7,14 @@ A lightweight JavaScript library for playing SVG animations in the browser. Pixo
 Official players for running <a href="https://pixodesk.com">Pixodesk SVG Animation</a> on the web.
 
 
+# File format
+
+# Types
+
+### Embed/Inline SVG with animation
+
+#### CSS Keyframes
+
 # Packages
 
 | Package                                                        | Description                                                            |
