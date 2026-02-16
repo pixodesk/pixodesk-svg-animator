@@ -43,7 +43,7 @@ jobs:
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
           # Update version in all publishable packages
-          pnpm --filter "@pixodesk/*" exec pnpm version "$VERSION" --no-git-tag-version
+          pnpm --filter @pixodesk/svg-animator-web --filter @pixodesk/svg-animator-react --filter @pixodesk/svg-animator-vue exec pnpm version "$VERSION" --no-git-tag-version
 
       - run: pnpm build
 
