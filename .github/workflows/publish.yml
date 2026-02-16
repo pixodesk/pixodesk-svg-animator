@@ -45,9 +45,11 @@ jobs:
           # Update version in all publishable packages
           pnpm --filter @pixodesk/svg-animator-web --filter @pixodesk/svg-animator-react --filter @pixodesk/svg-animator-vue exec pnpm version "$VERSION" --no-git-tag-version
 
-      - run: pnpm build
+      - name: Build packages
+        run: pnpm --filter @pixodesk/svg-animator-web --filter @pixodesk/svg-animator-react --filter @pixodesk/svg-animator-vue run build
 
-      - run: pnpm test
+      - name: Test packages
+        run: pnpm --filter @pixodesk/svg-animator-web --filter @pixodesk/svg-animator-react --filter @pixodesk/svg-animator-vue run test
 
       # Publish packages in dependency order (web first, then react/vue)
       - name: Publish @pixodesk/svg-animator-web
