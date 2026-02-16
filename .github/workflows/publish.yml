@@ -1,0 +1,66 @@
+name: Publish to npm
+
+on:
+  # Trigger on GitHub release creation
+  release:
+    types: [published]
+  # Allow manual trigger
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to publish (e.g. 1.0.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      # Set version from release tag or manual input
+      - name: Set version
+        run: |
+          if [ "${{ github.event_name }}" = "release" ]; then
+            VERSION="${{ github.event.release.tag_name }}"
+            VERSION="${VERSION#v}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          # Update version in all publishable packages
+          pnpm --filter "@pixodesk/*" exec pnpm version "$VERSION" --no-git-tag-version
+
+      - run: pnpm build
+
+      - run: pnpm test
+
+      # Publish packages in dependency order (web first, then react/vue)
+      - name: Publish @pixodesk/svg-animator-web
+        run: pnpm --filter @pixodesk/svg-animator-web publish --access public --no-git-checks --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @pixodesk/svg-animator-react
+        run: pnpm --filter @pixodesk/svg-animator-react publish --access public --no-git-checks --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish @pixodesk/svg-animator-vue
+        run: pnpm --filter @pixodesk/svg-animator-vue publish --access public --no-git-checks --provenance
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
