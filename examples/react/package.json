@@ -10,12 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@pixodesk/svg-animator-web": "workspace:*",
+    "@pixodesk/svg-animator-react": "workspace:*",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
-  },
-  "peerDependencies": {
-    "@pixodesk/svg-animator-web": "workspace:*",
-    "@pixodesk/svg-animator-react": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "^19.2.3",
