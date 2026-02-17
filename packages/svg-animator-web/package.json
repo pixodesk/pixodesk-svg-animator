@@ -3,6 +3,11 @@
   "version": "0.0.0",
   "description": "Pixodesk SVG animator for web browsers",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pixodesk/pixodesk-svg-animator",
+    "directory": "packages/svg-animator-web"
+  },
   "private": false,
   "type": "module",
   "main": "dist/index.cjs",
