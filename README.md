@@ -13,7 +13,7 @@ Official players for running <a href="https://pixodesk.com">Pixodesk SVG Animati
 
 # Overview
 
-![Pixodesk SVG Animator Diagram](pixodesk-svg-animator--overview.svg)
+![Pixodesk SVG Animator Diagram](pixodesk-svg-animator--overview.drawio.svg)
 
 
 # Packages
