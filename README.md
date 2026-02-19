@@ -1,4 +1,4 @@
-# svg-animator
+# pixodesk-svg-animator
 
 [![CI](https://github.com/pixodesk/pixodesk-svg-animator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/pixodesk/pixodesk-svg-animator/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -11,13 +11,10 @@ A lightweight JavaScript library for playing SVG animations in the browser. Pixo
 Official players for running <a href="https://pixodesk.com">Pixodesk SVG Animation</a> on the web.
 
 
-# File format
+# Overview
 
-# Types
+![Pixodesk SVG Animator Diagram](pixodesk-svg-animator--overview.drawio.svg)
 
-### Embed/Inline SVG with animation
-
-#### CSS Keyframes
 
 # Packages
 
