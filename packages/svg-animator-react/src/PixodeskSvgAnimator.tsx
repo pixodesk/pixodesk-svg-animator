@@ -248,7 +248,7 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
             api?.destroy();
             apiHolderRef.current = null;
         };
-    }, [doc]);
+    }, [doc, apiHolderRef]);
 
     return root;
 };
