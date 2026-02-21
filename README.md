@@ -41,7 +41,7 @@ Two export formats:
 graph TD
     App(["Pixodesk SVG Animator"])
     
-    JSON["JSON file<br/>(data + metadata)"]
+    JSON["JSON file<br/>elements + animation data"]
     CSSkeyframes["SVG + CSS Keyframes<br/>(lightweight)"]
     CSSjs["SVG + CSS Keyframes<br/>+ JS Event Triggers"]
     JSanim["SVG + JS Animation<br/>(@pixodesk/svg-animator-web)"]
@@ -69,7 +69,7 @@ graph TD
     
     style App fill:#3178c6,color:#fff
     style JSON fill:#4ecdc4,color:#fff
-    style CSSkeyframes fill:#ff6b6b,color:#fff
+    style CSSkeyframes fill:#ffaa6b,color:#fff
     style CSSjs fill:#ff6b6b,color:#fff
     style JSanim fill:#ff6b6b,color:#fff
     style ReactVue fill:#61dafb,color:#000
@@ -80,26 +80,21 @@ graph TD
 
 ## How to Choose Pixodesk SVG Animator File Format - JSON vs SVG
 
-The default choice is **JSON**. Switch to **SVG** when you want:
-- to reduce library overhead, 
-- avoid JavaScript entirely,
-- or show content before JS hydrates for static site generators.
+**Default to JSON.** Switch to **SVG** (which has some limitations) when you want to:
+- **Reduce bundle size** — use CSS Keyframes for simple animations; no JavaScript library needed
+- **Show content before JavaScript loads for static site generators** — SVG is pre-rendered and visible immediately
+- **Minimize setup** — just inline/embed the file directly without extra setup
 
-More details:
+**More details**:
 
 - **React / Vue / Next.js / Nuxt**
-  - Use **JSON** — **SSR-safe**, integrates cleanly with framework components, avoids inline script restrictions. Full support of animation features.
+  - Use **JSON** — **SSR-safe**, integrates cleanly with framework components, avoids inline script restrictions. Full support of animation features. Use `@pixodesk/svg-animator-react` / `@pixodesk/svg-animator-vue`.
   - Use **SVG + CSS-Keyframes** (no JavaScript) — minimal setup; import the same way as SVG icons (e.g., via **SVGR** or **vite-svg-loader**), and it is **SSR-safe**. It has limitations in what it can animate and offers less control over animation behavior. However, it is sufficient for most use cases.
-- **Vanilla JavaScript**
-  - Use **JSON** — dynamically load and instantiate an animator. Full support of animation features.
-  - Use **SVG** — inline or load directly, no rendering code needed
+- **Vanilla JavaScript/DOM**, dynamic load.
+  - Use **JSON** — dynamically load and instantiate an animator using `@pixodesk/svg-animator-web`. Full support of animation features.
+  - Use **SVG** — with `<object data="animation.svg" ...` or `<iframe src="animation.svg" ...`. Not recommended.
 - **Static site generators and CMS** (Astro, Jekyll, WordPress, Shopify, etc.)
   - Use **any SVG** — the build tool or CMS inlines the file at build time; even SVG with `<script>` tags will just work
-
-In general, **default to JSON.** Switch to SVG when you want to:
-- Reduce bundle size — use CSS Keyframes for simple animations; no JavaScript library needed
-- Show content before JavaScript loads — SVG is pre-rendered and visible immediately
-- Minimize setup — embed the file directly without a rendering component.
 
 
 
