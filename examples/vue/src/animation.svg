@@ -4,7 +4,7 @@
   text-rendering="geometricPrecision" 
   shape-rendering="geometricPrecision" 
   id="_px_2p4d44pl"
-  fill="none"   
+  fill="none"  
   data-px-meta="animator:{duration:1000;iterations:infinite;direction:normal;type:css;mode:frames;timeline:time;trigger:{startOn:load;outAction:pause}}"
 >
   <style>
