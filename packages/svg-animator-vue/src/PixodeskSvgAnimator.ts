@@ -1,3 +1,8 @@
+/*---------------------------------------------------------------------------------------
+ * Copyright (c) Pixodesk LTD.
+ * Licensed under the MIT License. See the LICENSE file in the project root for details.
+ *---------------------------------------------------------------------------------------*/
+
 import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxNode, PxPlatformAdapter, PxTrigger } from '@pixodesk/svg-animator-web';
 import { camelCaseToKebabWordIfNeeded, createAnimator, FillMode, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES } from '@pixodesk/svg-animator-web';
 import {

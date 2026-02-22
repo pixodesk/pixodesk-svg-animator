@@ -1,3 +1,8 @@
+/*---------------------------------------------------------------------------------------
+ * Copyright (c) Pixodesk LTD.
+ * Licensed under the MIT License. See the LICENSE file in the project root for details.
+ *---------------------------------------------------------------------------------------*/
+
 import { useRef } from 'react';
 
 export function deepEquals(a: any, b: any): boolean {

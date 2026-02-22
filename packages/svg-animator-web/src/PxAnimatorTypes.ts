@@ -11,6 +11,13 @@ export const PX_ANIM_SRC_ATTR_NAME = 'data-px-animation-src';
 
 export const PX_ANIM_ATTR_NAME = '_px_animator';
 
+export type StartOn = 'load' | 'mouseOver' | 'click' | 'scrollIntoView';
+type StartOnExtra = StartOn | 'programmatic';
+
+export type OutAction = 'continue' | 'pause' | 'reset' | 'reverse';
+
+export type JsMode = "auto" | "webapi" | "frames";
+
 
 /**
  * Easing function definition.
@@ -75,7 +82,7 @@ export interface PxAnimationDefinition {
  */
 export interface PxTrigger {
     /** Event that starts the animation */
-    startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
+    startOn?: StartOnExtra;
 
     /** Action to take when the trigger condition is no longer met (e.g., mouse leaves) */
     outAction?: 'continue' | 'pause' | 'reset' | 'reverse';
@@ -90,7 +97,7 @@ export interface PxTrigger {
  */
 export interface PxAnimatorConfig {
     /** JavaScript animation implementation strategy */
-    mode?: "auto" | "webapi" | "frames";
+    mode?: JsMode;
 
     /** Total animation duration in milliseconds */
     duration?: number;
@@ -620,7 +627,7 @@ export function isPxElementFileFormatDeep(fileJson: any): PxValidationResult {
 
 export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorConfig | undefined {
     return (
-        doc?.animator || doc?.meta?.animator || 
+        doc?.animator || doc?.meta?.animator ||
         doc?.animation || doc?.meta?.animation // FIXME - decide on the name
     );
 }

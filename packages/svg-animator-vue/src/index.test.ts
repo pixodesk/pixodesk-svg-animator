@@ -1,3 +1,8 @@
+/*---------------------------------------------------------------------------------------
+ * Copyright (c) Pixodesk LTD.
+ * Licensed under the MIT License. See the LICENSE file in the project root for details.
+ *---------------------------------------------------------------------------------------*/
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, cleanup } from "@testing-library/vue";
 import PixodeskSvgAnimator from './PixodeskSvgAnimator';

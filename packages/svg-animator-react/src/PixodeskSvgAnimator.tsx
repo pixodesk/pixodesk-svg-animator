@@ -1,4 +1,9 @@
-import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxNode, PxPlatformAdapter, PxTrigger } from '@pixodesk/svg-animator-web';
+/*---------------------------------------------------------------------------------------
+ * Copyright (c) Pixodesk LTD.
+ * Licensed under the MIT License. See the LICENSE file in the project root for details.
+ *---------------------------------------------------------------------------------------*/
+
+import type { JsMode, OutAction, PxAnimatedSvgDocument, PxAnimatorAPI, PxNode, PxPlatformAdapter, PxTrigger, StartOn } from '@pixodesk/svg-animator-web';
 import { camelCaseToKebabWordIfNeeded, createAnimator, FillMode, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES } from '@pixodesk/svg-animator-web';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
@@ -63,7 +68,7 @@ export interface PixodeskSvgAnimatorProps {
     // -- Rendering mode ------------------------------------------------------
 
     /** Forces a specific rendering engine. Defaults to 'auto'. */
-    mode?: 'webapi' | 'frames' | 'auto';
+    mode?: JsMode;
 
     // -- Timing overrides ----------------------------------------------------
 
@@ -88,10 +93,10 @@ export interface PixodeskSvgAnimatorProps {
     // -- Trigger overrides ---------------------------------------------------
 
     /** The event that starts the animation. When omitted, uses the value from the document config. */
-    startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
+    startOn?: StartOn;
 
     /** Behaviour when the trigger condition ends (e.g. mouse-out, second click). */
-    outAction?: 'continue' | 'pause' | 'reset' | 'reverse';
+    outAction?: OutAction;
 
     /** Visibility ratio (0.0–1.0) required to trigger a scrollIntoView animation. Defaults to 0.5. */
     scrollIntoViewThreshold?: number;

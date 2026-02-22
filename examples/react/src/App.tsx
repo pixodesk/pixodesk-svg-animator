@@ -1,7 +1,8 @@
-import { PixodeskSvgAnimator, ReactAnimatorApi } from '@pixodesk/svg-animator-react';
+import { PixodeskSvgAnimator, PixodeskSvgCssAnimator, ReactAnimatorApi } from '@pixodesk/svg-animator-react';
+import { OutAction, PxAnimatedSvgDocument, StartOn } from '@pixodesk/svg-animator-web';
 import { FC, useRef, useState } from 'react';
 import _animation from './animation.json';
-import { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
+import AnimationSvg from './animation.svg?react'; // SVGR
 
 
 const animation: PxAnimatedSvgDocument = _animation;
@@ -11,10 +12,10 @@ const boxStyle = { width: 400, height: 400, border: '1px solid #ccc' };
 type Mode = 'autoplay' | 'declarative' | 'imperative' | 'controlled';
 
 const MODE_LABELS: Record<Mode, { title: string; description: string }> = {
-    autoplay:    { title: 'Autoplay',              description: 'Uses triggers defined in the animation document.' },
+    autoplay: { title: 'Autoplay', description: 'Uses triggers defined in the animation document.' },
     declarative: { title: 'Declarative play/pause', description: 'Controlled via boolean props.' },
-    imperative:  { title: 'Imperative',             description: 'Full programmatic control via a ref-based API.' },
-    controlled:  { title: 'Controlled time',        description: 'Renders a single frame at a given time.' },
+    imperative: { title: 'Imperative', description: 'Full programmatic control via a ref-based API.' },
+    controlled: { title: 'Controlled time', description: 'Renders a single frame at a given time.' },
 };
 
 // -- Mode-specific controls ---------------------------------------------------
@@ -70,10 +71,10 @@ const ModeExample: FC<{ mode: Mode }> = ({ mode }) => {
 
     // Build props based on selected mode
     const modeProps =
-        mode === 'autoplay'    ? { autoplay: true } :
-        mode === 'declarative' ? { play, pause } :
-        mode === 'imperative'  ? { apiRef: api } :
-                                 { timeMs };
+        mode === 'autoplay' ? { autoplay: true } :
+            mode === 'declarative' ? { play, pause } :
+                mode === 'imperative' ? { apiRef: api } :
+                    { timeMs };
 
     const { title, description } = MODE_LABELS[mode];
 
@@ -117,18 +118,41 @@ const ModeExampleSwitchable: FC = () => {
     );
 };
 
+// -- SvgrExample --------------------------------------------------------------
+
+const SvgrExample: FC<{ title: string; description: string; startOn: StartOn; outAction?: OutAction }> = (
+    { title, description, startOn, outAction = 'continue' }
+) => (
+    <div>
+        <h2>{title}</h2>
+        <p>{description}</p>
+        <PixodeskSvgCssAnimator startOn={startOn} outAction={outAction} style={boxStyle}>
+            <AnimationSvg />
+        </PixodeskSvgCssAnimator>
+    </div>
+);
+
 // -- App ----------------------------------------------------------------------
 
 const App: FC<{}> = () => {
     return (
         <div>
             <h1>Pixodesk Animator React Examples</h1>
+            <h2>JSON</h2>
             <div style={{ padding: 20, display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 32 }}>
-                <ModeExample mode="autoplay" />                
-                <ModeExample mode="declarative" />                
+                <ModeExample mode="autoplay" />
+                <ModeExample mode="declarative" />
                 <ModeExample mode="imperative" />
                 <ModeExample mode="controlled" />
                 <ModeExampleSwitchable />
+            </div>
+            <h2>SVG + CSS-animation + SVGR</h2>
+            <div style={{ padding: 20, display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: 32 }}>
+                <SvgrExample title="SVGR: load" description="Starts playing immediately on mount." startOn="load" />
+                <SvgrExample title="SVGR: hover → pause" description="Plays on hover, pauses when mouse leaves." startOn="mouseOver" outAction="pause" />
+                <SvgrExample title="SVGR: hover → reset" description="Plays on hover, resets to start when mouse leaves." startOn="mouseOver" outAction="reset" />
+                <SvgrExample title="SVGR: click toggle" description="Click to play, click again to pause." startOn="click" outAction="pause" />
+                <SvgrExample title="SVGR: scroll" description="Plays when scrolled into view, resets when scrolled out." startOn="scrollIntoView" outAction="reset" />
             </div>
         </div>
     );

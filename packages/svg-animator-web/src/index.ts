@@ -7,8 +7,7 @@ export { createAnimator, createAnimatorImpl, generateNewIds, loadTagAnimators } 
 
 // Types
 export type {
-    FillMode,
-    PlaybackDirection,
+    FillMode, JsMode, OutAction, PlaybackDirection,
     PxAnimatedSvgDocument,
     PxAnimationDefinition,
     PxAnimatorAPI,
@@ -23,7 +22,8 @@ export type {
     PxPropertyAnimation,
     PxSvgNode,
     PxTrigger,
-    PxValidationResult
+    PxValidationResult,
+    StartOn
 } from './PxAnimatorTypes';
 
 export {
