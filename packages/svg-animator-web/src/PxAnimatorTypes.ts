@@ -19,6 +19,16 @@ export type OutAction = 'continue' | 'pause' | 'reset' | 'reverse';
 export type JsMode = "auto" | "webapi" | "frames";
 
 
+export const ANIMATE_ATTR = 'animate';
+export const TEXT_ATTR = 'text';
+export const TEXT_CONTENT_ATTR = 'textContent';
+
+// Attributes that should not be set on DOM elements (internal use only)
+export const INTERNAL_ATTRS = new Set([
+    'type', 'children', ANIMATE_ATTR, 'animator', 'meta', 'defs', 'bindings', TEXT_ATTR, TEXT_CONTENT_ATTR
+]);
+
+
 /**
  * Easing function definition.
  * Can be a named reference to a predefined easing or a cubic-bezier array [x1, y1, x2, y2].

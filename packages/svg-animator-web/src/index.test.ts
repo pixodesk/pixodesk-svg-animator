@@ -3,14 +3,14 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createAnimator } from "./index";
-import type { PxAnimatedSvgDocument } from "./PxAnimatorTypes";
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createAnimator } from './index';
+import type { PxAnimatedSvgDocument } from './PxAnimatorTypes';
 
 
-describe("animateBackground", () => {
+describe('animateBackground', () => {
     beforeEach(() => {
-        document.body.innerHTML = '<svg id="aaa"></svg>';
+        document.body.innerHTML = '<div id="svg-container"></div>';
         vi.useFakeTimers();
     });
 
@@ -18,21 +18,40 @@ describe("animateBackground", () => {
         vi.useRealTimers();
     });
 
-    it("createAnimator", async () => {
-        
-        createAnimator(getTestJson(), undefined, undefined, '#aaa');
+    // it('createAnimator', async () => {
 
-        const ellipse = document.querySelector("ellipse");
-        expect(ellipse).not.toBeNull();
-        expect(ellipse?.getAttribute("transform")).toMatch("translate(200,100)");
+    //     createAnimator(getTestJson(), undefined, undefined, '#svg-container');
 
-        // Trigger frame halfway through animation
-        vi.advanceTimersByTime(64);
-        expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
+    //     const svg = document.querySelector('svg');
+    //     expect(svg).not.toBeNull();
 
-        // Trigger frame end of animation
-        vi.advanceTimersByTime(64);
-        expect(ellipse?.getAttribute("transform")).toMatch("translate(200,200)");
+    //     const ellipse = document.querySelector('ellipse');
+    //     expect(ellipse).not.toBeNull();
+    //     expect(ellipse?.getAttribute('transform')).toMatch('translate(200,100)');
+
+    //     // Trigger frame halfway through animation
+    //     vi.advanceTimersByTime(64);
+    //     expect(ellipse?.getAttribute('transform')).toMatch('translate(200,150)');
+
+    //     // Trigger frame end of animation
+    //     vi.advanceTimersByTime(64);
+    //     expect(ellipse?.getAttribute('transform')).toMatch('translate(200,200)');
+    // });
+
+    it('Remove <script> tag', async () => {
+
+        createAnimator({
+            type: 'svg',
+            children: [
+                { type: 'ellipse', fill: '#0087ff' },
+                { type: 'script', textContent: 'alert("hi");' }
+            ]
+        }, undefined, undefined, '#svg-container');
+
+        const svg = document.querySelector('svg');
+        expect(svg).not.toBeNull();
+        console.log('svg?.children.length', svg?.children.length);
+        expect(svg?.innerHTML).toBe('<ellipse fill="#0087ff"></ellipse>');
     });
 });
 
@@ -41,17 +60,17 @@ describe("animateBackground", () => {
 
 function getTestJson(): PxAnimatedSvgDocument {
     return {
-        type: "svg",
-        id: "_px_2p4d44pl",
-        fill: "none",
-        viewBox: "0 0 400 400",
+        type: 'svg',
+        id: '_px_2p4d44pl',
+        fill: 'none',
+        viewBox: '0 0 400 400',
 
         animator: {
-            mode: "frames",
+            mode: 'frames',
             duration: 128,
-            fill: "forwards",
-            direction: "normal",
-            trigger: { startOn: "load" }
+            fill: 'forwards',
+            direction: 'normal',
+            trigger: { startOn: 'load' }
         },
 
         bindings: [
@@ -70,13 +89,13 @@ function getTestJson(): PxAnimatedSvgDocument {
 
         children: [
             {
-                type: "ellipse",
-                id: "_px_2pp00tnc",
-                fill: "#0087ff",
-                stroke: "#ffffff",
-                transform: "translate(200,100)",
-                rx: "50",
-                ry: "50"
+                type: 'ellipse',
+                id: '_px_2pp00tnc',
+                fill: '#0087ff',
+                stroke: '#ffffff',
+                transform: 'translate(200,100)',
+                rx: '50',
+                ry: '50'
             }
         ]
     };

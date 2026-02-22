@@ -6,7 +6,7 @@
 import { renderNode } from './PxAnimatorDOM';
 import { createFrameLoopAnimator, PxPlatformAdapter } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
-import { getAnimatorConfig, isPxElementFileFormat, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
+import { ANIMATE_ATTR, getAnimatorConfig, isPxElementFileFormat, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
 
 
@@ -176,7 +176,7 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
             }
             // Recursively process nested objects (meta contains baseId/targetId refs)
             // Skip 'animate' as it contains animation data, not ID references
-            else if (typeof value === 'object' && value !== null && key !== 'animate') {
+            else if (typeof value === 'object' && value !== null && key !== ANIMATE_ATTR) {
                 updateRefs(value);
             }
         }
