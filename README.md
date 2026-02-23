@@ -5,6 +5,9 @@
 
 # 🚧 **Status - This project is currently under development.**
 
+<img src="boat.svg" width="100%"/>
+
+
 This repository contains the official runtime libraries for playing SVG animations created with the [Pixodesk SVG Animation](https://pixodesk.com) editor.
 
 **Common use cases:** 
