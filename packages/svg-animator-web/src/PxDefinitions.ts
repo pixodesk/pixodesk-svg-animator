@@ -428,16 +428,21 @@ function expandLoopKeyframes(
         }
     }
 
-    // Generate repetitions
+    // Generate repetitions.
+    // The rep closest to the original keyframes boundary must be reversed first
+    // in pingpong mode (the animation just finished going forward, so the next
+    // iteration goes backward). For loopOut, rep 0 is closest; for loopIn, reps
+    // are laid out left-to-right so the last rep is closest.
     for (let rep = 0; rep < fullReps; rep++) {
-        const isReversed = !!loop.alternate && (rep % 2 === 1);
+        const distFromBoundary = loop.before ? fullReps - 1 - rep : rep;
+        const isReversed = !!loop.alternate && (distFromBoundary % 2 === 0);
         const repStart = fillStart + rep * segDuration;
         appendRep(repStart, isReversed);
     }
 
     // Partial repetition
     if (partialFraction > 1e-9) {
-        const isReversed = !!loop.alternate && (fullReps % 2 === 1);
+        const isReversed = !!loop.alternate && (fullReps % 2 === 0);
         const repStart = fillStart + fullReps * segDuration;
         appendRep(repStart, isReversed, partialFraction);
     }
