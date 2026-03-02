@@ -5,14 +5,68 @@
 
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
-import { getAnimatorConfig, PxAnimatedSvgDocument, PxAnimatorConfig, type PxAnimationDefinition, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
+import { getAnimatorConfig, PxAnimatedSvgDocument, PxAnimatorConfig, PxKeyframe, type PxAnimationDefinition, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
 import { clamp, COLOUR_ATTR_NAMES, kebabToCamelCaseWord, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 import { getNormalisedBindings } from './PxDefinitions';
 
 
 /**
- * Converts an animation definition to Web Animation API keyframes.
- * Returns an array of keyframes for each property.
+ * Converts a single PxKeyframe into a Web Animations API Keyframe object.
+ *
+ * Handles three categories of CSS property:
+ * - **Colour attributes** (e.g. fill, stroke): array values are converted to an rgba() string.
+ * - **Transform functions** (e.g. translate, rotate, scale): values are formatted as a
+ *   CSS transform function string and mapped to the transform property.
+ * - **All other properties**: the value is coerced to a string as-is.
+ *
+ * If the resulting (cssKey, cssValue) pair is not supported by the browser (CSS.supports returns
+ * false), cssKey is added to unsupportedSet so the caller can decide whether to fall back to the
+ * frame-loop animator.
+ */
+function createCssKf(kf: PxKeyframe, t: number, propName: string, unsupportedSet: Set<string>) {
+    let value = kf.v ?? kf.value;
+    const e = kf.e ?? kf.easing;
+
+    const cssKf: Keyframe = {
+        offset: t,
+        easing: e && Array.isArray(e) ? "cubic-bezier(" + e.join(',') + ")" : undefined
+    };
+
+    let cssValue: any;
+    let cssKey = propName;
+
+    if (COLOUR_ATTR_NAMES.has(propName) && Array.isArray(value)) {
+        cssValue = toRGBA(value);
+    } else if (TRANSFORM_FN_NAMES.has(propName)) {
+        if (Array.isArray(value)) {
+            if (propName === 'translate') value = value.map(v => v + 'px');
+            value = value.join(',');
+        }
+        if (propName === 'rotate') value = value + 'deg';
+        cssValue = propName + '(' + value + ')';
+        cssKey = 'transform';
+    } else {
+        cssValue = '' + value;
+    }
+
+    if (!CSS.supports(cssKey, cssValue)) unsupportedSet.add(cssKey);
+
+    cssKey = kebabToCamelCaseWord(cssKey);
+    cssKf[cssKey] = cssValue;
+    return cssKf;
+}
+
+/**
+ * Converts a PxAnimationDefinition into a map of Web Animations API Keyframe arrays, one per
+ * animated property.
+ *
+ * For each property in the definition the function:
+ * 1. Normalises keyframe time values to the [0, 1] offset range (time / duration).
+ * 2. Delegates CSS value conversion to createCssKf.
+ * 3. Ensures the keyframe sequence always starts at offset: 0 and ends at offset: 1 — a
+ *    requirement of the Web Animations API for correct looping behaviour. If the first keyframe
+ *    starts after 0 or the last keyframe ends before 1, a copy of that keyframe is inserted at the
+ *    boundary with the adjusted offset.
  */
 function convertToWebApiKeyframes(
     animDef: PxAnimationDefinition,
@@ -25,39 +79,31 @@ function convertToWebApiKeyframes(
         const keyframes = propAnim.kfs || propAnim.keyframes || [];
         const cssKeyframes: Keyframe[] = [];
 
-        for (const kf of keyframes) {
+        for (let i = 0; i < keyframes.length; i++) {
+            const kf = keyframes[i];
+
             let t = kf.t ?? kf.time ?? 0;
             t = clamp(t / (config.duration || 1), 0, 1);
-            let value = kf.v ?? kf.value;
-            const e = kf.e ?? kf.easing;
 
-            const cssKf: Keyframe = {
-                offset: t,
-                easing: e && Array.isArray(e) ? "cubic-bezier(" + e.join(',') + ")" : undefined
-            };
+            const cssKf: Keyframe = createCssKf(kf, t, propName, unsupportedSet);
 
-            let cssValue: any;
-            let cssKey = propName;
-
-            if (COLOUR_ATTR_NAMES.has(propName) && Array.isArray(value)) {
-                cssValue = toRGBA(value);
-            } else if (TRANSFORM_FN_NAMES.has(propName)) {
-                if (Array.isArray(value)) {
-                    if (propName === 'translate') value = value.map(v => v + 'px');
-                    value = value.join(',');
-                }
-                if (propName === 'rotate') value = value + 'deg';
-                cssValue = propName + '(' + value + ')';
-                cssKey = 'transform';
-            } else {
-                cssValue = '' + value;
+            // Keyframes need to start with offset:0 to work correctly with loops
+            if (i === 0 && (cssKf.offset || 0) > 0) {
+                cssKeyframes.push({
+                    ...cssKf,
+                    offset: 0
+                });
             }
 
-            if (!CSS.supports(cssKey, cssValue)) unsupportedSet.add(cssKey);
-
-            cssKey = kebabToCamelCaseWord(cssKey);
-            cssKf[cssKey] = cssValue;
             cssKeyframes.push(cssKf);
+
+            // Keyframes need to end with offset:1 to work correctly with loops
+            if (i === keyframes.length - 1 && (cssKf.offset || 0) < 1) {
+                cssKeyframes.push({
+                    ...cssKf,
+                    offset: 1
+                });
+            }
         }
 
         if (cssKeyframes.length > 0) {
@@ -67,7 +113,6 @@ function convertToWebApiKeyframes(
 
     return result;
 }
-
 
 /**
  * Creates an animator instance that uses the native Web Animations API.
@@ -140,8 +185,8 @@ export function createWebApiAnimator(
 
 
         // Delay handling:
-        // - Positive delay (e.g., 500): Wait before starting → use `delay` option
-        // - Negative delay (e.g., -500): Start mid-animation → use `currentTime` to seek
+        // - Positive delay (e.g., 500): Wait before starting → use delay option
+        // - Negative delay (e.g., -500): Start mid-animation → use currentTime to seek
         //   (Web Animations API doesn't reliably support negative delay values)
         // - Negative delay is wrapped to duration (e.g., -5000 with duration 2000 → seek to 1000)
         const positiveDelay = config.delay && config.delay > 0 ? config.delay : undefined;
