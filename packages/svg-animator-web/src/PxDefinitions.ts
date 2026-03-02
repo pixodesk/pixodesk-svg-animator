@@ -14,10 +14,11 @@ import {
     type PxDefs,
     type PxElementAnimation,
     type PxKeyframe,
+    type PxLoop,
     type PxNode,
     type PxPropertyAnimation
 } from './PxAnimatorTypes';
-import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, PCT_BASED_ATTR_NAMES, remap, toRGBA } from './PxAnimatorUtil';
+import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 
 
 // ============================================================================
@@ -285,9 +286,187 @@ function resolveElementAnimation(
     return results;
 }
 
+// ============================================================================
+// LOOP EXPANSION: Duplicate keyframe segments to fill gaps in the timeline
+// ============================================================================
+
+/**
+ * Interpolates between two keyframe values based on property type.
+ * Returns the raw interpolated value (not a CSS string).
+ */
+function interpolateValue(propName: string, a: any, b: any, t: number): any {
+    if (propName === 'd') {
+        const aPaths = a?.paths ?? (Array.isArray(a) ? a : []);
+        const bPaths = b?.paths ?? (Array.isArray(b) ? b : []);
+        return { paths: interpolateBeziers(aPaths, bPaths, t) };
+    }
+    if (COLOUR_ATTR_NAMES.has(propName)) {
+        return interpolateColor(a || [0, 0, 0, 1], b || [0, 0, 0, 1], t);
+    }
+    if (TRANSFORM_FN_NAMES.has(propName) || propName === 'stroke-dasharray' || propName === 'strokeDasharray') {
+        return interpolateVec(a || [], b || [], t);
+    }
+    return interpolateNum(+(a || 0), +(b || 0), t);
+}
+
+interface LoopTemplateEntry {
+    relT: number; // 0..1 relative position within segment
+    v: any;
+    e: [number, number, number, number] | undefined;
+}
+
+/**
+ * Expands keyframes by repeating a segment to fill the gap between the keyframe
+ * range and the global animation duration, implementing PxLoop "local loop" behavior.
+ */
+function expandLoopKeyframes(
+    propName: string,
+    keyframes: PxKeyframe[],
+    loop: PxLoop,
+    duration: number
+): PxKeyframe[] {
+    const totalIntervals = keyframes.length - 1;
+    const segCount = clamp(loop.segmentCount ?? totalIntervals, 1, totalIntervals);
+
+    // Extract segment keyframes
+    let segKfs: PxKeyframe[];
+    if (loop.before) {
+        segKfs = keyframes.slice(0, segCount + 1);
+    } else {
+        segKfs = keyframes.slice(totalIntervals - segCount);
+    }
+
+    // Determine fill region
+    const firstT = keyframes[0].t ?? 0;
+    const lastT = keyframes[keyframes.length - 1].t ?? 0;
+
+    let fillStart: number, fillEnd: number;
+    if (loop.before) {
+        fillStart = 0;
+        fillEnd = firstT;
+    } else {
+        fillStart = lastT;
+        fillEnd = duration;
+    }
+
+    const fillDuration = fillEnd - fillStart;
+    if (fillDuration <= 0) return keyframes;
+
+    // Segment timing
+    const segStartT = segKfs[0].t ?? 0;
+    const segEndT = segKfs[segKfs.length - 1].t ?? 0;
+    const segDuration = segEndT - segStartT;
+    if (segDuration <= 0) return keyframes;
+
+    // Build template with relative offsets (0..1)
+    const template: LoopTemplateEntry[] = segKfs.map(kf => ({
+        relT: (kf.t! - segStartT) / segDuration,
+        v: kf.v,
+        e: kf.e as [number, number, number, number] | undefined
+    }));
+
+    const fullReps = Math.floor(fillDuration / segDuration);
+    const remainder = fillDuration - fullReps * segDuration;
+    const partialFraction = remainder / segDuration;
+
+    const looped: PxKeyframe[] = [];
+
+    // Helper: append one full or partial repetition
+    function appendRep(repStart: number, isReversed: boolean, partial?: number) {
+        let entries: LoopTemplateEntry[];
+        if (isReversed) {
+            // Reverse keyframe order and reverse easings
+            entries = [];
+            for (let i = template.length - 1; i >= 0; i--) {
+                entries.push({
+                    relT: 1 - template[i].relT,
+                    v: template[i].v,
+                    // Easing for reversed transition: use reversed easing from the forward "from" keyframe
+                    e: i > 0 ? reverseEasing(template[i - 1].e) : undefined
+                });
+            }
+        } else {
+            entries = template;
+        }
+
+        const cutRelT = partial !== undefined ? partial : 1;
+
+        for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i];
+            if (entry.relT > cutRelT + 1e-9) {
+                // Past the cut point — insert interpolated keyframe
+                const prev = entries[i - 1];
+                const intervalSpan = entry.relT - prev.relT;
+                const localFrac = (cutRelT - prev.relT) / intervalSpan;
+
+                // Apply easing to get the eased progress for value interpolation
+                const easedFrac = prev.e ? cubicBezier(prev.e)(localFrac) : localFrac;
+                const cutValue = interpolateValue(propName, prev.v, entry.v, easedFrac);
+
+                // Split easing — use left portion for the truncated interval
+                const { left: leftEasing } = splitEasing(prev.e, localFrac);
+
+                // Update previous keyframe's easing to the left portion
+                if (looped.length > 0 && prev.relT <= cutRelT) {
+                    looped[looped.length - 1].e = leftEasing;
+                }
+
+                looped.push({ t: repStart + cutRelT * segDuration, v: cutValue, e: undefined });
+                return;
+            }
+
+            // Skip first keyframe of non-first reps to avoid duplicates at junctions
+            if (i === 0 && looped.length > 0 && Math.abs(entry.relT) < 1e-9) {
+                continue;
+            }
+
+            looped.push({
+                t: repStart + entry.relT * segDuration,
+                v: entry.v,
+                e: i < entries.length - 1 ? entry.e : undefined
+            });
+        }
+    }
+
+    // Generate repetitions
+    for (let rep = 0; rep < fullReps; rep++) {
+        const isReversed = !!loop.alternate && (rep % 2 === 1);
+        const repStart = fillStart + rep * segDuration;
+        appendRep(repStart, isReversed);
+    }
+
+    // Partial repetition
+    if (partialFraction > 1e-9) {
+        const isReversed = !!loop.alternate && (fullReps % 2 === 1);
+        const repStart = fillStart + fullReps * segDuration;
+        appendRep(repStart, isReversed, partialFraction);
+    }
+
+    // Assemble: skip the junction duplicate between original and looped
+    if (loop.before) {
+        // Looped keyframes come before original. Remove last looped kf if it matches firstT.
+        if (looped.length > 0 && Math.abs((looped[looped.length - 1].t ?? 0) - firstT) < 1e-9) {
+            looped.pop();
+        }
+        return [...looped, ...keyframes];
+    } else {
+        // Looped keyframes come after original. Remove first looped kf if it matches lastT.
+        if (looped.length > 0 && Math.abs((looped[0].t ?? 0) - lastT) < 1e-9) {
+            looped.shift();
+        }
+        return [...keyframes, ...looped];
+    }
+}
+
+
+// ============================================================================
+// KEYFRAME NORMALIZATION
+// ============================================================================
+
 /**
  * Normalizes keyframes from the new API format (time in ms) to internal format (time as 0-1 fraction).
  * Resolves easing references, normalizes times, and converts path strings for 'd' attribute.
+ * If a loop configuration is present, expands the keyframes to fill the global duration.
  * @param propName The property name (e.g., 'd' for path)
  * @param propAnim The property animation with keyframes
  * @param duration The total animation duration in ms
@@ -301,6 +480,7 @@ function normalizeKeyframes(
     defs?: PxDefs
 ): PxKeyframe[] {
     const keyframes = propAnim.keyframes || propAnim.kfs || [];
+
     const normalized: PxKeyframe[] = [];
 
     for (const kf of keyframes) {
@@ -327,6 +507,12 @@ function normalizeKeyframes(
 
     // Sort by time
     normalized.sort((a, b) => (a.t ?? 0) - (b.t ?? 0));
+
+    // Expand loop if configured
+    const loop = propAnim.loop;
+    if (loop && normalized.length >= 2) {
+        return expandLoopKeyframes(propName, normalized, loop, duration);
+    }
 
     return normalized;
 }

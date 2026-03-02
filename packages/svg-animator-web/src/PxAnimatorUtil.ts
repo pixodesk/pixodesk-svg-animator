@@ -185,6 +185,47 @@ export function remap(
 }
 
 /**
+ * Solves for the parameter t such that the cubic bezier X(t) = x,
+ * where the bezier has control point x-coordinates p1x and p2x
+ * (endpoints are fixed at x=0 and x=1).
+ * Uses Newton-Raphson with bisection fallback.
+ */
+export function solveCubicBezierX(p1x: number, p2x: number, x: number): number {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+
+    const cx = 3 * p1x;
+    const bx = 3 * (p2x - p1x) - cx;
+    const ax = 1 - cx - bx;
+
+    function sampleX(t: number) { return ((ax * t + bx) * t + cx) * t; }
+    function sampleDX(t: number) { return (3 * ax * t + 2 * bx) * t + cx; }
+
+    let t2 = x;
+    let t0 = 0;
+    let t1 = 1;
+
+    for (let i = 0; i < 8; i++) {
+        const x2 = sampleX(t2) - x;
+        if (Math.abs(x2) < 1e-6) return t2;
+        const d2 = sampleDX(t2);
+        if (Math.abs(d2) < 1e-6) break;
+        t2 -= x2 / d2;
+    }
+
+    t2 = x;
+    while (t0 < t1) {
+        const x2 = sampleX(t2);
+        if (Math.abs(x2 - x) < 1e-6) return t2;
+        if (x > x2) t0 = t2;
+        else t1 = t2;
+        t2 = (t1 + t0) / 2;
+    }
+
+    return t2;
+}
+
+/**
  * Creates a cubic-bezier easing function.
  * @param easing An array of four numbers [x1, y1, x2, y2] defining the bezier curve.
  * @returns A function that takes a progress value (0-1) and returns an eased value.
@@ -192,54 +233,99 @@ export function remap(
 export function cubicBezier(easing: [number, number, number, number]) {
     const [p1x, p1y, p2x, p2y] = easing;
 
-    const cx = 3 * p1x;
-    const bx = 3 * (p2x - p1x) - cx;
-    const ax = 1 - cx - bx;
     const cy = 3 * p1y;
     const by = 3 * (p2y - p1y) - cy;
     const ay = 1 - cy - by;
 
-    function sampleCurveX(t: number) { return ((ax * t + bx) * t + cx) * t; }
     function sampleCurveY(t: number) { return ((ay * t + by) * t + cy) * t; }
-    function sampleCurveDerivativeX(t: number) { return (3 * ax * t + 2 * bx) * t + cx; }
-
-    function solveCurveX(x: number) {
-        // Handle edge cases
-        if (x <= 0) return 0;
-        if (x >= 1) return 1;
-
-        // Use binary search as fallback when derivative is too small
-        let t2 = x;
-        let t0 = 0;
-        let t1 = 1;
-
-        // Try Newton-Raphson first
-        for (let i = 0; i < 8; i++) {
-            const x2 = sampleCurveX(t2) - x;
-            if (Math.abs(x2) < 1e-6) return t2;
-
-            const d2 = sampleCurveDerivativeX(t2);
-            if (Math.abs(d2) < 1e-6) break; // Derivative too small, switch to bisection
-
-            t2 -= x2 / d2;
-        }
-
-        // Fallback to binary search, e.g. solves such easings as [0, 0, 0, 1]
-        t2 = x;
-        while (t0 < t1) {
-            const x2 = sampleCurveX(t2);
-            if (Math.abs(x2 - x) < 1e-6) return t2;
-            if (x > x2) t0 = t2;
-            else t1 = t2;
-            t2 = (t1 + t0) / 2;
-        }
-
-        return t2;
-    }
 
     return function (x: number) {
-        return sampleCurveY(solveCurveX(x));
+        return sampleCurveY(solveCubicBezierX(p1x, p2x, x));
     };
+}
+
+type Point2 = [number, number];
+
+function lerp2(a: Point2, b: Point2, t: number): Point2 {
+    return [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+}
+
+/**
+ * Splits a cubic bezier curve at parameter t using De Casteljau's algorithm.
+ * Returns the left and right sub-curves as 4-point tuples.
+ */
+export function subdivideCubicBezier(
+    p0: Point2, p1: Point2, p2: Point2, p3: Point2, t: number
+): { left: [Point2, Point2, Point2, Point2], right: [Point2, Point2, Point2, Point2] } {
+    const q0 = lerp2(p0, p1, t);
+    const q1 = lerp2(p1, p2, t);
+    const q2 = lerp2(p2, p3, t);
+    const r0 = lerp2(q0, q1, t);
+    const r1 = lerp2(q1, q2, t);
+    const s = lerp2(r0, r1, t);
+    return {
+        left: [p0, q0, r0, s],
+        right: [s, r1, q2, p3]
+    };
+}
+
+type Easing = [number, number, number, number];
+
+/**
+ * Splits a CSS cubic-bezier easing [x1,y1,x2,y2] at a given x-axis fraction.
+ * Each half is re-normalized to map [0,0]→[1,1].
+ * Returns undefined for either half if the input is undefined (linear) or the split is degenerate.
+ */
+export function splitEasing(
+    easing: Easing | undefined,
+    xFraction: number
+): { left: Easing | undefined, right: Easing | undefined } {
+    if (!easing) return { left: undefined, right: undefined };
+    if (xFraction <= 0) return { left: undefined, right: easing };
+    if (xFraction >= 1) return { left: easing, right: undefined };
+
+    const [x1, y1, x2, y2] = easing;
+    const t = solveCubicBezierX(x1, x2, xFraction);
+
+    const p0: Point2 = [0, 0];
+    const p1: Point2 = [x1, y1];
+    const p2: Point2 = [x2, y2];
+    const p3: Point2 = [1, 1];
+
+    const { left, right } = subdivideCubicBezier(p0, p1, p2, p3, t);
+
+    // Split point coordinates
+    const sx = left[3][0];
+    const sy = left[3][1];
+
+    let leftEasing: Easing | undefined;
+    if (sx > 1e-9 && Math.abs(sy) > 1e-9) {
+        leftEasing = [
+            left[1][0] / sx, left[1][1] / sy,
+            left[2][0] / sx, left[2][1] / sy
+        ];
+    }
+
+    let rightEasing: Easing | undefined;
+    const rx = 1 - sx;
+    const ry = 1 - sy;
+    if (rx > 1e-9 && Math.abs(ry) > 1e-9) {
+        rightEasing = [
+            (right[1][0] - sx) / rx, (right[1][1] - sy) / ry,
+            (right[2][0] - sx) / rx, (right[2][1] - sy) / ry
+        ];
+    }
+
+    return { left: leftEasing, right: rightEasing };
+}
+
+/**
+ * Reverses a cubic-bezier easing for backward playback.
+ * [x1,y1,x2,y2] → [1-x2, 1-y2, 1-x1, 1-y1].
+ */
+export function reverseEasing(easing: Easing | undefined): Easing | undefined {
+    if (!easing) return undefined;
+    return [1 - easing[2], 1 - easing[3], 1 - easing[0], 1 - easing[1]];
 }
 
 /**
