@@ -42,18 +42,29 @@ const ALLOWED_ATTRIBUTES = [
     'href', 'src',
 
     // Presentation
-    'fill', 'stroke', 'strokeWidth' /*stroke-width*/, 'opacity', 'transform',
+    'fill', 'fillOpacity', 'fillRule',
+
+    'stroke', 'strokeWidth' /*stroke-width*/,
+    'strokeOpacity', 'strokeLinecap', 'strokeLinejoin',
+    'strokeMiterlimit', 'strokeDasharray', 'strokeDashoffset',
+
+    'opacity', 'transform',
 
     // Geometry
     'x', 'y', 'cx', 'cy', 'r', 'rx', 'ry', 'width', 'height', 'd',
     'x1', 'y1', 'x2', 'y2', 'points',
     'dx', 'dy',
 
-    // Text
-    'fontSize' /*font-size*/, 'fontFamily' /*font-family*/, 'textAnchor' /*text-anchor*/,
+    // Font
+    'fontSize' /*font-size*/, 'fontFamily' /*font-family*/, 
     'fontWeight', 'fontStyle',
+
+    // Text
+    'textAnchor' /*text-anchor*/,    
     'letterSpacing', 'wordSpacing',
     'space', 'xml:space', 'textDecoration', 'textTransform', 'whiteSpace', 'white-space',
+    'dominantBaseline', 'alignmentBaseline',
+    'rotate', // per-glyph rotation array, currently not supported
 
     // Structure
     'id', 'class', 'viewBox', 'preserveAspectRatio',
@@ -63,6 +74,12 @@ const ALLOWED_ATTRIBUTES = [
 
     // Clippath/Mask
     'clipPath' /*clip-path*/, 'mask',
+
+    // Motion path
+    'offsetPath', 'offsetDistance', 'offsetRotate', 'offsetAnchor', 'offsetPosition',
+
+    // Text path
+    'startOffset', 'textLength', 'lengthAdjust',
 
     // Filter
     'filter', 'stdDeviation', 'in', 'in2', 'result', 'mode',
