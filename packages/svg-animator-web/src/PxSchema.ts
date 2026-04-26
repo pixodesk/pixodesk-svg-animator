@@ -30,6 +30,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface PxSchema<T, IsOptional extends boolean = false> {
+    /** Phantom discriminator — `false` for required schemas, `true` for optional. Used by InferShape. */
+    readonly _optional: IsOptional;
     sanitize(raw: unknown): T;
     isValid(raw: unknown): boolean;
     /** True if raw has the right structure to attempt sanitization (may still need repair). */
@@ -49,6 +51,8 @@ export type PxInfer<S> = S extends PxSchema<infer T, any> ? T : never;
 
 /** Shared base; overrides _canSanitize only when the structural check must differ from isValid. */
 abstract class Base<T, IsOptional extends boolean = false> implements PxSchema<T, IsOptional> {
+    // `declare` emits no runtime code; purely satisfies the interface's phantom _optional property.
+    declare readonly _optional: IsOptional;
     abstract sanitize(raw: unknown): T;
     abstract isValid(raw: unknown): boolean;
     abstract readonly _default: T;
@@ -284,9 +288,11 @@ class Rec<T> extends Base<Record<string, T>> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Passes any value through unchanged; always valid. Useful for opaque blobs with no schema. */
-class Any extends Base<unknown> {
-    readonly _default = undefined;
-    sanitize(raw: unknown): unknown { return raw; }
+class Any extends Base<any> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    readonly _default: any = undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    sanitize(raw: unknown): any { return raw; }
     isValid(_raw: unknown): boolean { return true; }
     override _canSanitize(_raw: unknown): boolean { return true; }
 }
@@ -308,6 +314,41 @@ class Lazy<T> extends Base<T> {
     sanitize(raw: unknown): T { return this.schema.sanitize(raw); }
     isValid(raw: unknown): boolean { return this.schema.isValid(raw); }
     override _canSanitize(raw: unknown): boolean { return this.schema._canSanitize(raw); }
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tuple — fixed-length array with per-position schemas; default is defaults of each position
+// _canSanitize: true only when raw is an array of the exact expected length
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Maps a tuple of schemas to a tuple of their inferred types.
+type TupleItems<T extends ReadonlyArray<PxSchema<any, any>>> =
+    { -readonly [K in keyof T]: T[K] extends PxSchema<infer U, any> ? U : never };
+
+/** Fixed-length array schema; validates element count and each position individually. */
+class Tuple<T extends ReadonlyArray<PxSchema<any, any>>> extends Base<TupleItems<T>> {
+    readonly _default: TupleItems<T>;
+
+    constructor(private readonly schemas: T) {
+        super();
+        this._default = schemas.map(s => s._default) as unknown as TupleItems<T>;
+    }
+
+    sanitize(raw: unknown): TupleItems<T> {
+        if (!Array.isArray(raw) || raw.length !== this.schemas.length) return this._default;
+        return this.schemas.map((s, i) => s.sanitize((raw as unknown[])[i])) as unknown as TupleItems<T>;
+    }
+
+    isValid(raw: unknown): boolean {
+        if (!Array.isArray(raw) || raw.length !== this.schemas.length) return false;
+        return (this.schemas as ReadonlyArray<PxSchema<any, any>>).every((s, i) => s.isValid((raw as unknown[])[i]));
+    }
+
+    // Require exact length so wrong-length arrays are dropped rather than repaired to default.
+    override _canSanitize(raw: unknown): boolean {
+        return Array.isArray(raw) && raw.length === this.schemas.length;
+    }
 }
 
 
@@ -356,7 +397,11 @@ export const px = {
         new Rec(value),
 
     /** Passes anything through unchanged — always valid. */
-    any: (): PxSchema<unknown> => new Any(),
+    any: (): PxSchema<any> => new Any(),
+
+    /** Fixed-length tuple — validates element count and each position individually. */
+    tuple: <T extends ReadonlyArray<PxSchema<any, any>>>(schemas: T): PxSchema<TupleItems<T>> =>
+        new Tuple(schemas),
 
     /** Defers schema creation — required for recursive types. Must supply a default value. */
     lazy: <T>(fn: () => PxSchema<T>, defaultVal: T): PxSchema<T> =>

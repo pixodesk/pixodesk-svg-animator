@@ -7,7 +7,7 @@ import { px, type PxSchema } from './PxSchema';
 
 export const PxEasingOrRefSchema = px.union([
     px.string(),
-    px.array(px.number()),
+    px.tuple([px.number(), px.number(), px.number(), px.number()] as const),
 ]);
 
 export const PxKeyframeSchema = px.object({
@@ -59,7 +59,7 @@ export const PxAnimatorConfigSchema = px.object({
 });
 
 export const PxDefsSchema = px.object({
-    easings:    px.record(px.array(px.number())).optional(),
+    easings:    px.record(px.tuple([px.number(), px.number(), px.number(), px.number()] as const)).optional(),
     animations: px.record(PxAnimationDefinitionSchema).optional(),
     styles:     px.record(px.any()).optional(),
 });
