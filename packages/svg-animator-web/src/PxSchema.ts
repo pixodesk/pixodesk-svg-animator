@@ -23,17 +23,37 @@
  *                    For containers (object/array/record) this is a structural check
  *                    so that partially-valid nested objects are sanitized rather than dropped.
  *                    For primitives it equals isValid (a wrong primitive type is unrecoverable).
+ *
+ * Validation context (optional):
+ *   Pass a PxValidationContext as the second arg to isValid() to collect per-field
+ *   error and warning messages with their dot-paths.
+ *   e.g. schema.isValid(raw, ctx, []) where ctx = { errors: [], warnings: [] }
+ *   Path segments are pushed/popped during recursion; join with '.' only when reporting.
  */
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Public interface
+// Public interfaces
 // ─────────────────────────────────────────────────────────────────────────────
+
+/** Collects structured validation feedback. Pass to isValid() as the second argument. */
+export interface PxValidationContext {
+    /** Per-field errors — each entry is "<dot.path>: <reason>". */
+    errors: Array<string>;
+    /** Per-field warnings — same format as errors but non-fatal. */
+    warnings: Array<string>;
+}
 
 export interface PxSchema<T, IsOptional extends boolean = false> {
     /** Phantom discriminator — `false` for required schemas, `true` for optional. Used by InferShape. */
     readonly _optional: IsOptional;
     sanitize(raw: unknown): T;
-    isValid(raw: unknown): boolean;
+    /**
+     * Returns true when raw already conforms to this schema.
+     * Pass an optional PxValidationContext to collect per-field error messages.
+     * Pass a mutable Array<string> as `path` — segments are pushed/popped during
+     * recursion so only a single array allocation is needed per validation call.
+     */
+    isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean;
     /** True if raw has the right structure to attempt sanitization (may still need repair). */
     _canSanitize(raw: unknown): boolean;
     readonly _default: T;
@@ -46,6 +66,24 @@ export type PxInfer<S> = S extends PxSchema<infer T, any> ? T : never;
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Internal path helper
+// ─────────────────────────────────────────────────────────────────────────────
+
+// Joins path segments into a dot-path string for error messages.
+// Segments starting with '[' are appended without a leading dot.
+// e.g. ['obj', 'key'] -> 'obj.key'   ['arr', '[0]'] -> 'arr[0]'   [] -> '.'
+function pathStr(path: Array<string>): string {
+    if (!path.length) return '.';
+    let result = '';
+    for (const seg of path) {
+        if (seg.startsWith('[')) result += seg;
+        else result += (result ? '.' : '') + seg;
+    }
+    return result;
+}
+
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Base — default _canSanitize = isValid (correct for primitives)
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -54,7 +92,7 @@ abstract class Base<T, IsOptional extends boolean = false> implements PxSchema<T
     // `declare` emits no runtime code; purely satisfies the interface's phantom _optional property.
     declare readonly _optional: IsOptional;
     abstract sanitize(raw: unknown): T;
-    abstract isValid(raw: unknown): boolean;
+    abstract isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean;
     abstract readonly _default: T;
 
     _canSanitize(raw: unknown): boolean { return this.isValid(raw); }
@@ -82,8 +120,9 @@ class Optional<T> extends Base<T | undefined, true> {
         return this.inner._canSanitize(raw) ? this.inner.sanitize(raw) : undefined;
     }
 
-    isValid(raw: unknown): boolean {
-        return raw === undefined || raw === null || this.inner.isValid(raw);
+    isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (raw === undefined || raw === null) return true;
+        return this.inner.isValid(raw, ctx, path);
     }
 
     override _canSanitize(raw: unknown): boolean {
@@ -100,7 +139,11 @@ class Optional<T> extends Base<T | undefined, true> {
 class Str extends Base<string> {
     constructor(readonly _default: string = '') { super(); }
     sanitize(raw: unknown): string { return typeof raw === 'string' ? raw : this._default; }
-    isValid(raw: unknown): boolean { return typeof raw === 'string'; }
+    isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (typeof raw === 'string') return true;
+        ctx?.errors.push(pathStr(path ?? []) + ': expected string, got ' + typeof raw);
+        return false;
+    }
 }
 
 /** Finite-number schema; rejects NaN and ±Infinity as unrecoverable. */
@@ -109,14 +152,22 @@ class Num extends Base<number> {
     sanitize(raw: unknown): number {
         return typeof raw === 'number' && isFinite(raw) ? raw : this._default;
     }
-    isValid(raw: unknown): boolean { return typeof raw === 'number' && isFinite(raw); }
+    isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (typeof raw === 'number' && isFinite(raw)) return true;
+        ctx?.errors.push(pathStr(path ?? []) + ': expected finite number, got ' + JSON.stringify(raw));
+        return false;
+    }
 }
 
 /** Boolean schema. */
 class Bool extends Base<boolean> {
     constructor(readonly _default: boolean = false) { super(); }
     sanitize(raw: unknown): boolean { return typeof raw === 'boolean' ? raw : this._default; }
-    isValid(raw: unknown): boolean { return typeof raw === 'boolean'; }
+    isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (typeof raw === 'boolean') return true;
+        ctx?.errors.push(pathStr(path ?? []) + ': expected boolean, got ' + typeof raw);
+        return false;
+    }
 }
 
 
@@ -129,7 +180,11 @@ class Literal<T extends string | number | boolean> extends Base<T> {
     readonly _default: T;
     constructor(private readonly value: T) { super(); this._default = value; }
     sanitize(raw: unknown): T { return raw === this.value ? this.value : this._default; }
-    isValid(raw: unknown): boolean { return raw === this.value; }
+    isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (raw === this.value) return true;
+        ctx?.errors.push(pathStr(path ?? []) + ': expected ' + JSON.stringify(this.value) + ', got ' + JSON.stringify(raw));
+        return false;
+    }
 }
 
 
@@ -145,7 +200,11 @@ class Enum<T extends string | number> extends Base<T> {
         this._default = defaultVal ?? values[0];
     }
     sanitize(raw: unknown): T { return this.values.includes(raw as T) ? (raw as T) : this._default; }
-    isValid(raw: unknown): boolean { return this.values.includes(raw as T); }
+    isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (this.values.includes(raw as T)) return true;
+        ctx?.errors.push(pathStr(path ?? []) + ': expected one of ' + this.values.map(v => JSON.stringify(v)).join(' | ') + ', got ' + JSON.stringify(raw));
+        return false;
+    }
 }
 
 
@@ -167,7 +226,12 @@ class Union<T> extends Base<T> {
         }
         return this._default;
     }
-    isValid(raw: unknown): boolean { return this.schemas.some(s => s.isValid(raw)); }
+    isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        // Test members without ctx — avoids spurious errors from non-matching branches.
+        if (this.schemas.some(s => s.isValid(raw))) return true;
+        ctx?.errors.push(pathStr(path ?? []) + ': no union member matched for value ' + (JSON.stringify(raw) ?? '').slice(0, 60));
+        return false;
+    }
     override _canSanitize(raw: unknown): boolean { return this.schemas.some(s => s._canSanitize(raw)); }
 }
 
@@ -212,13 +276,20 @@ class Obj<S extends AnyShape> extends Base<InferShape<S>> {
         return out;
     }
 
-    isValid(raw: unknown): boolean {
-        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
-        const obj = raw as any;
-        for (const key of Object.keys(this._shape)) {
-            if (!this._shape[key].isValid(obj[key])) return false;
+    isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+            ctx?.errors.push(pathStr(path ?? []) + ': expected object, got ' + (Array.isArray(raw) ? 'array' : typeof raw));
+            return false;
         }
-        return true;
+        const obj = raw as any;
+        const p = path ?? [];
+        let ok = true;
+        for (const key of Object.keys(this._shape)) {
+            p.push(key);
+            if (!this._shape[key].isValid(obj[key], ctx, p)) ok = false;
+            p.pop();
+        }
+        return ok;
     }
 
     override _canSanitize(raw: unknown): boolean {
@@ -263,13 +334,20 @@ class OpenObj<S extends AnyShape> extends Base<InferOpenShape<S>> {
         return out as InferOpenShape<S>;
     }
 
-    isValid(raw: unknown): boolean {
-        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
-        const obj = raw as any;
-        for (const key of Object.keys(this._shape)) {
-            if (!this._shape[key].isValid(obj[key])) return false;
+    isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+            ctx?.errors.push(pathStr(path ?? []) + ': expected object, got ' + (Array.isArray(raw) ? 'array' : typeof raw));
+            return false;
         }
-        return true;
+        const obj = raw as any;
+        const p = path ?? [];
+        let ok = true;
+        for (const key of Object.keys(this._shape)) {
+            p.push(key);
+            if (!this._shape[key].isValid(obj[key], ctx, p)) ok = false;
+            p.pop();
+        }
+        return ok;
     }
 
     override _canSanitize(raw: unknown): boolean {
@@ -297,8 +375,19 @@ class Arr<T> extends Base<Array<T>> {
         return out;
     }
 
-    isValid(raw: unknown): boolean {
-        return Array.isArray(raw) && raw.every(el => this.item.isValid(el));
+    isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (!Array.isArray(raw)) {
+            ctx?.errors.push(pathStr(path ?? []) + ': expected array, got ' + typeof raw);
+            return false;
+        }
+        const p = path ?? [];
+        let ok = true;
+        for (let i = 0; i < raw.length; i++) {
+            p.push('[' + i + ']');
+            if (!this.item.isValid(raw[i], ctx, p)) ok = false;
+            p.pop();
+        }
+        return ok;
     }
 
     override _canSanitize(raw: unknown): boolean { return Array.isArray(raw); }
@@ -323,9 +412,19 @@ class Rec<T> extends Base<Record<string, T>> {
         return out;
     }
 
-    isValid(raw: unknown): boolean {
-        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
-        return Object.values(raw as object).every(v => this.value.isValid(v));
+    isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+            ctx?.errors.push(pathStr(path ?? []) + ': expected object/record, got ' + (Array.isArray(raw) ? 'array' : typeof raw));
+            return false;
+        }
+        const p = path ?? [];
+        let ok = true;
+        for (const [k, v] of Object.entries(raw as object)) {
+            p.push(k);
+            if (!this.value.isValid(v, ctx, p)) ok = false;
+            p.pop();
+        }
+        return ok;
     }
 
     override _canSanitize(raw: unknown): boolean {
@@ -342,7 +441,7 @@ class Rec<T> extends Base<Record<string, T>> {
 class Any extends Base<any> {
     readonly _default: any = undefined;
     sanitize(raw: unknown): any { return raw; }
-    isValid(_raw: unknown): boolean { return true; }
+    isValid(_raw: unknown, _ctx?: PxValidationContext, _path?: Array<string>): boolean { return true; }
     override _canSanitize(_raw: unknown): boolean { return true; }
 }
 
@@ -361,7 +460,7 @@ class Lazy<T> extends Base<T> {
     }
 
     sanitize(raw: unknown): T { return this.schema.sanitize(raw); }
-    isValid(raw: unknown): boolean { return this.schema.isValid(raw); }
+    isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean { return this.schema.isValid(raw, ctx, path); }
     override _canSanitize(raw: unknown): boolean { return this.schema._canSanitize(raw); }
 }
 
@@ -389,9 +488,19 @@ class Tuple<T extends ReadonlyArray<PxSchema<any, any>>> extends Base<TupleItems
         return this.schemas.map((s, i) => s.sanitize((raw as unknown[])[i])) as unknown as TupleItems<T>;
     }
 
-    isValid(raw: unknown): boolean {
-        if (!Array.isArray(raw) || raw.length !== this.schemas.length) return false;
-        return (this.schemas as ReadonlyArray<PxSchema<any, any>>).every((s, i) => s.isValid((raw as unknown[])[i]));
+    isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (!Array.isArray(raw) || raw.length !== this.schemas.length) {
+            ctx?.errors.push(pathStr(path ?? []) + ': expected tuple of length ' + this.schemas.length + ', got ' + (Array.isArray(raw) ? 'array[' + (raw as unknown[]).length + ']' : typeof raw));
+            return false;
+        }
+        const p = path ?? [];
+        let ok = true;
+        for (let i = 0; i < this.schemas.length; i++) {
+            p.push('[' + i + ']');
+            if (!(this.schemas as ReadonlyArray<PxSchema<any, any>>)[i].isValid((raw as unknown[])[i], ctx, p)) ok = false;
+            p.pop();
+        }
+        return ok;
     }
 
     // Require exact length so wrong-length arrays are dropped rather than repaired to default.
