@@ -19,8 +19,10 @@ export {
     PxElementAnimationSchema,
     PxKeyframeSchema,
     PxLoopSchema,
+    PxNodeBase,
     PxNodeSchema,
     PxPropertyAnimationSchema,
+    PxSvgNodeExtra,
     PxTriggerSchema,
 } from './PxAnimatorSchemas';
 export type { PxAnimatorOptions } from './PxAnimator';

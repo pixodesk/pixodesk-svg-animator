@@ -196,18 +196,18 @@ type InferShape<S extends AnyShape> =
 class Obj<S extends AnyShape> extends Base<InferShape<S>> {
     readonly _default: InferShape<S>;
 
-    constructor(private readonly shape: S) {
+    constructor(readonly _shape: S) {
         super();
         const d: any = {};
-        for (const key of Object.keys(shape)) d[key] = shape[key]._default;
+        for (const key of Object.keys(_shape)) d[key] = _shape[key]._default;
         this._default = d;
     }
 
     sanitize(raw: unknown): InferShape<S> {
         const src = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw as any : {};
         const out: any = {};
-        for (const key of Object.keys(this.shape)) {
-            out[key] = this.shape[key].sanitize(src[key]);
+        for (const key of Object.keys(this._shape)) {
+            out[key] = this._shape[key].sanitize(src[key]);
         }
         return out;
     }
@@ -215,8 +215,8 @@ class Obj<S extends AnyShape> extends Base<InferShape<S>> {
     isValid(raw: unknown): boolean {
         if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
         const obj = raw as any;
-        for (const key of Object.keys(this.shape)) {
-            if (!this.shape[key].isValid(obj[key])) return false;
+        for (const key of Object.keys(this._shape)) {
+            if (!this._shape[key].isValid(obj[key])) return false;
         }
         return true;
     }
@@ -245,10 +245,10 @@ type InferOpenShape<S extends AnyShape> = InferShape<S> & { [key: string]: any }
 class OpenObj<S extends AnyShape> extends Base<InferOpenShape<S>> {
     readonly _default: InferOpenShape<S>;
 
-    constructor(private readonly shape: S) {
+    constructor(readonly _shape: S) {
         super();
         const d: any = {};
-        for (const key of Object.keys(shape)) d[key] = shape[key]._default;
+        for (const key of Object.keys(_shape)) d[key] = _shape[key]._default;
         this._default = d;
     }
 
@@ -257,8 +257,8 @@ class OpenObj<S extends AnyShape> extends Base<InferOpenShape<S>> {
             ? raw as Record<string, unknown>
             : {};
         const out: Record<string, unknown> = { ...src };
-        for (const key of Object.keys(this.shape)) {
-            out[key] = this.shape[key].sanitize(src[key]);
+        for (const key of Object.keys(this._shape)) {
+            out[key] = this._shape[key].sanitize(src[key]);
         }
         return out as InferOpenShape<S>;
     }
@@ -266,8 +266,8 @@ class OpenObj<S extends AnyShape> extends Base<InferOpenShape<S>> {
     isValid(raw: unknown): boolean {
         if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return false;
         const obj = raw as any;
-        for (const key of Object.keys(this.shape)) {
-            if (!this.shape[key].isValid(obj[key])) return false;
+        for (const key of Object.keys(this._shape)) {
+            if (!this._shape[key].isValid(obj[key])) return false;
         }
         return true;
     }
@@ -340,9 +340,7 @@ class Rec<T> extends Base<Record<string, T>> {
 
 /** Passes any value through unchanged; always valid. Useful for opaque blobs with no schema. */
 class Any extends Base<any> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     readonly _default: any = undefined;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     sanitize(raw: unknown): any { return raw; }
     isValid(_raw: unknown): boolean { return true; }
     override _canSanitize(_raw: unknown): boolean { return true; }
@@ -436,12 +434,25 @@ export const px = {
         new Union(schemas as any, defaultVal) as any,
 
     /** Typed object — unknown keys are stripped. Required fields fall back to their default. */
-    object: <S extends AnyShape>(shape: S): PxSchema<InferShape<S>> =>
+    object: <S extends AnyShape>(shape: S): PxSchema<InferShape<S>> & { readonly _shape: S } =>
         new Obj(shape),
 
     /** Open object — validates known keys, passes unknown keys through unchanged. */
-    openObject: <S extends AnyShape>(shape: S): PxSchema<InferOpenShape<S>> =>
+    openObject: <S extends AnyShape>(shape: S): PxSchema<InferOpenShape<S>> & { readonly _shape: S } =>
         new OpenObj(shape),
+
+    /**
+     * Creates a new closed object schema by merging a base schema's shape with additional fields.
+     * The base can be the result of px.object() or px.openObject() — anything with a _shape property.
+     *
+     * @example
+     * const PxSvgNodeSchema = px.extendedObject(PxNodeBase, { width: px.number().optional() });
+     */
+    extendedObject: <B extends AnyShape, E extends AnyShape>(
+        base: { readonly _shape: B },
+        extra: E
+    ): PxSchema<InferShape<B & E>> & { readonly _shape: B & E } =>
+        new Obj({ ...base._shape, ...extra } as B & E),
 
     /** Array whose unrecoverable items are filtered out. Default: []. */
     array: <T>(item: PxSchema<T>): PxSchema<Array<T>> =>

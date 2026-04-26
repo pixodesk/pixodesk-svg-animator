@@ -14,7 +14,9 @@ import {
     PxElementAnimationSchema,
     PxKeyframeSchema,
     PxLoopSchema,
+    PxNodeBase,
     PxPropertyAnimationSchema,
+    PxSvgNodeExtra,
     PxTriggerSchema,
 } from './PxAnimatorSchemas';
 import type { PxInfer } from './PxSchema';
@@ -127,55 +129,22 @@ export type PxBinding = PxInfer<typeof PxBindingSchema>;
 
 /**
  * Base interface for all SVG elements.
- * Represents a node in the SVG tree with optional animations and children.
+ * Extends schema-derived typed fields; adds recursive children and the open
+ * index signature for arbitrary SVG attributes (cx, cy, r, fill, etc.).
+ * Named properties take precedence over the index signature when accessed.
  */
-export interface PxNode {
-    /** SVG element type (e.g., "circle", "rect", "path", "g") */
-    type: string;
-
-    /** Child elements (for container elements like <g>) */
+export interface PxNode extends PxInfer<typeof PxNodeBase> {
     children?: PxNode[];
-
-    /** Animation applied to this element */
-    animate?: PxElementAnimation;
-
-    /**
-     * FIXME - do we need it?
-     * Style applied to this element (named reference or inline object)
-     */
-    style?: string | Record<string, string | number>;
-
-    /** All other SVG attributes (cx, cy, r, fill, stroke, etc.) */
     [key: string]: any;
 }
 
 /**
  * Root SVG element containing the entire animated graphic.
- * Extends PxNode with SVG-specific properties and global configuration.
+ * Extends PxNode (inheriting the open index signature) plus schema-derived
+ * SVG-root fields. Only `design` is declared manually due to the circular
+ * PxNode reference.
  */
-export interface PxSvgNode extends PxNode {
-
-    /** FIXME - do we need it?
-     * SVG viewport width */
-    width?: number;
-
-    /** FIXME - do we need it?
-     * SVG viewport height */
-    height?: number;
-
-    /** FIXME - do we need it?
-     * SVG viewBox attribute defining coordinate system */
-    viewBox?: string;
-
-    /** Global animation configuration */
-    animator?: PxAnimatorConfig;
-
-    /** Reusable definitions library */
-    defs?: PxDefs;
-
-    /** Animation bindings for pre-rendered DOM elements */
-    bindings?: PxBinding[];
-
+export interface PxSvgNode extends PxNode, PxInfer<typeof PxSvgNodeExtra> {
     design?: PxNode;
 }
 

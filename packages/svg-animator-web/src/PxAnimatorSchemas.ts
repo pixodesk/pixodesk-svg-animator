@@ -71,14 +71,19 @@ export const PxBezierPathSchema = px.object({
     c: px.boolean().optional(),
 });
 
+// Non-recursive base shape for PxNode — used for type extraction via PxInfer.
+// Excludes `children` (circular reference) and arbitrary SVG attributes (index signature).
+export const PxNodeBase = px.openObject({
+    type:    px.string(),
+    animate: PxElementAnimationSchema.optional(),
+    style:   px.union([px.string(), px.record(px.union([px.string(), px.number()]))]).optional(),
+});
+
 // `let` so the lazy closure can capture the variable reference after assignment.
 // By the time the lazy resolves (first isValid/sanitize call), PxNodeSchema is assigned.
-// eslint-disable-next-line prefer-const
 let PxNodeSchema: PxSchema<any> = px.openObject({
-    type:     px.string(),
+    ...PxNodeBase._shape,
     children: px.lazy(() => px.array(PxNodeSchema), []).optional(),
-    animate:  PxElementAnimationSchema.optional(),
-    style:    px.union([px.string(), px.record(px.union([px.string(), px.number()]))]).optional(),
 });
 export { PxNodeSchema };
 
@@ -87,17 +92,22 @@ export const PxBindingSchema = px.object({
     animate: PxElementAnimationSchema,
 });
 
-/** Root document schema; enforces type === 'svg' to distinguish from child nodes. */
-export const PxAnimatedSvgDocumentSchema = px.object({
-    type:     px.literal('svg'),
-    children: px.array(PxNodeSchema).optional(),
-    animate:  PxElementAnimationSchema.optional(),
-    style:    px.union([px.string(), px.record(px.union([px.string(), px.number()]))]).optional(),
+// Extra fields added by PxSvgNode on top of PxNode — used for type extraction via PxInfer.
+// Excludes `design` (circular reference to PxNode).
+export const PxSvgNodeExtra = px.object({
     width:    px.number().optional(),
     height:   px.number().optional(),
     viewBox:  px.string().optional(),
     animator: PxAnimatorConfigSchema.optional(),
     defs:     PxDefsSchema.optional(),
     bindings: px.array(PxBindingSchema).optional(),
+});
+
+/** Root document schema; enforces type === 'svg' to distinguish from child nodes. */
+export const PxAnimatedSvgDocumentSchema = px.object({
+    ...PxNodeBase._shape,
+    ...PxSvgNodeExtra._shape,
+    type:     px.literal('svg'),     // override string → literal to require 'svg'
+    children: px.array(PxNodeSchema).optional(),
     design:   PxNodeSchema.optional(),
 });
