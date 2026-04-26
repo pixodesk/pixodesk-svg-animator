@@ -7,6 +7,21 @@ export { createAnimator, createAnimatorImpl, generateNewIds, loadTagAnimators, P
 
 export { px } from './PxSchema';
 export type { PxInfer, PxSchema } from './PxSchema';
+
+export {
+    PxAnimatedSvgDocumentSchema,
+    PxAnimationDefinitionSchema,
+    PxAnimatorConfigSchema,
+    PxBindingSchema,
+    PxDefsSchema,
+    PxEasingOrRefSchema,
+    PxElementAnimationSchema,
+    PxKeyframeSchema,
+    PxLoopSchema,
+    PxNodeSchema,
+    PxPropertyAnimationSchema,
+    PxTriggerSchema,
+} from './PxAnimatorSchemas';
 export type { PxAnimatorOptions } from './PxAnimator';
 
 // Types
