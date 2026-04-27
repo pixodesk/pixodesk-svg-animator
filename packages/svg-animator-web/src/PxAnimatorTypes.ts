@@ -27,7 +27,7 @@ export const TEXT_CONTENT_ATTR = 'textContent';
 
 // Attributes that should not be set on DOM elements (internal use only)
 export const INTERNAL_ATTRS = new Set([
-    'type', 'children', ANIMATE_ATTR, 'animator', 'meta', 'defs', 'bindings', TEXT_ATTR, TEXT_CONTENT_ATTR
+    'type', 'children', ANIMATE_ATTR, 'animator', 'meta', 'definitions', 'bindings', TEXT_ATTR, TEXT_CONTENT_ATTR
 ]);
 
 
@@ -230,7 +230,7 @@ export type PxAnimationDefinition = PxInfer<typeof PxAnimationDefinitionSchema>;
 
 /**
  * Element animation specification. Can be:
- * - A string referencing a named animation from `defs.animations`
+ * - A string referencing a named animation from `definitions.animations`
  * - An array of named references
  * - An inline `AnimationDefinition` object
  * - A mixed array of references and inline definitions
@@ -513,8 +513,8 @@ export interface _PxSvgNode extends PxNode {
     /** Global animation configuration */
     animator?: PxAnimatorConfig;
 
-    /** Reusable definitions library */
-    defs?: PxDefs;
+    /** Named easings, animations, and styles — referenced by elements */
+    definitions?: PxDefs;
 
     /** Animation bindings for pre-rendered DOM elements */
     bindings?: PxBinding[];
@@ -526,14 +526,14 @@ export interface _PxSvgNode extends PxNode {
  * Extra fields present on the root SVG node, on top of PxNode.
  * Excludes `design` (circular reference to PxNode). Used for type extraction via PxInfer.
  *
- * `{ width?:number, height?:number, viewBox?:string, animator?:AnimatorConfig, defs?:Defs, bindings?:Binding[] }`
+ * `{ width?:number, height?:number, viewBox?:string, animator?:AnimatorConfig, definitions?:Defs, bindings?:Binding[] }`
  */
 export const PxSvgNodeExtra = px.object({
     width: px.number().optional(),
     height: px.number().optional(),
     viewBox: px.string().optional(),
     animator: PxAnimatorConfigSchema.optional(),
-    defs: PxDefsSchema.optional(),
+    definitions: PxDefsSchema.optional(),
     bindings: px.array(PxBindingSchema).optional(),
 });
 
@@ -557,7 +557,7 @@ export interface PxSvgNode extends PxNode, PxInfer<typeof PxSvgNodeExtra> {
  * This is the root type for the entire file format.
  *
  * `{ type:'svg', animate?:ElementAnimation, style?:…, width?:number, height?:number,
- *    viewBox?:string, animator?:AnimatorConfig, defs?:Defs, bindings?:Binding[],
+ *    viewBox?:string, animator?:AnimatorConfig, definitions?:Defs, bindings?:Binding[],
  *    children?:PxNode[], design?:PxNode }`
  */
 export const PxAnimatedSvgDocumentSchema = px.object({
@@ -618,7 +618,7 @@ export interface _PxBezierPath {
 
     /** An array of 'out' tangent handles for each vertex [[x, y], ...]. */
     o?: Array<PxPoint2D>;
-    
+
     /** A boolean indicating if the path is closed. */
     c?: boolean;
 }
@@ -726,7 +726,7 @@ export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorConfig 
 
 export function getDefs(doc: PxAnimatedSvgDocument): PxDefs | undefined {
     if (!doc) return undefined;
-    return doc.defs || doc.meta?.defs;
+    return doc.definitions || doc.meta?.definitions;
 }
 
 export function getBindings(doc: PxAnimatedSvgDocument): PxBinding[] | undefined {

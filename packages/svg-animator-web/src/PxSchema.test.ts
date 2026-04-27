@@ -108,7 +108,7 @@ const PxAnimatedSvgDocumentSchema = px.object({
     height:   px.number().optional(),
     viewBox:  px.string().optional(),
     animator: PxAnimatorConfigSchema.optional(),
-    defs:     PxDefsSchema.optional(),
+    definitions:     PxDefsSchema.optional(),
     bindings: px.array(PxBindingSchema).optional(),
     children: px.array(PxNodeSchema as any).optional(),
 });
@@ -138,7 +138,7 @@ const EMPTY_CONFIG = {
 
 const EMPTY_DOC: PxAnimatedSvgDocument = {
     type: 'svg', width: undefined, height: undefined, viewBox: undefined,
-    animator: undefined, defs: undefined, bindings: undefined, children: undefined,
+    animator: undefined, definitions: undefined, bindings: undefined, children: undefined,
 };
 
 // NOTE: px.object() strips keys not declared in the schema shape.

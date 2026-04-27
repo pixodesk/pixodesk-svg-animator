@@ -221,7 +221,7 @@ export function renderNode(node: PxNode, defs?: PxDefs): Element | null {
     const { type, children, animate, style, ...props } = node;
 
     // Extract defs from root svg node
-    const nodeDefs = (node as any).defs || defs;
+    const nodeDefs = (node as any).definitions || defs;
 
     // Resolve style reference
     const resolvedStyle = resolveStyle(style, nodeDefs);
