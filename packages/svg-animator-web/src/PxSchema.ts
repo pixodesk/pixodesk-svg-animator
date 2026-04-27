@@ -64,6 +64,19 @@ export interface PxSchema<T, IsOptional extends boolean = false> {
 /** Extract the TypeScript type from a schema. */
 export type PxInfer<S> = S extends PxSchema<infer T, any> ? T : never;
 
+/**
+ * Removes string/number index signatures from T, leaving only explicitly named properties.
+ * Useful for strict property-access checking on types that have an open `[key: string]: any`.
+ *
+ * @example
+ * type Strict = RemoveIndex<PxAnimatedSvgDocument>;
+ * Strict['animator']   // PxAnimatorConfig | undefined  ✓
+ * Strict['anything']   // compile error  ✓
+ */
+export type RemoveIndex<T> = {
+    [K in keyof T as string extends K ? never : number extends K ? never : K]: T[K]
+};
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Internal path helper

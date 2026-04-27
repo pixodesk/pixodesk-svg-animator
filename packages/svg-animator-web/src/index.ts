@@ -6,8 +6,9 @@
 export { createAnimator, createAnimatorImpl, generateNewIds, loadTagAnimators, PX_ANIMATOR_DATA_KEY } from './PxAnimator';
 
 export { px } from './PxSchema';
-export type { KeysMatch, PxInfer, PxSchema, PxValidationContext } from './PxSchema';
+export type { KeysMatch, PxInfer, PxSchema, PxValidationContext, RemoveIndex } from './PxSchema';
 
+export type { PxAnimatorOptions } from './PxAnimator';
 export {
     PxAnimatedSvgDocumentSchema,
     PxAnimationDefinitionSchema,
@@ -23,9 +24,8 @@ export {
     PxNodeSchema,
     PxPropertyAnimationSchema,
     PxSvgNodeExtra,
-    PxTriggerSchema,
+    PxTriggerSchema
 } from './PxAnimatorTypes';
-export type { PxAnimatorOptions } from './PxAnimator';
 
 // Types
 export type {

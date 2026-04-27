@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { KeysMatch, PxInfer, PxSchema } from './PxSchema';
+import type { KeysMatch, PxInfer, PxSchema, RemoveIndex } from './PxSchema';
 import { implementsInterface, px } from './PxSchema';
 
 export type FillMode = 'forwards' | 'backwards' | 'both' | 'none';
@@ -447,6 +447,9 @@ export interface _PxNode {
     /** Animation applied to this element */
     animate?: PxElementAnimation;
 
+    /** Meta informaion about this element */
+    meta?: any;
+
     /**
      * FIXME - do we need it?
      * Style applied to this element (named reference or inline object)
@@ -466,7 +469,9 @@ export interface _PxNode {
  */
 export const PxNodeBase = px.openObject({
     type: px.string(),
+    id: px.string().optional(),
     animate: PxElementAnimationSchema.optional(),
+    meta: px.any().optional(),
     style: px.union([px.string(), px.record(px.union([px.string(), px.number()]))]).optional(),
 });
 
