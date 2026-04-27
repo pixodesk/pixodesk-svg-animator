@@ -24,7 +24,7 @@ export {
     PxPropertyAnimationSchema,
     PxSvgNodeExtra,
     PxTriggerSchema,
-} from './PxAnimatorSchemas';
+} from './PxAnimatorTypes';
 export type { PxAnimatorOptions } from './PxAnimator';
 
 // Types
