@@ -557,6 +557,18 @@ export type KeysMatch<A, B> =
         ? [Exclude<keyof B, keyof A>] extends [never] ? true : false
         : false;
 
+/**
+ * Builds a `{ key: 'key', ... }` object from a schema's shape.
+ * Each value is typed as the literal key name, so `schemaKeys(PxFooSchema).bar`
+ * is typed as `'bar'` — use in @serializable calls to get a compile-time error
+ * if the field is renamed in the schema.
+ */
+export function schemaKeys<S extends { readonly _shape: Record<string, any> }>(schema: S) {
+    return Object.fromEntries(
+        Object.keys(schema['_shape']).map(k => [k, k])
+    ) as { [K in keyof S['_shape']]: K };
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public factory
