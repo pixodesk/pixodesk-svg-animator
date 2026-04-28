@@ -185,17 +185,15 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
     collectIds(cloned);
     updateRefs(cloned);
 
-    // Update IDs in bindings
-    const docBindings = cloned.bindings;
-    if (Array.isArray(docBindings)) {
-        for (const binding of docBindings) {
-            if (binding.id) {
-                const newId = idMap.get(binding.id);
-                if (newId) {
-                    binding.id = newId;
-                }
-            }
+    // Update IDs in animator.animate map
+    const docAnimate = cloned.animator?.animate;
+    if (docAnimate && typeof docAnimate === 'object') {
+        const updatedAnimate: Record<string, any> = {};
+        for (const [id, anim] of Object.entries(docAnimate)) {
+            const newId = idMap.get(id) ?? id;
+            updatedAnimate[newId] = anim;
         }
+        cloned.animator = { ...cloned.animator, animate: updatedAnimate };
     }
 
     return cloned;

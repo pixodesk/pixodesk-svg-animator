@@ -27,7 +27,7 @@ export const TEXT_CONTENT_ATTR = 'textContent';
 
 // Attributes that should not be set on DOM elements (internal use only)
 export const INTERNAL_ATTRS = new Set([
-    'type', 'children', ANIMATE_ATTR, 'animator', 'meta', 'definitions', 'bindings', TEXT_ATTR, TEXT_CONTENT_ATTR
+    'type', 'children', ANIMATE_ATTR, 'animator', 'meta', TEXT_ATTR, TEXT_CONTENT_ATTR
 ]);
 
 
@@ -317,6 +317,41 @@ const _ck_PxTrigger: KeysMatch<PxTrigger, _PxTrigger> = true; // the key sets ar
 
 
 // ============================================================================
+// DEFS
+// ============================================================================
+
+/**
+ * Reusable definitions library for easings, animations, and styles.
+ * Defined once here, referenced by name on elements.
+ */
+export interface _PxDefs {
+
+    /** Named cubic-bezier easing functions */
+    easings?: { [name: string]: [number, number, number, number]; };
+
+    /** Named animation definitions that can be referenced by elements */
+    animations?: { [name: string]: PxAnimationDefinition; };
+
+    /**
+     * FIXME - do we need it?
+     * Named style presets for common styling patterns
+     */
+    styles?: { [name: string]: Record<string, string | number>; };
+}
+
+// `{ easings?:Record<name,[x1,y1,x2,y2]>, animations?:Record<name,AnimationDefinition>, styles?:Record<string,any> }`
+export const PxDefsSchema = implementsInterface<_PxDefs>()(px.object({
+    easings: px.record(px.tuple([px.number(), px.number(), px.number(), px.number()] as const)).optional(),
+    animations: px.record(PxAnimationDefinitionSchema).optional(),
+    styles: px.record(px.any()).optional(),
+}));
+
+/** Reusable definitions library for easings, animations, and styles. */
+export type PxDefs = PxInfer<typeof PxDefsSchema>;
+const _ck_PxDefs: KeysMatch<PxDefs, _PxDefs> = true; // the key sets are identical
+
+
+// ============================================================================
 // ANIMATOR CONFIG
 // ============================================================================
 
@@ -365,12 +400,24 @@ export interface _PxAnimatorConfig {
     /** Trigger configuration for when animation should start */
     trigger?: PxTrigger;
 
+    /** Named easings, animations, and styles — referenced by elements */
+    definitions?: PxDefs;
+
+    /**
+     * Animation map for pre-rendered SVG elements (Mode B).
+     * Maps element IDs to their animation specs. Used when the SVG DOM already exists
+     * and the player only needs to animate existing elements.
+     *
+     * @example { "_px_abc": { opacity: { keyframes: [...] } }, "_px_def": ["fadeIn"] }
+     */
+    animate?: Record<string, PxElementAnimation>;
+
     debug?: boolean;         // FIXME - implement
 
     debugInstName?: string;  // FIXME - implement
 }
 
-// `{ mode?, duration?, delay?, iterations?, fill?, direction?, frameRate?, trigger?, debug?, debugInstName? }`
+// `{ mode?, duration?, delay?, iterations?, fill?, direction?, frameRate?, trigger?, definitions?, animate?, debug?, debugInstName? }`
 export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(px.object({
     mode: px.enum(['auto', 'webapi', 'frames'] as const).optional(),
     duration: px.number().optional(),
@@ -380,6 +427,8 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
     direction: px.enum(['normal', 'reverse', 'alternate', 'alternate-reverse'] as const).optional(),
     frameRate: px.number().optional(),
     trigger: PxTriggerSchema.optional(),
+    definitions: PxDefsSchema.optional(),
+    animate: px.record(PxElementAnimationSchema).optional(),
     debug: px.boolean().optional(),
     debugInstName: px.string().optional(),
 }));
@@ -390,41 +439,6 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
  */
 export type PxAnimatorConfig = PxInfer<typeof PxAnimatorConfigSchema>;
 const _ck_PxAnimatorConfig: KeysMatch<PxAnimatorConfig, _PxAnimatorConfig> = true; // the key sets are identical
-
-
-// ============================================================================
-// DEFS
-// ============================================================================
-
-/**
- * Reusable definitions library for easings, animations, and styles.
- * Defined once here, referenced by name on elements.
- */
-export interface _PxDefs {
-
-    /** Named cubic-bezier easing functions */
-    easings?: { [name: string]: [number, number, number, number]; };
-
-    /** Named animation definitions that can be referenced by elements */
-    animations?: { [name: string]: PxAnimationDefinition; };
-
-    /**
-     * FIXME - do we need it?
-     * Named style presets for common styling patterns
-     */
-    styles?: { [name: string]: Record<string, string | number>; };
-}
-
-// `{ easings?:Record<name,[x1,y1,x2,y2]>, animations?:Record<name,AnimationDefinition>, styles?:Record<string,any> }`
-export const PxDefsSchema = implementsInterface<_PxDefs>()(px.object({
-    easings: px.record(px.tuple([px.number(), px.number(), px.number(), px.number()] as const)).optional(),
-    animations: px.record(PxAnimationDefinitionSchema).optional(),
-    styles: px.record(px.any()).optional(),
-}));
-
-/** Reusable definitions library for easings, animations, and styles. */
-export type PxDefs = PxInfer<typeof PxDefsSchema>;
-const _ck_PxDefs: KeysMatch<PxDefs, _PxDefs> = true; // the key sets are identical
 
 
 // ============================================================================
@@ -548,12 +562,6 @@ export interface _PxSvgNode extends PxNode {
     /** Global animation configuration */
     animator?: PxAnimatorConfig;
 
-    /** Named easings, animations, and styles — referenced by elements */
-    definitions?: PxDefs;
-
-    /** Animation bindings for pre-rendered DOM elements */
-    bindings?: PxBinding[];
-
     design?: PxNode;
 }
 
@@ -561,15 +569,13 @@ export interface _PxSvgNode extends PxNode {
  * Extra fields present on the root SVG node, on top of PxNode.
  * Excludes `design` (circular reference to PxNode). Used for type extraction via PxInfer.
  *
- * `{ width?:number, height?:number, viewBox?:string, animator?:AnimatorConfig, definitions?:Defs, bindings?:Binding[] }`
+ * `{ width?:number, height?:number, viewBox?:string, animator?:AnimatorConfig }`
  */
 export const PxSvgNodeExtra = px.object({
     width: px.number().optional(),
     height: px.number().optional(),
     viewBox: px.string().optional(),
     animator: PxAnimatorConfigSchema.optional(),
-    definitions: PxDefsSchema.optional(),
-    bindings: px.array(PxBindingSchema).optional(),
 });
 
 /**
@@ -592,8 +598,7 @@ export interface PxSvgNode extends PxNode, PxInfer<typeof PxSvgNodeExtra> {
  * This is the root type for the entire file format.
  *
  * `{ type:'svg', animate?:ElementAnimation, style?:…, width?:number, height?:number,
- *    viewBox?:string, animator?:AnimatorConfig, definitions?:Defs, bindings?:Binding[],
- *    children?:PxNode[], design?:PxNode }`
+ *    viewBox?:string, animator?:AnimatorConfig, children?:PxNode[], design?:PxNode }`
  */
 export const PxAnimatedSvgDocumentSchema = px.object({
     ...PxNodeBase._shape,
@@ -761,12 +766,14 @@ export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorConfig 
 
 export function getDefs(doc: PxAnimatedSvgDocument): PxDefs | undefined {
     if (!doc) return undefined;
-    return doc.definitions || doc.meta?.definitions;
+    return getAnimatorConfig(doc)?.definitions;
 }
 
 export function getBindings(doc: PxAnimatedSvgDocument): PxBinding[] | undefined {
     if (!doc) return undefined;
-    return doc.bindings || doc.meta?.bindings;
+    const animate = getAnimatorConfig(doc)?.animate;
+    if (!animate) return undefined;
+    return Object.entries(animate).map(([id, anim]) => ({ id, animate: anim }));
 }
 
 // FIXME - do we need it?

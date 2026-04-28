@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { INTERNAL_ATTRS, TEXT_ATTR, TEXT_CONTENT_ATTR, type PxDefs, type PxNode } from './PxAnimatorTypes';
+import { getDefs, INTERNAL_ATTRS, TEXT_ATTR, TEXT_CONTENT_ATTR, type PxAnimatedSvgDocument, type PxDefs, type PxNode } from './PxAnimatorTypes';
 import { camelCaseToKebabWordIfNeeded, COLOUR_ATTR_NAMES, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 
 
@@ -221,7 +221,7 @@ export function renderNode(node: PxNode, defs?: PxDefs): Element | null {
     const { type, children, animate, style, ...props } = node;
 
     // Extract defs from root svg node
-    const nodeDefs = (node as any).definitions || defs;
+    const nodeDefs = getDefs(node as PxAnimatedSvgDocument) || defs;
 
     // Resolve style reference
     const resolvedStyle = resolveStyle(style, nodeDefs);

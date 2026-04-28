@@ -44,7 +44,7 @@ describe('animateBackground', () => {
         // Double the duration so keyframes occupy first half → loop fills second half
         json.animator!.duration = 256;
         // Add loop:true to the translate property
-        json.bindings![0].animate!['translate'].loop = true;
+        (json.animator!.animate as any)['_px_2pp00tnc']['translate'].loop = true;
 
         createAnimator({ data: json, container: '#svg-container' });
 
@@ -294,19 +294,20 @@ describe('Loop expansion', () => {
     it('no gap: loop is no-op when keyframes span full duration', () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg',
-            animator: { duration: 100 },
-            bindings: [{
-                id: 'el1',
+            animator: {
+                duration: 100,
                 animate: {
-                    opacity: {
-                        keyframes: [
-                            { time: 0, value: 0 },
-                            { time: 100, value: 1 }
-                        ],
-                        loop: true
+                    'el1': {
+                        opacity: {
+                            keyframes: [
+                                { time: 0, value: 0 },
+                                { time: 100, value: 1 }
+                            ],
+                            loop: true
+                        }
                     }
                 }
-            }]
+            }
         };
 
         const animDef = getTranslateAnim(doc);
@@ -518,13 +519,9 @@ function getTestJson(): PxAnimatedSvgDocument {
             duration: 128,
             fill: 'forwards',
             direction: 'normal',
-            trigger: { startOn: 'load' }
-        },
-
-        bindings: [
-            {
-                id: '_px_2pp00tnc',
-                animate: {
+            trigger: { startOn: 'load' },
+            animate: {
+                '_px_2pp00tnc': {
                     translate: {
                         keyframes: [
                             { time: 0, value: [200, 100], easing: [0.167, 0.167, 0.833, 0.833] },
@@ -533,7 +530,7 @@ function getTestJson(): PxAnimatedSvgDocument {
                     }
                 }
             }
-        ],
+        },
 
         children: [
             {
