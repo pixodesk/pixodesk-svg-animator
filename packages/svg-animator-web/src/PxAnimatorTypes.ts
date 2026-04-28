@@ -112,6 +112,21 @@ const _ck_PxKeyframe: KeysMatch<PxKeyframe, _PxKeyframe> = true; // the key sets
  * The repeated segment is a contiguous run of keyframe *intervals* (gaps between consecutive
  * keyframes). Which end of the sequence is repeated is controlled by `before`, and whether
  * each repetition plays in the same direction or alternates is controlled by `alternate`.
+ *
+ * **Relationship to `animator.iterations`**
+ *
+ * `PxLoop` and `animator.iterations` are independent mechanisms operating at different levels:
+ *
+ * - `PxLoop` is a **pre-processing step**: it expands the property's keyframe list to fill the
+ *   full `animator.duration` before any playback begins. The runtime sees a single, fully
+ *   expanded keyframe sequence — it has no knowledge of the loop.
+ *
+ * - `animator.iterations` repeats the **entire document timeline** (all properties, all
+ *   elements) as a unit, after the expanded keyframes are already in place.
+ *
+ * The two compose independently: a property with `loop: true` inside a document with
+ * `iterations: "infinite"` will cycle its own segment within each document iteration, and
+ * that iteration will itself repeat forever — loop-within-loop.
  */
 export interface _PxLoop {
 
@@ -180,8 +195,15 @@ export interface _PxPropertyAnimation {
     /** Short alias for "keyframes" */
     kfs?: PxKeyframe[];
 
-    /** Optional loop configuration. When set, the keyframe sequence is extended beyond its defined
-     *  range by repeating a chosen segment. See {@link PxLoop} for details. */
+    /**
+     * Optional loop configuration. When set, the keyframe sequence is expanded at pre-processing
+     * time to fill the gap between the keyframe range and `animator.duration` by repeating a
+     * chosen segment. `true` is shorthand for the default {@link PxLoop} (loop the last segment
+     * after the final keyframe, cycling forward). See {@link PxLoop} for details.
+     *
+     * Note: this operates independently of `animator.iterations` — see {@link _PxLoop} for the
+     * interaction between the two.
+     */
     loop?: PxLoop | boolean;
 }
 
@@ -313,7 +335,15 @@ export interface _PxAnimatorConfig {
     /** Delay before animation starts in milliseconds */
     delay?: number;
 
-    /** Number of times to repeat the animation. Use "infinite" for endless loop. */
+    /**
+     * Number of times to repeat the entire document timeline. Use `"infinite"` for endless loop.
+     *
+     * This repeats **all properties across all elements** as a unit. It is independent of
+     * per-property `loop` configuration: if a property uses `loop`, its keyframes are already
+     * expanded to fill `duration` before `iterations` takes effect — the two do not interfere,
+     * but they do compose (a looping property inside an infinitely iterating document loops
+     * within each iteration).
+     */
     iterations?: number | "infinite";
 
     /**
