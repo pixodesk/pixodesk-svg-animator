@@ -274,10 +274,12 @@ const doc = {
         trigger: { startOn: 'load', outAction: 'pause' },
         definitions: {
             easings: {
-                smooth: [0.42, 0, 0.58, 1],  // name → [x1,y1,x2,y2]
+                'smooth': [0.42, 0, 0.58, 1],  // name → [x1,y1,x2,y2]
             },
             animations: {
-                fadeIn: { opacity: { keyframes: [{ t: 0, v: 0 }, { t: 2000, v: 1 }] } },
+                'fadeIn': { 
+                    opacity: { keyframes: [{ time: 0, value: 0 }, { time: 2000, value: 1 }] } 
+                },
             },
         },
     },
@@ -298,8 +300,8 @@ const doc = {
             animate: {
                 fill: {
                     keyframes: [
-                        { t: 0,    v: '#3b82f6' },
-                        { t: 2000, v: '#ec4899', e: 'smooth' },
+                        { time: 0,    value: '#3b82f6' },
+                        { time: 2000, value: '#ec4899', easing: 'smooth' },
                     ],
                 },
             },
@@ -309,15 +311,15 @@ const doc = {
         // one CSS transform fn per nesting level — compose by nesting, not by listing
         {
             type: 'g',
-            animate: { translate: { keyframes: [{ t: 0, v: [460, 90] }, { t: 2000, v: [540, 90] }] } },
+            animate: { translate: { keyframes: [{ time: 0, value: [460, 90] }, { time: 2000, value: [540, 90] }] } },
             children: [{
                 type: 'g',
                 animate: {
                     scale: {
                         keyframes: [
-                            { t: 0,    v: [1,   1  ] },
-                            { t: 1000, v: [1.3, 1.3] },
-                            { t: 2000, v: [1,   1  ] },
+                            { time: 0,    value: [1,   1  ] },
+                            { time: 1000, value: [1.3, 1.3] },
+                            { time: 2000, value: [1,   1  ] },
                         ],
                         loop: true,  // repeat last segment to fill animator.duration
                     },
@@ -326,7 +328,7 @@ const doc = {
                     type: 'g',
                     animate: {
                         rotate: {
-                            keyframes: [{ t: 0, v: 0 }, { t: 1000, v: 360 }],
+                            keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 360 }],
                             loop: { segmentCount: 1, before: false, alternate: false },
                         },
                     },
@@ -343,8 +345,8 @@ const doc = {
             animate: {
                 d: {
                     keyframes: [
-                        { t: 0,    v: 'M-50,0 L0,-50 L50,0 L0,50 Z'       },
-                        { t: 2000, v: 'M-50,-50 L50,-50 L50,50 L-50,50 Z' },
+                        { time: 0,    value: 'M-50,0 L0,-50 L50,0 L0,50 Z'       },
+                        { time: 2000, value: 'M-50,-50 L50,-50 L50,50 L-50,50 Z' },
                     ],
                 },
             },
@@ -358,8 +360,8 @@ const doc = {
             animate: {
                 'stroke-dasharray': {
                     keyframes: [
-                        { t: 0,    v: [0,   300] },
-                        { t: 2000, v: [300, 300] },
+                        { time: 0,    value: [0,   300] },
+                        { time: 2000, value: [300, 300] },
                     ],
                 },
             },
@@ -453,36 +455,42 @@ The `data` object passed to `createAnimator` is the same `PxAnimatedSvgDocument`
             trigger: { startOn: 'load', outAction: 'pause' },
             definitions: {
                 easings: {
-                    smooth: [0.42, 0, 0.58, 1],
+                    'smooth': [0.42, 0, 0.58, 1],
                 },
                 animations: {
-                    fadeIn:     { opacity:            { keyframes: [
-                        { t: 0, v: 0 }, 
-                        { t: 2000, v: 1 }] } },
-                    colorShift: { fill:               { keyframes: [
-                        { t: 0, v: '#3b82f6' }, 
-                        { t: 2000, v: '#ec4899', e: 'smooth' }] } },
-                    slideIn:    { translate:          { keyframes: [
-                        { t: 0, v: [-80, 0] }, 
-                        { t: 2000, v: [0, 0] }] } },
-                    pulse:      { scale:              { 
-                      keyframes: [
-                        { t: 0, v: [1, 1] }, 
-                        { t: 1000, v: [1.2, 1.2] }, 
-                        { t: 2000, v: [1, 1] }
-                      ], 
-                      loop: true 
+                    'fadeIn':     { 
+                          opacity:            { keyframes: [
+                              { time: 0, value: 0 }, 
+                              { time: 2000, value: 1 }] } },
+                    'colorShift': { 
+                          fill:               { keyframes: [
+                              { time: 0, value: '#3b82f6' }, 
+                              { time: 2000, value: '#ec4899', easing: 'smooth' }] } },
+                    'slideIn':    { 
+                          translate:          { keyframes: [
+                              { time: 0, value: [-80, 0] }, 
+                              { time: 2000, value: [0, 0] }] } },
+                    'pulse':      { 
+                          scale:              { 
+                              keyframes: [
+                                  { time: 0, value: [1, 1] }, 
+                                  { time: 1000, value: [1.2, 1.2] }, 
+                                  { time: 2000, value: [1, 1] }
+                              ], 
+                              loop: true 
+                          } 
+                    },
+                    'spin':       { 
+                          rotate:             { 
+                              keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 360 }], 
+                              loop: { segmentCount: 1, before: false, alternate: false } 
                     } },
-                    spin:       { rotate:             { 
-                      keyframes: [{ t: 0, v: 0 }, { t: 1000, v: 360 }], 
-                      loop: { segmentCount: 1, before: false, alternate: false } 
-                    } },
-                    morph:      { d:                  { keyframes: [
-                        { t: 0, v: 'M-50,0 L0,-50 L50,0 L0,50 Z' }, 
-                        { t: 2000, v: 'M-50,-50 L50,-50 L50,50 L-50,50 Z' }] } },
-                    draw:       { 'stroke-dasharray': { keyframes: [
-                        { t: 0, v: [0, 300] },
-                        { t: 2000, v: [300, 300] }] 
+                    'morph':      { d:                  { keyframes: [
+                        { time: 0, value: 'M-50,0 L0,-50 L50,0 L0,50 Z' }, 
+                        { time: 2000, value: 'M-50,-50 L50,-50 L50,50 L-50,50 Z' }] } },
+                    'draw':       { 'stroke-dasharray': { keyframes: [
+                        { time: 0, value: [0, 300] },
+                        { time: 2000, value: [300, 300] }] 
                     } },
                 },
             },
@@ -490,8 +498,8 @@ The `data` object passed to `createAnimator` is the same `PxAnimatedSvgDocument`
                 _px_rect:    'fadeIn',                              // single named ref
                 _px_ellipse: ['colorShift', 'slideIn'],             // array of refs
                 _px_group:   ['pulse', { translate: { keyframes: [  // mixed
-                    { t: 0, v: [0, 0] }, 
-                    { t: 2000, v: [40, 0] }
+                    { time: 0, value: [0, 0] }, 
+                    { time: 2000, value: [40, 0] }
                 ] } }],
                 _px_icon:    'spin',
                 _px_morph:   'morph',
