@@ -569,6 +569,32 @@ export function schemaKeys<S extends { readonly _shape: Record<string, any> }>(s
     ) as { [K in keyof S['_shape']]: K };
 }
 
+/**
+ * Describes the structural kind of a schema for traversal purposes.
+ * Use with `getMissingCoveragePaths` or similar tree-walking utilities.
+ *
+ * - `shape`    — object schema (Obj/OpenObj); `shape` maps key → sub-schema
+ * - `array`    — array schema; `item` is the element schema
+ * - `optional` — optional wrapper; `inner` is the wrapped schema
+ * - `lazy`     — lazy/recursive schema; `resolved` is the resolved schema (cached)
+ * - `leaf`     — primitive, union, record, any, tuple — no traversable children
+ */
+export type PxSchemaDesc =
+    | { kind: 'shape';    shape: Record<string, PxSchema<any, any>> }
+    | { kind: 'array';    item: PxSchema<any, any> }
+    | { kind: 'optional'; inner: PxSchema<any, any> }
+    | { kind: 'lazy';     resolved: PxSchema<any, any> }
+    | { kind: 'leaf' };
+
+export function describeSchema(schema: PxSchema<any, any>): PxSchemaDesc {
+    const s = schema as any;
+    if ('_shape' in s) return { kind: 'shape',    shape: s._shape };
+    if ('item'   in s) return { kind: 'array',    item: s.item };
+    if ('inner'  in s) return { kind: 'optional', inner: s.inner };
+    if ('fn'     in s) return { kind: 'lazy',     resolved: s.resolved ?? s.fn() };
+    return { kind: 'leaf' };
+}
+
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Public factory
