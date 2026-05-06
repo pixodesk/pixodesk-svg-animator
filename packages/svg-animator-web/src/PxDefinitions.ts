@@ -7,6 +7,7 @@ import {
     getAnimatorConfig,
     getBindings,
     getDefs,
+    INTERNAL_ATTRS,
     type PxAnimatedSvgDocument,
     type PxAnimationDefinition,
     type PxBezierPath,
@@ -610,13 +611,30 @@ export function getNormalisedBindings(doc: PxAnimatedSvgDocument): PxBinding[] {
         }
     }
 
-    // Process children (for rendered DOM)
+    // Process children (for rendered DOM).
+    //
+    // In the in-place format, animations live on element-body keys whose value is a
+    // PxPropertyAnimation object (`{ keyframes: [...] }` / `{ kfs: [...] }`) rather
+    // than under a separate `animate` slot. We collect those keys into an inline
+    // PxAnimationDefinition and feed it to processAnimation.
     const processNode = (node: PxNode) => {
-        // Generate a selector for this node based on id
-        if (node.animate) {
-            const nodeId = node.id || generateElementId(); // FIXME - make sure that it wasn't in the config already
+        const inlineAnim: Record<string, PxPropertyAnimation> = {};
+        let hasAnim = false;
+        for (const key of Object.keys(node)) {
+            if (INTERNAL_ATTRS.has(key) || key === 'id' || key === 'style') continue;
+            const value = (node as any)[key];
+            if (
+                value !== null && typeof value === 'object' && !Array.isArray(value) &&
+                (Array.isArray((value as any).keyframes) || Array.isArray((value as any).kfs))
+            ) {
+                inlineAnim[key] = value as PxPropertyAnimation;
+                hasAnim = true;
+            }
+        }
+        if (hasAnim) {
+            const nodeId = node.id || generateElementId();
             node.id = nodeId; // Ensure the node has an ID
-            const normalized = processAnimation(nodeId, node.animate);
+            const normalized = processAnimation(nodeId, inlineAnim as PxAnimationDefinition);
             if (normalized) bindings.push(normalized);
         }
 

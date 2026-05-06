@@ -6,7 +6,7 @@
 import { renderNode } from './PxAnimatorDOM';
 import { createFrameLoopAnimator, PxPlatformAdapter } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
-import { ANIMATE_ATTR, getAnimatorConfig, isPxElementFileFormat, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
+import { getAnimatorConfig, isPxElementFileFormat, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
 
 
@@ -174,9 +174,10 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
                     }
                 }
             }
-            // Recursively process nested objects (meta contains baseId/targetId refs)
-            // Skip 'animate' as it contains animation data, not ID references
-            else if (typeof value === 'object' && value !== null && key !== ANIMATE_ATTR) {
+            // Recursively process nested objects (meta contains baseId/targetId refs;
+            // in-place animated values like { keyframes: [{ value: "url(#grad)" }] }
+            // also need ref rewriting on string values they contain).
+            else if (typeof value === 'object' && value !== null) {
                 updateRefs(value);
             }
         }

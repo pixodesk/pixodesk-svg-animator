@@ -21,13 +21,12 @@ export type OutAction = 'continue' | 'pause' | 'reset' | 'reverse';
 export type JsMode = "auto" | "webapi" | "frames";
 
 
-export const ANIMATE_ATTR = 'animate';
 export const TEXT_ATTR = 'text';
 export const TEXT_CONTENT_ATTR = 'textContent';
 
 // Attributes that should not be set on DOM elements (internal use only)
 export const INTERNAL_ATTRS = new Set([
-    'type', 'children', ANIMATE_ATTR, 'animator', 'meta', TEXT_ATTR, TEXT_CONTENT_ATTR
+    'type', 'children', 'animator', 'meta', TEXT_ATTR, TEXT_CONTENT_ATTR
 ]);
 
 
@@ -477,6 +476,24 @@ const _ck_PxBinding: KeysMatch<PxBinding, _PxBinding> = true; // the key sets ar
 // ============================================================================
 
 /**
+ * Per-attribute value shape on the element body. A property key carries either:
+ * - a primitive (string/number) — static SVG attribute
+ * - a {keyframes}/{kfs} object — inline property animation (in-place)
+ *
+ * Static parametric sources (`{value: …}`) live only inside `meta.attributes`,
+ * not on the element body, so the player schema does not include them here.
+ */
+export const PxAttrValueSchema = px.union([
+    px.string(),
+    px.number(),
+    PxPropertyAnimationSchema,
+]);
+
+/** Per-attribute value: primitive for static, PxPropertyAnimation for animated. */
+export type PxAttrValue = string | number | PxPropertyAnimation;
+
+
+/**
  * Base interface for all SVG elements.
  * Named properties take precedence over the index signature when accessed.
  */
@@ -488,9 +505,6 @@ export interface _PxNode {
     /** Child elements (for container elements like <g>) */
     children?: PxNode[];
 
-    /** Animation applied to this element */
-    animate?: PxElementAnimation;
-
     /** Meta informaion about this element */
     meta?: any;
 
@@ -500,24 +514,28 @@ export interface _PxNode {
      */
     style?: string | Record<string, string | number>;
 
-    /** All other SVG attributes (cx, cy, r, fill, stroke, etc.) */
+    /**
+     * All other SVG attributes (cx, cy, r, fill, stroke, etc.).
+     * A value is either a primitive (static) or a PxPropertyAnimation (in-place
+     * animation `{keyframes: [...]}` / `{kfs: [...]}`).
+     */
     [key: string]: any;
 }
 
 /**
  * Base shape for all SVG element nodes.
- * Open object: validated known keys + arbitrary SVG attributes passed through unchanged (cx, cy, r, fill, stroke, …).
+ * Open object: validated known keys + arbitrary SVG attributes whose values are
+ * either primitives (static) or PxPropertyAnimation objects (in-place animation).
  * Non-recursive — excludes `children` (circular reference). Used for type extraction via PxInfer.
  *
- * `{ type:string, animate?:ElementAnimation, style?:string|Record<string,string|number>, [key:string]:any }`
+ * `{ type:string, style?:…, [key:string]: string|number|PxPropertyAnimation }`
  */
 export const PxNodeBase = px.openObject({
     type: px.string(),
     id: px.string().optional(),
-    animate: PxElementAnimationSchema.optional(),
     meta: px.any().optional(),
     style: px.union([px.string(), px.record(px.union([px.string(), px.number()]))]).optional(),
-}, px.union([px.string(), px.number()]));
+}, PxAttrValueSchema);
 
 // `let` so the lazy closure can capture the variable reference after assignment.
 // By the time the lazy resolves (first isValid/sanitize call), PxNodeSchema is assigned.
@@ -525,7 +543,7 @@ export const PxNodeBase = px.openObject({
 let PxNodeSchema: PxSchema<any> = px.openObject({
     ...PxNodeBase._shape,
     children: px.lazy(() => px.array(PxNodeSchema), []).optional(),
-}, px.union([px.string(), px.number()]));
+}, PxAttrValueSchema);
 export { PxNodeSchema };
 
 /**
@@ -593,8 +611,9 @@ export interface PxSvgNode extends PxNode, PxInfer<typeof PxSvgNodeExtra> {
  * Root SVG document schema. Enforces `type === 'svg'` to distinguish from child nodes.
  * This is the root type for the entire file format.
  *
- * `{ type:'svg', animate?:ElementAnimation, style?:…, width?:number, height?:number,
- *    viewBox?:string, animator?:AnimatorConfig, children?:PxNode[] }`
+ * `{ type:'svg', style?:…, width?:number, height?:number,
+ *    viewBox?:string, animator?:AnimatorConfig, children?:PxNode[],
+ *    [svgAttr]: string|number|PxPropertyAnimation }`
  */
 export const PxAnimatedSvgDocumentSchema = px.object({
     ...PxNodeBase._shape,

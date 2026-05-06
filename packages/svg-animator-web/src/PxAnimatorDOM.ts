@@ -195,6 +195,16 @@ export function getNormalizedProps(props: Record<string, any>) {
 
         let value = props[key];
 
+        // In-place property animation: { keyframes: [...] } / { kfs: [...] }.
+        // Skipped here — applied separately by the animation engine. The static
+        // initial value is encoded by the animator (typically keyframes[0].value).
+        if (
+            value !== null && typeof value === 'object' && !Array.isArray(value) &&
+            (Array.isArray(value.keyframes) || Array.isArray(value.kfs))
+        ) {
+            continue;
+        }
+
         if (COLOUR_ATTR_NAMES.has(key) && Array.isArray(value)) {
             propsCopy[key] = toRGBA(value);
         } else if (TRANSFORM_FN_NAMES.has(key)) {
@@ -218,7 +228,7 @@ export function getNormalizedProps(props: Record<string, any>) {
 export function renderNode(node: PxNode, defs?: PxDefs): Element | null {
     if (!node) return null;
 
-    const { type, children, animate, style, ...props } = node;
+    const { type, children, style, ...props } = node;
 
     // Extract defs from root svg node
     const nodeDefs = getDefs(node as PxAnimatedSvgDocument) || defs;

@@ -86,6 +86,49 @@ describe('animateBackground', () => {
         console.log('svg?.children.length', svg?.children.length);
         expect(svg?.innerHTML).toBe('<ellipse fill="#0087ff"></ellipse>');
     });
+
+    it('In-place property animation on element body (Mode A)', async () => {
+
+        createAnimator({
+            data: {
+                type: 'svg',
+                viewBox: '0 0 400 400',
+                animator: {
+                    mode: 'frames',
+                    duration: 128,
+                    fill: 'forwards',
+                    direction: 'normal',
+                    trigger: { startOn: 'load' }
+                },
+                children: [
+                    {
+                        type: 'ellipse',
+                        id: '_px_inplace_test',
+                        cx: 200, cy: 200, rx: 50, ry: 50,
+                        // In-place animated property — no `animate` group on element
+                        translate: {
+                            keyframes: [
+                                { time: 0, value: [200, 100] },
+                                { time: 128, value: [200, 200] }
+                            ]
+                        }
+                    }
+                ]
+            },
+            container: '#svg-container'
+        });
+
+        const ellipse = document.querySelector('ellipse');
+        expect(ellipse).not.toBeNull();
+
+        // Halfway through animation
+        vi.advanceTimersByTime(64);
+        expect(ellipse?.getAttribute('transform')).toMatch('translate(200,150)');
+
+        // End of animation
+        vi.advanceTimersByTime(64);
+        expect(ellipse?.getAttribute('transform')).toMatch('translate(200,200)');
+    });
 });
 
 
