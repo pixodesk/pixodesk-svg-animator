@@ -7,7 +7,6 @@ import {
     getAnimatorConfig,
     getBindings,
     getDefs,
-    INTERNAL_ATTRS,
     type PxAnimatedSvgDocument,
     type PxAnimationDefinition,
     type PxBezierPath,
@@ -615,28 +614,17 @@ export function getNormalisedBindings(doc: PxAnimatedSvgDocument): PxBinding[] {
 
     // Process children (for rendered DOM).
     //
-    // In the in-place format, animations live on element-body keys whose value is a
-    // PxPropertyAnimation object (`{ keyframes: [...] }` / `{ kfs: [...] }`) rather
-    // than under a separate `animate` slot. We collect those keys into an inline
-    // PxAnimationDefinition and feed it to processAnimation.
+    // Per-element animations live under the node's `animate` bucket, keyed by
+    // SVG/CSS property name — a PxAnimationDefinition (`{ transform: {keyframes},
+    // fill: {keyframes}, … }`). The static initial value of each animated
+    // property is carried separately as a plain attribute on the element body.
+    // On-disk locations: top-level `node.animate` (JSON form).
     const processNode = (node: PxNode) => {
-        const inlineAnim: Record<string, PxPropertyAnimation> = {};
-        let hasAnim = false;
-        for (const key of Object.keys(node)) {
-            if (INTERNAL_ATTRS.has(key) || key === 'id' || key === 'style') continue;
-            const value = (node as any)[key];
-            if (
-                value !== null && typeof value === 'object' && !Array.isArray(value) &&
-                (Array.isArray((value as any).keyframes) || Array.isArray((value as any).kfs))
-            ) {
-                inlineAnim[key] = value as PxPropertyAnimation;
-                hasAnim = true;
-            }
-        }
-        if (hasAnim) {
+        const inlineAnim = node.animate;
+        if (inlineAnim && Object.keys(inlineAnim).length > 0) {
             const nodeId = node.id || generateElementId();
             node.id = nodeId; // Ensure the node has an ID
-            const normalized = processAnimation(nodeId, inlineAnim as PxAnimationDefinition);
+            const normalized = processAnimation(nodeId, inlineAnim);
             if (normalized) bindings.push(normalized);
         }
 

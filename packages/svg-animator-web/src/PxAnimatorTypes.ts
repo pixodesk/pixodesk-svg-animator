@@ -26,7 +26,7 @@ export const TEXT_CONTENT_ATTR = 'textContent';
 
 // Attributes that should not be set on DOM elements (internal use only)
 export const INTERNAL_ATTRS = new Set([
-    'type', 'children', 'animator', 'meta', TEXT_ATTR, TEXT_CONTENT_ATTR
+    'type', 'children', 'animator', 'meta', 'animate', TEXT_ATTR, TEXT_CONTENT_ATTR
 ]);
 
 
@@ -673,6 +673,14 @@ export interface _PxNode {
     meta?: any;
 
     /**
+     * In-place property animations for this element, keyed by SVG/CSS property
+     * name (e.g. "transform", "fill", "opacity"). Each value is a
+     * PxPropertyAnimation (`{keyframes}` / `{kfs}`). The static initial value of
+     * an animated property is still carried as a plain attribute on the body.
+     */
+    animate?: PxAnimationDefinition;
+
+    /**
      * FIXME - do we need it?
      * Style applied to this element (named reference or inline object)
      */
@@ -698,6 +706,7 @@ export const PxNodeBase = px.openObject({
     type: px.string(),
     id: px.string().optional(),
     meta: px.any().optional(),
+    animate: PxAnimationDefinitionSchema.optional(),
     style: px.union([px.string(), px.record(px.union([px.string(), px.number()]))]).optional(),
 }, PxAttrValueSchema);
 

@@ -195,16 +195,6 @@ export function getNormalizedProps(props: Record<string, any>) {
 
         let value = props[key];
 
-        // In-place property animation: { keyframes: [...] } / { kfs: [...] }.
-        // Skipped here — applied separately by the animation engine. The static
-        // initial value is encoded by the animator (typically keyframes[0].value).
-        if (
-            value !== null && typeof value === 'object' && !Array.isArray(value) &&
-            (Array.isArray(value.keyframes) || Array.isArray(value.kfs))
-        ) {
-            continue;
-        }
-
         if (COLOUR_ATTR_NAMES.has(key) && Array.isArray(value)) {
             propsCopy[key] = toRGBA(value);
         } else if (

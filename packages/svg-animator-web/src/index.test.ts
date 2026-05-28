@@ -105,12 +105,14 @@ describe('animateBackground', () => {
                         type: 'ellipse',
                         id: '_px_inplace_test',
                         cx: 200, cy: 200, rx: 50, ry: 50,
-                        // In-place animated property — no `animate` group on element
-                        translate: {
-                            keyframes: [
-                                { time: 0, value: [200, 100] },
-                                { time: 128, value: [200, 200] }
-                            ]
+                        // Per-element animation lives under the `animate` bucket, keyed by property.
+                        animate: {
+                            translate: {
+                                keyframes: [
+                                    { time: 0, value: [200, 100] },
+                                    { time: 128, value: [200, 200] }
+                                ]
+                            }
                         }
                     }
                 ]
