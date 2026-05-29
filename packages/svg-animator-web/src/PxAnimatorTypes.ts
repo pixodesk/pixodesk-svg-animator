@@ -125,9 +125,14 @@ export type _PxKeyframeValue =
     | number
     | Array<number>
     | PxTransformParts
+    | { path: string }
     | { paths: Array<PxBezierPath> };
 
-// `string | number | Array<number> | PxTransformParts | { paths: BezierPath[] }`
+// `string | number | Array<number> | PxTransformParts | { path: string } | { paths: BezierPath[] }`
+//
+// `{ path: "M…" }` is the unified single-`d`-string form for animated paths
+// (compound shapes are one string with multiple `M…` sub-paths); `{ paths: […] }`
+// is the legacy bezier-array form, both accepted.
 //
 // `PxTransformPartsSchema` / `PxBezierPathSchema` are declared later in this
 // file — `px.lazy` defers the lookup until validation time so the declarations
@@ -137,6 +142,7 @@ export const PxKeyframeValueSchema = implementsInterface<_PxKeyframeValue>()(px.
     px.number(),
     px.array(px.number()),
     px.lazy<PxTransformParts>(() => PxTransformPartsSchema, {}),
+    px.object({ path: px.string() }),
     px.lazy<{ paths: Array<PxBezierPath> }>(() => px.object({ paths: px.array(PxBezierPathSchema) }), { paths: [] }),
 ]));
 

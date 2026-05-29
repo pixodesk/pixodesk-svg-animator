@@ -153,6 +153,7 @@ function isPathString(value: any): value is string {
 /**
  * Normalizes a 'd' attribute value to { paths: PxBezierPath[] } format.
  * Handles:
+ * - { path: "M..." } / { path: "path(...)" } -> { paths: [PxBezierPath] }  (unified single-string form)
  * - { paths: ["path(...)"] } -> { paths: [PxBezierPath] }
  * - { paths: ["M..."] } -> { paths: [PxBezierPath] }
  * - ["path(...)"] -> { paths: [PxBezierPath] }
@@ -162,6 +163,12 @@ function isPathString(value: any): value is string {
  * - { paths: [PxBezierPath] } -> as-is
  */
 function normalizePathValue(value: any): { paths: Array<PxBezierPath> } | any {
+    // Unified single-string form: { path: "M..." } (compound = multiple `M…` sub-paths in one string).
+    if (value && typeof value === 'object' && typeof value.path === 'string') {
+        const d = extractPathData(value.path);
+        return d ? { paths: parseSvgPathToBezier(d) } : value;
+    }
+
     // If already in { paths: [...] } format
     if (value && typeof value === 'object' && 'paths' in value) {
         const pathsArray = value.paths;
