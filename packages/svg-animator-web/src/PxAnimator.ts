@@ -117,6 +117,9 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
             const newId = generateUniqueId();
             idMap.set(oldId, newId);
             node.id = newId;
+        } else if (node.animate) {
+            // An animated node needs an id so the animation can bind to its rendered element.
+            node.id = generateUniqueId();
         }
 
         // Process children
