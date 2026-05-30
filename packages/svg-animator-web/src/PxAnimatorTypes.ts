@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { KeysMatch, PxInfer, PxSchema, RemoveIndex } from './PxSchema';
+import type { KeysMatch, PxInfer, PxSchema, PxValidationContext, RemoveIndex } from './PxSchema';
 import { implementsInterface, px } from './PxSchema';
 
 export type FillMode = 'forwards' | 'backwards' | 'both' | 'none';
@@ -724,6 +724,131 @@ export interface _PxNode {
     [key: string]: any;
 }
 
+// ============================================================================
+// PLAYER-EFFECTS BUCKET SCHEMAS
+// ============================================================================
+//
+// Schemas for the `node.effects` payload emitted by the Editor's lightweight
+// design format. `applyPlayerEffects` (in `effects/PlayerEffectsUtil.ts`)
+// materialises and removes these before any other normalisation, so the Player
+// never observes a non-empty `effects` after entry-point processing.
+//
+// Schemas mirror the TS interfaces in `effects/types.ts`. The effects folder
+// itself stays portable (zero deps); these schemas + `validateNodeEffects`
+// live here so the lib provides shape validation as a service for callers
+// (the Player calls it in `createAnimatorImpl`; the Editor could too).
+//
+// Adjust `effects/types.ts` and these schemas together when a new effect is
+// introduced or an existing one grows a new field.
+
+// PxAnimatable<number> — static number OR `{value}` static OR `{keyframes}` animated.
+const PxAnimatableNumberSchema = px.union([
+    px.number(),
+    px.object({ value: px.number() }),
+    px.object({
+        keyframes: px.array(PxKeyframeSchema),
+        autoOrient: px.boolean().optional(),
+    }),
+]);
+
+// PxAnimatable<Vec2> — static `[x,y]` OR `{value:[x,y]}` OR `{keyframes}` animated.
+const PxAnimatableVec2Schema = px.union([
+    px.tuple([px.number(), px.number()]),
+    px.object({ value: px.tuple([px.number(), px.number()]) }),
+    px.object({
+        keyframes: px.array(PxKeyframeSchema),
+        autoOrient: px.boolean().optional(),
+    }),
+]);
+
+/** Per-part editor transform (`transformation` effect). All parts optional and animatable. */
+export const PxTransformationEffectSchema = px.object({
+    translate: PxAnimatableVec2Schema.optional(),
+    rotate: PxAnimatableNumberSchema.optional(),
+    scale: PxAnimatableVec2Schema.optional(),
+    skew: PxAnimatableVec2Schema.optional(),
+    origin: PxAnimatableVec2Schema.optional(),
+});
+
+/** Per-copy repeater offsets. All static (animated repeater not yet supported). */
+export const PxRepeaterEffectSchema = px.object({
+    copies: px.number().optional(),
+    translate: px.tuple([px.number(), px.number()]).optional(),
+    rotate: px.number().optional(),
+    scale: px.tuple([px.number(), px.number()]).optional(),     // per-copy scale, PERCENT (85 → 0.85)
+    origin: px.tuple([px.number(), px.number()]).optional(),
+});
+
+/** Mask source ref + standard `<mask>` attributes. */
+export const PxMaskedByEffectSchema = px.object({
+    href: px.string().optional(),
+    maskType: px.string().optional(),
+    maskUnits: px.string().optional(),
+    maskContentUnits: px.string().optional(),
+});
+
+/** Trim-path effect payload — opaque to the player materialiser; lives on `meta`. */
+export const PxTrimPathEffectSchema = px.any();
+
+/** `<use>` retime: `baseId` = source; `start`/`timeCrop` in ms. */
+export const PxRetimeEffectSchema = px.object({
+    baseId: px.string().optional(),
+    start: px.number().optional(),
+    stretch: px.number().optional(),
+    timeCrop: px.tuple([px.number(), px.number()]).optional(),
+});
+
+/** `<use>` ref: `baseId` = source; `type: 'content'` = exclude object-translate. */
+export const PxRefEffectSchema = px.object({
+    baseId: px.string().optional(),
+    type: px.string().optional(),
+});
+
+/** The full `node.effects` bucket. Closed — each known effect is declared
+ *  (strict-mode validation flags an unknown effect key as a wire-format drift). */
+export const PxEffectsSchema = px.object({
+    transformation: PxTransformationEffectSchema.optional(),
+    repeater: PxRepeaterEffectSchema.optional(),
+    maskedBy: PxMaskedByEffectSchema.optional(),
+    trimPath: PxTrimPathEffectSchema.optional(),
+    retime: PxRetimeEffectSchema.optional(),
+    isCombinedShape: px.boolean().optional(),
+    ref: PxRefEffectSchema.optional(),
+});
+
+/**
+ * Walks `root` and validates every `node.effects` bucket against `PxEffectsSchema`.
+ * Returns an array of human-readable warning strings (empty when all good).
+ * Doesn't mutate the tree. Called by `createAnimatorImpl` before applying effects.
+ *
+ * Pass `strict: true` to also flag undeclared keys (useful in dev / tests).
+ */
+export function validateNodeEffects(root: PxNode, opts?: { strict?: boolean }): Array<string> {
+    const warnings: Array<string> = [];
+    // `path` is a human-readable breadcrumb prepended to each warning so the
+    // reader can locate the offending node in the tree (e.g.
+    // `root.children[0].children[2].effects.transformation.translate: …`).
+    const walk = (node: PxNode, path: string): void => {
+        if (node && node.effects) {
+            const ctx: PxValidationContext = { errors: [], warnings: [], strict: !!opts?.strict };
+            const ok = PxEffectsSchema.isValid(node.effects, ctx, [path + '.effects']);
+            if (!ok) {
+                for (const err of ctx.errors) warnings.push(err);
+            }
+        }
+        if (node && Array.isArray(node.children)) {
+            node.children.forEach((c, i) => walk(c, path + '.children[' + i + ']'));
+        }
+    };
+    walk(root, 'root');
+    return warnings;
+}
+
+
+// ============================================================================
+// NODE
+// ============================================================================
+
 /**
  * Base shape for all SVG element nodes.
  * Open object: validated known keys + arbitrary SVG attributes whose values are
@@ -738,9 +863,8 @@ export const PxNodeBase = px.openObject({
     meta: px.any().optional(),
     // Player-effects bucket emitted by the Editor's lightweight design format.
     // Consumed and removed by `applyPlayerEffects` before any other normalisation
-    // (see `createAnimatorImpl`), so downstream code never sees it. Typed loosely
-    // here because the materialiser owns its shape (see `effects/types.ts`).
-    effects: px.any().optional(),
+    // (see `createAnimatorImpl`), so downstream code never sees it.
+    effects: PxEffectsSchema.optional(),
     animate: PxAnimationDefinitionSchema.optional(),
     style: px.union([px.string(), px.record(px.union([px.string(), px.number()]))]).optional(),
 }, PxAttrValueSchema);

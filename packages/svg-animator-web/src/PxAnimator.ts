@@ -7,7 +7,7 @@ import { applyPlayerEffects } from './effects/PlayerEffectsUtil';
 import { renderNode } from './PxAnimatorDOM';
 import { createFrameLoopAnimator, PxPlatformAdapter } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
-import { getAnimatorConfig, isPxElementFileFormat, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
+import { getAnimatorConfig, isPxElementFileFormat, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
 
 
@@ -232,6 +232,13 @@ export function createAnimatorImpl(
     callbacks?: PxAnimatorCallbacksConfig,
     containerElement?: string | Element
 ): PxAnimatorAPI {
+
+    // Validate every `node.effects` bucket against `PxEffectsSchema` and warn
+    // about any shape drift. Doesn't mutate or block — the materialiser tries
+    // its best even when shapes are off, but a warning helps spot wire-format
+    // regressions early.
+    const effectsWarnings = validateNodeEffects(doc as any);
+    for (const w of effectsWarnings) console.warn('[PxAnimator] effects shape warning:', w);
 
     // Materialise the player-effects bucket (`node.effects`) FIRST, before any
     // other normalisation reads the tree. After this, `effects` is fully resolved

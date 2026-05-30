@@ -93,3 +93,17 @@ export { applyPlayerEffects } from './effects/PlayerEffectsUtil';
 export type { ApplyResult, PxEffects, PxNode as PxEffectsNode } from './effects/types';
 export { collectSampleTimes, diffInEffect, visualModelAt } from './effects/PlayerEffectsUtil.visualModel';
 
+// Effects schemas + walker validator. `createAnimatorImpl` runs `validateNodeEffects`
+// on the doc before materialisation and logs warnings; callers can also run it
+// explicitly (Editor's test harnesses do).
+export {
+    PxEffectsSchema,
+    PxMaskedByEffectSchema,
+    PxRefEffectSchema,
+    PxRepeaterEffectSchema,
+    PxRetimeEffectSchema,
+    PxTransformationEffectSchema,
+    PxTrimPathEffectSchema,
+    validateNodeEffects,
+} from './PxAnimatorTypes';
+
