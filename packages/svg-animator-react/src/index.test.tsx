@@ -51,13 +51,13 @@ function getTestJson(): PxAnimatedSvgDocument {
             duration: 128,
             fill: "forwards",
             direction: "normal",
-            trigger: { startOn: "load" }
-        },
-
-        bindings: [
-            {
-                id: '_px_2pp00tnc',
-                animate: {
+            trigger: { startOn: "load" },
+            // Animations bound to elements live under `animator.animate` keyed
+            // by element id — `getBindings` consumes this shape. (The earlier
+            // top-level `bindings: [...]` form was removed in the file-format
+            // refactor; player ignored it silently → animation never started.)
+            animate: {
+                '_px_2pp00tnc': {
                     translate: {
                         keyframes: [
                             { time: 0, value: [200, 100], easing: [0.167, 0.167, 0.833, 0.833] },
@@ -66,7 +66,7 @@ function getTestJson(): PxAnimatedSvgDocument {
                     }
                 }
             }
-        ],
+        },
 
         children: [
             {
