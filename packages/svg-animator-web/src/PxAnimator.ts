@@ -3,6 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
+import { applyPlayerEffects } from './effects/PlayerEffectsUtil';
 import { renderNode } from './PxAnimatorDOM';
 import { createFrameLoopAnimator, PxPlatformAdapter } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
@@ -231,6 +232,13 @@ export function createAnimatorImpl(
     callbacks?: PxAnimatorCallbacksConfig,
     containerElement?: string | Element
 ): PxAnimatorAPI {
+
+    // Materialise the player-effects bucket (`node.effects`) FIRST, before any
+    // other normalisation reads the tree. After this, `effects` is fully resolved
+    // into wrappers / defs / clones and removed from every node. Everything
+    // downstream (`getAnimatorConfig`, `generateNewIds`, `renderNode`, …) sees a
+    // plain renderable tree.
+    doc = applyPlayerEffects(doc as any).root as any;
 
     // Normalize the document to internal format
     const animatorConfig = getAnimatorConfig(doc) || {};

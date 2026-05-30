@@ -85,3 +85,11 @@ export { createBasicFrameLoopAnimator, createFrameLoopAnimator } from './PxAnima
 export type { PxPlatformAdapter } from './PxAnimatorFrameLoop';
 export { createWebApiAnimator } from './PxAnimatorWebApi';
 
+// Player-effects materialiser — turns `node.effects` (the lightweight design format
+// emitted by the Editor) into a plain renderable node tree. Called automatically by
+// `createAnimatorImpl` before any other normalisation; exposed for the Editor's
+// "equal in effect" comparison harness.
+export { applyPlayerEffects } from './effects/PlayerEffectsUtil';
+export type { ApplyResult, PxEffects, PxNode as PxEffectsNode } from './effects/types';
+export { collectSampleTimes, diffInEffect, visualModelAt } from './effects/PlayerEffectsUtil.visualModel';
+

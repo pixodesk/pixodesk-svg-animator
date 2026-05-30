@@ -1,0 +1,138 @@
+/*---------------------------------------------------------------------------------------
+ * Copyright (c) Pixodesk LTD.
+ * Licensed under the MIT License. See the LICENSE file in the project root for details.
+ *---------------------------------------------------------------------------------------*/
+
+
+import { keyframeWith, partsRecord, readAnimatable } from './transformParts';
+import type { ApplyContext, PxAnimatable, PxNode, PxTransformationEffect, Vec2 } from './types';
+
+
+/**
+ * TRANSFORMATION → one `<g>` wrapper per part (translate/rotate/scale/skew),
+ * with origin emitted as SEPARATE `+origin` / `-origin` wrappers flanking the
+ * rotate/scale pair (matches editor's `SvgTransformElementEffectRenderer`).
+ *
+ * Per-wrapper kfs:
+ *  - each wrapper carries ONE animatable quantity, so animated origin / rotate /
+ *    scale all play correctly per their own keyframe timelines — nothing is
+ *    baked into another part's wrapper.
+ *  - the `+o · ... · -o` sandwich pivots rotate+scale around the (possibly
+ *    animated) origin; translates compose flat (commute).
+ *
+ * Wrapper nesting (outer → inner):
+ *
+ *     translate → +origin → rotate → scale → -origin → skew → element
+ *
+ * Composition: `M = translate(t) · +origin(t) · rotate(t) · scale(t) · -origin(t) · skew`
+ * — equivalent to the editor's `getTransform` / `matrixFromParts` convention
+ * (skew is appended innermost; editor doesn't compose skew here either).
+ */
+export function applyTransformationEffect(node: PxNode, fx: PxTransformationEffect | undefined, ctx: ApplyContext): PxNode {
+    if (!fx) return node;
+
+    // The element's own `transform` string is the frame-0 baseline; wrappers
+    // carry the full (animated) transform, so the baseline is dropped.
+    delete node.transform;
+
+    // Innermost first. Order outer→inner: [+o, t, -o, +o, r, s, -o, skew] for
+    // auto-orient (translate carries motion-path rotation that must pivot around
+    // origin too), else [t, +o, r, s, -o, skew] (translate composes flat).
+    let n = node;
+    n = wrapTransformPart(n, 'skew', fx.skew, ctx);
+    n = wrapOrigin(n, fx.origin, /*invert=*/true);                // -origin (r/s sandwich)
+    n = wrapTransformPart(n, 'scale', normalizeScale(fx.scale), ctx);
+    n = wrapTransformPart(n, 'rotate', fx.rotate, ctx);
+    n = wrapOrigin(n, fx.origin, /*invert=*/false);               // +origin (r/s sandwich)
+
+    if (translateHasAutoOrient(fx.translate)) {
+        // Sandwich translate with its own +o/-o so the motion-path tangent
+        // rotation built into the translate wrapper pivots around origin —
+        // matches editor's `[+o, t_path_ao, -o]` branch.
+        n = wrapOrigin(n, fx.origin, /*invert=*/true);            // -origin (translate sandwich)
+        n = wrapTransformPart(n, 'translate', fx.translate, ctx);
+        n = wrapOrigin(n, fx.origin, /*invert=*/false);           // +origin (translate sandwich)
+    } else {
+        n = wrapTransformPart(n, 'translate', fx.translate, ctx);
+    }
+    return n;
+}
+
+/** True when the translate animation carries motion-path tangent handles or
+ *  `autoOrient` — the path-tangent rotation needs origin-sandwich to pivot. */
+function translateHasAutoOrient(translate: PxAnimatable<Vec2> | undefined): boolean {
+    if (!translate || typeof translate !== 'object') return false;
+    const obj = translate as { autoOrient?: boolean; keyframes?: Array<{ tangentOut?: Vec2; tangentIn?: Vec2 }> };
+    if (obj.autoOrient) return true;
+    return Array.isArray(obj.keyframes) && obj.keyframes.some(kf => kf.tangentOut || kf.tangentIn);
+}
+
+/**
+ * The writer's `effects.transformation.scale` emits **editor units** (150 = 150%)
+ * for the bare-array static form, but emits **1.0-units** (1.5 = 150%) inside
+ * `{keyframes: [...]}` (matching the body `transform` baseline and the walker's
+ * `matrixFromParts`). The bare-array form is the one we have to convert.
+ */
+function normalizeScale(raw: PxAnimatable<Vec2> | undefined): PxAnimatable<Vec2> | undefined {
+    if (raw === undefined) return undefined;
+    if (Array.isArray(raw)) return [raw[0] / 100, raw[1] / 100] as Vec2;
+    return raw;
+}
+
+/** Wraps `inner` in a `<g>` carrying a single transform part, static or animated. */
+function wrapTransformPart(
+    inner: PxNode, part: 'translate' | 'rotate' | 'scale' | 'skew',
+    raw: PxAnimatable<any> | undefined, ctx: ApplyContext
+): PxNode {
+    if (raw === undefined) return inner;
+
+    if (part === 'skew') {
+        const skew = readAnimatable<Vec2>(raw);
+        if (skew.kind !== 'static') { ctx.warnings.push('transformation.skew: only static skew is supported'); return inner; }
+        return { type: 'g', transform: 'skewX(' + skew.value[0] + ')skewY(' + skew.value[1] + ')', children: [inner] };
+    }
+
+    const v = readAnimatable<any>(raw);
+    if (v.kind === 'static') {
+        return { type: 'g', transform: { value: partsRecord(part, v.value, undefined) }, children: [inner] };
+    }
+    if (v.kind === 'animated') {
+        const animTr: any = { keyframes: v.keyframes.map(kf => keyframeWith(kf, partsRecord(part, kf.value, undefined))) };
+        if (v.autoOrient) animTr.autoOrient = true;
+        return {
+            type: 'g',
+            animate: { transform: animTr },
+            children: [inner],
+        };
+    }
+    return inner;
+}
+
+/**
+ * Wraps `inner` in a `<g translate>` that shifts by `+origin` (invert=false) or
+ * `-origin` (invert=true). Origin is animatable — keyframes are carried through.
+ *
+ * Emitted as a `{translate}` PartsRecord (not the `{origin}` field) so a `+o`
+ * wrapper is just a plain translate in the walker's eyes: the walker composes
+ * the origin-sandwich rotation/scale around origin by stacking the wrappers,
+ * NOT by reading `origin` off the rotate/scale wrapper's parts record.
+ */
+function wrapOrigin(inner: PxNode, raw: PxAnimatable<Vec2> | undefined, invert: boolean): PxNode {
+    if (raw === undefined) return inner;
+    const v = readAnimatable<Vec2>(raw);
+    const sign = (value: Vec2): Vec2 => invert ? [-value[0], -value[1]] : value;
+
+    if (v.kind === 'absent') return inner;
+    if (v.kind === 'static') {
+        if (v.value[0] === 0 && v.value[1] === 0) return inner;  // identity — skip
+        return { type: 'g', transform: { value: { translate: sign(v.value) } }, children: [inner] };
+    }
+    if (v.kind === 'animated') {
+        return {
+            type: 'g',
+            animate: { transform: { keyframes: v.keyframes.map(kf => keyframeWith(kf, { translate: sign(kf.value as Vec2) })) } },
+            children: [inner],
+        };
+    }
+    return inner;
+}

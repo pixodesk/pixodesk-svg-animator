@@ -96,6 +96,9 @@ export interface _PxKeyframe {
      */
     tangentOut?: [number, number];
 
+    /** Short alias for "tangentOut" */
+    to?: [number, number];
+
     /**
      * Incoming spatial tangent `[dx, dy]` for motion-along-path interpolation
      * (translate animations only). Delta relative to this keyframe's translate
@@ -104,6 +107,16 @@ export interface _PxKeyframe {
      * Defined when the segment arriving at this keyframe is curved.
      */
     tangentIn?: [number, number];
+
+    /** Short alias for "tangentIn" */
+    ti?: [number, number];
+
+    /**
+     * Editor-side UI state (whether the keyframe is selected in the timeline).
+     * Declared here so strict-mode schema validation accepts it on the wire —
+     * the Player ignores it.
+     */
+    selected?: boolean;
 }
 
 /**
@@ -165,7 +178,10 @@ export const PxKeyframeSchema = implementsInterface<_PxKeyframe>()(px.object({
     easing: PxEasingOrRefSchema.optional(),
     e: PxEasingOrRefSchema.optional(),
     tangentOut: px.tuple([px.number(), px.number()] as const).optional(),
+    to:         px.tuple([px.number(), px.number()] as const).optional(),  // short alias
     tangentIn:  px.tuple([px.number(), px.number()] as const).optional(),
+    ti:         px.tuple([px.number(), px.number()] as const).optional(),  // short alias
+    selected:   px.boolean().optional(),  // editor-side UI state (Player ignores it)
 }));
 
 /** A single animation keyframe defining the state at a specific point in time. */
@@ -679,6 +695,14 @@ export interface _PxNode {
     meta?: any;
 
     /**
+     * Player-effects bucket (transformation/repeater/maskedBy/trimPath/retime/ref)
+     * emitted by the Editor's lightweight design format. `applyPlayerEffects`
+     * materialises and removes these before any other normalisation, so the
+     * Player never observes a non-empty `effects` after entry-point processing.
+     */
+    effects?: any;
+
+    /**
      * In-place property animations for this element, keyed by SVG/CSS property
      * name (e.g. "transform", "fill", "opacity"). Each value is a
      * PxPropertyAnimation (`{keyframes}` / `{kfs}`). The static initial value of
@@ -712,6 +736,11 @@ export const PxNodeBase = px.openObject({
     type: px.string(),
     id: px.string().optional(),
     meta: px.any().optional(),
+    // Player-effects bucket emitted by the Editor's lightweight design format.
+    // Consumed and removed by `applyPlayerEffects` before any other normalisation
+    // (see `createAnimatorImpl`), so downstream code never sees it. Typed loosely
+    // here because the materialiser owns its shape (see `effects/types.ts`).
+    effects: px.any().optional(),
     animate: PxAnimationDefinitionSchema.optional(),
     style: px.union([px.string(), px.record(px.union([px.string(), px.number()]))]).optional(),
 }, PxAttrValueSchema);
@@ -794,12 +823,12 @@ export interface PxSvgNode extends PxNode, PxInfer<typeof PxSvgNodeExtra> {
  *    viewBox?:string, animator?:AnimatorConfig, children?:PxNode[],
  *    [svgAttr]: string|number|PxPropertyAnimation }`
  */
-export const PxAnimatedSvgDocumentSchema = px.object({
+export const PxAnimatedSvgDocumentSchema = px.openObject({
     ...PxNodeBase._shape,
     ...PxSvgNodeExtra._shape,
     type: px.literal('svg'),     // override string → literal to require 'svg'
     children: px.array(PxNodeSchema).optional()
-});
+}, PxAttrValueSchema);
 
 /**
  * The complete animated SVG document.
