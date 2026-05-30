@@ -42,8 +42,13 @@ jobs:
             VERSION="${{ inputs.version }}"
           fi
           echo "VERSION=$VERSION" >> $GITHUB_ENV
-          # Update version in all publishable packages
-          pnpm --filter @pixodesk/svg-animator-web --filter @pixodesk/svg-animator-react --filter @pixodesk/svg-animator-vue exec pnpm version "$VERSION" --no-git-tag-version
+          # Update version in all publishable packages (skip if already set)
+          CURRENT=$(node -p "require('./packages/svg-animator-web/package.json').version")
+          if [ "$CURRENT" != "$VERSION" ]; then
+            pnpm --filter @pixodesk/svg-animator-web --filter @pixodesk/svg-animator-react --filter @pixodesk/svg-animator-vue exec pnpm version "$VERSION" --no-git-tag-version
+          else
+            echo "Version already $VERSION — skipping bump"
+          fi
 
       - name: Build packages
         run: pnpm --filter @pixodesk/svg-animator-web --filter @pixodesk/svg-animator-react --filter @pixodesk/svg-animator-vue run build
