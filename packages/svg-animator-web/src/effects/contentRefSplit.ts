@@ -197,6 +197,14 @@ function liftBodyTranslate(node: PxNode, transformation: PxTransformationEffect 
     //    path and are handled via `effects.transformation`, not the body.
     const transformationHasTranslate = transformation?.translate !== undefined;
     const stripBodyTranslateOnly = didLiftAnimate || transformationHasTranslate;
+    // Autoorient / motion-path lift: when the lifted animate.transform carries
+    // tangents or `autoOrient`, the body baseline is the FULL t=0 matrix
+    // (translate × path-tangent rotation), not just a translate. The outer
+    // wrapper recomputes both at every frame (including t=0) via the lifted
+    // keyframes + autoOrient, so the body baseline is redundant and would
+    // double-apply on top of it.
+    const liftedAnimateIsAutoOriented = didLiftAnimate && needsOriginOnOuter(node.animate?.transform as any || undefined)
+        || didLiftAnimate && needsOriginOnOuter((out.animate?.transform) as any || undefined);
     if (typeof node.transform === 'string') {
         const split = splitTransformString(node.transform);
         if (stripBodyTranslateOnly) {
@@ -210,6 +218,11 @@ function liftBodyTranslate(node: PxNode, transformation: PxTransformationEffect 
                 // Body is a single `matrix(...)` representing pure translate — same
                 // redundancy as a `translate(...)` string. Wipe.
                 delete node.transform;
+            } else if (liftedAnimateIsAutoOriented && isSingleMatrixBody(node.transform)) {
+                // Body is a non-pure `matrix(…)` — the autoOrient-materialised t=0
+                // value baked by the writer. The outer wrapper reproduces it via
+                // `animate.transform` + `autoOrient`; wipe to avoid double-apply.
+                delete node.transform;
             }
         } else if (split.translate) {
             out.transform = split.translate;
@@ -219,6 +232,20 @@ function liftBodyTranslate(node: PxNode, transformation: PxTransformationEffect 
     }
 
     return out;
+}
+
+/** True when the body string is a single `matrix(...)` op (any 6-arg matrix —
+ *  pure-translate is a more specific case handled by `isPureTranslateBody`). */
+function isSingleMatrixBody(s: string): boolean {
+    const re = /(translate|rotate|scale|matrix|skewX|skewY)\(([^)]*)\)/g;
+    let count = 0;
+    let isMatrix = false;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(s))) {
+        count++;
+        if (m[1] === 'matrix') isMatrix = true;
+    }
+    return count === 1 && isMatrix;
 }
 
 /** True when the body transform is a single op equivalent to pure translate
