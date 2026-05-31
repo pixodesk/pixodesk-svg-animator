@@ -12,6 +12,40 @@ importers:
         specifier: ^2
         version: 2.8.7
 
+  examples/preview-player:
+    dependencies:
+      '@pixodesk/svg-animator-react':
+        specifier: workspace:*
+        version: link:../../packages/svg-animator-react
+      '@pixodesk/svg-animator-vue':
+        specifier: workspace:*
+        version: link:../../packages/svg-animator-vue
+      '@pixodesk/svg-animator-web':
+        specifier: workspace:*
+        version: link:../../packages/svg-animator-web
+      react:
+        specifier: ^19.2.3
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.2.3
+        version: 19.2.4(react@19.2.4)
+      vue:
+        specifier: ^3.5.27
+        version: 3.5.28(typescript@5.9.3)
+    devDependencies:
+      '@types/react':
+        specifier: ^19.2.3
+        version: 19.2.14
+      '@types/react-dom':
+        specifier: ^19.2.3
+        version: 19.2.3(@types/react@19.2.14)
+      typescript:
+        specifier: ^5.5.3
+        version: 5.9.3
+      vite:
+        specifier: ^6.3.5
+        version: 6.4.1(@types/node@22.19.11)(jiti@2.6.1)(lightningcss@1.27.0)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
+
   examples/react:
     dependencies:
       '@pixodesk/svg-animator-react':

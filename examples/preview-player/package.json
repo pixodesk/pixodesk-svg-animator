@@ -1,0 +1,26 @@
+{
+  "name": "@pixodesk/example-preview-player",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@pixodesk/svg-animator-web": "workspace:*",
+    "@pixodesk/svg-animator-react": "workspace:*",
+    "@pixodesk/svg-animator-vue": "workspace:*",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "vue": "^3.5.27"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.3",
+    "@types/react-dom": "^19.2.3",
+    "typescript": "^5.5.3",
+    "vite": "^6.3.5"
+  }
+}

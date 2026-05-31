@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pixodesk SVG Animator — Preview Player</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="app-header">
+        <div class="title-row">
+          <h1>Pixodesk SVG Animator — Preview Player</h1>
+          <button id="btn-theme" type="button" class="theme-toggle" aria-label="Toggle light/dark theme">
+            <span class="theme-icon">🌙</span>
+            <span class="theme-label">Dark</span>
+          </button>
+        </div>
+        <fieldset class="picker">
+          <legend>Choose player</legend>
+          <label><input type="radio" name="player" value="web" checked /> Web</label>
+          <label><input type="radio" name="player" value="react" /> React</label>
+          <label><input type="radio" name="player" value="vue" /> Vue</label>
+        </fieldset>
+      </header>
+
+      <main class="app-main">
+        <div id="stage-wrap">
+          <div id="stage" aria-label="Animation stage"></div>
+          <div id="empty" class="empty">
+            <p>Drop a Pixodesk animation <code>.json</code> here</p>
+            <button id="btn-demo" type="button" class="demo-btn">Load demo</button>
+          </div>
+          <div id="dropzone" class="dropzone">
+            <span>Drop a Pixodesk animation <code>.json</code> here</span>
+          </div>
+        </div>
+
+        <p id="error" class="error" hidden></p>
+
+        <div class="transport">
+          <button id="btn-play" type="button">▶ Play</button>
+          <button id="btn-pause" type="button">❚❚ Pause</button>
+          <button id="btn-stop" type="button">◼ Stop</button>
+          <button id="btn-restart" type="button">↺ Restart</button>
+          <button id="btn-finish" type="button">⤓ Finish</button>
+        </div>
+
+        <div class="timeline">
+          <input id="seek" type="range" min="0" max="1000" step="1" value="0" />
+          <span id="time" class="time">0 / 0 ms</span>
+        </div>
+
+        <div class="meta">
+          <span class="filename">Source: <strong id="filename">none</strong></span>
+          <label class="rate">
+            Rate
+            <select id="rate">
+              <option value="0.25">0.25×</option>
+              <option value="0.5">0.5×</option>
+              <option value="1" selected>1×</option>
+              <option value="2">2×</option>
+              <option value="4">4×</option>
+            </select>
+          </label>
+          <span id="rate-note" class="rate-note">(Web player only)</span>
+        </div>
+      </main>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
