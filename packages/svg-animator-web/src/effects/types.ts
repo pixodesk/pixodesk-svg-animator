@@ -74,10 +74,10 @@ export interface PxTransformationEffect {
 
 export interface PxRepeaterEffect {
     copies?: number;
-    translate?: Vec2;
-    rotate?: number;
-    scale?: Vec2;     // per-copy scale, stored as PERCENT (85 → 0.85)
-    origin?: Vec2;
+    translate?: PxAnimatable<Vec2>;
+    rotate?: PxAnimatable<number>;
+    scale?: PxAnimatable<Vec2>;       // per-copy scale, stored as PERCENT (85 → 0.85)
+    origin?: PxAnimatable<Vec2>;
 }
 
 export interface PxMaskedByEffect {

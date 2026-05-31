@@ -262,6 +262,114 @@ describe('applyPlayerEffects — materialisation etalons', () => {
     });
 
 
+    it('case 6b: repeater (animated translate + rotate) → per-copy wrappers carry animate.transform with kf values scaled by i', () => {
+        const input: PxNode = {
+            type: 'svg',
+            children: [
+                {
+                    type: 'rect', id: 'r1', width: 40, height: 40,
+                    effects: {
+                        repeater: {
+                            copies: 3,
+                            translate: { keyframes: [
+                                { time: 0, value: [50, 0] },
+                                { time: 1000, value: [100, 50] },
+                            ] },
+                            rotate: { keyframes: [
+                                { time: 0, value: 0 },
+                                { time: 1000, value: 30 },
+                            ] },
+                        },
+                    },
+                },
+            ],
+        };
+        const result = materialise(input);
+        const parent = result.children![0];
+        expect(parent.type).toBe('g');
+        expect(parent.children?.length).toBe(3);
+
+        // For each copy i≥1, dive into the per-copy wrapper subtree and find
+        // the translate-bearing <g> whose animate.transform.keyframes carry the
+        // EXPECTED scaled values (translate × i, rotate × i).
+        const findKfsForPart = (n: PxNode, part: 'translate' | 'rotate'): Array<{ time?: number; value?: any }> | undefined => {
+            const kfs = n.animate?.transform?.keyframes;
+            if (Array.isArray(kfs) && kfs.length && kfs[0].value && (kfs[0].value as any)[part] !== undefined) {
+                return kfs.map(kf => ({ time: kf.time, value: (kf.value as any)[part] }));
+            }
+            for (const c of n.children || []) {
+                const found = findKfsForPart(c, part);
+                if (found) return found;
+            }
+            return undefined;
+        };
+
+        for (const i of [1, 2]) {
+            const copy = parent.children![i];
+            const translateKfs = findKfsForPart(copy, 'translate');
+            const rotateKfs = findKfsForPart(copy, 'rotate');
+            expect(translateKfs).toEqual([
+                { time: 0, value: [50 * i, 0 * i] },
+                { time: 1000, value: [100 * i, 50 * i] },
+            ]);
+            expect(rotateKfs).toEqual([
+                { time: 0, value: 0 * i },
+                { time: 1000, value: 30 * i },
+            ]);
+        }
+    });
+
+
+    it('case 6c: repeater (animated scale) → per-axis `s^i` geometric compounding (kf values are 1.0-units on the wire)', () => {
+        // Wire convention: animated repeater.scale.keyframes values are ALREADY
+        // 1.0-units (the editor's writer converts from the model's PERCENT).
+        // The applier does NOT divide by 100 for the keyframe form, just `s^i`.
+        const input: PxNode = {
+            type: 'svg',
+            children: [
+                {
+                    type: 'rect', id: 'r1', width: 40, height: 40,
+                    effects: {
+                        repeater: {
+                            copies: 3,
+                            scale: { keyframes: [
+                                { time: 0, value: [2, 2] },     // 1.0-units → 2× scale per copy
+                                { time: 1000, value: [1, 1] },  // 1.0-units → 1× (identity)
+                            ] },
+                        },
+                    },
+                },
+            ],
+        };
+        const result = materialise(input);
+        const parent = result.children![0];
+        expect(parent.children?.length).toBe(3);
+
+        const findScaleKfs = (n: PxNode): Array<{ time?: number; value?: any }> | undefined => {
+            const kfs = n.animate?.transform?.keyframes;
+            if (Array.isArray(kfs) && kfs.length && kfs[0].value && (kfs[0].value as any).scale !== undefined) {
+                return kfs.map(kf => ({ time: kf.time, value: (kf.value as any).scale }));
+            }
+            for (const c of n.children || []) {
+                const found = findScaleKfs(c);
+                if (found) return found;
+            }
+            return undefined;
+        };
+
+        // Copy 1: 2^1=2, 1^1=1 → kfs are [2,2] then [1,1].
+        expect(findScaleKfs(parent.children![1])).toEqual([
+            { time: 0, value: [2, 2] },
+            { time: 1000, value: [1, 1] },
+        ]);
+        // Copy 2: 2^2=4, 1^2=1 → kfs are [4,4] then [1,1].
+        expect(findScaleKfs(parent.children![2])).toEqual([
+            { time: 0, value: [4, 4] },
+            { time: 1000, value: [1, 1] },
+        ]);
+    });
+
+
     it('case 7: retime (symbol clone) → <symbol> in defs, <use> href rewritten, inner ids regenerated', () => {
         const input: PxNode = {
             type: 'svg',

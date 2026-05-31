@@ -771,13 +771,17 @@ export const PxTransformationEffectSchema = px.object({
     origin: PxAnimatableVec2Schema.optional(),
 });
 
-/** Per-copy repeater offsets. All static (animated repeater not yet supported). */
+/** Per-copy repeater offsets. Each part is animatable; per-copy values scale
+ *  with the copy index `i` (translate/rotate/origin × i; scale per-axis `(v/100)^i`).
+ *  Static repeater values pass through as a structured `transform: {value:…}` on
+ *  the per-copy wrapper; animated values are emitted as `animate.transform.keyframes`
+ *  with each kf value scaled by `i`. See `effects/repeaterEffect.ts`. */
 export const PxRepeaterEffectSchema = px.object({
     copies: px.number().optional(),
-    translate: px.tuple([px.number(), px.number()]).optional(),
-    rotate: px.number().optional(),
-    scale: px.tuple([px.number(), px.number()]).optional(),     // per-copy scale, PERCENT (85 → 0.85)
-    origin: px.tuple([px.number(), px.number()]).optional(),
+    translate: PxAnimatableVec2Schema.optional(),
+    rotate: PxAnimatableNumberSchema.optional(),
+    scale: PxAnimatableVec2Schema.optional(),    // per-copy scale, PERCENT (85 → 0.85)
+    origin: PxAnimatableVec2Schema.optional(),
 });
 
 /** Mask source ref + standard `<mask>` attributes. */
