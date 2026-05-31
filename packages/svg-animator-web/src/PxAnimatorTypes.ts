@@ -703,12 +703,13 @@ export interface _PxNode {
     effects?: any;
 
     /**
-     * In-place property animations for this element, keyed by SVG/CSS property
-     * name (e.g. "transform", "fill", "opacity"). Each value is a
-     * PxPropertyAnimation (`{keyframes}` / `{kfs}`). The static initial value of
-     * an animated property is still carried as a plain attribute on the body.
+     * In-place property animations for this element. Same shape as the
+     * `animator.animate` map values: string ref, array of refs, inline
+     * definition (`{propName: PxPropertyAnimation}`), or mixed array.
+     * The static initial value of an animated property is still carried as a
+     * plain attribute on the body.
      */
-    animate?: PxAnimationDefinition;
+    animate?: PxElementAnimation;
 
     /**
      * FIXME - do we need it?
@@ -865,7 +866,10 @@ export const PxNodeBase = px.openObject({
     // Consumed and removed by `applyPlayerEffects` before any other normalisation
     // (see `createAnimatorImpl`), so downstream code never sees it.
     effects: PxEffectsSchema.optional(),
-    animate: PxAnimationDefinitionSchema.optional(),
+    // `PxElementAnimation` (not just `PxAnimationDefinition`) — accepts
+    // string ref / array of refs / inline definition / mixed array; mirrors
+    // `animator.animate` map values and what `processNode` resolves at runtime.
+    animate: PxElementAnimationSchema.optional(),
     style: px.union([px.string(), px.record(px.union([px.string(), px.number()]))]).optional(),
 }, PxAttrValueSchema);
 

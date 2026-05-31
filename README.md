@@ -142,13 +142,16 @@ graph TD
 
 ```typescript
 // PxPropertyAnimation — single-property animation
-// short aliases: kfs=keyframes; t=time, v=value, e=easing on each keyframe
 interface ANIMATE {
-    keyframes?: Array<{
-        time?: number;    // ms offset from animation start; alias: t
-        value?: any;      // value at this keyframe (number, string, [x,y], path…); alias: v
-        easing?: string | [number, number, number, number]; // named ref or cubic-bezier [x1,y1,x2,y2]; alias: e
+    keyframes?: Array<{                       // alias: kfs
+        time?: number;                        // ms offset; alias: t
+        value?: any;                          // number | string | [x,y] | {translate,rotate,scale,origin} | {path:"M…"}; alias: v
+        easing?: string | [number, number, number, number]; // named ref or cubic-bezier; alias: e
+        tangentOut?: [number, number];        // motion-path delta tangent at this kf; alias: to
+        tangentIn?:  [number, number];        // motion-path delta tangent at this kf; alias: ti
     }>;
+    kfs?: Array<…>;                           // alias for `keyframes`
+    autoOrient?: boolean;                     // translate-only: rotate element to face the path tangent
     // pre-processes keyframes to fill animator.duration by repeating a segment
     // true → default: repeat last segment, cycling forward
     // independent of animator.iterations; composes as loop-within-loop
@@ -159,6 +162,17 @@ interface ANIMATE {
     };
 }
 ```
+
+**Unified `transform`** — animate the four parts together as a single property whose `value` is a parts record:
+
+```js
+animate: { transform: { keyframes: [
+  { time: 0,    value: { translate: [0, 0],   rotate: 0,  scale: [1, 1] } },
+  { time: 1000, value: { translate: [80, 40], rotate: 90, scale: [1.5, 1.5] } }
+] } }
+```
+
+The legacy per-key form (`animate: { translate, rotate, scale }` — used in the examples below) is still accepted; both produce the same composed `transform` string at render.
 
 ```typescript
 // PxAnimatedSvgDocument
@@ -510,6 +524,42 @@ The `data` object passed to `createAnimator` is the same `PxAnimatedSvgDocument`
   </script>
 </svg>
 ```
+
+---
+
+## Player effects (`node.effects`)
+
+JSON-only. Each effect on `node.effects` is a structural transformation the
+**Player materialises at runtime** (extra `<use>` copies, wrapping `<g>`s, etc.).
+In **SVG export** the editor materialises the same effects ahead of time, so the
+exported SVG already contains the expanded structure — `node.effects` is absent.
+
+```js
+{ type: 'rect', id: '_px_r', x: 0, y: 0, width: 60, height: 60, fill: '#3b82f6',
+  effects: { /* one or more of the below */ } }
+```
+
+| Effect | Payload | What it does |
+|---|---|---|
+| `transformation` | `{ translate?:[x,y], rotate?:deg, scale?:[x,y], skew?:[x,y], origin?:[x,y] }` (each may be animated) | Wraps the element in transform `<g>`s; lets you keep `origin` semantics that the body `transform` string can't express. |
+| `repeater` | `{ copies:N, translate?:[x,y], rotate?:deg, scale?:[%, %], origin?:[x,y] }` | Renders `N-1` extra `<use>` copies of this element, each at incremental offset (static only). |
+| `maskedBy` | `{ href:"#id", maskType?, maskUnits?, maskContentUnits? }` | Builds a `<mask>` from the referenced element and applies it to this one. |
+| `trimPath` | `{ offset?, range?:[a,b] }` | Trims the visible stroke segment along a path. |
+| `retime` | `{ baseId:"id", start?:ms, stretch?:1.0, timeCrop?:[a,b] }` | `<use>`-only: re-times the referenced symbol's internal timeline. |
+| `ref` | `{ baseId:"id", type:"content" }` | `<use>`-only "no-ref-translate": targets the source element's content sub-anchor so the outer translate of the source isn't re-applied. |
+| `isCombinedShape` | `true` | Flag for the wrapping `<g>` of a multi-`<path>` trim — tells the Player the children form one logical shape. |
+
+**Example — composite transformation + repeater:**
+
+```js
+{ type: 'rect', id: '_px_r', x: 0, y: 0, width: 40, height: 40, fill: '#3b82f6',
+  effects: {
+    transformation: { translate: [50, 50], rotate: 30 },
+    repeater:       { copies: 5, translate: [80, 0], rotate: 15 }
+  } }
+```
+
+`applyPlayerEffects` consumes and removes `effects` before the rest of the pipeline runs — downstream code never sees a non-empty `effects`.
 
 ---
 
