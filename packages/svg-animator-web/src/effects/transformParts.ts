@@ -13,41 +13,64 @@
 import type { PxAnimatable, PxKeyframe, Vec2 } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
 
+
+/**
+ * Names of the transform parts emitted into a `PxTransformParts` record. The
+ * enum's STRING VALUES double as the wire-format object keys, so callers can
+ * write `rec[TransformPart.Translate] = …` and produce `{translate: …}`.
+ */
+export enum TransformPart {
+    Translate = 'translate',
+    Rotate = 'rotate',
+    Scale = 'scale',
+    Skew = 'skew',
+    Origin = 'origin',
+}
+
+
+/** Result kinds for `readAnimatable` — discriminator on `ReadPart<T>`. */
+export enum ReadKind {
+    Absent = 'absent',
+    Static = 'static',
+    Animated = 'animated',
+}
+
+
 /** Builds a player `PxTransformParts` record for one part (+ optional origin). */
-export function partsRecord(part: 'translate' | 'rotate' | 'scale', value: any, origin: Vec2 | undefined) {
+export function partsRecord(part: TransformPart, value: any, origin: Vec2 | undefined) {
     const rec: { translate?: Vec2; rotate?: number; scale?: Vec2; origin?: Vec2 } = {};
-    if (part === 'translate') rec.translate = value;
-    else if (part === 'rotate') rec.rotate = value;
+    if (part === TransformPart.Translate) rec.translate = value;
+    else if (part === TransformPart.Rotate) rec.rotate = value;
     else rec.scale = value;
-    if (origin && part !== 'translate') rec.origin = origin;
+    if (origin && part !== TransformPart.Translate) rec.origin = origin;
     return rec;
 }
 
 export type ReadPart<T> =
-    | { kind: 'absent' }
-    | { kind: 'static'; value: T }
-    | { kind: 'animated'; keyframes: Array<PxKeyframe<T>>; autoOrient?: boolean };
+    | { kind: ReadKind.Absent }
+    | { kind: ReadKind.Static; value: T }
+    | { kind: ReadKind.Animated; keyframes: Array<PxKeyframe<T>>; autoOrient?: boolean };
 
 /** Normalises an animatable field into a static value or a keyframe list (with
  *  `autoOrient` propagated for motion-path translate). */
 export function readAnimatable<T>(raw: PxAnimatable<T> | undefined): ReadPart<T> {
-    if (raw === undefined) return { kind: 'absent' };
-    if (Array.isArray(raw)) return { kind: 'static', value: raw as unknown as T };
+    if (raw === undefined) return { kind: ReadKind.Absent };
+    if (Array.isArray(raw)) return { kind: ReadKind.Static, value: raw as unknown as T };
     if (typeof raw === 'object') {
         const obj = raw as { value?: T; keyframes?: Array<PxKeyframe<T>>; autoOrient?: boolean };
         if (obj.keyframes) {
-            return { kind: 'animated', keyframes: obj.keyframes, autoOrient: obj.autoOrient };
+            return { kind: ReadKind.Animated, keyframes: obj.keyframes, autoOrient: obj.autoOrient };
         }
-        if (obj.value !== undefined) return { kind: 'static', value: obj.value };
+        if (obj.value !== undefined) return { kind: ReadKind.Static, value: obj.value };
     }
-    return { kind: 'static', value: raw as T };
+    return { kind: ReadKind.Static, value: raw as T };
 }
 
 /** Origin used inside rotate/scale records. Animated origin falls back to frame 0. */
 export function readStaticOrigin(raw: PxAnimatable<Vec2> | undefined, ctx: ApplyContext): Vec2 | undefined {
     const o = readAnimatable<Vec2>(raw);
-    if (o.kind === 'absent') return undefined;
-    if (o.kind === 'static') return o.value;
+    if (o.kind === ReadKind.Absent) return undefined;
+    if (o.kind === ReadKind.Static) return o.value;
     ctx.warnings.push('transformation.origin: animated origin approximated by its first keyframe');
     return o.keyframes[0]?.value;
 }

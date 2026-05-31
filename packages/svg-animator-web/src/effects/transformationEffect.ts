@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import { keyframeWith, partsRecord, readAnimatable } from './transformParts';
+import { keyframeWith, partsRecord, ReadKind, readAnimatable, TransformPart } from './transformParts';
 import type { PxAnimatable, PxNode, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
 
@@ -40,21 +40,21 @@ export function applyTransformationEffect(node: PxNode, fx: PxTransformationEffe
     // auto-orient (translate carries motion-path rotation that must pivot around
     // origin too), else [t, +o, r, s, -o, skew] (translate composes flat).
     let n = node;
-    n = wrapTransformPart(n, 'skew', fx.skew, ctx);
-    n = wrapOrigin(n, fx.origin, /*invert=*/true);                // -origin (r/s sandwich)
-    n = wrapTransformPart(n, 'scale', normalizeScale(fx.scale), ctx);
-    n = wrapTransformPart(n, 'rotate', fx.rotate, ctx);
-    n = wrapOrigin(n, fx.origin, /*invert=*/false);               // +origin (r/s sandwich)
+    n = wrapTransformPart(n, TransformPart.Skew, fx.skew, ctx);
+    n = wrapOrigin(n, fx.origin, /*invert=*/true);                       // -origin (r/s sandwich)
+    n = wrapTransformPart(n, TransformPart.Scale, normalizeScale(fx.scale), ctx);
+    n = wrapTransformPart(n, TransformPart.Rotate, fx.rotate, ctx);
+    n = wrapOrigin(n, fx.origin, /*invert=*/false);                      // +origin (r/s sandwich)
 
     if (translateHasAutoOrient(fx.translate)) {
         // Sandwich translate with its own +o/-o so the motion-path tangent
         // rotation built into the translate wrapper pivots around origin —
         // matches editor's `[+o, t_path_ao, -o]` branch.
-        n = wrapOrigin(n, fx.origin, /*invert=*/true);            // -origin (translate sandwich)
-        n = wrapTransformPart(n, 'translate', fx.translate, ctx);
-        n = wrapOrigin(n, fx.origin, /*invert=*/false);           // +origin (translate sandwich)
+        n = wrapOrigin(n, fx.origin, /*invert=*/true);                   // -origin (translate sandwich)
+        n = wrapTransformPart(n, TransformPart.Translate, fx.translate, ctx);
+        n = wrapOrigin(n, fx.origin, /*invert=*/false);                  // +origin (translate sandwich)
     } else {
-        n = wrapTransformPart(n, 'translate', fx.translate, ctx);
+        n = wrapTransformPart(n, TransformPart.Translate, fx.translate, ctx);
     }
     return n;
 }
@@ -82,22 +82,22 @@ function normalizeScale(raw: PxAnimatable<Vec2> | undefined): PxAnimatable<Vec2>
 
 /** Wraps `inner` in a `<g>` carrying a single transform part, static or animated. */
 function wrapTransformPart(
-    inner: PxNode, part: 'translate' | 'rotate' | 'scale' | 'skew',
+    inner: PxNode, part: TransformPart,
     raw: PxAnimatable<any> | undefined, ctx: ApplyContext
 ): PxNode {
     if (raw === undefined) return inner;
 
-    if (part === 'skew') {
+    if (part === TransformPart.Skew) {
         const skew = readAnimatable<Vec2>(raw);
-        if (skew.kind !== 'static') { ctx.warnings.push('transformation.skew: only static skew is supported'); return inner; }
+        if (skew.kind !== ReadKind.Static) { ctx.warnings.push('transformation.skew: only static skew is supported'); return inner; }
         return { type: 'g', transform: 'skewX(' + skew.value[0] + ')skewY(' + skew.value[1] + ')', children: [inner] };
     }
 
     const v = readAnimatable<any>(raw);
-    if (v.kind === 'static') {
+    if (v.kind === ReadKind.Static) {
         return { type: 'g', transform: { value: partsRecord(part, v.value, undefined) }, children: [inner] };
     }
-    if (v.kind === 'animated') {
+    if (v.kind === ReadKind.Animated) {
         const animTr: any = { keyframes: v.keyframes.map(kf => keyframeWith(kf, partsRecord(part, kf.value, undefined))) };
         if (v.autoOrient) animTr.autoOrient = true;
         return {
@@ -123,12 +123,12 @@ function wrapOrigin(inner: PxNode, raw: PxAnimatable<Vec2> | undefined, invert: 
     const v = readAnimatable<Vec2>(raw);
     const sign = (value: Vec2): Vec2 => invert ? [-value[0], -value[1]] : value;
 
-    if (v.kind === 'absent') return inner;
-    if (v.kind === 'static') {
+    if (v.kind === ReadKind.Absent) return inner;
+    if (v.kind === ReadKind.Static) {
         if (v.value[0] === 0 && v.value[1] === 0) return inner;  // identity — skip
         return { type: 'g', transform: { value: { translate: sign(v.value) } }, children: [inner] };
     }
-    if (v.kind === 'animated') {
+    if (v.kind === ReadKind.Animated) {
         return {
             type: 'g',
             animate: { transform: { keyframes: v.keyframes.map(kf => keyframeWith(kf, { translate: sign(kf.value as Vec2) })) } },

@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import { partsRecord, readAnimatable, readStaticOrigin, keyframeWith } from './transformParts';
+import { keyframeWith, partsRecord, ReadKind, readAnimatable, readStaticOrigin, TransformPart } from './transformParts';
 import type { PxAnimatable, PxMaskedByEffect, PxNode, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
 import { genId } from './util';
@@ -45,22 +45,22 @@ function wrapInverseTransform(inner: PxNode, fx: PxTransformationEffect | undefi
     const origin = readStaticOrigin(fx.origin, ctx);
 
     let n = inner;
-    n = wrapInversePart(n, 'translate', fx.translate, undefined, ctx);
-    n = wrapInversePart(n, 'rotate', fx.rotate, origin, ctx);
-    n = wrapInversePart(n, 'scale', fx.scale, origin, ctx);
+    n = wrapInversePart(n, TransformPart.Translate, fx.translate, undefined, ctx);
+    n = wrapInversePart(n, TransformPart.Rotate, fx.rotate, origin, ctx);
+    n = wrapInversePart(n, TransformPart.Scale, fx.scale, origin, ctx);
     return n;
 }
 
 function wrapInversePart(
-    inner: PxNode, part: 'translate' | 'rotate' | 'scale',
+    inner: PxNode, part: TransformPart,
     raw: PxAnimatable<any> | undefined, origin: Vec2 | undefined, ctx: ApplyContext
 ): PxNode {
     if (raw === undefined) return inner;
     const v = readAnimatable<any>(raw);
-    if (v.kind === 'static') {
+    if (v.kind === ReadKind.Static) {
         return { type: 'g', transform: { value: partsRecord(part, invertPartValue(part, v.value), origin) }, children: [inner] };
     }
-    if (v.kind === 'animated') {
+    if (v.kind === ReadKind.Animated) {
         return {
             type: 'g',
             animate: { transform: { keyframes: v.keyframes.map(kf => keyframeWith(kf, partsRecord(part, invertPartValue(part, kf.value), origin))) } },
@@ -70,8 +70,8 @@ function wrapInversePart(
     return inner;
 }
 
-function invertPartValue(part: 'translate' | 'rotate' | 'scale', value: any): any {
-    if (part === 'translate') return [-value[0], -value[1]];
-    if (part === 'rotate') return -value;
+function invertPartValue(part: TransformPart, value: any): any {
+    if (part === TransformPart.Translate) return [-value[0], -value[1]];
+    if (part === TransformPart.Rotate) return -value;
     return [1 / value[0], 1 / value[1]];   // scale
 }

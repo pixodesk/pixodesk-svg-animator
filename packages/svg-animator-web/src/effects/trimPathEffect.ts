@@ -7,7 +7,7 @@
 import type { PxAnimatable, PxBezierPath, PxKeyframe, PxNode, Vec2, _PxTrimPathEffect } from '../PxAnimatorTypes';
 import { bezier2D_arcLengthLUT, bezierToSvgPath, clamp } from '../PxAnimatorUtil';
 import { parseSvgPathToBezier } from '../PxDefinitions';
-import { readAnimatable, type ReadPart } from './transformParts';
+import { ReadKind, readAnimatable, type ReadPart } from './transformParts';
 import type { ApplyContext } from './types';
 
 
@@ -72,8 +72,21 @@ export function applyTrimPathEffect(
     // Offset / range readers. Range is post-processed for cross-overs so the
     // dasharray emitter never sees `range[0] > range[1]` (matches editor's
     // `getFixedRangeForCss`).
-    const offsetRead = readAnimatable<number>(trimPath.offset);
-    const rangeRead = readRangeWithCrossings(trimPath.range);
+    //
+    // Editor defaults: `offset = 0` and `range = [0, 1]`. Treating absent
+    // inputs as those statics (rather than skipping the emit) keeps the
+    // `+ SMALL_PADDING_PX` shift active — that 1-px buffer is what stops
+    // `stroke-linecap="round"` from painting a round dot at the zero-length
+    // first dash. Missing-emit means no `stroke-dashoffset`, no shift, and
+    // the dot reappears.
+    const offsetReadRaw = readAnimatable<number>(trimPath.offset);
+    const offsetRead: ReadPart<number> = offsetReadRaw.kind === ReadKind.Absent
+        ? { kind: ReadKind.Static, value: 0 }
+        : offsetReadRaw;
+    const rangeReadRaw = readRangeWithCrossings(trimPath.range);
+    const rangeRead: ReadPart<Vec2> = rangeReadRaw.kind === ReadKind.Absent
+        ? { kind: ReadKind.Static, value: [0, 1] }
+        : rangeReadRaw;
 
     const offsetValues = readScalarValues(offsetRead);
     const minOffset = offsetValues.length ? Math.min(...offsetValues) : 0;
@@ -241,13 +254,13 @@ function getOffsetIndexRange(minMaxOffset: [number, number]): [number, number] {
 // ============================================================================
 
 type AnimAttrResult<TOut> =
-    | { kind: 'static'; value: TOut }
-    | { kind: 'animated'; keyframes: Array<PxKeyframe> }
+    | { kind: ReadKind.Static; value: TOut }
+    | { kind: ReadKind.Animated; keyframes: Array<PxKeyframe> }
     | undefined;
 
 function readScalarValues(r: ReadPart<number>): Array<number> {
-    if (r.kind === 'absent') return [];
-    if (r.kind === 'static') return [r.value];
+    if (r.kind === ReadKind.Absent) return [];
+    if (r.kind === ReadKind.Static) return [r.value];
     const out: Array<number> = [];
     for (const kf of r.keyframes) {
         const v = kf.value ?? kf.v;
@@ -257,10 +270,10 @@ function readScalarValues(r: ReadPart<number>): Array<number> {
 }
 
 function computeAnimAttr<TIn, TOut>(read: ReadPart<TIn>, map: (v: TIn) => TOut): AnimAttrResult<TOut> {
-    if (read.kind === 'absent') return undefined;
-    if (read.kind === 'static') return { kind: 'static', value: map(read.value) };
+    if (read.kind === ReadKind.Absent) return undefined;
+    if (read.kind === ReadKind.Static) return { kind: ReadKind.Static, value: map(read.value) };
     return {
-        kind: 'animated',
+        kind: ReadKind.Animated,
         keyframes: read.keyframes.map(kf => ({
             time: kf.time ?? kf.t ?? 0,
             value: map((kf.value ?? kf.v) as TIn),
@@ -271,7 +284,7 @@ function computeAnimAttr<TIn, TOut>(read: ReadPart<TIn>, map: (v: TIn) => TOut):
 
 function applyAttr<T>(node: PxNode, attrName: string, attr: AnimAttrResult<T>): void {
     if (!attr) return;
-    if (attr.kind === 'static') {
+    if (attr.kind === ReadKind.Static) {
         node[attrName] = attr.value;
         return;
     }
@@ -288,8 +301,8 @@ function applyAttr<T>(node: PxNode, attrName: string, attr: AnimAttrResult<T>): 
 function computeOpacityFromRange(rangeRead: ReadPart<Vec2>): AnimAttrResult<number> {
     const hide = (v: Vec2): boolean => v[0] === v[1];
 
-    if (rangeRead.kind === 'absent') return undefined;
-    if (rangeRead.kind === 'static') return hide(rangeRead.value) ? { kind: 'static', value: 0 } : undefined;
+    if (rangeRead.kind === ReadKind.Absent) return undefined;
+    if (rangeRead.kind === ReadKind.Static) return hide(rangeRead.value) ? { kind: ReadKind.Static, value: 0 } : undefined;
 
     const kfs = rangeRead.keyframes;
     let anyHide = false;
@@ -299,7 +312,7 @@ function computeOpacityFromRange(rangeRead: ReadPart<Vec2>): AnimAttrResult<numb
         else allHide = false;
     }
     if (!anyHide) return undefined;
-    if (allHide) return { kind: 'static', value: 0 };
+    if (allHide) return { kind: ReadKind.Static, value: 0 };
 
     // Matches the editor's prev/next-aware emitter — only inserts kfs at the
     // transitions to keep the wire compact.
@@ -322,7 +335,7 @@ function computeOpacityFromRange(rangeRead: ReadPart<Vec2>): AnimAttrResult<numb
         }
     }
     if (out.length <= 1) return undefined;
-    return { kind: 'animated', keyframes: out };
+    return { kind: ReadKind.Animated, keyframes: out };
 }
 
 
@@ -337,7 +350,7 @@ interface SimpleKf { time: number; value: Vec2; easing?: any; }
  *  remaining reversed kfs so every emitted range satisfies `range[0] ≤ range[1]`. */
 function readRangeWithCrossings(raw: PxAnimatable<Vec2> | undefined): ReadPart<Vec2> {
     const r = readAnimatable<Vec2>(raw);
-    if (r.kind !== 'animated') return r;
+    if (r.kind !== ReadKind.Animated) return r;
 
     const kfs: Array<SimpleKf> = r.keyframes.map(kf => ({
         time: kf.time ?? kf.t ?? 0,
@@ -348,7 +361,7 @@ function readRangeWithCrossings(raw: PxAnimatable<Vec2> | undefined): ReadPart<V
     const hasReverse = kfs.some(kf => kf.value[0] > kf.value[1]);
     if (!hasReverse) {
         return {
-            kind: 'animated',
+            kind: ReadKind.Animated,
             keyframes: kfs.map(kf => ({ time: kf.time, value: kf.value, easing: kf.easing })),
         };
     }
@@ -387,7 +400,7 @@ function readRangeWithCrossings(raw: PxAnimatable<Vec2> | undefined): ReadPart<V
         out.push({ time: t, value: [m, m] });
     }
 
-    return { kind: 'animated', keyframes: out };
+    return { kind: ReadKind.Animated, keyframes: out };
 }
 
 function bisectionForRangeCrossing(prev: SimpleKf, cur: SimpleKf): number | null {
