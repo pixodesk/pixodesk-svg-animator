@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { getDefs, INTERNAL_ATTRS, TEXT_ATTR, TEXT_CONTENT_ATTR, type PxAnimatedSvgDocument, type PxDefs, type PxNode } from './PxAnimatorTypes';
-import { camelCaseToKebabWordIfNeeded, COLOUR_ATTR_NAMES, composeTransformParts, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
+import { camelCaseToKebabWordIfNeeded, COLOUR_ATTR_NAMES, composeTransformParts, kebabToCamelCaseWord, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -189,11 +189,17 @@ export function getNormalizedProps(props: Record<string, any>) {
     const propsCopy: Record<string, any> = {};
 
     // Process regular attributes
-    for (const key of Object.keys(props)) {
+    for (const rawKey of Object.keys(props)) {
+        // Wire-format inputs may use kebab-case SVG attribute names (e.g.
+        // `stroke-width`); normalise to camelCase up-front so the whitelist
+        // (camelCase) and the `camelCaseToKebabWordIfNeeded` re-conversion
+        // at write time both work. `kebabToCamelCaseWord` is a no-op for
+        // keys with no `-`, leaving camelCase inputs untouched.
+        const key = kebabToCamelCaseWord(rawKey);
         if (INTERNAL_ATTRS.has(key)) continue;
         if (key === 'style') continue;
 
-        let value = props[key];
+        let value = props[rawKey];
 
         if (COLOUR_ATTR_NAMES.has(key) && Array.isArray(value)) {
             propsCopy[key] = toRGBA(value);
