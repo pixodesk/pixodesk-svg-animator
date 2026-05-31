@@ -20,12 +20,12 @@
  */
 
 import { identifyContentRefTargets, splitForContentRef } from './contentRefSplit';
-import { applyMaskedByEffect } from './maskedByEffect';
+import { applyMaskedByEffect, collectMaskAncestorChains } from './maskedByEffect';
 import { applyRefAndTransformationEffect } from './refEffect';
 import { applyRepeaterEffect } from './repeaterEffect';
-import { applyRetimeEffect } from './retimeEffect';
+import { applyAllRetimeEffects, captureRetimeMap } from './retimeEffect';
 import { applyTrimPathEffect } from './trimPathEffect';
-import type { PxNode } from '../PxAnimatorTypes';
+import type { PxNode, PxRetimeEffect } from '../PxAnimatorTypes';
 import type { ApplyContext, ApplyResult } from './types';
 import { clone, genId, indexById, spliceDefs } from './util';
 
@@ -53,14 +53,22 @@ export function applyPlayerEffects(root: PxNode): ApplyResult {
         defs: [], warnings: [], errors: [],
         idMap: new Map(), nextId: 0,
         contentRefInnerIds: new Map(),
+        maskAncestorChains: new Map(),
     };
 
     const working = clone(root);
     indexById(working, ctx.idMap);
     identifyContentRefTargets(working, ctx, () => genId(ctx, 'inner'));
+    collectMaskAncestorChains(working, ctx);
+
+    // Snapshot retime markers BEFORE pass-1 / pass-2 mutate them. Lets pass 2
+    // chase nested `<use retime> → <use retime> → leaf` chains via the original
+    // (pre-mutation) retime layout regardless of traversal order.
+    const retimeMap = new Map<string, PxRetimeEffect>();
+    captureRetimeMap(working, retimeMap);
 
     const afterPass1 = applyPlayerEffects_exceptRetime(working, ctx);
-    const out = applyPlayerEffects_retime(afterPass1, ctx);
+    const out = applyPlayerEffects_retime(afterPass1, ctx, retimeMap);
     spliceDefs(out, ctx.defs);
 
     return { root: out, defs: ctx.defs, warnings: ctx.warnings, errors: ctx.errors };
@@ -110,12 +118,9 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     return n;
 }
 
-/** Pass 2 — apply retime to every node that carries it. */
-function applyPlayerEffects_retime(node: PxNode, ctx: ApplyContext): PxNode {
-    if (node.children) node.children = node.children.map(child => applyPlayerEffects_retime(child, ctx));
-
-    const retime = node.effects?.retime;
-    if (!retime) return node;
-    delete node.effects;
-    return applyRetimeEffect(node, retime, ctx);
+/** Pass 2 — apply retime to every node that carries it. The chain-aware
+ *  recursion lives in `retimeEffect.ts`; here we just hand it the snapshot. */
+function applyPlayerEffects_retime(node: PxNode, ctx: ApplyContext, retimeMap: Map<string, PxRetimeEffect>): PxNode {
+    applyAllRetimeEffects(node, retimeMap, ctx);
+    return node;
 }

@@ -74,6 +74,8 @@ const ALLOWED_ATTRIBUTES = [
 
     // Clippath/Mask
     'clipPath' /*clip-path*/, 'mask',
+    'maskType' /*mask-type*/, 'maskUnits' /*mask-units*/, 'maskContentUnits' /*mask-content-units*/,
+    'clipPathUnits' /*clip-path-units*/,
 
     // Motion path
     'offsetPath', 'offsetDistance', 'offsetRotate', 'offsetAnchor', 'offsetPosition',
