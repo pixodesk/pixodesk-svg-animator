@@ -22,7 +22,7 @@ This repository contains the official runtime libraries for playing SVG animatio
 
 ## File Formats created by [Pixodesk SVG Animation](https://pixodesk.com) editor
 
-The Pixodesk editor supports animation in two formats: **SVG** and **JSON**.   
+The Pixodesk editor supports animation in two formats: **Pre-rendered SVG** and **JSON**.   
 Those file formats are interchangeable — the editor can convert between them at any time.
 
 ## Pixodesk SVG Animator File Formats at a Glance
@@ -30,11 +30,11 @@ Those file formats are interchangeable — the editor can convert between them a
 Two export formats:
 
 - **JSON file** — the most flexible format. Animation data, structure, and metadata in a single file; JavaScript renders the DOM and drives the animation at runtime. Use with `@pixodesk/svg-animator-web`, `@pixodesk/svg-animator-react`, `@pixodesk/svg-animator-vue`.
-- **SVG file** — a pre-rendered SVG with animation embedded directly in the file. Self-contained. Three flavors:
-  - **SVG + CSS-Keyframes** — animation defined in a `<style>` block
+- **Pre-rendered SVG file** — animation embedded directly in the file. Self-contained. Three flavors:
+  - **Pre-rendered SVG + CSS-Keyframes** — animation defined in a `<style>` block
     - *No `<script>` tag* — zero JavaScript
     - *With JS triggers* — adds a minimal `<script>` fragment to respond to events (click, hover, scroll)
-  - **SVG + JavaScript animation** — `@pixodesk/svg-animator-web` bundled inside a `<script>` tag. Supports:
+  - **Pre-rendered SVG + JavaScript animation** — `@pixodesk/svg-animator-web` bundled inside a `<script>` tag. Supports:
     - Web Animations API (WAAPI) — native browser animation
     - Animation frames (`requestAnimationFrame`) — universal browser support
 
@@ -46,9 +46,9 @@ graph TD
     App(["Pixodesk SVG Animator"])
     
     JSON["JSON file<br/>elements + animation data"]
-    CSSkeyframes["SVG + CSS Keyframes<br/>(lightweight)"]
-    CSSjs["SVG + CSS Keyframes<br/>+ JS Event Triggers"]
-    JSanim["SVG + JS Animation<br/>(@pixodesk/svg-animator-web)"]
+    CSSkeyframes["Pre-rendered SVG<br/>+ CSS Keyframes<br/>(lightweight)"]
+    CSSjs["Pre-rendered SVG<br/>+ CSS Keyframes<br/>+ JS Event Triggers"]
+    JSanim["Pre-rendered SVG<br/>+ JS Animation<br/>(@pixodesk/svg-animator-web)"]
     
     ReactVue["React / Vue<br/>Components"]
     VanillaJS["Vanilla JS<br/>DOM Manipulation"]
@@ -82,23 +82,23 @@ graph TD
 ```
 
 
-## How to Choose Pixodesk SVG Animator File Format - JSON vs SVG
+## How to Choose Pixodesk SVG Animator File Format - JSON vs Pre-rendered SVG
 
-**Default to JSON.** Switch to **SVG** (which has some limitations) when you want to:
+**Default to JSON.** Switch to **Pre-rendered SVG** (which has some limitations) when you want to:
 - **Reduce bundle size** — use CSS Keyframes for simple animations; no JavaScript library needed
-- **Show content before JavaScript loads for static site generators** — SVG is pre-rendered and visible immediately
+- **Show content before JavaScript loads for static site generators** — the SVG is rendered ahead of time and visible immediately
 - **Minimize setup** — just inline/embed the file directly without extra setup
 
 **More details**:
 
 - **React / Vue / Next.js / Nuxt**
   - Use **JSON** — **SSR-safe**, integrates cleanly with framework components, avoids inline script restrictions. Full support of animation features. Use `@pixodesk/svg-animator-react` / `@pixodesk/svg-animator-vue`.
-  - Use **SVG + CSS-Keyframes** (no JavaScript) — minimal setup; import the same way as SVG icons (e.g., via **SVGR** or **vite-svg-loader**), and it is **SSR-safe**. It has limitations in what it can animate and offers less control over animation behavior. However, it is sufficient for most use cases.
+  - Use **Pre-rendered SVG + CSS-Keyframes** (no JavaScript) — minimal setup; import the same way as SVG icons (e.g., via **SVGR** or **vite-svg-loader**), and it is **SSR-safe**. It has limitations in what it can animate and offers less control over animation behavior. However, it is sufficient for most use cases.
 - **Vanilla JavaScript/DOM**, dynamic load.
   - Use **JSON** — dynamically load and instantiate an animator using `@pixodesk/svg-animator-web`. Full support of animation features.
-  - Use **SVG** — with `<object data="animation.svg" ...` or `<iframe src="animation.svg" ...`. Not recommended.
+  - Use **Pre-rendered SVG** — with `<object data="animation.svg" ...` or `<iframe src="animation.svg" ...`. Not recommended.
 - **Static site generators and CMS** (Astro, Jekyll, WordPress, Shopify, etc.)
-  - Use **any SVG** — the build tool or CMS inlines the file at build time; even SVG with `<script>` tags will just work
+  - Use **any Pre-rendered SVG** — the build tool or CMS inlines the file at build time; even an SVG with `<script>` tags will just work
 
 
 
@@ -107,9 +107,9 @@ graph TD
 | File type | When to use | Advantages | Disadvantages |
 |-----------|-------------|------------|---------------|
 | **JSON file** | Complex animations (shape morph, sequencing) <br> Programmatic control needed <br> Multiple instances on the page <br> React / Vue / Next.js / Nuxt apps | Full animation support including all types <br> Fine-grained runtime control: play, pause, seek, reverse, speed <br> Clean independent rendering per instance — no ID conflicts <br> SSR-safe | Requires `@pixodesk/svg-animator-react`, `-vue`, or `-web` runtime <br> More setup: data file and rendering component must be wired together |
-| **SVG** with <br> **CSS Keyframes** | Drop-in animated icon in React/Vue <br> Embedding via `<img>` or inline HTML <br> Simple looping or entrance animations | No library payload — minimal file size <br> No `<script>` tag — embeds cleanly via `<img>`, inline HTML, or SVGR <br> Works as a drop-in icon replacement | No shape morphing or physics-based animations <br> No runtime control (play, pause, seek) <br> Limited to what CSS `@keyframes` can express <br> Possible ID conflicts when the same SVG is embedded more than once |
-| **SVG** with <br> **CSS Keyframes + JS triggers** | Static HTML pages with event-triggered start/stop (e.g. play on hover) | No library payload — minimal file size <br> Adds basic event-driven start/stop control | No shape morphing or advanced animation types <br> No precise runtime control (seek, reverse, speed) <br> `<script>` tag prevents embedding via SVGR or `<img>` <br> Possible ID conflicts when the same SVG is embedded more than once |
-| **SVG** with <br> **JavaScript animation** | Static or server-rendered pages <br> When content must appear before JS hydration <br> All animation types without a separate data file | Supports all animation types including shape morphing <br> Full runtime control: play, pause, seek, reverse, speed <br> Self-contained — no separate data file required | Adds `@pixodesk/svg-animator-web` library overhead <br> `<script>` tag prevents embedding via SVGR or `<img>` <br> Possible ID conflicts when the same SVG is embedded more than once |
+| **Pre-rendered SVG** with <br> **CSS Keyframes** | Drop-in animated icon in React/Vue <br> Embedding via `<img>` or inline HTML <br> Simple looping or entrance animations | No library payload — minimal file size <br> No `<script>` tag — embeds cleanly via `<img>`, inline HTML, or SVGR <br> Works as a drop-in icon replacement | No shape morphing or physics-based animations <br> No runtime control (play, pause, seek) <br> Limited to what CSS `@keyframes` can express <br> Possible ID conflicts when the same SVG is embedded more than once |
+| **Pre-rendered SVG** with <br> **CSS Keyframes + JS triggers** | Static HTML pages with event-triggered start/stop (e.g. play on hover) | No library payload — minimal file size <br> Adds basic event-driven start/stop control | No shape morphing or advanced animation types <br> No precise runtime control (seek, reverse, speed) <br> `<script>` tag prevents embedding via SVGR or `<img>` <br> Possible ID conflicts when the same SVG is embedded more than once |
+| **Pre-rendered SVG** with <br> **JavaScript animation** | Static or server-rendered pages <br> When content must appear before JS hydration <br> All animation types without a separate data file | Supports all animation types including shape morphing <br> Full runtime control: play, pause, seek, reverse, speed <br> Self-contained — no separate data file required | Adds `@pixodesk/svg-animator-web` library overhead <br> `<script>` tag prevents embedding via SVGR or `<img>` <br> Possible ID conflicts when the same SVG is embedded more than once |
 
 ---
 
@@ -226,6 +226,18 @@ interface SVG_JSON {
         style?: string | Record<string, string | number>;
         // named ref / array of refs / inline definition / mixed array
         animate?: string | Array<string> | Record<string, ANIMATE> | Array<string | Record<string, ANIMATE>>;
+        // Player-materialised structural effects (transformation/repeater/maskedBy/
+        // trimPath/retime/ref/isCombinedShape). JSON-only — the Pre-rendered SVG
+        // export materialises these in the Editor. See "Player effects" section below.
+        effects?: {
+            transformation?:  { translate?, rotate?, scale?, skew?, origin?: any };
+            repeater?:        { copies?, translate?, rotate?, scale?, origin?: any };
+            maskedBy?:        { href?: string, maskType?, maskUnits?, maskContentUnits?: string };
+            trimPath?:        { offset?: number, range?: [number, number] };
+            retime?:          { baseId?: string, start?, stretch?: number, timeCrop?: [number, number] };
+            ref?:             { baseId?: string, type?: 'content' };
+            isCombinedShape?: boolean;
+        };
         meta?: any;         // editor-only (label, shape, …); not rendered, ignored by player
         children?: Array<any>; // recursive; <g>, <defs>, <symbol>, <text>, <use>, …
     }>;
@@ -385,11 +397,11 @@ const doc = {
 ```
 
 
-### SVG File overview
+### Pre-rendered SVG File overview
 
 A self-contained animated SVG — all shapes, styles, and animation logic are embedded directly in the file. No separate data file or rendering component is needed. Three flavors are available:
 
-#### **CSS Keyframes**
+#### **Pre-rendered SVG + CSS Keyframes**
 
 Animation defined in a `<style>` block. No JavaScript, no `<script>` tag.
 
@@ -407,7 +419,7 @@ Animation defined in a `<style>` block. No JavaScript, no `<script>` tag.
 </svg>
 ```
 
-#### **CSS Keyframes + JavaScript triggers** 
+#### **Pre-rendered SVG + CSS Keyframes + JavaScript triggers** 
 Same as above, plus a small `<script>` fragment to start/stop the animation on events (click, hover, scroll).
 
 ```svg
@@ -420,7 +432,7 @@ Same as above, plus a small `<script>` fragment to start/stop the animation on e
 </svg>
 ```
 
-#### **SVG + JavaScript animation (Mode B)**
+#### **Pre-rendered SVG + JavaScript animation (Mode B)**
 
 Static SVG markup with `@pixodesk/svg-animator-web` bundled in a `<script>` tag. The player targets existing DOM elements by `id`. Supports all animation types including shape morphing. Uses WAAPI or `requestAnimationFrame`.
 
@@ -531,8 +543,9 @@ The `data` object passed to `createAnimator` is the same `PxAnimatedSvgDocument`
 
 JSON-only. Each effect on `node.effects` is a structural transformation the
 **Player materialises at runtime** (extra `<use>` copies, wrapping `<g>`s, etc.).
-In **SVG export** the editor materialises the same effects ahead of time, so the
-exported SVG already contains the expanded structure — `node.effects` is absent.
+In the **Pre-rendered SVG** export the editor materialises the same effects ahead
+of time, so the exported SVG already contains the expanded structure —
+`node.effects` is absent.
 
 ```js
 { type: 'rect', id: '_px_r', x: 0, y: 0, width: 60, height: 60, fill: '#3b82f6',
@@ -559,6 +572,68 @@ exported SVG already contains the expanded structure — `node.effects` is absen
   } }
 ```
 
+**Animated `transformation`** — each part can be an animation, not just a static value:
+
+```js
+{ type: 'rect', id: '_px_r', x: -20, y: -20, width: 40, height: 40, fill: '#10b981',
+  effects: {
+    transformation: {
+      translate: [200, 200],
+      rotate:    { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 360 }] }
+    }
+  } }
+```
+
+**Animated `repeater` base** — repeater params are static, but the base element itself can still animate:
+
+```js
+{ type: 'rect', id: '_px_r', x: 0, y: 0, width: 30, height: 30, fill: '#6366f1',
+  animate: { opacity: { keyframes: [{ time: 0, value: 1 }, { time: 1000, value: 0.2 }] } },
+  effects: { repeater: { copies: 4, translate: [50, 0] } } }
+```
+
+**`maskedBy`** — apply a mask defined elsewhere by id:
+
+```js
+{ type: 'defs', children: [{ type: 'circle', id: '_px_mask', cx: 100, cy: 100, r: 80, fill: '#fff' }] },
+{ type: 'rect', id: '_px_r', x: 0, y: 0, width: 200, height: 200, fill: '#ec4899',
+  effects: { maskedBy: { href: '#_px_mask', maskType: 'alpha' } } }
+```
+
+**`<use>` + `retime`** — re-time a referenced `<symbol>` independently of the document timeline:
+
+```js
+{ type: 'defs', children: [{ type: 'symbol', id: '_px_sym', viewBox: '0 0 100 100',
+    children: [{ type: 'ellipse', cx: 50, cy: 50, rx: 40, ry: 40, fill: '#f59e0b',
+      animate: { translate: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [0, 60] }] } }
+    }]
+  }] },
+{ type: 'use', id: '_px_u1', href: '#_px_sym', x: 0,   y: 0,
+  effects: { retime: { baseId: '_px_sym', start: 0,   stretch: 1 } } },
+{ type: 'use', id: '_px_u2', href: '#_px_sym', x: 120, y: 0,
+  effects: { retime: { baseId: '_px_sym', start: 500, stretch: 2 } } }
+```
+
+**`<use>` + `ref` (noRefTranslate)** — reference the source's content sub-anchor so the outer translate isn't re-applied; useful when you want to share geometry but not position:
+
+```js
+{ type: 'rect', id: '_px_src', x: 0, y: 0, width: 50, height: 50, fill: '#a855f7',
+  transform: 'translate(100,100)' },
+{ type: 'use', id: '_px_u', href: '#_px_src',
+  effects: { ref: { baseId: '_px_src', type: 'content' } } }
+```
+
+**`trimPath`** — animate a draw-on effect; the wrapping `<g>` carries `isCombinedShape:true` when the children form one logical shape:
+
+```js
+{ type: 'g', id: '_px_trim',
+  effects: { trimPath: { range: [0, 0.5] }, isCombinedShape: true },
+  children: [
+    { type: 'path', d: 'M0,0 L100,0' },
+    { type: 'path', d: 'M0,0 L100,100' }
+  ] }
+```
+
 `applyPlayerEffects` consumes and removes `effects` before the rest of the pipeline runs — downstream code never sees a non-empty `effects`.
 
 ---
@@ -566,7 +641,7 @@ exported SVG already contains the expanded structure — `node.effects` is absen
 
 ## Using in React / Next.js
 
-SVG files are self-contained and can be embedded in a few ways:
+Pre-rendered SVG files are self-contained and can be embedded in a few ways:
 
 - **Copy-paste** — paste SVG markup directly into HTML
 - **Inlined/embedded** - into static HTML by your framework, CMS or static site generator
@@ -575,7 +650,7 @@ SVG files are self-contained and can be embedded in a few ways:
 
 ### React / Next.js
 
-**CSS Keyframes SVG** — import as a component via [SVGR](https://react-svgr.com/), the same way you import an icon:
+**Pre-rendered SVG + CSS Keyframes** — import as a component via [SVGR](https://react-svgr.com/), the same way you import an icon:
 
 ```tsx
 // requires @svgr/webpack or @svgr/vite
@@ -583,7 +658,7 @@ import Animation from './animation.svg';
 <Animation />
 ```
 
-**SVG with `<script>`** — SVGR strips `<script>` tags by default. Use `dangerouslySetInnerHTML` or a raw HTML approach, or switch to JSON instead.
+**Pre-rendered SVG with `<script>`** — SVGR strips `<script>` tags by default. Use `dangerouslySetInnerHTML` or a raw HTML approach, or switch to JSON instead.
 
 **JSON:**
 
@@ -598,7 +673,7 @@ export default function App() {
 
 ## Using in Vue / Nuxt
 
-**CSS Keyframes SVG:**
+**Pre-rendered SVG + CSS Keyframes:**
 
 ```vue
 <component :is="require('./animation.svg?inline')" />
