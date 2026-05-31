@@ -10,7 +10,8 @@
  * masked-by effects (the latter builds INVERSE parts).
  */
 
-import type { ApplyContext, PxAnimatable, PxKeyframe, Vec2 } from './types';
+import type { PxAnimatable, PxKeyframe, Vec2 } from '../PxAnimatorTypes';
+import type { ApplyContext } from './types';
 
 /** Builds a player `PxTransformParts` record for one part (+ optional origin). */
 export function partsRecord(part: 'translate' | 'rotate' | 'scale', value: any, origin: Vec2 | undefined) {

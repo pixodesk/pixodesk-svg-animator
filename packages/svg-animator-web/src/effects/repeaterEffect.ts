@@ -5,7 +5,8 @@
 
 
 import { applyTransformationEffect } from './transformationEffect';
-import type { ApplyContext, PxAnimatable, PxNode, PxRepeaterEffect, PxTransformationEffect, Vec2 } from './types';
+import type { PxAnimatable, PxNode, PxRepeaterEffect, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
+import type { ApplyContext } from './types';
 import { clone } from './util';
 
 

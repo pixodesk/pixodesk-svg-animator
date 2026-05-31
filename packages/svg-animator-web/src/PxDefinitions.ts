@@ -59,7 +59,7 @@ function parsePathCommands(d: string): Array<PathCommand> {
  * Parses an internal SVG path string into PxBezierPath array.
  * Handles M (moveto), L (lineto), C (curveto), Z (close) commands.
  */
-function parseSvgPathToBezier(d: string): Array<PxBezierPath> {
+export function parseSvgPathToBezier(d: string): Array<PxBezierPath> {
     const res: Array<PxBezierPath> = [];
     let currentPath: PxBezierPath | undefined;
 

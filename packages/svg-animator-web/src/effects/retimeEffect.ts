@@ -16,7 +16,8 @@
  * Both share the clone + keyframe-remap core; only the wrapping differs.
  */
 
-import type { ApplyContext, PxNode, PxRetimeEffect } from './types';
+import type { PxNode, PxRetimeEffect } from '../PxAnimatorTypes';
+import type { ApplyContext } from './types';
 import { clone, genId, regenerateIdsInClone } from './util';
 
 const RETIME_AS_SYMBOL = true;

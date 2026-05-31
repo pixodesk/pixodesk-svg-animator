@@ -25,10 +25,12 @@ import { applyRefAndTransformationEffect } from './refEffect';
 import { applyRepeaterEffect } from './repeaterEffect';
 import { applyRetimeEffect } from './retimeEffect';
 import { applyTrimPathEffect } from './trimPathEffect';
-import type { ApplyContext, ApplyResult, PxNode } from './types';
+import type { PxNode } from '../PxAnimatorTypes';
+import type { ApplyContext, ApplyResult } from './types';
 import { clone, genId, indexById, spliceDefs } from './util';
 
-export type { ApplyResult, PxNode } from './types';
+export type { PxNode } from '../PxAnimatorTypes';
+export type { ApplyResult } from './types';
 
 
 /**
@@ -91,7 +93,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     if (fx) delete node.effects;
 
     let n = node;
-    n = applyTrimPathEffect(n, trimPath, isCombinedShape);              // innermost
+    n = applyTrimPathEffect(n, trimPath, isCombinedShape, ctx);         // innermost
     n = applyRepeaterEffect(n, repeater, ctx);
     n = applyMaskedByEffect(n, maskedBy, transformation, ctx);          // mask sits on inner element
 

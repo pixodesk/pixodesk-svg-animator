@@ -6,7 +6,8 @@
 
 /** Generic, effect-agnostic helpers for the player-effects applier. */
 
-import type { ApplyContext, PxNode, Vec2 } from './types';
+import type { PxNode, Vec2 } from '../PxAnimatorTypes';
+import type { ApplyContext } from './types';
 
 /** Mints a deterministic id for a generated node (`<mask>`, retimed `<symbol>`, …). */
 export function genId(ctx: ApplyContext, prefix: string): string {

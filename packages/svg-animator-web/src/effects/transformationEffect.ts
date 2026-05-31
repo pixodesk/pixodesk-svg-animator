@@ -5,7 +5,8 @@
 
 
 import { keyframeWith, partsRecord, readAnimatable } from './transformParts';
-import type { ApplyContext, PxAnimatable, PxNode, PxTransformationEffect, Vec2 } from './types';
+import type { PxAnimatable, PxNode, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
+import type { ApplyContext } from './types';
 
 
 /**

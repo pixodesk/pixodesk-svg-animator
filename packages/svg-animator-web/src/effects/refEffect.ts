@@ -17,7 +17,8 @@
  */
 
 import { applyTransformationEffect } from './transformationEffect';
-import type { ApplyContext, PxNode, PxRefEffect, PxTransformationEffect } from './types';
+import type { PxNode, PxRefEffect, PxTransformationEffect } from '../PxAnimatorTypes';
+import type { ApplyContext } from './types';
 
 const CONTENT_SUBREF = 'content';
 

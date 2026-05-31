@@ -46,7 +46,8 @@
  */
 
 import { applyTransformationEffect } from './transformationEffect';
-import type { ApplyContext, PxAnimatable, PxKeyframe, PxNode, PxTransformationEffect, Vec2 } from './types';
+import type { PxAnimatable, PxKeyframe, PxNode, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
+import type { ApplyContext } from './types';
 
 
 /** Walks the tree and collects every id referenced by a `<use>` with `ref:{type:'content'}`. */

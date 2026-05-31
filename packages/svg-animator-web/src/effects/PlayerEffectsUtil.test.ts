@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { applyPlayerEffects } from './PlayerEffectsUtil';
-import type { PxNode } from './types';
+import type { PxNode } from '../PxAnimatorTypes';
 
 /**
  * Replaces every auto-allocated id (`_lw_*`) with `__GEN_<N>__` in encounter

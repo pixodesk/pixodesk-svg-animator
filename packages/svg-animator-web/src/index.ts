@@ -90,7 +90,7 @@ export { createWebApiAnimator } from './PxAnimatorWebApi';
 // `createAnimatorImpl` before any other normalisation; exposed for the Editor's
 // "equal in effect" comparison harness.
 export { applyPlayerEffects } from './effects/PlayerEffectsUtil';
-export type { ApplyResult, PxEffects, PxNode as PxEffectsNode } from './effects/types';
+export type { ApplyResult } from './effects/types';
 export { collectSampleTimes, diffInEffect, visualModelAt } from './effects/PlayerEffectsUtil.visualModel';
 
 // Effects schemas + walker validator. `createAnimatorImpl` runs `validateNodeEffects`
@@ -105,5 +105,16 @@ export {
     PxTransformationEffectSchema,
     PxTrimPathEffectSchema,
     validateNodeEffects,
+} from './PxAnimatorTypes';
+export type {
+    PxAnimatable,
+    PxEffects,
+    PxMaskedByEffect,
+    PxRefEffect,
+    PxRepeaterEffect,
+    PxRetimeEffect,
+    PxTransformationEffect,
+    PxTrimPathEffect,
+    Vec2,
 } from './PxAnimatorTypes';
 

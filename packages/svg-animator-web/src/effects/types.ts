@@ -5,87 +5,17 @@
 
 
 /**
- * Shared types for the lightweight player-effects applier.
+ * Applier-runtime types: `ApplyContext` (per-run mutable state) and `ApplyResult`
+ * (return shape of `applyPlayerEffects`).
  *
- * The node keys used across these files (`type`, `children`, `transform`,
- * `animate`, `href`, …) are the stable on-disk WIRE keys — accessed by literal
- * dot-notation on purpose. Nothing here imports anything but plain TS, so the
- * whole `effects/` folder can move into the Player codebase verbatim.
+ * The wire-shape types (`PxNode`, `PxEffects`, individual effect shapes,
+ * `PxAnimatable<T>`, etc.) live in `../PxAnimatorTypes` — the single source
+ * of truth that pairs each interface with its runtime `Px*Schema` via
+ * `implementsInterface`. Effect modules import those directly from there.
  */
 
-/** A serialised SVGA node. Loose by design — this is parsed wire JSON. */
-export interface PxNode {
-    type?: string;
-    children?: Array<PxNode>;
-    effects?: PxEffects;
-    [attr: string]: any;
-}
+import type { PxNode } from '../PxAnimatorTypes';
 
-/** The `node.effects` bucket the player-effects writer emits (render effects only). */
-export interface PxEffects {
-    transformation?: PxTransformationEffect;
-    repeater?: PxRepeaterEffect;
-    maskedBy?: PxMaskedByEffect;
-    trimPath?: object;
-    retime?: PxRetimeEffect;
-    isCombinedShape?: boolean;
-    ref?: PxRefEffect;
-}
-
-/** `<use>` retime effect: `baseId` = source symbol/element; `start`/`timeCrop` in ms
- *  (no frame rate in the Player). The source's keyframe times are remapped
- *  `t' = start + t·stretch`. */
-export interface PxRetimeEffect {
-    baseId?: string;
-    start?: number;
-    stretch?: number;
-    timeCrop?: [number, number];
-}
-
-/** `<use>` reference effect: `baseId` = source element id; `type` = sub-ref mode
- *  (`content` = exclude object-translate, the former `noRefTranslate`). */
-export interface PxRefEffect {
-    baseId?: string;
-    type?: string;
-}
-
-export type Vec2 = [number, number];
-
-/** An animatable value: a raw static value, a `{value}` static, or `{keyframes}`.
- *  Animated translate may additionally carry `autoOrient` (motion-path rotation
- *  derived from the curve tangent) at the animation level, and `tangentOut` /
- *  `tangentIn` on individual keyframes (curve handles). */
-export type PxAnimatable<T> = T | { value: T } | { keyframes: Array<PxKeyframe<T>>; autoOrient?: boolean };
-export interface PxKeyframe<T> {
-    time?: number;
-    value?: T;
-    easing?: Array<number>;
-    tangentOut?: Vec2;
-    tangentIn?: Vec2;
-}
-
-export interface PxTransformationEffect {
-    translate?: PxAnimatable<Vec2>;
-    rotate?: PxAnimatable<number>;
-    scale?: PxAnimatable<Vec2>;
-    skew?: PxAnimatable<Vec2>;
-    origin?: PxAnimatable<Vec2>;
-}
-
-export interface PxRepeaterEffect {
-    copies?: number;
-    translate?: PxAnimatable<Vec2>;
-    rotate?: PxAnimatable<number>;
-    scale?: PxAnimatable<Vec2>;       // per-copy scale, stored as PERCENT (85 → 0.85)
-    origin?: PxAnimatable<Vec2>;
-}
-
-export interface PxMaskedByEffect {
-    href?: string;
-    maskType?: string;
-    maskUnits?: string;
-    maskContentUnits?: string;
-}
 
 /** Collected diagnostics + new <defs> nodes accumulated during a run. */
 export interface ApplyResult {

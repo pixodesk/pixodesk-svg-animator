@@ -699,8 +699,12 @@ export interface _PxNode {
      * emitted by the Editor's lightweight design format. `applyPlayerEffects`
      * materialises and removes these before any other normalisation, so the
      * Player never observes a non-empty `effects` after entry-point processing.
+     *
+     * Typed against `PxEffectsSchema` (closed object — strict-mode validation
+     * flags unknown effect keys). Adding a new effect requires extending the
+     * `_PxEffects` interface AND the schema in lockstep.
      */
-    effects?: any;
+    effects?: PxEffects;
 
     /**
      * In-place property animations for this element. Same shape as the
@@ -726,7 +730,7 @@ export interface _PxNode {
 }
 
 // ============================================================================
-// PLAYER-EFFECTS BUCKET SCHEMAS
+// PLAYER-EFFECTS BUCKET — INTERFACES + SCHEMAS (linked via `implementsInterface`)
 // ============================================================================
 //
 // Schemas for the `node.effects` payload emitted by the Editor's lightweight
@@ -734,13 +738,30 @@ export interface _PxNode {
 // materialises and removes these before any other normalisation, so the Player
 // never observes a non-empty `effects` after entry-point processing.
 //
-// Schemas mirror the TS interfaces in `effects/types.ts`. The effects folder
-// itself stays portable (zero deps); these schemas + `validateNodeEffects`
-// live here so the lib provides shape validation as a service for callers
-// (the Player calls it in `createAnimatorImpl`; the Editor could too).
+// Each effect is declared as a `_Px*` interface, paired with a `Px*Schema`
+// wrapped in `implementsInterface<_Px*>()(…)`. The runtime schema and the
+// compile-time interface drift together: a new field added to either without
+// matching the other is a TS error. `KeysMatch` asserts key-set equality so
+// renames are caught too. This is the same pattern used by `PxKeyframe`,
+// `PxLoop`, etc. earlier in this file.
 //
-// Adjust `effects/types.ts` and these schemas together when a new effect is
-// introduced or an existing one grows a new field.
+// `effects/types.ts` re-exports these types so the applier internals
+// (`effects/*.ts`) can still `import from './types'` unchanged.
+
+/** Fixed-length 2-number tuple. `[x, y]` for positions, `[sx, sy]` for scale, …. */
+export type Vec2 = [number, number];
+
+/**
+ * Animatable wire value: a raw static value, a `{value}` structured-static, or
+ * a `{keyframes}` animation. Used by the effect schemas; the runtime schema
+ * variants live below as `PxAnimatableNumberSchema` / `PxAnimatableVec2Schema`.
+ *
+ * Generic over the per-kf value type `T` for compile-time narrowing of the
+ * static / `{value}` forms. The `{keyframes}` form uses the lib's non-generic
+ * `PxKeyframe` (whose `value` is `any`) — kf values are read with care in the
+ * applier (the visualModel walker / `interpParts` know per-property shapes).
+ */
+export type PxAnimatable<T> = T | { value: T } | { keyframes: Array<PxKeyframe>; autoOrient?: boolean };
 
 // PxAnimatable<number> — static number OR `{value}` static OR `{keyframes}` animated.
 const PxAnimatableNumberSchema = px.union([
@@ -753,65 +774,140 @@ const PxAnimatableNumberSchema = px.union([
 ]);
 
 // PxAnimatable<Vec2> — static `[x,y]` OR `{value:[x,y]}` OR `{keyframes}` animated.
+// `as const` on the tuples is REQUIRED for TS to infer `[number, number]` (a
+// fixed-length tuple = `Vec2`) instead of the looser `number[]`.
 const PxAnimatableVec2Schema = px.union([
-    px.tuple([px.number(), px.number()]),
-    px.object({ value: px.tuple([px.number(), px.number()]) }),
+    px.tuple([px.number(), px.number()] as const),
+    px.object({ value: px.tuple([px.number(), px.number()] as const) }),
     px.object({
         keyframes: px.array(PxKeyframeSchema),
         autoOrient: px.boolean().optional(),
     }),
 ]);
 
+
 /** Per-part editor transform (`transformation` effect). All parts optional and animatable. */
-export const PxTransformationEffectSchema = px.object({
+export interface _PxTransformationEffect {
+    translate?: PxAnimatable<Vec2>;
+    rotate?: PxAnimatable<number>;
+    scale?: PxAnimatable<Vec2>;
+    skew?: PxAnimatable<Vec2>;
+    origin?: PxAnimatable<Vec2>;
+}
+export const PxTransformationEffectSchema = implementsInterface<_PxTransformationEffect>()(px.object({
     translate: PxAnimatableVec2Schema.optional(),
     rotate: PxAnimatableNumberSchema.optional(),
     scale: PxAnimatableVec2Schema.optional(),
     skew: PxAnimatableVec2Schema.optional(),
     origin: PxAnimatableVec2Schema.optional(),
-});
+}));
+export type PxTransformationEffect = PxInfer<typeof PxTransformationEffectSchema>;
+const _ck_PxTransformationEffect: KeysMatch<PxTransformationEffect, _PxTransformationEffect> = true;
+
 
 /** Per-copy repeater offsets. Each part is animatable; per-copy values scale
  *  with the copy index `i` (translate/rotate/origin × i; scale per-axis `(v/100)^i`).
  *  Static repeater values pass through as a structured `transform: {value:…}` on
  *  the per-copy wrapper; animated values are emitted as `animate.transform.keyframes`
  *  with each kf value scaled by `i`. See `effects/repeaterEffect.ts`. */
-export const PxRepeaterEffectSchema = px.object({
+export interface _PxRepeaterEffect {
+    copies?: number;
+    translate?: PxAnimatable<Vec2>;
+    rotate?: PxAnimatable<number>;
+    scale?: PxAnimatable<Vec2>;       // per-copy scale, stored as PERCENT (85 → 0.85)
+    origin?: PxAnimatable<Vec2>;
+}
+export const PxRepeaterEffectSchema = implementsInterface<_PxRepeaterEffect>()(px.object({
     copies: px.number().optional(),
     translate: PxAnimatableVec2Schema.optional(),
     rotate: PxAnimatableNumberSchema.optional(),
-    scale: PxAnimatableVec2Schema.optional(),    // per-copy scale, PERCENT (85 → 0.85)
+    scale: PxAnimatableVec2Schema.optional(),
     origin: PxAnimatableVec2Schema.optional(),
-});
+}));
+export type PxRepeaterEffect = PxInfer<typeof PxRepeaterEffectSchema>;
+const _ck_PxRepeaterEffect: KeysMatch<PxRepeaterEffect, _PxRepeaterEffect> = true;
+
 
 /** Mask source ref + standard `<mask>` attributes. */
-export const PxMaskedByEffectSchema = px.object({
+export interface _PxMaskedByEffect {
+    href?: string;
+    maskType?: string;
+    maskUnits?: string;
+    maskContentUnits?: string;
+}
+export const PxMaskedByEffectSchema = implementsInterface<_PxMaskedByEffect>()(px.object({
     href: px.string().optional(),
     maskType: px.string().optional(),
     maskUnits: px.string().optional(),
     maskContentUnits: px.string().optional(),
-});
+}));
+export type PxMaskedByEffect = PxInfer<typeof PxMaskedByEffectSchema>;
+const _ck_PxMaskedByEffect: KeysMatch<PxMaskedByEffect, _PxMaskedByEffect> = true;
 
-/** Trim-path effect payload — opaque to the player materialiser; lives on `meta`. */
-export const PxTrimPathEffectSchema = px.any();
+
+/**
+ * Trim-path effect. `range[0..1]` is the visible fraction of the stroke; `offset`
+ * shifts the visible window along the path (also a fraction). Both are animatable.
+ * `trimAllAsOne=true` chains all descendant subpath lengths into one virtual path
+ * (the editor's "Trim All As One"): the trim window slides across siblings instead
+ * of being applied to each subpath independently — see `effects/trimPathEffect.ts`.
+ */
+export interface _PxTrimPathEffect {
+    offset?: PxAnimatable<number>;
+    range?: PxAnimatable<Vec2>;
+    trimAllAsOne?: boolean;
+}
+export const PxTrimPathEffectSchema = implementsInterface<_PxTrimPathEffect>()(px.object({
+    offset: PxAnimatableNumberSchema.optional(),
+    range: PxAnimatableVec2Schema.optional(),
+    trimAllAsOne: px.boolean().optional(),
+}));
+export type PxTrimPathEffect = PxInfer<typeof PxTrimPathEffectSchema>;
+const _ck_PxTrimPathEffect: KeysMatch<PxTrimPathEffect, _PxTrimPathEffect> = true;
+
 
 /** `<use>` retime: `baseId` = source; `start`/`timeCrop` in ms. */
-export const PxRetimeEffectSchema = px.object({
+export interface _PxRetimeEffect {
+    baseId?: string;
+    start?: number;
+    stretch?: number;
+    timeCrop?: [number, number];
+}
+export const PxRetimeEffectSchema = implementsInterface<_PxRetimeEffect>()(px.object({
     baseId: px.string().optional(),
     start: px.number().optional(),
     stretch: px.number().optional(),
-    timeCrop: px.tuple([px.number(), px.number()]).optional(),
-});
+    timeCrop: px.tuple([px.number(), px.number()] as const).optional(),
+}));
+export type PxRetimeEffect = PxInfer<typeof PxRetimeEffectSchema>;
+const _ck_PxRetimeEffect: KeysMatch<PxRetimeEffect, _PxRetimeEffect> = true;
+
 
 /** `<use>` ref: `baseId` = source; `type: 'content'` = exclude object-translate. */
-export const PxRefEffectSchema = px.object({
+export interface _PxRefEffect {
+    baseId?: string;
+    type?: string;
+}
+export const PxRefEffectSchema = implementsInterface<_PxRefEffect>()(px.object({
     baseId: px.string().optional(),
     type: px.string().optional(),
-});
+}));
+export type PxRefEffect = PxInfer<typeof PxRefEffectSchema>;
+const _ck_PxRefEffect: KeysMatch<PxRefEffect, _PxRefEffect> = true;
+
 
 /** The full `node.effects` bucket. Closed — each known effect is declared
  *  (strict-mode validation flags an unknown effect key as a wire-format drift). */
-export const PxEffectsSchema = px.object({
+export interface _PxEffects {
+    transformation?: _PxTransformationEffect;
+    repeater?: _PxRepeaterEffect;
+    maskedBy?: _PxMaskedByEffect;
+    trimPath?: _PxTrimPathEffect;
+    retime?: _PxRetimeEffect;
+    isCombinedShape?: boolean;
+    ref?: _PxRefEffect;
+}
+export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
     transformation: PxTransformationEffectSchema.optional(),
     repeater: PxRepeaterEffectSchema.optional(),
     maskedBy: PxMaskedByEffectSchema.optional(),
@@ -819,7 +915,9 @@ export const PxEffectsSchema = px.object({
     retime: PxRetimeEffectSchema.optional(),
     isCombinedShape: px.boolean().optional(),
     ref: PxRefEffectSchema.optional(),
-});
+}));
+export type PxEffects = PxInfer<typeof PxEffectsSchema>;
+const _ck_PxEffects: KeysMatch<PxEffects, _PxEffects> = true;
 
 /**
  * Walks `root` and validates every `node.effects` bucket against `PxEffectsSchema`.
