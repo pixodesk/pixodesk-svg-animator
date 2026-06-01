@@ -120,26 +120,47 @@ function worldPos(
 }
 
 
-/** Compares engines at N sample times across `[0, duration]`. For each sample,
+/** Compares engines at sample times across `[0, duration]`. For each sample,
  *  asserts that the WAAPI engine's rendered position of each probe point is
- *  within `tolerance` of the frames engine's reference position. */
+ *  within `tolerance` of the frames engine's reference position.
+ *
+ *  Sampling is intentionally densified around kf boundaries: the autoOrient
+ *  angle from `atan2` can flip ±360° exactly at an axis-aligned tangent (e.g.
+ *  tangent points in -X → returns +180°; one curve-step later it returns -180°).
+ *  A coarse uniform sampler can step over the discontinuity entirely and miss
+ *  the wrap-around bug.
+ */
 function expectParity(
     doc: PxAnimatedSvgDocument,
     opts: {
         duration: number;
-        samples?: number;          // default 40
+        samples?: number;          // default 40 — coarse uniform sweep
         probes?: Array<[number, number]>;  // default [[0,0]]
         tolerance?: number;        // default 2 px (chord error)
+        kfBoundaryTimes?: Array<number>;   // optional: extra dense samples
     },
 ): void {
     const samples = opts.samples ?? 40;
     const probes = opts.probes ?? [[0, 0]];
     const tol = opts.tolerance ?? 2;
 
+    // Build the time list: uniform sweep + dense neighbourhoods around any kf
+    // boundaries the caller asked for.
+    const times: Array<number> = [];
+    for (let i = 0; i <= samples; i++) times.push((i / samples) * opts.duration);
+    for (const t of opts.kfBoundaryTimes ?? []) {
+        // 1 ms / 5 ms / 20 ms after and before — every angular discontinuity
+        // an autoOrient atan2 wrap could produce sits within this window.
+        for (const offset of [-20, -5, -1, 1, 5, 20]) {
+            const tt = t + offset;
+            if (tt >= 0 && tt <= opts.duration) times.push(tt);
+        }
+    }
+    times.sort((a, b) => a - b);
+
     const diffs: Array<{ time: number; probe: [number, number]; frames: [number, number]; webapi: [number, number]; delta: number }> = [];
 
-    for (let i = 0; i <= samples; i++) {
-        const t = (i / samples) * opts.duration;
+    for (const t of times) {
         for (const probe of probes) {
             const f = worldPos(doc, PxAnimatorEngine.frames, t, probe);
             const w = worldPos(doc, PxAnimatorEngine.webapi, t, probe);
@@ -335,10 +356,15 @@ describe('motion-along-path materialisation parity (webapi vs frames)', () => {
         // The bug the user originally reported: rotation pivot lost
         // → element flies off the path. Probes at the rect's corners + its
         // centre-of-rotation amplify any drift in the origin / rotate parts.
+        //
+        // Densify sampling around the kf boundaries so any autoOrient atan2
+        // wrap-around (±180° boundary) is caught — the wrap window is ~30 ms
+        // wide and would otherwise be skipped by the coarse uniform sweep.
         expectParity(closedLoopOrbitFixture(), {
             duration: 2836,
             probes: [[0, 0], [59.0992, 27.1254], [118.1984, 54.2508]],
             tolerance: 3,
+            kfBoundaryTimes: [0, 710, 1420, 2130, 2840],
         });
     });
 

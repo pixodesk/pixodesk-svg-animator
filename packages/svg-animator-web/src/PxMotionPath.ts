@@ -266,9 +266,36 @@ export function materialiseMotionPathInPropAnim(
     const lastInE = getKfEasing(kfs[kfs.length - 1]);
     if (lastInE) out[out.length - 1].e = lastInE;
 
+    // Unwrap autoOrient rotations so linear interp between samples doesn't
+    // take the long way around the circle. atan2 returns in (-180°, 180°];
+    // a tangent rotating slowly across the +X axis (e.g. -179° → +179°)
+    // would otherwise be lerp'd as a ~358° spin instead of a ~2° step.
+    if (autoOrient) unwrapAutoOrientRotations(out);
+
     const result: PxPropertyAnimation = { kfs: out } as PxPropertyAnimation;
     if (anim.loop !== undefined) (result as { loop?: unknown }).loop = anim.loop;
     return result;
+}
+
+
+/** Walks `kfs` in order; for each kf with a `rotate` value, shifts it by ±360°
+ *  multiples so the delta from the previous kf's rotate stays within ±180°.
+ *  Linear interpolation between consecutive samples then always takes the
+ *  shorter arc. The accumulated shift means a continuously-rotating element
+ *  may end up with rotate values well outside [-180°, 180°], which is fine —
+ *  CSS / SVG rotation accepts any range. */
+function unwrapAutoOrientRotations(kfs: Array<PxKeyframe>): void {
+    let prev: number | undefined;
+    for (const kf of kfs) {
+        const v = (kf.v ?? kf.value) as { rotate?: number } | undefined;
+        if (!v || typeof v.rotate !== 'number') continue;
+        if (prev === undefined) { prev = v.rotate; continue; }
+        let r = v.rotate;
+        while (r - prev > 180)  r -= 360;
+        while (r - prev < -180) r += 360;
+        v.rotate = r;
+        prev = r;
+    }
 }
 
 
