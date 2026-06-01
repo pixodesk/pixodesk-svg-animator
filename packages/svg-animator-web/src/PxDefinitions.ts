@@ -20,7 +20,7 @@ import {
     type PxTransformParts
 } from './PxAnimatorTypes';
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
-import { evaluateMotionPathSegment, propAnimIsMotionPath } from './PxMotionPath';
+import { evaluateMotionPathSegment, materialiseMotionPathInPropAnim, propAnimIsMotionPath } from './PxMotionPath';
 
 
 // ============================================================================
@@ -650,12 +650,14 @@ export function resetElementIdCounter(): void {
 
 /**
  * Normalizes an animation definition by resolving easing references and normalizing keyframe times.
- * Keeps the key/value mapping structure.
+ * Keeps the key/value mapping structure. `engine` controls motion-along-path
+ * handling — see {@link PxBindingEngine}.
  */
 function normalizeAnimationDefinition(
     animDef: PxAnimationDefinition,
     duration: number,
-    defs?: PxDefs
+    defs?: PxDefs,
+    engine: PxBindingEngine = 'webapi',
 ): PxAnimationDefinition {
     const normalized: PxAnimationDefinition = {};
 
@@ -669,25 +671,40 @@ function normalizeAnimationDefinition(
             if (propAnim.autoOrient !== undefined) out.autoOrient = propAnim.autoOrient;
             if (propAnim.loop !== undefined) out.loop = propAnim.loop;
 
-            // Pipeline: loops are already expanded by `normalizeKeyframes` above;
-            // here we materialise motion-along-path (tangented `transform` kfs + autoOrient)
-            // into plain sampled `{ translate, rotate? }` kfs so both engines and
-            // any future renderer just see a unified-transform animation.
-            // `materialiseMotionPathInPropAnim` is a no-op (returns input) for non-motion-path
+            // Pipeline: loops are already expanded by `normalizeKeyframes` above.
+            // For the `webapi` engine ONLY, materialise motion-along-path
+            // (tangented `transform` kfs + autoOrient) into plain sampled
+            // `{ translate, rotate? }` kfs — CSS WAAPI can't evaluate parametric
+            // tangents at runtime. Frames-mode keeps the parametric form so the
+            // frame-loop kernel `evaluateMotionPathSegment` can sample per frame
+            // (better spatial fidelity than any finite sampling).
+            // `materialiseMotionPathInPropAnim` is a no-op for non-motion-path
             // animations, so non-transform props pay zero cost.
-            normalized[propName] = (propName === 'transform') ? materialiseMotionPathInPropAnim(out) : out;
+            normalized[propName] = (engine === 'webapi' && propName === 'transform')
+                ? materialiseMotionPathInPropAnim(out)
+                : out;
         }
     }
 
     return normalized;
 }
 
+/** Animation engine the caller is preparing bindings for. Affects motion-along-path
+ *  handling: `webapi` materialises into sampled `{ translate, rotate }` kfs (CSS
+ *  WAAPI can't evaluate parametric tangents); `frames` keeps the parametric
+ *  tangents on the kfs and lets the frame-loop's parametric kernel
+ *  (`evaluateMotionPathSegment`) compute positions per frame. */
+export type PxBindingEngine = 'frames' | 'webapi';
+
 /**
  * Normalizes a PxAnimatedSvgDocument to a PxAnimatorConfig for the animation engines.
  * This is the main entry point for converting the new API format to internal format.
  * Resolves animation/easing references.
  */
-export function getNormalisedBindings(doc: PxAnimatedSvgDocument): PxBinding[] {
+export function getNormalisedBindings(
+    doc: PxAnimatedSvgDocument,
+    engine: PxBindingEngine = 'webapi',
+): PxBinding[] {
     const animatorConfig = getAnimatorConfig(doc) || {};
     const defs = getDefs(doc);
     const duration = animatorConfig.duration || 1000; // FIXME - get rid of 1000 here
@@ -705,7 +722,7 @@ export function getNormalisedBindings(doc: PxAnimatedSvgDocument): PxBinding[] {
         if (animDefs.length === 0) return null;
 
         const merged = mergeAnimationDefinitions(animDefs);
-        const normalizedAnim = normalizeAnimationDefinition(merged, duration, defs);
+        const normalizedAnim = normalizeAnimationDefinition(merged, duration, defs, engine);
 
         if (Object.keys(normalizedAnim).length === 0) return null;
 
@@ -859,11 +876,28 @@ function calcPropertyValue(
                 (partsResult as any)[partKey] = interp;
             }
         }
-        // No motion-path override needed here: by the time this code runs the
-        // binding has already been through `materialiseMotionPathInPropAnim`, which
-        // de-sugars tangents + autoOrient into sampled `{translate, rotate}`
-        // parts. The standard interpolation above handles them as plain
-        // unified-transform parts.
+        // Motion-along-path override (frames-mode only). The WAAPI binding
+        // pipeline materialises tangents + autoOrient into sampled
+        // `{translate, rotate}` kfs upstream (in `normalizeAnimationDefinition`),
+        // so for WAAPI this branch is a no-op (`propAnimIsMotionPath` returns
+        // false on already-materialised kfs). Frames-mode preserves the
+        // parametric form and we evaluate the Bezier per frame here — gives
+        // exact spatial fidelity vs. any finite sampling.
+        if (propAnimIsMotionPath(propAnim)) {
+            const prevTr = (prevV as { translate?: [number, number] }).translate;
+            const nextTr = (nextV as { translate?: [number, number] }).translate;
+            if (Array.isArray(prevTr) && Array.isArray(nextTr)) {
+                const sample = evaluateMotionPathSegment(
+                    prevKf, nextKf,
+                    [+prevTr[0], +prevTr[1]],
+                    [+nextTr[0], +nextTr[1]],
+                    localProgress,
+                    !!propAnim.autoOrient,
+                );
+                partsResult.translate = [sample.translate[0], sample.translate[1]];
+                if (sample.rotateDeg !== undefined) partsResult.rotate = sample.rotateDeg;
+            }
+        }
         cssValue = composeTransformParts(partsResult, { withUnits: false });
         cssAttrName = 'transform';
     } else if (cssAttrName === 'translate') {

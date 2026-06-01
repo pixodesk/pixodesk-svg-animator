@@ -198,11 +198,11 @@ export function createWebApiAnimator(
         }
     }
 
-    // Motion-along-path is already baked into plain `{ translate, rotate }`
-    // transform kfs by `bakeMotionPathAnim` inside `getNormalisedBindings`, so
-    // WAAPI sees a regular unified-transform animation and `composeTransformParts`
-    // handles it via its normal code path. No DOM-style mutation needed.
-    const bindings = getNormalisedBindings(doc);
+    // WAAPI bindings: motion-along-path is materialised into plain `{ translate,
+    // rotate }` transform kfs inside `normalizeAnimationDefinition` (gated on
+    // `engine === 'webapi'`). The WAAPI keyframe builder then sees a vanilla
+    // unified-transform animation — no DOM-style mutation, no offset-path.
+    const bindings = getNormalisedBindings(doc, 'webapi');
 
     const animations: Array<Animation> = [];
 

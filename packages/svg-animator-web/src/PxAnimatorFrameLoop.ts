@@ -43,7 +43,7 @@ export function createBasicFrameLoopAnimator(
 
     const config = getAnimatorConfig(doc) || {};
 
-    const bindings = getNormalisedBindings(doc);
+    const bindings = getNormalisedBindings(doc, 'frames');
 
     // iterations: either number or Infinity
     const _iterations = config.iterations;
