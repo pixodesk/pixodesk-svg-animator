@@ -233,10 +233,15 @@ export function materialiseMotionPathInPropAnim(
     const out: Array<PxKeyframe> = [];
 
     // First output kf — translate from input; rotate from segment-0 derivative
-    // at t=0 if autoOrient.
+    // at t=0 if autoOrient. All other transform parts (`origin`, `scale`, an
+    // explicit `rotate` when `autoOrient` is false, …) come from kfs[0].value.
     const firstPos = getKfTranslate(kfs[0]);
     if (!firstPos) return anim;
-    out.push(makeOutKf(getKfTime(kfs[0]), firstPos, autoOrient ? derivAngleForFirstKf(kfs[0], kfs[1]) : undefined));
+    const firstRotate = autoOrient ? derivAngleForFirstKf(kfs[0], kfs[1]) : undefined;
+    out.push(makeOutKf(
+        getKfTime(kfs[0]),
+        buildOutKfValue(getKfValueParts(kfs[0]), getKfValueParts(kfs[0]), 0, firstPos, firstRotate, autoOrient),
+    ));
 
     for (let i = 0; i < kfs.length - 1; i++) {
         const prevKf = kfs[i];
@@ -245,7 +250,10 @@ export function materialiseMotionPathInPropAnim(
         const nextPos = getKfTranslate(nextKf);
         if (!prevPos || !nextPos) {
             // Skip undefined translate kfs — just push next as-is.
-            out.push(makeOutKf(getKfTime(nextKf), nextPos ?? [0, 0], undefined));
+            out.push(makeOutKf(
+                getKfTime(nextKf),
+                buildOutKfValue(getKfValueParts(nextKf), getKfValueParts(nextKf), 1, nextPos ?? [0, 0], undefined, autoOrient),
+            ));
             continue;
         }
 
@@ -264,10 +272,67 @@ export function materialiseMotionPathInPropAnim(
 }
 
 
-function makeOutKf(time: number, translate: Point2, rotateDeg: number | undefined): PxKeyframe {
-    const value: { translate: Point2; rotate?: number } = { translate };
-    if (rotateDeg !== undefined) value.rotate = rotateDeg;
+function makeOutKf(time: number, value: PxTransformParts): PxKeyframe {
     return { t: time, v: value } as PxKeyframe;
+}
+
+/** Reads the kf's value-as-parts (object form). Returns `undefined` if the kf
+ *  has no value or it's an array form (single-part composite). */
+function getKfValueParts(kf: PxKeyframe): PxTransformParts | undefined {
+    const v = kf.value ?? kf.v;
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
+    return v as PxTransformParts;
+}
+
+/** Linearly interpolates one transform-part value (number / Vec2). Returns the
+ *  non-undefined input when only one side is present, falls back to `prev`
+ *  for unsupported types. */
+function interpolatePart(prev: unknown, next: unknown, p: number): unknown {
+    if (prev === undefined) return next;
+    if (next === undefined) return prev;
+    if (typeof prev === 'number' && typeof next === 'number') {
+        return prev + (next - prev) * p;
+    }
+    if (Array.isArray(prev) && Array.isArray(next) && prev.length === next.length) {
+        const out: Array<number> = new Array(prev.length);
+        for (let i = 0; i < prev.length; i++) {
+            const a = typeof prev[i] === 'number' ? prev[i] : 0;
+            const b = typeof next[i] === 'number' ? next[i] : 0;
+            out[i] = a + (b - a) * p;
+        }
+        return out;
+    }
+    return p < 0.5 ? prev : next;
+}
+
+/** Builds the value-record for one sampled output kf. `translate` overrides
+ *  whatever the per-part interpolation would have produced (motion path is the
+ *  source of truth for position); `rotateDegFromAutoOrient`, when defined,
+ *  overrides any animated `rotate`. All OTHER parts present on `prevV` /
+ *  `nextV` (origin, scale, etc.) are interpolated at the eased arc-progress
+ *  `p` — mirroring the frames-mode `calcPropertyValue` loop. */
+function buildOutKfValue(
+    prevV: PxTransformParts | undefined,
+    nextV: PxTransformParts | undefined,
+    p: number,
+    translate: Point2,
+    rotateDegFromAutoOrient: number | undefined,
+    autoOrient: boolean,
+): PxTransformParts {
+    const value: { [k: string]: unknown } = { translate };
+    const keys = new Set<string>();
+    if (prevV) for (const k of Object.keys(prevV)) keys.add(k);
+    if (nextV) for (const k of Object.keys(nextV)) keys.add(k);
+    for (const k of keys) {
+        if (k === 'translate') continue;                            // overridden by motion path
+        if (k === 'rotate' && autoOrient) continue;                 // overridden by autoOrient
+        const pv = (prevV as Record<string, unknown> | undefined)?.[k];
+        const nv = (nextV as Record<string, unknown> | undefined)?.[k];
+        if (pv === undefined && nv === undefined) continue;
+        value[k] = interpolatePart(pv, nv, p);
+    }
+    if (rotateDegFromAutoOrient !== undefined) value.rotate = rotateDegFromAutoOrient;
+    return value as PxTransformParts;
 }
 
 
@@ -299,21 +364,24 @@ function materialiseSegment(
     const nextTime = getKfTime(nextKf);
     const prevEasing = getKfEasing(prevKf);
     const invertFn = invertEasing(prevEasing);
+    const prevV = getKfValueParts(prevKf);
+    const nextV = getKfValueParts(nextKf);
 
     // 1. Critical t-values: axis extrema + endpoints.
     const interiorTs = computeSampleTs(seg, autoOrient, flatnessTol, rotationTol, maxSamples);
     // `interiorTs` is the list of t in (0, 1] in ascending order, ending with t=1.
 
-    // 2. For each sample t, compute position, rotation, and the linear-time
-    //    fraction `u` within the segment (via invertEasing of arc-fraction).
-    interface Sample { u: number; pos: Point2; rotateDeg?: number; }
+    // 2. For each sample t, compute position, rotation, the eased arc-fraction
+    //    `p` (= the value frames-mode would use for non-translate part interp),
+    //    and the linear-time fraction `u` (via invertEasing of `p`).
+    interface Sample { u: number; p: number; pos: Point2; rotateDeg?: number; }
     const samples: Array<Sample> = [];
     for (const t of interiorTs) {
         const arc = bezier2D_arcAtT(seg.lut, t);
-        const arcFrac = seg.totalArc > 0 ? arc / seg.totalArc : t;
-        const u = clamp(invertFn(clamp(arcFrac, 0, 1)), 0, 1);
+        const p = clamp(seg.totalArc > 0 ? arc / seg.totalArc : t, 0, 1);
+        const u = clamp(invertFn(p), 0, 1);
         const pos = bezier2D_pointAt(seg.P0, seg.P1, seg.P2, seg.P3, t);
-        const sample: Sample = { u, pos };
+        const sample: Sample = { u, p, pos };
         if (autoOrient) {
             const tan = bezier2D_derivativeAt(seg.P0, seg.P1, seg.P2, seg.P3, t);
             sample.rotateDeg = Math.atan2(tan[1], tan[0]) * 180 / Math.PI;
@@ -328,8 +396,8 @@ function materialiseSegment(
     let prevU = 0;
     const startIdx = out.length - 1;  // out[startIdx] is the prev kf — it owns the FIRST sub-easing.
     for (let i = 0; i < samples.length; i++) {
-        const u = samples[i].u;
-        const xFrac = prevU < 1 ? clamp((u - prevU) / (1 - prevU), 0, 1) : 1;
+        const s = samples[i];
+        const xFrac = prevU < 1 ? clamp((s.u - prevU) / (1 - prevU), 0, 1) : 1;
         const { left, right } = splitEasing(remaining, xFrac);
 
         // Assign `left` as the outgoing easing of the kf at the end of `out`
@@ -339,11 +407,12 @@ function materialiseSegment(
         if (left) out[ownerIdx].e = left;
         else delete out[ownerIdx].e;
 
-        const tGlobal = prevTime + u * (nextTime - prevTime);
-        out.push(makeOutKf(tGlobal, samples[i].pos, samples[i].rotateDeg));
+        const tGlobal = prevTime + s.u * (nextTime - prevTime);
+        const value = buildOutKfValue(prevV, nextV, s.p, s.pos, s.rotateDeg, autoOrient);
+        out.push(makeOutKf(tGlobal, value));
 
         remaining = right;
-        prevU = u;
+        prevU = s.u;
     }
 }
 
@@ -409,7 +478,13 @@ function addAxisExtremes(p0: number, p1: number, p2: number, p3: number, out: Ar
 
 
 /** Adaptive bisection between `tA` and `tB`. Always appends `tB` exactly once
- *  (either directly when the chord is flat enough, or via recursion). */
+ *  (either directly when the chord is flat enough, or via recursion).
+ *
+ *  Flatness is tested at THREE interior points (t = 0.25, 0.5, 0.75 of the
+ *  sub-interval), not just the midpoint. Symmetric Bezier segments often have
+ *  the curve crossing the chord exactly at t=0.5 — a single-midpoint check
+ *  would mistake that for flatness and skip subdivision, leaving visible
+ *  chord deviation between samples. */
 function bisect(
     tA: number, tB: number,
     out: Array<number>,
@@ -421,9 +496,16 @@ function bisect(
     const tMid = (tA + tB) / 2;
     const pA = bezier2D_pointAt(seg.P0, seg.P1, seg.P2, seg.P3, tA);
     const pB = bezier2D_pointAt(seg.P0, seg.P1, seg.P2, seg.P3, tB);
-    const pMid = bezier2D_pointAt(seg.P0, seg.P1, seg.P2, seg.P3, tMid);
+    const span = tB - tA;
+    const p25 = bezier2D_pointAt(seg.P0, seg.P1, seg.P2, seg.P3, tA + span * 0.25);
+    const p50 = bezier2D_pointAt(seg.P0, seg.P1, seg.P2, seg.P3, tMid);
+    const p75 = bezier2D_pointAt(seg.P0, seg.P1, seg.P2, seg.P3, tA + span * 0.75);
 
-    const dev = perpDist(pMid, pA, pB);
+    const dev = Math.max(
+        perpDist(p25, pA, pB),
+        perpDist(p50, pA, pB),
+        perpDist(p75, pA, pB),
+    );
     let rotOk = true;
     if (autoOrient) {
         const tanA = bezier2D_derivativeAt(seg.P0, seg.P1, seg.P2, seg.P3, tA);
@@ -435,7 +517,7 @@ function bisect(
         if (delta > rotationTol) rotOk = false;
     }
 
-    if ((dev <= flatnessTol && rotOk) || budget.remaining <= 0 || (tB - tA) < 1e-6) {
+    if ((dev <= flatnessTol && rotOk) || budget.remaining <= 0 || span < 1e-6) {
         out.push(tB);
         return;
     }
