@@ -7,7 +7,7 @@ import { applyPlayerEffects } from './effects/PlayerEffectsUtil';
 import { renderNode } from './PxAnimatorDOM';
 import { createFrameLoopAnimator, PxPlatformAdapter } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
-import { getAnimatorConfig, isPxElementFileFormat, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
+import { getAnimatorConfig, isPxElementFileFormat, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PxAnimatorMode, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
 
 
@@ -25,16 +25,17 @@ function createAnimatorFromConfig(
     const animatorConfig = getAnimatorConfig(doc) || {};
 
     let res: PxAnimatorAPI;
-    if (animatorConfig.mode === 'frames') {
-        // Forcing "frames", even if "webapi" can be used
+    if (animatorConfig.mode === PxAnimatorMode.frames) {
+        // Forcing frames, even if webapi could be used.
         res = createFrameLoopAnimator(doc, adapter, callbacks, rootElement);
     } else {
-        // Trying "webapi" first
+        // Try webapi first; fall back to frames if it returns null (unsupported
+        // attrs) unless the user explicitly forced webapi.
         res = (
             createWebApiAnimator(doc, callbacks, rootElement,
-                animatorConfig.mode === 'webapi' // Forcing "webapi"
+                animatorConfig.mode === PxAnimatorMode.webapi // forcing webapi
             ) ||
-            createFrameLoopAnimator(doc, adapter, callbacks, rootElement) // "webapi" has unsupported attrs and wasn't forced, returned null, fallback to "frames"
+            createFrameLoopAnimator(doc, adapter, callbacks, rootElement)
         );
     }
 

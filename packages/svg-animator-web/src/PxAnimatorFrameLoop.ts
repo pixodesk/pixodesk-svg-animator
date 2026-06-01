@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
-import { getAnimatorConfig, type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
+import { getAnimatorConfig, PxAnimatorEngine, type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
 import { camelCaseToKebabWordIfNeeded, clamp, DEFAULT_DURATION_MS, STYLE_ATTR_NAMES } from './PxAnimatorUtil';
 import { calcAnimationValues, getNormalisedBindings } from './PxDefinitions';
 
@@ -43,7 +43,7 @@ export function createBasicFrameLoopAnimator(
 
     const config = getAnimatorConfig(doc) || {};
 
-    const bindings = getNormalisedBindings(doc, 'frames');
+    const bindings = getNormalisedBindings(doc, PxAnimatorEngine.frames);
 
     // iterations: either number or Infinity
     const _iterations = config.iterations;

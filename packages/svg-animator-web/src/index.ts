@@ -14,6 +14,8 @@ export {
     PxAnimatedSvgDocumentSchema,
     PxAnimationDefinitionSchema,
     PxAnimatorConfigSchema,
+    PxAnimatorEngine,
+    PxAnimatorMode,
     PxAttrValueSchema,
     PxBezierPathSchema,
     PxBindingSchema,

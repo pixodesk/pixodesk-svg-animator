@@ -7,6 +7,7 @@ import {
     getAnimatorConfig,
     getBindings,
     getDefs,
+    PxAnimatorEngine,
     type PxAnimatedSvgDocument,
     type PxAnimationDefinition,
     type PxBezierPath,
@@ -651,13 +652,13 @@ export function resetElementIdCounter(): void {
 /**
  * Normalizes an animation definition by resolving easing references and normalizing keyframe times.
  * Keeps the key/value mapping structure. `engine` controls motion-along-path
- * handling — see {@link PxBindingEngine}.
+ * handling — see {@link PxAnimatorEngine}.
  */
 function normalizeAnimationDefinition(
     animDef: PxAnimationDefinition,
     duration: number,
     defs?: PxDefs,
-    engine: PxBindingEngine = 'webapi',
+    engine: PxAnimatorEngine = PxAnimatorEngine.webapi,
 ): PxAnimationDefinition {
     const normalized: PxAnimationDefinition = {};
 
@@ -680,7 +681,7 @@ function normalizeAnimationDefinition(
             // (better spatial fidelity than any finite sampling).
             // `materialiseMotionPathInPropAnim` is a no-op for non-motion-path
             // animations, so non-transform props pay zero cost.
-            normalized[propName] = (engine === 'webapi' && propName === 'transform')
+            normalized[propName] = (engine === PxAnimatorEngine.webapi && propName === 'transform')
                 ? materialiseMotionPathInPropAnim(out)
                 : out;
         }
@@ -689,21 +690,15 @@ function normalizeAnimationDefinition(
     return normalized;
 }
 
-/** Animation engine the caller is preparing bindings for. Affects motion-along-path
- *  handling: `webapi` materialises into sampled `{ translate, rotate }` kfs (CSS
- *  WAAPI can't evaluate parametric tangents); `frames` keeps the parametric
- *  tangents on the kfs and lets the frame-loop's parametric kernel
- *  (`evaluateMotionPathSegment`) compute positions per frame. */
-export type PxBindingEngine = 'frames' | 'webapi';
-
 /**
  * Normalizes a PxAnimatedSvgDocument to a PxAnimatorConfig for the animation engines.
  * This is the main entry point for converting the new API format to internal format.
- * Resolves animation/easing references.
+ * Resolves animation/easing references. `engine` controls motion-along-path
+ * handling — see {@link PxAnimatorEngine}.
  */
 export function getNormalisedBindings(
     doc: PxAnimatedSvgDocument,
-    engine: PxBindingEngine = 'webapi',
+    engine: PxAnimatorEngine = PxAnimatorEngine.webapi,
 ): PxBinding[] {
     const animatorConfig = getAnimatorConfig(doc) || {};
     const defs = getDefs(doc);

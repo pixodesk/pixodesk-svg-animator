@@ -18,7 +18,30 @@ export type StartOn = 'load' | 'mouseOver' | 'click' | 'scrollIntoView';
 
 export type OutAction = 'continue' | 'pause' | 'reset' | 'reverse';
 
-export type JsMode = "auto" | "webapi" | "frames";
+/** Animation engine selection (config level). `auto` means "try `webapi`, fall
+ *  back to `frames`"; the runtime resolves it to a concrete {@link PxAnimatorEngine}
+ *  via `createAnimatorFromConfig`. Wire as a const-namespace + matching string
+ *  type so call sites can use named members (`PxAnimatorMode.frames`) instead of
+ *  bare string literals. */
+export const PxAnimatorMode = {
+    auto:   'auto',
+    webapi: 'webapi',
+    frames: 'frames',
+} as const;
+export type PxAnimatorMode = typeof PxAnimatorMode[keyof typeof PxAnimatorMode];
+
+/** Resolved engine after `auto` dispatch — used downstream by code that always
+ *  knows exactly which engine is running (e.g. `getNormalisedBindings`'s
+ *  `engine` arg gates motion-along-path materialisation). Strictly a subset of
+ *  {@link PxAnimatorMode} (no `auto`). */
+export const PxAnimatorEngine = {
+    webapi: PxAnimatorMode.webapi,
+    frames: PxAnimatorMode.frames,
+} as const;
+export type PxAnimatorEngine = typeof PxAnimatorEngine[keyof typeof PxAnimatorEngine];
+
+/** @deprecated Backwards-compatibility alias — use {@link PxAnimatorMode} for the type. */
+export type JsMode = PxAnimatorMode;
 
 
 export const TEXT_ATTR = 'text';
@@ -541,7 +564,7 @@ const _ck_PxDefs: KeysMatch<PxDefs, _PxDefs> = true; // the key sets are identic
 export interface _PxAnimatorConfig {
 
     /** JavaScript animation implementation strategy */
-    mode?: JsMode;
+    mode?: PxAnimatorMode;
 
     /** Total animation duration in milliseconds */
     duration?: number;
@@ -598,7 +621,7 @@ export interface _PxAnimatorConfig {
 
 // `{ mode?, duration?, delay?, iterations?, fill?, direction?, frameRate?, trigger?, definitions?, animate?, debug?, debugInstName? }`
 export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(px.object({
-    mode: px.enum(['auto', 'webapi', 'frames'] as const).optional(),
+    mode: px.enum([PxAnimatorMode.auto, PxAnimatorMode.webapi, PxAnimatorMode.frames] as const).optional(),
     duration: px.number().optional(),
     delay: px.number().optional(),
     iterations: px.union([px.number(), px.literal('infinite')]).optional(),

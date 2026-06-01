@@ -5,7 +5,7 @@
 
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
-import { getAnimatorConfig, PxAnimatedSvgDocument, PxAnimatorConfig, PxKeyframe, type PxAnimationDefinition, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
+import { getAnimatorConfig, PxAnimatedSvgDocument, PxAnimatorConfig, PxAnimatorEngine, PxKeyframe, type PxAnimationDefinition, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
 import { clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, kebabToCamelCaseWord, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 import { getNormalisedBindings, interpolateValue } from './PxDefinitions';
 
@@ -202,7 +202,7 @@ export function createWebApiAnimator(
     // rotate }` transform kfs inside `normalizeAnimationDefinition` (gated on
     // `engine === 'webapi'`). The WAAPI keyframe builder then sees a vanilla
     // unified-transform animation — no DOM-style mutation, no offset-path.
-    const bindings = getNormalisedBindings(doc, 'webapi');
+    const bindings = getNormalisedBindings(doc, PxAnimatorEngine.webapi);
 
     const animations: Array<Animation> = [];
 
