@@ -8,11 +8,17 @@ import {
 import { createWebPlayer } from './players/web';
 import { createReactPlayer } from './players/react';
 import { createVuePlayer } from './players/vue';
-import type { PlayerHandle, PlayerKind } from './players/types';
+import {
+  loopModeToIterations,
+  type LoopMode,
+  type PlayerFactory,
+  type PlayerHandle,
+  type PlayerKind,
+} from './players/types';
 
 import sample from './sample.json';
 
-const factories: Record<PlayerKind, (el: HTMLElement, doc: PxAnimatedSvgDocument) => PlayerHandle> = {
+const factories: Record<PlayerKind, PlayerFactory> = {
   web: createWebPlayer,
   react: createReactPlayer,
   vue: createVuePlayer,
@@ -81,6 +87,7 @@ const demoDoc = sample as unknown as PxAnimatedSvgDocument;
 
 let currentDoc: PxAnimatedSvgDocument | null = null;
 let currentKind: PlayerKind = 'web';
+let currentLoop: LoopMode = 'auto';
 let handle: PlayerHandle | null = null;
 let duration = 0;
 let scrubbing = false;
@@ -143,7 +150,9 @@ function remount(): void {
   rateSel.value = '1';
 
   try {
-    handle = factories[currentKind](stage, currentDoc);
+    handle = factories[currentKind](stage, currentDoc, {
+      iterations: loopModeToIterations(currentLoop),
+    });
   } catch (err) {
     showError(`Failed to mount ${currentKind} player: ${String(err)}`);
     return;
@@ -187,6 +196,16 @@ document.querySelectorAll<HTMLInputElement>('input[name="player"]').forEach((rad
   radio.addEventListener('change', () => {
     if (radio.checked) {
       currentKind = radio.value as PlayerKind;
+      remount();
+    }
+  });
+});
+
+// Loop picker — auto (from JSON) / loop / no-loop
+document.querySelectorAll<HTMLInputElement>('input[name="loop"]').forEach((radio) => {
+  radio.addEventListener('change', () => {
+    if (radio.checked) {
+      currentLoop = radio.value as LoopMode;
       remount();
     }
   });

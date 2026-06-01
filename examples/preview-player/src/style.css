@@ -68,6 +68,12 @@ body {
   white-space: nowrap;
 }
 
+.options-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 .picker {
   display: flex;
   gap: 18px;

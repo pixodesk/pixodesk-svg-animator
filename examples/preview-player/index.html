@@ -15,12 +15,20 @@
             <span class="theme-label">Dark</span>
           </button>
         </div>
-        <fieldset class="picker">
-          <legend>Choose player</legend>
-          <label><input type="radio" name="player" value="web" checked /> Web</label>
-          <label><input type="radio" name="player" value="react" /> React</label>
-          <label><input type="radio" name="player" value="vue" /> Vue</label>
-        </fieldset>
+        <div class="options-row">
+          <fieldset class="picker">
+            <legend>Choose player</legend>
+            <label><input type="radio" name="player" value="web" checked /> Web</label>
+            <label><input type="radio" name="player" value="react" /> React</label>
+            <label><input type="radio" name="player" value="vue" /> Vue</label>
+          </fieldset>
+          <fieldset class="picker">
+            <legend>Loop</legend>
+            <label><input type="radio" name="loop" value="auto" checked /> Auto (from JSON)</label>
+            <label><input type="radio" name="loop" value="loop" /> Loop</label>
+            <label><input type="radio" name="loop" value="no-loop" /> No loop</label>
+          </fieldset>
+        </div>
       </header>
 
       <main class="app-main">
