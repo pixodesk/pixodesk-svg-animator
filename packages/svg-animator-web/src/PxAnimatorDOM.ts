@@ -9,13 +9,21 @@ import { camelCaseToKebabWordIfNeeded, COLOUR_ATTR_NAMES, composeTransformParts,
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 
-// textPath
-const ALLOWED_SVG_TAGS_LOWER_CASE = new Set([
-    'svg', 'g', 'path', 'circle', 'ellipse', 'rect', 'line', 'polyline', 'polygon',
-    'text', 'tspan', 'textPath', 'defs', 'clipPath', 'mask', 'pattern', 'linearGradient',
-    'radialGradient', 'stop', 'use', 'symbol', 'marker', 'filter', 'feGaussianBlur',
-    'feOffset', 'feBlend', 'feColorMatrix', 'feMerge', 'feMergeNode'
-].map(tagName => tagName.toLowerCase()));
+/**
+ * Tags that MUST never be created — the only real XSS surfaces in SVG:
+ *   - `<script>`       — direct JS execution.
+ *   - `<foreignObject>` — embeds arbitrary HTML (incl. `<script>`, `<iframe>`).
+ *
+ * Everything else (shape elements, gradients, patterns, markers, filters
+ * including `feComponentTransfer` / `feFuncA` / `feFlood` / `feComposite` /
+ * `feImage`, SMIL `<animate>` family, `<a>` hyperlinks, …) is allowed. URL
+ * sanitisation in `sanitiseAttributeValue` blocks `javascript:` / external
+ * refs on `href` / `src` / `mask` / `marker*`.
+ */
+const DISALLOWED_SVG_TAGS_LOWER = new Set([
+    'script',
+    'foreignobject',
+]);
 
 
 /**
@@ -107,8 +115,8 @@ function createElement(
     children: Array<Element> | undefined,
     textContent?: string
 ): SVGElement | null {
-    if (!ALLOWED_SVG_TAGS_LOWER_CASE.has(tagName.toLowerCase())) {
-        console.warn('Attribute not in whitelist: ', tagName);
+    if (DISALLOWED_SVG_TAGS_LOWER.has(tagName.toLowerCase())) {
+        console.warn('SVG tag blocked (dangerous): ', tagName);
         return null;
     }
 
