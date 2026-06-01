@@ -18,111 +18,82 @@ const ALLOWED_SVG_TAGS_LOWER_CASE = new Set([
 ].map(tagName => tagName.toLowerCase()));
 
 
-const ALLOWED_RESOURCE_ATTRIBUTES = [
+/**
+ * URL-valued attributes that must reference an internal `#id` / `url(#id)`
+ * only — never an external URL, `javascript:`, `data:`, etc. Values for
+ * these names are sanitised in `sanitiseAttributeValue`; non-internal
+ * refs are dropped.
+ *
+ * Stored lowercased so `sanitiseAttributeValue`'s `name.toLowerCase()`
+ * lookup matches regardless of input casing (`href` / `xlink:href` /
+ * `clipPath` / `clip-path` all hit the same entry).
+ */
+const URL_VALUE_ATTRS_LOWER = new Set([
+    'href',          // <use>, <image>
+    'xlink:href',    // legacy <use>
+    'src',           // <image>
+    'filter',        // url(#filterId)
+    'clippath',      // clip-path="url(#…)"
+    'mask',          // url(#maskId)
+    'markerstart',   // marker-start="url(#…)"
+    'markermid',     // marker-mid="url(#…)"
+    'markerend',     // marker-end="url(#…)"
+]);
 
-    'href',           // <use>
 
-    'src',            // <image>
+/**
+ * Attribute-name predicate: anything `name` matching this is dropped at
+ * `setAttribute` time. The list is intentionally small — SVG's real
+ * security surface is event handlers; every other concerning attribute
+ * (URL refs, fill/stroke `url(…)`) is value-sanitised below, not name-
+ * blocked. Adding entries here is a structural decision, not whack-a-mole.
+ */
+function isDangerousAttrName(nameLower: string): boolean {
+    // Event handlers — `onclick`, `onload`, `onerror`, `onmouseover`,
+    // `onfocus`, `onfocusin`, SMIL `onbegin`/`onend`/`onrepeat`, … and any
+    // future one. No legitimate SVG attribute starts with `on`, so this
+    // prefix is a safe blanket block.
+    if (nameLower.startsWith('on')) return true;
+    return false;
+}
 
-    'filter',         // url(#filterId)
-    'clipPath',      // clip-path="url(#clipPathId)"
-    'mask',           // url(#maskId)
-    'markerStart',   // marker-start="url(#markerId)"
-    'markerMid',     // marker-mid="url(#markerId)"
-    'markerEnd',     // marker-end="url(#markerId)"
 
-    // 'fill',           // url(#gradientId) or url(#patternId)
-    // 'stroke',         // url(#gradientId) or url(#patternId)
-
-    // Don't allow 'cursor', can use external SVG,         // url(cursor.svg)
-];
-const ALLOWED_RESOURCE_ATTRIBUTES_SET = new Set(ALLOWED_RESOURCE_ATTRIBUTES);
-
-const ALLOWED_ATTRIBUTES = [
-    'href', 'src',
-
-    // Presentation
-    'fill', 'fillOpacity', 'fillRule',
-
-    'stroke', 'strokeWidth' /*stroke-width*/,
-    'strokeOpacity', 'strokeLinecap', 'strokeLinejoin',
-    'strokeMiterlimit', 'strokeDasharray', 'strokeDashoffset',
-
-    'opacity', 'transform',
-
-    // Geometry
-    'x', 'y', 'cx', 'cy', 'r', 'rx', 'ry', 'width', 'height', 'd',
-    'x1', 'y1', 'x2', 'y2', 'points',
-    'dx', 'dy',
-
-    // Font
-    'fontSize' /*font-size*/, 'fontFamily' /*font-family*/, 
-    'fontWeight', 'fontStyle',
-
-    // Text
-    'textAnchor' /*text-anchor*/,    
-    'letterSpacing', 'wordSpacing',
-    'space', 'xml:space', 'textDecoration', 'textTransform', 'whiteSpace', 'white-space',
-    'dominantBaseline', 'alignmentBaseline',
-    'rotate', // per-glyph rotation array, currently not supported
-
-    // Structure
-    'id', 'class', 'viewBox', 'preserveAspectRatio',
-
-    // Gradient/Pattern
-    'offset', 'stopColor' /*stop-color*/, 'stopOpacity' /*stop-opacity*/, 'gradientTransform',
-
-    // Clippath/Mask
-    'clipPath' /*clip-path*/, 'mask',
-    'maskType' /*mask-type*/, 'maskUnits' /*mask-units*/, 'maskContentUnits' /*mask-content-units*/,
-    'clipPathUnits' /*clip-path-units*/,
-
-    // Motion path
-    'offsetPath', 'offsetDistance', 'offsetRotate', 'offsetAnchor', 'offsetPosition',
-
-    // Text path
-    'startOffset', 'textLength', 'lengthAdjust',
-
-    // Filter
-    'filter', 'stdDeviation', 'in', 'in2', 'result', 'mode',
-
-    ...ALLOWED_RESOURCE_ATTRIBUTES
-];
-const ALLOWED_ATTRIBUTES_LOW_SET = new Set(ALLOWED_ATTRIBUTES.map(str => str.toLowerCase()));
-
+/**
+ * Returns the value to pass to `setAttribute`, or `undefined` to drop the
+ * attribute entirely. Dropping leaves the DOM clean — the caller skips
+ * `setAttribute` when this returns `undefined`.
+ *
+ * Three layers:
+ *   1. Drop dangerous names (`on*` event handlers).
+ *   2. Restrict `url(…)` in `fill` / `stroke` / `stop-color` to
+ *      internal `url(#id)` references.
+ *   3. Restrict URL-valued attrs (`href`, `src`, `filter`, `clip-path`,
+ *      `mask`, `marker*`) to internal `#id` / `url(#id)` — blocks
+ *      `javascript:`, `data:`, external URLs.
+ * Everything else passes through.
+ */
 function sanitiseAttributeValue(name: string, value: any): any | undefined {
     const nameLower = name.toLowerCase();
 
-    // Block dangerous attributes
-    if (!ALLOWED_ATTRIBUTES_LOW_SET.has(nameLower)) {
-        console.warn('Attribute not in whitelist: ', nameLower);
+    if (isDangerousAttrName(nameLower)) {
+        console.warn('Attribute blocked (event handler / dangerous): ', nameLower);
         return undefined;
     }
 
-    // fill/stroke accept plain color values (e.g. "red", "#ff0000") in addition to
-    // url(#id) references. If a url() is present it must reference an internal id.
-    if (nameLower === 'fill' || nameLower === 'stroke' || nameLower === 'stopColor') {
+    if (nameLower === 'fill' || nameLower === 'stroke' || nameLower === 'stopcolor') {
         const str = String(value);
         if (str.includes('url(') && !/^url\(#[^)]+\)$/.test(str)) {
-            console.warn('Attribute "' + nameLower + '" blocked: url() references must be internal url(#id), got:', value);
+            console.warn('Attribute "' + nameLower + '" blocked: url() must be internal url(#id), got:', value);
             return undefined;
         }
         return value;
     }
 
-    if (ALLOWED_RESOURCE_ATTRIBUTES_SET.has(nameLower)) {
+    if (URL_VALUE_ATTRS_LOWER.has(nameLower)) {
         const str = String(value);
-
-        if (str.startsWith('#')) {
-            // Allow internal fragment references: #id (e.g. href="#elementId")
-            return value;
-        }
-
-        if (/^url\(#[^)]+\)$/.test(str)) {
-            // Allow internal URL references: url(#id)
-            return value;
-        }
-
+        if (str.startsWith('#')) return value;                  // internal fragment ref
+        if (/^url\(#[^)]+\)$/.test(str)) return value;           // internal `url(#id)`
+        console.warn('Attribute "' + nameLower + '" blocked: must be #id or url(#id), got:', value);
         return undefined;
     }
 
@@ -144,10 +115,13 @@ function createElement(
     const element = document.createElementNS(SVG_NS, tagName);
 
     for (const propName in normalisedProps) {
-        element.setAttribute(
-            camelCaseToKebabWordIfNeeded(propName),
-            sanitiseAttributeValue(propName, normalisedProps[propName])
-        );
+        // `sanitiseAttributeValue` returns `undefined` to mean "do not emit"
+        // (whitelist miss, blocked dangerous value, …). Browsers coerce
+        // `undefined` to the literal string `"undefined"` at `setAttribute`,
+        // which is exactly the bug we keep hitting — skip instead.
+        const sanitised = sanitiseAttributeValue(propName, normalisedProps[propName]);
+        if (sanitised === undefined) continue;
+        element.setAttribute(camelCaseToKebabWordIfNeeded(propName), sanitised);
     }
 
     // Apply style properties directly (avoids kebab-case issues)

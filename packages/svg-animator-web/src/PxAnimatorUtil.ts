@@ -468,6 +468,13 @@ const SVG_CAMEL_CASE_ATTRS = new Set([
     'maskUnits',
     'maskContentUnits',
 
+    // Marker  (SVG spec keeps these camelCase, like viewBox)
+    'markerUnits',
+    'markerWidth',
+    'markerHeight',
+    'refX',
+    'refY',
+
     // Text
     'textLength',
     'lengthAdjust',
