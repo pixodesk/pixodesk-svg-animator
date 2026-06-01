@@ -589,6 +589,112 @@ describe('reverseEasing', () => {
 });
 
 
+describe('Color attribute normalisation (frames-mode parity)', () => {
+
+    /** Walk a transform / colour string out of `calcAnimationValues` and check
+     *  it never contains the literal "NaN". */
+    function expectNoNaN(values: Record<string, string>): void {
+        for (const [k, v] of Object.entries(values)) {
+            expect(v, `attr "${k}" contains NaN: ${v}`).not.toMatch(/NaN/);
+        }
+    }
+
+    function getBindings(doc: PxAnimatedSvgDocument): PxAnimationDefinition {
+        const bindings = getNormalisedBindings(doc);
+        expect(bindings.length).toBeGreaterThan(0);
+        return bindings[0].animate! as PxAnimationDefinition;
+    }
+
+    it('camelCase `stopColor` is parsed (regression: frames-mode produced rgba(NaN,NaN,NaN,…))', () => {
+        const doc: PxAnimatedSvgDocument = {
+            type: 'svg',
+            animator: { duration: 1000 },
+            children: [
+                {
+                    type: 'stop',
+                    id: 'grad-stop',
+                    offset: '100%',
+                    stopColor: '#f5180a',
+                    animate: {
+                        stopColor: {
+                            keyframes: [
+                                { time: 0,    value: '#f5180a' },
+                                { time: 500,  value: '#0a6ef5' },
+                                { time: 1000, value: '#f5180a' },
+                            ],
+                        },
+                    },
+                },
+            ],
+        } as PxAnimatedSvgDocument;
+
+        const animDef = getBindings(doc);
+        // Sample at several intermediate times. Each must produce a clean
+        // rgba(…) string with no NaN channels. The colour branch in
+        // `calcPropertyValue` emits under the ORIGINAL propName (camelCase
+        // preserved), so look up `stopColor` not `stop-color`.
+        for (const t of [0, 100, 250, 500, 750, 900, 1000]) {
+            const v = calcAnimationValues(animDef, t);
+            expectNoNaN(v);
+            expect(v['stopColor']).toBeDefined();
+            expect(v['stopColor']).toMatch(/^rgba\(/);
+        }
+    });
+
+    it('camelCase `floodColor` and `lightingColor` are also normalised', () => {
+        for (const prop of ['floodColor', 'lightingColor']) {
+            const doc: PxAnimatedSvgDocument = {
+                type: 'svg',
+                animator: { duration: 1000 },
+                children: [
+                    {
+                        type: 'feFlood',
+                        id: 'flood',
+                        animate: {
+                            [prop]: {
+                                keyframes: [
+                                    { time: 0,    value: '#ff0000' },
+                                    { time: 1000, value: '#00ff00' },
+                                ],
+                            },
+                        } as Record<string, unknown>,
+                    } as any,
+                ],
+            } as PxAnimatedSvgDocument;
+            const animDef = getBindings(doc);
+            for (const t of [0, 500, 1000]) {
+                expectNoNaN(calcAnimationValues(animDef, t));
+            }
+        }
+    });
+
+    it('kebab-case `stop-color` still works (no regression)', () => {
+        const doc: PxAnimatedSvgDocument = {
+            type: 'svg',
+            animator: { duration: 1000 },
+            children: [
+                {
+                    type: 'stop',
+                    id: 's',
+                    animate: {
+                        'stop-color': {
+                            keyframes: [
+                                { time: 0,    value: '#ffffff' },
+                                { time: 1000, value: '#000000' },
+                            ],
+                        },
+                    } as Record<string, unknown>,
+                } as any,
+            ],
+        } as PxAnimatedSvgDocument;
+        const animDef = getBindings(doc);
+        for (const t of [0, 500, 1000]) {
+            expectNoNaN(calcAnimationValues(animDef, t));
+        }
+    });
+});
+
+
 ////////////////////////////////////////////////////////////////
 
 function getTestJson(): PxAnimatedSvgDocument {

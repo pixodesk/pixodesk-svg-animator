@@ -499,8 +499,14 @@ function normalizeKeyframes(
             value = normalizePathValue(value);
         }
 
-        // Normalize color values (hex/rgb/rgba strings to [0-1] vectors)
-        if (COLOUR_ATTR_NAMES.has(propName)) {
+        // Normalize color values (hex/rgb/rgba strings to [0-1] vectors).
+        // `COLOUR_ATTR_NAMES` is keyed in kebab-case (`stop-color`, `flood-color`,
+        // `lighting-color`); the wire format uses both kebab AND camelCase
+        // (`stopColor`) for these props. Without converting, frames-mode would
+        // call `interpolateColor` on the raw strings and produce `NaN` channels
+        // — the visible "rgba(NaN,NaN,NaN,…)" bug on stop-color animations.
+        const propNameKebab = isCamelCaseWord(propName) ? camelCaseToKebabWordIfNeeded(propName) : propName;
+        if (COLOUR_ATTR_NAMES.has(propNameKebab)) {
             value = parseColor(value) ?? value;
         }
 
