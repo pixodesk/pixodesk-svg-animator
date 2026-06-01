@@ -103,6 +103,15 @@ export type { MotionPathMaterialisationOptions, MotionPathSample } from './PxMot
 // through SVG `<use>` shadow trees in Chrome and Safari.
 export { materialiseAnimatedUseInstances } from './PxAnimatorUseMaterialiser';
 
+// Single-call materialisation pipeline — runs `applyPlayerEffects` +
+// `materialiseInternalLoopsInTree` + (for webapi) `materialiseMotionPathsInTree`
+// + `materialiseAnimatedUseInstances` in the canonical order. The player calls
+// this internally from `createAnimatorImpl`; exported here so the Editor's
+// flat-export path uses the EXACT same function — guarantees no pipeline
+// drift between in-player and out-of-player paths.
+export { materialiseAllInTree } from './PxAnimatorMaterialiseAll';
+export type { MaterialiseAllOptions } from './PxAnimatorMaterialiseAll';
+
 // Low-level APIs (for advanced usage)
 export { getNormalizedProps, renderNode } from './PxAnimatorDOM';
 export { createBasicFrameLoopAnimator, createFrameLoopAnimator } from './PxAnimatorFrameLoop';

@@ -584,10 +584,25 @@ export function materialiseInternalLoopsInPropAnim(
     const loopRaw = propAnim.loop;
     if (loopRaw === undefined || loopRaw === null || loopRaw === false) return propAnim;
     const loop: PxLoop = loopRaw === true ? {} : (loopRaw as PxLoop);
-    const kfs = (propAnim.keyframes ?? propAnim.kfs) as PxKeyframe[] | undefined;
-    if (!Array.isArray(kfs) || kfs.length < 2) return propAnim;
+    const rawKfs = (propAnim.keyframes ?? propAnim.kfs) as PxKeyframe[] | undefined;
+    if (!Array.isArray(rawKfs) || rawKfs.length < 2) return propAnim;
+
+    // `expandLoopKeyframes` reads kf.t / kf.v / kf.e (short form). When this
+    // function is called from the materialisation pipeline OUTSIDE the
+    // binding-normalisation path (e.g. by `materialiseAllInTree`), the input
+    // kfs may still be in long form (`time` / `value` / `easing`). Normalise
+    // here so the expansion works regardless of which form the caller passed.
+    const kfs: PxKeyframe[] = rawKfs.map(kf => {
+        const t = kf.t ?? kf.time;
+        const v = kf.v ?? kf.value;
+        const e = kf.e ?? kf.easing;
+        const out: PxKeyframe = { t, v, e } as PxKeyframe;
+        if (kf.tangentIn ?? kf.ti) out.tangentIn = (kf.tangentIn ?? kf.ti) as [number, number];
+        if (kf.tangentOut ?? kf.to) out.tangentOut = (kf.tangentOut ?? kf.to) as [number, number];
+        return out;
+    });
+
     const expanded = expandLoopKeyframes(propName, kfs, loop, duration);
-    if (expanded === kfs) return propAnim;
     const out: PxPropertyAnimation = { kfs: expanded } as PxPropertyAnimation;
     if (propAnim.autoOrient !== undefined) (out as { autoOrient?: unknown }).autoOrient = propAnim.autoOrient;
     return out;
