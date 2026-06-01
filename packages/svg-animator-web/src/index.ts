@@ -97,6 +97,12 @@ export {
 } from './PxMotionPath';
 export type { MotionPathMaterialisationOptions, MotionPathSample } from './PxMotionPath';
 
+// `<use>` instance materialiser — replaces `<use href="#anim-target">` with
+// `<g>` carrying a deep clone of the target subtree (fresh ids, rewritten
+// internal refs). Workaround for WAAPI / CSS animations not propagating
+// through SVG `<use>` shadow trees in Chrome and Safari.
+export { materialiseAnimatedUseInstances } from './PxAnimatorUseMaterialiser';
+
 // Low-level APIs (for advanced usage)
 export { getNormalizedProps, renderNode } from './PxAnimatorDOM';
 export { createBasicFrameLoopAnimator, createFrameLoopAnimator } from './PxAnimatorFrameLoop';

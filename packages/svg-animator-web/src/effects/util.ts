@@ -6,6 +6,7 @@
 
 /** Generic, effect-agnostic helpers for the player-effects applier. */
 
+import { deepClonePxNode, regenerateIdsAndRewriteRefs } from '../PxNodeCloneUtil';
 import type { PxNode, Vec2 } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
 
@@ -38,56 +39,16 @@ export function spliceDefs(root: PxNode, defs: Array<PxNode>): void {
     existing.unshift({ type: 'defs', children: defs });
 }
 
-/** JSON-only deep clone (arrays + plain objects). */
-export function clone<T>(value: T): T {
-    if (value === null || typeof value !== 'object') return value;
-    if (Array.isArray(value)) return value.map(clone) as unknown as T;
-    const out: { [k: string]: any } = {};
-    for (const k of Object.keys(value as object)) out[k] = clone((value as any)[k]);
-    return out as T;
-}
+/** Deep-clone a `PxNode` subtree. Thin wrapper around the shared
+ *  {@link deepClonePxNode}; retained as `clone` for the existing call sites. */
+export const clone = deepClonePxNode;
 
 /**
- * Regenerates every `id` inside `root` (including root itself) using fresh `genId`s,
- * then rewrites internal DOM refs (`href="#oldId"` and `url(#oldId)` inside string
- * attrs) to the new ids. References that point OUTSIDE the cloned subtree are left
- * untouched. `meta.*` is intentionally skipped — by the time retime runs in the
- * player, materialisation has already absorbed meta-driven structure.
- *
- * Returns the old→new id map so callers can rewrite their own outward-facing
- * references (e.g. a `<use>` href to the cloned subtree root).
+ * Regenerates every `id` inside `root` (root included) using `genId(ctx, 'retimed')`
+ * and rewrites internal `href="#X"` / `url(#X)` refs. Thin wrapper around the
+ * shared {@link regenerateIdsAndRewriteRefs}; encapsulates the retime-specific
+ * id-prefix convention so retime call sites stay unchanged.
  */
 export function regenerateIdsInClone(root: PxNode, ctx: ApplyContext): Map<string, string> {
-    const oldToNew = new Map<string, string>();
-
-    const walkAssign = (n: PxNode): void => {
-        if (typeof n.id === 'string') {
-            const newId = genId(ctx, 'retimed');
-            oldToNew.set(n.id, newId);
-            n.id = newId;
-        }
-        n.children?.forEach(walkAssign);
-    };
-    walkAssign(root);
-
-    const rewriteUrl = (s: string): string => s.replace(/url\(#([^)]+)\)/g, (m, oldId) => {
-        const newId = oldToNew.get(oldId);
-        return newId ? 'url(#' + newId + ')' : m;
-    });
-
-    const walkRewrite = (n: PxNode): void => {
-        if (typeof n.href === 'string' && n.href.startsWith('#')) {
-            const newId = oldToNew.get(n.href.slice(1));
-            if (newId) n.href = '#' + newId;
-        }
-        for (const k of Object.keys(n)) {
-            if (k === 'children' || k === 'effects' || k === 'meta' || k === 'href' || k === 'id') continue;
-            const v = n[k];
-            if (typeof v === 'string' && v.indexOf('url(#') !== -1) n[k] = rewriteUrl(v);
-        }
-        n.children?.forEach(walkRewrite);
-    };
-    walkRewrite(root);
-
-    return oldToNew;
+    return regenerateIdsAndRewriteRefs(root, () => genId(ctx, 'retimed'));
 }

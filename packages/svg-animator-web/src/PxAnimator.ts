@@ -7,6 +7,7 @@ import { applyPlayerEffects } from './effects/PlayerEffectsUtil';
 import { renderNode } from './PxAnimatorDOM';
 import { createFrameLoopAnimator, PxPlatformAdapter } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
+import { materialiseAnimatedUseInstances } from './PxAnimatorUseMaterialiser';
 import { getAnimatorConfig, isPxElementFileFormat, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PxAnimatorMode, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
 
@@ -252,6 +253,17 @@ export function createAnimatorImpl(
     const animatorConfig = getAnimatorConfig(doc) || {};
 
     animatorConfig.debug = true; // FIXME
+
+    // WAAPI / CSS animations don't reliably propagate through `<use>` shadow
+    // trees in Chrome and Safari (source animates, instance shows static). For
+    // every `<use>` whose target subtree contains any animation, deep-clone the
+    // target into the use site so both engines bind to the cloned nodes
+    // directly. Skipped when the user has explicitly forced `frames` mode —
+    // frames-mode reflects the source's per-frame attribute updates through
+    // the `<use>` shadow tree natively.
+    if (animatorConfig.mode !== PxAnimatorMode.frames) {
+        doc = materialiseAnimatedUseInstances(doc);
+    }
 
     let rootElement: Element | null = null;
 
