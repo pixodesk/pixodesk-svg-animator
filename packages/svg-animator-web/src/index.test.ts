@@ -8,6 +8,8 @@ import { createAnimator } from './index';
 import type { PxAnimatedSvgDocument, PxAnimationDefinition } from './PxAnimatorTypes';
 import { cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from './PxAnimatorUtil';
 import { calcAnimationValues, getNormalisedBindings } from './PxDefinitions';
+import { materialiseAllInTree } from './PxAnimatorMaterialiseAll';
+import { PxAnimatorEngine } from './PxAnimatorTypes';
 
 
 describe('animateBackground', () => {
@@ -664,6 +666,140 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
             const animDef = getBindings(doc);
             for (const t of [0, 500, 1000]) {
                 expectNoNaN(calcAnimationValues(animDef, t));
+            }
+        }
+    });
+
+    it('loop on a `stroke` animation through the materialise-all umbrella does NOT produce NaN at the loop seam', () => {
+        // Repro of the visible bug: `<g>` in a repeater + an animated stroke
+        // that LOOPS. When the loop cuts mid-segment (segment doesn't fit the
+        // duration evenly), `expandLoopKeyframes` interpolates a boundary kf —
+        // and `interpolateValue` for a colour attr expects an [r,g,b,a] array,
+        // not the original hex string. Without pre-parsing, the boundary kf
+        // ends up `[NaN,NaN,NaN,NaN]` and stays NaN for every sample past it.
+        //
+        // Goes through `materialiseAllInTree` to mirror the player's actual
+        // pipeline — the bug surfaced specifically there (raw kfs reach the
+        // loop expansion before the binding pipeline's `parseColor` step).
+        const doc: PxAnimatedSvgDocument = {
+            type: 'svg',
+            animator: { duration: 1500 },  // wider than the kfs range → loop fills tail
+            children: [
+                {
+                    type: 'path',
+                    id: 'p',
+                    animate: {
+                        stroke: {
+                            loop: true,
+                            keyframes: [
+                                { time: 0,    value: '#824d7d' },
+                                { time: 1000, value: '#10ff60' },
+                            ],
+                        },
+                    },
+                } as any,
+            ],
+        } as PxAnimatedSvgDocument;
+
+        // Run the same pipeline the player uses — for BOTH engines.
+        for (const engine of [PxAnimatorEngine.frames, PxAnimatorEngine.webapi]) {
+            const flatDoc = materialiseAllInTree(doc, engine);
+            const animDef = getBindings(flatDoc);
+            // Sample beyond the original kfs range — the loop must repeat
+            // without producing NaN colour channels.
+            for (const t of [0, 250, 500, 999, 1000, 1100, 1250, 1400, 1500]) {
+                const values = calcAnimationValues(animDef, t);
+                for (const [k, v] of Object.entries(values)) {
+                    expect(v, `engine=${engine} t=${t} attr=${k} → "${v}"`).not.toMatch(/NaN/);
+                }
+            }
+        }
+    });
+
+    // Audit other value types — same umbrella path, same loop-seam scenario.
+    // Bug shape: `expandLoopKeyframes` calls `interpolateValue(propName, prev.v,
+    // next.v, t)` at a partial-cut boundary. Each value type needs `interpolateValue`
+    // (and the pre-normalisation in `materialiseInternalLoopsInPropAnim`) to
+    // produce a clean result there — otherwise the boundary kf is NaN / broken
+    // and stays that way past the seam.
+
+    it('loop on a NUMERIC `opacity` animation — no NaN at the seam', () => {
+        const doc: PxAnimatedSvgDocument = {
+            type: 'svg',
+            animator: { duration: 1500 },
+            children: [
+                { type: 'rect', id: 'r', animate: { opacity: {
+                    loop: true,
+                    keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }],
+                } } } as any,
+            ],
+        } as PxAnimatedSvgDocument;
+        for (const engine of [PxAnimatorEngine.frames, PxAnimatorEngine.webapi]) {
+            const animDef = getBindings(materialiseAllInTree(doc, engine));
+            for (const t of [0, 500, 1100, 1400]) {
+                expectNoNaN(calcAnimationValues(animDef, t));
+            }
+        }
+    });
+
+    it('loop on a UNIFIED TRANSFORM record animation — no NaN AND correct interpolation at the seam', () => {
+        // Most common shape: `animate.transform.keyframes[].value` is an object
+        // like `{translate:[x,y], rotate:r}`. At the loop seam,
+        // `interpolateValue('transform', objA, objB, t)` used to fall through
+        // to `interpolateNum(+a, +b, t)` → `+({}) = NaN` → broken boundary kf.
+        // `calcPropertyValue`'s defensive fallback absorbs the NaN (no visible
+        // "NaN" string) but the seam SNAPS to the initial value instead of
+        // interpolating — visually wrong even though no NaN.
+        const doc: PxAnimatedSvgDocument = {
+            type: 'svg',
+            animator: { duration: 1700 },  // 700ms past the kfs range → forces partial-cut
+            children: [
+                { type: 'rect', id: 'r', animate: { transform: {
+                    loop: true,
+                    keyframes: [
+                        { time: 0,    value: { translate: [0, 0],   rotate: 0  } },
+                        { time: 1000, value: { translate: [50, 50], rotate: 90 } },
+                    ],
+                } } } as any,
+            ],
+        } as PxAnimatedSvgDocument;
+        for (const engine of [PxAnimatorEngine.frames, PxAnimatorEngine.webapi]) {
+            const animDef = getBindings(materialiseAllInTree(doc, engine));
+            for (const t of [0, 500, 1100, 1500, 1700]) {
+                expectNoNaN(calcAnimationValues(animDef, t));
+            }
+            // At t=1500 we're at 50% of the partial second iteration (which
+            // spans t=1000..1700, cutRelT=0.7). The second iteration restarts
+            // from kf0 → kf1, so at half-way through the partial portion the
+            // rect should be PARTLY rotated, not at rotate(0).
+            const mid = calcAnimationValues(animDef, 1500)['transform'];
+            // Should NOT be only `rotate(0)` — the partial loop should produce
+            // some interpolated rotation.
+            expect(mid, `engine=${engine}`).not.toMatch(/rotate\(0[,)]/);
+        }
+    });
+
+    it('loop on a PATH `d` animation — no NaN / no empty paths at the seam', () => {
+        const doc: PxAnimatedSvgDocument = {
+            type: 'svg',
+            animator: { duration: 1500 },
+            children: [
+                { type: 'path', id: 'p', animate: { d: {
+                    loop: true,
+                    keyframes: [
+                        { time: 0,    value: 'M0,0L10,10' },
+                        { time: 1000, value: 'M0,0L20,20' },
+                    ],
+                } } } as any,
+            ],
+        } as PxAnimatedSvgDocument;
+        for (const engine of [PxAnimatorEngine.frames, PxAnimatorEngine.webapi]) {
+            const animDef = getBindings(materialiseAllInTree(doc, engine));
+            for (const t of [0, 500, 1100, 1400]) {
+                const out = calcAnimationValues(animDef, t);
+                expectNoNaN(out);
+                // Also verify `d` didn't collapse to an empty path at the seam.
+                if (out['d']) expect(out['d'].length).toBeGreaterThan(2);
             }
         }
     });

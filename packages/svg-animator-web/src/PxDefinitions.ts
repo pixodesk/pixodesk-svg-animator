@@ -306,6 +306,11 @@ function resolveElementAnimation(
 /**
  * Interpolates between two keyframe values based on property type.
  * Returns the raw interpolated value (not a CSS string).
+ *
+ * Dispatch order matters — the unified-transform-record branch must run
+ * BEFORE the standalone-`rotate` branch, otherwise a `transform`-named
+ * animation whose kfs are number-typed (rare but valid) would be routed
+ * through the vec path.
  */
 export function interpolateValue(propName: string, a: any, b: any, t: number): any {
     if (propName === 'd') {
@@ -316,10 +321,48 @@ export function interpolateValue(propName: string, a: any, b: any, t: number): a
     if (COLOUR_ATTR_NAMES.has(propName)) {
         return interpolateColor(a || [0, 0, 0, 1], b || [0, 0, 0, 1], t);
     }
+    // Unified-transform record (`{translate, rotate, scale, origin}`) — the
+    // most common animated `propName === 'transform'` shape. Per-part interp
+    // so `+({}) = NaN` (the old fall-through) doesn't poison the boundary kf
+    // at a loop seam.
+    if (propName === 'transform'
+        && typeof a === 'object' && a !== null && !Array.isArray(a)
+        && typeof b === 'object' && b !== null && !Array.isArray(b)
+    ) {
+        return interpolateTransformParts(a as PxTransformParts, b as PxTransformParts, t);
+    }
+    // Standalone `rotate` as a propAnim — value is a NUMBER, not a vector.
+    // The general TRANSFORM_FN_NAMES branch below would route it through
+    // `interpolateVec`, which on a scalar returns `[]` (length NaN → no loop)
+    // — wrong CSS output.
+    if (propName === 'rotate' && typeof a === 'number' && typeof b === 'number') {
+        return interpolateNum(a, b, t);
+    }
     if (TRANSFORM_FN_NAMES.has(propName) || propName === 'stroke-dasharray' || propName === 'strokeDasharray') {
         return interpolateVec(a || [], b || [], t);
     }
     return interpolateNum(+(a || 0), +(b || 0), t);
+}
+
+/** Per-part interpolation for a unified-transform parts record. Mirrors the
+ *  inline logic in `calcPropertyValue`'s transform branch. */
+function interpolateTransformParts(a: PxTransformParts, b: PxTransformParts, t: number): PxTransformParts {
+    const keys = new Set<string>([...Object.keys(a ?? {}), ...Object.keys(b ?? {})]);
+    const out: { [k: string]: unknown } = {};
+    for (const k of keys) {
+        const av = (a as { [k: string]: unknown })?.[k];
+        const bv = (b as { [k: string]: unknown })?.[k];
+        if (k === 'rotate') {
+            out[k] = interpolateNum(+(av ?? 0), +(bv ?? 0), t);
+        } else if (k === 'translate' || k === 'scale' || k === 'origin') {
+            const fallback: Array<number> = k === 'scale' ? [1, 1] : [0, 0];
+            out[k] = interpolateVec((av as Array<number>) || fallback, (bv as Array<number>) || fallback, t);
+        } else {
+            // Unknown part — prefer next if present, otherwise prev.
+            out[k] = bv ?? av;
+        }
+    }
+    return out as PxTransformParts;
 }
 
 interface LoopTemplateEntry {
@@ -590,11 +633,19 @@ export function materialiseInternalLoopsInPropAnim(
     // `expandLoopKeyframes` reads kf.t / kf.v / kf.e (short form). When this
     // function is called from the materialisation pipeline OUTSIDE the
     // binding-normalisation path (e.g. by `materialiseAllInTree`), the input
-    // kfs may still be in long form (`time` / `value` / `easing`). Normalise
-    // here so the expansion works regardless of which form the caller passed.
+    // kfs may still be in long form (`time` / `value` / `easing`) AND the
+    // values may be unparsed (hex colour strings, raw path-`d`). Normalise
+    // both here so `interpolateValue` (called by `expandLoopKeyframes` at the
+    // loop seam) sees structured data — without this, a colour boundary kf
+    // ends up `[NaN,NaN,NaN,NaN]` and the bug stays visible until the
+    // animation cycle restarts.
+    const propNameKebab = isCamelCaseWord(propName) ? camelCaseToKebabWordIfNeeded(propName) : propName;
+    const isColour = COLOUR_ATTR_NAMES.has(propNameKebab);
     const kfs: PxKeyframe[] = rawKfs.map(kf => {
         const t = kf.t ?? kf.time;
-        const v = kf.v ?? kf.value;
+        let v: unknown = kf.v ?? kf.value;
+        if (propName === 'd') v = normalizePathValue(v);
+        if (isColour) v = parseColor(v) ?? v;
         const e = kf.e ?? kf.easing;
         const out: PxKeyframe = { t, v, e } as PxKeyframe;
         if (kf.tangentIn ?? kf.ti) out.tangentIn = (kf.tangentIn ?? kf.ti) as [number, number];
