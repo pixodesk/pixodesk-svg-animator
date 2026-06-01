@@ -76,8 +76,24 @@ export { setupAnimationTriggers } from './PxAnimatorTriggers';
 // Normalization utilities
 export {
     calcAnimationValues,
-    getNormalisedBindings as normalizeDocument
+    getNormalisedBindings as normalizeDocument,
+    materialiseInternalLoopsInPropAnim,
+    materialiseInternalLoopsInTree,
 } from './PxDefinitions';
+
+// Motion-along-path materialiser — desugars tangented `transform` kfs + `autoOrient`
+// into plain sampled `{ translate, rotate? }` kfs. Called automatically by the
+// player's binding pipeline; exposed so the Editor can produce a fully-flat
+// document for renderers without tangent support (e.g. react-native-svg).
+// Pair with `applyPlayerEffects` + `materialiseInternalLoopsInTree` for the
+// full flatten pipeline (see motion-along-path-waapi-rework.md).
+export {
+    materialiseMotionPathInPropAnim,
+    materialiseMotionPathsInTree,
+    evaluateMotionPathSegment,
+    propAnimIsMotionPath,
+} from './PxMotionPath';
+export type { MotionPathMaterialisationOptions, MotionPathSample } from './PxMotionPath';
 
 // Low-level APIs (for advanced usage)
 export { getNormalizedProps, renderNode } from './PxAnimatorDOM';

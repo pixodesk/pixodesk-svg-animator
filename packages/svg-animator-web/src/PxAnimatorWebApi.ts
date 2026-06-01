@@ -5,8 +5,7 @@
 
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
-import { buildMotionPathDFromAnim, computeOffsetDistances, propAnimIsMotionPath } from './PxMotionPath';
-import { getAnimatorConfig, PxAnimatedSvgDocument, PxAnimatorConfig, PxBinding, PxKeyframe, PxPropertyAnimation, type PxAnimationDefinition, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
+import { getAnimatorConfig, PxAnimatedSvgDocument, PxAnimatorConfig, PxKeyframe, type PxAnimationDefinition, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
 import { clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, kebabToCamelCaseWord, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 import { getNormalisedBindings, interpolateValue } from './PxDefinitions';
 
@@ -167,60 +166,6 @@ function convertToWebApiKeyframes(
     return result;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Motion-along-path → CSS Motion Path conversion (WAAPI-only)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * For each binding whose `transform` animation is motion-along-path (i.e.
- * `propAnimIsMotionPath` is true), this:
- *   - mints a path-`d` string from the kf translates + tangents and pushes
- *     `offset-path: path("d…")` (inline — no `<defs>` injection),
- *     `offset-anchor`, `offset-rotate` directly onto the DOM element, and
- *   - rewrites the binding's `transform` propAnim into an `offsetDistance`
- *     animation (arc-length-proportional 0%→100% kfs). WAAPI then animates
- *     that numeric property and the browser's CSS Motion Path renders the path.
- *
- * Operates on bindings rather than the doc because the wire-format ambiguity
- * (`node.transform` vs `node.animate.transform`) has already been collapsed by
- * `getNormalisedBindings`.
- */
-function convertBindingMotionPathsForWaapi(bindings: Array<PxBinding>, rootElement: Element | null | undefined): void {
-    for (const binding of bindings) {
-        const animate = binding.animate;
-        if (!animate || typeof animate !== 'object' || Array.isArray(animate)) continue;
-        const animDef = animate as Record<string, PxPropertyAnimation>;
-        const transformAnim = animDef.transform;
-        if (!transformAnim || !propAnimIsMotionPath(transformAnim)) continue;
-
-        const d = buildMotionPathDFromAnim(transformAnim);
-        if (!d) continue;
-        const kfs = (transformAnim.keyframes ?? transformAnim.kfs) as Array<PxKeyframe> | undefined;
-        if (!kfs || kfs.length < 2) continue;
-
-        const offsets = computeOffsetDistances(kfs);
-        const offsetKfs: Array<PxKeyframe> = kfs.map((kf, i) => {
-            const out: PxKeyframe = { t: kf.t ?? kf.time, v: (offsets[i] * 100) + '%' };
-            const easing = kf.e ?? kf.easing;
-            if (easing !== undefined) out.e = easing;
-            return out;
-        });
-
-        if (rootElement && binding.id) {
-            const el = rootElement.querySelector(getSelector(binding.id)) as HTMLElement | null;
-            if (el) {
-                el.style.offsetPath = 'path("' + d + '")';
-                el.style.offsetAnchor = '0 0';
-                el.style.offsetRotate = transformAnim.autoOrient ? 'auto' : '0deg';
-            }
-        }
-
-        delete animDef.transform;
-        animDef.offsetDistance = { kfs: offsetKfs };
-    }
-}
-
-
 /**
  * Creates an animator instance that uses the native Web Animations API.
  *
@@ -253,13 +198,11 @@ export function createWebApiAnimator(
         }
     }
 
+    // Motion-along-path is already baked into plain `{ translate, rotate }`
+    // transform kfs by `bakeMotionPathAnim` inside `getNormalisedBindings`, so
+    // WAAPI sees a regular unified-transform animation and `composeTransformParts`
+    // handles it via its normal code path. No DOM-style mutation needed.
     const bindings = getNormalisedBindings(doc);
-    // Motion-along-path → CSS Motion Path. Rewrites each motion-path binding's
-    // `transform` propAnim into an `offsetDistance` animation and pushes the
-    // static `offset-*` styles onto the rendered DOM element. Bindings are a
-    // fresh array (separate from any frames-loop fallback's bindings), so
-    // mutating in place is safe.
-    convertBindingMotionPathsForWaapi(bindings, rootElement);
 
     const animations: Array<Animation> = [];
 

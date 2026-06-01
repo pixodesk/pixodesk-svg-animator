@@ -734,3 +734,42 @@ export function bezier2D_tForDistancePct(lut: ArcLengthLUT, pct: number): number
     const total = lut.ds[lut.ds.length - 1];
     return bezier2D_tForDistance(lut, pct * total);
 }
+
+
+/**
+ * Inverse of {@link bezier2D_tForDistance}: given a curve parameter `t`,
+ * returns the arc length from the start. Binary searches the LUT's `ts`
+ * (uniformly spaced) and linearly interpolates `ds` between adjacent samples.
+ */
+export function bezier2D_arcAtT(lut: ArcLengthLUT, t: number): number {
+    const { ts, ds } = lut;
+    const last = ts.length - 1;
+    if (t <= ts[0])    return ds[0];
+    if (t >= ts[last]) return ds[last];
+    let lo = 1, hi = last;
+    while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        if (ts[mid] < t) lo = mid + 1;
+        else             hi = mid;
+    }
+    const tPrev = ts[hi - 1];
+    const span  = ts[hi] - tPrev;
+    const frac  = span > 0 ? (t - tPrev) / span : 0;
+    return ds[hi - 1] + frac * (ds[hi] - ds[hi - 1]);
+}
+
+
+/**
+ * Inverse of {@link cubicBezier}: for a CSS easing `[x1,y1,x2,y2]` and a
+ * target output `y`, returns the input `x` such that
+ * `cubicBezier(easing)(x) ≈ y`. Works for monotonic easings (the CSS
+ * default) by swapping the easing's x/y axes — the inverse easing has
+ * controls `[y1, x1, y2, x2]`, which `cubicBezier` evaluates directly.
+ *
+ * `undefined` easing (linear) → identity function.
+ */
+export function invertEasing(easing: Easing | undefined): (y: number) => number {
+    if (!easing) return (y) => y;
+    const flipped: Easing = [easing[1], easing[0], easing[3], easing[2]];
+    return cubicBezier(flipped);
+}

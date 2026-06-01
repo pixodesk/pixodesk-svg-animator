@@ -508,9 +508,9 @@ function normalizeKeyframes(
             v: value,
             e: resolveEasing(easing, defs)
         };
-        // Motion-along-path: keep the spatial tangents so `propAnimIsMotionPath`
-        // recognises this animation and `evaluateMotionPathSegment` has the
-        // control points to build the Bezier. Short aliases `ti`/`to` collapse
+        // Motion-along-path: keep the spatial tangents so the downstream
+        // `materialiseMotionPathInPropAnim` (called in `normalizeAnimationDefinition`) can
+        // sample them into transform kfs. Short aliases `ti` / `to` collapse
         // into their canonical names.
         const tIn = kf.tangentIn ?? kf.ti;
         const tOut = kf.tangentOut ?? kf.to;
@@ -551,6 +551,88 @@ function mergeAnimationDefinitions(
     return merged;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+//  Public loop-materialisation API
+//
+//  Used internally by `normalizeKeyframes` (where `expandLoopKeyframes` is
+//  already called at the tail of normalisation). Exposed here at the propAnim
+//  and tree levels so the Editor (or any external caller) can compose:
+//      root = applyPlayerEffects(root).root;
+//      root = materialiseInternalLoopsInTree(root, duration);
+//      root = materialiseMotionPathsInTree(root);
+//  to produce a fully-flat document with no `loop`, no `effects`, no tangents.
+// ─────────────────────────────────────────────────────────────────────────────
+
+
+/**
+ * Replaces `propAnim.loop` with explicit repeated keyframes via
+ * `expandLoopKeyframes`. Returns the input by reference when no loop is
+ * configured (no-op). Output drops the `loop` field (consumed).
+ */
+export function materialiseInternalLoopsInPropAnim(
+    propName: string,
+    propAnim: PxPropertyAnimation,
+    duration: number,
+): PxPropertyAnimation {
+    const loopRaw = propAnim.loop;
+    if (loopRaw === undefined || loopRaw === null || loopRaw === false) return propAnim;
+    const loop: PxLoop = loopRaw === true ? {} : (loopRaw as PxLoop);
+    const kfs = (propAnim.keyframes ?? propAnim.kfs) as PxKeyframe[] | undefined;
+    if (!Array.isArray(kfs) || kfs.length < 2) return propAnim;
+    const expanded = expandLoopKeyframes(propName, kfs, loop, duration);
+    if (expanded === kfs) return propAnim;
+    const out: PxPropertyAnimation = { kfs: expanded } as PxPropertyAnimation;
+    if (propAnim.autoOrient !== undefined) (out as { autoOrient?: unknown }).autoOrient = propAnim.autoOrient;
+    return out;
+}
+
+
+/**
+ * Walks `root` and materialises every animated property's `loop` via
+ * `materialiseInternalLoopsInPropAnim`. Immutable — returns the input by
+ * reference when no loop was found anywhere; otherwise clones along the path
+ * to each affected node, sharing untouched sub-trees.
+ */
+export function materialiseInternalLoopsInTree(
+    root: PxNode,
+    duration: number,
+): PxNode {
+    const ret = walkAndMaterialiseLoops(root, duration);
+    return ret ?? root;
+}
+
+function walkAndMaterialiseLoops(node: PxNode, duration: number): PxNode | null {
+    let newChildren: Array<PxNode> | undefined;
+    if (node.children) {
+        for (let i = 0; i < node.children.length; i++) {
+            const ret = walkAndMaterialiseLoops(node.children[i], duration);
+            if (ret !== null) {
+                if (!newChildren) newChildren = node.children.slice();
+                newChildren[i] = ret;
+            }
+        }
+    }
+    let newAnimate: Record<string, PxPropertyAnimation> | undefined;
+    const animBucket = node.animate;
+    if (animBucket && typeof animBucket === 'object' && !Array.isArray(animBucket)) {
+        const animDef = animBucket as Record<string, PxPropertyAnimation>;
+        for (const propName of Object.keys(animDef)) {
+            const propAnim = animDef[propName];
+            const materialised = materialiseInternalLoopsInPropAnim(propName, propAnim, duration);
+            if (materialised !== propAnim) {
+                if (!newAnimate) newAnimate = { ...animDef };
+                newAnimate[propName] = materialised;
+            }
+        }
+    }
+    if (!newChildren && !newAnimate) return null;
+    const cloned: PxNode = { ...node };
+    if (newChildren) cloned.children = newChildren;
+    if (newAnimate)  cloned.animate  = newAnimate as PxNode['animate'];
+    return cloned;
+}
+
+
 /**
  * Generates a unique element ID for internal tracking during DOM rendering.
  */
@@ -581,12 +663,19 @@ function normalizeAnimationDefinition(
         const normalizedKfs = normalizeKeyframes(propName, propAnim, duration, defs);
         if (normalizedKfs.length > 0) {
             const out: PxPropertyAnimation = { kfs: normalizedKfs };
-            // Carry top-level animation flags through normalization. Without these,
-            // `propAnimIsMotionPath` can't see `autoOrient` and motion-path
-            // animations silently fall back to linear translate interpolation.
+            // Carry top-level animation flags through normalization — `materialiseMotionPathInPropAnim`
+            // and the runtime evaluators need `autoOrient` / `loop` to be present
+            // alongside the kfs.
             if (propAnim.autoOrient !== undefined) out.autoOrient = propAnim.autoOrient;
             if (propAnim.loop !== undefined) out.loop = propAnim.loop;
-            normalized[propName] = out;
+
+            // Pipeline: loops are already expanded by `normalizeKeyframes` above;
+            // here we materialise motion-along-path (tangented `transform` kfs + autoOrient)
+            // into plain sampled `{ translate, rotate? }` kfs so both engines and
+            // any future renderer just see a unified-transform animation.
+            // `materialiseMotionPathInPropAnim` is a no-op (returns input) for non-motion-path
+            // animations, so non-transform props pay zero cost.
+            normalized[propName] = (propName === 'transform') ? materialiseMotionPathInPropAnim(out) : out;
         }
     }
 
@@ -770,25 +859,11 @@ function calcPropertyValue(
                 (partsResult as any)[partKey] = interp;
             }
         }
-        // Motion-along-path override: when the animation carries tangents or
-        // `autoOrient`, the translate part follows the 2D cubic Bezier defined
-        // by `kf.tangentOut` / `next.tangentIn`, with arc-length parametrisation.
-        // `autoOrient` injects a rotate derived from the curve tangent.
-        if (propAnimIsMotionPath(propAnim)) {
-            const prevTr = (prevV as any).translate;
-            const nextTr = (nextV as any).translate;
-            if (Array.isArray(prevTr) && Array.isArray(nextTr)) {
-                const sample = evaluateMotionPathSegment(
-                    prevKf, nextKf,
-                    [+prevTr[0], +prevTr[1]],
-                    [+nextTr[0], +nextTr[1]],
-                    localProgress,
-                    !!propAnim.autoOrient,
-                );
-                partsResult.translate = [sample.translate[0], sample.translate[1]];
-                if (sample.rotateDeg !== undefined) partsResult.rotate = sample.rotateDeg;
-            }
-        }
+        // No motion-path override needed here: by the time this code runs the
+        // binding has already been through `materialiseMotionPathInPropAnim`, which
+        // de-sugars tangents + autoOrient into sampled `{translate, rotate}`
+        // parts. The standard interpolation above handles them as plain
+        // unified-transform parts.
         cssValue = composeTransformParts(partsResult, { withUnits: false });
         cssAttrName = 'transform';
     } else if (cssAttrName === 'translate') {
