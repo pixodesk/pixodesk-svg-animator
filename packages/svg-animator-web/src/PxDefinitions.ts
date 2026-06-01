@@ -503,11 +503,21 @@ function normalizeKeyframes(
             value = parseColor(value) ?? value;
         }
 
-        normalized.push({
+        const normKf: PxKeyframe = {
             t: timePct,
             v: value,
             e: resolveEasing(easing, defs)
-        });
+        };
+        // Motion-along-path: keep the spatial tangents so `propAnimIsMotionPath`
+        // recognises this animation and `evaluateMotionPathSegment` has the
+        // control points to build the Bezier. Short aliases `ti`/`to` collapse
+        // into their canonical names.
+        const tIn = kf.tangentIn ?? kf.ti;
+        const tOut = kf.tangentOut ?? kf.to;
+        if (tIn) normKf.tangentIn = tIn;
+        if (tOut) normKf.tangentOut = tOut;
+
+        normalized.push(normKf);
     }
 
     // Sort by time
@@ -570,7 +580,13 @@ function normalizeAnimationDefinition(
     for (const [propName, propAnim] of Object.entries(animDef)) {
         const normalizedKfs = normalizeKeyframes(propName, propAnim, duration, defs);
         if (normalizedKfs.length > 0) {
-            normalized[propName] = { kfs: normalizedKfs };
+            const out: PxPropertyAnimation = { kfs: normalizedKfs };
+            // Carry top-level animation flags through normalization. Without these,
+            // `propAnimIsMotionPath` can't see `autoOrient` and motion-path
+            // animations silently fall back to linear translate interpolation.
+            if (propAnim.autoOrient !== undefined) out.autoOrient = propAnim.autoOrient;
+            if (propAnim.loop !== undefined) out.loop = propAnim.loop;
+            normalized[propName] = out;
         }
     }
 

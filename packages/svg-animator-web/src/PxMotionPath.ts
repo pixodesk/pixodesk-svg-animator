@@ -257,7 +257,7 @@ export function emitMotionPathsToDefs(doc: PxAnimatedSvgDocument): Array<MotionP
  *     kfs on a path whose first segment is twice as long as the second yield
  *     offset values 0, 0.667, 1).
  */
-function computeOffsetDistances(kfs: Array<PxKeyframe>): Array<number> {
+export function computeOffsetDistances(kfs: Array<PxKeyframe>): Array<number> {
     const positions: Array<Point2> = [];
     for (const kf of kfs) {
         const p = getKfTranslate(kf);

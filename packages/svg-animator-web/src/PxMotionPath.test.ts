@@ -1111,3 +1111,80 @@ describe('calcAnimationValues integration (E5–E7)', () => {
         }
     });
 });
+
+
+// ── E9: full-pipeline preservation through getNormalisedBindings ──────────────
+//
+// Regression: `normalizeKeyframes` / `normalizeAnimationDefinition` used to
+// rebuild kfs as `{t,v,e}` and propAnims as `{kfs}` — silently dropping
+// `tangentIn`/`tangentOut` and `autoOrient`. By the time `calcPropertyValue`
+// ran, `propAnimIsMotionPath(propAnim)` returned false and motion-path
+// animations decayed into linear translate interpolation (= straight lines).
+
+import { getNormalisedBindings } from './PxDefinitions';
+
+describe('getNormalisedBindings preserves motion-path payload (E9)', () => {
+
+    function ellipseWithMotionPath(): PxAnimatedSvgDocument {
+        return {
+            type: 'svg',
+            animator: { duration: 1020, mode: 'frames' },
+            children: [
+                {
+                    type: 'ellipse',
+                    id: 'ball',
+                    rx: 20,
+                    ry: 20,
+                    animate: {
+                        transform: {
+                            autoOrient: true,
+                            keyframes: [
+                                { time: 0,    value: { translate: [184, 82]  }, tangentOut: [60,   0] },
+                                { time: 250,  value: { translate: [293, 154] }, tangentOut: [0,  39], tangentIn: [0, -39] },
+                                { time: 510,  value: { translate: [184, 226] }, tangentOut: [-60, 0], tangentIn: [60,  0] },
+                                { time: 770,  value: { translate: [75,  154] }, tangentOut: [0, -39], tangentIn: [0,  39] },
+                                { time: 1020, value: { translate: [184, 82]  }, tangentIn:  [-60, 0] },
+                            ],
+                        },
+                    },
+                } as PxNode,
+            ],
+        } as any;
+    }
+
+    it('autoOrient survives normalisation', () => {
+        const bindings = getNormalisedBindings(ellipseWithMotionPath());
+        expect(bindings.length).toBe(1);
+        const transformAnim = bindings[0].animate!.transform as PxAnimationDefinition['transform'];
+        expect((transformAnim as any).autoOrient).toBe(true);
+    });
+
+    it('tangentIn / tangentOut survive on every keyframe', () => {
+        const bindings = getNormalisedBindings(ellipseWithMotionPath());
+        const kfs = (bindings[0].animate!.transform as any).kfs as Array<any>;
+        expect(kfs.length).toBe(5);
+        expect(kfs[0].tangentOut).toEqual([60, 0]);
+        expect(kfs[1].tangentIn).toEqual([0, -39]);
+        expect(kfs[1].tangentOut).toEqual([0, 39]);
+        expect(kfs[4].tangentIn).toEqual([-60, 0]);
+    });
+
+    it('calcAnimationValues over the normalised binding produces a curved path (not linear)', () => {
+        const bindings = getNormalisedBindings(ellipseWithMotionPath());
+        const animDef = bindings[0].animate as PxAnimationDefinition;
+        // Segment 0 → 1: P0=(184, 82) → P3=(293, 154). Linear midpoint is
+        // (238.5, 118). The Bezier with P1=(244, 82), P2=(293, 115) bows out
+        // toward larger x. At progress ≈ 250/1020 ≈ 0.245 we're at the
+        // segment endpoint (293, 154); at progress=0.125 (mid-segment-0) we
+        // expect a point well above the chord.
+        const samples = (calcAnimationValues(animDef, 0.125 * 1020) as Record<string, string>)['transform'];
+        const trMatch = samples.match(/translate\(([^)]+)\)/);
+        expect(trMatch).not.toBeNull();
+        const [x, y] = trMatch![1].split(',').map(s => parseFloat(s.trim()));
+        // Linear midpoint y at progress 0.125 = 82 + 0.5 * 72 = 118.
+        // Curved path peaks above (smaller y in SVG-down coords) because
+        // tangentOut pushes the curve up-right. Specifically expect y < 110.
+        expect(y).toBeLessThan(115);
+        expect(x).toBeGreaterThan(200);
+    });
+});
