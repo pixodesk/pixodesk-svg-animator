@@ -13,14 +13,24 @@ import { clone } from './util';
 /**
  * REPEATER → N clones inside a `<g>` wrapper. Copy 0 is the unmodified base;
  * copies 1..N-1 are wrapped with a per-copy `PxTransformationEffect` synthesised
- * from the repeater parts (translate/rotate/origin × i, scale per-axis `(v/100)^i`).
+ * from the repeater parts:
  *
- * Each repeater part is independently animatable:
+ *   - translate × i
+ *   - rotate    × i
+ *   - scale     ^ i  (per-axis geometric compound)
+ *   - origin    CONSTANT — rotation/scale center stays put across copies
+ *
+ * The origin is the rotation/scale CENTER for the sandwich
+ * `T(+o) · T(t·i) · R(r·i) · S(s^i) · T(-o)`. Scaling `o` by `i` would shift the
+ * center per copy and produce a spiral instead of a repeated rotation.
+ *
+ * Each part is independently animatable:
  *  - Static parts → emitted as structured `transform: {value:…}` on the per-copy wrapper.
  *  - Animated parts → emitted as `animate.transform.keyframes` with each kf value
- *    scaled by `i` (time/easing preserved).
+ *    scaled by the rule above (time/easing preserved).
  *
- * Mirrors the editor's `TSvgRepeaterElementEffectAttr.buildPerCopyTransform`.
+ * Mirrors the editor's `TSvgRepeaterElementEffectAttr.applyToMatrix` — the
+ * authoritative formula used to render heavy SVG.
  */
 export function applyRepeaterEffect(node: PxNode, fx: PxRepeaterEffect | undefined, ctx: ApplyContext): PxNode {
     if (!fx) return node;
@@ -76,7 +86,9 @@ function synthesisePerCopyFx(fx: PxRepeaterEffect, i: number): PxTransformationE
         out.scale = synthesiseScale(fx.scale, i);
     }
     if (fx.origin !== undefined) {
-        out.origin = mapAnimatableVec2(fx.origin, v => [v[0] * i, v[1] * i]);
+        // CONSTANT — rotation/scale center stays put across copies. Scaling by `i`
+        // would drift the center per copy (spiral instead of repeated rotation).
+        out.origin = fx.origin;
     }
 
     return Object.keys(out).length ? out : undefined;
