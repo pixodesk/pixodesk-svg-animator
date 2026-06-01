@@ -5,43 +5,47 @@
 
 
 /**
- * RETIME (`<use>` timeline remap) — mirrors the editor's
- * `RetimeRenderer.renderRetime`. For every `<use>` that carries `effects.retime`
- * we deep-clone the source named by `retime.baseId` and remap every keyframe
- * time inside the clone by `t' = accum.start + accum.stretch * t` (ms units).
+ * RETIME (`<use>` timeline remap) — runs AFTER every other pass-1 effect has
+ * materialised, so the `<use>`'s `href` already points at the right post-pass-1
+ * target (e.g. the inner-content layer that `contentRefSplit` produced).
  *
- * Nested chains:
+ * For every `<use>` carrying `effects.retime` we:
+ *   1. follow `useNode.href` (no `baseId` lookup — the editor-side id wouldn't
+ *      resolve in the lightweight tree);
+ *   2. recursively materialise the chain target-side, preserving each
+ *      intermediate `<use>`'s offset/transform and accumulating retime at every
+ *      nested-retime hop (`concatRetime(child, parent)`);
+ *   3. wire the chain root into the `<use>` site — see RETIME_MATERIALISATION_MODE.
  *
- *     outerUse(retime A) → innerUse(retime B) → leaf
+ * Mirrors the editor's `RetimeRenderer.renderRetime`: each chain link becomes
+ * its own defs entry with the right accumulated retime applied to ITS OWN kfs,
+ * and the link's `href` rewritten to point at the next-level materialisation.
  *
- * are unfolded by chasing the chain via a snapshot of the original retime map
- * (so `<use retime>`s that have already been processed elsewhere in the tree
- * still appear "retimed" from this side). Each link in the chain produces ITS
- * OWN clone, with the accumulated retime applied to its OWN kfs:
- *
- *   - outerUse clones innerUse (kfs remapped by A), then sets its `href` to the
- *     clone id.
- *   - inside that clone, the inner `<use>`'s href is rewritten to a fresh clone
- *     of leaf whose kfs are remapped by `concat(B, A)`.
- *
- * `concatRetime(child, parent) = { start: parent.start + parent.stretch * child.start,
- *                                   stretch: parent.stretch * child.stretch }`
- * (semantic: `parent` is applied OUTSIDE, `child` inside — same as the editor).
+ * NB: `effects.retime.baseId` is intentionally IGNORED — it carries an
+ * editor-side core id that does not exist in the lightweight tree.
  */
 
 import type { PxNode, PxRetimeEffect } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
-import { clone, genId, regenerateIdsInClone } from './util';
+import { clone, genId, indexById, regenerateIdsInClone, stripHash } from './util';
+
+
+/** Mode A (true): replace `<use>` with `<g>` whose child IS the chain-root clone.
+ *  Mode B (false): push the chain-root clone into `<defs>`, rewrite `<use>.href`.
+ *
+ *  Mode B is the default — it preserves the `<use>`'s native semantics (x/y
+ *  positioning, width/height — none of which `<g>` interprets). Mode A would
+ *  need to bake those into the new `<g>`'s transform to stay equivalent. */
+const RETIME_MATERIALISATION_MODE_INLINE_G = false;
+
 
 interface Retime { start: number; stretch: number; }
-
-const IDENTITY: Retime = { start: 0, stretch: 1 };
 
 function asRetime(r: PxRetimeEffect): Retime {
     return { start: r.start ?? 0, stretch: r.stretch ?? 1 };
 }
 
-/** parent is applied OUTSIDE, child INSIDE → `t_global = parent.start + parent.stretch * (child.start + child.stretch * t_local)`. */
+/** parent applied OUTSIDE, child INSIDE → `t = parent.start + parent.stretch * (child.start + child.stretch * t_local)`. */
 function concatRetime(child: Retime, parent: Retime): Retime {
     return {
         start: parent.start + parent.stretch * child.start,
@@ -49,124 +53,105 @@ function concatRetime(child: Retime, parent: Retime): Retime {
     };
 }
 
-/** Walks `root`, captures every `effects.retime` keyed by node id. The snapshot
- *  is taken BEFORE pass-2 mutates the originals, so when an outer retime needs
- *  to chase through an inner `<use retime>` that's already been processed in
- *  another part of the tree, the chain is still discoverable. */
-export function captureRetimeMap(root: PxNode, out: Map<string, PxRetimeEffect>): void {
-    if (typeof root.id === 'string' && root.effects?.retime) out.set(root.id, root.effects.retime);
-    root.children?.forEach(c => captureRetimeMap(c, out));
-}
 
-/** Single-pass driver: walks the tree, applies retime to every `<use>` that
- *  carries `effects.retime`. The retime map snapshot must be taken upstream
- *  (before any modification). */
-export function applyAllRetimeEffects(
-    root: PxNode,
-    retimeMap: Map<string, PxRetimeEffect>,
-    ctx: ApplyContext,
-): void {
-    const walk = (n: PxNode): void => {
-        const retime = n.effects?.retime;
-        if (retime) {
-            delete n.effects!.retime;
-            applyRetimeToUse(n, retime, ctx, retimeMap);
-        }
-        n.children?.forEach(walk);
+/** Pass-2 driver. Re-indexes ids (pass-1 mints new ones like `_lw_inner_0`),
+ *  then materialises retime at every site. Order-independent: each site
+ *  recursively expands its own chain via the original retime layout. */
+export function applyAllRetimeEffects(root: PxNode, ctx: ApplyContext): void {
+    ctx.idMap.clear();
+    indexById(root, ctx.idMap);
+
+    const sites: Array<PxNode> = [];
+    const collect = (n: PxNode): void => {
+        if (n.effects?.retime) sites.push(n);
+        n.children?.forEach(collect);
     };
-    walk(root);
+    collect(root);
+
+    for (const useNode of sites) {
+        const retime = useNode.effects?.retime;
+        if (!retime) continue;
+        delete useNode.effects!.retime;
+        if (Object.keys(useNode.effects!).length === 0) delete useNode.effects;
+        materialiseRetime(useNode, asRetime(retime), ctx);
+    }
 }
 
-/**
- * Applies a retime to one `<use>`. Builds a clone of the target (and its retime
- * chain, if any) in `ctx.defs` and rewrites `useNode.href` to point at it.
- */
-function applyRetimeToUse(
-    useNode: PxNode,
-    retime: PxRetimeEffect,
-    ctx: ApplyContext,
-    retimeMap: Map<string, PxRetimeEffect>,
-): void {
-    const baseId = retime.baseId;
-    if (!baseId) { ctx.errors.push('retime: missing baseId'); return; }
 
-    const target = ctx.idMap.get(baseId);
-    if (!target) { ctx.warnings.push('retime: target "' + baseId + '" not found'); return; }
+/** Materialises `retime` on `useNode` by cloning the chain rooted at
+ *  `useNode.href` and wiring the clone into the `<use>` site. */
+function materialiseRetime(useNode: PxNode, retime: Retime, ctx: ApplyContext): void {
+    const targetId = stripHash(useNode.href);
+    if (!targetId) { ctx.errors.push('retime: <use> has no href to follow'); return; }
 
-    const accum = asRetime(retime);
-    const cloneNode = buildRetimedClone(target, accum, ctx, retimeMap, new Set([baseId]));
-    if (cloneNode) useNode.href = '#' + cloneNode.id;
+    const chainRootId = buildChainClone(targetId, retime, ctx, new Set());
+    if (!chainRootId) return;
+
+    if (RETIME_MATERIALISATION_MODE_INLINE_G) {
+        const cloneNode = ctx.idMap.get(chainRootId)!;
+        useNode.type = 'g';
+        delete useNode.href;
+        useNode.children = [cloneNode];
+        ctx.defs = ctx.defs.filter(d => d !== cloneNode);  // un-defs it since it's inline now
+    } else {
+        useNode.href = '#' + chainRootId;
+    }
 }
 
-/**
- * Returns a fresh clone of `target` with its kfs remapped by `accum`. When the
- * target itself was a `<use>` with `effects.retime` in the original tree (read
- * from `retimeMap`), the clone's `href` is rewritten to a recursively-built
- * inner clone whose accum is `concatRetime(target.retime, accum)`. Otherwise
- * (leaf), the kfs of the clone + its descendants are remapped in place.
- *
- * Loops are detected via `chain` — the set of `baseId`s already being expanded.
- */
-function buildRetimedClone(
-    target: PxNode,
-    accum: Retime,
-    ctx: ApplyContext,
-    retimeMap: Map<string, PxRetimeEffect>,
-    chain: Set<string>,
-): PxNode | undefined {
+
+/** Clones `targetId`'s node, remaps its OWN kfs by `accum`, then — if the target
+ *  is a `<use>` — recursively materialises ITS target (folding any nested retime
+ *  into accum via `concatRetime`). Returns the clone's new id, or undefined on
+ *  dangling refs / loops. The clone is pushed to `ctx.defs` and indexed in
+ *  `ctx.idMap` so siblings can resolve it. */
+function buildChainClone(targetId: string, accum: Retime, ctx: ApplyContext, chain: Set<string>): string | undefined {
+    if (chain.has(targetId)) { ctx.errors.push('retime: loop via "' + targetId + '"'); return undefined; }
+    const target = ctx.idMap.get(targetId);
+    if (!target) { ctx.warnings.push('retime: target "' + targetId + '" not found'); return undefined; }
+
     const cloneNode = clone(target);
     regenerateIdsInClone(cloneNode, ctx);
-    const cloneId = genId(ctx, 'retime');
-    cloneNode.id = cloneId;
 
-    // Any `effects.retime` on the clone (carried over from the snapshot) is
-    // consumed via the chain expansion below — strip it from the clone so the
-    // runtime / further passes don't trip on it.
+    // Clone's OWN body kfs (intermediate-use's animated transform, ball's animation, …).
+    // For a use, this is usually a no-op (no kfs on the use itself); for a leaf it
+    // remaps the entire reachable subtree.
+    if (target.type === 'use') {
+        remapKeyframeTimesOnly(cloneNode, accum.start, accum.stretch);
+    } else {
+        remapKeyframeTimes(cloneNode, accum.start, accum.stretch);
+    }
+
+    // Strip any retime carried into the clone (already consumed via the chain).
     if (cloneNode.effects?.retime) {
         delete cloneNode.effects.retime;
         if (Object.keys(cloneNode.effects).length === 0) delete cloneNode.effects;
     }
 
-    // If the original target was itself a `<use>` with retime, build the inner
-    // clone with the accumulated retime and rewrite this clone's href to it.
-    // Otherwise (leaf), remap the clone subtree's kfs by accum.
-    const targetOriginalId = typeof target.id === 'string' ? target.id : undefined;
-    const targetRetime = targetOriginalId ? retimeMap.get(targetOriginalId) : undefined;
-    if (targetRetime?.baseId) {
-        if (chain.has(targetRetime.baseId)) {
-            ctx.errors.push('retime: loop detected via "' + targetRetime.baseId + '"');
-        } else {
-            const innerAccum = concatRetime(asRetime(targetRetime), accum);
-            const innerTarget = ctx.idMap.get(targetRetime.baseId);
-            if (!innerTarget) {
-                ctx.warnings.push('retime: target "' + targetRetime.baseId + '" not found');
-            } else {
-                const innerChain = new Set(chain); innerChain.add(targetRetime.baseId);
-                const innerClone = buildRetimedClone(innerTarget, innerAccum, ctx, retimeMap, innerChain);
-                if (innerClone) cloneNode.href = '#' + innerClone.id;
-            }
+    // If the target is a `<use>`, recurse on ITS href. Nested retime on the
+    // intermediate use folds in via concat.
+    if (target.type === 'use' && target.href) {
+        const subId = stripHash(target.href);
+        if (subId) {
+            const innerRetime = target.effects?.retime;
+            const subAccum = innerRetime ? concatRetime(asRetime(innerRetime), accum) : accum;
+            const subChain = new Set(chain); subChain.add(targetId);
+            const subId2 = buildChainClone(subId, subAccum, ctx, subChain);
+            if (subId2) cloneNode.href = '#' + subId2;
         }
-        // Remap the clone's OWN body kfs by accum (the intermediate `<use>`'s own
-        // animate properties remap at this level; the inner clone holds the
-        // recursed-down content with accumulated retime).
-        remapKeyframeTimesOnly(cloneNode, accum.start, accum.stretch);
-    } else {
-        // Leaf — remap the entire clone subtree.
-        remapKeyframeTimes(cloneNode, accum.start, accum.stretch);
     }
 
     ctx.defs.push(cloneNode);
-    return cloneNode;
+    if (typeof cloneNode.id === 'string') ctx.idMap.set(cloneNode.id, cloneNode);
+    return typeof cloneNode.id === 'string' ? cloneNode.id : undefined;
 }
 
-/** Remaps every keyframe `time` in the subtree: `t' = start + t·stretch`. */
+
+/** Remaps every keyframe `time` in `node` and its subtree: `t' = start + t·stretch`. */
 function remapKeyframeTimes(node: PxNode, start: number, stretch: number): void {
     remapKeyframeTimesOnly(node, start, stretch);
-    node.children?.forEach(child => remapKeyframeTimes(child, start, stretch));
+    node.children?.forEach(c => remapKeyframeTimes(c, start, stretch));
 }
 
-/** Remaps only the node's OWN kfs (no recursion). Used for intermediate `<use>`
- *  clones — the recursed-into leaf clone is handled separately. */
 function remapKeyframeTimesOnly(node: PxNode, start: number, stretch: number): void {
     const remap = (kfs: Array<any>): void => {
         for (const kf of kfs) if (typeof kf.time === 'number') kf.time = start + kf.time * stretch;

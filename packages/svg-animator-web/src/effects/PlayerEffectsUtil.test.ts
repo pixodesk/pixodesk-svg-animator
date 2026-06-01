@@ -381,10 +381,13 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                         { type: 'rect', id: 'inner', width: 100, height: 50 },
                     ],
                 },
-                // Use that retimes the symbol
+                // Use that retimes the symbol — retime follows `<use>.href` now
+                // (baseId is no longer consulted; left on the payload only if
+                // a producer still emits it — harmless).
                 {
                     type: 'use',
-                    effects: { retime: { baseId: 'sym', start: 100, stretch: 0.5 } },
+                    href: '#sym',
+                    effects: { retime: { start: 100, stretch: 0.5 } },
                 },
             ],
         };

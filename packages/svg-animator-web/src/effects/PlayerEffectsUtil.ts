@@ -23,9 +23,9 @@ import { identifyContentRefTargets, splitForContentRef } from './contentRefSplit
 import { applyMaskedByEffect, collectMaskAncestorChains } from './maskedByEffect';
 import { applyRefAndTransformationEffect } from './refEffect';
 import { applyRepeaterEffect } from './repeaterEffect';
-import { applyAllRetimeEffects, captureRetimeMap } from './retimeEffect';
+import { applyAllRetimeEffects } from './retimeEffect';
 import { applyTrimPathEffect } from './trimPathEffect';
-import type { PxNode, PxRetimeEffect } from '../PxAnimatorTypes';
+import type { PxNode } from '../PxAnimatorTypes';
 import type { ApplyContext, ApplyResult } from './types';
 import { clone, genId, indexById, spliceDefs } from './util';
 
@@ -61,14 +61,8 @@ export function applyPlayerEffects(root: PxNode): ApplyResult {
     identifyContentRefTargets(working, ctx, () => genId(ctx, 'inner'));
     collectMaskAncestorChains(working, ctx);
 
-    // Snapshot retime markers BEFORE pass-1 / pass-2 mutate them. Lets pass 2
-    // chase nested `<use retime> → <use retime> → leaf` chains via the original
-    // (pre-mutation) retime layout regardless of traversal order.
-    const retimeMap = new Map<string, PxRetimeEffect>();
-    captureRetimeMap(working, retimeMap);
-
     const afterPass1 = applyPlayerEffects_exceptRetime(working, ctx);
-    const out = applyPlayerEffects_retime(afterPass1, ctx, retimeMap);
+    const out = applyPlayerEffects_retime(afterPass1, ctx);
     spliceDefs(out, ctx.defs);
 
     return { root: out, defs: ctx.defs, warnings: ctx.warnings, errors: ctx.errors };
@@ -118,9 +112,9 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     return n;
 }
 
-/** Pass 2 — apply retime to every node that carries it. The chain-aware
- *  recursion lives in `retimeEffect.ts`; here we just hand it the snapshot. */
-function applyPlayerEffects_retime(node: PxNode, ctx: ApplyContext, retimeMap: Map<string, PxRetimeEffect>): PxNode {
-    applyAllRetimeEffects(node, retimeMap, ctx);
+/** Pass 2 — apply retime to every `<use>` that carries it. Follows the
+ *  materialised `<use>.href` (not the editor-side `retime.baseId`). */
+function applyPlayerEffects_retime(node: PxNode, ctx: ApplyContext): PxNode {
+    applyAllRetimeEffects(node, ctx);
     return node;
 }
