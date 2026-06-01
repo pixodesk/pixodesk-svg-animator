@@ -5,8 +5,8 @@
 
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
-import { buildMotionPathD, computeOffsetDistances, findMotionPathNodes } from './PxMotionPath';
-import { getAnimatorConfig, PxAnimatedSvgDocument, PxAnimatorConfig, PxKeyframe, PxNode, PxPropertyAnimation, type PxAnimationDefinition, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
+import { buildMotionPathDFromAnim, computeOffsetDistances, propAnimIsMotionPath } from './PxMotionPath';
+import { getAnimatorConfig, PxAnimatedSvgDocument, PxAnimatorConfig, PxBinding, PxKeyframe, PxPropertyAnimation, type PxAnimationDefinition, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
 import { clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, kebabToCamelCaseWord, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 import { getNormalisedBindings, interpolateValue } from './PxDefinitions';
 
@@ -171,60 +171,53 @@ function convertToWebApiKeyframes(
 //  Motion-along-path → CSS Motion Path conversion (WAAPI-only)
 // ─────────────────────────────────────────────────────────────────────────────
 
-
-/** Cheap pre-scan; avoids the clone when there's nothing to convert. */
-function needsWaapiMotionPathConversion(doc: PxAnimatedSvgDocument): boolean {
-    return findMotionPathNodes(doc).length > 0;
-}
-
 /**
- * Returns a deep-cloned `doc` whose motion-path nodes have been rewritten:
- *   - `node.animate.transform` → `node.animate.offsetDistance` (0→1 arc-length kfs)
- *   - static `offset-path`/`offset-anchor`/`offset-rotate` pushed onto the
- *     corresponding DOM element in `rootElement` (so WAAPI just animates the
- *     numeric `offsetDistance` and the browser renders the path).
+ * For each binding whose `transform` animation is motion-along-path (i.e.
+ * `propAnimIsMotionPath` is true), this:
+ *   - mints a path-`d` string from the kf translates + tangents and pushes
+ *     `offset-path: path("d…")` (inline — no `<defs>` injection),
+ *     `offset-anchor`, `offset-rotate` directly onto the DOM element, and
+ *   - rewrites the binding's `transform` propAnim into an `offsetDistance`
+ *     animation (arc-length-proportional 0%→100% kfs). WAAPI then animates
+ *     that numeric property and the browser's CSS Motion Path renders the path.
  *
- * Inline `path("d…")` syntax sidesteps `<defs>` injection — no DOM/structure
- * mutation beyond the styles on the animated element.
+ * Operates on bindings rather than the doc because the wire-format ambiguity
+ * (`node.transform` vs `node.animate.transform`) has already been collapsed by
+ * `getNormalisedBindings`.
  */
-function cloneAndConvertMotionPaths(doc: PxAnimatedSvgDocument, rootElement: Element | null | undefined): PxAnimatedSvgDocument {
-    const cloned: PxAnimatedSvgDocument = JSON.parse(JSON.stringify(doc));
-    const motionNodes = findMotionPathNodes(cloned);
-    for (const node of motionNodes) {
-        const d = buildMotionPathD(node);
+function convertBindingMotionPathsForWaapi(bindings: Array<PxBinding>, rootElement: Element | null | undefined): void {
+    for (const binding of bindings) {
+        const animate = binding.animate;
+        if (!animate || typeof animate !== 'object' || Array.isArray(animate)) continue;
+        const animDef = animate as Record<string, PxPropertyAnimation>;
+        const transformAnim = animDef.transform;
+        if (!transformAnim || !propAnimIsMotionPath(transformAnim)) continue;
+
+        const d = buildMotionPathDFromAnim(transformAnim);
         if (!d) continue;
-        const animBucket = node.animate;
-        if (!animBucket || typeof animBucket !== 'object' || Array.isArray(animBucket)) continue;
-        const animate = animBucket as Record<string, PxPropertyAnimation>;
-        const anim = animate.transform;
-        if (!anim) continue;
-        const kfs = (anim.keyframes ?? anim.kfs) as Array<PxKeyframe> | undefined;
+        const kfs = (transformAnim.keyframes ?? transformAnim.kfs) as Array<PxKeyframe> | undefined;
         if (!kfs || kfs.length < 2) continue;
 
         const offsets = computeOffsetDistances(kfs);
         const offsetKfs: Array<PxKeyframe> = kfs.map((kf, i) => {
-            const out: PxKeyframe = { time: kf.time ?? kf.t, value: (offsets[i] * 100) + '%' };
-            const easing = kf.easing ?? kf.e;
-            if (easing !== undefined) out.easing = easing;
+            const out: PxKeyframe = { t: kf.t ?? kf.time, v: (offsets[i] * 100) + '%' };
+            const easing = kf.e ?? kf.easing;
+            if (easing !== undefined) out.e = easing;
             return out;
         });
 
-        // Apply the STATIC offset-* styles to the rendered DOM element. The
-        // selector mirrors `getSelector(binding.id)` used downstream.
-        if (rootElement && node.id) {
-            const el = rootElement.querySelector(getSelector(node.id)) as HTMLElement | null;
+        if (rootElement && binding.id) {
+            const el = rootElement.querySelector(getSelector(binding.id)) as HTMLElement | null;
             if (el) {
                 el.style.offsetPath = 'path("' + d + '")';
                 el.style.offsetAnchor = '0 0';
-                el.style.offsetRotate = anim.autoOrient ? 'auto' : '0deg';
+                el.style.offsetRotate = transformAnim.autoOrient ? 'auto' : '0deg';
             }
         }
 
-        // Swap the animation on the clone — drop `transform`, add `offsetDistance`.
-        delete animate.transform;
-        animate.offsetDistance = { keyframes: offsetKfs };
+        delete animDef.transform;
+        animDef.offsetDistance = { kfs: offsetKfs };
     }
-    return cloned;
 }
 
 
@@ -260,16 +253,13 @@ export function createWebApiAnimator(
         }
     }
 
-    // Motion-along-path → CSS Motion Path. Clone the doc so the original (used
-    // by the frames-loop fallback if WAAPI bails) stays parametric with
-    // `tangentIn/Out`/`autoOrient` intact. The clone's per-node `transform`
-    // animation is replaced with an `offsetDistance` animation that drives the
-    // browser's native motion-path renderer; the static `offset-*` styles are
-    // pushed directly onto the rendered DOM element here (WAAPI can't easily
-    // express a static-via-kfs CSS property without an extra animation).
-    const wDoc = needsWaapiMotionPathConversion(doc) ? cloneAndConvertMotionPaths(doc, rootElement) : doc;
-
-    const bindings = getNormalisedBindings(wDoc);
+    const bindings = getNormalisedBindings(doc);
+    // Motion-along-path → CSS Motion Path. Rewrites each motion-path binding's
+    // `transform` propAnim into an `offsetDistance` animation and pushes the
+    // static `offset-*` styles onto the rendered DOM element. Bindings are a
+    // fresh array (separate from any frames-loop fallback's bindings), so
+    // mutating in place is safe.
+    convertBindingMotionPathsForWaapi(bindings, rootElement);
 
     const animations: Array<Animation> = [];
 

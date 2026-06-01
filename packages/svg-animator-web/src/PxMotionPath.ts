@@ -125,7 +125,13 @@ export function findMotionPathNodes(doc: PxAnimatedSvgDocument): Array<PxNode> {
 export function buildMotionPathD(node: PxNode): string | undefined {
     const transform = (node as { transform?: unknown }).transform;
     if (!transform || typeof transform !== 'object' || Array.isArray(transform)) return undefined;
-    const anim = transform as PxPropertyAnimation;
+    return buildMotionPathDFromAnim(transform as PxPropertyAnimation);
+}
+
+/** Same as {@link buildMotionPathD} but takes a `PxPropertyAnimation` directly —
+ *  useful when the animation has already been extracted out of `node.transform`
+ *  / `node.animate.transform` / a `getNormalisedBindings` binding. */
+export function buildMotionPathDFromAnim(anim: PxPropertyAnimation): string | undefined {
     const kfs: Array<PxKeyframe> | undefined = anim.keyframes ?? anim.kfs;
     if (!Array.isArray(kfs) || kfs.length < 2) return undefined;
 
@@ -144,8 +150,8 @@ export function buildMotionPathD(node: PxNode): string | undefined {
         const toKf = kfs[i];
         const p0 = positions[i - 1];
         const p3 = positions[i];
-        const to = fromKf.tangentOut;
-        const ti = toKf.tangentIn;
+        const to = fromKf.tangentOut ?? fromKf.to;
+        const ti = toKf.tangentIn ?? toKf.ti;
 
         const hasOut = to && (to[0] !== 0 || to[1] !== 0);
         const hasIn = ti && (ti[0] !== 0 || ti[1] !== 0);
