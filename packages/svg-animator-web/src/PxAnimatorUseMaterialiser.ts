@@ -45,7 +45,19 @@ export function materialiseAnimatedUseInstances(root: PxNode): PxNode {
     let idCounter = 0;
     const genId = (): string => '_lw_use_mat_' + (++idCounter);
 
-    return walkAndMaterialise(root, idMap, animatedIds, genId);
+    // Collects clipPath / other defs minted by the symbol-rewrite path. After
+    // the walk completes, these are spliced into the root tree's `<defs>`.
+    const defsCollector: Array<PxNode> = [];
+    const walked = walkAndMaterialise(root, idMap, animatedIds, genId, defsCollector);
+    if (defsCollector.length === 0) return walked;
+
+    // Append a `<defs>` child carrying every collected def. Browsers honour
+    // multiple `<defs>` on the same SVG root, so we don't need to splice into
+    // an existing one (which would also be more invasive — defs may have been
+    // shared by reference with the original tree).
+    const defsNode: PxNode = { type: 'defs', children: defsCollector };
+    const newChildren = [...(walked.children ?? []), defsNode];
+    return { ...walked, children: newChildren };
 }
 
 
@@ -119,13 +131,23 @@ function materialiseOneUse(
     idMap: Map<string, PxNode>,
     animatedIds: Set<string>,
     genId: () => string,
+    defsCollector: Array<PxNode>,
 ): PxNode {
     const clone = deepClonePxNode(target);
     regenerateIdsAndRewriteRefs(clone, genId);
 
+    // `<symbol>` is invisible unless instantiated by `<use>` — a bare clone
+    // of it inside our wrapping `<g>` would render nothing. Rewrite the
+    // clone-root `<symbol>` into a `<g>` carrying the symbol's viewBox-derived
+    // transform + clip (mirroring the browser's `<use href="#symbol">`
+    // viewport mapping). Any clipPath defs created go into `defsCollector`.
+    const rewrittenClone = clone.type === 'symbol'
+        ? rewriteSymbolRootToGroup(clone, genId, defsCollector)
+        : clone;
+
     // Recurse into the clone — any nested `<use>` it contains may itself
     // reference an animated subtree and need materialisation.
-    const materialisedClone = walkAndMaterialise(clone, idMap, animatedIds, genId);
+    const materialisedClone = walkAndMaterialise(rewrittenClone, idMap, animatedIds, genId, defsCollector);
 
     // Replace `<use>` with `<g>` wrapping the clone. Keep all of use's own
     // attrs except `href` (now meaningless) — transform / x / y / etc. all
@@ -136,24 +158,77 @@ function materialiseOneUse(
 }
 
 
+/** `<symbol>` doesn't render directly. To keep the visual result when a
+ *  cloned `<symbol>` lands as the root of a materialised `<use>` target, we
+ *  rewrite it as a `<g>` that mirrors the browser's symbol viewport mapping:
+ *
+ *    - `transform = "translate(-vbX, -vbY)"` so the symbol's local origin
+ *      aligns with the use's anchor (use defaults to x=y=0). For symbols with
+ *      no viewBox, no transform is needed.
+ *    - `clipPath = "url(#<fresh-id>)"` referencing a freshly-built clipPath
+ *      in defs whose `<rect>` matches the viewBox rectangle, so content
+ *      outside the viewBox is hidden (same as the browser's symbol clipping).
+ *
+ *  The created clipPath defs are appended to `defsCollector`; the caller is
+ *  responsible for splicing them into the root tree once materialisation has
+ *  finished. */
+function rewriteSymbolRootToGroup(
+    symbolNode: PxNode,
+    genId: () => string,
+    defsCollector: Array<PxNode>,
+): PxNode {
+    const viewBox = parseViewBox((symbolNode as { viewBox?: unknown }).viewBox);
+    const g: PxNode = { ...symbolNode, type: 'g' };
+    // Strip symbol-only attributes that don't belong on `<g>`.
+    delete (g as { viewBox?: unknown }).viewBox;
+    delete (g as { preserveAspectRatio?: unknown }).preserveAspectRatio;
+    delete (g as { width?: unknown }).width;
+    delete (g as { height?: unknown }).height;
+
+    if (!viewBox) return g;  // no viewBox → no transform / clip required
+
+    const [vbX, vbY, vbW, vbH] = viewBox;
+    if (vbX !== 0 || vbY !== 0) {
+        (g as { transform?: string }).transform = 'translate(' + (-vbX) + ',' + (-vbY) + ')';
+    }
+    const clipId = genId();
+    defsCollector.push({
+        type: 'clipPath',
+        id: clipId,
+        children: [{ type: 'rect', x: vbX, y: vbY, width: vbW, height: vbH }],
+    } as PxNode);
+    (g as { clipPath?: string }).clipPath = 'url(#' + clipId + ')';
+    return g;
+}
+
+
+function parseViewBox(v: unknown): [number, number, number, number] | undefined {
+    if (typeof v !== 'string') return undefined;
+    const parts = v.trim().split(/[\s,]+/).map(Number);
+    if (parts.length < 4 || parts.some(n => !Number.isFinite(n))) return undefined;
+    return [parts[0], parts[1], parts[2], parts[3]];
+}
+
+
 function walkAndMaterialise(
     node: PxNode,
     idMap: Map<string, PxNode>,
     animatedIds: Set<string>,
     genId: () => string,
+    defsCollector: Array<PxNode>,
 ): PxNode {
     if (node.type === 'use' && typeof node.href === 'string') {
         const targetId = stripHash(node.href);
         if (targetId && animatedIds.has(targetId)) {
             const target = idMap.get(targetId);
-            if (target) return materialiseOneUse(node, target, idMap, animatedIds, genId);
+            if (target) return materialiseOneUse(node, target, idMap, animatedIds, genId, defsCollector);
         }
     }
 
     if (!node.children) return node;
     let changed = false;
     const newChildren = node.children.map(ch => {
-        const m = walkAndMaterialise(ch, idMap, animatedIds, genId);
+        const m = walkAndMaterialise(ch, idMap, animatedIds, genId, defsCollector);
         if (m !== ch) changed = true;
         return m;
     });

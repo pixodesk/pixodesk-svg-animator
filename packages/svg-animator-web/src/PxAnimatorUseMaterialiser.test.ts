@@ -259,4 +259,106 @@ describe('materialiseAnimatedUseInstances', () => {
         // No <use> elements should remain (all materialised).
         expect(deepCountByType(out, 'use')).toBe(0);
     });
+
+
+    it('materialised <use> targeting a <symbol> rewrites the clone root into a <g> with viewBox-offset transform + clip', () => {
+        // <symbol> doesn't render unless instantiated by <use>. If the
+        // materialiser just deep-clones the <symbol> into a <g> parent, the
+        // cloned <symbol> is still invisible. Replace the clone-root <symbol>
+        // with a <g> that:
+        //   - translates by `(-vbX, -vbY)` so the symbol's local origin aligns
+        //     with the use's anchor (mirrors how the browser maps a <symbol>
+        //     viewBox into a <use> viewport at default x=0, y=0).
+        //   - clips to the viewBox rectangle (via a fresh `<clipPath>` in defs)
+        //     so out-of-viewBox content is hidden, matching <symbol> semantics.
+        const tree: PxNode = {
+            type: 'svg',
+            children: [
+                {
+                    type: 'symbol',
+                    id: 'sym',
+                    viewBox: '10 20 100 50',  // x=10, y=20, w=100, h=50
+                    children: [
+                        {
+                            type: 'rect',
+                            id: 'inner',
+                            width: 40, height: 30,
+                            animate: { opacity: { keyframes: [
+                                { time: 0,    value: 0 },
+                                { time: 1000, value: 1 },
+                            ] } },
+                        },
+                    ] as Array<PxNode>,
+                } as PxNode,
+                { type: 'use', href: '#sym' } as PxNode,
+            ],
+        };
+
+        const out = materialiseAnimatedUseInstances(tree);
+        // The original <symbol> is untouched.
+        expect(out.children![0].type).toBe('symbol');
+        // The <use>'s replacement is a <g>, with NO <symbol> inside the cloned
+        // subtree — every clone-root symbol gets rewritten.
+        const replacement = out.children![1];
+        expect(replacement.type).toBe('g');
+        expect(deepCountByType(replacement, 'symbol')).toBe(0);
+        // The cloned content's structure: replacement <g> → inner <g> with
+        // viewBox-derived transform (translate(-10,-20)) and a clip-path ref →
+        // the cloned <rect> (still animated).
+        const cloneRoot = replacement.children![0];
+        expect(cloneRoot.type).toBe('g');
+        expect(typeof cloneRoot.transform).toBe('string');
+        expect(cloneRoot.transform).toMatch(/translate\s*\(\s*-10\s*,\s*-20\s*\)/);
+        expect(typeof (cloneRoot as PxNode & { clipPath?: string }).clipPath).toBe('string');
+        // The clipPath defs entry should exist somewhere in the tree.
+        const clipPathRef = (cloneRoot as PxNode & { clipPath?: string }).clipPath!;
+        const clipPathId = clipPathRef.match(/url\(#([^)]+)\)/)?.[1];
+        expect(clipPathId).toBeTruthy();
+        const clipPathNode = deepFind(out, n => n.type === 'clipPath' && n.id === clipPathId);
+        expect(clipPathNode).toBeDefined();
+        // The clipPath must contain a <rect> matching the viewBox dimensions.
+        const clipRect = clipPathNode!.children![0];
+        expect(clipRect.type).toBe('rect');
+        expect(clipRect.x).toBe(10);
+        expect(clipRect.y).toBe(20);
+        expect(clipRect.width).toBe(100);
+        expect(clipRect.height).toBe(50);
+        // Cloned animated rect is reachable and keeps its animation.
+        const clonedRect = deepFind(replacement, n => n.type === 'rect' && !!(n as PxNode).animate);
+        expect(clonedRect).toBeDefined();
+    });
+
+
+    it('<symbol> WITHOUT viewBox — rewrites to plain <g> (no transform / clip needed)', () => {
+        const tree: PxNode = {
+            type: 'svg',
+            children: [
+                {
+                    type: 'symbol',
+                    id: 'sym2',
+                    children: [
+                        {
+                            type: 'rect',
+                            id: 'inner',
+                            width: 10, height: 10,
+                            animate: { opacity: { keyframes: [
+                                { time: 0, value: 0 }, { time: 1000, value: 1 },
+                            ] } },
+                        },
+                    ] as Array<PxNode>,
+                } as PxNode,
+                { type: 'use', href: '#sym2' } as PxNode,
+            ],
+        };
+        const out = materialiseAnimatedUseInstances(tree);
+        const replacement = out.children![1];
+        expect(replacement.type).toBe('g');
+        const cloneRoot = replacement.children![0];
+        expect(cloneRoot.type).toBe('g');
+        // No viewBox → no transform / clip needed.
+        expect(cloneRoot.transform).toBeUndefined();
+        expect((cloneRoot as PxNode & { clipPath?: string }).clipPath).toBeUndefined();
+        // No new clipPath defs created.
+        expect(deepCountByType(out, 'clipPath')).toBe(0);
+    });
 });
