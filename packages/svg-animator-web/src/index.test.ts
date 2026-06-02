@@ -134,6 +134,56 @@ describe('animateBackground', () => {
         expect(ellipse?.getAttribute('transform')).toMatch('translate(200,200)');
     });
 
+    it('frames: play() after natural end rewinds to start (regression)', async () => {
+
+        const api = createAnimator({
+            data: {
+                type: 'svg',
+                viewBox: '0 0 400 400',
+                animator: {
+                    mode: 'frames',
+                    duration: 128,
+                    // single play — no looping; animation finishes and holds the last frame
+                    iterations: 1,
+                    fill: 'forwards',
+                    trigger: { startOn: 'load' }
+                },
+                children: [
+                    {
+                        type: 'ellipse',
+                        id: '_px_replay_test',
+                        cx: 200, cy: 200, rx: 50, ry: 50,
+                        animate: {
+                            translate: {
+                                keyframes: [
+                                    { time: 0, value: [200, 100] },
+                                    { time: 128, value: [200, 200] }
+                                ]
+                            }
+                        }
+                    }
+                ]
+            },
+            container: '#svg-container'
+        });
+
+        const ellipse = document.querySelector('ellipse');
+        expect(ellipse).not.toBeNull();
+
+        // Play through to the natural end — element holds its final frame.
+        vi.advanceTimersByTime(128);
+        expect(ellipse?.getAttribute('transform')).toMatch('translate(200,200)');
+
+        // Pressing play on a finished animation must rewind to the start, not
+        // stay stuck on the last frame.
+        api.play();
+        vi.advanceTimersByTime(64); // halfway through the replay
+        expect(ellipse?.getAttribute('transform')).toMatch('translate(200,150)');
+
+        vi.advanceTimersByTime(64); // end of the replay again
+        expect(ellipse?.getAttribute('transform')).toMatch('translate(200,200)');
+    });
+
     it('Animated path `d` accepts both bare string and { path } (Mode A)', async () => {
 
         createAnimator({

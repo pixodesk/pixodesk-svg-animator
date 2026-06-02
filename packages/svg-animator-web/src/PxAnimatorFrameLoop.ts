@@ -260,6 +260,17 @@ export function createBasicFrameLoopAnimator(
 
     const startAnim = () => {
         if (playing) return;
+
+        // If the animation has already reached its natural end, rewind to the
+        // start before resuming — mirrors the Web Animations API, where calling
+        // play() on a finished animation auto-rewinds. Without this, resuming
+        // from `timeBeforeLastStartMs === totalDuration` would re-finish on the
+        // first tick and leave the animation stuck on its final frame.
+        if (Number.isFinite(totalDuration) && timeBeforeLastStartMs >= (totalDuration as number)) {
+            timeBeforeLastStartMs = 0;
+            finishCalled = false;
+        }
+
         playing = true;
         lastStartedTs = Date.now();
         loopAnim(true);
