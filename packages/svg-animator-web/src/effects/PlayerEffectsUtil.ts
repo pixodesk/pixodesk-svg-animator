@@ -20,6 +20,7 @@
  */
 
 import { identifyContentRefTargets, splitForContentRef } from './contentRefSplit';
+import { applyFillGradientEffect, applyStrokeGradientEffect } from './gradientEffect';
 import { applyMaskedByEffect, collectMaskAncestorChains } from './maskedByEffect';
 import { applyRefAndTransformationEffect } from './refEffect';
 import { applyRepeaterEffect } from './repeaterEffect';
@@ -90,12 +91,19 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
 
     if (!fx && !innerIdForContentRef) return node;
 
-    const { transformation, repeater, maskedBy, trimPath, retime, ref } = fx ?? {};
+    const { transformation, repeater, maskedBy, trimPath, retime, ref, fillGradient, strokeGradient } = fx ?? {};
     const isCombinedShape = fx?.isCombinedShape;
     if (fx) delete node.effects;
 
     let n = node;
-    n = applyTrimPathEffect(n, trimPath, isCombinedShape, ctx);         // innermost
+    // Paint-gradient defs are minted FIRST, before any structural wrapper —
+    // the gradient effect sits on the innermost element (alongside its `fill`
+    // / `stroke` body attrs), so it must materialise before trim/repeater/
+    // mask wrap around it. `<linearGradient>` defs themselves don't get
+    // wrapped — they live in `ctx.defs` independent of the structure walk.
+    n = applyFillGradientEffect(n, fillGradient, ctx);
+    n = applyStrokeGradientEffect(n, strokeGradient, ctx);
+    n = applyTrimPathEffect(n, trimPath, isCombinedShape, ctx);         // innermost shape
     n = applyRepeaterEffect(n, repeater, ctx);
     n = applyMaskedByEffect(n, maskedBy, transformation, ctx);          // mask sits on inner element
 

@@ -919,6 +919,105 @@ export type PxRefEffect = PxInfer<typeof PxRefEffectSchema>;
 const _ck_PxRefEffect: KeysMatch<PxRefEffect, _PxRefEffect> = true;
 
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Gradient paint effect — `fillGradient` / `strokeGradient`.
+//
+// Materialiser pattern mirrors `maskedByEffect`: at apply time the gradient
+// effect mints a `<linearGradient>` / `<radialGradient>` def into `ctx.defs`,
+// then sets the host element's `fill` / `stroke` to `url(#auto-id)`. The
+// editor model's gradient (`TSvgColorAttr` with `TColors` keyframe group)
+// maps 1:1 to this shape — geometry as static parts, the stop sequence
+// either static (bare array) or animated (a single `{keyframes}` block whose
+// each kf's `value` is the FULL `Array<{offset, color}>` snapshot at that
+// time). Per-stop independent timelines are intentionally NOT modelled —
+// editor's source-of-truth is a single `TColors` kfGroup.
+//
+// Stop count is constant across kfs (constraint matches `TColors.colorCount`).
+// `gradientTransform` is captured as static only (editor allows animated
+// transform but it's vanishingly rare).
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Loose enums for `gradientUnits` / `spreadMethod` — kept on the wire as
+ *  plain strings (matches the rest of the schema's loose-enum stance) but
+ *  collected here so call sites use named constants instead of bare literals. */
+export const PxGradientUnits = {
+    userSpaceOnUse:    'userSpaceOnUse',
+    objectBoundingBox: 'objectBoundingBox',
+} as const;
+export type PxGradientUnits = typeof PxGradientUnits[keyof typeof PxGradientUnits];
+
+export const PxGradientSpreadMethod = {
+    pad:     'pad',
+    reflect: 'reflect',
+    repeat:  'repeat',
+} as const;
+export type PxGradientSpreadMethod = typeof PxGradientSpreadMethod[keyof typeof PxGradientSpreadMethod];
+
+export const PxGradientType = {
+    linear: 'linear',
+    radial: 'radial',
+} as const;
+export type PxGradientType = typeof PxGradientType[keyof typeof PxGradientType];
+
+/** A single colour stop. `offset` is in `[0, 1]`; `color` is a CSS colour
+ *  string (`#rrggbb`, `rgb(…)`, `rgba(…)`, or named). */
+export interface _PxGradientStop {
+    offset: number;
+    color: string;
+}
+export const PxGradientStopSchema = implementsInterface<_PxGradientStop>()(px.object({
+    offset: px.number(),
+    color:  px.string(),
+}));
+export type PxGradientStop = PxInfer<typeof PxGradientStopSchema>;
+const _ck_PxGradientStop: KeysMatch<PxGradientStop, _PxGradientStop> = true;
+
+/** `PxAnimatable<Array<PxGradientStop>>` schema. Static is the bare array;
+ *  `{value: […]}` wraps the same; `{keyframes}` is a single timeline whose
+ *  each kf's `value` is the FULL stops array at that time. */
+const PxAnimatableGradientStopsSchema = px.union([
+    px.array(PxGradientStopSchema),
+    px.object({ value: px.array(PxGradientStopSchema) }),
+    px.object({ keyframes: px.array(PxKeyframeSchema) }),
+]);
+
+/** Gradient paint effect — used by both `fillGradient` and `strokeGradient`
+ *  (same shape, different host attribute). Linear: `p1`/`p2`. Radial:
+ *  `c`/`r`/`fp`. Stops animate as one timeline; geometry stays static. */
+export interface _PxFillGradientEffect {
+    type: PxGradientType;                                 // 'linear' | 'radial'
+    p1?:  Vec2;                                           // linear start
+    p2?:  Vec2;                                           // linear end
+    c?:   Vec2;                                           // radial centre
+    r?:   number;                                         // radial radius
+    fp?:  Vec2;                                           // radial focal point
+    stops?: PxAnimatable<Array<_PxGradientStop>>;          // single animation timeline
+    gradientUnits?:  string;                              // PxGradientUnits values
+    spreadMethod?:   string;                              // PxGradientSpreadMethod values
+    gradientTransform?: string;                           // static only in v1
+}
+export const PxFillGradientEffectSchema = implementsInterface<_PxFillGradientEffect>()(px.object({
+    type: px.enum([PxGradientType.linear, PxGradientType.radial] as const),
+    p1:   px.tuple([px.number(), px.number()] as const).optional(),
+    p2:   px.tuple([px.number(), px.number()] as const).optional(),
+    c:    px.tuple([px.number(), px.number()] as const).optional(),
+    r:    px.number().optional(),
+    fp:   px.tuple([px.number(), px.number()] as const).optional(),
+    stops: PxAnimatableGradientStopsSchema.optional(),
+    gradientUnits:     px.string().optional(),
+    spreadMethod:      px.string().optional(),
+    gradientTransform: px.string().optional(),
+}));
+export type PxFillGradientEffect = PxInfer<typeof PxFillGradientEffectSchema>;
+const _ck_PxFillGradientEffect: KeysMatch<PxFillGradientEffect, _PxFillGradientEffect> = true;
+
+/** Stroke gradient is the same shape as fill gradient; the difference is
+ *  only which host attribute (`fill` vs `stroke`) the applier rewrites. */
+export type _PxStrokeGradientEffect = _PxFillGradientEffect;
+export const PxStrokeGradientEffectSchema = PxFillGradientEffectSchema;
+export type PxStrokeGradientEffect = PxFillGradientEffect;
+
+
 /** The full `node.effects` bucket. Closed — each known effect is declared
  *  (strict-mode validation flags an unknown effect key as a wire-format drift). */
 export interface _PxEffects {
@@ -929,6 +1028,8 @@ export interface _PxEffects {
     retime?: _PxRetimeEffect;
     isCombinedShape?: boolean;
     ref?: _PxRefEffect;
+    fillGradient?: _PxFillGradientEffect;
+    strokeGradient?: _PxStrokeGradientEffect;
 }
 export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
     transformation: PxTransformationEffectSchema.optional(),
@@ -938,6 +1039,8 @@ export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
     retime: PxRetimeEffectSchema.optional(),
     isCombinedShape: px.boolean().optional(),
     ref: PxRefEffectSchema.optional(),
+    fillGradient: PxFillGradientEffectSchema.optional(),
+    strokeGradient: PxStrokeGradientEffectSchema.optional(),
 }));
 export type PxEffects = PxInfer<typeof PxEffectsSchema>;
 const _ck_PxEffects: KeysMatch<PxEffects, _PxEffects> = true;
