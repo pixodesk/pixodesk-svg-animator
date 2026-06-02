@@ -257,6 +257,20 @@ export function materialiseMotionPathInPropAnim(
             continue;
         }
 
+        // Sharp-corner step: between adjacent segments, the prev-segment's
+        // exit tangent angle (already on out[last]) can differ from this
+        // segment's entry tangent angle (deriv at t=0 of the segment about to
+        // start) by a lot — e.g. a rectangular path has 90° steps at each
+        // corner. Linear interp from prev-exit to the FAR-END kf of this
+        // segment would slide rotation through the whole segment instead of
+        // stepping at the boundary. Fix: insert a duplicate kf at the
+        // boundary time carrying this segment's entry angle. With `e=undef`
+        // on the prior kf, the engines render an instant step boundary then
+        // constant rotation through the segment.
+        if (autoOrient && i > 0) {
+            insertSharpCornerStepKfIfNeeded(out, prevKf, nextKf, prevPos, nextPos, rotationTol);
+        }
+
         materialiseSegment(out, prevKf, nextKf, prevPos, nextPos, autoOrient, flatnessTol, rotationTol, maxSamples);
     }
 
@@ -373,6 +387,57 @@ function derivAngleForFirstKf(kf0: PxKeyframe, kf1: PxKeyframe): number {
     const seg = getSegmentCache(kf0, kf1, p0, p1);
     const tan = bezier2D_derivativeAt(seg.P0, seg.P1, seg.P2, seg.P3, 0);
     return Math.atan2(tan[1], tan[0]) * 180 / Math.PI;
+}
+
+
+/** Shortest signed difference of `a − b` wrapped into (-180°, 180°]. */
+function wrappedAngleDelta(a: number, b: number): number {
+    let d = a - b;
+    while (d > 180)  d -= 360;
+    while (d < -180) d += 360;
+    return d;
+}
+
+
+/**
+ * Appends a "step" kf to `out` at the boundary time iff the next segment's
+ * entry tangent direction differs from the last emitted kf's rotation by more
+ * than `rotationTol`. The new kf carries the SAME translate / origin / scale
+ * as the boundary kf already in `out` (continuous in space), but a different
+ * `rotate` — making engines render an instant rotation snap at the boundary
+ * rather than linearly sliding rotation across the whole next segment.
+ *
+ * Called between `materialiseSegment` calls. The boundary kf already in `out`
+ * keeps its outgoing easing as undefined (no easing between the two duplicates
+ * — the step is instant); the next `materialiseSegment` will then attach its
+ * sequential-split easing to the newly-inserted duplicate, so the per-sample
+ * easing on segment `i+1` works exactly as before.
+ */
+function insertSharpCornerStepKfIfNeeded(
+    out: Array<PxKeyframe>,
+    prevKf: PxKeyframe, nextKf: PxKeyframe,
+    prevPos: Point2, nextPos: Point2,
+    rotationTol: number,
+): void {
+    const lastKf = out[out.length - 1];
+    const lastV = (lastKf.v ?? lastKf.value) as { rotate?: number } | undefined;
+    const prevExit = lastV?.rotate;
+    if (typeof prevExit !== 'number') return;
+
+    const seg = getSegmentCache(prevKf, nextKf, prevPos, nextPos);
+    const tanAtStart = bezier2D_derivativeAt(seg.P0, seg.P1, seg.P2, seg.P3, 0);
+    const nextEntry = Math.atan2(tanAtStart[1], tanAtStart[0]) * 180 / Math.PI;
+    const delta = wrappedAngleDelta(nextEntry, prevExit);
+    if (Math.abs(delta) <= rotationTol) return;  // continuous within tolerance
+
+    // Duplicate kf at the same time as `prevKf` (boundary) carrying the new
+    // entry angle. Origin / scale / other parts copied from the boundary kf
+    // — they're continuous; only `rotate` steps.
+    const dupValue = buildOutKfValue(
+        getKfValueParts(prevKf), getKfValueParts(prevKf), 0,
+        prevPos, nextEntry, true,
+    );
+    out.push(makeOutKf(getKfTime(prevKf), dupValue));
 }
 
 

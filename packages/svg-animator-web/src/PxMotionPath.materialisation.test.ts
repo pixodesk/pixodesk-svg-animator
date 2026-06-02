@@ -328,6 +328,123 @@ const motionPathExplicitRotateFixture = (): PxAnimatedSvgDocument => ({
 } as PxAnimatedSvgDocument);
 
 
+/** Rectangular path with autoOrient and NO tangents — sharp 90° corners at
+ *  every kf. At each corner the parametric tangent direction changes
+ *  instantly (90° → 180° → -90° → 0°); the autoOrient rotation MUST step at
+ *  the boundary, not linearly slide across the next segment.
+ *
+ *  Frames-mode evaluates the curve parametrically per frame so the step is
+ *  automatic. The materialiser must emit a DUPLICATE kf at each boundary
+ *  carrying the next-segment entry angle, otherwise engines linearly interp
+ *  toward the next-segment end angle and the element rotates wrongly through
+ *  the next segment. */
+const rectanglePathSharpCornersFixture = (): PxAnimatedSvgDocument => ({
+    type: 'svg',
+    viewBox: '0 0 400 400',
+    animator: { duration: 4000, mode: 'auto', direction: 'normal', timeline: 'time' },
+    children: [
+        {
+            type: 'rect',
+            id: 'corner-rect',
+            width: 31.5967, height: 19.4742,
+            animate: {
+                transform: {
+                    autoOrient: true,
+                    keyframes: [
+                        { time: 0,    value: { translate: [256.0547, 122.4478], origin: [15.7984, 9.7371] } },
+                        { time: 680,  value: { translate: [256.0547, 210.1343], origin: [15.7984, 9.7371] } },
+                        { time: 2000, value: { translate: [84.6318,  210.1343], origin: [15.7984, 9.7371] } },
+                        { time: 2680, value: { translate: [84.6318,  122.4478], origin: [15.7984, 9.7371] } },
+                        { time: 4000, value: { translate: [256.0547, 122.4478], origin: [15.7984, 9.7371] } },
+                    ] as Array<PxKeyframe>,
+                },
+            },
+        } as PxNode,
+    ],
+} as PxAnimatedSvgDocument);
+
+
+/** 180° U-turn: go right, then come back along the same line going left.
+ *  Sharp corner at the midpoint with exactly opposite tangents. */
+const uTurnFixture = (): PxAnimatedSvgDocument => ({
+    type: 'svg',
+    animator: { duration: 2000 },
+    children: [
+        {
+            type: 'rect',
+            id: 'u',
+            width: 40, height: 10,
+            animate: {
+                transform: {
+                    autoOrient: true,
+                    keyframes: [
+                        { time: 0,    value: { translate: [50,  100], origin: [20, 5] } },
+                        { time: 1000, value: { translate: [250, 100], origin: [20, 5] } },
+                        { time: 2000, value: { translate: [50,  100], origin: [20, 5] } },
+                    ] as Array<PxKeyframe>,
+                },
+            },
+        } as PxNode,
+    ],
+} as PxAnimatedSvgDocument);
+
+
+/** Equilateral triangle path — 3 sharp corners with 60° interior angles
+ *  (geometric heading change at each corner: 120° turn). */
+const triangleFixture = (): PxAnimatedSvgDocument => ({
+    type: 'svg',
+    animator: { duration: 3000 },
+    children: [
+        {
+            type: 'rect',
+            id: 't',
+            width: 30, height: 10,
+            animate: {
+                transform: {
+                    autoOrient: true,
+                    keyframes: [
+                        { time: 0,    value: { translate: [100, 200], origin: [15, 5] } },
+                        { time: 1000, value: { translate: [200, 200], origin: [15, 5] } },
+                        { time: 2000, value: { translate: [150, 113], origin: [15, 5] } },
+                        { time: 3000, value: { translate: [100, 200], origin: [15, 5] } },
+                    ] as Array<PxKeyframe>,
+                },
+            },
+        } as PxNode,
+    ],
+} as PxAnimatedSvgDocument);
+
+
+/** Mixed: smooth curve into a sharp corner into another smooth curve.
+ *  Tests that the corner-step logic doesn't insert false steps on smooth
+ *  segment transitions (curve → curve, when tangents line up). */
+const curveSharpCurveFixture = (): PxAnimatedSvgDocument => ({
+    type: 'svg',
+    animator: { duration: 3000 },
+    children: [
+        {
+            type: 'rect',
+            id: 'csc',
+            width: 30, height: 10,
+            animate: {
+                transform: {
+                    autoOrient: true,
+                    keyframes: [
+                        // Smooth curve from (50,200) heading +X, arriving at (200,200) heading +X (tangents balanced).
+                        { time: 0,    value: { translate: [50,  200], origin: [15, 5] }, tangentOut: [80, -40] },
+                        { time: 1000, value: { translate: [200, 200], origin: [15, 5] }, tangentIn:  [-80, -40] },
+                        // SHARP corner here: previous exit ≈ +X (0°), next entry = -Y (-90°).
+                        { time: 2000, value: { translate: [200, 50],  origin: [15, 5] } },
+                        // Smooth curve from (200,50) into (350,200) — straight-ish.
+                        { time: 3000, value: { translate: [350, 200], origin: [15, 5] }, tangentIn: [-60, -30] },
+                    ] as Array<PxKeyframe>,
+                },
+            },
+        } as PxNode,
+    ],
+} as PxAnimatedSvgDocument);
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Tests
 // ─────────────────────────────────────────────────────────────────────────────
@@ -393,6 +510,61 @@ describe('motion-along-path materialisation parity (webapi vs frames)', () => {
             duration: 1000,
             probes: [[0, 0], [100, 0]],
             tolerance: 2,
+        });
+    });
+
+    it('rectangular path with SHARP CORNERS (no tangents) — autoOrient must STEP at each corner, not linearly slide', () => {
+        // Frames-mode: each segment evaluated parametrically per frame →
+        // rotation is per-segment constant (90° / 180° / -90° / 0°) and steps
+        // instantly at each corner. WAAPI: materialised kfs interp linearly →
+        // rotation slides across the next segment, mis-orienting the rect for
+        // most of it.
+        expectParity(rectanglePathSharpCornersFixture(), {
+            duration: 4000,
+            probes: [[0, 0], [31.5967, 19.4742], [31.5967, 0], [0, 19.4742]],
+            tolerance: 3,
+            kfBoundaryTimes: [0, 680, 2000, 2680, 4000],
+        });
+    });
+
+    it('U-turn (180° corner) — autoOrient must step instantly from 0° to 180°', () => {
+        // Sharp corner with exactly opposite incoming/outgoing tangents.
+        // atan2 returns 0° on segment 0 (going +X), 180° on segment 1 (going
+        // -X). Without the step, the materialiser would interpolate from 0°
+        // to 180° across the second 1000ms — element rotating slowly during
+        // what should be a straight-line return.
+        expectParity(uTurnFixture(), {
+            duration: 2000,
+            probes: [[0, 0], [40, 10], [40, 0], [0, 10]],
+            tolerance: 3,
+            kfBoundaryTimes: [0, 1000, 2000],
+        });
+    });
+
+    it('triangle (3 sharp corners, 120° heading change each) — autoOrient must step at each corner', () => {
+        expectParity(triangleFixture(), {
+            duration: 3000,
+            probes: [[0, 0], [30, 10], [30, 0], [0, 10]],
+            tolerance: 3,
+            kfBoundaryTimes: [0, 1000, 2000, 3000],
+        });
+    });
+
+    it('curve → sharp corner → curve — step only at the sharp boundary, smooth everywhere else', () => {
+        // Tests two things at once:
+        //   (a) the sharp boundary in the middle must produce a clean rotation
+        //       step (curve exits +X, next segment heads -Y).
+        //   (b) the smooth curve-to-curve transitions (no sharp corner) must
+        //       NOT produce a false step — adjacent tangent directions line up
+        //       within rotationTolerance, so the materialiser must NOT emit a
+        //       duplicate kf there.
+        expectParity(curveSharpCurveFixture(), {
+            duration: 3000,
+            probes: [[0, 0], [30, 10], [30, 0], [0, 10]],
+            // Curved segments accumulate chord error from extremes + flatness
+            // bisection; allow a touch more slack than the pure-corner cases.
+            tolerance: 4,
+            kfBoundaryTimes: [0, 1000, 2000, 3000],
         });
     });
 });
