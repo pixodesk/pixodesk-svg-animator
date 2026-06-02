@@ -16,6 +16,7 @@
   --error-border: #6b2b2b;
   --error-text: #ffb4b4;
   --overlay: rgba(15, 17, 21, 0.72);
+  --canvas-frame: rgba(154, 163, 178, 0.4);
 }
 
 /* -- Light theme ---------------------------------------------------------- */
@@ -31,6 +32,7 @@
   --error-border: #f3b4b4;
   --error-text: #a12525;
   --overlay: rgba(245, 246, 248, 0.78);
+  --canvas-frame: rgba(90, 100, 114, 0.35);
 }
 
 * {
@@ -115,17 +117,55 @@ body {
   width: 100%;
   height: 460px;
   display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Breathing room so the dashed canvas frame never touches the panel edge. */
+  padding: 24px;
 }
 
-#stage > * {
+/*
+ * The canvas box is sized in JS to the animation's aspect ratio (contained
+ * within the stage), so the mounted SVG's viewBox maps 1:1 to its viewport —
+ * the SVG then clips off-canvas content at the true canvas bounds. A dashed
+ * frame marks where the canvas edges are.
+ */
+#canvas {
+  position: relative;
+  outline: 1px dashed var(--canvas-frame);
+  outline-offset: 0;
+}
+
+/* Empty / no-document state: hide the canvas frame entirely. */
+#stage-wrap:not(.has-content) #canvas {
+  display: none;
+}
+
+#mount {
   width: 100%;
   height: 100%;
 }
 
-#stage svg {
+#mount > * {
+  width: 100%;
+  height: 100%;
+}
+
+#mount svg {
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.canvas-size {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 .empty {

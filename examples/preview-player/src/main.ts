@@ -33,7 +33,10 @@ const $ = <T extends HTMLElement>(id: string): T => {
 };
 
 const stageWrap = $('stage-wrap');
-const stage = $('stage');
+const stageEl = $('stage');
+const canvas = $('canvas');
+const mount = $('mount');
+const canvasSizeEl = $('canvas-size');
 const errorEl = $('error');
 const seek = $<HTMLInputElement>('seek');
 const timeEl = $('time');
@@ -96,6 +99,54 @@ function readDuration(doc: PxAnimatedSvgDocument): number {
   return getAnimatorConfig(doc)?.duration ?? 1000;
 }
 
+/**
+ * Resolves the animation's canvas dimensions from the document: prefer the
+ * `viewBox` (last two numbers), fall back to `width`/`height`, then 400×400.
+ */
+function readCanvasSize(doc: PxAnimatedSvgDocument): { w: number; h: number } {
+  const vb = doc.viewBox?.trim().split(/[\s,]+/).map(Number);
+  if (vb && vb.length === 4 && vb[2] > 0 && vb[3] > 0 && vb.every((n) => Number.isFinite(n))) {
+    return { w: vb[2], h: vb[3] };
+  }
+  if (doc.width && doc.height && doc.width > 0 && doc.height > 0) {
+    return { w: doc.width, h: doc.height };
+  }
+  return { w: 400, h: 400 };
+}
+
+// Native canvas dimensions of the currently-loaded document, used to "contain"
+// the canvas box within the stage on every resize.
+let canvasW = 400;
+let canvasH = 400;
+
+/**
+ * Sizes the canvas box to fit the stage while preserving the animation's aspect
+ * ratio ("contain"). The box matches the canvas dimensions exactly, so the
+ * rendered SVG's viewBox maps 1:1 to its viewport — which makes the SVG clip
+ * off-canvas content at the true canvas edge. A dashed frame marks the bounds.
+ */
+function fitCanvas(): void {
+  const cs = getComputedStyle(stageEl);
+  const padX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight);
+  const padY = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  const availW = stageEl.clientWidth - padX;
+  const availH = stageEl.clientHeight - padY;
+  if (availW <= 0 || availH <= 0) return;
+
+  const scale = Math.min(availW / canvasW, availH / canvasH);
+  canvas.style.width = `${Math.round(canvasW * scale)}px`;
+  canvas.style.height = `${Math.round(canvasH * scale)}px`;
+}
+
+/** Reads the document's canvas size, updates the label, and fits the box. */
+function applyCanvasSize(doc: PxAnimatedSvgDocument): void {
+  const { w, h } = readCanvasSize(doc);
+  canvasW = w;
+  canvasH = h;
+  canvasSizeEl.textContent = `${w} × ${h}`;
+  fitCanvas();
+}
+
 function showError(msg: string): void {
   errorEl.textContent = msg;
   errorEl.hidden = false;
@@ -123,7 +174,7 @@ function remount(): void {
     }
     handle = null;
   }
-  stage.replaceChildren();
+  mount.replaceChildren();
   clearError();
 
   // Empty state: nothing loaded yet.
@@ -144,13 +195,15 @@ function remount(): void {
   seek.value = '0';
   timeEl.textContent = `0 / ${duration} ms`;
 
+  applyCanvasSize(currentDoc);
+
   const supportsRate = currentKind === 'web';
   rateSel.disabled = !supportsRate;
   rateNote.hidden = supportsRate;
   rateSel.value = '1';
 
   try {
-    handle = factories[currentKind](stage, currentDoc, {
+    handle = factories[currentKind](mount, currentDoc, {
       iterations: loopModeToIterations(currentLoop),
     });
   } catch (err) {
@@ -292,6 +345,13 @@ function tick(): void {
   }
   requestAnimationFrame(tick);
 }
+
+// -- Responsive canvas fitting -----------------------------------------------
+
+// Re-fit the canvas box whenever the stage changes size (window resize, etc.).
+new ResizeObserver(() => {
+  if (currentDoc) fitCanvas();
+}).observe(stageEl);
 
 // -- Boot --------------------------------------------------------------------
 
