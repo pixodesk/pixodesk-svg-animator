@@ -132,15 +132,28 @@ function staticStopNode(s: PxGradientStop): PxNode {
 
 function animatedStopNode(baseline: PxGradientStop, kfs: Array<PxKeyframe>, stopIdx: number, _ctx: ApplyContext): PxNode {
     const colorKfs: Array<PxKeyframe> = [];
+    const offsetKfs: Array<PxKeyframe> = [];
+    // Only emit an `offset` timeline when the offset actually moves across
+    // kfs — most gradients animate colour only, and a static offset attr is
+    // cheaper than a runtime binding that recomputes the same value.
+    let offsetVaries = false;
     for (const kf of kfs) {
         const t = kf.time ?? kf.t ?? 0;
         const arr = (kf.value ?? kf.v) as Array<PxGradientStop> | undefined;
         const sliced = arr?.[stopIdx] ?? prevDefinedStop(kfs, kfs.indexOf(kf), stopIdx);
         if (!sliced) continue;
-        const out: PxKeyframe = { time: t, value: sliced.color };
         const easing = kf.easing ?? kf.e;
-        if (easing !== undefined) out.easing = easing;
-        colorKfs.push(out);
+
+        const colorOut: PxKeyframe = { time: t, value: sliced.color };
+        if (easing !== undefined) colorOut.easing = easing;
+        colorKfs.push(colorOut);
+
+        // Offset is a unitless 0..1 fraction (SVG `<stop offset>` accepts it
+        // bare); the runtime interpolates it as a numeric attr.
+        const offsetOut: PxKeyframe = { time: t, value: sliced.offset };
+        if (easing !== undefined) offsetOut.easing = easing;
+        offsetKfs.push(offsetOut);
+        if (sliced.offset !== baseline.offset) offsetVaries = true;
     }
 
     const stop: PxNode = {
@@ -148,9 +161,10 @@ function animatedStopNode(baseline: PxGradientStop, kfs: Array<PxKeyframe>, stop
         offset: formatOffset(baseline.offset),
         stopColor: baseline.color,
     };
-    if (colorKfs.length) {
-        stop.animate = { stopColor: { keyframes: colorKfs } };
-    }
+    const animate: { [k: string]: { keyframes: Array<PxKeyframe> } } = {};
+    if (colorKfs.length) animate.stopColor = { keyframes: colorKfs };
+    if (offsetVaries && offsetKfs.length) animate.offset = { keyframes: offsetKfs };
+    if (Object.keys(animate).length) stop.animate = animate;
     return stop;
 }
 
