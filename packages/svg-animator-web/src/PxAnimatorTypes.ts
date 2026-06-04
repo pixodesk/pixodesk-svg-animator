@@ -1021,22 +1021,24 @@ export type PxStrokeGradientEffect = PxFillGradientEffect;
  *  first-class `<path>` def referenced by `href`; the applier mints a
  *  `<textPath>` wrapper around the text's children at apply time. All
  *  SVG-native textPath attrs (`lengthAdjust`, `method`, `spacing`,
- *  `startOffset`, `textLength`) ride on this effect. */
+ *  `startOffset`, `textLength`) ride on this effect. `startOffset` /
+ *  `textLength` accept the full `PxAnimatable<number>` shape — static,
+ *  `{value}`, or `{keyframes}` (times in ms, like other player-effect kfs). */
 export interface _PxTextAlongPathEffect {
     href: string;                                         // '#pathId'
     lengthAdjust?: string;                                // 'spacing' | 'spacingAndGlyphs'
     method?: string;                                      // 'align' | 'stretch'
     spacing?: string;                                     // 'auto' | 'exact'
-    startOffset?: number;
-    textLength?: number;
+    startOffset?: PxAnimatable<number>;
+    textLength?: PxAnimatable<number>;
 }
 export const PxTextAlongPathEffectSchema = implementsInterface<_PxTextAlongPathEffect>()(px.object({
     href: px.string(),
     lengthAdjust: px.string().optional(),
     method: px.string().optional(),
     spacing: px.string().optional(),
-    startOffset: px.number().optional(),
-    textLength: px.number().optional(),
+    startOffset: PxAnimatableNumberSchema.optional(),
+    textLength: PxAnimatableNumberSchema.optional(),
 }));
 export type PxTextAlongPathEffect = PxInfer<typeof PxTextAlongPathEffectSchema>;
 const _ck_PxTextAlongPathEffect: KeysMatch<PxTextAlongPathEffect, _PxTextAlongPathEffect> = true;
