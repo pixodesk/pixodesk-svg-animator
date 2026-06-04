@@ -369,6 +369,10 @@ interface LoopTemplateEntry {
     relT: number; // 0..1 relative position within segment
     v: any;
     e: [number, number, number, number] | undefined;
+    // Per-vertex spatial tangents (motion-along-path). Carried so repeated
+    // segments keep their curvature; reversed reps swap in<->out (see appendRep).
+    tangentIn?: [number, number];
+    tangentOut?: [number, number];
 }
 
 /**
@@ -418,7 +422,9 @@ function expandLoopKeyframes(
     const template: LoopTemplateEntry[] = segKfs.map(kf => ({
         relT: (kf.t! - segStartT) / segDuration,
         v: kf.v,
-        e: kf.e as [number, number, number, number] | undefined
+        e: kf.e as [number, number, number, number] | undefined,
+        tangentIn: (kf.tangentIn ?? kf.ti) as [number, number] | undefined,
+        tangentOut: (kf.tangentOut ?? kf.to) as [number, number] | undefined
     }));
 
     const fullReps = Math.floor(fillDuration / segDuration);
@@ -438,7 +444,12 @@ function expandLoopKeyframes(
                     relT: 1 - template[i].relT,
                     v: template[i].v,
                     // Easing for reversed transition: use reversed easing from the forward "from" keyframe
-                    e: i > 0 ? reverseEasing(template[i - 1].e) : undefined
+                    e: i > 0 ? reverseEasing(template[i - 1].e) : undefined,
+                    // Reversed traversal swaps each vertex's in/out spatial tangents
+                    // (geometry is identical, walked backwards), so curvature and
+                    // auto-orientation survive the reversed rep.
+                    tangentIn: template[i].tangentOut,
+                    tangentOut: template[i].tangentIn
                 });
             }
         } else {
@@ -471,11 +482,16 @@ function expandLoopKeyframes(
                 return;
             }
 
-            looped.push({
+            const pushed: PxKeyframe = {
                 t: repStart + entry.relT * segDuration,
                 v: entry.v,
                 e: i < entries.length - 1 ? entry.e : undefined
-            });
+            };
+            // Carry per-vertex spatial tangents so the repeated segment keeps its
+            // motion-path curvature (reversed reps already have in/out swapped above).
+            if (entry.tangentIn) pushed.tangentIn = entry.tangentIn;
+            if (entry.tangentOut) pushed.tangentOut = entry.tangentOut;
+            looped.push(pushed);
         }
     }
 
