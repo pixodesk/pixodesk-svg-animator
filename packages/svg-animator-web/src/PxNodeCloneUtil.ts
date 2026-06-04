@@ -85,3 +85,52 @@ export function regenerateIdsAndRewriteRefs(
 
     return oldToNew;
 }
+
+
+function toFiniteNum(v: unknown): number {
+    const n = typeof v === 'number' ? v : typeof v === 'string' ? parseFloat(v) : NaN;
+    return Number.isFinite(n) ? n : 0;
+}
+
+/**
+ * Applies a `<use>`'s `x`/`y` offset when it is materialised into a `<g>`.
+ *
+ * Per SVG 2, `<use x y>` is an extra `translate(x, y)` appended AFTER the use's
+ * own `transform`, so it composes innermost (closest to the referenced content).
+ * `<g>` has no `x`/`y`, so the offset must become a transform — and when the use
+ * also carries a (possibly animated) `transform`, the two can't be merged into a
+ * single attribute, so the content is wrapped in an inner offset `<g>`:
+ *
+ *     <use transform="T" x="X" y="Y">
+ *       → <g transform="T"><g transform="translate(X,Y)">…content…</g></g>
+ *
+ * With no transform/animation, a single `<g transform="translate(X,Y)">` suffices.
+ *
+ * `gNode` is the `<g>` already derived from the use (type:'g', href dropped, the
+ * use's `transform`/`animate`/etc. carried over, `x`/`y` still present). Mutates
+ * and returns it; `x`/`y` are removed.
+ */
+export function applyUseOffsetToG(gNode: PxNode): PxNode {
+    const x = toFiniteNum((gNode as { x?: unknown }).x);
+    const y = toFiniteNum((gNode as { y?: unknown }).y);
+    delete (gNode as { x?: unknown }).x;
+    delete (gNode as { y?: unknown }).y;
+    if (!x && !y) return gNode;
+
+    const offset = 'translate(' + x + ',' + y + ')';
+
+    // Any existing transform/animation on the outer <g> must apply OUTSIDE the
+    // offset, so push the offset into an inner wrapper rather than risk
+    // overwriting/conflicting with the carried-over `transform`/`animate`.
+    const carriesTransform =
+        (gNode as { transform?: unknown }).transform !== undefined ||
+        (gNode as { animate?: unknown }).animate !== undefined;
+
+    if (carriesTransform) {
+        const inner: PxNode = { type: 'g', transform: offset, children: gNode.children ?? [] } as PxNode;
+        gNode.children = [inner];
+    } else {
+        (gNode as { transform?: string }).transform = offset;
+    }
+    return gNode;
+}

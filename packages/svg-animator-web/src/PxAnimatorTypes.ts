@@ -1017,6 +1017,30 @@ export type _PxStrokeGradientEffect = _PxFillGradientEffect;
 export const PxStrokeGradientEffectSchema = PxFillGradientEffectSchema;
 export type PxStrokeGradientEffect = PxFillGradientEffect;
 
+/** Text-along-path effect on `<text>` host. The path geometry lives as a
+ *  first-class `<path>` def referenced by `href`; the applier mints a
+ *  `<textPath>` wrapper around the text's children at apply time. All
+ *  SVG-native textPath attrs (`lengthAdjust`, `method`, `spacing`,
+ *  `startOffset`, `textLength`) ride on this effect. */
+export interface _PxTextAlongPathEffect {
+    href: string;                                         // '#pathId'
+    lengthAdjust?: string;                                // 'spacing' | 'spacingAndGlyphs'
+    method?: string;                                      // 'align' | 'stretch'
+    spacing?: string;                                     // 'auto' | 'exact'
+    startOffset?: number;
+    textLength?: number;
+}
+export const PxTextAlongPathEffectSchema = implementsInterface<_PxTextAlongPathEffect>()(px.object({
+    href: px.string(),
+    lengthAdjust: px.string().optional(),
+    method: px.string().optional(),
+    spacing: px.string().optional(),
+    startOffset: px.number().optional(),
+    textLength: px.number().optional(),
+}));
+export type PxTextAlongPathEffect = PxInfer<typeof PxTextAlongPathEffectSchema>;
+const _ck_PxTextAlongPathEffect: KeysMatch<PxTextAlongPathEffect, _PxTextAlongPathEffect> = true;
+
 
 /** The full `node.effects` bucket. Closed — each known effect is declared
  *  (strict-mode validation flags an unknown effect key as a wire-format drift). */
@@ -1030,6 +1054,7 @@ export interface _PxEffects {
     ref?: _PxRefEffect;
     fillGradient?: _PxFillGradientEffect;
     strokeGradient?: _PxStrokeGradientEffect;
+    textAlongPath?: _PxTextAlongPathEffect;
 }
 export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
     transformation: PxTransformationEffectSchema.optional(),
@@ -1041,6 +1066,7 @@ export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
     ref: PxRefEffectSchema.optional(),
     fillGradient: PxFillGradientEffectSchema.optional(),
     strokeGradient: PxStrokeGradientEffectSchema.optional(),
+    textAlongPath: PxTextAlongPathEffectSchema.optional(),
 }));
 export type PxEffects = PxInfer<typeof PxEffectsSchema>;
 const _ck_PxEffects: KeysMatch<PxEffects, _PxEffects> = true;

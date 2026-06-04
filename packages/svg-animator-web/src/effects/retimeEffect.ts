@@ -27,6 +27,7 @@
 
 import type { PxNode, PxRetimeEffect } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
+import { applyUseOffsetToG } from '../PxNodeCloneUtil';
 import { clone, genId, indexById, regenerateIdsInClone, stripHash } from './util';
 
 
@@ -92,6 +93,9 @@ function materialiseRetime(useNode: PxNode, retime: Retime, ctx: ApplyContext): 
         useNode.type = 'g';
         delete useNode.href;
         useNode.children = [cloneNode];
+        // `<g>` ignores `x`/`y`; preserve the use's position offset as a
+        // `translate(x,y)` applied AFTER any transform (nested inner `<g>`).
+        applyUseOffsetToG(useNode);
         ctx.defs = ctx.defs.filter(d => d !== cloneNode);  // un-defs it since it's inline now
     } else {
         useNode.href = '#' + chainRootId;

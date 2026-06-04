@@ -25,6 +25,7 @@ import { applyMaskedByEffect, collectMaskAncestorChains } from './maskedByEffect
 import { applyRefAndTransformationEffect } from './refEffect';
 import { applyRepeaterEffect } from './repeaterEffect';
 import { applyAllRetimeEffects } from './retimeEffect';
+import { applyTextAlongPathEffect } from './textAlongPathEffect';
 import { applyTrimPathEffect } from './trimPathEffect';
 import type { PxNode } from '../PxAnimatorTypes';
 import type { ApplyContext, ApplyResult } from './types';
@@ -91,11 +92,15 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
 
     if (!fx && !innerIdForContentRef) return node;
 
-    const { transformation, repeater, maskedBy, trimPath, retime, ref, fillGradient, strokeGradient } = fx ?? {};
+    const { transformation, repeater, maskedBy, trimPath, retime, ref, fillGradient, strokeGradient, textAlongPath } = fx ?? {};
     const isCombinedShape = fx?.isCombinedShape;
     if (fx) delete node.effects;
 
     let n = node;
+    // textAlongPath wraps the host's own children in a `<textPath>` — must
+    // run BEFORE any structural wrapper (trim/repeater/mask) so the wrapping
+    // happens on the un-cloned content first.
+    n = applyTextAlongPathEffect(n, textAlongPath, ctx);
     // Paint-gradient defs are minted FIRST, before any structural wrapper —
     // the gradient effect sits on the innermost element (alongside its `fill`
     // / `stroke` body attrs), so it must materialise before trim/repeater/

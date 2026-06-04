@@ -21,7 +21,7 @@
  * materialisation; otherwise returns a new tree sharing untouched sub-trees.
  */
 
-import { deepClonePxNode, regenerateIdsAndRewriteRefs } from './PxNodeCloneUtil';
+import { applyUseOffsetToG, deepClonePxNode, regenerateIdsAndRewriteRefs } from './PxNodeCloneUtil';
 import type { PxNode } from './PxAnimatorTypes';
 
 
@@ -150,11 +150,12 @@ function materialiseOneUse(
     const materialisedClone = walkAndMaterialise(rewrittenClone, idMap, animatedIds, genId, defsCollector);
 
     // Replace `<use>` with `<g>` wrapping the clone. Keep all of use's own
-    // attrs except `href` (now meaningless) — transform / x / y / etc. all
-    // continue to apply to the materialised instance.
+    // attrs except `href` (now meaningless). `<g>` has no `x`/`y`, so the use's
+    // position offset is converted to a `translate(x,y)` (applied AFTER any
+    // transform — see `applyUseOffsetToG`) rather than silently dropped.
     const newNode: PxNode = { ...useNode, type: 'g', children: [materialisedClone] };
     delete (newNode as { href?: string }).href;
-    return newNode;
+    return applyUseOffsetToG(newNode);
 }
 
 
