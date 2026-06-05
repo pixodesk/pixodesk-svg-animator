@@ -35,9 +35,12 @@ export function applyTextAlongPathEffect(
 ): PxNode {
     if (!fx) return node;
 
+    // Wire stores the bare id (per the maskedBy convention) — add the `#`
+    // for the native `<textPath href="#…">` syntax.
+    const href = typeof fx.href === 'string' && !fx.href.startsWith('#') ? '#' + fx.href : fx.href;
     const textPath: PxNode = {
         type: 'textPath',
-        href: fx.href,
+        href,
         children: node.children ?? [],
     };
     if (fx.lengthAdjust !== undefined) textPath.lengthAdjust = fx.lengthAdjust;
