@@ -27,9 +27,14 @@ import type { ApplyContext } from './types';
  *   - The dasharray emits the same repeated pattern as the editor's
  *     `getTrimPathToDasharrayFn` so any dashoffset shift lands on a valid
  *     dash segment.
- *   - Empty-range moments are hidden with `opacity` 0; when the leaf has a
- *     `fill`, it is cloned into fill-only + stroke-only siblings so the
- *     fill stays visible.
+ *   - Empty-range moments are hidden with `stroke-opacity` 0 (STROKE only — the
+ *     fill stays visible, matching the editor's `trimOpacity` → `stroke-opacity`).
+ *
+ * COLLAPSE: when the trim host is itself a single shape leaf with exactly ONE
+ * sub-path, the trim materialises directly onto that leaf's own `<path>` (no
+ * `<g>` split) — mirroring the editor's
+ * `TSvgShapeElement.collapsibleSingleSubpathTrimPart`. Multi-subpath (or
+ * group/descendant) trims still expand to `<g>` + one bare `<path>` per sub-path.
  */
 export function applyTrimPathEffect(
     node: PxNode,
@@ -93,8 +98,21 @@ export function applyTrimPathEffect(
     const maxOffset = offsetValues.length ? Math.max(...offsetValues) : 0;
     const minMaxOffset: [number, number] = [minOffset, maxOffset];
 
+    // COLLAPSE: the trim host is a single shape leaf with exactly one sub-path
+    // → no `<g>` split. The trim stroke attrs go directly on the leaf's own
+    // `<path>` (its `fill` / `stroke` / `transform` / `id` stay put). Mirrors the
+    // editor's `TSvgShapeElement.collapsibleSingleSubpathTrimPart`.
+    if (leafEntries.length === 1 && leafEntries[0].leaf === node && leafEntries[0].subpaths.length === 1) {
+        const entry = leafEntries[0];
+        const sp = entry.subpaths[0];
+        const pathLengthPx = trimAllAsOne ? chainLengthPx : sp.lengthPx;
+        if (pathLengthPx < 0.001) return node;
+        const startOffsetPct = trimAllAsOne ? sp.startOffsetPx / pathLengthPx : 0;
+        return collapseLeafWithTrim(entry.leaf, pathLengthPx, startOffsetPct, minMaxOffset, offsetRead, rangeRead);
+    }
+
     // Pass 2 — walk the tree and replace each measured leaf with a <g>
-    // containing one (or two, fill+stroke split) <path>s per sub-path.
+    // containing one bare <path> per sub-path.
     const replacements = new Map<PxNode, PxNode>();
     for (const entry of leafEntries) {
         const newChildren: Array<PxNode> = [];
@@ -160,34 +178,41 @@ function buildSubpathNodes(
 
     const dashOffsetAttr = computeAnimAttr(offsetRead, offsetToDashOffset);
     const dashArrayAttr = computeAnimAttr(rangeRead, rangeToDasharray);
-    const opacityAttr = computeOpacityFromRange(rangeRead);
+    const strokeOpacityAttr = computeOpacityFromRange(rangeRead);
 
     const dStr = bezierToSvgPath(subpath);
 
     // Bare sub-path under the trim wrapper — fill / stroke / stroke-width are
-    // inherited from the wrapper <g>.
+    // inherited from the wrapper <g>. The empty-range hide uses `stroke-opacity`
+    // (STROKE only), so the fill stays visible without a fill-only twin.
     const base = makeBareSubpath(dStr);
     applyAttr(base, 'strokeDasharray', dashArrayAttr);
     applyAttr(base, 'strokeDashoffset', dashOffsetAttr);
+    applyAttr(base, 'strokeOpacity', strokeOpacityAttr);
 
-    if (!opacityAttr) return [base];
+    return [base];
+}
 
-    // Range collapses to a point somewhere in the animation — hide the stroke
-    // at those moments. When the leaf has a `fill`, blanket-opacity would
-    // erase the fill too; split into fill-only + stroke-only siblings so
-    // only the stroke goes invisible while the fill stays visible.
-    if (isFillNone(leaf)) {
-        applyAttr(base, 'opacity', opacityAttr);
-        return [base];
-    }
+/** Collapsed single-subpath form: the trim host stays a single `<path>` (its own
+ *  `fill` / `stroke` / `transform` / `id` preserved); the trim stroke attrs are
+ *  applied directly. Mirrors the editor's collapsed `<path>` output. */
+function collapseLeafWithTrim(
+    leaf: PxNode,
+    pathLengthPx: number,
+    startOffsetPct: number,
+    minMaxOffset: [number, number],
+    offsetRead: ReadPart<number>,
+    rangeRead: ReadPart<Vec2>,
+): PxNode {
+    const offsetToDashOffset = makeOffsetToDashOffset(startOffsetPct, pathLengthPx, minMaxOffset);
+    const rangeToDasharray = makeRangeToDasharray(pathLengthPx, minMaxOffset);
 
-    const fillTwin = makeBareSubpath(dStr);
-    fillTwin.stroke = 'none';
-
-    base.fill = 'none';
-    applyAttr(base, 'opacity', opacityAttr);
-
-    return [fillTwin, base];
+    const node: PxNode = { ...leaf };
+    delete node.effects;
+    applyAttr(node, 'strokeDasharray', computeAnimAttr(rangeRead, rangeToDasharray));
+    applyAttr(node, 'strokeDashoffset', computeAnimAttr(offsetRead, offsetToDashOffset));
+    applyAttr(node, 'strokeOpacity', computeOpacityFromRange(rangeRead));
+    return node;
 }
 
 /** Fresh `<path>` carrying only the sub-path geometry. Presentation attrs
@@ -485,9 +510,4 @@ function rectToPathD(node: PxNode): string | undefined {
         'L' + x + ',' + (y + h) +
         'L' + x + ',' + y +
         'L' + (x + w) + ',' + y + 'z';
-}
-
-function isFillNone(node: PxNode): boolean {
-    const fill = node.fill;
-    return fill === 'none' || fill === null;
 }
