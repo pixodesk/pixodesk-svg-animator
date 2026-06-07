@@ -160,6 +160,11 @@ function liftBodyTranslate(node: PxNode, transformation: PxTransformationEffect 
             });
             const outerAnimTr: any = { keyframes: outerKfs };
             if ((animTr as any).autoOrient) outerAnimTr.autoOrient = true;
+            // Forward `loop` so the split outer/inner halves keep the source
+            // alternate/cycle semantics; otherwise lifting a transform with
+            // `loop.alternate` silently drops the loop on translate side.
+            const srcLoop = (animTr as any).loop;
+            if (srcLoop !== undefined) outerAnimTr.loop = srcLoop;
             out.animate = { transform: outerAnimTr };
 
             const innerHasPivotedPart = kfs.some(kf => {
@@ -187,7 +192,10 @@ function liftBodyTranslate(node: PxNode, transformation: PxTransformationEffect 
                 if (node.animate && Object.keys(node.animate).length === 0) delete node.animate;
             } else {
                 // Inner animate keeps non-translate kfs; autoOrient flag is intentionally dropped.
-                (node.animate as any).transform = { keyframes: innerKfs };
+                // `loop` is forwarded so the inner rotate/scale half also alternates/cycles.
+                const innerAnimTr: any = { keyframes: innerKfs };
+                if (srcLoop !== undefined) innerAnimTr.loop = srcLoop;
+                (node.animate as any).transform = innerAnimTr;
             }
             didLiftAnimate = true;
         }

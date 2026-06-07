@@ -65,12 +65,14 @@ function applyAnimatableNumber(node: PxNode, attrName: string, raw: PxAnimatable
         node[attrName] = String(raw);
         return;
     }
-    if (typeof raw === 'object') {
-        const obj = raw as { value?: number; keyframes?: Array<unknown> };
+    if (typeof raw === 'object' && raw !== null) {
+        const obj = raw as { value?: number; keyframes?: Array<unknown>; loop?: unknown };
         if (Array.isArray(obj.keyframes)) {
             const prevAnimate = node.animate && typeof node.animate === 'object' && !Array.isArray(node.animate) ? node.animate : undefined;
             const animate: Record<string, any> = { ...(prevAnimate || {}) };
-            animate[attrName] = { keyframes: obj.keyframes };
+            const block: { keyframes: Array<unknown>, loop?: unknown } = { keyframes: obj.keyframes };
+            if (obj.loop !== undefined) block.loop = obj.loop;
+            animate[attrName] = block;
             node.animate = animate;
             return;
         }

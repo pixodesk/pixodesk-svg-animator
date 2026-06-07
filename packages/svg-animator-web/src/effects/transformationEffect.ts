@@ -100,6 +100,7 @@ function wrapTransformPart(
     if (v.kind === ReadKind.Animated) {
         const animTr: any = { keyframes: v.keyframes.map(kf => keyframeWith(kf, partsRecord(part, kf.value, undefined))) };
         if (v.autoOrient) animTr.autoOrient = true;
+        if (v.loop !== undefined) animTr.loop = v.loop;
         return {
             type: 'g',
             animate: { transform: animTr },
@@ -129,9 +130,11 @@ function wrapOrigin(inner: PxNode, raw: PxAnimatable<Vec2> | undefined, invert: 
         return { type: 'g', transform: { value: { translate: sign(v.value) } }, children: [inner] };
     }
     if (v.kind === ReadKind.Animated) {
+        const animTr: any = { keyframes: v.keyframes.map(kf => keyframeWith(kf, { translate: sign(kf.value as Vec2) })) };
+        if (v.loop !== undefined) animTr.loop = v.loop;
         return {
             type: 'g',
-            animate: { transform: { keyframes: v.keyframes.map(kf => keyframeWith(kf, { translate: sign(kf.value as Vec2) })) } },
+            animate: { transform: animTr },
             children: [inner],
         };
     }

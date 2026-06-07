@@ -108,9 +108,11 @@ function wrapInversePart(
         return { type: 'g', transform: { value: partsRecord(part, invertPartValue(part, v.value), origin) }, children: [inner] };
     }
     if (v.kind === ReadKind.Animated) {
+        const animTr: any = { keyframes: v.keyframes.map(kf => keyframeWith(kf, partsRecord(part, invertPartValue(part, kf.value), origin))) };
+        if (v.loop !== undefined) animTr.loop = v.loop;
         return {
             type: 'g',
-            animate: { transform: { keyframes: v.keyframes.map(kf => keyframeWith(kf, partsRecord(part, invertPartValue(part, kf.value), origin))) } },
+            animate: { transform: animTr },
             children: [inner],
         };
     }
@@ -174,11 +176,21 @@ function wrapInverseAnimatedBodyTransform(inner: PxNode, node: PxNode, _ctx: App
         }
     }
 
+    // Forward the source animate.transform's loop config (alternate/cycle/etc.)
+    // onto each per-part inverse wrapper so a loop on the masked element's body
+    // transform survives the inversion split.
+    const srcLoop = (animTr as Record<string, any> | undefined)?.loop;
+    const withLoop = (kfs: Array<Record<string, any>>): Record<string, any> => {
+        const block: Record<string, any> = { keyframes: kfs };
+        if (srcLoop !== undefined) block.loop = srcLoop;
+        return block;
+    };
+
     let n = inner;
     // Innermost = translate (matches `wrapInverseTransform`'s order).
-    if (translateKfs.length) n = { type: 'g', animate: { transform: { keyframes: translateKfs } }, children: [n] };
-    if (rotateKfs.length)    n = { type: 'g', animate: { transform: { keyframes: rotateKfs    } }, children: [n] };
-    if (scaleKfs.length)     n = { type: 'g', animate: { transform: { keyframes: scaleKfs     } }, children: [n] };
+    if (translateKfs.length) n = { type: 'g', animate: { transform: withLoop(translateKfs) }, children: [n] };
+    if (rotateKfs.length)    n = { type: 'g', animate: { transform: withLoop(rotateKfs)    }, children: [n] };
+    if (scaleKfs.length)     n = { type: 'g', animate: { transform: withLoop(scaleKfs)     }, children: [n] };
     return n;
 }
 

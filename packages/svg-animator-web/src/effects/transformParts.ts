@@ -10,7 +10,7 @@
  * masked-by effects (the latter builds INVERSE parts).
  */
 
-import type { PxAnimatable, PxKeyframe, Vec2 } from '../PxAnimatorTypes';
+import type { PxAnimatable, PxKeyframe, PxLoop, Vec2 } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
 
 
@@ -49,17 +49,20 @@ export function partsRecord(part: TransformPart, value: any, origin: Vec2 | unde
 export type ReadPart<T> =
     | { kind: ReadKind.Absent }
     | { kind: ReadKind.Static; value: T }
-    | { kind: ReadKind.Animated; keyframes: Array<PxKeyframe<T>>; autoOrient?: boolean };
+    | { kind: ReadKind.Animated; keyframes: Array<PxKeyframe<T>>; autoOrient?: boolean; loop?: PxLoop | boolean };
 
 /** Normalises an animatable field into a static value or a keyframe list (with
- *  `autoOrient` propagated for motion-path translate). */
+ *  `autoOrient` and `loop` propagated — the latter so timeline-level loop config
+ *  reaches the per-attribute `animate.X.loop` emitted by callers; without it,
+ *  effect-driven animations would silently ignore `loop.alternate`/cycle while
+ *  every non-effect property loops fine). */
 export function readAnimatable<T>(raw: PxAnimatable<T> | undefined): ReadPart<T> {
     if (raw === undefined) return { kind: ReadKind.Absent };
     if (Array.isArray(raw)) return { kind: ReadKind.Static, value: raw as unknown as T };
     if (typeof raw === 'object') {
-        const obj = raw as { value?: T; keyframes?: Array<PxKeyframe<T>>; autoOrient?: boolean };
+        const obj = raw as { value?: T; keyframes?: Array<PxKeyframe<T>>; autoOrient?: boolean; loop?: PxLoop | boolean };
         if (obj.keyframes) {
-            return { kind: ReadKind.Animated, keyframes: obj.keyframes, autoOrient: obj.autoOrient };
+            return { kind: ReadKind.Animated, keyframes: obj.keyframes, autoOrient: obj.autoOrient, loop: obj.loop };
         }
         if (obj.value !== undefined) return { kind: ReadKind.Static, value: obj.value };
     }

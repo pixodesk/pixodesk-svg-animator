@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import type { PxAnimatable, PxBezierPath, PxKeyframe, PxNode, Vec2, _PxTrimPathEffect } from '../PxAnimatorTypes';
+import type { PxAnimatable, PxBezierPath, PxKeyframe, PxLoop, PxNode, Vec2, _PxTrimPathEffect } from '../PxAnimatorTypes';
 import { bezier2D_arcLengthLUT, bezierToSvgPath, clamp } from '../PxAnimatorUtil';
 import { parseSvgPathToBezier } from '../PxDefinitions';
 import { ReadKind, readAnimatable, type ReadPart } from './transformParts';
@@ -280,7 +280,7 @@ function getOffsetIndexRange(minMaxOffset: [number, number]): [number, number] {
 
 type AnimAttrResult<TOut> =
     | { kind: ReadKind.Static; value: TOut }
-    | { kind: ReadKind.Animated; keyframes: Array<PxKeyframe> }
+    | { kind: ReadKind.Animated; keyframes: Array<PxKeyframe>; loop?: PxLoop | boolean }
     | undefined;
 
 function readScalarValues(r: ReadPart<number>): Array<number> {
@@ -304,6 +304,7 @@ function computeAnimAttr<TIn, TOut>(read: ReadPart<TIn>, map: (v: TIn) => TOut):
             value: map((kf.value ?? kf.v) as TIn),
             easing: kf.easing ?? kf.e,
         })),
+        loop: read.loop,
     };
 }
 
@@ -315,7 +316,9 @@ function applyAttr<T>(node: PxNode, attrName: string, attr: AnimAttrResult<T>): 
     }
     const prevAnimate = node.animate && typeof node.animate === 'object' && !Array.isArray(node.animate) ? node.animate : undefined;
     const animate: Record<string, any> = { ...(prevAnimate || {}) };
-    animate[attrName] = { keyframes: attr.keyframes };
+    const block: { keyframes: Array<PxKeyframe>, loop?: PxLoop | boolean } = { keyframes: attr.keyframes };
+    if (attr.loop !== undefined) block.loop = attr.loop;
+    animate[attrName] = block;
     node.animate = animate;
 }
 
