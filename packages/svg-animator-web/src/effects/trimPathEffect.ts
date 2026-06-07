@@ -46,9 +46,8 @@ export function applyTrimPathEffect(
 
     const trimAllAsOne = !!trimPath.trimAllAsOne;
 
-    // Pass 1 — find leaves + measure sub-path lengths + assign chain offsets.
+    // Pass 1a — collect leaves with subpath lengths (no chain offset yet).
     const leafEntries: Array<LeafEntry> = [];
-    let acc = 0;
     const measure = (n: PxNode): void => {
         if (Array.isArray(n.children) && n.children.length > 0) {
             for (const ch of n.children) measure(ch);
@@ -60,16 +59,34 @@ export function applyTrimPathEffect(
         if (!subpaths.length) return;
         const entry: LeafEntry = { leaf: n, subpaths: [] };
         for (const sp of subpaths) {
-            if (!trimAllAsOne) acc = 0;
             const lengthPx = pxBezierPathLength(sp);
-            entry.subpaths.push({ subpath: sp, lengthPx, startOffsetPx: acc });
-            acc += lengthPx;
+            entry.subpaths.push({ subpath: sp, lengthPx, startOffsetPx: 0 });
         }
         leafEntries.push(entry);
     };
     measure(node);
 
     if (!leafEntries.length) return node;
+
+    // Pass 1b — assign chain offsets.
+    // `trimAllAsOne=true`: walk leaves in REVERSE doc order so the chain
+    // starts at the visually-topmost leaf (the editor's convention — see
+    // `TSvgTrimPathEffect.applyEffect` which iterates `els.reverse()`). Within
+    // each leaf, subpaths keep their `d`-attribute order. This matches the
+    // editor's dashoffsets exactly — without the reverse, a multi-leaf group
+    // emits the leaves' dashoffsets SWAPPED, which renders the visible trim
+    // window on the wrong subpath.
+    // `trimAllAsOne=false`: each subpath gets its own independent chain
+    // (offset 0), so the leaf iteration order doesn't matter.
+    let acc = 0;
+    const iterOrder = trimAllAsOne ? [...leafEntries].reverse() : leafEntries;
+    for (const entry of iterOrder) {
+        for (const sp of entry.subpaths) {
+            if (!trimAllAsOne) acc = 0;
+            sp.startOffsetPx = acc;
+            acc += sp.lengthPx;
+        }
+    }
 
     const chainLengthPx = acc;
     if (trimAllAsOne && chainLengthPx < 0.001) return node;
@@ -320,12 +337,29 @@ function applyAttr<T>(node: PxNode, attrName: string, attr: AnimAttrResult<T>): 
     if (attr.loop !== undefined) block.loop = attr.loop;
     animate[attrName] = block;
     node.animate = animate;
+    // ALSO write the first kf's value as a STATIC attribute. The animator only
+    // pushes the animated value to the DOM on its first rAF tick — if a caller
+    // snapshots the DOM in the window between `play()` and that first tick
+    // (e.g. visual-tests live-mode sample at t=0), the element renders with
+    // DEFAULT stroke styling (no dash, full opacity), which would expose the
+    // entire stroked path even when the t=0 kf says it should be hidden /
+    // mostly-dashed. Mirroring the SVG convention of "static baseline +
+    // animation" makes the pre-tick DOM render match the kf-at-time-0 value.
+    const firstKf = attr.keyframes[0];
+    if (firstKf && (firstKf.value ?? (firstKf as any).v) !== undefined) {
+        node[attrName] = firstKf.value ?? (firstKf as any).v;
+    }
 }
+
+/** Width (ms) of the opacity transition emitted at each hide↔show boundary.
+ *  Matches the editor's "+1 SVGA frame" (= 10 ms at the 100 fps SVGA grid). */
+const OPACITY_STEP_MS = 10;
 
 /** Editor's empty-range opacity (`shouldHide(startEnd) = startEnd[0] === startEnd[1]`).
  *  Static: single 0 if hide always; undefined otherwise.
- *  Animated: step-jump kfs at each hide↔show transition (one frame wide, so
- *  the renderer never interpolates the opacity). */
+ *  Animated: step-jump kfs at each hide↔show transition (~one SVGA frame
+ *  wide so the renderer doesn't briefly show the stroke between an empty
+ *  range and the first non-empty kf at wall-clock t≈0). */
 function computeOpacityFromRange(rangeRead: ReadPart<Vec2>): AnimAttrResult<number> {
     const hide = (v: Vec2): boolean => v[0] === v[1];
 
@@ -356,9 +390,9 @@ function computeOpacityFromRange(rangeRead: ReadPart<Vec2>): AnimAttrResult<numb
 
         if (prevHide && !nextHide) {
             out.push({ time: t, value: 0 });
-            out.push({ time: t + 1, value: 1 });
+            out.push({ time: t + OPACITY_STEP_MS, value: 1 });
         } else if (!prevHide && nextHide) {
-            out.push({ time: t - 1, value: 1 });
+            out.push({ time: t - OPACITY_STEP_MS, value: 1 });
             out.push({ time: t, value: 0 });
         }
     }
