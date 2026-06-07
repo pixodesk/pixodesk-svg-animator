@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import type { PxAnimatable, PxFillGradientEffect, PxGradientStop, PxKeyframe, PxNode, PxStrokeGradientEffect } from '../PxAnimatorTypes';
+import type { PxAnimatable, PxFillGradientEffect, PxGradientStop, PxKeyframe, PxLoop, PxNode, PxStrokeGradientEffect } from '../PxAnimatorTypes';
 import { PxGradientType } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
 import { genId } from './util';
@@ -95,10 +95,17 @@ function buildStopChildren(stops: PxAnimatable<Array<PxGradientStop>> | undefine
         return (stops as { value: Array<PxGradientStop> }).value.map(staticStopNode);
     }
 
-    // Animated — `{keyframes: [{time, value: [stops], easing?}]}`.
-    const animBlock = stops as { keyframes?: Array<PxKeyframe> };
+    // Animated — `{keyframes: [{time, value: [stops], easing?}], loop?, ...}`.
+    const animBlock = stops as { keyframes?: Array<PxKeyframe>, loop?: PxLoop | boolean };
     const kfs = animBlock.keyframes;
     if (!Array.isArray(kfs) || !kfs.length) return [];
+    // Per-stop animations inherit the timeline-level `loop` (alternate/cycle/etc.).
+    // Without forwarding it, animating a gradient with `loop.alternate:true`
+    // would slice each stop's colours into separate `animate.stopColor`
+    // entries that lose the loop config → no reversal past the last kf,
+    // even though every non-gradient animatable property loops fine. See
+    // also: the gradient stop "slice" docstring above.
+    const loopFromSource = animBlock.loop;
 
     // Stop count: take the LARGEST across kfs (constraint says constant
     // count, but defensive — when missing, hold the last value).
@@ -119,7 +126,7 @@ function buildStopChildren(stops: PxAnimatable<Array<PxGradientStop>> | undefine
         baselineStops.push({ offset: s.offset, color: s.color });
     }
 
-    return baselineStops.map((bs, i) => animatedStopNode(bs, kfs, i, ctx));
+    return baselineStops.map((bs, i) => animatedStopNode(bs, kfs, i, ctx, loopFromSource));
 }
 
 function staticStopNode(s: PxGradientStop): PxNode {
@@ -130,7 +137,7 @@ function staticStopNode(s: PxGradientStop): PxNode {
     };
 }
 
-function animatedStopNode(baseline: PxGradientStop, kfs: Array<PxKeyframe>, stopIdx: number, _ctx: ApplyContext): PxNode {
+function animatedStopNode(baseline: PxGradientStop, kfs: Array<PxKeyframe>, stopIdx: number, _ctx: ApplyContext, loop: PxLoop | boolean | undefined): PxNode {
     const colorKfs: Array<PxKeyframe> = [];
     const offsetKfs: Array<PxKeyframe> = [];
     // Only emit an `offset` timeline when the offset actually moves across
@@ -161,9 +168,15 @@ function animatedStopNode(baseline: PxGradientStop, kfs: Array<PxKeyframe>, stop
         offset: formatOffset(baseline.offset),
         stopColor: baseline.color,
     };
-    const animate: { [k: string]: { keyframes: Array<PxKeyframe> } } = {};
-    if (colorKfs.length) animate.stopColor = { keyframes: colorKfs };
-    if (offsetVaries && offsetKfs.length) animate.offset = { keyframes: offsetKfs };
+    const animate: { [k: string]: { keyframes: Array<PxKeyframe>, loop?: PxLoop | boolean } } = {};
+    if (colorKfs.length) {
+        animate.stopColor = { keyframes: colorKfs };
+        if (loop !== undefined) animate.stopColor.loop = loop;
+    }
+    if (offsetVaries && offsetKfs.length) {
+        animate.offset = { keyframes: offsetKfs };
+        if (loop !== undefined) animate.offset.loop = loop;
+    }
     if (Object.keys(animate).length) stop.animate = animate;
     return stop;
 }
