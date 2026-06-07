@@ -261,18 +261,32 @@ describe('materialiseAnimatedUseInstances', () => {
     });
 
 
-    it('materialised <use> targeting a <symbol> rewrites the clone root into a <g> with viewBox-offset transform + clip', () => {
+    it('materialised <use> targeting a <symbol> rewrites the clone root into a <g> with viewport-fitting transform + clip', () => {
         // <symbol> doesn't render unless instantiated by <use>. If the
         // materialiser just deep-clones the <symbol> into a <g> parent, the
         // cloned <symbol> is still invisible. Replace the clone-root <symbol>
         // with a <g> that:
-        //   - translates by `(-vbX, -vbY)` so the symbol's local origin aligns
-        //     with the use's anchor (mirrors how the browser maps a <symbol>
-        //     viewBox into a <use> viewport at default x=0, y=0).
-        //   - clips to the viewBox rectangle (via a fresh `<clipPath>` in defs)
-        //     so out-of-viewBox content is hidden, matching <symbol> semantics.
+        //   - translate(xOff, yOff) → centers the scaled viewBox in the use's
+        //     viewport per `xMidYMid meet`.
+        //   - scale(s) → maps the symbol's viewBox dimensions to the use's
+        //     effective width/height (defaulting to 100% of the root's
+        //     viewport when the use has no explicit width/height).
+        //   - translate(-vbX, -vbY) → moves the symbol's local origin to (0,0)
+        //     so the scaled-and-centered rect lands at (xOff, yOff).
+        //   - clipPath="url(#…)" referencing a <rect> matching the viewBox in
+        //     symbol coords — combined with the surrounding transform this
+        //     clips the rendered area to the use's viewport, matching <symbol>
+        //     viewport-clipping semantics.
+        // Use width/height default to 100% of root viewport. Root has explicit
+        // `viewBox="0 0 200 200"` so the use's effective viewport is 200×200.
+        // Symbol viewBox 100×50 fits into 200×200 with `xMidYMid meet`:
+        //   scale = min(200/100, 200/50) = 2  (width-limited)
+        //   rendered: 100·2 = 200 wide, 50·2 = 100 tall → centred vertically
+        //   xOff = (200 - 200) / 2 = 0
+        //   yOff = (200 - 100) / 2 = 50
         const tree: PxNode = {
             type: 'svg',
+            viewBox: '0 0 200 200',
             children: [
                 {
                     type: 'symbol',
@@ -303,11 +317,16 @@ describe('materialiseAnimatedUseInstances', () => {
         expect(replacement.type).toBe('g');
         expect(deepCountByType(replacement, 'symbol')).toBe(0);
         // The cloned content's structure: replacement <g> → inner <g> with
-        // viewBox-derived transform (translate(-10,-20)) and a clip-path ref →
-        // the cloned <rect> (still animated).
+        // viewport-fitting transform (translate(xOff,yOff) scale(s) translate(-vbX,-vbY))
+        // and a clip-path ref → the cloned <rect> (still animated).
         const cloneRoot = replacement.children![0];
         expect(cloneRoot.type).toBe('g');
         expect(typeof cloneRoot.transform).toBe('string');
+        // For root viewport 200×200 and symbol viewBox 10/20 100×50:
+        // scale=2, xOff=0, yOff=50. Transform composed right-to-left:
+        // translate(-10,-20) → scale(2) → translate(0, 50).
+        expect(cloneRoot.transform).toMatch(/translate\s*\(\s*0\s*,\s*50\s*\)/);
+        expect(cloneRoot.transform).toMatch(/scale\s*\(\s*2\s*\)/);
         expect(cloneRoot.transform).toMatch(/translate\s*\(\s*-10\s*,\s*-20\s*\)/);
         expect(typeof (cloneRoot as PxNode & { clipPath?: string }).clipPath).toBe('string');
         // The clipPath defs entry should exist somewhere in the tree.
@@ -316,7 +335,8 @@ describe('materialiseAnimatedUseInstances', () => {
         expect(clipPathId).toBeTruthy();
         const clipPathNode = deepFind(out, n => n.type === 'clipPath' && n.id === clipPathId);
         expect(clipPathNode).toBeDefined();
-        // The clipPath must contain a <rect> matching the viewBox dimensions.
+        // The clipPath must contain a <rect> matching the viewBox dimensions
+        // (in symbol coords — the surrounding transform maps it to viewport).
         const clipRect = clipPathNode!.children![0];
         expect(clipRect.type).toBe('rect');
         expect(clipRect.x).toBe(10);
