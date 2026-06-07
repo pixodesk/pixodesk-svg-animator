@@ -453,6 +453,54 @@ describe('Loop expansion', () => {
         expect(kfs?.length).toBe(2);
     });
 
+    // Regression: loopIn (`before`) with a PARTIAL leftover rep — the fill region
+    // (0→150ms) is NOT an exact multiple of the segment (100ms): 1 full rep + a 0.5
+    // partial. The fill must tile BACKWARD from the boundary (firstT=150ms) so the
+    // partial sits at t=0 showing the segment's TAIL and a full rep ends exactly at
+    // firstT. The pre-fix forward-tiling put the partial next to firstT and started
+    // the element at the segment HEAD (x=0) instead of mid-segment (x=50) → the
+    // loopIn `f0` bug. (Linear easing → exact midpoints.) Asserts on the materialised
+    // keyframe list since this path keeps kf times in ms (not normalised 0-1).
+    it('loop:before with partial rep tiles backward from the first keyframe', () => {
+        const doc: PxAnimatedSvgDocument = {
+            type: 'svg',
+            animator: {
+                duration: 250,
+                animate: {
+                    'el1': {
+                        transform: {
+                            keyframes: [
+                                { time: 150, value: { translate: [0, 0] } },
+                                { time: 250, value: { translate: [100, 0] } }
+                            ],
+                            loop: { before: true }
+                        }
+                    }
+                }
+            }
+        };
+
+        const animDef = getTranslateAnim(doc);
+        const kfs = animDef['transform']?.kfs as Array<{ t: number; v: { translate: [number, number] } }>;
+        const x = (i: number) => kfs[i].v.translate[0];
+
+        // Expected backward-tiled fill (then the 2 original kfs):
+        //   t=0:[50,0] (tail start) · t=50:[100,0] (tail end) ┊ t=50:[0,0] · t=150:[100,0] (full rep)
+        //   ┊ t=150:[0,0] · t=250:[100,0] (original)
+        expect(kfs.map(k => k.t)).toEqual([0, 50, 50, 150, 150, 250]);
+
+        // The fix: the FIRST kf is the segment's mid-point tail (x=50), NOT the
+        // head (x=0) the forward-tiling bug produced.
+        expect(x(0)).toBeCloseTo(50, 5);
+        expect(x(1)).toBeCloseTo(100, 5); // tail ends at segment end
+        // Full rep restarts at the segment head and ends exactly at firstT.
+        expect(x(2)).toBeCloseTo(0, 5);
+        expect(x(3)).toBeCloseTo(100, 5);
+        // Original segment unchanged.
+        expect(x(4)).toBeCloseTo(0, 5);
+        expect(x(5)).toBeCloseTo(100, 5);
+    });
+
     // FIXME
     // it('translate with loop:true cycles correctly', () => {
     //     const doc: PxAnimatedSvgDocument = {

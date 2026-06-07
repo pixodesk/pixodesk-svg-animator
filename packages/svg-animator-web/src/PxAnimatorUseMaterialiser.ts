@@ -173,12 +173,15 @@ function materialiseOneUse(
     const clone = deepClonePxNode(target);
     regenerateIdsAndRewriteRefs(clone, genId);
 
-    // Use's effective width/height — explicit attrs if set; else 100% of the
-    // root viewport per the SVG spec default for `<use>` on a symbol with
-    // viewBox. Needed by `rewriteSymbolRootToGroup` to compute the
-    // viewBox-to-viewport scaling.
-    const useW = numericAttr((useNode as { width?: unknown }).width) ?? rootViewport[0];
-    const useH = numericAttr((useNode as { height?: unknown }).height) ?? rootViewport[1];
+    // Use's effective width/height — explicit attrs if set; else the referenced
+    // `<symbol>`'s OWN viewBox size (a `<use>` on a symbol-with-viewBox renders at
+    // the symbol's natural size, NOT 100% of the viewport — the latter scales the
+    // symbol up, e.g. 80×80 → 139×139). Our serialiser now always emits explicit
+    // width/height, so this fallback is the safety net for inputs that omit them.
+    // Falls back to the root viewport only when there's no viewBox to size from.
+    const symbolViewBox = clone.type === 'symbol' ? parseViewBox((clone as { viewBox?: unknown }).viewBox) : undefined;
+    const useW = numericAttr((useNode as { width?: unknown }).width) ?? symbolViewBox?.[2] ?? rootViewport[0];
+    const useH = numericAttr((useNode as { height?: unknown }).height) ?? symbolViewBox?.[3] ?? rootViewport[1];
 
     // `<symbol>` is invisible unless instantiated by `<use>` — a bare clone
     // of it inside our wrapping `<g>` would render nothing. Rewrite the

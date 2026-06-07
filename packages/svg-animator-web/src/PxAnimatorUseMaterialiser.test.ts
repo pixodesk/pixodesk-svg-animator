@@ -269,21 +269,17 @@ describe('materialiseAnimatedUseInstances', () => {
         //   - translate(xOff, yOff) → centers the scaled viewBox in the use's
         //     viewport per `xMidYMid meet`.
         //   - scale(s) → maps the symbol's viewBox dimensions to the use's
-        //     effective width/height (defaulting to 100% of the root's
-        //     viewport when the use has no explicit width/height).
+        //     effective width/height.
         //   - translate(-vbX, -vbY) → moves the symbol's local origin to (0,0)
         //     so the scaled-and-centered rect lands at (xOff, yOff).
         //   - clipPath="url(#…)" referencing a <rect> matching the viewBox in
         //     symbol coords — combined with the surrounding transform this
         //     clips the rendered area to the use's viewport, matching <symbol>
         //     viewport-clipping semantics.
-        // Use width/height default to 100% of root viewport. Root has explicit
-        // `viewBox="0 0 200 200"` so the use's effective viewport is 200×200.
-        // Symbol viewBox 100×50 fits into 200×200 with `xMidYMid meet`:
-        //   scale = min(200/100, 200/50) = 2  (width-limited)
-        //   rendered: 100·2 = 200 wide, 50·2 = 100 tall → centred vertically
-        //   xOff = (200 - 200) / 2 = 0
-        //   yOff = (200 - 100) / 2 = 50
+        // The use has NO explicit width/height → it sizes to the SYMBOL's OWN
+        // viewBox (100×50), NOT 100% of the root viewport. So the symbol renders
+        // at natural size: scale = min(100/100, 50/50) = 1, no centering offset
+        // (xOff=yOff=0). The only non-identity part is translate(-vbX,-vbY).
         const tree: PxNode = {
             type: 'svg',
             viewBox: '0 0 200 200',
@@ -322,12 +318,11 @@ describe('materialiseAnimatedUseInstances', () => {
         const cloneRoot = replacement.children![0];
         expect(cloneRoot.type).toBe('g');
         expect(typeof cloneRoot.transform).toBe('string');
-        // For root viewport 200×200 and symbol viewBox 10/20 100×50:
-        // scale=2, xOff=0, yOff=50. Transform composed right-to-left:
-        // translate(-10,-20) → scale(2) → translate(0, 50).
-        expect(cloneRoot.transform).toMatch(/translate\s*\(\s*0\s*,\s*50\s*\)/);
-        expect(cloneRoot.transform).toMatch(/scale\s*\(\s*2\s*\)/);
+        // Use sizes to the symbol's own viewBox (100×50) → scale=1, no centering →
+        // the transform is just translate(-vbX,-vbY) = translate(-10,-20). No
+        // up-scaling and no centering translate.
         expect(cloneRoot.transform).toMatch(/translate\s*\(\s*-10\s*,\s*-20\s*\)/);
+        expect(cloneRoot.transform).not.toContain('scale');
         expect(typeof (cloneRoot as PxNode & { clipPath?: string }).clipPath).toBe('string');
         // The clipPath defs entry should exist somewhere in the tree.
         const clipPathRef = (cloneRoot as PxNode & { clipPath?: string }).clipPath!;

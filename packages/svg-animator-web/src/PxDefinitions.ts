@@ -495,24 +495,93 @@ function expandLoopKeyframes(
         }
     }
 
+    // Like {@link appendRep} but emits only the TAIL of the segment — relT ∈
+    // [1-tailFraction, 1] — over [repStart, repStart + tailFraction*segDuration].
+    // Used for the leftover (partial) rep of a `before` loop: it sits at fillStart
+    // and runs UP TO the segment-end value, so the full reps after it align to end
+    // exactly at the first original keyframe (firstT). A head-truncated partial here
+    // (as appendRep does) would land the leftover ADJACENT to firstT and desync the
+    // whole backward fill — the loopIn `f0` bug.
+    function appendRepTail(repStart: number, isReversed: boolean, tailFraction: number) {
+        let entries: LoopTemplateEntry[];
+        if (isReversed) {
+            entries = [];
+            for (let i = template.length - 1; i >= 0; i--) {
+                entries.push({
+                    relT: 1 - template[i].relT,
+                    v: template[i].v,
+                    e: i > 0 ? reverseEasing(template[i - 1].e) : undefined,
+                    tangentIn: template[i].tangentOut,
+                    tangentOut: template[i].tangentIn
+                });
+            }
+        } else {
+            entries = template;
+        }
+
+        const startRelT = 1 - tailFraction;
+
+        for (let i = 0; i < entries.length; i++) {
+            const entry = entries[i];
+            if (entry.relT < startRelT - 1e-9) continue; // wholly before the tail window
+            const prev = entries[i - 1];
+
+            // If startRelT falls strictly inside (prev, entry), the tail begins
+            // mid-interval — emit an interpolated keyframe at repStart carrying the
+            // RIGHT split of prev's easing.
+            if (prev && prev.relT < startRelT - 1e-9 && entry.relT > startRelT + 1e-9) {
+                const intervalSpan = entry.relT - prev.relT;
+                const localFrac = (startRelT - prev.relT) / intervalSpan;
+                const easedFrac = prev.e ? cubicBezier(prev.e)(localFrac) : localFrac;
+                const startValue = interpolateValue(propName, prev.v, entry.v, easedFrac);
+                const { right: rightEasing } = splitEasing(prev.e, localFrac);
+                looped.push({ t: repStart, v: startValue, e: rightEasing });
+            }
+
+            const pushed: PxKeyframe = {
+                t: repStart + (entry.relT - startRelT) * segDuration,
+                v: entry.v,
+                e: i < entries.length - 1 ? entry.e : undefined
+            };
+            if (entry.tangentIn) pushed.tangentIn = entry.tangentIn;
+            if (entry.tangentOut) pushed.tangentOut = entry.tangentOut;
+            looped.push(pushed);
+        }
+    }
+
     // Generate repetitions.
     // The rep closest to the original keyframes boundary must be reversed first
     // in pingpong mode (the animation just finished going forward, so the next
-    // iteration goes backward). For loopOut, rep 0 is closest; for loopIn, reps
-    // are laid out left-to-right so the last rep is closest.
-    for (let rep = 0; rep < fullReps; rep++) {
-        const distFromBoundary = loop.before ? fullReps - 1 - rep : rep;
-        const isReversed = !!loop.alternate && (distFromBoundary % 2 === 0);
-        const repStart = fillStart + rep * segDuration;
-        appendRep(repStart, isReversed);
+    // iteration goes backward).
+    if (loop.before) {
+        // loopIn — the fill must END exactly at the first keyframe (firstT), so the
+        // reps tile BACKWARD from that boundary: the leftover (partial) rep sits at
+        // fillStart showing the segment's tail, then `fullReps` full reps run up to
+        // firstT. (Forward-tiling — as loopOut does — would push the partial next to
+        // firstT and desync the fill: the loopIn `f0` regression.)
+        if (partialFraction > 1e-9) {
+            const isReversed = !!loop.alternate && (fullReps % 2 === 0);
+            appendRepTail(fillStart, isReversed, partialFraction);
+        }
+        for (let rep = 0; rep < fullReps; rep++) {
+            const distFromBoundary = fullReps - 1 - rep;
+            const isReversed = !!loop.alternate && (distFromBoundary % 2 === 0);
+            const repStart = fillStart + remainder + rep * segDuration;
+            appendRep(repStart, isReversed);
+        }
+    } else {
+        // loopOut — boundary is at fillStart (lastT); tile forward, partial at the end.
+        for (let rep = 0; rep < fullReps; rep++) {
+            const isReversed = !!loop.alternate && (rep % 2 === 0);
+            const repStart = fillStart + rep * segDuration;
+            appendRep(repStart, isReversed);
+        }
+        if (partialFraction > 1e-9) {
+            const isReversed = !!loop.alternate && (fullReps % 2 === 0);
+            const repStart = fillStart + fullReps * segDuration;
+            appendRep(repStart, isReversed, partialFraction);
+        }
     }
-
-    // Partial repetition
-    if (partialFraction > 1e-9) {
-        const isReversed = !!loop.alternate && (fullReps % 2 === 0);
-        const repStart = fillStart + fullReps * segDuration;
-        appendRep(repStart, isReversed, partialFraction);
-    }   
 
     // Assemble: looped keyframes go before or after the original keyframes.
     // No junction deduplication — cycle mode relies on value jumps at boundaries.

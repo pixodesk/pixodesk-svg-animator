@@ -32,10 +32,14 @@ const DISALLOWED_SVG_TAGS_LOWER = new Set([
  * are sanitised in `sanitiseAttributeValue`; non-internal refs are dropped.
  *
  * Exception: image-ref attributes (`href` / `xlink:href` / `src`) ALSO
- * accept base64-encoded raster `data:` URIs (`image/png`, `image/jpeg`,
- * `image/gif`, `image/webp`, `image/bmp`). These have no script-execution
- * surface in the SVG sandbox. `data:image/svg+xml` stays blocked — SVG can
- * embed scripts.
+ * accept `data:image/…` URIs — base64 raster (`image/png`, `image/jpeg`,
+ * `image/gif`, `image/webp`, `image/bmp`) and `image/svg+xml` (base64 or
+ * URL-encoded). Browsers render any image referenced from `<image>` in
+ * SVG "secure static mode": scripts inside the referenced SVG do NOT
+ * execute, external resources don't load, and interaction is disabled —
+ * the same sandbox `<img src=…svg>` uses. The `image/svg+xml` form is
+ * therefore safe as an image source even though a top-level SVG document
+ * with the same bytes could embed scripts.
  *
  * Stored lowercased so `sanitiseAttributeValue`'s `name.toLowerCase()`
  * lookup matches regardless of input casing (`href` / `xlink:href` /
@@ -53,16 +57,21 @@ const URL_VALUE_ATTRS_LOWER = new Set([
     'markerend',     // marker-end="url(#…)"
 ]);
 
-/** Attrs where a base64 raster `data:image/…` URI is a legitimate value
- *  (i.e. the SVG element actually renders the bytes — `<image>`). Other
- *  URL-valued attrs ignore data URIs at the browser layer, so widening
- *  the allow-list there would be cargo-culted and noisy. */
+/** Attrs where a `data:image/…` URI is a legitimate value (i.e. the SVG
+ *  element actually renders the bytes — `<image>`). Other URL-valued
+ *  attrs ignore data URIs at the browser layer, so widening the allow-
+ *  list there would be cargo-culted and noisy. */
 const IMAGE_REF_ATTRS_LOWER = new Set(['href', 'xlink:href', 'src']);
 
 /** Matches `data:image/{png|jpeg|jpg|gif|webp|bmp};base64,<payload>`.
- *  Deliberately rejects `image/svg+xml` (script-bearing) and any non-
- *  base64-encoded form. */
+ *  Rejects any non-base64-encoded raster form. */
 const DATA_RASTER_IMAGE_RE = /^data:image\/(?:png|jpe?g|gif|webp|bmp);base64,/i;
+
+/** Matches `data:image/svg+xml[;params],<payload>` — base64
+ *  (`;base64,`), `;utf8,` / `;charset=UTF-8,`, and bare `,` (URL-encoded)
+ *  forms. Safe because the browser sandboxes any SVG referenced from an
+ *  image source (no scripts, no external loads, no interaction). */
+const DATA_SVG_IMAGE_RE = /^data:image\/svg\+xml(?:;[^,]*)?,/i;
 
 
 /**
@@ -93,9 +102,10 @@ function isDangerousAttrName(nameLower: string): boolean {
  *      internal `url(#id)` references.
  *   3. Restrict URL-valued attrs (`href`, `src`, `filter`, `clip-path`,
  *      `mask`, `marker*`) to internal `#id` / `url(#id)`. Image-ref
- *      attrs (`href` / `xlink:href` / `src`) additionally accept base64
- *      raster `data:image/…` URIs. Blocks `javascript:`, external URLs,
- *      and `data:image/svg+xml` (script-bearing).
+ *      attrs (`href` / `xlink:href` / `src`) additionally accept
+ *      `data:image/…` URIs — base64 raster (png/jpeg/gif/webp/bmp) and
+ *      `image/svg+xml` (sandboxed by the browser when used as an image
+ *      source). Blocks `javascript:` and external URLs.
  * Everything else passes through.
  */
 function sanitiseAttributeValue(name: string, value: any): any | undefined {
@@ -119,10 +129,11 @@ function sanitiseAttributeValue(name: string, value: any): any | undefined {
         const str = String(value);
         if (str.startsWith('#')) return value;                  // internal fragment ref
         if (/^url\(#[^)]+\)$/.test(str)) return value;           // internal `url(#id)`
-        // Image-ref attrs accept base64 raster data URIs (inert bytes —
-        // no script surface). svg+xml is excluded by the regex.
-        if (IMAGE_REF_ATTRS_LOWER.has(nameLower) && DATA_RASTER_IMAGE_RE.test(str)) return value;
-        console.warn('Attribute "' + nameLower + '" blocked: must be #id, url(#id), or base64 raster data: URI, got:', value);
+        // Image-ref attrs accept `data:image/…` URIs — raster bytes are
+        // inert, and SVG referenced via an image source is sandboxed by
+        // the browser (no script execution).
+        if (IMAGE_REF_ATTRS_LOWER.has(nameLower) && (DATA_RASTER_IMAGE_RE.test(str) || DATA_SVG_IMAGE_RE.test(str))) return value;
+        console.warn('Attribute "' + nameLower + '" blocked: must be #id, url(#id), or data:image/… URI, got:', value);
         return undefined;
     }
 
