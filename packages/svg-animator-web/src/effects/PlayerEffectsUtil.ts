@@ -22,7 +22,7 @@
 import { identifyContentRefTargets, splitForContentRef } from './contentRefSplit';
 import { applyFillGradientEffect, applyStrokeGradientEffect } from './gradientEffect';
 import { applyMaskedByEffect, collectMaskAncestorChains } from './maskedByEffect';
-import { applyRefAndTransformationEffect } from './refEffect';
+import { applyRefAndTransformationEffect, applyRefHref } from './refEffect';
 import { applyRepeaterEffect } from './repeaterEffect';
 import { applyAllRetimeEffects } from './retimeEffect';
 import { applyTextAlongPathEffect } from './textAlongPathEffect';
@@ -113,8 +113,13 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     n = applyMaskedByEffect(n, maskedBy, transformation, ctx);          // mask sits on inner element
 
     if (innerIdForContentRef) {
-        // Source of a content-ref `<use>`: split into outer-translate + inner-rest +
-        // bare element so the use can target the inner layer.
+        // This node is the SOURCE of a content-ref `<use>` → split into
+        // outer-translate + inner-rest + bare element so the use can target the
+        // inner layer. But it may ALSO be a content-ref CONSUMER itself (a
+        // `<use>` that both references content and is referenced — the nested
+        // case): rewrite its OWN ref href first so the split moves a resolved
+        // body inward, not the dangling editor-side content id.
+        applyRefHref(n, ref, ctx);
         n = splitForContentRef(n, transformation, originalId!, innerIdForContentRef, ctx);
     } else {
         n = applyRefAndTransformationEffect(n, ref, transformation, ctx);

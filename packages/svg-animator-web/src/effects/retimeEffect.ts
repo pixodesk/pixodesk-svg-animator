@@ -142,11 +142,45 @@ function buildChainClone(targetId: string, accum: Retime, ctx: ApplyContext, cha
             const subId2 = buildChainClone(subId, subAccum, ctx, subChain);
             if (subId2) cloneNode.href = '#' + subId2;
         }
+    } else {
+        // Container target (e.g. a content-ref split wrapper) may HOLD nested
+        // `<use>` children that themselves carry retime — the nested content-ref
+        // case `use → <g> → use(retime) → …`. Those uses aren't in the pass-2
+        // site list (they only exist inside this fresh clone), so materialise
+        // them here, composing their retime with `accum`. Mirrors the editor's
+        // `RetimeRenderer` recursion into children. Without this the inner use's
+        // retime stays dangling and the subtree renders un-shifted.
+        materialiseNestedRetimeUses(cloneNode, accum, ctx, chain, targetId);
     }
 
     ctx.defs.push(cloneNode);
     if (typeof cloneNode.id === 'string') ctx.idMap.set(cloneNode.id, cloneNode);
     return typeof cloneNode.id === 'string' ? cloneNode.id : undefined;
+}
+
+
+/** Walks a freshly-cloned container subtree and materialises every nested
+ *  `<use>` that carries retime: composes its retime with `accum` and rewires its
+ *  href to a fresh chain clone (then drops the now-consumed retime). The
+ *  container analogue of `buildChainClone`'s use-target recursion — needed for
+ *  nested content-ref retime where the inner `<use retime>` lives INSIDE the
+ *  cloned wrapper rather than at its href root. */
+function materialiseNestedRetimeUses(node: PxNode, accum: Retime, ctx: ApplyContext, chain: Set<string>, parentTargetId: string): void {
+    const visit = (n: PxNode): void => {
+        if (n.type === 'use' && n.effects?.retime && n.href) {
+            const subId = stripHash(n.href);
+            if (subId) {
+                const subAccum = concatRetime(asRetime(n.effects.retime), accum);
+                const subChain = new Set(chain); subChain.add(parentTargetId);
+                const subId2 = buildChainClone(subId, subAccum, ctx, subChain);
+                if (subId2) n.href = '#' + subId2;
+            }
+            delete n.effects.retime;
+            if (Object.keys(n.effects).length === 0) delete n.effects;
+        }
+        n.children?.forEach(visit);
+    };
+    visit(node);
 }
 
 

@@ -73,6 +73,21 @@ const DATA_RASTER_IMAGE_RE = /^data:image\/(?:png|jpe?g|gif|webp|bmp);base64,/i;
  *  image source (no scripts, no external loads, no interaction). */
 const DATA_SVG_IMAGE_RE = /^data:image\/svg\+xml(?:;[^,]*)?,/i;
 
+/** Content-sniff fallback for `data:image/*;base64,…` URIs whose declared
+ *  subtype isn't a known raster type — e.g. `data:image/undefined;base64,<png>`,
+ *  which some Lottie exporters emit. The browser (and lottie-web) render these by
+ *  sniffing the leading bytes; we mirror that by matching the base64 payload
+ *  against common raster magic numbers (PNG `\x89PNG`, JPEG `\xFF\xD8\xFF`, GIF
+ *  `GIF8`, WebP/RIFF, BMP `BM`). Accepting on real image bytes keeps the
+ *  sanitiser's safety guarantee — raster bytes are inert — without trusting the
+ *  (here bogus) subtype, so the image renders instead of being dropped. */
+const DATA_IMAGE_BASE64_PAYLOAD_RE = /^data:image\/[^;,]*;base64,([A-Za-z0-9+/]{8})/i;
+const BASE64_RASTER_MAGICS = ['iVBORw0K', '/9j/', 'R0lGOD', 'UklGR', 'Qk'];
+function isContentSniffedRasterImage(str: string): boolean {
+    const m = DATA_IMAGE_BASE64_PAYLOAD_RE.exec(str);
+    return !!m && BASE64_RASTER_MAGICS.some(magic => m[1].startsWith(magic));
+}
+
 
 /**
  * Attribute-name predicate: anything `name` matching this is dropped at
@@ -132,7 +147,7 @@ function sanitiseAttributeValue(name: string, value: any): any | undefined {
         // Image-ref attrs accept `data:image/…` URIs — raster bytes are
         // inert, and SVG referenced via an image source is sandboxed by
         // the browser (no script execution).
-        if (IMAGE_REF_ATTRS_LOWER.has(nameLower) && (DATA_RASTER_IMAGE_RE.test(str) || DATA_SVG_IMAGE_RE.test(str))) return value;
+        if (IMAGE_REF_ATTRS_LOWER.has(nameLower) && (DATA_RASTER_IMAGE_RE.test(str) || DATA_SVG_IMAGE_RE.test(str) || isContentSniffedRasterImage(str))) return value;
         console.warn('Attribute "' + nameLower + '" blocked: must be #id, url(#id), or data:image/… URI, got:', value);
         return undefined;
     }
