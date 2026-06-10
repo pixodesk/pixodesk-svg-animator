@@ -98,7 +98,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
 
     if (!fx && !innerIdForContentRef) return node;
 
-    const { transformation, repeater, maskedBy, trimPath, retime, ref, fillGradient, strokeGradient, textAlongPath } = fx ?? {};
+    const { transformation, repeater, maskedBy, trimPath, clone: cloneFx, fillGradient, strokeGradient, textAlongPath } = fx ?? {};
     const isCombinedShape = fx?.isCombinedShape;
     if (fx) delete node.effects;
 
@@ -125,13 +125,15 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
         // `<use>` that both references content and is referenced — the nested
         // case): rewrite its OWN ref href first so the split moves a resolved
         // body inward, not the dangling editor-side content id.
-        applyRefHref(n, ref, ctx);
+        applyRefHref(n, cloneFx, ctx);
         n = splitForContentRef(n, transformation, originalId!, innerIdForContentRef, ctx);
     } else {
-        n = applyRefAndTransformationEffect(n, ref, transformation, ctx);
+        n = applyRefAndTransformationEffect(n, cloneFx, transformation, ctx);
     }
 
-    if (retime) node.effects = { retime };                              // hand off to pass 2
+    // Hand off the retime slice to pass 2 (keeps it nested under `clone`). The
+    // ref part (type/baseId) was consumed above.
+    if (cloneFx?.retime) node.effects = { clone: { retime: cloneFx.retime } };
     if (originalId) ctx.idMap.set(originalId, n);                       // outer wrapper is the clone target
     return n;
 }

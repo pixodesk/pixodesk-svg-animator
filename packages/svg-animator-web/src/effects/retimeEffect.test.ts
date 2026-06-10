@@ -27,8 +27,8 @@ function nestedContentRefWire(): PxNode {
     return {
         type: 'svg', viewBox: '0 0 400 400',
         children: [
-            { type: 'use', href: '#use1', y: '100', effects: { ref: { baseId: 'use1', type: 'content' }, retime: { start: 250 } } },
-            { type: 'use', id: 'use1', href: '#ell1', y: '100', effects: { ref: { baseId: 'ell1', type: 'content' }, retime: { start: 250 } } },
+            { type: 'use', href: '#use1', y: '100', effects: { clone: { type: 'content', baseId: 'use1', retime: { start: 250 } } } },
+            { type: 'use', id: 'use1', href: '#ell1', y: '100', effects: { clone: { type: 'content', baseId: 'ell1', retime: { start: 250 } } } },
             { type: 'g', id: 'ell1', children: [animatedBall('ball')] },
         ],
     } as unknown as PxNode;
@@ -88,7 +88,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             type: 'svg', viewBox: '0 0 400 400',
             children: [
                 { type: 'g', id: 'src', children: [animatedBall('ball')] },
-                { type: 'use', href: '#src', effects: { retime: { start: 250 } } },
+                { type: 'use', href: '#src', effects: { clone: { retime: { start: 250 } } } },
             ],
         } as unknown as PxNode;
 
@@ -148,7 +148,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             type: 'svg', viewBox: '0 0 400 400',
             children: [
                 { type: 'g', id: 'src', children: [animatedBall('ball')] },
-                { type: 'use', href: '#src', effects: { retime: { start: 250, stretch: 0.5 } } },
+                { type: 'use', href: '#src', effects: { clone: { retime: { start: 250, stretch: 0.5 } } } },
             ],
         } as unknown as PxNode;
 
@@ -208,8 +208,8 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             type: 'svg', viewBox: '0 0 400 400',
             children: [
                 { type: 'g', id: 'src', children: [animatedBall('ball')] },
-                { type: 'use', id: 'u1', href: '#src', effects: { retime: { start: 250 } } },
-                { type: 'use', href: '#u1', effects: { retime: { start: 250 } } },
+                { type: 'use', id: 'u1', href: '#src', effects: { clone: { retime: { start: 250 } } } },
+                { type: 'use', href: '#u1', effects: { clone: { retime: { start: 250 } } } },
             ],
         } as unknown as PxNode;
 
@@ -296,11 +296,11 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             children: [
                 {
                     type: 'use', href: '#use1', y: '100',
-                    effects: { ref: { baseId: 'use1', type: 'content' }, retime: { start: 250 } },
+                    effects: { clone: { type: 'content', baseId: 'use1', retime: { start: 250 } } },
                 },
                 {
                     type: 'use', id: 'use1', href: '#ell1', y: '100',
-                    effects: { ref: { baseId: 'ell1', type: 'content' }, retime: { start: 250 } },
+                    effects: { clone: { type: 'content', baseId: 'ell1', retime: { start: 250 } } },
                 },
                 { type: 'g', id: 'ell1', children: [animatedBall('ball')] },
             ],

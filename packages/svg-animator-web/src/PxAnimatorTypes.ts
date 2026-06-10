@@ -906,17 +906,27 @@ export type PxRetimeEffect = PxInfer<typeof PxRetimeEffectSchema>;
 const _ck_PxRetimeEffect: KeysMatch<PxRetimeEffect, _PxRetimeEffect> = true;
 
 
-/** `<use>` ref: `baseId` = source; `type: 'content'` = exclude object-translate. */
-export interface _PxRefEffect {
-    baseId?: string;
+/**
+ * `<use>` CLONE — merges the former `ref` + `retime` effects. A `<use>` is a clone
+ * of something: `type`/`baseId` say WHAT it clones, `retime` says WHEN.
+ *   - `type: 'content'` → content-ref (excludes the target's own translate);
+ *     `type` absent → direct / whole-element link (keeps translate).
+ *   - `baseId` = the source element id (lives once here; the player follows `href`).
+ *   - `retime` = optional time-shift (nested).
+ * Omitted entirely when all-default (a bare `<use href>` carries no `clone` bucket).
+ */
+export interface _PxCloneEffect {
     type?: string;
+    baseId?: string;
+    retime?: _PxRetimeEffect;
 }
-export const PxRefEffectSchema = implementsInterface<_PxRefEffect>()(px.object({
-    baseId: px.string().optional(),
+export const PxCloneEffectSchema = implementsInterface<_PxCloneEffect>()(px.object({
     type: px.string().optional(),
+    baseId: px.string().optional(),
+    retime: PxRetimeEffectSchema.optional(),
 }));
-export type PxRefEffect = PxInfer<typeof PxRefEffectSchema>;
-const _ck_PxRefEffect: KeysMatch<PxRefEffect, _PxRefEffect> = true;
+export type PxCloneEffect = PxInfer<typeof PxCloneEffectSchema>;
+const _ck_PxCloneEffect: KeysMatch<PxCloneEffect, _PxCloneEffect> = true;
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1051,9 +1061,8 @@ export interface _PxEffects {
     repeater?: _PxRepeaterEffect;
     maskedBy?: _PxMaskedByEffect;
     trimPath?: _PxTrimPathEffect;
-    retime?: _PxRetimeEffect;
+    clone?: _PxCloneEffect;
     isCombinedShape?: boolean;
-    ref?: _PxRefEffect;
     fillGradient?: _PxFillGradientEffect;
     strokeGradient?: _PxStrokeGradientEffect;
     textAlongPath?: _PxTextAlongPathEffect;
@@ -1063,9 +1072,8 @@ export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
     repeater: PxRepeaterEffectSchema.optional(),
     maskedBy: PxMaskedByEffectSchema.optional(),
     trimPath: PxTrimPathEffectSchema.optional(),
-    retime: PxRetimeEffectSchema.optional(),
+    clone: PxCloneEffectSchema.optional(),
     isCombinedShape: px.boolean().optional(),
-    ref: PxRefEffectSchema.optional(),
     fillGradient: PxFillGradientEffectSchema.optional(),
     strokeGradient: PxStrokeGradientEffectSchema.optional(),
     textAlongPath: PxTextAlongPathEffectSchema.optional(),

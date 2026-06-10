@@ -30,7 +30,7 @@ const gById = (out: PxNode, id: string): any => collectByType(out, 'g').find(g =
 describe('refEffect — whole-element ref & content-ref split', () => {
 
     it('case 1 — whole-element ref → <use>.href rewritten to #baseId, source untouched', () => {
-        const out = materialise(scene({}, { ref: { baseId: 'src' } }));
+        const out = materialise(scene({}, { clone: { baseId: 'src' } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -54,7 +54,7 @@ describe('refEffect — whole-element ref & content-ref split', () => {
     });
 
     it('case 2 — content ref → source SPLIT (outer#src > inner > bare), <use> points at inner', () => {
-        const out = materialise(scene({}, { ref: { type: 'content', baseId: 'src' } }));
+        const out = materialise(scene({}, { clone: { type: 'content', baseId: 'src' } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -94,7 +94,7 @@ describe('refEffect — whole-element ref & content-ref split', () => {
     });
 
     it('case 3 — content ref with source TRANSLATE → translate lifts to outer, bare element has none', () => {
-        const out = materialise(scene({ transform: 'translate(30,40)' }, { ref: { type: 'content', baseId: 'src' } }));
+        const out = materialise(scene({ transform: 'translate(30,40)' }, { clone: { type: 'content', baseId: 'src' } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",

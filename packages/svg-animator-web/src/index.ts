@@ -130,6 +130,7 @@ export { collectSampleTimes, diffInEffect, visualModelAt } from './effects/Playe
 // on the doc before materialisation and logs warnings; callers can also run it
 // explicitly (Editor's test harnesses do).
 export {
+    PxCloneEffectSchema,
     PxEffectsSchema,
     PxFillGradientEffectSchema,
     PxGradientSpreadMethod,
@@ -137,7 +138,6 @@ export {
     PxGradientType,
     PxGradientUnits,
     PxMaskedByEffectSchema,
-    PxRefEffectSchema,
     PxRepeaterEffectSchema,
     PxRetimeEffectSchema,
     PxStrokeGradientEffectSchema,
@@ -148,11 +148,11 @@ export {
 } from './PxAnimatorTypes';
 export type {
     PxAnimatable,
+    PxCloneEffect,
     PxEffects,
     PxFillGradientEffect,
     PxGradientStop,
     PxMaskedByEffect,
-    PxRefEffect,
     PxRepeaterEffect,
     PxRetimeEffect,
     PxStrokeGradientEffect,

@@ -52,8 +52,8 @@ import type { ApplyContext } from './types';
 
 /** Walks the tree and collects every id referenced by a `<use>` with `ref:{type:'content'}`. */
 export function identifyContentRefTargets(node: PxNode, ctx: ApplyContext, allocator: (key: string) => string): void {
-    if (node.type === 'use' && node.effects?.ref?.type === 'content') {
-        const baseId = node.effects.ref.baseId;
+    if (node.type === 'use' && node.effects?.clone?.type === 'content') {
+        const baseId = node.effects.clone.baseId;
         if (typeof baseId === 'string' && baseId && !ctx.contentRefInnerIds.has(baseId)) {
             ctx.contentRefInnerIds.set(baseId, allocator(baseId));
         }

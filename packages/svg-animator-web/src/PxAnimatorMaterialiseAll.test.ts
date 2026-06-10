@@ -72,13 +72,13 @@ describe('materialiseAllInTree', () => {
                 } as PxNode,
                 // <use> referring to src — animated target, must materialise for webapi.
                 { type: 'use', id: 'inst', href: '#src' } as PxNode,
-                // A second element with an `effects.retime` bucket, just to verify
+                // A second element with an `effects.clone.retime` bucket, just to verify
                 // applyPlayerEffects ran.
                 {
                     type: 'use',
                     id: 'retimed',
                     href: '#src',
-                    effects: { retime: { start: 0, stretch: 0.5 } },
+                    effects: { clone: { retime: { start: 0, stretch: 0.5 } } },
                 } as PxNode,
             ],
         } as PxAnimatedSvgDocument;

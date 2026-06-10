@@ -165,7 +165,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 {
                     type: 'use',
                     transform: 'translate(40,200)',
-                    effects: { ref: { baseId: 'src', type: 'content' } },
+                    effects: { clone: { baseId: 'src', type: 'content' } },
                 },
             ],
         };
@@ -387,7 +387,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 {
                     type: 'use',
                     href: '#sym',
-                    effects: { retime: { start: 100, stretch: 0.5 } },
+                    effects: { clone: { retime: { start: 100, stretch: 0.5 } } },
                 },
             ],
         };

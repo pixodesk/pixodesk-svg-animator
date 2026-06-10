@@ -17,36 +17,39 @@
  */
 
 import { applyTransformationEffect } from './transformationEffect';
-import type { PxNode, PxRefEffect, PxTransformationEffect } from '../PxAnimatorTypes';
+import type { PxCloneEffect, PxNode, PxTransformationEffect } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
 
 const CONTENT_SUBREF = 'content';
 
 /**
- * Rewrites `node.href` for its own `ref` effect — content-ref → the inner-layer
- * id minted by `splitForContentRef`, whole-element ref → `baseId`. Pure href
- * mutation (no wrapping), so it can run even when `node` is ALSO a content-ref
- * SOURCE that gets split: a `<use>` that both references content (consumer) and
- * is itself referenced (source) must get its own href rewritten BEFORE the split
- * moves its body inward — otherwise its body keeps the editor-side content id,
- * which doesn't exist in the lightweight tree (dangling href → retime can't
- * follow the chain → the retimed instance renders nothing).
+ * Rewrites `node.href` from the clone's reference part (`type`/`baseId`) —
+ * content-ref → the inner-layer id minted by `splitForContentRef`, whole-element
+ * ref → `baseId`. Pure href mutation (no wrapping), so it can run even when `node`
+ * is ALSO a content-ref SOURCE that gets split: a `<use>` that both references
+ * content (consumer) and is itself referenced (source) must get its own href
+ * rewritten BEFORE the split moves its body inward — otherwise its body keeps the
+ * editor-side content id, which doesn't exist in the lightweight tree (dangling
+ * href → retime can't follow the chain → the retimed instance renders nothing).
+ *
+ * A direct-link clone (no `baseId`, e.g. `clone:{retime}`) keeps its existing
+ * `href` — there's nothing to redirect; only content-ref REQUIRES a `baseId`.
  */
 export function applyRefHref(
     node: PxNode,
-    ref: PxRefEffect | undefined,
+    clone: PxCloneEffect | undefined,
     ctx: ApplyContext,
 ): void {
-    if (!ref) return;
-    const baseId = ref.baseId;
+    if (!clone) return;
+    const baseId = clone.baseId;
     if (!baseId) {
-        ctx.errors.push('ref: missing baseId');
-        return;
+        if (clone.type === CONTENT_SUBREF) ctx.errors.push('clone: content ref missing baseId');
+        return; // direct link → href already correct, nothing to rewrite
     }
     // For content-ref, redirect href to the inner-layer id produced by
     // `splitForContentRef`. For whole-element ref (or when no split has
     // happened, e.g. target not in the tree), fall back to baseId.
-    const targetId = ref.type === CONTENT_SUBREF
+    const targetId = clone.type === CONTENT_SUBREF
         ? (ctx.contentRefInnerIds.get(baseId) || baseId)
         : baseId;
     node.href = '#' + targetId;
@@ -54,10 +57,10 @@ export function applyRefHref(
 
 export function applyRefAndTransformationEffect(
     node: PxNode,
-    ref: PxRefEffect | undefined,
+    clone: PxCloneEffect | undefined,
     transformation: PxTransformationEffect | undefined,
     ctx: ApplyContext,
 ): PxNode {
-    applyRefHref(node, ref, ctx);
+    applyRefHref(node, clone, ctx);
     return applyTransformationEffect(node, transformation, ctx);
 }

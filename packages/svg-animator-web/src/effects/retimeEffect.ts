@@ -9,7 +9,8 @@
  * materialised, so the `<use>`'s `href` already points at the right post-pass-1
  * target (e.g. the inner-content layer that `contentRefSplit` produced).
  *
- * For every `<use>` carrying `effects.retime` we:
+ * Retime lives nested under the merged `clone` effect (`effects.clone.retime`).
+ * For every `<use>` carrying it we:
  *   1. follow `useNode.href` (no `baseId` lookup — the editor-side id wouldn't
  *      resolve in the lightweight tree);
  *   2. recursively materialise the chain target-side, preserving each
@@ -21,8 +22,9 @@
  * its own defs entry with the right accumulated retime applied to ITS OWN kfs,
  * and the link's `href` rewritten to point at the next-level materialisation.
  *
- * NB: `effects.retime.baseId` is intentionally IGNORED — it carries an
- * editor-side core id that does not exist in the lightweight tree.
+ * NB: `clone.baseId` is intentionally IGNORED by retime — it carries an
+ * editor-side core id that does not exist in the lightweight tree; retime
+ * follows `href`.
  */
 
 import type { PxNode, PxRetimeEffect } from '../PxAnimatorTypes';
@@ -54,6 +56,20 @@ function concatRetime(child: Retime, parent: Retime): Retime {
     };
 }
 
+/** Retime lives nested under the `clone` effect (`effects.clone.retime`). */
+function readCloneRetime(n: PxNode): PxRetimeEffect | undefined {
+    return n.effects?.clone?.retime;
+}
+
+/** Removes the retime slice and prunes now-empty `clone` / `effects` buckets. */
+function clearCloneRetime(n: PxNode): void {
+    const clone = n.effects?.clone;
+    if (!clone) return;
+    delete clone.retime;
+    if (Object.keys(clone).length === 0) delete n.effects!.clone;
+    if (n.effects && Object.keys(n.effects).length === 0) delete n.effects;
+}
+
 
 /** Pass-2 driver. Re-indexes ids (pass-1 mints new ones like `_lw_inner_0`),
  *  then materialises retime at every site. Order-independent: each site
@@ -64,22 +80,21 @@ export function applyAllRetimeEffects(root: PxNode, ctx: ApplyContext): void {
 
     const sites: Array<PxNode> = [];
     const collect = (n: PxNode): void => {
-        if (n.effects?.retime) sites.push(n);
+        if (readCloneRetime(n)) sites.push(n);
         n.children?.forEach(collect);
     };
     collect(root);
 
     for (const useNode of sites) {
-        const retime = useNode.effects?.retime;
+        const retime = readCloneRetime(useNode);
         if (!retime) continue;
         // Per-site delete is LOAD-BEARING, not just cleanup: once this use is
         // materialised its `href` is rewritten to an already-time-shifted clone, so
         // a downstream use that references THIS one must NOT re-compose this retime
-        // (buildChainClone reads `target.effects?.retime`). Deleting it here makes
+        // (buildChainClone reads `target`'s clone.retime). Deleting it here makes
         // that read return undefined → no double-count. Moving cleanup to a single
         // end-of-pipeline strip regresses nested retime to +750 instead of +500.
-        delete useNode.effects!.retime;
-        if (Object.keys(useNode.effects!).length === 0) delete useNode.effects;
+        clearCloneRetime(useNode);
         materialiseRetime(useNode, asRetime(retime), ctx);
     }
 }
@@ -132,17 +147,14 @@ function buildChainClone(targetId: string, accum: Retime, ctx: ApplyContext, cha
     }
 
     // Strip any retime carried into the clone (already consumed via the chain).
-    if (cloneNode.effects?.retime) {
-        delete cloneNode.effects.retime;
-        if (Object.keys(cloneNode.effects).length === 0) delete cloneNode.effects;
-    }
+    clearCloneRetime(cloneNode);
 
     // If the target is a `<use>`, recurse on ITS href. Nested retime on the
     // intermediate use folds in via concat.
     if (target.type === 'use' && target.href) {
         const subId = stripHash(target.href);
         if (subId) {
-            const innerRetime = target.effects?.retime;
+            const innerRetime = readCloneRetime(target);
             const subAccum = innerRetime ? concatRetime(asRetime(innerRetime), accum) : accum;
             const subChain = new Set(chain); subChain.add(targetId);
             const subId2 = buildChainClone(subId, subAccum, ctx, subChain);
@@ -173,16 +185,16 @@ function buildChainClone(targetId: string, accum: Retime, ctx: ApplyContext, cha
  *  cloned wrapper rather than at its href root. */
 function materialiseNestedRetimeUses(node: PxNode, accum: Retime, ctx: ApplyContext, chain: Set<string>, parentTargetId: string): void {
     const visit = (n: PxNode): void => {
-        if (n.type === 'use' && n.effects?.retime && n.href) {
+        const retime = readCloneRetime(n);
+        if (n.type === 'use' && retime && n.href) {
             const subId = stripHash(n.href);
             if (subId) {
-                const subAccum = concatRetime(asRetime(n.effects.retime), accum);
+                const subAccum = concatRetime(asRetime(retime), accum);
                 const subChain = new Set(chain); subChain.add(parentTargetId);
                 const subId2 = buildChainClone(subId, subAccum, ctx, subChain);
                 if (subId2) n.href = '#' + subId2;
             }
-            delete n.effects.retime;
-            if (Object.keys(n.effects).length === 0) delete n.effects;
+            clearCloneRetime(n);
         }
         n.children?.forEach(visit);
     };
