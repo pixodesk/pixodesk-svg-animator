@@ -27,6 +27,7 @@ import { applyRepeaterEffect } from './repeaterEffect';
 import { applyAllRetimeEffects } from './retimeEffect';
 import { applyTextAlongPathEffect } from './textAlongPathEffect';
 import { applyTrimPathEffect } from './trimPathEffect';
+import { getAnimatorConfig, PxAnimatorEngine, PxAnimatorMode } from '../PxAnimatorTypes';
 import type { PxNode } from '../PxAnimatorTypes';
 import type { ApplyContext, ApplyResult } from './types';
 import { clone, genId, indexById, spliceDefs } from './util';
@@ -56,6 +57,11 @@ export function applyPlayerEffects(root: PxNode): ApplyResult {
         idMap: new Map(), nextId: 0,
         contentRefInnerIds: new Map(),
         maskAncestorChains: new Map(),
+        // Resolved engine: `frames` ONLY when explicitly set; auto/webapi/unset →
+        // webapi (we're not 100% sure it's frames, and CSS/WAAPI need the inline form).
+        engine: getAnimatorConfig(root)?.mode === PxAnimatorMode.frames
+            ? PxAnimatorEngine.frames
+            : PxAnimatorEngine.webapi,
     };
 
     const working = clone(root);

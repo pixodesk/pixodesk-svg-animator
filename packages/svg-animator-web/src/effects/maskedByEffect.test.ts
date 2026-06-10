@@ -32,44 +32,44 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
     it('case 1 — static href → one <mask> in defs holding <use href=#src>, target gets mask=url()', () => {
         const out = materialise(scene({ href: 'src' }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
+                "type": "defs",
                 "children": [
                   {
+                    "id": "__GEN_0__",
+                    "type": "mask",
                     "children": [
                       {
                         "href": "#src",
-                        "type": "use",
-                      },
-                    ],
-                    "id": "__GEN_0__",
-                    "type": "mask",
-                  },
-                ],
-                "type": "defs",
+                        "type": "use"
+                      }
+                    ]
+                  }
+                ]
               },
               {
+                "id": "src",
+                "type": "g",
                 "children": [
                   {
                     "id": "c",
                     "r": 30,
-                    "type": "circle",
-                  },
-                ],
-                "id": "src",
-                "type": "g",
+                    "type": "circle"
+                  }
+                ]
               },
               {
                 "height": 100,
                 "id": "target",
                 "mask": "url(#__GEN_0__)",
                 "type": "rect",
-                "width": 100,
-              },
-            ],
-            "type": "svg",
-          }
+                "width": 100
+              }
+            ]
+          }"
         `);
         const mask = maskNode(out)!;
         expect(mask).toBeTruthy();
@@ -87,47 +87,47 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
             href: 'src', maskType: 'alpha', maskUnits: 'userSpaceOnUse', maskContentUnits: 'objectBoundingBox',
         }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
+                "type": "defs",
                 "children": [
                   {
-                    "children": [
-                      {
-                        "href": "#src",
-                        "type": "use",
-                      },
-                    ],
                     "id": "__GEN_0__",
                     "maskContentUnits": "objectBoundingBox",
                     "maskType": "alpha",
                     "maskUnits": "userSpaceOnUse",
                     "type": "mask",
-                  },
-                ],
-                "type": "defs",
+                    "children": [
+                      {
+                        "href": "#src",
+                        "type": "use"
+                      }
+                    ]
+                  }
+                ]
               },
               {
+                "id": "src",
+                "type": "g",
                 "children": [
                   {
                     "id": "c",
                     "r": 30,
-                    "type": "circle",
-                  },
-                ],
-                "id": "src",
-                "type": "g",
+                    "type": "circle"
+                  }
+                ]
               },
               {
                 "height": 100,
                 "id": "target",
                 "mask": "url(#__GEN_0__)",
                 "type": "rect",
-                "width": 100,
-              },
-            ],
-            "type": "svg",
-          }
+                "width": 100
+              }
+            ]
+          }"
         `);
         const mask = maskNode(out)! as any;
         expect(mask.maskType).toBe('alpha');
@@ -140,70 +140,70 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
         // so the source paints where it really is.
         const out = materialise(scene({ href: 'src' }, { transformation: { translate: [60, 0] } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
+                "type": "defs",
                 "children": [
                   {
+                    "id": "__GEN_0__",
+                    "type": "mask",
                     "children": [
                       {
-                        "children": [
-                          {
-                            "href": "#src",
-                            "type": "use",
-                          },
-                        ],
                         "transform": {
                           "value": {
                             "translate": [
                               -60,
-                              0,
-                            ],
-                          },
+                              0
+                            ]
+                          }
                         },
                         "type": "g",
-                      },
-                    ],
-                    "id": "__GEN_0__",
-                    "type": "mask",
-                  },
-                ],
-                "type": "defs",
+                        "children": [
+                          {
+                            "href": "#src",
+                            "type": "use"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
               },
               {
+                "id": "src",
+                "type": "g",
                 "children": [
                   {
                     "id": "c",
                     "r": 30,
-                    "type": "circle",
-                  },
-                ],
-                "id": "src",
-                "type": "g",
+                    "type": "circle"
+                  }
+                ]
               },
               {
+                "transform": {
+                  "value": {
+                    "translate": [
+                      60,
+                      0
+                    ]
+                  }
+                },
+                "type": "g",
                 "children": [
                   {
                     "height": 100,
                     "id": "target",
                     "mask": "url(#__GEN_0__)",
                     "type": "rect",
-                    "width": 100,
-                  },
-                ],
-                "transform": {
-                  "value": {
-                    "translate": [
-                      60,
-                      0,
-                    ],
-                  },
-                },
-                "type": "g",
-              },
-            ],
-            "type": "svg",
-          }
+                    "width": 100
+                  }
+                ]
+              }
+            ]
+          }"
         `);
         const mask = maskNode(out)!;
         // inverse translate wrapper inside the mask

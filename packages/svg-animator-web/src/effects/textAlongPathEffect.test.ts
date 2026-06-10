@@ -31,32 +31,32 @@ describe('textAlongPathEffect — <textPath> wrap', () => {
     it('case 1 — static href → <text> wraps its children in <textPath href=#curve>', () => {
         const out = materialise(scene({ href: 'curve' }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
                 "d": "M0,0 Q50,80 100,0",
                 "id": "curve",
-                "type": "path",
+                "type": "path"
               },
               {
+                "id": "t",
+                "type": "text",
                 "children": [
                   {
+                    "href": "#curve",
+                    "type": "textPath",
                     "children": [
                       {
                         "text": "Hi",
-                        "type": "tspan",
-                      },
-                    ],
-                    "href": "#curve",
-                    "type": "textPath",
-                  },
-                ],
-                "id": "t",
-                "type": "text",
-              },
-            ],
-            "type": "svg",
-          }
+                        "type": "tspan"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }"
         `);
         const tp = textPathNode(out);
         expect(tp.href).toBe('#curve');                                   // bare id → #id
@@ -71,22 +71,19 @@ describe('textAlongPathEffect — <textPath> wrap', () => {
             startOffset: 25, textLength: 200,
         }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
                 "d": "M0,0 Q50,80 100,0",
                 "id": "curve",
-                "type": "path",
+                "type": "path"
               },
               {
+                "id": "t",
+                "type": "text",
                 "children": [
                   {
-                    "children": [
-                      {
-                        "text": "Hi",
-                        "type": "tspan",
-                      },
-                    ],
                     "href": "#curve",
                     "lengthAdjust": "spacingAndGlyphs",
                     "method": "stretch",
@@ -94,14 +91,17 @@ describe('textAlongPathEffect — <textPath> wrap', () => {
                     "startOffset": "25",
                     "textLength": "200",
                     "type": "textPath",
-                  },
-                ],
-                "id": "t",
-                "type": "text",
-              },
-            ],
-            "type": "svg",
-          }
+                    "children": [
+                      {
+                        "text": "Hi",
+                        "type": "tspan"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }"
         `);
         const tp = textPathNode(out);
         expect(tp).toMatchObject({
@@ -116,33 +116,33 @@ describe('textAlongPathEffect — <textPath> wrap', () => {
             startOffset: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 100 }] },
         }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
                 "d": "M0,0 Q50,80 100,0",
                 "id": "curve",
-                "type": "path",
+                "type": "path"
               },
               {
+                "id": "t",
+                "type": "text",
                 "children": [
                   {
-                    "animate": "{"startOffset":{"keyframes":[{"time":0,"value":0},{"time":1000,"value":100}]}}",
+                    "animate": "{\\"startOffset\\":{\\"keyframes\\":[{\\"time\\":0,\\"value\\":0},{\\"time\\":1000,\\"value\\":100}]}}",
+                    "href": "#curve",
+                    "type": "textPath",
                     "children": [
                       {
                         "text": "Hi",
-                        "type": "tspan",
-                      },
-                    ],
-                    "href": "#curve",
-                    "type": "textPath",
-                  },
-                ],
-                "id": "t",
-                "type": "text",
-              },
-            ],
-            "type": "svg",
-          }
+                        "type": "tspan"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }"
         `);
         const tp = textPathNode(out);
         expect(tp.animate.startOffset.keyframes).toHaveLength(2);

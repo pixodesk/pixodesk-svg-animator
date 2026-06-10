@@ -19,7 +19,20 @@
 
 import { describe, expect, it } from 'vitest';
 import { applyPlayerEffects } from './PlayerEffectsUtil';
+import { collectByType, materialiseEngine, normaliseGeneratedIds, PxAnimatorEngine } from './effectTestKit';
 import type { PxNode } from '../PxAnimatorTypes';
+
+/** The nested content-ref retime wire (== case 4 input): ell1 ← use1(+250) ← use2(+250). */
+function nestedContentRefWire(): PxNode {
+    return {
+        type: 'svg', viewBox: '0 0 400 400',
+        children: [
+            { type: 'use', href: '#use1', y: '100', effects: { ref: { baseId: 'use1', type: 'content' }, retime: { start: 250 } } },
+            { type: 'use', id: 'use1', href: '#ell1', y: '100', effects: { ref: { baseId: 'ell1', type: 'content' }, retime: { start: 250 } } },
+            { type: 'g', id: 'ell1', children: [animatedBall('ball')] },
+        ],
+    } as unknown as PxNode;
+}
 
 
 /** A leaf shape that translates 0→100 (x) over the full 0..1000ms timeline. */
@@ -68,40 +81,6 @@ function materialise(input: PxNode): PxNode {
     return root;
 }
 
-/** Replaces auto-allocated `_lw_*` ids with stable `__GEN_N__` slugs (and rewrites
- *  `#…` href references to them) so full-tree snapshots don't churn on id counter
- *  changes. Same convention as PlayerEffectsUtil.test.ts. */
-function normaliseGeneratedIds(tree: PxNode): PxNode {
-    const cloned: PxNode = JSON.parse(JSON.stringify(tree));
-    const map = new Map<string, string>();
-    let counter = 0;
-    const alloc = (id: string): string => {
-        const existing = map.get(id);
-        if (existing !== undefined) return existing;
-        const slug = '__GEN_' + (counter++) + '__';
-        map.set(id, slug);
-        return slug;
-    };
-    const walkAssign = (n: PxNode): void => {
-        if (typeof n.id === 'string' && n.id.startsWith('_lw_')) n.id = alloc(n.id);
-        n.children?.forEach(walkAssign);
-    };
-    walkAssign(cloned);
-    const walkRewrite = (n: PxNode): void => {
-        if (typeof n.href === 'string' && n.href.startsWith('#')) {
-            const mapped = map.get(n.href.slice(1));
-            if (mapped) n.href = '#' + mapped;
-        }
-        // Collapse `animate` to a single-line JSON string so the snapshot stays
-        // compact (keyframe arrays otherwise explode to ~10 lines each).
-        if (n.animate) (n as any).animate = JSON.stringify(n.animate);
-        n.children?.forEach(walkRewrite);
-    };
-    walkRewrite(cloned);
-    return cloned;
-}
-
-
 describe('retimeEffect — keyframe time-shift & composition', () => {
 
     it('case 1 — single retime via bare href (start only) shifts the clone +250', () => {
@@ -115,49 +94,49 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
 
         const out = materialise(input);
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
+            "viewBox": "0 0 400 400",
             "children": [
               {
+                "type": "defs",
                 "children": [
                   {
+                    "id": "__GEN_0__",
+                    "type": "g",
                     "children": [
                       {
-                        "animate": "{"transform":{"keyframes":[{"time":250,"value":{"translate":[0,0]}},{"time":1250,"value":{"translate":[100,0]}}]}}",
+                        "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":250,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1250,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                         "fill": "#3399e6",
                         "id": "__GEN_1__",
                         "rx": "16",
                         "ry": "16",
-                        "type": "ellipse",
-                      },
-                    ],
-                    "id": "__GEN_0__",
-                    "type": "g",
-                  },
-                ],
-                "type": "defs",
+                        "type": "ellipse"
+                      }
+                    ]
+                  }
+                ]
               },
               {
+                "id": "src",
+                "type": "g",
                 "children": [
                   {
-                    "animate": "{"transform":{"keyframes":[{"time":0,"value":{"translate":[0,0]}},{"time":1000,"value":{"translate":[100,0]}}]}}",
+                    "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":0,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1000,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                     "fill": "#3399e6",
                     "id": "ball",
                     "rx": "16",
                     "ry": "16",
-                    "type": "ellipse",
-                  },
-                ],
-                "id": "src",
-                "type": "g",
+                    "type": "ellipse"
+                  }
+                ]
               },
               {
                 "href": "#__GEN_0__",
-                "type": "use",
-              },
-            ],
-            "type": "svg",
-            "viewBox": "0 0 400 400",
-          }
+                "type": "use"
+              }
+            ]
+          }"
         `);
         // original src ball [0,1000] + retimed clone [250,1250]
         expect(transformKfTimes(out)).toEqual([[0, 1000], [250, 1250]]);
@@ -175,49 +154,49 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
 
         const out = materialise(input);
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
+            "viewBox": "0 0 400 400",
             "children": [
               {
+                "type": "defs",
                 "children": [
                   {
+                    "id": "__GEN_0__",
+                    "type": "g",
                     "children": [
                       {
-                        "animate": "{"transform":{"keyframes":[{"time":250,"value":{"translate":[0,0]}},{"time":750,"value":{"translate":[100,0]}}]}}",
+                        "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":250,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":750,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                         "fill": "#3399e6",
                         "id": "__GEN_1__",
                         "rx": "16",
                         "ry": "16",
-                        "type": "ellipse",
-                      },
-                    ],
-                    "id": "__GEN_0__",
-                    "type": "g",
-                  },
-                ],
-                "type": "defs",
+                        "type": "ellipse"
+                      }
+                    ]
+                  }
+                ]
               },
               {
+                "id": "src",
+                "type": "g",
                 "children": [
                   {
-                    "animate": "{"transform":{"keyframes":[{"time":0,"value":{"translate":[0,0]}},{"time":1000,"value":{"translate":[100,0]}}]}}",
+                    "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":0,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1000,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                     "fill": "#3399e6",
                     "id": "ball",
                     "rx": "16",
                     "ry": "16",
-                    "type": "ellipse",
-                  },
-                ],
-                "id": "src",
-                "type": "g",
+                    "type": "ellipse"
+                  }
+                ]
               },
               {
                 "href": "#__GEN_0__",
-                "type": "use",
-              },
-            ],
-            "type": "svg",
-            "viewBox": "0 0 400 400",
-          }
+                "type": "use"
+              }
+            ]
+          }"
         `);
         // clone: 0→250, 1000→250+1000*0.5=750
         expect(transformKfTimes(out)).toEqual([[0, 1000], [250, 750]]);
@@ -236,73 +215,73 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
 
         const out = materialise(input);
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
+            "viewBox": "0 0 400 400",
             "children": [
               {
+                "type": "defs",
                 "children": [
                   {
+                    "id": "__GEN_0__",
+                    "type": "g",
                     "children": [
                       {
-                        "animate": "{"transform":{"keyframes":[{"time":250,"value":{"translate":[0,0]}},{"time":1250,"value":{"translate":[100,0]}}]}}",
+                        "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":250,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1250,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                         "fill": "#3399e6",
                         "id": "__GEN_1__",
                         "rx": "16",
                         "ry": "16",
-                        "type": "ellipse",
-                      },
-                    ],
-                    "id": "__GEN_0__",
-                    "type": "g",
+                        "type": "ellipse"
+                      }
+                    ]
                   },
                   {
+                    "id": "__GEN_2__",
+                    "type": "g",
                     "children": [
                       {
-                        "animate": "{"transform":{"keyframes":[{"time":500,"value":{"translate":[0,0]}},{"time":1500,"value":{"translate":[100,0]}}]}}",
+                        "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":500,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1500,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                         "fill": "#3399e6",
                         "id": "__GEN_3__",
                         "rx": "16",
                         "ry": "16",
-                        "type": "ellipse",
-                      },
-                    ],
-                    "id": "__GEN_2__",
-                    "type": "g",
+                        "type": "ellipse"
+                      }
+                    ]
                   },
                   {
                     "href": "#__GEN_2__",
                     "id": "__GEN_4__",
-                    "type": "use",
-                  },
-                ],
-                "type": "defs",
+                    "type": "use"
+                  }
+                ]
               },
               {
+                "id": "src",
+                "type": "g",
                 "children": [
                   {
-                    "animate": "{"transform":{"keyframes":[{"time":0,"value":{"translate":[0,0]}},{"time":1000,"value":{"translate":[100,0]}}]}}",
+                    "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":0,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1000,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                     "fill": "#3399e6",
                     "id": "ball",
                     "rx": "16",
                     "ry": "16",
-                    "type": "ellipse",
-                  },
-                ],
-                "id": "src",
-                "type": "g",
+                    "type": "ellipse"
+                  }
+                ]
               },
               {
                 "href": "#__GEN_0__",
                 "id": "u1",
-                "type": "use",
+                "type": "use"
               },
               {
                 "href": "#__GEN_4__",
-                "type": "use",
-              },
-            ],
-            "type": "svg",
-            "viewBox": "0 0 400 400",
-          }
+                "type": "use"
+              }
+            ]
+          }"
         `);
         // src [0,1000] · u1 clone +250 [250,1250] · outer clone composed +500 [500,1500]
         expect(transformKfTimes(out)).toEqual([[0, 1000], [250, 1250], [500, 1500]]);
@@ -329,117 +308,360 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
 
         const out = materialise(input);
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
+            "viewBox": "0 0 400 400",
             "children": [
               {
+                "type": "defs",
                 "children": [
                   {
+                    "id": "__GEN_0__",
+                    "type": "g",
                     "children": [
                       {
+                        "type": "g",
                         "children": [
                           {
-                            "animate": "{"transform":{"keyframes":[{"time":500,"value":{"translate":[0,0]}},{"time":1500,"value":{"translate":[100,0]}}]}}",
+                            "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":500,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1500,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                             "fill": "#3399e6",
                             "id": "__GEN_1__",
                             "rx": "16",
                             "ry": "16",
-                            "type": "ellipse",
-                          },
-                        ],
-                        "type": "g",
-                      },
-                    ],
-                    "id": "__GEN_0__",
-                    "type": "g",
+                            "type": "ellipse"
+                          }
+                        ]
+                      }
+                    ]
                   },
                   {
+                    "id": "__GEN_2__",
+                    "type": "g",
                     "children": [
                       {
                         "href": "#__GEN_0__",
                         "type": "use",
-                        "y": "100",
-                      },
-                    ],
-                    "id": "__GEN_2__",
-                    "type": "g",
+                        "y": "100"
+                      }
+                    ]
                   },
                   {
+                    "id": "__GEN_3__",
+                    "type": "g",
                     "children": [
                       {
+                        "type": "g",
                         "children": [
                           {
-                            "animate": "{"transform":{"keyframes":[{"time":250,"value":{"translate":[0,0]}},{"time":1250,"value":{"translate":[100,0]}}]}}",
+                            "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":250,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1250,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                             "fill": "#3399e6",
                             "id": "__GEN_4__",
                             "rx": "16",
                             "ry": "16",
-                            "type": "ellipse",
-                          },
-                        ],
-                        "type": "g",
-                      },
-                    ],
-                    "id": "__GEN_3__",
-                    "type": "g",
-                  },
-                ],
-                "type": "defs",
+                            "type": "ellipse"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
               },
               {
                 "href": "#__GEN_2__",
                 "type": "use",
-                "y": "100",
+                "y": "100"
               },
               {
+                "id": "use1",
+                "type": "g",
                 "children": [
                   {
+                    "id": "__GEN_5__",
+                    "type": "g",
                     "children": [
                       {
                         "href": "#__GEN_3__",
                         "type": "use",
-                        "y": "100",
-                      },
-                    ],
-                    "id": "__GEN_5__",
-                    "type": "g",
-                  },
-                ],
-                "id": "use1",
-                "type": "g",
+                        "y": "100"
+                      }
+                    ]
+                  }
+                ]
               },
               {
+                "id": "ell1",
+                "type": "g",
                 "children": [
                   {
+                    "id": "__GEN_6__",
+                    "type": "g",
                     "children": [
                       {
+                        "type": "g",
                         "children": [
                           {
-                            "animate": "{"transform":{"keyframes":[{"time":0,"value":{"translate":[0,0]}},{"time":1000,"value":{"translate":[100,0]}}]}}",
+                            "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":0,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1000,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                             "fill": "#3399e6",
                             "id": "ball",
                             "rx": "16",
                             "ry": "16",
-                            "type": "ellipse",
-                          },
-                        ],
-                        "type": "g",
-                      },
-                    ],
-                    "id": "__GEN_6__",
-                    "type": "g",
-                  },
-                ],
-                "id": "ell1",
-                "type": "g",
-              },
-            ],
-            "type": "svg",
-            "viewBox": "0 0 400 400",
-          }
+                            "type": "ellipse"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }"
         `);
         // Same three shifts as the bare-href nested case — content-ref must NOT
         // change the timing composition: lead [0,1000] · use1 [250,1250] · use2 [500,1500].
         expect(transformKfTimes(out)).toEqual([[0, 1000], [250, 1250], [500, 1500]]);
         expect(danglingRetimeCount(out)).toBe(0);
+    });
+
+    // ── Engine difference (full pipeline `materialiseAllInTree`) ─────────────────
+    // The retime EFFECT pass is engine-agnostic, but the full pipeline's webapi-only
+    // step 4 (`materialiseAnimatedUseInstances`) INLINES every `<use>` that targets
+    // an animated subtree — because WAAPI/CSS animations don't propagate through a
+    // `<use>` shadow tree. frames keeps the `<use href>` (it drives source attrs per
+    // frame, which the shadow tree picks up natively). Composition (the +0/+250/+500
+    // staircase) is identical in BOTH; only the use-vs-inline structure differs.
+
+    it('case 5 — FRAMES engine → animated `<use href>` KEPT (composition still +0/+250/+500)', () => {
+        const out = materialiseEngine(nestedContentRefWire(), PxAnimatorEngine.frames);
+        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+          "{
+            "type": "svg",
+            "viewBox": "0 0 400 400",
+            "children": [
+              {
+                "type": "defs",
+                "children": [
+                  {
+                    "id": "__GEN_0__",
+                    "type": "g",
+                    "children": [
+                      {
+                        "type": "g",
+                        "children": [
+                          {
+                            "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":500,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1500,\\"value\\":{\\"translate\\":[100,0]}}]}}",
+                            "fill": "#3399e6",
+                            "id": "__GEN_1__",
+                            "rx": "16",
+                            "ry": "16",
+                            "type": "ellipse"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "id": "__GEN_2__",
+                    "type": "g",
+                    "children": [
+                      {
+                        "href": "#__GEN_0__",
+                        "type": "use",
+                        "y": "100"
+                      }
+                    ]
+                  },
+                  {
+                    "id": "__GEN_3__",
+                    "type": "g",
+                    "children": [
+                      {
+                        "type": "g",
+                        "children": [
+                          {
+                            "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":250,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1250,\\"value\\":{\\"translate\\":[100,0]}}]}}",
+                            "fill": "#3399e6",
+                            "id": "__GEN_4__",
+                            "rx": "16",
+                            "ry": "16",
+                            "type": "ellipse"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "href": "#__GEN_2__",
+                "type": "use",
+                "y": "100"
+              },
+              {
+                "id": "use1",
+                "type": "g",
+                "children": [
+                  {
+                    "id": "__GEN_5__",
+                    "type": "g",
+                    "children": [
+                      {
+                        "href": "#__GEN_3__",
+                        "type": "use",
+                        "y": "100"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "ell1",
+                "type": "g",
+                "children": [
+                  {
+                    "id": "__GEN_6__",
+                    "type": "g",
+                    "children": [
+                      {
+                        "type": "g",
+                        "children": [
+                          {
+                            "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":0,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1000,\\"value\\":{\\"translate\\":[100,0]}}]}}",
+                            "fill": "#3399e6",
+                            "id": "ball",
+                            "rx": "16",
+                            "ry": "16",
+                            "type": "ellipse"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }"
+        `);
+        expect(collectByType(out, 'use').length).toBeGreaterThan(0);     // uses kept
+        expect(transformKfTimes(out)).toEqual([[0, 1000], [250, 1250], [500, 1500]]);
+    });
+
+    it('case 6 — WAAPI engine → animated `<use>` INLINED to `<g>`+clone (fewer/no use; same staircase)', () => {
+        const framesOut = materialiseEngine(nestedContentRefWire(), PxAnimatorEngine.frames);
+        const out = materialiseEngine(nestedContentRefWire(), PxAnimatorEngine.webapi);
+        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+          "{
+            "type": "svg",
+            "viewBox": "0 0 400 400",
+            "children": [
+              {
+                "transform": "translate(0,100)",
+                "type": "g",
+                "children": [
+                  {
+                    "id": "__GEN_0__",
+                    "type": "g",
+                    "children": [
+                      {
+                        "transform": "translate(0,100)",
+                        "type": "g",
+                        "children": [
+                          {
+                            "id": "__GEN_1__",
+                            "type": "g",
+                            "children": [
+                              {
+                                "type": "g",
+                                "children": [
+                                  {
+                                    "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":500,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1500,\\"value\\":{\\"translate\\":[100,0]}}]}}",
+                                    "fill": "#3399e6",
+                                    "id": "__GEN_2__",
+                                    "rx": "16",
+                                    "ry": "16",
+                                    "type": "ellipse"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "use1",
+                "type": "g",
+                "children": [
+                  {
+                    "id": "__GEN_3__",
+                    "type": "g",
+                    "children": [
+                      {
+                        "transform": "translate(0,100)",
+                        "type": "g",
+                        "children": [
+                          {
+                            "id": "__GEN_4__",
+                            "type": "g",
+                            "children": [
+                              {
+                                "type": "g",
+                                "children": [
+                                  {
+                                    "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":250,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1250,\\"value\\":{\\"translate\\":[100,0]}}]}}",
+                                    "fill": "#3399e6",
+                                    "id": "__GEN_5__",
+                                    "rx": "16",
+                                    "ry": "16",
+                                    "type": "ellipse"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "id": "ell1",
+                "type": "g",
+                "children": [
+                  {
+                    "id": "__GEN_6__",
+                    "type": "g",
+                    "children": [
+                      {
+                        "type": "g",
+                        "children": [
+                          {
+                            "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":0,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1000,\\"value\\":{\\"translate\\":[100,0]}}]}}",
+                            "fill": "#3399e6",
+                            "id": "ball",
+                            "rx": "16",
+                            "ry": "16",
+                            "type": "ellipse"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }"
+        `);
+        // WAAPI inlines the animated uses → strictly fewer `<use>` than frames
+        expect(collectByType(out, 'use').length).toBeLessThan(collectByType(framesOut, 'use').length);
+        // composition is preserved — inlining DEEP-CLONES animated subtrees so the
+        // shifted balls appear multiple times; assert the DISTINCT shift set is the same.
+        const distinctShifts = Array.from(new Set(transformKfTimes(out).map(t => t.join(',')))).sort();
+        expect(distinctShifts).toEqual(['0,1000', '250,1250', '500,1500']);
+        // the two engines genuinely diverge
+        expect(JSON.stringify(out)).not.toEqual(JSON.stringify(framesOut));
     });
 });

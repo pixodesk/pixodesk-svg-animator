@@ -26,43 +26,43 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
     it('case 1 — static linear fillGradient → <linearGradient> def + bare stops, fill=url()', () => {
         const out = materialise(rect({ fillGradient: { type: 'linear', p1: [0, 0], p2: [100, 0], stops: STOPS } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
+                "type": "defs",
                 "children": [
                   {
-                    "children": [
-                      {
-                        "offset": "0%",
-                        "stopColor": "#ff0000",
-                        "type": "stop",
-                      },
-                      {
-                        "offset": "100%",
-                        "stopColor": "#0000ff",
-                        "type": "stop",
-                      },
-                    ],
                     "id": "__GEN_0__",
                     "type": "linearGradient",
                     "x1": "0",
                     "x2": "100",
                     "y1": "0",
                     "y2": "0",
-                  },
-                ],
-                "type": "defs",
+                    "children": [
+                      {
+                        "offset": "0%",
+                        "stopColor": "#ff0000",
+                        "type": "stop"
+                      },
+                      {
+                        "offset": "100%",
+                        "stopColor": "#0000ff",
+                        "type": "stop"
+                      }
+                    ]
+                  }
+                ]
               },
               {
                 "fill": "url(#__GEN_0__)",
                 "height": 100,
                 "id": "r",
                 "type": "rect",
-                "width": 100,
-              },
-            ],
-            "type": "svg",
-          }
+                "width": 100
+              }
+            ]
+          }"
         `);
         const defs = collectByType(out, 'linearGradient');
         expect(defs).toHaveLength(1);
@@ -78,23 +78,13 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
     it('case 2 — static radial fillGradient → <radialGradient> with cx/cy/r/fx/fy', () => {
         const out = materialise(rect({ fillGradient: { type: 'radial', c: [50, 50], r: 40, fp: [50, 50], stops: STOPS } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
+                "type": "defs",
                 "children": [
                   {
-                    "children": [
-                      {
-                        "offset": "0%",
-                        "stopColor": "#ff0000",
-                        "type": "stop",
-                      },
-                      {
-                        "offset": "100%",
-                        "stopColor": "#0000ff",
-                        "type": "stop",
-                      },
-                    ],
                     "cx": "50",
                     "cy": "50",
                     "fx": "50",
@@ -102,20 +92,30 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
                     "id": "__GEN_0__",
                     "r": "40",
                     "type": "radialGradient",
-                  },
-                ],
-                "type": "defs",
+                    "children": [
+                      {
+                        "offset": "0%",
+                        "stopColor": "#ff0000",
+                        "type": "stop"
+                      },
+                      {
+                        "offset": "100%",
+                        "stopColor": "#0000ff",
+                        "type": "stop"
+                      }
+                    ]
+                  }
+                ]
               },
               {
                 "fill": "url(#__GEN_0__)",
                 "height": 100,
                 "id": "r",
                 "type": "rect",
-                "width": 100,
-              },
-            ],
-            "type": "svg",
-          }
+                "width": 100
+              }
+            ]
+          }"
         `);
         const def = collectByType(out, 'radialGradient')[0] as any;
         expect([def.cx, def.cy, def.r, def.fx, def.fy]).toEqual(['50', '50', '40', '50', '50']);
@@ -135,45 +135,45 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
             },
         }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
+                "type": "defs",
                 "children": [
                   {
-                    "children": [
-                      {
-                        "animate": "{"stopColor":{"keyframes":[{"time":0,"value":"#ff0000"},{"time":1000,"value":"#00ff00"}]}}",
-                        "offset": "0%",
-                        "stopColor": "#ff0000",
-                        "type": "stop",
-                      },
-                      {
-                        "animate": "{"stopColor":{"keyframes":[{"time":0,"value":"#0000ff"},{"time":1000,"value":"#ffff00"}]}}",
-                        "offset": "100%",
-                        "stopColor": "#0000ff",
-                        "type": "stop",
-                      },
-                    ],
                     "id": "__GEN_0__",
                     "type": "linearGradient",
                     "x1": "0",
                     "x2": "100",
                     "y1": "0",
                     "y2": "0",
-                  },
-                ],
-                "type": "defs",
+                    "children": [
+                      {
+                        "animate": "{\\"stopColor\\":{\\"keyframes\\":[{\\"time\\":0,\\"value\\":\\"#ff0000\\"},{\\"time\\":1000,\\"value\\":\\"#00ff00\\"}]}}",
+                        "offset": "0%",
+                        "stopColor": "#ff0000",
+                        "type": "stop"
+                      },
+                      {
+                        "animate": "{\\"stopColor\\":{\\"keyframes\\":[{\\"time\\":0,\\"value\\":\\"#0000ff\\"},{\\"time\\":1000,\\"value\\":\\"#ffff00\\"}]}}",
+                        "offset": "100%",
+                        "stopColor": "#0000ff",
+                        "type": "stop"
+                      }
+                    ]
+                  }
+                ]
               },
               {
                 "fill": "url(#__GEN_0__)",
                 "height": 100,
                 "id": "r",
                 "type": "rect",
-                "width": 100,
-              },
-            ],
-            "type": "svg",
-          }
+                "width": 100
+              }
+            ]
+          }"
         `);
         const stops = stopsOf(collectByType(out, 'linearGradient')[0]) as Array<any>;
         expect(stops).toHaveLength(2);
@@ -185,32 +185,33 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
     it('case 4 — strokeGradient rewrites STROKE (not fill)', () => {
         const out = materialise(rect({ strokeGradient: { type: 'linear', p1: [0, 0], p2: [100, 0], stops: STOPS } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
+                "type": "defs",
                 "children": [
                   {
-                    "children": [
-                      {
-                        "offset": "0%",
-                        "stopColor": "#ff0000",
-                        "type": "stop",
-                      },
-                      {
-                        "offset": "100%",
-                        "stopColor": "#0000ff",
-                        "type": "stop",
-                      },
-                    ],
                     "id": "__GEN_0__",
                     "type": "linearGradient",
                     "x1": "0",
                     "x2": "100",
                     "y1": "0",
                     "y2": "0",
-                  },
-                ],
-                "type": "defs",
+                    "children": [
+                      {
+                        "offset": "0%",
+                        "stopColor": "#ff0000",
+                        "type": "stop"
+                      },
+                      {
+                        "offset": "100%",
+                        "stopColor": "#0000ff",
+                        "type": "stop"
+                      }
+                    ]
+                  }
+                ]
               },
               {
                 "fill": "#000",
@@ -218,11 +219,10 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
                 "id": "r",
                 "stroke": "url(#__GEN_0__)",
                 "type": "rect",
-                "width": 100,
-              },
-            ],
-            "type": "svg",
-          }
+                "width": 100
+              }
+            ]
+          }"
         `);
         const r = theRect(out);
         expect(r.stroke).toMatch(/^url\(#.+\)$/);
@@ -235,23 +235,13 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
             fillGradient: { type: 'linear', p1: [0, 0], p2: [100, 0], stops: STOPS, gradientUnits: 'userSpaceOnUse', spreadMethod: 'reflect' },
         }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
+                "type": "defs",
                 "children": [
                   {
-                    "children": [
-                      {
-                        "offset": "0%",
-                        "stopColor": "#ff0000",
-                        "type": "stop",
-                      },
-                      {
-                        "offset": "100%",
-                        "stopColor": "#0000ff",
-                        "type": "stop",
-                      },
-                    ],
                     "gradientUnits": "userSpaceOnUse",
                     "id": "__GEN_0__",
                     "spreadMethod": "reflect",
@@ -260,20 +250,30 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
                     "x2": "100",
                     "y1": "0",
                     "y2": "0",
-                  },
-                ],
-                "type": "defs",
+                    "children": [
+                      {
+                        "offset": "0%",
+                        "stopColor": "#ff0000",
+                        "type": "stop"
+                      },
+                      {
+                        "offset": "100%",
+                        "stopColor": "#0000ff",
+                        "type": "stop"
+                      }
+                    ]
+                  }
+                ]
               },
               {
                 "fill": "url(#__GEN_0__)",
                 "height": 100,
                 "id": "r",
                 "type": "rect",
-                "width": 100,
-              },
-            ],
-            "type": "svg",
-          }
+                "width": 100
+              }
+            ]
+          }"
         `);
         const def = collectByType(out, 'linearGradient')[0] as any;
         expect(def.gradientUnits).toBe('userSpaceOnUse');

@@ -10,8 +10,11 @@
 // skips it and tsup never bundles it (entry is index.ts only).
 
 import { applyPlayerEffects } from './PlayerEffectsUtil';
-import type { PxNode } from '../PxAnimatorTypes';
+import { materialiseAllInTree } from '../PxAnimatorMaterialiseAll';
+import { PxAnimatorEngine } from '../PxAnimatorTypes';
+import type { PxAnimatedSvgDocument, PxNode } from '../PxAnimatorTypes';
 
+export { PxAnimatorEngine };
 
 /** Run the real player-effect pipeline; throw on any materialisation error. */
 export function materialise(input: PxNode): PxNode {
@@ -20,18 +23,29 @@ export function materialise(input: PxNode): PxNode {
     return root;
 }
 
+/**
+ * Run the FULL engine-aware pipeline (`materialiseAllInTree`): effects + loop
+ * expansion, plus the `webapi`-only stages (motion-path flatten + animated-`<use>`
+ * inline). Use this to test behaviour that DIFFERS between `webapi` and `frames`
+ * — the plain {@link materialise} (effects only) is engine-agnostic.
+ */
+export function materialiseEngine(input: PxNode, engine: PxAnimatorEngine): PxNode {
+    return materialiseAllInTree(input as PxAnimatedSvgDocument, engine) as unknown as PxNode;
+}
+
 /** Same as {@link materialise} but returns warnings/errors too (for negative tests). */
 export function materialiseRaw(input: PxNode): ReturnType<typeof applyPlayerEffects> {
     return applyPlayerEffects(input);
 }
 
 /**
- * Snapshot-normaliser: replaces auto-allocated `_lw_*` ids with stable
- * `__GEN_N__` slugs (rewriting `#…` href references to match) and collapses each
- * node's `animate` to a single-line JSON string so inline snapshots stay compact.
- * Same convention as PlayerEffectsUtil.test.ts / retimeEffect.test.ts.
+ * Snapshot-normaliser → returns a STRING (not an object) so we control key order:
+ * `children` is always emitted LAST (the default object snapshot sorts keys
+ * alphabetically, which buries `children` at the top). Also replaces auto-allocated
+ * `_lw_*` ids with stable `__GEN_N__` slugs (rewriting `#…`/`url(#…)` refs to match)
+ * and collapses each node's `animate` to a single-line JSON string.
  */
-export function normaliseGeneratedIds(tree: PxNode): PxNode {
+export function normaliseGeneratedIds(tree: PxNode): string {
     const cloned: PxNode = JSON.parse(JSON.stringify(tree));
     const map = new Map<string, string>();
     let counter = 0;
@@ -66,7 +80,21 @@ export function normaliseGeneratedIds(tree: PxNode): PxNode {
         n.children?.forEach(walkRewrite);
     };
     walkRewrite(cloned);
-    return cloned;
+    // JSON.stringify preserves INSERTION order → rebuild every node with non-`children`
+    // keys sorted (stable) and `children` appended last, then serialise.
+    return JSON.stringify(childrenLast(cloned), null, 2);
+}
+
+/** Recursively rebuilds objects so `children` is the last key (other keys sorted). */
+function childrenLast(v: any): any {
+    if (Array.isArray(v)) return v.map(childrenLast);
+    if (v && typeof v === 'object') {
+        const out: any = {};
+        for (const k of Object.keys(v).filter(k => k !== 'children').sort()) out[k] = childrenLast(v[k]);
+        if ('children' in v) out.children = childrenLast(v.children);
+        return out;
+    }
+    return v;
 }
 
 /** Every node in the tree, pre-order. */

@@ -32,21 +32,21 @@ describe('refEffect — whole-element ref & content-ref split', () => {
     it('case 1 — whole-element ref → <use>.href rewritten to #baseId, source untouched', () => {
         const out = materialise(scene({}, { ref: { baseId: 'src' } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
                 "height": 40,
                 "id": "src",
                 "type": "rect",
-                "width": 40,
+                "width": 40
               },
               {
                 "href": "#src",
-                "type": "use",
-              },
-            ],
-            "type": "svg",
-          }
+                "type": "use"
+              }
+            ]
+          }"
         `);
         expect(useNode(out).href).toBe('#src');
         expect(collectByType(out, 'g')).toHaveLength(0);          // no split for whole-element ref
@@ -56,32 +56,32 @@ describe('refEffect — whole-element ref & content-ref split', () => {
     it('case 2 — content ref → source SPLIT (outer#src > inner > bare), <use> points at inner', () => {
         const out = materialise(scene({}, { ref: { type: 'content', baseId: 'src' } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
+                "id": "src",
+                "type": "g",
                 "children": [
                   {
+                    "id": "__GEN_0__",
+                    "type": "g",
                     "children": [
                       {
                         "height": 40,
                         "type": "rect",
-                        "width": 40,
-                      },
-                    ],
-                    "id": "__GEN_0__",
-                    "type": "g",
-                  },
-                ],
-                "id": "src",
-                "type": "g",
+                        "width": 40
+                      }
+                    ]
+                  }
+                ]
               },
               {
                 "href": "#__GEN_0__",
-                "type": "use",
-              },
-            ],
-            "type": "svg",
-          }
+                "type": "use"
+              }
+            ]
+          }"
         `);
         const outer = gById(out, 'src');
         expect(outer).toBeTruthy();                               // outer keeps the original id
@@ -96,33 +96,33 @@ describe('refEffect — whole-element ref & content-ref split', () => {
     it('case 3 — content ref with source TRANSLATE → translate lifts to outer, bare element has none', () => {
         const out = materialise(scene({ transform: 'translate(30,40)' }, { ref: { type: 'content', baseId: 'src' } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
+                "id": "src",
+                "transform": "translate(30,40)",
+                "type": "g",
                 "children": [
                   {
+                    "id": "__GEN_0__",
+                    "type": "g",
                     "children": [
                       {
                         "height": 40,
                         "type": "rect",
-                        "width": 40,
-                      },
-                    ],
-                    "id": "__GEN_0__",
-                    "type": "g",
-                  },
-                ],
-                "id": "src",
-                "transform": "translate(30,40)",
-                "type": "g",
+                        "width": 40
+                      }
+                    ]
+                  }
+                ]
               },
               {
                 "href": "#__GEN_0__",
-                "type": "use",
-              },
-            ],
-            "type": "svg",
-          }
+                "type": "use"
+              }
+            ]
+          }"
         `);
         // the source's own translate moved to the outer wrapper; the bare element
         // is translate-free, so a <use> of the inner layer ignores the source's position

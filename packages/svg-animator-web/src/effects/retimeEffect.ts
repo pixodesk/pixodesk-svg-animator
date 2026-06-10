@@ -72,6 +72,12 @@ export function applyAllRetimeEffects(root: PxNode, ctx: ApplyContext): void {
     for (const useNode of sites) {
         const retime = useNode.effects?.retime;
         if (!retime) continue;
+        // Per-site delete is LOAD-BEARING, not just cleanup: once this use is
+        // materialised its `href` is rewritten to an already-time-shifted clone, so
+        // a downstream use that references THIS one must NOT re-compose this retime
+        // (buildChainClone reads `target.effects?.retime`). Deleting it here makes
+        // that read return undefined → no double-count. Moving cleanup to a single
+        // end-of-pipeline strip regresses nested retime to +750 instead of +500.
         delete useNode.effects!.retime;
         if (Object.keys(useNode.effects!).length === 0) delete useNode.effects;
         materialiseRetime(useNode, asRetime(retime), ctx);

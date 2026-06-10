@@ -14,7 +14,7 @@
  * `implementsInterface`. Effect modules import those directly from there.
  */
 
-import type { PxNode } from '../PxAnimatorTypes';
+import type { PxAnimatorEngine, PxNode } from '../PxAnimatorTypes';
 
 
 /** Collected diagnostics + new <defs> nodes accumulated during a run. */
@@ -44,6 +44,17 @@ export interface ApplyContext {
     errors: Array<string>;
     idMap: Map<string, PxNode>;
     nextId: number;
+    /**
+     * The resolved animation engine for this run. `frames` ONLY when mode is
+     * explicitly `'frames'`; `auto`/`webapi`/unset all resolve to `webapi` (the
+     * actual engine isn't certain yet, and CSS/WAAPI both need the inline form).
+     * Effects that emit an animated `<use>`→defs-clone (retime, content-ref) can
+     * read this to decide whether to INLINE the animated clone content (only the
+     * frame loop animates `<use>` shadow trees natively, so it needn't inline).
+     *
+     * NOTE: not consumed yet — wired through for the upcoming materialise work.
+     */
+    engine: PxAnimatorEngine;
     /**
      * For every element id referenced by a `<use>` with `ref:{type:'content'}`,
      * the fresh id of the INNER (no-translate) wrapper produced by

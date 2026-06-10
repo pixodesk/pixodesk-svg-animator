@@ -34,60 +34,60 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
     it('case 1 — static translate, 3 copies → copy i shifted by translate×i', () => {
         const out = materialise(wrap({ copies: 3, translate: [30, 0] }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
+                "type": "g",
                 "children": [
                   {
                     "height": 20,
                     "id": "r",
                     "type": "rect",
-                    "width": 20,
+                    "width": 20
                   },
                   {
-                    "children": [
-                      {
-                        "height": 20,
-                        "id": "r",
-                        "type": "rect",
-                        "width": 20,
-                      },
-                    ],
                     "transform": {
                       "value": {
                         "translate": [
                           30,
-                          0,
-                        ],
-                      },
+                          0
+                        ]
+                      }
                     },
                     "type": "g",
-                  },
-                  {
                     "children": [
                       {
                         "height": 20,
                         "id": "r",
                         "type": "rect",
-                        "width": 20,
-                      },
-                    ],
+                        "width": 20
+                      }
+                    ]
+                  },
+                  {
                     "transform": {
                       "value": {
                         "translate": [
                           60,
-                          0,
-                        ],
-                      },
+                          0
+                        ]
+                      }
                     },
                     "type": "g",
-                  },
-                ],
-                "type": "g",
-              },
-            ],
-            "type": "svg",
-          }
+                    "children": [
+                      {
+                        "height": 20,
+                        "id": "r",
+                        "type": "rect",
+                        "width": 20
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }"
         `);
         expect(collectByType(out, 'rect')).toHaveLength(3);        // base + 2 clones
         expect(staticParts(out)).toContainEqual({ translate: [30, 0] });   // copy 1
@@ -101,46 +101,46 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
             translate: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [100, 0] }] },
         }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
+                "type": "g",
                 "children": [
                   {
                     "height": 20,
                     "id": "r",
                     "type": "rect",
-                    "width": 20,
+                    "width": 20
                   },
                   {
-                    "animate": "{"transform":{"keyframes":[{"value":{"translate":[0,0]},"time":0},{"value":{"translate":[100,0]},"time":1000}]}}",
+                    "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"value\\":{\\"translate\\":[0,0]},\\"time\\":0},{\\"value\\":{\\"translate\\":[100,0]},\\"time\\":1000}]}}",
+                    "type": "g",
                     "children": [
                       {
                         "height": 20,
                         "id": "r",
                         "type": "rect",
-                        "width": 20,
-                      },
-                    ],
-                    "type": "g",
+                        "width": 20
+                      }
+                    ]
                   },
                   {
-                    "animate": "{"transform":{"keyframes":[{"value":{"translate":[0,0]},"time":0},{"value":{"translate":[200,0]},"time":1000}]}}",
+                    "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"value\\":{\\"translate\\":[0,0]},\\"time\\":0},{\\"value\\":{\\"translate\\":[200,0]},\\"time\\":1000}]}}",
+                    "type": "g",
                     "children": [
                       {
                         "height": 20,
                         "id": "r",
                         "type": "rect",
-                        "width": 20,
-                      },
-                    ],
-                    "type": "g",
-                  },
-                ],
-                "type": "g",
-              },
-            ],
-            "type": "svg",
-          }
+                        "width": 20
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }"
         `);
         expect(transformKfTimes(out)).toEqual([[0, 1000], [0, 1000]]);     // 2 animated copies
         expect(animTranslateEnds(out)).toContainEqual([100, 0]);           // copy 1 end
@@ -151,60 +151,60 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
     it('case 3 — static scale (PERCENT bare array) compounds per axis s^i in 1.0-units', () => {
         const out = materialise(wrap({ copies: 3, scale: [50, 50] }));   // 50% = 0.5×
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
+                "type": "g",
                 "children": [
                   {
                     "height": 20,
                     "id": "r",
                     "type": "rect",
-                    "width": 20,
+                    "width": 20
                   },
                   {
+                    "transform": {
+                      "value": {
+                        "scale": [
+                          0.5,
+                          0.5
+                        ]
+                      }
+                    },
+                    "type": "g",
                     "children": [
                       {
                         "height": 20,
                         "id": "r",
                         "type": "rect",
-                        "width": 20,
-                      },
-                    ],
+                        "width": 20
+                      }
+                    ]
+                  },
+                  {
                     "transform": {
                       "value": {
                         "scale": [
-                          0.5,
-                          0.5,
-                        ],
-                      },
+                          0.25,
+                          0.25
+                        ]
+                      }
                     },
                     "type": "g",
-                  },
-                  {
                     "children": [
                       {
                         "height": 20,
                         "id": "r",
                         "type": "rect",
-                        "width": 20,
-                      },
-                    ],
-                    "transform": {
-                      "value": {
-                        "scale": [
-                          0.25,
-                          0.25,
-                        ],
-                      },
-                    },
-                    "type": "g",
-                  },
-                ],
-                "type": "g",
-              },
-            ],
-            "type": "svg",
-          }
+                        "width": 20
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }"
         `);
         expect(staticParts(out)).toContainEqual({ scale: [0.5, 0.5] });    // copy 1 = 0.5^1
         expect(staticParts(out)).toContainEqual({ scale: [0.25, 0.25] });  // copy 2 = 0.5^2
@@ -214,106 +214,106 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
     it('case 4 — rotate×i with CONSTANT origin (no spiral drift)', () => {
         const out = materialise(wrap({ copies: 3, rotate: 30, origin: [40, 40] }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
+                "type": "g",
                 "children": [
                   {
                     "height": 20,
                     "id": "r",
                     "type": "rect",
-                    "width": 20,
+                    "width": 20
                   },
                   {
+                    "transform": {
+                      "value": {
+                        "translate": [
+                          40,
+                          40
+                        ]
+                      }
+                    },
+                    "type": "g",
                     "children": [
                       {
+                        "transform": {
+                          "value": {
+                            "rotate": 30
+                          }
+                        },
+                        "type": "g",
                         "children": [
                           {
+                            "transform": {
+                              "value": {
+                                "translate": [
+                                  -40,
+                                  -40
+                                ]
+                              }
+                            },
+                            "type": "g",
                             "children": [
                               {
                                 "height": 20,
                                 "id": "r",
                                 "type": "rect",
-                                "width": 20,
-                              },
-                            ],
-                            "transform": {
-                              "value": {
-                                "translate": [
-                                  -40,
-                                  -40,
-                                ],
-                              },
-                            },
-                            "type": "g",
-                          },
-                        ],
-                        "transform": {
-                          "value": {
-                            "rotate": 30,
-                          },
-                        },
-                        "type": "g",
-                      },
-                    ],
+                                "width": 20
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
                     "transform": {
                       "value": {
                         "translate": [
                           40,
-                          40,
-                        ],
-                      },
+                          40
+                        ]
+                      }
                     },
                     "type": "g",
-                  },
-                  {
                     "children": [
                       {
+                        "transform": {
+                          "value": {
+                            "rotate": 60
+                          }
+                        },
+                        "type": "g",
                         "children": [
                           {
+                            "transform": {
+                              "value": {
+                                "translate": [
+                                  -40,
+                                  -40
+                                ]
+                              }
+                            },
+                            "type": "g",
                             "children": [
                               {
                                 "height": 20,
                                 "id": "r",
                                 "type": "rect",
-                                "width": 20,
-                              },
-                            ],
-                            "transform": {
-                              "value": {
-                                "translate": [
-                                  -40,
-                                  -40,
-                                ],
-                              },
-                            },
-                            "type": "g",
-                          },
-                        ],
-                        "transform": {
-                          "value": {
-                            "rotate": 60,
-                          },
-                        },
-                        "type": "g",
-                      },
-                    ],
-                    "transform": {
-                      "value": {
-                        "translate": [
-                          40,
-                          40,
-                        ],
-                      },
-                    },
-                    "type": "g",
-                  },
-                ],
-                "type": "g",
-              },
-            ],
-            "type": "svg",
-          }
+                                "width": 20
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }"
         `);
         expect(staticParts(out)).toContainEqual({ rotate: 30 });           // copy 1
         expect(staticParts(out)).toContainEqual({ rotate: 60 });           // copy 2 (×2)

@@ -36,7 +36,7 @@ import { materialiseInternalLoopsInTree } from './PxDefinitions';
 import { materialiseMotionPathsInTree } from './PxMotionPath';
 import type { MotionPathMaterialisationOptions } from './PxMotionPath';
 import { getAnimatorConfig, PxAnimatorEngine } from './PxAnimatorTypes';
-import type { PxAnimatedSvgDocument } from './PxAnimatorTypes';
+import type { PxAnimatedSvgDocument, PxNode } from './PxAnimatorTypes';
 import { materialiseAnimatedUseInstances } from './PxAnimatorUseMaterialiser';
 
 
@@ -74,7 +74,56 @@ export function materialiseAllInTree(
         //    shadow trees in Chrome / Safari; frames-mode updates source
         //    attributes per frame and the shadow tree picks those up natively.
         root = materialiseAnimatedUseInstances(root);
+
+        // 5. Prune <defs> `<g>`/`<symbol>` entries that step 4 orphaned — i.e. no
+        //    `<use>` references them any more (the animated uses that did got
+        //    inlined into `<g>`+clones). webapi-only: frames keeps `<use href>`,
+        //    so nothing is orphaned there.
+        root = pruneUnreferencedDefs(root);
     }
 
+    return root;
+}
+
+
+/**
+ * Removes orphaned `<defs>` entries: direct `<defs>` children of type `<g>` /
+ * `<symbol>` whose `id` is no longer targeted by ANY `<use href>` in the tree.
+ * Runs after step 4 (`materialiseAnimatedUseInstances`), which inlines animated
+ * `<use>`s and thereby leaves their former defs targets unreferenced.
+ *
+ * Loops to a fixpoint so chains collapse fully: pruning an entry can drop the
+ * `<use>`s inside it, which in turn orphans the entries THOSE referenced. The
+ * loop also drops a `<defs>` node once pruning has emptied it.
+ *
+ * Scope is intentionally limited to `<g>`/`<symbol>` (the `<use>`-target element
+ * types) so `url(#…)`-referenced defs (gradients / masks / clipPaths / filters)
+ * are never touched. Mutates `root` in place — safe, as it's a freshly
+ * materialised tree owned by {@link materialiseAllInTree}.
+ */
+function pruneUnreferencedDefs(root: PxAnimatedSvgDocument): PxAnimatedSvgDocument {
+    const stripHash = (h: string): string => (h.startsWith('#') ? h.slice(1) : h);
+    const walk = (n: PxNode, fn: (n: PxNode) => void): void => { fn(n); n.children?.forEach(c => walk(c, fn)); };
+
+    let changed = true;
+    while (changed) {
+        changed = false;
+        const referenced = new Set<string>();
+        walk(root, n => {
+            if (n.type === 'use' && typeof n.href === 'string') referenced.add(stripHash(n.href));
+        });
+        walk(root, n => {
+            if (!n.children) return;
+            let kept = n.children;
+            // (a) inside <defs>: drop <g>/<symbol> entries no <use> targets any more
+            if (n.type === 'defs') {
+                kept = kept.filter(c =>
+                    !((c.type === 'g' || c.type === 'symbol') && typeof c.id === 'string' && !referenced.has(c.id)));
+            }
+            // (b) anywhere: drop a now-empty <defs> child
+            kept = kept.filter(c => !(c.type === 'defs' && (!c.children || c.children.length === 0)));
+            if (kept.length !== n.children.length) { n.children = kept; changed = true; }
+        });
+    }
     return root;
 }

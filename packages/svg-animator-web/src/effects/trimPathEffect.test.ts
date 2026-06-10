@@ -28,7 +28,8 @@ describe('trimPathEffect — dasharray/dashoffset materialisation', () => {
     it('case 1 — single subpath + static range → COLLAPSE: dash attrs on the leaf <path>, no <g>', () => {
         const out = materialise(linePath({ range: [0, 0.5] }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
                 "d": "M0,0 L100,0",
@@ -39,15 +40,14 @@ describe('trimPathEffect — dasharray/dashoffset materialisation', () => {
                   0,
                   1,
                   50,
-                  51,
+                  51
                 ],
                 "strokeDashoffset": 1,
                 "strokeWidth": 4,
-                "type": "path",
-              },
-            ],
-            "type": "svg",
-          }
+                "type": "path"
+              }
+            ]
+          }"
         `);
         const p = thePath(out) as any;
         expect(collectByType(out, 'g')).toHaveLength(0);        // collapsed, no split wrapper
@@ -62,10 +62,11 @@ describe('trimPathEffect — dasharray/dashoffset materialisation', () => {
             range: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [0, 1] }] },
         }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
-                "animate": "{"strokeDasharray":{"keyframes":[{"time":0,"value":[0,1,0,101]},{"time":1000,"value":[0,1,100,1]}]},"strokeOpacity":{"keyframes":[{"time":0,"value":0},{"time":10,"value":1}]}}",
+                "animate": "{\\"strokeDasharray\\":{\\"keyframes\\":[{\\"time\\":0,\\"value\\":[0,1,0,101]},{\\"time\\":1000,\\"value\\":[0,1,100,1]}]},\\"strokeOpacity\\":{\\"keyframes\\":[{\\"time\\":0,\\"value\\":0},{\\"time\\":10,\\"value\\":1}]}}",
                 "d": "M0,0 L100,0",
                 "fill": "none",
                 "id": "p",
@@ -74,16 +75,15 @@ describe('trimPathEffect — dasharray/dashoffset materialisation', () => {
                   0,
                   1,
                   0,
-                  101,
+                  101
                 ],
                 "strokeDashoffset": 1,
                 "strokeOpacity": 0,
                 "strokeWidth": 4,
-                "type": "path",
-              },
-            ],
-            "type": "svg",
-          }
+                "type": "path"
+              }
+            ]
+          }"
         `);
         const p = thePath(out) as any;
         expect(animKeys(p)).toContain('strokeDasharray');                   // animated
@@ -97,10 +97,11 @@ describe('trimPathEffect — dasharray/dashoffset materialisation', () => {
             offset: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] },
         }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
-                "animate": "{"strokeDashoffset":{"keyframes":[{"time":0,"value":101},{"time":1000,"value":1}]}}",
+                "animate": "{\\"strokeDashoffset\\":{\\"keyframes\\":[{\\"time\\":0,\\"value\\":101},{\\"time\\":1000,\\"value\\":1}]}}",
                 "d": "M0,0 L100,0",
                 "fill": "none",
                 "id": "p",
@@ -111,15 +112,14 @@ describe('trimPathEffect — dasharray/dashoffset materialisation', () => {
                   40,
                   60,
                   40,
-                  61,
+                  61
                 ],
                 "strokeDashoffset": 101,
                 "strokeWidth": 4,
-                "type": "path",
-              },
-            ],
-            "type": "svg",
-          }
+                "type": "path"
+              }
+            ]
+          }"
         `);
         const p = thePath(out) as any;
         expect(animKeys(p)).toContain('strokeDashoffset');
@@ -129,7 +129,8 @@ describe('trimPathEffect — dasharray/dashoffset materialisation', () => {
     it('case 4 — empty static range [0,0] → stroke-opacity 0 (hidden), fill untouched', () => {
         const out = materialise(linePath({ range: [0, 0] }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
                 "d": "M0,0 L100,0",
@@ -140,16 +141,15 @@ describe('trimPathEffect — dasharray/dashoffset materialisation', () => {
                   0,
                   1,
                   0,
-                  101,
+                  101
                 ],
                 "strokeDashoffset": 1,
                 "strokeOpacity": 0,
                 "strokeWidth": 4,
-                "type": "path",
-              },
-            ],
-            "type": "svg",
-          }
+                "type": "path"
+              }
+            ]
+          }"
         `);
         const p = thePath(out) as any;
         expect(p.strokeOpacity).toBe(0);
@@ -158,9 +158,15 @@ describe('trimPathEffect — dasharray/dashoffset materialisation', () => {
     it('case 5 — multi-subpath → SPLIT into <g> + one bare <path> per subpath, each trimmed', () => {
         const out = materialise(linePath({ range: [0, 0.5] }, 'M0,0 L100,0 M0,20 L100,20'));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
-          {
+          "{
+            "type": "svg",
             "children": [
               {
+                "fill": "none",
+                "id": "p",
+                "stroke": "#000",
+                "strokeWidth": 4,
+                "type": "g",
                 "children": [
                   {
                     "d": "M0,0L100,0",
@@ -168,10 +174,10 @@ describe('trimPathEffect — dasharray/dashoffset materialisation', () => {
                       0,
                       1,
                       50,
-                      51,
+                      51
                     ],
                     "strokeDashoffset": 1,
-                    "type": "path",
+                    "type": "path"
                   },
                   {
                     "d": "M0,20L100,20",
@@ -179,21 +185,15 @@ describe('trimPathEffect — dasharray/dashoffset materialisation', () => {
                       0,
                       1,
                       50,
-                      51,
+                      51
                     ],
                     "strokeDashoffset": 1,
-                    "type": "path",
-                  },
-                ],
-                "fill": "none",
-                "id": "p",
-                "stroke": "#000",
-                "strokeWidth": 4,
-                "type": "g",
-              },
-            ],
-            "type": "svg",
-          }
+                    "type": "path"
+                  }
+                ]
+              }
+            ]
+          }"
         `);
         expect(collectByType(out, 'g')).toHaveLength(1);        // split wrapper
         const paths = collectByType(out, 'path');
