@@ -227,15 +227,18 @@ interface SVG_JSON {
         // named ref / array of refs / inline definition / mixed array
         animate?: string | Array<string> | Record<string, ANIMATE> | Array<string | Record<string, ANIMATE>>;
         // Player-materialised structural effects (transformation/repeater/maskedBy/
-        // trimPath/retime/ref/isCombinedShape). JSON-only — the Pre-rendered SVG
-        // export materialises these in the Editor. See "Player effects" section below.
+        // trimPath/clone/gradient/textAlongPath/isCombinedShape). JSON-only — the
+        // Pre-rendered SVG export materialises these in the Editor. See "Player
+        // effects" section below.
         effects?: {
-            transformation?:  { translate?, rotate?, scale?, skew?, origin?: any };
+            transformation?:  { translate?, rotate?, scale?, skew?, origin?: any };  // each part may be animated
             repeater?:        { copies?, translate?, rotate?, scale?, origin?: any };
             maskedBy?:        { href?: string, maskType?, maskUnits?, maskContentUnits?: string };
-            trimPath?:        { offset?: number, range?: [number, number] };
-            retime?:          { baseId?: string, start?, stretch?: number, timeCrop?: [number, number] };
-            ref?:             { baseId?: string, type?: 'content' };
+            trimPath?:        { offset?, range?: any, trimAllAsOne?: boolean };       // offset/range animatable
+            clone?:           { type?: 'content', baseId?: string, retime?: { start?, stretch?: number, timeCrop?: [number, number] } };
+            fillGradient?:    { type: 'linear'|'radial', p1?, p2?, c?, r?, fp?, stops?, gradientUnits?, spreadMethod?, gradientTransform? };
+            strokeGradient?:  { /* same shape as fillGradient */ };
+            textAlongPath?:   { href: string, lengthAdjust?, method?, spacing?, startOffset?, textLength? };
             isCombinedShape?: boolean;
         };
         meta?: any;         // editor-only (label, shape, …); not rendered, ignored by player
@@ -555,11 +558,12 @@ of time, so the exported SVG already contains the expanded structure —
 | Effect | Payload | What it does |
 |---|---|---|
 | `transformation` | `{ translate?:[x,y], rotate?:deg, scale?:[x,y], skew?:[x,y], origin?:[x,y] }` (each may be animated) | Wraps the element in transform `<g>`s; lets you keep `origin` semantics that the body `transform` string can't express. |
-| `repeater` | `{ copies:N, translate?:[x,y], rotate?:deg, scale?:[%, %], origin?:[x,y] }` | Renders `N-1` extra `<use>` copies of this element, each at incremental offset (static only). |
+| `repeater` | `{ copies:N, translate?:[x,y], rotate?:deg, scale?:[%, %], origin?:[x,y] }` | Renders `N-1` extra `<use>` copies of this element, each at incremental offset (per-copy params static; the base element can still animate). |
 | `maskedBy` | `{ href:"#id", maskType?, maskUnits?, maskContentUnits? }` | Builds a `<mask>` from the referenced element and applies it to this one. |
-| `trimPath` | `{ offset?, range?:[a,b] }` | Trims the visible stroke segment along a path. |
-| `retime` | `{ baseId:"id", start?:ms, stretch?:1.0, timeCrop?:[a,b] }` | `<use>`-only: re-times the referenced symbol's internal timeline. |
-| `ref` | `{ baseId:"id", type:"content" }` | `<use>`-only "no-ref-translate": targets the source element's content sub-anchor so the outer translate of the source isn't re-applied. |
+| `trimPath` | `{ offset?, range?:[a,b], trimAllAsOne? }` (`offset`/`range` animatable) | Trims the visible stroke segment along a path. `trimAllAsOne:true` chains all descendant subpaths into one virtual path so the window slides across siblings. |
+| `clone` | `{ type?:"content", baseId:"id", retime?:{ start?:ms, stretch?:1.0, timeCrop?:[a,b] } }` | `<use>`-only. A `<use>` is a clone of something: `baseId` = the source element id (says WHAT it clones), nested `retime` = optional time-shift of the source's internal timeline (says WHEN). `type:"content"` is a "no-ref-translate" content link — targets the source's content sub-anchor so the source's own outer translate isn't re-applied; `type` absent = direct whole-element link (keeps translate). Replaces the former separate `ref` + `retime` effects. |
+| `fillGradient` / `strokeGradient` | `{ type:"linear"\|"radial", p1?,p2? (linear) \| c?,r?,fp? (radial), stops?, gradientUnits?, spreadMethod?, gradientTransform? }` | Mints a `<linearGradient>`/`<radialGradient>` def and points the host's `fill`/`stroke` at it. `stops` is one timeline — static array, or `{keyframes}` whose each kf `value` is the full stops array snapshot. Geometry is static. |
+| `textAlongPath` | `{ href:"#pathId", lengthAdjust?, method?, spacing?, startOffset?, textLength? }` | On a `<text>` host: wraps its children in a `<textPath>` along the referenced path. `startOffset`/`textLength` accept the full animatable shape. |
 | `isCombinedShape` | `true` | Flag for the wrapping `<g>` of a multi-`<path>` trim — tells the Player the children form one logical shape. |
 
 **Example — composite transformation + repeater:**
@@ -600,7 +604,7 @@ of time, so the exported SVG already contains the expanded structure —
   effects: { maskedBy: { href: '#_px_mask', maskType: 'alpha' } } }
 ```
 
-**`<use>` + `retime`** — re-time a referenced `<symbol>` independently of the document timeline:
+**`<use>` + `clone` (retime)** — clone a referenced `<symbol>` and re-time its internal timeline independently of the document timeline:
 
 ```js
 { type: 'defs', children: [{ type: 'symbol', id: '_px_sym', viewBox: '0 0 100 100',
@@ -609,18 +613,43 @@ of time, so the exported SVG already contains the expanded structure —
     }]
   }] },
 { type: 'use', id: '_px_u1', href: '#_px_sym', x: 0,   y: 0,
-  effects: { retime: { baseId: '_px_sym', start: 0,   stretch: 1 } } },
+  effects: { clone: { baseId: '_px_sym', retime: { start: 0,   stretch: 1 } } } },
 { type: 'use', id: '_px_u2', href: '#_px_sym', x: 120, y: 0,
-  effects: { retime: { baseId: '_px_sym', start: 500, stretch: 2 } } }
+  effects: { clone: { baseId: '_px_sym', retime: { start: 500, stretch: 2 } } } }
 ```
 
-**`<use>` + `ref` (noRefTranslate)** — reference the source's content sub-anchor so the outer translate isn't re-applied; useful when you want to share geometry but not position:
+**`<use>` + `clone` (content link / noRefTranslate)** — `type:'content'` references the source's content sub-anchor so the source's outer translate isn't re-applied; useful when you want to share geometry but not position:
 
 ```js
 { type: 'rect', id: '_px_src', x: 0, y: 0, width: 50, height: 50, fill: '#a855f7',
   transform: 'translate(100,100)' },
 { type: 'use', id: '_px_u', href: '#_px_src',
-  effects: { ref: { baseId: '_px_src', type: 'content' } } }
+  effects: { clone: { baseId: '_px_src', type: 'content' } } }
+```
+
+**Gradient paint (`fillGradient` / `strokeGradient`)** — animate the stop colours of a minted gradient (one timeline; each kf `value` is the full stops array):
+
+```js
+{ type: 'rect', id: '_px_g', x: 0, y: 0, width: 200, height: 120,
+  effects: { fillGradient: {
+    type: 'linear', p1: [0, 0], p2: [200, 0],
+    stops: { keyframes: [
+      { time: 0,    value: [{ offset: 0, color: '#3b82f6' }, { offset: 1, color: '#ec4899' }] },
+      { time: 1000, value: [{ offset: 0, color: '#10b981' }, { offset: 1, color: '#f59e0b' }] },
+    ] },
+  } } }
+```
+
+**Text on path (`textAlongPath`)** — lay a `<text>` along a referenced path and animate the start offset:
+
+```js
+{ type: 'defs', children: [{ type: 'path', id: '_px_curve', d: 'M20,100 Q150,20 280,100' }] },
+{ type: 'text', id: '_px_t', fill: '#111', 'font-size': 18,
+  effects: { textAlongPath: {
+    href: '#_px_curve',
+    startOffset: { keyframes: [{ time: 0, value: 0 }, { time: 2000, value: 260 }] },
+  } },
+  children: [{ type: 'tspan', text: 'animated text on a path' }] }
 ```
 
 **`trimPath`** — animate a draw-on effect; the wrapping `<g>` carries `isCombinedShape:true` when the children form one logical shape:

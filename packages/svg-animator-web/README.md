@@ -102,3 +102,30 @@ createAnimator(doc, undefined, {
 }, '#container');
 ```
 
+### Engine modes
+
+`animator.mode` selects the playback engine:
+
+- `'auto'` (default) — try the Web Animations API, fall back to `requestAnimationFrame`.
+- `'webapi'` — Web Animations API only.
+- `'frames'` — `requestAnimationFrame` only; honours `animator.frameRate`. Required for path morphing.
+
+### Document format & effects
+
+The `doc` passed to `createAnimator` is a `PxAnimatedSvgDocument` (`type: 'svg'`), the
+same shape as the JSON export. It comes in two modes:
+
+- **Mode A** — has `children`: the player renders the SVG tree and animates it.
+- **Mode B** — no `children`: the player animates a pre-existing SVG DOM, mapping
+  element ids to animation specs via `animator.animate`.
+
+Elements may also carry a `node.effects` bucket (structural effects such as
+`transformation`, `repeater`, `maskedBy`, `trimPath`, `clone`, `fillGradient` /
+`strokeGradient`, `textAlongPath`). This player materialises and removes them at
+runtime before any other normalisation.
+
+See the [file-format reference](../../README.md#file-formats) and the
+[Player effects](../../README.md#player-effects-nodeeffects) section in the root
+README for the full schema and examples. The wire types live in
+[`PxAnimatorTypes.ts`](src/PxAnimatorTypes.ts).
+
