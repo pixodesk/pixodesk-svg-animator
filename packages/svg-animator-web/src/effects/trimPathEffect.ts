@@ -12,29 +12,25 @@ import type { ApplyContext } from './types';
 
 
 /**
- * Mirrors the Editor's `TSvgTrimPathEffect.applyEffect` (see
- * `app/src/svgeditor/model/elements/shape/trimpath/TSvgTrimPathEffect.tsx`):
- * collects every descendant shape leaf, slices each leaf's `d` into
- * sub-paths, measures each in px, and converts the parametric `offset` +
- * `range` to per-sub-path `stroke-dasharray` / `stroke-dashoffset` (and
+ * Applies a `trimPath` effect: collects every descendant shape leaf, slices each
+ * leaf's `d` into sub-paths, measures each in px, and converts the parametric
+ * `offset` + `range` to per-sub-path `stroke-dasharray` / `stroke-dashoffset` (and
  * `opacity` for empty-range hide).
  *
  *   - `trimAllAsOne` chains every sub-path's length end-to-end so the
- *     window slides across siblings (a flag of TRUE keeps a single trim
- *     window — see the editor's `getShapeEls` / chained `totalLength`).
+ *     window slides across siblings (a flag of TRUE keeps a single trim window,
+ *     chaining the sub-paths' `totalLength`).
  *   - Animated `offset` becomes `animate.strokeDashoffset.keyframes`;
  *     animated `range` becomes `animate.strokeDasharray.keyframes`.
- *   - The dasharray emits the same repeated pattern as the editor's
- *     `getTrimPathToDasharrayFn` so any dashoffset shift lands on a valid
- *     dash segment.
+ *   - The dasharray emits a repeated pattern so any dashoffset shift lands on a
+ *     valid dash segment.
  *   - Empty-range moments are hidden with `stroke-opacity` 0 (STROKE only — the
- *     fill stays visible, matching the editor's `trimOpacity` → `stroke-opacity`).
+ *     fill stays visible).
  *
  * COLLAPSE: when the trim host is itself a single shape leaf with exactly ONE
  * sub-path, the trim materialises directly onto that leaf's own `<path>` (no
- * `<g>` split) — mirroring the editor's
- * `TSvgShapeElement.collapsibleSingleSubpathTrimPart`. Multi-subpath (or
- * group/descendant) trims still expand to `<g>` + one bare `<path>` per sub-path.
+ * `<g>` split). Multi-subpath (or group/descendant) trims still expand to
+ * `<g>` + one bare `<path>` per sub-path.
  */
 export function applyTrimPathEffect(
     node: PxNode,
@@ -70,12 +66,10 @@ export function applyTrimPathEffect(
 
     // Pass 1b — assign chain offsets.
     // `trimAllAsOne=true`: walk leaves in REVERSE doc order so the chain
-    // starts at the visually-topmost leaf (the editor's convention — see
-    // `TSvgTrimPathEffect.applyEffect` which iterates `els.reverse()`). Within
-    // each leaf, subpaths keep their `d`-attribute order. This matches the
-    // editor's dashoffsets exactly — without the reverse, a multi-leaf group
-    // emits the leaves' dashoffsets SWAPPED, which renders the visible trim
-    // window on the wrong subpath.
+    // starts at the visually-topmost leaf. Within each leaf, subpaths keep their
+    // `d`-attribute order — without the reverse, a multi-leaf group emits the
+    // leaves' dashoffsets SWAPPED, which renders the visible trim window on the
+    // wrong subpath.
     // `trimAllAsOne=false`: each subpath gets its own independent chain
     // (offset 0), so the leaf iteration order doesn't matter.
     let acc = 0;
@@ -92,10 +86,9 @@ export function applyTrimPathEffect(
     if (trimAllAsOne && chainLengthPx < 0.001) return node;
 
     // Offset / range readers. Range is post-processed for cross-overs so the
-    // dasharray emitter never sees `range[0] > range[1]` (matches editor's
-    // `getFixedRangeForCss`).
+    // dasharray emitter never sees `range[0] > range[1]`.
     //
-    // Editor defaults: `offset = 0` and `range = [0, 1]`. Treating absent
+    // Defaults: `offset = 0` and `range = [0, 1]`. Treating absent
     // inputs as those statics (rather than skipping the emit) keeps the
     // `+ SMALL_PADDING_PX` shift active — that 1-px buffer is what stops
     // `stroke-linecap="round"` from painting a round dot at the zero-length
@@ -117,8 +110,7 @@ export function applyTrimPathEffect(
 
     // COLLAPSE: the trim host is a single shape leaf with exactly one sub-path
     // → no `<g>` split. The trim stroke attrs go directly on the leaf's own
-    // `<path>` (its `fill` / `stroke` / `transform` / `id` stay put). Mirrors the
-    // editor's `TSvgShapeElement.collapsibleSingleSubpathTrimPart`.
+    // `<path>` (its `fill` / `stroke` / `transform` / `id` stay put).
     if (leafEntries.length === 1 && leafEntries[0].leaf === node && leafEntries[0].subpaths.length === 1) {
         const entry = leafEntries[0];
         const sp = entry.subpaths[0];
@@ -212,7 +204,7 @@ function buildSubpathNodes(
 
 /** Collapsed single-subpath form: the trim host stays a single `<path>` (its own
  *  `fill` / `stroke` / `transform` / `id` preserved); the trim stroke attrs are
- *  applied directly. Mirrors the editor's collapsed `<path>` output. */
+ *  applied directly. */
 function collapseLeafWithTrim(
     leaf: PxNode,
     pathLengthPx: number,
@@ -234,20 +226,19 @@ function collapseLeafWithTrim(
 
 /** Fresh `<path>` carrying only the sub-path geometry. Presentation attrs
  *  (`fill`, `stroke`, `stroke-width`, `transform`, `id`, …) stay on the wrapper
- *  `<g>` and are inherited — matches the editor's `renderCompositePathIfHasTrim`
- *  which emits bare `<path>`s under a single attrs-bearing `<g>`. */
+ *  `<g>` and are inherited — bare `<path>`s under a single attrs-bearing `<g>`. */
 function makeBareSubpath(dStr: string): PxNode {
     return { type: 'path', d: dStr };
 }
 
 
 // ============================================================================
-// Math (mirrors the editor's TSvgTrimPathEffect helpers exactly)
+// Math
 // ============================================================================
 
 const SMALL_PADDING_PX = 1;
 
-/** Editor's `getFromTrimToDashOffsetFn` — produces a px dashoffset. */
+/** Produces a px dashoffset from a parametric offset. */
 function makeOffsetToDashOffset(
     startOffsetPct: number,
     pathLengthPx: number,
@@ -257,8 +248,8 @@ function makeOffsetToDashOffset(
     return offsetVal => pathLengthPx * (-offsetVal - minIdx + startOffsetPct) + SMALL_PADDING_PX;
 }
 
-/** Editor's `getTrimPathToDasharrayFn` — produces a px dash pattern of the
- *  form `[0, gap, dash, gap, dash, ..., gap]` repeated so the offset can wrap. */
+/** Produces a px dash pattern of the form `[0, gap, dash, gap, dash, ..., gap]`
+ *  repeated so the offset can wrap. */
 function makeRangeToDasharray(
     pathLengthPx: number,
     minMaxOffset: [number, number],
@@ -282,7 +273,7 @@ function makeRangeToDasharray(
     };
 }
 
-/** Editor's `getMinMaxOffsetIndex`. */
+/** Floor/ceil of the negated min/max offset → integer dash-repeat index range. */
 function getOffsetIndexRange(minMaxOffset: [number, number]): [number, number] {
     return [
         Math.floor(Math.min(-minMaxOffset[0], -minMaxOffset[1])),
@@ -351,11 +342,11 @@ function applyAttr<T>(node: PxNode, attrName: string, attr: AnimAttrResult<T>): 
     }
 }
 
-/** Width (ms) of the opacity transition emitted at each hide↔show boundary.
- *  Matches the editor's "+1 SVGA frame" (= 10 ms at the 100 fps SVGA grid). */
+/** Width (ms) of the opacity transition emitted at each hide↔show boundary
+ *  (one SVGA frame = 10 ms at the 100 fps SVGA grid). */
 const OPACITY_STEP_MS = 10;
 
-/** Editor's empty-range opacity (`shouldHide(startEnd) = startEnd[0] === startEnd[1]`).
+/** Empty-range opacity (hide when `startEnd[0] === startEnd[1]`).
  *  Static: single 0 if hide always; undefined otherwise.
  *  Animated: step-jump kfs at each hide↔show transition (~one SVGA frame
  *  wide so the renderer doesn't briefly show the stroke between an empty
@@ -376,8 +367,8 @@ function computeOpacityFromRange(rangeRead: ReadPart<Vec2>): AnimAttrResult<numb
     if (!anyHide) return undefined;
     if (allHide) return { kind: ReadKind.Static, value: 0 };
 
-    // Matches the editor's prev/next-aware emitter — only inserts kfs at the
-    // transitions to keep the wire compact.
+    // Prev/next-aware emitter — only inserts kfs at the transitions to keep the
+    // wire compact.
     const out: Array<PxKeyframe> = [];
     for (let i = 0; i < kfs.length; i++) {
         const kf = kfs[i];
@@ -402,7 +393,7 @@ function computeOpacityFromRange(rangeRead: ReadPart<Vec2>): AnimAttrResult<numb
 
 
 // ============================================================================
-// Range cross-over (editor's `getFixedRangeForCss`)
+// Range cross-over
 // ============================================================================
 
 interface SimpleKf { time: number; value: Vec2; easing?: any; }
@@ -535,9 +526,8 @@ function segmentLength(path: PxBezierPath, from: number, to: number): number {
 }
 
 /** `<rect>` -> outline path `d`. Emits the explicit closing-line vertex
- *  (`L x0,y0`) before `z` so the resulting string matches the editor's
- *  `SimpleBezierPath.writeToSvg` output (which always adds the closing segment
- *  unless `start===end`). Returns undefined for unsupported types. */
+ *  (`L x0,y0`) before `z` (the closing segment is always added unless
+ *  `start===end`). Returns undefined for unsupported types. */
 function rectToPathD(node: PxNode): string | undefined {
     if (node.type !== 'rect') return undefined;
     const x = Number(node.x ?? 0), y = Number(node.y ?? 0);

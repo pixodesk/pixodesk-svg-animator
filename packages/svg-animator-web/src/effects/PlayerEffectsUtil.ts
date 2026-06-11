@@ -49,7 +49,7 @@ export type { ApplyResult } from './types';
  * Pre-pass identifies every element that is the target of a `<use>` with
  * `ref:{type:'content'}` and allocates a fresh "inner" id for it; pass 1 then
  * splits those sources into outer-translate + inner-content layers so the use
- * can target the inner layer (mirrors the editor's heavy materialisation).
+ * can target the inner layer.
  */
 export function applyPlayerEffects(root: PxNode): ApplyResult {
     const ctx: ApplyContext = {

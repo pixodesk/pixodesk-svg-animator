@@ -5,10 +5,9 @@
 
 
 /**
- * REF + TRANSFORMATION (combined) — mirrors the editor's
- * `SvgTransformElementEffectRenderer.renderElementWrapper`. The use's `href`
- * is set BEFORE `applyTransformationEffect` wraps the node so it lands on the
- * actual `<use>` rather than on an outer `<g>` wrapper.
+ * REF + TRANSFORMATION (combined). The use's `href` is set BEFORE
+ * `applyTransformationEffect` wraps the node so it lands on the actual `<use>`
+ * rather than on an outer `<g>` wrapper.
  *
  * For `ref:{type:'content'}` the source is materialised as multi-layer by
  * `splitForContentRef` (see `contentRefSplit.ts`), and the use's `href` is

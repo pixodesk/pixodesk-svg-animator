@@ -18,9 +18,8 @@ import { genId } from './util';
  * `url(#auto-id)`. Same shape used for both fill and stroke — the only
  * difference is which host attribute is rewritten.
  *
- * The editor's `TSvgColorAttr` stores a gradient as one animatable stop
- * timeline + static geometry. The wire shape mirrors that 1:1 (see
- * `_PxFillGradientEffect`). When materialising:
+ * The wire shape is a gradient as one animatable stop timeline + static geometry
+ * (see `_PxFillGradientEffect`). When materialising:
  *   - geometry parts (`p1`, `p2`, `c`, `r`, `fp`) become static body attrs
  *     on the gradient def;
  *   - the stops array is either static (each `<stop>` is bare) or animated
@@ -28,10 +27,8 @@ import { genId } from './util';
  *     single source timeline by SLICING each kf's full snapshot at this
  *     stop's index).
  *
- * The per-stop slicing matches the legacy `<linearGradient>` + `<stop>`
- * wire format that `SvgGradientElements.readGradientColor` reads on the
- * editor side, so the materialised tree round-trips through the editor's
- * existing reader.
+ * The per-stop slicing produces the standard `<linearGradient>` + `<stop>`
+ * def chain, so the materialised tree round-trips through the usual reader.
  */
 export function applyFillGradientEffect(node: PxNode, fx: PxFillGradientEffect | undefined, ctx: ApplyContext): PxNode {
     return applyGradient(node, fx, ctx, 'fill');
@@ -84,8 +81,7 @@ function synthesiseGradientDef(fx: PxFillGradientEffect, id: string, ctx: ApplyC
  *  (`stops: {keyframes:[{time, value:[stops], easing?}]}`). For the
  *  animated form, each emitted `<stop>` gets `animate.stopColor.keyframes`
  *  whose values are sliced out of the source timeline at this stop's
- *  index — that's the legacy wire shape the editor's `SvgGradientElements`
- *  reader already understands. */
+ *  index — the standard `<stop>` def chain. */
 function buildStopChildren(stops: PxAnimatable<Array<PxGradientStop>> | undefined, ctx: ApplyContext): Array<PxNode> {
     if (!stops) return [];
 

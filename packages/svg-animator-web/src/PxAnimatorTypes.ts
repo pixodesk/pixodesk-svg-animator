@@ -872,8 +872,8 @@ const _ck_PxMaskedByEffect: KeysMatch<PxMaskedByEffect, _PxMaskedByEffect> = tru
  * Trim-path effect. `range[0..1]` is the visible fraction of the stroke; `offset`
  * shifts the visible window along the path (also a fraction). Both are animatable.
  * `trimAllAsOne=true` chains all descendant subpath lengths into one virtual path
- * (the editor's "Trim All As One"): the trim window slides across siblings instead
- * of being applied to each subpath independently — see `effects/trimPathEffect.ts`.
+ * ("Trim All As One"): the trim window slides across siblings instead of being
+ * applied to each subpath independently — see `effects/trimPathEffect.ts`.
  */
 export interface _PxTrimPathEffect {
     offset?: PxAnimatable<number>;
@@ -934,17 +934,15 @@ const _ck_PxCloneEffect: KeysMatch<PxCloneEffect, _PxCloneEffect> = true;
 //
 // Materialiser pattern mirrors `maskedByEffect`: at apply time the gradient
 // effect mints a `<linearGradient>` / `<radialGradient>` def into `ctx.defs`,
-// then sets the host element's `fill` / `stroke` to `url(#auto-id)`. The
-// editor model's gradient (`TSvgColorAttr` with `TColors` keyframe group)
-// maps 1:1 to this shape — geometry as static parts, the stop sequence
-// either static (bare array) or animated (a single `{keyframes}` block whose
-// each kf's `value` is the FULL `Array<{offset, color}>` snapshot at that
-// time). Per-stop independent timelines are intentionally NOT modelled —
-// editor's source-of-truth is a single `TColors` kfGroup.
+// then sets the host element's `fill` / `stroke` to `url(#auto-id)`. The wire
+// gradient is geometry as static parts + a stop sequence that is either static
+// (bare array) or animated (a single `{keyframes}` block whose each kf's `value`
+// is the FULL `Array<{offset, color}>` snapshot at that time). Per-stop
+// independent timelines are intentionally NOT modelled — the source is a single
+// stop-colour keyframe group.
 //
-// Stop count is constant across kfs (constraint matches `TColors.colorCount`).
-// `gradientTransform` is captured as static only (editor allows animated
-// transform but it's vanishingly rare).
+// Stop count is constant across kfs. `gradientTransform` is captured as static
+// only (animated transform is vanishingly rare).
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Loose enums for `gradientUnits` / `spreadMethod` — kept on the wire as

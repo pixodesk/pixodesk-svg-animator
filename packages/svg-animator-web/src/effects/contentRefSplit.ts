@@ -5,12 +5,11 @@
 
 
 /**
- * CONTENT-REF SOURCE SPLIT — mirrors the editor's
- * `SvgTransformElementEffectRenderer.renderElementWrapper` (hasContentRef branch).
+ * CONTENT-REF SOURCE SPLIT.
  *
  * When a `<use>` references another element with `ref:{type:'content'}` it wants
  * to render the source EXCLUDING the source's own translate (and along-path
- * positioning for auto-orient). The editor achieves this by materialising the
+ * positioning for auto-orient). The heavy form achieves this by materialising the
  * source as a wrapper tree
  *
  *     <g translate>            ← outer, holds translate (+ along-path/origin for autoOrient)
@@ -36,8 +35,7 @@
  * Auto-orient / motion-path: when the translate animation carries tangent
  * handles (`tangentOut`/`tangentIn`) or `autoOrient`, the path tangent produces
  * a rotation at the OUTER level — so the origin moves to the outer too, so the
- * tangent rotation pivots around it (matches editor's `[+o, t_path_ao, -o]`
- * branch).
+ * tangent rotation pivots around it (the `[+o, t_path_ao, -o]` branch).
  *
  * "Always-split" simplicity: even when a layer would be empty (e.g. source has
  * no rotate/scale), the inner wrapper is still emitted as an identity `<g>`.
@@ -177,8 +175,8 @@ function liftBodyTranslate(node: PxNode, transformation: PxTransformationEffect 
                 if (v.rotate !== undefined) newValue.rotate = v.rotate;
                 if (v.scale !== undefined) newValue.scale = v.scale;
                 // Origin lives on inner kfs whenever rotate/scale need a pivot —
-                // matches the editor's separate origin sandwich at the inner layer
-                // (even when origin is also on outer for the auto-orient sandwich).
+                // a separate origin sandwich at the inner layer (even when origin
+                // is also on outer for the auto-orient sandwich).
                 if (v.origin !== undefined && (!outerHasOrigin || innerHasPivotedPart)) newValue.origin = v.origin;
                 // Inner kf intentionally drops tangentOut/tangentIn (translate-only).
                 const innerKf: any = { value: newValue };
@@ -377,8 +375,8 @@ function splitTransformationEffect(fx: PxTransformationEffect | undefined): {
     if (fx.scale !== undefined) inner.scale = fx.scale;
     if (fx.skew !== undefined) inner.skew = fx.skew;
     // Origin also lives on inner whenever rotate/scale need a pivot — duplicate
-    // origin across outer + inner is fine, matches editor's two separate origin
-    // sandwiches ([+o, t, -o] outer + [+o, r, s, -o] inner).
+    // origin across outer + inner is fine: two separate origin sandwiches
+    // ([+o, t, -o] outer + [+o, r, s, -o] inner).
     if (fx.origin !== undefined && (!originOnOuter || innerHasPivotedPart)) inner.origin = fx.origin;
 
     return {

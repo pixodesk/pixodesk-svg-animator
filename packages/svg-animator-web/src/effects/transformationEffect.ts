@@ -12,7 +12,7 @@ import type { ApplyContext } from './types';
 /**
  * TRANSFORMATION → one `<g>` wrapper per part (translate/rotate/scale/skew),
  * with origin emitted as SEPARATE `+origin` / `-origin` wrappers flanking the
- * rotate/scale pair (matches editor's `SvgTransformElementEffectRenderer`).
+ * rotate/scale pair.
  *
  * Per-wrapper kfs:
  *  - each wrapper carries ONE animatable quantity, so animated origin / rotate /
@@ -26,8 +26,7 @@ import type { ApplyContext } from './types';
  *     translate → +origin → rotate → scale → -origin → skew → element
  *
  * Composition: `M = translate(t) · +origin(t) · rotate(t) · scale(t) · -origin(t) · skew`
- * — equivalent to the editor's `getTransform` / `matrixFromParts` convention
- * (skew is appended innermost; editor doesn't compose skew here either).
+ * (skew is appended innermost and not composed here).
  */
 export function applyTransformationEffect(node: PxNode, fx: PxTransformationEffect | undefined, ctx: ApplyContext): PxNode {
     if (!fx) return node;
@@ -48,8 +47,8 @@ export function applyTransformationEffect(node: PxNode, fx: PxTransformationEffe
 
     if (translateHasAutoOrient(fx.translate)) {
         // Sandwich translate with its own +o/-o so the motion-path tangent
-        // rotation built into the translate wrapper pivots around origin —
-        // matches editor's `[+o, t_path_ao, -o]` branch.
+        // rotation built into the translate wrapper pivots around origin
+        // (the `[+o, t_path_ao, -o]` branch).
         n = wrapOrigin(n, fx.origin, /*invert=*/true);                   // -origin (translate sandwich)
         n = wrapTransformPart(n, TransformPart.Translate, fx.translate, ctx);
         n = wrapOrigin(n, fx.origin, /*invert=*/false);                  // +origin (translate sandwich)
@@ -69,10 +68,10 @@ function translateHasAutoOrient(translate: PxAnimatable<Vec2> | undefined): bool
 }
 
 /**
- * The writer's `effects.transformation.scale` emits **editor units** (150 = 150%)
+ * The wire `effects.transformation.scale` emits **percent units** (150 = 150%)
  * for the bare-array static form, but emits **1.0-units** (1.5 = 150%) inside
- * `{keyframes: [...]}` (matching the body `transform` baseline and the walker's
- * `matrixFromParts`). The bare-array form is the one we have to convert.
+ * `{keyframes: [...]}` (matching the body `transform` baseline). The bare-array
+ * form is the one we have to convert.
  */
 function normalizeScale(raw: PxAnimatable<Vec2> | undefined): PxAnimatable<Vec2> | undefined {
     if (raw === undefined) return undefined;

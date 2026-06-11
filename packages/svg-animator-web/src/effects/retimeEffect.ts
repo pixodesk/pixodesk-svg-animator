@@ -18,12 +18,12 @@
  *      nested-retime hop (`concatRetime(child, parent)`);
  *   3. wire the chain root into the `<use>` site — see RETIME_MATERIALISATION_MODE.
  *
- * Mirrors the editor's `RetimeRenderer.renderRetime`: each chain link becomes
- * its own defs entry with the right accumulated retime applied to ITS OWN kfs,
- * and the link's `href` rewritten to point at the next-level materialisation.
+ * Each chain link becomes its own defs entry with the right accumulated retime
+ * applied to ITS OWN kfs, and the link's `href` rewritten to point at the
+ * next-level materialisation.
  *
  * NB: `clone.baseId` is intentionally IGNORED by retime — it carries an
- * editor-side core id that does not exist in the lightweight tree; retime
+ * upstream core id that does not exist in the lightweight tree; retime
  * follows `href`.
  */
 
@@ -165,9 +165,9 @@ function buildChainClone(targetId: string, accum: Retime, ctx: ApplyContext, cha
         // `<use>` children that themselves carry retime — the nested content-ref
         // case `use → <g> → use(retime) → …`. Those uses aren't in the pass-2
         // site list (they only exist inside this fresh clone), so materialise
-        // them here, composing their retime with `accum`. Mirrors the editor's
-        // `RetimeRenderer` recursion into children. Without this the inner use's
-        // retime stays dangling and the subtree renders un-shifted.
+        // them here, composing their retime with `accum` (recurse into children).
+        // Without this the inner use's retime stays dangling and the subtree
+        // renders un-shifted.
         materialiseNestedRetimeUses(cloneNode, accum, ctx, chain, targetId);
     }
 

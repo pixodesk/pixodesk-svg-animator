@@ -554,7 +554,7 @@ export function clamp(value: number, min: number, max: number): number {
 //   - Points are `[x, y]` tuples (`Point2`) — matches the wire format.
 //   - A cubic segment is `(P0, P1, P2, P3)` where `P0` and `P3` are the
 //     endpoints and `P1`, `P2` are the control points in ABSOLUTE coordinates.
-//   - Editor's tangent storage convention (Lottie-style) is `kf.to` =
+//   - The Lottie-style tangent storage convention is `kf.to` =
 //     outgoing-from-kf-as-a-delta, `kf.ti` = incoming-at-the-next-kf-as-a-delta.
 //     The wire format re-attaches them to the natural endpoints as
 //     `tangentOut` on the FROM keyframe and `tangentIn` on the TO keyframe.
@@ -605,7 +605,7 @@ export function bezier2D_pointAt(
  * endpoint (e.g. `P1 === P0` and `t === 0`, common for the start/end of a
  * Lottie spatial-tangent path), the derivative collapses to zero. The
  * exact-endpoint value is then meaningless; we nudge `t` inward by `1e-4`
- * and retry. This mirrors the editor's `BezierExtra.derivative` workaround.
+ * and retry.
  */
 const BEZIER_T_NUDGE = 1e-4;
 export function bezier2D_derivativeAt(
@@ -654,7 +654,7 @@ function _bezier2D_derivativeAtRaw(
  *
  * Approximation error is roughly `O((1/steps)²)` for smooth curves; the
  * default 100 samples gives <1% error vs analytic arc length on typical
- * motion paths and matches the editor's `BezierExtra.getDLut` step count.
+ * motion paths.
  */
 export interface ArcLengthLUT {
     readonly ts: Float64Array;

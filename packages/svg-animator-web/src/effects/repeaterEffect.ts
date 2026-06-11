@@ -29,8 +29,7 @@ import { clone } from './util';
  *  - Animated parts → emitted as `animate.transform.keyframes` with each kf value
  *    scaled by the rule above (time/easing preserved).
  *
- * Mirrors the editor's `TSvgRepeaterElementEffectAttr.applyToMatrix` — the
- * authoritative formula used to render heavy SVG.
+ * Uses the same per-copy matrix formula as the heavy SVG render.
  */
 export function applyRepeaterEffect(node: PxNode, fx: PxRepeaterEffect | undefined, ctx: ApplyContext): PxNode {
     if (!fx) return node;

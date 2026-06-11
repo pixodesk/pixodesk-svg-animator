@@ -22,14 +22,13 @@ import { genId } from './util';
  * re-applies the mask source's ancestor transforms so the `<use>` ends up
  * at the same world matrix it would have if rendered in place.
  *
- * Mirrors the editor's `TSvgMaskEffectAttr.writeAttrsToMainElementAndRender`
- * (pathToThis + pathToMask) — see `app/.../containers/TSvgMaskEffectAttr.tsx`.
+ * Composes the masked element's own transform with the mask source's, so the
+ * mask renders at the right world matrix.
  *
  * Implementation note — this first cut only composes TRANSLATE parts (static
  * and animated). Rotate / scale on the ancestor chains aren't supported yet
- * and will warn if present. Editor-side `effects.transformation` on the
- * masked element keeps working (passed in as `transformation` and inverted
- * separately).
+ * and will warn if present. `effects.transformation` on the masked element
+ * keeps working (passed in as `transformation` and inverted separately).
  */
 export function applyMaskedByEffect(
     node: PxNode,
@@ -141,9 +140,9 @@ function invertPartValue(part: TransformPart, value: any): any {
  *     <g scale^-1> <g rotate^-1> <g translate^-1> {use} </g></g></g>
  *
  * Each wrapper carries an animated parts record over the input kf times.
- * The `origin` for rotate / scale wrappers comes from each kf (the editor
- * emits it alongside whenever rotate or scale is present), so an animated
- * origin sandwich pivots correctly per frame.
+ * The `origin` for rotate / scale wrappers comes from each kf (the wire emits
+ * it alongside whenever rotate or scale is present), so an animated origin
+ * sandwich pivots correctly per frame.
  */
 function wrapInverseAnimatedBodyTransform(inner: PxNode, node: PxNode, _ctx: ApplyContext): PxNode {
     const animate = node.animate && typeof node.animate === 'object' && !Array.isArray(node.animate)
@@ -218,9 +217,9 @@ function hasAnimateTransform(node: PxNode): boolean {
  *  ANIMATED body transforms (`node.animate.transform.keyframes`) aren't
  *  supported yet — they'd require splitting a parts-record keyframe stream
  *  into per-part animations to feed into `wrapInversePart`. Falls back with a
- *  warning. (In practice the editor's writer emits `effects.transformation`
- *  whenever the masked element is animated, so this caller path is reached
- *  only for static cases anyway.) */
+ *  warning. (In practice the writer emits `effects.transformation` whenever the
+ *  masked element is animated, so this caller path is reached only for static
+ *  cases anyway.) */
 function readTransformationFromBody(node: PxNode): PxTransformationEffect | undefined {
     if (typeof node.transform === 'string') {
         const parts = parseTransformStringToParts(node.transform);
@@ -238,8 +237,7 @@ function readTransformationFromBody(node: PxNode): PxTransformationEffect | unde
     return undefined;
 }
 
-/** Parses the editor's canonical body-transform string — the exact form
- *  emitted by `composeTransformParts`:
+/** Parses the canonical body-transform string of the form
  *      `translate(t)? translate(o)? rotate? scale? translate(-o)?`
  *  — back into a `PxTransformParts`-style record. The origin sandwich
  *  (`translate(o) … translate(-o)`) is recovered as `origin: o`; the leading
@@ -293,8 +291,8 @@ function parseTransformStringToParts(s: string): { translate?: Vec2; rotate?: nu
     }
 
     // No sandwich — flat sequence. `translate`s sum, `rotate`s sum, `scale`s
-    // multiply. Order isn't preserved but it works for the cases the editor
-    // emits without origin (translates commute; only one rotate or scale).
+    // multiply. Order isn't preserved but it works for the cases emitted without
+    // origin (translates commute; only one rotate or scale).
     let translate: Vec2 | undefined;
     let rotate: number | undefined;
     let scale: Vec2 | undefined;
