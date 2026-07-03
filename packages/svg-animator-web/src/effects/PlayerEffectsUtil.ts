@@ -26,7 +26,7 @@ import { applyRefAndTransformationEffect, applyRefHref } from './refEffect';
 import { applyRepeaterEffect } from './repeaterEffect';
 import { applyAllRetimeEffects } from './retimeEffect';
 import { applyTextAlongPathEffect } from './textAlongPathEffect';
-import { applyTextGlyphsEffect } from './textGlyphsEffect';
+import { applyTextGlyphsAlongPath, applyTextGlyphsEffect } from './textGlyphsEffect';
 import { applyTrimPathEffect } from './trimPathEffect';
 import { getAnimatorConfig, getDefs, PxAnimatorEngine, PxAnimatorMode } from '../PxAnimatorTypes';
 import type { PxNode } from '../PxAnimatorTypes';
@@ -106,17 +106,24 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
 
     let n = node;
     // Glyph text: replace the <text>/<tspan> subtree with baked <path> outlines
-    // BEFORE any wrapper. Only the plain (horizontal) case here — along-path
-    // glyphs are a later step, so leave text-on-path as native <text> for now.
-    if (text?.useGlyphs && !textAlongPath) {
-        n = applyTextGlyphsEffect(n, text, ctx);
-    } else if (text?.useGlyphs && textAlongPath) {
-        ctx.warnings.push('textGlyphs: along-path glyphs not supported yet — rendering native text');
+    // BEFORE any wrapper. Along-path glyphs place+rotate each glyph to the
+    // referenced path's tangent; plain glyphs lay out horizontally.
+    let consumedByGlyphs = false;
+    if (text?.useGlyphs) {
+        if (textAlongPath) {
+            const pathNode = typeof textAlongPath.href === 'string' ? ctx.idMap.get(textAlongPath.href) : undefined;
+            const pathD = pathNode && typeof pathNode.d === 'string' ? pathNode.d : undefined;
+            const glyphed = applyTextGlyphsAlongPath(n, ctx, pathD, textAlongPath.startOffset);
+            if (glyphed) { n = glyphed; consumedByGlyphs = true; } // native textAlongPath NOT applied
+        } else {
+            n = applyTextGlyphsEffect(n, text, ctx);
+            consumedByGlyphs = true;
+        }
     }
     // textAlongPath wraps the host's own children in a `<textPath>` — must
     // run BEFORE any structural wrapper (trim/repeater/mask) so the wrapping
-    // happens on the un-cloned content first.
-    n = applyTextAlongPathEffect(n, textAlongPath, ctx);
+    // happens on the un-cloned content first. Skipped when glyphs consumed it.
+    if (!consumedByGlyphs) n = applyTextAlongPathEffect(n, textAlongPath, ctx);
     // Paint-gradient defs are minted FIRST, before any structural wrapper —
     // the gradient effect sits on the innermost element (alongside its `fill`
     // / `stroke` body attrs), so it must materialise before trim/repeater/
@@ -154,3 +161,4 @@ function applyPlayerEffects_retime(node: PxNode, ctx: ApplyContext): PxNode {
     applyAllRetimeEffects(node, ctx);
     return node;
 }
+

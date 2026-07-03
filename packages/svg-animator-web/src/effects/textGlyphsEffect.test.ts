@@ -114,3 +114,137 @@ describe('textGlyphsEffect — <text> → baked <path> outlines', () => {
         expect(warnings.join(' ')).toContain('no definitions.glyphs');
     });
 });
+
+
+describe('textGlyphsEffect — along-path', () => {
+
+    // svg root with a guide <path id=curve> + a glyph text running along it.
+    function alongScene(pathD: string, startOffset?: number, text = 'Hi'): PxNode {
+        const textAlongPath: any = { href: 'curve' };
+        if (startOffset !== undefined) textAlongPath.startOffset = startOffset;
+        return {
+            type: 'svg',
+            animator: { definitions: { glyphs } },
+            children: [
+                { type: 'path', id: 'curve', d: pathD },
+                {
+                    type: 'text', id: 't',
+                    children: [{ type: 'tspan', text, fontFamily: 'F', fontSize: '100px' }],
+                    effects: { text: { useGlyphs: true }, textAlongPath },
+                },
+            ],
+        } as unknown as PxNode;
+    }
+
+    // Glyph paths only (exclude the guide <path id=curve>).
+    const glyphPaths = (root: PxNode) =>
+        ((collectByType(root, 'g').find(n => n.id === 't')?.children) ?? []).filter(n => n.type === 'path');
+
+    // Path sampling goes through trig, so bakes carry sub-precision float dust
+    // ("10.00", "-0.00"): compare the coordinate stream with a tolerance.
+    const dNums = (d: unknown) => (String(d).match(/-?\d*\.?\d+/g) ?? []).map(Number);
+    const expectD = (d: unknown, expected: Array<number>) => {
+        const got = dNums(d);
+        expect(got).toHaveLength(expected.length);
+        expected.forEach((v, i) => expect(got[i]).toBeCloseTo(v, 1));
+    };
+
+    it('on a straight horizontal path reduces to horizontal layout', () => {
+        const { root } = materialiseRaw(alongScene('M0 0L1000 0'));
+        expect(collectByType(root, 'text')).toHaveLength(0);
+        expect(collectByType(root, 'textPath')).toHaveLength(0); // native textPath NOT used
+        const p = glyphPaths(root);
+        expect(p).toHaveLength(1);
+        expectD(p[0].d, [0, 0, 10, 0, 10, -70, /*H*/ 70, 0, 75, 0, 75, -50 /*i*/]);
+    });
+
+    it('applies startOffset as distance along the path', () => {
+        const { root } = materialiseRaw(alongScene('M0 0L1000 0', 100, 'H'));
+        expectD(glyphPaths(root)[0].d, [100, 0, 110, 0, 110, -70]);
+    });
+
+    it('rotates each glyph to the path tangent (90° down)', () => {
+        const { root } = materialiseRaw(alongScene('M0 0L0 1000', undefined, 'H'));
+        const d = glyphPaths(root)[0].d as string;
+        expect(d).not.toBe('M0 0L10 0L10-70Z');   // not the horizontal placement
+        // H rotated 90°: advance (10 wide) now runs down +y; the stem (70 up) → +x.
+        expectD(d, [0, 0, 0, 10, 70, 10]);
+    });
+
+    it('keeps the referenced guide path in the tree', () => {
+        const { root } = materialiseRaw(alongScene('M0 0L1000 0'));
+        expect(collectByType(root, 'path').some(p => p.id === 'curve')).toBe(true);
+    });
+});
+
+
+describe('textGlyphsEffect — along-path animated (sliding startOffset)', () => {
+
+    function animScene(pathD: string, kfs: Array<any>, text = 'H', loop?: unknown): PxNode {
+        const startOffset: any = { keyframes: kfs };
+        if (loop !== undefined) startOffset.loop = loop;
+        return {
+            type: 'svg',
+            animator: { definitions: { glyphs } },
+            children: [
+                { type: 'path', id: 'curve', d: pathD },
+                {
+                    type: 'text', id: 't',
+                    children: [{ type: 'tspan', text, fontFamily: 'F', fontSize: '100px' }],
+                    effects: { text: { useGlyphs: true }, textAlongPath: { href: 'curve', startOffset } },
+                },
+            ],
+        } as unknown as PxNode;
+    }
+
+    const glyphPaths = (root: PxNode) =>
+        ((collectByType(root, 'g').find(n => n.id === 't')?.children) ?? []).filter(n => n.type === 'path');
+
+    it('emits a separate <path> per glyph with sampled translate+rotate keyframes', () => {
+        // H (adv 70, mid 35) slides 0→100 along a straight path over 0→1000ms.
+        const { root } = materialiseRaw(animScene('M0 0L1000 0', [{ time: 0, value: 0 }, { time: 1000, value: 100 }], 'H'));
+        const p = glyphPaths(root);
+        expect(p).toHaveLength(1);
+        // Outline baked centred on mid-advance (scale only, no position/rotation).
+        expect(p[0].d).toBe('M-35 0L-25 0L-25-70Z');
+
+        const kfs = (p[0].animate as any).transform.keyframes;
+        expect(kfs.length).toBeGreaterThan(2); // sub-sampled, not just the 2 endpoints
+        expect(kfs[0].time).toBe(0);
+        expect(kfs[0].value.translate[0]).toBeCloseTo(35, 2);  // mid at dist 0+35
+        expect(kfs[0].value.rotate).toBeCloseTo(0, 3);
+        const last = kfs[kfs.length - 1];
+        expect(last.time).toBe(1000);
+        expect(last.value.translate[0]).toBeCloseTo(135, 2);   // mid at dist 100+35
+    });
+
+    it('gives each glyph its own animated path (no merge)', () => {
+        const { root } = materialiseRaw(animScene('M0 0L1000 0', [{ time: 0, value: 0 }, { time: 1000, value: 100 }], 'Hi'));
+        const p = glyphPaths(root);
+        expect(p).toHaveLength(2);
+        expect((p[0].animate as any).transform.keyframes.length).toBeGreaterThan(1);
+        expect((p[1].animate as any).transform.keyframes.length).toBeGreaterThan(1);
+    });
+
+    it('sub-samples so glyphs follow a curve (intermediate points off the chord)', () => {
+        // Quarter-circle-ish path; a 2-kf straight interp would cut the corner.
+        const { root } = materialiseRaw(animScene('M0 0Q100 0 100 100', [{ time: 0, value: 0 }, { time: 1000, value: 140 }], 'H'));
+        const kfs = (glyphPaths(root)[0].animate as any).transform.keyframes;
+        expect(kfs.length).toBeGreaterThan(3);
+        // rotation changes along the curve (not constant like a straight path)
+        const rots = kfs.map((k: any) => k.value.rotate);
+        expect(Math.max(...rots) - Math.min(...rots)).toBeGreaterThan(10);
+    });
+
+    it('propagates loop to animate.transform', () => {
+        const { root } = materialiseRaw(animScene('M0 0L1000 0', [{ time: 0, value: 0 }, { time: 1000, value: 100 }], 'H', true));
+        expect((glyphPaths(root)[0].animate as any).transform.loop).toBe(true);
+    });
+
+    it('treats a single startOffset keyframe as static (merged, no animation)', () => {
+        const { root } = materialiseRaw(animScene('M0 0L1000 0', [{ time: 0, value: 100 }], 'Hi'));
+        const p = glyphPaths(root);
+        expect(p).toHaveLength(1);               // merged
+        expect(p[0].animate).toBeUndefined();
+    });
+});
