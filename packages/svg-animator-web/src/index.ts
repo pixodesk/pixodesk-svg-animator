@@ -116,6 +116,16 @@ export type { MaterialiseAllOptions } from './PxAnimatorMaterialiseAll';
 
 // Low-level APIs (for advanced usage)
 export { getNormalizedProps, renderNode } from './PxAnimatorDOM';
+
+// Element-creation factory + glyph-text materialiser. The materialiser emits
+// via an injected factory so the SAME layout produces plain wire nodes (effects
+// pipeline), DOM, or the editor's React/px elements — the editor calls
+// `materialiseGlyphText` with its own `createPxElement` for Step 3 (static SVG
+// with baked glyph outlines). See textGlyphsEffect / elementFactory.
+export { jsonElementFactory } from './effects/elementFactory';
+export type { PxCreateElement } from './effects/elementFactory';
+export { materialiseGlyphText, materialiseGlyphTextAlongPath, materialiseGlyphTextHorizontal } from './effects/textGlyphsEffect';
+export type { GlyphMaterialiseOpts } from './effects/textGlyphsEffect';
 export { createBasicFrameLoopAnimator, createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 export type { PxPlatformAdapter } from './PxAnimatorFrameLoop';
 export { createWebApiAnimator } from './PxAnimatorWebApi';

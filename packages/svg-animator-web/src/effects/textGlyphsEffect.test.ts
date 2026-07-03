@@ -14,6 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../PxAnimatorTypes';
 import { collectByType, materialiseRaw } from './effectTestKit';
+import { materialiseGlyphText } from './textGlyphsEffect';
 
 const glyphs = {
     F: {
@@ -246,5 +247,38 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
         const p = glyphPaths(root);
         expect(p).toHaveLength(1);               // merged
         expect(p[0].animate).toBeUndefined();
+    });
+});
+
+
+describe('materialiseGlyphText — injected element factory (editor reuse)', () => {
+
+    // A non-JSON factory standing in for the editor's React/px `createPxElement`.
+    interface Fake { tag: string; attrs: Record<string, any>; kids: Array<Fake>; }
+    const fakeFactory = (tag: string, attrs: Record<string, any>, kids?: any): Fake =>
+        ({ tag, attrs, kids: Array.isArray(kids) ? kids : (kids ? [kids] : []) });
+
+    const textNode = (): PxNode => ({
+        type: 'text', id: 't', transform: 'translate(10,50)',
+        children: [{ type: 'tspan', text: 'Hi', fontFamily: 'F', fontSize: '100px', fill: '#f00' }],
+    } as unknown as PxNode);
+
+    it('builds the group + paths via the caller-supplied factory (not JSON nodes)', () => {
+        const g = materialiseGlyphText<Fake>(textNode(), { glyphs, create: fakeFactory });
+        expect(g).toBeTruthy();
+        expect(g!.tag).toBe('g');
+        expect(g!.attrs.id).toBe('t');
+        expect(g!.attrs.transform).toBe('translate(10,50)');
+        expect(g!.attrs.fontFamily).toBeUndefined(); // text attrs dropped
+        expect(g!.kids).toHaveLength(1);
+        expect(g!.kids[0].tag).toBe('path');
+        expect(g!.kids[0].attrs.d).toBe('M0 0L10 0L10-70ZM70 0L75 0L75-50Z');
+        expect(g!.kids[0].attrs.fill).toBe('#f00');
+    });
+
+    it('defaults to plain wire nodes when no factory is passed', () => {
+        const g = materialiseGlyphText<PxNode>(textNode(), { glyphs });
+        expect(g!.type).toBe('g');
+        expect((g!.children as Array<PxNode>)[0].type).toBe('path');
     });
 });
