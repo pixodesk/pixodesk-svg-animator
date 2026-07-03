@@ -14,7 +14,7 @@
  * `implementsInterface`. Effect modules import those directly from there.
  */
 
-import type { PxAnimatorEngine, PxNode } from '../PxAnimatorTypes';
+import type { PxAnimatorEngine, PxGlyphFont, PxNode } from '../PxAnimatorTypes';
 
 
 /** Collected diagnostics + new <defs> nodes accumulated during a run. */
@@ -78,4 +78,11 @@ export interface ApplyContext {
      * first, then index this map with that node.
      */
     maskAncestorChains: Map<PxNode, Array<MaskAncestorTransform>>;
+    /**
+     * The document's embedded glyph outlines (`definitions.glyphs`), keyed by
+     * font-family. Read once from the root and consumed by the `text.useGlyphs`
+     * effect to materialise `<text>` into `<path>` outlines. Undefined when the
+     * document carries no glyphs.
+     */
+    glyphs?: Record<string, PxGlyphFont>;
 }

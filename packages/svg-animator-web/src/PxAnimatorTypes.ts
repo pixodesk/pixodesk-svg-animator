@@ -523,6 +523,54 @@ const _ck_PxTrigger: KeysMatch<PxTrigger, _PxTrigger> = true; // the key sets ar
 // ============================================================================
 
 /**
+ * A single character's embedded outline (glyph-mode text). Coordinates and
+ * advance are in the owning {@link _PxGlyphFont}'s `unitsPerEm` units, so the
+ * player can render text without the original font. See svga.text.design.md.
+ */
+export interface _PxGlyph {
+    /** Advance width, in the font's `unitsPerEm`. */
+    width: number;
+    /** Outline path `d`, in the font's `unitsPerEm` (empty for whitespace). */
+    d: string;
+}
+
+export const PxGlyphSchema = implementsInterface<_PxGlyph>()(px.object({
+    width: px.number(),
+    d: px.string(),
+}));
+
+export type PxGlyph = PxInfer<typeof PxGlyphSchema>;
+const _ck_PxGlyph: KeysMatch<PxGlyph, _PxGlyph> = true; // the key sets are identical
+
+/**
+ * The used glyphs of one font, keyed by character. Referenced by a text's
+ * `font-family` (the key in {@link _PxDefs.glyphs}).
+ */
+export interface _PxGlyphFont {
+    /** CSS family name, e.g. "Roboto". */
+    fFamily: string;
+    /** Style notation, e.g. "" | "italic". */
+    style: string;
+    /** Ascent, in `unitsPerEm` units (baseline placement). */
+    ascent: number;
+    /** Units per em the glyph `width`/`d` are expressed in, e.g. 1000. */
+    unitsPerEm: number;
+    /** Outlines of the used characters, keyed by the character itself. */
+    glyphs: { [char: string]: PxGlyph; };
+}
+
+export const PxGlyphFontSchema = implementsInterface<_PxGlyphFont>()(px.object({
+    fFamily: px.string(),
+    style: px.string(),
+    ascent: px.number(),
+    unitsPerEm: px.number(),
+    glyphs: px.record(PxGlyphSchema),
+}));
+
+export type PxGlyphFont = PxInfer<typeof PxGlyphFontSchema>;
+const _ck_PxGlyphFont: KeysMatch<PxGlyphFont, _PxGlyphFont> = true; // the key sets are identical
+
+/**
  * Reusable definitions library for easings, animations, and styles.
  * Defined once here, referenced by name on elements.
  */
@@ -539,13 +587,18 @@ export interface _PxDefs {
      * Named style presets for common styling patterns
      */
     styles?: { [name: string]: Record<string, string | number>; };
+
+    /** Embedded per-font glyph outlines, keyed by the text's `font-family`.
+     *  Lets glyph-mode `<text>` render without an external font. */
+    glyphs?: { [fontName: string]: PxGlyphFont; };
 }
 
-// `{ easings?:Record<name,[x1,y1,x2,y2]>, animations?:Record<name,AnimationDefinition>, styles?:Record<string,any> }`
+// `{ easings?:Record<name,[x1,y1,x2,y2]>, animations?:Record<name,AnimationDefinition>, styles?:Record<string,any>, glyphs?:Record<fontName,PxGlyphFont> }`
 export const PxDefsSchema = implementsInterface<_PxDefs>()(px.object({
     easings: px.record(px.tuple([px.number(), px.number(), px.number(), px.number()] as const)).optional(),
     animations: px.record(PxAnimationDefinitionSchema).optional(),
     styles: px.record(px.any()).optional(),
+    glyphs: px.record(PxGlyphFontSchema).optional(),
 }));
 
 /** Reusable definitions library for easings, animations, and styles. */
@@ -1052,6 +1105,23 @@ export type PxTextAlongPathEffect = PxInfer<typeof PxTextAlongPathEffectSchema>;
 const _ck_PxTextAlongPathEffect: KeysMatch<PxTextAlongPathEffect, _PxTextAlongPathEffect> = true;
 
 
+/**
+ * `effects.text` — text-rendering options for a `<text>` node.
+ *
+ * `useGlyphs: true` tells the player to render this text from the embedded
+ * per-glyph outlines in `definitions.glyphs` (self-contained, no external
+ * font) instead of a native `<text>`. See svga.text.design.md.
+ */
+export interface _PxTextEffect {
+    useGlyphs?: boolean;
+}
+export const PxTextEffectSchema = implementsInterface<_PxTextEffect>()(px.object({
+    useGlyphs: px.boolean().optional(),
+}));
+export type PxTextEffect = PxInfer<typeof PxTextEffectSchema>;
+const _ck_PxTextEffect: KeysMatch<PxTextEffect, _PxTextEffect> = true;
+
+
 /** The full `node.effects` bucket. Closed — each known effect is declared
  *  (strict-mode validation flags an unknown effect key as a wire-format drift). */
 export interface _PxEffects {
@@ -1064,6 +1134,7 @@ export interface _PxEffects {
     fillGradient?: _PxFillGradientEffect;
     strokeGradient?: _PxStrokeGradientEffect;
     textAlongPath?: _PxTextAlongPathEffect;
+    text?: _PxTextEffect;
 }
 export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
     transformation: PxTransformationEffectSchema.optional(),
@@ -1075,6 +1146,7 @@ export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
     fillGradient: PxFillGradientEffectSchema.optional(),
     strokeGradient: PxStrokeGradientEffectSchema.optional(),
     textAlongPath: PxTextAlongPathEffectSchema.optional(),
+    text: PxTextEffectSchema.optional(),
 }));
 export type PxEffects = PxInfer<typeof PxEffectsSchema>;
 const _ck_PxEffects: KeysMatch<PxEffects, _PxEffects> = true;

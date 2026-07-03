@@ -26,8 +26,9 @@ import { applyRefAndTransformationEffect, applyRefHref } from './refEffect';
 import { applyRepeaterEffect } from './repeaterEffect';
 import { applyAllRetimeEffects } from './retimeEffect';
 import { applyTextAlongPathEffect } from './textAlongPathEffect';
+import { applyTextGlyphsEffect } from './textGlyphsEffect';
 import { applyTrimPathEffect } from './trimPathEffect';
-import { getAnimatorConfig, PxAnimatorEngine, PxAnimatorMode } from '../PxAnimatorTypes';
+import { getAnimatorConfig, getDefs, PxAnimatorEngine, PxAnimatorMode } from '../PxAnimatorTypes';
 import type { PxNode } from '../PxAnimatorTypes';
 import type { ApplyContext, ApplyResult } from './types';
 import { clone, genId, indexById, spliceDefs } from './util';
@@ -62,6 +63,7 @@ export function applyPlayerEffects(root: PxNode): ApplyResult {
         engine: getAnimatorConfig(root)?.mode === PxAnimatorMode.frames
             ? PxAnimatorEngine.frames
             : PxAnimatorEngine.webapi,
+        glyphs: getDefs(root)?.glyphs,
     };
 
     const working = clone(root);
@@ -98,11 +100,19 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
 
     if (!fx && !innerIdForContentRef) return node;
 
-    const { transformation, repeater, maskedBy, trimPath, clone: cloneFx, fillGradient, strokeGradient, textAlongPath } = fx ?? {};
+    const { transformation, repeater, maskedBy, trimPath, clone: cloneFx, fillGradient, strokeGradient, textAlongPath, text } = fx ?? {};
     const isCombinedShape = fx?.isCombinedShape;
     if (fx) delete node.effects;
 
     let n = node;
+    // Glyph text: replace the <text>/<tspan> subtree with baked <path> outlines
+    // BEFORE any wrapper. Only the plain (horizontal) case here — along-path
+    // glyphs are a later step, so leave text-on-path as native <text> for now.
+    if (text?.useGlyphs && !textAlongPath) {
+        n = applyTextGlyphsEffect(n, text, ctx);
+    } else if (text?.useGlyphs && textAlongPath) {
+        ctx.warnings.push('textGlyphs: along-path glyphs not supported yet — rendering native text');
+    }
     // textAlongPath wraps the host's own children in a `<textPath>` — must
     // run BEFORE any structural wrapper (trim/repeater/mask) so the wrapping
     // happens on the un-cloned content first.
