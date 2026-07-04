@@ -55,7 +55,10 @@ export interface GlyphMaterialiseOpts<E = any> {
     warnings?: Array<string>;
 }
 
-interface Paint { fill?: string; stroke?: string; strokeWidth?: string; }
+// fill/stroke/strokeWidth are OPAQUE pass-throughs — copied verbatim onto the
+// emitted element. The wire uses strings (hex); the editor threads its own
+// colour VALUES through unchanged (the factory maps them back to shape paint).
+interface Paint { fill?: any; stroke?: any; strokeWidth?: any; }
 interface Style extends Paint { fontFamily?: string; fontSize: number; letterSpacing: number; wordSpacing: number; }
 /** A glyph ready to emit: its em outline + the affine placing it in the doc. */
 interface Placement { glyphD: string; m: Affine; paint: Paint; }
@@ -78,9 +81,9 @@ function resolveStyle(node: PxNode, parent: Style): Style {
     return {
         fontFamily: str(node.fontFamily) ?? parent.fontFamily,
         fontSize: parseLen(node.fontSize) ?? parent.fontSize,
-        fill: str(node.fill) ?? parent.fill,
-        stroke: str(node.stroke) ?? parent.stroke,
-        strokeWidth: str(node.strokeWidth) ?? parent.strokeWidth,
+        fill: node.fill ?? parent.fill,
+        stroke: node.stroke ?? parent.stroke,
+        strokeWidth: node.strokeWidth ?? parent.strokeWidth,
         letterSpacing: parseLen(node.letterSpacing) ?? parent.letterSpacing,
         wordSpacing: parseLen(node.wordSpacing) ?? parent.wordSpacing,
     };
@@ -90,9 +93,9 @@ function rootStyleOf(node: PxNode): Style {
     return {
         fontFamily: str(node.fontFamily),
         fontSize: parseLen(node.fontSize) ?? DEFAULT_FONT_SIZE,
-        fill: str(node.fill),
-        stroke: str(node.stroke),
-        strokeWidth: str(node.strokeWidth),
+        fill: node.fill,
+        stroke: node.stroke,
+        strokeWidth: node.strokeWidth,
         letterSpacing: parseLen(node.letterSpacing) ?? 0,
         wordSpacing: parseLen(node.wordSpacing) ?? 0,
     };
@@ -328,7 +331,8 @@ function buildPaths<E>(placements: Array<Placement>, create: PxCreateElement<E>,
 
     const byPaint = new Map<string, { paint: Paint; d: string }>();
     for (const p of placements) {
-        const key = (p.paint.fill ?? '') + '|' + (p.paint.stroke ?? '') + '|' + (p.paint.strokeWidth ?? '');
+        // Stable key across any paint value type (hex string, [r,g,b], gradient object).
+        const key = JSON.stringify([p.paint.fill ?? null, p.paint.stroke ?? null, p.paint.strokeWidth ?? null]);
         const baked = transformPathData(p.glyphD, p.m);
         const entry = byPaint.get(key);
         if (entry) entry.d += baked;
