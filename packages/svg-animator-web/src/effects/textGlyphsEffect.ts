@@ -187,7 +187,7 @@ interface AlongCell { glyphD: string; widthEm: number; scale: number; paint: Pai
 /** Walks the tspans in reading order, accumulating advance (whitespace included)
  *  so each rendered glyph gets its `midBase`. Positioning attrs are ignored —
  *  along-path text is a single run. */
-function collectAlongPathCells(node: PxNode, glyphs: Record<string, PxGlyphFont>, soleFont: PxGlyphFont | undefined, warnings?: Array<string>): Array<AlongCell> {
+function collectAlongPathCells(node: PxNode, glyphs: Record<string, PxGlyphFont>, soleFont: PxGlyphFont | undefined, warnings?: Array<string>): { cells: Array<AlongCell>; width: number } {
     const cells: Array<AlongCell> = [];
     let adv = 0;
     const walk = (el: PxNode, parentStyle: Style): void => {
@@ -210,7 +210,7 @@ function collectAlongPathCells(node: PxNode, glyphs: Record<string, PxGlyphFont>
         if (el.children) for (const ch of el.children) walk(ch, s);
     };
     walk(node, rootStyleOf(node));
-    return cells;
+    return { cells, width: adv };
 }
 
 /** Affine placing a glyph so its mid-advance baseline sits at path-distance
@@ -226,14 +226,22 @@ export function materialiseGlyphTextAlongPath<E = any>(
     pathD: string | undefined,
     startOffset: PxAnimatable<number> | undefined,
     opts: GlyphMaterialiseOpts<E>,
+    textLength?: number,
 ): E | null {
     const { glyphs, create = jsonElementFactory as PxCreateElement<E>, warnings } = opts;
     const sampler = pathD ? createPathSampler(pathD) : null;
     if (!sampler) { warnings?.push('textGlyphs: unparsable along-path geometry'); return null; }
 
     const soleFont = soleFontOf(glyphs);
-    const cells = collectAlongPathCells(node, glyphs, soleFont, warnings);
+    const { cells, width } = collectAlongPathCells(node, glyphs, soleFont, warnings);
     if (!cells.length) return toGroup(node, [], create);
+
+    // textLength (lengthAdjust=spacing): scale each glyph's position along the path
+    // so the run spans `textLength` (glyph outlines keep their natural size).
+    if (textLength && textLength > 0 && width > 0) {
+        const k = textLength / width;
+        for (const c of cells) c.midBase *= k;
+    }
 
     const so = readAnimatable<number>(startOffset);
     if (so.kind === ReadKind.Animated && so.keyframes.length >= 2) {
@@ -367,9 +375,9 @@ function toGroup<E>(node: PxNode, children: Array<E>, create: PxCreateElement<E>
  *  factory's element type, choosing along-path when `alongPath` is given. */
 export function materialiseGlyphText<E = any>(
     node: PxNode,
-    opts: GlyphMaterialiseOpts<E> & { alongPath?: { pathD?: string; startOffset?: PxAnimatable<number> } },
+    opts: GlyphMaterialiseOpts<E> & { alongPath?: { pathD?: string; startOffset?: PxAnimatable<number>; textLength?: number } },
 ): E | null {
-    if (opts.alongPath) return materialiseGlyphTextAlongPath(node, opts.alongPath.pathD, opts.alongPath.startOffset, opts);
+    if (opts.alongPath) return materialiseGlyphTextAlongPath(node, opts.alongPath.pathD, opts.alongPath.startOffset, opts, opts.alongPath.textLength);
     return materialiseGlyphTextHorizontal(node, opts);
 }
 
@@ -381,7 +389,7 @@ export function applyTextGlyphsEffect(node: PxNode, fx: PxTextEffect | undefined
 }
 
 /** Pipeline adapter (plain wire nodes) — glyph text along a referenced path. */
-export function applyTextGlyphsAlongPath(node: PxNode, ctx: ApplyContext, pathD: string | undefined, startOffset: PxAnimatable<number> | undefined): PxNode | null {
+export function applyTextGlyphsAlongPath(node: PxNode, ctx: ApplyContext, pathD: string | undefined, startOffset: PxAnimatable<number> | undefined, textLength?: number): PxNode | null {
     if (!ctx.glyphs) { ctx.warnings.push('textGlyphs: no definitions.glyphs'); return null; }
-    return materialiseGlyphTextAlongPath<PxNode>(node, pathD, startOffset, { glyphs: ctx.glyphs, warnings: ctx.warnings });
+    return materialiseGlyphTextAlongPath<PxNode>(node, pathD, startOffset, { glyphs: ctx.glyphs, warnings: ctx.warnings }, textLength);
 }

@@ -113,7 +113,15 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
         if (textAlongPath) {
             const pathNode = typeof textAlongPath.href === 'string' ? ctx.idMap.get(textAlongPath.href) : undefined;
             const pathD = pathNode && typeof pathNode.d === 'string' ? pathNode.d : undefined;
-            const glyphed = applyTextGlyphsAlongPath(n, ctx, pathD, textAlongPath.startOffset);
+            // Resolve textLength to a static number (animated textLength stretch is not
+            // reproduced per-glyph yet — a v1 limitation, same as startOffset easing).
+            const rawTL: any = textAlongPath.textLength;
+            const textLength = typeof rawTL === 'number' ? rawTL
+                : rawTL && typeof rawTL === 'object'
+                    ? (typeof rawTL.value === 'number' ? rawTL.value
+                        : Array.isArray(rawTL.keyframes) && rawTL.keyframes.length ? Number(rawTL.keyframes[0]?.value) : undefined)
+                    : undefined;
+            const glyphed = applyTextGlyphsAlongPath(n, ctx, pathD, textAlongPath.startOffset, textLength);
             if (glyphed) { n = glyphed; consumedByGlyphs = true; } // native textAlongPath NOT applied
         } else {
             n = applyTextGlyphsEffect(n, text, ctx);
