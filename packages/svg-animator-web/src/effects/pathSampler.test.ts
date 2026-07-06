@@ -37,10 +37,17 @@ describe('pathSampler', () => {
         expect(s.totalLength).toBeCloseTo(100, 2);
     });
 
-    it('clamps distance to the path ends', () => {
-        const s = createPathSampler('M0 0L100 0')!;
-        expect(s.sampleAtDistance(-10).x).toBeCloseTo(0, 4);
-        expect(s.sampleAtDistance(999).x).toBeCloseTo(100, 4);
+    it('extrapolates past the ends of an OPEN path (straight line along the tangent)', () => {
+        const s = createPathSampler('M0 0L100 0')!; // open horizontal line, tangent = +x
+        expect(s.sampleAtDistance(-10).x).toBeCloseTo(-10, 4); // before start
+        expect(s.sampleAtDistance(999).x).toBeCloseTo(999, 4); // past end — keeps going
+    });
+
+    it('clamps past the ends of a CLOSED path (loops back — no run-off)', () => {
+        const s = createPathSampler('M0 0L100 0L100 100L0 100Z')!; // closed square
+        const p = s.sampleAtDistance(9999);
+        expect(Math.abs(p.x)).toBeLessThanOrEqual(101);
+        expect(Math.abs(p.y)).toBeLessThanOrEqual(101);
     });
 
     it('returns null for empty input', () => {

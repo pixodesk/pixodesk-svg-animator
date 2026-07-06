@@ -147,18 +147,38 @@ export function createPathSampler(d: string): PathSampler | null {
     for (let k = 0; k < segs.length; k++) cum[k + 1] = cum[k] + segs[k].len;
     const totalLength = cum[segs.length];
 
+    // A path is CLOSED when it returns to its start (an explicit `Z`, or coincident
+    // first/last points). Open paths get straight-line extrapolation past either end
+    // (below); closed paths loop back on themselves, so there's no tip to run off.
+    const start = segs[0].P0, end = segs[segs.length - 1].P3;
+    const closed = Math.hypot(end[0] - start[0], end[1] - start[1]) < 1e-3;
+
+    // Sample strictly within [0, totalLength].
+    const sampleOn = (dist: number): PathPoint => {
+        let k = 0;
+        while (k < segs.length - 1 && dist > cum[k + 1]) k++;
+        const seg = segs[k];
+        const local = dist - cum[k];
+        const t = seg.len > 0 ? bezier2D_tForDistance(seg.lut, local) : 0;
+        const [x, y] = bezier2D_pointAt(seg.P0, seg.P1, seg.P2, seg.P3, t);
+        const [dx, dy] = bezier2D_derivativeAt(seg.P0, seg.P1, seg.P2, seg.P3, t);
+        return { x, y, angle: Math.atan2(dy, dx) };
+    };
+
     return {
         totalLength,
         sampleAtDistance(dist: number): PathPoint {
-            dist = clamp(dist, 0, totalLength);
-            let k = 0;
-            while (k < segs.length - 1 && dist > cum[k + 1]) k++;
-            const seg = segs[k];
-            const local = dist - cum[k];
-            const t = seg.len > 0 ? bezier2D_tForDistance(seg.lut, local) : 0;
-            const [x, y] = bezier2D_pointAt(seg.P0, seg.P1, seg.P2, seg.P3, t);
-            const [dx, dy] = bezier2D_derivativeAt(seg.P0, seg.P1, seg.P2, seg.P3, t);
-            return { x, y, angle: Math.atan2(dy, dx) };
+            // Past an end of an OPEN path: continue in a straight line along that
+            // end's tangent, so along-path motion keeps going instead of piling up
+            // at the tip. (The caller only asks for distances a glyph actually
+            // reaches — startOffset + text length — so this never runs off forever.)
+            if (!closed && (dist < 0 || dist > totalLength)) {
+                const edge = dist < 0 ? 0 : totalLength;
+                const p = sampleOn(edge);
+                const over = dist - edge;
+                return { x: p.x + Math.cos(p.angle) * over, y: p.y + Math.sin(p.angle) * over, angle: p.angle };
+            }
+            return sampleOn(clamp(dist, 0, totalLength));
         },
     };
 }
