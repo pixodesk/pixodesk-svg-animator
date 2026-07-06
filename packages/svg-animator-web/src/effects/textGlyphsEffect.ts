@@ -155,14 +155,18 @@ export function materialiseGlyphTextHorizontal<E = any>(node: PxNode, opts: Glyp
         pen.x += parseLen(el.dx) ?? 0;
         pen.y += parseLen(el.dy) ?? 0;
         const content = str(el[TEXT_ATTR]) ?? str(el[TEXT_CONTENT_ATTR]);
-        if (content) renderChars(content, s);
+        // Render a node's OWN text only when it has no element children. In the glyph
+        // text model text lives on leaf spans; a container that ALSO carries folded
+        // text — a single-span line collapsed onto its line-`<tspan>` — would
+        // otherwise render its run twice (the fold AND the child span).
+        if (content && !el.children?.length) renderChars(content, s);
         if (el.children) for (const ch of el.children) walk(ch, s);
     };
 
     const rootStyle = rootStyleOf(node);
     if (node.children) for (const ch of node.children) walk(ch, rootStyle);
     const rootContent = str(node[TEXT_ATTR]) ?? str(node[TEXT_CONTENT_ATTR]);
-    if (rootContent) renderChars(rootContent, rootStyle);
+    if (rootContent && !node.children?.length) renderChars(rootContent, rootStyle);
 
     // text-anchor: shift each line by its own advance width, then rebuild `m`.
     const anchor = str(node.textAnchor);
@@ -193,7 +197,9 @@ function collectAlongPathCells(node: PxNode, glyphs: Record<string, PxGlyphFont>
     const walk = (el: PxNode, parentStyle: Style): void => {
         const s = resolveStyle(el, parentStyle);
         const content = str(el[TEXT_ATTR]) ?? str(el[TEXT_CONTENT_ATTR]);
-        if (content) {
+        // Only leaf text (no children) — a single-span line folds its text onto the
+        // line-`<tspan>` AND keeps the child span; rendering both would duplicate it.
+        if (content && !el.children?.length) {
             const gf = glyphFontFor(s, glyphs, soleFont, warnings);
             if (gf) {
                 const scale = s.fontSize / gf.unitsPerEm;

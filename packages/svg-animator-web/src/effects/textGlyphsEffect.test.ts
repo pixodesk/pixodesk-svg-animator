@@ -63,6 +63,22 @@ describe('textGlyphsEffect — <text> → baked <path> outlines', () => {
         expect(root.effects).toBeFalsy();
     });
 
+    it('single-span line collapse (text folded onto line-tspan AND kept as child) bakes ONCE', () => {
+        // The editor's lightweight JSON emits a collapsed single-span line as a
+        // line-<tspan> carrying BOTH its folded text and the child span. A container
+        // that has children must NOT also render its own text, else the word bakes
+        // twice. Regression for the doubled-glyphs bug.
+        const { root } = run({ useGlyphs: true }, {}, [
+            {
+                type: 'tspan', text: 'Hi', fontFamily: 'F', fontSize: '100px',
+                children: [{ type: 'tspan', text: 'Hi', fontFamily: 'F', fontSize: '100px' }],
+            },
+        ]);
+        const p = paths(root);
+        expect(p).toHaveLength(1);
+        expect(p[0].d).toBe('M0 0L10 0L10-70ZM70 0L75 0L75-50Z'); // H+i ONCE, not twice
+    });
+
     it('splits into one <path> per distinct fill, keeping pen continuous', () => {
         const { root } = run({ useGlyphs: true }, {}, [
             { type: 'tspan', text: 'H', fontFamily: 'F', fontSize: '100px', fill: '#f00' },
