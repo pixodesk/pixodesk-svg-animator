@@ -25,7 +25,7 @@ import { applyMaskedByEffect, collectMaskAncestorChains } from './maskedByEffect
 import { applyRefAndTransformationEffect, applyRefHref } from './refEffect';
 import { applyRepeaterEffect } from './repeaterEffect';
 import { applyAllRetimeEffects } from './retimeEffect';
-import { applyTextAlongPathEffect } from './textAlongPathEffect';
+import { applyTextPathEffect } from './textPathEffect';
 import { applyTextGlyphsAlongPath, applyTextGlyphsEffect } from './textGlyphsEffect';
 import { applyTrimPathEffect } from './trimPathEffect';
 import { getAnimatorConfig, getDefs, PxAnimatorEngine, PxAnimatorMode } from '../PxAnimatorTypes';
@@ -100,7 +100,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
 
     if (!fx && !innerIdForContentRef) return node;
 
-    const { transformation, repeater, maskedBy, trimPath, clone: cloneFx, fillGradient, strokeGradient, textAlongPath, text } = fx ?? {};
+    const { transformation, repeater, maskedBy, trimPath, clone: cloneFx, fillGradient, strokeGradient, textPath, text } = fx ?? {};
     const isCombinedShape = fx?.isCombinedShape;
     if (fx) delete node.effects;
 
@@ -110,28 +110,28 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     // referenced path's tangent; plain glyphs lay out horizontally.
     let consumedByGlyphs = false;
     if (text?.useGlyphs) {
-        if (textAlongPath) {
-            const pathNode = typeof textAlongPath.href === 'string' ? ctx.idMap.get(textAlongPath.href) : undefined;
-            const pathD = pathNode && typeof pathNode.d === 'string' ? pathNode.d : undefined;
+        if (textPath) {
+            // Path geometry is INLINE (`textPath.path`) — no `<path>` def lookup.
+            const pathD = typeof textPath.path === 'string' ? textPath.path : undefined;
             // Resolve textLength to a static number (animated textLength stretch is not
             // reproduced per-glyph yet — a v1 limitation, same as startOffset easing).
-            const rawTL: any = textAlongPath.textLength;
+            const rawTL: any = textPath.textLength;
             const textLength = typeof rawTL === 'number' ? rawTL
                 : rawTL && typeof rawTL === 'object'
                     ? (typeof rawTL.value === 'number' ? rawTL.value
                         : Array.isArray(rawTL.keyframes) && rawTL.keyframes.length ? Number(rawTL.keyframes[0]?.value) : undefined)
                     : undefined;
-            const glyphed = applyTextGlyphsAlongPath(n, ctx, pathD, textAlongPath.startOffset, textLength);
-            if (glyphed) { n = glyphed; consumedByGlyphs = true; } // native textAlongPath NOT applied
+            const glyphed = applyTextGlyphsAlongPath(n, ctx, pathD, textPath.startOffset, textLength);
+            if (glyphed) { n = glyphed; consumedByGlyphs = true; } // native textPath NOT applied
         } else {
             n = applyTextGlyphsEffect(n, text, ctx);
             consumedByGlyphs = true;
         }
     }
-    // textAlongPath wraps the host's own children in a `<textPath>` — must
-    // run BEFORE any structural wrapper (trim/repeater/mask) so the wrapping
-    // happens on the un-cloned content first. Skipped when glyphs consumed it.
-    if (!consumedByGlyphs) n = applyTextAlongPathEffect(n, textAlongPath, ctx);
+    // textPath wraps the host's own children in a `<textPath>` — must run BEFORE any
+    // structural wrapper (trim/repeater/mask) so the wrapping happens on the un-cloned
+    // content first. Skipped when glyphs consumed it.
+    if (!consumedByGlyphs) n = applyTextPathEffect(n, textPath, ctx);
     // Paint-gradient defs are minted FIRST, before any structural wrapper —
     // the gradient effect sits on the innermost element (alongside its `fill`
     // / `stroke` body attrs), so it must materialise before trim/repeater/

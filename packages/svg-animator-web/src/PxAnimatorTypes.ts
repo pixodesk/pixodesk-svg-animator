@@ -1078,31 +1078,37 @@ export type _PxStrokeGradientEffect = _PxFillGradientEffect;
 export const PxStrokeGradientEffectSchema = PxFillGradientEffectSchema;
 export type PxStrokeGradientEffect = PxFillGradientEffect;
 
-/** Text-along-path effect on `<text>` host. The path geometry lives as a
- *  first-class `<path>` def referenced by `href`; the applier mints a
- *  `<textPath>` wrapper around the text's children at apply time. All
- *  SVG-native textPath attrs (`lengthAdjust`, `method`, `spacing`,
- *  `startOffset`, `textLength`) ride on this effect. `startOffset` /
- *  `textLength` accept the full `PxAnimatable<number>` shape — static,
- *  `{value}`, or `{keyframes}` (times in ms, like other player-effect kfs). */
-export interface _PxTextAlongPathEffect {
-    href: string;                                         // '#pathId'
+/** Text-path effect on a `<text>` host. The path geometry is carried INLINE as
+ *  `path` (an SVG `d`; static for now, keyframed animation is a later step) — the
+ *  applier mints a `<path>` def from it and wraps the text's children in a native
+ *  `<textPath href="#…">` at apply time. All SVG-native textPath attrs
+ *  (`lengthAdjust`, `method`, `spacing`, `startOffset`, `textLength`) ride on this
+ *  effect; `startOffset`/`textLength` accept the full `PxAnimatable<number>` shape.
+ *
+ *  `pathOverflow` controls what happens to glyphs past the end of an OPEN path:
+ *   - `'extend'` (default): glyphs continue straight along the endpoint tangent
+ *     (Lottie / native-glyph behavior).
+ *   - `'clip'`: glyphs past the end disappear (native `<textPath>` behavior). */
+export interface _PxTextPathEffect {
+    path: string;                                         // inline SVG `d`
+    pathOverflow?: string;                                // 'clip' | 'extend' (default 'extend')
     lengthAdjust?: string;                                // 'spacing' | 'spacingAndGlyphs'
     method?: string;                                      // 'align' | 'stretch'
     spacing?: string;                                     // 'auto' | 'exact'
     startOffset?: PxAnimatable<number>;
     textLength?: PxAnimatable<number>;
 }
-export const PxTextAlongPathEffectSchema = implementsInterface<_PxTextAlongPathEffect>()(px.object({
-    href: px.string(),
+export const PxTextPathEffectSchema = implementsInterface<_PxTextPathEffect>()(px.object({
+    path: px.string(),
+    pathOverflow: px.string().optional(),
     lengthAdjust: px.string().optional(),
     method: px.string().optional(),
     spacing: px.string().optional(),
     startOffset: PxAnimatableNumberSchema.optional(),
     textLength: PxAnimatableNumberSchema.optional(),
 }));
-export type PxTextAlongPathEffect = PxInfer<typeof PxTextAlongPathEffectSchema>;
-const _ck_PxTextAlongPathEffect: KeysMatch<PxTextAlongPathEffect, _PxTextAlongPathEffect> = true;
+export type PxTextPathEffect = PxInfer<typeof PxTextPathEffectSchema>;
+const _ck_PxTextPathEffect: KeysMatch<PxTextPathEffect, _PxTextPathEffect> = true;
 
 
 /**
@@ -1133,7 +1139,7 @@ export interface _PxEffects {
     isCombinedShape?: boolean;
     fillGradient?: _PxFillGradientEffect;
     strokeGradient?: _PxStrokeGradientEffect;
-    textAlongPath?: _PxTextAlongPathEffect;
+    textPath?: _PxTextPathEffect;
     text?: _PxTextEffect;
 }
 export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
@@ -1145,7 +1151,7 @@ export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
     isCombinedShape: px.boolean().optional(),
     fillGradient: PxFillGradientEffectSchema.optional(),
     strokeGradient: PxStrokeGradientEffectSchema.optional(),
-    textAlongPath: PxTextAlongPathEffectSchema.optional(),
+    textPath: PxTextPathEffectSchema.optional(),
     text: PxTextEffectSchema.optional(),
 }));
 export type PxEffects = PxInfer<typeof PxEffectsSchema>;

@@ -4,43 +4,41 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import type { PxAnimatable, PxNode, PxTextAlongPathEffect } from '../PxAnimatorTypes';
+import type { PxAnimatable, PxNode, PxTextPathEffect } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
+import { genId } from './util';
 
 
 /**
- * `effects.textAlongPath` materialiser.
+ * `effects.textPath` materialiser (browser-font / non-glyph path).
  *
- * Editor model holds the path geometry as a `<path>` def, with the text node
- * pointing at it via `effects.textAlongPath.href`. SVG's native rendering
- * requires a `<textPath href="#…">` wrapper inside `<text>`, so this applier
- * mints that wrapper around the text node's children and forwards the
- * textPath SVG attrs (`lengthAdjust`, `method`, `spacing`, `startOffset`,
- * `textLength`) verbatim.
+ * The path geometry is carried INLINE on the effect as `path` (an SVG `d`). SVG's
+ * native rendering requires a `<textPath href="#…">` wrapper referencing a `<path>`
+ * def, so this applier mints that `<path>` def from the inline geometry, wraps the
+ * text node's children in the `<textPath>`, and forwards the textPath SVG attrs
+ * (`lengthAdjust`, `method`, `spacing`, `startOffset`, `textLength`).
  *
- * `startOffset` / `textLength` accept the full `PxAnimatable<number>` shape:
- * a static number is set as an attribute on the `<textPath>`; the
- * `{keyframes}` form is forwarded to `<textPath>.animate.<attr>` so the
- * player's binding pipeline animates it the same way as any other animated
- * attribute. The `{value}` form is unwrapped to the same static shape.
+ * `startOffset` / `textLength` accept the full `PxAnimatable<number>` shape: a static
+ * number is set as an attribute; the `{keyframes}` form is forwarded to
+ * `<textPath>.animate.<attr>`; `{value}` is unwrapped to the static shape.
  *
- * The `<path>` def itself isn't touched here — it lives in `ctx.defs` (root
- * defs) like any other shape def, free to carry its own animations / shape
- * effects.
+ * NOTE: `pathOverflow:'extend'` (tangent-extending the minted `<path>` so the browser
+ * lays overflow glyphs onto the straight extension) is a later step — today the minted
+ * path is the geometry as-is, so native rendering clips at the path end.
  */
-export function applyTextAlongPathEffect(
+export function applyTextPathEffect(
     node: PxNode,
-    fx: PxTextAlongPathEffect | undefined,
-    _ctx: ApplyContext,
+    fx: PxTextPathEffect | undefined,
+    ctx: ApplyContext,
 ): PxNode {
-    if (!fx) return node;
+    if (!fx || typeof fx.path !== 'string' || !fx.path) return node;
 
-    // Wire stores the bare id (per the maskedBy convention) — add the `#`
-    // for the native `<textPath href="#…">` syntax.
-    const href = typeof fx.href === 'string' && !fx.href.startsWith('#') ? '#' + fx.href : fx.href;
+    const pathId = genId(ctx, 'tpath');
+    ctx.defs.push({ type: 'path', id: pathId, d: fx.path });
+
     const textPath: PxNode = {
         type: 'textPath',
-        href,
+        href: '#' + pathId,
         children: node.children ?? [],
     };
     if (fx.lengthAdjust !== undefined) textPath.lengthAdjust = fx.lengthAdjust;

@@ -135,19 +135,18 @@ describe('textGlyphsEffect — <text> → baked <path> outlines', () => {
 
 describe('textGlyphsEffect — along-path', () => {
 
-    // svg root with a guide <path id=curve> + a glyph text running along it.
+    // svg root with a glyph text running along an INLINE path (textPath.path).
     function alongScene(pathD: string, startOffset?: number, text = 'Hi'): PxNode {
-        const textAlongPath: any = { href: 'curve' };
-        if (startOffset !== undefined) textAlongPath.startOffset = startOffset;
+        const textPath: any = { path: pathD };
+        if (startOffset !== undefined) textPath.startOffset = startOffset;
         return {
             type: 'svg',
             animator: { definitions: { glyphs } },
             children: [
-                { type: 'path', id: 'curve', d: pathD },
                 {
                     type: 'text', id: 't',
                     children: [{ type: 'tspan', text, fontFamily: 'F', fontSize: '100px' }],
-                    effects: { text: { useGlyphs: true }, textAlongPath },
+                    effects: { text: { useGlyphs: true }, textPath },
                 },
             ],
         } as unknown as PxNode;
@@ -188,9 +187,10 @@ describe('textGlyphsEffect — along-path', () => {
         expectD(d, [0, 0, 0, 10, 70, 10]);
     });
 
-    it('keeps the referenced guide path in the tree', () => {
+    it('needs no external guide <path> def — geometry is inline on the effect', () => {
         const { root } = materialiseRaw(alongScene('M0 0L1000 0'));
-        expect(collectByType(root, 'path').some(p => p.id === 'curve')).toBe(true);
+        expect(collectByType(root, 'path').some(p => p.id === 'curve')).toBe(false); // no external def
+        expect(glyphPaths(root).length).toBeGreaterThan(0);                          // glyphs baked from inline path
     });
 });
 
@@ -204,11 +204,10 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
             type: 'svg',
             animator: { definitions: { glyphs } },
             children: [
-                { type: 'path', id: 'curve', d: pathD },
                 {
                     type: 'text', id: 't',
                     children: [{ type: 'tspan', text, fontFamily: 'F', fontSize: '100px' }],
-                    effects: { text: { useGlyphs: true }, textAlongPath: { href: 'curve', startOffset } },
+                    effects: { text: { useGlyphs: true }, textPath: { path: pathD, startOffset } },
                 },
             ],
         } as unknown as PxNode;
