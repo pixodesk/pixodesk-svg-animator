@@ -233,6 +233,7 @@ export function materialiseGlyphTextAlongPath<E = any>(
     startOffset: PxAnimatable<number> | undefined,
     opts: GlyphMaterialiseOpts<E>,
     textLength?: number,
+    pathOverflow?: string,
 ): E | null {
     const { glyphs, create = jsonElementFactory as PxCreateElement<E>, warnings } = opts;
     const sampler = pathD ? createPathSampler(pathD) : null;
@@ -249,17 +250,25 @@ export function materialiseGlyphTextAlongPath<E = any>(
         for (const c of cells) c.midBase *= k;
     }
 
+    // pathOverflow 'clip' (open path): a glyph whose mid-advance point falls past an
+    // end disappears (native <textPath> semantics), vs 'extend' (default) where the
+    // sampler continues along the tangent. See svga.text.path-overflow.plan.md.
+    const isClip = pathOverflow === 'clip' && !sampler.closed;
+
     const so = readAnimatable<number>(startOffset);
     if (so.kind === ReadKind.Animated && so.keyframes.length >= 2) {
         // startOffset animates → each glyph slides along the path: its own
         // <path> with sampled translate+rotate keyframes (no merge).
-        return toGroup(node, buildAnimatedAlongPath(cells, sampler, so.keyframes as Array<TransformKeyframe<number>>, so.loop, create), create);
+        return toGroup(node, buildAnimatedAlongPath(cells, sampler, so.keyframes as Array<TransformKeyframe<number>>, so.loop, create, isClip), create);
     }
 
     // Static (or single-keyframe): place + bake; glyphs sharing paint still merge.
     const base = so.kind === ReadKind.Animated ? (Number(so.keyframes[0]?.value) || 0)
         : so.kind === ReadKind.Static ? (Number(so.value) || 0) : 0;
-    const placements: Array<Placement> = cells.map(c => ({
+    const placeCells = isClip
+        ? cells.filter(c => { const d = base + c.midBase; return d >= 0 && d <= sampler.totalLength; })
+        : cells;
+    const placements: Array<Placement> = placeCells.map(c => ({
         glyphD: c.glyphD, paint: c.paint,
         m: alongAffine(sampler, base + c.midBase, c.scale, c.widthEm),
     }));
@@ -288,10 +297,12 @@ function buildAnimatedAlongPath<E>(
     sokfs: Array<TransformKeyframe<number>>,
     loop: unknown,
     create: PxCreateElement<E>,
+    isClip: boolean,
 ): Array<E> {
     const step = Math.max(sampler.totalLength / ALONG_PATH_MAX_STEPS, 0.5);
     const timeOf = (kf: TransformKeyframe<number>): number => Number(kf.time) || 0;
     const offOf = (kf: TransformKeyframe<number>): number => Number(kf.value) || 0;
+    const onPath = (dist: number): boolean => dist >= 0 && dist <= sampler.totalLength;
 
     const out: Array<E> = [];
     for (const c of cells) {
@@ -309,21 +320,39 @@ function buildAnimatedAlongPath<E>(
             };
         };
 
-        const kfs: Array<TransformKeyframe> = [sampleKf(offOf(sokfs[0]) + c.midBase, timeOf(sokfs[0]))];
+        const kfs: Array<TransformKeyframe> = [];
+        // Clip: opacity 1 while the glyph's centre is on the path, 0 off — the
+        // sampling is dense (`step`), so the linear fade across one step reads as a
+        // near-sharp pop (a robust stand-in for the hard native-<textPath> drop).
+        const opKfs: Array<TransformKeyframe<number>> = [];
+        const pushKf = (dist: number, time: number): void => {
+            kfs.push(sampleKf(dist, time));
+            if (isClip) opKfs.push({ time, value: onPath(dist) ? 1 : 0 });
+        };
+
+        pushKf(offOf(sokfs[0]) + c.midBase, timeOf(sokfs[0]));
         for (let k = 1; k < sokfs.length; k++) {
             const t0 = timeOf(sokfs[k - 1]), t1 = timeOf(sokfs[k]);
             const o0 = offOf(sokfs[k - 1]), o1 = offOf(sokfs[k]);
             const n = Math.min(ALONG_PATH_MAX_STEPS_PER_SEGMENT, Math.max(1, Math.ceil(Math.abs(o1 - o0) / step)));
             for (let s = 1; s <= n; s++) {
                 const f = s / n;
-                kfs.push(sampleKf(o0 + f * (o1 - o0) + c.midBase, t0 + f * (t1 - t0)));
+                pushKf(o0 + f * (o1 - o0) + c.midBase, t0 + f * (t1 - t0));
             }
         }
 
         const transform: { keyframes: Array<TransformKeyframe>; loop?: unknown } = { keyframes: kfs };
         if (loop !== undefined) transform.loop = loop;
+        const animate: { [k: string]: any } = { transform };
+        // Only add an opacity track when it actually toggles (a glyph fully on-path
+        // the whole time needs none).
+        if (isClip && opKfs.some(k => k.value === 0)) {
+            const op: { keyframes: Array<TransformKeyframe<number>>; loop?: unknown } = { keyframes: opKfs };
+            if (loop !== undefined) op.loop = loop;
+            animate.opacity = op;
+        }
 
-        out.push(create('path', { d, ...paintProps(c.paint), animate: { transform } }, []));
+        out.push(create('path', { d, ...paintProps(c.paint), animate }, []));
     }
     return out;
 }
@@ -381,9 +410,9 @@ function toGroup<E>(node: PxNode, children: Array<E>, create: PxCreateElement<E>
  *  factory's element type, choosing along-path when `alongPath` is given. */
 export function materialiseGlyphText<E = any>(
     node: PxNode,
-    opts: GlyphMaterialiseOpts<E> & { alongPath?: { pathD?: string; startOffset?: PxAnimatable<number>; textLength?: number } },
+    opts: GlyphMaterialiseOpts<E> & { alongPath?: { pathD?: string; startOffset?: PxAnimatable<number>; textLength?: number; pathOverflow?: string } },
 ): E | null {
-    if (opts.alongPath) return materialiseGlyphTextAlongPath(node, opts.alongPath.pathD, opts.alongPath.startOffset, opts, opts.alongPath.textLength);
+    if (opts.alongPath) return materialiseGlyphTextAlongPath(node, opts.alongPath.pathD, opts.alongPath.startOffset, opts, opts.alongPath.textLength, opts.alongPath.pathOverflow);
     return materialiseGlyphTextHorizontal(node, opts);
 }
 
@@ -395,7 +424,7 @@ export function applyTextGlyphsEffect(node: PxNode, fx: PxTextEffect | undefined
 }
 
 /** Pipeline adapter (plain wire nodes) — glyph text along a referenced path. */
-export function applyTextGlyphsAlongPath(node: PxNode, ctx: ApplyContext, pathD: string | undefined, startOffset: PxAnimatable<number> | undefined, textLength?: number): PxNode | null {
+export function applyTextGlyphsAlongPath(node: PxNode, ctx: ApplyContext, pathD: string | undefined, startOffset: PxAnimatable<number> | undefined, textLength?: number, pathOverflow?: string): PxNode | null {
     if (!ctx.glyphs) { ctx.warnings.push('textGlyphs: no definitions.glyphs'); return null; }
-    return materialiseGlyphTextAlongPath<PxNode>(node, pathD, startOffset, { glyphs: ctx.glyphs, warnings: ctx.warnings }, textLength);
+    return materialiseGlyphTextAlongPath<PxNode>(node, pathD, startOffset, { glyphs: ctx.glyphs, warnings: ctx.warnings }, textLength, pathOverflow);
 }

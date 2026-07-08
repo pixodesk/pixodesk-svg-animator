@@ -121,7 +121,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
                     ? (typeof rawTL.value === 'number' ? rawTL.value
                         : Array.isArray(rawTL.keyframes) && rawTL.keyframes.length ? Number(rawTL.keyframes[0]?.value) : undefined)
                     : undefined;
-            const glyphed = applyTextGlyphsAlongPath(n, ctx, pathD, textPath.startOffset, textLength);
+            const glyphed = applyTextGlyphsAlongPath(n, ctx, pathD, textPath.startOffset, textLength, textPath.pathOverflow);
             if (glyphed) { n = glyphed; consumedByGlyphs = true; } // native textPath NOT applied
         } else {
             n = applyTextGlyphsEffect(n, text, ctx);

@@ -136,9 +136,10 @@ describe('textGlyphsEffect — <text> → baked <path> outlines', () => {
 describe('textGlyphsEffect — along-path', () => {
 
     // svg root with a glyph text running along an INLINE path (textPath.path).
-    function alongScene(pathD: string, startOffset?: number, text = 'Hi'): PxNode {
+    function alongScene(pathD: string, startOffset?: number, text = 'Hi', pathOverflow?: string): PxNode {
         const textPath: any = { path: pathD };
         if (startOffset !== undefined) textPath.startOffset = startOffset;
+        if (pathOverflow !== undefined) textPath.pathOverflow = pathOverflow;
         return {
             type: 'svg',
             animator: { definitions: { glyphs } },
@@ -191,6 +192,24 @@ describe('textGlyphsEffect — along-path', () => {
         const { root } = materialiseRaw(alongScene('M0 0L1000 0'));
         expect(collectByType(root, 'path').some(p => p.id === 'curve')).toBe(false); // no external def
         expect(glyphPaths(root).length).toBeGreaterThan(0);                          // glyphs baked from inline path
+    });
+
+    // Text "Hi" @ 100px on a path of length 50: 'H' centre ≈ 35 (on-path), 'i' centre
+    // ≈ 85 (off the end). clip drops 'i'; extend continues it along the tangent.
+    const numCount = (d: unknown) => (String(d).match(/-?\d*\.?\d+/g) ?? []).length;
+    const glyphNums = (root: PxNode) => numCount(glyphPaths(root).map(p => p.d).join(''));
+
+    it('pathOverflow:clip drops glyphs past the path end (extend keeps them)', () => {
+        const clip = materialiseRaw(alongScene('M0 0L50 0', undefined, 'Hi', 'clip')).root;
+        const extend = materialiseRaw(alongScene('M0 0L50 0', undefined, 'Hi', 'extend')).root;
+        expect(glyphNums(clip)).toBeGreaterThan(0);                 // on-path 'H' kept
+        expect(glyphNums(extend)).toBeGreaterThan(glyphNums(clip)); // 'i' dropped only under clip
+    });
+
+    it('pathOverflow default (undefined) = extend — nothing dropped', () => {
+        const def = materialiseRaw(alongScene('M0 0L50 0', undefined, 'Hi')).root;
+        const extend = materialiseRaw(alongScene('M0 0L50 0', undefined, 'Hi', 'extend')).root;
+        expect(glyphNums(def)).toBe(glyphNums(extend));
     });
 });
 

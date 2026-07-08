@@ -26,6 +26,9 @@ export interface PathPoint { x: number; y: number; angle: number; }
 
 export interface PathSampler {
     totalLength: number;
+    /** True when the path loops back on itself (explicit `Z` or coincident ends) —
+     *  no open tip to run off, so overflow clamps/wraps rather than clipping. */
+    closed: boolean;
     sampleAtDistance(dist: number): PathPoint;
 }
 
@@ -167,6 +170,7 @@ export function createPathSampler(d: string): PathSampler | null {
 
     return {
         totalLength,
+        closed,
         sampleAtDistance(dist: number): PathPoint {
             // Past an end of an OPEN path: continue in a straight line along that
             // end's tangent, so along-path motion keeps going instead of piling up
