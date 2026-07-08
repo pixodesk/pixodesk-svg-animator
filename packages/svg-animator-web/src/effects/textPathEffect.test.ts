@@ -29,7 +29,8 @@ const pathDef = (out: PxNode): any => collectByType(out, 'path')[0];
 describe('textPathEffect — inline path → <path> def + <textPath> wrap', () => {
 
     it('case 1 — mints a <path> def from the inline path and wraps children in <textPath href=#minted>', () => {
-        const out = materialise(scene({ path: 'M0,0 Q50,80 100,0' }));
+        // clip → the minted def is the geometry verbatim (extend appends a tangent tail, tested below).
+        const out = materialise(scene({ path: 'M0,0 Q50,80 100,0', pathOverflow: 'clip' }));
 
         const def = pathDef(out);
         expect(def.d).toBe('M0,0 Q50,80 100,0');                       // minted from inline geometry
@@ -72,5 +73,22 @@ describe('textPathEffect — inline path → <path> def + <textPath> wrap', () =
         const out = materialise(scene({ path: '' }));
         expect(collectByType(out, 'textPath')).toHaveLength(0);
         expect(textNode(out).children).toEqual([{ type: 'tspan', text: 'Hi' }]);
+    });
+
+    it('case 6 — pathOverflow:extend extends the minted <path> along the tangent; clip leaves it', () => {
+        const short = 'M0,0 L100,0';
+        const extendD = pathDef(materialise(scene({ path: short, pathOverflow: 'extend', textLength: 500 }))).d;
+        const clipD = pathDef(materialise(scene({ path: short, pathOverflow: 'clip' }))).d;
+
+        expect(clipD).toBe(short);                          // clip → browser drops overflow, path unchanged
+        expect(extendD.length).toBeGreaterThan(short.length); // extend → straight tangent tail appended
+        const xs = (extendD.match(/-?\d*\.?\d+/g) ?? []).map(Number).filter((_, i) => i % 2 === 0);
+        expect(Math.max(...xs)).toBeGreaterThan(100);       // extension runs past the original end (x=100)
+    });
+
+    it('case 7 — default overflow (undefined) extends (extend is the default)', () => {
+        const short = 'M0,0 L100,0';
+        const d = pathDef(materialise(scene({ path: short, textLength: 500 }))).d;
+        expect(d.length).toBeGreaterThan(short.length);
     });
 });
