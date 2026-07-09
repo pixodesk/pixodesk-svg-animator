@@ -13,16 +13,22 @@ import { genId } from './util';
 const EXTEND_MARGIN_FRAC = 0.15; // slack (× path length) to absorb sampling/measure error
 
 
-/** Static value of a `PxAnimatable<number>` (0 when animated/absent) — enough to
- *  size the tangent extension for the common non-animated case. */
-function staticNum(v: PxAnimatable<number> | undefined): number {
-    if (typeof v === 'number') return v;
+/** {min,max} over a `PxAnimatable<number>`'s keyframe values (or its single static
+ *  value; {0,0} when absent). The tangent extension must cover the FULL animation
+ *  range: the MOST-NEGATIVE startOffset drives the START extension, and the LARGEST
+ *  startOffset(+textLength) drives the END — using only one value (e.g. the max)
+ *  misses the other end when startOffset is animated. */
+function numRange(v: PxAnimatable<number> | undefined): { min: number; max: number } {
+    if (typeof v === 'number') return { min: v, max: v };
     if (v && typeof v === 'object') {
         const o = v as { value?: number; keyframes?: Array<{ value?: number }> };
-        if (typeof o.value === 'number') return o.value;
-        if (Array.isArray(o.keyframes)) return Math.max(...o.keyframes.map(k => Number(k.value) || 0), 0);
+        if (typeof o.value === 'number') return { min: o.value, max: o.value };
+        if (Array.isArray(o.keyframes) && o.keyframes.length) {
+            const vals = o.keyframes.map(k => Number(k.value) || 0);
+            return { min: Math.min(...vals), max: Math.max(...vals) };
+        }
     }
-    return 0;
+    return { min: 0, max: 0 };
 }
 
 /** Generous upper bound on the text's advance width: char-count × largest font
@@ -53,23 +59,50 @@ export interface ExtendPathOpts {
     advance?: number;
 }
 
+/** Result of {@link extendedPathForBrowser}: the (possibly) extended `d`, plus
+ *  `startShift` — the length of the prepended START lead-in. Because that lead-in
+ *  moves the `<textPath>` origin back by `startShift`, EVERY `startOffset` (all
+ *  keyframes) MUST be shifted by `+startShift` so the text lands where it would on
+ *  the un-extended path (`extend` only adds a tail, it must never move the text). */
+export interface ExtendedPath {
+    d: string;
+    startShift: number;
+}
+
+/** Shift a `PxAnimatable<number>` by a constant (all keyframes). No-op for `0`. */
+export function shiftAnimatable(v: PxAnimatable<number> | undefined, by: number): PxAnimatable<number> | undefined {
+    if (!by || v === undefined || v === null) return v;
+    if (typeof v === 'number') return v + by;
+    const o = v as { value?: number; keyframes?: Array<{ value?: number }> };
+    if (typeof o.value === 'number') return { ...o, value: o.value + by };
+    if (Array.isArray(o.keyframes)) return { ...o, keyframes: o.keyframes.map(k => ({ ...k, value: (Number(k.value) || 0) + by })) };
+    return v;
+}
+
 /** For `pathOverflow:'extend'` (browser-font): extend an OPEN path along its endpoint
  *  tangents so the browser lays overflow glyphs onto the straight extension (matching
  *  glyph-mode's tangent behavior) instead of dropping them. `'clip'`/closed paths are
  *  returned unchanged (browser clips natively). Shared by the player's browser-font
- *  applier and the editor's live/heavy `<textPath>` def mint (single source of truth). */
-export function extendedPathForBrowser(pathD: string, opts: ExtendPathOpts): string {
-    if (opts.pathOverflow === 'clip') return pathD;
+ *  applier and the editor's live/heavy `<textPath>` def mint (single source of truth).
+ *  Returns the extended `d` AND `startShift` — see {@link ExtendedPath}. */
+export function extendedPathForBrowser(pathD: string, opts: ExtendPathOpts): ExtendedPath {
+    if (opts.pathOverflow === 'clip') return { d: pathD, startShift: 0 };
     const sampler = createPathSampler(pathD);
-    if (!sampler || sampler.closed || sampler.totalLength <= 0) return pathD;
+    if (!sampler || sampler.closed || sampler.totalLength <= 0) return { d: pathD, startShift: 0 };
 
     const L = sampler.totalLength;
     const margin = EXTEND_MARGIN_FRAC * L;
-    const startOff = staticNum(opts.startOffset);
-    const reach = startOff + (staticNum(opts.textLength) || (opts.advance ?? 0));
-    const endExt = Math.max(0, reach - L) + margin;
-    const startExt = Math.max(0, -startOff) + margin;
-    if (endExt <= 0 && startExt <= 0) return pathD;
+    const so = numRange(opts.startOffset);
+    const runWidth = numRange(opts.textLength).max || (opts.advance ?? 0);
+    // START: how far the EARLIEST (most-negative) startOffset reaches before the path
+    // start. END: how far the LATEST run (max startOffset + run width) reaches past the
+    // path end. Only add the slack `margin` when actually extending, so a non-negative
+    // startOffset that fits leaves the corresponding end alone (no phantom shift).
+    const startOverflow = Math.max(0, -so.min);
+    const endOverflow = Math.max(0, so.max + runWidth - L);
+    const startExt = startOverflow > 0 ? startOverflow + margin : 0;
+    const endExt = endOverflow > 0 ? endOverflow + margin : 0;
+    if (endExt <= 0 && startExt <= 0) return { d: pathD, startShift: 0 };
 
     const s = sampler.sampleAtDistance(0);
     const e = sampler.sampleAtDistance(L);
@@ -85,7 +118,8 @@ export function extendedPathForBrowser(pathD: string, opts: ExtendPathOpts): str
         const ex = e.x + Math.cos(e.angle) * endExt, ey = e.y + Math.sin(e.angle) * endExt;
         d += 'L' + r3(ex) + ',' + r3(ey);
     }
-    return d;
+    // The `<textPath>` distance origin moved back by exactly the start lead-in length.
+    return { d, startShift: startExt };
 }
 
 
@@ -114,7 +148,7 @@ export function applyTextPathEffect(
     if (!fx || typeof fx.path !== 'string' || !fx.path) return node;
 
     const pathId = genId(ctx, 'tpath');
-    const d = extendedPathForBrowser(fx.path, {
+    const { d, startShift } = extendedPathForBrowser(fx.path, {
         pathOverflow: fx.pathOverflow, startOffset: fx.startOffset,
         textLength: fx.textLength, advance: estimateTextAdvance(node),
     });
@@ -128,7 +162,9 @@ export function applyTextPathEffect(
     if (fx.lengthAdjust !== undefined) textPath.lengthAdjust = fx.lengthAdjust;
     if (fx.method !== undefined)       textPath.method = fx.method;
     if (fx.spacing !== undefined)      textPath.spacing = fx.spacing;
-    applyAnimatableNumber(textPath, 'startOffset', fx.startOffset);
+    // Compensate the start lead-in: shift startOffset (all keyframes) by `startShift`
+    // so `extend` doesn't move the text vs the un-extended path.
+    applyAnimatableNumber(textPath, 'startOffset', shiftAnimatable(fx.startOffset, startShift));
     applyAnimatableNumber(textPath, 'textLength',  fx.textLength);
 
     node.children = [textPath];
