@@ -43,19 +43,30 @@ function estimateTextAdvance(node: PxNode): number {
 
 const r3 = (n: number): number => Math.round(n * 1000) / 1000;
 
+/** Inputs for {@link extendedPathForBrowser}. `advance` = the text run-width used to
+ *  size the end extension (caller-measured; the player estimates it from the node,
+ *  the editor from its text model — browser fonts have no glyph metrics available). */
+export interface ExtendPathOpts {
+    pathOverflow?: string;
+    startOffset?: PxAnimatable<number>;
+    textLength?: PxAnimatable<number>;
+    advance?: number;
+}
+
 /** For `pathOverflow:'extend'` (browser-font): extend an OPEN path along its endpoint
  *  tangents so the browser lays overflow glyphs onto the straight extension (matching
  *  glyph-mode's tangent behavior) instead of dropping them. `'clip'`/closed paths are
- *  returned unchanged (browser clips natively). */
-function extendedPathForBrowser(pathD: string, fx: PxTextPathEffect, node: PxNode): string {
-    if (fx.pathOverflow === 'clip') return pathD;
+ *  returned unchanged (browser clips natively). Shared by the player's browser-font
+ *  applier and the editor's live/heavy `<textPath>` def mint (single source of truth). */
+export function extendedPathForBrowser(pathD: string, opts: ExtendPathOpts): string {
+    if (opts.pathOverflow === 'clip') return pathD;
     const sampler = createPathSampler(pathD);
-    if (sampler.closed || sampler.totalLength <= 0) return pathD;
+    if (!sampler || sampler.closed || sampler.totalLength <= 0) return pathD;
 
     const L = sampler.totalLength;
     const margin = EXTEND_MARGIN_FRAC * L;
-    const startOff = staticNum(fx.startOffset);
-    const reach = startOff + (staticNum(fx.textLength) || estimateTextAdvance(node));
+    const startOff = staticNum(opts.startOffset);
+    const reach = startOff + (staticNum(opts.textLength) || (opts.advance ?? 0));
     const endExt = Math.max(0, reach - L) + margin;
     const startExt = Math.max(0, -startOff) + margin;
     if (endExt <= 0 && startExt <= 0) return pathD;
@@ -91,9 +102,9 @@ function extendedPathForBrowser(pathD: string, fx: PxTextPathEffect, node: PxNod
  * number is set as an attribute; the `{keyframes}` form is forwarded to
  * `<textPath>.animate.<attr>`; `{value}` is unwrapped to the static shape.
  *
- * NOTE: `pathOverflow:'extend'` (tangent-extending the minted `<path>` so the browser
- * lays overflow glyphs onto the straight extension) is a later step — today the minted
- * path is the geometry as-is, so native rendering clips at the path end.
+ * `pathOverflow:'extend'` tangent-extends the minted `<path>` (see
+ * {@link extendedPathForBrowser}) so the browser lays overflow glyphs onto the straight
+ * extension; `'clip'` mints the geometry as-is and native `<textPath>` drops overflow.
  */
 export function applyTextPathEffect(
     node: PxNode,
@@ -103,7 +114,11 @@ export function applyTextPathEffect(
     if (!fx || typeof fx.path !== 'string' || !fx.path) return node;
 
     const pathId = genId(ctx, 'tpath');
-    ctx.defs.push({ type: 'path', id: pathId, d: extendedPathForBrowser(fx.path, fx, node) });
+    const d = extendedPathForBrowser(fx.path, {
+        pathOverflow: fx.pathOverflow, startOffset: fx.startOffset,
+        textLength: fx.textLength, advance: estimateTextAdvance(node),
+    });
+    ctx.defs.push({ type: 'path', id: pathId, d });
 
     const textPath: PxNode = {
         type: 'textPath',

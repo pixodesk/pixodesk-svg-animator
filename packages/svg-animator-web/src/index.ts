@@ -126,6 +126,8 @@ export { jsonElementFactory } from './effects/elementFactory';
 export type { PxCreateElement } from './effects/elementFactory';
 export { materialiseGlyphText, materialiseGlyphTextAlongPath, materialiseGlyphTextHorizontal } from './effects/textGlyphsEffect';
 export type { GlyphMaterialiseOpts } from './effects/textGlyphsEffect';
+export { extendedPathForBrowser } from './effects/textPathEffect';
+export type { ExtendPathOpts } from './effects/textPathEffect';
 export { createBasicFrameLoopAnimator, createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 export type { PxPlatformAdapter } from './PxAnimatorFrameLoop';
 export { createWebApiAnimator } from './PxAnimatorWebApi';
