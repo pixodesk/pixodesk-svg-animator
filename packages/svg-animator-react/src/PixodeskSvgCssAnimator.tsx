@@ -83,10 +83,11 @@ const PixodeskSvgCssAnimator: FC<{
     return (
         <div
             ref={ref}
-            className={className + (
+            className={[
+                className,
                 state === 'playing' ? 'px-anim-enabled px-anim-playing' :
                     state === 'paused' ? 'px-anim-enabled' : ''
-            )}
+            ].filter(Boolean).join(' ')}
             style={style}
             {...handlers}
         >

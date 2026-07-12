@@ -39,6 +39,7 @@ export function createVuePlayer(
     isPlaying: () => api?.isPlaying() ?? false,
     getCurrentTime: () => api?.getCurrentTime() ?? null,
     setCurrentTime: (ms) => api?.setCurrentTime(ms),
+    setPlaybackRate: (rate) => api?.setPlaybackRate(rate),
     destroy: () => app.unmount(),
   };
 }

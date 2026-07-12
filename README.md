@@ -107,29 +107,37 @@ graph TD
 | File type | When to use | Advantages | Disadvantages |
 |-----------|-------------|------------|---------------|
 | **JSON file** | Complex animations (shape morph, sequencing) <br> Programmatic control needed <br> Multiple instances on the page <br> React / Vue / Next.js / Nuxt apps | Full animation support including all types <br> Fine-grained runtime control: play, pause, seek, reverse, speed <br> Clean independent rendering per instance — no ID conflicts <br> SSR-safe | Requires `@pixodesk/svg-animator-react`, `-vue`, or `-web` runtime <br> More setup: data file and rendering component must be wired together |
-| **Pre-rendered SVG** with <br> **CSS Keyframes** | Drop-in animated icon in React/Vue <br> Embedding via `<img>` or inline HTML <br> Simple looping or entrance animations | No library payload — minimal file size <br> No `<script>` tag — embeds cleanly via `<img>`, inline HTML, or SVGR <br> Works as a drop-in icon replacement | No shape morphing or physics-based animations <br> No runtime control (play, pause, seek) <br> Limited to what CSS `@keyframes` can express <br> Possible ID conflicts when the same SVG is embedded more than once |
-| **Pre-rendered SVG** with <br> **CSS Keyframes + JS triggers** | Static HTML pages with event-triggered start/stop (e.g. play on hover) | No library payload — minimal file size <br> Adds basic event-driven start/stop control | No shape morphing or advanced animation types <br> No precise runtime control (seek, reverse, speed) <br> `<script>` tag prevents embedding via SVGR or `<img>` <br> Possible ID conflicts when the same SVG is embedded more than once |
+| **Pre-rendered SVG** with <br> **CSS Keyframes** | Drop-in animated icon in React/Vue <br> Embedding via `<img>` or inline HTML <br> Simple looping or entrance animations | No library payload — minimal file size <br> No `<script>` tag — embeds cleanly via `<img>`, inline HTML, or SVGR <br> Works as a drop-in icon replacement | Limited to what CSS `@keyframes` can express (see [Animation Type Support](#animation-type-support)) <br> Shape morphing only in Chrome/FF/Edge, same-structure paths <br> No runtime control (play, pause, seek) <br> Possible ID conflicts when the same SVG is embedded more than once |
+| **Pre-rendered SVG** with <br> **CSS Keyframes + JS triggers** | Static HTML pages with event-triggered start/stop (e.g. play on hover) | No library payload — minimal file size <br> Adds basic event-driven start/stop control | Same CSS `@keyframes` limits as above <br> No precise runtime control (seek, reverse, speed) <br> `<script>` tag prevents embedding via SVGR or `<img>` <br> Possible ID conflicts when the same SVG is embedded more than once |
 | **Pre-rendered SVG** with <br> **JavaScript animation** | Static or server-rendered pages <br> When content must appear before JS hydration <br> All animation types without a separate data file | Supports all animation types including shape morphing <br> Full runtime control: play, pause, seek, reverse, speed <br> Self-contained — no separate data file required | Adds `@pixodesk/svg-animator-web` library overhead <br> `<script>` tag prevents embedding via SVGR or `<img>` <br> Possible ID conflicts when the same SVG is embedded more than once |
 
 ---
 
 ## Animation Type Support
 
+With `mode: 'auto'` (the default) the player picks the Web Animations API and **automatically falls back to the frames engine** whenever a document animates something WAAPI can't express — so from the user's point of view every row below "just works" in the JSON format; the columns describe *which* mechanism drives it.
+
 | Animation Type | CSS Keyframes | Web Animation API <br> (JavaScript) | Animation Frames <br> (JavaScript) |
 |----------------|---------------|--------------------------------------|-------------------------------------|
 | **Simple Numeric** (opacity, stroke-width) | ✅ Full support | ✅ Full support | ✅ Full support |
-| **Position Attributes** (x, y, cx, cy, r, rx, ry) | ❌ Not supported `????` | ✅ Full support | ✅ Full support |
-| **Size Attributes** (width, height) | ❌ Not supported `????` | ✅ Full support | ✅ Full support |
-| **Transform** (translate, rotate, scale, skew) | ✅ Full support | ✅ Full support | ✅ Full support |
+| **Position Attributes** (x, y, cx, cy, r, rx, ry) | ✅ Full support ¹ | ✅ Full support ¹ ² | ✅ Full support |
+| **Size Attributes** (width, height) | ✅ Full support ¹ | ✅ Full support ¹ ² | ✅ Full support |
+| **Transform** (translate, rotate, scale; static skew) | ✅ Full support | ✅ Full support | ✅ Full support |
 | **Colors** (fill, stroke) | ✅ Full support | ✅ Full support | ✅ Full support |
-| **Path Morphing** (d attribute) | ❌ Not supported | ❌ Not supported | ✅ Full support |
-| **Stroke Dash** (stroke-dasharray, stroke-dashoffset) | ✅ Basic support | ✅ Full support | ✅ Full support |
-| **Gradient Stop Points** (offset, stop-color) | ⚠️ Limited `????` | ⚠️ Limited `????` | ✅ Full support |
-| **Filters** (blur, brightness, etc.) | ⚠️ Simple only `????` | ✅ Most filters | ✅ Full support |
-| **Clip-path / Mask Morphing** | ❌ Not supported `????` | ❌ Not supported `????` | ✅ Full support |
-| **Text on Path** (startOffset, textPath) | ⚠️ Limited `????` | ✅ Full support | ✅ Full support |
+| **Path Morphing** (d attribute) | ⚠️ Chrome/FF/Edge ³ | ❌ Falls back to frames ² | ✅ Full support |
+| **Stroke Dash** (stroke-dasharray, stroke-dashoffset) | ✅ Full support | ✅ Full support | ✅ Full support |
+| **Gradient Stop Points** (offset, stop-color) | ⚠️ stop-color only ⁴ | ❌ Falls back to frames ² | ✅ Full support |
+| **Filters** (blur, brightness, etc.) | ❌ Not supported | ❌ Falls back to frames ² | ✅ Full support |
+| **Clip-path / Mask Morphing** | ❌ Not supported | ❌ Falls back to frames ² | ✅ Full support |
+| **Text on Path** (startOffset, textPath) | ❌ Not supported ⁵ | ❌ Falls back to frames ² | ✅ Full support |
 | **Performance** | ⚡ Excellent | ⚡ Excellent | ⚠️ Good |
 | **Browser Support** | ✅ Universal | ✅ Modern browsers | ✅ Universal |
+
+¹ SVG geometry as CSS properties (`x`, `cy`, `r`, `width`, …) works in Chromium/WebKit; **Firefox does not implement it** — use the JSON format (auto frames fallback) for guaranteed cross-browser geometry animation.
+² The player gates each attribute with `CSS.supports(...)` at runtime; if anything in the document isn't natively animatable, the whole document automatically switches to the frames engine (`mode: 'auto'`). The animation still plays — just not via native WAAPI.
+³ CSS `d: path(...)` morphing requires identical path command structure across keyframes and is unavailable in Safari < 18.5.
+⁴ Per-`<stop>` `stop-color` animates via CSS; stop **`offset`** and gradient geometry cannot be expressed in CSS at all.
+⁵ The static `<textPath>` layout renders everywhere; it is the *animation* of `startOffset`/`textLength` that CSS cannot express.
 
 
 ---
@@ -206,6 +214,8 @@ interface SVG_JSON {
         definitions?: {
             easings?: Record<string, [number, number, number, number]>; // name → [x1,y1,x2,y2]
             animations?: Record<string, Record<string, ANIMATE>>;       // name → { propName: ANIMATE }
+            styles?: Record<string, Record<string, string | number>>;   // name → style preset (node.style may reference by name)
+            glyphs?: Record<string, any>;                               // font-family → embedded glyph outlines (glyph-mode text)
         };
 
         // Mode B — maps elementId → animation spec
@@ -227,7 +237,7 @@ interface SVG_JSON {
         // named ref / array of refs / inline definition / mixed array
         animate?: string | Array<string> | Record<string, ANIMATE> | Array<string | Record<string, ANIMATE>>;
         // Player-materialised structural effects (transformation/repeater/maskedBy/
-        // trimPath/clone/gradient/textAlongPath/isCombinedShape). JSON-only — the
+        // trimPath/clone/gradient/textPath/text/isCombinedShape). JSON-only — the
         // Pre-rendered SVG export materialises these in the Editor. See "Player
         // effects" section below.
         effects?: {
@@ -235,10 +245,11 @@ interface SVG_JSON {
             repeater?:        { copies?, translate?, rotate?, scale?, origin?: any };
             maskedBy?:        { href?: string, maskType?, maskUnits?, maskContentUnits?: string };
             trimPath?:        { offset?, range?: any, trimAllAsOne?: boolean };       // offset/range animatable
-            clone?:           { type?: 'content', baseId?: string, retime?: { start?, stretch?: number, timeCrop?: [number, number] } };
+            clone?:           { type?: 'content', baseId?: string, retime?: { start?, stretch?: number } };
             fillGradient?:    { type: 'linear'|'radial', p1?, p2?, c?, r?, fp?, stops?, gradientUnits?, spreadMethod?, gradientTransform? };
             strokeGradient?:  { /* same shape as fillGradient */ };
-            textAlongPath?:   { href: string, lengthAdjust?, method?, spacing?, startOffset?, textLength? };
+            textPath?:        { path: string, pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? };
+            text?:            { useGlyphs?: boolean };  // render text from embedded glyph outlines (definitions.glyphs)
             isCombinedShape?: boolean;
         };
         meta?: any;         // editor-only (label, shape, …); not rendered, ignored by player
@@ -561,9 +572,10 @@ of time, so the exported SVG already contains the expanded structure —
 | `repeater` | `{ copies:N, translate?:[x,y], rotate?:deg, scale?:[%, %], origin?:[x,y] }` | Renders `N-1` extra `<use>` copies of this element, each at incremental offset (per-copy params static; the base element can still animate). |
 | `maskedBy` | `{ href:"#id", maskType?, maskUnits?, maskContentUnits? }` | Builds a `<mask>` from the referenced element and applies it to this one. |
 | `trimPath` | `{ offset?, range?:[a,b], trimAllAsOne? }` (`offset`/`range` animatable) | Trims the visible stroke segment along a path. `trimAllAsOne:true` chains all descendant subpaths into one virtual path so the window slides across siblings. |
-| `clone` | `{ type?:"content", baseId:"id", retime?:{ start?:ms, stretch?:1.0, timeCrop?:[a,b] } }` | `<use>`-only. A `<use>` is a clone of something: `baseId` = the source element id (says WHAT it clones), nested `retime` = optional time-shift of the source's internal timeline (says WHEN). `type:"content"` is a "no-ref-translate" content link — targets the source's content sub-anchor so the source's own outer translate isn't re-applied; `type` absent = direct whole-element link (keeps translate). Replaces the former separate `ref` + `retime` effects. |
+| `clone` | `{ type?:"content", baseId:"id", retime?:{ start?:ms, stretch?:1.0 } }` | `<use>`-only. A `<use>` is a clone of something: `baseId` = the source element id (says WHAT it clones), nested `retime` = optional time-shift of the source's internal timeline (says WHEN). `type:"content"` is a "no-ref-translate" content link — targets the source's content sub-anchor so the source's own outer translate isn't re-applied; `type` absent = direct whole-element link (keeps translate). `retime.timeCrop` is reserved (accepted, not applied yet). |
 | `fillGradient` / `strokeGradient` | `{ type:"linear"\|"radial", p1?,p2? (linear) \| c?,r?,fp? (radial), stops?, gradientUnits?, spreadMethod?, gradientTransform? }` | Mints a `<linearGradient>`/`<radialGradient>` def and points the host's `fill`/`stroke` at it. `stops` is one timeline — static array, or `{keyframes}` whose each kf `value` is the full stops array snapshot. Geometry is static. |
-| `textAlongPath` | `{ href:"#pathId", lengthAdjust?, method?, spacing?, startOffset?, textLength? }` | On a `<text>` host: wraps its children in a `<textPath>` along the referenced path. `startOffset`/`textLength` accept the full animatable shape. |
+| `textPath` | `{ path:"M…", pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? }` | On a `<text>` host: mints a `<path>` def from the inline `path` and wraps the text's children in a `<textPath>` along it. `startOffset`/`textLength` accept the full animatable shape. `pathOverflow`: `'extend'` (default — glyphs continue along the endpoint tangent) or `'clip'` (native `<textPath>` behaviour). |
+| `text` | `{ useGlyphs?: true }` | Renders the `<text>` from embedded per-glyph outlines in `definitions.glyphs` — self-contained, no external font needed. |
 | `isCombinedShape` | `true` | Flag for the wrapping `<g>` of a multi-`<path>` trim — tells the Player the children form one logical shape. |
 
 **Example — composite transformation + repeater:**
@@ -640,13 +652,12 @@ of time, so the exported SVG already contains the expanded structure —
   } } }
 ```
 
-**Text on path (`textAlongPath`)** — lay a `<text>` along a referenced path and animate the start offset:
+**Text on path (`textPath`)** — lay a `<text>` along an inline path and animate the start offset:
 
 ```js
-{ type: 'defs', children: [{ type: 'path', id: '_px_curve', d: 'M20,100 Q150,20 280,100' }] },
 { type: 'text', id: '_px_t', fill: '#111', 'font-size': 18,
-  effects: { textAlongPath: {
-    href: '#_px_curve',
+  effects: { textPath: {
+    path: 'M20,100 Q150,20 280,100',
     startOffset: { keyframes: [{ time: 0, value: 0 }, { time: 2000, value: 260 }] },
   } },
   children: [{ type: 'tspan', text: 'animated text on a path' }] }
@@ -740,9 +751,15 @@ import animation from './animation.json';
 ```js
 import { createAnimator } from '@pixodesk/svg-animator-web';
 
-const animator = createAnimator('/animation.json', undefined, {
-  onFinish: () => console.log('done'),
-}, '#container');
+// From a URL (calls made before the file loads are queued and replayed)
+const animator = createAnimator({
+  src: '/animation.json',
+  container: '#container',
+  callbacks: { onFinish: () => console.log('done') },
+});
+
+// Or from an already-loaded document object
+// const animator = createAnimator({ data: animationDoc, container: '#container' });
 
 animator.play();
 animator.pause();

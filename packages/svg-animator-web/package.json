@@ -28,6 +28,7 @@
     "prepare": "npm run build",    
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "eslint src/ && tsup",
     "start": "node dist/index.cjs",
     "dev": "tsup --watch",

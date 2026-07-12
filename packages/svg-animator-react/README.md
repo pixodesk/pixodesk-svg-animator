@@ -60,7 +60,7 @@ const api = useRef<ReactAnimatorApi>(null);
 <button onClick={() => api.current?.finish()}>Finish</button>
 ```
 
-`ReactAnimatorApi` methods: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`, `getCurrentTime()`, `setCurrentTime(ms)`.
+`ReactAnimatorApi` methods: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`.
 
 ### Controlled time
 
@@ -89,7 +89,7 @@ const [timeMs, setTimeMs] = useState(0);
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
 | `apiRef` | `RefObject<ReactAnimatorApi>` | Ref for imperative control |
-| `time` | `number` | Seek to a fractional position |
+| `time` | `number` | Seek to a fraction (0–1) of the whole timeline (duration × iterations) |
 | `timeMs` | `number` | Seek to a time in milliseconds |
 | `mode` | `'auto' \| 'webapi' \| 'frames'` | Animation engine |
 | `duration` | `number` | Duration override (ms) |
@@ -104,5 +104,11 @@ const [timeMs, setTimeMs] = useState(0);
 | `onPause` | `() => void` | Called on pause |
 | `onFinish` | `() => void` | Called on natural finish |
 | `onCancel` | `() => void` | Called on cancel |
-| `className` | `string` | CSS class |
-| `style` | `CSSProperties` | Inline styles |
+| `onRemove` | `() => void` | Called when the animation is destroyed (e.g. unmount) |
+| `onStop` | `() => void` | Called whenever playback halts (pause / cancel / finish / remove) |
+| `className` | `string` | CSS class applied to the rendered root `<svg>` |
+| `style` | `CSSProperties` | Inline styles applied to the rendered root `<svg>` |
+
+With none of `autoplay` / `play` / `pause` / `apiRef` / `time` / `timeMs` set, the component renders the animation statically (initial state, no playback).
+
+Note: recreating the animator (unmount or a `doc` swap) emits `onCancel`, `onRemove`, and `onStop` for the torn-down instance. Scrubbing `time` / `timeMs` does **not** recreate the animator — it seeks the existing one.

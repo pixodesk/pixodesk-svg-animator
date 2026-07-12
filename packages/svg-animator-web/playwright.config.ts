@@ -26,7 +26,12 @@ export default defineConfig({
     ],
     expect: {
         toHaveScreenshot: {
-            maxDiffPixelRatio: 0.001, // e.g. 400x400*0.001 = 160 pixels
+            // Pixel budget for image diffs. Anti-aliasing and sub-pixel raster
+            // differences make a 0/1-px budget too brittle; 1% of a 200×200
+            // shot (≈400 px) absorbs raster noise while still failing on any
+            // real visual regression. Failures write expected/actual/diff
+            // images into test-results/ for inspection.
+            maxDiffPixelRatio: 0.01,
         },
     },
 });

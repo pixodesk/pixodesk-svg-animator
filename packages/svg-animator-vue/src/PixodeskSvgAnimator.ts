@@ -29,6 +29,9 @@ export interface VueAnimatorApi {
     /** Jumps to the end of the animation and holds the final state. */
     finish(): void;
 
+    /** Changes the speed of the animation. 1 is normal, 2 is double, -1 is reverse. */
+    setPlaybackRate(rate: number): void;
+
     /** Returns the current playback time in milliseconds. */
     getCurrentTime(): number | null;
 
@@ -161,16 +164,26 @@ function applyDocOverrides(
         };
     }
 
-    // In controlled-time mode, use a negative delay to seek to the given frame.
-    if (compMode === CompMode.fixedTime) {
-        let seekDelay = 0;
-        if (props.time !== undefined) seekDelay = -props.time; // FIXME: time as a fraction of total duration?
-        if (props.timeMs !== undefined) seekDelay = -props.timeMs;
-        const animator = doc.animator || {};
-        doc = { ...doc, animator: { ...animator, delay: seekDelay } };
-    }
-
     return doc;
+}
+
+/**
+ * Controlled-time mode: absolute seek target in ms. `time` is a fraction
+ * (0–1) of the WHOLE timeline (duration × iterations); `timeMs` is absolute.
+ * Applied through the animator API (setCurrentTime) so scrubbing does NOT
+ * recreate the animator.
+ */
+function calcSeekMs(doc: PxAnimatedSvgDocument, props: DocOverrideProps): number | undefined {
+    let seekMs: number | undefined;
+    const animator = doc.animator || {};
+    if (props.time !== undefined) {
+        const iterationsValue = props.iterations ?? animator.iterations;
+        const iterationsCount = typeof iterationsValue === 'number' && iterationsValue >= 1 ? iterationsValue : 1;
+        const singleDuration = props.duration ?? animator.duration ?? 1000; // engine default duration
+        seekMs = props.time * singleDuration * iterationsCount;
+    }
+    if (props.timeMs !== undefined) seekMs = props.timeMs;
+    return seekMs;
 }
 
 
@@ -210,9 +223,6 @@ const PixodeskSvgAnimator = defineComponent({
         // -- Source
         doc: { type: Object as PropType<PxAnimatedSvgDocument>, required: true },
 
-        // -- Timeline
-        timeline: { type: String as PropType<'time' | 'scroll'> },
-
         // -- Rendering mode
         mode: { type: String as PropType<'webapi' | 'frames' | 'auto'> },
 
@@ -239,9 +249,9 @@ const PixodeskSvgAnimator = defineComponent({
         timeMs: { type: Number },
     },
 
-    emits: ['play', 'stop', 'pause', 'cancel', 'finish', 'remove', 'warning', 'error'],
+    emits: ['play', 'stop', 'pause', 'cancel', 'finish', 'remove'],
 
-    setup(props, { expose }) {
+    setup(props, { expose, emit }) {
         const elementRefs = new Map<string, Element>();
         const apiRef = shallowRef<PxAnimatorAPI | null>(null);
 
@@ -250,7 +260,7 @@ const PixodeskSvgAnimator = defineComponent({
         const compMode = computed<CompMode>(() => {
             if (props.autoplay) return CompMode.autoplay;
             if (props.time !== undefined || props.timeMs !== undefined) return CompMode.fixedTime;
-            if (props.play !== undefined) return CompMode.play;
+            if (props.play !== undefined || props.pause !== undefined) return CompMode.play;
             return CompMode.static;
         });
 
@@ -291,7 +301,24 @@ const PixodeskSvgAnimator = defineComponent({
             destroyApi();
             const doc = resolvedDoc.value;
             if (!doc) return;
-            apiRef.value = createAnimator({ data: doc, adapter: createVueAdapter(elementRefs) });
+
+            // Route animator lifecycle events to Vue component events.
+            // `stop` fires alongside any event that halts playback.
+            const callbacks = {
+                onPlay:   () => emit('play'),
+                onPause:  () => { emit('pause');  emit('stop'); },
+                onCancel: () => { emit('cancel'); emit('stop'); },
+                onFinish: () => { emit('finish'); emit('stop'); },
+                onRemove: () => { emit('remove'); emit('stop'); },
+            };
+
+            apiRef.value = createAnimator({ data: doc, adapter: createVueAdapter(elementRefs), callbacks });
+
+            // (Re)apply the declarative control state to the fresh animator —
+            // covers both the initial mount (e.g. `:play="true"` from the
+            // start) and doc swaps.
+            syncPlayState();
+            applySeek();
         }
 
         function destroyApi() {
@@ -299,24 +326,48 @@ const PixodeskSvgAnimator = defineComponent({
             apiRef.value = null;
         }
 
+        /** Declarative play/pause → animator calls. */
+        function syncPlayState() {
+            if (compMode.value !== CompMode.play) return;
+            if (props.play && !props.pause) {
+                apiRef.value?.play();
+            } else if (props.pause) {
+                apiRef.value?.pause();
+            } else if (props.play === false) {
+                // explicit play=false → jump to the end state
+                apiRef.value?.finish();
+            } else {
+                // pause-only usage: pause switched off → resume
+                apiRef.value?.play();
+            }
+        }
+
+        /** Controlled-time mode: seek through the animator API (no recreate). */
+        function applySeek() {
+            if (compMode.value !== CompMode.fixedTime) return;
+            const doc = resolvedDoc.value;
+            if (!doc) return;
+            const seekMs = calcSeekMs(doc, props);
+            if (seekMs !== undefined) {
+                apiRef.value?.setCurrentTime(seekMs);
+                apiRef.value?.pause();
+            }
+        }
+
         // Create the animator once DOM refs are available.
         onMounted(() => createApi());
 
         // Recreate the animator when the resolved doc changes.
-        watch(resolvedDoc, () => createApi());
+        // `flush: 'post'` — the animator must be created AFTER the DOM is
+        // patched, otherwise the new root element isn't in the document yet
+        // and trigger setup fails (autoplay would never resume after a doc swap).
+        watch(resolvedDoc, () => createApi(), { flush: 'post' });
 
         // Sync declarative play/pause props with the animator.
-        watch([compMode, () => props.play, () => props.pause], () => {
-            if (compMode.value === CompMode.play) {
-                if (props.play && !props.pause) {
-                    apiRef.value?.play();
-                } else if (props.pause) {
-                    apiRef.value?.pause();
-                } else {
-                    apiRef.value?.finish();
-                }
-            }
-        });
+        watch([compMode, () => props.play, () => props.pause], () => syncPlayState());
+
+        // Scrubbing time/timeMs only seeks — the animator is NOT recreated.
+        watch([compMode, () => props.time, () => props.timeMs], () => applySeek());
 
         onUnmounted(() => {
             destroyApi();
@@ -330,7 +381,8 @@ const PixodeskSvgAnimator = defineComponent({
             pause: () => apiRef.value?.pause(),
             cancel: () => apiRef.value?.cancel(),
             finish: () => apiRef.value?.finish(),
-            getCurrentTime: () => apiRef.value?.getCurrentTime() || null,
+            setPlaybackRate: (rate: number) => apiRef.value?.setPlaybackRate(rate),
+            getCurrentTime: () => apiRef.value?.getCurrentTime() ?? null,
             setCurrentTime: (time: number) => apiRef.value?.setCurrentTime(time),
         };
 

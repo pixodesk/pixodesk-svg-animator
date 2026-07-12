@@ -247,7 +247,6 @@ export function createAnimatorImpl(
     // construction, frames is used as fallback — slight over-materialisation
     // for that doc, but no correctness issue.
     const animatorConfig = getAnimatorConfig(doc) || {};
-    animatorConfig.debug = true; // FIXME
     const engine: PxAnimatorEngine = animatorConfig.mode === PxAnimatorMode.frames
         ? PxAnimatorEngine.frames
         : PxAnimatorEngine.webapi;
@@ -319,12 +318,34 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
     // URL provided - fetch and create animator
     let animator: PxAnimatorAPI | null = null;
 
+    // Control calls made before the fetch resolves are queued and replayed (in
+    // order) once the animator is ready, so e.g. `createAnimator({src}).play()`
+    // works as expected. Getters are not queued — they return their "not ready
+    // yet" value until the document loads.
+    let pending: Array<(api: PxAnimatorAPI) => void> | null = [];
+    let destroyed = false;
+
+    const enqueue = (call: (api: PxAnimatorAPI) => void) => {
+        if (animator) {
+            call(animator);
+        } else if (pending) {
+            pending.push(call);
+        }
+    };
+
     fetch(src!).then(res => res.json()).then(json => {
+        if (destroyed) return; // destroy() was called before the document loaded
         if (isPxElementFileFormat(json)) {
             animator = createAnimatorImpl(json, adapter, callbacks, container);
+            const queued = pending;
+            pending = null;
+            queued?.forEach(call => call(animator!));
         } else {
-            console.error('Invalid animation document format');
+            console.error('createAnimator: invalid animation document format at "' + src + '"');
         }
+    }).catch(err => {
+        pending = null;
+        console.error('createAnimator: failed to load "' + src + '"', err);
     });
 
     // Return a proxy that forwards calls once loaded
@@ -332,14 +353,18 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
         "isReady": () => !!animator,
         "getRootElement": () => animator ? animator.getRootElement() : null,
         "isPlaying": () => animator?.isPlaying() || false,
-        "play": () => { animator?.play(); },
-        "pause": () => { animator?.pause(); },
-        "cancel": () => { animator?.cancel(); },
-        "finish": () => { animator?.finish(); },
-        "setPlaybackRate": (rate: number) => { animator?.setPlaybackRate(rate); },
-        "getCurrentTime": () => animator?.getCurrentTime() || 0,
-        "setCurrentTime": (time: number) => { animator?.setCurrentTime(time); },
-        "destroy": () => { animator?.destroy(); }
+        "play": () => { enqueue(api => api.play()); },
+        "pause": () => { enqueue(api => api.pause()); },
+        "cancel": () => { enqueue(api => api.cancel()); },
+        "finish": () => { enqueue(api => api.finish()); },
+        "setPlaybackRate": (rate: number) => { enqueue(api => api.setPlaybackRate(rate)); },
+        "getCurrentTime": () => animator ? animator.getCurrentTime() : null,
+        "setCurrentTime": (time: number) => { enqueue(api => api.setCurrentTime(time)); },
+        "destroy": () => {
+            destroyed = true;
+            pending = null; // drop any queued calls
+            animator?.destroy();
+        }
     };
 }
 

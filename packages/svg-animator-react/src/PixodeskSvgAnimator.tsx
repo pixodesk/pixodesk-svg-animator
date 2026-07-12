@@ -28,6 +28,9 @@ export interface ReactAnimatorApi {
     /** Jumps to the end of the animation and holds the final state. */
     finish(): void;
 
+    /** Changes the speed of the animation. 1 is normal, 2 is double, -1 is reverse. */
+    setPlaybackRate(rate: number): void;
+
     /** Returns the current playback time in milliseconds. */
     getCurrentTime(): number | null;
 
@@ -43,6 +46,23 @@ export interface PixodeskSvgAnimatorImplProps {
 
     /** Imperative API handle populated by the inner component. */
     apiHolderRef: React.RefObject<PxAnimatorAPI | null>;
+
+    /**
+     * Latest lifecycle callbacks, read at invocation time so the memoised
+     * inner component always calls the current props even though it never
+     * re-renders.
+     */
+    callbacksRef: React.RefObject<PixodeskSvgAnimatorCallbacks>;
+}
+
+/** Lifecycle callback props (subset of {@link PixodeskSvgAnimatorProps}). */
+export interface PixodeskSvgAnimatorCallbacks {
+    onPlay?: () => void;
+    onStop?: () => void;
+    onPause?: () => void;
+    onCancel?: () => void;
+    onFinish?: () => void;
+    onRemove?: () => void;
 }
 
 export interface PixodeskSvgAnimatorProps {
@@ -60,10 +80,6 @@ export interface PixodeskSvgAnimatorProps {
      *   <PixodeskSvgAnimator doc="/animation.json" />
      */
     doc: PxAnimatedSvgDocument;
-
-    // -- Timeline ------------------------------------------------------------
-
-    timeline?: 'time' | 'scroll';
 
     // -- Rendering mode ------------------------------------------------------
 
@@ -122,7 +138,7 @@ export interface PixodeskSvgAnimatorProps {
 
     // -- Controlled (external) time ------------------------------------------
 
-    /** Seek to a specific point in the animation (fractional). */
+    /** Seek to a specific point in the animation, as a fraction (0–1) of the whole timeline (duration × iterations). */
     time?: number;
 
     /** Seek to a specific point in the animation (milliseconds). */
@@ -134,7 +150,7 @@ export interface PixodeskSvgAnimatorProps {
     onPlay?: () => void;
 
     /** Called when the animation stops for any reason (pause / cancel / finish / removal). */
-    onStop?: () => void; // FIXME: consider a more descriptive name
+    onStop?: () => void;
 
     /** Called when the animation is paused. */
     onPause?: () => void;
@@ -147,11 +163,6 @@ export interface PixodeskSvgAnimatorProps {
 
     /** Called when the animation is removed. */
     onRemove?: () => void;
-
-    // -- Diagnostics ---------------------------------------------------------
-
-    onWarning?: (msg: string) => void;
-    onError?: (msg: string) => void;
 }
 
 
@@ -214,14 +225,14 @@ export function getSelector(id: string) {
 // -- Inner component (memoised, never re-renders) ---------------------------
 
 const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
-    className, style, doc, compMode, apiHolderRef
+    className, style, doc, compMode, apiHolderRef, callbacksRef
 }) => {
 
     doc = generateNewIds(doc);
 
     const elementRefs = useRef(new Map<string, any>());
 
-    const renderNode = (node: PxNode | undefined): ReactElement | null => {
+    const renderNode = (node: PxNode | undefined, isRoot = false): ReactElement | null => {
         if (!node) return null;
 
         const { type, animate, meta, children, ...props } = node;
@@ -233,15 +244,39 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
             // return () => {};
         };
 
+        // Apply the component's className/style props to the root SVG element.
+        if (isRoot) {
+            if (className) {
+                normProps['className'] = normProps['className']
+                    ? normProps['className'] + ' ' + className
+                    : className;
+            }
+            if (style) normProps['style'] = style;
+        }
+
         return createElement(type, normProps, children?.map(child => renderNode(child)));
     };
 
-    const root = doc ? renderNode(doc) : null;
+    const root = doc ? renderNode(doc, true) : null;
 
     // Create the animator once per document and tear it down on unmount.
     useEffect(() => {
 
-        let api: PxAnimatorAPI | undefined = createAnimator({ data: doc, adapter: createReactAdapter(elementRefs) });
+        // Route lifecycle events through `callbacksRef` so the latest callback
+        // props are invoked even though this component never re-renders.
+        const cb = (name: keyof PixodeskSvgAnimatorCallbacks, alsoStop = false) => () => {
+            callbacksRef.current?.[name]?.();
+            if (alsoStop) callbacksRef.current?.onStop?.();
+        };
+        const callbacks = {
+            onPlay:   cb('onPlay'),
+            onPause:  cb('onPause', true),
+            onCancel: cb('onCancel', true),
+            onFinish: cb('onFinish', true),
+            onRemove: cb('onRemove', true),
+        };
+
+        let api: PxAnimatorAPI | undefined = createAnimator({ data: doc, adapter: createReactAdapter(elementRefs), callbacks });
         apiHolderRef.current = api;
 
         return () => {
@@ -293,12 +328,13 @@ const PixodeskSvgAnimatorImplOnce = React.memo(
 const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     className, style,
     doc, autoplay, play, pause, time, timeMs, apiRef,
-    timeline,
 
     // Overrides
     mode, delay, fill, iterations, duration, direction, frameRate,
 
-    startOn, outAction, scrollIntoViewThreshold
+    startOn, outAction, scrollIntoViewThreshold,
+
+    onPlay, onStop, onPause, onCancel, onFinish, onRemove
 }) => {
 
     // Determine which control mode is active.
@@ -309,7 +345,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
         compMode = PixodeskSvgAnimatorCompMode.autoplay;
     } else if (time !== undefined || timeMs !== undefined) {
         compMode = PixodeskSvgAnimatorCompMode.fixedTime;
-    } else {
+    } else if (play !== undefined || pause !== undefined) {
         compMode = PixodeskSvgAnimatorCompMode.play;
     }
 
@@ -381,22 +417,28 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
         };
     }
 
-    // In controlled-time mode, use a negative delay to seek to the given frame.
+    // Controlled-time mode: compute the absolute seek target. `time` is a
+    // fraction (0–1) of the WHOLE timeline (duration × iterations); `timeMs`
+    // is absolute milliseconds. The seek is applied through the animator API
+    // (setCurrentTime) below — the document itself stays stable, so scrubbing
+    // does NOT recreate the animator.
+    let seekMs: number | undefined;
     if (compMode === PixodeskSvgAnimatorCompMode.fixedTime) {
-        let delay = 0;
-        if (time !== undefined) delay = -time; // FIXME: time as a fraction of total duration?
-        if (timeMs !== undefined) delay = -timeMs;
         const animator = doc.animator || {};
-        doc = {
-            ...doc,
-            animator: {
-                ...animator,
-                delay
-            }
-        };
+        if (time !== undefined) {
+            const iterationsValue = iterations ?? animator.iterations;
+            const iterationsCount = typeof iterationsValue === 'number' && iterationsValue >= 1 ? iterationsValue : 1;
+            const singleDuration = duration ?? animator.duration ?? 1000; // engine default duration
+            seekMs = time * singleDuration * iterationsCount;
+        }
+        if (timeMs !== undefined) seekMs = timeMs;
     }
 
     const apiHolderRef = useRef<PxAnimatorAPI | null>(null);
+
+    // Keep the latest callback props readable by the memoised inner component.
+    const callbacksRef = useRef<PixodeskSvgAnimatorCallbacks>({});
+    callbacksRef.current = { onPlay, onStop, onPause, onCancel, onFinish, onRemove };
 
     // Expose the imperative API via the consumer-provided ref.
     useImperativeHandle(apiRef, () => {
@@ -406,12 +448,18 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
             pause: () => apiHolderRef.current?.pause(),
             cancel: () => apiHolderRef.current?.cancel(),
             finish: () => apiHolderRef.current?.finish(),
-            getCurrentTime: () => apiHolderRef.current?.getCurrentTime() || null,
+            setPlaybackRate: (rate: number) => apiHolderRef.current?.setPlaybackRate(rate),
+            getCurrentTime: () => apiHolderRef.current?.getCurrentTime() ?? null,
             setCurrentTime: (time: number) => apiHolderRef.current?.setCurrentTime(time),
         };
     }, []);
 
-    // Sync declarative play/pause props with the animator.
+    // Increment key when the document, mode, or root styling changes to force
+    // a full remount (the inner component is memoised and never re-renders).
+    const key = useDepsVersion(compMode, doc, className, style);
+
+    // Sync declarative play/pause props with the animator. Re-runs after a
+    // remount (`key` in deps) so a doc swap re-applies the current state.
     useEffect(() => {
 
         if (compMode === PixodeskSvgAnimatorCompMode.play) {
@@ -419,27 +467,40 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
                 apiHolderRef.current?.play();
             } else if (pause) {
                 apiHolderRef.current?.pause();
-            } else {
+            } else if (play === false) {
+                // explicit play=false → jump to the end state
                 apiHolderRef.current?.finish();
+            } else {
+                // pause-only usage: pause switched off → resume
+                apiHolderRef.current?.play();
             }
         }
 
         return () => {
             if (compMode === PixodeskSvgAnimatorCompMode.play) {
-                apiHolderRef.current?.pause(); // FIXME - implement
+                apiHolderRef.current?.pause();
             }
         };
-    }, [compMode, play, pause]);
+    }, [compMode, play, pause, key]);
 
-    // Increment key when the document or mode changes to force a full remount.
-    const key = useDepsVersion(compMode, doc);
+    // Controlled-time mode: seek through the animator API. Scrubbing `time` /
+    // `timeMs` only re-runs this effect — the animator is NOT recreated.
+    useEffect(() => {
+        if (compMode === PixodeskSvgAnimatorCompMode.fixedTime && seekMs !== undefined) {
+            apiHolderRef.current?.setCurrentTime(seekMs);
+            apiHolderRef.current?.pause();
+        }
+    }, [compMode, seekMs, key]);
 
     return (
         <PixodeskSvgAnimatorImplOnce
             key={key}
+            className={className}
+            style={style}
             compMode={compMode}
             doc={doc}
             apiHolderRef={apiHolderRef}
+            callbacksRef={callbacksRef}
         />
     );
 };

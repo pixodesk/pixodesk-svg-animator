@@ -293,7 +293,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
         // the translate-bearing <g> whose animate.transform.keyframes carry the
         // EXPECTED scaled values (translate × i, rotate × i).
         const findKfsForPart = (n: PxNode, part: 'translate' | 'rotate'): Array<{ time?: number; value?: any }> | undefined => {
-            const kfs = n.animate?.transform?.keyframes;
+            const kfs = (n.animate as any)?.transform?.keyframes;
             if (Array.isArray(kfs) && kfs.length && kfs[0].value && (kfs[0].value as any)[part] !== undefined) {
                 return kfs.map(kf => ({ time: kf.time, value: (kf.value as any)[part] }));
             }
@@ -346,7 +346,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
         expect(parent.children?.length).toBe(3);
 
         const findScaleKfs = (n: PxNode): Array<{ time?: number; value?: any }> | undefined => {
-            const kfs = n.animate?.transform?.keyframes;
+            const kfs = (n.animate as any)?.transform?.keyframes;
             if (Array.isArray(kfs) && kfs.length && kfs[0].value && (kfs[0].value as any).scale !== undefined) {
                 return kfs.map(kf => ({ time: kf.time, value: (kf.value as any).scale }));
             }
@@ -440,9 +440,9 @@ describe('applyPlayerEffects — materialisation etalons', () => {
         const animatedTranslate = outer.children![0];
         expect(animatedTranslate.type).toBe('g');
         // animated translate carries autoOrient + tangent metadata
-        expect(animatedTranslate.animate?.transform.autoOrient).toBe(true);
-        expect(animatedTranslate.animate?.transform.keyframes[0].tangentOut).toEqual([40, 0]);
-        expect(animatedTranslate.animate?.transform.keyframes[1].tangentIn).toEqual([-40, 0]);
+        expect((animatedTranslate.animate as any)?.transform.autoOrient).toBe(true);
+        expect((animatedTranslate.animate as any)?.transform.keyframes[0].tangentOut).toEqual([40, 0]);
+        expect((animatedTranslate.animate as any)?.transform.keyframes[1].tangentIn).toEqual([-40, 0]);
         // -origin = translate(-10,-10) inside the animated translate wrapper
         const negOrigin = animatedTranslate.children![0];
         expect(negOrigin.type).toBe('g');

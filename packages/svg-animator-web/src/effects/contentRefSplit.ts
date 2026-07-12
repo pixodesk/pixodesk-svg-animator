@@ -44,7 +44,7 @@
  */
 
 import { applyTransformationEffect } from './transformationEffect';
-import type { PxAnimatable, PxKeyframe, PxNode, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
+import type { PxAnimatable, PxAnimationDefinition, PxKeyframe, PxNode, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
 
 
@@ -138,12 +138,15 @@ function liftBodyTranslate(node: PxNode, transformation: PxTransformationEffect 
     //    belong to translate; they go to the OUTER wrapper with translate, never
     //    to the inner one (the inner has rotate/scale only).
     let didLiftAnimate = false;
-    const animTr = node.animate?.transform;
+    // In-place animations on a node body are always the record form
+    // (`{propName: PxPropertyAnimation}`) at this point in the pipeline —
+    // narrow the `PxElementAnimation` union accordingly.
+    const animTr = (node.animate as PxAnimationDefinition | undefined)?.transform;
     if (animTr && typeof animTr === 'object' && Array.isArray(animTr.keyframes)) {
         const kfs: Array<PxKeyframe<any>> = animTr.keyframes;
         const hasTranslate = kfs.some(kf => kf.value && (kf.value as any).translate);
         if (hasTranslate) {
-            const outerHasOrigin = needsOriginOnOuter(animTr);
+            const outerHasOrigin = needsOriginOnOuter(animTr as PxAnimatable<Vec2>);
             const outerKfs = kfs.map(kf => {
                 const v = (kf.value || {}) as any;
                 const newValue: any = {};
@@ -210,8 +213,8 @@ function liftBodyTranslate(node: PxNode, transformation: PxTransformationEffect 
     // wrapper recomputes both at every frame (including t=0) via the lifted
     // keyframes + autoOrient, so the body baseline is redundant and would
     // double-apply on top of it.
-    const liftedAnimateIsAutoOriented = didLiftAnimate && needsOriginOnOuter(node.animate?.transform as any || undefined)
-        || didLiftAnimate && needsOriginOnOuter((out.animate?.transform) as any || undefined);
+    const liftedAnimateIsAutoOriented = didLiftAnimate && needsOriginOnOuter((node.animate as PxAnimationDefinition | undefined)?.transform as any || undefined)
+        || didLiftAnimate && needsOriginOnOuter((out.animate as PxAnimationDefinition | undefined)?.transform as any || undefined);
     if (typeof node.transform === 'string') {
         const split = splitTransformString(node.transform);
         if (stripBodyTranslateOnly) {

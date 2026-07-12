@@ -62,7 +62,7 @@ const animator = ref<VueAnimatorApi | null>(null);
 </template>
 ```
 
-`VueAnimatorApi` methods: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`, `getCurrentTime()`, `setCurrentTime(ms)`.
+`VueAnimatorApi` methods: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`.
 
 ### Controlled time
 
@@ -83,7 +83,7 @@ Render a single frame at a specific point in time:
 | `autoplay` | `boolean` | Use triggers from the document |
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
-| `time` | `number` | Seek to a fractional position |
+| `time` | `number` | Seek to a fraction (0–1) of the whole timeline (duration × iterations) |
 | `timeMs` | `number` | Seek to a time in milliseconds |
 | `mode` | `'auto' \| 'webapi' \| 'frames'` | Animation engine |
 | `duration` | `number` | Duration override (ms) |
@@ -95,6 +95,10 @@ Render a single frame at a specific point in time:
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | Trigger event override |
 | `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | Behaviour when trigger ends |
 
+With none of `autoplay` / `play` / `pause` / `time` / `timeMs` set, the component renders the animation statically (initial state, no playback); use the template ref for imperative control.
+
+Note: recreating the animator (unmount or a `doc` swap) emits `cancel`, `remove`, and `stop` for the torn-down instance. Scrubbing `time` / `timeMs` does **not** recreate the animator — it seeks the existing one.
+
 ## Events
 
 | Event | Description |
@@ -103,4 +107,5 @@ Render a single frame at a specific point in time:
 | `pause` | Animation paused |
 | `cancel` | Animation cancelled |
 | `finish` | Animation finished naturally |
-| `remove` | Animation cleaned up |
+| `remove` | Animation cleaned up (e.g. on unmount) |
+| `stop` | Fired alongside any event that halts playback (`pause` / `cancel` / `finish` / `remove`) |

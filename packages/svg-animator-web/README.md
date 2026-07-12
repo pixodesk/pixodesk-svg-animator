@@ -56,25 +56,38 @@ Use `createAnimator` for full control:
 ```js
 import { createAnimator } from '@pixodesk/svg-animator-web';
 
-// From a URL — returns a proxy that queues calls until the document is fetched
-const animator = createAnimator('/animation.json', undefined, {
-  onFinish: () => console.log('done'),
-}, '#container');
+// From a URL — returns a proxy immediately; control calls made before the
+// document loads are queued and replayed once it's ready
+const animator = createAnimator({
+  src: '/animation.json',
+  container: '#container',
+  callbacks: { onFinish: () => console.log('done') },
+});
 
 // Or from an already-loaded document object
-const animator = createAnimator(animationDoc, undefined, undefined, '#container');
+const animator = createAnimator({ data: animationDoc, container: '#container' });
 
 animator.play();
 animator.pause();
 animator.setCurrentTime(500);   // seek to 500ms
-animator.setPlaybackRate(2);    // 2x speed
+animator.setPlaybackRate(2);    // 2x speed (-1 plays in reverse)
 animator.finish();              // jump to end
 animator.destroy();             // cleanup
 ```
 
 ### API
 
-`createAnimator(docOrUrl, adapter?, callbacks?, containerElement?)` returns a `PxAnimatorAPI`:
+`createAnimator(options)` takes a single options object:
+
+| Option | Type | Description |
+| ----------- | ------------------------- | -------------------------------------------------- |
+| `src`       | `string`                  | URL to fetch the animation document from (provide either `src` or `data`) |
+| `data`      | `PxAnimatedSvgDocument`   | Inline animation document object                    |
+| `container` | `string \| Element`       | CSS selector or element to render the SVG into      |
+| `callbacks` | `PxAnimatorCallbacksConfig` | Lifecycle callbacks (see below)                   |
+| `adapter`   | `PxPlatformAdapter`       | Custom attribute-writer for frame-loop rendering (advanced) |
+
+It returns a `PxAnimatorAPI`:
 
 | Method                  | Description                                                       |
 | ----------------------- | ----------------------------------------------------------------- |
@@ -93,13 +106,17 @@ animator.destroy();             // cleanup
 ### Callbacks
 
 ```js
-createAnimator(doc, undefined, {
-  onPlay:   () => { /* started/resumed */ },
-  onPause:  () => { /* paused */ },
-  onCancel: () => { /* cancelled */ },
-  onFinish: () => { /* finished */ },
-  onRemove: () => { /* cleaned up */ },
-}, '#container');
+createAnimator({
+  data: doc,
+  container: '#container',
+  callbacks: {
+    onPlay:   () => { /* started/resumed */ },
+    onPause:  () => { /* paused */ },
+    onCancel: () => { /* cancelled */ },
+    onFinish: () => { /* finished naturally (or via finish()) */ },
+    onRemove: () => { /* destroyed / cleaned up */ },
+  },
+});
 ```
 
 ### Engine modes

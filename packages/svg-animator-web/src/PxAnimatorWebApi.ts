@@ -213,6 +213,13 @@ export function createWebApiAnimator(
 
     const unsupportedSet = new Set<string>();
 
+    // A document commonly produces many Animation objects (one per element ×
+    // animated property), but the public callbacks describe the document
+    // timeline as a whole — guard so each fires once per finish/remove episode.
+    // `finishNotified` re-arms on play/cancel/seek.
+    let finishNotified = false;
+    let removeCalled = false;
+
     ////////////////////////////////////////////////////////////////
 
     // Warn if no bindings defined
@@ -244,11 +251,18 @@ export function createWebApiAnimator(
         // - Positive delay (e.g., 500): Wait before starting → use delay option
         // - Negative delay (e.g., -500): Start mid-animation → use currentTime to seek
         //   (Web Animations API doesn't reliably support negative delay values)
-        // - Negative delay is wrapped to duration (e.g., -5000 with duration 2000 → seek to 1000)
+        // WAAPI `currentTime` spans ALL iterations, so a finite timeline clamps
+        // the seek to duration × iterations (seeking to exactly the end must
+        // land on the final frame, not wrap to 0); an infinite timeline wraps
+        // within one iteration instead.
         const positiveDelay = config.delay && config.delay > 0 ? config.delay : undefined;
-        const seekPosition = config.delay && config.delay < 0 && config.duration
-            ? (-config.delay) % config.duration
-            : undefined;
+        let seekPosition: number | undefined;
+        if (config.delay && config.delay < 0 && config.duration) {
+            const rawSeek = -config.delay;
+            seekPosition = iterations === Infinity
+                ? rawSeek % config.duration
+                : Math.min(rawSeek, config.duration * (iterations ?? 1));
+        }
 
         const effectOptions: KeyframeEffectOptions = {
             duration: config.duration,
@@ -271,11 +285,20 @@ export function createWebApiAnimator(
                         const effect = new KeyframeEffect(element, keyframes, effectOptions);
                         const anim = new Animation(effect, document.timeline);
 
-                        if (callbacks?.onFinish) anim.onfinish = () => callbacks.onFinish?.();
-                        if (callbacks?.onRemove) anim.onremove = () => callbacks.onRemove?.();
+                        if (callbacks?.onFinish) anim.onfinish = () => {
+                            if (finishNotified) return;
+                            finishNotified = true;
+                            callbacks.onFinish?.();
+                        };
+                        if (callbacks?.onRemove) anim.onremove = () => {
+                            if (removeCalled) return;
+                            removeCalled = true;
+                            callbacks.onRemove?.();
+                        };
 
-                        // Seek forward for negative delay (e.g., delay=-500 → seek to 500ms)
-                        if (seekPosition) {
+                        // Seek forward for negative delay (e.g., delay=-500 → seek to 500ms).
+                        // `!== undefined` — a seek of exactly 0 is still a seek.
+                        if (seekPosition !== undefined) {
                             anim.currentTime = seekPosition;
                         }
 
@@ -306,6 +329,7 @@ export function createWebApiAnimator(
         "isPlaying": (): boolean => { return animations[0]?.playState === 'running'; },
 
         "play": () => {
+            finishNotified = false; // re-arm finish notification
             animations.forEach(a => a.play());
             callbacks?.onPlay?.();
         },
@@ -314,8 +338,9 @@ export function createWebApiAnimator(
             callbacks?.onPause?.();
         },
         "cancel": () => {
+            finishNotified = false; // re-arm finish notification
             animations.forEach(a => a.cancel());
-            callbacks?.onCancel?.(); // FIXME onFinished needs to be called when animation finishes, e.g. from animations, and some flag that it was triggered by user
+            callbacks?.onCancel?.();
         },
         "finish": () => {
             for (const a of animations) {
@@ -331,7 +356,8 @@ export function createWebApiAnimator(
                     a.cancel();
                 }
             }
-            // FIXME onFinished needs to be called when animation finishes, e.g. from animations, not only when you call finish manually
+            // Natural finish also reaches onFinish via the native `anim.onfinish`
+            // handler wired at construction time.
         },
 
         "setPlaybackRate": (rate: number) => {
@@ -343,6 +369,7 @@ export function createWebApiAnimator(
             return res !== null ? +res : null;
         },
         "setCurrentTime": (time: number) => {
+            finishNotified = false; // re-arm finish notification
             animations.forEach(a => {
                 a.currentTime = time;
             });
@@ -351,6 +378,10 @@ export function createWebApiAnimator(
         "destroy": () => {
             api.cancel();
             animations.splice(0, animations.length);
+            if (!removeCalled) {
+                removeCalled = true;
+                callbacks?.onRemove?.();
+            }
         }
     };
 

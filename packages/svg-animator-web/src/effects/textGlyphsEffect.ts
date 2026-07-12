@@ -182,6 +182,148 @@ export function materialiseGlyphTextHorizontal<E = any>(node: PxNode, opts: Glyp
 }
 
 
+/** Per-CHARACTER advance box (local, pre-transform coords). `x,y` = the char's baseline start,
+ *  `width` = its advance, `ascent`/`fontSize` size its bbox. */
+export interface GlyphCharBox {
+    x: number; y: number; width: number; ascent: number; fontSize: number;
+    /** Along-path only: baseline END point (leading edge of the next char). Absent for
+     *  horizontal, where the end is `x + width` on the same baseline. */
+    endX?: number; endY?: number;
+    /** Along-path only: char rotation in DEGREES (path tangent; 0 = horizontal). */
+    rotation?: number;
+}
+
+/** Optional along-path geometry for {@link layoutGlyphTextChars}: when given, chars are
+ *  placed + rotated along `pathD` (mirrors {@link materialiseGlyphTextAlongPath}) at the
+ *  STATIC / frame-0 startOffset, so the editor caret follows the path. */
+export interface GlyphCharBoxAlongPath { pathD?: string; startOffset?: PxAnimatable<number>; textLength?: number; pathOverflow?: string; }
+
+/** Per-character layout boxes for a glyph text, in reading/DOM order INCLUDING spaces
+ *  (a space has no glyph but advances the pen). HORIZONTAL by default — mirrors
+ *  `materialiseGlyphTextHorizontal`'s pen-walk exactly (same x/y/dx/dy, spacing and
+ *  text-anchor). When `opts.alongPath` is given, mirrors `materialiseGlyphTextAlongPath`
+ *  (each char placed + rotated to the path tangent). So an editor caret built from these
+ *  lands on the rendered glyphs. Empty for a text with no glyph font / unparsable path. */
+export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterialiseOpts, 'glyphs' | 'warnings'> & { alongPath?: GlyphCharBoxAlongPath }): Array<GlyphCharBox> {
+    if (opts.alongPath?.pathD) return layoutGlyphTextCharsAlongPath(node, opts.alongPath.pathD, opts);
+    const { glyphs, warnings } = opts;
+    const soleFont = soleFontOf(glyphs);
+
+    const pen = { x: parseLen(node.x) ?? 0, y: parseLen(node.y) ?? 0 };
+    const boxes: Array<GlyphCharBox & { line: number }> = [];
+    const lines: Array<{ start: number; end: number }> = [{ start: pen.x, end: pen.x }];
+    let line = 0;
+
+    const renderChars = (content: string, s: Style): void => {
+        const gf = glyphFontFor(s, glyphs, soleFont, warnings);
+        const upm = gf?.unitsPerEm || 1000;
+        const scale = s.fontSize / upm;
+        const ascent = (gf?.ascent ?? 0.9 * upm) * scale;
+        for (let i = 0; i < content.length; i++) {
+            const ch = content.charAt(i);
+            const g = gf?.glyphs[ch];
+            const advance = (g ? g.width : 0) * scale + s.letterSpacing + (ch === ' ' ? s.wordSpacing : 0);
+            boxes.push({ x: pen.x, y: pen.y, width: advance, ascent, fontSize: s.fontSize, line });
+            pen.x += advance;
+            lines[line].end = pen.x;
+        }
+    };
+
+    const walk = (el: PxNode, parentStyle: Style): void => {
+        const s = resolveStyle(el, parentStyle);
+        const x = parseLen(el.x);
+        const y = parseLen(el.y);
+        if (x !== undefined) { pen.x = x; line = lines.length; lines.push({ start: pen.x, end: pen.x }); }
+        if (y !== undefined) pen.y = y;
+        pen.x += parseLen(el.dx) ?? 0;
+        pen.y += parseLen(el.dy) ?? 0;
+        const content = str(el[TEXT_ATTR]) ?? str(el[TEXT_CONTENT_ATTR]);
+        if (content && !el.children?.length) renderChars(content, s);
+        if (el.children) for (const ch of el.children) walk(ch, s);
+    };
+
+    const rootStyle = rootStyleOf(node);
+    if (node.children) for (const ch of node.children) walk(ch, rootStyle);
+    const rootContent = str(node[TEXT_ATTR]) ?? str(node[TEXT_CONTENT_ATTR]);
+    if (rootContent && !node.children?.length) renderChars(rootContent, rootStyle);
+
+    // text-anchor: shift each line's chars by its own advance width (matches the placement shift).
+    const anchor = str(node.textAnchor);
+    if (anchor === 'middle' || anchor === 'end') {
+        for (const b of boxes) {
+            const w = lines[b.line].end - lines[b.line].start;
+            b.x += anchor === 'middle' ? -w / 2 : -w;
+        }
+    }
+    return boxes.map(({ line: _l, ...b }) => b);
+}
+
+/** Along-path variant of {@link layoutGlyphTextChars}: one box per DOM char (spaces
+ *  included), placed + rotated along `pathD` at the static / frame-0 startOffset.
+ *  Mirrors `collectAlongPathCells` + `materialiseGlyphTextAlongPath`, but records EVERY
+ *  char (the materialiser's cells skip glyph-less chars). `pStart`=char leading edge on
+ *  the path, `end`=trailing edge, `rotation`=tangent at the char midpoint. */
+function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<GlyphMaterialiseOpts, 'glyphs' | 'warnings'> & { alongPath?: GlyphCharBoxAlongPath }): Array<GlyphCharBox> {
+    const { glyphs, warnings, alongPath } = opts;
+    const sampler = createPathSampler(pathD);
+    if (!sampler) { warnings?.push('textGlyphs: unparsable along-path geometry (caret)'); return []; }
+    const soleFont = soleFontOf(glyphs);
+
+    // Reading-order pass over leaf text (positioning attrs ignored — along-path is a
+    // single run), recording each char's [advStart, advEnd], its glyph advance (WITHOUT
+    // spacing) for the rotation midpoint, and bbox metrics.
+    const chars: Array<{ advStart: number; advEnd: number; glyphW: number; ascent: number; fontSize: number }> = [];
+    let adv = 0;
+    const walk = (el: PxNode, parentStyle: Style): void => {
+        const s = resolveStyle(el, parentStyle);
+        const content = str(el[TEXT_ATTR]) ?? str(el[TEXT_CONTENT_ATTR]);
+        if (content && !el.children?.length) {
+            const gf = glyphFontFor(s, glyphs, soleFont, warnings);
+            const upm = gf?.unitsPerEm || 1000;
+            const scale = s.fontSize / upm;
+            const ascent = (gf?.ascent ?? 0.9 * upm) * scale;
+            for (let i = 0; i < content.length; i++) {
+                const ch = content.charAt(i);
+                const g = gf?.glyphs[ch];
+                const glyphW = (g ? g.width : 0) * scale;
+                const advance = glyphW + s.letterSpacing + (ch === ' ' ? s.wordSpacing : 0);
+                chars.push({ advStart: adv, advEnd: adv + advance, glyphW, ascent, fontSize: s.fontSize });
+                adv += advance;
+            }
+        }
+        if (el.children) for (const ch of el.children) walk(ch, s);
+    };
+    walk(node, rootStyleOf(node));
+
+    const width = adv;
+    // textLength (lengthAdjust=spacing): scale positions so the run spans textLength.
+    const k = (alongPath?.textLength && alongPath.textLength > 0 && width > 0) ? alongPath.textLength / width : 1;
+    // startOffset base — static or frame-0 keyframe (matches the materialiser's static place).
+    const so = readAnimatable<number>(alongPath?.startOffset);
+    const base = so.kind === ReadKind.Animated ? (Number(so.keyframes[0]?.value) || 0)
+        : so.kind === ReadKind.Static ? (Number(so.value) || 0) : 0;
+
+    return chars.map(c => {
+        const dStart = base + c.advStart * k;
+        const dEnd = base + c.advEnd * k;
+        const p0 = sampler.sampleAtDistance(dStart);
+        const p1 = sampler.sampleAtDistance(dEnd);
+        // Caret rotation = tangent at the GLYPH's own midpoint (advStart + glyphW/2), which
+        // DISREGARDS the char's letter/word spacing. This keeps the synthetic caret aligned
+        // with the baked glyph outline (which is placed at its glyph centre), so letter
+        // spacing doesn't add extra tilt to the caret.
+        const glyphMid = sampler.sampleAtDistance(base + (c.advStart + c.glyphW / 2) * k);
+        return {
+            x: p0.x, y: p0.y,
+            width: c.advEnd - c.advStart,
+            ascent: c.ascent, fontSize: c.fontSize,
+            endX: p1.x, endY: p1.y,
+            rotation: glyphMid.angle * 180 / Math.PI,
+        };
+    });
+}
+
+
 // ── ALONG-PATH ──────────────────────────────────────────────────────────────
 
 /** One glyph in path order: its outline + geometry, and `midBase` = the arc-

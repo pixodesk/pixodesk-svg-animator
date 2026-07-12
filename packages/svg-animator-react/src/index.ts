@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import PixodeskSvgAnimator from './PixodeskSvgAnimator';
-export type { ReactAnimatorApi } from './PixodeskSvgAnimator';
+export type { PixodeskSvgAnimatorCallbacks, PixodeskSvgAnimatorProps, ReactAnimatorApi } from './PixodeskSvgAnimator';
 export { PixodeskSvgAnimator };
 
 import PixodeskSvgCssAnimator from './PixodeskSvgCssAnimator';

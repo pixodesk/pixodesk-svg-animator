@@ -5,7 +5,7 @@
 
 
 import { applyTransformationEffect } from './transformationEffect';
-import type { PxAnimatable, PxNode, PxRepeaterEffect, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
+import type { PxAnimatable, PxAnimationDefinition, PxNode, PxRepeaterEffect, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
 import { clone } from './util';
 
@@ -41,12 +41,14 @@ export function applyRepeaterEffect(node: PxNode, fx: PxRepeaterEffect | undefin
     // lifted onto the wrapper so the per-copy increments compose in the wrapper's
     // coordinate space. Non-transform animations (opacity, fill) stay per copy.
     const sharedTransform = node.transform;
-    const sharedAnimTransform = node.animate?.transform;
+    // In-place animations on a node body are always the record form here —
+    // narrow the `PxElementAnimation` union accordingly.
+    const sharedAnimTransform = (node.animate as PxAnimationDefinition | undefined)?.transform;
 
     const base = clone(node);
     delete base.transform;
     if (base.animate) {
-        delete base.animate.transform;
+        delete (base.animate as PxAnimationDefinition).transform;
         if (Object.keys(base.animate).length === 0) delete base.animate;
     }
 

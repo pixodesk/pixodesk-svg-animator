@@ -44,8 +44,17 @@ export function setupAnimationTriggers(
         return api;
     }
 
+    // Tracks whether the LAST out-action put the animation into reverse, so the
+    // next trigger start can restore forward playback without clobbering a
+    // custom playback rate the user may have set through the API.
+    let reversed = false;
+
     /** Ensures forward playback and starts or resumes the animation. */
     const start = () => {
+        if (reversed) {
+            reversed = false;
+            api.setPlaybackRate(1);
+        }
         api.play();
     };
 
@@ -59,9 +68,9 @@ export function setupAnimationTriggers(
                 api.cancel();
                 break;
             case 'reverse':
-                // If reverse playback is implemented, this would set a negative playback rate.
-                // For now we just call play() for compatibility.
-                // api.setPlaybackRate(-1);
+                // Play the animation backwards from its current position.
+                reversed = true;
+                api.setPlaybackRate(-1);
                 api.play();
                 break;
             case 'continue':

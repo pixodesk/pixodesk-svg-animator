@@ -45,6 +45,11 @@ const RETIME_MATERIALISATION_MODE_INLINE_G = false;
 interface Retime { start: number; stretch: number; }
 
 function asRetime(r: PxRetimeEffect): Retime {
+    // `timeCrop` is declared on the wire schema but not implemented yet —
+    // warn instead of silently dropping it so producers notice.
+    if (r.timeCrop) {
+        console.warn('retime: `timeCrop` is not supported yet and will be ignored');
+    }
     return { start: r.start ?? 0, stretch: r.stretch ?? 1 };
 }
 

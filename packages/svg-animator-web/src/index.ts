@@ -125,8 +125,10 @@ export { getNormalizedProps, renderNode } from './PxAnimatorDOM';
 // with baked glyph outlines). See textGlyphsEffect / elementFactory.
 export { jsonElementFactory } from './effects/elementFactory';
 export type { PxCreateElement } from './effects/elementFactory';
-export { materialiseGlyphText, materialiseGlyphTextAlongPath, materialiseGlyphTextHorizontal } from './effects/textGlyphsEffect';
-export type { GlyphMaterialiseOpts } from './effects/textGlyphsEffect';
+export { layoutGlyphTextChars, materialiseGlyphText, materialiseGlyphTextAlongPath, materialiseGlyphTextHorizontal } from './effects/textGlyphsEffect';
+export type { GlyphCharBox, GlyphCharBoxAlongPath, GlyphMaterialiseOpts } from './effects/textGlyphsEffect';
+export { createPathSampler } from './effects/pathSampler';
+export type { PathPoint, PathSampler } from './effects/pathSampler';
 export { extendedPathForBrowser, shiftAnimatable } from './effects/textPathEffect';
 export type { ExtendPathOpts, ExtendedPath } from './effects/textPathEffect';
 export { createBasicFrameLoopAnimator, createFrameLoopAnimator } from './PxAnimatorFrameLoop';

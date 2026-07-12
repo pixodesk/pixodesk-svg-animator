@@ -60,12 +60,24 @@ export function createBasicFrameLoopAnimator(
     // direction handling
     const direction = config.direction || 'normal'; // 'normal' | 'reverse' | 'alternate' | 'alternate-reverse'
 
+    // fill handling — mirrors the Web Animations API `fill` semantics as closely
+    // as a frame-writer can. Default 'forwards' (hold final state) matches the
+    // webapi engine and the config doc.
+    const fill = config.fill ?? 'forwards';
+    const fillsForwards = fill === 'forwards' || fill === 'both';
+    const fillsBackwards = fill === 'backwards' || fill === 'both';
+
     ////////////////////////////////////////////////////////////////
 
     let timerId: number | null = null;
     let playing = false;
 
-    let timeBeforeLastStartMs = (config.delay || 0); // accumulated time before current run (ms)
+    // Accumulated logical time before the current run (ms). A positive
+    // config.delay means "wait before starting" → the animation starts at
+    // NEGATIVE logical time and reaches 0 after `delay` ms (same convention as
+    // the Web Animations API). A negative config.delay means "seek into the
+    // animation" → positive start time.
+    let timeBeforeLastStartMs = -(config.delay || 0);
     let lastStartedTs = 0; // timestamp when last started/resumed
     let playbackRate = 1;
 
@@ -76,12 +88,18 @@ export function createBasicFrameLoopAnimator(
     const minFrameIntervalMs = frameRate && frameRate > 0 ? 1000 / frameRate : 0;
     let lastRenderTs = 0; // timestamp of last render
 
-    const getAnimCurrentTime = () => {
+    // Raw logical time — may be negative during the delay phase; not clamped
+    // to the [0, totalDuration] range at the top end either. Internal use only.
+    const getRawAnimTime = () => {
         // compute effective elapsed time (ms), taking playbackRate into account
         const runningElapsed = lastStartedTs ? (Date.now() - lastStartedTs) * playbackRate : 0;
-        let time = timeBeforeLastStartMs + runningElapsed;
+        return timeBeforeLastStartMs + runningElapsed;
+    };
 
-        // clamp to totalDuration if finite
+    const getAnimCurrentTime = () => {
+        let time = getRawAnimTime();
+
+        // clamp to [0, totalDuration]
         if (Number.isFinite(totalDuration) && time > (totalDuration as number)) time = totalDuration as number;
         if (time < 0) time = 0;
         return time;
@@ -187,7 +205,48 @@ export function createBasicFrameLoopAnimator(
 
         const currentTime = getAnimCurrentTime();
 
-        // Frame rate throttling: skip render if not enough time has passed
+        // Delay phase (raw time < 0): the animation hasn't started yet.
+        // With fill 'backwards'/'both' hold the first frame; otherwise leave
+        // the element's static attributes untouched — mirrors WAAPI fill.
+        // Checked BEFORE throttling so boundary states can't be skipped.
+        const rawTime = getRawAnimTime();
+        if (rawTime < 0 && playbackRate > 0) {
+            if (fillsBackwards) renderFrame(0);
+            return;
+        }
+
+        // Detect reverse playback reaching the start (natural end for rate < 0)
+        // — mirrors WAAPI, where reverse playback fires `finish` at time 0.
+        // pauseAnim runs FIRST (its trailing render must not clobber the
+        // boundary frame rendered below).
+        if (playbackRate < 0 && rawTime <= 0) {
+            pauseAnim();
+            renderFrame(0);
+            if (!finishCalled) {
+                finishCalled = true;
+                callbacks?.onFinish?.();
+            }
+            return;
+        }
+
+        // Detect finished (natural end, forward playback)
+        if (playbackRate > 0 && totalDuration && Number.isFinite(totalDuration) && currentTime >= (totalDuration as number)) {
+            pauseAnim();
+            // Render the end state — final frame when filling forwards, first
+            // frame otherwise (closest frame-writer approximation of WAAPI
+            // fill:'none'/'backwards', which reverts to the pre-animation state).
+            renderFrame(fillsForwards ? (totalDuration as number) : 0);
+            // call onFinish once
+            if (!finishCalled) {
+                finishCalled = true;
+                callbacks?.onFinish?.();
+            }
+            return;
+        }
+
+        // Frame rate throttling: skip render if not enough time has passed.
+        // Applies only to normal in-flight frames — boundary states above are
+        // always rendered, so a throttled tick can never swallow the finish.
         if (minFrameIntervalMs > 0) {
             const now = Date.now();
             if (lastRenderTs && (now - lastRenderTs) < minFrameIntervalMs) {
@@ -195,27 +254,6 @@ export function createBasicFrameLoopAnimator(
                 return;
             }
             lastRenderTs = now;
-        }
-
-        // If animation duration is zero or iterations zero, apply final or initial frames depending
-        // duration=0 handling: treat as progress 0 and iteration 0, but if totalDuration === 0 and iterations>0, consider finished.
-        if (duration <= 0) {
-            // Apply initial keyframe or final depending on configuration.
-            // We'll treat it as single-frame animation: apply keyframes with progress 0, then finish.
-            // loop through animations and apply first keyframe (progress=0)
-        }
-
-        // Detect finished (natural end)
-        if (totalDuration && Number.isFinite(totalDuration) && currentTime >= (totalDuration as number)) {
-            // render final frame at the very end and then stop
-            renderFrame(totalDuration);
-            // call onFinish once
-            if (!finishCalled) {
-                finishCalled = true;
-                callbacks?.onFinish?.();
-            }
-            pauseAnim();
-            return;
         }
 
         // Otherwise render normal frame
@@ -227,8 +265,14 @@ export function createBasicFrameLoopAnimator(
 
 
     if (config.delay) {
-        // If startTime provided, we start paused but with that offset; render first frame.
-        renderFrame(getAnimCurrentTime());
+        if (config.delay < 0) {
+            // Negative delay = seek into the animation; render the seeked frame.
+            renderFrame(getAnimCurrentTime());
+        } else if (fillsBackwards) {
+            // Positive delay = wait before start; hold the first frame only
+            // when filling backwards (WAAPI convention).
+            renderFrame(0);
+        }
     }
 
     ////////////////////////////////////////////////////////////////
@@ -236,6 +280,10 @@ export function createBasicFrameLoopAnimator(
     const _isPlaying = () => {
         if (!playing) return false;
         if (!adapter.isConnected()) { return false; }
+        if (playbackRate < 0) {
+            // Reverse playback finishes when it reaches the start.
+            return getRawAnimTime() > 0;
+        }
         if (Number.isFinite(totalDuration) && getAnimCurrentTime() >= (totalDuration as number)) return false;
         return true;
     };
@@ -261,15 +309,31 @@ export function createBasicFrameLoopAnimator(
     const startAnim = () => {
         if (playing) return;
 
-        // If the animation has already reached its natural end, rewind to the
-        // start before resuming — mirrors the Web Animations API, where calling
-        // play() on a finished animation auto-rewinds. Without this, resuming
-        // from `timeBeforeLastStartMs === totalDuration` would re-finish on the
-        // first tick and leave the animation stuck on its final frame.
-        if (Number.isFinite(totalDuration) && timeBeforeLastStartMs >= (totalDuration as number)) {
-            timeBeforeLastStartMs = 0;
-            finishCalled = false;
+        // If the animation has already reached its natural end (for the current
+        // playback direction), rewind to the opposite end before resuming —
+        // mirrors the Web Animations API, where calling play() on a finished
+        // animation auto-rewinds. Without this, resuming from the boundary
+        // would re-finish on the first tick and leave the animation stuck.
+        if (playbackRate >= 0) {
+            if (Number.isFinite(totalDuration) && timeBeforeLastStartMs >= (totalDuration as number)) {
+                timeBeforeLastStartMs = 0;
+            }
+        } else {
+            // Reverse playback starting at (or before) the start: seek to the end.
+            if (timeBeforeLastStartMs <= 0) {
+                if (!Number.isFinite(totalDuration)) {
+                    // Cannot rewind to an infinite end (WAAPI throws here) —
+                    // warn and stay stopped instead of "finishing" instantly.
+                    console.warn('play: cannot start reverse playback of an infinite animation from time 0');
+                    return;
+                }
+                timeBeforeLastStartMs = totalDuration as number;
+            }
         }
+
+        // starting playback opens a new finish episode (mirrors WAAPI, where
+        // play() always re-arms the finished promise / finish event)
+        finishCalled = false;
 
         playing = true;
         lastStartedTs = Date.now();
@@ -278,8 +342,12 @@ export function createBasicFrameLoopAnimator(
 
     const pauseAnim = () => {
         if (!playing) return;
-        // capture current time
-        timeBeforeLastStartMs = getAnimCurrentTime();
+        // Capture the RAW logical time — during the delay phase it is negative
+        // and must stay negative, otherwise pausing would silently swallow the
+        // remaining delay. Clamp only the top end.
+        let raw = getRawAnimTime();
+        if (Number.isFinite(totalDuration) && raw > (totalDuration as number)) raw = totalDuration as number;
+        timeBeforeLastStartMs = raw;
         lastStartedTs = 0;
         playing = false;
 
@@ -287,8 +355,14 @@ export function createBasicFrameLoopAnimator(
             cancelAnimationFrame(timerId);
             timerId = null;
         }
-        // render a final frame at the paused time to ensure DOM consistent
-        renderFrame(timeBeforeLastStartMs);
+        // Render a frame at the paused time to keep the DOM consistent —
+        // except during the delay phase, where rendering would violate the
+        // fill semantics (only 'backwards'/'both' show frame 0 before start).
+        if (raw >= 0) {
+            renderFrame(raw);
+        } else if (fillsBackwards) {
+            renderFrame(0);
+        }
     };
 
     const cancelAnim = () => {
@@ -314,8 +388,16 @@ export function createBasicFrameLoopAnimator(
         }
         lastStartedTs = 0;
         playing = false;
-        // render final frame
-        renderFrame(timeBeforeLastStartMs);
+        // cancel any pending frame — pause/destroy early-return when not
+        // playing, so a frame left queued here would never be cleaned up
+        if (timerId !== null) {
+            cancelAnimationFrame(timerId);
+            timerId = null;
+        }
+        // Render the end state honouring `fill` (same rule as the natural
+        // finish in `tick()`, and same as WAAPI where fill:'none' reverts even
+        // after an explicit finish()).
+        renderFrame(fillsForwards ? timeBeforeLastStartMs : 0);
 
         if (callOnFinish && !finishCalled) {
             finishCalled = true;
@@ -354,8 +436,13 @@ export function createBasicFrameLoopAnimator(
                 console.warn('setPlaybackRate: rate must be finite and non-zero');
                 return;
             }
-            // preserve current logical time when changing rate
-            const current = getAnimCurrentTime();
+            // Preserve the RAW logical time when changing rate — during the
+            // delay phase it is negative and clamping it to 0 would skip the
+            // remaining delay. Clamp only the top end.
+            let current = getRawAnimTime();
+            if (Number.isFinite(totalDuration) && current > (totalDuration as number)) current = totalDuration as number;
+            // a direction change opens a new finish episode
+            if ((rate < 0) !== (playbackRate < 0)) finishCalled = false;
             playbackRate = rate;
             timeBeforeLastStartMs = current;
             if (playing) lastStartedTs = Date.now();
@@ -370,11 +457,16 @@ export function createBasicFrameLoopAnimator(
 
             timeBeforeLastStartMs = newTime;
             if (playing) lastStartedTs = Date.now();
+            // seeking re-arms the finish notification (mirrors WAAPI)
+            if (!Number.isFinite(totalDuration) || newTime < (totalDuration as number)) finishCalled = false;
             // render immediately to reflect the change
             renderFrame(getAnimCurrentTime());
         },
 
-        "destroy": () => { api.cancel(); }
+        "destroy": () => {
+            api.cancel();
+            callbacks?.onRemove?.();
+        }
     };
 
     ////////////////////////////////////////////////////////////////

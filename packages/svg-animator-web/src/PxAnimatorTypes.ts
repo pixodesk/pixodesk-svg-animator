@@ -207,8 +207,14 @@ export const PxKeyframeSchema = implementsInterface<_PxKeyframe>()(px.object({
     selected:   px.boolean().optional(),  // editor-side UI state (Player ignores it)
 }));
 
-/** A single animation keyframe defining the state at a specific point in time. */
-export type PxKeyframe = PxInfer<typeof PxKeyframeSchema>;
+/**
+ * A single animation keyframe defining the state at a specific point in time.
+ *
+ * Generic over the keyframe `value` type for callers that know the per-property
+ * value shape (e.g. `PxKeyframe<Vec2>` in the effect appliers). Defaults to
+ * `any`, matching the schema (`value` is stored as `px.any()` on the wire).
+ */
+export type PxKeyframe<T = any> = Omit<PxInfer<typeof PxKeyframeSchema>, 'value' | 'v'> & { value?: T; v?: T };
 const _ck_PxKeyframe: KeysMatch<PxKeyframe, _PxKeyframe> = true; // the key sets are identical
 
 
@@ -582,10 +588,8 @@ export interface _PxDefs {
     /** Named animation definitions that can be referenced by elements */
     animations?: { [name: string]: PxAnimationDefinition; };
 
-    /**
-     * FIXME - do we need it?
-     * Named style presets for common styling patterns
-     */
+    /** Named style presets. A node's `style` may reference one by name;
+     *  resolved and applied at render time (see `resolveStyle` in PxAnimatorDOM). */
     styles?: { [name: string]: Record<string, string | number>; };
 
     /** Embedded per-font glyph outlines, keyed by the text's `font-family`.
@@ -667,9 +671,11 @@ export interface _PxAnimatorConfig {
      */
     animate?: Record<string, PxElementAnimation>;
 
-    debug?: boolean;         // FIXME - implement
+    /** Reserved for future use — accepted on the wire but currently has no effect. */
+    debug?: boolean;
 
-    debugInstName?: string;  // FIXME - implement
+    /** Debug helper: exposes the animator instance as `window[debugInstName]`. */
+    debugInstName?: string;
 }
 
 // `{ mode?, duration?, delay?, iterations?, fill?, direction?, frameRate?, trigger?, definitions?, animate?, debug?, debugInstName? }`
@@ -942,7 +948,9 @@ export type PxTrimPathEffect = PxInfer<typeof PxTrimPathEffectSchema>;
 const _ck_PxTrimPathEffect: KeysMatch<PxTrimPathEffect, _PxTrimPathEffect> = true;
 
 
-/** `<use>` retime: `baseId` = source; `start`/`timeCrop` in ms. */
+/** `<use>` retime: `baseId` = source; `start`/`timeCrop` in ms.
+ *  NOTE: `timeCrop` is accepted on the wire but not implemented yet — the
+ *  applier warns and ignores it (see `effects/retimeEffect.ts`). */
 export interface _PxRetimeEffect {
     baseId?: string;
     start?: number;
