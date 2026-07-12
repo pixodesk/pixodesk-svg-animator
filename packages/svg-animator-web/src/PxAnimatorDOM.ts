@@ -264,6 +264,14 @@ export function renderNode(node: PxNode, defs?: PxDefs): Element | null {
 
     const { type, children, style, ...props } = node;
 
+    // feFunc elements (feFuncR/G/B/A) carry their SVG `type` attribute
+    // (identity/table/…) under `funcType`, because the lightweight-JSON `type`
+    // key is reserved for the node tag (and `type` is an INTERNAL_ATTR that
+    // `getNormalizedProps` drops). Pull it out and re-apply it onto the created
+    // element below, so a feComponentTransfer can actually invert.
+    const feFuncType = (props as { funcType?: string }).funcType;
+    if (feFuncType !== undefined) delete (props as { funcType?: string }).funcType;
+
     // Extract defs from root svg node
     const nodeDefs = getDefs(node as PxAnimatedSvgDocument) || defs;
 
@@ -282,11 +290,17 @@ export function renderNode(node: PxNode, defs?: PxDefs): Element | null {
         }
     }
 
-    return createElement(
+    const element = createElement(
         type || 'g',
         getNormalizedProps(props),
         resolvedStyle,
         childElements,
         props[TEXT_ATTR] || props[TEXT_CONTENT_ATTR]
     );
+
+    // `type` is an INTERNAL_ATTR (reserved for the node tag), so the feFunc transfer
+    // function relayed via `funcType` must be applied to the real attribute here.
+    if (element && feFuncType !== undefined) element.setAttribute('type', feFuncType);
+
+    return element;
 }

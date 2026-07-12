@@ -121,6 +121,32 @@ function soleFontOf(glyphs: Record<string, PxGlyphFont>): PxGlyphFont | undefine
 }
 
 
+/** Default advance (in em units) for a MISSING glyph with no known width, so its
+ *  placeholder box gets a plausible letter-cell instead of collapsing to nothing. */
+const MISSING_GLYPH_ADVANCE_EM = 0.6;
+
+/**
+ * A HOLLOW FRAME outline (em/glyph units, baseline at y=0 rising to y=-ascent) for a
+ * MISSING glyph — so a font that can't supply a char renders a visible □ instead of
+ * silently disappearing. Outer rect + a reversed inner rect → a plain nonzero `fill`
+ * (the SAME paint a real glyph uses) leaves the middle empty, i.e. a thin outline (a
+ * solid block reads as too brutal). Empty string for degenerate sizes.
+ */
+function missingGlyphBoxEm(advanceEm: number, ascentEm: number): string {
+    if (advanceEm <= 0 || ascentEm <= 0) return '';
+    const inset = 0.08;
+    const x0 = advanceEm * inset, x1 = advanceEm * (1 - inset);
+    const y1 = -ascentEm * (1 - inset);            // box top (baseline at 0)
+    const bw = x1 - x0, bh = -y1;
+    const t = Math.max(1, Math.min(bw, bh) * 0.12);   // frame border thickness
+    const outer = `M${x0} 0L${x1} 0L${x1} ${y1}L${x0} ${y1}Z`;
+    if (bw <= 2 * t || bh <= 2 * t) return outer;     // too small for a hole → solid
+    const ix0 = x0 + t, ix1 = x1 - t, iyb = -t, iyt = y1 + t;
+    // Inner rect wound OPPOSITE the outer → nonzero fill carves a hole (the outline).
+    return outer + `M${ix0} ${iyb}L${ix0} ${iyt}L${ix1} ${iyt}L${ix1} ${iyb}Z`;
+}
+
+
 // ── HORIZONTAL ──────────────────────────────────────────────────────────────
 
 export function materialiseGlyphTextHorizontal<E = any>(node: PxNode, opts: GlyphMaterialiseOpts<E>): E {
@@ -134,14 +160,26 @@ export function materialiseGlyphTextHorizontal<E = any>(node: PxNode, opts: Glyp
 
     const renderChars = (content: string, s: Style): void => {
         const gf = glyphFontFor(s, glyphs, soleFont, warnings);
-        if (!gf) return;
-        const scale = s.fontSize / gf.unitsPerEm;
+        const upm = gf?.unitsPerEm || 1000;
+        const scale = s.fontSize / upm;
+        const ascentEm = gf?.ascent ?? 0.9 * upm;
         const paint = paintOf(s);
         for (let i = 0; i < content.length; i++) {
             const ch = content.charAt(i);
-            const g = gf.glyphs[ch];
-            if (g && g.d) placements.push({ glyphD: g.d, m: [scale, 0, 0, scale, pen.x, pen.y], paint, line, x: pen.x, y: pen.y, scale });
-            pen.x += (g ? g.width : 0) * scale + s.letterSpacing + (ch === ' ' ? s.wordSpacing : 0);
+            const g = gf?.glyphs[ch];
+            if (g && g.d) {
+                placements.push({ glyphD: g.d, m: [scale, 0, 0, scale, pen.x, pen.y], paint, line, x: pen.x, y: pen.y, scale });
+                pen.x += g.width * scale;
+            } else if (/\S/.test(ch)) {
+                // Missing glyph (font absent, or the char has no outline) → a visible □
+                // placeholder box so the text doesn't just silently vanish.
+                const advEm = (g && g.width > 0) ? g.width : MISSING_GLYPH_ADVANCE_EM * upm;
+                placements.push({ glyphD: missingGlyphBoxEm(advEm, ascentEm), m: [scale, 0, 0, scale, pen.x, pen.y], paint, line, x: pen.x, y: pen.y, scale });
+                pen.x += advEm * scale;
+            } else {
+                pen.x += (g ? g.width : 0) * scale;   // whitespace: advance only
+            }
+            pen.x += s.letterSpacing + (ch === ' ' ? s.wordSpacing : 0);
             lines[line].end = pen.x;
         }
     };
@@ -345,13 +383,25 @@ function collectAlongPathCells(node: PxNode, glyphs: Record<string, PxGlyphFont>
             const gf = glyphFontFor(s, glyphs, soleFont, warnings);
             if (gf) {
                 const scale = s.fontSize / gf.unitsPerEm;
+                const ascentEm = gf.ascent ?? 0.9 * gf.unitsPerEm;
                 const paint = paintOf(s);
                 for (let i = 0; i < content.length; i++) {
                     const ch = content.charAt(i);
                     const g = gf.glyphs[ch];
-                    const glyphAdv = (g ? g.width : 0) * scale;
-                    if (g && g.d) cells.push({ glyphD: g.d, widthEm: g.width, scale, paint, midBase: adv + glyphAdv / 2 });
-                    adv += glyphAdv + s.letterSpacing + (ch === ' ' ? s.wordSpacing : 0);
+                    if (g && g.d) {
+                        const glyphAdv = g.width * scale;
+                        cells.push({ glyphD: g.d, widthEm: g.width, scale, paint, midBase: adv + glyphAdv / 2 });
+                        adv += glyphAdv;
+                    } else if (/\S/.test(ch)) {
+                        // Missing glyph → a visible □ placeholder box (see missingGlyphBoxEm).
+                        const wEm = (g && g.width > 0) ? g.width : MISSING_GLYPH_ADVANCE_EM * gf.unitsPerEm;
+                        const boxAdv = wEm * scale;
+                        cells.push({ glyphD: missingGlyphBoxEm(wEm, ascentEm), widthEm: wEm, scale, paint, midBase: adv + boxAdv / 2 });
+                        adv += boxAdv;
+                    } else {
+                        adv += (g ? g.width : 0) * scale;   // whitespace: advance only
+                    }
+                    adv += s.letterSpacing + (ch === ' ' ? s.wordSpacing : 0);
                 }
             }
         }

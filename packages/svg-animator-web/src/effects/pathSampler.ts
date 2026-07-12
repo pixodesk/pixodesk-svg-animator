@@ -172,6 +172,13 @@ export function createPathSampler(d: string): PathSampler | null {
         totalLength,
         closed,
         sampleAtDistance(dist: number): PathPoint {
+            // A CLOSED path loops: a distance outside [0, totalLength] wraps around
+            // (modulo the length) rather than piling up at the seam. Without this a
+            // negative startOffset collapses every pre-start glyph onto the path start
+            // (e.g. text on a circle with startOffset < 0 stacking its first word).
+            if (closed && totalLength > 0 && (dist < 0 || dist > totalLength)) {
+                return sampleOn(((dist % totalLength) + totalLength) % totalLength);
+            }
             // Past an end of an OPEN path: continue in a straight line along that
             // end's tangent, so along-path motion keeps going instead of piling up
             // at the tip. (The caller only asks for distances a glyph actually

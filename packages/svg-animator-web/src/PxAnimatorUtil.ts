@@ -483,6 +483,7 @@ const SVG_CAMEL_CASE_ATTRS = new Set([
     // Filter
     'filterUnits',
     'primitiveUnits',
+    'tableValues',   // feFuncR/G/B/A transfer table (type="table")
     'stdDeviation',
     'baseFrequency',
     'numOctaves',

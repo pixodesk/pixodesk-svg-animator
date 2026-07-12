@@ -50,6 +50,19 @@ describe('pathSampler', () => {
         expect(Math.abs(p.y)).toBeLessThanOrEqual(101);
     });
 
+    it('wraps out-of-range distances around a CLOSED path (negative startOffset does not pile up)', () => {
+        const s = createPathSampler('M0 0L100 0L100 100L0 100Z')!; // closed square, perimeter 400
+        expect(s.totalLength).toBeCloseTo(400, 3);
+        // -10 wraps to 390 → 90 down the left leg (from (0,100) toward (0,0)) = (0,10).
+        const before = s.sampleAtDistance(-10);
+        expect(before.x).toBeCloseTo(0, 2);
+        expect(before.y).toBeCloseTo(10, 2);
+        // 410 wraps to 10 → 10 along the top edge = (10,0). NOT clamped to the (0,0) seam.
+        const after = s.sampleAtDistance(410);
+        expect(after.x).toBeCloseTo(10, 2);
+        expect(after.y).toBeCloseTo(0, 2);
+    });
+
     it('returns null for empty input', () => {
         expect(createPathSampler('')).toBeNull();
     });
