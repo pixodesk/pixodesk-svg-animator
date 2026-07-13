@@ -248,6 +248,34 @@ describe('materialiseMotionPathInPropAnim', () => {
         }
     });
 
+    it('autoOrient: sums the explicit animated `rotate` on top of the tangent orientation', () => {
+        // Diagonal path → tangent orientation is 45° everywhere. An explicit
+        // rotate:90 must be ADDED, giving 135° on every sample — not ignored
+        // (which would drop the custom rotation and leave the bare 45°).
+        const kfs: Array<PxKeyframe> = [
+            { time: 0,    value: { translate: [0, 0],     rotate: 90 } },
+            { time: 1000, value: { translate: [100, 100], rotate: 90 } },
+        ] as Array<PxKeyframe>;
+        const materialised = materialiseMotionPathInPropAnim({ autoOrient: true, kfs } as PxPropertyAnimation);
+        for (const kf of getKfs(materialised)) {
+            expect(kfRotate(kf)!).toBeCloseTo(135, 4);
+        }
+    });
+
+    it('autoOrient: interpolates the explicit `rotate` and adds it to the tangent', () => {
+        // Straight horizontal path → tangent orientation is 0° everywhere, so
+        // the output rotation equals the (interpolated) explicit rotate alone:
+        // 0° at the start ramping to 90° at the end.
+        const kfs: Array<PxKeyframe> = [
+            { time: 0,    value: { translate: [0, 0],   rotate: 0  } },
+            { time: 1000, value: { translate: [100, 0], rotate: 90 } },
+        ] as Array<PxKeyframe>;
+        const materialised = materialiseMotionPathInPropAnim({ autoOrient: true, kfs } as PxPropertyAnimation);
+        const out = getKfs(materialised);
+        expect(kfRotate(out[0])!).toBeCloseTo(0, 4);
+        expect(kfRotate(out[out.length - 1])!).toBeCloseTo(90, 4);
+    });
+
     it('rotation deltas between adjacent samples are bounded by rotationTolerance (autoOrient)', () => {
         const materialised = materialiseMotionPathInPropAnim(
             { autoOrient: true, kfs: squareLoopKfs() } as PxPropertyAnimation,

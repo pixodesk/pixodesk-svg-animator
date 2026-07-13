@@ -139,11 +139,11 @@ function missingGlyphBoxEm(advanceEm: number, ascentEm: number): string {
     const y1 = -ascentEm * (1 - inset);            // box top (baseline at 0)
     const bw = x1 - x0, bh = -y1;
     const t = Math.max(1, Math.min(bw, bh) * 0.12);   // frame border thickness
-    const outer = `M${x0} 0L${x1} 0L${x1} ${y1}L${x0} ${y1}Z`;
+    const outer = 'M' + x0 + ' 0L' + x1 + ' 0L' + x1 + ' ' + y1 + 'L' + x0 + ' ' + y1 + 'Z';
     if (bw <= 2 * t || bh <= 2 * t) return outer;     // too small for a hole → solid
     const ix0 = x0 + t, ix1 = x1 - t, iyb = -t, iyt = y1 + t;
     // Inner rect wound OPPOSITE the outer → nonzero fill carves a hole (the outline).
-    return outer + `M${ix0} ${iyb}L${ix0} ${iyt}L${ix1} ${iyt}L${ix1} ${iyb}Z`;
+    return outer + 'M' + ix0 + ' ' + iyb + 'L' + ix0 + ' ' + iyt + 'L' + ix1 + ' ' + iyt + 'L' + ix1 + ' ' + iyb + 'Z';
 }
 
 

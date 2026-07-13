@@ -348,10 +348,12 @@ function interpolatePart(prev: unknown, next: unknown, p: number): unknown {
 
 /** Builds the value-record for one sampled output kf. `translate` overrides
  *  whatever the per-part interpolation would have produced (motion path is the
- *  source of truth for position); `rotateDegFromAutoOrient`, when defined,
- *  overrides any animated `rotate`. All OTHER parts present on `prevV` /
- *  `nextV` (origin, scale, etc.) are interpolated at the eased arc-progress
- *  `p` — mirroring the frames-mode `calcPropertyValue` loop. */
+ *  source of truth for position); `rotateDegFromAutoOrient`, when defined, is
+ *  ADDED on top of the (interpolated) explicit animated `rotate` — auto-orient
+ *  and a user-set rotation compose, matching After Effects / Lottie semantics.
+ *  All OTHER parts present on `prevV` / `nextV` (origin, scale, etc.) are
+ *  interpolated at the eased arc-progress `p` — mirroring the frames-mode
+ *  `calcPropertyValue` loop. */
 function buildOutKfValue(
     prevV: PxTransformParts | undefined,
     nextV: PxTransformParts | undefined,
@@ -366,14 +368,32 @@ function buildOutKfValue(
     if (nextV) for (const k of Object.keys(nextV)) keys.add(k);
     for (const k of keys) {
         if (k === 'translate') continue;                            // overridden by motion path
-        if (k === 'rotate' && autoOrient) continue;                 // overridden by autoOrient
+        if (k === 'rotate' && autoOrient) continue;                 // composed below with autoOrient
         const pv = (prevV as Record<string, unknown> | undefined)?.[k];
         const nv = (nextV as Record<string, unknown> | undefined)?.[k];
         if (pv === undefined && nv === undefined) continue;
         value[k] = interpolatePart(pv, nv, p);
     }
-    if (rotateDegFromAutoOrient !== undefined) value.rotate = rotateDegFromAutoOrient;
+    if (rotateDegFromAutoOrient !== undefined) {
+        // Sum the auto-orient tangent angle with the element's own animated
+        // rotation (interpolated at `p`, 0 when absent) rather than discarding it.
+        value.rotate = rotateDegFromAutoOrient + explicitRotateAt(prevV, nextV, p);
+    }
     return value as PxTransformParts;
+}
+
+/** Interpolated explicit `rotate` from a transform-parts pair at arc-progress
+ *  `p`; 0 when neither side carries a numeric rotate. */
+function explicitRotateAt(
+    prevV: PxTransformParts | undefined,
+    nextV: PxTransformParts | undefined,
+    p: number,
+): number {
+    const pv = typeof prevV?.rotate === 'number' ? prevV.rotate : undefined;
+    const nv = typeof nextV?.rotate === 'number' ? nextV.rotate : undefined;
+    if (pv === undefined && nv === undefined) return 0;
+    const r = interpolatePart(pv, nv, p);
+    return typeof r === 'number' ? r : 0;
 }
 
 
@@ -424,10 +444,16 @@ function insertSharpCornerStepKfIfNeeded(
     const prevExit = lastV?.rotate;
     if (typeof prevExit !== 'number') return;
 
+    // `prevExit` is the SUMMED rotation (tangent + explicit). Compare pure
+    // tangent-to-tangent by subtracting the boundary kf's explicit rotate,
+    // which is shared by both adjoining segments at this shared keyframe.
+    const boundaryV = getKfValueParts(prevKf);
+    const prevExitTangent = prevExit - explicitRotateAt(boundaryV, boundaryV, 0);
+
     const seg = getSegmentCache(prevKf, nextKf, prevPos, nextPos);
     const tanAtStart = bezier2D_derivativeAt(seg.P0, seg.P1, seg.P2, seg.P3, 0);
     const nextEntry = Math.atan2(tanAtStart[1], tanAtStart[0]) * 180 / Math.PI;
-    const delta = wrappedAngleDelta(nextEntry, prevExit);
+    const delta = wrappedAngleDelta(nextEntry, prevExitTangent);
     if (Math.abs(delta) <= rotationTol) return;  // continuous within tolerance
 
     // Duplicate kf at the same time as `prevKf` (boundary) carrying the new
