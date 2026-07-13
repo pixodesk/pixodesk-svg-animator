@@ -180,6 +180,33 @@ describe('textGlyphsEffect — along-path', () => {
         expectD(glyphPaths(root)[0].d, [100, 0, 110, 0, 110, -70]);
     });
 
+    // Text-on-a-path x/dx/dy (SVG "text on a path" layout, horizontal writing mode):
+    // x & dx offset ALONG the path (add to startOffset), dy offsets PERPENDICULAR,
+    // y is IGNORED. Same 'H' as the startOffset test → identical baked coords when the
+    // net along-path distance is 100.
+    const alongWith = (attrs: Record<string, number>, text = 'H') => {
+        const scene = alongScene('M0 0L1000 0', undefined, text) as any;
+        Object.assign(scene.children[0], attrs);
+        return scene as PxNode;
+    };
+
+    it('x is an offset ALONG the path (like startOffset)', () => {
+        expectD(glyphPaths(materialiseRaw(alongWith({ x: 100 })).root)[0].d, [100, 0, 110, 0, 110, -70]);
+    });
+    it('dx is an offset ALONG the path', () => {
+        expectD(glyphPaths(materialiseRaw(alongWith({ dx: 100 })).root)[0].d, [100, 0, 110, 0, 110, -70]);
+    });
+    it('x and dx ADD along the path', () => {
+        expectD(glyphPaths(materialiseRaw(alongWith({ x: 60, dx: 40 })).root)[0].d, [100, 0, 110, 0, 110, -70]);
+    });
+    it('dy shifts PERPENDICULAR to the path', () => {
+        // Horizontal path (tangent +x) → left normal is +y, so dy=50 lowers the glyph by 50.
+        expectD(glyphPaths(materialiseRaw(alongWith({ dy: 50 })).root)[0].d, [0, 50, 10, 50, 10, -20]);
+    });
+    it('y (on the <text> containing the <textPath>) is IGNORED', () => {
+        expectD(glyphPaths(materialiseRaw(alongWith({ y: 50 })).root)[0].d, [0, 0, 10, 0, 10, -70]);
+    });
+
     it('rotates each glyph to the path tangent (90° down)', () => {
         const { root } = materialiseRaw(alongScene('M0 0L0 1000', undefined, 'H'));
         const d = glyphPaths(root)[0].d as string;

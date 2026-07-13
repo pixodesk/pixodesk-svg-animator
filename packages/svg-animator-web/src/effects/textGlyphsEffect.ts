@@ -14,7 +14,10 @@
  *  - ALONG-PATH ({@link materialiseGlyphTextAlongPath}) — each glyph placed and
  *    rotated to the referenced path's tangent. Static `startOffset` → glyphs
  *    bake+merge; animated `startOffset` → per-glyph `<path>` with sampled
- *    `animate.transform`. Ignores per-tspan positioning (a single run).
+ *    `animate.transform`. Text-level `x`/`dx` add distance ALONG the path (≈
+ *    startOffset) and `dy` shifts PERPENDICULAR — matching native `<textPath>`
+ *    (see {@link alongPathNodeOffsets}); `y` and per-tspan positioning are ignored
+ *    (a single run).
  *
  * Element creation goes through an injected {@link PxCreateElement} factory, so
  * the SAME layout produces plain wire nodes here (the effects pipeline) or the
@@ -337,15 +340,22 @@ function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<G
     // textLength (lengthAdjust=spacing): scale positions so the run spans textLength.
     const k = (alongPath?.textLength && alongPath.textLength > 0 && width > 0) ? alongPath.textLength / width : 1;
     // startOffset base — static or frame-0 keyframe (matches the materialiser's static place).
+    // x/dx add along-path distance; dy shifts perpendicular (both mirror the materialiser).
     const so = readAnimatable<number>(alongPath?.startOffset);
-    const base = so.kind === ReadKind.Animated ? (Number(so.keyframes[0]?.value) || 0)
-        : so.kind === ReadKind.Static ? (Number(so.value) || 0) : 0;
+    const { along: alongOffset, perp } = alongPathNodeOffsets(node);
+    const base = alongOffset + (so.kind === ReadKind.Animated ? (Number(so.keyframes[0]?.value) || 0)
+        : so.kind === ReadKind.Static ? (Number(so.value) || 0) : 0);
+
+    // Shift a sampled point perpendicular to the path (left normal) by `perp`.
+    const withPerp = (p: { x: number; y: number; angle: number }) => ({
+        x: p.x - perp * Math.sin(p.angle), y: p.y + perp * Math.cos(p.angle), angle: p.angle,
+    });
 
     return chars.map(c => {
         const dStart = base + c.advStart * k;
         const dEnd = base + c.advEnd * k;
-        const p0 = sampler.sampleAtDistance(dStart);
-        const p1 = sampler.sampleAtDistance(dEnd);
+        const p0 = withPerp(sampler.sampleAtDistance(dStart));
+        const p1 = withPerp(sampler.sampleAtDistance(dEnd));
         // Caret rotation = tangent at the GLYPH's own midpoint (advStart + glyphW/2), which
         // DISREGARDS the char's letter/word spacing. This keeps the synthetic caret aligned
         // with the baked glyph outline (which is placed at its glyph centre), so letter
@@ -412,11 +422,26 @@ function collectAlongPathCells(node: PxNode, glyphs: Record<string, PxGlyphFont>
 }
 
 /** Affine placing a glyph so its mid-advance baseline sits at path-distance
- *  `dist`, rotated to the tangent (scale baked in). */
-function alongAffine(sampler: PathSampler, dist: number, scale: number, widthEm: number): Affine {
+ *  `dist`, rotated to the tangent (scale baked in). `perp` shifts the glyph
+ *  PERPENDICULAR to the path (SVG `dy` on text-on-a-path), along the left normal
+ *  (−sinθ, cosθ) — in path/user units, NOT scaled by the glyph size. */
+function alongAffine(sampler: PathSampler, dist: number, scale: number, widthEm: number, perp = 0): Affine {
     const { x, y, angle } = sampler.sampleAtDistance(dist);
     const cos = Math.cos(angle), sin = Math.sin(angle), hw = widthEm / 2;
-    return [scale * cos, scale * sin, -scale * sin, scale * cos, x - scale * cos * hw, y - scale * sin * hw];
+    return [scale * cos, scale * sin, -scale * sin, scale * cos, x - scale * cos * hw - perp * sin, y - scale * sin * hw + perp * cos];
+}
+
+/** Text-on-a-path offsets from the `<text>`/`<tspan>` x/dx/dy attributes (horizontal
+ *  writing mode; see the SVG "text on a path" layout rules):
+ *   • `x` and `dx` shift ALONG the path (both add to the startpoint distance),
+ *   • `dy` shifts PERPENDICULAR to the path,
+ *   • `y` is IGNORED (the path, not `y`, sets the cross-axis position).
+ *  Matches the browser's native `<textPath>` so our baked glyphs line up with it. */
+function alongPathNodeOffsets(node: PxNode): { along: number; perp: number } {
+    return {
+        along: (parseLen(node.x) ?? 0) + (parseLen(node.dx) ?? 0),
+        perp: parseLen(node.dy) ?? 0,
+    };
 }
 
 export function materialiseGlyphTextAlongPath<E = any>(
@@ -435,6 +460,9 @@ export function materialiseGlyphTextAlongPath<E = any>(
     const { cells, width } = collectAlongPathCells(node, glyphs, soleFont, warnings);
     if (!cells.length) return toGroup(node, [], create);
 
+    // x/dx → extra distance ALONG the path (added to startOffset); dy → perpendicular.
+    const { along: alongOffset, perp } = alongPathNodeOffsets(node);
+
     // textLength (lengthAdjust=spacing): scale each glyph's position along the path
     // so the run spans `textLength` (glyph outlines keep their natural size).
     if (textLength && textLength > 0 && width > 0) {
@@ -451,18 +479,18 @@ export function materialiseGlyphTextAlongPath<E = any>(
     if (so.kind === ReadKind.Animated && so.keyframes.length >= 2) {
         // startOffset animates → each glyph slides along the path: its own
         // <path> with sampled translate+rotate keyframes (no merge).
-        return toGroup(node, buildAnimatedAlongPath(cells, sampler, so.keyframes as Array<TransformKeyframe<number>>, so.loop, create, isClip), create);
+        return toGroup(node, buildAnimatedAlongPath(cells, sampler, so.keyframes as Array<TransformKeyframe<number>>, so.loop, create, isClip, alongOffset, perp), create);
     }
 
     // Static (or single-keyframe): place + bake; glyphs sharing paint still merge.
-    const base = so.kind === ReadKind.Animated ? (Number(so.keyframes[0]?.value) || 0)
-        : so.kind === ReadKind.Static ? (Number(so.value) || 0) : 0;
+    const base = alongOffset + (so.kind === ReadKind.Animated ? (Number(so.keyframes[0]?.value) || 0)
+        : so.kind === ReadKind.Static ? (Number(so.value) || 0) : 0);
     const placeCells = isClip
         ? cells.filter(c => { const d = base + c.midBase; return d >= 0 && d <= sampler.totalLength; })
         : cells;
     const placements: Array<Placement> = placeCells.map(c => ({
         glyphD: c.glyphD, paint: c.paint,
-        m: alongAffine(sampler, base + c.midBase, c.scale, c.widthEm),
+        m: alongAffine(sampler, base + c.midBase, c.scale, c.widthEm, perp),
     }));
     return toGroup(node, buildPaths(placements, create, warnings), create);
 }
@@ -490,10 +518,13 @@ function buildAnimatedAlongPath<E>(
     loop: unknown,
     create: PxCreateElement<E>,
     isClip: boolean,
+    alongOffset = 0,
+    perp = 0,
 ): Array<E> {
     const step = Math.max(sampler.totalLength / ALONG_PATH_MAX_STEPS, 0.5);
     const timeOf = (kf: TransformKeyframe<number>): number => Number(kf.time) || 0;
-    const offOf = (kf: TransformKeyframe<number>): number => Number(kf.value) || 0;
+    // x/dx add a constant distance ALONG the path on top of the animated startOffset.
+    const offOf = (kf: TransformKeyframe<number>): number => alongOffset + (Number(kf.value) || 0);
     const onPath = (dist: number): boolean => dist >= 0 && dist <= sampler.totalLength;
 
     const out: Array<E> = [];
@@ -503,10 +534,12 @@ function buildAnimatedAlongPath<E>(
 
         const sampleKf = (dist: number, time: number): TransformKeyframe => {
             const { x, y, angle } = sampler.sampleAtDistance(dist);
+            const cos = Math.cos(angle), sin = Math.sin(angle);
+            // dy shifts perpendicular to the path (left normal), in path units.
             return {
                 time,
                 value: {
-                    [TransformPart.Translate]: [roundN(x, 3), roundN(y, 3)],
+                    [TransformPart.Translate]: [roundN(x - perp * sin, 3), roundN(y + perp * cos, 3)],
                     [TransformPart.Rotate]: roundN(angle * 180 / Math.PI, 3),
                 },
             };
