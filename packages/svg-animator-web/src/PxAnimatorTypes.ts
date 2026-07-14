@@ -928,6 +928,23 @@ const _ck_PxMaskedByEffect: KeysMatch<PxMaskedByEffect, _PxMaskedByEffect> = tru
 
 
 /**
+ * Clip-path effect — clips the host element to a static vector path. `d` is a plain
+ * SVG path-data string (one or more subpaths). At apply time the effect mints a
+ * `<clipPath><path d/></clipPath>` def and sets `clip-path="url(#auto-id)"` on the
+ * host (materialiser pattern, like `maskedBy` / gradient). Static only for now.
+ * See `effects/clipPathEffect.ts`.
+ */
+export interface _PxClipPathEffect {
+    d?: string;
+}
+export const PxClipPathEffectSchema = implementsInterface<_PxClipPathEffect>()(px.object({
+    d: px.string().optional(),
+}));
+export type PxClipPathEffect = PxInfer<typeof PxClipPathEffectSchema>;
+const _ck_PxClipPathEffect: KeysMatch<PxClipPathEffect, _PxClipPathEffect> = true;
+
+
+/**
  * Trim-path effect. `range[0..1]` is the visible fraction of the stroke; `offset`
  * shifts the visible window along the path (also a fraction). Both are animatable.
  * `trimAllAsOne=true` chains all descendant subpath lengths into one virtual path
@@ -1142,6 +1159,7 @@ export interface _PxEffects {
     transformation?: _PxTransformationEffect;
     repeater?: _PxRepeaterEffect;
     maskedBy?: _PxMaskedByEffect;
+    clipPath?: _PxClipPathEffect;
     trimPath?: _PxTrimPathEffect;
     clone?: _PxCloneEffect;
     isCombinedShape?: boolean;
@@ -1154,6 +1172,7 @@ export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
     transformation: PxTransformationEffectSchema.optional(),
     repeater: PxRepeaterEffectSchema.optional(),
     maskedBy: PxMaskedByEffectSchema.optional(),
+    clipPath: PxClipPathEffectSchema.optional(),
     trimPath: PxTrimPathEffectSchema.optional(),
     clone: PxCloneEffectSchema.optional(),
     isCombinedShape: px.boolean().optional(),

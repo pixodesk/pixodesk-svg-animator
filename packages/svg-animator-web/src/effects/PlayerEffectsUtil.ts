@@ -21,6 +21,7 @@
 
 import { identifyContentRefTargets, splitForContentRef } from './contentRefSplit';
 import { applyFillGradientEffect, applyStrokeGradientEffect } from './gradientEffect';
+import { applyClipPathEffect } from './clipPathEffect';
 import { applyMaskedByEffect, collectMaskAncestorChains } from './maskedByEffect';
 import { applyRefAndTransformationEffect, applyRefHref } from './refEffect';
 import { applyRepeaterEffect } from './repeaterEffect';
@@ -100,7 +101,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
 
     if (!fx && !innerIdForContentRef) return node;
 
-    const { transformation, repeater, maskedBy, trimPath, clone: cloneFx, fillGradient, strokeGradient, textPath, text } = fx ?? {};
+    const { transformation, repeater, maskedBy, clipPath, trimPath, clone: cloneFx, fillGradient, strokeGradient, textPath, text } = fx ?? {};
     const isCombinedShape = fx?.isCombinedShape;
     if (fx) delete node.effects;
 
@@ -142,6 +143,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     n = applyTrimPathEffect(n, trimPath, isCombinedShape, ctx);         // innermost shape
     n = applyRepeaterEffect(n, repeater, ctx);
     n = applyMaskedByEffect(n, maskedBy, transformation, ctx);          // mask sits on inner element
+    n = applyClipPathEffect(n, clipPath, ctx);                         // clip-path ref on the element
 
     if (innerIdForContentRef) {
         // This node is the SOURCE of a content-ref `<use>` → split into

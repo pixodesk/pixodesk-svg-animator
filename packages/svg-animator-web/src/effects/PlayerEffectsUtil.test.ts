@@ -239,6 +239,43 @@ describe('applyPlayerEffects — materialisation etalons', () => {
     });
 
 
+    it('case 5b: clipPath (static d) → <clipPath> in defs + clip-path="url(#…)" attr on element', () => {
+        const input: PxNode = {
+            type: 'svg',
+            children: [
+                {
+                    type: 'rect', id: 'r1', width: 100, height: 50,
+                    effects: { clipPath: { d: 'M0,0L40,0L40,40L0,40z' } },
+                },
+            ],
+        };
+        // <clipPath> goes into auto-emitted <defs>; the element gets `clipPath=url(#__GEN_0__)`
+        // (rendered as the `clip-path` attribute by the DOM layer).
+        const expected: PxNode = {
+            type: 'svg',
+            children: [
+                {
+                    type: 'defs',
+                    children: [
+                        {
+                            type: 'clipPath',
+                            id: '__GEN_0__',
+                            children: [
+                                { type: 'path', d: 'M0,0L40,0L40,40L0,40z' },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: 'rect', id: 'r1', width: 100, height: 50,
+                    clipPath: 'url(#__GEN_0__)',
+                },
+            ],
+        };
+        expect(materialise(input)).toEqual(expected);
+    });
+
+
     it('case 6: repeater (static, 3 copies, translate+rotate per copy) → 3 <g> wrapped copies', () => {
         const input: PxNode = {
             type: 'svg',
