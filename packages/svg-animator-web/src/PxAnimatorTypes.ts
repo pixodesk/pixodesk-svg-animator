@@ -928,17 +928,24 @@ const _ck_PxMaskedByEffect: KeysMatch<PxMaskedByEffect, _PxMaskedByEffect> = tru
 
 
 /**
- * Clip-path effect — clips the host element to a static vector path. `d` is a plain
- * SVG path-data string (one or more subpaths). At apply time the effect mints a
- * `<clipPath><path d/></clipPath>` def and sets `clip-path="url(#auto-id)"` on the
- * host (materialiser pattern, like `maskedBy` / gradient). Static only for now.
- * See `effects/clipPathEffect.ts`.
+ * Clip-path effect — clips the host element to a vector path. `d` is a plain SVG
+ * path-data string (one or more subpaths) — the static / frame-0 geometry. `animate`
+ * (optional) carries `d` keyframes (`value:{path:"M…"}`) for an ANIMATED clip: at apply
+ * time it lands on the minted `<path>`'s `animate.d`, so the player's frame loop rewrites
+ * the clip path's `d` attribute per frame. `clip-path` is a live reference, so the browser
+ * re-clips each frame (unlike `<marker>` — verified across SMIL/CSS/JS/WAAPI).
+ *
+ * At apply time the effect mints a `<clipPath><path d/></clipPath>` def and sets
+ * `clip-path="url(#auto-id)"` on the host (materialiser pattern, like `maskedBy` /
+ * gradient). See `effects/clipPathEffect.ts`.
  */
 export interface _PxClipPathEffect {
     d?: string;
+    animate?: PxPropertyAnimation;
 }
 export const PxClipPathEffectSchema = implementsInterface<_PxClipPathEffect>()(px.object({
     d: px.string().optional(),
+    animate: PxPropertyAnimationSchema.optional(),
 }));
 export type PxClipPathEffect = PxInfer<typeof PxClipPathEffectSchema>;
 const _ck_PxClipPathEffect: KeysMatch<PxClipPathEffect, _PxClipPathEffect> = true;

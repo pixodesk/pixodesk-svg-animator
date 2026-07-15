@@ -276,6 +276,49 @@ describe('applyPlayerEffects — materialisation etalons', () => {
     });
 
 
+    it('case 5c: clipPath (ANIMATED d) → child <path> carries animate.d keyframes', () => {
+        const animate = {
+            keyframes: [
+                { time: 0, value: { path: 'M0,0L40,0L40,40L0,40z' } },
+                { time: 30, value: { path: 'M0,0L80,0L80,80L0,80z' } },
+            ],
+        };
+        const input: PxNode = {
+            type: 'svg',
+            children: [
+                {
+                    type: 'rect', id: 'r1', width: 100, height: 50,
+                    effects: { clipPath: { d: 'M0,0L40,0L40,40L0,40z', animate } },
+                },
+            ],
+        };
+        // The clip's child <path> gets the animate.d block verbatim; the frame loop
+        // (later, in PxAnimator) rewrites its `d` attr per frame → live re-clip.
+        const expected: PxNode = {
+            type: 'svg',
+            children: [
+                {
+                    type: 'defs',
+                    children: [
+                        {
+                            type: 'clipPath',
+                            id: '__GEN_0__',
+                            children: [
+                                { type: 'path', d: 'M0,0L40,0L40,40L0,40z', animate: { d: animate } },
+                            ],
+                        },
+                    ],
+                },
+                {
+                    type: 'rect', id: 'r1', width: 100, height: 50,
+                    clipPath: 'url(#__GEN_0__)',
+                },
+            ],
+        };
+        expect(materialise(input)).toEqual(expected);
+    });
+
+
     it('case 6: repeater (static, 3 copies, translate+rotate per copy) → 3 <g> wrapped copies', () => {
         const input: PxNode = {
             type: 'svg',
