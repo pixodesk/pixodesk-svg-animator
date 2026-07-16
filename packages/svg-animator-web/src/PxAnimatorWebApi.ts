@@ -6,7 +6,8 @@
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
 import { getAnimatorConfig, PxAnimatedSvgDocument, PxAnimatorConfig, PxAnimatorEngine, PxKeyframe, type PxAnimationDefinition, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
-import { clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, kebabToCamelCaseWord, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
+import { bezierToSvgPath, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, kebabToCamelCaseWord, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
+import type { PxBezierPath } from './PxAnimatorTypes';
 import { getNormalisedBindings, interpolateValue } from './PxDefinitions';
 
 
@@ -50,6 +51,15 @@ function createCssKf(kf: PxKeyframe, t: number, propName: string, unsupportedSet
         if (propName === 'rotate') value = value + 'deg';
         cssValue = propName + '(' + value + ')';
         cssKey = 'transform';
+    } else if (propName === 'd') {
+        // Animated path. The value is a { paths: PxBezierPath[] } record (same shape the CSS/frame
+        // builder consumes). Without this branch it stringified to "[object Object]", an invalid
+        // `d`, which empties the <path> — the shape vanished in forced WAAPI while svg-css (which
+        // emits `d: path(...)`) rendered it. Emit the CSS `d` presentation-attr syntax `path("…")`
+        // via the same bezierToSvgPath used by the CSS path, so WAAPI animates it identically.
+        const paths: Array<PxBezierPath> = (value && typeof value === 'object' && Array.isArray(value.paths))
+            ? value.paths : [];
+        cssValue = 'path("' + paths.map(bz => bezierToSvgPath(bz)).join('') + '")';
     } else {
         cssValue = '' + value;
     }
@@ -124,7 +134,7 @@ function clipKeyframesToDuration(
  *    starts after 0 or the last keyframe ends before 1, a copy of that keyframe is inserted at the
  *    boundary with the adjusted offset.
  */
-function convertToWebApiKeyframes(
+export function convertToWebApiKeyframes(
     animDef: PxAnimationDefinition,
     unsupportedSet: Set<string>,
     config: PxAnimatorConfig
