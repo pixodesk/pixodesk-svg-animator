@@ -59,7 +59,7 @@ function synthesiseGradientDef(fx: PxFillGradientEffect, id: string, ctx: ApplyC
         id,
     };
 
-    // Geometry — static-only in v1 per the design doc.
+    // Geometry — static base values…
     if (fx.type === PxGradientType.linear) {
         if (fx.p1) { out.x1 = String(fx.p1[0]); out.y1 = String(fx.p1[1]); }
         if (fx.p2) { out.x2 = String(fx.p2[0]); out.y2 = String(fx.p2[1]); }
@@ -72,9 +72,31 @@ function synthesiseGradientDef(fx: PxFillGradientEffect, id: string, ctx: ApplyC
     if (fx.spreadMethod)      out.spreadMethod = fx.spreadMethod;
     if (fx.gradientTransform) out.gradientTransform = fx.gradientTransform;
 
+    // …plus ANIMATED geometry: the wire carries per-channel keyframes under
+    // `fx.animate` (`gradientX1`, `gradientFy`, …). Map them onto the def node's own
+    // `animate` under the real SVG attr names — the frames engine then drives the def's
+    // attrs exactly like it drives the stops' `stopColor` (CSS/WAAPI can't, but this
+    // materialiser feeds the JS frame loop).
+    type ElementAnim = NonNullable<PxNode['animate']>;
+    const animate = (fx as { animate?: ElementAnim }).animate;
+    if (animate) {
+        const mapped: ElementAnim = {};
+        for (const wireKey of Object.keys(animate)) {
+            const attr = GRADIENT_ANIM_CHANNEL_TO_ATTR[wireKey];
+            if (attr) mapped[attr] = animate[wireKey];
+        }
+        if (Object.keys(mapped).length) out.animate = mapped;
+    }
+
     out.children = buildStopChildren(fx.stops, ctx);
     return out;
 }
+
+/** Wire `fx.animate` channel → the SVG gradient-def attribute it drives. */
+const GRADIENT_ANIM_CHANNEL_TO_ATTR: Record<string, string> = {
+    gradientX1: 'x1', gradientY1: 'y1', gradientX2: 'x2', gradientY2: 'y2',
+    gradientCx: 'cx', gradientCy: 'cy', gradientFx: 'fx', gradientFy: 'fy', gradientR: 'r',
+};
 
 /** Emits one `<stop>` per gradient stop. Stops come from EITHER the static
  *  array form (`stops: [{offset, color}, …]`) or the animated form
