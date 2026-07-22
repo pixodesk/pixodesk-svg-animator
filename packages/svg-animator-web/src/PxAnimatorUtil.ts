@@ -12,7 +12,15 @@ import type { PxBezierPath, PxTransformParts } from './PxAnimatorTypes';
  * @param {PxBezierPath} path
  * @returns {string}
  */
-export function bezierToSvgPath(path: PxBezierPath): string {
+/**
+ * @param forceCurves Emit EVERY segment (incl. the closing one) as a cubic `C`, even when
+ *   its control points are degenerate (a straight line). Needed for keyframe values the
+ *   BROWSER interpolates (WAAPI / CSS `path()`): CSS only interpolates paths with
+ *   IDENTICAL command sequences, so an opportunistic `L` in one keyframe vs a `C` in the
+ *   next (e.g. a round-corner radius animating from 0) turns the whole animation
+ *   DISCRETE — it flips at 50% instead of morphing.
+ */
+export function bezierToSvgPath(path: PxBezierPath, forceCurves = false): string {
     const v = path.v;
     const i = path.i;
     const o = path.o;
@@ -31,7 +39,7 @@ export function bezierToSvgPath(path: PxBezierPath): string {
         const currV = v[idx];
 
         // Check if it's a straight line (control points coincide with vertices)
-        const isLine = (prevO[0] === prevV[0] && prevO[1] === prevV[1]) &&
+        const isLine = !forceCurves && (prevO[0] === prevV[0] && prevO[1] === prevV[1]) &&
             (currI[0] === currV[0] && currI[1] === currV[1]);
 
         if (isLine) {
@@ -49,7 +57,7 @@ export function bezierToSvgPath(path: PxBezierPath): string {
         const firstV = v[0];
 
         // Check if closing segment is a straight line
-        const isLine = (lastO[0] === lastV[0] && lastO[1] === lastV[1]) &&
+        const isLine = !forceCurves && (lastO[0] === lastV[0] && lastO[1] === lastV[1]) &&
             (firstI[0] === firstV[0] && firstI[1] === firstV[1]);
 
         if (!isLine) {

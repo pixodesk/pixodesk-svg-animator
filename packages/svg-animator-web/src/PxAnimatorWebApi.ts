@@ -59,7 +59,10 @@ function createCssKf(kf: PxKeyframe, t: number, propName: string, unsupportedSet
         // via the same bezierToSvgPath used by the CSS path, so WAAPI animates it identically.
         const paths: Array<PxBezierPath> = (value && typeof value === 'object' && Array.isArray(value.paths))
             ? value.paths : [];
-        cssValue = 'path("' + paths.map(bz => bezierToSvgPath(bz)).join('') + '")';
+        // forceCurves: CSS/WAAPI only interpolates `path()` values with IDENTICAL command
+        // sequences — uniform all-`C` output keeps every keyframe structurally equal
+        // (mixed L/C, e.g. round-corner radius 0 vs >0, would go DISCRETE → 50% flip).
+        cssValue = 'path("' + paths.map(bz => bezierToSvgPath(bz, true)).join('') + '")';
     } else {
         cssValue = '' + value;
     }
