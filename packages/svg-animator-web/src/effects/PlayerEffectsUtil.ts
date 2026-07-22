@@ -114,15 +114,10 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
         if (textPath) {
             // Path geometry is INLINE (`textPath.path`) — no `<path>` def lookup.
             const pathD = typeof textPath.path === 'string' ? textPath.path : undefined;
-            // Resolve textLength to a static number (animated textLength stretch is not
-            // reproduced per-glyph yet — a v1 limitation, same as startOffset easing).
-            const rawTL: any = textPath.textLength;
-            const textLength = typeof rawTL === 'number' ? rawTL
-                : rawTL && typeof rawTL === 'object'
-                    ? (typeof rawTL.value === 'number' ? rawTL.value
-                        : Array.isArray(rawTL.keyframes) && rawTL.keyframes.length ? Number(rawTL.keyframes[0]?.value) : undefined)
-                    : undefined;
-            const glyphed = applyTextGlyphsAlongPath(n, ctx, pathD, textPath.startOffset, textLength, textPath.pathOverflow);
+            // textLength passes through as a full PxAnimatable — static stretches the
+            // run; animated re-spaces the glyphs over time (same per-glyph sampled
+            // keyframe machinery as animated startOffset).
+            const glyphed = applyTextGlyphsAlongPath(n, ctx, pathD, textPath.startOffset, textPath.textLength, textPath.pathOverflow);
             if (glyphed) { n = glyphed; consumedByGlyphs = true; } // native textPath NOT applied
         } else {
             n = applyTextGlyphsEffect(n, text, ctx);

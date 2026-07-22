@@ -63,6 +63,11 @@ const URL_VALUE_ATTRS_LOWER = new Set([
  *  list there would be cargo-culted and noisy. */
 const IMAGE_REF_ATTRS_LOWER = new Set(['href', 'xlink:href', 'src']);
 
+/** CSS-only properties that are NOT SVG presentation attributes — the browser
+ *  ignores them via `setAttribute`, so they must be applied through `element.style`.
+ *  Keyed camelCase to match the normalised prop names (`element.style.mixBlendMode`). */
+const CSS_ONLY_STYLE_PROPS = new Set<string>(['mixBlendMode', 'isolation']);
+
 /** Matches `data:image/{png|jpeg|jpg|gif|webp|bmp};base64,<payload>`.
  *  Rejects any non-base64-encoded raster form. */
 const DATA_RASTER_IMAGE_RE = /^data:image\/(?:png|jpe?g|gif|webp|bmp);base64,/i;
@@ -176,6 +181,13 @@ function createElement(
         // which is exactly the bug we keep hitting — skip instead.
         const sanitised = sanitiseAttributeValue(propName, normalisedProps[propName]);
         if (sanitised === undefined) continue;
+        // CSS-only properties (mix-blend-mode, isolation) aren't SVG presentation
+        // attributes — the browser ignores them via setAttribute, so route them
+        // through `element.style` (camelCase key) instead.
+        if (CSS_ONLY_STYLE_PROPS.has(propName)) {
+            (element as unknown as { style: Record<string, string> }).style[propName] = String(sanitised);
+            continue;
+        }
         element.setAttribute(camelCaseToKebabWordIfNeeded(propName), sanitised);
     }
 
