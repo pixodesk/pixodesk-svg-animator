@@ -297,8 +297,10 @@ export function materialiseMotionPathInPropAnim(
  *  Linear interpolation between consecutive samples then always takes the
  *  shorter arc. The accumulated shift means a continuously-rotating element
  *  may end up with rotate values well outside [-180°, 180°], which is fine —
- *  CSS / SVG rotation accepts any range. */
-function unwrapAutoOrientRotations(kfs: Array<PxKeyframe>): void {
+ *  CSS / SVG rotation accepts any range. Exported — the glyph along-path baker
+ *  (`buildAnimatedAlongPath`) needs the identical seam fix for its sampled
+ *  per-glyph tangent rotations. */
+export function unwrapAutoOrientRotations(kfs: Array<PxKeyframe>): void {
     let prev: number | undefined;
     for (const kf of kfs) {
         const v = (kf.v ?? kf.value) as { rotate?: number } | undefined;

@@ -32,6 +32,7 @@ import { TEXT_ATTR, TEXT_CONTENT_ATTR, type PxAnimatable, type PxGlyphFont, type
 import { jsonElementFactory, type PxCreateElement } from './elementFactory';
 import { transformPathData, type Affine } from './glyphPathBake';
 import { createPathSampler, type PathSampler } from './pathSampler';
+import { unwrapAutoOrientRotations } from '../PxMotionPath';
 import { ReadKind, readAnimatable, TransformPart } from './transformParts';
 import type { ApplyContext } from './types';
 
@@ -611,6 +612,11 @@ function buildAnimatedAlongPath<E>(
                 pushKf(distOf(c, t), t);
             }
         }
+
+        // Tangent angles come from atan2 and wrap at ±180° — crossing that seam (e.g.
+        // the bottom of a circle) would otherwise lerp the ~358° long way between two
+        // samples and visibly flip the glyph. Same fix as motion-path auto-orient.
+        unwrapAutoOrientRotations(kfs);
 
         const transform: { keyframes: Array<TransformKeyframe>; loop?: unknown } = { keyframes: kfs };
         if (loop !== undefined) transform.loop = loop;
