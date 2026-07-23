@@ -241,11 +241,14 @@ export interface GlyphCharBox {
 export interface GlyphCharBoxAlongPath { pathD?: string; startOffset?: PxAnimatable<number>; textLength?: PxAnimatable<number>; pathOverflow?: string; }
 
 /** Per-character layout boxes for a glyph text, in reading/DOM order INCLUDING spaces
- *  (a space has no glyph but advances the pen). HORIZONTAL by default — mirrors
- *  `materialiseGlyphTextHorizontal`'s pen-walk exactly (same x/y/dx/dy, spacing and
- *  text-anchor). When `opts.alongPath` is given, mirrors `materialiseGlyphTextAlongPath`
- *  (each char placed + rotated to the path tangent). So an editor caret built from these
- *  lands on the rendered glyphs. Empty for a text with no glyph font / unparsable path. */
+ *  (a space has no glyph but advances the pen) AND one zero-width filler box per EMPTY
+ *  line — the editor's edit canvas renders a zero-width filler char for an empty line
+ *  (so the caret has something to measure), and DOM char indices must stay aligned.
+ *  HORIZONTAL by default — mirrors `materialiseGlyphTextHorizontal`'s pen-walk exactly
+ *  (same x/y/dx/dy, spacing and text-anchor). When `opts.alongPath` is given, mirrors
+ *  `materialiseGlyphTextAlongPath` (each char placed + rotated to the path tangent). So
+ *  an editor caret built from these lands on the rendered glyphs. Empty for a text with
+ *  no glyph font / unparsable path. */
 export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterialiseOpts, 'glyphs' | 'warnings'> & { alongPath?: GlyphCharBoxAlongPath }): Array<GlyphCharBox> {
     if (opts.alongPath?.pathD) return layoutGlyphTextCharsAlongPath(node, opts.alongPath.pathD, opts);
     const { glyphs, warnings } = opts;
@@ -285,7 +288,21 @@ export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterialiseOp
     };
 
     const rootStyle = rootStyleOf(node);
-    if (node.children) for (const ch of node.children) walk(ch, rootStyle);
+    if (node.children) for (const ch of node.children) {
+        const before = boxes.length;
+        walk(ch, rootStyle);
+        // An EMPTY line (a line-tspan whose subtree yields no chars) still occupies ONE
+        // DOM slot on the edit canvas — the zero-width filler the editor renders so the
+        // caret has something to measure. Mirror it: one zero-width box at the line's
+        // pen position, sized by the line's own resolved font (ascent for caret height,
+        // and its hit quad extends the element bbox to include the empty line).
+        if (boxes.length === before) {
+            const s = resolveStyle(ch, rootStyle);
+            const gf = glyphFontFor(s, glyphs, soleFont); // no warning — an empty line has nothing to render
+            const upm = gf?.unitsPerEm || 1000;
+            boxes.push({ x: pen.x, y: pen.y, width: 0, ascent: (gf?.ascent ?? 0.9 * upm) * (s.fontSize / upm), fontSize: s.fontSize, line });
+        }
+    }
     const rootContent = str(node[TEXT_ATTR]) ?? str(node[TEXT_CONTENT_ATTR]);
     if (rootContent && !node.children?.length) renderChars(rootContent, rootStyle);
 

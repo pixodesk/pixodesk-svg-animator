@@ -14,7 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../PxAnimatorTypes';
 import { collectByType, materialiseRaw } from './effectTestKit';
-import { materialiseGlyphText } from './textGlyphsEffect';
+import { layoutGlyphTextChars, materialiseGlyphText } from './textGlyphsEffect';
 
 const glyphs = {
     F: {
@@ -341,5 +341,61 @@ describe('materialiseGlyphText — injected element factory (editor reuse)', () 
         const g = materialiseGlyphText<PxNode>(textNode(), { glyphs });
         expect(g!.type).toBe('g');
         expect((g!.children as Array<PxNode>)[0].type).toBe('path');
+    });
+});
+
+
+describe('layoutGlyphTextChars — per-char caret/hit boxes', () => {
+
+    // The editor caret indexes these boxes by DOM char index (TextLayout), and its
+    // edit canvas renders one zero-width filler char per EMPTY line so the caret has
+    // something to measure. The layout must mirror BOTH: a box per real char (spaces
+    // included) plus one zero-width filler box per empty line — otherwise the empty
+    // line's caret has no box, every LATER line's caret is off by one, and the
+    // per-char hit quads (→ element bbox) never grow to include the empty line.
+
+    /** text → line-tspans, editor shape: each line = a positioned tspan (x/y). An
+     *  empty line still carries its folded span STYLE (font) but no text. */
+    const threeLinesMiddleEmpty = (): PxNode => ({
+        type: 'text', id: 't',
+        children: [
+            { type: 'tspan', x: 0, y: 0,   text: 'Hi', fontFamily: 'F', fontSize: '100px' },
+            { type: 'tspan', x: 0, y: 120,             fontFamily: 'F', fontSize: '100px' },
+            { type: 'tspan', x: 0, y: 240, text: 'H',  fontFamily: 'F', fontSize: '100px' },
+        ],
+    } as unknown as PxNode);
+
+    it('emits one zero-width filler box for an empty line, in DOM order', () => {
+        const boxes = layoutGlyphTextChars(threeLinesMiddleEmpty(), { glyphs });
+
+        // 'H','i' + filler + 'H' — the filler occupies the empty line's DOM slot.
+        expect(boxes).toHaveLength(4);
+
+        // The filler sits at the empty line's own pen position (x=0, baseline y=120),
+        // zero-width, with the line's REAL font metrics (fontSize 100, ascent 800×0.1)
+        // so the caret gets the right height.
+        expect(boxes[2]).toEqual({ x: 0, y: 120, width: 0, ascent: 80, fontSize: 100 });
+
+        // The line AFTER the empty one stays index-aligned: its 'H' box is back at the
+        // line start on its own baseline. (Without the filler this box would sit at
+        // index 2 and the caret for every char here would be off by one.)
+        expect(boxes[3].x).toBe(0);
+        expect(boxes[3].y).toBe(240);
+        expect(boxes[3].width).toBe(70); // H advance 700 × 0.1
+    });
+
+    it('a whitespace-only line is NOT empty — the space itself is the box', () => {
+        // A space is a real editable char: it advances the pen and gets its own box,
+        // so no filler is added (adding one would DESYNC the DOM char indexing).
+        const node = {
+            type: 'text', id: 't',
+            children: [
+                { type: 'tspan', x: 0, y: 0,   text: 'H', fontFamily: 'F', fontSize: '100px' },
+                { type: 'tspan', x: 0, y: 120, text: ' ', fontFamily: 'F', fontSize: '100px' },
+            ],
+        } as unknown as PxNode;
+        const boxes = layoutGlyphTextChars(node, { glyphs });
+        expect(boxes).toHaveLength(2);
+        expect(boxes[1].width).toBe(25); // space advance 250 × 0.1 — a real box, not a filler
     });
 });
