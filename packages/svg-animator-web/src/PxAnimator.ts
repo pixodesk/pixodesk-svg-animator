@@ -24,20 +24,38 @@ function createAnimatorFromConfig(
 
     const animatorConfig = getAnimatorConfig(doc) || {};
 
+    // `resetOnFinish`: after a NATURAL finish, snap the document back to its start
+    // state — the same mechanics as the trigger `reset` out-action (`api.cancel()`
+    // clears the animation state so the base attributes show). Composed centrally so
+    // BOTH engines get it; the caller's own `onFinish` still fires first. `apiRef` is
+    // assigned right after creation — finish always happens asynchronously later.
+    let apiRef: PxAnimatorAPI | undefined;
+    let effectiveCallbacks = callbacks;
+    if (animatorConfig.resetOnFinish) {
+        effectiveCallbacks = {
+            ...callbacks,
+            onFinish: () => {
+                callbacks?.onFinish?.();
+                apiRef?.cancel();
+            },
+        };
+    }
+
     let res: PxAnimatorAPI;
     if (animatorConfig.mode === PxAnimatorMode.frames) {
         // Forcing frames, even if webapi could be used.
-        res = createFrameLoopAnimator(doc, adapter, callbacks, rootElement);
+        res = createFrameLoopAnimator(doc, adapter, effectiveCallbacks, rootElement);
     } else {
         // Try webapi first; fall back to frames if it returns null (unsupported
         // attrs) unless the user explicitly forced webapi.
         res = (
-            createWebApiAnimator(doc, callbacks, rootElement,
+            createWebApiAnimator(doc, effectiveCallbacks, rootElement,
                 animatorConfig.mode === PxAnimatorMode.webapi // forcing webapi
             ) ||
-            createFrameLoopAnimator(doc, adapter, callbacks, rootElement)
+            createFrameLoopAnimator(doc, adapter, effectiveCallbacks, rootElement)
         );
     }
+    apiRef = res;
 
     if (animatorConfig.debugInstName) {
         (window as any)[animatorConfig.debugInstName] = res; // Exposing as global variable for debug

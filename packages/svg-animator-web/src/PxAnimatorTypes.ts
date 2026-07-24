@@ -640,6 +640,11 @@ export interface _PxAnimatorConfig {
      */
     iterations?: number | "infinite";
 
+    /** After a natural finish, snap the document back to its start state (same
+     *  mechanics as the trigger `reset` out-action). Off by default — the animation
+     *  holds its end state per `fill`. */
+    resetOnFinish?: boolean;
+
     /**
      * Defines which values are applied before/after the active animation period
      * (maps directly to the Web Animations API `fill` option).
@@ -688,6 +693,7 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
     direction: px.enum(['normal', 'reverse', 'alternate', 'alternate-reverse'] as const).optional(),
     frameRate: px.number().optional(),
     trigger: PxTriggerSchema.optional(),
+    resetOnFinish: px.boolean().optional(),
     definitions: PxDefsSchema.optional(),
     animate: px.record(PxElementAnimationSchema).optional(),
     debug: px.boolean().optional(),
