@@ -107,7 +107,10 @@ function wrapInversePart(
         return { type: 'g', transform: { value: partsRecord(part, invertPartValue(part, v.value), origin) }, children: [inner] };
     }
     if (v.kind === ReadKind.Animated) {
-        const animTr: any = { keyframes: v.keyframes.map(kf => keyframeWith(kf, partsRecord(part, invertPartValue(part, kf.value), origin))) };
+        const animTr: any = { keyframes: v.keyframes.map(kf => {
+            const out = keyframeWith(kf, partsRecord(part, invertPartValue(part, kf.value), origin));
+            return part === TransformPart.Translate ? { ...out, ...negatedSpatialTangents(kf) } : out;
+        }) };
         if (v.loop !== undefined) animTr.loop = v.loop;
         return {
             type: 'g',
@@ -122,6 +125,23 @@ function invertPartValue(part: TransformPart, value: any): any {
     if (part === TransformPart.Translate) return [-value[0], -value[1]];
     if (part === TransformPart.Rotate) return -value;
     return [1 / value[0], 1 / value[1]];   // scale
+}
+
+/**
+ * Spatial tangents (`tangentOut`/`tangentIn`, wire aliases `to`/`ti`) are
+ * RELATIVE control-point offsets (control = value + tangent), so an inverse
+ * translate keyframe must negate them along with the value — copying them
+ * verbatim keeps the ORIGINAL curve direction and the derived mask sags
+ * mid-segment on a motion-along-path masked element (endpoints stay exact,
+ * which is why only mid-frame sampling exposes it).
+ */
+function negatedSpatialTangents(kf: Record<string, any>): Record<string, any> {
+    const out: Record<string, any> = {};
+    const to = kf.tangentOut ?? kf.to;
+    const ti = kf.tangentIn ?? kf.ti;
+    if (Array.isArray(to)) out.tangentOut = [-to[0], -to[1]];
+    if (Array.isArray(ti)) out.tangentIn = [-ti[0], -ti[1]];
+    return out;
 }
 
 
@@ -161,7 +181,7 @@ function wrapInverseAnimatedBodyTransform(inner: PxNode, node: PxNode, _ctx: App
         const v = (kf.value ?? kf.v) || {};
         const baseKf = keyframeWith(kf as any, undefined);   // copies time / easing / tangents
         if (Array.isArray(v.translate)) {
-            translateKfs.push({ ...baseKf, value: { translate: [-v.translate[0], -v.translate[1]] } });
+            translateKfs.push({ ...baseKf, ...negatedSpatialTangents(kf), value: { translate: [-v.translate[0], -v.translate[1]] } });
         }
         if (typeof v.rotate === 'number') {
             const rec: Record<string, any> = { rotate: -v.rotate };
