@@ -426,12 +426,15 @@ export function composeTransformParts(
     const t = parts.translate;
     const o = parts.origin;
     const r = parts.rotate;
+    const k = parts.skew;
     const s = parts.scale;
     const tu = withUnits ? 'px' : '';
     const ru = withUnits ? 'deg' : '';
     if (t) segs.push('translate(' + t[0] + tu + ',' + t[1] + tu + ')');
     if (o) segs.push('translate(' + o[0] + tu + ',' + o[1] + tu + ')');
     if (r !== undefined && r !== null) segs.push('rotate(' + r + ru + ')');
+    // Canonical slot: between rotate and scale (Lottie-compatible; pivots at origin).
+    if (k !== undefined && k !== null) segs.push('skewX(' + k + ru + ')');
     if (s) segs.push('scale(' + s[0] + ',' + s[1] + ')');
     if (o) segs.push('translate(' + (-o[0]) + tu + ',' + (-o[1]) + tu + ')');
     return segs.join('');

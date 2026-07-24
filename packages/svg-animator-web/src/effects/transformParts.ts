@@ -38,9 +38,10 @@ export enum ReadKind {
 
 /** Builds a player `PxTransformParts` record for one part (+ optional origin). */
 export function partsRecord(part: TransformPart, value: any, origin: Vec2 | undefined) {
-    const rec: { translate?: Vec2; rotate?: number; scale?: Vec2; origin?: Vec2 } = {};
+    const rec: { translate?: Vec2; rotate?: number; skew?: number; scale?: Vec2; origin?: Vec2 } = {};
     if (part === TransformPart.Translate) rec.translate = value;
     else if (part === TransformPart.Rotate) rec.rotate = value;
+    else if (part === TransformPart.Skew) rec.skew = value;
     else rec.scale = value;
     if (origin && part !== TransformPart.Translate) rec.origin = origin;
     return rec;

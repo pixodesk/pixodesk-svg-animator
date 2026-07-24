@@ -94,14 +94,21 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
         expect(noEffectsRemain(out)).toBe(true);
     });
 
-    it('case 3 — static skew → string transform skewX()/skewY()', () => {
-        const out = materialise(wrap({ skew: [10, 5] }));
+    // Skew is a SCALAR (skewX degrees) since the parts-record slot landed — the old
+    // Vec2 `skewX()skewY()` string form never matched what the editor writes and is gone
+    // (see skew-support.plan.md; user-approved order/semantics unification).
+    it('case 3 — static skew → standard parts-record wrapper (scalar skewX)', () => {
+        const out = materialise(wrap({ skew: 10 }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
               {
-                "transform": "skewX(10)skewY(5)",
+                "transform": {
+                  "value": {
+                    "skew": 10
+                  }
+                },
                 "type": "g",
                 "children": [
                   {
@@ -115,7 +122,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
             ]
           }"
         `);
-        expect(stringTransforms(out)).toContain('skewX(10)skewY(5)');
+        expect(staticParts(out)).toContainEqual({ skew: 10 });
         expect(noEffectsRemain(out)).toBe(true);
     });
 

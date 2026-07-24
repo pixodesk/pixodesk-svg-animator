@@ -352,7 +352,7 @@ function interpolateTransformParts(a: PxTransformParts, b: PxTransformParts, t: 
     for (const k of keys) {
         const av = (a as { [k: string]: unknown })?.[k];
         const bv = (b as { [k: string]: unknown })?.[k];
-        if (k === 'rotate') {
+        if (k === 'rotate' || k === 'skew') {
             out[k] = interpolateNum(+(av ?? 0), +(bv ?? 0), t);
         } else if (k === 'translate' || k === 'scale' || k === 'origin') {
             const fallback: Array<number> = k === 'scale' ? [1, 1] : [0, 0];
@@ -1020,8 +1020,8 @@ function calcPropertyValue(
         for (const partKey of partKeys) {
             const prevPart = prevV?.[partKey];
             const nextPart = nextV?.[partKey];
-            if (partKey === 'rotate') {
-                partsResult.rotate = interpolateNum(+(prevPart ?? 0), +(nextPart ?? 0), localProgress);
+            if (partKey === 'rotate' || partKey === 'skew') {
+                partsResult[partKey] = interpolateNum(+(prevPart ?? 0), +(nextPart ?? 0), localProgress);
             } else if (partKey === 'translate' || partKey === 'scale' || partKey === 'origin') {
                 const fallback = partKey === 'scale' ? [1, 1] : [0, 0];
                 const interp = interpolateVec(prevPart || fallback, nextPart || fallback, localProgress);

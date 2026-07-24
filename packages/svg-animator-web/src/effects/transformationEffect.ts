@@ -35,15 +35,17 @@ export function applyTransformationEffect(node: PxNode, fx: PxTransformationEffe
     // carry the full (animated) transform, so the baseline is dropped.
     delete node.transform;
 
-    // Innermost first. Order outer→inner: [+o, t, -o, +o, r, s, -o, skew] for
+    // Innermost first. Order outer→inner: [+o, t, -o, +o, r, skew, s, -o] for
     // auto-orient (translate carries motion-path rotation that must pivot around
-    // origin too), else [t, +o, r, s, -o, skew] (translate composes flat).
+    // origin too), else [t, +o, r, skew, s, -o] (translate composes flat).
+    // Skew sits BETWEEN rotate and scale, inside the origin sandwich — the canonical
+    // slot shared with the unified body transform and Lottie (see skew-support.plan.md).
     let n = node;
-    n = wrapTransformPart(n, TransformPart.Skew, fx.skew, ctx);
-    n = wrapOrigin(n, fx.origin, /*invert=*/true);                       // -origin (r/s sandwich)
+    n = wrapOrigin(n, fx.origin, /*invert=*/true);                       // -origin (r/k/s sandwich)
     n = wrapTransformPart(n, TransformPart.Scale, normalizeScale(fx.scale), ctx);
+    n = wrapTransformPart(n, TransformPart.Skew, fx.skew, ctx);
     n = wrapTransformPart(n, TransformPart.Rotate, fx.rotate, ctx);
-    n = wrapOrigin(n, fx.origin, /*invert=*/false);                      // +origin (r/s sandwich)
+    n = wrapOrigin(n, fx.origin, /*invert=*/false);                      // +origin (r/k/s sandwich)
 
     if (translateHasAutoOrient(fx.translate)) {
         // Sandwich translate with its own +o/-o so the motion-path tangent
@@ -85,12 +87,6 @@ function wrapTransformPart(
     raw: PxAnimatable<any> | undefined, ctx: ApplyContext
 ): PxNode {
     if (raw === undefined) return inner;
-
-    if (part === TransformPart.Skew) {
-        const skew = readAnimatable<Vec2>(raw);
-        if (skew.kind !== ReadKind.Static) { ctx.warnings.push('transformation.skew: only static skew is supported'); return inner; }
-        return { type: 'g', transform: 'skewX(' + skew.value[0] + ')skewY(' + skew.value[1] + ')', children: [inner] };
-    }
 
     const v = readAnimatable<any>(raw);
     if (v.kind === ReadKind.Static) {

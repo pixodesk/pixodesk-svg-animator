@@ -380,6 +380,10 @@ export interface _PxTransformParts {
     /** Rotation in degrees. */
     rotate?: number;
 
+    /** Skew (skewX) in degrees, pivoting at `origin` — composed between `rotate`
+     *  and `scale` (matches Lottie's transform order). */
+    skew?: number;
+
     /** Scale factor `[sx, sy]`. */
     scale?: [number, number];
 
@@ -390,10 +394,11 @@ export interface _PxTransformParts {
     origin?: [number, number];
 }
 
-// `{ translate?:[x,y], rotate?:deg, scale?:[sx,sy], origin?:[x,y] }`
+// `{ translate?:[x,y], rotate?:deg, skew?:deg, scale?:[sx,sy], origin?:[x,y] }`
 export const PxTransformPartsSchema = implementsInterface<_PxTransformParts>()(px.object({
     translate: px.tuple([px.number(), px.number()] as const).optional(),
     rotate: px.number().optional(),
+    skew: px.number().optional(),
     scale: px.tuple([px.number(), px.number()] as const).optional(),
     origin: px.tuple([px.number(), px.number()] as const).optional(),
 }));
@@ -879,14 +884,15 @@ export interface _PxTransformationEffect {
     translate?: PxAnimatable<Vec2>;
     rotate?: PxAnimatable<number>;
     scale?: PxAnimatable<Vec2>;
-    skew?: PxAnimatable<Vec2>;
+    /** Skew (skewX) in degrees — a NUMBER (matches the editor's scalar skew part). */
+    skew?: PxAnimatable<number>;
     origin?: PxAnimatable<Vec2>;
 }
 export const PxTransformationEffectSchema = implementsInterface<_PxTransformationEffect>()(px.object({
     translate: PxAnimatableVec2Schema.optional(),
     rotate: PxAnimatableNumberSchema.optional(),
     scale: PxAnimatableVec2Schema.optional(),
-    skew: PxAnimatableVec2Schema.optional(),
+    skew: PxAnimatableNumberSchema.optional(),
     origin: PxAnimatableVec2Schema.optional(),
 }));
 export type PxTransformationEffect = PxInfer<typeof PxTransformationEffectSchema>;
