@@ -38,11 +38,11 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
             "type": "svg",
             "children": [
               {
+                "id": "r",
                 "type": "g",
                 "children": [
                   {
                     "height": 20,
-                    "id": "r",
                     "type": "rect",
                     "width": 20
                   },
@@ -59,7 +59,6 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
                     "children": [
                       {
                         "height": 20,
-                        "id": "r",
                         "type": "rect",
                         "width": 20
                       }
@@ -78,7 +77,6 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
                     "children": [
                       {
                         "height": 20,
-                        "id": "r",
                         "type": "rect",
                         "width": 20
                       }
@@ -105,11 +103,11 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
             "type": "svg",
             "children": [
               {
+                "id": "r",
                 "type": "g",
                 "children": [
                   {
                     "height": 20,
-                    "id": "r",
                     "type": "rect",
                     "width": 20
                   },
@@ -119,7 +117,6 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
                     "children": [
                       {
                         "height": 20,
-                        "id": "r",
                         "type": "rect",
                         "width": 20
                       }
@@ -131,7 +128,6 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
                     "children": [
                       {
                         "height": 20,
-                        "id": "r",
                         "type": "rect",
                         "width": 20
                       }
@@ -155,11 +151,11 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
             "type": "svg",
             "children": [
               {
+                "id": "r",
                 "type": "g",
                 "children": [
                   {
                     "height": 20,
-                    "id": "r",
                     "type": "rect",
                     "width": 20
                   },
@@ -176,7 +172,6 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
                     "children": [
                       {
                         "height": 20,
-                        "id": "r",
                         "type": "rect",
                         "width": 20
                       }
@@ -195,7 +190,6 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
                     "children": [
                       {
                         "height": 20,
-                        "id": "r",
                         "type": "rect",
                         "width": 20
                       }
@@ -218,11 +212,11 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
             "type": "svg",
             "children": [
               {
+                "id": "r",
                 "type": "g",
                 "children": [
                   {
                     "height": 20,
-                    "id": "r",
                     "type": "rect",
                     "width": 20
                   },
@@ -258,7 +252,6 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
                             "children": [
                               {
                                 "height": 20,
-                                "id": "r",
                                 "type": "rect",
                                 "width": 20
                               }
@@ -300,7 +293,6 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
                             "children": [
                               {
                                 "height": 20,
-                                "id": "r",
                                 "type": "rect",
                                 "width": 20
                               }

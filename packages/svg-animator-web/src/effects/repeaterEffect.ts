@@ -51,6 +51,12 @@ export function applyRepeaterEffect(node: PxNode, fx: PxRepeaterEffect | undefin
         delete (base.animate as PxAnimationDefinition).transform;
         if (Object.keys(base.animate).length === 0) delete base.animate;
     }
+    // The WRAPPER owns the source id (assigned below): a whole-element `<use>` must
+    // resolve to the FULL repeated result including the shared transform. Leaving the
+    // id on the base would duplicate it across every copy-clone, and href resolution
+    // would land on a bare, transform-stripped copy (rendered at the use's position
+    // with no body translate — visibly mis-placed).
+    delete base.id;
 
     const children: Array<PxNode> = [base];
     for (let i = 1; i < copies; i++) {
@@ -63,6 +69,7 @@ export function applyRepeaterEffect(node: PxNode, fx: PxRepeaterEffect | undefin
     }
 
     const wrapper: PxNode = { type: 'g', children };
+    if (node.id) wrapper.id = node.id;
     if (sharedTransform !== undefined) wrapper.transform = sharedTransform;
     if (sharedAnimTransform !== undefined) wrapper.animate = { transform: sharedAnimTransform };
     return wrapper;
