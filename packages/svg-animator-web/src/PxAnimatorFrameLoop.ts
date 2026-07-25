@@ -548,7 +548,14 @@ export function createDomAdapter(rootElement?: Element | null) {
 
             for (let i = 0; i < elements.length; i++) {
                 const element = elements[i];
-                element.setAttribute(attrName, value);
+                // `<pattern>` ignores the plain `transform` ATTRIBUTE (it transforms via
+                // `patternTransform`). The WAAPI engine drives the same animation through
+                // CSS `transform`, which browsers do apply to patterns — remap here so the
+                // frames engine animates everything WAAPI animates.
+                const effectiveAttrName = attrName === 'transform' && element.tagName === 'pattern'
+                    ? 'patternTransform'
+                    : attrName;
+                element.setAttribute(effectiveAttrName, value);
                 if (STYLE_ATTR_NAMES.has(attrName)) {
                     (element as HTMLElement).style[attrName as any] = value;
                 }
