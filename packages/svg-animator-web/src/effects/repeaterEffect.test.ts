@@ -319,4 +319,29 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
         const { errors } = materialiseRaw(wrap({ copies: 0, translate: [10, 0] }));
         expect(errors.some(e => e.includes('repeater.copies invalid'))).toBe(true);
     });
+    // Reported as `effect.repeater.trim` in the feature explorer's [JSON] column: the
+    // circles rendered as full outlines at every frame — the trim looked "not applied,
+    // or stuck at the end frame". Trim runs BEFORE the repeater, so every copy should
+    // inherit the dash animation; it did not, because the trim measurement could not
+    // read an `<ellipse>` at all and bailed out before emitting anything.
+    it('case 6 — repeater over a TRIMMED <ellipse>: every copy inherits the trim animation', () => {
+        const out = materialise({
+            type: 'svg', children: [{
+                type: 'ellipse', rx: 6, ry: 6, stroke: '#2673f2', strokeWidth: 3, fill: 'none',
+                transform: 'translate(120,100)',
+                effects: {
+                    trimPath: { range: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [0, 1] }] } },
+                    repeater: { copies: 4, translate: [18, 0] },
+                },
+            }],
+        } as unknown as PxNode);
+
+        const ellipses = collectByType(out, 'ellipse') as Array<any>;
+        expect(ellipses, 'one ellipse per copy').toHaveLength(4);
+        for (const [i, e] of ellipses.entries()) {
+            expect(Array.isArray(e.strokeDasharray), `copy ${i}: dash pattern`).toBe(true);
+            expect(Object.keys(e.animate || {}), `copy ${i}: dash animation`).toContain('strokeDasharray');
+        }
+        expect(noEffectsRemain(out)).toBe(true);
+    });
 });

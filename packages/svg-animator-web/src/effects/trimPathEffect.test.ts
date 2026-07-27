@@ -203,4 +203,48 @@ describe('trimPathEffect — dasharray/dashoffset materialisation', () => {
             expect(p.d).toBeTruthy();
         }
     });
+    // ── ellipse / circle hosts ───────────────────────────────────────────────
+    // Regression (`effect.repeater.trim`): trim measurement only understood a `d`
+    // attribute and `<rect>`, so an `<ellipse>` host produced NO measurable leaf and
+    // `applyTrimPathEffect` returned the node untouched — the effect vanished and the
+    // full outline painted at every frame (it read as "stuck at the end frame").
+
+    it('case 5 — <ellipse> host + animated range → trim materialises (was silently dropped)', () => {
+        const out = materialise({
+            type: 'svg', children: [{
+                type: 'ellipse', id: 'e', rx: 6, ry: 6, stroke: '#2673f2', strokeWidth: 3, fill: 'none',
+                effects: { trimPath: { range: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [0, 1] }] } } },
+            }],
+        } as unknown as PxNode);
+
+        const e = collectByType(out, 'ellipse')[0] as any;
+        expect(e, 'the ellipse survives as an <ellipse> — trim rides on its own stroke attrs').toBeTruthy();
+        expect(e.id).toBe('e');
+        expect(e.effects, 'effect consumed').toBeUndefined();
+        expect(Array.isArray(e.strokeDasharray), 'dash pattern emitted').toBe(true);
+        expect(animKeys(e), 'animated range drives strokeDasharray').toContain('strokeDasharray');
+
+        // The dash pattern must be built from the ELLIPSE's real circumference
+        // (r=6 → 2πr ≈ 37.7), not from some zero/te fallback.
+        const circumference = 2 * Math.PI * 6;
+        const kfs = (e.animate.strokeDasharray.keyframes as Array<any>);
+        const longest = Math.max(...kfs.flatMap(kf => kf.value as Array<number>));
+        expect(longest).toBeGreaterThan(circumference * 0.95);
+        expect(longest).toBeLessThan(circumference * 1.1);
+    });
+
+    it('case 6 — <circle> host trims on its own circumference', () => {
+        const out = materialise({
+            type: 'svg', children: [{
+                type: 'circle', id: 'c', r: 10, cx: 50, cy: 50, stroke: '#000', strokeWidth: 2, fill: 'none',
+                effects: { trimPath: { range: [0, 0.5] } },
+            }],
+        } as unknown as PxNode);
+
+        const c = collectByType(out, 'circle')[0] as any;
+        expect(c, 'the circle survives as a <circle>').toBeTruthy();
+        expect(Array.isArray(c.strokeDasharray)).toBe(true);
+        // Half of 2π·10 ≈ 31.4 is the visible dash.
+        expect(c.strokeDasharray.some((v: number) => v > 30 && v < 33)).toBe(true);
+    });
 });

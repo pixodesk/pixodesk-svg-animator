@@ -49,7 +49,7 @@ export function applyTrimPathEffect(
             for (const ch of n.children) measure(ch);
             return;
         }
-        const d = typeof n.d === 'string' ? n.d : rectToPathD(n);
+        const d = typeof n.d === 'string' ? n.d : shapeToPathD(n);
         if (d === undefined) return;
         const subpaths = parseSvgPathToBezier(d);
         if (!subpaths.length) return;
@@ -525,16 +525,51 @@ function segmentLength(path: PxBezierPath, from: number, to: number): number {
     return lut.ds[lut.ds.length - 1];
 }
 
-/** `<rect>` -> outline path `d`. Emits the explicit closing-line vertex
- *  (`L x0,y0`) before `z` (the closing segment is always added unless
- *  `start===end`). Returns undefined for unsupported types. */
-function rectToPathD(node: PxNode): string | undefined {
-    if (node.type !== 'rect') return undefined;
-    const x = Number(node.x ?? 0), y = Number(node.y ?? 0);
-    const w = Number(node.width ?? 0), h = Number(node.height ?? 0);
-    return 'M' + (x + w) + ',' + y +
-        'L' + (x + w) + ',' + (y + h) +
-        'L' + x + ',' + (y + h) +
-        'L' + x + ',' + y +
-        'L' + (x + w) + ',' + y + 'z';
+/**
+ * Cubic-bezier control-point ratio for a quarter arc — the standard circle
+ * approximation (max radial error ≈ 0.02%, far below stroke-dash precision).
+ */
+const ARC_KAPPA = 0.5522847498307936;
+
+/**
+ * A primitive shape -> outline path `d`, for shapes that carry no `d` of their own.
+ * Returns undefined for unsupported types.
+ *
+ * Start point and winding MATCH the shape's own SVG parameterisation, because the
+ * measured length feeds a `stroke-dasharray` that the browser then walks along that
+ * very parameterisation — a mismatched start would put the visible trim window in
+ * the wrong place.
+ *
+ *  - `<rect>`             from `(x+w, y)`, clockwise. Emits the explicit closing-line
+ *                         vertex (`L x0,y0`) before `z`.
+ *  - `<ellipse>`/`<circle>` from `(cx+rx, cy)` clockwise as four cubic quarters — the
+ *                         SVG-spec equivalent path, which the UA also uses for dashing.
+ */
+function shapeToPathD(node: PxNode): string | undefined {
+    if (node.type === 'rect') {
+        const x = Number(node.x ?? 0), y = Number(node.y ?? 0);
+        const w = Number(node.width ?? 0), h = Number(node.height ?? 0);
+        return 'M' + (x + w) + ',' + y +
+            'L' + (x + w) + ',' + (y + h) +
+            'L' + x + ',' + (y + h) +
+            'L' + x + ',' + y +
+            'L' + (x + w) + ',' + y + 'z';
+    }
+
+    if (node.type === 'ellipse' || node.type === 'circle') {
+        const cx = Number(node.cx ?? 0), cy = Number(node.cy ?? 0);
+        const rx = node.type === 'circle' ? Number(node.r ?? 0) : Number(node.rx ?? 0);
+        const ry = node.type === 'circle' ? Number(node.r ?? 0) : Number(node.ry ?? 0);
+        if (!(rx > 0) || !(ry > 0)) return undefined;
+        const kx = rx * ARC_KAPPA, ky = ry * ARC_KAPPA;
+        const c = (x1: number, y1: number, x2: number, y2: number, x: number, y: number) =>
+            'C' + x1 + ',' + y1 + ' ' + x2 + ',' + y2 + ' ' + x + ',' + y;
+        return 'M' + (cx + rx) + ',' + cy +
+            c(cx + rx, cy + ky, cx + kx, cy + ry, cx, cy + ry) +
+            c(cx - kx, cy + ry, cx - rx, cy + ky, cx - rx, cy) +
+            c(cx - rx, cy - ky, cx - kx, cy - ry, cx, cy - ry) +
+            c(cx + kx, cy - ry, cx + rx, cy - ky, cx + rx, cy) + 'z';
+    }
+
+    return undefined;
 }
