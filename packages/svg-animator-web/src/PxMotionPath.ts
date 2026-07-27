@@ -89,7 +89,11 @@ interface MotionPathSegmentCache {
     readonly totalArc: number;
 }
 
-const _segmentCache = new WeakMap<PxKeyframe, MotionPathSegmentCache>();
+// Keyed on the PAIR, not on `prevKf` alone: one keyframe can start different segments
+// across evaluations (a lookup that falls outside the keyframe range answers with a
+// first→last pair), and a `prevKf`-only key let that bogus segment's Bezier be served
+// for every later evaluation of the real `prevKf`→next segment.
+const _segmentCache = new WeakMap<PxKeyframe, WeakMap<PxKeyframe, MotionPathSegmentCache>>();
 
 function getSegmentCache(
     prevKf: PxKeyframe,
@@ -97,7 +101,8 @@ function getSegmentCache(
     prevPos: Point2,
     nextPos: Point2,
 ): MotionPathSegmentCache {
-    const existing = _segmentCache.get(prevKf);
+    let byNext = _segmentCache.get(prevKf);
+    const existing = byNext?.get(nextKf);
     if (existing) return existing;
     const to = prevKf.tangentOut ?? prevKf.to;
     const ti = nextKf.tangentIn ?? nextKf.ti;
@@ -109,7 +114,8 @@ function getSegmentCache(
         lut,
         totalArc: lut.ds[lut.ds.length - 1],
     };
-    _segmentCache.set(prevKf, entry);
+    if (!byNext) { byNext = new WeakMap<PxKeyframe, MotionPathSegmentCache>(); _segmentCache.set(prevKf, byNext); }
+    byNext.set(nextKf, entry);
     return entry;
 }
 

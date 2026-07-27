@@ -936,16 +936,28 @@ export function getNormalisedBindings(
  * Finds prev/next keyframes for a given progress.
  */
 function getKeyframesPair(keyframes: PxKeyframe[], progress: number) {
+    // Outside the keyframe range, clamp to the NEAREST REAL segment (the caller clamps
+    // `localProgress` to 0/1, so that holds the boundary pose). Spanning first→last
+    // instead would invent a segment that exists nowhere in the animation: for keyframes
+    // that start part-way into the timeline, the pre-start frames used to interpolate
+    // straight from the first to the LAST keyframe — skipping everything between, and
+    // handing motion-path evaluation a chord it then cached (see `getSegmentCache`).
+    const last = keyframes.length - 1;
     let prevKf = keyframes[0];
-    let nextKf = keyframes[keyframes.length - 1];
+    let nextKf = keyframes[last > 0 ? 1 : 0];
 
-    for (let j = 0; j < keyframes.length - 1; j++) {
+    for (let j = 0; j < last; j++) {
         const aOff = (keyframes[j].t ?? 0);
         const bOff = (keyframes[j + 1].t ?? 0);
         if (aOff <= progress && progress <= bOff) {
             prevKf = keyframes[j];
             nextKf = keyframes[j + 1];
             break;
+        }
+        // Past this segment and not bracketed by any later one → hold the final segment.
+        if (progress > bOff && j === last - 1) {
+            prevKf = keyframes[last > 0 ? last - 1 : 0];
+            nextKf = keyframes[last];
         }
     }
     return { prevKf, nextKf };
