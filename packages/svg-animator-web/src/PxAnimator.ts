@@ -276,8 +276,11 @@ export function createAnimatorImpl(
 
     let rootElement: Element | null = null;
 
-    // Render the SVG content if we have a container and children
-    if (containerElement && doc.children) {
+    // Render whenever there's a container. A document with no children is still a
+    // document — it carries the viewBox/size that make it a viewport — so it renders as an
+    // EMPTY `<svg>`. Gating on `doc.children` left `getRootElement()` answering `null`,
+    // which a consumer cannot tell apart from "the render failed".
+    if (containerElement) {
 
         doc = generateNewIds(doc); // Regenerate IDs so repeated calls to createAnimator(...) produce different ids in elements
 
