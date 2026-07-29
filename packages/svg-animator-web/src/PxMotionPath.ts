@@ -464,15 +464,26 @@ function insertSharpCornerStepKfIfNeeded(
     const delta = wrappedAngleDelta(nextEntry, prevExitTangent);
     if (Math.abs(delta) <= rotationTol) return;  // continuous within tolerance
 
-    // Duplicate kf at the same time as `prevKf` (boundary) carrying the new
-    // entry angle. Origin / scale / other parts copied from the boundary kf
-    // — they're continuous; only `rotate` steps.
+    // Step kf carrying the new entry angle, a hair AFTER the boundary — the boundary
+    // time itself must render the PREVIOUS segment's exit pose. A duplicate at the exact
+    // boundary time made CSS/WAAPI resolve the LATER keyframe there, so scrubbing to
+    // exactly the corner showed the next segment's angle while the editor (and the
+    // parametric frames engine, whose segment lookup treats a boundary as the END of the
+    // segment before it) showed the previous one. The offset is far below a frame, so
+    // playback still reads as an instant step at the corner.
+    const prevTime = getKfTime(prevKf);
+    const stepTime = Math.min(prevTime + CORNER_STEP_AFTER_BOUNDARY_MS, (prevTime + getKfTime(nextKf)) / 2);
     const dupValue = buildOutKfValue(
         getKfValueParts(prevKf), getKfValueParts(prevKf), 0,
         prevPos, nextEntry, true,
     );
-    out.push(makeOutKf(getKfTime(prevKf), dupValue));
+    out.push(makeOutKf(stepTime, dupValue));
 }
+
+/** How far past a sharp corner the entry-angle step kf sits (ms). Small enough to be
+ *  invisible in playback (a frame is ~16 ms) — and strictly under the 0.1 ms step-width
+ *  budget the corner-step CSS spec asserts — while still a distinct WAAPI offset. */
+const CORNER_STEP_AFTER_BOUNDARY_MS = 0.05;
 
 
 /** Materialises a single segment into `out`. Appends one kf per sample (interior
