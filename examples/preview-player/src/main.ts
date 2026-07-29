@@ -3,6 +3,7 @@ import {
   getAnimatorConfig,
   isPxElementFileFormat,
   type PxAnimatedSvgDocument,
+  type PxTrigger,
 } from '@pixodesk/svg-animator-web';
 
 import { createWebPlayer } from './players/web';
@@ -14,6 +15,7 @@ import {
   type PlayerFactory,
   type PlayerHandle,
   type PlayerKind,
+  type PlayerOptions,
 } from './players/types';
 
 import sample from './sample.json';
@@ -51,6 +53,15 @@ const btnRestart = $<HTMLButtonElement>('btn-restart');
 const btnFinish = $<HTMLButtonElement>('btn-finish');
 const btnDemo = $<HTMLButtonElement>('btn-demo');
 const btnTheme = $<HTMLButtonElement>('btn-theme');
+
+const chkUseTrigger = $<HTMLInputElement>('chk-use-trigger');
+const triggerConfigEl = $('trigger-config');
+const chkFileConfig = $<HTMLInputElement>('chk-file-config');
+const selStartOn = $<HTMLSelectElement>('sel-start-on');
+const selOutAction = $<HTMLSelectElement>('sel-out-action');
+const inpThreshold = $<HTMLInputElement>('inp-threshold');
+const outActionField = $('out-action-field');
+const thresholdField = $('threshold-field');
 
 const transportButtons = [btnPlay, btnPause, btnStop, btnRestart, btnFinish];
 
@@ -91,6 +102,10 @@ const demoDoc = sample as unknown as PxAnimatedSvgDocument;
 let currentDoc: PxAnimatedSvgDocument | null = null;
 let currentKind: PlayerKind = 'web';
 let currentLoop: LoopMode = 'auto';
+// Trigger controls: when `useTrigger` is on, the document's trigger — from the file or a
+// custom config — drives start, and the transport buttons are disabled.
+let useTrigger = false;
+let useFileConfig = true;
 let handle: PlayerHandle | null = null;
 let duration = 0;
 let scrubbing = false;
@@ -158,9 +173,48 @@ function clearError(): void {
 }
 
 function setControlsEnabled(enabled: boolean): void {
-  for (const btn of transportButtons) btn.disabled = !enabled;
-  seek.disabled = !enabled;
+  // With a trigger driving playback, the transport + scrubber are disabled (the trigger owns start).
+  const transport = enabled && !useTrigger;
+  for (const btn of transportButtons) btn.disabled = !transport;
+  seek.disabled = !transport;
   rateSel.disabled = !enabled || currentKind !== 'web';
+}
+
+/** The trigger option handed to the player: `undefined` = programmatic (transport owns
+ *  start); `'file'` = the document's own trigger; a config = the user's custom trigger. */
+function currentTriggerOption(): PlayerOptions['trigger'] {
+  if (!useTrigger) return undefined;
+  if (useFileConfig) return 'file';
+  const startOn = selStartOn.value as PxTrigger['startOn'];
+  const trigger: PxTrigger = { startOn };
+  if (startOn !== 'load') trigger.outAction = selOutAction.value as PxTrigger['outAction'];
+  if (startOn === 'scrollIntoView') trigger.scrollIntoViewThreshold = Number(inpThreshold.value);
+  return trigger;
+}
+
+/** Sync the trigger config panel — visibility, disabled state, and (when reading from the
+ *  file) reflect the document's own trigger into the fields. */
+function syncTriggerUi(): void {
+  chkUseTrigger.checked = useTrigger;
+  chkFileConfig.checked = useFileConfig;
+  triggerConfigEl.hidden = !useTrigger;
+
+  if (useFileConfig) {
+    // Show the file's config, read-only.
+    const fileTrigger = currentDoc ? getAnimatorConfig(currentDoc)?.trigger : undefined;
+    selStartOn.value =
+      fileTrigger?.startOn && fileTrigger.startOn !== 'programmatic' ? fileTrigger.startOn : 'load';
+    selOutAction.value = fileTrigger?.outAction ?? 'pause';
+    if (fileTrigger?.scrollIntoViewThreshold != null) {
+      inpThreshold.value = String(fileTrigger.scrollIntoViewThreshold);
+    }
+  }
+  // "From file" → fields are read-only; custom → editable.
+  for (const el of [selStartOn, selOutAction, inpThreshold]) el.disabled = useFileConfig;
+
+  // outAction is meaningless for `load`; threshold only for `scrollIntoView`.
+  outActionField.hidden = selStartOn.value === 'load';
+  thresholdField.hidden = selStartOn.value !== 'scrollIntoView';
 }
 
 // -- Mount / remount ---------------------------------------------------------
@@ -176,6 +230,7 @@ function remount(): void {
   }
   mount.replaceChildren();
   clearError();
+  syncTriggerUi();
 
   // Empty state: nothing loaded yet.
   if (!currentDoc) {
@@ -205,21 +260,29 @@ function remount(): void {
   try {
     handle = factories[currentKind](mount, currentDoc, {
       iterations: loopModeToIterations(currentLoop),
+      trigger: currentTriggerOption(),
     });
   } catch (err) {
     showError(`Failed to mount ${currentKind} player: ${String(err)}`);
     return;
   }
 
-  // React/Vue populate their imperative API after the first commit, so start
-  // playback on the next frame to keep behaviour identical across players.
-  requestAnimationFrame(() => handle?.play());
+  // With a trigger driving start, DON'T auto-play — the `load` trigger (or the user's
+  // hover/click/scroll for the others) starts it. Otherwise auto-play as before.
+  // React/Vue populate their imperative API after the first commit, so play next frame.
+  if (!useTrigger) requestAnimationFrame(() => handle?.play());
 }
 
 /** Adopts a validated document and (re)mounts the current player. */
 function loadDocument(doc: PxAnimatedSvgDocument, sourceLabel: string): void {
   currentDoc = doc;
   filenameEl.textContent = sourceLabel;
+  // Auto-detect the trigger mode from the loaded file: a REAL (non-`programmatic`) trigger
+  // turns "Use trigger" ON and reads its config from the file; `programmatic`/none leaves it
+  // OFF so the transport buttons drive playback.
+  const fileStartOn = getAnimatorConfig(doc)?.trigger?.startOn;
+  useTrigger = !!fileStartOn && fileStartOn !== 'programmatic';
+  useFileConfig = true;
   remount();
 }
 
@@ -263,6 +326,23 @@ document.querySelectorAll<HTMLInputElement>('input[name="loop"]').forEach((radio
     }
   });
 });
+
+// -- Trigger controls --------------------------------------------------------
+
+chkUseTrigger.addEventListener('change', () => {
+  useTrigger = chkUseTrigger.checked;
+  remount();
+});
+chkFileConfig.addEventListener('change', () => {
+  useFileConfig = chkFileConfig.checked;
+  remount();
+});
+// Editing a custom trigger config re-creates the animator with it.
+for (const el of [selStartOn, selOutAction, inpThreshold]) {
+  el.addEventListener('change', () => {
+    if (useTrigger && !useFileConfig) remount();
+  });
+}
 
 // -- Time slider -------------------------------------------------------------
 
@@ -330,9 +410,11 @@ window.addEventListener('drop', (e) => {
 
 function tick(): void {
   if (handle) {
-    const playing = handle.isPlaying();
-    btnPlay.disabled = playing;
-    btnPause.disabled = !playing;
+    if (!useTrigger) {
+      const playing = handle.isPlaying();
+      btnPlay.disabled = playing;
+      btnPause.disabled = !playing;
+    }
 
     if (!scrubbing) {
       const t = handle.getCurrentTime();

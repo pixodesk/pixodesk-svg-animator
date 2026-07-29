@@ -50,6 +50,35 @@
 
         <p id="error" class="error" hidden></p>
 
+        <fieldset class="picker" id="trigger-picker">
+          <legend>Trigger</legend>
+          <label><input type="checkbox" id="chk-use-trigger" /> Use trigger</label>
+          <div id="trigger-config" class="trigger-config" hidden>
+            <label><input type="checkbox" id="chk-file-config" checked /> Use trigger config from file</label>
+            <div class="trigger-fields">
+              <label>Start on
+                <select id="sel-start-on">
+                  <option value="load">load</option>
+                  <option value="mouseOver">mouseOver</option>
+                  <option value="click">click</option>
+                  <option value="scrollIntoView">scrollIntoView</option>
+                </select>
+              </label>
+              <label id="out-action-field">Out action
+                <select id="sel-out-action">
+                  <option value="pause">pause</option>
+                  <option value="reset">reset</option>
+                  <option value="continue">continue</option>
+                  <option value="reverse">reverse</option>
+                </select>
+              </label>
+              <label id="threshold-field">Scroll threshold
+                <input id="inp-threshold" type="number" min="0" max="1" step="0.05" value="0.5" />
+              </label>
+            </div>
+          </div>
+        </fieldset>
+
         <div class="transport">
           <button id="btn-play" type="button">▶ Play</button>
           <button id="btn-pause" type="button">❚❚ Pause</button>

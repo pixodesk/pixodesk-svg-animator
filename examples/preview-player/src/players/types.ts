@@ -1,4 +1,4 @@
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
+import type { PxAnimatedSvgDocument, PxTrigger } from '@pixodesk/svg-animator-web';
 
 /**
  * A framework-agnostic handle over a mounted animation player.
@@ -47,6 +47,33 @@ export interface PlayerOptions {
    * declared in the document is used unchanged.
    */
   iterations?: number | 'infinite';
+  /**
+   * Trigger handling:
+   *  - `undefined` → force `programmatic` (the UI transport owns start; default);
+   *  - `'file'`    → use the document's own `animator.trigger` unchanged;
+   *  - `PxTrigger` → override the trigger with this custom config.
+   */
+  trigger?: 'file' | PxTrigger;
+}
+
+/**
+ * Applies the {@link PlayerOptions.trigger} choice to a copy of `doc`. Shared by all
+ * three player adapters so "Use trigger" behaves identically everywhere:
+ *  - default (no `trigger`)  → force `programmatic` so the transport buttons own start;
+ *  - `'file'`                → leave the document's own trigger in place;
+ *  - a config object         → replace the trigger with the user's custom config.
+ */
+export function applyTriggerOverride(
+  doc: PxAnimatedSvgDocument,
+  opts?: PlayerOptions,
+): PxAnimatedSvgDocument {
+  const cfg = doc.animator ?? {};
+  const t = opts?.trigger;
+  const trigger: PxTrigger | undefined =
+    t === 'file' ? cfg.trigger
+    : t && typeof t === 'object' ? t
+    : { ...(cfg.trigger ?? {}), startOn: 'programmatic' };
+  return { ...doc, animator: { ...cfg, trigger } };
 }
 
 /** Translates a {@link LoopMode} into an `iterations` override (or `undefined` for `auto`). */

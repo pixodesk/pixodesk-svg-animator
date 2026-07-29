@@ -1,20 +1,21 @@
 import { createAnimator, type PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
-import type { PlayerHandle, PlayerOptions } from './types';
+import { applyTriggerOverride, type PlayerHandle, type PlayerOptions } from './types';
 
 /**
  * Returns a copy of the document with playback forced to `programmatic` (so the
  * UI is in full control of start), and `iterations` overridden when requested.
  */
 function withOverrides(doc: PxAnimatedSvgDocument, opts?: PlayerOptions): PxAnimatedSvgDocument {
-  const cfg = doc.animator ?? {};
+  // Trigger handling (programmatic / from-file / custom) is shared across all players.
+  const withTrigger = applyTriggerOverride(doc, opts);
+  const cfg = withTrigger.animator ?? {};
   return {
-    ...doc,
+    ...withTrigger,
     animator: {
       ...cfg,
       // `auto` leaves the document's iterations untouched; `loop`/`no-loop`
       // pass 'infinite'/1 here and override it.
       iterations: opts?.iterations !== undefined ? opts.iterations : cfg.iterations,
-      trigger: { ...(cfg.trigger ?? {}), startOn: 'programmatic' },
     },
   };
 }

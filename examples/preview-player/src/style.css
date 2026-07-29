@@ -299,3 +299,48 @@ button:disabled {
 .rate-note {
   font-size: 12px;
 }
+
+/* Trigger picker: the "Use trigger" checkbox stacks above its config panel. */
+#trigger-picker {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+/* `hidden` must win over the flex layout below (author `display` beats the UA `[hidden]`
+   rule), else the panel shows even when "Use trigger" is off. */
+.trigger-config[hidden] {
+  display: none;
+}
+.trigger-config {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+}
+.trigger-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+.trigger-fields label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.trigger-fields select,
+.trigger-fields input {
+  font: inherit;
+}
+.trigger-fields select:disabled,
+.trigger-fields input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.trigger-fields input[type='number'] {
+  width: 64px;
+}
