@@ -90,6 +90,34 @@ export function applyAllRetimeEffects(root: PxNode, ctx: ApplyContext): void {
     };
     collect(root);
 
+    // OUTER-most sites first. Materialising a site CONSUMES its retime in place (see the
+    // load-bearing note below) — so when an outer use's chain later clones a subtree whose
+    // inner retimed use was already processed, the inner retime is gone and never composes
+    // with the outer one: a doubly-retimed chain started at +inner instead of
+    // +inner∘outer. Document order only happens to work when the outer use serialises
+    // first; a symbol-heavy document (e.g. one imported from Lottie precomps) puts the
+    // template's inner use ahead of the outer site. Order by reachability instead: a site
+    // whose chain can reach other sites materialises before them.
+    const reachCount = new Map<PxNode, number>();
+    for (const site of sites) {
+        let count = 0;
+        const visited = new Set<string>();
+        const walk = (n: PxNode | undefined): void => {
+            if (!n) return;
+            if (n !== site && readCloneRetime(n)) count++;
+            if (n.type === 'use' && n.href) {
+                const id = stripHash(n.href);
+                if (id && !visited.has(id)) { visited.add(id); walk(ctx.idMap.get(id)); }
+            }
+            n.children?.forEach(walk);
+        };
+        const rootId = stripHash(site.href);
+        if (rootId) { visited.add(rootId); walk(ctx.idMap.get(rootId)); }
+        reachCount.set(site, count);
+    }
+    // Stable sort: deeper reach first; equal reach keeps document order.
+    sites.sort((a, b) => (reachCount.get(b) ?? 0) - (reachCount.get(a) ?? 0));
+
     for (const useNode of sites) {
         const retime = readCloneRetime(useNode);
         if (!retime) continue;

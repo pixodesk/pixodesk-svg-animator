@@ -227,7 +227,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                     "type": "g",
                     "children": [
                       {
-                        "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":250,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1250,\\"value\\":{\\"translate\\":[100,0]}}]}}",
+                        "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":500,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1500,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                         "fill": "#3399e6",
                         "id": "__GEN_1__",
                         "rx": "16",
@@ -237,23 +237,23 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                     ]
                   },
                   {
+                    "href": "#__GEN_0__",
                     "id": "__GEN_2__",
+                    "type": "use"
+                  },
+                  {
+                    "id": "__GEN_3__",
                     "type": "g",
                     "children": [
                       {
-                        "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":500,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1500,\\"value\\":{\\"translate\\":[100,0]}}]}}",
+                        "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":250,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1250,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                         "fill": "#3399e6",
-                        "id": "__GEN_3__",
+                        "id": "__GEN_4__",
                         "rx": "16",
                         "ry": "16",
                         "type": "ellipse"
                       }
                     ]
-                  },
-                  {
-                    "href": "#__GEN_2__",
-                    "id": "__GEN_4__",
-                    "type": "use"
                   }
                 ]
               },
@@ -272,12 +272,12 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                 ]
               },
               {
-                "href": "#__GEN_0__",
+                "href": "#__GEN_3__",
                 "id": "u1",
                 "type": "use"
               },
               {
-                "href": "#__GEN_4__",
+                "href": "#__GEN_2__",
                 "type": "use"
               }
             ]
@@ -663,5 +663,31 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
         expect(distinctShifts).toEqual(['0,1000', '250,1250', '500,1500']);
         // the two engines genuinely diverge
         expect(JSON.stringify(out)).not.toEqual(JSON.stringify(framesOut));
+    });
+
+    // The shape a Lottie-precomp import produces: the retimed inner use lives inside a
+    // SYMBOL-like template that serialises BEFORE the outer site. Materialising sites in
+    // plain document order consumed the inner retime in place first, so the outer chain
+    // clone found nothing to compose — the doubly-retimed content started at +250 instead
+    // of +500. Site ordering is by reachability now (outer-most first), which must make
+    // this layout equivalent to case 3.
+    it('case 6 — inner retimed use INSIDE the referenced template, template serialised first → still composes to +500', () => {
+        const wire = {
+            type: 'svg', viewBox: '0 0 400 400',
+            children: [
+                // the template (with its retimed inner use) comes FIRST in document order
+                { type: 'g', id: 'tpl1', children: [
+                    { type: 'use', href: '#tpl0', effects: { clone: { type: 'content', baseId: 'tpl0', retime: { start: 250 } } } },
+                ] },
+                { type: 'g', id: 'tpl0', children: [animatedBall('ball')] },
+                // the OUTER site references the template
+                { type: 'use', href: '#tpl1', effects: { clone: { type: 'content', baseId: 'tpl1', retime: { start: 250 } } } },
+            ],
+        } as unknown as PxNode;
+        const { root } = applyPlayerEffects(wire);
+        const times = transformKfTimes(root).map(t => t.join(','));
+        expect(times, 'the outer chain composes: +250 (template render) AND +500 (retimed chain)')
+            .toContain('500,1500');
+        expect(times).toContain('250,1250');
     });
 });
