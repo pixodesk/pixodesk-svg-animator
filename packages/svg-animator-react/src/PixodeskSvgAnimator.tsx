@@ -283,7 +283,7 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
             api?.destroy();
             apiHolderRef.current = null;
         };
-    }, [doc, apiHolderRef]);
+    }, [doc, apiHolderRef, callbacksRef]);
 
     return root;
 };
@@ -478,6 +478,12 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
 
         return () => {
             if (compMode === PixodeskSvgAnimatorCompMode.play) {
+                // Intentionally read at cleanup time (NOT snapshotted at effect
+                // time): the inner component nulls the ref when it destroys the
+                // animator, so this pauses only a still-live instance. A
+                // snapshot would call pause() on a destroyed animator and emit
+                // a spurious onPause after teardown.
+                // eslint-disable-next-line react-hooks/exhaustive-deps
                 apiHolderRef.current?.pause();
             }
         };
