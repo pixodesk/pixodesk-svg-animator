@@ -1,0 +1,45 @@
+{
+    "compilerOptions": {
+        "outDir": "build/lib",
+        // NO "dom" lib — React Native has no DOM.
+        "lib": [
+            "es5",
+            "es6",
+            "es7",
+            "es2017"
+        ],
+        "jsx": "react-jsx",
+        "sourceMap": true,
+        "allowJs": true,
+        "moduleResolution": "node",
+        "rootDirs": [
+            "src"
+        ],
+        "baseUrl": ".",
+        "types": [
+            "node"
+        ],
+        "resolveJsonModule": true,
+        "allowSyntheticDefaultImports": true,
+        "isolatedModules": false,
+        "noEmit": false,
+        "noImplicitThis": false,
+        "experimentalDecorators": true,
+        "noImplicitAny": false,
+        "noImplicitOverride": true,
+        "target": "es6",
+        "module": "ESNext",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "build",
+        "dist"
+    ]
+}

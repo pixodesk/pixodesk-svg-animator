@@ -1,0 +1,59 @@
+{
+  "name": "@pixodesk/svg-animator-rn",
+  "version": "1.0.20",
+  "description": "Pixodesk SVG animator for React Native — renders animator documents via react-native-svg, driven natively by react-native-reanimated",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pixodesk/pixodesk-svg-animator",
+    "directory": "packages/svg-animator-rn"
+  },
+  "private": false,
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "react-native": "./src/index.ts",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "lint": "eslint src/",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@pixodesk/svg-animator-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-native": ">=0.76",
+    "react-native-reanimated": ">=3.16",
+    "react-native-svg": ">=15"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/react": "^19.0.0",
+    "eslint": "^9.0.0",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "react-native-reanimated": "~4.1.1",
+    "react-native-svg": "15.12.1",
+    "react-native-worklets": "0.5.1",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^2.0.0"
+  }
+}

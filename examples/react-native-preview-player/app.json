@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Pixodesk RN Preview Player",
+    "slug": "pixodesk-rn-preview-player",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {},
+    "web": {}
+  }
+}
