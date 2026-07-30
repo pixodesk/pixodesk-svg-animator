@@ -159,7 +159,7 @@ With `mode: 'auto'` (the default) the player picks the Web Animations API and **
 | **Simple Numeric** (opacity, stroke-width) | ✅ Full support | ✅ Full support | ✅ Full support |
 | **Position Attributes** (x, y, cx, cy, r, rx, ry) | ✅ Full support ¹ | ✅ Full support ¹ ² | ✅ Full support |
 | **Size Attributes** (width, height) | ✅ Full support ¹ | ✅ Full support ¹ ² | ✅ Full support |
-| **Transform** (translate, rotate, scale; static skew) | ✅ Full support | ✅ Full support | ✅ Full support |
+| **Transform** (translate, rotate, scale, skew) | ✅ Full support | ✅ Full support | ✅ Full support |
 | **Colors** (fill, stroke) | ✅ Full support | ✅ Full support | ✅ Full support |
 | **Path Morphing** (d attribute) | ⚠️ Chrome/FF/Edge ³ | ❌ Falls back to frames ² | ✅ Full support |
 | **Stroke Dash** (stroke-dasharray, stroke-dashoffset) | ✅ Full support | ✅ Full support | ✅ Full support |
@@ -190,10 +190,11 @@ With `mode: 'auto'` (the default) the player picks the Web Animations API and **
 interface ANIMATE {
     keyframes?: Array<{                       // alias: kfs
         time?: number;                        // ms offset; alias: t
-        value?: any;                          // number | string | [x,y] | {translate,rotate,scale,origin} | {path:"M…"}; alias: v
+        value?: any;                          // see "Keyframe values" below; alias: v
         easing?: string | [number, number, number, number]; // named ref or cubic-bezier; alias: e
         tangentOut?: [number, number];        // motion-path delta tangent at this kf; alias: to
         tangentIn?:  [number, number];        // motion-path delta tangent at this kf; alias: ti
+        selected?:  boolean;                  // editor-only UI state; accepted on the wire, ignored by the player
     }>;
     kfs?: Array<…>;                           // alias for `keyframes`
     autoOrient?: boolean;                     // translate-only: rotate element to face the path tangent
@@ -208,7 +209,35 @@ interface ANIMATE {
 }
 ```
 
-**Unified `transform`** — animate the four parts together as a single property whose `value` is a parts record:
+**Use one spelling per key, never both.** The short forms (`kfs`, `t`, `v`, `e`,
+`to`, `ti`) are aliases of the long ones. If both are present the result is not
+well-defined — `v`/`e` prefer the short form, `tangentIn`/`tangentOut` prefer the
+long one, and `kfs` vs `keyframes` differs between code paths.
+
+**Keyframe values** — the shape depends on the property being animated:
+
+| Property kind | `value` shape | Example |
+|---|---|---|
+| Scalar (`opacity`, `rotate`, `r`, `stroke-width`, …) | `number` | `0.5` |
+| Vector (`translate`, `scale`, `stroke-dasharray`) | `Array<number>` | `[80, 40]` |
+| Colour (`fill`, `stroke`, `stop-color`, …) | `string` or RGBA array | `"#ec4899"` |
+| Unified `transform` | parts record | `{ translate:[8,4], rotate:90, skew:10, scale:[2,2], origin:[5,5] }` |
+| Path (`d`) | `{ path: "M…" }` | one `d` string; compound shapes use several `M…` sub-paths |
+
+For `d`, the legacy `{ paths: [ …bezier objects… ] }` form is also accepted, as are
+bare `"M…"` strings and CSS `path("M…")` wrappers — all normalise to the same
+internal representation. Both keyframes of a morph must have the same command
+structure.
+
+**Any attribute takes one of three forms**, consistently across the format:
+
+```js
+{ fill: '#3b82f6' }                              // 1. primitive — static
+{ transform: { value: { translate: [10, 10] } } }// 2. {value} — structured static
+{ opacity: { keyframes: [ … ] } }                // 3. {keyframes} — animated
+```
+
+**Unified `transform`** — animate the parts together as a single property whose `value` is a parts record:
 
 ```js
 animate: { transform: { keyframes: [
@@ -217,7 +246,17 @@ animate: { transform: { keyframes: [
 ] } }
 ```
 
-The legacy per-key form (`animate: { translate, rotate, scale }` — used in the examples below) is still accepted; both produce the same composed `transform` string at render.
+| Part | Type | Notes |
+|---|---|---|
+| `translate` | `[x, y]` | user units |
+| `rotate` | `number` | degrees |
+| `skew` | `number` | skewX in degrees; composed between `rotate` and `scale` (Lottie order) |
+| `scale` | `[sx, sy]` | |
+| `origin` | `[x, y]` | pivot for rotate / skew / scale — only meaningful alongside one of them |
+
+Composed order: `translate · +origin · rotate · skewX · scale · −origin`.
+
+The legacy per-key form (`animate: { translate, rotate, scale }` — used in the examples below) is still accepted; both produce the same composed `transform` string at render. A static `transform` attribute and an animated transform part **cannot sit on the same node** — they occupy the same slot, so the animation wins. Put the static part on a wrapping `<g>`.
 
 ```typescript
 // PxAnimatedSvgDocument
@@ -232,18 +271,19 @@ interface SVG_JSON {
     [key: string]: any; // any SVG/CSS presentation attribute; pass-through to DOM
 
     animator?: {
-        delay?: number;                    // delay before start, ms
-        duration?: number;                 // total timeline length, ms; keyframe t values are absolute offsets
-        iterations?: number | 'infinite'; // repeat count; composes with per-property loop (loop-within-loop)
+        delay?: number;                    // delay before start, ms (default 0); negative = seek into the timeline
+        duration?: number;                 // length of ONE iteration, ms (default 1000); keyframe t values are absolute offsets
+        iterations?: number | 'infinite'; // repeat count (default 1); composes with per-property loop (loop-within-loop)
         fill?: 'forwards' | 'backwards' | 'both' | 'none'; // WAAPI fill; default 'forwards' holds final state
-        direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';
-        mode?: 'auto' | 'webapi' | 'frames'; // 'auto' = WAAPI→RAF fallback; 'webapi' = WAAPI; 'frames' = RAF
-        frameRate?: number;                // target fps; RAF mode only
+        direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse'; // default 'normal'
+        mode?: 'auto' | 'webapi' | 'frames'; // default 'auto' = WAAPI→RAF fallback; 'webapi' = WAAPI; 'frames' = RAF
+        frameRate?: number;                // target fps; RAF mode only (default: uncapped)
+        resetOnFinish?: boolean;           // default false; after a NATURAL finish, snap back to the start state
 
         trigger?: {
             startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
-            outAction?: 'continue' | 'pause' | 'reset' | 'reverse';
-            scrollIntoViewThreshold?: number; // visibility fraction (0–1); scrollIntoView only
+            outAction?: 'continue' | 'pause' | 'reset' | 'reverse'; // default 'continue'
+            scrollIntoViewThreshold?: number; // visibility fraction 0–1, default 0 (any pixel); scrollIntoView only
         };
 
         // named reusable easings and animations; resolved at runtime
@@ -252,8 +292,19 @@ interface SVG_JSON {
             easings?: Record<string, [number, number, number, number]>; // name → [x1,y1,x2,y2]
             animations?: Record<string, Record<string, ANIMATE>>;       // name → { propName: ANIMATE }
             styles?: Record<string, Record<string, string | number>>;   // name → style preset (node.style may reference by name)
-            glyphs?: Record<string, any>;                               // font-family → embedded glyph outlines (glyph-mode text)
+            // font-family → embedded glyph outlines, for glyph-mode text
+            // (effects.text.useGlyphs) — renders without shipping a font
+            glyphs?: Record<string, {
+                fFamily: string;      // e.g. "Roboto"
+                style: string;        // "" | "italic" | …
+                ascent: number;       // in unitsPerEm
+                unitsPerEm: number;   // e.g. 1000
+                glyphs: Record<string, { width: number; d: string }>;  // keyed by the character
+            }>;
         };
+
+        debug?: boolean;         // reserved — accepted, currently no effect
+        debugInstName?: string;  // exposes the animator as window[debugInstName]
 
         // Mode B — maps elementId → animation spec
         // value: named ref / array of refs / inline definition / mixed array
@@ -270,6 +321,7 @@ interface SVG_JSON {
         type: string;       // SVG element tag: "rect", "g", "path", "ellipse", "use", …
         id?: string;        // DOM id; required for href="#id" refs or animator.animate targeting
         [key: string]: any; // SVG/CSS attrs (cx, cy, r, fill, stroke, transform, …); pass-through
+        text?: string;      // text content for <text>/<tspan> (alias: textContent)
         style?: string | Record<string, string | number>;
         // named ref / array of refs / inline definition / mixed array
         animate?: string | Array<string> | Record<string, ANIMATE> | Array<string | Record<string, ANIMATE>>;
@@ -278,10 +330,12 @@ interface SVG_JSON {
         // Pre-rendered SVG export materialises these in the Editor. See "Player
         // effects" section below.
         effects?: {
-            transformation?:  { translate?, rotate?, scale?, skew?, origin?: any };  // each part may be animated
-            repeater?:        { copies?, translate?, rotate?, scale?, origin?: any };
+            // each part is animatable: raw value | {value} | {keyframes}
+            transformation?:  { translate?: [x,y], rotate?: deg, skew?: deg, scale?: [x,y], origin?: [x,y] };
+            repeater?:        { copies?: number, translate?: [x,y], rotate?: deg, scale?: [%,%], origin?: [x,y] };
             maskedBy?:        { href?: string, maskType?, maskUnits?, maskContentUnits?: string };
-            trimPath?:        { offset?, range?: any, trimAllAsOne?: boolean };       // offset/range animatable
+            clipPath?:        { d?: string, animate?: ANIMATE };   // static `d`, or animated clip geometry
+            trimPath?:        { offset?: number, range?: [a,b], trimAllAsOne?: boolean };  // offset/range animatable
             clone?:           { type?: 'content', baseId?: string, retime?: { start?, stretch?: number } };
             fillGradient?:    { type: 'linear'|'radial', p1?, p2?, c?, r?, fp?, stops?, gradientUnits?, spreadMethod?, gradientTransform? };
             strokeGradient?:  { /* same shape as fillGradient */ };
@@ -293,6 +347,12 @@ interface SVG_JSON {
         children?: Array<any>; // recursive; <g>, <defs>, <symbol>, <text>, <use>, …
     }>;
 }
+```
+
+Text content goes on the `text` attribute rather than in `children`:
+
+```js
+{ type: 'text', x: 20, y: 40, fill: '#111', 'font-size': 18, text: 'Hello' }
 ```
 
 ### JSON File format example
@@ -605,12 +665,13 @@ of time, so the exported SVG already contains the expanded structure —
 
 | Effect | Payload | What it does |
 |---|---|---|
-| `transformation` | `{ translate?:[x,y], rotate?:deg, scale?:[x,y], skew?:[x,y], origin?:[x,y] }` (each may be animated) | Wraps the element in transform `<g>`s; lets you keep `origin` semantics that the body `transform` string can't express. |
-| `repeater` | `{ copies:N, translate?:[x,y], rotate?:deg, scale?:[%, %], origin?:[x,y] }` | Renders `N-1` extra `<use>` copies of this element, each at incremental offset (per-copy params static; the base element can still animate). |
+| `transformation` | `{ translate?:[x,y], rotate?:deg, skew?:deg, scale?:[x,y], origin?:[x,y] }` (each may be animated) | Wraps the element in transform `<g>`s; lets you keep `origin` semantics that the body `transform` string can't express. `skew` is a scalar (skewX degrees), composed between `rotate` and `scale`. |
+| `repeater` | `{ copies:N, translate?:[x,y], rotate?:deg, scale?:[%, %], origin?:[x,y] }` (each may be animated) | Materialises `N` real copies of the element, each offset by its index (`translate`/`rotate`/`origin` × i, `scale` per-axis `(v/100)^i`). The base element and the per-copy params can both animate. |
 | `maskedBy` | `{ href:"#id", maskType?, maskUnits?, maskContentUnits? }` | Builds a `<mask>` from the referenced element and applies it to this one. |
+| `clipPath` | `{ d?:"M…", animate?: ANIMATE }` | Mints a `<clipPath>` from the path data and sets `clip-path` on the host. `animate` is the property animation **itself** (`{keyframes:[…]}`), not `{d:{keyframes:[…]}}` — its keyframe values are `{path:"M…"}`. |
 | `trimPath` | `{ offset?, range?:[a,b], trimAllAsOne? }` (`offset`/`range` animatable) | Trims the visible stroke segment along a path. `trimAllAsOne:true` chains all descendant subpaths into one virtual path so the window slides across siblings. |
 | `clone` | `{ type?:"content", baseId:"id", retime?:{ start?:ms, stretch?:1.0 } }` | `<use>`-only. A `<use>` is a clone of something: `baseId` = the source element id (says WHAT it clones), nested `retime` = optional time-shift of the source's internal timeline (says WHEN). `type:"content"` is a "no-ref-translate" content link — targets the source's content sub-anchor so the source's own outer translate isn't re-applied; `type` absent = direct whole-element link (keeps translate). `retime.timeCrop` is reserved (accepted, not applied yet). |
-| `fillGradient` / `strokeGradient` | `{ type:"linear"\|"radial", p1?,p2? (linear) \| c?,r?,fp? (radial), stops?, gradientUnits?, spreadMethod?, gradientTransform? }` | Mints a `<linearGradient>`/`<radialGradient>` def and points the host's `fill`/`stroke` at it. `stops` is one timeline — static array, or `{keyframes}` whose each kf `value` is the full stops array snapshot. Geometry is static. |
+| `fillGradient` / `strokeGradient` | `{ type:"linear"\|"radial", p1?,p2? (linear) \| c?,r?,fp? (radial), stops?, gradientUnits?, spreadMethod?, gradientTransform? }` | Mints a `<linearGradient>`/`<radialGradient>` def and points the host's `fill`/`stroke` at it. `stops` is one timeline — static array, or `{keyframes}` whose each kf `value` is the full stops array snapshot. Geometry is static. `gradientTransform` is static-only. |
 | `textPath` | `{ path:"M…", pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? }` | On a `<text>` host: mints a `<path>` def from the inline `path` and wraps the text's children in a `<textPath>` along it. `startOffset`/`textLength` accept the full animatable shape. `pathOverflow`: `'extend'` (default — glyphs continue along the endpoint tangent) or `'clip'` (native `<textPath>` behaviour). |
 | `text` | `{ useGlyphs?: true }` | Renders the `<text>` from embedded per-glyph outlines in `definitions.glyphs` — self-contained, no external font needed. |
 | `isCombinedShape` | `true` | Flag for the wrapping `<g>` of a multi-`<path>` trim — tells the Player the children form one logical shape. |
@@ -698,6 +759,24 @@ of time, so the exported SVG already contains the expanded structure —
     startOffset: { keyframes: [{ time: 0, value: 0 }, { time: 2000, value: 260 }] },
   } },
   children: [{ type: 'tspan', text: 'animated text on a path' }] }
+```
+
+**`clipPath`** — animate the clipping geometry itself (the clip is a live
+reference, so the browser re-clips every frame):
+
+```js
+{ type: 'rect', id: '_px_r', x: 0, y: 0, width: 200, height: 200, fill: '#3b82f6',
+  effects: {
+    clipPath: {
+      d: 'M0,0 L20,0 L20,200 L0,200 Z',          // static / frame-0 geometry
+      animate: {                                  // the property animation itself
+        keyframes: [
+          { time: 0,    value: { path: 'M0,0 L20,0 L20,200 L0,200 Z' } },
+          { time: 1000, value: { path: 'M0,0 L200,0 L200,200 L0,200 Z' } },
+        ],
+      },
+    },
+  } }
 ```
 
 **`trimPath`** — animate a draw-on effect; the wrapping `<g>` carries `isCombinedShape:true` when the children form one logical shape:
