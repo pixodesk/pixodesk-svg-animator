@@ -11,9 +11,9 @@
 // geometry in the serialized output.
 
 import { describe, expect, it } from 'vitest';
-import { applyPlayerEffects } from './PlayerEffectsUtil';
-import type { PxNode } from '../PxAnimatorTypes';
-import { renderNode } from '../PxAnimatorDOM';
+import { applyPlayerEffects } from '@pixodesk/svg-animator-core';
+import type { PxNode } from '@pixodesk/svg-animator-core';
+import { renderNode } from './PxAnimatorDOM';
 
 const glyphs = {
     F: {

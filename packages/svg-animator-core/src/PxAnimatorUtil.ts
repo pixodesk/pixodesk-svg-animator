@@ -531,13 +531,15 @@ export function camelCaseToKebabWordIfNeeded(camel: string): string { // FIXME -
 
 /**
  * Checks if a CSS property is set inline on an element's style.
- * 
- * @param {!CSSStyleDeclaration} style - element.style (CSSStyleDeclaration)
- * @param {string} propName - property name (camelCase or kebab-case)
- * @return {boolean}
+ *
+ * Typed structurally (not as the DOM `CSSStyleDeclaration`) so this package
+ * stays platform-neutral; a real `element.style` satisfies the shape.
+ *
+ * @param style - element.style (CSSStyleDeclaration-shaped)
+ * @param propName - property name (camelCase or kebab-case)
  */
 export function hasStyleProp(
-    style: CSSStyleDeclaration,
+    style: { getPropertyValue(propName: string): string },
     propName: string
 ): boolean {
     return style.getPropertyValue(propName) !== '';

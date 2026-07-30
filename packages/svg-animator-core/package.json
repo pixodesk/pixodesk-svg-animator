@@ -1,0 +1,46 @@
+{
+  "name": "@pixodesk/svg-animator-core",
+  "version": "1.0.20",
+  "description": "Pixodesk SVG animator core — schema, document types, materialisers and sampling shared by all platform players",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pixodesk/pixodesk-svg-animator",
+    "directory": "packages/svg-animator-core"
+  },
+  "private": false,
+  "type": "module",
+  "main": "dist/index.cjs",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "prepare": "npm run build",
+    "lint": "eslint src/",
+    "lint:fix": "eslint src/ --fix",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "eslint src/ && tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "eslint": "^9.0.0",
+    "typescript-eslint": "^8.0.0",
+    "terser": "^5.37.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0",
+    "@types/node": "^22.0.0",
+    "jsdom": "^25.0.0",
+    "vitest": "^2.0.0"
+  }
+}

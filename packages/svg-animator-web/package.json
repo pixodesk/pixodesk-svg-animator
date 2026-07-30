@@ -44,6 +44,9 @@
     "wip-test:e2e:ui": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test --grep @wip --ui",
     "wip-test:e2e:update": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test --grep @wip --update-snapshots"
   },
+  "dependencies": {
+    "@pixodesk/svg-animator-core": "workspace:*"
+  },
   "devDependencies": {
     "eslint": "^9.0.0",
     "typescript-eslint": "^8.0.0",

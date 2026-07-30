@@ -13,7 +13,7 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createAnimator } from './PxAnimator';
-import type { PxAnimatedSvgDocument } from './PxAnimatorTypes';
+import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
 
 const emptyDoc = (): PxAnimatedSvgDocument => ({
     type: 'svg',

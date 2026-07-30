@@ -4,12 +4,7 @@ export default defineConfig([
     // Non-minified build (with source maps)
     {
         entry: ['src/index.ts'],
-        format: ['esm', 'cjs', 'iife'],
-        globalName: 'PixodeskAnimator',
-        // Bundle the core package into this dist so every output format —
-        // including the UMD/iife build injected into iframes — stays fully
-        // self-contained, exactly as before the core extraction.
-        noExternal: ['@pixodesk/svg-animator-core'],
+        format: ['esm', 'cjs'],
         dts: true,
         clean: true,
         sourcemap: true,
@@ -17,16 +12,13 @@ export default defineConfig([
         outExtension({ format }) {
             if (format === 'esm') return { js: '.js' };
             if (format === 'cjs') return { js: '.cjs' };
-            if (format === 'iife') return { js: '.umd.js' };
             return { js: '.js' };
         },
     },
     // Minified build (no source maps)
     {
         entry: ['src/index.ts'],
-        format: ['esm', 'cjs', 'iife'],
-        globalName: 'PixodeskAnimator',
-        noExternal: ['@pixodesk/svg-animator-core'],
+        format: ['esm', 'cjs'],
         dts: false,
         clean: false,
         sourcemap: false,
@@ -34,7 +26,6 @@ export default defineConfig([
         outExtension({ format }) {
             if (format === 'esm') return { js: '.min.js' };
             if (format === 'cjs') return { js: '.min.cjs' };
-            if (format === 'iife') return { js: '.umd.min.js' };
             return { js: '.min.js' };
         },
     },

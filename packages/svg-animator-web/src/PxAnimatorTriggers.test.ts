@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
-import type { PxAnimatorAPI } from './PxAnimatorTypes';
+import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
 
 
 /** Mock PxAnimatorAPI backed by a real jsdom element as the root. */

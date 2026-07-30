@@ -3,12 +3,10 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
+import { bezierToSvgPath, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, getAnimatorConfig, getNormalisedBindings, interpolateValue, kebabToCamelCaseWord, PxAnimatorEngine, splitEasing, toRGBA, TRANSFORM_FN_NAMES, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxBezierPath, type PxKeyframe } from '@pixodesk/svg-animator-core';
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
-import { getAnimatorConfig, PxAnimatedSvgDocument, PxAnimatorConfig, PxAnimatorEngine, PxKeyframe, type PxAnimationDefinition, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
-import { bezierToSvgPath, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, kebabToCamelCaseWord, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
-import type { PxBezierPath } from './PxAnimatorTypes';
-import { getNormalisedBindings, interpolateValue } from './PxDefinitions';
+import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
 
 
 /**

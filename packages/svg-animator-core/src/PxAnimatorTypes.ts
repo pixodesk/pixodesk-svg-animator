@@ -1417,13 +1417,19 @@ const _ck_PxBezierPath: KeysMatch<PxBezierPath, _PxBezierPath> = true; // the ke
 // ANIMATOR API
 // ============================================================================
 
-/** Basic animation controls common to all animator types. */
-export interface PxBasicAnimatorAPI {
+/**
+ * Basic animation controls common to all animator types.
+ *
+ * Generic over the platform's root-element type (`TRoot`) so this package stays
+ * platform-neutral: the web player specialises it to the DOM `Element`, a
+ * React Native player to its own view handle. Defaults to `unknown`.
+ */
+export interface PxBasicAnimatorAPI<TRoot = unknown> {
 
     isReady(): boolean;
 
-    /** Returns the root HTML element for the animation. */
-    getRootElement(): Element | null;
+    /** Returns the root element for the animation (platform-specific type). */
+    getRootElement(): TRoot | null;
 
     /** Returns true if the animation is currently running. */
     isPlaying(): boolean;
@@ -1440,7 +1446,7 @@ export interface PxBasicAnimatorAPI {
 }
 
 /** The full programmatic control interface for an animation. */
-export interface PxAnimatorAPI extends PxBasicAnimatorAPI {
+export interface PxAnimatorAPI<TRoot = unknown> extends PxBasicAnimatorAPI<TRoot> {
 
     /** Jumps to the end of the animation and holds the final state. */
     finish(): void;

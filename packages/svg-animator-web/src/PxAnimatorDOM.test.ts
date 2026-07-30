@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { renderNode } from './PxAnimatorDOM';
-import type { PxNode } from './PxAnimatorTypes';
+import type { PxNode } from '@pixodesk/svg-animator-core';
 
 describe('renderNode — feFunc type attribute', () => {
     // The lightweight-JSON `type` key is the node tag, so feFunc's SVG `type`

@@ -3,10 +3,19 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
+// ============================================================================
+// @pixodesk/svg-animator-web — browser player.
+// The platform-neutral parts (schema, types, materialisers, interpolation,
+// sampling, frame-loop engine) live in @pixodesk/svg-animator-core and are
+// re-exported here so this package's public surface is unchanged by the core
+// extraction. Core is bundled into this package's dist (tsup `noExternal`),
+// so consumers — including the UMD build — stay self-contained.
+// ============================================================================
+
 export { createAnimator, createAnimatorImpl, generateNewIds, loadTagAnimators, PX_ANIMATOR_DATA_KEY } from './PxAnimator';
 
-export { px, schemaKeys, describeSchema } from './PxSchema';
-export type { KeysMatch, PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, RemoveIndex } from './PxSchema';
+export { px, schemaKeys, describeSchema } from '@pixodesk/svg-animator-core';
+export type { KeysMatch, PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, RemoveIndex } from '@pixodesk/svg-animator-core';
 
 export type { PxAnimatorOptions } from './PxAnimator';
 export {
@@ -31,14 +40,13 @@ export {
     PxTransformPartsSchema,
     PxTransformValueSchema,
     PxTriggerSchema
-} from './PxAnimatorTypes';
+} from '@pixodesk/svg-animator-core';
 
 // Types
 export type {
     FillMode, JsMode, OutAction, PlaybackDirection,
     PxAnimatedSvgDocument,
     PxAnimationDefinition,
-    PxAnimatorAPI,
     PxAnimatorCallbacksConfig,
     PxAnimatorConfig,
     PxAttrValue,
@@ -59,7 +67,10 @@ export type {
     PxTrigger,
     PxValidationResult,
     StartOn
-} from './PxAnimatorTypes';
+} from '@pixodesk/svg-animator-core';
+
+// DOM specialisations — on the web `getRootElement()` returns a DOM Element.
+export type { PxAnimatorAPI, PxBasicAnimatorAPI } from './PxAnimatorWebTypes';
 
 export {
     getAnimatorConfig,
@@ -68,10 +79,10 @@ export {
     getDefs,
     isPxElementFileFormat,
     isPxElementFileFormatDeep
-} from './PxAnimatorTypes';
+} from '@pixodesk/svg-animator-core';
 
-export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from './PxAnimatorTypes';
-export { camelCaseToKebabWordIfNeeded, COLOUR_ATTR_NAMES, STYLE_ATTR_NAMES, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
+export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core';
+export { camelCaseToKebabWordIfNeeded, COLOUR_ATTR_NAMES, STYLE_ATTR_NAMES, toRGBA, TRANSFORM_FN_NAMES } from '@pixodesk/svg-animator-core';
 
 
 
@@ -84,7 +95,7 @@ export {
     getNormalisedBindings as normalizeDocument,
     materialiseInternalLoopsInPropAnim,
     materialiseInternalLoopsInTree,
-} from './PxDefinitions';
+} from '@pixodesk/svg-animator-core';
 
 // Motion-along-path materialiser — desugars tangented `transform` kfs + `autoOrient`
 // into plain sampled `{ translate, rotate? }` kfs. Called automatically by the
@@ -97,14 +108,14 @@ export {
     materialiseMotionPathsInTree,
     evaluateMotionPathSegment,
     propAnimIsMotionPath,
-} from './PxMotionPath';
-export type { MotionPathMaterialisationOptions, MotionPathSample } from './PxMotionPath';
+} from '@pixodesk/svg-animator-core';
+export type { MotionPathMaterialisationOptions, MotionPathSample } from '@pixodesk/svg-animator-core';
 
 // `<use>` instance materialiser — replaces `<use href="#anim-target">` with
 // `<g>` carrying a deep clone of the target subtree (fresh ids, rewritten
 // internal refs). Workaround for WAAPI / CSS animations not propagating
 // through SVG `<use>` shadow trees in Chrome and Safari.
-export { materialiseAnimatedUseInstances } from './PxAnimatorUseMaterialiser';
+export { materialiseAnimatedUseInstances } from '@pixodesk/svg-animator-core';
 
 // Single-call materialisation pipeline — runs `applyPlayerEffects` +
 // `materialiseInternalLoopsInTree` + (for webapi) `materialiseMotionPathsInTree`
@@ -112,8 +123,8 @@ export { materialiseAnimatedUseInstances } from './PxAnimatorUseMaterialiser';
 // this internally from `createAnimatorImpl`; exported here so the Editor's
 // flat-export path uses the EXACT same function — guarantees no pipeline
 // drift between in-player and out-of-player paths.
-export { materialiseAllInTree } from './PxAnimatorMaterialiseAll';
-export type { MaterialiseAllOptions } from './PxAnimatorMaterialiseAll';
+export { materialiseAllInTree } from '@pixodesk/svg-animator-core';
+export type { MaterialiseAllOptions } from '@pixodesk/svg-animator-core';
 
 // Low-level APIs (for advanced usage)
 export { getNormalizedProps, renderNode } from './PxAnimatorDOM';
@@ -123,25 +134,25 @@ export { getNormalizedProps, renderNode } from './PxAnimatorDOM';
 // pipeline), DOM, or the editor's React/px elements — the editor calls
 // `materialiseGlyphText` with its own `createPxElement` for Step 3 (static SVG
 // with baked glyph outlines). See textGlyphsEffect / elementFactory.
-export { jsonElementFactory } from './effects/elementFactory';
-export type { PxCreateElement } from './effects/elementFactory';
-export { layoutGlyphTextChars, materialiseGlyphText, materialiseGlyphTextAlongPath, materialiseGlyphTextHorizontal } from './effects/textGlyphsEffect';
-export type { GlyphCharBox, GlyphCharBoxAlongPath, GlyphMaterialiseOpts } from './effects/textGlyphsEffect';
-export { createPathSampler } from './effects/pathSampler';
-export type { PathPoint, PathSampler } from './effects/pathSampler';
-export { extendedPathForBrowser, shiftAnimatable } from './effects/textPathEffect';
-export type { ExtendPathOpts, ExtendedPath } from './effects/textPathEffect';
+export { jsonElementFactory } from '@pixodesk/svg-animator-core';
+export type { PxCreateElement } from '@pixodesk/svg-animator-core';
+export { layoutGlyphTextChars, materialiseGlyphText, materialiseGlyphTextAlongPath, materialiseGlyphTextHorizontal } from '@pixodesk/svg-animator-core';
+export type { GlyphCharBox, GlyphCharBoxAlongPath, GlyphMaterialiseOpts } from '@pixodesk/svg-animator-core';
+export { createPathSampler } from '@pixodesk/svg-animator-core';
+export type { PathPoint, PathSampler } from '@pixodesk/svg-animator-core';
+export { extendedPathForBrowser, shiftAnimatable } from '@pixodesk/svg-animator-core';
+export type { ExtendPathOpts, ExtendedPath } from '@pixodesk/svg-animator-core';
 export { createBasicFrameLoopAnimator, createFrameLoopAnimator } from './PxAnimatorFrameLoop';
-export type { PxPlatformAdapter } from './PxAnimatorFrameLoop';
+export type { PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 export { createWebApiAnimator } from './PxAnimatorWebApi';
 
 // Player-effects materialiser — turns `node.effects` (the lightweight design format
 // emitted by the Editor) into a plain renderable node tree. Called automatically by
 // `createAnimatorImpl` before any other normalisation; exposed for the Editor's
 // "equal in effect" comparison harness.
-export { applyPlayerEffects } from './effects/PlayerEffectsUtil';
-export type { ApplyResult } from './effects/types';
-export { collectSampleTimes, diffInEffect, visualModelAt } from './effects/PlayerEffectsUtil.visualModel';
+export { applyPlayerEffects } from '@pixodesk/svg-animator-core';
+export type { ApplyResult } from '@pixodesk/svg-animator-core';
+export { collectSampleTimes, diffInEffect, visualModelAt } from '@pixodesk/svg-animator-core';
 
 // Effects schemas + walker validator. `createAnimatorImpl` runs `validateNodeEffects`
 // on the doc before materialisation and logs warnings; callers can also run it
@@ -163,7 +174,7 @@ export {
     PxTransformationEffectSchema,
     PxTrimPathEffectSchema,
     validateNodeEffects,
-} from './PxAnimatorTypes';
+} from '@pixodesk/svg-animator-core';
 export type {
     PxAnimatable,
     PxCloneEffect,
@@ -178,5 +189,4 @@ export type {
     PxTransformationEffect,
     PxTrimPathEffect,
     Vec2,
-} from './PxAnimatorTypes';
-
+} from '@pixodesk/svg-animator-core';

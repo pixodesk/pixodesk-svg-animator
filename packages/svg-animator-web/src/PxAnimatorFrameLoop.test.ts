@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBasicFrameLoopAnimator, type PxPlatformAdapter } from './PxAnimatorFrameLoop';
-import type { PxAnimatedSvgDocument, PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
+import type { PxAnimatedSvgDocument, PxAnimatorCallbacksConfig } from '@pixodesk/svg-animator-core';
 
 
 // Under vi.useFakeTimers() the faked requestAnimationFrame fires every 16ms and

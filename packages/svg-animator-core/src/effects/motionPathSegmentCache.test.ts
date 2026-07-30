@@ -16,7 +16,7 @@
 // Only frames-mode is affected: WAAPI materialises motion paths into sampled kfs upstream.
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { createBasicFrameLoopAnimator, type PxPlatformAdapter } from '../PxAnimatorFrameLoop';
+import { createBasicFrameLoopAnimator, type PxPlatformAdapter } from '../PxFrameLoop';
 import { calcAnimationValues, getNormalisedBindings } from '../PxDefinitions';
 import type { PxAnimatedSvgDocument } from '../PxAnimatorTypes';
 import { PxAnimatorEngine } from '../PxAnimatorTypes';

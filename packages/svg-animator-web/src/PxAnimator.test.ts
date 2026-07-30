@@ -5,8 +5,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAnimator, generateNewIds, loadTagAnimators } from './PxAnimator';
-import { PX_ANIM_ATTR_NAME } from './PxAnimatorTypes';
-import type { PxAnimatedSvgDocument } from './PxAnimatorTypes';
+import { PX_ANIM_ATTR_NAME } from '@pixodesk/svg-animator-core';
+import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
 
 
 const DUR = 320; // multiple of the 16ms fake-timer rAF step

@@ -5,11 +5,11 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAnimator } from './index';
-import type { PxAnimatedSvgDocument, PxAnimationDefinition } from './PxAnimatorTypes';
-import { cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from './PxAnimatorUtil';
-import { calcAnimationValues, getNormalisedBindings } from './PxDefinitions';
-import { materialiseAllInTree } from './PxAnimatorMaterialiseAll';
-import { PxAnimatorEngine } from './PxAnimatorTypes';
+import type { PxAnimatedSvgDocument, PxAnimationDefinition } from '@pixodesk/svg-animator-core';
+import { cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from '@pixodesk/svg-animator-core';
+import { calcAnimationValues, getNormalisedBindings } from '@pixodesk/svg-animator-core';
+import { materialiseAllInTree } from '@pixodesk/svg-animator-core';
+import { PxAnimatorEngine } from '@pixodesk/svg-animator-core';
 
 
 describe('animateBackground', () => {

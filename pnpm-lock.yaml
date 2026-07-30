@@ -115,6 +115,33 @@ importers:
         specifier: workspace:*
         version: link:../../packages/svg-animator-web
 
+  packages/svg-animator-core:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.11
+      eslint:
+        specifier: ^9.0.0
+        version: 9.39.2(jiti@2.6.1)
+      jsdom:
+        specifier: ^25.0.0
+        version: 25.0.1
+      terser:
+        specifier: ^5.37.0
+        version: 5.46.0
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@2.6.1)(postcss@8.5.6)(tsx@4.21.0)(typescript@5.9.3)(yaml@2.8.2)
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+      typescript-eslint:
+        specifier: ^8.0.0
+        version: 8.55.0(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@22.19.11)(jsdom@25.0.1)(lightningcss@1.27.0)(terser@5.46.0)
+
   packages/svg-animator-react:
     dependencies:
       '@pixodesk/svg-animator-web':
@@ -217,6 +244,10 @@ importers:
         version: 3.5.28(typescript@5.9.3)
 
   packages/svg-animator-web:
+    dependencies:
+      '@pixodesk/svg-animator-core':
+        specifier: workspace:*
+        version: link:../svg-animator-core
     devDependencies:
       '@playwright/test':
         specifier: ^1.48.0

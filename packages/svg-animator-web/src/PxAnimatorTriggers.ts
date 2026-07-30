@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxAnimatorAPI, PxTrigger } from './PxAnimatorTypes';
+import type { PxTrigger } from '@pixodesk/svg-animator-core';
+import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
 
 
 /**

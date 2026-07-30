@@ -1,0 +1,48 @@
+{
+    "compilerOptions": {
+        "outDir": "build/lib",
+        // NO "dom" lib — this package is platform-neutral by contract; any use
+        // of document/window/Element in src is a compile error.
+        "lib": [
+            "es5",
+            "es6",
+            "es7",
+            "es2017"
+        ],
+        "sourceMap": true,
+        "allowJs": true,
+        "moduleResolution": "node",
+        "rootDirs": [
+            "src"
+        ],
+        "baseUrl": ".",
+        "paths": {
+        },
+        "types": [
+            "node"
+        ],
+        "resolveJsonModule": true,
+        "allowSyntheticDefaultImports": true,
+        "isolatedModules": false,
+        "noEmit": false,
+        "noImplicitThis": false,
+        "experimentalDecorators": true,
+        "noImplicitAny": false,
+        "noImplicitOverride": true,
+        "target": "es6",
+        "module": "ESNext",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "forceConsistentCasingInFileNames": true
+    },
+    "include": [
+        "src/**/*"
+    ],
+    "exclude": [
+        "node_modules",
+        "build",
+        "scripts",
+        "dist"
+    ]
+}
