@@ -61,13 +61,41 @@ export function readAnimatable<T>(raw: PxAnimatable<T> | undefined): ReadPart<T>
     if (raw === undefined) return { kind: ReadKind.Absent };
     if (Array.isArray(raw)) return { kind: ReadKind.Static, value: raw as unknown as T };
     if (typeof raw === 'object') {
-        const obj = raw as { value?: T; keyframes?: Array<PxKeyframe<T>>; autoOrient?: boolean; loop?: PxLoop | boolean };
-        if (obj.keyframes) {
-            return { kind: ReadKind.Animated, keyframes: obj.keyframes, autoOrient: obj.autoOrient, loop: obj.loop };
+        const obj = raw as {
+            value?: T; v?: T;
+            keyframes?: Array<PxKeyframe<T>>; kfs?: Array<PxKeyframe<T>>;
+            autoOrient?: boolean; loop?: PxLoop | boolean;
+        };
+        const kfs = obj.keyframes ?? obj.kfs;
+        if (kfs) {
+            // Normalise the wire's short aliases ONCE, here, so every consumer
+            // downstream (transformation, repeater, …) only ever sees the long
+            // form. Without this a keyframe authored `{t, v}` lost both its time
+            // and its value and the animation silently froze at frame 0.
+            return { kind: ReadKind.Animated, keyframes: kfs.map(normaliseKeyframe), autoOrient: obj.autoOrient, loop: obj.loop };
         }
-        if (obj.value !== undefined) return { kind: ReadKind.Static, value: obj.value };
+        const staticValue = obj.value ?? obj.v;
+        if (staticValue !== undefined) return { kind: ReadKind.Static, value: staticValue };
     }
     return { kind: ReadKind.Static, value: raw as T };
+}
+
+/** Rewrites a keyframe's short aliases (`t`/`v`/`e`/`to`/`ti`) to their long
+ *  names. Long names win when both are present, matching `PxMotionPath`'s
+ *  `tangentIn ?? ti` precedence. */
+function normaliseKeyframe<T>(kf: PxKeyframe<T>): PxKeyframe<T> {
+    if (!kf || typeof kf !== 'object') return kf;
+    const k = kf as PxKeyframe<T> & { t?: number; v?: T; e?: unknown; to?: Vec2; ti?: Vec2 };
+    if (k.t === undefined && k.v === undefined && k.e === undefined && k.to === undefined && k.ti === undefined) {
+        return kf; // already long-form — keep the same object
+    }
+    const out: any = { ...k };
+    if (out.time === undefined && k.t !== undefined) out.time = k.t;
+    if (out.value === undefined && k.v !== undefined) out.value = k.v;
+    if (out.easing === undefined && k.e !== undefined) out.easing = k.e;
+    if (out.tangentOut === undefined && k.to !== undefined) out.tangentOut = k.to;
+    if (out.tangentIn === undefined && k.ti !== undefined) out.tangentIn = k.ti;
+    return out as PxKeyframe<T>;
 }
 
 /** Origin used inside rotate/scale records. Animated origin falls back to frame 0. */

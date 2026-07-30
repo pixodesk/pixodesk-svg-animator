@@ -10,7 +10,7 @@ built on `react-native-svg` and `react-native-reanimated`. Props mirror
 # 🧪 **Status — EXPERIMENTAL**
 
 - API may change without a major version bump.
-- Some features are not implemented — see [Feature gaps](#feature-gaps).
+- A few things are unimplemented or unverified — see [Feature support](#feature-support).
 
 ## What it does
 
@@ -178,6 +178,8 @@ const [timeMs, setTimeMs] = useState(0);
 | `iterations` | `number \| 'infinite'` | Loop count |
 | `fill` | `FillMode` | Fill behaviour |
 | `direction` | `PlaybackDirection` | Playback direction |
+| `resetOnFinish` | `boolean` | Snap back to the start after a natural finish |
+| `outAction` | `OutAction` | What a second tap does with the `click` trigger (default: the document's, else `pause`) |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
 | `onFinish` | `() => void` | Called on natural finish |
@@ -193,8 +195,8 @@ renders the animation statically (initial state, no playback).
 |---|---|
 | `mode` | Not accepted. There is no Web Animations API on RN; playback is always native-driven. |
 | `frameRate` | Not accepted. Reanimated runs at the display refresh rate. The analogous knob is sampling density — see `compileTracks`. |
-| `startOn` / `outAction` | Not accepted. `load` and `programmatic` behave as expected via `autoplay`; hover and scroll triggers have no RN equivalent. |
-| `className` / `style` | Not accepted. Size the animation with the container `View`. |
+| `startOn` | Not accepted as a prop — the document's trigger is honoured via `autoplay` (`load`, `click`, `scrollIntoView`, `programmatic`). `mouseOver` has no touch equivalent. |
+| `className` / `style` | Not accepted. Size the animation with the container `View`. (`node.style` *inside* the document is supported.) |
 | `onRemove` | Not emitted. Use React's own unmount cleanup. |
 
 ## How playback works
@@ -215,23 +217,103 @@ This is why sampling appears so often below: where `react-native-svg` cannot
 express something directly (motion along a path, text on a path), the core
 converts it into plain values ahead of time instead of fighting the platform.
 
-## Feature gaps
+## Feature support
 
-Being explicit about what does **not** work yet, since this package is experimental.
+Every row below was verified by running the document through the real
+pipeline (`materialiseAllInTree` → track compilation) and checking that the
+element maps to a `react-native-svg` component and that its animated
+properties actually change over time.
 
-| Feature | Status |
-|---|---|
-| Motion along path, `autoOrient` | ✅ Works — sampled by the core |
-| Trim path, repeater, gradients, masks, clone/retime | ✅ Works — materialised by the core |
-| Path morphing (`d`), colours, transforms, geometry attrs | ✅ Works |
-| Text along a path | ⚠️ Use per-letter motion paths (see the example app). Animating `<TextPath startOffset>` is janky in `react-native-svg` and is not used. |
-| Glyph-mode text (`definitions.glyphs`) | ⚠️ Untested on RN |
-| Reverse playback (`setPlaybackRate(-1)`) | ❌ Positive rates only; warns otherwise |
-| `resetOnFinish` | ❌ Not implemented |
-| Seek while playing | ⚠️ `setCurrentTime` pauses first; resume continues from there |
-| CSS filters | ❌ Not supported |
-| `node.style` / CSS classes | ❌ Dropped — `react-native-svg` has no CSS |
-| Triggers: `mouseOver`, `scrollIntoView`, `click` | ❌ No RN equivalent yet |
+### Elements
+
+| Element | Renders | Notes |
+|---|---|---|
+| `svg`, `g`, `defs` | ✅ | |
+| `rect`, `circle`, `ellipse`, `line`, `path`, `polygon`, `polyline` | ✅ | |
+| `text`, `tspan` | ✅ | content via the `text` attribute |
+| `textPath` | ✅ | see *Text along a path* below |
+| `image` | ✅ | `href` accepts `data:` URIs; remote URLs are blocked by the sanitiser |
+| `use`, `symbol` | ✅ | animated targets are **inlined into real clones** before render — `<use>` does not propagate animation natively in RN |
+| `linearGradient`, `radialGradient`, `stop` | ✅ | |
+| `pattern`, `marker` | ✅ | static geometry verified; complex cases unverified on device |
+| `mask`, `clipPath` | ✅ | |
+| `filter` + all 22 `fe*` primitives | ✅ | `feGaussianBlur`, `feDropShadow`, `feColorMatrix`, `feMerge`, `feComponentTransfer` + `feFunc*`, … Requires the New Architecture; **visual parity with the web is unverified on device** |
+| `foreignObject` | ❌ | blocked by the shared sanitiser (embeds arbitrary host content) |
+| `script` | ❌ | blocked by the shared sanitiser |
+
+### Animatable attributes
+
+| Attribute | Animates | Notes |
+|---|---|---|
+| `opacity`, `fill-opacity`, `stroke-opacity` | ✅ | |
+| `fill`, `stroke`, `stop-color` | ✅ | interpolated as RGBA |
+| `stroke-width`, `stroke-dasharray`, `stroke-dashoffset` | ✅ | dash arrays are converted to the numeric form RN expects |
+| `x`, `y`, `width`, `height`, `cx`, `cy`, `r`, `rx`, `ry` | ✅ | |
+| `d` (**path morphing**) | ✅ | keyframes must share command structure |
+| `transform` (unified parts record) | ✅ | `translate`, `rotate`, `skew`, `scale`, `origin` |
+| `translate` / `rotate` / `scale` (legacy per-key form) | ✅ | |
+| `offset` and `stop-color` on gradient stops | ✅ | |
+| filter primitive attrs (e.g. `stdDeviation`) | ✅ | compiles correctly; on-device rendering unverified |
+| `font-size` | ✅ | |
+| Any other numeric SVG attribute | ✅ | interpolated numerically and written straight through |
+
+### Effects (`node.effects`)
+
+All effects are materialised by the shared core before rendering, so the RN
+player sees plain nodes. **All are supported:**
+
+| Effect | Status | Notes |
+|---|---|---|
+| `transformation` | ✅ | all parts animatable, including `skew` |
+| `repeater` | ✅ | copies materialised as real elements; per-copy params animatable |
+| `maskedBy` | ✅ | including an animated mask source |
+| `clipPath` | ✅ | including animated clip geometry |
+| `trimPath` | ✅ | incl. `offset` and `trimAllAsOne` |
+| `clone` + `retime` | ✅ | each clone keeps its own time shift. `retime.timeCrop` is not implemented (core-wide) |
+| `fillGradient` / `strokeGradient` | ✅ | animated stops; `gradientTransform` is static (core-wide) |
+| `textPath` | ✅ | incl. animated `startOffset` |
+| `text.useGlyphs` | ✅ | text becomes `<path>` outlines from `definitions.glyphs` — no font needed |
+| `isCombinedShape` | ✅ | |
+
+### Motion, timing and references
+
+| Feature | Status | Notes |
+|---|---|---|
+| **Motion along a path** + `autoOrient` | ✅ | **sampled** by the core into plain transform keyframes — `react-native-svg` has no native path motion |
+| **Text along a path** | ✅ two ways | native `textPath` (incl. animated `startOffset`), or **per-letter motion paths** for smooth results — the example app uses the latter, since animating native `startOffset` is janky in `react-native-svg` |
+| Per-property `loop` (incl. `alternate` pingpong) | ✅ | expanded before playback |
+| Easing (cubic-bezier and named refs) | ✅ | baked into the sampled tracks |
+| `definitions.animations` / `easings` / `styles` / `glyphs` | ✅ | named refs resolved; `style` presets applied as props |
+| `node.style` (inline or named) | ✅ | resolved to props — RN has no CSS, so explicit attributes win |
+
+### Playback and triggers
+
+| Feature | Status | Notes |
+|---|---|---|
+| `duration`, `delay`, `iterations` (incl. `'infinite'`) | ✅ | |
+| `direction` — all four values | ✅ | |
+| `fill` — `forwards` / `backwards` / `both` / `none` | ✅ | |
+| `resetOnFinish` | ✅ | |
+| `play` / `pause` / `cancel` / `finish` | ✅ | |
+| `setCurrentTime` — seek, including **while playing** | ✅ | playback continues from the new position |
+| `setPlaybackRate` — faster, slower and **reverse** (negative) | ✅ | composes with `direction` |
+| Trigger `load` / `programmatic` | ✅ | |
+| Trigger `click` | ✅ | wrapped in a `Pressable`; a second tap applies `outAction` |
+| Trigger `scrollIntoView` | ✅ | visibility sampled by measuring against the window (RN has no `IntersectionObserver`); honours `scrollIntoViewThreshold` and `outAction` |
+| Trigger `mouseOver` | ❌ | no touch equivalent — use `click`, or drive `play` yourself |
+| `frameRate` | n/a | reanimated runs at the display refresh rate; use `compileTracks({sampleRate})` to trade memory for temporal precision |
+| `mode` (`webapi` / `frames`) | n/a | there is no Web Animations API on RN — playback is always native-driven |
+
+### Known limitations
+
+- **On-device verification is incomplete.** The pipeline, prop mapping and
+  driving logic are covered by unit tests and were exercised end-to-end
+  through `react-native-web`; the native reanimated ↔ `react-native-svg` prop
+  bridge (notably filters and `strokeDasharray`) still needs checking on real
+  iOS/Android.
+- **`retime.timeCrop`** and **animated `gradientTransform`** are unimplemented
+  in the core, so they are unavailable here too.
+- **`mouseOver`** has no touch analogue and will not be implemented.
 
 ## Monorepo setup
 

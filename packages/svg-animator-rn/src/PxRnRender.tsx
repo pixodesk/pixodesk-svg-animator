@@ -5,10 +5,12 @@
 
 import {
     getNormalizedProps,
+    resolveStyle,
     sanitiseAttributeValue,
     DISALLOWED_SVG_TAGS_LOWER,
     TEXT_ATTR,
     TEXT_CONTENT_ATTR,
+    type PxDefs,
     type PxNode,
 } from '@pixodesk/svg-animator-core';
 import { createElement, type ComponentType, type ReactElement, type ReactNode } from 'react';
@@ -18,6 +20,8 @@ import { toRnPropName, toRnPropValue } from './PxRnPropNames';
 export interface RenderRnNodeOptions {
     /** Collects non-fatal issues (unsupported tags, dropped attrs). */
     warnings?: Array<string>;
+    /** `definitions` from the document, used to resolve named `style` presets. */
+    defs?: PxDefs;
     /**
      * Wraps the created element for animated nodes: receives the resolved
      * component + static props and returns the element to mount (the animator
@@ -61,6 +65,12 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
     const { type, children, style, animate, meta, effects, ...props } = node as any;
     const tag = String(type || 'g');
 
+    // `feFuncR/G/B/A` carry their SVG `type` attribute (identity/table/…) under
+    // `funcType`, because the wire format reserves `type` for the node tag.
+    // Restore it as a real prop, mirroring the web renderer.
+    const feFuncType: string | undefined = props.funcType;
+    if (feFuncType !== undefined) delete props.funcType;
+
     if (DISALLOWED_SVG_TAGS_LOWER.has(tag.toLowerCase())) {
         opts.warnings?.push('tag blocked (dangerous): ' + tag);
         return null;
@@ -73,6 +83,23 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
     }
 
     const rnProps = toRnProps(props, opts.warnings);
+    if (feFuncType !== undefined) rnProps.type = feFuncType;
+
+    // `node.style` — a named preset from `definitions.styles`, or an inline
+    // record. react-native-svg has no CSS, so the resolved declarations are
+    // applied as ordinary props (the same names, e.g. `fill`, `strokeWidth`).
+    // Explicit attributes on the node win over the style block.
+    const resolved = resolveStyle(style, opts.defs);
+    if (resolved) {
+        for (const [k, v] of Object.entries(resolved)) {
+            const rnKey = toRnPropName(k);
+            if (!rnKey || rnKey in rnProps) continue;
+            const sanitised = sanitiseAttributeValue(rnKey, v);
+            if (sanitised === undefined) continue;
+            rnProps[rnKey] = toRnPropValue(rnKey, String(sanitised));
+        }
+    }
+
     if (key !== undefined) rnProps.key = key;
 
     // Text content: wire nodes carry it as `text` / `textContent` attr.

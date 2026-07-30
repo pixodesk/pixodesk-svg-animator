@@ -41,6 +41,8 @@ export interface PxCompiledTracks {
     delay: number;
     /** WAAPI-style fill mode (default 'forwards'). */
     fill: string;
+    /** When true, snap back to the start after a natural finish. */
+    resetOnFinish: boolean;
     /** Sample step, ms. */
     stepMs: number;
     /** Number of samples per iteration (>= 2; sample i is at time i*stepMs). */
@@ -121,6 +123,7 @@ export function compileTracks(doc: PxAnimatedSvgDocument, opts?: CompileTracksOp
         direction: config.direction || 'normal',
         delay: config.delay || 0,
         fill: config.fill ?? 'forwards',
+        resetOnFinish: !!config.resetOnFinish,
         stepMs,
         sampleCount,
         elements,

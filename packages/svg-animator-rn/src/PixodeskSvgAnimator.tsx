@@ -6,15 +6,18 @@
 import {
     generateNewIds,
     getAnimatorConfig,
+    getDefs,
     materialiseAllInTree,
     validateNodeEffects,
     PxAnimatorEngine,
     type FillMode,
+    type OutAction,
     type PlaybackDirection,
     type PxAnimatedSvgDocument,
     type PxNode,
 } from '@pixodesk/svg-animator-core';
 import React, { useEffect, useImperativeHandle, useMemo, useRef, type ComponentType, type ReactElement, type ReactNode } from 'react';
+import { Dimensions, Pressable, View } from 'react-native';
 import Animated, {
     cancelAnimation,
     Easing,
@@ -82,6 +85,15 @@ export interface PixodeskSvgAnimatorProps {
 
     /** Playback direction. */
     direction?: PlaybackDirection;
+
+    /** Snap back to the start state after a natural finish. */
+    resetOnFinish?: boolean;
+
+    /**
+     * What a second tap does when `startOn: 'click'` is active.
+     * Defaults to the document's `trigger.outAction`, else `'pause'`.
+     */
+    outAction?: OutAction;
 
     // -- Declarative control --------------------------------------------------
 
@@ -171,7 +183,7 @@ function AnimatedPxElement({
  * indexing the precompiled tracks. No JS-thread frame loop.
  */
 export function PixodeskSvgAnimator({
-    doc, duration, delay, iterations, fill, direction,
+    doc, duration, delay, iterations, fill, direction, resetOnFinish, outAction: outActionProp,
     autoplay, play, pause, apiRef, time, timeMs,
     onPlay, onStop, onPause, onCancel, onFinish,
 }: PixodeskSvgAnimatorProps): ReactElement | null {
@@ -202,13 +214,14 @@ export function PixodeskSvgAnimator({
                 iterations: iterations !== undefined ? iterations : animator.iterations,
                 fill: fill !== undefined ? fill : animator.fill,
                 direction: direction !== undefined ? direction : animator.direction,
+                resetOnFinish: resetOnFinish !== undefined ? resetOnFinish : animator.resetOnFinish,
             },
         };
 
         prepared = generateNewIds(prepared);
         const tracks = compileTracks(prepared);
         return { doc: prepared, tracks };
-    }, [doc, duration, delay, iterations, fill, direction]);
+    }, [doc, duration, delay, iterations, fill, direction, resetOnFinish]);
 
     const tracks: PxCompiledTracks = compiled.tracks;
     const totalDuration = tracks.duration * (tracks.iterations === Infinity ? 1 : tracks.iterations);
@@ -221,9 +234,20 @@ export function PixodeskSvgAnimator({
     const playingRef = useRef(false);
     const rateRef = useRef(1);
 
+    /** True when the current rate plays the timeline backwards. */
+    const reversePlayback = () => rateRef.current < 0;
+
+    /** Where the playhead rests once playback ends. `resetOnFinish` snaps back
+     *  to the start; otherwise `fill` decides whether the final frame is held. */
+    const restingPosition = () => {
+        if (tracks.resetOnFinish) return 0;
+        if (tracks.fill === 'none' || tracks.fill === 'backwards') return 0;
+        return reversePlayback() ? 0 : tracks.duration;
+    };
+
     const notifyFinish = () => {
         playingRef.current = false;
-        if (tracks.fill === 'none' || tracks.fill === 'backwards') progress.value = 0;
+        progress.value = restingPosition();
         onFinish?.();
         onStop?.();
     };
@@ -231,16 +255,21 @@ export function PixodeskSvgAnimator({
     const startFrom = (fromMs: number) => {
         const dur = tracks.duration;
         const rate = rateRef.current || 1;
-        const reversedStart = tracks.direction === 'reverse' || tracks.direction === 'alternate-reverse';
+        const backwards = rate < 0;
+        const speed = Math.abs(rate);
+        // `direction` decides which end a leg runs toward; a negative playback
+        // rate flips it again (the two compose, as in the Web Animations API).
+        const directionReversed = tracks.direction === 'reverse' || tracks.direction === 'alternate-reverse';
+        const reversedStart = backwards ? !directionReversed : directionReversed;
         const alternates = tracks.direction === 'alternate' || tracks.direction === 'alternate-reverse';
         const from = Math.max(0, Math.min(fromMs, dur));
 
         const legTarget = reversedStart ? 0 : dur;
-        const legRemaining = Math.abs(legTarget - from) / rate;
+        const legRemaining = Math.abs(legTarget - from) / speed;
         const repeats = tracks.iterations === Infinity ? -1 : tracks.iterations;
 
         cancelAnimation(progress);
-        progress.value = reversedStart ? (from === 0 ? dur : from) : from;
+        progress.value = reversedStart ? (from <= 0 ? dur : from) : (from >= dur ? 0 : from);
 
         const animation = repeats === 1
             ? withTiming(legTarget, { duration: legRemaining, easing: Easing.linear }, (finished) => {
@@ -257,7 +286,7 @@ export function PixodeskSvgAnimator({
             );
 
         progress.value = tracks.delay > 0 && from === 0
-            ? withDelay(tracks.delay / rate, animation)
+            ? withDelay(tracks.delay / speed, animation)
             : animation;
 
         playingRef.current = true;
@@ -266,8 +295,10 @@ export function PixodeskSvgAnimator({
     const api: RnAnimatorApi = {
         isPlaying: () => playingRef.current,
         play: () => {
-            const from = playingRef.current ? progress.value : progress.value >= tracks.duration ? 0 : progress.value;
-            startFrom(from);
+            // `startFrom` rewinds to the opposite end when the playhead is
+            // already resting at a boundary (mirrors WAAPI, where play() on a
+            // finished animation auto-rewinds).
+            startFrom(progress.value);
             onPlay?.();
         },
         pause: () => {
@@ -285,14 +316,14 @@ export function PixodeskSvgAnimator({
         },
         finish: () => {
             cancelAnimation(progress);
-            progress.value = tracks.fill === 'none' || tracks.fill === 'backwards' ? 0 : tracks.duration;
             playingRef.current = false;
+            progress.value = restingPosition();
             onFinish?.();
             onStop?.();
         },
         setPlaybackRate: (rate: number) => {
-            if (!isFinite(rate) || rate <= 0) {
-                console.warn('setPlaybackRate: only finite positive rates are supported in the RN player (reverse is on the feature-gap list)');
+            if (!isFinite(rate) || rate === 0) {
+                console.warn('setPlaybackRate: rate must be finite and non-zero');
                 return;
             }
             rateRef.current = rate;
@@ -300,10 +331,17 @@ export function PixodeskSvgAnimator({
         },
         getCurrentTime: () => progress.value,
         setCurrentTime: (t: number) => {
+            const wasPlaying = playingRef.current;
             cancelAnimation(progress);
             playingRef.current = false;
             const clamped = Math.max(0, Math.min(t, totalDuration));
-            progress.value = tracks.duration > 0 ? clamped % tracks.duration || (clamped === 0 ? 0 : tracks.duration) : 0;
+            const withinIteration = tracks.duration > 0
+                ? (clamped % tracks.duration) || (clamped === 0 ? 0 : tracks.duration)
+                : 0;
+            progress.value = withinIteration;
+            // Seeking mid-playback continues from the new position rather than
+            // silently pausing.
+            if (wasPlaying) startFrom(withinIteration);
         },
     };
 
@@ -311,7 +349,9 @@ export function PixodeskSvgAnimator({
 
     // -- Declarative control --------------------------------------------------
 
-    const startOn = getAnimatorConfig(compiled.doc)?.trigger?.startOn ?? 'load';
+    const trigger = getAnimatorConfig(compiled.doc)?.trigger;
+    const startOn = trigger?.startOn ?? 'load';
+    const outAction = outActionProp ?? trigger?.outAction ?? 'pause';
 
     useEffect(() => {
         if (time !== undefined || timeMs !== undefined) {
@@ -326,11 +366,49 @@ export function PixodeskSvgAnimator({
             else api.play();
             return;
         }
+        // 'click' and 'scrollIntoView' start from their own handlers below.
         if (autoplay && startOn === 'load') {
             api.play();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [compiled, autoplay, play, pause, time, timeMs]);
+
+    // `startOn: 'scrollIntoView'` — react-native has no IntersectionObserver, so
+    // visibility is sampled by measuring the view against the window box. The
+    // poll is cheap (a native measure every 200ms) and only runs while this
+    // trigger is active; `outAction` decides what leaving the viewport does.
+    const scrollRef = useRef<View | null>(null);
+    const inViewRef = useRef(false);
+    useEffect(() => {
+        if (!autoplay || startOn !== 'scrollIntoView') return;
+        const threshold = trigger?.scrollIntoViewThreshold ?? 0;
+        inViewRef.current = false;
+
+        const check = () => {
+            const node = scrollRef.current;
+            if (!node) return;
+            node.measureInWindow((_x, y, _w, h) => {
+                if (!h) return;
+                const screen = Dimensions.get('window').height;
+                const visible = Math.max(0, Math.min(y + h, screen) - Math.max(y, 0));
+                const ratio = visible / h;
+                const isIn = ratio > 0 && ratio >= threshold;
+                if (isIn === inViewRef.current) return;
+                inViewRef.current = isIn;
+                if (isIn) {
+                    if (rateRef.current < 0) api.setPlaybackRate(Math.abs(rateRef.current));
+                    api.play();
+                } else if (outAction === 'reset') api.cancel();
+                else if (outAction === 'reverse') { api.setPlaybackRate(-Math.abs(rateRef.current || 1)); api.play(); }
+                else if (outAction !== 'continue') api.pause();
+            });
+        };
+
+        check();
+        const id = setInterval(check, 200);
+        return () => clearInterval(id);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [compiled, autoplay, startOn, outAction]);
 
     // Stop cleanly on unmount / doc swap.
     useEffect(() => {
@@ -354,6 +432,7 @@ export function PixodeskSvgAnimator({
         warningsRef.current = [];
         return renderRnNode(compiled.doc as PxNode, {
             warnings: warningsRef.current,
+            defs: getDefs(compiled.doc),
             decorate: (node, Component, staticProps, children) => {
                 const id = (node as any).id;
                 const elTracks = id ? trackById.get(id) : undefined;
@@ -379,6 +458,34 @@ export function PixodeskSvgAnimator({
     useEffect(() => {
         for (const w of warningsRef.current) console.warn('[PixodeskSvgAnimator]', w);
     }, [root]);
+
+    // `startOn: 'click'` — the touch analogue of the web player's click trigger:
+    // tap to start, tap again to apply `outAction`. Hover (`mouseOver`) has no
+    // touch equivalent and `scrollIntoView` needs the surrounding scroll view,
+    // so both are left to the host app.
+    if (autoplay && startOn === 'scrollIntoView' && root) {
+        // `collapsable={false}` keeps the view in the native tree so it can be measured.
+        return <View ref={scrollRef} collapsable={false}>{root}</View>;
+    }
+
+    if (autoplay && startOn === 'click' && root) {
+        return (
+            <Pressable
+                onPress={() => {
+                    if (playingRef.current) {
+                        if (outAction === 'reset') api.cancel();
+                        else if (outAction === 'reverse') { api.setPlaybackRate(-Math.abs(rateRef.current || 1)); api.play(); }
+                        else if (outAction !== 'continue') api.pause();
+                    } else {
+                        if (rateRef.current < 0) api.setPlaybackRate(Math.abs(rateRef.current));
+                        api.play();
+                    }
+                }}
+            >
+                {root}
+            </Pressable>
+        );
+    }
 
     return root;
 }

@@ -44,8 +44,7 @@ Every document is the **same wire format the web player and the editor export**
 - **Transport** — Play, Pause, Stop (reset), Restart, Finish
 - **Timeline** — scrub to any time; scrubbing pauses playback first
 - **Loop** — `Auto` (whatever the document says), `Loop`, `No loop`
-- **Rate** — 0.25× … 4× (the RN driver supports positive rates; reverse is not
-  implemented yet)
+- **Rate** — 0.25× … 4× (negative rates play in reverse)
 - **Theme** — light/dark, following the system scheme by default
 
 ## How playback works
