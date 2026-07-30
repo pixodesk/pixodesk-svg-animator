@@ -8,13 +8,22 @@ examples you pick from the top row.
 
 ## Run
 
-```bash
-pnpm install                 # from the repo root
-cd examples/react-native-preview-player
+From the repo root:
 
-npx expo start               # then press i (iOS), a (Android), or scan the QR
-npx expo start --web         # quickest look — runs via react-native-web
+```bash
+pnpm install
+pnpm example:rn              # then press i (iOS), a (Android), or scan the QR
+pnpm example:rn:web          # quickest look — runs via react-native-web
+pnpm example:rn:ios          # straight to the iOS simulator
+pnpm example:rn:android      # straight to the Android emulator
 ```
+
+Or from this directory: `npx expo start` (plus `--web`, `--ios`, `--android`).
+
+Note: this is a pnpm monorepo, so Metro's server root is the **workspace** root.
+The simulator and Expo Go pick the right bundle URL up from the manifest
+automatically; it only matters if you request a bundle by hand, where the path
+is `/examples/react-native-preview-player/index.bundle`, not `/index.bundle`.
 
 ## Examples
 

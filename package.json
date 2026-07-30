@@ -8,7 +8,16 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+
+    "example:preview": "pnpm --filter @pixodesk/example-preview-player dev",
+    "example:react": "pnpm --filter @pixodesk/example-react dev",
+    "example:vue": "pnpm --filter @pixodesk/example-vue dev",
+    "example:web": "pnpm --filter @pixodesk/example-web dev",
+    "example:rn": "pnpm --filter @pixodesk/example-react-native-preview-player start",
+    "example:rn:ios": "pnpm --filter @pixodesk/example-react-native-preview-player ios",
+    "example:rn:android": "pnpm --filter @pixodesk/example-react-native-preview-player android",
+    "example:rn:web": "pnpm --filter @pixodesk/example-react-native-preview-player web"
   },
   "devDependencies": {
     "turbo": "^2"

@@ -20,6 +20,43 @@ This repository contains the official runtime libraries for playing SVG animatio
 
 ---
 
+## Packages
+
+| Package | Description |
+|---------|-------------|
+| **[@pixodesk/svg-animator-core](packages/svg-animator-core/README.md)** | Platform-neutral core — schema, document types, interpolation, effect materialisers and path sampling. No DOM. Shared by every player; you only depend on it directly to inspect or transform documents. |
+| **[@pixodesk/svg-animator-web](packages/svg-animator-web/README.md)** | Web player — renders JSON animations in the browser via the Web Animations API or `requestAnimationFrame`. Ships as ESM, CJS, and UMD. |
+| **[@pixodesk/svg-animator-react](packages/svg-animator-react/README.md)** | React component — SSR-safe wrapper around the web player |
+| **[@pixodesk/svg-animator-vue](packages/svg-animator-vue/README.md)** | Vue component — SSR-safe wrapper around the web player |
+| **[@pixodesk/svg-animator-rn](packages/svg-animator-rn/README.md)** 🧪 | **Experimental** — React Native player built on `react-native-svg` + `react-native-reanimated`. Component API mirrors the React package. See its README for the current feature gaps. |
+
+How they fit together:
+
+```
+                    svg-animator-core          (schema · materialisers · sampling — no DOM)
+                       ↑              ↑
+        svg-animator-web        svg-animator-rn 🧪   (react-native-svg + reanimated)
+          ↑          ↑
+  -react       -vue
+```
+
+The same document format feeds every player: the core flattens effects, loops and
+motion paths once, and each player renders the result its own way.
+
+## Examples
+
+Examples in [`examples/`](examples/):
+
+| Example | Package | Run |
+|---------|---------|-----|
+| [web](examples/web/) | `@pixodesk/svg-animator-web` | `pnpm example:web` |
+| [react](examples/react/) | `@pixodesk/svg-animator-react` | `pnpm example:react` |
+| [vue](examples/vue/) | `@pixodesk/svg-animator-vue` | `pnpm example:vue` |
+| [preview-player](examples/preview-player/) | web / react / vue side by side | `pnpm example:preview` |
+| [react-native-preview-player](examples/react-native-preview-player/) 🧪 | `@pixodesk/svg-animator-rn` | `pnpm example:rn` |
+
+---
+
 ## File Formats created by [Pixodesk SVG Animation](https://pixodesk.com) editor
 
 The Pixodesk editor supports animation in two formats: **Pre-rendered SVG** and **JSON**.   
@@ -800,19 +837,36 @@ Paste the SVG content via an HTML code block or code injection widget provided b
 
 | Package | Description |
 |---------|-------------|
-| **[@pixodesk/svg-animator-web](packages/svg-animator-web/README.md)** | Core web player — renders JSON animations in the browser via the Web Animations API or `requestAnimationFrame`. Ships as ESM, CJS, and UMD. |
+| **[@pixodesk/svg-animator-core](packages/svg-animator-core/README.md)** | Platform-neutral core — schema, document types, interpolation, effect materialisers and path sampling. No DOM. Shared by every player; you only depend on it directly to inspect or transform documents. |
+| **[@pixodesk/svg-animator-web](packages/svg-animator-web/README.md)** | Web player — renders JSON animations in the browser via the Web Animations API or `requestAnimationFrame`. Ships as ESM, CJS, and UMD. |
 | **[@pixodesk/svg-animator-react](packages/svg-animator-react/README.md)** | React component — SSR-safe wrapper around the web player |
 | **[@pixodesk/svg-animator-vue](packages/svg-animator-vue/README.md)** | Vue component — SSR-safe wrapper around the web player |
+| **[@pixodesk/svg-animator-rn](packages/svg-animator-rn/README.md)** 🧪 | **Experimental** — React Native player built on `react-native-svg` + `react-native-reanimated`. Component API mirrors the React package. See its README for the current feature gaps. |
+
+How they fit together:
+
+```
+                    svg-animator-core          (schema · materialisers · sampling — no DOM)
+                       ↑              ↑
+        svg-animator-web        svg-animator-rn 🧪   (react-native-svg + reanimated)
+          ↑          ↑
+  -react       -vue
+```
+
+The same document format feeds every player: the core flattens effects, loops and
+motion paths once, and each player renders the result its own way.
 
 ## Examples
 
 Examples in [`examples/`](examples/):
 
-| Example | Package |
-|---------|---------|
-| [web](examples/web/) | `@pixodesk/svg-animator-web` |
-| [react](examples/react/) | `@pixodesk/svg-animator-react` |
-| [vue](examples/vue/) | `@pixodesk/svg-animator-vue` |
+| Example | Package | Run |
+|---------|---------|-----|
+| [web](examples/web/) | `@pixodesk/svg-animator-web` | `pnpm example:web` |
+| [react](examples/react/) | `@pixodesk/svg-animator-react` | `pnpm example:react` |
+| [vue](examples/vue/) | `@pixodesk/svg-animator-vue` | `pnpm example:vue` |
+| [preview-player](examples/preview-player/) | web / react / vue side by side | `pnpm example:preview` |
+| [react-native-preview-player](examples/react-native-preview-player/) 🧪 | `@pixodesk/svg-animator-rn` | `pnpm example:rn` |
 
 ## Live Examples
 

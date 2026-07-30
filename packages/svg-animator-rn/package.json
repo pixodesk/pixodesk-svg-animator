@@ -44,7 +44,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
-    "@types/react": "^19.0.0",
+    "@types/react": "~19.1.10",
     "eslint": "^9.0.0",
     "react": "19.1.0",
     "react-native": "0.81.5",

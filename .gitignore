@@ -138,3 +138,15 @@ vite.config.ts.timestamp-*
 
 # Nuxt output
 .output
+# Expo / React Native
+# `.expo` holds dev-server state and `devices.json` — machine-specific, and
+# Expo's own generated README says not to commit it.
+.expo/
+.expo-shared/
+web-build/
+# Native signing material — never commit
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
