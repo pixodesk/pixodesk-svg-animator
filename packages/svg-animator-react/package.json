@@ -1,6 +1,6 @@
 {
   "name": "@pixodesk/svg-animator-react",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "description": "Pixodesk SVG animator for React",
   "license": "MIT",
   "repository": {
@@ -41,7 +41,7 @@
     "wip-test:e2e:update": "npx playwright test --grep @wip --update-snapshots"
   },
   "dependencies": {
-    "@pixodesk/svg-animator-web": "workspace:*"
+    "@pixodesk/svg-animator-web": "workspace:^"
   },
   "peerDependencies": {
     "react": ">=18",

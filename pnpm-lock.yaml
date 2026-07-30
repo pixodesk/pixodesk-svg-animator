@@ -237,7 +237,7 @@ importers:
   packages/svg-animator-react:
     dependencies:
       '@pixodesk/svg-animator-web':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../svg-animator-web
     devDependencies:
       '@playwright/experimental-ct-react':
@@ -292,7 +292,7 @@ importers:
   packages/svg-animator-rn:
     dependencies:
       '@pixodesk/svg-animator-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../svg-animator-core
     devDependencies:
       '@types/node':
@@ -335,7 +335,7 @@ importers:
   packages/svg-animator-vue:
     dependencies:
       '@pixodesk/svg-animator-web':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../svg-animator-web
     devDependencies:
       '@playwright/experimental-ct-vue':
@@ -381,7 +381,7 @@ importers:
   packages/svg-animator-web:
     dependencies:
       '@pixodesk/svg-animator-core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../svg-animator-core
     devDependencies:
       '@playwright/test':

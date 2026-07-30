@@ -32,7 +32,11 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      # Set version from release tag or manual input
+      # Every publishable package lives in packages/* and is versioned in
+      # lockstep. Path filtering means a new package is picked up automatically
+      # — no per-package list to forget to update. Example apps live in
+      # examples/* and are all marked `"private": true`, so they can never be
+      # published even by a recursive command.
       - name: Set version
         run: |
           if [ "${{ github.event_name }}" = "release" ]; then
@@ -45,29 +49,28 @@ jobs:
           # Update version in all publishable packages (skip if already set)
           CURRENT=$(node -p "require('./packages/svg-animator-web/package.json').version")
           if [ "$CURRENT" != "$VERSION" ]; then
-            pnpm --filter @pixodesk/svg-animator-web --filter @pixodesk/svg-animator-react --filter @pixodesk/svg-animator-vue exec pnpm version "$VERSION" --no-git-tag-version
+            pnpm --filter "./packages/*" exec pnpm version "$VERSION" --no-git-tag-version
           else
             echo "Version already $VERSION — skipping bump"
           fi
 
       - name: Build packages
-        run: pnpm --filter @pixodesk/svg-animator-web --filter @pixodesk/svg-animator-react --filter @pixodesk/svg-animator-vue run build
+        run: pnpm --filter "./packages/*" run build
+
+      - name: Typecheck packages
+        run: pnpm --filter "./packages/*" run typecheck
 
       - name: Test packages
-        run: pnpm --filter @pixodesk/svg-animator-web --filter @pixodesk/svg-animator-react --filter @pixodesk/svg-animator-vue run test
+        run: pnpm --filter "./packages/*" run test
 
-      # Publish packages in dependency order (web first, then react/vue)
-      - name: Publish @pixodesk/svg-animator-web
-        run: pnpm --filter @pixodesk/svg-animator-web publish --access public --no-git-checks --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @pixodesk/svg-animator-react
-        run: pnpm --filter @pixodesk/svg-animator-react publish --access public --no-git-checks --provenance
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-      - name: Publish @pixodesk/svg-animator-vue
-        run: pnpm --filter @pixodesk/svg-animator-vue publish --access public --no-git-checks --provenance
+      # `pnpm publish -r` walks the workspace in TOPOLOGICAL order, so
+      # svg-animator-core goes out before svg-animator-web / -rn, which declare
+      # it as a dependency. Publishing web before core would put a package on
+      # the registry whose dependency does not exist yet.
+      # Private packages (all of examples/*) are skipped automatically, and
+      # versions already on the registry are skipped rather than failing — so
+      # re-running a partially-failed release is safe.
+      - name: Publish packages
+        run: pnpm publish -r --access public --no-git-checks --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

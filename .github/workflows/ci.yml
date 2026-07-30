@@ -21,6 +21,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # turbo picks up every workspace package automatically, so new packages
+      # (svg-animator-core, svg-animator-rn) are covered without changes here.
       - run: pnpm build
+
+      # `build` only runs eslint + a bundler; neither fails on type errors.
+      # Without this step type breakage reaches main silently.
+      - run: pnpm typecheck
 
       - run: pnpm test

@@ -1,6 +1,6 @@
 {
   "name": "@pixodesk/svg-animator-web",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "description": "Pixodesk SVG animator for web browsers",
   "license": "MIT",
   "repository": {
@@ -25,7 +25,7 @@
     "dist"
   ],
   "scripts": {
-    "prepare": "npm run build",    
+    "prepare": "npm run build",
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "typecheck": "tsc --noEmit -p tsconfig.json",
@@ -38,14 +38,13 @@
     "test:e2e:headed": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test --headed",
     "test:e2e:ui": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test --ui",
     "test:e2e:update": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test --update-snapshots",
-
     "wip-test:e2e": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test --grep @wip",
     "wip-test:e2e:headed": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test --grep @wip --headed",
     "wip-test:e2e:ui": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test --grep @wip --ui",
     "wip-test:e2e:update": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test --grep @wip --update-snapshots"
   },
   "dependencies": {
-    "@pixodesk/svg-animator-core": "workspace:*"
+    "@pixodesk/svg-animator-core": "workspace:^"
   },
   "devDependencies": {
     "eslint": "^9.0.0",
