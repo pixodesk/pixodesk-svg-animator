@@ -513,7 +513,8 @@ export interface _PxTrigger {
     /** Action to take when the trigger condition is no longer met (e.g., mouse leaves) */
     outAction?: 'continue' | 'pause' | 'reset' | 'reverse';
 
-    /** Percentage of element visibility required to trigger (0–1). Only applies to scrollIntoView. */
+    /** Percentage of element visibility required to trigger (0–1, default 0 = any pixel).
+     *  Only applies to scrollIntoView. */
     scrollIntoViewThreshold?: number;
 }
 

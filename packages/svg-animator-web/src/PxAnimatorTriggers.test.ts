@@ -148,15 +148,17 @@ describe('setupAnimationTriggers', () => {
             return captured;
         }
 
-        it('observes the root and plays when intersecting at or above the default threshold', () => {
+        it('observes the root; the DEFAULT threshold is 0 — any visible pixel plays', () => {
             const io = stubIntersectionObserver();
             const { api, root } = createMockApi();
             setupAnimationTriggers(api, { startOn: 'scrollIntoView', outAction: 'pause' });
 
             expect(io.observed).toBe(root);
-            expect(io.options).toEqual({ threshold: 0.5 });
+            expect(io.options).toEqual({ threshold: 0 });
 
-            io.callback!([{ isIntersecting: true, intersectionRatio: 0.7 }]);
+            // Keep in sync with the editor model's default
+            // (TSvgSvgAnimationAttr.scrollIntoViewThreshold) — a barely-visible element starts.
+            io.callback!([{ isIntersecting: true, intersectionRatio: 0.01 }]);
             expect(api.play).toHaveBeenCalledTimes(1);
         });
 
@@ -185,6 +187,100 @@ describe('setupAnimationTriggers', () => {
             io.callback!([{ isIntersecting: true, intersectionRatio: 0.9 }]);
             expect(api.play).toHaveBeenCalledTimes(1);
         });
+    });
+
+    // ── behaviours pinned by the app's `trigger-explorer.spec.ts` integration suite,
+    //    mirrored here so the LIB's own suite (this file) also guards them ─────────────
+
+    it('click DURING reverse playback is another OUT, not a start (the toggle sees "playing")', () => {
+        const { api, root } = createMockApi({
+            isPlaying: vi.fn()
+                .mockReturnValueOnce(false)  // 1st click: stopped → start
+                .mockReturnValueOnce(true)   // 2nd click: playing → reverse
+                .mockReturnValueOnce(true),  // 3rd click: REVERSING still counts as playing → out again
+        });
+        setupAnimationTriggers(api, { startOn: 'click', outAction: 'reverse' });
+
+        root.dispatchEvent(new Event('click'));
+        root.dispatchEvent(new Event('click'));
+        root.dispatchEvent(new Event('click'));
+
+        // start ran once; both later clicks applied the reverse out-action.
+        expect(api.setPlaybackRate).toHaveBeenCalledTimes(2);
+        expect(api.setPlaybackRate).toHaveBeenNthCalledWith(1, -1);
+        expect(api.setPlaybackRate).toHaveBeenNthCalledWith(2, -1);
+        expect(api.play).toHaveBeenCalledTimes(3);   // start + 2 reverse-plays
+    });
+
+    it("mouseOver·reverse: re-enter during reverse playback restores FORWARD playback before play", () => {
+        const order: string[] = [];
+        const { api, root } = createMockApi({
+            play: vi.fn(() => order.push('play')),
+            setPlaybackRate: vi.fn((rate: number) => order.push('rate:' + rate)),
+        });
+        setupAnimationTriggers(api, { startOn: 'mouseOver', outAction: 'reverse' });
+
+        root.dispatchEvent(new Event('mouseenter'));   // start (forward, no rate call)
+        root.dispatchEvent(new Event('mouseleave'));   // reverse: rate -1, play
+        root.dispatchEvent(new Event('mouseenter'));   // re-enter: rate 1 BEFORE play
+
+        expect(order).toEqual(['play', 'rate:-1', 'play', 'rate:1', 'play']);
+    });
+
+    it('a plain (never-reversed) restart never touches the playback rate — custom API rates survive', () => {
+        const { api, root } = createMockApi();
+        setupAnimationTriggers(api, { startOn: 'mouseOver', outAction: 'pause' });
+
+        root.dispatchEvent(new Event('mouseenter'));
+        root.dispatchEvent(new Event('mouseleave'));
+        root.dispatchEvent(new Event('mouseenter'));
+
+        expect(api.setPlaybackRate).not.toHaveBeenCalled();
+    });
+
+    it("startOn 'programmatic' creates NO IntersectionObserver (nothing to observe)", () => {
+        const ctor = vi.fn();
+        vi.stubGlobal('IntersectionObserver', class {
+            constructor() { ctor(); }
+            observe() { /* noop */ }
+            unobserve() { /* noop */ }
+            disconnect() { /* noop */ }
+        });
+        const { api } = createMockApi();
+        setupAnimationTriggers(api, { startOn: 'programmatic' });
+        expect(ctor).not.toHaveBeenCalled();
+    });
+
+    it('scrollIntoView·reverse: leaving the viewport reverses playback', () => {
+        const io = (function stub() {
+            const captured: { callback: ((entries: Array<{ isIntersecting: boolean; intersectionRatio: number }>) => void) | null } = { callback: null };
+            vi.stubGlobal('IntersectionObserver', class {
+                constructor(cb: (entries: Array<{ isIntersecting: boolean; intersectionRatio: number }>) => void) { captured.callback = cb; }
+                observe() { /* noop */ }
+                unobserve() { /* noop */ }
+                disconnect() { /* noop */ }
+            });
+            return captured;
+        })();
+        const { api } = createMockApi();
+        setupAnimationTriggers(api, { startOn: 'scrollIntoView', outAction: 'reverse' });
+
+        io.callback!([{ isIntersecting: true, intersectionRatio: 1 }]);
+        io.callback!([{ isIntersecting: false, intersectionRatio: 0 }]);
+
+        expect(api.setPlaybackRate).toHaveBeenCalledWith(-1);
+        expect(api.play).toHaveBeenCalledTimes(2);   // start + reverse-play
+    });
+
+    it("startOn 'load' before the document finishes loading: plays on the window 'load' event", () => {
+        const readyStateSpy = vi.spyOn(document, 'readyState', 'get').mockReturnValue('loading');
+        const { api } = createMockApi();
+        setupAnimationTriggers(api, { startOn: 'load' });
+
+        expect(api.play).not.toHaveBeenCalled();
+        window.dispatchEvent(new Event('load'));
+        expect(api.play).toHaveBeenCalledTimes(1);
+        readyStateSpy.mockRestore();
     });
 
     it('warns and returns the api unchanged when there is no root element', () => {

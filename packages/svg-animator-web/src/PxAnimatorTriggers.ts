@@ -35,7 +35,10 @@ export function setupAnimationTriggers(
     api: PxAnimatorAPI,
     config: PxTrigger
 ): PxAnimatorAPI {
-    const { startOn, outAction = 'continue', scrollIntoViewThreshold = 0.5 } = config;
+    // Threshold default 0 — "any pixel visible starts it". Keep in sync with the editor
+    // model's default (TSvgSvgAnimationAttr.scrollIntoViewThreshold), which OMITS the
+    // value on the wire when it equals this default.
+    const { startOn, outAction = 'continue', scrollIntoViewThreshold = 0 } = config;
 
     const root = api.getRootElement();
 
