@@ -54,6 +54,7 @@ Examples in [`examples/`](examples/):
 | [vue](examples/vue/) | `@pixodesk/svg-animator-vue` | `pnpm example:vue` |
 | [preview-player](examples/preview-player/) | web / react / vue side by side | `pnpm example:preview` |
 | [react-native-preview-player](examples/react-native-preview-player/) 🧪 | `@pixodesk/svg-animator-rn` | `pnpm example:rn` |
+| [react-native-feature-explorer](examples/react-native-feature-explorer/) 🧪 | `@pixodesk/svg-animator-rn` — all 118 feature fixtures | `pnpm example:rn:explorer` |
 
 ---
 
@@ -173,7 +174,7 @@ With `mode: 'auto'` (the default) the player picks the Web Animations API and **
 ¹ SVG geometry as CSS properties (`x`, `cy`, `r`, `width`, …) works in Chromium/WebKit; **Firefox does not implement it** — use the JSON format (auto frames fallback) for guaranteed cross-browser geometry animation.
 ² The player gates each attribute with `CSS.supports(...)` at runtime; if anything in the document isn't natively animatable, the whole document automatically switches to the frames engine (`mode: 'auto'`). The animation still plays — just not via native WAAPI.
 ³ CSS `d: path(...)` morphing requires identical path command structure across keyframes and is unavailable in Safari < 18.5.
-⁴ Per-`<stop>` `stop-color` animates via CSS; stop **`offset`** and gradient geometry cannot be expressed in CSS at all.
+⁴ Per-`<stop>` `stop-color` animates via CSS; stop **`offset`** and gradient **geometry** cannot be expressed in CSS at all — the player animates both via the frames engine (`effects.fillGradient.animate`).
 ⁵ The static `<textPath>` layout renders everywhere; it is the *animation* of `startOffset`/`textLength` that CSS cannot express.
 
 
@@ -303,6 +304,7 @@ interface SVG_JSON {
             }>;
         };
 
+        timeline?: string;       // editor-side timeline mode; accepted, ignored by the player
         debug?: boolean;         // reserved — accepted, currently no effect
         debugInstName?: string;  // exposes the animator as window[debugInstName]
 
@@ -337,7 +339,9 @@ interface SVG_JSON {
             clipPath?:        { d?: string, animate?: ANIMATE };   // static `d`, or animated clip geometry
             trimPath?:        { offset?: number, range?: [a,b], trimAllAsOne?: boolean };  // offset/range animatable
             clone?:           { type?: 'content', baseId?: string, retime?: { start?, stretch?: number } };
-            fillGradient?:    { type: 'linear'|'radial', p1?, p2?, c?, r?, fp?, stops?, gradientUnits?, spreadMethod?, gradientTransform? };
+            // `animate` = animated geometry: gradientX1/Y1/X2/Y2 (linear),
+            // gradientCx/Cy/Fx/Fy/R (radial). Frames engine only.
+            fillGradient?:    { type: 'linear'|'radial', p1?, p2?, c?, r?, fp?, stops?, animate?, gradientUnits?, spreadMethod?, gradientTransform? };
             strokeGradient?:  { /* same shape as fillGradient */ };
             textPath?:        { path: string, pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? };
             text?:            { useGlyphs?: boolean };  // render text from embedded glyph outlines (definitions.glyphs)
@@ -671,7 +675,7 @@ of time, so the exported SVG already contains the expanded structure —
 | `clipPath` | `{ d?:"M…", animate?: ANIMATE }` | Mints a `<clipPath>` from the path data and sets `clip-path` on the host. `animate` is the property animation **itself** (`{keyframes:[…]}`), not `{d:{keyframes:[…]}}` — its keyframe values are `{path:"M…"}`. |
 | `trimPath` | `{ offset?, range?:[a,b], trimAllAsOne? }` (`offset`/`range` animatable) | Trims the visible stroke segment along a path. `trimAllAsOne:true` chains all descendant subpaths into one virtual path so the window slides across siblings. |
 | `clone` | `{ type?:"content", baseId:"id", retime?:{ start?:ms, stretch?:1.0 } }` | `<use>`-only. A `<use>` is a clone of something: `baseId` = the source element id (says WHAT it clones), nested `retime` = optional time-shift of the source's internal timeline (says WHEN). `type:"content"` is a "no-ref-translate" content link — targets the source's content sub-anchor so the source's own outer translate isn't re-applied; `type` absent = direct whole-element link (keeps translate). `retime.timeCrop` is reserved (accepted, not applied yet). |
-| `fillGradient` / `strokeGradient` | `{ type:"linear"\|"radial", p1?,p2? (linear) \| c?,r?,fp? (radial), stops?, gradientUnits?, spreadMethod?, gradientTransform? }` | Mints a `<linearGradient>`/`<radialGradient>` def and points the host's `fill`/`stroke` at it. `stops` is one timeline — static array, or `{keyframes}` whose each kf `value` is the full stops array snapshot. Geometry is static. `gradientTransform` is static-only. |
+| `fillGradient` / `strokeGradient` | `{ type:"linear"\|"radial", p1?,p2? (linear) \| c?,r?,fp? (radial), stops?, animate?, gradientUnits?, spreadMethod?, gradientTransform? }` | Mints a `<linearGradient>`/`<radialGradient>` def and points the host's `fill`/`stroke` at it. `stops` is one timeline — static array, or `{keyframes}` whose each kf `value` is the full stops array snapshot. **`animate` animates the geometry** — `gradientX1/Y1/X2/Y2` (linear), `gradientCx/Cy/Fx/Fy/R` (radial); frames-engine only. `gradientTransform` is static-only. |
 | `textPath` | `{ path:"M…", pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? }` | On a `<text>` host: mints a `<path>` def from the inline `path` and wraps the text's children in a `<textPath>` along it. `startOffset`/`textLength` accept the full animatable shape. `pathOverflow`: `'extend'` (default — glyphs continue along the endpoint tangent) or `'clip'` (native `<textPath>` behaviour). |
 | `text` | `{ useGlyphs?: true }` | Renders the `<text>` from embedded per-glyph outlines in `definitions.glyphs` — self-contained, no external font needed. |
 | `isCombinedShape` | `true` | Flag for the wrapping `<g>` of a multi-`<path>` trim — tells the Player the children form one logical shape. |
@@ -946,6 +950,7 @@ Examples in [`examples/`](examples/):
 | [vue](examples/vue/) | `@pixodesk/svg-animator-vue` | `pnpm example:vue` |
 | [preview-player](examples/preview-player/) | web / react / vue side by side | `pnpm example:preview` |
 | [react-native-preview-player](examples/react-native-preview-player/) 🧪 | `@pixodesk/svg-animator-rn` | `pnpm example:rn` |
+| [react-native-feature-explorer](examples/react-native-feature-explorer/) 🧪 | `@pixodesk/svg-animator-rn` — all 118 feature fixtures | `pnpm example:rn:explorer` |
 
 ## Live Examples
 

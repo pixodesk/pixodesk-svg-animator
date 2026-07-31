@@ -270,7 +270,7 @@ player sees plain nodes. **All are supported:**
 | `clipPath` | ✅ | including animated clip geometry |
 | `trimPath` | ✅ | incl. `offset` and `trimAllAsOne` |
 | `clone` + `retime` | ✅ | each clone keeps its own time shift. `retime.timeCrop` is not implemented (core-wide) |
-| `fillGradient` / `strokeGradient` | ✅ | animated stops; `gradientTransform` is static (core-wide) |
+| `fillGradient` / `strokeGradient` | ✅ | animated stops **and animated geometry** (`animate.gradientX1`/`Cx`/`R`, …); `gradientTransform` is static (core-wide) |
 | `textPath` | ✅ | incl. animated `startOffset` |
 | `text.useGlyphs` | ✅ | text becomes `<path>` outlines from `definitions.glyphs` — no font needed |
 | `isCombinedShape` | ✅ | |
