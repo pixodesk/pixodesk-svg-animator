@@ -84,11 +84,20 @@ describe('compileTracks', () => {
         expect(rect.props.fill[0]).not.toBe(rect.props.fill[rect.props.fill.length - 1]);
     });
 
-    it('samples transforms as composed transform strings', () => {
-        const tracks = compile();
+    it('samples transforms as MATRICES when targeting native views', () => {
+        // react-native-svg parses a transform string into a matrix in JS during
+        // render — a step reanimated's animated-props path skips. Feeding the
+        // matrix directly is what makes animated transforms work on device.
+        const tracks = compile(makeDoc(), { native: true });
         const g = tracks.elements.find(e => 'transform' in e.props)!;
-        expect(String(g.props.transform[0])).toContain('translate(0');
-        expect(String(g.props.transform[g.props.transform.length - 1])).toContain('translate(100');
+        const first = g.props.transform[0] as Array<number>;
+        const last = g.props.transform[g.props.transform.length - 1] as Array<number>;
+
+        expect(Array.isArray(first)).toBe(true);
+        expect(first).toHaveLength(6);
+        // translate(0,0) → identity; translate(100,100) → tx/ty in slots 4/5
+        expect(first).toEqual([1, 0, 0, 1, 0, 0]);
+        expect(last).toEqual([1, 0, 0, 1, 100, 100]);
     });
 
     it('respects sampleRate and maxSamples options', () => {
@@ -181,5 +190,44 @@ describe('animated <use> flattening (webapi materialisation)', () => {
         const cyTracks = tracks.elements.filter(e => 'cy' in e.props);
         expect(cyTracks.length).toBe(2);
         expect(cyTracks[0].props.cy[0]).not.toBe(cyTracks[1].props.cy[0]);
+    });
+});
+
+describe('compileTracks platform gating', () => {
+    /** The DEFAULT is the DOM form. react-native-web passes values straight to
+     *  the DOM, where a matrix array serialises to `transform="1,0,0,1,x,y"` —
+     *  invalid, so the element silently stops moving. Web is the priority
+     *  behaviour; native is the one that has to opt in. */
+    it('samples transforms as SVG STRINGS by default', () => {
+        const tracks = compile();
+        const g = tracks.elements.find(e => 'transform' in e.props)!;
+
+        expect(typeof g.props.transform[0]).toBe('string');
+        expect(String(g.props.transform[g.props.transform.length - 1]))
+            .toContain('translate(100');
+    });
+
+    /** The whole native path end to end: compile → sample. Both halves have to
+     *  agree, and neither is observable without a device — hence the test. */
+    it('compile+sample delivers an animated `matrix` of numbers on native', () => {
+        const tracks = compile(makeDoc(), { native: true });
+        const g = tracks.elements.find(e => 'transform' in e.props)!;
+
+        const start = sampleProps(g, 0, tracks.stepMs, tracks.sampleCount, true);
+        const end = sampleProps(g, tracks.duration, tracks.stepMs, tracks.sampleCount, true);
+
+        expect(start.transform).toBeUndefined();
+        expect(start.matrix).toEqual([1, 0, 0, 1, 0, 0]);
+        expect(end.matrix).toEqual([1, 0, 0, 1, 100, 100]);
+    });
+
+    /** …and the same compile targeted at the DOM must never emit `matrix`. */
+    it('compile+sample delivers an animated `transform` string on web', () => {
+        const tracks = compile();
+        const g = tracks.elements.find(e => 'transform' in e.props)!;
+
+        const end = sampleProps(g, tracks.duration, tracks.stepMs, tracks.sampleCount, false);
+        expect(end.matrix).toBeUndefined();
+        expect(String(end.transform)).toContain('translate(100');
     });
 });

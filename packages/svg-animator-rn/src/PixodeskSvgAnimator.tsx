@@ -16,10 +16,11 @@ import {
     type PxAnimatedSvgDocument,
     type PxNode,
 } from '@pixodesk/svg-animator-core';
-import React, { useEffect, useImperativeHandle, useMemo, useRef, type ComponentType, type ReactElement, type ReactNode } from 'react';
-import { Dimensions, Pressable, View } from 'react-native';
+import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
+import { Dimensions, Platform, Pressable, View } from 'react-native';
 import Animated, {
     cancelAnimation,
+    useAnimatedReaction,
     Easing,
     runOnJS,
     useAnimatedProps,
@@ -30,7 +31,7 @@ import Animated, {
     type SharedValue,
 } from 'react-native-reanimated';
 import { compileTracks, sampleProps, type PxCompiledTracks, type PxElementTracks } from './PxRnTracks';
-import { renderRnNode } from './PxRnRender';
+import { renderRnNode, type RenderRnNodeOptions } from './PxRnRender';
 
 
 // -- Public types -----------------------------------------------------------
@@ -131,6 +132,20 @@ export interface PixodeskSvgAnimatorProps {
 
 // -- Animated element wrapper ------------------------------------------------
 
+/**
+ * Whether react-native-svg is backed by NATIVE views here, rather than by the
+ * DOM through react-native-web.
+ *
+ * The two want different things from an animated `transform`: a native view
+ * declares a `matrix` prop taking six numbers, while the DOM wants a
+ * `transform` attribute holding an SVG string. Getting it wrong is silent —
+ * the value is dropped and the element simply never moves — so this single
+ * constant decides it once and feeds both the track compiler (value form) and
+ * the sampler (prop name). Everything else in the package defaults to the
+ * DOM-compatible form.
+ */
+const NATIVE_SVG_VIEWS = Platform.OS !== 'web';
+
 const animatedComponentCache = new Map<ComponentType<any>, ComponentType<any>>();
 
 function getAnimatedComponent(Component: ComponentType<any>): ComponentType<any> {
@@ -159,7 +174,10 @@ function AnimatedPxElement({
     // Runs on the UI thread every frame; `sampleProps` is a trivial indexed
     // lookup into the precompiled tracks — no interpolation logic on the hot path.
     const animatedProps = useAnimatedProps(() => {
-        return sampleProps(tracks, progress.value, stepMs, sampleCount);
+        // On iOS/Android these values bypass react-native-svg's JS prop layer
+        // and land on the native view, which declares `matrix`, not
+        // `transform`. The web build keeps the DOM-facing `transform` name.
+        return sampleProps(tracks, progress.value, stepMs, sampleCount, NATIVE_SVG_VIEWS);
     }, [tracks, stepMs, sampleCount]);
 
     return (
@@ -167,6 +185,82 @@ function AnimatedPxElement({
             {children}
         </AnimatedComponent>
     );
+}
+
+
+/**
+ * react-native-svg elements whose `render()` returns `null`. They carry data for
+ * their PARENT (a `<Stop>` is read by the gradient that owns it) rather than
+ * producing a native view, so reanimated has nothing to attach to — wrapping one
+ * in `Animated.createAnimatedComponent` throws
+ * "Cannot find host instance for this component".
+ */
+const NON_HOST_TAGS = new Set(['stop', 'feMergeNode']);
+
+/**
+ * Definition elements — they describe paint/geometry for something else rather
+ * than drawing themselves. Their animated attributes (a gradient's `y1`, a
+ * stop's `stop-color`) do not reliably flow through reanimated's animated-props
+ * path, so an animated def is rendered by re-sampling from JS instead. There
+ * are only ever a handful per document and they change slowly, so the cost is
+ * negligible — visual elements still animate entirely on the UI thread.
+ */
+const SAMPLED_DEF_TAGS = new Set(['linearGradient', 'radialGradient', ...NON_HOST_TAGS]);
+
+/** True when this subtree must be driven from JS rather than the UI thread:
+ *  either the node itself is an animated def, or it owns an animated non-host
+ *  child (an animated `<Stop>` only re-renders via its parent gradient). */
+function needsJsSampling(node: PxNode, trackById: Map<string, PxElementTracks>): boolean {
+    const id = (node as any).id;
+    if (SAMPLED_DEF_TAGS.has(String(node.type)) && id && trackById.has(id)) return true;
+    return (node.children ?? []).some(c => needsJsSampling(c, trackById));
+}
+
+/**
+ * Renders a subtree whose animation cannot run on the UI thread (see
+ * {@link NON_HOST_TAGS}) by re-rendering it from JS with sampled values.
+ *
+ * Changing a `<Stop>`'s props does not re-render its parent gradient, so the
+ * whole subtree is rebuilt — which is why this wraps the gradient rather than
+ * the stop. The reaction itself runs on the UI thread and only crosses to JS
+ * when the QUANTISED sample index changes, capping these few elements at
+ * ~30fps instead of a JS call every frame.
+ */
+function SampledSubtree({
+    node, trackById, progress, stepMs, sampleCount, renderOpts,
+}: {
+    node: PxNode;
+    trackById: Map<string, PxElementTracks>;
+    progress: SharedValue<number>;
+    stepMs: number;
+    sampleCount: number;
+    renderOpts: RenderRnNodeOptions;
+}) {
+    const [idx, setIdx] = useState(0);
+
+    useAnimatedReaction(
+        () => Math.floor(Math.round(progress.value / stepMs) / 2) * 2,   // half-rate
+        (next, prev) => {
+            if (next !== prev) runOnJS(setIdx)(next);
+        },
+        [stepMs]
+    );
+
+    const tMs = Math.min(Math.max(idx, 0), sampleCount - 1) * stepMs;
+
+    return renderRnNode(node, {
+        ...renderOpts,
+        // Sampled values are baked in as PLAIN props — nothing reanimated-driven.
+        decorate: (n, Component, staticProps, children, key) => {
+            const id = (n as any).id;
+            const tracks = id ? trackById.get(id) : undefined;
+            if (!tracks) return undefined;
+            // Wire prop names, NOT the native ones: these go back through
+            // react-native-svg's JS prop layer, which does the renaming itself.
+            const sampled = sampleProps(tracks, tMs, stepMs, sampleCount);
+            return createElement(Component, { ...staticProps, ...sampled, key }, children);
+        },
+    });
 }
 
 
@@ -219,7 +313,7 @@ export function PixodeskSvgAnimator({
         };
 
         prepared = generateNewIds(prepared);
-        const tracks = compileTracks(prepared);
+        const tracks = compileTracks(prepared, { native: NATIVE_SVG_VIEWS });
         return { doc: prepared, tracks };
     }, [doc, duration, delay, iterations, fill, direction, resetOnFinish]);
 
@@ -430,16 +524,36 @@ export function PixodeskSvgAnimator({
     const warningsRef = useRef<Array<string>>([]);
     const root = useMemo(() => {
         warningsRef.current = [];
-        return renderRnNode(compiled.doc as PxNode, {
+        const renderOpts: RenderRnNodeOptions = {
             warnings: warningsRef.current,
             defs: getDefs(compiled.doc),
-            decorate: (node, Component, staticProps, children) => {
+        };
+        return renderRnNode(compiled.doc as PxNode, {
+            ...renderOpts,
+            decorate: (node, Component, staticProps, children, key) => {
+                // An animated definition subtree (gradient / its stops) cannot be
+                // driven on the UI thread — hand the WHOLE subtree to the
+                // JS-sampled renderer and stop descending here.
+                if (needsJsSampling(node, trackById)) {
+                    return (
+                        <SampledSubtree
+                            key={key}
+                            node={node}
+                            trackById={trackById}
+                            progress={progress}
+                            stepMs={tracks.stepMs}
+                            sampleCount={tracks.sampleCount}
+                            renderOpts={renderOpts}
+                        />
+                    );
+                }
+
                 const id = (node as any).id;
                 const elTracks = id ? trackById.get(id) : undefined;
                 if (!elTracks) return undefined;
                 return (
                     <AnimatedPxElement
-                        key={staticProps.key}
+                        key={key}
                         Component={Component}
                         staticProps={staticProps}
                         tracks={elTracks}

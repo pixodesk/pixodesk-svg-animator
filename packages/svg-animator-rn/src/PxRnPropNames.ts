@@ -4,6 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { kebabToCamelCaseWord } from '@pixodesk/svg-animator-core';
+import { svgTransformToMatrix } from './PxRnMatrix';
 
 /** Attribute names with a react-native-svg prop equivalent under a
  *  different name (not just a casing change). */
@@ -42,7 +43,26 @@ const LENGTH_LIST_PROPS = new Set(['strokeDasharray']);
  * expects: length-list props become number arrays; numeric strings become
  * numbers; everything else passes through.
  */
-export function toRnPropValue(rnPropName: string, value: string | number): string | number | Array<number> {
+export function toRnPropValue(
+    rnPropName: string,
+    value: string | number,
+    /** The owning element's tag. The ROOT `<Svg>` handles `transform` through a
+     *  different code path (`extractTransformSvgView`, which wants a string or
+     *  an RN style) — a matrix there would be dropped, so leave it alone. */
+    tag?: string,
+    /** Opt in to the NATIVE representation of a value (see below). Defaults to
+     *  off, so web keeps the plain SVG/DOM form it has always been given. */
+    native = false,
+): string | number | Array<number> {
+    // On a device `transform` must arrive as a matrix, not a string: the
+    // string→matrix parse happens in JS during render, which reanimated's
+    // animated-props path skips entirely. See PxRnMatrix for the full why.
+    // On the web the DOM parses the string itself and an array would serialise
+    // to a meaningless `transform="1,0,0,1,3,4"`, so it must stay a string.
+    if (native && rnPropName === 'transform' && typeof value === 'string' && tag !== 'svg') {
+        const m = svgTransformToMatrix(value);
+        if (m) return m;
+    }
     if (LENGTH_LIST_PROPS.has(rnPropName)) {
         const parts = String(value).trim().replace(/,/g, ' ').split(/\s+/).map(Number).filter(n => Number.isFinite(n));
         // An odd-length dasharray repeats to become even (SVG spec); rn-svg

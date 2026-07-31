@@ -27,12 +27,17 @@ export interface RenderRnNodeOptions {
      * component + static props and returns the element to mount (the animator
      * substitutes an Animated component wired to its tracks). Return undefined
      * to keep the plain static element.
+     *
+     * `key` is handed over SEPARATELY and is deliberately absent from `props`:
+     * React 19 warns when a props object containing `key` is spread into JSX,
+     * and implementations of this hook do exactly that.
      */
     decorate?: (
         node: PxNode,
         Component: ComponentType<any>,
         props: Record<string, any>,
-        children: ReactNode
+        children: ReactNode,
+        key: string | number | undefined
     ) => ReactElement | undefined;
 }
 
@@ -41,7 +46,7 @@ export interface RenderRnNodeOptions {
  * naming, sanitisation (same security rules as the web renderer), numeric
  * coercion where possible.
  */
-export function toRnProps(props: Record<string, any>, warnings?: Array<string>): Record<string, any> {
+export function toRnProps(props: Record<string, any>, warnings?: Array<string>, tag?: string): Record<string, any> {
     const normalised = getNormalizedProps(props);
     const out: Record<string, any> = {};
     for (const key of Object.keys(normalised)) {
@@ -49,7 +54,7 @@ export function toRnProps(props: Record<string, any>, warnings?: Array<string>):
         if (sanitised === undefined) continue;
         const rnKey = toRnPropName(key);
         if (!rnKey) continue;
-        out[rnKey] = toRnPropValue(rnKey, String(sanitised));
+        out[rnKey] = toRnPropValue(rnKey, String(sanitised), tag);
     }
     return out;
 }
@@ -82,7 +87,8 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
         return null;
     }
 
-    const rnProps = toRnProps(props, opts.warnings);
+    // NB: `key` is never written into this object — see `decorate` above.
+    const rnProps = toRnProps(props, opts.warnings, tag);
     if (feFuncType !== undefined) rnProps.type = feFuncType;
 
     // `node.style` — a named preset from `definitions.styles`, or an inline
@@ -96,11 +102,9 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
             if (!rnKey || rnKey in rnProps) continue;
             const sanitised = sanitiseAttributeValue(rnKey, v);
             if (sanitised === undefined) continue;
-            rnProps[rnKey] = toRnPropValue(rnKey, String(sanitised));
+            rnProps[rnKey] = toRnPropValue(rnKey, String(sanitised), tag);
         }
     }
-
-    if (key !== undefined) rnProps.key = key;
 
     // Text content: wire nodes carry it as `text` / `textContent` attr.
     const textContent: string | undefined = props[TEXT_ATTR] || props[TEXT_CONTENT_ATTR];
@@ -114,8 +118,14 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
         childElements = String(textContent);
     }
 
-    const decorated = opts.decorate?.(node, Component, rnProps, childElements);
+    const decorated = opts.decorate?.(node, Component, rnProps, childElements, key);
     if (decorated !== undefined) return decorated;
 
-    return createElement(Component, rnProps, childElements);
+    // `createElement` takes `key` in its config object — that path does NOT
+    // trigger React's JSX-spread warning.
+    return createElement(
+        Component,
+        key !== undefined ? { ...rnProps, key } : rnProps,
+        childElements
+    );
 }

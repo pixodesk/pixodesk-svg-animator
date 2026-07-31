@@ -56,6 +56,15 @@ export interface CompileTracksOptions {
     sampleRate?: number;
     /** Hard cap on samples per iteration (memory guard). Default 600. */
     maxSamples?: number;
+    /**
+     * Sample values in the form the NATIVE react-native-svg views expect
+     * (currently: `transform` as a 6-number matrix rather than an SVG string).
+     *
+     * Defaults to `false` — the plain SVG form, which is what react-native-web
+     * hands straight to the DOM. Only the component knows the platform, so it
+     * decides; every consumer that does not opt in keeps DOM-compatible values.
+     */
+    native?: boolean;
 }
 
 
@@ -74,11 +83,21 @@ export function compileTracks(doc: PxAnimatedSvgDocument, opts?: CompileTracksOp
     if (_iterations === 'infinite') iterations = Infinity;
     if (iterations < 1) iterations = 1;
 
+    const native = opts?.native ?? false;
     const sampleRate = opts?.sampleRate ?? 60;
     const maxSamples = opts?.maxSamples ?? 600;
     let sampleCount = Math.max(2, Math.round((duration / 1000) * sampleRate) + 1);
     if (sampleCount > maxSamples) sampleCount = maxSamples;
     const stepMs = duration / (sampleCount - 1);
+
+    // Element tag per id — `toRnPropValue` needs it to leave the root `<Svg>`'s
+    // transform as a string (see its `tag` parameter).
+    const tagById = new Map<string, string>();
+    const indexTags = (n: any): void => {
+        if (n && typeof n.id === 'string') tagById.set(n.id, String(n.type));
+        (n?.children ?? []).forEach(indexTags);
+    };
+    indexTags(doc);
 
     const bindings = getNormalisedBindings(doc, PxAnimatorEngine.frames) || [];
 
@@ -100,9 +119,9 @@ export function compileTracks(doc: PxAnimatedSvgDocument, opts?: CompileTracksOp
                     // A prop can appear late (e.g. attrs whose first kf is
                     // beyond t=0) — backfill earlier samples with the first
                     // computed value so the array is always fully populated.
-                    for (let j = 0; j < i; j++) arr[j] = toRnPropValue(rnProp, value);
+                    for (let j = 0; j < i; j++) arr[j] = toRnPropValue(rnProp, value, tagById.get(binding.id), native);
                 }
-                arr[i] = toRnPropValue(rnProp, value);
+                arr[i] = toRnPropValue(rnProp, value, tagById.get(binding.id), native);
             }
         }
         // Forward-fill any holes (attr disappeared from a later sample).
@@ -131,15 +150,36 @@ export function compileTracks(doc: PxAnimatedSvgDocument, opts?: CompileTracksOp
 }
 
 /**
+ * Wire prop → the prop name the NATIVE view actually declares.
+ *
+ * react-native-svg's JS layer renames some props on the way down: a
+ * `transform` (string or matrix) is parsed by `extractProps` and handed to the
+ * native component as `matrix` — the Fabric spec has no `transform` prop at
+ * all. Values sent through reanimated's animated-props path skip that JS
+ * rename, so they must already use the native name or the native view drops
+ * them silently. This is ONLY for the animated path; plain React renders still
+ * go through the JS layer and must keep the wire name.
+ */
+export const NATIVE_PROP_NAME: Record<string, string> = {
+    transform: 'matrix',
+};
+
+/**
  * Worklet-safe sample lookup: returns the per-prop values at time `tMs`
  * (already mapped into a single iteration by the caller). Kept deliberately
  * trivial — runs on the UI thread every frame.
+ *
+ * `native = true` applies {@link NATIVE_PROP_NAME} — pass it only on the
+ * reanimated animated-props path of a real device. Props that are applied by
+ * re-rendering through React (and therefore still pass through react-native-svg's
+ * JS layer), and every value on the web, must keep the wire name.
  */
 export function sampleProps(
     tracks: PxElementTracks,
     tMs: number,
     stepMs: number,
-    sampleCount: number
+    sampleCount: number,
+    native = false
 ): Record<string, string | number | Array<number>> {
     'worklet';
     let idx = Math.round(tMs / stepMs);
@@ -147,7 +187,8 @@ export function sampleProps(
     if (idx >= sampleCount) idx = sampleCount - 1;
     const out: Record<string, string | number | Array<number>> = {};
     for (const key in tracks.props) {
-        out[key] = tracks.props[key][idx];
+        const name = native && key === 'transform' ? 'matrix' : key;
+        out[name] = tracks.props[key][idx];
     }
     return out;
 }

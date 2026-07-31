@@ -15,6 +15,17 @@ import {
 } from 'react-native';
 import { CASE_COUNT, CASE_SECTIONS, type ExplorerCase } from './catalog';
 
+/**
+ * Bumped on every player fix so it is obvious on-device which build is running
+ * — the phone caches aggressively and "did my fix ship?" is otherwise guesswork.
+ *
+ *  #1  transform emitted as a matrix instead of an SVG string
+ *  #2  animated transform sent as the native `matrix` prop (not `transform`)
+ *  #3  that rename made platform-aware — web still needs `transform`
+ *  #4  matrix VALUES also gated on platform (they were breaking web)
+ */
+const BUILD = 4;
+
 type Theme = typeof darkTheme;
 
 /** Strips the inline markdown the editor authors descriptions in. */
@@ -129,7 +140,7 @@ export default function App() {
             <View style={[styles.header, { borderColor: t.border }]}>
                 <View style={styles.titleRow}>
                     <View style={{ flexShrink: 1 }}>
-                        <Text style={[styles.title, { color: t.fg }]}>Feature Explorer</Text>
+                        <Text style={[styles.title, { color: t.fg }]}>Feature Explorer #{BUILD}</Text>
                         <Text style={[styles.subtitle, { color: t.dim }]}>
                             {shownCount} of {CASE_COUNT} cases · {sections.length} sections
                         </Text>
