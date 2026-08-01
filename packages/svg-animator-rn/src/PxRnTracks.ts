@@ -182,13 +182,21 @@ export function sampleProps(
     native = false
 ): Record<string, string | number | Array<number>> {
     'worklet';
+    const out: Record<string, string | number | Array<number>> = {};
+    // Defensive: this runs on the UI thread, where a throw is a hard crash
+    // with no React boundary to catch it.
+    if (!tracks || !tracks.props || !(stepMs > 0)) return out;
+
     let idx = Math.round(tMs / stepMs);
     if (idx < 0) idx = 0;
     if (idx >= sampleCount) idx = sampleCount - 1;
-    const out: Record<string, string | number | Array<number>> = {};
     for (const key in tracks.props) {
+        const values = tracks.props[key];
+        if (!values) continue;
+        const value = values[idx];
+        if (value === undefined) continue;
         const name = native && key === 'transform' ? 'matrix' : key;
-        out[name] = tracks.props[key][idx];
+        out[name] = value;
     }
     return out;
 }

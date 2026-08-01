@@ -7,6 +7,8 @@ export { PixodeskSvgAnimator, default } from './PixodeskSvgAnimator';
 export type { PixodeskSvgAnimatorProps, RnAnimatorApi } from './PixodeskSvgAnimator';
 
 export { renderRnNode, toRnProps } from './PxRnRender';
+export { PxRnErrorBoundary, type PxRnErrorBoundaryProps } from './PxRnErrorBoundary';
+export { openClosedTextPathTargets } from './PxRnSafety';
 export type { RenderRnNodeOptions } from './PxRnRender';
 
 export { compileTracks, sampleProps } from './PxRnTracks';

@@ -32,6 +32,8 @@ import Animated, {
 } from 'react-native-reanimated';
 import { compileTracks, sampleProps, type PxCompiledTracks, type PxElementTracks } from './PxRnTracks';
 import { renderRnNode, type RenderRnNodeOptions } from './PxRnRender';
+import { PxRnErrorBoundary } from './PxRnErrorBoundary';
+import { openClosedTextPathTargets } from './PxRnSafety';
 
 
 // -- Public types -----------------------------------------------------------
@@ -127,6 +129,22 @@ export interface PixodeskSvgAnimatorProps {
     onPause?: () => void;
     onCancel?: () => void;
     onFinish?: () => void;
+
+
+    // -- Failure handling -----------------------------------------------------
+
+    /**
+     * Called when a document cannot be compiled or rendered. The component
+     * renders {@link fallback} instead of throwing, so a single broken
+     * animation never takes down the screen around it.
+     *
+     * Only JavaScript failures reach this — a crash inside react-native-svg's
+     * native renderer bypasses JavaScript entirely.
+     */
+    onError?: (error: Error, componentStack?: string) => void;
+
+    /** Rendered in place of the animation after a failure. Default: nothing. */
+    fallback?: (error: Error) => ReactElement | null;
 }
 
 
@@ -264,6 +282,77 @@ function SampledSubtree({
 }
 
 
+
+/** Overrides that shadow the document's own `animator` config. */
+interface ConfigOverrides {
+    duration?: number;
+    delay?: number;
+    iterations?: number | 'infinite';
+    fill?: FillMode;
+    direction?: PlaybackDirection;
+    resetOnFinish?: boolean;
+}
+
+interface Compiled {
+    /** Materialised document, or null when compilation failed. */
+    doc: PxAnimatedSvgDocument | null;
+    tracks: PxCompiledTracks;
+    error: Error | null;
+}
+
+/** Playable-but-empty tracks, so a failed compile still satisfies every hook
+ *  below it — React forbids skipping hooks on an error path. */
+const EMPTY_TRACKS: PxCompiledTracks = {
+    duration: 1, iterations: 1, direction: 'normal', delay: 0,
+    fill: 'forwards', resetOnFinish: false, stepMs: 1, sampleCount: 2, elements: [],
+};
+
+/**
+ * Materialises + compiles a document. Extracted from the component so the
+ * whole thing sits behind one try/catch, and so it can be tested directly.
+ */
+function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides): Compiled {
+    const { duration, delay, iterations, fill, direction, resetOnFinish } = overrides;
+    const warnings = validateNodeEffects(doc as PxNode);
+    for (const w of warnings) console.warn('[PixodeskSvgAnimator] effects shape warning:', w);
+
+    // `webapi` = the FULLY-FLATTENED materialisation: effects + loops +
+    // sampled motion paths + animated `<use>` inlined into real `<g>`
+    // clones + orphaned defs pruned. That last part is why RN must not use
+    // the `frames` flavour: frames keeps `<use href="#animatedTarget">`
+    // live references, which only work because the DOM propagates
+    // attribute writes through `<use>` shadow trees. react-native-svg has
+    // no such live propagation, so an animated `<use>` would render frozen.
+    let prepared = materialiseAllInTree(doc, PxAnimatorEngine.webapi);
+
+    // Sidestep a react-native-svg NATIVE crash (see PxRnSafety). Guarded on
+    // the platform because the DOM renders this case correctly and the web
+    // document must stay exactly as the core pipeline produced it.
+    if (NATIVE_SVG_VIEWS) {
+        prepared = openClosedTextPathTargets(prepared as PxNode) as PxAnimatedSvgDocument;
+    }
+
+    // Apply prop overrides onto the animator config (mirrors the react wrapper).
+    const animator = getAnimatorConfig(prepared) || {};
+    prepared = {
+        ...prepared,
+        animator: {
+            ...animator,
+            duration: duration !== undefined ? duration : animator.duration,
+            delay: delay !== undefined ? delay : animator.delay,
+            iterations: iterations !== undefined ? iterations : animator.iterations,
+            fill: fill !== undefined ? fill : animator.fill,
+            direction: direction !== undefined ? direction : animator.direction,
+            resetOnFinish: resetOnFinish !== undefined ? resetOnFinish : animator.resetOnFinish,
+        },
+    };
+
+    prepared = generateNewIds(prepared);
+    const tracks = compileTracks(prepared, { native: NATIVE_SVG_VIEWS });
+    return { doc: prepared, tracks, error: null };
+}
+
+
 // -- Main component ----------------------------------------------------------
 
 /**
@@ -279,42 +368,23 @@ function SampledSubtree({
 export function PixodeskSvgAnimator({
     doc, duration, delay, iterations, fill, direction, resetOnFinish, outAction: outActionProp,
     autoplay, play, pause, apiRef, time, timeMs,
-    onPlay, onStop, onPause, onCancel, onFinish,
+    onPlay, onStop, onPause, onCancel, onFinish, onError, fallback,
 }: PixodeskSvgAnimatorProps): ReactElement | null {
 
     // -- Compile the document (once per doc/override change) ------------------
 
-    const compiled = useMemo(() => {
-        const warnings = validateNodeEffects(doc as PxNode);
-        for (const w of warnings) console.warn('[PixodeskSvgAnimator] effects shape warning:', w);
-
-        // `webapi` = the FULLY-FLATTENED materialisation: effects + loops +
-        // sampled motion paths + animated `<use>` inlined into real `<g>`
-        // clones + orphaned defs pruned. That last part is why RN must not use
-        // the `frames` flavour: frames keeps `<use href="#animatedTarget">`
-        // live references, which only work because the DOM propagates
-        // attribute writes through `<use>` shadow trees. react-native-svg has
-        // no such live propagation, so an animated `<use>` would render frozen.
-        let prepared = materialiseAllInTree(doc, PxAnimatorEngine.webapi);
-
-        // Apply prop overrides onto the animator config (mirrors the react wrapper).
-        const animator = getAnimatorConfig(prepared) || {};
-        prepared = {
-            ...prepared,
-            animator: {
-                ...animator,
-                duration: duration !== undefined ? duration : animator.duration,
-                delay: delay !== undefined ? delay : animator.delay,
-                iterations: iterations !== undefined ? iterations : animator.iterations,
-                fill: fill !== undefined ? fill : animator.fill,
-                direction: direction !== undefined ? direction : animator.direction,
-                resetOnFinish: resetOnFinish !== undefined ? resetOnFinish : animator.resetOnFinish,
-            },
-        };
-
-        prepared = generateNewIds(prepared);
-        const tracks = compileTracks(prepared, { native: NATIVE_SVG_VIEWS });
-        return { doc: prepared, tracks };
+    const compiled = useMemo((): Compiled => {
+        try {
+            return compileDocument(
+                doc,
+                { duration, delay, iterations, fill, direction, resetOnFinish }
+            );
+        } catch (e) {
+            // A malformed document must not take the host screen down with it.
+            const error = e instanceof Error ? e : new Error(String(e));
+            console.warn('[PixodeskSvgAnimator] could not compile the document:', error.message);
+            return { doc: null, tracks: EMPTY_TRACKS, error };
+        }
     }, [doc, duration, delay, iterations, fill, direction, resetOnFinish]);
 
     const tracks: PxCompiledTracks = compiled.tracks;
@@ -443,7 +513,7 @@ export function PixodeskSvgAnimator({
 
     // -- Declarative control --------------------------------------------------
 
-    const trigger = getAnimatorConfig(compiled.doc)?.trigger;
+    const trigger = compiled.doc ? getAnimatorConfig(compiled.doc)?.trigger : undefined;
     const startOn = trigger?.startOn ?? 'load';
     const outAction = outActionProp ?? trigger?.outAction ?? 'pause';
 
@@ -522,50 +592,63 @@ export function PixodeskSvgAnimator({
     }, [tracks]);
 
     const warningsRef = useRef<Array<string>>([]);
+    const renderErrorRef = useRef<Error | null>(null);
     const root = useMemo(() => {
         warningsRef.current = [];
+        renderErrorRef.current = null;
+        if (!compiled.doc) return null;
+
         const renderOpts: RenderRnNodeOptions = {
             warnings: warningsRef.current,
             defs: getDefs(compiled.doc),
         };
-        return renderRnNode(compiled.doc as PxNode, {
-            ...renderOpts,
-            decorate: (node, Component, staticProps, children, key) => {
-                // An animated definition subtree (gradient / its stops) cannot be
-                // driven on the UI thread — hand the WHOLE subtree to the
-                // JS-sampled renderer and stop descending here.
-                if (needsJsSampling(node, trackById)) {
+        try {
+            return renderRnNode(compiled.doc as PxNode, {
+                ...renderOpts,
+                decorate: (node, Component, staticProps, children, key) => {
+                    // An animated definition subtree (gradient / its stops) cannot be
+                    // driven on the UI thread — hand the WHOLE subtree to the
+                    // JS-sampled renderer and stop descending here.
+                    if (needsJsSampling(node, trackById)) {
+                        return (
+                            <SampledSubtree
+                                key={key}
+                                node={node}
+                                trackById={trackById}
+                                progress={progress}
+                                stepMs={tracks.stepMs}
+                                sampleCount={tracks.sampleCount}
+                                renderOpts={renderOpts}
+                            />
+                        );
+                    }
+
+                    const id = (node as any).id;
+                    const elTracks = id ? trackById.get(id) : undefined;
+                    if (!elTracks) return undefined;
                     return (
-                        <SampledSubtree
+                        <AnimatedPxElement
                             key={key}
-                            node={node}
-                            trackById={trackById}
+                            Component={Component}
+                            staticProps={staticProps}
+                            tracks={elTracks}
                             progress={progress}
                             stepMs={tracks.stepMs}
                             sampleCount={tracks.sampleCount}
-                            renderOpts={renderOpts}
-                        />
+                        >
+                            {children}
+                        </AnimatedPxElement>
                     );
-                }
-
-                const id = (node as any).id;
-                const elTracks = id ? trackById.get(id) : undefined;
-                if (!elTracks) return undefined;
-                return (
-                    <AnimatedPxElement
-                        key={key}
-                        Component={Component}
-                        staticProps={staticProps}
-                        tracks={elTracks}
-                        progress={progress}
-                        stepMs={tracks.stepMs}
-                        sampleCount={tracks.sampleCount}
-                    >
-                        {children}
-                    </AnimatedPxElement>
-                );
-            },
-        });
+                },
+            });
+        } catch (e) {
+            // Building the element tree threw — report it and render nothing
+            // rather than propagating and unmounting the host screen.
+            const error = e instanceof Error ? e : new Error(String(e));
+            renderErrorRef.current = error;
+            console.warn('[PixodeskSvgAnimator] could not render the document:', error.message);
+            return null;
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [compiled, trackById]);
 
@@ -573,17 +656,26 @@ export function PixodeskSvgAnimator({
         for (const w of warningsRef.current) console.warn('[PixodeskSvgAnimator]', w);
     }, [root]);
 
+    // Surface compile/render failures to the host exactly once per occurrence.
+    const failure = compiled.error ?? renderErrorRef.current;
+    useEffect(() => {
+        if (failure) onError?.(failure);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [failure]);
+
+    if (failure) return fallback ? fallback(failure) : null;
+
     // `startOn: 'click'` — the touch analogue of the web player's click trigger:
     // tap to start, tap again to apply `outAction`. Hover (`mouseOver`) has no
     // touch equivalent and `scrollIntoView` needs the surrounding scroll view,
     // so both are left to the host app.
+    let content: ReactElement | null = root;
+
     if (autoplay && startOn === 'scrollIntoView' && root) {
         // `collapsable={false}` keeps the view in the native tree so it can be measured.
-        return <View ref={scrollRef} collapsable={false}>{root}</View>;
-    }
-
-    if (autoplay && startOn === 'click' && root) {
-        return (
+        content = <View ref={scrollRef} collapsable={false}>{root}</View>;
+    } else if (autoplay && startOn === 'click' && root) {
+        content = (
             <Pressable
                 onPress={() => {
                     if (playingRef.current) {
@@ -601,7 +693,14 @@ export function PixodeskSvgAnimator({
         );
     }
 
-    return root;
+    // Catches what the try/catch above cannot: throws during React's own render
+    // and commit of the tree — react-native-svg internals, reanimated failing
+    // to attach to a component that turns out not to be a host view, and so on.
+    return (
+        <PxRnErrorBoundary onError={onError} fallback={fallback}>
+            {content}
+        </PxRnErrorBoundary>
+    );
 }
 
 export default PixodeskSvgAnimator;

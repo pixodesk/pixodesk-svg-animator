@@ -14,6 +14,39 @@ pnpm example:rn:explorer     # then press i (iOS), a (Android), or scan the QR
 
 Or from this directory: `npx expo start` (plus `--web`, `--ios`, `--android`).
 
+## "The request timed out" on the phone
+
+Expo Go gave up waiting for the JS bundle. The first request after a cold start
+has to build the whole thing; every one after that is served from Metro's cache.
+
+Measured here (Apple Silicon, cold cache): Metro ready in **0.6 s**, first
+bundle **5.5 s / 8.9 MB**, subsequent bundles **0.1 s** — down from 1.6 s and
+10.9 s before the changes below. Most of that size is React Native, reanimated
+and react-native-svg; the 118 fixtures account for 0.7 MB of it.
+
+In order:
+
+1. **Just retry.** The build that timed out still finished and is now cached, so
+   the second attempt is near-instant.
+2. **Check the phone and the Mac are on the same network**, and that the Mac's
+   firewall is not blocking incoming connections. A LAN URL the phone cannot
+   reach times out exactly like a slow build.
+3. `pnpm example:rn:explorer:tunnel` — routes through Expo's tunnel when the two
+   devices cannot see each other directly. Slower, but it works across networks.
+4. `pnpm example:rn:explorer:clear` — clears Metro's cache. Use this if the
+   bundle seems stale or the app behaves like an older build, not for a timeout;
+   it makes the next build slower, not faster.
+
+What the app itself does to keep the wait short:
+
+- fixtures load **on first access** — scrolling to a case is what parses it, so
+  startup does not evaluate 1.2 MB of object literals up front
+  ([`catalog.ts`](src/catalog.ts))
+- the header renders immediately and the list one frame later, so a slow start
+  shows *Loading 118 cases…* rather than a frozen screen
+- Metro is told to skip `.git`, test artefacts and the sibling example apps, so
+  its startup crawl is not the whole monorepo ([`metro.config.js`](metro.config.js))
+
 ## What's in it
 
 The fixtures, their section titles and their order are copied from the editor's
@@ -59,6 +92,25 @@ Two mechanisms, because virtualisation alone is not enough:
 
 Each animation is still driven natively on the UI thread by reanimated, so
 scrolling stays smooth while the visible animations play.
+
+## When something goes wrong
+
+The title carries a build number (**Feature Explorer #6**) that is bumped on
+every player fix, so it is obvious on-device which build is running.
+
+Failures are shown, not fatal:
+
+- a case that fails to compile or render prints the error under its own row and
+  leaves the other 117 playing
+- every failure, plus any uncaught JS error, is collected into a tappable
+  **⚠ N errors** panel under the header, with a *clear* button
+- a throw that escapes everything else still lands on an on-device error screen
+  with the message, the component stack and a *Try again* button
+  ([`AppErrorBoundary.tsx`](src/AppErrorBoundary.tsx)) — never a white screen
+
+A crash inside react-native-svg's native renderer is the one thing this cannot
+catch. One such crash — text on a closed path — is worked around in the player
+itself; see [Known limitations](../../packages/svg-animator-rn/README.md#known-limitations).
 
 ## Notes
 

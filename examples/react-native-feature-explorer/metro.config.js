@@ -11,7 +11,27 @@ const workspaceRoot = path.resolve(projectRoot, '../..');
 
 const config = getDefaultConfig(projectRoot);
 
+// Watch the workspace root so the local @pixodesk/* packages are picked up.
+// Everything Metro does at startup scales with how many files this covers, so
+// the blockList below is not an optimisation — without it Metro crawls every
+// node_modules in the monorepo (~50k files) before it can serve the first
+// bundle, and a phone waiting on that request gives up with "The request timed
+// out" long before Metro is ready.
 config.watchFolders = [workspaceRoot];
+
+const escapedRoot = workspaceRoot.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+config.resolver.blockList = [
+    // VCS internals and test artefacts — never importable, and `.git` alone is
+    // ~2k files of churn for the watcher.
+    new RegExp(`${escapedRoot}/\\.git/.*`),
+    new RegExp(`${escapedRoot}/(?:[^/]+/)*(?:test-results|playwright-report|coverage)/.*`),
+    // The OTHER example apps: siblings with their own node_modules, never
+    // imported from here. NB `dist` and `packages/*/node_modules` are NOT
+    // blocked — @pixodesk/svg-animator-core resolves through both (its entry
+    // is `dist/index.cjs`, reached via a pnpm symlink under the rn package).
+    new RegExp(`${escapedRoot}/examples/(?!react-native-feature-explorer/)[^/]+/.*`),
+];
 
 config.resolver.nodeModulesPaths = [
     path.resolve(projectRoot, 'node_modules'),
@@ -56,5 +76,12 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
     }
     return (defaultResolveRequest ?? context.resolveRequest)(context, moduleName, platform);
 };
+
+// NB: do NOT set `transformer.getTransformOptions` with `inlineRequires` here.
+// It looks like an easy startup win, but moving requires inline reorders module
+// initialisation in a way react-native-worklets cannot survive — every render
+// then dies with "[Worklets] createSerializableObject should never be called in
+// JSWorklets". Deferred loading belongs in application code instead; see the
+// lazy fixture getters in `src/catalog.ts`.
 
 module.exports = config;

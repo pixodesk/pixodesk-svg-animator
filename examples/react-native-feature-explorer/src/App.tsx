@@ -8,12 +8,13 @@
  */
 import { PixodeskSvgAnimator, type RnAnimatorApi } from '@pixodesk/svg-animator-rn';
 import { StatusBar } from 'expo-status-bar';
-import { memo, useCallback, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-    Pressable, SectionList, StyleSheet, Text, TextInput, useColorScheme, View,
+    Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, useColorScheme, View,
     type ViewToken,
 } from 'react-native';
 import { CASE_COUNT, CASE_SECTIONS, type ExplorerCase } from './catalog';
+import { AppErrorBoundary } from './AppErrorBoundary';
 
 /**
  * Bumped on every player fix so it is obvious on-device which build is running
@@ -23,8 +24,10 @@ import { CASE_COUNT, CASE_SECTIONS, type ExplorerCase } from './catalog';
  *  #2  animated transform sent as the native `matrix` prop (not `transform`)
  *  #3  that rename made platform-aware — web still needs `transform`
  *  #4  matrix VALUES also gated on platform (they were breaking web)
+ *  #5  text-along-path no longer crashes the app; errors are shown, not fatal
+ *  #6  lazy fixture loading + staged mount, so startup is not one long block
  */
-const BUILD = 4;
+const BUILD = 6;
 
 type Theme = typeof darkTheme;
 
@@ -38,7 +41,7 @@ function plain(md: string): string {
 // ---------------------------------------------------------------------------
 
 const CaseRow = memo(function CaseRow({
-    item, visible, playing, loop, t,
+    item, visible, playing, loop, t, onError,
 }: {
     item: ExplorerCase;
     /** On screen right now — off-screen rows are rendered static to save work. */
@@ -48,9 +51,27 @@ const CaseRow = memo(function CaseRow({
     /** Override the fixtures' one-shot timing so cases stay visible. */
     loop: boolean;
     t: Theme;
+    /** Reports a failure up to the app-wide error log. */
+    onError: (caseId: string, error: Error) => void;
 }) {
     const api = useRef<RnAnimatorApi | null>(null);
     const active = visible && playing;
+    const [error, setError] = useState<Error | null>(null);
+
+    // `item.doc` lazily requires the fixture module (see catalog.ts), so this
+    // is the point where a broken or missing fixture would throw — during
+    // render, outside the player's own boundary. Resolve it defensively.
+    const [doc, loadError] = useMemo((): [unknown, Error | null] => {
+        try {
+            return [item.doc, null];
+        } catch (e) {
+            return [null, e instanceof Error ? e : new Error(String(e))];
+        }
+    }, [item]);
+
+    useEffect(() => {
+        if (loadError) onError(item.id, loadError);
+    }, [loadError, item.id, onError]);
 
     return (
         <View style={[styles.row, { borderColor: t.border, backgroundColor: t.card }]}>
@@ -69,19 +90,29 @@ const CaseRow = memo(function CaseRow({
             )}
 
             <View style={[styles.stage, { backgroundColor: t.stage, borderColor: t.border }]}>
-                <PixodeskSvgAnimator
+                {!loadError && !!doc && <PixodeskSvgAnimator
                     // Remounting on `active` restarts cleanly when a row scrolls
                     // back into view, and leaves off-screen rows completely idle.
                     key={(active ? 'play' : 'idle') + (loop ? '-loop' : '')}
-                    doc={item.doc as any}
+                    doc={doc as any}
                     autoplay={active}
                     // The fixtures are authored one-shot (1s, no iterations), which
                     // is right for the editor's frame-by-frame inspection but means
                     // a row would be finished before you scrolled to it.
                     iterations={loop ? 'infinite' : undefined}
                     apiRef={api}
-                />
+                    // A case that fails is reported in place — the surrounding
+                    // list, and the other 117 cases, keep working.
+                    onError={(e: Error) => { setError(e); onError(item.id, e); }}
+                    fallback={() => null}
+                />}
             </View>
+
+            {!!(error || loadError) && (
+                <Text style={[styles.rowError, { color: t.error }]} numberOfLines={4}>
+                    ⚠ {(error ?? loadError)!.message}
+                </Text>
+            )}
         </View>
     );
 });
@@ -91,6 +122,14 @@ const CaseRow = memo(function CaseRow({
 // ---------------------------------------------------------------------------
 
 export default function App() {
+    return (
+        <AppErrorBoundary>
+            <Explorer />
+        </AppErrorBoundary>
+    );
+}
+
+function Explorer() {
     const scheme = useColorScheme();
     const [dark, setDark] = useState(scheme !== 'light');
     const t: Theme = dark ? darkTheme : lightTheme;
@@ -99,11 +138,48 @@ export default function App() {
     const [loop, setLoop] = useState(true);
     const [query, setQuery] = useState('');
     const [visibleIds, setVisibleIds] = useState<Set<string>>(new Set());
+    const [errors, setErrors] = useState<Array<{ id: string; message: string }>>([]);
+    const [showErrors, setShowErrors] = useState(false);
+
+    const logError = useCallback((id: string, error: Error) => {
+        setErrors(prev => {
+            const message = String(error?.message ?? error);
+            // The same case can fail on every re-render; keep one entry each.
+            if (prev.some(e => e.id === id && e.message === message)) return prev;
+            return [...prev, { id, message }];
+        });
+    }, []);
+
+    // Uncaught JS errors would otherwise be a red screen in development and a
+    // silent death in production. Capture them into the same panel so a failure
+    // while scrolling is visible on the device instead of ending the session.
+    useEffect(() => {
+        const utils = (globalThis as any).ErrorUtils;
+        if (!utils?.getGlobalHandler) return;
+        const previous = utils.getGlobalHandler();
+        utils.setGlobalHandler((error: Error, isFatal?: boolean) => {
+            logError(isFatal ? 'uncaught (fatal)' : 'uncaught', error);
+            setShowErrors(true);
+            previous?.(error, isFatal);
+        });
+        return () => utils.setGlobalHandler(previous);
+    }, [logError]);
     // Viewability reporting is not guaranteed on every platform (notably
     // react-native-web). Until it has reported at least once, treat every
     // MOUNTED row as visible — virtualisation already keeps that set small, so
     // the fallback can never mean "118 animations at once".
     const [viewabilityReady, setViewabilityReady] = useState(false);
+
+    // Mount the header first and the list one frame later. Building the first
+    // rows means compiling those animations, which is the single most expensive
+    // thing this app does; deferring it gets the UI on screen immediately
+    // instead of after that work, and makes a slow start visible as "Loading…"
+    // rather than as a frozen white screen.
+    const [listReady, setListReady] = useState(false);
+    useEffect(() => {
+        const handle = requestAnimationFrame(() => setListReady(true));
+        return () => cancelAnimationFrame(handle);
+    }, []);
 
     const sections = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -132,8 +208,9 @@ export default function App() {
             playing={playing}
             loop={loop}
             t={t}
+            onError={logError}
         />
-    ), [visibleIds, viewabilityReady, playing, loop, t]);
+    ), [visibleIds, viewabilityReady, playing, loop, t, logError]);
 
     return (
         <View style={[styles.root, { backgroundColor: t.bg }]}>
@@ -169,6 +246,31 @@ export default function App() {
                     </View>
                 </View>
 
+                {errors.length > 0 && (
+                    <View style={[styles.errorBar, { borderColor: t.error }]}>
+                        <Pressable
+                            style={styles.errorBarHead}
+                            onPress={() => setShowErrors(v => !v)}
+                        >
+                            <Text style={[styles.errorBarTitle, { color: t.error }]}>
+                                ⚠ {errors.length} error{errors.length === 1 ? '' : 's'} · tap to {showErrors ? 'hide' : 'show'}
+                            </Text>
+                            <Pressable hitSlop={8} onPress={() => setErrors([])}>
+                                <Text style={[styles.errorBarClear, { color: t.dim }]}>clear</Text>
+                            </Pressable>
+                        </Pressable>
+                        {showErrors && (
+                            <ScrollView style={styles.errorList} nestedScrollEnabled>
+                                {errors.map((e, i) => (
+                                    <Text key={i} style={[styles.errorItem, { color: t.fg }]} selectable>
+                                        <Text style={{ color: t.error }}>{e.id}</Text>{'  '}{e.message}
+                                    </Text>
+                                ))}
+                            </ScrollView>
+                        )}
+                    </View>
+                )}
+
                 <TextInput
                     value={query}
                     onChangeText={setQuery}
@@ -180,6 +282,9 @@ export default function App() {
                 />
             </View>
 
+            {!listReady ? (
+                <Text style={[styles.empty, { color: t.dim }]}>Loading {CASE_COUNT} cases…</Text>
+            ) : (
             <SectionList
                 sections={sections}
                 keyExtractor={item => item.id}
@@ -204,13 +309,14 @@ export default function App() {
                     <Text style={[styles.empty, { color: t.dim }]}>No cases match “{query}”.</Text>
                 }
             />
+            )}
             <StatusBar style={dark ? 'light' : 'dark'} />
         </View>
     );
 }
 
-const darkTheme = { bg: '#12121c', card: '#1c1c2b', stage: '#ffffff', fg: '#f2f2f7', dim: '#8b8ba0', border: '#33334a', accent: '#0087ff' };
-const lightTheme = { bg: '#f4f5f9', card: '#ffffff', stage: '#ffffff', fg: '#14141c', dim: '#6b6b7d', border: '#d7d9e3', accent: '#0069cc' };
+const darkTheme = { bg: '#12121c', card: '#1c1c2b', stage: '#ffffff', fg: '#f2f2f7', dim: '#8b8ba0', border: '#33334a', accent: '#0087ff', error: '#ff6b6b' };
+const lightTheme = { bg: '#f4f5f9', card: '#ffffff', stage: '#ffffff', fg: '#14141c', dim: '#6b6b7d', border: '#d7d9e3', accent: '#0069cc', error: '#c62828' };
 
 const styles = StyleSheet.create({
     root: { flex: 1 },
@@ -236,6 +342,15 @@ const styles = StyleSheet.create({
     replay: { fontSize: 18, paddingHorizontal: 4 },
     caseDesc: { fontSize: 11, lineHeight: 15 },
     stage: { borderWidth: 1, borderRadius: 10, aspectRatio: 1.6, overflow: 'hidden' },
+
+    rowError: { fontSize: 11, lineHeight: 15 },
+
+    errorBar: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
+    errorBarHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    errorBarTitle: { fontSize: 12, fontWeight: '600', flexShrink: 1 },
+    errorBarClear: { fontSize: 12, paddingHorizontal: 4 },
+    errorList: { maxHeight: 150, marginTop: 6 },
+    errorItem: { fontSize: 11, lineHeight: 16, marginBottom: 4 },
 
     empty: { textAlign: 'center', paddingVertical: 40, fontSize: 13 },
 });

@@ -16,6 +16,8 @@
     "example:web": "pnpm --filter @pixodesk/example-web dev",
     "example:rn": "pnpm --filter @pixodesk/example-react-native-preview-player start",
     "example:rn:explorer": "pnpm --filter @pixodesk/example-react-native-feature-explorer start",
+    "example:rn:explorer:clear": "pnpm --filter @pixodesk/example-react-native-feature-explorer start:clear",
+    "example:rn:explorer:tunnel": "pnpm --filter @pixodesk/example-react-native-feature-explorer start:tunnel",
     "example:rn:ios": "pnpm --filter @pixodesk/example-react-native-preview-player ios",
     "example:rn:android": "pnpm --filter @pixodesk/example-react-native-preview-player android",
     "example:rn:web": "pnpm --filter @pixodesk/example-react-native-preview-player web"

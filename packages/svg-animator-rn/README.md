@@ -185,9 +185,31 @@ const [timeMs, setTimeMs] = useState(0);
 | `onFinish` | `() => void` | Called on natural finish |
 | `onCancel` | `() => void` | Called on cancel |
 | `onStop` | `() => void` | Called whenever playback halts (pause / cancel / finish) |
+| `onError` | `(error, componentStack?) => void` | Called when a document cannot be compiled or rendered |
+| `fallback` | `(error) => ReactElement \| null` | Rendered in place of a failed animation (default: nothing) |
 
 With none of `autoplay` / `play` / `pause` / `time` / `timeMs` set, the component
 renders the animation statically (initial state, no playback).
+
+### Failure handling
+
+The component never throws for a bad document. Compilation and rendering both
+run inside `try`/`catch`, and the rendered tree sits behind an error boundary,
+so a failure is reported through `onError` and shows `fallback` while the
+surrounding screen keeps working.
+
+```tsx
+<PixodeskSvgAnimator
+    doc={doc}
+    autoplay
+    onError={e => console.warn('animation failed:', e.message)}
+    fallback={() => <Text>could not play this animation</Text>}
+/>
+```
+
+This covers JavaScript errors. A crash inside react-native-svg's **native**
+renderer never reaches JavaScript and cannot be caught — see
+[Known limitations](#known-limitations).
 
 ### Differences from the React package
 
@@ -314,6 +336,15 @@ player sees plain nodes. **All are supported:**
 - **`retime.timeCrop`** and **animated `gradientTransform`** are unimplemented
   in the core, so they are unavailable here too.
 - **`mouseOver`** has no touch analogue and will not be implemented.
+- **Text on a closed path is worked around, not fixed.** react-native-svg's
+  native text-on-path layout crashes the app (an `NSRangeException` on iOS) when
+  a `<textPath>` has a non-zero `startOffset` on a *closed* path: it bounds
+  glyph placement by `startOffset … startOffset + pathLength` instead of
+  `0 … pathLength`, so glyphs past the end of the path reach a lookup that
+  returns `NSNotFound`. On native the player gives such a `<textPath>` its own
+  open copy of the path (`openClosedTextPathTargets`), which restores the
+  correct bounds. Text that would have wrapped around past the end of the loop
+  is clipped instead. Web is unaffected and left untouched.
 
 ## Monorepo setup
 
@@ -356,9 +387,17 @@ For custom rendering or diagnostics:
 
 - `renderRnNode(node, opts)` — render a `PxNode` tree to `react-native-svg`
   elements, with a `decorate` hook for wrapping animated elements.
-- `compileTracks(doc, { sampleRate, maxSamples })` — build the sampled tracks
-  yourself; `sampleRate` trades memory for temporal precision (default 60/s).
-- `sampleProps(tracks, tMs, stepMs, sampleCount)` — the worklet-safe lookup.
+- `compileTracks(doc, { sampleRate, maxSamples, native })` — build the sampled
+  tracks yourself; `sampleRate` trades memory for temporal precision
+  (default 60/s). `native` selects the value form: the default is the SVG/DOM
+  one, `true` gives what the native views want (a `transform` becomes a
+  6-number matrix).
+- `sampleProps(tracks, tMs, stepMs, sampleCount, native)` — the worklet-safe
+  lookup. `native` renames `transform` to the native views' `matrix`; pass it
+  only for values going through reanimated's animated-props path on a device.
+- `openClosedTextPathTargets(doc, warnings?)` — the closed-path `<textPath>`
+  workaround described under [Known limitations](#known-limitations).
+- `PxRnErrorBoundary` — the boundary the component wraps itself in.
 - `RN_SVG_COMPONENTS`, `toRnPropName` — the tag and attribute maps.
 
 ## Example app

@@ -112,7 +112,15 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
     let childElements: ReactNode = undefined;
     if (Array.isArray(children) && children.length > 0) {
         childElements = children
-            .map((ch: PxNode, i: number) => renderRnNode(ch, opts, i))
+            .map((ch: PxNode, i: number) => {
+                // One malformed child should cost that child, not the whole tree.
+                try {
+                    return renderRnNode(ch, opts, i);
+                } catch (e) {
+                    opts.warnings?.push('child failed to render: ' + (e instanceof Error ? e.message : String(e)));
+                    return null;
+                }
+            })
             .filter(Boolean);
     } else if (textContent !== undefined) {
         childElements = String(textContent);
