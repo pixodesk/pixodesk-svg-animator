@@ -97,8 +97,14 @@ export function setupAnimationTriggers(
         }
 
         case 'mouseOver': {
-            const mouseOverHandler = () => start();
-            const mouseOutHandler = () => handleEndAction();
+            // An OUT may only follow an IN. A `mouseleave` with no preceding `mouseenter` happens
+            // when the pointer is already over the element at load and then moves away — and for
+            // `outAction: 'reverse'` the out action PLAYS (`setPlaybackRate(-1); play()`), so an
+            // untriggered leave would start the animation running backwards. Same class of bug as
+            // the scrollIntoView initial-intersection case handled below.
+            let enteredOnce = false;
+            const mouseOverHandler = () => { enteredOnce = true; start(); };
+            const mouseOutHandler = () => { if (enteredOnce) handleEndAction(); };
 
             root.addEventListener('mouseenter', mouseOverHandler);
             root.addEventListener('mouseleave', mouseOutHandler);
