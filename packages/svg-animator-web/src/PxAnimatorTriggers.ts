@@ -130,12 +130,35 @@ export function setupAnimationTriggers(
             // treating that as an out-action ran it before anything had ever played. For `reverse`
             // that meant `setPlaybackRate(-1)` + `play()`, i.e. the animation started running
             // BACKWARDS on page load. An OUT is only meaningful after an IN, so require one.
+            // A target TALLER than the viewport can never reach a high ratio (ratio is measured
+            // against the TARGET's own size), so a 0.5/0.9 threshold would be unsatisfiable and the
+            // animation would never play. Normalise by what could possibly be visible, and register
+            // a granular threshold list — registering the raw threshold would mean the callback
+            // never fires at all for such a target.
+            const effectiveRatio = (entry: IntersectionObserverEntry): number => {
+                const target = entry.boundingClientRect;
+                const visible = entry.intersectionRect;
+                // Simplified entries (tests, older engines) may omit the rects — fall back to the
+                // browser's own ratio rather than inventing one.
+                if (!target?.height || !visible) return entry.intersectionRatio;
+                // Use the SMALLER of `rootBounds` and the live viewport. `rootBounds` can be null
+                // (implicit root in some embeddings) and can also report a box LARGER than the
+                // actual viewport — trusting it then reinstates the very cap this normalisation
+                // exists to remove. `intersectionRect` is already clipped to the real viewport, so
+                // the denominator must be too.
+                const live = typeof window !== 'undefined' && window.innerHeight ? window.innerHeight : Infinity;
+                const declared = entry.rootBounds?.height ?? Infinity;
+                const viewport = Math.min(live, declared);
+                const denom = Math.min(target.height, Number.isFinite(viewport) ? viewport : target.height);
+                return denom > 0 ? visible.height / denom : entry.intersectionRatio;
+            };
+            const thresholdSteps = Array.from({ length: 21 }, (_, i) => i / 20);
             let wasIntersecting = false;
             const observer = new IntersectionObserver(
                 entries => {
                     entries.forEach(entry => {
                         // If the element is at least partially visible
-                        if (entry.isIntersecting && entry.intersectionRatio >= scrollIntoViewThreshold) {
+                        if (entry.isIntersecting && effectiveRatio(entry) >= scrollIntoViewThreshold) {
                             wasIntersecting = true;
                             start();
                         } else if (wasIntersecting) {
@@ -145,7 +168,7 @@ export function setupAnimationTriggers(
                         }
                     });
                 },
-                { threshold: scrollIntoViewThreshold }
+                { threshold: thresholdSteps }
             );
             observer.observe(root);
             break;

@@ -154,7 +154,13 @@ describe('setupAnimationTriggers', () => {
             setupAnimationTriggers(api, { startOn: 'scrollIntoView', outAction: 'pause' });
 
             expect(io.observed).toBe(root);
-            expect(io.options).toEqual({ threshold: 0 });
+            // The observer registers a GRANULAR threshold list, not the author's raw value: a
+            // target taller than the viewport can never reach a high ratio, so registering the raw
+            // threshold would mean the callback never fires. The author's value is applied to a
+            // NORMALISED ratio inside the callback instead (asserted by the behaviour tests below).
+            expect(Array.isArray(io.options.threshold)).toBe(true);
+            expect(io.options.threshold).toContain(0);
+            expect(io.options.threshold).toContain(1);
 
             // Keep in sync with the editor model's default
             // (TSvgSvgAnimationAttr.scrollIntoViewThreshold) — a barely-visible element starts.
@@ -179,7 +185,9 @@ describe('setupAnimationTriggers', () => {
             const { api } = createMockApi();
             setupAnimationTriggers(api, { startOn: 'scrollIntoView', scrollIntoViewThreshold: 0.8 });
 
-            expect(io.options).toEqual({ threshold: 0.8 });
+            // See the note above: the registration is a granular list; the 0.8 gate is applied to
+            // the normalised ratio in the callback, which the assertions below exercise.
+            expect(Array.isArray(io.options.threshold)).toBe(true);
 
             io.callback!([{ isIntersecting: true, intersectionRatio: 0.6 }]);
             expect(api.play).not.toHaveBeenCalled();
