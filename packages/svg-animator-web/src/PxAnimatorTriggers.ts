@@ -118,14 +118,23 @@ export function setupAnimationTriggers(
         }
 
         case 'scrollIntoView': {
+            // `observe()` delivers an INITIAL entry describing the CURRENT state, which is how an
+            // element that is already on screen starts without any scrolling. But that same initial
+            // entry also reports "not intersecting" for an element merely below the fold — and
+            // treating that as an out-action ran it before anything had ever played. For `reverse`
+            // that meant `setPlaybackRate(-1)` + `play()`, i.e. the animation started running
+            // BACKWARDS on page load. An OUT is only meaningful after an IN, so require one.
+            let wasIntersecting = false;
             const observer = new IntersectionObserver(
                 entries => {
                     entries.forEach(entry => {
                         // If the element is at least partially visible
                         if (entry.isIntersecting && entry.intersectionRatio >= scrollIntoViewThreshold) {
+                            wasIntersecting = true;
                             start();
-                        } else {
-                            // Element scrolled off screen -> trigger handleEndAction
+                        } else if (wasIntersecting) {
+                            // Element scrolled OFF screen after having been on it -> out action
+                            wasIntersecting = false;
                             handleEndAction();
                         }
                     });
