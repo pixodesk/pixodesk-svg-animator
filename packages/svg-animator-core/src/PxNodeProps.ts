@@ -208,6 +208,12 @@ export function getNormalizedProps(props: Record<string, any>) {
             }
             if (key === 'rotate') value = value + 'deg';
             propsCopy['transform'] = key + '(' + value + ')';
+        } else if (Array.isArray(value)) {
+            // Raw-array STATIC form of number-list attributes — `strokeDasharray: [16, 16]`
+            // (the wire's canonical static shape; the string form "16,16" is also accepted
+            // and passes through the String() branch below). SVG list attributes take the
+            // comma-separated string. Colour arrays were already handled above.
+            propsCopy[key] = value.join(',');
         } else if (value !== undefined && value !== null) {
             propsCopy[key] = String(value);
         }

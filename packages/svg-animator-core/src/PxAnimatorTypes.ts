@@ -757,25 +757,30 @@ const _ck_PxBinding: KeysMatch<PxBinding, _PxBinding> = true; // the key sets ar
 /**
  * Per-attribute value shape on the element body. A property key carries either:
  * - a primitive (string/number) — static SVG attribute
+ * - a number array — static number-LIST attribute (`strokeDasharray: [16, 16]`);
+ *   the canonical static form for list attrs (the "5,5" string form is also
+ *   accepted). Raw arrays are unambiguous — only plain OBJECTS need the
+ *   `{value}` wrapper.
  * - a `{value: …}` object — structured static parametric source (record-shaped
  *   static value, used by attributes whose static representation is itself a
  *   record — notably `transform: {value: PxTransformParts}`)
  * - a `{keyframes}` / `{kfs}` object — inline property animation
  *
- * The unified rule (primitive | `{value}` | `{keyframes}`) applies across the
- * format. For most attributes the `{value}` form is rarely used on the body
+ * The unified rule (primitive/array | `{value}` | `{keyframes}`) applies across
+ * the format. For most attributes the `{value}` form is rarely used on the body
  * (a primitive suffices for static); for `transform` it is the canonical
  * structured-static shape. See `PxTransformValueSchema`.
  */
 export const PxAttrValueSchema = px.union([
     px.string(),
     px.number(),
+    px.array(px.number()),
     px.object({ value: px.any() }),
     PxPropertyAnimationSchema,
 ]);
 
-/** Per-attribute value: primitive for static, `{value}` for structured static, `PxPropertyAnimation` for animated. */
-export type PxAttrValue = string | number | { value: any } | PxPropertyAnimation;
+/** Per-attribute value: primitive/number-array for static, `{value}` for structured static, `PxPropertyAnimation` for animated. */
+export type PxAttrValue = string | number | Array<number> | { value: any } | PxPropertyAnimation;
 
 
 /**
