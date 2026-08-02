@@ -46,12 +46,13 @@
 import { applyTransformationEffect } from './transformationEffect';
 import type { PxAnimatable, PxAnimationDefinition, PxKeyframe, PxNode, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
+import { stripHash } from './util';
 
 
 /** Walks the tree and collects every id referenced by a `<use>` with `ref:{type:'content'}`. */
 export function identifyContentRefTargets(node: PxNode, ctx: ApplyContext, allocator: (key: string) => string): void {
     if (node.type === 'use' && node.effects?.clone?.type === 'content') {
-        const baseId = node.effects.clone.baseId;
+        const baseId = stripHash(node.effects.clone.baseId);  // `#id` canonical, bare legacy (E-5)
         if (typeof baseId === 'string' && baseId && !ctx.contentRefInnerIds.has(baseId)) {
             ctx.contentRefInnerIds.set(baseId, allocator(baseId));
         }

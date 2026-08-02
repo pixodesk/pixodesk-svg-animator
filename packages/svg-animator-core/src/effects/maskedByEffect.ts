@@ -7,7 +7,7 @@
 import type { PxAnimatable, PxMaskedByEffect, PxNode, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
 import { keyframeWith, partsRecord, ReadKind, readAnimatable, readStaticOrigin, TransformPart } from './transformParts';
 import type { ApplyContext, MaskAncestorTransform } from './types';
-import { genId } from './util';
+import { genId, stripHash } from './util';
 
 
 /**
@@ -37,11 +37,13 @@ export function applyMaskedByEffect(
     ctx: ApplyContext,
 ): PxNode {
     if (!fx) return node;
-    if (!fx.href) { ctx.errors.push('maskedBy.href missing — cannot build mask'); return node; }
+    // Canonical ref spelling is `#id` (SCHEMA-ANALYSIS §4 E-5); bare `id` is legacy.
+    const sourceId = stripHash(fx.href);
+    if (!sourceId) { ctx.errors.push('maskedBy.href missing — cannot build mask'); return node; }
 
     const maskId = genId(ctx, 'mask');
 
-    let content: PxNode = { type: 'use', href: '#' + fx.href };
+    let content: PxNode = { type: 'use', href: '#' + sourceId };
     // `effects.transformation` (split-timing form) gets full per-part inversion
     // through `wrapInverseTransform`. With no `effects.transformation` the
     // masked element's transform lives on the body — invert the STATIC part
@@ -62,7 +64,7 @@ export function applyMaskedByEffect(
     // Skip `targetOwn` translate when we already inverted the body (otherwise
     // the translate would be subtracted twice).
     const includeTargetOwn = transformation === undefined && !nodeHasBodyTransform(node);
-    content = wrapAncestorChainCompensation(content, node, fx.href, ctx, includeTargetOwn);
+    content = wrapAncestorChainCompensation(content, node, sourceId, ctx, includeTargetOwn);
 
     const mask: PxNode = { type: 'mask', id: maskId, children: [content] };
     if (fx.maskType) mask.maskType = fx.maskType;
@@ -453,7 +455,7 @@ export function collectMaskAncestorChains(root: PxNode, ctx: ApplyContext): void
     // those nodes.
     const interestingNodes = new Set<PxNode>();
     const collectInterestingNodes = (n: PxNode): void => {
-        const href = n.effects?.maskedBy?.href;
+        const href = stripHash(n.effects?.maskedBy?.href);
         if (typeof href === 'string') {
             interestingNodes.add(n);                          // masked element
             const sourceNode = ctx.idMap.get(href);

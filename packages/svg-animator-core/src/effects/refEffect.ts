@@ -18,6 +18,7 @@
 import { applyTransformationEffect } from './transformationEffect';
 import type { PxCloneEffect, PxNode, PxTransformationEffect } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
+import { stripHash } from './util';
 
 const CONTENT_SUBREF = 'content';
 
@@ -40,7 +41,8 @@ export function applyRefHref(
     ctx: ApplyContext,
 ): void {
     if (!clone) return;
-    const baseId = clone.baseId;
+    // Canonical ref spelling is `#id` (SCHEMA-ANALYSIS §4 E-5); bare `id` is legacy.
+    const baseId = stripHash(clone.baseId);
     if (!baseId) {
         if (clone.type === CONTENT_SUBREF) ctx.errors.push('clone: content ref missing baseId');
         return; // direct link → href already correct, nothing to rewrite

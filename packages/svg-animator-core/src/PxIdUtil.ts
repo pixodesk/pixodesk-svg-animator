@@ -118,11 +118,14 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
                 else if (urlRefAttrs.has(key)) {
                     node[key] = replaceUrlRefs(value, idMap);
                 }
-                // Check for direct ID references: baseId="_px_xxx"
+                // Check for direct ID references: baseId="#_px_xxx" (canonical `#id`,
+                // SCHEMA-ANALYSIS §4 E-5) or bare baseId="_px_xxx" (legacy) —
+                // rewrite preserving the incoming spelling.
                 else if (directIdRefAttrs.has(key)) {
-                    const newId = idMap.get(value);
+                    const hasHash = value.startsWith('#');
+                    const newId = idMap.get(hasHash ? value.slice(1) : value);
                     if (newId) {
-                        node[key] = newId;
+                        node[key] = hasHash ? '#' + newId : newId;
                     }
                 }
                 // Check for url() in any string value (e.g., in style strings)

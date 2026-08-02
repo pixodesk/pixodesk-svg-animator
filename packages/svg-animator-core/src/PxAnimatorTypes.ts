@@ -956,7 +956,8 @@ export type PxRepeaterEffect = PxInfer<typeof PxRepeaterEffectSchema>;
 const _ck_PxRepeaterEffect: KeysMatch<PxRepeaterEffect, _PxRepeaterEffect> = true;
 
 
-/** Mask source ref + standard `<mask>` attributes. */
+/** Mask source ref + standard `<mask>` attributes.
+ *  `href` is `#id` (canonical ref spelling, SCHEMA-ANALYSIS §4 E-5); bare `id` is legacy, read-only. */
 export interface _PxMaskedByEffect {
     href?: string;
     maskType?: string;
@@ -1024,7 +1025,7 @@ export type PxTrimPathEffect = PxInfer<typeof PxTrimPathEffectSchema>;
 const _ck_PxTrimPathEffect: KeysMatch<PxTrimPathEffect, _PxTrimPathEffect> = true;
 
 
-/** `<use>` retime: `baseId` = source; `start`/`timeCrop` in ms.
+/** `<use>` retime: `baseId` = source (`#id` canonical, bare legacy); `start`/`timeCrop` in ms.
  *  NOTE: `timeCrop` is accepted on the wire but not implemented yet — the
  *  applier warns and ignores it (see `effects/retimeEffect.ts`). */
 export interface _PxRetimeEffect {
@@ -1048,7 +1049,8 @@ const _ck_PxRetimeEffect: KeysMatch<PxRetimeEffect, _PxRetimeEffect> = true;
  * of something: `type`/`baseId` say WHAT it clones, `retime` says WHEN.
  *   - `type: 'content'` → content-ref (excludes the target's own translate);
  *     `type` absent → direct / whole-element link (keeps translate).
- *   - `baseId` = the source element id (lives once here; the player follows `href`).
+ *   - `baseId` = the source element ref, `#id` (canonical spelling, SCHEMA-ANALYSIS §4 E-5;
+ *     bare `id` is legacy, read-only). Lives once here; the player follows `href`.
  *   - `retime` = optional time-shift (nested).
  * Omitted entirely when all-default (a bare `<use href>` carries no `clone` bucket).
  */
