@@ -94,12 +94,11 @@ describe('gradient geometry animation', () => {
             type: 'ellipse', id: 'a', rx: 50, ry: 50, transform: 'translate(100,100)',
             effects: {
                 fillGradient: {
-                    type: 'linear', p1: [-45, -45], p2: [45, 45],
+                    type: 'linear',
+                    // GRAMMAR-1 slots — the old `animate.gradientY1…` channels were removed.
+                    p1: { value: [-45, -45], keyframes: [{ time: 0, value: [-45, -45] }, { time: 1000, value: [-45, 45] }] },
+                    p2: { value: [45, 45], keyframes: [{ time: 0, value: [45, 45] }, { time: 1000, value: [45, -45] }] },
                     stops: [{ offset: 0, color: '#ff0000' }, { offset: 1, color: '#0000ff' }],
-                    animate: {
-                        gradientY1: { keyframes: [{ time: 0, value: -45 }, { time: 1000, value: 45 }] },
-                        gradientY2: { keyframes: [{ time: 0, value: 45 }, { time: 1000, value: -45 }] },
-                    },
                 },
             },
         }],
@@ -137,15 +136,11 @@ describe('gradient geometry animation', () => {
                 type: 'ellipse', id: 'a', rx: 50, ry: 50,
                 effects: {
                     fillGradient: {
-                        type: 'radial', c: [0, 0], r: 50, fp: [0, 0],
+                        type: 'radial',
+                        c: { value: [0, 0], keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [20, 30] }] },
+                        fp: { value: [0, 0], keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [10, 15] }] },
+                        r: { value: 50, keyframes: [{ time: 0, value: 50 }, { time: 1000, value: 90 }] },
                         stops: [{ offset: 0, color: '#fff' }, { offset: 1, color: '#000' }],
-                        animate: {
-                            gradientCx: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 20 }] },
-                            gradientCy: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 30 }] },
-                            gradientFx: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 10 }] },
-                            gradientFy: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 15 }] },
-                            gradientR: { keyframes: [{ time: 0, value: 50 }, { time: 1000, value: 90 }] },
-                        },
                     },
                 },
             }],

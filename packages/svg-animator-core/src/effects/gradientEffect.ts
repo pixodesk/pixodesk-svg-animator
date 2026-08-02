@@ -84,20 +84,9 @@ function synthesiseGradientDef(fx: PxFillGradientEffect, id: string, ctx: ApplyC
     if (fx.spreadMethod)      out.spreadMethod = fx.spreadMethod;
     if (fx.gradientTransform) out.gradientTransform = fx.gradientTransform;
 
-    // LEGACY animated geometry: older files carry per-scalar channels under
-    // `fx.animate` (`gradientX1`, `gradientFy`, …) instead of animating the
-    // slots directly. Map them onto the def's `animate` under the real SVG attr
-    // names; slot-driven channels (above) win on collision.
-    type ElementAnim = NonNullable<PxNode['animate']>;
-    const legacyAnimate = (fx as { animate?: ElementAnim }).animate;
-    if (legacyAnimate) {
-        const mapped: ElementAnim = (out.animate as ElementAnim | undefined) ?? {};
-        for (const wireKey of Object.keys(legacyAnimate)) {
-            const attr = GRADIENT_ANIM_CHANNEL_TO_ATTR[wireKey];
-            if (attr && mapped[attr] === undefined) mapped[attr] = legacyAnimate[wireKey];
-        }
-        if (Object.keys(mapped).length) out.animate = mapped;
-    }
+    // (The old per-scalar `fx.animate.gradientX1…` channels are NOT read any
+    // more — geometry animates on the slots above. Backward compat dropped
+    // deliberately; a leftover `animate` key is flagged by strict validation.)
 
     out.children = buildStopChildren(fx.stops, ctx);
     return out;
@@ -142,12 +131,6 @@ function applyGeomNumber(out: PxNode, attrName: string, raw: PxAnimatable<number
     if (read.kind === ReadKind.Absent) return;
     writeAnimatableChannel(out, attrName, read, { asString: true });
 }
-
-/** Wire `fx.animate` channel → the SVG gradient-def attribute it drives. */
-const GRADIENT_ANIM_CHANNEL_TO_ATTR: Record<string, string> = {
-    gradientX1: 'x1', gradientY1: 'y1', gradientX2: 'x2', gradientY2: 'y2',
-    gradientCx: 'cx', gradientCy: 'cy', gradientFx: 'fx', gradientFy: 'fy', gradientR: 'r',
-};
 
 /** Emits one `<stop>` per gradient stop. Stops come from EITHER the static
  *  array form (`stops: [{offset, color}, …]`) or the animated form

@@ -168,7 +168,7 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
         expect(def.r).toBe('5');
     });
 
-    it('gradient — LEGACY per-scalar animate channels still read; slot channels win on collision', () => {
+    it('gradient — REMOVED legacy per-scalar animate channels are ignored', () => {
         const out = materialise(doc({
             type: 'rect', width: 10, height: 10,
             effects: { fillGradient: {
@@ -178,7 +178,7 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
             } },
         }));
         const def = collectByType(out, 'linearGradient')[0] as any;
-        expect(def.animate.y1.keyframes.map((k: any) => k.value)).toEqual([40, 0]);
-        expect(def.x1).toBe('0'); // statics untouched
+        expect(def.animate).toBeUndefined(); // legacy channels dropped — statics only
+        expect(def.x1).toBe('0');
     });
 });

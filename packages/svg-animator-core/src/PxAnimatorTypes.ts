@@ -1144,50 +1144,11 @@ const PxAnimatableGradientStopsSchema = px.union([
 /** Gradient paint effect — used by both `fillGradient` and `strokeGradient`
  *  (same shape, different host attribute). Linear: `p1`/`p2`. Radial:
  *  `c`/`r`/`fp`. Stops animate as one timeline; geometry stays static. */
-/**
- * Animatable gradient GEOMETRY channels. Keyed by wire name; the applier maps
- * each onto the real SVG attribute of the gradient def it mints:
- *
- * | wire key      | linear | radial |
- * |---------------|--------|--------|
- * | `gradientX1`  | `x1`   | —      |
- * | `gradientY1`  | `y1`   | —      |
- * | `gradientX2`  | `x2`   | —      |
- * | `gradientY2`  | `y2`   | —      |
- * | `gradientCx`  | —      | `cx`   |
- * | `gradientCy`  | —      | `cy`   |
- * | `gradientFx`  | —      | `fx`   |
- * | `gradientFy`  | —      | `fy`   |
- * | `gradientR`   | —      | `r`    |
- *
- * Frames-engine only: CSS/WAAPI cannot animate gradient endpoints, so a document
- * using these falls back to the frames engine (`mode: 'auto'` handles that).
- * See `effects/gradientEffect.ts` (`GRADIENT_ANIM_CHANNEL_TO_ATTR`).
- */
-export interface _PxGradientGeometryAnimation {
-    gradientX1?: PxPropertyAnimation;
-    gradientY1?: PxPropertyAnimation;
-    gradientX2?: PxPropertyAnimation;
-    gradientY2?: PxPropertyAnimation;
-    gradientCx?: PxPropertyAnimation;
-    gradientCy?: PxPropertyAnimation;
-    gradientFx?: PxPropertyAnimation;
-    gradientFy?: PxPropertyAnimation;
-    gradientR?:  PxPropertyAnimation;
-}
-export const PxGradientGeometryAnimationSchema = implementsInterface<_PxGradientGeometryAnimation>()(px.object({
-    gradientX1: PxPropertyAnimationSchema.optional(),
-    gradientY1: PxPropertyAnimationSchema.optional(),
-    gradientX2: PxPropertyAnimationSchema.optional(),
-    gradientY2: PxPropertyAnimationSchema.optional(),
-    gradientCx: PxPropertyAnimationSchema.optional(),
-    gradientCy: PxPropertyAnimationSchema.optional(),
-    gradientFx: PxPropertyAnimationSchema.optional(),
-    gradientFy: PxPropertyAnimationSchema.optional(),
-    gradientR:  PxPropertyAnimationSchema.optional(),
-}));
-export type PxGradientGeometryAnimation = PxInfer<typeof PxGradientGeometryAnimationSchema>;
-const _ck_PxGradientGeometryAnimation: KeysMatch<PxGradientGeometryAnimation, _PxGradientGeometryAnimation> = true;
+// (The old `_PxGradientGeometryAnimation` per-scalar channel record —
+// `animate: {gradientX1: …}` — was REMOVED outright, read included: geometry
+// animates on the `p1`/`p2`/`c`/`r`/`fp` slots. Backward compat dropped
+// deliberately. Frames-engine-only note still applies to animated geometry:
+// CSS/WAAPI cannot animate gradient endpoints; `mode: 'auto'` handles it.)
 
 export interface _PxFillGradientEffect {
     type: PxGradientType;                                 // 'linear' | 'radial'
@@ -1200,10 +1161,6 @@ export interface _PxFillGradientEffect {
     gradientUnits?:  string;                              // PxGradientUnits values
     spreadMethod?:   string;                              // PxGradientSpreadMethod values
     gradientTransform?: string;                           // static only in v1
-    /** @deprecated legacy animated-geometry form (per-scalar `gradientX1`/… channels) —
-     *  read-only; geometry now animates on `p1`/`p2`/`c`/`r`/`fp` directly.
-     *  Frames-engine only — see {@link _PxGradientGeometryAnimation}. */
-    animate?: _PxGradientGeometryAnimation;
 }
 export const PxFillGradientEffectSchema = implementsInterface<_PxFillGradientEffect>()(px.object({
     type: px.enum([PxGradientType.linear, PxGradientType.radial] as const),
@@ -1216,7 +1173,6 @@ export const PxFillGradientEffectSchema = implementsInterface<_PxFillGradientEff
     gradientUnits:     px.string().optional(),
     spreadMethod:      px.string().optional(),
     gradientTransform: px.string().optional(),
-    animate: PxGradientGeometryAnimationSchema.optional(),
 }));
 export type PxFillGradientEffect = PxInfer<typeof PxFillGradientEffectSchema>;
 const _ck_PxFillGradientEffect: KeysMatch<PxFillGradientEffect, _PxFillGradientEffect> = true;
