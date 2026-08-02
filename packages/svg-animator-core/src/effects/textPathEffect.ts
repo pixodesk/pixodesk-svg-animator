@@ -4,9 +4,10 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import type { PxAnimatable, PxNode, PxTextPathEffect } from '../PxAnimatorTypes';
+import type { PxAnimatable, PxKeyframe, PxLoop, PxNode, PxTextPathEffect } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
 import { createPathSampler } from './pathSampler';
+import { ReadKind, readAnimatable, writeAnimatableChannel } from './transformParts';
 import { genId } from './util';
 
 
@@ -19,14 +20,11 @@ const EXTEND_MARGIN_FRAC = 0.15; // slack (× path length) to absorb sampling/me
  *  startOffset(+textLength) drives the END — using only one value (e.g. the max)
  *  misses the other end when startOffset is animated. */
 function numRange(v: PxAnimatable<number> | undefined): { min: number; max: number } {
-    if (typeof v === 'number') return { min: v, max: v };
-    if (v && typeof v === 'object') {
-        const o = v as { value?: number; keyframes?: Array<{ value?: number }> };
-        if (typeof o.value === 'number') return { min: o.value, max: o.value };
-        if (Array.isArray(o.keyframes) && o.keyframes.length) {
-            const vals = o.keyframes.map(k => Number(k.value) || 0);
-            return { min: Math.min(...vals), max: Math.max(...vals) };
-        }
+    const read = readAnimatable<number>(v);
+    if (read.kind === ReadKind.Static && typeof read.value === 'number') return { min: read.value, max: read.value };
+    if (read.kind === ReadKind.Animated && read.keyframes.length) {
+        const vals = read.keyframes.map(k => Number(k.value) || 0);
+        return { min: Math.min(...vals), max: Math.max(...vals) };
     }
     return { min: 0, max: 0 };
 }
@@ -69,14 +67,21 @@ export interface ExtendedPath {
     startShift: number;
 }
 
-/** Shift a `PxAnimatable<number>` by a constant (all keyframes). No-op for `0`. */
+/** Shift a `PxAnimatable<number>` by a constant (base + all keyframes). No-op for `0`.
+ *  Reads via the shared `readAnimatable` (kfs/loop aliases handled), emits the
+ *  normalised long form. */
 export function shiftAnimatable(v: PxAnimatable<number> | undefined, by: number): PxAnimatable<number> | undefined {
     if (!by || v === undefined || v === null) return v;
-    if (typeof v === 'number') return v + by;
-    const o = v as { value?: number; keyframes?: Array<{ value?: number }> };
-    if (typeof o.value === 'number') return { ...o, value: o.value + by };
-    if (Array.isArray(o.keyframes)) return { ...o, keyframes: o.keyframes.map(k => ({ ...k, value: (Number(k.value) || 0) + by })) };
-    return v;
+    const read = readAnimatable<number>(v);
+    if (read.kind === ReadKind.Absent) return v;
+    if (read.kind === ReadKind.Static) return typeof v === 'number' ? read.value + by : { value: read.value + by };
+    const out: { keyframes: Array<PxKeyframe<number>>; loop?: PxLoop | boolean; autoOrient?: boolean; value?: number } = {
+        keyframes: read.keyframes.map(k => ({ ...k, value: (Number(k.value) || 0) + by })),
+    };
+    if (read.loop !== undefined) out.loop = read.loop;
+    if (read.autoOrient !== undefined) out.autoOrient = read.autoOrient;
+    if (read.base !== undefined) out.value = read.base + by;
+    return out;
 }
 
 /** For `pathOverflow:'extend'` (browser-font): extend an OPEN path along its endpoint
@@ -172,31 +177,11 @@ export function applyTextPathEffect(
 }
 
 
-/** Routes a `PxAnimatable<number>` onto a node:
- *   - bare `number` / `{value:number}` → `node[attrName] = String(value)`
- *   - `{keyframes:[…]}` → `node.animate[attrName] = { keyframes }`
- *  Mirrors the pattern in `trimPathEffect.applyAttr`. */
+/** Routes a `PxAnimatable<number>` onto a node via the shared reader + emit
+ *  path (`readAnimatable` → `writeAnimatableChannel`): statics land as string
+ *  attrs, animations as `animate[attrName]` blocks with `loop`/`autoOrient`
+ *  carried through and a static first-kf baseline attr. */
 function applyAnimatableNumber(node: PxNode, attrName: string, raw: PxAnimatable<number> | undefined): void {
     if (raw === undefined || raw === null) return;
-
-    if (typeof raw === 'number') {
-        node[attrName] = String(raw);
-        return;
-    }
-    if (typeof raw === 'object' && raw !== null) {
-        const obj = raw as { value?: number; keyframes?: Array<unknown>; loop?: unknown };
-        if (Array.isArray(obj.keyframes)) {
-            const prevAnimate = node.animate && typeof node.animate === 'object' && !Array.isArray(node.animate) ? node.animate : undefined;
-            const animate: Record<string, any> = { ...(prevAnimate || {}) };
-            const block: { keyframes: Array<unknown>, loop?: unknown } = { keyframes: obj.keyframes };
-            if (obj.loop !== undefined) block.loop = obj.loop;
-            animate[attrName] = block;
-            node.animate = animate;
-            return;
-        }
-        if (typeof obj.value === 'number') {
-            node[attrName] = String(obj.value);
-            return;
-        }
-    }
+    writeAnimatableChannel(node, attrName, readAnimatable<number>(raw), { asString: true });
 }

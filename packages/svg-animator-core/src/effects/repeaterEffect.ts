@@ -5,7 +5,8 @@
 
 
 import { applyTransformationEffect } from './transformationEffect';
-import type { PxAnimatable, PxAnimationDefinition, PxNode, PxRepeaterEffect, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
+import type { PxAnimatable, PxAnimationDefinition, PxKeyframe, PxLoop, PxNode, PxRepeaterEffect, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
+import { ReadKind, readAnimatable } from './transformParts';
 import type { ApplyContext } from './types';
 import { clone } from './util';
 
@@ -85,10 +86,10 @@ function synthesisePerCopyFx(fx: PxRepeaterEffect, i: number): PxTransformationE
     const out: PxTransformationEffect = {};
 
     if (fx.translate !== undefined) {
-        out.translate = mapAnimatableVec2(fx.translate, v => [v[0] * i, v[1] * i]);
+        out.translate = mapAnimatable<Vec2>(fx.translate, v => [v[0] * i, v[1] * i]);
     }
     if (fx.rotate !== undefined) {
-        out.rotate = mapAnimatableNumber(fx.rotate, v => v * i);
+        out.rotate = mapAnimatable<number>(fx.rotate, v => v * i);
     }
     if (fx.scale !== undefined) {
         out.scale = synthesiseScale(fx.scale, i);
@@ -102,40 +103,30 @@ function synthesisePerCopyFx(fx: PxRepeaterEffect, i: number): PxTransformationE
     return Object.keys(out).length ? out : undefined;
 }
 
-/** Applies `fn` to every value in an animatable Vec2 (static / `{value}` / `{keyframes}`). */
-function mapAnimatableVec2(raw: PxAnimatable<Vec2>, fn: (v: Vec2) => Vec2): PxAnimatable<Vec2> {
-    if (Array.isArray(raw)) return fn(raw as Vec2);
-    if (raw && typeof raw === 'object') {
-        const obj = raw as { value?: Vec2; keyframes?: Array<any>; autoOrient?: boolean };
-        if (Array.isArray(obj.keyframes)) {
-            return {
-                ...obj,
-                keyframes: obj.keyframes.map(kf => kf && kf.value !== undefined ? { ...kf, value: fn(kf.value) } : kf),
-            } as PxAnimatable<Vec2>;
-        }
-        if (obj.value !== undefined) {
-            return { ...obj, value: fn(obj.value) } as PxAnimatable<Vec2>;
-        }
+/**
+ * Applies `fn` to every value of an animatable (base + all keyframes) via the
+ * shared `readAnimatable` — one mapper for number and Vec2 parts alike (the old
+ * per-type copies missed the `kfs` alias, so an alias-authored part silently
+ * skipped its ×i scaling). Re-emits the normalised unified form:
+ * raw static in → raw static out (or `{value}` when `wrapStatic`); animated in →
+ * `{keyframes, loop?, autoOrient?, value?}` with kf values mapped and
+ * time/easing/tangents preserved.
+ */
+function mapAnimatable<T>(raw: PxAnimatable<T>, fn: (v: T) => T, wrapStatic = false): PxAnimatable<T> {
+    const read = readAnimatable<T>(raw);
+    if (read.kind === ReadKind.Absent) return raw;
+    if (read.kind === ReadKind.Static) {
+        const mapped = fn(read.value);
+        const wasRawStatic = typeof raw === 'number' || Array.isArray(raw);
+        return (wasRawStatic && !wrapStatic) ? mapped : { value: mapped };
     }
-    return raw;
-}
-
-/** Applies `fn` to every value in an animatable number (static / `{value}` / `{keyframes}`). */
-function mapAnimatableNumber(raw: PxAnimatable<number>, fn: (v: number) => number): PxAnimatable<number> {
-    if (typeof raw === 'number') return fn(raw);
-    if (raw && typeof raw === 'object') {
-        const obj = raw as { value?: number; keyframes?: Array<any>; autoOrient?: boolean };
-        if (Array.isArray(obj.keyframes)) {
-            return {
-                ...obj,
-                keyframes: obj.keyframes.map(kf => kf && kf.value !== undefined ? { ...kf, value: fn(kf.value) } : kf),
-            } as PxAnimatable<number>;
-        }
-        if (obj.value !== undefined) {
-            return { ...obj, value: fn(obj.value) } as PxAnimatable<number>;
-        }
-    }
-    return raw;
+    const out: { keyframes: Array<PxKeyframe<T>>; loop?: PxLoop | boolean; autoOrient?: boolean; value?: T } = {
+        keyframes: read.keyframes.map(kf => kf && kf.value !== undefined ? { ...kf, value: fn(kf.value) } : kf),
+    };
+    if (read.loop !== undefined) out.loop = read.loop;
+    if (read.autoOrient !== undefined) out.autoOrient = read.autoOrient;
+    if (read.base !== undefined) out.value = fn(read.base);
+    return out;
 }
 
 /**
@@ -149,21 +140,5 @@ function mapAnimatableNumber(raw: PxAnimatable<number>, fn: (v: number) => numbe
  */
 function synthesiseScale(raw: PxAnimatable<Vec2>, i: number): PxAnimatable<Vec2> {
     const scalePower = (v: Vec2): Vec2 => [Math.pow(v[0], i), Math.pow(v[1], i)];
-
-    if (Array.isArray(raw)) {
-        return { value: scalePower(raw as Vec2) };
-    }
-    if (raw && typeof raw === 'object') {
-        const obj = raw as { value?: Vec2; keyframes?: Array<any>; autoOrient?: boolean };
-        if (Array.isArray(obj.keyframes)) {
-            return {
-                ...obj,
-                keyframes: obj.keyframes.map(kf => kf && kf.value !== undefined ? { ...kf, value: scalePower(kf.value) } : kf),
-            } as PxAnimatable<Vec2>;
-        }
-        if (obj.value !== undefined) {
-            return { ...obj, value: scalePower(obj.value) } as PxAnimatable<Vec2>;
-        }
-    }
-    return raw;
+    return mapAnimatable<Vec2>(raw, scalePower, true);
 }

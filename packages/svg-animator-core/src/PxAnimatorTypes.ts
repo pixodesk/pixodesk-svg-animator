@@ -312,6 +312,20 @@ const _ck_PxLoop: KeysMatch<PxLoop, _PxLoop> = true; // the key sets are identic
  */
 export interface _PxPropertyAnimation {
 
+    /**
+     * Optional static / base value for the animated property.
+     *
+     * Two uses:
+     *  - structured static: `{value}` with no keyframes is the static form of
+     *    the universal animatable pattern (`PxAnimatable<T>`);
+     *  - base + keyframes: when both are present, `value` is the baseline the
+     *    animation starts from. For most properties keyframe values are
+     *    complete and `value` is just the pre-tick DOM baseline; slots with
+     *    patch semantics (the editor's extended-d `shape` effect) merge each
+     *    keyframe's partial value over this base.
+     */
+    value?: any;
+
     /** Array of keyframes defining the animation timeline */
     keyframes?: PxKeyframe[];
 
@@ -340,8 +354,9 @@ export interface _PxPropertyAnimation {
     autoOrient?: boolean;
 }
 
-// `{ keyframes?:Keyframe[], kfs?:Keyframe[], loop?:Loop|boolean, autoOrient?:bool }`
+// `{ value?:KeyframeValue, keyframes?:Keyframe[], kfs?:Keyframe[], loop?:Loop|boolean, autoOrient?:bool }`
 export const PxPropertyAnimationSchema = implementsInterface<_PxPropertyAnimation>()(px.object({
+    value: PxKeyframeValueSchema.optional(),
     keyframes: px.array(PxKeyframeSchema).optional(),
     kfs: px.array(PxKeyframeSchema).optional(),
     loop: px.union([PxLoopSchema, px.boolean()]).optional(),
@@ -862,37 +877,39 @@ export interface _PxNode {
 export type Vec2 = [number, number];
 
 /**
- * Animatable wire value: a raw static value, a `{value}` structured-static, or
- * a `{keyframes}` animation. Used by the effect schemas; the runtime schema
- * variants live below as `PxAnimatableNumberSchema` / `PxAnimatableVec2Schema`.
+ * Animatable wire value — the ONE grammar for every animatable slot:
+ *
+ *   T                      — raw static (non-object T)
+ *   { value: T }           — structured static
+ *   PxPropertyAnimation    — animated: `{value?, keyframes|kfs, loop?, autoOrient?}`
+ *
+ * The animated form IS `PxPropertyAnimation` — the exact object `node.animate`
+ * channels use — so effect slots and node attributes share one schema, one
+ * reader (`effects/transformParts.readAnimatable`) and one loop-materialisation
+ * path. `value` inside the animated form is the optional static baseline (see
+ * `_PxPropertyAnimation.value`).
  *
  * Generic over the per-kf value type `T` for compile-time narrowing of the
- * static / `{value}` forms. The `{keyframes}` form uses the lib's non-generic
+ * static / `{value}` forms. The animated form uses the lib's non-generic
  * `PxKeyframe` (whose `value` is `any`) — kf values are read with care in the
  * applier (the visualModel walker / `interpParts` know per-property shapes).
  */
-export type PxAnimatable<T> = T | { value: T } | { keyframes: Array<PxKeyframe>; autoOrient?: boolean };
+export type PxAnimatable<T> = T | { value: T } | _PxPropertyAnimation;
 
-// PxAnimatable<number> — static number OR `{value}` static OR `{keyframes}` animated.
+// PxAnimatable<number> — static number OR `{value}` static OR PxPropertyAnimation.
 const PxAnimatableNumberSchema = px.union([
     px.number(),
     px.object({ value: px.number() }),
-    px.object({
-        keyframes: px.array(PxKeyframeSchema),
-        autoOrient: px.boolean().optional(),
-    }),
+    PxPropertyAnimationSchema,
 ]);
 
-// PxAnimatable<Vec2> — static `[x,y]` OR `{value:[x,y]}` OR `{keyframes}` animated.
+// PxAnimatable<Vec2> — static `[x,y]` OR `{value:[x,y]}` OR PxPropertyAnimation.
 // `as const` on the tuples is REQUIRED for TS to infer `[number, number]` (a
 // fixed-length tuple = `Vec2`) instead of the looser `number[]`.
 const PxAnimatableVec2Schema = px.union([
     px.tuple([px.number(), px.number()] as const),
     px.object({ value: px.tuple([px.number(), px.number()] as const) }),
-    px.object({
-        keyframes: px.array(PxKeyframeSchema),
-        autoOrient: px.boolean().optional(),
-    }),
+    PxPropertyAnimationSchema,
 ]);
 
 
@@ -957,23 +974,29 @@ const _ck_PxMaskedByEffect: KeysMatch<PxMaskedByEffect, _PxMaskedByEffect> = tru
 
 
 /**
- * Clip-path effect — clips the host element to a vector path. `d` is a plain SVG
- * path-data string (one or more subpaths) — the static / frame-0 geometry. `animate`
- * (optional) carries `d` keyframes (`value:{path:"M…"}`) for an ANIMATED clip: at apply
- * time it lands on the minted `<path>`'s `animate.d`, so the player's frame loop rewrites
- * the clip path's `d` attribute per frame. `clip-path` is a live reference, so the browser
- * re-clips each frame (unlike `<marker>` — verified across SMIL/CSS/JS/WAAPI).
+ * Clip-path effect — clips the host element to a vector path. `d` is a standard
+ * animatable slot (same grammar as body `d`): static = plain SVG path-data string
+ * (one or more subpaths); animated = `{keyframes}` whose values are `{path:"M…"}`.
+ * At apply time an animated `d` lands on the minted `<path>`'s `animate.d`, so the
+ * player's frame loop rewrites the clip path's `d` attribute per frame. `clip-path`
+ * is a live reference, so the browser re-clips each frame (unlike `<marker>` —
+ * verified across SMIL/CSS/JS/WAAPI).
  *
  * At apply time the effect mints a `<clipPath><path d/></clipPath>` def and sets
  * `clip-path="url(#auto-id)"` on the host (materialiser pattern, like `maskedBy` /
  * gradient). See `effects/clipPathEffect.ts`.
+ *
+ * LEGACY: older files carry the animation as a sibling `animate` key
+ * (`{d: "M…", animate: {keyframes}}`). Still read (folded into `d`'s animation
+ * at apply time); never written.
  */
 export interface _PxClipPathEffect {
-    d?: string;
+    d?: PxAnimatable<string>;
+    /** @deprecated legacy animated form — read-only; the animation lives on `d` now. */
     animate?: PxPropertyAnimation;
 }
 export const PxClipPathEffectSchema = implementsInterface<_PxClipPathEffect>()(px.object({
-    d: px.string().optional(),
+    d: px.union([px.string(), px.object({ value: px.string() }), PxPropertyAnimationSchema]).optional(),
     animate: PxPropertyAnimationSchema.optional(),
 }));
 export type PxClipPathEffect = PxInfer<typeof PxClipPathEffectSchema>;
@@ -1049,11 +1072,13 @@ const _ck_PxCloneEffect: KeysMatch<PxCloneEffect, _PxCloneEffect> = true;
 // Materialiser pattern mirrors `maskedByEffect`: at apply time the gradient
 // effect mints a `<linearGradient>` / `<radialGradient>` def into `ctx.defs`,
 // then sets the host element's `fill` / `stroke` to `url(#auto-id)`. The wire
-// gradient is geometry as static parts + a stop sequence that is either static
-// (bare array) or animated (a single `{keyframes}` block whose each kf's `value`
-// is the FULL `Array<{offset, color}>` snapshot at that time). Per-stop
-// independent timelines are intentionally NOT modelled — the source is a single
-// stop-colour keyframe group.
+// gradient is geometry parts (`p1`/`p2` linear, `c`/`r`/`fp` radial — standard
+// animatable slots) + a stop sequence that is either static (bare array) or
+// animated (a single `{keyframes}` block whose each kf's `value` is the FULL
+// `Array<{offset, color}>` snapshot at that time). Per-stop independent
+// timelines are intentionally NOT modelled — the source is a single
+// stop-colour keyframe group. Animated geometry is frames-engine only
+// (CSS/WAAPI cannot animate gradient endpoints; `mode: 'auto'` handles it).
 //
 // Stop count is constant across kfs. `gradientTransform` is captured as static
 // only (animated transform is vanishingly rare).
@@ -1095,12 +1120,12 @@ export type PxGradientStop = PxInfer<typeof PxGradientStopSchema>;
 const _ck_PxGradientStop: KeysMatch<PxGradientStop, _PxGradientStop> = true;
 
 /** `PxAnimatable<Array<PxGradientStop>>` schema. Static is the bare array;
- *  `{value: […]}` wraps the same; `{keyframes}` is a single timeline whose
- *  each kf's `value` is the FULL stops array at that time. */
+ *  `{value: […]}` wraps the same; the animated form is `PxPropertyAnimation`
+ *  (one timeline whose each kf's `value` is the FULL stops array at that time). */
 const PxAnimatableGradientStopsSchema = px.union([
     px.array(PxGradientStopSchema),
     px.object({ value: px.array(PxGradientStopSchema) }),
-    px.object({ keyframes: px.array(PxKeyframeSchema) }),
+    PxPropertyAnimationSchema,
 ]);
 
 /** Gradient paint effect — used by both `fillGradient` and `strokeGradient`
@@ -1153,26 +1178,27 @@ const _ck_PxGradientGeometryAnimation: KeysMatch<PxGradientGeometryAnimation, _P
 
 export interface _PxFillGradientEffect {
     type: PxGradientType;                                 // 'linear' | 'radial'
-    p1?:  Vec2;                                           // linear start
-    p2?:  Vec2;                                           // linear end
-    c?:   Vec2;                                           // radial centre
-    r?:   number;                                         // radial radius
-    fp?:  Vec2;                                           // radial focal point
+    p1?:  PxAnimatable<Vec2>;                             // linear start
+    p2?:  PxAnimatable<Vec2>;                             // linear end
+    c?:   PxAnimatable<Vec2>;                             // radial centre
+    r?:   PxAnimatable<number>;                           // radial radius
+    fp?:  PxAnimatable<Vec2>;                             // radial focal point
     stops?: PxAnimatable<Array<_PxGradientStop>>;          // single animation timeline
     gradientUnits?:  string;                              // PxGradientUnits values
     spreadMethod?:   string;                              // PxGradientSpreadMethod values
     gradientTransform?: string;                           // static only in v1
-    /** Animated gradient GEOMETRY (endpoints / centre / focal / radius).
+    /** @deprecated legacy animated-geometry form (per-scalar `gradientX1`/… channels) —
+     *  read-only; geometry now animates on `p1`/`p2`/`c`/`r`/`fp` directly.
      *  Frames-engine only — see {@link _PxGradientGeometryAnimation}. */
     animate?: _PxGradientGeometryAnimation;
 }
 export const PxFillGradientEffectSchema = implementsInterface<_PxFillGradientEffect>()(px.object({
     type: px.enum([PxGradientType.linear, PxGradientType.radial] as const),
-    p1:   px.tuple([px.number(), px.number()] as const).optional(),
-    p2:   px.tuple([px.number(), px.number()] as const).optional(),
-    c:    px.tuple([px.number(), px.number()] as const).optional(),
-    r:    px.number().optional(),
-    fp:   px.tuple([px.number(), px.number()] as const).optional(),
+    p1:   PxAnimatableVec2Schema.optional(),
+    p2:   PxAnimatableVec2Schema.optional(),
+    c:    PxAnimatableVec2Schema.optional(),
+    r:    PxAnimatableNumberSchema.optional(),
+    fp:   PxAnimatableVec2Schema.optional(),
     stops: PxAnimatableGradientStopsSchema.optional(),
     gradientUnits:     px.string().optional(),
     spreadMethod:      px.string().optional(),

@@ -4,8 +4,9 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import type { PxAnimatable, PxFillGradientEffect, PxGradientStop, PxKeyframe, PxLoop, PxNode, PxStrokeGradientEffect } from '../PxAnimatorTypes';
+import type { PxAnimatable, PxFillGradientEffect, PxGradientStop, PxKeyframe, PxLoop, PxNode, PxStrokeGradientEffect, Vec2 } from '../PxAnimatorTypes';
 import { PxGradientType } from '../PxAnimatorTypes';
+import { ReadKind, readAnimatable, writeAnimatableChannel } from './transformParts';
 import type { ApplyContext } from './types';
 import { genId } from './util';
 
@@ -59,37 +60,81 @@ function synthesiseGradientDef(fx: PxFillGradientEffect, id: string, ctx: ApplyC
         id,
     };
 
-    // Geometry — static base values…
+    // Geometry — standard animatable slots. Static → body attrs; animated → the
+    // def node's own `animate` channels under the real SVG attr names (a vec slot
+    // splits into its two axis channels here, in the applier — the wire stays
+    // `p1: {keyframes:[{value:[x,y]}…]}`). The frames engine then drives the
+    // def's attrs exactly like the stops' `stopColor` (CSS/WAAPI can't animate
+    // gradient geometry, but this materialiser feeds the JS frame loop).
     if (fx.type === PxGradientType.linear) {
-        if (fx.p1) { out.x1 = String(fx.p1[0]); out.y1 = String(fx.p1[1]); }
-        if (fx.p2) { out.x2 = String(fx.p2[0]); out.y2 = String(fx.p2[1]); }
+        applyGeomVec(out, 'x1', 'y1', fx.p1);
+        applyGeomVec(out, 'x2', 'y2', fx.p2);
     } else {
-        if (fx.c)  { out.cx = String(fx.c[0]);  out.cy = String(fx.c[1]); }
-        if (fx.r !== undefined) out.r = String(fx.r);
-        if (fx.fp) { out.fx = String(fx.fp[0]); out.fy = String(fx.fp[1]); }
+        applyGeomVec(out, 'cx', 'cy', fx.c);
+        applyGeomNumber(out, 'r', fx.r);
+        applyGeomVec(out, 'fx', 'fy', fx.fp);
     }
     if (fx.gradientUnits)     out.gradientUnits = fx.gradientUnits;
     if (fx.spreadMethod)      out.spreadMethod = fx.spreadMethod;
     if (fx.gradientTransform) out.gradientTransform = fx.gradientTransform;
 
-    // …plus ANIMATED geometry: the wire carries per-channel keyframes under
-    // `fx.animate` (`gradientX1`, `gradientFy`, …). Map them onto the def node's own
-    // `animate` under the real SVG attr names — the frames engine then drives the def's
-    // attrs exactly like it drives the stops' `stopColor` (CSS/WAAPI can't, but this
-    // materialiser feeds the JS frame loop).
+    // LEGACY animated geometry: older files carry per-scalar channels under
+    // `fx.animate` (`gradientX1`, `gradientFy`, …) instead of animating the
+    // slots directly. Map them onto the def's `animate` under the real SVG attr
+    // names; slot-driven channels (above) win on collision.
     type ElementAnim = NonNullable<PxNode['animate']>;
-    const animate = (fx as { animate?: ElementAnim }).animate;
-    if (animate) {
-        const mapped: ElementAnim = {};
-        for (const wireKey of Object.keys(animate)) {
+    const legacyAnimate = (fx as { animate?: ElementAnim }).animate;
+    if (legacyAnimate) {
+        const mapped: ElementAnim = (out.animate as ElementAnim | undefined) ?? {};
+        for (const wireKey of Object.keys(legacyAnimate)) {
             const attr = GRADIENT_ANIM_CHANNEL_TO_ATTR[wireKey];
-            if (attr) mapped[attr] = animate[wireKey];
+            if (attr && mapped[attr] === undefined) mapped[attr] = legacyAnimate[wireKey];
         }
         if (Object.keys(mapped).length) out.animate = mapped;
     }
 
     out.children = buildStopChildren(fx.stops, ctx);
     return out;
+}
+
+/** Animatable Vec2 geometry slot → static `xAttr`/`yAttr` body attrs, or two
+ *  per-axis `animate` channels (times/easings preserved, `loop` carried) plus
+ *  static baseline attrs from the base/first kf. */
+function applyGeomVec(out: PxNode, xAttr: string, yAttr: string, raw: PxAnimatable<Vec2> | undefined): void {
+    const read = readAnimatable<Vec2>(raw);
+    if (read.kind === ReadKind.Absent) return;
+    if (read.kind === ReadKind.Static) {
+        out[xAttr] = String(read.value[0]);
+        out[yAttr] = String(read.value[1]);
+        return;
+    }
+    const axisChannel = (idx: 0 | 1): { keyframes: Array<PxKeyframe>; loop?: PxLoop | boolean } => {
+        const block: { keyframes: Array<PxKeyframe>; loop?: PxLoop | boolean } = {
+            keyframes: read.keyframes.map(kf => {
+                const axisKf: PxKeyframe = { time: kf.time, value: Array.isArray(kf.value) ? kf.value[idx] : undefined };
+                if (kf.easing !== undefined) axisKf.easing = kf.easing;
+                return axisKf;
+            }),
+        };
+        if (read.loop !== undefined) block.loop = read.loop;
+        return block;
+    };
+    const animate = (out.animate as Record<string, unknown> | undefined) ?? {};
+    animate[xAttr] = axisChannel(0);
+    animate[yAttr] = axisChannel(1);
+    out.animate = animate as PxNode['animate'];
+    const baseline = read.base ?? read.keyframes[0]?.value;
+    if (Array.isArray(baseline)) {
+        out[xAttr] = String(baseline[0]);
+        out[yAttr] = String(baseline[1]);
+    }
+}
+
+/** Animatable number geometry slot (radial `r`) → static attr or `animate` channel. */
+function applyGeomNumber(out: PxNode, attrName: string, raw: PxAnimatable<number> | undefined): void {
+    const read = readAnimatable<number>(raw);
+    if (read.kind === ReadKind.Absent) return;
+    writeAnimatableChannel(out, attrName, read, { asString: true });
 }
 
 /** Wire `fx.animate` channel → the SVG gradient-def attribute it drives. */
@@ -107,23 +152,20 @@ const GRADIENT_ANIM_CHANNEL_TO_ATTR: Record<string, string> = {
 function buildStopChildren(stops: PxAnimatable<Array<PxGradientStop>> | undefined, ctx: ApplyContext): Array<PxNode> {
     if (!stops) return [];
 
-    // Static shapes — bare array or `{value: […]}`.
-    if (Array.isArray(stops)) return stops.map(staticStopNode);
-    if (typeof stops === 'object' && Array.isArray((stops as { value?: any }).value)) {
-        return (stops as { value: Array<PxGradientStop> }).value.map(staticStopNode);
-    }
+    // Shared reader — bare array / `{value: […]}` statics, `{keyframes|kfs, loop?}` animated.
+    const read = readAnimatable<Array<PxGradientStop>>(stops);
+    if (read.kind === ReadKind.Absent) return [];
+    if (read.kind === ReadKind.Static) return Array.isArray(read.value) ? read.value.map(staticStopNode) : [];
 
-    // Animated — `{keyframes: [{time, value: [stops], easing?}], loop?, ...}`.
-    const animBlock = stops as { keyframes?: Array<PxKeyframe>, loop?: PxLoop | boolean };
-    const kfs = animBlock.keyframes;
-    if (!Array.isArray(kfs) || !kfs.length) return [];
+    const kfs = read.keyframes as Array<PxKeyframe>;
+    if (!kfs.length) return [];
     // Per-stop animations inherit the timeline-level `loop` (alternate/cycle/etc.).
     // Without forwarding it, animating a gradient with `loop.alternate:true`
     // would slice each stop's colours into separate `animate.stopColor`
     // entries that lose the loop config → no reversal past the last kf,
     // even though every non-gradient animatable property loops fine. See
     // also: the gradient stop "slice" docstring above.
-    const loopFromSource = animBlock.loop;
+    const loopFromSource = read.loop;
 
     // Stop count: take the LARGEST across kfs (constraint says constant
     // count, but defensive — when missing, hold the last value).

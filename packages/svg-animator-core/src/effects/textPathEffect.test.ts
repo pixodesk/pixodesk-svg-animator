@@ -59,7 +59,10 @@ describe('textPathEffect — inline path → <path> def + <textPath> wrap', () =
         }));
         const tp = textPathNode(out);
         expect(tp.animate.startOffset.keyframes.map((k: any) => k.value)).toEqual([0, 100]);
-        expect(tp.startOffset).toBeUndefined(); // animated → no static attr
+        // Animated ALSO writes the first-kf value as the static baseline attr —
+        // the shared `writeAnimatableChannel` emit path (pre-tick DOM renders the
+        // kf-at-time-0 state, same as trimPath's dasharray baseline).
+        expect(tp.startOffset).toBe('0');
     });
 
     it('case 4 — pathOverflow rides on the effect (consumed, not leaked onto <textPath>)', () => {

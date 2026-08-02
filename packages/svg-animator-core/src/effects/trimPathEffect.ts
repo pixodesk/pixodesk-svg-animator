@@ -7,7 +7,7 @@
 import type { PxAnimatable, PxBezierPath, PxKeyframe, PxLoop, PxNode, Vec2, _PxTrimPathEffect } from '../PxAnimatorTypes';
 import { bezier2D_arcLengthLUT, bezierToSvgPath, clamp } from '../PxAnimatorUtil';
 import { parseSvgPathToBezier } from '../PxDefinitions';
-import { ReadKind, readAnimatable, type ReadPart } from './transformParts';
+import { ReadKind, readAnimatable, writeAnimatableChannel, type ReadPart } from './transformParts';
 import type { ApplyContext } from './types';
 
 
@@ -316,30 +316,12 @@ function computeAnimAttr<TIn, TOut>(read: ReadPart<TIn>, map: (v: TIn) => TOut):
     };
 }
 
+// Static + animated emit (incl. the first-kf static baseline for pre-tick DOM
+// correctness) is the shared `writeAnimatableChannel` — `AnimAttrResult` is a
+// `ReadPart` minus the Absent arm, so it passes straight through.
 function applyAttr<T>(node: PxNode, attrName: string, attr: AnimAttrResult<T>): void {
     if (!attr) return;
-    if (attr.kind === ReadKind.Static) {
-        node[attrName] = attr.value;
-        return;
-    }
-    const prevAnimate = node.animate && typeof node.animate === 'object' && !Array.isArray(node.animate) ? node.animate : undefined;
-    const animate: Record<string, any> = { ...(prevAnimate || {}) };
-    const block: { keyframes: Array<PxKeyframe>, loop?: PxLoop | boolean } = { keyframes: attr.keyframes };
-    if (attr.loop !== undefined) block.loop = attr.loop;
-    animate[attrName] = block;
-    node.animate = animate;
-    // ALSO write the first kf's value as a STATIC attribute. The animator only
-    // pushes the animated value to the DOM on its first rAF tick — if a caller
-    // snapshots the DOM in the window between `play()` and that first tick
-    // (e.g. visual-tests live-mode sample at t=0), the element renders with
-    // DEFAULT stroke styling (no dash, full opacity), which would expose the
-    // entire stroked path even when the t=0 kf says it should be hidden /
-    // mostly-dashed. Mirroring the SVG convention of "static baseline +
-    // animation" makes the pre-tick DOM render match the kf-at-time-0 value.
-    const firstKf = attr.keyframes[0];
-    if (firstKf && (firstKf.value ?? (firstKf as any).v) !== undefined) {
-        node[attrName] = firstKf.value ?? (firstKf as any).v;
-    }
+    writeAnimatableChannel(node, attrName, attr);
 }
 
 /** Width (ms) of the opacity transition emitted at each hide↔show boundary

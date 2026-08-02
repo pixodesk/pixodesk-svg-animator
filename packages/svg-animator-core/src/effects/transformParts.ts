@@ -10,7 +10,7 @@
  * masked-by effects (the latter builds INVERSE parts).
  */
 
-import type { PxAnimatable, PxKeyframe, PxLoop, Vec2 } from '../PxAnimatorTypes';
+import type { PxAnimatable, PxKeyframe, PxLoop, PxNode, Vec2 } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
 
 
@@ -50,13 +50,14 @@ export function partsRecord(part: TransformPart, value: any, origin: Vec2 | unde
 export type ReadPart<T> =
     | { kind: ReadKind.Absent }
     | { kind: ReadKind.Static; value: T }
-    | { kind: ReadKind.Animated; keyframes: Array<PxKeyframe<T>>; autoOrient?: boolean; loop?: PxLoop | boolean };
+    | { kind: ReadKind.Animated; keyframes: Array<PxKeyframe<T>>; autoOrient?: boolean; loop?: PxLoop | boolean; base?: T };
 
 /** Normalises an animatable field into a static value or a keyframe list (with
  *  `autoOrient` and `loop` propagated — the latter so timeline-level loop config
  *  reaches the per-attribute `animate.X.loop` emitted by callers; without it,
  *  effect-driven animations would silently ignore `loop.alternate`/cycle while
- *  every non-effect property loops fine). */
+ *  every non-effect property loops fine). A `value` present NEXT TO keyframes
+ *  is surfaced as `base` (the static baseline of the unified animatable form). */
 export function readAnimatable<T>(raw: PxAnimatable<T> | undefined): ReadPart<T> {
     if (raw === undefined) return { kind: ReadKind.Absent };
     if (Array.isArray(raw)) return { kind: ReadKind.Static, value: raw as unknown as T };
@@ -72,12 +73,48 @@ export function readAnimatable<T>(raw: PxAnimatable<T> | undefined): ReadPart<T>
             // downstream (transformation, repeater, …) only ever sees the long
             // form. Without this a keyframe authored `{t, v}` lost both its time
             // and its value and the animation silently froze at frame 0.
-            return { kind: ReadKind.Animated, keyframes: kfs.map(normaliseKeyframe), autoOrient: obj.autoOrient, loop: obj.loop };
+            const out: ReadPart<T> = { kind: ReadKind.Animated, keyframes: kfs.map(normaliseKeyframe), autoOrient: obj.autoOrient, loop: obj.loop };
+            const base = obj.value ?? obj.v;
+            if (base !== undefined && out.kind === ReadKind.Animated) out.base = base;
+            return out;
         }
         const staticValue = obj.value ?? obj.v;
         if (staticValue !== undefined) return { kind: ReadKind.Static, value: staticValue };
     }
     return { kind: ReadKind.Static, value: raw as T };
+}
+
+/**
+ * Writes a normalised animatable (`ReadPart`) onto a node as attribute/animation —
+ * the ONE emit path shared by the effect appliers (trimPath, textPath, …):
+ *   - Static → `node[attrName] = value` (stringified when `opts.asString`).
+ *   - Animated → `node.animate[attrName] = {keyframes, loop?, autoOrient?}` PLUS a
+ *     static baseline attr (`base` if present, else the first kf's value). The
+ *     animator only pushes animated values to the DOM on its first rAF tick — a
+ *     DOM snapshot between mount and that tick (visual-test live-mode sample at
+ *     t=0) must render the kf-at-time-0 state, not the un-styled default.
+ */
+export function writeAnimatableChannel(
+    node: PxNode,
+    attrName: string,
+    read: ReadPart<any>,
+    opts?: { asString?: boolean },
+): void {
+    const toOut = (v: unknown): unknown => (opts?.asString && v !== undefined && v !== null) ? String(v) : v;
+    if (read.kind === ReadKind.Absent) return;
+    if (read.kind === ReadKind.Static) {
+        node[attrName] = toOut(read.value);
+        return;
+    }
+    const prevAnimate = node.animate && typeof node.animate === 'object' && !Array.isArray(node.animate) ? node.animate : undefined;
+    const animate: Record<string, any> = { ...(prevAnimate || {}) };
+    const block: { keyframes: Array<PxKeyframe>; loop?: PxLoop | boolean; autoOrient?: boolean } = { keyframes: read.keyframes };
+    if (read.loop !== undefined) block.loop = read.loop;
+    if (read.autoOrient !== undefined) block.autoOrient = read.autoOrient;
+    animate[attrName] = block;
+    node.animate = animate;
+    const baseline = read.base ?? read.keyframes[0]?.value ?? (read.keyframes[0] as { v?: unknown } | undefined)?.v;
+    if (baseline !== undefined) node[attrName] = toOut(baseline);
 }
 
 /** Rewrites a keyframe's short aliases (`t`/`v`/`e`/`to`/`ti`) to their long
