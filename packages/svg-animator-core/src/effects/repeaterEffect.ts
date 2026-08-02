@@ -18,6 +18,7 @@ import { clone } from './util';
  *
  *   - translate × i
  *   - rotate    × i
+ *   - skew      × i  (skewX degrees)
  *   - scale     ^ i  (per-axis geometric compound)
  *   - origin    CONSTANT — rotation/scale center stays put across copies
  *
@@ -90,6 +91,9 @@ function synthesisePerCopyFx(fx: PxRepeaterEffect, i: number): PxTransformationE
     }
     if (fx.rotate !== undefined) {
         out.rotate = mapAnimatable<number>(fx.rotate, v => v * i);
+    }
+    if (fx.skew !== undefined) {
+        out.skew = mapAnimatable<number>(fx.skew, v => v * i);
     }
     if (fx.scale !== undefined) {
         out.scale = synthesiseScale(fx.scale, i);

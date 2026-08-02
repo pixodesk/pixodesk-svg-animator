@@ -934,7 +934,7 @@ const _ck_PxTransformationEffect: KeysMatch<PxTransformationEffect, _PxTransform
 
 
 /** Per-copy repeater offsets. Each part is animatable; per-copy values scale
- *  with the copy index `i` (translate/rotate/origin × i; scale per-axis `v^i`).
+ *  with the copy index `i` (translate/rotate/skew × i; scale per-axis `v^i`).
  *  Static repeater values pass through as a structured `transform: {value:…}` on
  *  the per-copy wrapper; animated values are emitted as `animate.transform.keyframes`
  *  with each kf value scaled by `i`. See `effects/repeaterEffect.ts`. */
@@ -942,6 +942,8 @@ export interface _PxRepeaterEffect {
     copies?: number;
     translate?: PxAnimatable<Vec2>;
     rotate?: PxAnimatable<number>;
+    /** Per-copy skew (skewX) increment in degrees — copy `i` is skewed by `skew × i`. */
+    skew?: PxAnimatable<number>;
     scale?: PxAnimatable<Vec2>;       // per-copy FACTOR (0.85 = 85% per copy), like every other scale
     origin?: PxAnimatable<Vec2>;
 }
@@ -949,6 +951,7 @@ export const PxRepeaterEffectSchema = implementsInterface<_PxRepeaterEffect>()(p
     copies: px.number().optional(),
     translate: PxAnimatableVec2Schema.optional(),
     rotate: PxAnimatableNumberSchema.optional(),
+    skew: PxAnimatableNumberSchema.optional(),
     scale: PxAnimatableVec2Schema.optional(),
     origin: PxAnimatableVec2Schema.optional(),
 }));
@@ -957,18 +960,26 @@ const _ck_PxRepeaterEffect: KeysMatch<PxRepeaterEffect, _PxRepeaterEffect> = tru
 
 
 /** Mask source ref + standard `<mask>` attributes.
- *  `href` is `#id` (canonical ref spelling, SCHEMA-ANALYSIS §4 E-5); bare `id` is legacy, read-only. */
+ *  `href` is `#id` (canonical ref spelling, SCHEMA-ANALYSIS §4 E-5); bare `id` is legacy, read-only.
+ *  `start`/`size` are the `<mask>` viewport — its `x`/`y` and `width`/`height` in
+ *  `maskUnits` space. Absent = SVG's implicit mask region (−10% … 120% of the
+ *  bounding box), which is also the editor's default — so they only appear when a
+ *  document (typically an imported SVG) carries explicit mask bounds. */
 export interface _PxMaskedByEffect {
     href?: string;
     maskType?: string;
     maskUnits?: string;
     maskContentUnits?: string;
+    start?: Vec2;
+    size?: Vec2;
 }
 export const PxMaskedByEffectSchema = implementsInterface<_PxMaskedByEffect>()(px.object({
     href: px.string().optional(),
     maskType: px.string().optional(),
     maskUnits: px.string().optional(),
     maskContentUnits: px.string().optional(),
+    start: px.tuple([px.number(), px.number()] as const).optional(),
+    size: px.tuple([px.number(), px.number()] as const).optional(),
 }));
 export type PxMaskedByEffect = PxInfer<typeof PxMaskedByEffectSchema>;
 const _ck_PxMaskedByEffect: KeysMatch<PxMaskedByEffect, _PxMaskedByEffect> = true;

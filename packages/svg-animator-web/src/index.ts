@@ -32,6 +32,7 @@ export {
     PxEasingOrRefSchema,
     PxElementAnimationSchema,
     PxKeyframeSchema,
+    PxKeyframeValueSchema,
     PxLoopSchema,
     PxNodeBase,
     PxNodeSchema,
