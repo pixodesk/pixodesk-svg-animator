@@ -1277,8 +1277,24 @@ export type PxTextEffect = PxInfer<typeof PxTextEffectSchema>;
 const _ck_PxTextEffect: KeysMatch<PxTextEffect, _PxTextEffect> = true;
 
 
-/** The full `node.effects` bucket. Closed — each known effect is declared
- *  (strict-mode validation flags an unknown effect key as a wire-format drift). */
+/**
+ * The full `node.effects` bucket. Closed — each known effect is declared
+ * (strict-mode validation flags an unknown effect key as a wire-format drift).
+ *
+ * DESIGN LAW — attribute vs effect:
+ *  - An ATTRIBUTE is a value the browser consumes as-is on that element
+ *    (`fill="#f00"`, `opacity`, `d`); animating it is "this value over time" —
+ *    one channel, zero structure. The test is STRUCTURE, not value-encoding
+ *    complexity: `transform` has a parts-record wire value but lands in one
+ *    attribute on the same element, so it stays an attribute.
+ *  - An EFFECT is anything whose realisation requires structure — minting defs
+ *    (gradient, clipPath, maskedBy, textPath), wrapper nodes (transformation),
+ *    clones (repeater, clone), or geometry-derived multi-attr rewrites (trimPath).
+ *  - The same attribute name can sit on both sides, split by value: flat `fill`
+ *    is an attribute; gradient fill is an effect (no value of `fill` IS a
+ *    gradient — it needs a def + stops + a `url(#id)` indirection).
+ *  New features follow the same test: pattern fills / filters need defs → effects.
+ */
 export interface _PxEffects {
     transformation?: _PxTransformationEffect;
     repeater?: _PxRepeaterEffect;

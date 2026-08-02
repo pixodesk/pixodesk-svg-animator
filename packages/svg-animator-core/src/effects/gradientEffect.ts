@@ -14,6 +14,12 @@ import { genId } from './util';
 /**
  * `effects.fillGradient` / `effects.strokeGradient` materialiser.
  *
+ * WHY AN EFFECT (not a `fill` value): no value of `fill` IS a gradient — the
+ * browser can only render one through a `<linearGradient>`/`<radialGradient>`
+ * def with `<stop>` children plus a `url(#id)` indirection. Per the format's
+ * attribute-vs-effect law (see `_PxEffects`), anything that requires minting
+ * structure is an effect; flat `fill` colours stay plain animated attributes.
+ *
  * Mirrors `maskedByEffect`: mint a `<linearGradient>` or `<radialGradient>`
  * def into `ctx.defs`, push the host element's `fill` / `stroke` to
  * `url(#auto-id)`. Same shape used for both fill and stroke — the only
