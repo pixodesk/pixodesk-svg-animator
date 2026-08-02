@@ -150,11 +150,14 @@ export interface _PxKeyframe {
  *  - `PxTransformParts`             — unified body `transform` parts record
  *                                     `{translate, rotate, scale, origin}`
  *  - `{ paths: Array<PxBezierPath> }` — animated SVG path `d` value
+ *  - `Array<PxGradientStop>`        — gradient `stops` timeline (each kf value is
+ *                                     the FULL `[{offset, color}, …]` snapshot)
  *
- * Used as documentation / explicit-validation entry point; `PxKeyframeSchema`
- * itself stores `value` as `any` to keep downstream interpolator code in
- * `PxDefinitions.ts` working with duck-typed access (`prevV?.paths`,
- * `Array.isArray(prevV)`, …) without per-shape narrowing.
+ * Plugged into `PxKeyframeSchema.value` / `.v` — every keyframe value on the
+ * wire is validated against this union. The inferred TS type of `PxKeyframe`
+ * stays permissive (`value?: any` via the generic default) so the duck-typed
+ * interpolator code in `PxDefinitions.ts` (`prevV?.paths`,
+ * `Array.isArray(prevV)`, …) keeps working without per-shape narrowing.
  */
 export type _PxKeyframeValue =
     | string
@@ -162,7 +165,8 @@ export type _PxKeyframeValue =
     | Array<number>
     | PxTransformParts
     | { path: string }
-    | { paths: Array<PxBezierPath> };
+    | { paths: Array<PxBezierPath> }
+    | Array<_PxGradientStop>;
 
 // `string | number | Array<number> | PxTransformParts | { path: string } | { paths: BezierPath[] }`
 //
@@ -180,24 +184,26 @@ export const PxKeyframeValueSchema = implementsInterface<_PxKeyframeValue>()(px.
     px.lazy<PxTransformParts>(() => PxTransformPartsSchema, {}),
     px.object({ path: px.string() }),
     px.lazy<{ paths: Array<PxBezierPath> }>(() => px.object({ paths: px.array(PxBezierPathSchema) }), { paths: [] }),
+    // Gradient `stops` timeline — each kf value is the full stops-array snapshot.
+    px.lazy<Array<_PxGradientStop>>(() => px.array(PxGradientStopSchema), []),
 ]));
 
 /** A single keyframe `value` — union of all wire-allowed shapes. */
 export type PxKeyframeValue = PxInfer<typeof PxKeyframeValueSchema>;
 
-// `{ time?:number, t?:number, value?:any, v?:any, easing?:Easing, e?:Easing,
-//    tangentOut?:[dx,dy], tangentIn?:[dx,dy] }`
+// `{ time?:number, t?:number, value?:PxKeyframeValue, v?:PxKeyframeValue,
+//    easing?:Easing, e?:Easing, tangentOut?:[dx,dy], tangentIn?:[dx,dy] }`
 //
-// `value` / `v` are stored as `px.any()` to match the `_PxKeyframe` interface
-// (`value?: any`) and to keep the inferred `PxKeyframe.value` type permissive
-// for the duck-typed access in `PxDefinitions.ts`. The structured value-shape
-// union is still available via {@link PxKeyframeValueSchema} for callers that
-// want to validate or document the allowed shapes.
+// `value` / `v` validate against {@link PxKeyframeValueSchema} — malformed
+// keyframe values are now schema errors instead of passing as `px.any()`
+// (SCHEMA-ANALYSIS I-5). The `_PxKeyframe` interface keeps `value?: any` (and
+// `PxKeyframe<T = any>` its generic default) so the duck-typed interpolator
+// access in `PxDefinitions.ts` stays untyped-permissive at compile time.
 export const PxKeyframeSchema = implementsInterface<_PxKeyframe>()(px.object({
     time: px.number().optional(),
     t: px.number().optional(),
-    value: px.any().optional(),
-    v: px.any().optional(),
+    value: PxKeyframeValueSchema.optional(),
+    v: PxKeyframeValueSchema.optional(),
     easing: PxEasingOrRefSchema.optional(),
     e: PxEasingOrRefSchema.optional(),
     tangentOut: px.tuple([px.number(), px.number()] as const).optional(),
