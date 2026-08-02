@@ -62,8 +62,8 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
         expect(noEffectsRemain(out)).toBe(true);
     });
 
-    it('case 2 — static scale in EDITOR units (150) converts to 1.0-units (1.5)', () => {
-        const out = materialise(wrap({ scale: [150, 150] }));
+    it('case 2 — static scale is a FACTOR on the wire (1.5 = 150%), passed through as-is', () => {
+        const out = materialise(wrap({ scale: [1.5, 1.5] }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",

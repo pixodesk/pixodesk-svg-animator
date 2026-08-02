@@ -144,8 +144,8 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
         expect(noEffectsRemain(out)).toBe(true);
     });
 
-    it('case 3 — static scale (PERCENT bare array) compounds per axis s^i in 1.0-units', () => {
-        const out = materialise(wrap({ copies: 3, scale: [50, 50] }));   // 50% = 0.5×
+    it('case 3 — static scale (FACTOR bare array) compounds per axis s^i', () => {
+        const out = materialise(wrap({ copies: 3, scale: [0.5, 0.5] }));   // factor: 0.5× per copy
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",

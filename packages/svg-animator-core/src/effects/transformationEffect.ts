@@ -70,14 +70,13 @@ function translateHasAutoOrient(translate: PxAnimatable<Vec2> | undefined): bool
 }
 
 /**
- * The wire `effects.transformation.scale` emits **percent units** (150 = 150%)
- * for the bare-array static form, but emits **1.0-units** (1.5 = 150%) inside
- * `{keyframes: [...]}` (matching the body `transform` baseline). The bare-array
- * form is the one we have to convert.
+ * The wire `effects.transformation.scale` is a FACTOR (1.5 = 150%) in every form —
+ * bare static, `{value:…}` and `{keyframes:…}` alike (one convention, see
+ * SCHEMA-ANALYSIS.md I-3; the old bare-static PERCENT form is gone) — so no
+ * normalisation is needed any more. Kept as a named identity so the call site
+ * still documents the convention decision.
  */
 function normalizeScale(raw: PxAnimatable<Vec2> | undefined): PxAnimatable<Vec2> | undefined {
-    if (raw === undefined) return undefined;
-    if (Array.isArray(raw)) return [raw[0] / 100, raw[1] / 100] as Vec2;
     return raw;
 }
 

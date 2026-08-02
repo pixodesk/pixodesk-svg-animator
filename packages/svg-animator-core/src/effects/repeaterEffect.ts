@@ -139,39 +139,30 @@ function mapAnimatableNumber(raw: PxAnimatable<number>, fn: (v: number) => numbe
 }
 
 /**
- * Per-copy scale: per-axis geometric compounding `s^i`. Always emitted in
- * **1.0-units** so it bypasses `applyTransformationEffect.normalizeScale`
- * (which only divides BARE-array static scale by 100 — `{value:…}` and
- * `{keyframes:…}` are expected to be already-1.0-units).
+ * Per-copy scale: per-axis geometric compounding `s^i`.
  *
- * Wire convention for repeater.scale is irregular:
- *  - **Bare-array static** is PERCENT (e.g. `[85, 85]` = 0.85×); needs `/100`
- *    before compounding.
- *  - **`{keyframes:…}` animated** values are already 1.0-units (the writer
- *    converts) — no `/100`.
- *  - `{value:…}` static (rare; uses same convention as bare-array → PERCENT).
+ * The wire carries repeater.scale as a FACTOR (0.85 = 85%) in EVERY form — bare
+ * static, `{value:…}` and `{keyframes:…}` alike (one convention, see
+ * SCHEMA-ANALYSIS.md I-3; the old bare-static PERCENT form is gone). Output is
+ * emitted as `{value:…}` / keyframes in the same 1.0-units, so it also bypasses
+ * `applyTransformationEffect.normalizeScale` untouched.
  */
 function synthesiseScale(raw: PxAnimatable<Vec2>, i: number): PxAnimatable<Vec2> {
-    const scalePowerFromPercent = (v: Vec2): Vec2 => [Math.pow(v[0] / 100, i), Math.pow(v[1] / 100, i)];
-    const scalePowerFromUnits = (v: Vec2): Vec2 => [Math.pow(v[0], i), Math.pow(v[1], i)];
+    const scalePower = (v: Vec2): Vec2 => [Math.pow(v[0], i), Math.pow(v[1], i)];
 
     if (Array.isArray(raw)) {
-        // Bare-array static (PERCENT) → emit as `{value:[…]}` in 1.0-units to
-        // bypass normalizeScale.
-        return { value: scalePowerFromPercent(raw as Vec2) };
+        return { value: scalePower(raw as Vec2) };
     }
     if (raw && typeof raw === 'object') {
         const obj = raw as { value?: Vec2; keyframes?: Array<any>; autoOrient?: boolean };
         if (Array.isArray(obj.keyframes)) {
-            // Animated values are already 1.0-units on the wire.
             return {
                 ...obj,
-                keyframes: obj.keyframes.map(kf => kf && kf.value !== undefined ? { ...kf, value: scalePowerFromUnits(kf.value) } : kf),
+                keyframes: obj.keyframes.map(kf => kf && kf.value !== undefined ? { ...kf, value: scalePower(kf.value) } : kf),
             } as PxAnimatable<Vec2>;
         }
         if (obj.value !== undefined) {
-            // `{value:…}` static — treated as PERCENT like the bare-array case.
-            return { ...obj, value: scalePowerFromPercent(obj.value) } as PxAnimatable<Vec2>;
+            return { ...obj, value: scalePower(obj.value) } as PxAnimatable<Vec2>;
         }
     }
     return raw;

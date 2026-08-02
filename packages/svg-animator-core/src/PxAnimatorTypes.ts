@@ -911,7 +911,7 @@ const _ck_PxTransformationEffect: KeysMatch<PxTransformationEffect, _PxTransform
 
 
 /** Per-copy repeater offsets. Each part is animatable; per-copy values scale
- *  with the copy index `i` (translate/rotate/origin × i; scale per-axis `(v/100)^i`).
+ *  with the copy index `i` (translate/rotate/origin × i; scale per-axis `v^i`).
  *  Static repeater values pass through as a structured `transform: {value:…}` on
  *  the per-copy wrapper; animated values are emitted as `animate.transform.keyframes`
  *  with each kf value scaled by `i`. See `effects/repeaterEffect.ts`. */
@@ -919,7 +919,7 @@ export interface _PxRepeaterEffect {
     copies?: number;
     translate?: PxAnimatable<Vec2>;
     rotate?: PxAnimatable<number>;
-    scale?: PxAnimatable<Vec2>;       // per-copy scale, stored as PERCENT (85 → 0.85)
+    scale?: PxAnimatable<Vec2>;       // per-copy FACTOR (0.85 = 85% per copy), like every other scale
     origin?: PxAnimatable<Vec2>;
 }
 export const PxRepeaterEffectSchema = implementsInterface<_PxRepeaterEffect>()(px.object({
