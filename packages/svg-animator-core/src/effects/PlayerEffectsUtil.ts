@@ -102,7 +102,6 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     if (!fx && !innerIdForContentRef) return node;
 
     const { transformation, repeater, maskedBy, clipPath, trimPath, clone: cloneFx, fillGradient, strokeGradient, textPath, text } = fx ?? {};
-    const isCombinedShape = fx?.isCombinedShape;
     if (fx) delete node.effects;
 
     let n = node;
@@ -135,7 +134,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     // wrapped — they live in `ctx.defs` independent of the structure walk.
     n = applyFillGradientEffect(n, fillGradient, ctx);
     n = applyStrokeGradientEffect(n, strokeGradient, ctx);
-    n = applyTrimPathEffect(n, trimPath, isCombinedShape, ctx);         // innermost shape
+    n = applyTrimPathEffect(n, trimPath, ctx);         // innermost shape
     n = applyRepeaterEffect(n, repeater, ctx);
     n = applyMaskedByEffect(n, maskedBy, transformation, ctx);          // mask sits on inner element
     n = applyClipPathEffect(n, clipPath, ctx);                         // clip-path ref on the element

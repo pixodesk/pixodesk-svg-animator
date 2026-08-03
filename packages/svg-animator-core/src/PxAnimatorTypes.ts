@@ -1258,7 +1258,6 @@ export interface _PxEffects {
     clipPath?: _PxClipPathEffect;
     trimPath?: _PxTrimPathEffect;
     clone?: _PxCloneEffect;
-    isCombinedShape?: boolean;
     fillGradient?: _PxFillGradientEffect;
     strokeGradient?: _PxStrokeGradientEffect;
     textPath?: _PxTextPathEffect;
@@ -1271,7 +1270,6 @@ export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
     clipPath: PxClipPathEffectSchema.optional(),
     trimPath: PxTrimPathEffectSchema.optional(),
     clone: PxCloneEffectSchema.optional(),
-    isCombinedShape: px.boolean().optional(),
     fillGradient: PxFillGradientEffectSchema.optional(),
     strokeGradient: PxStrokeGradientEffectSchema.optional(),
     textPath: PxTextPathEffectSchema.optional(),

@@ -35,7 +35,6 @@ import type { ApplyContext } from './types';
 export function applyTrimPathEffect(
     node: PxNode,
     trimPath: _PxTrimPathEffect | undefined,
-    isCombinedShape: boolean | undefined,
     ctx: ApplyContext,
 ): PxNode {
     if (!trimPath) return node;
