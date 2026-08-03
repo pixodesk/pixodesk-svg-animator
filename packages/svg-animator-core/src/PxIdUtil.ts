@@ -67,7 +67,7 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
     ]);
 
     // Attributes that contain direct ID references (no # or url())
-    const directIdRefAttrs = new Set(['baseId', 'targetId', 'boundElementId']);
+    const directIdRefAttrs = new Set(['sourceId', 'targetId', 'boundElementId']);
 
     // Phase 1: Collect all IDs and generate new ones
     function collectIds(node: any): void {
@@ -118,8 +118,8 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
                 else if (urlRefAttrs.has(key)) {
                     node[key] = replaceUrlRefs(value, idMap);
                 }
-                // Check for direct ID references: baseId="#_px_xxx" (canonical `#id`,
-                // SCHEMA-ANALYSIS §4 E-5) or bare baseId="_px_xxx" (legacy) —
+                // Check for direct ID references: sourceId="#_px_xxx" (canonical `#id`,
+                // SCHEMA-ANALYSIS §4 E-5) or bare sourceId="_px_xxx" (legacy) —
                 // rewrite preserving the incoming spelling.
                 else if (directIdRefAttrs.has(key)) {
                     const hasHash = value.startsWith('#');
@@ -141,7 +141,7 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
                     }
                 }
             }
-            // Recursively process nested objects (meta contains baseId/targetId refs;
+            // Recursively process nested objects (meta contains sourceId/targetId refs;
             // in-place animated values like { keyframes: [{ value: "url(#grad)" }] }
             // also need ref rewriting on string values they contain).
             else if (typeof value === 'object' && value !== null) {

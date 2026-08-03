@@ -165,7 +165,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 {
                     type: 'use',
                     transform: 'translate(40,200)',
-                    effects: { clone: { baseId: 'src', type: 'content' } },
+                    effects: { clone: { sourceId: 'src', type: 'content' } },
                 },
             ],
         };
@@ -206,7 +206,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 // Element being masked
                 {
                     type: 'rect', id: 'r1', width: 100, height: 50,
-                    effects: { maskedBy: { href: 'm-src' } },
+                    effects: { maskedBy: { sourceId: 'm-src' } },
                 },
                 // Mask source (referenced)
                 { type: 'ellipse', id: 'm-src', rx: 30, ry: 20 },
@@ -462,7 +462,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                     ],
                 },
                 // Use that retimes the symbol — retime follows `<use>.href` now
-                // (baseId is no longer consulted; left on the payload only if
+                // (sourceId is no longer consulted; left on the payload only if
                 // a producer still emits it — harmless).
                 {
                     type: 'use',

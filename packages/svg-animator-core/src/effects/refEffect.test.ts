@@ -4,8 +4,8 @@
  *---------------------------------------------------------------------------------------*/
 
 // Pure-JSON in/out tests for the REF effect (`refEffect.ts` + `contentRefSplit.ts`).
-//  - Whole-element ref (`ref:{baseId}`) → the `<use>.href` is rewritten to `#baseId`.
-//  - Content ref (`ref:{type:'content', baseId}`) → the SOURCE element is split into
+//  - Whole-element ref (`ref:{sourceId}`) → the `<use>.href` is rewritten to `#sourceId`.
+//  - Content ref (`ref:{type:'content', sourceId}`) → the SOURCE element is split into
 //      <g id=src> (outer, holds translate) > <g id=inner> (rotate/scale) > bare element
 //    and the `<use>.href` is pointed at the INNER id — so the use renders the source
 //    EXCLUDING the source's own translate.
@@ -29,8 +29,8 @@ const gById = (out: PxNode, id: string): any => collectByType(out, 'g').find(g =
 
 describe('refEffect — whole-element ref & content-ref split', () => {
 
-    it('case 1 — whole-element ref → <use>.href rewritten to #baseId, source untouched', () => {
-        const out = materialise(scene({}, { clone: { baseId: 'src' } }));
+    it('case 1 — whole-element ref → <use>.href rewritten to #sourceId, source untouched', () => {
+        const out = materialise(scene({}, { clone: { sourceId: 'src' } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -54,7 +54,7 @@ describe('refEffect — whole-element ref & content-ref split', () => {
     });
 
     it('case 2 — content ref → source SPLIT (outer#src > inner > bare), <use> points at inner', () => {
-        const out = materialise(scene({}, { clone: { type: 'content', baseId: 'src' } }));
+        const out = materialise(scene({}, { clone: { type: 'content', sourceId: 'src' } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -94,7 +94,7 @@ describe('refEffect — whole-element ref & content-ref split', () => {
     });
 
     it('case 3 — content ref with source TRANSLATE → translate lifts to outer, bare element has none', () => {
-        const out = materialise(scene({ transform: 'translate(30,40)' }, { clone: { type: 'content', baseId: 'src' } }));
+        const out = materialise(scene({ transform: 'translate(30,40)' }, { clone: { type: 'content', sourceId: 'src' } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",

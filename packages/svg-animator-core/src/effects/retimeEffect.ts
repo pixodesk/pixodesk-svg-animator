@@ -11,7 +11,7 @@
  *
  * Retime lives nested under the merged `clone` effect (`effects.clone.retime`).
  * For every `<use>` carrying it we:
- *   1. follow `useNode.href` (no `baseId` lookup — the editor-side id wouldn't
+ *   1. follow `useNode.href` (no `sourceId` lookup — the editor-side id wouldn't
  *      resolve in the lightweight tree);
  *   2. recursively materialise the chain target-side, preserving each
  *      intermediate `<use>`'s offset/transform and accumulating retime at every
@@ -22,7 +22,7 @@
  * applied to ITS OWN kfs, and the link's `href` rewritten to point at the
  * next-level materialisation.
  *
- * NB: `clone.baseId` is intentionally IGNORED by retime — it carries an
+ * NB: `clone.sourceId` is intentionally IGNORED by retime — it carries an
  * upstream core id that does not exist in the lightweight tree; retime
  * follows `href`.
  */

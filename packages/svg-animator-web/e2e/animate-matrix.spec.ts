@@ -220,7 +220,7 @@ function maskedByEffectDoc(): PxAnimatedSvgDocument {
             },
             {
                 type: 'rect', id: '_px_m', x: 0, y: 0, width: 200, height: 200, fill: '#a855f7',
-                effects: { maskedBy: { href: '#_px_mask' } },
+                effects: { maskedBy: { sourceId: '#_px_mask' } },
             },
         ],
     };

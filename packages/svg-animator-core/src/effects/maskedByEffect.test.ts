@@ -29,8 +29,8 @@ const target = (out: PxNode): PxNode => collectByType(out, 'rect').find(r => (r 
 
 describe('maskedByEffect — <mask> def + mask attr', () => {
 
-    it('case 1 — static href → one <mask> in defs holding <use href=#src>, target gets mask=url()', () => {
-        const out = materialise(scene({ href: 'src' }));
+    it('case 1 — static sourceId → one <mask> in defs holding <use href=#src>, target gets mask=url()', () => {
+        const out = materialise(scene({ sourceId: 'src' }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -84,7 +84,7 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
 
     it('case 2 — maskType / maskUnits / maskContentUnits pass through onto the <mask>', () => {
         const out = materialise(scene({
-            href: 'src', maskType: 'alpha', maskUnits: 'userSpaceOnUse', maskContentUnits: 'objectBoundingBox',
+            sourceId: 'src', maskType: 'alpha', maskUnits: 'userSpaceOnUse', maskContentUnits: 'objectBoundingBox',
         }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
@@ -138,7 +138,7 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
     it('case 3 — masked element with own transformation → mask source gets the INVERSE translate', () => {
         // target also translated +[60,0]; the mask must cancel it (inverse -[60,0])
         // so the source paints where it really is.
-        const out = materialise(scene({ href: 'src' }, { transformation: { translate: [60, 0] } }));
+        const out = materialise(scene({ sourceId: 'src' }, { transformation: { translate: [60, 0] } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -213,9 +213,9 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
         expect(inverseParts.some(p => p.translate && p.translate[0] === -60 && p.translate[1] === 0)).toBe(true);
     });
 
-    it('case 4 — missing href is rejected with an error (no mask minted)', () => {
+    it('case 4 — missing sourceId is rejected with an error (no mask minted)', () => {
         const { root, errors } = materialiseRaw(scene({ maskType: 'alpha' }));
-        expect(errors.some(e => e.includes('maskedBy.href missing'))).toBe(true);
+        expect(errors.some(e => e.includes('maskedBy.sourceId missing'))).toBe(true);
         expect(collectByType(root, 'mask')).toHaveLength(0);
     });
 });

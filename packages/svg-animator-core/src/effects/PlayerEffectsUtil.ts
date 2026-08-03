@@ -153,14 +153,14 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     }
 
     // Hand off the retime slice to pass 2 (keeps it nested under `clone`). The
-    // ref part (type/baseId) was consumed above.
+    // ref part (type/sourceId) was consumed above.
     if (cloneFx?.retime) node.effects = { clone: { retime: cloneFx.retime } };
     if (originalId) ctx.idMap.set(originalId, n);                       // outer wrapper is the clone target
     return n;
 }
 
 /** Pass 2 — apply retime to every `<use>` that carries it. Follows the
- *  materialised `<use>.href` (not the editor-side `retime.baseId`). */
+ *  materialised `<use>.href` (not the editor-side `retime.sourceId`). */
 function applyPlayerEffects_retime(node: PxNode, ctx: ApplyContext): PxNode {
     applyAllRetimeEffects(node, ctx);
     return node;

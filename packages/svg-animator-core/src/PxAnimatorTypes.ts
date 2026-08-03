@@ -960,13 +960,13 @@ const _ck_PxRepeaterEffect: KeysMatch<PxRepeaterEffect, _PxRepeaterEffect> = tru
 
 
 /** Mask source ref + standard `<mask>` attributes.
- *  `href` is `#id` (canonical ref spelling, SCHEMA-ANALYSIS §4 E-5); bare `id` is legacy, read-only.
+ *  `sourceId` is `#id` (canonical ref spelling, SCHEMA-ANALYSIS §4 E-5); bare `id` is legacy, read-only.
  *  `start`/`size` are the `<mask>` viewport — its `x`/`y` and `width`/`height` in
  *  `maskUnits` space. Absent = SVG's implicit mask region (−10% … 120% of the
  *  bounding box), which is also the editor's default — so they only appear when a
  *  document (typically an imported SVG) carries explicit mask bounds. */
 export interface _PxMaskedByEffect {
-    href?: string;
+    sourceId?: string;
     maskType?: string;
     maskUnits?: string;
     maskContentUnits?: string;
@@ -974,7 +974,7 @@ export interface _PxMaskedByEffect {
     size?: Vec2;
 }
 export const PxMaskedByEffectSchema = implementsInterface<_PxMaskedByEffect>()(px.object({
-    href: px.string().optional(),
+    sourceId: px.string().optional(),
     maskType: px.string().optional(),
     maskUnits: px.string().optional(),
     maskContentUnits: px.string().optional(),
@@ -1036,17 +1036,20 @@ export type PxTrimPathEffect = PxInfer<typeof PxTrimPathEffectSchema>;
 const _ck_PxTrimPathEffect: KeysMatch<PxTrimPathEffect, _PxTrimPathEffect> = true;
 
 
-/** `<use>` retime: `baseId` = source (`#id` canonical, bare legacy); `start`/`timeCrop` in ms.
+/** Ref-attr naming rule (see editor HOST-META-DESIGN.md): `sourceId` = ref to an EXTERNAL element
+ *  (clone/maskedBy/retime); `coreId` = a unit's own survivor; `partOf` = a derived node's host.
+ *
+ *  `<use>` retime: `sourceId` = source (`#id` canonical, bare legacy); `start`/`timeCrop` in ms.
  *  NOTE: `timeCrop` is accepted on the wire but not implemented yet — the
  *  applier warns and ignores it (see `effects/retimeEffect.ts`). */
 export interface _PxRetimeEffect {
-    baseId?: string;
+    sourceId?: string;
     start?: number;
     stretch?: number;
     timeCrop?: [number, number];
 }
 export const PxRetimeEffectSchema = implementsInterface<_PxRetimeEffect>()(px.object({
-    baseId: px.string().optional(),
+    sourceId: px.string().optional(),
     start: px.number().optional(),
     stretch: px.number().optional(),
     timeCrop: px.tuple([px.number(), px.number()] as const).optional(),
@@ -1057,22 +1060,22 @@ const _ck_PxRetimeEffect: KeysMatch<PxRetimeEffect, _PxRetimeEffect> = true;
 
 /**
  * `<use>` CLONE — merges the former `ref` + `retime` effects. A `<use>` is a clone
- * of something: `type`/`baseId` say WHAT it clones, `retime` says WHEN.
+ * of something: `type`/`sourceId` say WHAT it clones, `retime` says WHEN.
  *   - `type: 'content'` → content-ref (excludes the target's own translate);
  *     `type` absent → direct / whole-element link (keeps translate).
- *   - `baseId` = the source element ref, `#id` (canonical spelling, SCHEMA-ANALYSIS §4 E-5;
+ *   - `sourceId` = the source element ref, `#id` (canonical spelling, SCHEMA-ANALYSIS §4 E-5;
  *     bare `id` is legacy, read-only). Lives once here; the player follows `href`.
  *   - `retime` = optional time-shift (nested).
  * Omitted entirely when all-default (a bare `<use href>` carries no `clone` bucket).
  */
 export interface _PxCloneEffect {
     type?: string;
-    baseId?: string;
+    sourceId?: string;
     retime?: _PxRetimeEffect;
 }
 export const PxCloneEffectSchema = implementsInterface<_PxCloneEffect>()(px.object({
     type: px.string().optional(),
-    baseId: px.string().optional(),
+    sourceId: px.string().optional(),
     retime: PxRetimeEffectSchema.optional(),
 }));
 export type PxCloneEffect = PxInfer<typeof PxCloneEffectSchema>;
