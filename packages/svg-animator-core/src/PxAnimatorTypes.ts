@@ -196,7 +196,7 @@ export type PxKeyframeValue = PxInfer<typeof PxKeyframeValueSchema>;
 //
 // `value` / `v` validate against {@link PxKeyframeValueSchema} — malformed
 // keyframe values are now schema errors instead of passing as `px.any()`
-// (SCHEMA-ANALYSIS I-5). The `_PxKeyframe` interface keeps `value?: any` (and
+// (SCHEMA-DESIGN I-5). The `_PxKeyframe` interface keeps `value?: any` (and
 // `PxKeyframe<T = any>` its generic default) so the duck-typed interpolator
 // access in `PxDefinitions.ts` stays untyped-permissive at compile time.
 export const PxKeyframeSchema = implementsInterface<_PxKeyframe>()(px.object({
@@ -960,7 +960,7 @@ const _ck_PxRepeaterEffect: KeysMatch<PxRepeaterEffect, _PxRepeaterEffect> = tru
 
 
 /** Mask source ref + standard `<mask>` attributes.
- *  `sourceId` is `#id` (canonical ref spelling, SCHEMA-ANALYSIS §4 E-5); bare `id` is legacy, read-only.
+ *  `sourceId` is `#id` (canonical ref spelling, SCHEMA-DESIGN §4 E-5); bare `id` is legacy, read-only.
  *  `start`/`size` are the `<mask>` viewport — its `x`/`y` and `width`/`height` in
  *  `maskUnits` space. Absent = SVG's implicit mask region (−10% … 120% of the
  *  bounding box), which is also the editor's default — so they only appear when a
@@ -1036,7 +1036,7 @@ export type PxTrimPathEffect = PxInfer<typeof PxTrimPathEffectSchema>;
 const _ck_PxTrimPathEffect: KeysMatch<PxTrimPathEffect, _PxTrimPathEffect> = true;
 
 
-/** Ref-attr naming rule (see editor HOST-META-DESIGN.md): `sourceId` = ref to an EXTERNAL element
+/** Ref-attr naming rule (see editor SCHEMA-DESIGN.md): `sourceId` = ref to an EXTERNAL element
  *  (clone/maskedBy/retime); `coreId` = a unit's own survivor; `partOf` = a derived node's host.
  *
  *  `<use>` retime: `sourceId` = source (`#id` canonical, bare legacy); `start`/`timeCrop` in ms.
@@ -1063,7 +1063,7 @@ const _ck_PxRetimeEffect: KeysMatch<PxRetimeEffect, _PxRetimeEffect> = true;
  * of something: `type`/`sourceId` say WHAT it clones, `retime` says WHEN.
  *   - `type: 'content'` → content-ref (excludes the target's own translate);
  *     `type` absent → direct / whole-element link (keeps translate).
- *   - `sourceId` = the source element ref, `#id` (canonical spelling, SCHEMA-ANALYSIS §4 E-5;
+ *   - `sourceId` = the source element ref, `#id` (canonical spelling, SCHEMA-DESIGN §4 E-5;
  *     bare `id` is legacy, read-only). Lives once here; the player follows `href`.
  *   - `retime` = optional time-shift (nested).
  * Omitted entirely when all-default (a bare `<use href>` carries no `clone` bucket).

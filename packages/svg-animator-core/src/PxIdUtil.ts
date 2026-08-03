@@ -119,7 +119,7 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
                     node[key] = replaceUrlRefs(value, idMap);
                 }
                 // Check for direct ID references: sourceId="#_px_xxx" (canonical `#id`,
-                // SCHEMA-ANALYSIS §4 E-5) or bare sourceId="_px_xxx" (legacy) —
+                // SCHEMA-DESIGN §4 E-5) or bare sourceId="_px_xxx" (legacy) —
                 // rewrite preserving the incoming spelling.
                 else if (directIdRefAttrs.has(key)) {
                     const hasHash = value.startsWith('#');

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// The ONE animatable grammar (SCHEMA-ANALYSIS §4 E-1/E-2):
+// The ONE animatable grammar (SCHEMA-DESIGN §4 E-1/E-2):
 //   T | {value: T} | PxPropertyAnimation ({value?, keyframes|kfs, loop?, autoOrient?})
 // Every effect slot reads through `readAnimatable` and emits through the shared
 // channel writer, so `loop` / the `kfs` alias / the `{value}` base behave the same

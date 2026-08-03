@@ -37,7 +37,7 @@ export function applyMaskedByEffect(
     ctx: ApplyContext,
 ): PxNode {
     if (!fx) return node;
-    // Canonical ref spelling is `#id` (SCHEMA-ANALYSIS §4 E-5); bare `id` is legacy.
+    // Canonical ref spelling is `#id` (SCHEMA-DESIGN §4 E-5); bare `id` is legacy.
     const sourceId = stripHash(fx.sourceId);
     if (!sourceId) { ctx.errors.push('maskedBy.sourceId missing — cannot build mask'); return node; }
 

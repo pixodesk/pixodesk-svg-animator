@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 // Effect params that GRADUATED from editor-only schema extensions into the
-// player wire (SCHEMA-ANALYSIS §4 catalogue): `repeater.skew` (per-copy ×i,
+// player wire (SCHEMA-DESIGN §4 catalogue): `repeater.skew` (per-copy ×i,
 // animatable) and `maskedBy.start`/`size` (explicit mask viewport). Before the
 // graduation the player silently ignored both — editor and player rendered
 // differently whenever they were set.

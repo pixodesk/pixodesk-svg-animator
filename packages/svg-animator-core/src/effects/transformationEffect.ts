@@ -72,7 +72,7 @@ function translateHasAutoOrient(translate: PxAnimatable<Vec2> | undefined): bool
 /**
  * The wire `effects.transformation.scale` is a FACTOR (1.5 = 150%) in every form —
  * bare static, `{value:…}` and `{keyframes:…}` alike (one convention, see
- * SCHEMA-ANALYSIS.md I-3; the old bare-static PERCENT form is gone) — so no
+ * SCHEMA-DESIGN.md I-3; the old bare-static PERCENT form is gone) — so no
  * normalisation is needed any more. Kept as a named identity so the call site
  * still documents the convention decision.
  */

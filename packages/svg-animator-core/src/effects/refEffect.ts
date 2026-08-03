@@ -41,7 +41,7 @@ export function applyRefHref(
     ctx: ApplyContext,
 ): void {
     if (!clone) return;
-    // Canonical ref spelling is `#id` (SCHEMA-ANALYSIS §4 E-5); bare `id` is legacy.
+    // Canonical ref spelling is `#id` (SCHEMA-DESIGN §4 E-5); bare `id` is legacy.
     const sourceId = stripHash(clone.sourceId);
     if (!sourceId) {
         if (clone.type === CONTENT_SUBREF) ctx.errors.push('clone: content ref missing sourceId');

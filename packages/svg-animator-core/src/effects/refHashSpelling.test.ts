@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// Ref-spelling normalisation (SCHEMA-ANALYSIS §4 E-5): the canonical wire form of
+// Ref-spelling normalisation (SCHEMA-DESIGN §4 E-5): the canonical wire form of
 // every element reference is `#id`; bare `id` is legacy and must keep working.
 // Each applier that consumes a ref reads through `stripHash`, so both spellings
 // materialise identically.

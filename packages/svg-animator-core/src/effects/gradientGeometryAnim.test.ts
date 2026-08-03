@@ -6,7 +6,7 @@
 // Regression: gradient GEOMETRY must animate in the frames engine, not just stops.
 //
 // The wire animates geometry on the SLOTS themselves (`p1`/`p2`/`c`/`r`/`fp` as
-// grammar-1 animatables — SCHEMA-ANALYSIS §4 E-3). `synthesiseGradientDef` splits
+// grammar-1 animatables — SCHEMA-DESIGN §4 E-3). `synthesiseGradientDef` splits
 // a vec slot into per-axis channels on the def node's own `animate` under the REAL
 // SVG attr names (`y1`, `fx`, …) so the frame loop drives them like it drives the
 // stops' `stopColor`. The old per-scalar `effects.fillGradient.animate.gradientY1…`
