@@ -260,6 +260,21 @@ function readTransformationFromBody(node: PxNode): PxTransformationEffect | unde
         if (parts.origin) out.origin = parts.origin;
         return Object.keys(out).length ? out : undefined;
     }
+    // STRUCTURED STATIC (T2, SCHEMA-DESIGN S1): {value: partsRecord} — the
+    // lightweight wire's static form; values are already wire units (scale =
+    // factor), so scale passes through `{value}` like the string branch.
+    if (node.transform && typeof node.transform === 'object') {
+        const value = (node.transform as { value?: Record<string, any> }).value;
+        if (value && typeof value === 'object') {
+            const out: PxTransformationEffect = {};
+            if (Array.isArray(value.translate)) out.translate = value.translate as [number, number];
+            if (typeof value.rotate === 'number') out.rotate = value.rotate;
+            if (typeof value.skew === 'number') out.skew = value.skew;
+            if (Array.isArray(value.scale)) out.scale = { value: value.scale as [number, number] };
+            if (Array.isArray(value.origin)) out.origin = value.origin as [number, number];
+            return Object.keys(out).length ? out : undefined;
+        }
+    }
     return undefined;
 }
 

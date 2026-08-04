@@ -203,9 +203,11 @@ function liftBodyTranslate(node: PxNode, transformation: PxTransformationEffect 
         }
     }
 
-    // 2. Body `transform` — only the string form carries baked translates. Object
-    //    forms ({value}/{keyframes}) come from the writer's transformation-effect
-    //    path and are handled via `effects.transformation`, not the body.
+    // 2. Body `transform` — the composed STRING (pre-rendered forms / legacy /
+    //    foreign SVG) or the STRUCTURED STATIC `{value: partsRecord}` (the
+    //    lightweight wire since SCHEMA-DESIGN S1). `{keyframes}` bodies come
+    //    from the writer's transformation-effect path and are handled via
+    //    `effects.transformation`, not here.
     const transformationHasTranslate = transformation?.translate !== undefined;
     const stripBodyTranslateOnly = didLiftAnimate || transformationHasTranslate;
     // Autoorient / motion-path lift: when the lifted animate.transform carries
@@ -239,6 +241,24 @@ function liftBodyTranslate(node: PxNode, transformation: PxTransformationEffect 
             out.transform = split.translate;
             if (split.rest) node.transform = split.rest;
             else delete node.transform;
+        }
+    } else if (node.transform && typeof node.transform === 'object' && !Array.isArray(node.transform)) {
+        // STRUCTURED STATIC (T2): {value: {translate?, rotate?, skew?, scale?, origin?}}
+        const value = (node.transform as { value?: Record<string, unknown> }).value;
+        if (value && typeof value === 'object' && Array.isArray((value as any).translate)) {
+            const rest: Record<string, unknown> = { ...value };
+            delete rest.translate;
+            const hasRest = Object.keys(rest).length > 0;
+            if (stripBodyTranslateOnly) {
+                // Same redundancy rule as the string branch: the outer wrapper
+                // carries the translate; drop the body's copy.
+                if (hasRest) node.transform = { value: rest } as any;
+                else delete node.transform;
+            } else {
+                out.transform = { value: { translate: (value as any).translate } } as any;
+                if (hasRest) node.transform = { value: rest } as any;
+                else delete node.transform;
+            }
         }
     }
 
