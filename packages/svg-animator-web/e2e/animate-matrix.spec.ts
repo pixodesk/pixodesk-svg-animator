@@ -40,10 +40,10 @@ async function advanceTimeIncrementally(
  *
  * Frames docs start on load and are driven by the mocked page clock.
  * WAAPI runs on the compositor timeline, which `page.clock` does NOT control —
- * so webapi docs use `startOn: 'programmatic'` and the test drives them
+ * so waapi docs use `startOn: 'programmatic'` and the test drives them
  * deterministically by seeking via the animator API instead. */
-function animator(mode: 'auto' | 'webapi' | 'frames') {
-    const programmatic = mode === 'webapi';
+function animator(mode: 'auto' | 'waapi' | 'frames') {
+    const programmatic = mode === 'waapi';
     return {
         duration: 1000,
         mode,
@@ -60,7 +60,7 @@ function animator(mode: 'auto' | 'webapi' | 'frames') {
 // ---------------------------------------------------------------------------
 
 /** Numeric + colour + position attributes: opacity, fill, cx/cy, r. */
-function basicAttrsDoc(mode: 'webapi' | 'frames'): PxAnimatedSvgDocument {
+function basicAttrsDoc(mode: 'waapi' | 'frames'): PxAnimatedSvgDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
         animator: animator(mode),
@@ -86,7 +86,7 @@ function basicAttrsDoc(mode: 'webapi' | 'frames'): PxAnimatedSvgDocument {
 }
 
 /** Transform parts: translate + rotate + scale (nested, one fn per level). */
-function transformDoc(mode: 'webapi' | 'frames'): PxAnimatedSvgDocument {
+function transformDoc(mode: 'waapi' | 'frames'): PxAnimatedSvgDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
         animator: animator(mode),
@@ -140,7 +140,7 @@ function shapeDoc(): PxAnimatedSvgDocument {
 // Player-effect docs (materialised by the player at runtime; mode auto)
 // ---------------------------------------------------------------------------
 
-function transformationEffectDoc(mode: 'webapi' | 'frames'): PxAnimatedSvgDocument {
+function transformationEffectDoc(mode: 'waapi' | 'frames'): PxAnimatedSvgDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
         animator: animator(mode),
@@ -310,7 +310,7 @@ test.describe("animate-matrix (frames, clock-driven)", () => {
 // does NOT control (a mocked clock also breaks WAAPI pause/seek resolution) —
 // so these docs start `programmatic`, run WITHOUT the mocked clock, and the
 // test seeks to fixed times through the animator API instead.
-test.describe("animate-matrix (webapi, seek-driven)", () => {
+test.describe("animate-matrix (waapi, seek-driven)", () => {
 
     test.beforeEach(async ({ page }) => {
         page.on('console', msg => console.log('BROWSER:', msg.text()));
@@ -357,7 +357,7 @@ test.describe("animate-matrix (webapi, seek-driven)", () => {
         });
     }
 
-    seekScreenshotTest('attrs-webapi', basicAttrsDoc('webapi'));
-    seekScreenshotTest('transform-webapi', transformDoc('webapi'));
-    seekScreenshotTest('effect-transformation-webapi', transformationEffectDoc('webapi'));
+    seekScreenshotTest('attrs-waapi', basicAttrsDoc('waapi'));
+    seekScreenshotTest('transform-waapi', transformDoc('waapi'));
+    seekScreenshotTest('effect-transformation-waapi', transformationEffectDoc('waapi'));
 });

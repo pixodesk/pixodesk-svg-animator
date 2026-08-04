@@ -19,11 +19,11 @@
  *      repeated keyframes filling the duration.
  *   3. `materialiseMotionPathsInTree` — `transform` kfs with tangents +
  *      `autoOrient` flattened into sampled `{translate, rotate}` kfs. Only
- *      for `engine === webapi` — frames-mode keeps the parametric form and
+ *      for `engine === waapi` — frames-mode keeps the parametric form and
  *      evaluates per frame for max spatial fidelity.
  *   4. `materialiseAnimatedUseInstances` — `<use>` referencing an animated
  *      subtree replaced with a `<g>` carrying a deep clone (fresh ids).
- *      Only for `engine === webapi` — frames-mode updates source attrs
+ *      Only for `engine === waapi` — frames-mode updates source attrs
  *      per frame, which propagate through `<use>` shadow trees natively.
  *
  * Immutable: input doc is never mutated. Steps that didn't apply (the engine
@@ -44,7 +44,7 @@ import { materialiseAnimatedUseInstances } from './PxAnimatorUseMaterialiser';
  *  per-stage materialisers; ordering is fixed (see module doc). */
 export interface MaterialiseAllOptions {
     /** Knobs forwarded to `materialiseMotionPathsInTree`. Only consulted for
-     *  `engine === webapi` — frames-mode skips that stage entirely. */
+     *  `engine === waapi` — frames-mode skips that stage entirely. */
     motionPath?: MotionPathMaterialisationOptions;
 }
 
@@ -63,7 +63,7 @@ export function materialiseAllInTree(
     const duration = getAnimatorConfig(root)?.duration ?? DEFAULT_DURATION_MS;
     root = materialiseInternalLoopsInTree(root, duration);
 
-    if (engine === PxAnimatorEngine.webapi) {
+    if (engine === PxAnimatorEngine.waapi) {
         // 3. Motion-along-path → sampled `{translate, rotate}` kfs. WAAPI can't
         //    evaluate parametric tangents; frames-mode does that per frame so
         //    we skip this for frames.
@@ -77,7 +77,7 @@ export function materialiseAllInTree(
 
         // 5. Prune <defs> `<g>`/`<symbol>` entries that step 4 orphaned — i.e. no
         //    `<use>` references them any more (the animated uses that did got
-        //    inlined into `<g>`+clones). webapi-only: frames keeps `<use href>`,
+        //    inlined into `<g>`+clones). waapi-only: frames keeps `<use href>`,
         //    so nothing is orphaned there.
         root = pruneUnreferencedDefs(root);
     }

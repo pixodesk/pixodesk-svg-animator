@@ -11,7 +11,7 @@
  * animates, the `<use>` shows static. This module fixes that by deep-cloning
  * every animated target into the corresponding `<use>` site (with fresh ids
  * and rewritten internal refs), and replacing the `<use>` with a `<g>` that
- * carries the use's transform/x/y attributes. Both engines (frames + webapi)
+ * carries the use's transform/x/y attributes. Both engines (frames + waapi)
  * then animate the cloned nodes directly.
  *
  * Shares the deep-clone + id-regen + ref-rewrite primitives with the retime

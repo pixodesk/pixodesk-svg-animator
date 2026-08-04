@@ -800,7 +800,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
         } as PxAnimatedSvgDocument;
 
         // Run the same pipeline the player uses — for BOTH engines.
-        for (const engine of [PxAnimatorEngine.frames, PxAnimatorEngine.webapi]) {
+        for (const engine of [PxAnimatorEngine.frames, PxAnimatorEngine.waapi]) {
             const flatDoc = materialiseAllInTree(doc, engine);
             const animDef = getBindings(flatDoc);
             // Sample beyond the original kfs range — the loop must repeat
@@ -832,7 +832,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
                 } } } as any,
             ],
         } as PxAnimatedSvgDocument;
-        for (const engine of [PxAnimatorEngine.frames, PxAnimatorEngine.webapi]) {
+        for (const engine of [PxAnimatorEngine.frames, PxAnimatorEngine.waapi]) {
             const animDef = getBindings(materialiseAllInTree(doc, engine));
             for (const t of [0, 500, 1100, 1400]) {
                 expectNoNaN(calcAnimationValues(animDef, t));
@@ -861,7 +861,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
                 } } } as any,
             ],
         } as PxAnimatedSvgDocument;
-        for (const engine of [PxAnimatorEngine.frames, PxAnimatorEngine.webapi]) {
+        for (const engine of [PxAnimatorEngine.frames, PxAnimatorEngine.waapi]) {
             const animDef = getBindings(materialiseAllInTree(doc, engine));
             for (const t of [0, 500, 1100, 1500, 1700]) {
                 expectNoNaN(calcAnimationValues(animDef, t));
@@ -891,7 +891,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
                 } } } as any,
             ],
         } as PxAnimatedSvgDocument;
-        for (const engine of [PxAnimatorEngine.frames, PxAnimatorEngine.webapi]) {
+        for (const engine of [PxAnimatorEngine.frames, PxAnimatorEngine.waapi]) {
             const animDef = getBindings(materialiseAllInTree(doc, engine));
             for (const t of [0, 500, 1100, 1400]) {
                 const out = calcAnimationValues(animDef, t);

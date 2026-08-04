@@ -59,11 +59,11 @@ export function applyPlayerEffects(root: PxNode): ApplyResult {
         idMap: new Map(), nextId: 0,
         contentRefInnerIds: new Map(),
         maskAncestorChains: new Map(),
-        // Resolved engine: `frames` ONLY when explicitly set; auto/webapi/unset →
-        // webapi (we're not 100% sure it's frames, and CSS/WAAPI need the inline form).
+        // Resolved engine: `frames` ONLY when explicitly set; auto/waapi/unset →
+        // waapi (we're not 100% sure it's frames, and CSS/WAAPI need the inline form).
         engine: getAnimatorConfig(root)?.mode === PxAnimatorMode.frames
             ? PxAnimatorEngine.frames
-            : PxAnimatorEngine.webapi,
+            : PxAnimatorEngine.waapi,
         glyphs: getDefs(root)?.glyphs,
     };
 

@@ -70,7 +70,7 @@ export function createBasicFrameLoopAnimator(
 
     // fill handling — mirrors the Web Animations API `fill` semantics as closely
     // as a frame-writer can. Default 'forwards' (hold final state) matches the
-    // webapi engine and the config doc.
+    // waapi engine and the config doc.
     const fill = config.fill ?? 'forwards';
     const fillsForwards = fill === 'forwards' || fill === 'both';
     const fillsBackwards = fill === 'backwards' || fill === 'both';

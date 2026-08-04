@@ -4,10 +4,10 @@
  *---------------------------------------------------------------------------------------*/
 
 /**
- * Parity tests — `webapi` materialisation must match `frames` parametric output.
+ * Parity tests — `waapi` materialisation must match `frames` parametric output.
  *
  * The frames engine evaluates motion-along-path parametrically per frame via
- * `evaluateMotionPathSegment` — that's the reference. The webapi engine
+ * `evaluateMotionPathSegment` — that's the reference. The waapi engine
  * pre-samples the parametric form into plain `{translate, rotate, …}` kfs via
  * `materialiseMotionPathInPropAnim` so CSS WAAPI can consume it. Both paths
  * should produce the SAME rendered position/orientation at any time.
@@ -158,21 +158,21 @@ function expectParity(
     }
     times.sort((a, b) => a - b);
 
-    const diffs: Array<{ time: number; probe: [number, number]; frames: [number, number]; webapi: [number, number]; delta: number }> = [];
+    const diffs: Array<{ time: number; probe: [number, number]; frames: [number, number]; waapi: [number, number]; delta: number }> = [];
 
     for (const t of times) {
         for (const probe of probes) {
             const f = worldPos(doc, PxAnimatorEngine.frames, t, probe);
-            const w = worldPos(doc, PxAnimatorEngine.webapi, t, probe);
+            const w = worldPos(doc, PxAnimatorEngine.waapi, t, probe);
             if (!f || !w) continue;
             const delta = Math.hypot(f[0] - w[0], f[1] - w[1]);
-            if (delta > tol) diffs.push({ time: t, probe, frames: f, webapi: w, delta });
+            if (delta > tol) diffs.push({ time: t, probe, frames: f, waapi: w, delta });
         }
     }
 
     if (diffs.length > 0) {
         const summary = diffs.slice(0, 5).map(d =>
-            `  t=${d.time.toFixed(0)} probe=(${d.probe[0]},${d.probe[1]})  frames=(${d.frames[0].toFixed(2)},${d.frames[1].toFixed(2)})  webapi=(${d.webapi[0].toFixed(2)},${d.webapi[1].toFixed(2)})  Δ=${d.delta.toFixed(2)}`
+            `  t=${d.time.toFixed(0)} probe=(${d.probe[0]},${d.probe[1]})  frames=(${d.frames[0].toFixed(2)},${d.frames[1].toFixed(2)})  waapi=(${d.waapi[0].toFixed(2)},${d.waapi[1].toFixed(2)})  Δ=${d.delta.toFixed(2)}`
         ).join('\n');
         throw new Error(`Frames vs WAAPI parity broken at ${diffs.length} sample(s) (tolerance ${tol}px):\n${summary}`);
     }
@@ -450,7 +450,7 @@ const curveSharpCurveFixture = (): PxAnimatedSvgDocument => ({
 // ─────────────────────────────────────────────────────────────────────────────
 
 
-describe('motion-along-path materialisation parity (webapi vs frames)', () => {
+describe('motion-along-path materialisation parity (waapi vs frames)', () => {
 
     it('horseshoe (no origin, no autoOrient) — chord error within tolerance', () => {
         expectParity(horseshoeNoOriginFixture(), {

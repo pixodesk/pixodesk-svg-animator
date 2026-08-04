@@ -26,7 +26,7 @@ Schemas: `PxAnimatorTypes.ts` (`_PxEffects` + each `_Px*Effect`). Apply order:
 ## Engine (WAAPI vs frames) coverage
 The effect pass (`applyPlayerEffects`, used by `materialise`) is **engine-agnostic** — same
 output for both. The WAAPI-vs-frames difference lives in the later `materialiseAllInTree`
-stages (webapi-only): **motion-path flatten** + **animated-`<use>` inline**. Use the
+stages (waapi-only): **motion-path flatten** + **animated-`<use>` inline**. Use the
 `materialiseEngine(input, engine)` kit helper to exercise those.
 
 - ✅ **transformation** cases 7/8 cover the motion-path-flatten difference (autoOrient

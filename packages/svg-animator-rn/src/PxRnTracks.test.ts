@@ -156,7 +156,7 @@ describe('length-list props (stroke-dasharray)', () => {
                 effects: { trimPath: { range: { keyframes: [{ time: 0, value: [0, 0.1] }, { time: 1000, value: [0, 1] }] } } },
             }],
         };
-        const materialised = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.webapi));
+        const materialised = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.waapi));
         const tracks = compileTracks(materialised);
         const el = tracks.elements.find(e => 'strokeDasharray' in e.props)!;
         expect(el).toBeDefined();
@@ -167,7 +167,7 @@ describe('length-list props (stroke-dasharray)', () => {
     });
 });
 
-describe('animated <use> flattening (webapi materialisation)', () => {
+describe('animated <use> flattening (waapi materialisation)', () => {
     it('inlines animated <use> clones so no live references remain', () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg', viewBox: '0 0 300 200',
@@ -181,7 +181,7 @@ describe('animated <use> flattening (webapi materialisation)', () => {
                 { type: 'use', id: 'u2', href: '#sym', x: 80, effects: { clone: { baseId: 'sym', retime: { start: -600 } } } },
             ],
         };
-        const materialised = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.webapi));
+        const materialised = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.waapi));
         const countUse = (n: any): number =>
             (n.type === 'use' ? 1 : 0) + (n.children || []).reduce((s: number, c: any) => s + countUse(c), 0);
         expect(countUse(materialised)).toBe(0);

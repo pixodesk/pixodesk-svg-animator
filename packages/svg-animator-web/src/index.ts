@@ -119,7 +119,7 @@ export type { MotionPathMaterialisationOptions, MotionPathSample } from '@pixode
 export { materialiseAnimatedUseInstances } from '@pixodesk/svg-animator-core';
 
 // Single-call materialisation pipeline — runs `applyPlayerEffects` +
-// `materialiseInternalLoopsInTree` + (for webapi) `materialiseMotionPathsInTree`
+// `materialiseInternalLoopsInTree` + (for waapi) `materialiseMotionPathsInTree`
 // + `materialiseAnimatedUseInstances` in the canonical order. The player calls
 // this internally from `createAnimatorImpl`; exported here so the Editor's
 // flat-export path uses the EXACT same function — guarantees no pipeline

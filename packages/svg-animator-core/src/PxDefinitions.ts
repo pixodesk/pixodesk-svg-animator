@@ -815,7 +815,7 @@ function normalizeAnimationDefinition(
     animDef: PxAnimationDefinition,
     duration: number,
     defs?: PxDefs,
-    engine: PxAnimatorEngine = PxAnimatorEngine.webapi,
+    engine: PxAnimatorEngine = PxAnimatorEngine.waapi,
 ): PxAnimationDefinition {
     const normalized: PxAnimationDefinition = {};
 
@@ -830,7 +830,7 @@ function normalizeAnimationDefinition(
             if (propAnim.loop !== undefined) out.loop = propAnim.loop;
 
             // Pipeline: loops are already expanded by `normalizeKeyframes` above.
-            // For the `webapi` engine ONLY, materialise motion-along-path
+            // For the `waapi` engine ONLY, materialise motion-along-path
             // (tangented `transform` kfs + autoOrient) into plain sampled
             // `{ translate, rotate? }` kfs — CSS WAAPI can't evaluate parametric
             // tangents at runtime. Frames-mode keeps the parametric form so the
@@ -838,7 +838,7 @@ function normalizeAnimationDefinition(
             // (better spatial fidelity than any finite sampling).
             // `materialiseMotionPathInPropAnim` is a no-op for non-motion-path
             // animations, so non-transform props pay zero cost.
-            normalized[propName] = (engine === PxAnimatorEngine.webapi && propName === 'transform')
+            normalized[propName] = (engine === PxAnimatorEngine.waapi && propName === 'transform')
                 ? materialiseMotionPathInPropAnim(out)
                 : out;
         }
@@ -855,7 +855,7 @@ function normalizeAnimationDefinition(
  */
 export function getNormalisedBindings(
     doc: PxAnimatedSvgDocument,
-    engine: PxAnimatorEngine = PxAnimatorEngine.webapi,
+    engine: PxAnimatorEngine = PxAnimatorEngine.waapi,
 ): PxBinding[] {
     const animatorConfig = getAnimatorConfig(doc) || {};
     const defs = getDefs(doc);

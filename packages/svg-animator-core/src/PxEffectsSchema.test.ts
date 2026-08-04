@@ -51,7 +51,7 @@ describe('effect keyframes accept the short wire aliases', () => {
 
     /** Values the frames engine would write at t=0 and t=duration. */
     const sample = (doc: any) => {
-        const m = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.webapi));
+        const m = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.waapi));
         const bindings = getNormalisedBindings(m, PxAnimatorEngine.frames) || [];
         return bindings.map(b => [
             calcAnimationValues(b.animate as any, 0),
@@ -112,7 +112,7 @@ describe('gradient geometry animation', () => {
     });
 
     it('drives the minted gradient def\'s own attributes', () => {
-        const m = generateNewIds(materialiseAllInTree(linearDoc(), PxAnimatorEngine.webapi));
+        const m = generateNewIds(materialiseAllInTree(linearDoc(), PxAnimatorEngine.waapi));
         const bindings = getNormalisedBindings(m, PxAnimatorEngine.frames) || [];
         const geom = bindings
             .map(b => calcAnimationValues(b.animate as any, 0))
@@ -148,7 +148,7 @@ describe('gradient geometry animation', () => {
         const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
         expect(PxEffectsSchema.isValid(doc.children[0].effects, ctx, ['n.effects'])).toBe(true);
 
-        const m = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.webapi));
+        const m = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.waapi));
         const bindings = getNormalisedBindings(m, PxAnimatorEngine.frames) || [];
         const end = bindings.map(b => calcAnimationValues(b.animate as any, 1000)).find(v => 'r' in v)!;
         expect(end).toMatchObject({ cx: '20', cy: '30', fx: '10', fy: '15', r: '90' });

@@ -423,7 +423,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
     });
 
     // ── Engine difference (full pipeline `materialiseAllInTree`) ─────────────────
-    // The retime EFFECT pass is engine-agnostic, but the full pipeline's webapi-only
+    // The retime EFFECT pass is engine-agnostic, but the full pipeline's waapi-only
     // step 4 (`materialiseAnimatedUseInstances`) INLINES every `<use>` that targets
     // an animated subtree — because WAAPI/CSS animations don't propagate through a
     // `<use>` shadow tree. frames keeps the `<use href>` (it drives source attrs per
@@ -547,7 +547,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
 
     it('case 6 — WAAPI engine → animated `<use>` INLINED to `<g>`+clone (fewer/no use; same staircase)', () => {
         const framesOut = materialiseEngine(nestedContentRefWire(), PxAnimatorEngine.frames);
-        const out = materialiseEngine(nestedContentRefWire(), PxAnimatorEngine.webapi);
+        const out = materialiseEngine(nestedContentRefWire(), PxAnimatorEngine.waapi);
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",

@@ -70,7 +70,7 @@ describe('materialiseAllInTree', () => {
                         },
                     },
                 } as PxNode,
-                // <use> referring to src — animated target, must materialise for webapi.
+                // <use> referring to src — animated target, must materialise for waapi.
                 { type: 'use', id: 'inst', href: '#src' } as PxNode,
                 // A second element with an `effects.clone.retime` bucket, just to verify
                 // applyPlayerEffects ran.
@@ -85,15 +85,15 @@ describe('materialiseAllInTree', () => {
     }
 
 
-    // ── Engine: webapi ────────────────────────────────────────────────────
+    // ── Engine: waapi ────────────────────────────────────────────────────
 
-    it('webapi: applyPlayerEffects ran — no node.effects remains anywhere', () => {
-        const out = materialiseAllInTree(fixture(), PxAnimatorEngine.webapi);
+    it('waapi: applyPlayerEffects ran — no node.effects remains anywhere', () => {
+        const out = materialiseAllInTree(fixture(), PxAnimatorEngine.waapi);
         expect(deepHasAnyEffects(out)).toBe(false);
     });
 
-    it('webapi: motion-path materialised — tangents and autoOrient removed from `src`', () => {
-        const out = materialiseAllInTree(fixture(), PxAnimatorEngine.webapi);
+    it('waapi: motion-path materialised — tangents and autoOrient removed from `src`', () => {
+        const out = materialiseAllInTree(fixture(), PxAnimatorEngine.waapi);
         const src = deepFind(out, n => n.id === 'src')!;
         const anim = getTransformAnim(src)!;
         expect(anim.autoOrient).toBeUndefined();
@@ -106,15 +106,15 @@ describe('materialiseAllInTree', () => {
         expect(kfs.length).toBeGreaterThan(2);
     });
 
-    it('webapi: loop materialised — `loop` field consumed', () => {
-        const out = materialiseAllInTree(fixture(), PxAnimatorEngine.webapi);
+    it('waapi: loop materialised — `loop` field consumed', () => {
+        const out = materialiseAllInTree(fixture(), PxAnimatorEngine.waapi);
         const src = deepFind(out, n => n.id === 'src')!;
         const anim = getTransformAnim(src)!;
         expect(anim.loop).toBeUndefined();
     });
 
-    it('webapi: <use> referencing animated subtree materialised — replaced by <g>', () => {
-        const out = materialiseAllInTree(fixture(), PxAnimatorEngine.webapi);
+    it('waapi: <use> referencing animated subtree materialised — replaced by <g>', () => {
+        const out = materialiseAllInTree(fixture(), PxAnimatorEngine.waapi);
         // The `inst` <use> is the simple ref one. No <use href="#src"> should remain
         // in the output (all materialised).
         const remainingUses = deepCountByType(out, 'use');
@@ -131,7 +131,7 @@ describe('materialiseAllInTree', () => {
         expect(deepHasAnyEffects(out)).toBe(false);
     });
 
-    it('frames: loop materialised — same as webapi (both engines need flat kfs)', () => {
+    it('frames: loop materialised — same as waapi (both engines need flat kfs)', () => {
         const out = materialiseAllInTree(fixture(), PxAnimatorEngine.frames);
         const src = deepFind(out, n => n.id === 'src')!;
         const anim = getTransformAnim(src)!;
@@ -162,7 +162,7 @@ describe('materialiseAllInTree', () => {
     it('does not mutate the input doc', () => {
         const doc = fixture();
         const snapshot = JSON.stringify(doc);
-        materialiseAllInTree(doc, PxAnimatorEngine.webapi);
+        materialiseAllInTree(doc, PxAnimatorEngine.waapi);
         expect(JSON.stringify(doc)).toBe(snapshot);
     });
 });

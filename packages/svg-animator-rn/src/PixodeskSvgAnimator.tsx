@@ -316,14 +316,14 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides)
     const warnings = validateNodeEffects(doc as PxNode);
     for (const w of warnings) console.warn('[PixodeskSvgAnimator] effects shape warning:', w);
 
-    // `webapi` = the FULLY-FLATTENED materialisation: effects + loops +
+    // `waapi` = the FULLY-FLATTENED materialisation: effects + loops +
     // sampled motion paths + animated `<use>` inlined into real `<g>`
     // clones + orphaned defs pruned. That last part is why RN must not use
     // the `frames` flavour: frames keeps `<use href="#animatedTarget">`
     // live references, which only work because the DOM propagates
     // attribute writes through `<use>` shadow trees. react-native-svg has
     // no such live propagation, so an animated `<use>` would render frozen.
-    let prepared = materialiseAllInTree(doc, PxAnimatorEngine.webapi);
+    let prepared = materialiseAllInTree(doc, PxAnimatorEngine.waapi);
 
     // Sidestep a react-native-svg NATIVE crash (see PxRnSafety). Guarded on
     // the platform because the DOM renders this case correctly and the web

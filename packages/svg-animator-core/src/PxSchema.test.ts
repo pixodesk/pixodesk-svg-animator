@@ -58,7 +58,7 @@ const PxTriggerSchema = px.object({
 });
 
 const PxAnimatorConfigSchema = px.object({
-    mode:          px.enum(['auto', 'webapi', 'frames'] as const).optional(),
+    mode:          px.enum(['auto', 'waapi', 'frames'] as const).optional(),
     duration:      px.number().optional(),
     delay:         px.number().optional(),
     iterations:    px.union([px.number(), px.literal('infinite')]).optional(),
@@ -351,7 +351,7 @@ describe('PxAnimatorConfigSchema', () => {
 
     it('valid config passes isValid', () => {
         expect(PxAnimatorConfigSchema.isValid({
-            mode: 'webapi',
+            mode: 'waapi',
             duration: 1000,
             fill: 'forwards',
             trigger: { startOn: 'load' },

@@ -25,8 +25,8 @@ export function materialise(input: PxNode): PxNode {
 
 /**
  * Run the FULL engine-aware pipeline (`materialiseAllInTree`): effects + loop
- * expansion, plus the `webapi`-only stages (motion-path flatten + animated-`<use>`
- * inline). Use this to test behaviour that DIFFERS between `webapi` and `frames`
+ * expansion, plus the `waapi`-only stages (motion-path flatten + animated-`<use>`
+ * inline). Use this to test behaviour that DIFFERS between `waapi` and `frames`
  * — the plain {@link materialise} (effects only) is engine-agnostic.
  */
 export function materialiseEngine(input: PxNode, engine: PxAnimatorEngine): PxNode {

@@ -45,7 +45,7 @@ export interface ApplyContext {
     nextId: number;
     /**
      * The resolved animation engine for this run. `frames` ONLY when mode is
-     * explicitly `'frames'`; `auto`/`webapi`/unset all resolve to `webapi` (the
+     * explicitly `'frames'`; `auto`/`waapi`/unset all resolve to `waapi` (the
      * actual engine isn't certain yet, and CSS/WAAPI both need the inline form).
      * Effects that emit an animated `<use>`→defs-clone (retime, content-ref) can
      * read this to decide whether to INLINE the animated clone content (only the

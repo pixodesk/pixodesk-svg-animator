@@ -46,14 +46,14 @@ function createAnimatorFromConfig(
 
     let res: PxAnimatorAPI;
     if (animatorConfig.mode === PxAnimatorMode.frames) {
-        // Forcing frames, even if webapi could be used.
+        // Forcing frames, even if waapi could be used.
         res = createFrameLoopAnimator(doc, adapter, effectiveCallbacks, rootElement);
     } else {
-        // Try webapi first; fall back to frames if it returns null (unsupported
-        // attrs) unless the user explicitly forced webapi.
+        // Try waapi first; fall back to frames if it returns null (unsupported
+        // attrs) unless the user explicitly forced waapi.
         res = (
             createWebApiAnimator(doc, effectiveCallbacks, rootElement,
-                animatorConfig.mode === PxAnimatorMode.webapi // forcing webapi
+                animatorConfig.mode === PxAnimatorMode.waapi // forcing waapi
             ) ||
             createFrameLoopAnimator(doc, adapter, effectiveCallbacks, rootElement)
         );
@@ -72,7 +72,7 @@ function createAnimatorFromConfig(
  * Creates an animator instance from an AnimatedSvgDocument.
  *
  * This function serves as the main entry point for the animation library. It automatically
- * chooses the best animation engine available ('webapi' or 'frames') or can be
+ * chooses the best animation engine available ('waapi' or 'frames') or can be
  * forced to use a specific one.
  *
  * @param doc The animated SVG document.
@@ -95,17 +95,17 @@ export function createAnimatorImpl(
     for (const w of effectsWarnings) console.warn('[PxAnimator] effects shape warning:', w);
 
     // Decide the engine upfront so the materialisation pipeline knows which
-    // stages to run. `auto` (and any non-`frames` value) resolves to `webapi`
-    // for materialisation purposes; if webapi later returns null at engine
+    // stages to run. `auto` (and any non-`frames` value) resolves to `waapi`
+    // for materialisation purposes; if waapi later returns null at engine
     // construction, frames is used as fallback — slight over-materialisation
     // for that doc, but no correctness issue.
     const animatorConfig = getAnimatorConfig(doc) || {};
     const engine: PxAnimatorEngine = animatorConfig.mode === PxAnimatorMode.frames
         ? PxAnimatorEngine.frames
-        : PxAnimatorEngine.webapi;
+        : PxAnimatorEngine.waapi;
 
     // Run the full document materialisation pipeline:
-    //   effects → loops → motion-path (webapi only) → animated-use (webapi only)
+    //   effects → loops → motion-path (waapi only) → animated-use (waapi only)
     // The exact same function is exported for the Editor — no parallel pipeline.
     doc = materialiseAllInTree(doc, engine);
 

@@ -269,7 +269,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
 
     // ── Engine difference (full pipeline `materialiseAllInTree`) ──────────────
     // The effect pass itself is engine-agnostic; the WAAPI-vs-frames difference
-    // is the webapi-only MOTION-PATH flatten. An autoOrient translate (curved,
+    // is the waapi-only MOTION-PATH flatten. An autoOrient translate (curved,
     // with tangent handles) is the transformation case that exercises it.
     const AUTO_ORIENT = {
         translate: {
@@ -310,7 +310,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
 
     it('case 8 — autoOrient translate, WAAPI engine → motion-path FLATTENED (sampled, rotate baked, no autoOrient)', () => {
         const framesOut = materialiseEngine(wrap(AUTO_ORIENT), PxAnimatorEngine.frames);
-        const out = materialiseEngine(wrap(AUTO_ORIENT), PxAnimatorEngine.webapi);
+        const out = materialiseEngine(wrap(AUTO_ORIENT), PxAnimatorEngine.waapi);
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -331,7 +331,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
           }"
         `);
         const animated = collectByType(out, 'g').map(g => (g as any).animate?.transform).find(Boolean) as any;
-        // webapi flattens to the SHORT kf form (`kfs` with `t`/`v` aliases): autoOrient
+        // waapi flattens to the SHORT kf form (`kfs` with `t`/`v` aliases): autoOrient
         // consumed, many SAMPLED kfs, each value carries a baked `rotate` (path tangent).
         const kfs = animated.kfs ?? animated.keyframes;
         expect(animated.autoOrient).toBeUndefined();

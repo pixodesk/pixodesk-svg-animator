@@ -18,7 +18,7 @@
  * sub-segments so the combined timing reproduces the input easing exactly.
  *
  * Output kfs have no tangents and no `autoOrient` — both engines (`frames` and
- * `webapi`) and any future renderer (e.g. react-native-svg) consume them via
+ * `waapi`) and any future renderer (e.g. react-native-svg) consume them via
  * their normal unified-transform code path.
  *
  * The plan + rationale (extremes-aware sampling, easing-split, full pipeline
