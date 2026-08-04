@@ -429,15 +429,21 @@ export type PxTransformParts = PxInfer<typeof PxTransformPartsSchema>;
 const _ck_PxTransformParts: KeysMatch<PxTransformParts, _PxTransformParts> = true; // the key sets are identical
 
 /**
- * Unified `transform` slot value. Three valid shapes:
+ * Unified `transform` slot value. Valid shapes:
  *
- * - **SVG transform string** — `"translate(10,10)rotate(45)scale(2,2)"`. What
- *   plain renderers consume directly.
- * - **Structured static** — `{value: PxTransformParts}`. Parametric record;
- *   parts stay independently addressable.
+ * - **Bare parts record** — `{translate:[100,100], rotate:45, scale:[1.5,1.5],
+ *   origin:[25,25]}` — THE canonical lightweight static (SCHEMA-DESIGN §2/S1):
+ *   the authored parts verbatim, the exact record grammar animated keyframe
+ *   values use. Unambiguous because a body attr never carries animation — that
+ *   lives in the parallel `animate` channel (R2); the parts keys are disjoint
+ *   from the animation-wrapper keys.
+ * - **SVG transform string** — `"translate(125,125)rotate(45)…translate(-25,-25)"`.
+ *   The pre-rendered/browser form (origin baked into a pivot sandwich) and the
+ *   foreign-SVG import path. Read forever.
+ * - **Structured static** — `{value: PxTransformParts}`. Read-accepted legacy
+ *   spelling of the record.
  * - **Animated** — `{keyframes: [{time, value: PxTransformParts, …}, …]}`.
- *   Each keyframe's `value` is a parts record. The interpolator composes the
- *   parts into a single transform string per frame.
+ *   Legacy inline form (the editor writes the `animate` channel instead).
  *
  * Replaces the earlier convention of putting each animated transform part
  * under its own top-level attribute name (`translate`, `rotate`, `scale`,
@@ -445,6 +451,7 @@ const _ck_PxTransformParts: KeysMatch<PxTransformParts, _PxTransformParts> = tru
  */
 export const PxTransformValueSchema = px.union([
     px.string(),
+    PxTransformPartsSchema,
     px.object({ value: PxTransformPartsSchema }),
     PxPropertyAnimationSchema,
 ]);

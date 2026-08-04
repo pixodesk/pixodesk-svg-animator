@@ -242,21 +242,26 @@ function liftBodyTranslate(node: PxNode, transformation: PxTransformationEffect 
             if (split.rest) node.transform = split.rest;
             else delete node.transform;
         }
-    } else if (node.transform && typeof node.transform === 'object' && !Array.isArray(node.transform)) {
-        // STRUCTURED STATIC (T2): {value: {translate?, rotate?, skew?, scale?, origin?}}
-        const value = (node.transform as { value?: Record<string, unknown> }).value;
-        if (value && typeof value === 'object' && Array.isArray((value as any).translate)) {
+    } else if (node.transform && typeof node.transform === 'object' && !Array.isArray(node.transform)
+               && !(node.transform as any).keyframes && !(node.transform as any).kfs) {
+        // STATIC RECORD — bare `{translate, …}` (canonical) or the legacy
+        // `{value: {…}}` wrapper; the rewrite keeps the incoming spelling.
+        const wrapped = (node.transform as { value?: Record<string, unknown> }).value;
+        const isWrapped = !!(wrapped && typeof wrapped === 'object');
+        const value = (isWrapped ? wrapped : node.transform) as Record<string, unknown>;
+        const rewrap = (rec: Record<string, unknown>) => (isWrapped ? { value: rec } : rec) as any;
+        if (Array.isArray((value as any).translate)) {
             const rest: Record<string, unknown> = { ...value };
             delete rest.translate;
             const hasRest = Object.keys(rest).length > 0;
             if (stripBodyTranslateOnly) {
                 // Same redundancy rule as the string branch: the outer wrapper
                 // carries the translate; drop the body's copy.
-                if (hasRest) node.transform = { value: rest } as any;
+                if (hasRest) node.transform = rewrap(rest);
                 else delete node.transform;
             } else {
-                out.transform = { value: { translate: (value as any).translate } } as any;
-                if (hasRest) node.transform = { value: rest } as any;
+                out.transform = rewrap({ translate: (value as any).translate });
+                if (hasRest) node.transform = rewrap(rest);
                 else delete node.transform;
             }
         }

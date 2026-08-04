@@ -260,11 +260,14 @@ function readTransformationFromBody(node: PxNode): PxTransformationEffect | unde
         if (parts.origin) out.origin = parts.origin;
         return Object.keys(out).length ? out : undefined;
     }
-    // STRUCTURED STATIC (T2, SCHEMA-DESIGN S1): {value: partsRecord} — the
-    // lightweight wire's static form; values are already wire units (scale =
-    // factor), so scale passes through `{value}` like the string branch.
-    if (node.transform && typeof node.transform === 'object') {
-        const value = (node.transform as { value?: Record<string, any> }).value;
+    // STATIC RECORD (SCHEMA-DESIGN S1): bare `{translate, …}` (canonical) or
+    // the legacy `{value: partsRecord}` wrapper — the lightweight wire's static
+    // form; values are already wire units (scale = factor), so scale passes
+    // through `{value}` like the string branch.
+    if (node.transform && typeof node.transform === 'object'
+        && !(node.transform as any).keyframes && !(node.transform as any).kfs) {
+        const wrapped = (node.transform as { value?: Record<string, any> }).value;
+        const value = (wrapped && typeof wrapped === 'object' ? wrapped : node.transform) as Record<string, any>;
         if (value && typeof value === 'object') {
             const out: PxTransformationEffect = {};
             if (Array.isArray(value.translate)) out.translate = value.translate as [number, number];
@@ -510,8 +513,10 @@ function extractTranslateOnly(node: PxNode, ctx: ApplyContext): MaskAncestorTran
     if (typeof tr === 'string') {
         const parts = parseTranslateOnlyFromString(tr, ctx);
         if (parts) out.translate = parts;
-    } else if (tr && typeof tr === 'object') {
-        const value = (tr as Record<string, any>).value;
+    } else if (tr && typeof tr === 'object' && !(tr as Record<string, any>).keyframes && !(tr as Record<string, any>).kfs) {
+        // bare parts record (canonical) or the legacy {value: record} wrapper
+        const wrapped = (tr as Record<string, any>).value;
+        const value = (wrapped && typeof wrapped === 'object') ? wrapped : (tr as Record<string, any>);
         if (value && typeof value === 'object' && Array.isArray(value.translate)) {
             out.translate = [value.translate[0] || 0, value.translate[1] || 0];
         }

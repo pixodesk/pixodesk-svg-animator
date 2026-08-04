@@ -120,12 +120,13 @@ function interpParts(kfs: Array<any>, t: number): Parts {
     return out;
 }
 
-/** Resolves any transform-slot form (string | {value} | {keyframes}) to a matrix at `t`. */
+/** Resolves any transform-slot form (string | bare record | {value} | {keyframes}) to a matrix at `t`. */
 function evalTransformValue(v: any, t: number): Mat {
     if (v === undefined || v === null) return IDENTITY;
     if (typeof v === 'string') return parseTransformString(v);
     if (v.keyframes) return partsToMatrix(interpParts(v.keyframes, t));
     if (v.value) return partsToMatrix(v.value);
+    if (typeof v === 'object' && !Array.isArray(v)) return partsToMatrix(v);   // bare parts record
     return IDENTITY;
 }
 

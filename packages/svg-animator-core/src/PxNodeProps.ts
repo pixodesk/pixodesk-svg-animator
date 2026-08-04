@@ -196,11 +196,13 @@ export function getNormalizedProps(props: Record<string, any>) {
             propsCopy[key] = toRGBA(value);
         } else if (
             key === 'transform' && value !== null && typeof value === 'object' &&
-            !Array.isArray(value) && value.value && typeof value.value === 'object'
+            !Array.isArray(value) && !value.keyframes && !value.kfs
         ) {
-            // Unified transform structured-static form: { value: PxTransformParts }.
+            // Unified transform static record — bare `{translate, rotate, …}`
+            // (canonical) or the legacy `{value: PxTransformParts}` wrapper.
             // Compose into an SVG transform string (no units — SVG transform attribute).
-            propsCopy['transform'] = composeTransformParts(value.value, { withUnits: false });
+            const parts = value.value && typeof value.value === 'object' ? value.value : value;
+            propsCopy['transform'] = composeTransformParts(parts, { withUnits: false });
         } else if (TRANSFORM_FN_NAMES.has(key)) {
             if (Array.isArray(value)) {
                 if (key === 'translate') value = value.map((v: number) => v + 'px');
