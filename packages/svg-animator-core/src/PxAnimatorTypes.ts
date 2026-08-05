@@ -1097,6 +1097,7 @@ export interface _PxCloneEffect {
     retime?: _PxRetimeEffect;
 }
 export const PxCloneEffectSchema = implementsInterface<_PxCloneEffect>()(px.object({
+    // Contextual kind — the `type` convention, see `PxNodeBase.type`.
     type: px.string().optional(),
     sourceId: px.string().optional(),
     retime: PxRetimeEffectSchema.optional(),
@@ -1192,6 +1193,7 @@ export interface _PxFillGradientEffect {
     gradientTransform?: string;                           // static only in v1
 }
 export const PxFillGradientEffectSchema = implementsInterface<_PxFillGradientEffect>()(px.object({
+    // Contextual kind — the `type` convention, see `PxNodeBase.type`.
     type: px.enum([PxGradientType.linear, PxGradientType.radial] as const),
     p1:   PxAnimatableVec2Schema.optional(),
     p2:   PxAnimatableVec2Schema.optional(),
@@ -1358,6 +1360,14 @@ export function validateNodeEffects(root: PxNode, opts?: { strict?: boolean }): 
  * `{ type:string, style?:…, [key:string]: string|number|PxPropertyAnimation }`
  */
 export const PxNodeBase = px.openObject({
+    // CONVENTION (SCHEMA-DESIGN R1 / issues N4): `type` is the ONE word for "what
+    // kind of thing is this", discriminated by its CARRIER — here the node TAG
+    // (`rect`, `text`), and inside a sub-object that object's kind (`clone.type`,
+    // `fillGradient.type`, editor `preset.type`). Each sits in its own object, so
+    // the carrier disambiguates completely; synonyms (`cloneKind`, `presetShape`)
+    // would add words that all mean "type" and still need the carrier to read.
+    // Guarding a `type` SLOT against a wrong VALUE is the job of strict enums
+    // (issues V3), never of distinct key names.
     type: px.string(),
     id: px.string().optional(),
     meta: px.any().optional(),

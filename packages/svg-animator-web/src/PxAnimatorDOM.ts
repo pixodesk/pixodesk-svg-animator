@@ -69,13 +69,16 @@ export function renderNode(node: PxNode, defs?: PxDefs): Element | null {
 
     const { type, children, style, ...props } = node;
 
-    // feFunc elements (feFuncR/G/B/A) carry their SVG `type` attribute
-    // (identity/table/…) under `funcType`, because the lightweight-JSON `type`
-    // key is reserved for the node tag (and `type` is an INTERNAL_ATTR that
-    // `getNormalizedProps` drops). Pull it out and re-apply it onto the created
-    // element below, so a feComponentTransfer can actually invert.
-    const feFuncType = (props as { funcType?: string }).funcType;
-    if (feFuncType !== undefined) delete (props as { funcType?: string }).funcType;
+    // ESCAPE KEY (S2): an element whose SVG `type` ATTRIBUTE collides with the
+    // reserved node-tag key carries it as `domType` instead — `feColorMatrix`
+    // (matrix/saturate/…), `feTurbulence` (fractalNoise/turbulence), `feFunc*`
+    // (identity/table/…). Written by the editor at one choke point
+    // (`TDomElement.createJsonWithPlayerEffects`); `type` itself is an
+    // INTERNAL_ATTR that `getNormalizedProps` drops, so re-apply it here onto the
+    // created element. Without this the primitive is lost and an EMPTY `<filter>`
+    // paints its target transparent black.
+    const domType = (props as { domType?: string }).domType;
+    if (domType !== undefined) delete (props as { domType?: string }).domType;
 
     // Extract defs from root svg node
     const nodeDefs = getDefs(node as PxAnimatedSvgDocument) || defs;
@@ -103,9 +106,9 @@ export function renderNode(node: PxNode, defs?: PxDefs): Element | null {
         props[TEXT_CONTENT_ATTR] || props[TEXT_ATTR]
     );
 
-    // `type` is an INTERNAL_ATTR (reserved for the node tag), so the feFunc transfer
-    // function relayed via `funcType` must be applied to the real attribute here.
-    if (element && feFuncType !== undefined) element.setAttribute('type', feFuncType);
+    // `type` is an INTERNAL_ATTR (reserved for the node tag), so the value relayed
+    // via `domType` must be applied to the real attribute here.
+    if (element && domType !== undefined) element.setAttribute('type', domType);
 
     return element;
 }
