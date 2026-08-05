@@ -102,9 +102,10 @@ describe('applyPlayerEffects — materialisation etalons', () => {
             children: [
                 {
                     type: 'g',
+                    id: 'r1',   // B4/A1: the outermost wrapper owns the id — a `<use href>` gets the whole unit
                     transform: { value: { translate: [10, 20] } },
                     children: [
-                        { type: 'rect', id: 'r1', width: 100, height: 50 },
+                        { type: 'rect', width: 100, height: 50 },
                     ],
                 },
             ],
@@ -129,6 +130,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
             children: [
                 {
                     type: 'g',
+                    id: 'r1',   // B4/A1: outermost wrapper owns the id
                     transform: { value: { translate: [50, 25] } },
                     children: [
                         {
@@ -139,7 +141,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                                     type: 'g',
                                     transform: { value: { translate: [-50, -25] } },
                                     children: [
-                                        { type: 'rect', id: 'r1', width: 100, height: 50 },
+                                        { type: 'rect', width: 100, height: 50 },
                                     ],
                                 },
                             ],

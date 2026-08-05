@@ -57,6 +57,16 @@ export function applyTransformationEffect(node: PxNode, fx: PxTransformationEffe
     } else {
         n = wrapTransformPart(n, TransformPart.Translate, fx.translate, ctx);
     }
+
+    // The OUTERMOST wrapper takes the element's id (B4/A1): an id names the WHOLE
+    // transformed unit — same law as `repeaterEffect`, the editor's heavy render,
+    // and `ctx.idMap` (which already points at the outer wrapper). Leaving it on
+    // the core makes a live `<use href>` / the maskedBy-minted `<use>` resolve to
+    // the UNtransformed element in the DOM.
+    if (n !== node && node.id) {
+        n.id = node.id;
+        delete node.id;
+    }
     return n;
 }
 

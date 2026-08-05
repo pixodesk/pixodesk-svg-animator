@@ -183,6 +183,7 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
                 ]
               },
               {
+                "id": "target",
                 "transform": {
                   "value": {
                     "translate": [
@@ -195,7 +196,6 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
                 "children": [
                   {
                     "height": 100,
-                    "id": "target",
                     "mask": "url(#__GEN_0__)",
                     "type": "rect",
                     "width": 100

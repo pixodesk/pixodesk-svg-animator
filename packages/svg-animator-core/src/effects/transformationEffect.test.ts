@@ -36,6 +36,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
             "type": "svg",
             "children": [
               {
+                "id": "r",
                 "transform": {
                   "value": {
                     "translate": [
@@ -48,7 +49,6 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
                 "children": [
                   {
                     "height": 50,
-                    "id": "r",
                     "type": "rect",
                     "width": 100
                   }
@@ -69,6 +69,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
             "type": "svg",
             "children": [
               {
+                "id": "r",
                 "transform": {
                   "value": {
                     "scale": [
@@ -81,7 +82,6 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
                 "children": [
                   {
                     "height": 50,
-                    "id": "r",
                     "type": "rect",
                     "width": 100
                   }
@@ -104,6 +104,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
             "type": "svg",
             "children": [
               {
+                "id": "r",
                 "transform": {
                   "value": {
                     "skew": 10
@@ -113,7 +114,6 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
                 "children": [
                   {
                     "height": 50,
-                    "id": "r",
                     "type": "rect",
                     "width": 100
                   }
@@ -133,6 +133,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
             "type": "svg",
             "children": [
               {
+                "id": "r",
                 "transform": {
                   "value": {
                     "translate": [
@@ -164,7 +165,6 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
                         "children": [
                           {
                             "height": 50,
-                            "id": "r",
                             "type": "rect",
                             "width": 100
                           }
@@ -194,11 +194,11 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
             "children": [
               {
                 "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"value\\":{\\"translate\\":[0,0]},\\"time\\":0},{\\"value\\":{\\"translate\\":[100,0]},\\"time\\":1000}]}}",
+                "id": "r",
                 "type": "g",
                 "children": [
                   {
                     "height": 50,
-                    "id": "r",
                     "type": "rect",
                     "width": 100
                   }
@@ -221,6 +221,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
             "type": "svg",
             "children": [
               {
+                "id": "r",
                 "transform": {
                   "value": {
                     "translate": [
@@ -248,7 +249,6 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
                         "children": [
                           {
                             "height": 50,
-                            "id": "r",
                             "type": "rect",
                             "width": 100
                           }
@@ -289,11 +289,11 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
             "children": [
               {
                 "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"value\\":{\\"translate\\":[0,0]},\\"time\\":0,\\"tangentOut\\":[60,0]},{\\"value\\":{\\"translate\\":[120,120]},\\"time\\":1000,\\"tangentIn\\":[0,-60]}],\\"autoOrient\\":true}}",
+                "id": "r",
                 "type": "g",
                 "children": [
                   {
                     "height": 50,
-                    "id": "r",
                     "type": "rect",
                     "width": 100
                   }
@@ -317,11 +317,11 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
             "children": [
               {
                 "animate": "{\\"transform\\":{\\"kfs\\":[{\\"t\\":0,\\"v\\":{\\"translate\\":[0,0],\\"rotate\\":0}},{\\"t\\":30.273579205331064,\\"v\\":{\\"translate\\":[5.6231689453125,0.1739501953125],\\"rotate\\":3.524028583874214}},{\\"t\\":60.600241825328006,\\"v\\":{\\"translate\\":[11.2353515625,0.6884765625],\\"rotate\\":6.931356798315828}},{\\"t\\":91.02273763233231,\\"v\\":{\\"translate\\":[16.8255615234375,1.5325927734375],\\"rotate\\":10.220376123953532}},{\\"t\\":121.57390795927078,\\"v\\":{\\"translate\\":[22.3828125,2.6953125],\\"rotate\\":13.392497753751098}},{\\"t\\":152.27739409843252,\\"v\\":{\\"translate\\":[27.8961181640625,4.1656494140625],\\"rotate\\":16.451622636657152}},{\\"t\\":183.14841561022726,\\"v\\":{\\"translate\\":[33.3544921875,5.9326171875],\\"rotate\\":19.403625737855755}},{\\"t\\":214.19458317526022,\\"v\\":{\\"translate\\":[38.7469482421875,7.9852294921875],\\"rotate\\":22.255887893373735}},{\\"t\\":245.41671860049752,\\"v\\":{\\"translate\\":[44.0625,10.3125],\\"rotate\\":25.016893478100023}},{\\"t\\":276.8117273152399,\\"v\\":{\\"translate\\":[49.2901611328125,12.9034423828125],\\"rotate\\":27.69590038078042}},{\\"t\\":308.36682191529303,\\"v\\":{\\"translate\\":[54.4189453125,15.7470703125],\\"rotate\\":30.30268072048809}},{\\"t\\":340.0670585706286,\\"v\\":{\\"translate\\":[59.4378662109375,18.8323974609375],\\"rotate\\":32.847325870977365}},{\\"t\\":371.8937880405679,\\"v\\":{\\"translate\\":[64.3359375,22.1484375],\\"rotate\\":35.34010692155767}},{\\"t\\":435.8376294849879,\\"v\\":{\\"translate\\":[73.7255859375,29.4287109375],\\"rotate\\":40.211533449686414}},{\\"t\\":499.99999999999966,\\"v\\":{\\"translate\\":[82.5,37.5],\\"rotate\\":45}},{\\"t\\":564.1623705150116,\\"v\\":{\\"translate\\":[90.5712890625,46.2744140625],\\"rotate\\":49.78846655031359}},{\\"t\\":628.1062119594317,\\"v\\":{\\"translate\\":[97.8515625,55.6640625],\\"rotate\\":54.65989307844234}},{\\"t\\":659.9329414293709,\\"v\\":{\\"translate\\":[101.1676025390625,60.5621337890625],\\"rotate\\":57.15267412902264}},{\\"t\\":691.6331780847065,\\"v\\":{\\"translate\\":[104.2529296875,65.5810546875],\\"rotate\\":59.697319279511916}},{\\"t\\":723.1882726847598,\\"v\\":{\\"translate\\":[107.0965576171875,70.7098388671875],\\"rotate\\":62.304099619219585}},{\\"t\\":754.5832813995023,\\"v\\":{\\"translate\\":[109.6875,75.9375],\\"rotate\\":64.98310652189998}},{\\"t\\":785.8054168247395,\\"v\\":{\\"translate\\":[112.0147705078125,81.2530517578125],\\"rotate\\":67.74411210662628}},{\\"t\\":816.8515843897725,\\"v\\":{\\"translate\\":[114.0673828125,86.6455078125],\\"rotate\\":70.59637426214424}},{\\"t\\":847.722605901567,\\"v\\":{\\"translate\\":[115.8343505859375,92.1038818359375],\\"rotate\\":73.54837736334285}},{\\"t\\":878.4260920407289,\\"v\\":{\\"translate\\":[117.3046875,97.6171875],\\"rotate\\":76.6075022462489}},{\\"t\\":908.9772623676675,\\"v\\":{\\"translate\\":[118.4674072265625,103.1744384765625],\\"rotate\\":79.77962387604647}},{\\"t\\":939.3997581746719,\\"v\\":{\\"translate\\":[119.3115234375,108.7646484375],\\"rotate\\":83.06864320168418}},{\\"t\\":969.726420794669,\\"v\\":{\\"translate\\":[119.8260498046875,114.3768310546875],\\"rotate\\":86.47597141612579}},{\\"t\\":1000,\\"v\\":{\\"translate\\":[120,120],\\"rotate\\":90}}]}}",
+                "id": "r",
                 "type": "g",
                 "children": [
                   {
                     "height": 50,
-                    "id": "r",
                     "type": "rect",
                     "width": 100
                   }
@@ -339,5 +339,45 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
         expect(kfs.some((k: any) => { const v = k.v ?? k.value; return v && typeof v.rotate === 'number'; })).toBe(true);
         // and the two engines genuinely diverge
         expect(JSON.stringify(out)).not.toEqual(JSON.stringify(framesOut));
+    });
+});
+
+
+describe('transformationEffect — id ownership (B4/A1)', () => {
+
+    // An id names the WHOLE transformed unit — the OUTERMOST minted wrapper must
+    // own it (same law as repeaterEffect and the editor's heavy render), so a
+    // live `<use href>` in the DOM resolves to the full transformed result.
+    it('the outermost wrapper takes the element id; the core loses it', () => {
+        const out = materialise(wrap({ translate: [30, 30], rotate: 45 }));
+        const outermost: any = (out as any).children[0];
+        expect(outermost.type).toBe('g');
+        expect(outermost.id).toBe('r');
+        const rects = collectByType(out, 'rect');
+        expect(rects).toHaveLength(1);
+        expect((rects[0] as any).id).toBeUndefined();
+    });
+
+    it('a <use> of a transformed element resolves to the FULL unit (id not on the bare core)', () => {
+        const doc: PxNode = {
+            type: 'svg',
+            children: [
+                { ...rect(), effects: { transformation: { translate: [30, 30], rotate: 45 } } },
+                { type: 'use', href: '#r' },
+            ],
+        } as unknown as PxNode;
+        const out: any = materialise(doc);
+        // The use stays live and its target id now sits on the wrapper that
+        // carries the translate — the browser clones the transformed unit.
+        expect(out.children[1]).toEqual({ type: 'use', href: '#r' });
+        const target: any = collectByType(out, 'g').find(g => (g as any).id === 'r');
+        expect(target).toBeDefined();
+        expect(target.transform).toEqual({ value: { translate: [30, 30] } });
+    });
+
+    it('no wrappers minted (empty effect) → the id stays on the element', () => {
+        const out: any = materialise(wrap({}));
+        expect(out.children[0].type).toBe('rect');
+        expect(out.children[0].id).toBe('r');
     });
 });
