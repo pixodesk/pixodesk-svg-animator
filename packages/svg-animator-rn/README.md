@@ -324,7 +324,7 @@ player sees plain nodes. **All are supported:**
 | Trigger `scrollIntoView` | ✅ | visibility sampled by measuring against the window (RN has no `IntersectionObserver`); honours `scrollIntoViewThreshold` and `outAction` |
 | Trigger `mouseOver` | ❌ | no touch equivalent — use `click`, or drive `play` yourself |
 | `frameRate` | n/a | reanimated runs at the display refresh rate; use `compileTracks({sampleRate})` to trade memory for temporal precision |
-| `mode` (`webapi` / `frames`) | n/a | there is no Web Animations API on RN — playback is always native-driven |
+| `mode` (`waapi` / `frames`) | n/a | there is no Web Animations API on RN — playback is always native-driven |
 
 ### Known limitations
 

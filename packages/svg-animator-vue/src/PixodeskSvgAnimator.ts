@@ -88,8 +88,7 @@ function createVueAdapter(elementRefs: Map<string, Element>) {
 // -- Helper: apply doc overrides --------------------------------------------
 
 interface DocOverrideProps {
-    /** 'webapi' = deprecated legacy spelling of 'waapi' (still read, treated like 'auto'). */
-    mode?: 'waapi' | 'frames' | 'auto' | 'webapi';
+    mode?: 'waapi' | 'frames' | 'auto';
     delay?: number;
     fill?: FillMode;
     iterations?: number | 'infinite';
@@ -225,7 +224,7 @@ const PixodeskSvgAnimator = defineComponent({
         doc: { type: Object as PropType<PxAnimatedSvgDocument>, required: true },
 
         // -- Rendering mode
-        mode: { type: String as PropType<'waapi' | 'frames' | 'auto' | 'webapi'> },
+        mode: { type: String as PropType<'waapi' | 'frames' | 'auto'> },
 
         // -- Timing overrides
         delay: { type: Number },

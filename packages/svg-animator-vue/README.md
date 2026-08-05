@@ -85,7 +85,7 @@ Render a single frame at a specific point in time:
 | `pause` | `boolean` | Pause current playback |
 | `time` | `number` | Seek to a fraction (0–1) of the whole timeline (duration × iterations) |
 | `timeMs` | `number` | Seek to a time in milliseconds |
-| `mode` | `'auto' \| 'webapi' \| 'frames'` | Animation engine |
+| `mode` | `'auto' \| 'waapi' \| 'frames'` | Animation engine |
 | `duration` | `number` | Duration override (ms) |
 | `delay` | `number` | Delay before start (ms) |
 | `iterations` | `number \| 'infinite'` | Loop count |

@@ -723,9 +723,7 @@ export interface _PxAnimatorConfig {
 
 // `{ mode?, duration?, delay?, iterations?, fill?, direction?, frameRate?, trigger?, definitions?, animate?, debug?, debugInstName? }`
 export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(px.object({
-    // 'waapi' = deprecated legacy spelling of 'waapi' — read-accepted only;
-    // the runtime treats it like `auto` (tries WAAPI first), writers never emit it.
-    mode: px.enum([PxAnimatorMode.auto, PxAnimatorMode.waapi, PxAnimatorMode.frames, 'waapi'] as const).optional(),
+    mode: px.enum([PxAnimatorMode.auto, PxAnimatorMode.waapi, PxAnimatorMode.frames] as const).optional(),
     duration: px.number().optional(),
     delay: px.number().optional(),
     iterations: px.union([px.number(), px.literal('infinite')]).optional(),

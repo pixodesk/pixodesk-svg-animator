@@ -277,7 +277,7 @@ interface SVG_JSON {
         iterations?: number | 'infinite'; // repeat count (default 1); composes with per-property loop (loop-within-loop)
         fill?: 'forwards' | 'backwards' | 'both' | 'none'; // WAAPI fill; default 'forwards' holds final state
         direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse'; // default 'normal'
-        mode?: 'auto' | 'webapi' | 'frames'; // default 'auto' = WAAPI→RAF fallback; 'webapi' = WAAPI; 'frames' = RAF
+        mode?: 'auto' | 'waapi' | 'frames'; // default 'auto' = WAAPI→RAF fallback; 'waapi' = WAAPI; 'frames' = RAF
         frameRate?: number;                // target fps; RAF mode only (default: uncapped)
         resetOnFinish?: boolean;           // default false; after a NATURAL finish, snap back to the start state
 

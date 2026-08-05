@@ -124,7 +124,7 @@ createAnimator({
 `animator.mode` selects the playback engine:
 
 - `'auto'` (default) — try the Web Animations API, fall back to `requestAnimationFrame`.
-- `'webapi'` — Web Animations API only.
+- `'waapi'` — Web Animations API only.
 - `'frames'` — `requestAnimationFrame` only; honours `animator.frameRate`. Required for path morphing.
 
 ### Document format & effects

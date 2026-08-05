@@ -2,8 +2,8 @@
 
 Player library that takes a lightweight animated-SVG document (`PxNode` tree with
 per-node `effects` / `animate` buckets) and turns it into a running animation in
-the browser. Two playback engines: **WAAPI** (`webapi`) and a JS **frame loop**
-(`frames`); `auto` resolves to `webapi` with a frames fallback.
+the browser. Two playback engines: **WAAPI** (`waapi`) and a JS **frame loop**
+(`frames`); `auto` resolves to `waapi` with a frames fallback.
 
 ## Animation pipeline (call structure)
 
@@ -13,7 +13,7 @@ built over the rendered DOM.
 
 - **`createAnimatorImpl(doc)`** — `PxAnimator.ts`
   - `validateNodeEffects(doc)` — warn-only `PxEffectsSchema` check
-  - resolve `engine` = `mode === 'frames' ? frames : webapi` *(auto/webapi/unset → webapi)*
+  - resolve `engine` = `mode === 'frames' ? frames : waapi` *(auto/waapi/unset → waapi)*
   - **`materialiseAllInTree(doc, engine)`** — `PxAnimatorMaterialiseAll.ts` *(also exported for the Editor — one shared pipeline, no drift)*
     - **1. `applyPlayerEffects(doc)`** — `effects/PlayerEffectsUtil.ts` · **both engines** · materialises `node.effects` into wrappers/defs/clones
       - `applyPlayerEffects_exceptRetime` — pass 1, per node (effects bucket deleted up-front, slices passed to each applier):
@@ -26,9 +26,9 @@ built over the rendered DOM.
       - `applyPlayerEffects_retime` — pass 2 (runs AFTER all pass-1 effects) → **`applyAllRetimeEffects`** — `effects/retimeEffect.ts`
         - `materialiseRetime` → `buildChainClone` → `materialiseNestedRetimeUses` *(nested retime composes via `concatRetime`)*
     - **2. `materialiseInternalLoopsInTree`** — `PxDefinitions.ts` · **both engines** · `propAnim.loop` → flat repeated kfs over the duration
-    - **3. `materialiseMotionPathsInTree`** — `PxMotionPath.ts` · **webapi only** · tangent/autoOrient transform kfs → sampled `{translate, rotate}` kfs *(frames evaluates parametric per frame)*
-    - **4. `materialiseAnimatedUseInstances`** — `PxAnimatorUseMaterialiser.ts` · **webapi only** · `<use>`→animated-subtree replaced with `<g>`+deep-clone *(WAAPI/CSS don't animate through a `<use>` shadow; frames drives source attrs per frame so the shadow picks them up)*
-    - **5. `pruneUnreferencedDefs`** — `PxAnimatorMaterialiseAll.ts` · **webapi only** · removes `<defs>` `<g>`/`<symbol>` entries orphaned by step 4 (no `<use href>` left), then drops the `<defs>` node once it's empty; fixpoint loop collapses chains
+    - **3. `materialiseMotionPathsInTree`** — `PxMotionPath.ts` · **waapi only** · tangent/autoOrient transform kfs → sampled `{translate, rotate}` kfs *(frames evaluates parametric per frame)*
+    - **4. `materialiseAnimatedUseInstances`** — `PxAnimatorUseMaterialiser.ts` · **waapi only** · `<use>`→animated-subtree replaced with `<g>`+deep-clone *(WAAPI/CSS don't animate through a `<use>` shadow; frames drives source attrs per frame so the shadow picks them up)*
+    - **5. `pruneUnreferencedDefs`** — `PxAnimatorMaterialiseAll.ts` · **waapi only** · removes `<defs>` `<g>`/`<symbol>` entries orphaned by step 4 (no `<use href>` left), then drops the `<defs>` node once it's empty; fixpoint loop collapses chains
   - `generateNewIds` + `renderNode` — render the materialised tree to DOM
   - **`createAnimatorFromConfig(doc, …)`** — `PxAnimator.ts` · builds the actual animator over the rendered DOM
     - `mode === 'frames'` → `createFrameLoopAnimator` — `PxAnimatorFrameLoop.ts`
@@ -36,8 +36,8 @@ built over the rendered DOM.
 
 ### Notes on the shape
 - **Retime is the last effect** (pass 2 inside `applyPlayerEffects`) but still **step 1** of the whole pipeline.
-- **Steps 3-5 are webapi-only.** Frames keeps the parametric / `<use href>` forms and resolves them per frame.
-- **Engine is committed before effects** (`webapi` unless explicitly `frames`), but the *actual playback* engine can still fall back to `frames` at `createWebApiAnimator` time — that fallback does **not** re-materialise (slight over-materialisation, no correctness issue).
+- **Steps 3-5 are waapi-only.** Frames keeps the parametric / `<use href>` forms and resolves them per frame.
+- **Engine is committed before effects** (`waapi` unless explicitly `frames`), but the *actual playback* engine can still fall back to `frames` at `createWebApiAnimator` time — that fallback does **not** re-materialise (slight over-materialisation, no correctness issue).
 - **`ApplyContext.engine`** carries the resolved engine into the effect pass for effects that may later choose to inline animated clone content themselves (currently unconsumed; the inline is done by step 4).
 
 ## Effect appliers (`effects/`)

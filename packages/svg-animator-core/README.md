@@ -69,7 +69,7 @@ lightweight editor document into a flat tree any renderer can walk:
    sampled into plain `{translate, rotate}` keyframes.
 4. **Animated `<use>`** — replaced by `<g>` + a deep clone with fresh ids.
 
-Steps 3 and 4 run when `engine` is `webapi`. Pass `webapi` for **any renderer
+Steps 3 and 4 run when `engine` is `waapi`. Pass `waapi` for **any renderer
 without live `<use>` propagation** — that includes `react-native-svg` — and
 `frames` only for the DOM, which resolves `<use>` references natively.
 
@@ -80,7 +80,7 @@ import {
 } from '@pixodesk/svg-animator-core';
 
 // Flatten once …
-const flat = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.webapi));
+const flat = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.waapi));
 
 // … then ask for values at any time, with no renderer involved.
 for (const binding of getNormalisedBindings(flat, PxAnimatorEngine.frames) ?? []) {
