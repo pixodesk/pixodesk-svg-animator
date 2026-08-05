@@ -34,7 +34,7 @@ function scene(text: any, textAttrs: any = {}, tspans?: Array<any>): PxNode {
         animator: { definitions: { glyphs } },
         children: [{
             type: 'text', id: 't', ...textAttrs,
-            children: tspans ?? [{ type: 'tspan', text: 'Hi', fontFamily: 'F', fontSize: '100px' }],
+            children: tspans ?? [{ type: 'tspan', textContent: 'Hi', fontFamily: 'F', fontSize: '100px' }],
             effects: { text },
         }],
     } as unknown as PxNode;
@@ -70,8 +70,8 @@ describe('textGlyphsEffect — <text> → baked <path> outlines', () => {
         // twice. Regression for the doubled-glyphs bug.
         const { root } = run({ useGlyphs: true }, {}, [
             {
-                type: 'tspan', text: 'Hi', fontFamily: 'F', fontSize: '100px',
-                children: [{ type: 'tspan', text: 'Hi', fontFamily: 'F', fontSize: '100px' }],
+                type: 'tspan', textContent: 'Hi', fontFamily: 'F', fontSize: '100px',
+                children: [{ type: 'tspan', textContent: 'Hi', fontFamily: 'F', fontSize: '100px' }],
             },
         ]);
         const p = paths(root);
@@ -81,8 +81,8 @@ describe('textGlyphsEffect — <text> → baked <path> outlines', () => {
 
     it('splits into one <path> per distinct fill, keeping pen continuous', () => {
         const { root } = run({ useGlyphs: true }, {}, [
-            { type: 'tspan', text: 'H', fontFamily: 'F', fontSize: '100px', fill: '#f00' },
-            { type: 'tspan', text: 'i', fontFamily: 'F', fontSize: '100px', fill: '#00f' },
+            { type: 'tspan', textContent: 'H', fontFamily: 'F', fontSize: '100px', fill: '#f00' },
+            { type: 'tspan', textContent: 'i', fontFamily: 'F', fontSize: '100px', fill: '#00f' },
         ]);
 
         const p = paths(root);
@@ -102,14 +102,14 @@ describe('textGlyphsEffect — <text> → baked <path> outlines', () => {
     it('advances past whitespace (no outline) using its width', () => {
         // 'H' (adv 70) + ' ' (adv 25) + 'i' → i pen at 95.
         const { root } = run({ useGlyphs: true }, {}, [
-            { type: 'tspan', text: 'H i', fontFamily: 'F', fontSize: '100px' },
+            { type: 'tspan', textContent: 'H i', fontFamily: 'F', fontSize: '100px' },
         ]);
         expect(paths(root)[0].d).toBe('M0 0L10 0L10-70ZM95 0L100 0L100-50Z');
     });
 
     it('uses the sole embedded font when a run has no font-family', () => {
         const { root } = run({ useGlyphs: true }, {}, [
-            { type: 'tspan', text: 'Hi', fontSize: '100px' }, // no fontFamily
+            { type: 'tspan', textContent: 'Hi', fontSize: '100px' }, // no fontFamily
         ]);
         expect(paths(root)).toHaveLength(1);
         expect(paths(root)[0].d).toBe('M0 0L10 0L10-70ZM70 0L75 0L75-50Z');
@@ -124,7 +124,7 @@ describe('textGlyphsEffect — <text> → baked <path> outlines', () => {
     it('warns and leaves native text when no glyphs are defined', () => {
         const input = {
             type: 'svg',
-            children: [{ type: 'text', id: 't', children: [{ type: 'tspan', text: 'Hi', fontFamily: 'F' }], effects: { text: { useGlyphs: true } } }],
+            children: [{ type: 'text', id: 't', children: [{ type: 'tspan', textContent: 'Hi', fontFamily: 'F' }], effects: { text: { useGlyphs: true } } }],
         } as unknown as PxNode;
         const { root, warnings } = materialiseRaw(input);
         expect(collectByType(root, 'text')).toHaveLength(1);
@@ -321,7 +321,7 @@ describe('materialiseGlyphText — injected element factory (editor reuse)', () 
 
     const textNode = (): PxNode => ({
         type: 'text', id: 't', transform: 'translate(10,50)',
-        children: [{ type: 'tspan', text: 'Hi', fontFamily: 'F', fontSize: '100px', fill: '#f00' }],
+        children: [{ type: 'tspan', textContent: 'Hi', fontFamily: 'F', fontSize: '100px', fill: '#f00' }],
     } as unknown as PxNode);
 
     it('builds the group + paths via the caller-supplied factory (not JSON nodes)', () => {
@@ -359,9 +359,9 @@ describe('layoutGlyphTextChars — per-char caret/hit boxes', () => {
     const threeLinesMiddleEmpty = (): PxNode => ({
         type: 'text', id: 't',
         children: [
-            { type: 'tspan', x: 0, y: 0,   text: 'Hi', fontFamily: 'F', fontSize: '100px' },
+            { type: 'tspan', x: 0, y: 0,   textContent: 'Hi', fontFamily: 'F', fontSize: '100px' },
             { type: 'tspan', x: 0, y: 120,             fontFamily: 'F', fontSize: '100px' },
-            { type: 'tspan', x: 0, y: 240, text: 'H',  fontFamily: 'F', fontSize: '100px' },
+            { type: 'tspan', x: 0, y: 240, textContent: 'H',  fontFamily: 'F', fontSize: '100px' },
         ],
     } as unknown as PxNode);
 
@@ -390,8 +390,8 @@ describe('layoutGlyphTextChars — per-char caret/hit boxes', () => {
         const node = {
             type: 'text', id: 't',
             children: [
-                { type: 'tspan', x: 0, y: 0,   text: 'H', fontFamily: 'F', fontSize: '100px' },
-                { type: 'tspan', x: 0, y: 120, text: ' ', fontFamily: 'F', fontSize: '100px' },
+                { type: 'tspan', x: 0, y: 0,   textContent: 'H', fontFamily: 'F', fontSize: '100px' },
+                { type: 'tspan', x: 0, y: 120, textContent: ' ', fontFamily: 'F', fontSize: '100px' },
             ],
         } as unknown as PxNode;
         const boxes = layoutGlyphTextChars(node, { glyphs });

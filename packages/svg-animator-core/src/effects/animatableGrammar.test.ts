@@ -62,7 +62,7 @@ describe('unified animatable grammar — loop / kfs alias / value base in effect
 
     it('textPath.startOffset — kfs alias + loop + static first-kf baseline', () => {
         const out = materialise(doc({
-            type: 'text', children: [{ type: 'tspan', text: 'hi' }],
+            type: 'text', children: [{ type: 'tspan', textContent: 'hi' }],
             effects: { textPath: {
                 path: 'M0,0 L100,0', pathOverflow: 'clip',
                 startOffset: { kfs: [{ t: 0, v: 5 }, { t: 1000, v: 50 }], loop: true },

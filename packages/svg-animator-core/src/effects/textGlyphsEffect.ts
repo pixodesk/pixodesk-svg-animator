@@ -196,7 +196,7 @@ export function materialiseGlyphTextHorizontal<E = any>(node: PxNode, opts: Glyp
         if (y !== undefined) pen.y = y;
         pen.x += parseLen(el.dx) ?? 0;
         pen.y += parseLen(el.dy) ?? 0;
-        const content = str(el[TEXT_ATTR]) ?? str(el[TEXT_CONTENT_ATTR]);
+        const content = str(el[TEXT_CONTENT_ATTR]) ?? str(el[TEXT_ATTR]);
         // Render a node's OWN text only when it has no element children. In the glyph
         // text model text lives on leaf spans; a container that ALSO carries folded
         // text — a single-span line collapsed onto its line-`<tspan>` — would
@@ -207,7 +207,7 @@ export function materialiseGlyphTextHorizontal<E = any>(node: PxNode, opts: Glyp
 
     const rootStyle = rootStyleOf(node);
     if (node.children) for (const ch of node.children) walk(ch, rootStyle);
-    const rootContent = str(node[TEXT_ATTR]) ?? str(node[TEXT_CONTENT_ATTR]);
+    const rootContent = str(node[TEXT_CONTENT_ATTR]) ?? str(node[TEXT_ATTR]);
     if (rootContent && !node.children?.length) renderChars(rootContent, rootStyle);
 
     // text-anchor: shift each line by its own advance width, then rebuild `m`.
@@ -282,7 +282,7 @@ export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterialiseOp
         if (y !== undefined) pen.y = y;
         pen.x += parseLen(el.dx) ?? 0;
         pen.y += parseLen(el.dy) ?? 0;
-        const content = str(el[TEXT_ATTR]) ?? str(el[TEXT_CONTENT_ATTR]);
+        const content = str(el[TEXT_CONTENT_ATTR]) ?? str(el[TEXT_ATTR]);
         if (content && !el.children?.length) renderChars(content, s);
         if (el.children) for (const ch of el.children) walk(ch, s);
     };
@@ -303,7 +303,7 @@ export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterialiseOp
             boxes.push({ x: pen.x, y: pen.y, width: 0, ascent: (gf?.ascent ?? 0.9 * upm) * (s.fontSize / upm), fontSize: s.fontSize, line });
         }
     }
-    const rootContent = str(node[TEXT_ATTR]) ?? str(node[TEXT_CONTENT_ATTR]);
+    const rootContent = str(node[TEXT_CONTENT_ATTR]) ?? str(node[TEXT_ATTR]);
     if (rootContent && !node.children?.length) renderChars(rootContent, rootStyle);
 
     // text-anchor: shift each line's chars by its own advance width (matches the placement shift).
@@ -335,7 +335,7 @@ function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<G
     let adv = 0;
     const walk = (el: PxNode, parentStyle: Style): void => {
         const s = resolveStyle(el, parentStyle);
-        const content = str(el[TEXT_ATTR]) ?? str(el[TEXT_CONTENT_ATTR]);
+        const content = str(el[TEXT_CONTENT_ATTR]) ?? str(el[TEXT_ATTR]);
         if (content && !el.children?.length) {
             const gf = glyphFontFor(s, glyphs, soleFont, warnings);
             const upm = gf?.unitsPerEm || 1000;
@@ -408,7 +408,7 @@ function collectAlongPathCells(node: PxNode, glyphs: Record<string, PxGlyphFont>
     let adv = 0;
     const walk = (el: PxNode, parentStyle: Style): void => {
         const s = resolveStyle(el, parentStyle);
-        const content = str(el[TEXT_ATTR]) ?? str(el[TEXT_CONTENT_ATTR]);
+        const content = str(el[TEXT_CONTENT_ATTR]) ?? str(el[TEXT_ATTR]);
         // Only leaf text (no children) — a single-span line folds its text onto the
         // line-`<tspan>` AND keeps the child span; rendering both would duplicate it.
         if (content && !el.children?.length) {

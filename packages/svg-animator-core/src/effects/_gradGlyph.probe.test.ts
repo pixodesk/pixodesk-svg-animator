@@ -11,10 +11,10 @@ const grad = { type: 'linear', p1: [-100, 0], p2: [100, 0], gradientUnits: 'user
 describe('probe', () => {
   it('literal fill vs fillGradient effect on the tspan', () => {
     for (const [name, tspan] of [
-      ['literal', { type: 'tspan', text: 'H', fontFamily: 'F', fontSize: '100px', fill: '#f00' }],
-      ['gradient', { type: 'tspan', text: 'H', fontFamily: 'F', fontSize: '100px', effects: { fillGradient: grad } }],
-      ['nested-gradient', { type: 'tspan', text: 'H', fontFamily: 'F', fontSize: '100px', effects: { fillGradient: grad },
-        children: [{ type: 'tspan', text: 'H', fontFamily: 'F', fontSize: '100px', effects: { fillGradient: grad } }] }],
+      ['literal', { type: 'tspan', textContent: 'H', fontFamily: 'F', fontSize: '100px', fill: '#f00' }],
+      ['gradient', { type: 'tspan', textContent: 'H', fontFamily: 'F', fontSize: '100px', effects: { fillGradient: grad } }],
+      ['nested-gradient', { type: 'tspan', textContent: 'H', fontFamily: 'F', fontSize: '100px', effects: { fillGradient: grad },
+        children: [{ type: 'tspan', textContent: 'H', fontFamily: 'F', fontSize: '100px', effects: { fillGradient: grad } }] }],
     ] as const) {
       const scene = { type: 'svg', viewBox: '0 0 200 100', animator: { definitions: { glyphs } },
         children: [{ type: 'text', id: 't', children: [JSON.parse(JSON.stringify(tspan))], effects: { text: { useGlyphs: true } } }] } as unknown as PxNode;

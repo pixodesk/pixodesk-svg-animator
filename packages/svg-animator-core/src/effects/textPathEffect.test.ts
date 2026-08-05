@@ -17,7 +17,7 @@ import { collectByType, materialise } from './effectTestKit';
 const scene = (textPath: any): PxNode => ({
     type: 'svg',
     children: [
-        { type: 'text', id: 't', children: [{ type: 'tspan', text: 'Hi' }], effects: { textPath } },
+        { type: 'text', id: 't', children: [{ type: 'tspan', textContent: 'Hi' }], effects: { textPath } },
     ],
 } as unknown as PxNode);
 
@@ -36,7 +36,7 @@ describe('textPathEffect — inline path → <path> def + <textPath> wrap', () =
         expect(def.d).toBe('M0,0 Q50,80 100,0');                       // minted from inline geometry
         const tp = textPathNode(out);
         expect(tp.href).toBe('#' + def.id);                           // references the minted def
-        expect(tp.children).toEqual([{ type: 'tspan', text: 'Hi' }]); // original content moved inside
+        expect(tp.children).toEqual([{ type: 'tspan', textContent: 'Hi' }]); // original content moved inside
         expect(textNode(out).children).toEqual([tp]);                 // text now holds only the textPath
         expect(textNode(out).effects).toBeUndefined();
     });
@@ -75,7 +75,7 @@ describe('textPathEffect — inline path → <path> def + <textPath> wrap', () =
     it('case 5 — empty path → no wrap (node unchanged)', () => {
         const out = materialise(scene({ path: '' }));
         expect(collectByType(out, 'textPath')).toHaveLength(0);
-        expect(textNode(out).children).toEqual([{ type: 'tspan', text: 'Hi' }]);
+        expect(textNode(out).children).toEqual([{ type: 'tspan', textContent: 'Hi' }]);
     });
 
     it('case 6 — pathOverflow:extend extends the minted <path> along the tangent; clip leaves it', () => {

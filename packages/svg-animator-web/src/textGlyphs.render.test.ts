@@ -32,7 +32,7 @@ function scene(): PxNode {
         animator: { definitions: { glyphs } },
         children: [{
             type: 'text', id: 't', transform: 'translate(10,50)',
-            children: [{ type: 'tspan', text: 'Hi', fontFamily: 'F', fontSize: '100px', fill: '#f00' }],
+            children: [{ type: 'tspan', textContent: 'Hi', fontFamily: 'F', fontSize: '100px', fill: '#f00' }],
             effects: { text: { useGlyphs: true } },
         }],
     } as unknown as PxNode;

@@ -100,7 +100,7 @@ export function renderNode(node: PxNode, defs?: PxDefs): Element | null {
         getNormalizedProps(props),
         resolvedStyle,
         childElements,
-        props[TEXT_ATTR] || props[TEXT_CONTENT_ATTR]
+        props[TEXT_CONTENT_ATTR] || props[TEXT_ATTR]
     );
 
     // `type` is an INTERNAL_ATTR (reserved for the node tag), so the feFunc transfer

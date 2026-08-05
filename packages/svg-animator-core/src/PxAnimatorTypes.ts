@@ -44,6 +44,10 @@ export type PxAnimatorEngine = typeof PxAnimatorEngine[keyof typeof PxAnimatorEn
 export type JsMode = PxAnimatorMode;
 
 
+// S8: `textContent` is the CANONICAL text-content key (DOM property name;
+// `text` was triply overloaded: the `text` tag, the `effects.text` group, and
+// this key). `text` is READ-ONLY legacy — readers accept both, writers emit
+// only `textContent`.
 export const TEXT_ATTR = 'text';
 export const TEXT_CONTENT_ATTR = 'textContent';
 
