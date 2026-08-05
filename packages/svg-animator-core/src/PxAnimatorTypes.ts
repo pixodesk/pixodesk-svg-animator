@@ -730,6 +730,8 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
     mode: px.enum([PxAnimatorMode.auto, PxAnimatorMode.waapi, PxAnimatorMode.frames] as const).optional(),
     duration: px.number().optional(),
     delay: px.number().optional(),
+    // LAW (SCHEMA-DESIGN R3, S10): the ONE sanctioned string-in-number union
+    // (CSS animation-iteration-count familiarity) — do not add more mixed unions.
     iterations: px.union([px.number(), px.literal('infinite')]).optional(),
     fill: px.enum(['forwards', 'backwards', 'both', 'none'] as const).optional(),
     direction: px.enum(['normal', 'reverse', 'alternate', 'alternate-reverse'] as const).optional(),
@@ -1148,7 +1150,10 @@ const _ck_PxGradientStop: KeysMatch<PxGradientStop, _PxGradientStop> = true;
 
 /** `PxAnimatable<Array<PxGradientStop>>` schema. Static is the bare array;
  *  `{value: […]}` wraps the same; the animated form is `PxPropertyAnimation`
- *  (one timeline whose each kf's `value` is the FULL stops array at that time). */
+ *  (one timeline whose each kf's `value` is the FULL stops array at that time).
+ *  LAW (SCHEMA-DESIGN R5, S9): stops are ONE animatable value — whole-array
+ *  snapshots on a single timeline, deliberately NO per-stop keyframes/easing
+ *  (gradient GEOMETRY animates per-slot with independent timelines). */
 const PxAnimatableGradientStopsSchema = px.union([
     px.array(PxGradientStopSchema),
     px.object({ value: px.array(PxGradientStopSchema) }),
