@@ -1260,6 +1260,15 @@ const _ck_PxTextEffect: KeysMatch<PxTextEffect, _PxTextEffect> = true;
  *    is an attribute; gradient fill is an effect (no value of `fill` IS a
  *    gradient — it needs a def + stops + a `url(#id)` indirection).
  *  New features follow the same test: pattern fills / filters need defs → effects.
+ *
+ * COMPOSITION ORDER (SCHEMA-DESIGN §R5): one bag per element — JSON key order
+ * carries NO meaning and is never read. The applier composes in one hard-coded
+ * order, innermost → outermost:
+ *   glyphs/textPath → fill/strokeGradient → trimPath → repeater → maskedBy
+ *   → clipPath → clone-href+transformation      (retime = pass 2, time-remap only)
+ * "Other" orders are expressed by STRUCTURE (nest elements), never by key order.
+ * If authorable order is ever demanded: an explicit `effects.order: [names]`
+ * extension — never key-order significance (JSON tooling silently reorders).
  */
 export interface _PxEffects {
     transformation?: _PxTransformationEffect;
