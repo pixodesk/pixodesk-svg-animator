@@ -72,8 +72,10 @@ export function applyMaskedByEffect(
     if (fx.maskContentUnits) mask.maskContentUnits = fx.maskContentUnits;
     // Explicit mask viewport (`x/y/width/height` in `maskUnits` space). Absent →
     // SVG's implicit −10%…120% region, same as the editor's defaults.
-    if (fx.start) { mask.x = String(fx.start[0]); mask.y = String(fx.start[1]); }
-    if (fx.size)  { mask.width = String(fx.size[0]); mask.height = String(fx.size[1]); }
+    if (fx.x !== undefined) mask.x = String(fx.x);
+    if (fx.y !== undefined) mask.y = String(fx.y);
+    if (fx.width !== undefined) mask.width = String(fx.width);
+    if (fx.height !== undefined) mask.height = String(fx.height);
     ctx.defs.push(mask);
 
     node.mask = 'url(#' + maskId + ')';

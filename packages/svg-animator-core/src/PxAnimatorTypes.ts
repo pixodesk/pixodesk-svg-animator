@@ -961,6 +961,8 @@ export interface _PxRepeaterEffect {
     origin?: PxAnimatable<Vec2>;
 }
 export const PxRepeaterEffectSchema = implementsInterface<_PxRepeaterEffect>()(px.object({
+    // STATIC config, not a channel (V2/SCHEMA-DESIGN R5): the copy COUNT is read
+    // once at expansion time and never sampled — plain number, no `keyframes`.
     copies: px.number().optional(),
     translate: PxAnimatableVec2Schema.optional(),
     rotate: PxAnimatableNumberSchema.optional(),
@@ -983,16 +985,24 @@ export interface _PxMaskedByEffect {
     maskType?: string;
     maskUnits?: string;
     maskContentUnits?: string;
-    start?: Vec2;
-    size?: Vec2;
+    // Mask viewport in `maskUnits` space — the SVG `<mask>` attrs verbatim (B5).
+    // NOT `start`/`size` pairs: those were the EDITOR's model FIELD names, never a
+    // wire spelling — the editor has always written these four scalars, so the old
+    // pair declaration meant the player silently dropped every non-default viewport.
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
 }
 export const PxMaskedByEffectSchema = implementsInterface<_PxMaskedByEffect>()(px.object({
     sourceId: px.string().optional(),
     maskType: px.string().optional(),
     maskUnits: px.string().optional(),
     maskContentUnits: px.string().optional(),
-    start: px.tuple([px.number(), px.number()] as const).optional(),
-    size: px.tuple([px.number(), px.number()] as const).optional(),
+    x: px.number().optional(),
+    y: px.number().optional(),
+    width: px.number().optional(),
+    height: px.number().optional(),
 }));
 export type PxMaskedByEffect = PxInfer<typeof PxMaskedByEffectSchema>;
 const _ck_PxMaskedByEffect: KeysMatch<PxMaskedByEffect, _PxMaskedByEffect> = true;
