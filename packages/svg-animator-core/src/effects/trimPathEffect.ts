@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import type { PxAnimatable, PxBezierPath, PxKeyframe, PxLoop, PxNode, Vec2, _PxTrimPathEffect } from '../PxAnimatorTypes';
+import { PxTrimSubPaths, type PxAnimatable, type PxBezierPath, type PxKeyframe, type PxLoop, type PxNode, type Vec2, type _PxTrimPathEffect } from '../PxAnimatorTypes';
 import { bezier2D_arcLengthLUT, bezierToSvgPath, clamp } from '../PxAnimatorUtil';
 import { parseSvgPathToBezier } from '../PxDefinitions';
 import { ReadKind, readAnimatable, writeAnimatableChannel, type ReadPart } from './transformParts';
@@ -17,9 +17,9 @@ import type { ApplyContext } from './types';
  * `offset` + `range` to per-sub-path `stroke-dasharray` / `stroke-dashoffset` (and
  * `opacity` for empty-range hide).
  *
- *   - `trimAllAsOne` chains every sub-path's length end-to-end so the
- *     window slides across siblings (a flag of TRUE keeps a single trim window,
- *     chaining the sub-paths' `totalLength`).
+ *   - `subPaths: 'combined'` chains every sub-path's length end-to-end so the
+ *     window slides across siblings (ONE trim window over the chained
+ *     `totalLength`); `'separate'` (default) trims each sub-path on its own.
  *   - Animated `offset` becomes `animate.strokeDashoffset.keyframes`;
  *     animated `range` becomes `animate.strokeDasharray.keyframes`.
  *   - The dasharray emits a repeated pattern so any dashoffset shift lands on a
@@ -39,7 +39,7 @@ export function applyTrimPathEffect(
 ): PxNode {
     if (!trimPath) return node;
 
-    const trimAllAsOne = !!trimPath.trimAllAsOne;
+    const combined = trimPath.subPaths === PxTrimSubPaths.combined;
 
     // Pass 1a — collect leaves with subpath lengths (no chain offset yet).
     const leafEntries: Array<LeafEntry> = [];
@@ -64,25 +64,25 @@ export function applyTrimPathEffect(
     if (!leafEntries.length) return node;
 
     // Pass 1b — assign chain offsets.
-    // `trimAllAsOne=true`: walk leaves in REVERSE doc order so the chain
+    // `subPaths: 'combined'`: walk leaves in REVERSE doc order so the chain
     // starts at the visually-topmost leaf. Within each leaf, subpaths keep their
     // `d`-attribute order — without the reverse, a multi-leaf group emits the
     // leaves' dashoffsets SWAPPED, which renders the visible trim window on the
     // wrong subpath.
-    // `trimAllAsOne=false`: each subpath gets its own independent chain
+    // `subPaths: 'separate'`: each subpath gets its own independent chain
     // (offset 0), so the leaf iteration order doesn't matter.
     let acc = 0;
-    const iterOrder = trimAllAsOne ? [...leafEntries].reverse() : leafEntries;
+    const iterOrder = combined ? [...leafEntries].reverse() : leafEntries;
     for (const entry of iterOrder) {
         for (const sp of entry.subpaths) {
-            if (!trimAllAsOne) acc = 0;
+            if (!combined) acc = 0;
             sp.startOffsetPx = acc;
             acc += sp.lengthPx;
         }
     }
 
     const chainLengthPx = acc;
-    if (trimAllAsOne && chainLengthPx < 0.001) return node;
+    if (combined && chainLengthPx < 0.001) return node;
 
     // Offset / range readers. Range is post-processed for cross-overs so the
     // dasharray emitter never sees `range[0] > range[1]`.
@@ -113,9 +113,9 @@ export function applyTrimPathEffect(
     if (leafEntries.length === 1 && leafEntries[0].leaf === node && leafEntries[0].subpaths.length === 1) {
         const entry = leafEntries[0];
         const sp = entry.subpaths[0];
-        const pathLengthPx = trimAllAsOne ? chainLengthPx : sp.lengthPx;
+        const pathLengthPx = combined ? chainLengthPx : sp.lengthPx;
         if (pathLengthPx < 0.001) return node;
-        const startOffsetPct = trimAllAsOne ? sp.startOffsetPx / pathLengthPx : 0;
+        const startOffsetPct = combined ? sp.startOffsetPx / pathLengthPx : 0;
         return collapseLeafWithTrim(entry.leaf, pathLengthPx, startOffsetPct, minMaxOffset, offsetRead, rangeRead);
     }
 
@@ -125,9 +125,9 @@ export function applyTrimPathEffect(
     for (const entry of leafEntries) {
         const newChildren: Array<PxNode> = [];
         for (const sp of entry.subpaths) {
-            const pathLengthPx = trimAllAsOne ? chainLengthPx : sp.lengthPx;
+            const pathLengthPx = combined ? chainLengthPx : sp.lengthPx;
             if (pathLengthPx < 0.001) continue;
-            const startOffsetPct = trimAllAsOne ? sp.startOffsetPx / pathLengthPx : 0;
+            const startOffsetPct = combined ? sp.startOffsetPx / pathLengthPx : 0;
             newChildren.push(...buildSubpathNodes(entry.leaf, sp.subpath, pathLengthPx, startOffsetPct, minMaxOffset, offsetRead, rangeRead, ctx));
         }
         replacements.set(entry.leaf, wrapLeafAsGroup(entry.leaf, newChildren));

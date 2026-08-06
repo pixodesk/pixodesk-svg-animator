@@ -110,6 +110,16 @@ export const PxTextPathSpacing = {
 } as const;
 export type PxTextPathSpacing = typeof PxTextPathSpacing[keyof typeof PxTextPathSpacing];
 
+/** `trimPath.subPaths` — what the 0..1 `range`/`offset` window is measured over.
+ *  `separate` (default): each sub-path against its OWN length, all trimmed alike.
+ *  `combined`: every descendant sub-path chained end-to-end into one virtual path,
+ *  so the window slides across siblings (AE "Trim All As One"). */
+export const PxTrimSubPaths = {
+    separate: 'separate',
+    combined: 'combined',
+} as const;
+export type PxTrimSubPaths = typeof PxTrimSubPaths[keyof typeof PxTrimSubPaths];
+
 /** @deprecated Backwards-compatibility alias — use {@link PxAnimatorMode} for the type. */
 export type JsMode = PxAnimatorMode;
 
@@ -1125,19 +1135,20 @@ const _ck_PxClipPathEffect: KeysMatch<PxClipPathEffect, _PxClipPathEffect> = tru
 /**
  * Trim-path effect. `range[0..1]` is the visible fraction of the stroke; `offset`
  * shifts the visible window along the path (also a fraction). Both are animatable.
- * `trimAllAsOne=true` chains all descendant subpath lengths into one virtual path
- * ("Trim All As One"): the trim window slides across siblings instead of being
- * applied to each subpath independently — see `effects/trimPathEffect.ts`.
+ * `subPaths` says what that fraction is measured over: `separate` (default) trims
+ * each sub-path against its own length; `combined` chains all descendant sub-path
+ * lengths into one virtual path ("Trim All As One") so the window slides across
+ * siblings — see `effects/trimPathEffect.ts`.
  */
 export interface _PxTrimPathEffect {
     offset?: PxAnimatable<number>;
     range?: PxAnimatable<Vec2>;
-    trimAllAsOne?: boolean;
+    subPaths?: PxTrimSubPaths;
 }
 export const PxTrimPathEffectSchema = implementsInterface<_PxTrimPathEffect>()(px.object({
     offset: PxAnimatableNumberSchema.optional(),
     range: PxAnimatableVec2Schema.optional(),
-    trimAllAsOne: px.boolean().optional(),
+    subPaths: px.enum([PxTrimSubPaths.separate, PxTrimSubPaths.combined] as const).optional(),
 }));
 export type PxTrimPathEffect = PxInfer<typeof PxTrimPathEffectSchema>;
 const _ck_PxTrimPathEffect: KeysMatch<PxTrimPathEffect, _PxTrimPathEffect> = true;
