@@ -773,14 +773,11 @@ export interface _PxAnimatorConfig {
      *  accepted on the wire and ignored by the player. */
     timeline?: string;
 
-    /** Reserved for future use — accepted on the wire but currently has no effect. */
-    debug?: boolean;
-
     /** Debug helper: exposes the animator instance as `window[debugInstName]`. */
     debugInstName?: string;
 }
 
-// `{ mode?, duration?, delay?, iterations?, fill?, direction?, frameRate?, trigger?, definitions?, animate?, debug?, debugInstName? }`
+// `{ mode?, duration?, delay?, iterations?, fill?, direction?, frameRate?, trigger?, definitions?, animate?, debugInstName? }`
 export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(px.object({
     mode: px.enum([PxAnimatorMode.auto, PxAnimatorMode.waapi, PxAnimatorMode.frames] as const).optional(),
     duration: px.number().optional(),
@@ -796,7 +793,6 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
     definitions: PxDefsSchema.optional(),
     animate: px.record(PxElementAnimationSchema).optional(),
     timeline: px.string().optional(),
-    debug: px.boolean().optional(),
     debugInstName: px.string().optional(),
 }));
 

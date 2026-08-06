@@ -14,8 +14,8 @@
 import { describe, expect, it } from 'vitest';
 import {
     PxCloneEffectSchema, PxFillGradientEffectSchema, PxMaskedByEffectSchema, PxTextPathEffectSchema,
-    type PxValidationContext,
 } from './PxAnimatorTypes';
+import type { PxValidationContext } from './PxSchema';
 
 const ctx = (): PxValidationContext => ({ errors: [], warnings: [] });
 
