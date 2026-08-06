@@ -9,16 +9,16 @@ import type { PxNode } from '@pixodesk/svg-animator-core';
 
 describe('renderNode — feFunc type attribute', () => {
     // The lightweight-JSON `type` key is the node tag, so feFunc's SVG `type`
-    // attribute (identity/table/…) travels under `funcType` and must be restored
+    // attribute (identity/table/…) travels under `domType` and must be restored
     // onto the real `type` attribute — otherwise a feComponentTransfer can't invert.
-    it('restores feFuncA `funcType` onto the `type` attribute', () => {
-        const node = { type: 'feFuncA', funcType: 'table', tableValues: '1.0 0.0' } as unknown as PxNode;
+    it('restores feFuncA `domType` onto the `type` attribute', () => {
+        const node = { type: 'feFuncA', domType: 'table', tableValues: '1.0 0.0' } as unknown as PxNode;
         const el = renderNode(node) as SVGElement;
 
         expect(el.tagName.toLowerCase()).toBe('fefunca');
         expect(el.getAttribute('type')).toBe('table');
         expect(el.getAttribute('tableValues')).toBe('1.0 0.0');
-        expect(el.getAttribute('funcType')).toBeNull(); // the escape key must not leak through
+        expect(el.getAttribute('domType')).toBeNull(); // the escape key must not leak through
     });
 
     it('renders a full feComponentTransfer alpha-invert filter', () => {
@@ -26,7 +26,7 @@ describe('renderNode — feFunc type attribute', () => {
             type: 'filter', id: 'f1',
             children: [{
                 type: 'feComponentTransfer', in: 'SourceGraphic',
-                children: [{ type: 'feFuncA', funcType: 'table', tableValues: '1 0' }],
+                children: [{ type: 'feFuncA', domType: 'table', tableValues: '1 0' }],
             }],
         } as unknown as PxNode;
         const el = renderNode(node) as SVGElement;

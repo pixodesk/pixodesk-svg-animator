@@ -70,11 +70,12 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
     const { type, children, style, animate, meta, effects, ...props } = node as any;
     const tag = String(type || 'g');
 
-    // `feFuncR/G/B/A` carry their SVG `type` attribute (identity/table/…) under
-    // `funcType`, because the wire format reserves `type` for the node tag.
+    // ESCAPE KEY (S2): elements whose SVG `type` ATTRIBUTE collides with the reserved
+    // `type` node-tag key carry it under `domType` — `feColorMatrix` (matrix/saturate/…),
+    // `feTurbulence` (fractalNoise/turbulence), `feFunc*` (identity/table/…).
     // Restore it as a real prop, mirroring the web renderer.
-    const feFuncType: string | undefined = props.funcType;
-    if (feFuncType !== undefined) delete props.funcType;
+    const domType: string | undefined = props.domType;
+    if (domType !== undefined) delete props.domType;
 
     if (DISALLOWED_SVG_TAGS_LOWER.has(tag.toLowerCase())) {
         opts.warnings?.push('tag blocked (dangerous): ' + tag);
@@ -89,7 +90,7 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
 
     // NB: `key` is never written into this object — see `decorate` above.
     const rnProps = toRnProps(props, opts.warnings, tag);
-    if (feFuncType !== undefined) rnProps.type = feFuncType;
+    if (domType !== undefined) rnProps.type = domType;
 
     // `node.style` — a named preset from `definitions.styles`, or an inline
     // record. react-native-svg has no CSS, so the resolved declarations are
