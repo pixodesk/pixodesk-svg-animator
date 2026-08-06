@@ -856,16 +856,30 @@ const _ck_PxBinding: KeysMatch<PxBinding, _PxBinding> = true; // the key sets ar
  * (a primitive suffices for static); for `transform` it is the canonical
  * structured-static shape. See `PxTransformValueSchema`.
  */
+/**
+ * Value of an open (undeclared) attribute key on a node — i.e. a BODY attribute.
+ *
+ * STATIC ONLY (R2/J3): a body attr never carries its own animation. Animation goes
+ * in the parallel `animate` channel, keyed by attribute name — that is what keeps a
+ * document degradable to valid static SVG. `PxPropertyAnimationSchema` used to be a
+ * member here, which made an inline `"opacity": {keyframes:[…]}` schema-LEGAL even
+ * though nothing writes it and nothing reads it; worse, being an all-optional object
+ * schema it was ALSO what (accidentally) validated the transform parts record. The
+ * parts record is now declared explicitly, so the two are no longer conflated.
+ */
 export const PxAttrValueSchema = px.union([
     px.string(),
     px.number(),
     px.array(px.number()),
+    // Structured static — `{value: …}` (read-accepted transitional spelling, S1).
     px.object({ value: px.any() }),
-    PxPropertyAnimationSchema,
+    // Bare transform parts record — the canonical static `transform` on the wire (T2).
+    PxTransformPartsSchema,
 ]);
 
-/** Per-attribute value: primitive/number-array for static, `{value}` for structured static, `PxPropertyAnimation` for animated. */
-export type PxAttrValue = string | number | Array<number> | { value: any } | PxPropertyAnimation;
+/** Per-attribute value: primitive/number-array for static, `{value}` for structured
+ *  static, or a bare transform parts record. NEVER an animation — see `animate` (R2). */
+export type PxAttrValue = string | number | Array<number> | { value: any } | PxTransformParts;
 
 
 /**
