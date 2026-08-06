@@ -40,6 +40,61 @@ export const PxAnimatorEngine = {
 } as const;
 export type PxAnimatorEngine = typeof PxAnimatorEngine[keyof typeof PxAnimatorEngine];
 
+// V3 — every closed value list is a NAMED const + a strict `px.enum` slot, so a
+// typo is a schema ERROR instead of silently shipping. Plain `px.string()` stays
+// ONLY where SVG itself is open-ended (`gradientTransform`, `viewBox`, `path` d,
+// ids/refs, `debugInstName`).
+
+/** SVG `mask-type` — how the mask source's pixels become alpha. */
+export const PxMaskType = {
+    luminance: 'luminance',
+    alpha:     'alpha',
+} as const;
+export type PxMaskType = typeof PxMaskType[keyof typeof PxMaskType];
+
+/** SVG coordinate system for `maskUnits` / `maskContentUnits` (and the gradient twin below). */
+export const PxUnits = {
+    userSpaceOnUse:    'userSpaceOnUse',
+    objectBoundingBox: 'objectBoundingBox',
+} as const;
+export type PxUnits = typeof PxUnits[keyof typeof PxUnits];
+
+/** `clone.type` — WHAT a `<use>` clones. Absent = the whole element (a direct link);
+ *  `content` excludes the target's own translate (see `contentRefSplit`). */
+export const PxCloneType = {
+    content: 'content',
+} as const;
+export type PxCloneType = typeof PxCloneType[keyof typeof PxCloneType];
+
+/** `textPath.pathOverflow` — glyphs past the path end: hide them, or keep laying
+ *  them along the tangent extension. */
+export const PxPathOverflow = {
+    clip:   'clip',
+    extend: 'extend',
+} as const;
+export type PxPathOverflow = typeof PxPathOverflow[keyof typeof PxPathOverflow];
+
+/** SVG `lengthAdjust` — what `textLength` stretches. */
+export const PxLengthAdjust = {
+    spacing:          'spacing',
+    spacingAndGlyphs: 'spacingAndGlyphs',
+} as const;
+export type PxLengthAdjust = typeof PxLengthAdjust[keyof typeof PxLengthAdjust];
+
+/** SVG `<textPath method>` — how glyphs follow curvature. */
+export const PxTextPathMethod = {
+    align:   'align',
+    stretch: 'stretch',
+} as const;
+export type PxTextPathMethod = typeof PxTextPathMethod[keyof typeof PxTextPathMethod];
+
+/** SVG `<textPath spacing>` — whether the renderer may adjust spacing. */
+export const PxTextPathSpacing = {
+    auto:  'auto',
+    exact: 'exact',
+} as const;
+export type PxTextPathSpacing = typeof PxTextPathSpacing[keyof typeof PxTextPathSpacing];
+
 /** @deprecated Backwards-compatibility alias — use {@link PxAnimatorMode} for the type. */
 export type JsMode = PxAnimatorMode;
 
@@ -1006,9 +1061,9 @@ export interface _PxMaskedByEffect {
 }
 export const PxMaskedByEffectSchema = implementsInterface<_PxMaskedByEffect>()(px.object({
     sourceId: px.string().optional(),
-    maskType: px.string().optional(),
-    maskUnits: px.string().optional(),
-    maskContentUnits: px.string().optional(),
+    maskType: px.enum([PxMaskType.luminance, PxMaskType.alpha] as const).optional(),
+    maskUnits: px.enum([PxUnits.userSpaceOnUse, PxUnits.objectBoundingBox] as const).optional(),
+    maskContentUnits: px.enum([PxUnits.userSpaceOnUse, PxUnits.objectBoundingBox] as const).optional(),
     x: px.number().optional(),
     y: px.number().optional(),
     width: px.number().optional(),
@@ -1108,7 +1163,7 @@ export interface _PxCloneEffect {
 }
 export const PxCloneEffectSchema = implementsInterface<_PxCloneEffect>()(px.object({
     // Contextual kind — the `type` convention, see `PxNodeBase.type`.
-    type: px.string().optional(),
+    type: px.enum([PxCloneType.content] as const).optional(),
     sourceId: px.string().optional(),
     retime: PxRetimeEffectSchema.optional(),
 }));
@@ -1211,8 +1266,8 @@ export const PxFillGradientEffectSchema = implementsInterface<_PxFillGradientEff
     r:    PxAnimatableNumberSchema.optional(),
     fp:   PxAnimatableVec2Schema.optional(),
     stops: PxAnimatableGradientStopsSchema.optional(),
-    gradientUnits:     px.string().optional(),
-    spreadMethod:      px.string().optional(),
+    gradientUnits:     px.enum([PxGradientUnits.userSpaceOnUse, PxGradientUnits.objectBoundingBox] as const).optional(),
+    spreadMethod:      px.enum([PxGradientSpreadMethod.pad, PxGradientSpreadMethod.reflect, PxGradientSpreadMethod.repeat] as const).optional(),
     gradientTransform: px.string().optional(),
 }));
 export type PxFillGradientEffect = PxInfer<typeof PxFillGradientEffectSchema>;
@@ -1246,10 +1301,10 @@ export interface _PxTextPathEffect {
 }
 export const PxTextPathEffectSchema = implementsInterface<_PxTextPathEffect>()(px.object({
     path: px.string(),
-    pathOverflow: px.string().optional(),
-    lengthAdjust: px.string().optional(),
-    method: px.string().optional(),
-    spacing: px.string().optional(),
+    pathOverflow: px.enum([PxPathOverflow.clip, PxPathOverflow.extend] as const).optional(),
+    lengthAdjust: px.enum([PxLengthAdjust.spacing, PxLengthAdjust.spacingAndGlyphs] as const).optional(),
+    method: px.enum([PxTextPathMethod.align, PxTextPathMethod.stretch] as const).optional(),
+    spacing: px.enum([PxTextPathSpacing.auto, PxTextPathSpacing.exact] as const).optional(),
     startOffset: PxAnimatableNumberSchema.optional(),
     textLength: PxAnimatableNumberSchema.optional(),
 }));
