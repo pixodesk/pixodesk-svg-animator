@@ -1009,6 +1009,22 @@ const PxAnimatableVec2Schema = px.union([
     PxPropertyAnimationSchema,
 ]);
 
+// PxAnimatable<string> — static `"M…"` OR `{value:"M…"}` OR PxPropertyAnimation.
+const PxAnimatableStringSchema = px.union([
+    px.string(),
+    px.object({ value: px.string() }),
+    PxPropertyAnimationSchema,
+]);
+
+// ── CHANNEL vs CONFIG (V2) — the split is declared in the SOURCE, twice over ──
+// An effect slot is one of exactly two kinds, and both declarations must agree:
+//   channel (samplable per frame) → interface `PxAnimatable<T>` + a named
+//                                   `PxAnimatable*Schema` in the schema
+//   static config (read once)     → the bare type + a bare `px.*()` slot
+// Never hand-inline the `[T, {value:T}, PxPropertyAnimation]` union at a slot:
+// the NAME is what makes the split machine-readable. Editor side mirrors this
+// with `isAnimatable: true` on the value's config.
+
 
 /** Per-part editor transform (`transformBy` effect). All parts optional and animatable. */
 export interface _PxTransformByEffect {
@@ -1125,7 +1141,7 @@ export interface _PxClipPathEffect {
     animate?: PxPropertyAnimation;
 }
 export const PxClipPathEffectSchema = implementsInterface<_PxClipPathEffect>()(px.object({
-    d: px.union([px.string(), px.object({ value: px.string() }), PxPropertyAnimationSchema]).optional(),
+    d: PxAnimatableStringSchema.optional(),
     animate: PxPropertyAnimationSchema.optional(),
 }));
 export type PxClipPathEffect = PxInfer<typeof PxClipPathEffectSchema>;
@@ -1381,7 +1397,7 @@ const _ck_PxTextEffect: KeysMatch<PxTextEffect, _PxTextEffect> = true;
  * carries NO meaning and is never read. The applier composes in one hard-coded
  * order, innermost → outermost:
  *   glyphs/textPath → fill/strokeGradient → trimPath → repeater → maskedBy
- *   → clipPath → clone-href+transformation      (retime = pass 2, time-remap only)
+ *   → clipPath → clone-href+transformBy         (retime = pass 2, time-remap only)
  * "Other" orders are expressed by STRUCTURE (nest elements), never by key order.
  * If authorable order is ever demanded: an explicit `effects.order: [names]`
  * extension — never key-order significance (JSON tooling silently reorders).
