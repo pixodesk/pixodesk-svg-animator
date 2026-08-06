@@ -18,8 +18,7 @@ import {
     type PxLoop,
     type PxNode,
     type PxPropertyAnimation,
-    type PxTransformParts
-} from './PxAnimatorTypes';
+    type PxTransformParts, PxLoopExtend } from './PxAnimatorTypes';
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 import { evaluateMotionPathSegment, materialiseMotionPathInPropAnim, propAnimIsMotionPath } from './PxMotionPath';
 
@@ -390,7 +389,7 @@ function expandLoopKeyframes(
 
     // Extract segment keyframes
     let segKfs: PxKeyframe[];
-    if (loop.before) {
+    if (loop.extend === PxLoopExtend.before) {
         segKfs = keyframes.slice(0, segCount + 1);
     } else {
         segKfs = keyframes.slice(totalIntervals - segCount);
@@ -401,7 +400,7 @@ function expandLoopKeyframes(
     const lastT = keyframes[keyframes.length - 1].t ?? 0;
 
     let fillStart: number, fillEnd: number;
-    if (loop.before) {
+    if (loop.extend === PxLoopExtend.before) {
         fillStart = 0;
         fillEnd = firstT;
     } else {
@@ -553,7 +552,7 @@ function expandLoopKeyframes(
     // The rep closest to the original keyframes boundary must be reversed first
     // in pingpong mode (the animation just finished going forward, so the next
     // iteration goes backward).
-    if (loop.before) {
+    if (loop.extend === PxLoopExtend.before) {
         // loopIn — the fill must END exactly at the first keyframe (firstT), so the
         // reps tile BACKWARD from that boundary: the leftover (partial) rep sits at
         // fillStart showing the segment's tail, then `fullReps` full reps run up to
@@ -585,7 +584,7 @@ function expandLoopKeyframes(
 
     // Assemble: looped keyframes go before or after the original keyframes.
     // No junction deduplication — cycle mode relies on value jumps at boundaries.
-    if (loop.before) {
+    if (loop.extend === PxLoopExtend.before) {
         return [...looped, ...keyframes];
     } else {
         return [...keyframes, ...looped];

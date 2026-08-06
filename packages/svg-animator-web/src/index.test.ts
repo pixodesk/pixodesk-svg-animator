@@ -323,7 +323,7 @@ describe('Loop expansion', () => {
     // });
 
     // FIXME
-    // it('loop:before extends keyframes before the first keyframe', () => {
+    // it("loop.extend:'before' extends keyframes before the first keyframe", () => {
     //     const doc: PxAnimatedSvgDocument = {
     //         type: 'svg',
     //         animator: { duration: 200 },
@@ -335,7 +335,7 @@ describe('Loop expansion', () => {
     //                         { time: 100, value: 0 },
     //                         { time: 200, value: 1 }
     //                     ],
-    //                     loop: { before: true }
+    //                     loop: { extend: 'before' }
     //                 }
     //             }
     //         }]
@@ -461,7 +461,7 @@ describe('Loop expansion', () => {
     // the element at the segment HEAD (x=0) instead of mid-segment (x=50) → the
     // loopIn `f0` bug. (Linear easing → exact midpoints.) Asserts on the materialised
     // keyframe list since this path keeps kf times in ms (not normalised 0-1).
-    it('loop:before with partial rep tiles backward from the first keyframe', () => {
+    it("loop.extend:'before' with partial rep tiles backward from the first keyframe", () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg',
             animator: {
@@ -473,7 +473,7 @@ describe('Loop expansion', () => {
                                 { time: 150, value: { translate: [0, 0] } },
                                 { time: 250, value: { translate: [100, 0] } }
                             ],
-                            loop: { before: true }
+                            loop: { extend: 'before' }
                         }
                     }
                 }

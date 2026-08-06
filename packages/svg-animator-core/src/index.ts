@@ -164,7 +164,7 @@ export {
     PxFillGradientEffectSchema,
     PxGradientSpreadMethod,
     PxGradientStopSchema,
-    PxGradientType,
+    PxGradientType, PxLoopExtend,
     PxGradientUnits,
     PxMaskedByEffectSchema,
     PxRepeaterEffectSchema,

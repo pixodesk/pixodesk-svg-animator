@@ -45,6 +45,21 @@ export type PxAnimatorEngine = typeof PxAnimatorEngine[keyof typeof PxAnimatorEn
 // ONLY where SVG itself is open-ended (`gradientTransform`, `viewBox`, `path` d,
 // ids/refs, `debugInstName`).
 
+/** `loop.extend` — WHICH END of the keyframe sequence the loop segment is taken from,
+ *  and therefore which side the animation is extended on. Replaced the boolean
+ *  `before` (N8): a bare preposition named no subject ("before what?"), and a
+ *  two-way selector reads better as a named enum — which also leaves room for a
+ *  third value (e.g. both ends) that a boolean forecloses. */
+export const PxLoopExtend = {
+    /** Segment from the START; the animation is extended BEFORE the first keyframe
+     *  (intro loops that run before the main timeline begins). */
+    before: 'before',
+    /** DEFAULT — segment from the END; extended AFTER the last keyframe (idle/outro
+     *  loops that continue once the main timeline has finished). */
+    after: 'after',
+} as const;
+export type PxLoopExtend = typeof PxLoopExtend[keyof typeof PxLoopExtend];
+
 /** SVG `mask-type` — how the mask source's pixels become alpha. */
 export const PxMaskType = {
     luminance: 'luminance',
@@ -317,23 +332,17 @@ export interface _PxLoop {
      * segment.
      *
      * - `undefined` → the entire keyframe sequence is used as the loop segment.
-     * - `N`         → only the first `N` intervals (when `before: true`) or the last `N` intervals
-     *                 (when `before: false`) are looped. Clamped to `[1, keyframes.length - 1]`.
+     * - `N`         → only the first `N` intervals (when `extend: 'before'`) or the last `N`
+     *                 intervals (when `extend: 'after'`) are looped. Clamped to `[1, keyframes.length - 1]`.
      */
     segmentCount?: number;
 
     /**
-     * Selects which end of the keyframe sequence is looped.
-     *
-     * - `true`  → the source segment is taken from the *start* of the keyframe sequence.
-     *             The animation is extended *before* the first keyframe — useful for intro loops
-     *             that run before the main timeline begins.
-     *
-     * - `false` (default) → the source segment is taken from the *end* of the keyframe sequence.
-     *             The animation is extended *after* the last keyframe — useful for idle or outro
-     *             loops that continue once the main timeline has finished.
+     * Selects which end of the keyframe sequence is looped — see {@link PxLoopExtend}.
+     * `'before'` extends ahead of the first keyframe (intro loop); `'after'` (default)
+     * extends past the last (idle/outro loop).
      */
-    before?: boolean;
+    extend?: PxLoopExtend;
 
     /**
      * Controls playback direction on each successive loop iteration.
@@ -346,10 +355,10 @@ export interface _PxLoop {
     alternate?: boolean;
 }
 
-// `{ segmentCount?:number, before?:boolean, alternate?:boolean }`
+// `{ segmentCount?:number, extend?:'before'|'after', alternate?:boolean }`
 export const PxLoopSchema = implementsInterface<_PxLoop>()(px.object({
     segmentCount: px.number().optional(),
-    before: px.boolean().optional(),
+    extend: px.enum([PxLoopExtend.before, PxLoopExtend.after] as const).optional(),
     alternate: px.boolean().optional(),
 }));
 

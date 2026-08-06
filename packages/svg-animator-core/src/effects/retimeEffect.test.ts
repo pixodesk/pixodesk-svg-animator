@@ -691,3 +691,68 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
         expect(times).toContain('250,1250');
     });
 });
+
+
+// `retime.timeCrop: [start, end]` (ms, document time) — a VISIBILITY WINDOW on the
+// instance. Materialised as an opacity animation on a wrapper `<g>`: the target's own
+// animation must keep running (a layer inside its window appears mid-motion, not
+// restarted), and a wrapper keeps an authored opacity on the `<use>` intact. The wrapper
+// is player-side only — it never round-trips to the wire.
+describe('retime.timeCrop — visibility window', () => {
+
+    const cropDoc = (timeCrop: [number, number], useExtra: Record<string, unknown> = {}): PxNode => ({
+        type: 'svg', animator: { duration: 2000 },
+        children: [
+            { type: 'rect', id: 'src', width: 10, height: 10,
+              animate: { opacity: { keyframes: [{ time: 0, value: 1 }, { time: 2000, value: 0 }] } } },
+            { type: 'use', href: '#src', ...useExtra, effects: { clone: { retime: { start: 0, timeCrop } } } },
+        ],
+    } as unknown as PxNode);
+
+    /** The wrapper `<g>` the crop is applied to (the `<use>` lives inside it). */
+    const cropWrapper = (out: PxNode): any =>
+        collectByType(out, 'g').find(g => (g as any).animate?.opacity);
+
+    it('wraps the <use> in a <g> whose opacity gates the window', () => {
+        const out = materialiseEngine(cropDoc([500, 1500]), PxAnimatorEngine.frames);
+        const g = cropWrapper(out);
+        expect(g, 'a crop wrapper was minted').toBeDefined();
+        expect(g.animate.opacity.keyframes).toEqual([
+            { time: 499, value: 0 },   // hidden right up to the edge…
+            { time: 500, value: 1 },   // …visible AT the boundary
+            { time: 1500, value: 1 },  // …still visible AT the far boundary
+            { time: 1501, value: 0 },  // …hidden immediately after
+        ]);
+        // The `<use>` itself is untouched inside the wrapper.
+        expect(g.children).toHaveLength(1);
+    });
+
+    it('a window starting at 0 emits no leading hidden keyframe', () => {
+        const g = cropWrapper(materialiseEngine(cropDoc([0, 800]), PxAnimatorEngine.frames));
+        expect(g.animate.opacity.keyframes[0]).toEqual({ time: 0, value: 1 });
+    });
+
+    it('an EMPTY window (end <= start) hides the instance outright', () => {
+        // Lottie layers with ip >= op are exactly this — they must never show.
+        const g = cropWrapper(materialiseEngine(cropDoc([900, 900]), PxAnimatorEngine.frames));
+        expect(g.animate.opacity.keyframes).toEqual([{ time: 0, value: 0 }]);
+    });
+
+    it('an authored opacity on the <use> survives — the crop rides on the wrapper', () => {
+        const out = materialiseEngine(cropDoc([100, 200], { opacity: 0.25 }), PxAnimatorEngine.frames);
+        const g = cropWrapper(out);
+        expect(g.opacity, 'wrapper carries only the crop').toBeUndefined();
+        expect(g.children[0].opacity, 'the instance keeps its own opacity').toBe(0.25);
+    });
+
+    it('no timeCrop → no wrapper at all', () => {
+        const out = materialiseEngine({
+            type: 'svg', animator: { duration: 2000 },
+            children: [
+                { type: 'rect', id: 'src', width: 10, height: 10 },
+                { type: 'use', href: '#src', effects: { clone: { retime: { start: 250 } } } },
+            ],
+        } as unknown as PxNode, PxAnimatorEngine.frames);
+        expect(cropWrapper(out)).toBeUndefined();
+    });
+});

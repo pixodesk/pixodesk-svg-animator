@@ -45,12 +45,54 @@ const RETIME_MATERIALISATION_MODE_INLINE_G = false;
 interface Retime { start: number; stretch: number; }
 
 function asRetime(r: PxRetimeEffect): Retime {
-    // `timeCrop` is declared on the wire schema but not implemented yet —
-    // warn instead of silently dropping it so producers notice.
-    if (r.timeCrop) {
-        console.warn('retime: `timeCrop` is not supported yet and will be ignored');
-    }
     return { start: r.start ?? 0, stretch: r.stretch ?? 1 };
+}
+
+/**
+ * `timeCrop: [start, end]` (ms, DOCUMENT time) — a VISIBILITY WINDOW on this
+ * instance: the `<use>` shows only inside it. Independent of the retime remap,
+ * which shifts/stretches the target's own timeline; the crop is about when this
+ * instance exists on stage.
+ *
+ * Implemented as an opacity animation on a wrapper `<g>` rather than by clipping
+ * the timeline: the target's animation must keep running (a Lottie layer inside
+ * its `ip`/`op` window is mid-motion when it appears, not restarted). The wrapper
+ * is a PLAYER-SIDE artifact — it never round-trips, so it cannot disturb the wire.
+ *
+ * A wrapper is used instead of writing opacity onto the `<use>` itself so an
+ * authored opacity on the instance survives (they would otherwise overwrite each
+ * other) — the same reason the Lottie converter wraps, see `TimeAttrsPartMC`.
+ *
+ * Keyframe shape mirrors that converter exactly: `[s-1 → 0][s → 1][e → 1][e+1 → 0]`.
+ * The 1 ms shoulders make the edges effectively instant while keeping the element
+ * fully visible AT both boundaries.
+ */
+const CROP_EDGE_MS = 1;
+
+function applyTimeCrop(useNode: PxNode, crop: [number, number], ctx: ApplyContext): void {
+    const [start, end] = crop;
+    if (!Number.isFinite(start) || !Number.isFinite(end)) {
+        ctx.warnings.push('retime: timeCrop is not a pair of finite numbers — ignored');
+        return;
+    }
+
+    // Empty (or inverted) window ⇒ never visible. A Lottie layer with ip >= op is
+    // exactly this; without the explicit 0 it would render always-visible.
+    const keyframes = end <= start
+        ? [{ time: 0, value: 0 }]
+        : [
+            ...(start > 0 ? [{ time: Math.max(0, start - CROP_EDGE_MS), value: 0 }] : []),
+            { time: Math.max(0, start), value: 1 },
+            { time: end, value: 1 },
+            { time: end + CROP_EDGE_MS, value: 0 },
+        ];
+
+    // Wrap: the `<g>` takes over the crop, the original node stays untouched inside.
+    const inner: PxNode = { ...useNode } as PxNode;
+    for (const k of Object.keys(useNode)) delete (useNode as Record<string, unknown>)[k];
+    useNode.type = 'g';
+    useNode.children = [inner];
+    (useNode as Record<string, unknown>).animate = { opacity: { keyframes } };
 }
 
 /** parent applied OUTSIDE, child INSIDE → `t = parent.start + parent.stretch * (child.start + child.stretch * t_local)`. */
@@ -127,8 +169,12 @@ export function applyAllRetimeEffects(root: PxNode, ctx: ApplyContext): void {
         // (buildChainClone reads `target`'s clone.retime). Deleting it here makes
         // that read return undefined → no double-count. Moving cleanup to a single
         // end-of-pipeline strip regresses nested retime to +750 instead of +500.
+        const crop = retime.timeCrop;
         clearCloneRetime(useNode);
         materialiseRetime(useNode, asRetime(retime), ctx);
+        // AFTER materialisation: `materialiseRetime` may rewrite `useNode` in place
+        // (inline-`<g>` mode), so cropping last wraps whatever it ended up being.
+        if (crop) applyTimeCrop(useNode, crop, ctx);
     }
 }
 

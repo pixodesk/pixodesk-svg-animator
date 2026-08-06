@@ -29,7 +29,7 @@ const PxLoopSchema = px.union([
     px.boolean(),
     px.object({
         segmentCount: px.number().optional(),
-        before:       px.boolean().optional(),
+        extend:       px.enum(['before', 'after'] as const).optional(),
         alternate:    px.boolean().optional(),
     }),
 ]);
