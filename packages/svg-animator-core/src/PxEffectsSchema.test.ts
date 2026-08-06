@@ -14,7 +14,7 @@ describe('validateNodeEffects', () => {
             type: 'svg',
             children: [{
                 type: 'rect',
-                effects: { transformation: { translate: [10, 20], rotate: 45 } },
+                effects: { transformBy: { translate: [10, 20], rotate: 45 } },
             }],
         } as any)).toEqual([]);
     });
@@ -23,7 +23,7 @@ describe('validateNodeEffects', () => {
             type: 'svg',
             children: [{
                 type: 'rect',
-                effects: { transformation: { translate: 'not-a-vec2' } },
+                effects: { transformBy: { translate: 'not-a-vec2' } },
             }],
         } as any);
         expect(warnings.length).toBeGreaterThan(0);
@@ -60,12 +60,12 @@ describe('effect keyframes accept the short wire aliases', () => {
     };
 
     const cases: Array<[string, (k: (a: any, b: any) => any) => any]> = [
-        ['transformation.translate', k => D([{ type: 'rect', id: 'a', width: 9, height: 9,
-            effects: { transformation: { translate: { keyframes: k([0, 0], [9, 9]) } } } }])],
-        ['transformation.rotate', k => D([{ type: 'rect', id: 'a', width: 9, height: 9,
-            effects: { transformation: { rotate: { keyframes: k(0, 90) } } } }])],
-        ['transformation.skew', k => D([{ type: 'rect', id: 'a', width: 9, height: 9,
-            effects: { transformation: { skew: { keyframes: k(0, 30) } } } }])],
+        ['transformBy.translate', k => D([{ type: 'rect', id: 'a', width: 9, height: 9,
+            effects: { transformBy: { translate: { keyframes: k([0, 0], [9, 9]) } } } }])],
+        ['transformBy.rotate', k => D([{ type: 'rect', id: 'a', width: 9, height: 9,
+            effects: { transformBy: { rotate: { keyframes: k(0, 90) } } } }])],
+        ['transformBy.skew', k => D([{ type: 'rect', id: 'a', width: 9, height: 9,
+            effects: { transformBy: { skew: { keyframes: k(0, 30) } } } }])],
         ['repeater.translate', k => D([{ type: 'rect', id: 'a', width: 4, height: 4,
             effects: { repeater: { copies: 2, translate: { keyframes: k([2, 0], [6, 0]) } } } }])],
         ['repeater.rotate', k => D([{ type: 'rect', id: 'a', width: 4, height: 4,

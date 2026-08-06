@@ -5,7 +5,7 @@
 
 
 import { keyframeWith, partsRecord, ReadKind, readAnimatable, TransformPart } from './transformParts';
-import type { PxAnimatable, PxNode, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
+import type { PxAnimatable, PxNode, PxTransformByEffect, Vec2 } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
 
 
@@ -28,7 +28,7 @@ import type { ApplyContext } from './types';
  * Composition: `M = translate(t) · +origin(t) · rotate(t) · scale(t) · -origin(t) · skew`
  * (skew is appended innermost and not composed here).
  */
-export function applyTransformationEffect(node: PxNode, fx: PxTransformationEffect | undefined, ctx: ApplyContext): PxNode {
+export function applyTransformByEffect(node: PxNode, fx: PxTransformByEffect | undefined, ctx: ApplyContext): PxNode {
     if (!fx) return node;
 
     // The element's own `transform` string is the frame-0 baseline; wrappers
@@ -80,7 +80,7 @@ function translateHasAutoOrient(translate: PxAnimatable<Vec2> | undefined): bool
 }
 
 /**
- * The wire `effects.transformation.scale` is a FACTOR (1.5 = 150%) in every form —
+ * The wire `effects.transformBy.scale` is a FACTOR (1.5 = 150%) in every form —
  * bare static, `{value:…}` and `{keyframes:…}` alike (one convention, see
  * SCHEMA-DESIGN.md I-3; the old bare-static PERCENT form is gone) — so no
  * normalisation is needed any more. Kept as a named identity so the call site

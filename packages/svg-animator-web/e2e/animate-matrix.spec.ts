@@ -140,14 +140,14 @@ function shapeDoc(): PxAnimatedSvgDocument {
 // Player-effect docs (materialised by the player at runtime; mode auto)
 // ---------------------------------------------------------------------------
 
-function transformationEffectDoc(mode: 'waapi' | 'frames'): PxAnimatedSvgDocument {
+function transformByEffectDoc(mode: 'waapi' | 'frames'): PxAnimatedSvgDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
         animator: animator(mode),
         children: [{
             type: 'rect', id: '_px_r', x: -20, y: -20, width: 40, height: 40, fill: '#10b981',
             effects: {
-                transformation: {
+                transformBy: {
                     translate: [100, 100],
                     rotate: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 135 }] },
                 },
@@ -244,7 +244,7 @@ function cloneRetimeEffectDoc(): PxAnimatedSvgDocument {
             { type: 'use', id: '_px_u1', href: '#_px_sym', x: 0, y: 0, width: 100, height: 200 },
             {
                 type: 'use', id: '_px_u2', href: '#_px_sym', x: 100, y: 0, width: 100, height: 200,
-                effects: { clone: { baseId: '_px_sym', retime: { start: -500, stretch: 1 } } },
+                effects: { clone: { sourceId: '#_px_sym', retime: { start: -500, stretch: 1 } } },
             },
         ],
     };
@@ -298,7 +298,7 @@ test.describe("animate-matrix (frames, clock-driven)", () => {
     screenshotTest('shape-frames', shapeDoc());
 
     // Player effects (materialised at runtime)
-    screenshotTest('effect-transformation', transformationEffectDoc('frames'));
+    screenshotTest('effect-transformBy', transformByEffectDoc('frames'));
     screenshotTest('effect-repeater', repeaterEffectDoc());
     screenshotTest('effect-trimpath', trimPathEffectDoc());
     screenshotTest('effect-gradient', gradientEffectDoc());
@@ -359,5 +359,5 @@ test.describe("animate-matrix (waapi, seek-driven)", () => {
 
     seekScreenshotTest('attrs-waapi', basicAttrsDoc('waapi'));
     seekScreenshotTest('transform-waapi', transformDoc('waapi'));
-    seekScreenshotTest('effect-transformation-waapi', transformationEffectDoc('waapi'));
+    seekScreenshotTest('effect-transformBy-waapi', transformByEffectDoc('waapi'));
 });

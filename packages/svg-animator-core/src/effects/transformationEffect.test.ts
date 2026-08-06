@@ -16,8 +16,8 @@ import type { PxNode } from '../PxAnimatorTypes';
 import { collectByType, materialise, materialiseEngine, noEffectsRemain, normaliseGeneratedIds, PxAnimatorEngine, transformKfTimes } from './effectTestKit';
 
 const rect = (): PxNode => ({ type: 'rect', id: 'r', width: 100, height: 50 } as unknown as PxNode);
-const wrap = (transformation: any): PxNode =>
-    ({ type: 'svg', children: [{ ...rect(), effects: { transformation } }] } as unknown as PxNode);
+const wrap = (transformBy: any): PxNode =>
+    ({ type: 'svg', children: [{ ...rect(), effects: { transformBy } }] } as unknown as PxNode);
 
 /** Static `{value:{part:…}}` records carried by `<g>` wrappers. */
 const staticParts = (out: PxNode): Array<any> =>
@@ -362,7 +362,7 @@ describe('transformationEffect — id ownership (B4/A1)', () => {
         const doc: PxNode = {
             type: 'svg',
             children: [
-                { ...rect(), effects: { transformation: { translate: [30, 30], rotate: 45 } } },
+                { ...rect(), effects: { transformBy: { translate: [30, 30], rotate: 45 } } },
                 { type: 'use', href: '#r' },
             ],
         } as unknown as PxNode;

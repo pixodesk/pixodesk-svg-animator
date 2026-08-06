@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import type { PxAnimatable, PxMaskedByEffect, PxNode, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
+import type { PxAnimatable, PxMaskedByEffect, PxNode, PxTransformByEffect, Vec2 } from '../PxAnimatorTypes';
 import { keyframeWith, partsRecord, ReadKind, readAnimatable, readStaticOrigin, TransformPart } from './transformParts';
 import type { ApplyContext, MaskAncestorTransform } from './types';
 import { genId, stripHash } from './util';
@@ -13,7 +13,7 @@ import { genId, stripHash } from './util';
 /**
  * MASKED-BY → a `<mask>` in defs holding the source `<use>` wrapped in
  *   (forward of mask source's ancestors) · (inverse of masked element's full
- *    transform chain) · (inverse of masked element's own `effects.transformation`)
+ *    transform chain) · (inverse of masked element's own `effects.transformBy`)
  *
  * The mask source must paint at its ORIGINAL world position, but
  * `maskUnits="userSpaceOnUse"` (default) interprets the mask in the masked
@@ -27,13 +27,13 @@ import { genId, stripHash } from './util';
  *
  * Implementation note — this first cut only composes TRANSLATE parts (static
  * and animated). Rotate / scale on the ancestor chains aren't supported yet
- * and will warn if present. `effects.transformation` on the masked element
- * keeps working (passed in as `transformation` and inverted separately).
+ * and will warn if present. `effects.transformBy` on the masked element
+ * keeps working (passed in as `transformBy` and inverted separately).
  */
 export function applyMaskedByEffect(
     node: PxNode,
     fx: PxMaskedByEffect | undefined,
-    transformation: PxTransformationEffect | undefined,
+    transformBy: PxTransformByEffect | undefined,
     ctx: ApplyContext,
 ): PxNode {
     if (!fx) return node;
@@ -44,15 +44,15 @@ export function applyMaskedByEffect(
     const maskId = genId(ctx, 'mask');
 
     let content: PxNode = { type: 'use', href: '#' + sourceId };
-    // `effects.transformation` (split-timing form) gets full per-part inversion
-    // through `wrapInverseTransform`. With no `effects.transformation` the
+    // `effects.transformBy` (split-timing form) gets full per-part inversion
+    // through `wrapInverseTransform`. With no `effects.transformBy` the
     // masked element's transform lives on the body — invert the STATIC part
     // (`node.transform` string) via the same per-part machinery, then on top
     // emit an animated inverse wrapper for `node.animate.transform.keyframes`
     // (per-kf parts-record inversion). Either way, the ancestor-chain
     // compensation runs on top with translate-only composition for now.
-    if (transformation) {
-        content = wrapInverseTransform(content, transformation, ctx);
+    if (transformBy) {
+        content = wrapInverseTransform(content, transformBy, ctx);
     } else if (hasAnimateTransform(node)) {
         // `animate.transform` overrides `node.transform` per-frame in the
         // visualModel, so inverting BOTH would double-count. Animated wins.
@@ -63,7 +63,7 @@ export function applyMaskedByEffect(
     }
     // Skip `targetOwn` translate when we already inverted the body (otherwise
     // the translate would be subtracted twice).
-    const includeTargetOwn = transformation === undefined && !nodeHasBodyTransform(node);
+    const includeTargetOwn = transformBy === undefined && !nodeHasBodyTransform(node);
     content = wrapAncestorChainCompensation(content, node, sourceId, ctx, includeTargetOwn);
 
     const mask: PxNode = { type: 'mask', id: maskId, children: [content] };
@@ -83,10 +83,10 @@ export function applyMaskedByEffect(
 }
 
 /** Wraps `inner` in inverse-transform `<g>`s built from the masked element's
- *  own `effects.transformation` payload (translate / rotate / scale). The
+ *  own `effects.transformBy` payload (translate / rotate / scale). The
  *  ancestor-chain wrappers are added separately by
  *  `wrapAncestorChainCompensation`. */
-function wrapInverseTransform(inner: PxNode, fx: PxTransformationEffect | undefined, ctx: ApplyContext): PxNode {
+function wrapInverseTransform(inner: PxNode, fx: PxTransformByEffect | undefined, ctx: ApplyContext): PxNode {
     if (!fx) return inner;
     const origin = readStaticOrigin(fx.origin, ctx);
 
@@ -103,7 +103,7 @@ function wrapInversePart(
 ): PxNode {
     if (raw === undefined) return inner;
     // `fx.scale` in BARE-ARRAY form is PERCENT (150 = 1.5×), matching
-    // `applyTransformationEffect`'s forward `normalizeScale`. Convert to
+    // `applyTransformByEffect`'s forward `normalizeScale`. Convert to
     // 1.0-units before reading, so `invertPartValue([1.5,1.5])` produces
     // the right `[2/3, 2/3]` instead of `[1/150, 1/150]`. Keyframe / {value}
     // forms already use 1.0-units per the wire convention.
@@ -239,20 +239,20 @@ function hasAnimateTransform(node: PxNode): boolean {
 }
 
 /** Parses the masked element's body transform (`node.transform` string) into a
- *  `PxTransformationEffect`-like static parts record so the existing
+ *  `PxTransformByEffect`-like static parts record so the existing
  *  `wrapInverseTransform` machinery can produce its inverse `<g>` wrappers.
  *
  *  ANIMATED body transforms (`node.animate.transform.keyframes`) aren't
  *  supported yet — they'd require splitting a parts-record keyframe stream
  *  into per-part animations to feed into `wrapInversePart`. Falls back with a
- *  warning. (In practice the writer emits `effects.transformation` whenever the
+ *  warning. (In practice the writer emits `effects.transformBy` whenever the
  *  masked element is animated, so this caller path is reached only for static
  *  cases anyway.) */
-function readTransformationFromBody(node: PxNode): PxTransformationEffect | undefined {
+function readTransformationFromBody(node: PxNode): PxTransformByEffect | undefined {
     if (typeof node.transform === 'string') {
         const parts = parseTransformStringToParts(node.transform);
         if (!parts) return undefined;
-        const out: PxTransformationEffect = {};
+        const out: PxTransformByEffect = {};
         if (parts.translate) out.translate = parts.translate;
         if (parts.rotate !== undefined) out.rotate = parts.rotate;
         // Scale parsed from the string is in 1.0-units (e.g. `scale(1.5)`).
@@ -271,7 +271,7 @@ function readTransformationFromBody(node: PxNode): PxTransformationEffect | unde
         const wrapped = (node.transform as { value?: Record<string, any> }).value;
         const value = (wrapped && typeof wrapped === 'object' ? wrapped : node.transform) as Record<string, any>;
         if (value && typeof value === 'object') {
-            const out: PxTransformationEffect = {};
+            const out: PxTransformByEffect = {};
             if (Array.isArray(value.translate)) out.translate = value.translate as [number, number];
             if (typeof value.rotate === 'number') out.rotate = value.rotate;
             if (typeof value.skew === 'number') out.skew = value.skew;
@@ -381,7 +381,7 @@ function parseTransformStringToParts(s: string): { translate?: Vec2; rotate?: nu
 function wrapAncestorChainCompensation(inner: PxNode, maskedNode: PxNode, sourceId: string, ctx: ApplyContext, includeTargetOwn: boolean): PxNode {
     const sourceNode = ctx.idMap.get(sourceId);
 
-    // M_target = (ancestors) · (target's own). When `effects.transformation`
+    // M_target = (ancestors) · (target's own). When `effects.transformBy`
     // is present, `wrapInverseTransform` already covers target's own; pass
     // `includeTargetOwn=false` to skip the duplicate. With no `effects.
     // transformation`, the baseline `node.transform` string is the element's

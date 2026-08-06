@@ -47,10 +47,10 @@ describe('unified animatable grammar — loop / kfs alias / value base in effect
         expect(kfs[kfs.length - 1].t ?? kfs[kfs.length - 1].time).toBe(2000);
     });
 
-    it('transformation.rotate — kfs alias + loop are read like long-form keyframes', () => {
+    it('transformBy.rotate — kfs alias + loop are read like long-form keyframes', () => {
         const out = materialise(doc({
             type: 'rect', width: 100, height: 50,
-            effects: { transformation: {
+            effects: { transformBy: {
                 rotate: { kfs: [{ t: 0, v: 0 }, { t: 1000, v: 90 }], loop: { alternate: true } },
             } },
         }));

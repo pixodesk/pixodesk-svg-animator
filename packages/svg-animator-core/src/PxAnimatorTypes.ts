@@ -926,8 +926,8 @@ const PxAnimatableVec2Schema = px.union([
 ]);
 
 
-/** Per-part editor transform (`transformation` effect). All parts optional and animatable. */
-export interface _PxTransformationEffect {
+/** Per-part editor transform (`transformBy` effect). All parts optional and animatable. */
+export interface _PxTransformByEffect {
     translate?: PxAnimatable<Vec2>;
     rotate?: PxAnimatable<number>;
     scale?: PxAnimatable<Vec2>;
@@ -935,22 +935,32 @@ export interface _PxTransformationEffect {
     skew?: PxAnimatable<number>;
     origin?: PxAnimatable<Vec2>;
 }
-export const PxTransformationEffectSchema = implementsInterface<_PxTransformationEffect>()(px.object({
+export const PxTransformByEffectSchema = implementsInterface<_PxTransformByEffect>()(px.object({
     translate: PxAnimatableVec2Schema.optional(),
     rotate: PxAnimatableNumberSchema.optional(),
     scale: PxAnimatableVec2Schema.optional(),
     skew: PxAnimatableNumberSchema.optional(),
     origin: PxAnimatableVec2Schema.optional(),
 }));
-export type PxTransformationEffect = PxInfer<typeof PxTransformationEffectSchema>;
-const _ck_PxTransformationEffect: KeysMatch<PxTransformationEffect, _PxTransformationEffect> = true;
+export type PxTransformByEffect = PxInfer<typeof PxTransformByEffectSchema>;
+const _ck_PxTransformByEffect: KeysMatch<PxTransformByEffect, _PxTransformByEffect> = true;
 
 
 /** Per-copy repeater offsets. Each part is animatable; per-copy values scale
  *  with the copy index `i` (translate/rotate/skew × i; scale per-axis `v^i`).
  *  Static repeater values pass through as a structured `transform: {value:…}` on
  *  the per-copy wrapper; animated values are emitted as `animate.transform.keyframes`
- *  with each kf value scaled by `i`. See `effects/repeaterEffect.ts`. */
+ *  with each kf value scaled by `i`. See `effects/repeaterEffect.ts`.
+ *
+ *  NAMING — why `repeater`, NOT `repeat` (SCHEMA-DESIGN R5 / issues N6): this
+ *  effect repeats in SPACE (N copies, each with a compounding per-copy delta), but
+ *  in an ANIMATION format a bare `repeat` reads as TIME — and this format has real
+ *  time-repetition concepts for it to be confused with: `animator.iterations`,
+ *  per-property `loop {segmentCount, alternate}`, and SVG/SMIL's own
+ *  `repeatCount`/`repeatDur`. The agent noun keeps it unambiguously spatial, and
+ *  matches the term the audience already knows (After Effects "Repeater",
+ *  Lottie shape item `rp`). Same principle as `maskedBy` over `mask`: prefer the
+ *  form that preserves the right MEANING over the grammatically uniform one. */
 export interface _PxRepeaterEffect {
     copies?: number;
     translate?: PxAnimatable<Vec2>;
@@ -1292,7 +1302,7 @@ const _ck_PxTextEffect: KeysMatch<PxTextEffect, _PxTextEffect> = true;
  * extension — never key-order significance (JSON tooling silently reorders).
  */
 export interface _PxEffects {
-    transformation?: _PxTransformationEffect;
+    transformBy?: _PxTransformByEffect;
     repeater?: _PxRepeaterEffect;
     maskedBy?: _PxMaskedByEffect;
     clipPath?: _PxClipPathEffect;
@@ -1304,7 +1314,7 @@ export interface _PxEffects {
     text?: _PxTextEffect;
 }
 export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
-    transformation: PxTransformationEffectSchema.optional(),
+    transformBy: PxTransformByEffectSchema.optional(),
     repeater: PxRepeaterEffectSchema.optional(),
     maskedBy: PxMaskedByEffectSchema.optional(),
     clipPath: PxClipPathEffectSchema.optional(),
@@ -1329,7 +1339,7 @@ export function validateNodeEffects(root: PxNode, opts?: { strict?: boolean }): 
     const warnings: Array<string> = [];
     // `path` is a human-readable breadcrumb prepended to each warning so the
     // reader can locate the offending node in the tree (e.g.
-    // `root.children[0].children[2].effects.transformation.translate: …`).
+    // `root.children[0].children[2].effects.transformBy.translate: …`).
     const walk = (node: PxNode, path: string): void => {
         if (node && node.effects) {
             const ctx: PxValidationContext = { errors: [], warnings: [], strict: !!opts?.strict };

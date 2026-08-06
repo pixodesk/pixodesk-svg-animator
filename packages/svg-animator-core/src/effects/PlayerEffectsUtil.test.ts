@@ -87,13 +87,13 @@ describe('applyPlayerEffects — materialisation etalons', () => {
     });
 
 
-    it('case 2: transformation (static translate only) → single translate wrapper', () => {
+    it('case 2: transformBy (static translate only) → single translate wrapper', () => {
         const input: PxNode = {
             type: 'svg',
             children: [
                 {
                     type: 'rect', id: 'r1', width: 100, height: 50,
-                    effects: { transformation: { translate: [10, 20] } },
+                    effects: { transformBy: { translate: [10, 20] } },
                 },
             ],
         };
@@ -114,13 +114,13 @@ describe('applyPlayerEffects — materialisation etalons', () => {
     });
 
 
-    it('case 3: transformation (static rotate + origin) → origin sandwich [+o, rotate, -o]', () => {
+    it('case 3: transformBy (static rotate + origin) → origin sandwich [+o, rotate, -o]', () => {
         const input: PxNode = {
             type: 'svg',
             children: [
                 {
                     type: 'rect', id: 'r1', width: 100, height: 50,
-                    effects: { transformation: { rotate: 45, origin: [50, 25] } },
+                    effects: { transformBy: { rotate: 45, origin: [50, 25] } },
                 },
             ],
         };
@@ -491,14 +491,14 @@ describe('applyPlayerEffects — materialisation etalons', () => {
     });
 
 
-    it('case 8: transformation with autoOrient — outer +o/translate/-o sandwich around motion-path translate', () => {
+    it('case 8: transformBy with autoOrient — outer +o/translate/-o sandwich around motion-path translate', () => {
         const input: PxNode = {
             type: 'svg',
             children: [
                 {
                     type: 'rect', id: 'r1', width: 100, height: 50,
                     effects: {
-                        transformation: {
+                        transformBy: {
                             translate: {
                                 autoOrient: true,
                                 keyframes: [
@@ -538,7 +538,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
             children: [
                 {
                     type: 'rect', id: 'r1', width: 100, height: 50,
-                    effects: { transformation: { translate: [10, 20], rotate: 30 } },
+                    effects: { transformBy: { translate: [10, 20], rotate: 30 } },
                 },
             ],
         };

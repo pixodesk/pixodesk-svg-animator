@@ -14,7 +14,7 @@ import type { PxNode } from '../PxAnimatorTypes';
 import { collectByType, countNodes, materialise, materialiseRaw, normaliseGeneratedIds } from './effectTestKit';
 
 /** A mask SOURCE shape + a TARGET rect masked by it. `extraEffects` merge
- *  alongside `maskedBy` on the target (e.g. add a `transformation`). */
+ *  alongside `maskedBy` on the target (e.g. add a `transformBy`). */
 const scene = (maskedBy: any, extraEffects: any = {}): PxNode => ({
     type: 'svg',
     children: [
@@ -135,10 +135,10 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
         expect(mask.maskContentUnits).toBe('objectBoundingBox');
     });
 
-    it('case 3 — masked element with own transformation → mask source gets the INVERSE translate', () => {
+    it('case 3 — masked element with own transformBy → mask source gets the INVERSE translate', () => {
         // target also translated +[60,0]; the mask must cancel it (inverse -[60,0])
         // so the source paints where it really is.
-        const out = materialise(scene({ sourceId: 'src' }, { transformation: { translate: [60, 0] } }));
+        const out = materialise(scene({ sourceId: 'src' }, { transformBy: { translate: [60, 0] } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",

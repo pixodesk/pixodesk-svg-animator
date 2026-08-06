@@ -101,7 +101,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
 
     if (!fx && !innerIdForContentRef) return node;
 
-    const { transformation, repeater, maskedBy, clipPath, trimPath, clone: cloneFx, fillGradient, strokeGradient, textPath, text } = fx ?? {};
+    const { transformBy, repeater, maskedBy, clipPath, trimPath, clone: cloneFx, fillGradient, strokeGradient, textPath, text } = fx ?? {};
     if (fx) delete node.effects;
 
     let n = node;
@@ -136,7 +136,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     n = applyStrokeGradientEffect(n, strokeGradient, ctx);
     n = applyTrimPathEffect(n, trimPath, ctx);         // innermost shape
     n = applyRepeaterEffect(n, repeater, ctx);
-    n = applyMaskedByEffect(n, maskedBy, transformation, ctx);          // mask sits on inner element
+    n = applyMaskedByEffect(n, maskedBy, transformBy, ctx);          // mask sits on inner element
     n = applyClipPathEffect(n, clipPath, ctx);                         // clip-path ref on the element
 
     if (innerIdForContentRef) {
@@ -147,9 +147,9 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
         // case): rewrite its OWN ref href first so the split moves a resolved
         // body inward, not the dangling editor-side content id.
         applyRefHref(n, cloneFx, ctx);
-        n = splitForContentRef(n, transformation, originalId!, innerIdForContentRef, ctx);
+        n = splitForContentRef(n, transformBy, originalId!, innerIdForContentRef, ctx);
     } else {
-        n = applyRefAndTransformationEffect(n, cloneFx, transformation, ctx);
+        n = applyRefAndTransformationEffect(n, cloneFx, transformBy, ctx);
     }
 
     // Hand off the retime slice to pass 2 (keeps it nested under `clone`). The

@@ -22,11 +22,11 @@
  * renders rotate/scale around the use's position — never the source's translate.
  *
  * In the lightweight format the source is emitted as a flat element (translate
- * baked onto the body or into `effects.transformation`). The applier's
+ * baked onto the body or into `effects.transformBy`). The applier's
  * `splitForContentRef` re-creates the multi-layer structure on the fly:
  *   1. extract translate parts from the source body (`transform` string,
  *      `animate.transform.keyframes` PartsRecord) and from
- *      `effects.transformation` → outer wrapper
+ *      `effects.transformBy` → outer wrapper
  *   2. keep rotate / scale (with origin sandwich) on the inner wrapper
  *   3. assign the ORIGINAL id to the outer, a fresh id to the inner
  *   4. `applyRefAndTransformationEffect` then rewrites the use's `href`
@@ -43,8 +43,8 @@
  * carries, and an extra empty `<g>` is render-neutral.
  */
 
-import { applyTransformationEffect } from './transformationEffect';
-import type { PxAnimatable, PxAnimationDefinition, PxKeyframe, PxNode, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
+import { applyTransformByEffect } from './transformationEffect';
+import type { PxAnimatable, PxAnimationDefinition, PxKeyframe, PxNode, PxTransformByEffect, Vec2 } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
 import { stripHash } from './util';
 
@@ -72,7 +72,7 @@ export function identifyContentRefTargets(node: PxNode, ctx: ApplyContext, alloc
  */
 export function splitForContentRef(
     node: PxNode,
-    transformation: PxTransformationEffect | undefined,
+    transformBy: PxTransformByEffect | undefined,
     originalId: string,
     innerId: string,
     ctx: ApplyContext,
@@ -80,25 +80,25 @@ export function splitForContentRef(
 
     // 1. Lift translate parts off the body (`transform` string + `animate.transform`)
     //    onto a fresh outer-side bag. After this, `node` no longer carries them.
-    //    `transformation` is passed in so that when its `translate` part will go to
+    //    `transformBy` is passed in so that when its `translate` part will go to
     //    the outer wrapper, the body's baked-in translate baseline is stripped too
     //    (otherwise it'd double-up against the outer wrapper's first keyframe).
-    const outerBody = liftBodyTranslate(node, transformation);
+    const outerBody = liftBodyTranslate(node, transformBy);
 
     // Strip the bare element's `id` — the outer wrapper takes ownership of `originalId`,
     // and the inner wrapper carries `innerId`. The element itself doesn't need either;
     // leaving it would create a duplicate of `originalId` in the materialised tree.
     if (typeof node.id === 'string') delete node.id;
 
-    // 2. Split `effects.transformation` between outer (translate, plus origin for
+    // 2. Split `effects.transformBy` between outer (translate, plus origin for
     //    auto-orient/motion-path) and inner (rotate / scale, with origin sandwich).
-    const { outer: outerTr, inner: innerTr } = splitTransformationEffect(transformation);
+    const { outer: outerTr, inner: innerTr } = splitTransformByEffect(transformBy);
 
     // 3. Inner: apply inner transformation around the original element, then wrap
     //    in an identity `<g>` with `innerId`. The extra wrapper guarantees the use
     //    has a stable target regardless of what parts were present.
     let innerNode: PxNode = node;
-    innerNode = applyTransformationEffect(innerNode, innerTr, ctx);
+    innerNode = applyTransformByEffect(innerNode, innerTr, ctx);
     const innerWrapper: PxNode = { type: 'g', id: innerId, children: [innerNode] };
 
     // 4. Outer: build a `<g>` carrying the lifted body translate, with `innerWrapper`
@@ -109,7 +109,7 @@ export function splitForContentRef(
     if (outerBody.animate !== undefined) outerWrapper.animate = outerBody.animate;
     if (outerTr) {
         delete outerWrapper.id;
-        outerWrapper = applyTransformationEffect(outerWrapper, outerTr, ctx);
+        outerWrapper = applyTransformByEffect(outerWrapper, outerTr, ctx);
         outerWrapper.id = originalId;
     }
     return outerWrapper;
@@ -127,11 +127,11 @@ interface OuterBody {
 
 /** Removes translate parts from `node.transform` (string) and from `node.animate.transform`,
  *  returning what was extracted (to live on the outer wrapper). When either
- *  animate.transform is lifted OR `effects.transformation.translate` will be lifted
+ *  animate.transform is lifted OR `effects.transformBy.translate` will be lifted
  *  via the outer wrapper, the body `transform` translate becomes a redundant t=0
  *  baseline and is stripped from `node` (otherwise it'd compose on top of the
  *  outer's first keyframe / static translate). */
-function liftBodyTranslate(node: PxNode, transformation: PxTransformationEffect | undefined): OuterBody {
+function liftBodyTranslate(node: PxNode, transformBy: PxTransformByEffect | undefined): OuterBody {
     const out: OuterBody = {};
 
     // 1. animate.transform — extract translate from every keyframe value.
@@ -207,8 +207,8 @@ function liftBodyTranslate(node: PxNode, transformation: PxTransformationEffect 
     //    foreign SVG) or the STRUCTURED STATIC `{value: partsRecord}` (the
     //    lightweight wire since SCHEMA-DESIGN S1). `{keyframes}` bodies come
     //    from the writer's transformation-effect path and are handled via
-    //    `effects.transformation`, not here.
-    const transformationHasTranslate = transformation?.translate !== undefined;
+    //    `effects.transformBy`, not here.
+    const transformationHasTranslate = transformBy?.translate !== undefined;
     const stripBodyTranslateOnly = didLiftAnimate || transformationHasTranslate;
     // Autoorient / motion-path lift: when the lifted animate.transform carries
     // tangents or `autoOrient`, the body baseline is the FULL t=0 matrix
@@ -222,7 +222,7 @@ function liftBodyTranslate(node: PxNode, transformation: PxTransformationEffect 
         const split = splitTransformString(node.transform);
         if (stripBodyTranslateOnly) {
             // Outer wrapper will carry the translate (via animate.transform or
-            // effects.transformation); the body string is just a t=0 baseline.
+            // effects.transformBy); the body string is just a t=0 baseline.
             // Strip body translates so they don't double-up.
             if (split.translate !== undefined) {
                 if (split.rest) node.transform = split.rest;
@@ -309,7 +309,7 @@ function isPureTranslateBody(s: string): boolean {
  * `translate(...)`. A trailing translate is the `-origin` half of an origin
  * sandwich — leaving any translate inside the sandwich would break the pivot,
  * so we leave the whole body alone in that case (the corresponding
- * `effects.transformation` is the structured source we lift from instead).
+ * `effects.transformBy` is the structured source we lift from instead).
  *
  * (`matrix(...)` and `skewX/Y` are not lifted — they don't carry "user
  * translate" semantics. If the leading op isn't `translate`, nothing is lifted.)
@@ -381,19 +381,19 @@ function parseTranslateArgs(translateOp: string): [number, number] {
 
 
 ////////////////////////////////////////////////////////////////
-//// effects.transformation split
+//// effects.transformBy split
 ////////////////////////////////////////////////////////////////
 
-function splitTransformationEffect(fx: PxTransformationEffect | undefined): {
-    outer?: PxTransformationEffect;
-    inner?: PxTransformationEffect;
+function splitTransformByEffect(fx: PxTransformByEffect | undefined): {
+    outer?: PxTransformByEffect;
+    inner?: PxTransformByEffect;
 } {
     if (!fx) return {};
     const originOnOuter = needsOriginOnOuter(fx.translate);
     const innerHasPivotedPart = fx.rotate !== undefined || fx.scale !== undefined;
 
-    const outer: PxTransformationEffect = {};
-    const inner: PxTransformationEffect = {};
+    const outer: PxTransformByEffect = {};
+    const inner: PxTransformByEffect = {};
 
     if (fx.translate !== undefined) outer.translate = fx.translate;
     // Origin lives on outer when translate carries auto-orient (so the

@@ -4,16 +4,21 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import { applyTransformationEffect } from './transformationEffect';
-import type { PxAnimatable, PxAnimationDefinition, PxKeyframe, PxLoop, PxNode, PxRepeaterEffect, PxTransformationEffect, Vec2 } from '../PxAnimatorTypes';
+import { applyTransformByEffect } from './transformationEffect';
+import type { PxAnimatable, PxAnimationDefinition, PxKeyframe, PxLoop, PxNode, PxRepeaterEffect, PxTransformByEffect, Vec2 } from '../PxAnimatorTypes';
 import { ReadKind, readAnimatable } from './transformParts';
 import type { ApplyContext } from './types';
 import { clone } from './util';
 
 
 /**
+ * REPEATER — "clone this element N times, each copy stepped by a rule".
+ * Named `repeater`, not `repeat`: the repetition is SPATIAL, while in an animation
+ * format `repeat` reads as TIME (`animator.iterations`, per-property `loop`,
+ * SMIL `repeatCount`). See the naming note on `_PxRepeaterEffect`.
+ *
  * REPEATER → N clones inside a `<g>` wrapper. Copy 0 is the unmodified base;
- * copies 1..N-1 are wrapped with a per-copy `PxTransformationEffect` synthesised
+ * copies 1..N-1 are wrapped with a per-copy `PxTransformByEffect` synthesised
  * from the repeater parts:
  *
  *   - translate × i
@@ -66,7 +71,7 @@ export function applyRepeaterEffect(node: PxNode, fx: PxRepeaterEffect | undefin
         const synthFx = synthesisePerCopyFx(fx, i);
         // Run through the standard transformation-effect machinery — gets
         // origin sandwich, animated kfs, etc. for free.
-        const wrapped = synthFx ? applyTransformationEffect(baseClone, synthFx, ctx) : baseClone;
+        const wrapped = synthFx ? applyTransformByEffect(baseClone, synthFx, ctx) : baseClone;
         children.push(wrapped);
     }
 
@@ -82,9 +87,9 @@ export function applyRepeaterEffect(node: PxNode, fx: PxRepeaterEffect | undefin
 //  PER-COPY SYNTHESIS
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Builds a per-copy `PxTransformationEffect` for copy index `i`. */
-function synthesisePerCopyFx(fx: PxRepeaterEffect, i: number): PxTransformationEffect | undefined {
-    const out: PxTransformationEffect = {};
+/** Builds a per-copy `PxTransformByEffect` for copy index `i`. */
+function synthesisePerCopyFx(fx: PxRepeaterEffect, i: number): PxTransformByEffect | undefined {
+    const out: PxTransformByEffect = {};
 
     if (fx.translate !== undefined) {
         out.translate = mapAnimatable<Vec2>(fx.translate, v => [v[0] * i, v[1] * i]);
@@ -140,7 +145,7 @@ function mapAnimatable<T>(raw: PxAnimatable<T>, fn: (v: T) => T, wrapStatic = fa
  * static, `{value:…}` and `{keyframes:…}` alike (one convention, see
  * SCHEMA-DESIGN.md I-3; the old bare-static PERCENT form is gone). Output is
  * emitted as `{value:…}` / keyframes in the same 1.0-units, so it also bypasses
- * `applyTransformationEffect.normalizeScale` untouched.
+ * `applyTransformByEffect.normalizeScale` untouched.
  */
 function synthesiseScale(raw: PxAnimatable<Vec2>, i: number): PxAnimatable<Vec2> {
     const scalePower = (v: Vec2): Vec2 => [Math.pow(v[0], i), Math.pow(v[1], i)];

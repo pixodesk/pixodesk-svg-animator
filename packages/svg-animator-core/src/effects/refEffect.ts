@@ -6,7 +6,7 @@
 
 /**
  * REF + TRANSFORMATION (combined). The use's `href` is set BEFORE
- * `applyTransformationEffect` wraps the node so it lands on the actual `<use>`
+ * `applyTransformByEffect` wraps the node so it lands on the actual `<use>`
  * rather than on an outer `<g>` wrapper.
  *
  * For `ref:{type:'content'}` the source is materialised as multi-layer by
@@ -15,8 +15,8 @@
  * cancellation is needed on the use side any more.
  */
 
-import { applyTransformationEffect } from './transformationEffect';
-import type { PxCloneEffect, PxNode, PxTransformationEffect } from '../PxAnimatorTypes';
+import { applyTransformByEffect } from './transformationEffect';
+import type { PxCloneEffect, PxNode, PxTransformByEffect } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
 import { stripHash } from './util';
 
@@ -59,9 +59,9 @@ export function applyRefHref(
 export function applyRefAndTransformationEffect(
     node: PxNode,
     clone: PxCloneEffect | undefined,
-    transformation: PxTransformationEffect | undefined,
+    transformBy: PxTransformByEffect | undefined,
     ctx: ApplyContext,
 ): PxNode {
     applyRefHref(node, clone, ctx);
-    return applyTransformationEffect(node, transformation, ctx);
+    return applyTransformByEffect(node, transformBy, ctx);
 }

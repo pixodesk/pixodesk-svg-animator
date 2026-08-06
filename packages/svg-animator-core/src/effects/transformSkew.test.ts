@@ -32,12 +32,12 @@ describe('skew transform part', () => {
         expect(v.skew).toBe(15);
     });
 
-    it('transformation effect: STATIC scalar skew renders via the standard record wrapper', () => {
+    it('transformBy effect: STATIC scalar skew renders via the standard record wrapper', () => {
         const node = {
             type: 'svg',
             children: [{
                 type: 'rect', width: 10, height: 10,
-                effects: { transformation: { skew: 15 } },
+                effects: { transformBy: { skew: 15 } },
             }],
         } as unknown as PxNode;
         const out = materialise(node);
@@ -45,12 +45,12 @@ describe('skew transform part', () => {
         expect(json).toContain('"skew":15');
     });
 
-    it('transformation effect: ANIMATED skew produces keyframed skew records (no warning)', () => {
+    it('transformBy effect: ANIMATED skew produces keyframed skew records (no warning)', () => {
         const node = {
             type: 'svg',
             children: [{
                 type: 'rect', width: 10, height: 10,
-                effects: { transformation: { skew: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 30 }] } } },
+                effects: { transformBy: { skew: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 30 }] } } },
             }],
         } as unknown as PxNode;
         const out = materialise(node);

@@ -140,7 +140,7 @@ export function readStaticOrigin(raw: PxAnimatable<Vec2> | undefined, ctx: Apply
     const o = readAnimatable<Vec2>(raw);
     if (o.kind === ReadKind.Absent) return undefined;
     if (o.kind === ReadKind.Static) return o.value;
-    ctx.warnings.push('transformation.origin: animated origin approximated by its first keyframe');
+    ctx.warnings.push('transformBy.origin: animated origin approximated by its first keyframe');
     return o.keyframes[0]?.value;
 }
 

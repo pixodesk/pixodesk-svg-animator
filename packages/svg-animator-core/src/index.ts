@@ -172,7 +172,7 @@ export {
     PxStrokeGradientEffectSchema,
     PxTextPathEffectSchema,
     PxTextEffectSchema,
-    PxTransformationEffectSchema,
+    PxTransformByEffectSchema,
     PxTrimPathEffectSchema,
     validateNodeEffects,
 } from './PxAnimatorTypes';
@@ -187,7 +187,7 @@ export type {
     PxRetimeEffect,
     PxStrokeGradientEffect,
     PxTextPathEffect,
-    PxTransformationEffect,
+    PxTransformByEffect,
     PxTrimPathEffect,
     Vec2,
 } from './PxAnimatorTypes';
