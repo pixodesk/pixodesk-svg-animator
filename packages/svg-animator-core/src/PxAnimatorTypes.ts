@@ -799,9 +799,18 @@ export interface _PxAnimatorConfig {
      */
     animateById?: Record<string, PxElementAnimation>;
 
-    /** Editor-side timeline mode. Written by the editor on every document;
-     *  accepted on the wire and ignored by the player. */
-    timeline?: string;
+    /**
+     * What ADVANCES the animation — the source its timeline reads progress from.
+     * `'time'` (default, and today's only implemented value) is the wall clock;
+     * `'scroll'` is reserved for scroll-linked playback, matching CSS
+     * `animation-timeline: scroll()`.
+     *
+     * Distinct from `trigger.startOn`, which says what STARTS the animation: one
+     * names the beginning, this one names what moves the playhead afterwards.
+     * Omitted from the wire at its default (N10; was named `timeline` until 2026-08,
+     * which collided with a `<symbol>`'s own `meta.timeline`).
+     */
+    timelineSource?: string;
 
     /** Debug helper: exposes the animator instance as `window[debugInstName]`. */
     debugInstName?: string;
@@ -822,7 +831,7 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
     resetOnFinish: px.boolean().optional(),
     definitions: PxDefsSchema.optional(),
     animateById: px.record(PxElementAnimationSchema).optional(),
-    timeline: px.string().optional(),
+    timelineSource: px.string().optional(),
     debugInstName: px.string().optional(),
 }));
 
