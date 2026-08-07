@@ -131,9 +131,16 @@ export type JsMode = PxAnimatorMode;
 export const TEXT_ATTR = 'text';
 export const TEXT_CONTENT_ATTR = 'textContent';
 
-// Attributes that should not be set on DOM elements (internal use only)
+// Wire keys that are NEVER DOM attributes (internal use only).
+//
+// `effects` is here for safety rather than necessity: `applyPlayerEffects` deletes it at
+// load, so today nothing reaches the renderer with it still attached. That is a property
+// of the pipeline, though, not of the contract — an effect path that returns early, or a
+// document carrying an effect key the pipeline does not recognise, would otherwise leave
+// the object behind and the renderer would write `effects="[object Object]"` with no error
+// anywhere. Listing it makes the invariant structural (J4).
 export const INTERNAL_ATTRS = new Set([
-    'type', 'children', 'animator', 'meta', 'animate', TEXT_ATTR, TEXT_CONTENT_ATTR
+    'type', 'children', 'animator', 'meta', 'animate', 'effects', TEXT_ATTR, TEXT_CONTENT_ATTR
 ]);
 
 
