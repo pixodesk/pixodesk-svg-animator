@@ -82,26 +82,36 @@ describe('body attrs are statics-only (J3)', () => {
     // The inline form is no longer a DECLARED member — `PxAttrValue` (the exported
     // type) and the schema union both say statics-only now.
     //
-    // HONEST LIMITATION — validation still cannot REJECT it, for two independent
-    // reasons found while writing this test:
-    //   1. `{value: px.any()}` matches ANY object: `px.any()` accepts `undefined`, so
-    //      the `value` key isn't effectively required.
-    //   2. `Union.isValid` calls members as `s.isValid(raw)` WITHOUT forwarding `ctx`,
-    //      so `strict: true` never reaches them — strict is inert inside every union.
-    // Catching a stray inline animation therefore needs a walker lint (the same shape
-    // as `lintPlayerEffectsBucketKeys`, added for the identical gap in V1), or a fix
-    // to `Union.isValid`. Asserted here as CURRENT behaviour so the day either changes,
-    // this test flips and says so.
-    it('inline animation on a body attr: still ACCEPTED by validation (documented gap)', () => {
+    // V6 (2026-08) CLOSED the two engine holes that made it unrejectable:
+    //   1. `{value: px.any()}` matched ANY object (`any` accepts `undefined`, so the
+    //      key was not effectively required) → now `px.defined()`.
+    //   2. `Union.isValid` called members as `s.isValid(raw)` with no ctx, so
+    //      `strict` never reached them → members now get a scratch ctx carrying the
+    //      MODE (but not the caller's error sink, which would leak branch noise).
+    // Strict mode therefore REJECTS an inline animation on a body attr today.
+    //
+    // Default mode still accepts it, and that is the intended split, not a leftover:
+    // lenient validation ignores undeclared keys (mirroring `sanitize`'s strip-extras),
+    // so the all-optional transform-parts branch matches any object there. `strict` is
+    // the gate that says "this document is well-formed"; default says "this document is
+    // repairable". Only the former is a correctness claim.
+    it('inline animation on a body attr: REJECTED under strict, tolerated by default (V6)', () => {
         const inline = node({ opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } });
+
+        const strictCtx: PxValidationContext = { errors: [], warnings: [], strict: true };
+        expect(PxNodeSchema.isValid(inline, strictCtx, [])).toBe(false);
+        expect(strictCtx.errors.join(';')).toContain('keyframes');
+
+        const lenientCtx: PxValidationContext = { errors: [], warnings: [] };
+        expect(PxNodeSchema.isValid(inline, lenientCtx, [])).toBe(true);
+
+        // The canonical spelling is valid in BOTH modes — that is the one to write.
         for (const strict of [false, true]) {
-            const ctx: PxValidationContext = { errors: [], warnings: [], strict };
-            expect(PxNodeSchema.isValid(inline, ctx, []), `strict=${strict}`).toBe(true);
+            const ok: PxValidationContext = { errors: [], warnings: [], strict };
+            expect(PxNodeSchema.isValid(
+                node({ animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } } }), ok, []),
+                `strict=${strict}: ` + ok.errors.join(';')).toBe(true);
         }
-        // The canonical spelling is of course valid too — that is the one to write.
-        const ok: PxValidationContext = { errors: [], warnings: [] };
-        expect(PxNodeSchema.isValid(
-            node({ animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } } }), ok, [])).toBe(true);
     });
 
 });

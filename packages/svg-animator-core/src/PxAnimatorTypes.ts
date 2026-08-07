@@ -891,7 +891,8 @@ export const PxAttrValueSchema = px.union([
     px.number(),
     px.array(px.number()),
     // Structured static — `{value: …}` (read-accepted transitional spelling, S1).
-    px.object({ value: px.any() }),
+    // `defined`, not `any`: the KEY's presence is what identifies this branch (V6).
+    px.object({ value: px.defined() }),
     // Bare transform parts record — the canonical static `transform` on the wire (T2).
     PxTransformPartsSchema,
 ]);

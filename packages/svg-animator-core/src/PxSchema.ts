@@ -252,17 +252,28 @@ class Union<T> extends Base<T> {
         return this._default;
     }
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
-        // Test members without ctx — avoids spurious errors from non-matching branches.
-        if (this.schemas.some(s => s.isValid(raw))) return true;
-        ctx?.errors.push(pathStr(path ?? []) + ': no union member matched for value ' + (JSON.stringify(raw) ?? '').slice(0, 60));
+        // Members see the MODE but NOT the caller's error sink (V6). Two separate
+        // things were bundled in `ctx`: passing it whole made every non-matching
+        // branch push errors even when a later branch matched; passing nothing at
+        // all left `strict` inert inside every union. A scratch ctx carries the
+        // flags and swallows the per-branch noise.
+        const probe: PxValidationContext | undefined = ctx && { errors: [], warnings: [], strict: ctx.strict };
+        if (this.schemas.some(s => s.isValid(raw, probe, path ? [...path] : undefined))) return true;
+        ctx?.errors.push(pathStr(path ?? []) + ': no union member matched for value ' + (JSON.stringify(raw) ?? '').slice(0, 240));
         return false;
     }
     override _canSanitize(raw: unknown): boolean { return this.schemas.some(s => s._canSanitize(raw)); }
 }
 
-// Infers the union of all member types from a tuple of schemas
-type UnionMembers<T extends ReadonlyArray<PxSchema<any, any>>> =
-    T extends ReadonlyArray<PxSchema<infer U, any>> ? U : never;
+// Infers the union of all member types from a tuple of schemas.
+// Mapped-then-indexed, NOT `T extends ReadonlyArray<PxSchema<infer U>>`: the latter
+// gives TS one inference site for the whole array, so it collapses a heterogeneous
+// union to a single member (in practice the object branch) and the bare statics
+// vanish from the inferred type — `px.union([px.number(), px.object(…)])` typed as
+// the object alone. Per-position inference unions them properly (V6/Q1).
+type UnionMembers<T extends ReadonlyArray<PxSchema<any, any>>> = {
+    [K in keyof T]: T[K] extends PxSchema<infer U, any> ? U : never
+}[number];
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -379,6 +390,12 @@ class Obj<S extends AnyShape> extends Base<InferShape<S>> {
         if (ctx?.strict) {
             for (const key of Object.keys(obj)) {
                 if (key in this._shape) continue;
+                // An undefined-valued key is indistinguishable from an absent one for
+                // every consumer, and JSON.stringify drops it — strict judges the
+                // DOCUMENT, not the in-memory object that produced it (V6). Without
+                // this, validating a freshly-built (pre-serialisation) object flags
+                // phantom keys that cannot exist on the wire.
+                if (obj[key] === undefined) continue;
                 p.push(key);
                 ctx.errors.push(pathStr(p) + ': unexpected extra key');
                 p.pop();
@@ -558,6 +575,26 @@ class Any extends Base<any> {
     sanitize(raw: unknown): any { return raw; }
     isValid(_raw: unknown, _ctx?: PxValidationContext, _path?: Array<string>): boolean { return true; }
     override _canSanitize(_raw: unknown): boolean { return true; }
+}
+
+
+/**
+ * Like {@link Any} but REQUIRES the value to be present: anything except `undefined`.
+ *
+ * Use it for a key whose type is open but whose PRESENCE is what identifies the
+ * shape — e.g. the structured-static branch `{value: …}` (V6). With `px.any()`
+ * there, the branch matched EVERY object, because `any` accepts `undefined` and
+ * an absent key is indistinguishable from one holding `undefined`.
+ */
+class Defined extends Base<any> {
+    readonly _default: any = undefined;
+    sanitize(raw: unknown): any { return raw; }
+    isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (raw !== undefined) return true;
+        ctx?.errors.push(pathStr(path ?? []) + ': required value is missing');
+        return false;
+    }
+    override _canSanitize(raw: unknown): boolean { return raw !== undefined; }
 }
 
 
@@ -779,6 +816,9 @@ export const px = {
 
     /** Passes anything through unchanged — always valid. */
     any: (): PxSchema<any> => new Any(),
+
+    /** Anything EXCEPT `undefined` — an open type whose presence is required (V6). */
+    defined: (): PxSchema<any> => new Defined(),
 
     /** Fixed-length tuple — validates element count and each position individually. */
     tuple: <T extends ReadonlyArray<PxSchema<any, any>>>(schemas: T): PxSchema<TupleItems<T>> =>
