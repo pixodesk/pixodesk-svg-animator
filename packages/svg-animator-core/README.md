@@ -56,13 +56,41 @@ runtime crash on a non-browser platform.
 | **Text** | `materialiseGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
 | **Node helpers** | `getNormalizedProps`, `sanitiseAttributeValue`, `resolveStyle`, `generateNewIds` |
 | **Playback engine** | `createBasicFrameLoopAnimator` + the `PxPlatformAdapter` interface |
+| **Wire enums** | `PxAnimatorMode`, `PxAnimatorEngine`, `PxLoopExtend`, `PxTrimSubPaths`, `PxMaskType`, `PxCloneType`, `PxUnits`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string |
+
+### Validating a document
+
+`isPxElementFileFormat(json)` is the cheap shallow gate (is this a Px document at all?);
+`isPxElementFileFormatDeep(json)` runs the full schema. For per-field diagnostics, call a schema's
+`isValid` with a context:
+
+```ts
+import { PxAnimatedSvgDocumentSchema, type PxValidationContext } from '@pixodesk/svg-animator-core';
+
+const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
+const ok = PxAnimatedSvgDocumentSchema.isValid(doc, ctx, []);
+if (!ok) console.error(ctx.errors);   // ["children[0].effects.trimPath.range: …", …]
+```
+
+**Two modes, two different questions:**
+
+| mode | question it answers | undeclared keys |
+|---|---|---|
+| default (`strict` absent/false) | *is this document repairable?* — what `sanitize` would accept | ignored, so unknown future fields stay forward-compatible |
+| `strict: true` | *is this document well-formed?* — the wire shape locked to its schema | reported as errors on closed objects |
+
+Use default in production readers and `strict` in tests and tooling. Two notes on strict, both
+deliberate: it reaches **inside unions** (a union member is checked in the caller's mode, though its
+per-branch errors are not reported unless every branch fails), and it **ignores keys whose value is
+`undefined`** — those cannot survive `JSON.stringify`, so strict judges the document rather than the
+in-memory object that produced it.
 
 ## The materialisation pipeline
 
 `materialiseAllInTree(doc, engine)` is the single entry point that turns a
 lightweight editor document into a flat tree any renderer can walk:
 
-1. **Effects** — `node.effects` (transformation, repeater, maskedBy, trimPath,
+1. **Effects** — `node.effects` (transformBy, repeater, maskedBy, trimPath,
    clone/retime, gradients, textPath) become real nodes, wrappers and defs.
 2. **Loops** — each property's `loop` is expanded into explicit keyframes.
 3. **Motion paths** — tangented `transform` keyframes plus `autoOrient` are

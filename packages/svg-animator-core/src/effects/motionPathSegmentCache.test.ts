@@ -35,7 +35,7 @@ const mkDoc = (): PxAnimatedSvgDocument => ({
             { time: 500, value: { translate: APEX }, tangentOut: [23.4667, -0.6531], tangentIn: [-23.4668, 0.6532] },
             { time: 750, value: { translate: END } },
         ] } } } },
-        animate: { el1: ['a0'] },
+        animateById: { el1: ['a0'] },
     },
     children: [{ type: 'ellipse', id: 'el1', rx: 9.641, ry: 9.641 }],
 } as unknown as PxAnimatedSvgDocument);

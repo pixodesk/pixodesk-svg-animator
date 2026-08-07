@@ -273,7 +273,7 @@ function getTestJson(): PxAnimatedSvgDocument {
             fill: "forwards",
             direction: "normal",
             trigger: { startOn: "load" },
-            animate: {
+            animateById: {
                 '_px_2pp00tnc': {
                     translate: {
                         keyframes: [
@@ -313,7 +313,7 @@ function getTestJson1000(): PxAnimatedSvgDocument {
             fill: "forwards",
             direction: "normal",
             trigger: { startOn: "load" },
-            animate: {
+            animateById: {
                 '_px_2pp00tnc': {
                     translate: {
                         keyframes: [
@@ -353,7 +353,7 @@ function getTreeJson(): PxAnimatedSvgDocument {
             fill: "forwards",
             direction: "normal",
             trigger: { startOn: "load" },
-            animate: {
+            animateById: {
                 '_px_tree_ell': {
                     translate: {
                         keyframes: [
@@ -408,7 +408,7 @@ function getRectJson(): PxAnimatedSvgDocument {
             fill: "forwards",
             direction: "normal",
             trigger: { startOn: "load" },
-            animate: {
+            animateById: {
                 '_px_rect_b': {
                     translate: {
                         keyframes: [

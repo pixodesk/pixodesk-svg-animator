@@ -203,9 +203,10 @@ interface ANIMATE {
     // true → default: repeat last segment, cycling forward
     // independent of animator.iterations; composes as loop-within-loop
     loop?: boolean | {
-        segmentCount?: number; // intervals forming the segment; undefined = whole sequence; clamped [1, n-1]
-        before?: boolean;      // false (default) = loop end (idle/outro); true = loop start (intro)
-        alternate?: boolean;   // false (default) = cycle same direction; true = pingpong
+        segmentCount?: number;           // intervals forming the segment; undefined = whole sequence; clamped [1, n-1]
+        extend?: 'before' | 'after';     // which END the loop fills: 'after' (default, absent) = idle/outro,
+                                         // 'before' = intro. Was the boolean `before` until 2026-08.
+        alternate?: boolean;             // false (default) = cycle same direction; true = pingpong
     };
 }
 ```
@@ -262,7 +263,7 @@ The legacy per-key form (`animate: { translate, rotate, scale }` — used in the
 ```typescript
 // PxAnimatedSvgDocument
 // Mode A: has children — player renders SVG tree and animates it
-// Mode B: no children — player animates a pre-existing SVG DOM via animator.animate
+// Mode B: no children — player animates a pre-existing SVG DOM via animator.animateById
 interface SVG_JSON {
     type: 'svg';        // document root marker
     id?: string;        // DOM id; in Mode B used to locate the pre-rendered element
@@ -304,13 +305,15 @@ interface SVG_JSON {
             }>;
         };
 
-        timeline?: string;       // editor-side timeline mode; accepted, ignored by the player
-        debug?: boolean;         // reserved — accepted, currently no effect
+        timeline?: 'time' | 'scroll'; // clock that drives playback; default (and today's only
+                                 // implemented value) 'time' — omitted from the wire when default.
+                                 // 'scroll' is reserved: scroll-linked playback is coming.
         debugInstName?: string;  // exposes the animator as window[debugInstName]
 
-        // Mode B — maps elementId → animation spec
-        // value: named ref / array of refs / inline definition / mixed array
-        animate?: Record<string,
+        // Mode B — maps elementId → animation spec. Same value type as `node.animate`;
+        // only the KEYSPACE differs (element id here, attr name there), which is what
+        // the `ById` suffix names. Was `animate` before 2026-08.
+        animateById?: Record<string,
             | string
             | Array<string>
             | Record<string, ANIMATE>
@@ -321,24 +324,27 @@ interface SVG_JSON {
     // Mode A — SVG element tree; absence of children signals Mode B
     children?: Array<{
         type: string;       // SVG element tag: "rect", "g", "path", "ellipse", "use", …
-        id?: string;        // DOM id; required for href="#id" refs or animator.animate targeting
+        id?: string;        // DOM id; required for href="#id" refs or animator.animateById targeting
         [key: string]: any; // SVG/CSS attrs (cx, cy, r, fill, stroke, transform, …); pass-through
         text?: string;      // text content for <text>/<tspan> (alias: textContent)
         style?: string | Record<string, string | number>;
         // named ref / array of refs / inline definition / mixed array
         animate?: string | Array<string> | Record<string, ANIMATE> | Array<string | Record<string, ANIMATE>>;
-        // Player-materialised structural effects (transformation/repeater/maskedBy/
+        // Player-materialised structural effects (transformBy/repeater/maskedBy/
         // trimPath/clone/gradient/textPath/text/isCombinedShape). JSON-only — the
         // Pre-rendered SVG export materialises these in the Editor. See "Player
         // effects" section below.
         effects?: {
             // each part is animatable: raw value | {value} | {keyframes}
-            transformation?:  { translate?: [x,y], rotate?: deg, skew?: deg, scale?: [x,y], origin?: [x,y] };
+            transformBy?:     { translate?: [x,y], rotate?: deg, skew?: deg, scale?: [x,y], origin?: [x,y] };
             repeater?:        { copies?: number, translate?: [x,y], rotate?: deg, scale?: [%,%], origin?: [x,y] };
-            maskedBy?:        { href?: string, maskType?, maskUnits?, maskContentUnits?: string };
+            maskedBy?:        { sourceId?: string, maskType?: 'alpha' | 'luminance',
+                                maskUnits?, maskContentUnits?: 'userSpaceOnUse' | 'objectBoundingBox',
+                                x?, y?, width?, height?: number };   // mask viewport, user units
             clipPath?:        { d?: string, animate?: ANIMATE };   // static `d`, or animated clip geometry
-            trimPath?:        { offset?: number, range?: [a,b], trimAllAsOne?: boolean };  // offset/range animatable
-            clone?:           { type?: 'content', baseId?: string, retime?: { start?, stretch?: number } };
+            trimPath?:        { offset?: number, range?: [a,b], subPaths?: 'separate' | 'combined' };  // offset/range animatable
+            clone?:           { type?: 'content', sourceId?: string,
+                                retime?: { start?, stretch?: number, timeCrop?: [inMs, outMs] } };
             // `animate` = animated geometry: gradientX1/Y1/X2/Y2 (linear),
             // gradientCx/Cy/Fx/Fy/R (radial). Frames engine only.
             fillGradient?:    { type: 'linear'|'radial', p1?, p2?, c?, r?, fp?, stops?, animate?, gradientUnits?, spreadMethod?, gradientTransform? };
@@ -353,11 +359,33 @@ interface SVG_JSON {
 }
 ```
 
-Text content goes on the `text` attribute rather than in `children`:
+Text content goes on the `textContent` attribute rather than in `children`:
 
 ```js
-{ type: 'text', x: 20, y: 40, fill: '#111', 'font-size': 18, text: 'Hello' }
+{ type: 'text', x: 20, y: 40, fill: '#111', 'font-size': 18, textContent: 'Hello' }
 ```
+
+> `textContent` is the canonical key (it is the DOM property name). The older `text` spelling is
+> still READ for compatibility, but never written — `text` was overloaded three ways: the `text`
+> tag, the `effects.text` group, and the content itself.
+
+**Reserved keys and the `domType` escape hatch.** `type` on a node is the SVG **tag name** — that is
+what tells the player to build a `<rect>` rather than a `<circle>`. A few SVG elements also have a
+real `type` *attribute* of their own (`<feTurbulence type="fractalNoise">`, `<feColorMatrix
+type="saturate">`, `<style type="text/css">`, `<script>`, `<animateTransform>`). Writing that
+attribute as `type` would overwrite the tag and destroy the element, so it ships as **`domType`**:
+
+```js
+// the DOM attribute `type="fractalNoise"` on an feTurbulence element
+{ type: 'feTurbulence', domType: 'fractalNoise', baseFrequency: 0.05, numOctaves: 2 }
+//     ^ the TAG                ^ the ATTRIBUTE
+```
+
+The player renames `domType` back to `type` when it writes the element, so the rendered SVG is
+standard. The reserved wire keys — never written to the DOM as attributes — are exactly
+`type` (the tag), `children`, `animator`, `animate`, `meta`, `text` and `textContent`
+(`INTERNAL_ATTRS` in the core). `effects` is not in that list because it never survives that far:
+`applyPlayerEffects` consumes it at load, so the renderer never sees it.
 
 ### JSON File format example
 
@@ -365,7 +393,7 @@ A JSON document that mirrors SVG structure. The player constructs the SVG DOM an
 
 Two modes share the same root document type (`PxAnimatedSvgDocument`):
 - **Mode A** — `children` present: player renders the element tree and animates it.
-- **Mode B** — no `children`: player animates a pre-existing SVG DOM via `animator.animate`.
+- **Mode B** — no `children`: player animates a pre-existing SVG DOM via `animator.animateById`.
 
 **Quick example:**
 
@@ -551,7 +579,7 @@ Same as above, plus a small `<script>` fragment to start/stop the animation on e
 
 Static SVG markup with `@pixodesk/svg-animator-web` bundled in a `<script>` tag. The player targets existing DOM elements by `id`. Supports all animation types including shape morphing. Uses WAAPI or `requestAnimationFrame`.
 
-The `data` object passed to `createAnimator` is the same `PxAnimatedSvgDocument` type as the JSON format — without `children`. All animation config lives in `animator.definitions` (named easings and animations) and `animator.animate` (element ID → animation spec map).
+The `data` object passed to `createAnimator` is the same `PxAnimatedSvgDocument` type as the JSON format — without `children`. All animation config lives in `animator.definitions` (named easings and animations) and `animator.animateById` (element ID → animation spec map).
 
 ```xml
 <!-- static markup; player targets elements by id -->
@@ -656,7 +684,7 @@ The `data` object passed to `createAnimator` is the same `PxAnimatedSvgDocument`
 
 ## Player effects (`node.effects`)
 
-JSON-only. Each effect on `node.effects` is a structural transformation the
+JSON-only. Each effect on `node.effects` is a structural expansion the
 **Player materialises at runtime** (extra `<use>` copies, wrapping `<g>`s, etc.).
 In the **Pre-rendered SVG** export the editor materialises the same effects ahead
 of time, so the exported SVG already contains the expanded structure —
@@ -669,33 +697,33 @@ of time, so the exported SVG already contains the expanded structure —
 
 | Effect | Payload | What it does |
 |---|---|---|
-| `transformation` | `{ translate?:[x,y], rotate?:deg, skew?:deg, scale?:[x,y], origin?:[x,y] }` (each may be animated) | Wraps the element in transform `<g>`s; lets you keep `origin` semantics that the body `transform` string can't express. `skew` is a scalar (skewX degrees), composed between `rotate` and `scale`. |
+| `transformBy` | `{ translate?:[x,y], rotate?:deg, skew?:deg, scale?:[x,y], origin?:[x,y] }` (each may be animated) | Wraps the element in transform `<g>`s; lets you keep `origin` semantics that the body `transform` string can't express. `skew` is a scalar (skewX degrees), composed between `rotate` and `scale`. |
 | `repeater` | `{ copies:N, translate?:[x,y], rotate?:deg, scale?:[%, %], origin?:[x,y] }` (each may be animated) | Materialises `N` real copies of the element, each offset by its index (`translate`/`rotate`/`origin` × i, `scale` per-axis `(v/100)^i`). The base element and the per-copy params can both animate. |
-| `maskedBy` | `{ href:"#id", maskType?, maskUnits?, maskContentUnits? }` | Builds a `<mask>` from the referenced element and applies it to this one. |
+| `maskedBy` | `{ sourceId:"#id", maskType?:"alpha"\|"luminance", maskUnits?, maskContentUnits?, x?, y?, width?, height? }` | Builds a `<mask>` from the referenced element and applies it to this one. `x`/`y`/`width`/`height` are the mask VIEWPORT in user units — content outside it is clipped; omit all four for the SVG default (`-10%,-10%,120%,120%`). A `0` is a real value, not "absent". |
 | `clipPath` | `{ d?:"M…", animate?: ANIMATE }` | Mints a `<clipPath>` from the path data and sets `clip-path` on the host. `animate` is the property animation **itself** (`{keyframes:[…]}`), not `{d:{keyframes:[…]}}` — its keyframe values are `{path:"M…"}`. |
-| `trimPath` | `{ offset?, range?:[a,b], trimAllAsOne? }` (`offset`/`range` animatable) | Trims the visible stroke segment along a path. `trimAllAsOne:true` chains all descendant subpaths into one virtual path so the window slides across siblings. |
-| `clone` | `{ type?:"content", baseId:"id", retime?:{ start?:ms, stretch?:1.0 } }` | `<use>`-only. A `<use>` is a clone of something: `baseId` = the source element id (says WHAT it clones), nested `retime` = optional time-shift of the source's internal timeline (says WHEN). `type:"content"` is a "no-ref-translate" content link — targets the source's content sub-anchor so the source's own outer translate isn't re-applied; `type` absent = direct whole-element link (keeps translate). `retime.timeCrop` is reserved (accepted, not applied yet). |
+| `trimPath` | `{ offset?, range?:[a,b], subPaths?:"separate"\|"combined" }` (`offset`/`range` animatable) | Trims the visible stroke segment along a path. `subPaths` says what the 0..1 window is measured over: `"separate"` (default) trims each sub-path against its own length; `"combined"` chains all descendant sub-paths into one virtual path so the window slides across siblings (After Effects "Trim All As One"). |
+| `clone` | `{ type?:"content", sourceId:"#id", retime?:{ start?:ms, stretch?:1.0, timeCrop?:[inMs,outMs] } }` | `<use>`-only. A `<use>` is a clone of something: `sourceId` = the source element id (says WHAT it clones), nested `retime` = optional time-shift of the source's internal timeline (says WHEN). `type:"content"` is a "no-ref-translate" content link — targets the source's content sub-anchor so the source's own outer translate isn't re-applied; `type` absent = direct whole-element link (keeps translate). `retime.timeCrop` clips the clone to a visibility window `[inMs, outMs]` on the DOCUMENT timeline — implemented as a wrapping `<g>` with an opacity gate. |
 | `fillGradient` / `strokeGradient` | `{ type:"linear"\|"radial", p1?,p2? (linear) \| c?,r?,fp? (radial), stops?, animate?, gradientUnits?, spreadMethod?, gradientTransform? }` | Mints a `<linearGradient>`/`<radialGradient>` def and points the host's `fill`/`stroke` at it. `stops` is one timeline — static array, or `{keyframes}` whose each kf `value` is the full stops array snapshot. **`animate` animates the geometry** — `gradientX1/Y1/X2/Y2` (linear), `gradientCx/Cy/Fx/Fy/R` (radial); frames-engine only. `gradientTransform` is static-only. |
 | `textPath` | `{ path:"M…", pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? }` | On a `<text>` host: mints a `<path>` def from the inline `path` and wraps the text's children in a `<textPath>` along it. `startOffset`/`textLength` accept the full animatable shape. `pathOverflow`: `'extend'` (default — glyphs continue along the endpoint tangent) or `'clip'` (native `<textPath>` behaviour). |
-| `text` | `{ useGlyphs?: true }` | Renders the `<text>` from embedded per-glyph outlines in `definitions.glyphs` — self-contained, no external font needed. |
+| `text` | `{ useGlyphs?: true }` (the effect group — not to be confused with `node.textContent`, the content itself) | Renders the `<text>` from embedded per-glyph outlines in `definitions.glyphs` — self-contained, no external font needed. |
 | `isCombinedShape` | `true` | Flag for the wrapping `<g>` of a multi-`<path>` trim — tells the Player the children form one logical shape. |
 
-**Example — composite transformation + repeater:**
+**Example — composite transformBy + repeater:**
 
 ```js
 { type: 'rect', id: '_px_r', x: 0, y: 0, width: 40, height: 40, fill: '#3b82f6',
   effects: {
-    transformation: { translate: [50, 50], rotate: 30 },
+    transformBy: { translate: [50, 50], rotate: 30 },
     repeater:       { copies: 5, translate: [80, 0], rotate: 15 }
   } }
 ```
 
-**Animated `transformation`** — each part can be an animation, not just a static value:
+**Animated `transformBy`** — each part can be an animation, not just a static value:
 
 ```js
 { type: 'rect', id: '_px_r', x: -20, y: -20, width: 40, height: 40, fill: '#10b981',
   effects: {
-    transformation: {
+    transformBy: {
       translate: [200, 200],
       rotate:    { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 360 }] }
     }
@@ -727,9 +755,9 @@ of time, so the exported SVG already contains the expanded structure —
     }]
   }] },
 { type: 'use', id: '_px_u1', href: '#_px_sym', x: 0,   y: 0,
-  effects: { clone: { baseId: '_px_sym', retime: { start: 0,   stretch: 1 } } } },
+  effects: { clone: { sourceId: '#_px_sym', retime: { start: 0,   stretch: 1 } } } },
 { type: 'use', id: '_px_u2', href: '#_px_sym', x: 120, y: 0,
-  effects: { clone: { baseId: '_px_sym', retime: { start: 500, stretch: 2 } } } }
+  effects: { clone: { sourceId: '#_px_sym', retime: { start: 500, stretch: 2 } } } }
 ```
 
 **`<use>` + `clone` (content link / noRefTranslate)** — `type:'content'` references the source's content sub-anchor so the source's outer translate isn't re-applied; useful when you want to share geometry but not position:
@@ -738,7 +766,7 @@ of time, so the exported SVG already contains the expanded structure —
 { type: 'rect', id: '_px_src', x: 0, y: 0, width: 50, height: 50, fill: '#a855f7',
   transform: 'translate(100,100)' },
 { type: 'use', id: '_px_u', href: '#_px_src',
-  effects: { clone: { baseId: '_px_src', type: 'content' } } }
+  effects: { clone: { sourceId: '#_px_src', type: 'content' } } }
 ```
 
 **Gradient paint (`fillGradient` / `strokeGradient`)** — animate the stop colours of a minted gradient (one timeline; each kf `value` is the full stops array):
@@ -762,7 +790,7 @@ of time, so the exported SVG already contains the expanded structure —
     path: 'M20,100 Q150,20 280,100',
     startOffset: { keyframes: [{ time: 0, value: 0 }, { time: 2000, value: 260 }] },
   } },
-  children: [{ type: 'tspan', text: 'animated text on a path' }] }
+  children: [{ type: 'tspan', textContent: 'animated text on a path' }] }
 ```
 
 **`clipPath`** — animate the clipping geometry itself (the clip is a live

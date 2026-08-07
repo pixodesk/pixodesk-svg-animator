@@ -134,10 +134,10 @@ same shape as the JSON export. It comes in two modes:
 
 - **Mode A** — has `children`: the player renders the SVG tree and animates it.
 - **Mode B** — no `children`: the player animates a pre-existing SVG DOM, mapping
-  element ids to animation specs via `animator.animate`.
+  element ids to animation specs via `animator.animateById`.
 
 Elements may also carry a `node.effects` bucket (structural effects such as
-`transformation`, `repeater`, `maskedBy`, `trimPath`, `clone`, `fillGradient` /
+`transformBy`, `repeater`, `maskedBy`, `trimPath`, `clone`, `fillGradient` /
 `strokeGradient`, `textAlongPath`). This player materialises and removes them at
 runtime before any other normalisation.
 

@@ -153,15 +153,15 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
     collectIds(cloned);
     updateRefs(cloned);
 
-    // Update IDs in animator.animate map
-    const docAnimate = cloned.animator?.animate;
+    // Update IDs in the animator.animateById map
+    const docAnimate = cloned.animator?.animateById;
     if (docAnimate && typeof docAnimate === 'object') {
         const updatedAnimate: Record<string, any> = {};
         for (const [id, anim] of Object.entries(docAnimate)) {
             const newId = idMap.get(id) ?? id;
             updatedAnimate[newId] = anim;
         }
-        cloned.animator = { ...cloned.animator, animate: updatedAnimate };
+        cloned.animator = { ...cloned.animator, animateById: updatedAnimate };
     }
 
     return cloned;

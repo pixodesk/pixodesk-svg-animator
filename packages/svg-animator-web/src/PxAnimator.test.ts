@@ -171,7 +171,7 @@ describe('generateNewIds', () => {
             id: 'root1',
             animator: {
                 duration: 100,
-                animate: {
+                animateById: {
                     'rect1': {
                         opacity: { keyframes: [{ time: 0, value: 0 }, { time: 100, value: 1 }] },
                     },
@@ -196,7 +196,7 @@ describe('generateNewIds', () => {
         // Original untouched.
         expect(doc.id).toBe('root1');
         expect(doc.children![1].id).toBe('rect1');
-        expect(Object.keys(doc.animator!.animate!)).toEqual(['rect1']);
+        expect(Object.keys(doc.animator!.animateById!)).toEqual(['rect1']);
 
         // All ids regenerated with the _px_ prefix.
         const newRectId = out.children![1].id as string;
@@ -220,11 +220,11 @@ describe('generateNewIds', () => {
         expect(out.children![1].fill).toBe('url(#' + newGradId + ')');
     });
 
-    it('remaps animator.animate keys to the new ids', () => {
+    it('remaps animator.animateById keys to the new ids', () => {
         const out = generateNewIds(makeRefDoc());
 
         const newRectId = out.children![1].id as string;
-        const animate = out.animator!.animate!;
+        const animate = out.animator!.animateById!;
         expect(Object.keys(animate)).toEqual([newRectId]);
         expect(animate[newRectId]).toEqual({
             opacity: { keyframes: [{ time: 0, value: 0 }, { time: 100, value: 1 }] },

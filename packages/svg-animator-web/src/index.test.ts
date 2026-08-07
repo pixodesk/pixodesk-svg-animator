@@ -46,7 +46,7 @@ describe('animateBackground', () => {
         // Double the duration so keyframes occupy first half → loop fills second half
         json.animator!.duration = 256;
         // Add loop:true to the translate property
-        (json.animator!.animate as any)['_px_2pp00tnc']['translate'].loop = true;
+        (json.animator!.animateById as any)['_px_2pp00tnc']['translate'].loop = true;
 
         createAnimator({ data: json, container: '#svg-container' });
 
@@ -432,7 +432,7 @@ describe('Loop expansion', () => {
             type: 'svg',
             animator: {
                 duration: 100,
-                animate: {
+                animateById: {
                     'el1': {
                         opacity: {
                             keyframes: [
@@ -466,7 +466,7 @@ describe('Loop expansion', () => {
             type: 'svg',
             animator: {
                 duration: 250,
-                animate: {
+                animateById: {
                     'el1': {
                         transform: {
                             keyframes: [
@@ -944,7 +944,7 @@ function getTestJson(): PxAnimatedSvgDocument {
             fill: 'forwards',
             direction: 'normal',
             trigger: { startOn: 'load' },
-            animate: {
+            animateById: {
                 '_px_2pp00tnc': {
                     translate: {
                         keyframes: [

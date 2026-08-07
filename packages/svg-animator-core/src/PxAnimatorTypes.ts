@@ -780,13 +780,17 @@ export interface _PxAnimatorConfig {
     definitions?: PxDefs;
 
     /**
-     * Animation map for pre-rendered SVG elements (Mode B).
-     * Maps element IDs to their animation specs. Used when the SVG DOM already exists
-     * and the player only needs to animate existing elements.
+     * Animation map for pre-rendered SVG elements (Mode B) — `node.animate` HOISTED
+     * to the root and keyed by element id, for when the SVG DOM already exists and the
+     * player only needs to bind to it.
+     *
+     * The value type is identical to `node.animate` (`PxElementAnimation`); only the
+     * KEYSPACE differs — attr name there, element id here — which is what the `ById`
+     * suffix names (N2; same pattern as `transform` → `transformBy`).
      *
      * @example { "_px_abc": { opacity: { keyframes: [...] } }, "_px_def": ["fadeIn"] }
      */
-    animate?: Record<string, PxElementAnimation>;
+    animateById?: Record<string, PxElementAnimation>;
 
     /** Editor-side timeline mode. Written by the editor on every document;
      *  accepted on the wire and ignored by the player. */
@@ -810,7 +814,7 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
     trigger: PxTriggerSchema.optional(),
     resetOnFinish: px.boolean().optional(),
     definitions: PxDefsSchema.optional(),
-    animate: px.record(PxElementAnimationSchema).optional(),
+    animateById: px.record(PxElementAnimationSchema).optional(),
     timeline: px.string().optional(),
     debugInstName: px.string().optional(),
 }));
@@ -931,7 +935,7 @@ export interface _PxNode {
 
     /**
      * In-place property animations for this element. Same shape as the
-     * `animator.animate` map values: string ref, array of refs, inline
+     * `animator.animateById` map values: string ref, array of refs, inline
      * definition (`{propName: PxPropertyAnimation}`), or mixed array.
      * The static initial value of an animated property is still carried as a
      * plain attribute on the body.
@@ -1489,7 +1493,7 @@ export const PxNodeBase = px.openObject({
     effects: PxEffectsSchema.optional(),
     // `PxElementAnimation` (not just `PxAnimationDefinition`) — accepts
     // string ref / array of refs / inline definition / mixed array; mirrors
-    // `animator.animate` map values and what `processNode` resolves at runtime.
+    // `animator.animateById` map values and what `processNode` resolves at runtime.
     animate: PxElementAnimationSchema.optional(),
     style: px.union([px.string(), px.record(px.union([px.string(), px.number()]))]).optional(),
 }, PxAttrValueSchema);
@@ -1748,9 +1752,9 @@ export function getDefs(doc: PxAnimatedSvgDocument): PxDefs | undefined {
 
 export function getBindings(doc: PxAnimatedSvgDocument): PxBinding[] | undefined {
     if (!doc) return undefined;
-    const animate = getAnimatorConfig(doc)?.animate;
-    if (!animate) return undefined;
-    return Object.entries(animate).map(([id, anim]) => ({ id, animate: anim }));
+    const animateById = getAnimatorConfig(doc)?.animateById;
+    if (!animateById) return undefined;
+    return Object.entries(animateById).map(([id, anim]) => ({ id, animate: anim }));
 }
 
 // FIXME - do we need it?

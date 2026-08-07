@@ -286,12 +286,12 @@ player sees plain nodes. **All are supported:**
 
 | Effect | Status | Notes |
 |---|---|---|
-| `transformation` | ✅ | all parts animatable, including `skew` |
+| `transformBy` | ✅ | all parts animatable, including `skew` |
 | `repeater` | ✅ | copies materialised as real elements; per-copy params animatable |
 | `maskedBy` | ✅ | including an animated mask source |
 | `clipPath` | ✅ | including animated clip geometry |
-| `trimPath` | ✅ | incl. `offset` and `trimAllAsOne` |
-| `clone` + `retime` | ✅ | each clone keeps its own time shift. `retime.timeCrop` is not implemented (core-wide) |
+| `trimPath` | ✅ | incl. `offset` and `subPaths: 'combined'` |
+| `clone` + `retime` | ✅ | each clone keeps its own time shift, incl. `retime.timeCrop` (a visibility window on the document timeline) |
 | `fillGradient` / `strokeGradient` | ✅ | animated stops **and animated geometry** (`animate.gradientX1`/`Cx`/`R`, …); `gradientTransform` is static (core-wide) |
 | `textPath` | ✅ | incl. animated `startOffset` |
 | `text.useGlyphs` | ✅ | text becomes `<path>` outlines from `definitions.glyphs` — no font needed |
@@ -333,7 +333,7 @@ player sees plain nodes. **All are supported:**
   through `react-native-web`; the native reanimated ↔ `react-native-svg` prop
   bridge (notably filters and `strokeDasharray`) still needs checking on real
   iOS/Android.
-- **`retime.timeCrop`** and **animated `gradientTransform`** are unimplemented
+- **animated `gradientTransform`** is unimplemented (`retime.timeCrop` now works — implemented 2026-08)
   in the core, so they are unavailable here too.
 - **`mouseOver`** has no touch analogue and will not be implemented.
 - **Text on a closed path is worked around, not fixed.** react-native-svg's

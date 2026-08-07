@@ -52,11 +52,11 @@ function getTestJson(): PxAnimatedSvgDocument {
             fill: "forwards",
             direction: "normal",
             trigger: { startOn: "load" },
-            // Animations bound to elements live under `animator.animate` keyed
+            // Animations bound to elements live under `animator.animateById` keyed
             // by element id — `getBindings` consumes this shape. (The earlier
             // top-level `bindings: [...]` form was removed in the file-format
             // refactor; player ignored it silently → animation never started.)
-            animate: {
+            animateById: {
                 '_px_2pp00tnc': {
                     translate: {
                         keyframes: [

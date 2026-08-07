@@ -274,6 +274,13 @@ class Union<T> extends Base<T> {
 type UnionMembers<T extends ReadonlyArray<PxSchema<any, any>>> = {
     [K in keyof T]: T[K] extends PxSchema<infer U, any> ? U : never
 }[number];
+// NOTE: this only works because `px.union` / `px.discriminatedUnion` declare their
+// schema list as `const T` (Q1). Without the modifier TS infers the argument as a
+// plain ARRAY and unifies the element type to one `PxSchema<…>`, so `keyof T` has a
+// single member to map and the union collapses to whichever branch won unification —
+// in practice the last object branch, silently dropping every bare-static member
+// (`px.union([tuple, …, propAnim])` typed as propAnim alone). Source-level checks and
+// the emitted .d.ts both went wrong, so the dist types rejected legal wire values.
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -761,7 +768,7 @@ export const px = {
      * Returns the first schema whose isValid passes.
      * TypeScript infers the union of all member types automatically.
      */
-    union: <T extends ReadonlyArray<PxSchema<any, any>>>(
+    union: <const T extends ReadonlyArray<PxSchema<any, any>>>(
         schemas: T,
         defaultVal?: UnionMembers<T>
     ): PxSchema<UnionMembers<T>> =>
@@ -775,7 +782,7 @@ export const px = {
      */
     discriminatedUnion: <
         K extends string,
-        T extends ReadonlyArray<PxSchema<any, any> & { readonly _shape: Record<K, PxSchema<string | number | boolean, any>> }>
+        const T extends ReadonlyArray<PxSchema<any, any> & { readonly _shape: Record<K, PxSchema<string | number | boolean, any>> }>
     >(key: K, schemas: T): PxSchema<UnionMembers<T>> =>
         new DiscriminatedUnion(key, schemas as any) as any,
 
