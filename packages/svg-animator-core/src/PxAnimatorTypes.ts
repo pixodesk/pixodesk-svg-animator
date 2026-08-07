@@ -1716,7 +1716,11 @@ export function isPxElementFileFormat(fileJson: any): fileJson is PxAnimatedSvgD
         return false;
     }
 
-    return fileJson['type'] === 'svg' || fileJson['tagName'] === 'svg';
+    // `type` is the tag, and the ONLY discriminator — it is what the schema requires
+    // (`px.literal('svg')`). A `tagName` alternative was accepted here until 2026-08,
+    // which meant a tagName-only document passed this gate and then failed
+    // `isPxElementFileFormatDeep`; nothing ever wrote it.
+    return fileJson['type'] === 'svg';
 }
 
 
@@ -1738,11 +1742,19 @@ export function isPxElementFileFormatDeep(fileJson: any): PxValidationResult {
     return { valid, errors: valid ? [] : ['Document failed schema validation'] };
 }
 
+/**
+ * The animator config, at either of its TWO canonical addresses (S4).
+ *
+ * `animator` is the only name. It has two addresses because the SVG form has no other
+ * slot: a `.svga`/JSON document carries it at the top level, while a pre-rendered
+ * `.svg` carries it inside the root element's `data-px-meta` blob — i.e. under `meta`.
+ * The editor lifts/un-lifts between the two on write/read.
+ *
+ * The `animation` / `meta.animation` spellings were removed 2026-08: nothing wrote
+ * them and they were never in the schema.
+ */
 export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorConfig | undefined {
-    return (
-        doc?.animator || doc?.meta?.animator ||
-        doc?.animation || doc?.meta?.animation // FIXME - decide on the name
-    );
+    return doc?.animator || doc?.meta?.animator;
 }
 
 export function getDefs(doc: PxAnimatedSvgDocument): PxDefs | undefined {

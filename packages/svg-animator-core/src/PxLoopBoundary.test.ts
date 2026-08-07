@@ -25,11 +25,11 @@ describe('cycle-loop boundary (B7)', () => {
     const expand = (loop: unknown): PxPropertyAnimation =>
         materialiseInternalLoopsInPropAnim('transform', { loop, keyframes: SEGMENT } as never, 1000);
 
-    const times = (a: PxPropertyAnimation) => ((a.kfs ?? a.keyframes) ?? []).map((k: never) => (k as { t?: number; time?: number }).t ?? (k as { time?: number }).time);
-    const xs = (a: PxPropertyAnimation) => ((a.kfs ?? a.keyframes) ?? []).map((k: never) => {
-        const v = (k as { v?: { translate: Array<number> }; value?: { translate: Array<number> } });
-        return (v.v ?? v.value)?.translate[0];
-    });
+    /** Materialised keyframes keep the short spelling (`t`/`v`); accept either. */
+    interface LooseKf { t?: number; time?: number; v?: { translate?: Array<number> }; value?: { translate?: Array<number> } }
+    const kfsOf = (a: PxPropertyAnimation): Array<LooseKf> => ((a.kfs ?? a.keyframes) ?? []) as Array<LooseKf>;
+    const times = (a: PxPropertyAnimation) => kfsOf(a).map(k => k.t ?? k.time);
+    const xs = (a: PxPropertyAnimation) => kfsOf(a).map(k => (k.v ?? k.value)?.translate?.[0]);
 
     it('a cycle separates the snap-back by one 10ms frame — matching the editor', () => {
         const out = expand(true);
@@ -59,8 +59,8 @@ describe('cycle-loop boundary (B7)', () => {
     it('the repeat is compressed by the shift, not delayed past the duration', () => {
         const out = expand(true);
         // Cycle 2 occupies 510→1000; it must still END on the document duration.
-        expect(times(out)?.[times(out).length - 1]).toBe(1000);
-        expect(xs(out)?.[xs(out).length - 1]).toBe(160);
+        expect(times(out)[times(out).length - 1]).toBe(1000);
+        expect(xs(out)[xs(out).length - 1]).toBe(160);
     });
 
 });

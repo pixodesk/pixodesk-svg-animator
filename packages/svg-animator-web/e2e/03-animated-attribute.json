@@ -1,18 +1,16 @@
 {
   "type": "svg",
   "id": "_px_2rrb6uvp",
-  "viewBox": "0 0 600 600",
-  "animation": {
+  "animator": {
     "duration": 1000,
     "direction": "normal",
-    "type": "javaScript",
     "mode": "auto",
-    "timeline": "time",
     "trigger": {
       "startOn": "load",
       "outAction": "pause"
     }
   },
+  "viewBox": "0 0 600 600",
   "children": [
     {
       "type": "defs",
