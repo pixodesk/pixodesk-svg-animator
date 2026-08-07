@@ -62,9 +62,13 @@ describe('animateBackground', () => {
         vi.advanceTimersByTime(64); // t=128
         expect(ellipse?.getAttribute('transform')).toMatch('translate(200,200)');
 
-        // Second half: 128→256ms, loop repeats 100→200 (cycle mode)
-        vi.advanceTimersByTime(64); // t=192 (midpoint of second cycle)
-        expect(ellipse?.getAttribute('transform')).toMatch('translate(200,150)');
+        // Second half: the repeat runs 138→256ms, NOT 128→256. A cycle snaps back
+        // instantly, so its first keyframe would land on the same time as the previous
+        // cycle's last one; the expander separates them by LOOP_JUMP_SHIFT_MS (10ms,
+        // one editor frame) so the two sides materialise identical keyframes (B7).
+        // The repeat therefore spans 118ms, and t=192 is 54/118 = 45.8% into it.
+        vi.advanceTimersByTime(64); // t=192
+        expect(ellipse?.getAttribute('transform')).toMatch('translate(200,145.7627118648719)');
 
         vi.advanceTimersByTime(64); // t=256
         expect(ellipse?.getAttribute('transform')).toMatch('translate(200,200)');

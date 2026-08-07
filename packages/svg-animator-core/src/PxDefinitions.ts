@@ -22,6 +22,27 @@ import {
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 import { evaluateMotionPathSegment, materialiseMotionPathInPropAnim, propAnimIsMotionPath } from './PxMotionPath';
 
+/**
+ * Time separation between a cycle's snap-back keyframe and the previous repetition's
+ * end, in ms. Matches the editor's `TLoop.smallFrameShift` — ONE 10ms editor frame —
+ * so both sides materialise the same keyframes (B7). Do not shrink below a frame
+ * without fixing the editor first: a fractional shift was tried there and reverted
+ * because `TKeyframeGroup` mishandles fractional-frame keyframes.
+ */
+const LOOP_JUMP_SHIFT_MS = 10;
+
+/** Structural equality for keyframe values (numbers, arrays, transform-part records). */
+function deepEqualValue(a: unknown, b: unknown): boolean {
+    if (a === b) return true;
+    if (typeof a !== typeof b || a === null || b === null || typeof a !== 'object') return false;
+    if (Array.isArray(a) !== Array.isArray(b)) return false;
+    const ka = Object.keys(a as object);
+    const kb = Object.keys(b as object);
+    if (ka.length !== kb.length) return false;
+    return ka.every(k => deepEqualValue((a as Record<string, unknown>)[k], (b as Record<string, unknown>)[k]));
+}
+
+
 
 // ============================================================================
 // PATH PARSING: Convert "path(...)" strings to PxBezierPath format
@@ -432,6 +453,25 @@ function expandLoopKeyframes(
 
     const looped: PxKeyframe[] = [];
 
+    // A cycle's first keyframe lands at the SAME time as the previous repetition's
+    // last one. Emitting both at that time makes the value at that instant depend on
+    // the sampler's tie-break, and left the player disagreeing with the editor (B7).
+    // Mirror `TLoop.toKeyframes` exactly:
+    //   - values EQUAL (pingpong turn, closed loop) → the duplicate says nothing, skip it;
+    //   - values DIFFER (a real cycle snap)         → separate them by LOOP_JUMP_SHIFT_MS.
+    // The editor's shift is one 10ms frame (`smallFrameShift`), so the two sides
+    // materialise identical keyframes. Anything smaller is blocked editor-side: a
+    // fractional-frame shift was tried there and reverted (TKeyframeGroup mishandles it).
+    // SCOPE: loopOut (`after`) only — see the note above. For loopIn the pair sits in
+    // the opposite order in the array, so separating it means moving the EARLIER
+    // keyframe earlier; done naively it inverts keyframe order and re-breaks the
+    // loopIn `f0` regression (`appendRepTail`). Left as-is until it has its own
+    // editor-CSS evidence; the two sides may still differ at a loopIn boundary.
+    const separateBoundary = loop.extend !== PxLoopExtend.before;
+    // The keyframe the FIRST repetition butts up against: loopOut tiles forward from
+    // the last original keyframe (the originals are concatenated only at assembly).
+    const originalTerminalKf: PxKeyframe | undefined = keyframes[keyframes.length - 1];
+
     // Helper: append one full or partial repetition
     function appendRep(repStart: number, isReversed: boolean, partial?: number) {
         let entries: LoopTemplateEntry[];
@@ -481,8 +521,21 @@ function expandLoopKeyframes(
                 return;
             }
 
+            // Repetition boundary: this entry coincides in time with whatever precedes
+            // it. For the FIRST rep that neighbour is the last ORIGINAL keyframe (the
+            // originals are concatenated only at assembly time), not a `looped` entry.
+            const prevKf = looped.length > 0 ? looped[looped.length - 1] : originalTerminalKf;
+            const isBoundary = separateBoundary && i === 0 && prevKf !== undefined
+                && Math.abs((prevKf.t ?? 0) - (repStart + entry.relT * segDuration)) < 1e-9;
+            if (isBoundary) {
+                if (deepEqualValue(prevKf.v, entry.v)) continue;   // pingpong turn — nothing to say
+                // Real snap: the jump segment must not carry motion-path tangents.
+                // Only ours are safe to mutate — never the caller's originals.
+                if (looped.length > 0) { delete prevKf.tangentIn; delete prevKf.tangentOut; }
+            }
+
             const pushed: PxKeyframe = {
-                t: repStart + entry.relT * segDuration,
+                t: repStart + entry.relT * segDuration + (isBoundary ? LOOP_JUMP_SHIFT_MS : 0),
                 v: entry.v,
                 e: i < entries.length - 1 ? entry.e : undefined
             };
