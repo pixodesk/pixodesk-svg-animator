@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { bezierToSvgPath, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, getAnimatorConfig, getNormalisedBindings, interpolateValue, kebabToCamelCaseWord, PxAnimatorEngine, splitEasing, toRGBA, TRANSFORM_FN_NAMES, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxBezierPath, type PxKeyframe } from '@pixodesk/svg-animator-core';
+import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, getAnimatorConfig, getNormalisedBindings, interpolateValue, kebabToCamelCaseWord, PxAnimatorEngine, splitEasing, toRGBA, TRANSFORM_FN_NAMES, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxBezierPath, type PxKeyframe } from '@pixodesk/svg-animator-core';
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
 import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
@@ -65,7 +65,12 @@ function createCssKf(kf: PxKeyframe, t: number, propName: string, unsupportedSet
         cssValue = '' + value;
     }
 
-    if (!CSS.supports(cssKey, cssValue)) unsupportedSet.add(cssKey);
+    // `CSS.supports` takes a CSS PROPERTY name, so it must be asked in kebab-case —
+    // `CSS.supports('strokeDasharray', …)` is always false. Prop names reach us in
+    // either form (the app materialises trim paths as camelCase `strokeDasharray` /
+    // `strokeDashoffset` / `strokeOpacity`), and an unsupported entry makes the caller
+    // discard EVERY animation on the document, so a false negative here is costly.
+    if (!CSS.supports(camelCaseToKebabWordIfNeeded(cssKey), cssValue)) unsupportedSet.add(cssKey);
 
     cssKey = kebabToCamelCaseWord(cssKey);
     cssKf[cssKey] = cssValue;
