@@ -11,7 +11,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { materialiseAllInTree } from './PxAnimatorMaterialiseAll';
-import { PxAnimatorEngine } from './PxAnimatorTypes';
+import { PxAnimatorEngine } from './PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxNode, PxPropertyAnimation } from './PxAnimatorTypes';
 
 

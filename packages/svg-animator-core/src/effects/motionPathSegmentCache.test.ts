@@ -19,7 +19,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createBasicFrameLoopAnimator, type PxPlatformAdapter } from '../PxFrameLoop';
 import { calcAnimationValues, getNormalisedBindings } from '../PxDefinitions';
 import type { PxAnimatedSvgDocument } from '../PxAnimatorTypes';
-import { PxAnimatorEngine } from '../PxAnimatorTypes';
+import { PxAnimatorEngine } from '../PxAnimatorConstants';
 
 const START: [number, number] = [124.7115, 74.3754];
 const APEX: [number, number] = [154.5315, 12.1887];

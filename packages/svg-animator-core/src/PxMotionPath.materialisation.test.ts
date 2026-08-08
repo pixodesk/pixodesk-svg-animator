@@ -20,7 +20,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { calcAnimationValues, getNormalisedBindings } from './PxDefinitions';
-import { PxAnimatorEngine } from './PxAnimatorTypes';
+import { PxAnimatorEngine } from './PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxKeyframe, PxNode } from './PxAnimatorTypes';
 
 

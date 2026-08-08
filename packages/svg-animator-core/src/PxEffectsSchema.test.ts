@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { PxAnimatorEngine, PxEffectsSchema, validateNodeEffects } from './PxAnimatorTypes';
+import { PxEffectsSchema, validateNodeEffects } from './PxAnimatorTypes';
+import { PxAnimatorEngine } from './PxAnimatorConstants';
 import type { PxValidationContext } from './PxSchema';
 import { materialiseAllInTree } from './PxAnimatorMaterialiseAll';
 import { calcAnimationValues, getNormalisedBindings } from './PxDefinitions';

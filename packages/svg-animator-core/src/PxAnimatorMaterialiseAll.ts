@@ -35,7 +35,7 @@ import { DEFAULT_DURATION_MS } from './PxAnimatorUtil';
 import { materialiseInternalLoopsInTree } from './PxDefinitions';
 import { materialiseMotionPathsInTree } from './PxMotionPath';
 import type { MotionPathMaterialisationOptions } from './PxMotionPath';
-import { getAnimatorConfig, PxAnimatorEngine } from './PxAnimatorTypes';
+import { getAnimatorConfig, PxAnimatorEngine } from './PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxNode } from './PxAnimatorTypes';
 import { materialiseAnimatedUseInstances } from './PxAnimatorUseMaterialiser';
 

@@ -28,7 +28,8 @@
  * kerning/ligatures, per-tspan opacity, text-level animated fill are out of scope.
  */
 
-import { TEXT_ATTR, TEXT_CONTENT_ATTR, type PxAnimatable, type PxGlyphFont, type PxNode, type PxTextEffect } from '../PxAnimatorTypes';
+import { type PxAnimatable, type PxGlyphFont, type PxNode, type PxTextEffect } from '../PxAnimatorTypes';
+import { TEXT_ATTR, TEXT_CONTENT_ATTR } from '../PxAnimatorConstants';
 import { jsonElementFactory, type PxCreateElement } from './elementFactory';
 import { transformPathData, type Affine } from './glyphPathBake';
 import { createPathSampler, type PathSampler } from './pathSampler';

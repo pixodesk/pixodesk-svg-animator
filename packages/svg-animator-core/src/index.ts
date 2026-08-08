@@ -16,70 +16,18 @@ export { px, schemaKeys, describeSchema } from './PxSchema';
 export type { KeysMatch, PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, RemoveIndex } from './PxSchema';
 
 // Wire-format schemas
-export {
-    PX_TRANSFORM_PART_KEYS,
-    PxAnimatedSvgDocumentSchema,
-    PxAnimationDefinitionSchema,
-    PxAnimatorConfigSchema,
-    PxAnimatorEngine,
-    PxAnimatorMode,
-    PxAttrValueSchema,
-    PxBezierPathSchema,
-    PxBindingSchema,
-    PxDefsSchema,
-    PxEasingOrRefSchema,
-    PxElementAnimationSchema,
-    PxKeyframeSchema,
-    PxKeyframeValueSchema,
-    PxLoopSchema,
-    PxNodeBase,
-    PxNodeSchema,
-    PxPropertyAnimationSchema,
-    PxSvgNodeExtra,
-    PxTransformPartsSchema,
-    PxTransformValueSchema,
-    PxTriggerSchema
-} from './PxAnimatorTypes';
+export { PxAnimatedSvgDocumentSchema, PxAnimationDefinitionSchema, PxAnimatorConfigSchema, PxAttrValueSchema, PxBezierPathSchema, PxBindingSchema, PxDefsSchema, PxEasingOrRefSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBase, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeExtra, PxTransformPartsSchema, PxTransformValueSchema, PxTriggerSchema } from './PxAnimatorTypes';
+export { PX_TRANSFORM_PART_KEYS, PxAnimatorEngine, PxAnimatorMode } from './PxAnimatorConstants';
 
 // Document / model types
-export type {
-    FillMode, JsMode, OutAction, PlaybackDirection,
-    PxAnimatedSvgDocument,
-    PxAnimationDefinition,
-    PxAnimatorAPI,
-    PxAnimatorCallbacksConfig,
-    PxAnimatorConfig,
-    PxAttrValue,
-    PxBasicAnimatorAPI,
-    PxBezierPath,
-    PxBinding,
-    PxDefs,
-    PxElementAnimation,
-    PxGlyph,
-    PxGlyphFont,
-    PxKeyframe,
-    PxLoop,
-    PxNode,
-    PxPropertyAnimation,
-    PxSvgNode,
-    PxTransformPartKey,
-    PxTransformParts,
-    PxTransformValue,
-    PxTrigger,
-    PxValidationResult,
-    StartOn
-} from './PxAnimatorTypes';
+export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorAPI, PxAnimatorCallbacksConfig, PxAnimatorConfig, PxAttrValue, PxBasicAnimatorAPI, PxBezierPath, PxBinding, PxDefs, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxSvgNode, PxTransformParts, PxTransformValue, PxTrigger, PxValidationResult } from './PxAnimatorTypes';
+export type { FillMode, JsMode, OutAction, PlaybackDirection, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
 
-export {
-    getAnimatorConfig,
-    getBindings,
-    getChildren,
-    getDefs,
-    isPxElementFileFormat,
-    isPxElementFileFormatDeep
-} from './PxAnimatorTypes';
+export { isPxElementFileFormatDeep } from './PxAnimatorTypes';
+export { getBindings, getChildren, getDefs } from './PxAnimatorConstants';
+export { getAnimatorConfig, isPxElementFileFormat } from './PxAnimatorConstants';
 
-export { INTERNAL_ATTRS, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorTypes';
+export { INTERNAL_ATTRS, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
 
 // Utils (string/colour/easing/bezier math)
 export {
@@ -158,24 +106,8 @@ export type { ApplyResult } from './effects/types';
 export { collectSampleTimes, diffInEffect, visualModelAt } from './effects/PlayerEffectsUtil.visualModel';
 
 // Effects schemas + walker validator
-export {
-    PxCloneEffectSchema,
-    PxEffectsSchema,
-    PxFillGradientEffectSchema,
-    PxGradientSpreadMethod,
-    PxGradientStopSchema,
-    PxGradientType, PxLoopExtend, PxTrimSubPaths,
-    PxGradientUnits,
-    PxMaskedByEffectSchema,
-    PxRepeaterEffectSchema,
-    PxRetimeEffectSchema,
-    PxStrokeGradientEffectSchema,
-    PxTextPathEffectSchema,
-    PxTextEffectSchema,
-    PxTransformByEffectSchema,
-    PxTrimPathEffectSchema,
-    validateNodeEffects,
-} from './PxAnimatorTypes';
+export { PxCloneEffectSchema, PxEffectsSchema, PxFillGradientEffectSchema, PxGradientStopSchema, PxMaskedByEffectSchema, PxRepeaterEffectSchema, PxRetimeEffectSchema, PxStrokeGradientEffectSchema, PxTextPathEffectSchema, PxTextEffectSchema, PxTransformByEffectSchema, PxTrimPathEffectSchema, validateNodeEffects } from './PxAnimatorTypes';
+export { PxGradientSpreadMethod, PxGradientType, PxLoopExtend, PxTrimSubPaths, PxGradientUnits } from './PxAnimatorConstants';
 export type {
     PxAnimatable,
     PxCloneEffect,

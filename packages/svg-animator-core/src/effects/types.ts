@@ -14,7 +14,8 @@
  * `implementsInterface`. Effect modules import those directly from there.
  */
 
-import type { PxAnimatorEngine, PxGlyphFont, PxNode } from '../PxAnimatorTypes';
+import type { PxGlyphFont, PxNode } from '../PxAnimatorTypes';
+import type { PxAnimatorEngine } from '../PxAnimatorConstants';
 
 
 /** Collected diagnostics + new <defs> nodes accumulated during a run. */

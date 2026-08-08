@@ -5,7 +5,7 @@
 
 
 import type { PxAnimatable, PxFillGradientEffect, PxGradientStop, PxKeyframe, PxLoop, PxNode, PxStrokeGradientEffect, Vec2 } from '../PxAnimatorTypes';
-import { PxGradientType } from '../PxAnimatorTypes';
+import { PxGradientType } from '../PxAnimatorConstants';
 import { ReadKind, readAnimatable, writeAnimatableChannel } from './transformParts';
 import type { ApplyContext } from './types';
 import { genId } from './util';

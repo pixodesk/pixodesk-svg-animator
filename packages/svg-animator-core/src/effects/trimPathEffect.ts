@@ -4,7 +4,8 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import { PxTrimSubPaths, type PxAnimatable, type PxBezierPath, type PxKeyframe, type PxLoop, type PxNode, type Vec2, type _PxTrimPathEffect } from '../PxAnimatorTypes';
+import { type PxAnimatable, type PxBezierPath, type PxKeyframe, type PxLoop, type PxNode, type Vec2, type _PxTrimPathEffect } from '../PxAnimatorTypes';
+import { PxTrimSubPaths } from '../PxAnimatorConstants';
 import { bezier2D_arcLengthLUT, bezierToSvgPath, clamp } from '../PxAnimatorUtil';
 import { parseSvgPathToBezier } from '../PxDefinitions';
 import { ReadKind, readAnimatable, writeAnimatableChannel, type ReadPart } from './transformParts';

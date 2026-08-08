@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { INTERNAL_ATTRS, type PxDefs } from './PxAnimatorTypes';
+import { type PxDefs } from './PxAnimatorTypes';
+import { INTERNAL_ATTRS } from './PxAnimatorConstants';
 import { COLOUR_ATTR_NAMES, composeTransformParts, kebabToCamelCaseWord, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 
 

@@ -11,7 +11,7 @@
 
 import { applyPlayerEffects } from './PlayerEffectsUtil';
 import { materialiseAllInTree } from '../PxAnimatorMaterialiseAll';
-import { PxAnimatorEngine } from '../PxAnimatorTypes';
+import { PxAnimatorEngine } from '../PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxNode } from '../PxAnimatorTypes';
 
 export { PxAnimatorEngine };
