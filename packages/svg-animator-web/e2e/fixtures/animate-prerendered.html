@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Pre-rendered SVG + bindings-only payload</title>
+    <style>
+        html, body { margin: 0; padding: 0; width: 100%; height: 100%; }
+    </style>
+</head>
+
+<body>
+    <!--
+      Mirrors what the Editor's SVG+JS export produces: the SVG is ALREADY rendered
+      (elements exist, ids assigned), and the inlined payload carries only
+      `animator.definitions` + `animator.animateById` — no `children`, no `effects`.
+      `player.js` is whichever pre-rendered bundle the npm script copied in.
+    -->
+    <svg id="root" viewBox="0 0 200 200" width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+        <rect id="box" x="10" y="10" width="80" height="80" fill="#c00" />
+    </svg>
+
+    <script src="player.js"></script>
+    <script>
+        window.pxApi = PixodeskAnimator.createAnimator({
+            "data": {
+                "type": "svg",
+                "id": "root",
+                "animator": {
+                    "duration": 1000,
+                    "mode": "waapi",
+                    "trigger": { "startOn": "load", "outAction": "pause" },
+                    "definitions": {
+                        "animations": {
+                            "a0": {
+                                "opacity": {
+                                    "keyframes": [
+                                        { "time": 0, "value": 1 },
+                                        { "time": 1000, "value": 0 }
+                                    ]
+                                },
+                                "transform": {
+                                    "keyframes": [
+                                        { "time": 0, "value": { "translate": [0, 0] } },
+                                        { "time": 1000, "value": { "translate": [100, 0] } }
+                                    ]
+                                }
+                            }
+                        }
+                    },
+                    "animateById": { "box": ["a0"] }
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>

@@ -4,11 +4,10 @@
  *---------------------------------------------------------------------------------------*/
 
 import { generateNewIds, getAnimatorConfig, isPxElementFileFormat, materialiseAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PxAnimatorEngine, PxAnimatorMode, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { bindWithEngineChoice } from './PxAnimatorBind';
 import { renderNode } from './PxAnimatorDOM';
-import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
 import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
-import { createWebApiAnimator } from './PxAnimatorWebApi';
 
 // Re-export so the package surface keeps `generateNewIds` at its historical home.
 export { generateNewIds };
@@ -17,6 +16,10 @@ export { generateNewIds };
 /**
  * Creates an animator instance from a normalized player config.
  * This is the internal implementation that both engines use.
+ *
+ * The engine choice plus the `resetOnFinish` / `debugInstName` handling live in
+ * `PxAnimatorBind` so the pre-rendered builds share them verbatim — one code path, no
+ * parallel pipeline. See PRERENDERED-PLAYER-BUILDS.md.
  */
 function createAnimatorFromConfig(
     doc: PxAnimatedSvgDocument,
@@ -24,47 +27,7 @@ function createAnimatorFromConfig(
     callbacks?: PxAnimatorCallbacksConfig,
     rootElement?: Element | null
 ): PxAnimatorAPI {
-
-    const animatorConfig = getAnimatorConfig(doc) || {};
-
-    // `resetOnFinish`: after a NATURAL finish, snap the document back to its start
-    // state — the same mechanics as the trigger `reset` out-action (`api.cancel()`
-    // clears the animation state so the base attributes show). Composed centrally so
-    // BOTH engines get it; the caller's own `onFinish` still fires first. `apiRef` is
-    // assigned right after creation — finish always happens asynchronously later.
-    let apiRef: PxAnimatorAPI | undefined;
-    let effectiveCallbacks = callbacks;
-    if (animatorConfig.resetOnFinish) {
-        effectiveCallbacks = {
-            ...callbacks,
-            onFinish: () => {
-                callbacks?.onFinish?.();
-                apiRef?.cancel();
-            },
-        };
-    }
-
-    let res: PxAnimatorAPI;
-    if (animatorConfig.mode === PxAnimatorMode.frames) {
-        // Forcing frames, even if waapi could be used.
-        res = createFrameLoopAnimator(doc, adapter, effectiveCallbacks, rootElement);
-    } else {
-        // Try waapi first; fall back to frames if it returns null (unsupported
-        // attrs) unless the user explicitly forced waapi.
-        res = (
-            createWebApiAnimator(doc, effectiveCallbacks, rootElement,
-                animatorConfig.mode === PxAnimatorMode.waapi // forcing waapi
-            ) ||
-            createFrameLoopAnimator(doc, adapter, effectiveCallbacks, rootElement)
-        );
-    }
-    apiRef = res;
-
-    if (animatorConfig.debugInstName) {
-        (window as any)[animatorConfig.debugInstName] = res; // Exposing as global variable for debug
-    }
-
-    return res;
+    return bindWithEngineChoice(doc, adapter, callbacks, rootElement);
 }
 
 
@@ -133,7 +96,9 @@ export function createAnimatorImpl(
     return createAnimatorFromConfig(doc, adapter, callbacks, rootElement);
 }
 
-export const PX_ANIMATOR_DATA_KEY = 'data';
+// Re-exported so this module's public surface is unchanged; declared in
+// `PxAnimatorKeys` so entries can use it without importing this module. See there.
+export { PX_ANIMATOR_DATA_KEY } from './PxAnimatorKeys';
 
 export interface PxAnimatorOptions {
     /** URL to fetch the animation document from. Provide either this or `data`, not both. */

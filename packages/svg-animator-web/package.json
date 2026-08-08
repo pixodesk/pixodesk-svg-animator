@@ -12,7 +12,7 @@
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",
-  "browser": "dist/index.umd.js",
+  "browser": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
@@ -29,19 +29,24 @@
     "lint": "eslint src/",
     "lint:fix": "eslint src/ --fix",
     "typecheck": "tsc --noEmit -p tsconfig.json",
-    "build": "eslint src/ && tsup",
+    "build": "eslint src/ && node ../../scripts/collect-identifiers.mjs && tsup",
     "start": "node dist/index.cjs",
     "dev": "tsup --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test",
-    "test:e2e:headed": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test --headed",
-    "test:e2e:ui": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test --ui",
-    "test:e2e:update": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test --update-snapshots",
-    "wip-test:e2e": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test --grep @wip",
-    "wip-test:e2e:headed": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test --grep @wip --headed",
-    "wip-test:e2e:ui": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test --grep @wip --ui",
-    "wip-test:e2e:update": "npm run build && cp dist/index.umd.js e2e/fixtures/ && tsc -p e2e/tsconfig.json && npx playwright test --grep @wip --update-snapshots"
+    "e2e:fixtures": "cp dist/index.umd.js e2e/fixtures/ && cp dist/index.prerendered.umd.min.js e2e/fixtures/player.js",
+    "e2e:fixtures:min": "cp dist/index.umd.min.js e2e/fixtures/index.umd.js && cp dist/index.prerendered.umd.min.js e2e/fixtures/player.js",
+    "e2e:fixtures:waapi": "cp dist/index.umd.js e2e/fixtures/ && cp dist/index.prerendered-waapi.umd.min.js e2e/fixtures/player.js",
+    "test:e2e": "npm run build && npm run e2e:fixtures && tsc -p e2e/tsconfig.json && npx playwright test",
+    "test:e2e:min": "npm run build && npm run e2e:fixtures:min && tsc -p e2e/tsconfig.json && npx playwright test",
+    "test:e2e:prerendered-waapi": "npm run build && npm run e2e:fixtures:waapi && tsc -p e2e/tsconfig.json && npx playwright test",
+    "test:e2e:headed": "npm run build && npm run e2e:fixtures && tsc -p e2e/tsconfig.json && npx playwright test --headed",
+    "test:e2e:ui": "npm run build && npm run e2e:fixtures && tsc -p e2e/tsconfig.json && npx playwright test --ui",
+    "test:e2e:update": "npm run build && npm run e2e:fixtures && tsc -p e2e/tsconfig.json && npx playwright test --update-snapshots",
+    "wip-test:e2e": "npm run build && npm run e2e:fixtures && tsc -p e2e/tsconfig.json && npx playwright test --grep @wip",
+    "wip-test:e2e:headed": "npm run build && npm run e2e:fixtures && tsc -p e2e/tsconfig.json && npx playwright test --grep @wip --headed",
+    "wip-test:e2e:ui": "npm run build && npm run e2e:fixtures && tsc -p e2e/tsconfig.json && npx playwright test --grep @wip --ui",
+    "wip-test:e2e:update": "npm run build && npm run e2e:fixtures && tsc -p e2e/tsconfig.json && npx playwright test --grep @wip --update-snapshots"
   },
   "dependencies": {
     "@pixodesk/svg-animator-core": "workspace:^"
