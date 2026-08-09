@@ -468,6 +468,15 @@ function expandLoopKeyframes(
     // the last original keyframe (the originals are concatenated only at assembly).
     const originalTerminalKf: PxKeyframe | undefined = keyframes[keyframes.length - 1];
 
+    // Easing that a skipped boundary keyframe hands to the ORIGINAL terminal keyframe.
+    // Easing describes the interval that FOLLOWS a keyframe, so when a pingpong turn's
+    // duplicate is dropped (same value, nothing to say about position) its easing is NOT
+    // redundant — it owns the return leg. Without this hand-off the return leg renders
+    // LINEAR while the outbound is eased. The originals belong to the caller, so it is
+    // applied by replacing the terminal with a copy at assembly, never by mutation.
+    let terminalEasingOverride: PxKeyframe['e'] | undefined;
+    let hasTerminalEasingOverride = false;
+
     // Helper: append one full or partial repetition
     function appendRep(repStart: number, isReversed: boolean, partial?: number) {
         let entries: LoopTemplateEntry[];
@@ -524,7 +533,19 @@ function expandLoopKeyframes(
             const isBoundary = separateBoundary && i === 0 && prevKf !== undefined
                 && Math.abs((prevKf.t ?? 0) - (repStart + entry.relT * segDuration)) < 1e-9;
             if (isBoundary) {
-                if (deepEqualValue(prevKf.v, entry.v)) continue;   // pingpong turn — nothing to say
+                if (deepEqualValue(prevKf.v, entry.v)) {
+                    // Pingpong turn — the duplicate says nothing about VALUE, but it carries
+                    // the easing (and out-tangent) for the interval that follows it. Hand
+                    // those to the surviving neighbour instead of discarding them.
+                    if (looped.length > 0) {
+                        prevKf.e = entry.e;
+                        prevKf.tangentOut = entry.tangentOut;
+                    } else {
+                        terminalEasingOverride = entry.e;
+                        hasTerminalEasingOverride = true;
+                    }
+                    continue;
+                }
                 // Real snap: the jump segment must not carry motion-path tangents.
                 // Only ours are safe to mutate — never the caller's originals.
                 if (looped.length > 0) { delete prevKf.tangentIn; delete prevKf.tangentOut; }
@@ -636,6 +657,11 @@ function expandLoopKeyframes(
     if (loop.extend === PxLoopExtend.before) {
         return [...looped, ...keyframes];
     } else {
+        if (hasTerminalEasingOverride && keyframes.length > 0) {
+            const head = keyframes.slice(0, -1);
+            const tail = { ...keyframes[keyframes.length - 1], e: terminalEasingOverride };
+            return [...head, tail, ...looped];
+        }
         return [...keyframes, ...looped];
     }
 }
