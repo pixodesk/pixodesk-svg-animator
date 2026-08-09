@@ -179,7 +179,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "combined "
+              "textContent": "combined "
             }
           ]
         },
@@ -247,7 +247,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "group "
+              "textContent": "group "
             }
           ]
         }
@@ -294,7 +294,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "symbol "
+              "textContent": "symbol "
             }
           ]
         },
@@ -354,7 +354,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "clone "
+              "textContent": "clone "
             }
           ]
         },
@@ -371,7 +371,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "image "
+              "textContent": "image "
             }
           ]
         }
@@ -397,7 +397,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "Text "
+              "textContent": "Text "
             }
           ]
         },
@@ -419,7 +419,7 @@
               "children": [
                 {
                   "type": "tspan",
-                  "text": "Text "
+                  "textContent": "Text "
                 }
               ]
             }
@@ -438,19 +438,19 @@
               "type": "tspan",
               "fill": "#007fff",
               "fontFamily": "Arial",
-              "text": "Text"
+              "textContent": "Text"
             },
             {
               "type": "tspan",
               "x": "0px",
               "dy": "1.2em",
-              "text": "\u200b"
+              "textContent": "​"
             },
             {
               "type": "tspan",
               "fill": "#007fff",
               "fontFamily": "Arial",
-              "text": "Text "
+              "textContent": "Text "
             }
           ]
         }
@@ -520,7 +520,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "mask "
+              "textContent": "mask "
             }
           ]
         },
@@ -537,7 +537,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "mask effect"
+              "textContent": "mask effect"
             }
           ]
         },
@@ -554,7 +554,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "marker "
+              "textContent": "marker "
             }
           ]
         }

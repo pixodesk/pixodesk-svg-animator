@@ -123,3 +123,6 @@ export type {
     PxTrimPathEffect,
     Vec2,
 } from './PxAnimatorTypes';
+
+// Loop snap-back gap — the editor imports this so both sides stay in lockstep.
+export { LOOP_JUMP_SHIFT_MS } from './PxDefinitions';

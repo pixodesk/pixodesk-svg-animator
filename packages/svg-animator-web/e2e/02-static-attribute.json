@@ -165,7 +165,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "number"
+              "textContent": "number"
             }
           ]
         },
@@ -208,7 +208,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "opacity "
+              "textContent": "opacity "
             }
           ]
         },
@@ -225,7 +225,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "stroke width "
+              "textContent": "stroke width "
             }
           ]
         }
@@ -260,7 +260,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "transform "
+              "textContent": "transform "
             }
           ]
         },
@@ -295,7 +295,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "scale "
+              "textContent": "scale "
             }
           ]
         },
@@ -312,7 +312,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "rotate "
+              "textContent": "rotate "
             }
           ]
         }
@@ -338,7 +338,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "dasharray "
+              "textContent": "dasharray "
             }
           ]
         },
@@ -389,7 +389,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "offset "
+              "textContent": "offset "
             }
           ]
         }
@@ -415,7 +415,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "opacity "
+              "textContent": "opacity "
             }
           ]
         },
@@ -432,7 +432,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "color "
+              "textContent": "color "
             }
           ]
         },
@@ -482,7 +482,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "gradient "
+              "textContent": "gradient "
             }
           ]
         },
@@ -522,7 +522,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "opacity "
+              "textContent": "opacity "
             }
           ]
         },
@@ -547,7 +547,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "radial "
+              "textContent": "radial "
             }
           ]
         }
@@ -573,7 +573,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "pattern "
+              "textContent": "pattern "
             }
           ]
         },
@@ -606,7 +606,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "scale "
+              "textContent": "scale "
             }
           ]
         }
@@ -632,7 +632,7 @@
           "children": [
             {
               "type": "tspan",
-              "text": "string "
+              "textContent": "string "
             }
           ]
         },

@@ -11,12 +11,21 @@ import { evaluateMotionPathSegment, materialiseMotionPathInPropAnim, propAnimIsM
 
 /**
  * Time separation between a cycle's snap-back keyframe and the previous repetition's
- * end, in ms. Matches the editor's `TLoop.smallFrameShift` — ONE 10ms editor frame —
- * so both sides materialise the same keyframes (B7). Do not shrink below a frame
- * without fixing the editor first: a fractional shift was tried there and reverted
- * because `TKeyframeGroup` mishandles fractional-frame keyframes.
+ * end, in ms.
+ *
+ * SINGLE SOURCE OF TRUTH — the editor imports this and converts to its own frame unit
+ * (`TLoop.smallFrameShift = LOOP_JUMP_SHIFT_MS / FRAME_DURATION_MS`), so the two sides
+ * cannot drift apart and materialise different keyframes (B7).
+ *
+ * 1ms, not one 10ms editor frame: a 10ms snap-back is long enough to read as a visible
+ * jump in a looping animation (confirmed visually). The gap only has to be non-zero — it
+ * exists so the snap-back is a discontinuity rather than an interpolated tween.
+ *
+ * ⚠️ The editor works in FRAMES (`FRAME_DURATION_MS = 10`), so this is a sub-frame shift
+ * there. `TKeyframeGroup` rounds keyframe times to integer frames in some paths; the
+ * editor side keeps the fractional value and must not be re-clamped to a whole frame.
  */
-const LOOP_JUMP_SHIFT_MS = 10;
+export const LOOP_JUMP_SHIFT_MS = 1;
 
 /** Structural equality for keyframe values (numbers, arrays, transform-part records). */
 function deepEqualValue(a: unknown, b: unknown): boolean {

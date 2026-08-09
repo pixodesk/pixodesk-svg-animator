@@ -11,7 +11,6 @@
     "iterations": "infinite",
     "type": "javaScript",
     "mode": "frames",
-    "timeline": "time",
     "trigger": {
       "startOn": "load",
       "outAction": "pause"

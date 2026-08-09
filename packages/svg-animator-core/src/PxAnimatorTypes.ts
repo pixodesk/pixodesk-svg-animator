@@ -1357,11 +1357,12 @@ export interface PxNode extends PxInfer<typeof PxNodeBase> {
  */
 export interface _PxSvgNode extends PxNode {
 
-    /** FIXME - do we need it? SVG viewport width */
-    width?: number;
+    /** SVG viewport width. `number` OR an SVG length string (`"100%"`, `"12em"`) —
+     *  percentages are legal SVG and appear in real documents. */
+    width?: number | string;
 
-    /** FIXME - do we need it? SVG viewport height */
-    height?: number;
+    /** SVG viewport height — `number` or SVG length string, see `width`. */
+    height?: number | string;
 
     /** FIXME - do we need it? SVG viewBox attribute defining coordinate system */
     viewBox?: string;
@@ -1377,8 +1378,10 @@ export interface _PxSvgNode extends PxNode {
  * `{ width?:number, height?:number, viewBox?:string, animator?:AnimatorConfig }`
  */
 export const PxSvgNodeExtra = px.object({
-    width: px.number().optional(),
-    height: px.number().optional(),
+    // `"100%"` and other SVG length strings are legal here — a number-only slot rejected
+    // real documents (e.g. apple-store-look-14-main.json) at the root <svg>.
+    width: px.union([px.number(), px.string()]).optional(),
+    height: px.union([px.number(), px.string()]).optional(),
     viewBox: px.string().optional(),
     animator: PxAnimatorConfigSchema.optional(),
 });
