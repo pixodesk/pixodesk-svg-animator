@@ -6,7 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAnimator } from './index';
 import type { PxAnimatedSvgDocument, PxAnimationDefinition } from '@pixodesk/svg-animator-core';
-import { cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from '@pixodesk/svg-animator-core';
+import { LOOP_JUMP_SHIFT_MS, cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from '@pixodesk/svg-animator-core';
 import { calcAnimationValues, getNormalisedBindings } from '@pixodesk/svg-animator-core';
 import { materialiseAllInTree } from '@pixodesk/svg-animator-core';
 import { PxAnimatorEngine } from '@pixodesk/svg-animator-core';
@@ -62,13 +62,21 @@ describe('animateBackground', () => {
         vi.advanceTimersByTime(64); // t=128
         expect(ellipse?.getAttribute('transform')).toMatch('translate(200,200)');
 
-        // Second half: the repeat runs 138→256ms, NOT 128→256. A cycle snaps back
-        // instantly, so its first keyframe would land on the same time as the previous
-        // cycle's last one; the expander separates them by LOOP_JUMP_SHIFT_MS (10ms,
-        // one editor frame) so the two sides materialise identical keyframes (B7).
-        // The repeat therefore spans 118ms, and t=192 is 54/118 = 45.8% into it.
+        // Second half: the repeat runs (128 + LOOP_JUMP_SHIFT_MS)→256ms, NOT 128→256. A
+        // cycle snaps back instantly, so its first keyframe would land on the same time as
+        // the previous cycle's last one; the expander separates them by
+        // LOOP_JUMP_SHIFT_MS so both sides materialise identical keyframes (B7).
+        //
+        // DERIVED, not hard-coded: the gap is a tuning value (10ms read as a visible jump,
+        // so it is now 1ms). This asserts the interpolation MATHS, not a magic number.
+        const repeatStart = 128 + LOOP_JUMP_SHIFT_MS;
+        const progressAt192 = (192 - repeatStart) / (256 - repeatStart);
+        // Compared numerically with a tolerance: the frame loop lands near, not exactly on,
+        // t=192, so an exact string match would encode the quantisation error too.
         vi.advanceTimersByTime(64); // t=192
-        expect(ellipse?.getAttribute('transform')).toMatch('translate(200,145.7627118648719)');
+        const y192 = Number(/translate\(200,([-\d.]+)\)/.exec(
+            String(ellipse?.getAttribute('transform')))?.[1]);
+        expect(y192).toBeCloseTo(100 + 100 * progressAt192, 4);
 
         vi.advanceTimersByTime(64); // t=256
         expect(ellipse?.getAttribute('transform')).toMatch('translate(200,200)');
