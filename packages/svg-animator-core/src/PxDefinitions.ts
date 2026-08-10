@@ -894,6 +894,16 @@ function normalizeAnimationDefinition(
     const normalized: PxAnimationDefinition = {};
 
     for (const [propName, propAnim] of Object.entries(animDef)) {
+        // `alongPathMode: 'offsetPath'` — this transform's motion is rendered by CSS
+        // Motion Path (`offset-path` style on the element + an `offsetDistance` track in
+        // the same dict). The tangented keyframes stay on the wire as the DESIGN source
+        // (the editor round-trip reads them back), but the player must not ALSO drive
+        // them: doing both moved the element to the path position and then translated it
+        // again (double position). Skip the binding; `offsetDistance` owns the motion.
+        if (propName === 'transform'
+            && (propAnim as { alongPathMode?: string }).alongPathMode === 'offsetPath') {
+            continue;
+        }
         const normalizedKfs = normalizeKeyframes(propName, propAnim, duration, defs);
         if (normalizedKfs.length > 0) {
             const out: PxPropertyAnimation = { kfs: normalizedKfs };

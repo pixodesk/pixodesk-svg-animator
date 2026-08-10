@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, getAnimatorConfig, getNormalisedBindings, interpolateValue, kebabToCamelCaseWord, PxAnimatorEngine, splitEasing, toRGBA, TRANSFORM_FN_NAMES, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxBezierPath, type PxKeyframe } from '@pixodesk/svg-animator-core';
+import { PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, getAnimatorConfig, getNormalisedBindings, interpolateValue, kebabToCamelCaseWord, PxAnimatorEngine, splitEasing, toRGBA, TRANSFORM_FN_NAMES, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxBezierPath, type PxKeyframe } from '@pixodesk/svg-animator-core';
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
 import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
@@ -61,6 +61,14 @@ function createCssKf(kf: PxKeyframe, t: number, propName: string, unsupportedSet
         // sequences — uniform all-`C` output keeps every keyframe structurally equal
         // (mixed L/C, e.g. round-corner radius 0 vs >0, would go DISCRETE → 50% flip).
         cssValue = 'path("' + paths.map(bz => bezierToSvgPath(bz, true)).join('') + '")';
+    } else if (PCT_BASED_ATTR_NAMES.has(propName) && typeof value === 'number') {
+        // Percent-based CSS properties (offset-distance): the wire carries 0..1 numbers,
+        // but the property needs a <length-percentage>. The frames engine already converts
+        // (`calcPropertyValue`); without this twin branch WAAPI got a bare "0.25", which
+        // `CSS.supports('offset-distance', '0.25')` rejects — so the attr was flagged
+        // unsupported and the WHOLE document silently fell back to frames. Same maths,
+        // same units, both engines.
+        cssValue = (value * 100) + '%';
     } else {
         cssValue = '' + value;
     }

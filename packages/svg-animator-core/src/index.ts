@@ -35,6 +35,7 @@ export {
     camelCaseToKebabWordIfNeeded,
     clamp,
     COLOUR_ATTR_NAMES,
+    PCT_BASED_ATTR_NAMES,
     composeTransformParts,
     cubicBezier,
     DEFAULT_DURATION_MS,
