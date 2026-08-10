@@ -33,6 +33,7 @@
 import { applyPlayerEffects } from './effects/PlayerEffectsUtil';
 import { DEFAULT_DURATION_MS } from './PxAnimatorUtil';
 import { materialiseInternalLoopsInTree } from './PxDefinitions';
+import { materialiseOffsetPathsInTree } from './PxOffsetPathMaterialiser';
 import { materialiseMotionPathsInTree } from './PxMotionPath';
 import type { MotionPathMaterialisationOptions } from './PxMotionPath';
 import { getAnimatorConfig, PxAnimatorEngine } from './PxAnimatorConstants';
@@ -56,6 +57,12 @@ export function materialiseAllInTree(
 ): PxAnimatedSvgDocument {
     // 1. Effects → structural materialisation. Always runs; returns a fresh root.
     let root = applyPlayerEffects(doc).root as PxAnimatedSvgDocument;
+
+    // 1b. `alongPathMode: 'offsetPath'` transforms → CSS Motion Path (offset-path style
+    //     + `offsetDistance` binding). Both engines: frames drives `offset-distance` per
+    //     rAF, waapi animates it natively (percent values). BEFORE loop expansion so a
+    //     carried `loop` expands on the rewritten binding.
+    root = materialiseOffsetPathsInTree(root);
 
     // 2. Loops → flat repeated keyframes. Always runs (both engines need flat
     //    kfs covering the duration; per-binding expansion in

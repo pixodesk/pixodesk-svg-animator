@@ -901,7 +901,14 @@ function normalizeAnimationDefinition(
         // them: doing both moved the element to the path position and then translated it
         // again (double position). Skip the binding; `offsetDistance` owns the motion.
         if (propName === 'transform'
-            && (propAnim as { alongPathMode?: string }).alongPathMode === 'offsetPath') {
+            && (propAnim as { alongPathMode?: string }).alongPathMode === 'offsetPath'
+            // …but ONLY when the offset infrastructure actually exists (an `offsetDistance`
+            // track in the same definition — the pre-rendered dict shape, or a lightweight
+            // doc the offset materialiser rewrote). A marked transform the materialiser
+            // BAILED on (e.g. rotate animated in the same keyframes — inexpressible as
+            // offset-path) must fall through to the ordinary sampled pipeline; skipping it
+            // unconditionally froze those elements at their base pose.
+            && (animDef as Record<string, unknown>)['offsetDistance'] !== undefined) {
             continue;
         }
         const normalizedKfs = normalizeKeyframes(propName, propAnim, duration, defs);
