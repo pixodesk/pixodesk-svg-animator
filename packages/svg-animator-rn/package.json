@@ -1,6 +1,6 @@
 {
   "name": "@pixodesk/svg-animator-rn",
-  "version": "1.0.24",
+  "version": "1.0.25",
   "description": "Pixodesk SVG animator for React Native — renders animator documents via react-native-svg, driven natively by react-native-reanimated",
   "license": "MIT",
   "repository": {
