@@ -63,14 +63,32 @@ jobs:
       - name: Test packages
         run: pnpm --filter "./packages/*" run test
 
-      # `pnpm publish -r` walks the workspace in TOPOLOGICAL order, so
-      # svg-animator-core goes out before svg-animator-web / -rn, which declare
-      # it as a dependency. Publishing web before core would put a package on
-      # the registry whose dependency does not exist yet.
-      # Private packages (all of examples/*) are skipped automatically, and
-      # versions already on the registry are skipped rather than failing — so
-      # re-running a partially-failed release is safe.
+      # Publishes ONE package at a time, in the workspace's TOPOLOGICAL order
+      # (core → rn → web → react → vue), so a package never reaches the registry
+      # before a workspace dependency it declares. `--workspace-concurrency=1`
+      # keeps that order strict; private packages (all of examples/*) are
+      # filtered out by the path.
+      #
+      # This replaced a plain `pnpm publish -r`, which ABORTS the entire run on
+      # the first error. Its already-published check reads the registry, and
+      # registry reads are only eventually consistent: re-running a release
+      # shortly after a partial one, the check still saw the version as absent,
+      # tried to republish, and npm rejected the write with
+      #   403 You cannot publish over the previously published versions
+      # — taking the four not-yet-published packages down with it. Checking and
+      # skipping per package is what makes a re-run actually recover; a genuine
+      # failure still fails the step.
       - name: Publish packages
-        run: pnpm publish -r --access public --no-git-checks --provenance
+        run: |
+          pnpm --filter "./packages/*" --workspace-concurrency=1 exec sh -c '
+            name=$(node -p "require(\"./package.json\").name")
+            version=$(node -p "require(\"./package.json\").version")
+            if npm view "$name@$version" version >/dev/null 2>&1; then
+              echo "skip     $name@$version — already on the registry"
+            else
+              echo "publish  $name@$version"
+              pnpm publish --access public --no-git-checks --provenance
+            fi
+          '
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
