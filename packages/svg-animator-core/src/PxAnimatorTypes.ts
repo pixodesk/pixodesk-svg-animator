@@ -582,6 +582,93 @@ const _ck_PxDefs: KeysMatch<PxDefs, _PxDefs> = true; // the key sets are identic
 
 
 // ============================================================================
+// SCROLL TIMELINE
+// ============================================================================
+
+/**
+ * A point on a scroll timeline's range, anchoring where the animation's 0%/100% sit.
+ *
+ * For `kind: 'view'`, `phase` names WHICH slice of the subject's journey across the
+ * scrollport the point is measured in (CSS "timeline range name"), and `fraction` is the
+ * 0..1 position within that slice. For `kind: 'scroll'` there are no phases — `phase` is
+ * ignored and `fraction` is a fraction of the scroller's total scroll range.
+ *
+ * Structured on purpose (never a CSS string like `"cover 0%"`): atomic values, mechanical
+ * translation to CSS `animation-range` / WAAPI `rangeStart/rangeEnd` where needed.
+ */
+export interface _PxScrollRangePoint {
+    /** `view` kind only: the journey phase this point is anchored in. Default `'cover'`. */
+    phase?: PxScrollPhase;
+    /** 0..1 within the phase (or of the total scroll range for `kind: 'scroll'`). */
+    fraction?: number;
+}
+
+/** The subject's journey phases across the scrollport (see scroll-timeline.design.md §4
+ *  for the exact `u`-space intervals each phase maps to). */
+export type PxScrollPhase = 'cover' | 'contain' | 'entry' | 'exit' | 'entry-crossing' | 'exit-crossing';
+
+const PX_SCROLL_PHASES = ['cover', 'contain', 'entry', 'exit', 'entry-crossing', 'exit-crossing'] as const;
+
+export const PxScrollRangePointSchema = implementsInterface<_PxScrollRangePoint>()(px.object({
+    phase: px.enum(PX_SCROLL_PHASES).optional(),
+    fraction: px.number().optional(),
+}));
+export type PxScrollRangePoint = PxInfer<typeof PxScrollRangePointSchema>;
+const _ck_PxScrollRangePoint: KeysMatch<PxScrollRangePoint, _PxScrollRangePoint> = true; // the key sets are identical
+
+/**
+ * Scroll-timeline configuration — consulted only when `timelineSource: 'scroll'`.
+ * All fields optional; the defaults give "scrub the whole animation as the SVG crosses
+ * the viewport" (`view` / `block` / full `cover` range).
+ */
+export interface _PxScroll {
+    /** Who computes scroll progress. `'custom'` (default): the player's own DOM-measurement
+     *  driver — identical behaviour everywhere, works with BOTH engines (frames applies
+     *  values itself; waapi is seeked via `currentTime`). `'native'`: the browser's
+     *  `ScrollTimeline`/`ViewTimeline` (waapi engine only) — an opt-in optimisation that
+     *  FALLS BACK to `'custom'` automatically when unsupported. */
+    driver?: 'custom' | 'native';
+
+    /** What progress measures. `'view'` (default): the SVG's own journey across the
+     *  scrollport (enter → leave). `'scroll'`: the scroll container's offset ratio,
+     *  regardless of where the SVG sits. */
+    kind?: 'view' | 'scroll';
+
+    /** Scroll axis. `block`/`inline` are writing-mode relative (block = vertical in
+     *  horizontal writing); `x`/`y` are physical. Default `'block'`. */
+    axis?: 'block' | 'inline' | 'x' | 'y';
+
+    /** `kind: 'scroll'` only: which scroller. `'nearest'` (default) = nearest scrollable
+     *  ancestor of the SVG; `'root'` = the document. (`view` always tracks the nearest
+     *  scrollport.) */
+    source?: 'nearest' | 'root';
+
+    /** The timeline slice mapped onto animation progress 0..1.
+     *  Default `{ start: {phase:'cover', fraction:0}, end: {phase:'cover', fraction:1} }`. */
+    range?: {
+        start?: _PxScrollRangePoint;
+        end?: _PxScrollRangePoint;
+    };
+}
+
+/** The `range` sub-object — named so consumers can derive its keys. */
+export const PxScrollRangeSchema = px.object({
+    start: PxScrollRangePointSchema.optional(),
+    end: PxScrollRangePointSchema.optional(),
+});
+
+export const PxScrollSchema = implementsInterface<_PxScroll>()(px.object({
+    driver: px.enum(['custom', 'native'] as const).optional(),
+    kind: px.enum(['view', 'scroll'] as const).optional(),
+    axis: px.enum(['block', 'inline', 'x', 'y'] as const).optional(),
+    source: px.enum(['nearest', 'root'] as const).optional(),
+    range: PxScrollRangeSchema.optional(),
+}));
+export type PxScroll = PxInfer<typeof PxScrollSchema>;
+const _ck_PxScroll: KeysMatch<PxScroll, _PxScroll> = true; // the key sets are identical
+
+
+// ============================================================================
 // ANIMATOR CONFIG
 // ============================================================================
 
@@ -653,16 +740,22 @@ export interface _PxAnimatorConfig {
 
     /**
      * What ADVANCES the animation — the source its timeline reads progress from.
-     * `'time'` (default, and today's only implemented value) is the wall clock;
-     * `'scroll'` is reserved for scroll-linked playback, matching CSS
-     * `animation-timeline: scroll()`.
+     * `'time'` (default) is the wall clock; `'scroll'` is scroll-linked playback
+     * ("scrubbing"), matching CSS scroll-driven animations.
      *
      * Distinct from `trigger.startOn`, which says what STARTS the animation: one
      * names the beginning, this one names what moves the playhead afterwards.
      * Omitted from the wire at its default (N10; was named `timeline` until 2026-08,
      * which collided with a `<symbol>`'s own `meta.timeline`).
+     *
+     * With `'scroll'`, `trigger` and `iterations: 'infinite'` are meaningless and MUST NOT
+     * be written (readers ignore them with a warning); see {@link _PxScroll} for the
+     * scroll parameters. Design: app `svgeditor/animation/scroll-timeline.design.md`.
      */
     timelineSource?: string;
+
+    /** Scroll-timeline parameters — only consulted when `timelineSource: 'scroll'`. */
+    scroll?: PxScroll;
 
     /** Debug helper: exposes the animator instance as `window[debugInstName]`. */
     debugInstName?: string;
@@ -684,6 +777,7 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
     definitions: PxDefsSchema.optional(),
     animateById: px.record(PxElementAnimationSchema).optional(),
     timelineSource: px.string().optional(),
+    scroll: PxScrollSchema.optional(),
     debugInstName: px.string().optional(),
 }));
 

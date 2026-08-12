@@ -3,10 +3,11 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, PxAnimatorMode, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, isScrollTimeline, PxAnimatorMode, scrollTotalDurationMs, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
+import { createScrollDriver } from './PxScrollDriver';
 
 /**
  * Engine construction, shared by the full player and the pre-rendered builds.
@@ -65,6 +66,33 @@ export function bindWithEngineChoice(
     rootElement?: Element | null
 ): PxAnimatorAPI {
     const animatorConfig = getAnimatorConfig(doc) || {};
+
+    // Scroll-driven document: the playhead follows scroll position, never the wall
+    // clock. Frames engine for now (waapi + custom-driver seeking is the planned next
+    // step — see scroll-timeline.design.md §4.0); the frames animator starts PAUSED
+    // (nothing calls play()), triggers are inert by design (D3 — `setupAnimationTriggers`
+    // is skipped inside `createFrameLoopAnimator` for scroll docs), and the driver
+    // scrubs via `setCurrentTime`, which renders immediately while paused.
+    if (isScrollTimeline(animatorConfig)) {
+        return finaliseAnimator(animatorConfig, callbacks, cb => {
+            const api = createFrameLoopAnimator(doc, adapter, cb, rootElement);
+            const subject = api.getRootElement?.() || rootElement;
+            if (subject) {
+                const totalMs = scrollTotalDurationMs(animatorConfig);
+                const driver = createScrollDriver(subject, animatorConfig,
+                    progress => api.setCurrentTime(progress * totalMs));
+                if (driver) {
+                    // Tie the driver's lifetime to the animator's.
+                    const destroy = api.destroy.bind(api);
+                    api.destroy = () => { driver.destroy(); destroy(); };
+                }
+            } else {
+                console.warn('scroll timeline: no root element to observe — animation will stay at frame 0');
+            }
+            return api;
+        });
+    }
+
     return finaliseAnimator(animatorConfig, callbacks, cb => {
         if (animatorConfig.mode === PxAnimatorMode.frames) {
             // Forcing frames, even if waapi could be used.

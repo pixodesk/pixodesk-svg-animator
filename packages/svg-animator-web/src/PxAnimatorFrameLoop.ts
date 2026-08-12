@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { camelCaseToKebabWordIfNeeded, createBasicFrameLoopAnimator, getAnimatorConfig, STYLE_ATTR_NAMES, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { camelCaseToKebabWordIfNeeded, createBasicFrameLoopAnimator, getAnimatorConfig, isScrollTimeline, STYLE_ATTR_NAMES, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
 import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
 
@@ -63,7 +63,16 @@ export function createFrameLoopAnimator(
         ...basicApi,
         "getRootElement": () => rootElement || null
     };
-    if (config.trigger) setupAnimationTriggers(api, config.trigger);
+    // D3 (scroll-timeline.design.md): triggers are meaningless when the playhead is
+    // scroll-driven — writers must not emit them, and a document that carries them
+    // anyway gets a warning, not behaviour.
+    if (config.trigger) {
+        if (isScrollTimeline(config)) {
+            console.warn('scroll timeline: `animator.trigger` is ignored (triggers do not apply to scroll-driven playback)');
+        } else {
+            setupAnimationTriggers(api, config.trigger);
+        }
+    }
     return api;
 }
 
