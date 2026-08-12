@@ -21,6 +21,69 @@ import {
 } from '@pixodesk/svg-animator-core';
 
 
+// ── Native timeline support (`driver: 'native'`) ────────────────────────────────────────
+// `ScrollTimeline`/`ViewTimeline` aren't in TS's dom lib yet — minimal local declarations,
+// resolved from globalThis so absence is an ordinary feature-detect, never a crash.
+
+interface NativeTimelineCtor { new(options: Record<string, unknown>): AnimationTimeline }
+
+interface PxNativeScrollTimeline {
+    timeline: AnimationTimeline;
+    /** WAAPI `Animation.rangeStart/rangeEnd` values (TimelineRangeOffset-shaped). */
+    rangeStart?: Record<string, unknown>;
+    rangeEnd?: Record<string, unknown>;
+}
+
+function nativeRangeOffset(point: { phase?: string; fraction?: number } | undefined, defaultFraction: number, view: boolean): Record<string, unknown> | undefined {
+    const fraction = typeof point?.fraction === 'number' ? point.fraction : defaultFraction;
+    const pct = (globalThis as { CSS?: { percent?: (n: number) => unknown } }).CSS?.percent?.(fraction * 100);
+    if (pct === undefined) return undefined;
+    // Named phases exist only on VIEW timelines; a scroll timeline takes a bare offset.
+    return view ? { rangeName: point?.phase ?? 'cover', offset: pct } : { offset: pct };
+}
+
+/**
+ * Build the browser-native timeline for `driver: 'native'`, or `null` when the platform
+ * doesn't support scroll-driven WAAPI timelines — the caller then falls back to the
+ * custom driver (D8: the option is a preference, never a requirement).
+ */
+export function createNativeScrollTimeline(
+    subject: Element,
+    config: PxAnimatorConfig | undefined,
+): PxNativeScrollTimeline | null {
+    if (!config || !isScrollTimeline(config)) return null;
+    const scroll: PxScroll = config.scroll || {};
+    const kind = scroll.kind ?? 'view';
+
+    const g = globalThis as unknown as { ScrollTimeline?: NativeTimelineCtor; ViewTimeline?: NativeTimelineCtor };
+    const view = kind === 'view';
+    const Ctor = view ? g.ViewTimeline : g.ScrollTimeline;
+    if (typeof Ctor !== 'function') return null;
+
+    const axis = scroll.axis ?? 'block';
+    let timeline: AnimationTimeline;
+    try {
+        if (view) {
+            timeline = new Ctor({ subject, axis });
+        } else {
+            const source = scroll.source === 'root'
+                ? documentScroller()
+                : (findNearestScroller(subject, 'y') || findNearestScroller(subject, 'x') || documentScroller());
+            timeline = new Ctor({ source, axis });
+        }
+    } catch (e) {
+        console.warn('scroll timeline: native timeline construction failed — falling back to the custom driver', e);
+        return null;
+    }
+
+    return {
+        timeline,
+        rangeStart: nativeRangeOffset(scroll.range?.start, 0, view),
+        rangeEnd: nativeRangeOffset(scroll.range?.end, 1, view),
+    };
+}
+
+
 export interface PxScrollDriver {
     /** Detach every listener/observer. Idempotent. */
     destroy(): void;
@@ -31,7 +94,7 @@ export interface PxScrollDriver {
 /** The nearest ancestor that can scroll on the given physical axis — the CSS "scroll
  *  container" definition: computed overflow other than `visible`/`clip` counts
  *  (`hidden` scrolls programmatically). Falls back to the document scroller. */
-function findNearestScroller(el: Element, axis: 'x' | 'y'): Element | null {
+export function findNearestScroller(el: Element, axis: 'x' | 'y'): Element | null {
     for (let p = el.parentElement; p; p = p.parentElement) {
         const style = getComputedStyle(p);
         const overflow = axis === 'y' ? style.overflowY : style.overflowX;

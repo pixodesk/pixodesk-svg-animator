@@ -202,11 +202,20 @@ export function convertToWebApiKeyframes(
  * @param forceEvenIfHasUnsupportedAttrs If true, an animator will be created even if some CSS properties are not supported.
  * @returns An PxAnimatorAPI instance, or null if unsupported features are used and not forced.
  */
+/** `driver: 'native'` payload (see PxScrollDriver.createNativeScrollTimeline): the
+ *  browser-native timeline every Animation attaches to, plus optional range offsets. */
+export interface PxWebApiScrollTimeline {
+    timeline: AnimationTimeline;
+    rangeStart?: Record<string, unknown>;
+    rangeEnd?: Record<string, unknown>;
+}
+
 export function createWebApiAnimator(
     doc: PxAnimatedSvgDocument,
     callbacks?: PxAnimatorCallbacksConfig,
     rootElement?: Element | null,
-    forceEvenIfHasUnsupportedAttrs?: boolean
+    forceEvenIfHasUnsupportedAttrs?: boolean,
+    scrollTimeline?: PxWebApiScrollTimeline
 ): PxAnimatorAPI | null {
 
     const config = getAnimatorConfig(doc) || {};
@@ -307,7 +316,15 @@ export function createWebApiAnimator(
                 if (keyframes.length > 0) {
                     try {
                         const effect = new KeyframeEffect(element, keyframes, effectOptions);
-                        const anim = new Animation(effect, document.timeline);
+                        // Native scroll timeline (`driver: 'native'`): the browser computes
+                        // progress AND applies values (compositor-driven). Range offsets are
+                        // per-Animation in WAAPI.
+                        const anim = new Animation(effect, scrollTimeline ? scrollTimeline.timeline : document.timeline);
+                        if (scrollTimeline) {
+                            const a = anim as unknown as { rangeStart?: unknown; rangeEnd?: unknown };
+                            if (scrollTimeline.rangeStart) a.rangeStart = scrollTimeline.rangeStart;
+                            if (scrollTimeline.rangeEnd) a.rangeEnd = scrollTimeline.rangeEnd;
+                        }
 
                         if (callbacks?.onFinish) anim.onfinish = () => {
                             if (finishNotified) return;
@@ -411,8 +428,20 @@ export function createWebApiAnimator(
 
     ////////////////////////////////////////////////////////////////
 
+    // D3 (scroll-timeline.design.md): triggers are inert on a scroll-driven document —
+    // writers must not emit them; a doc that carries them anyway gets a warning.
     if (config.trigger) {
-        setupAnimationTriggers(api, config.trigger);
+        if (config.timelineSource === 'scroll') {
+            console.warn('scroll timeline: `animator.trigger` is ignored (triggers do not apply to scroll-driven playback)');
+        } else {
+            setupAnimationTriggers(api, config.trigger);
+        }
+    }
+
+    // A progress-based timeline only tracks while the animation is PLAYING — start it
+    // (there is no wall clock involved; "playing" here means "bound to the timeline").
+    if (scrollTimeline) {
+        animations.forEach(a => a.play());
     }
 
     return api;

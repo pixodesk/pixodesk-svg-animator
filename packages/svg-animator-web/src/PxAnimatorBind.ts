@@ -7,7 +7,7 @@ import { getAnimatorConfig, isScrollTimeline, PxAnimatorMode, scrollTotalDuratio
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
-import { createScrollDriver } from './PxScrollDriver';
+import { createNativeScrollTimeline, createScrollDriver } from './PxScrollDriver';
 
 /**
  * Engine construction, shared by the full player and the pre-rendered builds.
@@ -68,14 +68,36 @@ export function bindWithEngineChoice(
     const animatorConfig = getAnimatorConfig(doc) || {};
 
     // Scroll-driven document: the playhead follows scroll position, never the wall
-    // clock. Frames engine for now (waapi + custom-driver seeking is the planned next
-    // step — see scroll-timeline.design.md §4.0); the frames animator starts PAUSED
-    // (nothing calls play()), triggers are inert by design (D3 — `setupAnimationTriggers`
-    // is skipped inside `createFrameLoopAnimator` for scroll docs), and the driver
-    // scrubs via `setCurrentTime`, which renders immediately while paused.
+    // clock. Engine × driver matrix (scroll-timeline.design.md §4.0):
+    //   frames                → custom driver → `setCurrentTime` (renders while paused)
+    //   waapi + driver:custom → same seeking, values applied by the browser
+    //   waapi + driver:native → browser ScrollTimeline/ViewTimeline (compositor thread);
+    //                           auto-falls back to custom when unsupported (D8)
+    // Triggers are inert either way (D3 — both engines warn + skip
+    // `setupAnimationTriggers` for scroll docs). The animator is never `play()`ed by us
+    // for custom driving; scrubbing via `setCurrentTime` holds the pose.
     if (isScrollTimeline(animatorConfig)) {
         return finaliseAnimator(animatorConfig, callbacks, cb => {
-            const api = createFrameLoopAnimator(doc, adapter, cb, rootElement);
+
+            // `driver: 'native'` on a waapi-capable doc: try the browser timeline first.
+            if (animatorConfig.mode !== PxAnimatorMode.frames && animatorConfig.scroll?.driver === 'native' && rootElement) {
+                const native = createNativeScrollTimeline(rootElement, animatorConfig);
+                if (native) {
+                    const api = createWebApiAnimator(doc, cb, rootElement,
+                        animatorConfig.mode === PxAnimatorMode.waapi, native);
+                    if (api) return api;
+                    // unsupported attrs → fall through to frames + custom below
+                }
+            }
+
+            // Custom driver (the default and the reference implementation). Engine per
+            // `mode`: waapi unless frames is forced or waapi declines the doc.
+            const api = (
+                animatorConfig.mode !== PxAnimatorMode.frames
+                    ? createWebApiAnimator(doc, cb, rootElement, animatorConfig.mode === PxAnimatorMode.waapi)
+                    : null
+            ) || createFrameLoopAnimator(doc, adapter, cb, rootElement);
+
             const subject = api.getRootElement?.() || rootElement;
             if (subject) {
                 const totalMs = scrollTotalDurationMs(animatorConfig);
