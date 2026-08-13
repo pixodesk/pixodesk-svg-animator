@@ -91,11 +91,26 @@ export interface PxScrollDriver {
     refresh(): void;
 }
 
-/** The nearest ancestor that can scroll on the given physical axis — the CSS "scroll
- *  container" definition: computed overflow other than `visible`/`clip` counts
- *  (`hidden` scrolls programmatically). Falls back to the document scroller. */
+/**
+ * The nearest ancestor that can scroll on the given physical axis — the CSS "scroll
+ * container" definition: computed overflow other than `visible`/`clip` counts
+ * (`hidden` scrolls programmatically). Returns null when there is none, so callers fall
+ * back to the document scroller.
+ *
+ * `<html>` and `<body>` are NEVER returned. CSS propagates the root element's overflow to
+ * the VIEWPORT (and, when the root's is `visible`, the body's instead) — so with the very
+ * common `body { overflow-y: auto }` the body computes as `auto` yet is not a scroll
+ * container at all: the viewport scrolls, `body.scrollTop` stays 0, and `body`'s rect is
+ * the full content box rather than the 100vh scrollport. Returning it produced a frozen,
+ * badly-scaled progress (a doc that never advanced, or sat at a fixed mid-value). The
+ * document scroller — which the caller measures with viewport semantics — is the right
+ * answer for both elements.
+ */
 export function findNearestScroller(el: Element, axis: 'x' | 'y'): Element | null {
+    const body = document.body;
+    const root = document.documentElement;
     for (let p = el.parentElement; p; p = p.parentElement) {
+        if (p === body || p === root) return null;   // the viewport scrolls for these — see above
         const style = getComputedStyle(p);
         const overflow = axis === 'y' ? style.overflowY : style.overflowX;
         if (overflow === 'auto' || overflow === 'scroll' || overflow === 'hidden' || overflow === 'overlay') {

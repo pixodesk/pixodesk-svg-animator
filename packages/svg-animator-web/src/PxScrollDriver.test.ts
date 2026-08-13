@@ -26,6 +26,12 @@ beforeEach(() => {
 afterEach(() => {
     vi.unstubAllGlobals();
     document.body.innerHTML = '';
+    document.body.removeAttribute('style');
+    for (const el of [document.body, document.documentElement] as Array<Element>) {
+        for (const prop of ['scrollHeight', 'clientHeight']) {
+            if (Object.getOwnPropertyDescriptor(el, prop)) delete (el as unknown as Record<string, unknown>)[prop];
+        }
+    }
 });
 
 /** A scrollable container stub: jsdom reports 0 for all layout metrics, so define them. */
@@ -36,6 +42,14 @@ function makeScroller(opts: { scrollHeight: number; clientHeight: number }): HTM
     Object.defineProperty(el, 'clientHeight', { value: opts.clientHeight, configurable: true });
     document.body.appendChild(el);
     return el;
+}
+
+const rectOf = (top: number, height: number): DOMRect => ({
+    top, left: 0, width: 400, height, right: 400, bottom: top + height, x: 0, y: top, toJSON: () => ({}),
+} as DOMRect);
+
+function stubMetrics(el: Element, metrics: Record<string, number>): void {
+    for (const [k, value] of Object.entries(metrics)) Object.defineProperty(el, k, { value, configurable: true });
 }
 
 describe('createScrollDriver', () => {
@@ -116,6 +130,45 @@ describe('createScrollDriver', () => {
         const seen: Array<number> = [];
         createScrollDriver(subject, { timelineSource: 'scroll' /* view is the default kind */ }, p => seen.push(p));
         expect(seen[0]).toBeCloseTo(0.5);
+    });
+
+    // REGRESSION (found by #trigger-explorer's scroll-timeline rows): CSS propagates the
+    // body's overflow to the VIEWPORT, so `body { overflow-y: auto }` computes as `auto`
+    // while the body is not a scroll container at all — its scrollTop stays 0 and its rect
+    // is the whole content box. Treating it as the scroller froze `view` progress at a
+    // fixed mid-value and pinned `scroll` progress at 1 (maxOffset 0).
+    describe('body/html are never the scroller — the viewport is', () => {
+
+        it("kind:'view' measures the viewport, not the body's content box", () => {
+            document.body.style.overflowY = 'auto';
+            stubMetrics(document.body, { scrollHeight: 760, clientHeight: 760 });
+            document.body.getBoundingClientRect = () => rectOf(0, 760);
+            stubMetrics(document.documentElement, { clientHeight: 200 });   // 200px-tall viewport
+
+            const subject = document.createElement('svg');
+            document.body.appendChild(subject);
+            subject.getBoundingClientRect = () => rectOf(300, 200);   // 300px down: below the fold
+
+            const seen: Array<number> = [];
+            createScrollDriver(subject, { timelineSource: 'scroll' }, p => seen.push(p));
+            // u = vpH − sTop = 200 − 300 = −100 → before `cover` starts → progress 0.
+            // (Measured against the BODY it was u = 760 − 300 = 460 of [0, 960] ≈ 0.48.)
+            expect(seen[0]).toBe(0);
+        });
+
+        it("kind:'scroll' measures the document scroller, not the unscrollable body", () => {
+            document.body.style.overflowY = 'auto';
+            stubMetrics(document.body, { scrollHeight: 760, clientHeight: 760 });   // maxOffset 0 → progress 1
+            stubMetrics(document.documentElement, { scrollHeight: 760, clientHeight: 200 });   // maxOffset 560
+
+            const subject = document.createElement('svg');
+            document.body.appendChild(subject);
+            document.documentElement.scrollTop = 140;
+
+            const seen: Array<number> = [];
+            createScrollDriver(subject, { timelineSource: 'scroll', scroll: { kind: 'scroll' } }, p => seen.push(p));
+            expect(seen[0]).toBeCloseTo(140 / 560);
+        });
     });
 
     it('trigger config on a scroll document is ignored by the driver layer (D3 — no crash, no listeners needed)', () => {
