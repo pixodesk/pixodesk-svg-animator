@@ -80,15 +80,14 @@ export function bindWithEngineChoice(
         return finaliseAnimator(animatorConfig, callbacks, cb => {
 
             // `pin` — hold the canvas on screen for the scrubbed stretch (`position: sticky`,
-            // + an optional tall wrapper the player injects). Applied ONCE here so both driver
-            // paths get it, and BEFORE any measuring: the pin changes the very geometry the
-            // driver reads, and `subject: 'parent'` resolves through the injected wrapper.
-            const unpin = rootElement
-                ? applyScrollPin(rootElement, animatorConfig.scroll)
-                : () => { /* nothing to pin */ };
+            // + an optional tall wrapper the player injects). MUST be applied before anything
+            // measures: it changes the very geometry the timeline reads, and
+            // `subject: 'parent'` is meant to resolve THROUGH the injected wrapper.
+            let unpin = () => { /* nothing pinned */ };
 
             // `driver: 'native'` on a waapi-capable doc: try the browser timeline first.
             if (animatorConfig.mode !== PxAnimatorMode.frames && animatorConfig.scroll?.driver === 'native' && rootElement) {
+                unpin = applyScrollPin(rootElement, animatorConfig.scroll);
                 const native = createNativeScrollTimeline(rootElement, animatorConfig);
                 if (native) {
                     const api = createWebApiAnimator(doc, cb, rootElement,
@@ -100,6 +99,8 @@ export function bindWithEngineChoice(
                     }
                     // unsupported attrs → fall through to frames + custom below
                 }
+                unpin();                        // …and undo the pin so the fallback re-applies it
+                unpin = () => { /* re-pinned below */ };
             }
 
             // Custom driver (the default and the reference implementation). Engine per
@@ -110,8 +111,12 @@ export function bindWithEngineChoice(
                     : null
             ) || createFrameLoopAnimator(doc, adapter, cb, rootElement);
 
+            // The animator knows its real root — for an SVG+JS export the runtime binds to the
+            // `<svg>` already in the document, which is NOT the container passed in. Pin and
+            // measure the same element, or the pin lands on nothing (it silently did).
             const subject = api.getRootElement?.() || rootElement;
             if (subject) {
+                unpin = applyScrollPin(subject, animatorConfig.scroll);
                 const totalMs = scrollTotalDurationMs(animatorConfig);
                 const driver = createScrollDriver(subject, animatorConfig,
                     progress => api.setCurrentTime(progress * totalMs));
