@@ -7,7 +7,7 @@ import { getAnimatorConfig, isScrollTimeline, PxAnimatorMode, scrollTotalDuratio
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
-import { createNativeScrollTimeline, createScrollDriver } from './PxScrollDriver';
+import { applyScrollPin, createNativeScrollTimeline, createScrollDriver } from './PxScrollDriver';
 
 /**
  * Engine construction, shared by the full player and the pre-rendered builds.
@@ -79,13 +79,25 @@ export function bindWithEngineChoice(
     if (isScrollTimeline(animatorConfig)) {
         return finaliseAnimator(animatorConfig, callbacks, cb => {
 
+            // `pin` — hold the canvas on screen for the scrubbed stretch (`position: sticky`,
+            // + an optional tall wrapper the player injects). Applied ONCE here so both driver
+            // paths get it, and BEFORE any measuring: the pin changes the very geometry the
+            // driver reads, and `subject: 'parent'` resolves through the injected wrapper.
+            const unpin = rootElement
+                ? applyScrollPin(rootElement, animatorConfig.scroll)
+                : () => { /* nothing to pin */ };
+
             // `driver: 'native'` on a waapi-capable doc: try the browser timeline first.
             if (animatorConfig.mode !== PxAnimatorMode.frames && animatorConfig.scroll?.driver === 'native' && rootElement) {
                 const native = createNativeScrollTimeline(rootElement, animatorConfig);
                 if (native) {
                     const api = createWebApiAnimator(doc, cb, rootElement,
                         animatorConfig.mode === PxAnimatorMode.waapi, native);
-                    if (api) return api;
+                    if (api) {
+                        const destroyNative = api.destroy.bind(api);
+                        api.destroy = () => { unpin(); destroyNative(); };
+                        return api;
+                    }
                     // unsupported attrs → fall through to frames + custom below
                 }
             }
@@ -104,9 +116,9 @@ export function bindWithEngineChoice(
                 const driver = createScrollDriver(subject, animatorConfig,
                     progress => api.setCurrentTime(progress * totalMs));
                 if (driver) {
-                    // Tie the driver's lifetime to the animator's.
+                    // Tie the driver's (and the pin's) lifetime to the animator's.
                     const destroy = api.destroy.bind(api);
-                    api.destroy = () => { driver.destroy(); destroy(); };
+                    api.destroy = () => { driver.destroy(); unpin(); destroy(); };
                 }
             } else {
                 console.warn('scroll timeline: no root element to observe — animation will stay at frame 0');

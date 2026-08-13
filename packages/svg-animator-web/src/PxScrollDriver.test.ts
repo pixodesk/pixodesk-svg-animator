@@ -8,7 +8,7 @@
 // `kind: 'scroll'` offset path. jsdom has no layout, so sizes/rects are stubbed.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createScrollDriver } from './PxScrollDriver';
+import { applyScrollPin, createNativeScrollTimeline, createScrollDriver, resolveScrollSubject } from './PxScrollDriver';
 
 
 // rAF stub: collect callbacks, flush on demand — deterministic, no timers involved.
@@ -168,6 +168,193 @@ describe('createScrollDriver', () => {
             const seen: Array<number> = [];
             createScrollDriver(subject, { timelineSource: 'scroll', scroll: { kind: 'scroll' } }, p => seen.push(p));
             expect(seen[0]).toBeCloseTo(140 / 560);
+        });
+    });
+
+    // `scroll.subject` — WHICH element's journey is measured. Without it a PINNED graphic
+    // freezes: a stuck element's rect stops moving, so its own "journey" stalls for exactly
+    // the stretch that should be animating.
+    describe("subject — 'parent' / 'scroller' / selector", () => {
+
+        it("'parent' skips a sticky ancestor and measures the wrapper that really scrolls", () => {
+            const wrapper = document.createElement('div');          // the tall, scrolling one
+            const sticky = document.createElement('div');
+            sticky.style.position = 'sticky';
+            const box = document.createElement('div');               // the player's container
+            const svg = document.createElement('svg');
+            document.body.append(wrapper);
+            wrapper.append(sticky);
+            sticky.append(box);
+            box.append(svg);
+
+            expect(resolveScrollSubject(svg, 'parent')).toBe(wrapper);
+        });
+
+        it("'parent' with nothing pinned is just the element's own parent", () => {
+            const box = document.createElement('div');
+            const svg = document.createElement('svg');
+            document.body.append(box);
+            box.append(svg);
+
+            expect(resolveScrollSubject(svg, 'parent')).toBe(box);
+        });
+
+        it("'scroller' resolves to the scroll container", () => {
+            const scroller = makeScroller({ scrollHeight: 900, clientHeight: 300 });
+            const svg = document.createElement('svg');
+            scroller.append(svg);
+
+            expect(resolveScrollSubject(svg, 'scroller')).toBe(scroller);
+        });
+
+        it('a selector resolves to the matching element', () => {
+            const section = document.createElement('section');
+            section.id = 'story';
+            const svg = document.createElement('svg');
+            document.body.append(section, svg);
+
+            expect(resolveScrollSubject(svg, '#story')).toBe(section);
+        });
+
+        it('an unresolvable selector WARNS and falls back to the svg (never a silent freeze)', () => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+            const svg = document.createElement('svg');
+            document.body.append(svg);
+
+            expect(resolveScrollSubject(svg, '#nope')).toBe(svg);
+            expect(resolveScrollSubject(svg, '!!not a selector!!')).toBe(svg);
+            expect(warn).toHaveBeenCalledTimes(2);
+            warn.mockRestore();
+        });
+
+        it('hands the resolved subject to the browser-native ViewTimeline too', () => {
+            const section = document.createElement('section');
+            section.id = 'story';
+            const svg = document.createElement('svg');
+            document.body.append(section, svg);
+
+            const seenOptions: Array<Record<string, unknown>> = [];
+            class FakeViewTimeline {
+                constructor(options: Record<string, unknown>) { seenOptions.push(options); }
+            }
+            vi.stubGlobal('ViewTimeline', FakeViewTimeline);
+
+            const native = createNativeScrollTimeline(svg, { timelineSource: 'scroll', scroll: { subject: '#story' } });
+            expect(native).toBeTruthy();
+            expect(seenOptions[0].subject).toBe(section);
+        });
+
+        it('drives progress from the SUBJECT, not the animated element', () => {
+            const scroller = makeScroller({ scrollHeight: 2000, clientHeight: 400 });
+            const section = document.createElement('section');
+            section.id = 'story';
+            const svg = document.createElement('svg');
+            scroller.append(section);
+            section.append(svg);
+
+            scroller.getBoundingClientRect = () => rectOf(0, 400);
+            stubMetrics(scroller, { clientWidth: 400 });
+            // The animated svg is parked out of range; the SECTION is mid-journey.
+            svg.getBoundingClientRect = () => rectOf(4000, 100);
+            section.getBoundingClientRect = () => rectOf(150, 100);   // u = 400−150 = 250 of [0,500]
+
+            const seen: Array<number> = [];
+            createScrollDriver(svg, { timelineSource: 'scroll', scroll: { subject: '#story' } }, p => seen.push(p));
+            expect(seen[0]).toBeCloseTo(0.5);
+        });
+    });
+
+    // `scroll.pin` — GSAP's `pin: true`, as `position: sticky` (which keeps the element's
+    // layout space, so no spacer has to be injected into the host page).
+    describe('pin', () => {
+
+        it('is a no-op — and costs nothing to undo — when off', () => {
+            const svg = document.createElement('svg');
+            svg.style.position = 'relative';
+            document.body.append(svg);
+
+            applyScrollPin(svg, {})();
+            expect(svg.style.position).toBe('relative');
+        });
+
+        it('makes the canvas sticky and restores the original styles on cleanup', () => {
+            const svg = document.createElement('svg');
+            svg.style.position = 'relative';
+            svg.style.top = '3px';
+            document.body.append(svg);
+
+            const unpin = applyScrollPin(svg, { pin: true, pinTop: 24 });
+            expect(svg.style.position).toBe('sticky');
+            expect(svg.style.top).toBe('24px');
+
+            unpin();
+            expect(svg.style.position).toBe('relative');
+            expect(svg.style.top).toBe('3px');
+        });
+
+        it('pinDistance wraps the canvas in a tall block, and unwraps it exactly', () => {
+            const box = document.createElement('div');
+            const svg = document.createElement('svg');
+            document.body.append(box);
+            box.append(svg);
+
+            const unpin = applyScrollPin(svg, { pin: true, pinDistance: 3 });
+            const wrapper = svg.parentElement!;
+            expect(wrapper).not.toBe(box);
+            expect(wrapper.style.height).toBe('300vh');
+            expect(wrapper.parentElement).toBe(box);
+            // …and it is exactly what `subject: 'parent'` then measures.
+            expect(resolveScrollSubject(svg, 'parent')).toBe(wrapper);
+
+            unpin();
+            expect(svg.parentElement).toBe(box);
+            expect(box.querySelector('[data-px-pin]')).toBeNull();
+        });
+    });
+
+    // `scroll.smoothing` — GSAP's `scrub: <seconds>`: progress eases toward the scroll
+    // position instead of snapping to it.
+    describe('smoothing', () => {
+
+        it('eases toward the target across frames and settles exactly on it', () => {
+            const scroller = makeScroller({ scrollHeight: 1400, clientHeight: 400 });  // maxOffset 1000
+            const svg = document.createElement('svg');
+            scroller.append(svg);
+
+            const seen: Array<number> = [];
+            createScrollDriver(svg, {
+                timelineSource: 'scroll',
+                scroll: { kind: 'scroll', smoothing: 200 },
+            }, p => seen.push(p));
+            expect(seen).toEqual([0]);            // attach is a jump, never eased
+
+            scroller.scrollTop = 1000;            // target = 1
+            scroller.dispatchEvent(new Event('scroll'));
+            flushRaf();                           // the measure tick …
+            flushRaf();                           // … then the first easing frame
+
+            const first = seen[seen.length - 1];
+            expect(first).toBeGreaterThan(0);
+            expect(first).toBeLessThan(1);        // eased, NOT snapped
+
+            // An exponential ease only APPROACHES its target — the driver snaps the last
+            // sliver so the loop actually ends. At 60fps with tau=200ms that is ~110 frames.
+            for (let i = 0; i < 300 && seen[seen.length - 1] !== 1; i++) flushRaf();
+            expect(seen[seen.length - 1]).toBe(1);          // lands exactly
+            expect(seen.length).toBeGreaterThan(10);        // and took many frames to get there
+        });
+
+        it('snaps immediately when smoothing is absent', () => {
+            const scroller = makeScroller({ scrollHeight: 1400, clientHeight: 400 });
+            const svg = document.createElement('svg');
+            scroller.append(svg);
+
+            const seen: Array<number> = [];
+            createScrollDriver(svg, { timelineSource: 'scroll', scroll: { kind: 'scroll' } }, p => seen.push(p));
+            scroller.scrollTop = 1000;
+            scroller.dispatchEvent(new Event('scroll'));
+            flushRaf();
+            expect(seen[seen.length - 1]).toBe(1);
         });
     });
 

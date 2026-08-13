@@ -55,6 +55,14 @@ export function createNativeScrollTimeline(
     const scroll: PxScroll = config.scroll || {};
     const kind = scroll.kind ?? 'view';
 
+    // Smoothing is a per-frame easing of progress, which a browser-native timeline (a direct
+    // scroll→time mapping) cannot express. Honour the authored LOOK over the perf hint — D8
+    // already makes `native` a preference rather than a requirement.
+    if (scroll.smoothing) {
+        console.warn('scroll timeline: `smoothing` needs the built-in driver — ignoring `driver: "native"`');
+        return null;
+    }
+
     const g = globalThis as unknown as { ScrollTimeline?: NativeTimelineCtor; ViewTimeline?: NativeTimelineCtor };
     const view = kind === 'view';
     const Ctor = view ? g.ViewTimeline : g.ScrollTimeline;
@@ -64,7 +72,8 @@ export function createNativeScrollTimeline(
     let timeline: AnimationTimeline;
     try {
         if (view) {
-            timeline = new Ctor({ subject, axis });
+            // `scroll.subject` is the same indirection the platform's own ViewTimeline takes.
+            timeline = new Ctor({ subject: resolveScrollSubject(subject, scroll.subject), axis });
         } else {
             const source = scroll.source === 'root'
                 ? documentScroller()
@@ -124,6 +133,55 @@ function documentScroller(): Element {
     return document.scrollingElement || document.documentElement;
 }
 
+/** `scroll.subject` keywords (anything else is treated as a CSS selector). */
+const SUBJECT_PARENT = 'parent';
+const SUBJECT_SCROLLER = 'scroller';
+
+/**
+ * WHICH element's journey `kind: 'view'` measures — `scroll.subject`. Unset = the animation's
+ * own `<svg>` (the original behaviour).
+ *
+ * `'parent'` is the pinned-section answer and needs no knowledge of the host's markup: a
+ * `position: sticky` element STOPS MOVING once stuck, so measuring the graphic itself freezes
+ * progress for exactly the stretch that should be animating. Walking out to the outermost
+ * sticky/fixed ancestor's container gives the element that really does scroll past — and its
+ * `contain` phase is precisely the pinned stretch.
+ *
+ * Never throws and never returns null: an unresolvable selector warns and falls back to the
+ * `<svg>`, because a silent freeze is indistinguishable from a broken animation.
+ */
+export function resolveScrollSubject(svgRoot: Element, subject: string | undefined): Element {
+    const spec = subject?.trim();
+    if (!spec) return svgRoot;
+
+    if (spec === SUBJECT_PARENT) {
+        // Outermost sticky/fixed ancestor wins — nested sticky wrappers are common.
+        let outermostPinned: Element | null = null;
+        for (let p = svgRoot.parentElement; p && p !== document.body; p = p.parentElement) {
+            const position = getComputedStyle(p).position;
+            if (position === 'sticky' || position === 'fixed') outermostPinned = p;
+        }
+        return outermostPinned?.parentElement ?? svgRoot.parentElement ?? svgRoot;
+    }
+
+    if (spec === SUBJECT_SCROLLER) {
+        return findNearestScroller(svgRoot, 'y') || findNearestScroller(svgRoot, 'x') || documentScroller();
+    }
+
+    let found: Element | null = null;
+    try {
+        found = document.querySelector(spec);
+    } catch {
+        console.warn('scroll timeline: subject "' + spec + '" is not a valid selector — measuring the SVG itself');
+        return svgRoot;
+    }
+    if (!found) {
+        console.warn('scroll timeline: subject "' + spec + '" matched no element — measuring the SVG itself');
+        return svgRoot;
+    }
+    return found;
+}
+
 /**
  * Attach a scroll driver for `subject` (the animation's root `<svg>`).
  * Emits `onProgress(0..1)` — clamped, range-mapped — on attach and on every
@@ -138,6 +196,10 @@ export function createScrollDriver(
 
     const scroll: PxScroll = config.scroll || {};
     const kind = scroll.kind ?? 'view';
+
+    // WHAT is measured (`view` only): the SVG itself by default, or whatever `scroll.subject`
+    // names — the pinned-section case measures the wrapper that actually scrolls past.
+    const measured = resolveScrollSubject(subject, scroll.subject);
 
     // Scroller resolution (once, at attach): `view` always tracks the nearest scrollport;
     // `scroll` honours `source`. Axis resolves against the SCROLLER's writing mode.
@@ -157,8 +219,8 @@ export function createScrollDriver(
             return scrollOffsetProgress(offset, maxOffset, scroll.range);
         }
 
-        // view: subject's journey across the scrollport, in scrollport coordinates.
-        const subjectRect = subject.getBoundingClientRect();
+        // view: the MEASURED element's journey across the scrollport, in scrollport coordinates.
+        const subjectRect = measured.getBoundingClientRect();
         let portStart: number, portSize: number;
         if (isRootScroller) {
             portStart = 0;
@@ -174,13 +236,47 @@ export function createScrollDriver(
         return scrollViewProgress(subjectStart, subjectSize, portSize, scroll.range);
     };
 
+    // ── smoothing (`scroll.smoothing`, GSAP's `scrub: <seconds>`) ───────────────────────
+    // Without it, emitted progress IS the measurement. With it, the emitted value chases the
+    // measurement with an exponential ease, so momentum scrolling and trackpad jitter read as
+    // a glide instead of a snap. Frame-rate independent (`1 - exp(-dt/tau)`), and it SETTLES
+    // exactly on the target rather than asymptotically near it.
+    const smoothingSec = Math.max(0, scroll.smoothing ?? 0) / 1000;   // schema is in ms
+    // An exponential ease only approaches its target, so snap the last sliver and stop the rAF
+    // loop rather than idling for another second. 0.1% of progress = 1ms of a 1s animation —
+    // far below anything visible, and it keeps the tail off the battery.
+    const SETTLE_EPSILON = 0.001;
+    let destroyed = false;
+    let smoothed: number | null = null;      // null until the first emit (which is instant)
+    let smoothRaf: number | null = null;
+    let lastFrameMs = 0;
+
+    const emit = (target: number) => {
+        if (!smoothingSec) { onProgress(target); return; }
+        if (smoothed === null) { smoothed = target; onProgress(target); return; }   // no lag on load
+        if (smoothRaf !== null) return;      // already chasing
+        lastFrameMs = 0;
+        const step = (nowMs: number) => {
+            smoothRaf = null;
+            if (destroyed) return;
+            const dtSec = lastFrameMs ? Math.min(0.1, (nowMs - lastFrameMs) / 1000) : 1 / 60;
+            lastFrameMs = nowMs;
+            const goal = compute();          // re-measure: the user may still be scrolling
+            const k = 1 - Math.exp(-dtSec / smoothingSec);
+            smoothed = smoothed! + (goal - smoothed!) * k;
+            if (Math.abs(goal - smoothed!) < SETTLE_EPSILON) smoothed = goal;   // land exactly
+            onProgress(smoothed!);
+            if (smoothed !== goal) smoothRaf = requestAnimationFrame(step);
+        };
+        smoothRaf = requestAnimationFrame(step);
+    };
+
     // rAF coalescing: any number of scroll/resize events in a frame → one measurement.
     let rafId: number | null = null;
-    let destroyed = false;
     const tick = () => {
         rafId = null;
         if (destroyed) return;
-        onProgress(compute());
+        emit(compute());
     };
     const schedule = () => {
         if (destroyed || rafId !== null) return;
@@ -195,7 +291,8 @@ export function createScrollDriver(
     let resizeObserver: ResizeObserver | undefined;
     if (typeof ResizeObserver !== 'undefined') {
         resizeObserver = new ResizeObserver(schedule);
-        resizeObserver.observe(subject);
+        resizeObserver.observe(measured);
+        if (measured !== subject) resizeObserver.observe(subject);
         if (!isRootScroller) resizeObserver.observe(scroller);
     }
 
@@ -207,8 +304,10 @@ export function createScrollDriver(
             window.removeEventListener('resize', schedule);
             resizeObserver?.disconnect();
             if (rafId !== null) { cancelAnimationFrame(rafId); rafId = null; }
+            if (smoothRaf !== null) { cancelAnimationFrame(smoothRaf); smoothRaf = null; }
         },
-        refresh: () => { if (!destroyed) onProgress(compute()); },
+        // `refresh` is a deliberate JUMP (attach, host relayout) — never eased.
+        refresh: () => { if (!destroyed) { smoothed = compute(); onProgress(smoothed); } },
     };
 
     // Initial pose: reflect the CURRENT scroll position immediately (a page loaded
@@ -216,4 +315,45 @@ export function createScrollDriver(
     driver.refresh();
 
     return driver;
+}
+
+
+/**
+ * Pin the canvas on screen for the scrubbed stretch — GSAP's `pin: true`, expressed as
+ * `position: sticky`. Sticky keeps the element's space in normal flow, so (unlike GSAP's
+ * `position: fixed`) no spacer has to be injected into the host's layout to stop the page
+ * collapsing. Optionally wraps the canvas in a tall block so the PLAYER creates the scroll
+ * travel and the host page needs no CSS at all.
+ *
+ * Returns a cleanup that restores the DOM exactly. No-op (and no cleanup cost) when `pin` is off.
+ */
+export function applyScrollPin(svgRoot: Element, scroll: PxScroll | undefined): () => void {
+    const styled = svgRoot as Element & Partial<ElementCSSInlineStyle>;
+    if (!scroll?.pin || !styled.style) return () => { /* nothing pinned */ };
+
+    const style = styled.style;
+    const prevPosition = style.position;
+    const prevTop = style.top;
+    style.position = 'sticky';
+    style.top = (scroll.pinTop ?? 0) + 'px';
+
+    // `pinDistance` (in viewport heights) — the travel the pin should last for.
+    let wrapper: HTMLElement | null = null;
+    const parent = svgRoot.parentElement;
+    if (scroll.pinDistance && scroll.pinDistance > 0 && parent) {
+        wrapper = document.createElement('div');
+        wrapper.setAttribute('data-px-pin', '');
+        wrapper.style.height = (scroll.pinDistance * 100) + 'vh';
+        parent.insertBefore(wrapper, svgRoot);
+        wrapper.appendChild(svgRoot);
+    }
+
+    return () => {
+        style.position = prevPosition;
+        style.top = prevTop;
+        if (wrapper?.parentElement) {
+            wrapper.parentElement.insertBefore(svgRoot, wrapper);
+            wrapper.remove();
+        }
+    };
 }

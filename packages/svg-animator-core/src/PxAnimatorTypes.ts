@@ -643,6 +643,52 @@ export interface _PxScroll {
      *  scrollport.) */
     source?: 'nearest' | 'root';
 
+    /**
+     * `kind: 'view'` only — WHICH ELEMENT'S journey is measured. Unset (default) = the
+     * animation's own `<svg>`. The same indirection CSS gives via `view-timeline-name` +
+     * `timeline-scope`, GSAP via `trigger`, Framer via "Section in view".
+     *
+     * - `'parent'` — the nearest ancestor that actually scrolls past: any `sticky`/`fixed`
+     *   ancestors are skipped and their container is used instead. This is what makes a
+     *   PINNED section work (a stuck element's rect stops moving, so measuring the graphic
+     *   itself would freeze); its `contain` phase is exactly the pinned stretch.
+     * - `'scroller'` — the scroll container itself.
+     * - anything else — a CSS selector, resolved against the host document.
+     *
+     * An unresolvable selector warns and falls back to the `<svg>` (never a silent freeze).
+     */
+    subject?: string;
+
+    /**
+     * MILLISECONDS of catch-up lag — the same idea as GSAP's `scrub: <seconds>`, in the unit
+     * the rest of this schema uses (`duration`, `delay`). Unset/0 = the playhead is locked to
+     * the scrollbar; above 0 the progress eases toward the scroll position instead of snapping
+     * to it, which reads far smoother under momentum scrolling and trackpads.
+     * Custom driver only — a browser-native `ScrollTimeline` has no equivalent, so setting
+     * this forces `driver: 'custom'`.
+     */
+    smoothing?: number;
+
+    /**
+     * Hold the canvas still on screen while scrolling scrubs it — GSAP's `pin: true`, done with
+     * `position: sticky` (which keeps the element's space in normal flow, so unlike GSAP's
+     * `position: fixed` no spacer padding has to be injected into the host's layout).
+     *
+     * The player owns the DOM inside its own container, so this needs NO host CSS. Pair it with
+     * `subject: 'parent'` for the complete scrollytelling pattern.
+     */
+    pin?: boolean;
+
+    /** `pin` only: offset from the top of the scrollport, in px. Default 0. */
+    pinTop?: number;
+
+    /**
+     * `pin` only: how much scroll travel the pin should last, in VIEWPORT HEIGHTS — the player
+     * injects a wrapper of that height around the canvas to create it. Omit to pin inside
+     * whatever tall section the host page already provides.
+     */
+    pinDistance?: number;
+
     /** The timeline slice mapped onto animation progress 0..1.
      *  Default `{ start: {phase:'cover', fraction:0}, end: {phase:'cover', fraction:1} }`. */
     range?: {
@@ -662,6 +708,12 @@ export const PxScrollSchema = implementsInterface<_PxScroll>()(px.object({
     kind: px.enum(['view', 'scroll'] as const).optional(),
     axis: px.enum(['block', 'inline', 'x', 'y'] as const).optional(),
     source: px.enum(['nearest', 'root'] as const).optional(),
+    // Free-form: the two keywords `parent`/`scroller` plus any CSS selector.
+    subject: px.string().optional(),
+    smoothing: px.number().optional(),
+    pin: px.boolean().optional(),
+    pinTop: px.number().optional(),
+    pinDistance: px.number().optional(),
     range: PxScrollRangeSchema.optional(),
 }));
 export type PxScroll = PxInfer<typeof PxScrollSchema>;
