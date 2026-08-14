@@ -103,7 +103,7 @@ export type { PxPlatformAdapter } from './PxFrameLoop';
 // Element-creation factory + glyph-text materialiser
 export { jsonElementFactory } from './effects/elementFactory';
 export type { PxCreateElement } from './effects/elementFactory';
-export { layoutGlyphTextChars, materialiseGlyphText, materialiseGlyphTextAlongPath, materialiseGlyphTextHorizontal } from './effects/textGlyphsEffect';
+export { layoutGlyphTextChars, materialiseGlyphText, materialiseGlyphTextAlongPath, materialiseGlyphTextHorizontal, MISSING_GLYPH_CLASS_NAME } from './effects/textGlyphsEffect';
 export type { GlyphCharBox, GlyphCharBoxAlongPath, GlyphMaterialiseOpts } from './effects/textGlyphsEffect';
 export { createPathSampler } from './effects/pathSampler';
 export type { PathPoint, PathSampler } from './effects/pathSampler';

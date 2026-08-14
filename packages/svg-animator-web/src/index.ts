@@ -137,7 +137,7 @@ export { getNormalizedProps, renderNode } from './PxAnimatorDOM';
 // with baked glyph outlines). See textGlyphsEffect / elementFactory.
 export { jsonElementFactory } from '@pixodesk/svg-animator-core';
 export type { PxCreateElement } from '@pixodesk/svg-animator-core';
-export { layoutGlyphTextChars, materialiseGlyphText, materialiseGlyphTextAlongPath, materialiseGlyphTextHorizontal } from '@pixodesk/svg-animator-core';
+export { layoutGlyphTextChars, materialiseGlyphText, materialiseGlyphTextAlongPath, materialiseGlyphTextHorizontal, MISSING_GLYPH_CLASS_NAME } from '@pixodesk/svg-animator-core';
 export type { GlyphCharBox, GlyphCharBoxAlongPath, GlyphMaterialiseOpts } from '@pixodesk/svg-animator-core';
 export { createPathSampler } from '@pixodesk/svg-animator-core';
 export type { PathPoint, PathSampler } from '@pixodesk/svg-animator-core';

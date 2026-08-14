@@ -65,8 +65,10 @@ export interface GlyphMaterialiseOpts<E = any> {
 // colour VALUES through unchanged (the factory maps them back to shape paint).
 interface Paint { fill?: any; stroke?: any; strokeWidth?: any; }
 interface Style extends Paint { fontFamily?: string; fontSize: number; letterSpacing: number; wordSpacing: number; }
-/** A glyph ready to emit: its em outline + the affine placing it in the doc. */
-interface Placement { glyphD: string; m: Affine; paint: Paint; }
+/** A glyph ready to emit: its em outline + the affine placing it in the doc.
+ *  `isMissing` marks the □ placeholder — kept out of the merged real-glyph paths so a
+ *  consumer can style it (see `MISSING_GLYPH_CLASS_NAME`). */
+interface Placement { glyphD: string; m: Affine; paint: Paint; isMissing?: boolean; }
 /** Minimal keyframe shape (avoids `PxKeyframe`'s non-generic type). Input
  *  `startOffset` kfs carry a number `value`; emitted kfs carry transform parts. */
 interface TransformKeyframe<V = any> { time?: number; value: V; }
@@ -131,6 +133,15 @@ function soleFontOf(glyphs: Record<string, PxGlyphFont>): PxGlyphFont | undefine
 const MISSING_GLYPH_ADVANCE_EM = 0.6;
 
 /**
+ * Class stamped on the `<path>` holding the □ placeholders — and ONLY on it: the missing
+ * boxes are emitted separately from the real glyphs so a consumer can style them on their
+ * own. The editor uses it to fade them in with a delay: a freshly typed character is
+ * missing for a few frames until its glyph is fetched asynchronously, and a □ that flashes
+ * for that long reads as a rendering glitch.
+ */
+export const MISSING_GLYPH_CLASS_NAME = 'px-missing-glyph';
+
+/**
  * A HOLLOW FRAME outline (em/glyph units, baseline at y=0 rising to y=-ascent) for a
  * MISSING glyph — so a font that can't supply a char renders a visible □ instead of
  * silently disappearing. Outer rect + a reversed inner rect → a plain nonzero `fill`
@@ -179,7 +190,7 @@ export function materialiseGlyphTextHorizontal<E = any>(node: PxNode, opts: Glyp
                 // Missing glyph (font absent, or the char has no outline) → a visible □
                 // placeholder box so the text doesn't just silently vanish.
                 const advEm = (g && g.width > 0) ? g.width : MISSING_GLYPH_ADVANCE_EM * upm;
-                placements.push({ glyphD: missingGlyphBoxEm(advEm, ascentEm), m: [scale, 0, 0, scale, pen.x, pen.y], paint, line, x: pen.x, y: pen.y, scale });
+                placements.push({ glyphD: missingGlyphBoxEm(advEm, ascentEm), m: [scale, 0, 0, scale, pen.x, pen.y], paint, isMissing: true, line, x: pen.x, y: pen.y, scale });
                 pen.x += advEm * scale;
             } else {
                 pen.x += (g ? g.width : 0) * scale;   // whitespace: advance only
@@ -399,7 +410,7 @@ function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<G
 
 /** One glyph in path order: its outline + geometry, and `midBase` = the arc-
  *  distance from the text start (startOffset 0) to the glyph's advance midpoint. */
-interface AlongCell { glyphD: string; widthEm: number; scale: number; paint: Paint; midBase: number; }
+interface AlongCell { glyphD: string; widthEm: number; scale: number; paint: Paint; midBase: number; isMissing?: boolean; }
 
 /** Walks the tspans in reading order, accumulating advance (whitespace included)
  *  so each rendered glyph gets its `midBase`. Positioning attrs are ignored —
@@ -429,7 +440,7 @@ function collectAlongPathCells(node: PxNode, glyphs: Record<string, PxGlyphFont>
                         // Missing glyph → a visible □ placeholder box (see missingGlyphBoxEm).
                         const wEm = (g && g.width > 0) ? g.width : MISSING_GLYPH_ADVANCE_EM * gf.unitsPerEm;
                         const boxAdv = wEm * scale;
-                        cells.push({ glyphD: missingGlyphBoxEm(wEm, ascentEm), widthEm: wEm, scale, paint, midBase: adv + boxAdv / 2 });
+                        cells.push({ glyphD: missingGlyphBoxEm(wEm, ascentEm), widthEm: wEm, scale, paint, isMissing: true, midBase: adv + boxAdv / 2 });
                         adv += boxAdv;
                     } else {
                         adv += (g ? g.width : 0) * scale;   // whitespace: advance only
@@ -515,7 +526,7 @@ export function materialiseGlyphTextAlongPath<E = any>(
         ? cells.filter(c => { const d = base + c.midBase * k; return d >= 0 && d <= sampler.totalLength; })
         : cells;
     const placements: Array<Placement> = placeCells.map(c => ({
-        glyphD: c.glyphD, paint: c.paint,
+        glyphD: c.glyphD, paint: c.paint, isMissing: c.isMissing,
         m: alongAffine(sampler, base + c.midBase * k, c.scale, c.widthEm, perp),
     }));
     return toGroup(node, buildPaths(placements, create, warnings), create);
@@ -647,7 +658,7 @@ function buildAnimatedAlongPath<E>(
             animate.opacity = op;
         }
 
-        out.push(create('path', { d, ...paintProps(c.paint), animate }, []));
+        out.push(create('path', { d, ...paintProps(c.paint), ...missingGlyphProps(c.isMissing), animate }, []));
     }
     return out;
 }
@@ -663,22 +674,31 @@ function paintProps(paint: Paint): { [k: string]: any } {
     return p;
 }
 
-/** Merges placements sharing paint into baked `<path>` elements. */
+/** Marks a □-placeholder `<path>` for consumers; nothing at all for real glyphs. */
+function missingGlyphProps(isMissing: boolean | undefined): { [k: string]: any } {
+    return isMissing ? { class: MISSING_GLYPH_CLASS_NAME } : {};
+}
+
+/** Merges placements sharing paint into baked `<path>` elements. MISSING-glyph boxes merge
+ *  only with each other, so they end up in their own classed `<path>` (see
+ *  `MISSING_GLYPH_CLASS_NAME`) instead of being indistinguishable subpaths of a real one. */
 function buildPaths<E>(placements: Array<Placement>, create: PxCreateElement<E>, warnings?: Array<string>): Array<E> {
     if (!placements.length) { warnings?.push('textGlyphs: nothing to render'); return []; }
 
-    const byPaint = new Map<string, { paint: Paint; d: string }>();
+    const byPaint = new Map<string, { paint: Paint; d: string; isMissing?: boolean }>();
     for (const p of placements) {
         // Stable key across any paint value type (hex string, [r,g,b], gradient object).
-        const key = JSON.stringify([p.paint.fill ?? null, p.paint.stroke ?? null, p.paint.strokeWidth ?? null]);
+        const key = JSON.stringify([p.paint.fill ?? null, p.paint.stroke ?? null, p.paint.strokeWidth ?? null, !!p.isMissing]);
         const baked = transformPathData(p.glyphD, p.m);
         const entry = byPaint.get(key);
         if (entry) entry.d += baked;
-        else byPaint.set(key, { paint: p.paint, d: baked });
+        else byPaint.set(key, { paint: p.paint, d: baked, isMissing: p.isMissing });
     }
 
     const out: Array<E> = [];
-    for (const { paint, d } of byPaint.values()) out.push(create('path', { d, ...paintProps(paint) }, []));
+    for (const { paint, d, isMissing } of byPaint.values()) {
+        out.push(create('path', { d, ...paintProps(paint), ...missingGlyphProps(isMissing) }, []));
+    }
     return out;
 }
 
