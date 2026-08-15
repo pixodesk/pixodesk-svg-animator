@@ -60,17 +60,33 @@ export interface GlyphMaterialiseOpts<E = any> {
     warnings?: Array<string>;
 }
 
-// fill/stroke/strokeWidth are OPAQUE pass-throughs — copied verbatim onto the
-// emitted element. The wire uses strings (hex); the editor threads its own
-// colour VALUES through unchanged (the factory maps them back to shape paint).
+// All paint values are OPAQUE pass-throughs — copied verbatim onto the emitted element.
+// The wire uses plain values (hex strings, numbers, arrays); the editor threads its own
+// model VALUES through unchanged (the factory maps them back to shape paint).
 //
-// `opacity` / `animateOpacity` carry a SPAN's opacity into the baked paths (the span
-// element itself disappears in the bake, so opacity left on it would be silently lost).
-// TEXT-level opacity is NOT part of the paint — it rides the emitted `<g>` (see
-// `toGroup`), so `resolveStyle` skips it for `type:'text'` nodes. `animateOpacity` is
-// opaque like the colours: the wire threads its `animate.opacity` bag, the editor its
-// own animated-value rider — both come back out on the emitted `<path>`.
-interface Paint { fill?: any; stroke?: any; strokeWidth?: any; opacity?: number; animateOpacity?: any; }
+// A SPAN's paint must fold into the baked paths — the span element itself disappears in
+// the bake, so anything left on it is silently lost. TEXT-level values are NOT part of
+// the paint: they ride the emitted `<g>` (via `toGroup`), so `resolveStyle` skips
+// `type:'text'` nodes' own values. `animate` is the span's animate bag filtered to
+// PAINT keys only (see `PAINT_ANIMATE_KEYS`) — forwarded verbatim onto the emitted
+// `<path>` (the wire's keyframe bags, or the editor's animated-value riders).
+interface Paint {
+    fill?: any; stroke?: any; strokeWidth?: any;
+    opacity?: number;
+    fillOpacity?: any; fillRule?: any;
+    strokeOpacity?: any; strokeDasharray?: any; strokeDashoffset?: any;
+    strokeLinecap?: any; strokeLinejoin?: any; strokeMiterlimit?: any;
+    mixBlendMode?: any;
+    animate?: { [k: string]: any };
+}
+/** The per-span statics that fold into `Paint` by simple nearest-wins lookup. */
+const PAINT_STATIC_KEYS = [
+    'fillOpacity', 'fillRule', 'strokeOpacity', 'strokeDasharray', 'strokeDashoffset',
+    'strokeLinecap', 'strokeLinejoin', 'strokeMiterlimit', 'mixBlendMode',
+] as const;
+/** `animate.<key>`s that are PAINT (ride the baked path). Geometry keys — x/dx/fontSize/
+ *  letterSpacing/… — are baked into the outlines and must NOT be forwarded. */
+const PAINT_ANIMATE_KEYS = ['fill', 'stroke', 'strokeWidth', 'opacity', 'fillOpacity', 'strokeOpacity', 'strokeDasharray', 'strokeDashoffset'];
 interface Style extends Paint { fontFamily?: string; fontSize: number; letterSpacing: number; wordSpacing: number; }
 /** A glyph ready to emit: its em outline + the affine placing it in the doc.
  *  `isMissing` marks the □ placeholder — kept out of the merged real-glyph paths so a
@@ -91,19 +107,30 @@ function str(v: unknown): string | undefined {
     return typeof v === 'string' ? v : undefined;
 }
 
+/** A span's paint-only `animate` bag, or undefined when it has none (see `PAINT_ANIMATE_KEYS`). */
+function paintAnimateOf(node: PxNode): { [k: string]: any } | undefined {
+    const bag = node.animate as { [k: string]: any } | undefined;
+    if (!bag || typeof bag !== 'object') return undefined;
+    let out: { [k: string]: any } | undefined;
+    for (const k of PAINT_ANIMATE_KEYS) {
+        if (bag[k] !== undefined) (out ??= {})[k] = bag[k];
+    }
+    return out;
+}
+
 function resolveStyle(node: PxNode, parent: Style): Style {
-    // SPAN opacity only: the root `<text>`'s opacity (and its whole `animate` bag) rides
-    // the emitted `<g>` via `toGroup` — reading it here too would apply it twice.
+    // SPAN paint only: the root `<text>`'s own values (and its whole `animate` bag) ride
+    // the emitted `<g>` via `toGroup` — reading them here too would apply them twice.
     //
-    // NEAREST WINS, deliberately NOT multiplied: the editor wire emits a collapsed
+    // NEAREST WINS, deliberately NOT composed: the editor wire used to emit a collapsed
     // single-span line as a line-`<tspan>` carrying the folded span style AND the child
-    // span with the same style (see the single-span-collapse regression above) — the same
-    // opacity therefore appears on BOTH nesting levels, and multiplying would square it.
-    // Same override semantics as the fold's other style props (fill, fontSize, …).
+    // span with the same style — the same opacity on BOTH nesting levels; multiplying
+    // would square it. Same override semantics as the other style props (fill, fontSize).
     const isTextRoot = node.type === 'text';
-    const ownOpacity = isTextRoot ? undefined : parseLen(node.opacity ?? (node.style as { [k: string]: any } | undefined)?.opacity);
-    const opacity = ownOpacity ?? parent.opacity;
-    return {
+    const nodeStyle = node.style as { [k: string]: any } | undefined;
+    const own = (key: string): any => isTextRoot ? undefined : ((node as { [k: string]: any })[key] ?? nodeStyle?.[key]);
+
+    const res: Style = {
         fontFamily: str(node.fontFamily) ?? parent.fontFamily,
         fontSize: parseLen(node.fontSize) ?? parent.fontSize,
         fill: node.fill ?? parent.fill,
@@ -111,9 +138,14 @@ function resolveStyle(node: PxNode, parent: Style): Style {
         strokeWidth: node.strokeWidth ?? parent.strokeWidth,
         letterSpacing: parseLen(node.letterSpacing) ?? parent.letterSpacing,
         wordSpacing: parseLen(node.wordSpacing) ?? parent.wordSpacing,
-        opacity,
-        animateOpacity: (isTextRoot ? undefined : (node.animate as { [k: string]: any } | undefined)?.opacity) ?? parent.animateOpacity,
+        opacity: parseLen(own('opacity')) ?? parent.opacity,
+        animate: (isTextRoot ? undefined : paintAnimateOf(node)) ?? parent.animate,
     };
+    for (const key of PAINT_STATIC_KEYS) {
+        const v = own(key) ?? parent[key];
+        if (v !== undefined) res[key] = v;
+    }
+    return res;
 }
 
 function rootStyleOf(node: PxNode): Style {
@@ -129,12 +161,16 @@ function rootStyleOf(node: PxNode): Style {
 }
 
 function paintOf(s: Style): Paint {
+    // Field order is FIXED (it feeds the JSON.stringify merge key in `buildPaths`).
     const p: Paint = {};
     if (s.fill !== undefined) p.fill = s.fill;
     if (s.stroke !== undefined) p.stroke = s.stroke;
     if (s.strokeWidth !== undefined) p.strokeWidth = s.strokeWidth;
     if (s.opacity !== undefined && s.opacity !== 1) p.opacity = s.opacity;
-    if (s.animateOpacity !== undefined) p.animateOpacity = s.animateOpacity;
+    for (const key of PAINT_STATIC_KEYS) {
+        if (s[key] !== undefined) p[key] = s[key];
+    }
+    if (s.animate !== undefined) p.animate = s.animate;
     return p;
 }
 
@@ -674,15 +710,15 @@ function buildAnimatedAlongPath<E>(
         const animate: { [k: string]: any } = { transform };
         // Only add an opacity track when it actually toggles (a glyph fully on-path
         // the whole time needs none).
+        // Span-level animated paint rides along (dasharray, fill, …).
+        if (c.paint.animate) Object.assign(animate, c.paint.animate);
         if (isClip && opKfs.some(k => k.value === 0)) {
+            // The CLIP visibility track owns the opacity slot — two opacity animations
+            // aren't expressible on one element, and visibility is what makes clip mode
+            // work at all, so it overrides a span's own animated opacity.
             const op: { keyframes: Array<TransformKeyframe<number>>; loop?: unknown } = { keyframes: opKfs };
             if (loop !== undefined) op.loop = loop;
             animate.opacity = op;
-        } else if (c.paint.animateOpacity !== undefined) {
-            // Span-level animated opacity — only when the CLIP visibility track isn't
-            // using the opacity slot (two opacity animations aren't expressible on one
-            // element; visibility wins, it's what makes clip mode work at all).
-            animate.opacity = c.paint.animateOpacity;
         }
 
         out.push(create('path', { d, ...paintProps(c.paint), ...missingGlyphProps(c.isMissing), animate }, []));
@@ -699,7 +735,10 @@ function paintProps(paint: Paint): { [k: string]: any } {
     if (paint.stroke !== undefined) p.stroke = paint.stroke;
     if (paint.strokeWidth !== undefined) p.strokeWidth = paint.strokeWidth;
     if (paint.opacity !== undefined) p.opacity = paint.opacity;
-    // NOT `animateOpacity` — it merges into the emitted `animate` bag at each emit site.
+    for (const key of PAINT_STATIC_KEYS) {
+        if (paint[key] !== undefined) p[key] = paint[key];
+    }
+    // NOT `animate` — it merges into the emitted `animate` bag at each emit site.
     return p;
 }
 
@@ -717,12 +756,9 @@ function buildPaths<E>(placements: Array<Placement>, create: PxCreateElement<E>,
     const byPaint = new Map<string, { paint: Paint; d: string; isMissing?: boolean }>();
     for (const p of placements) {
         // Stable key across any paint value type (hex string, [r,g,b], gradient object).
-        // Opacity (static AND animated) is part of the key: spans that differ only in
-        // opacity must NOT merge into one path.
-        const key = JSON.stringify([
-            p.paint.fill ?? null, p.paint.stroke ?? null, p.paint.strokeWidth ?? null,
-            p.paint.opacity ?? null, p.paint.animateOpacity ?? null, !!p.isMissing,
-        ]);
+        // The WHOLE paint — statics AND the animate bag — is the key (`paintOf` builds it
+        // with a fixed field order): spans that differ in ANY paint aspect must not merge.
+        const key = JSON.stringify([p.paint, !!p.isMissing]);
         const baked = transformPathData(p.glyphD, p.m);
         const entry = byPaint.get(key);
         if (entry) entry.d += baked;
@@ -733,8 +769,8 @@ function buildPaths<E>(placements: Array<Placement>, create: PxCreateElement<E>,
     for (const { paint, d, isMissing } of byPaint.values()) {
         out.push(create('path', {
             d, ...paintProps(paint), ...missingGlyphProps(isMissing),
-            // A span's ANIMATED opacity rides the merged path as a standard animate bag.
-            ...(paint.animateOpacity !== undefined ? { animate: { opacity: paint.animateOpacity } } : {}),
+            // A span's ANIMATED paint rides the merged path as a standard animate bag.
+            ...(paint.animate !== undefined ? { animate: { ...paint.animate } } : {}),
         }, []));
     }
     return out;

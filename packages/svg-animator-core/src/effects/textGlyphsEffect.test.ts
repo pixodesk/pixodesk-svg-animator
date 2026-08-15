@@ -467,3 +467,68 @@ describe('textGlyphsEffect — span opacity folds into the baked paint', () => {
         expect(p[0].opacity).toBeUndefined();
     });
 });
+
+
+describe('textGlyphsEffect — full span paint folds into the baked paths', () => {
+
+    const SPAN = { type: 'tspan', textContent: 'Hi', fontFamily: 'F', fontSize: '100px' };
+
+    it('every static paint prop lands on the emitted <path>', () => {
+        const { root } = run({ useGlyphs: true }, {}, [{
+            ...SPAN,
+            fillOpacity: 0.5, fillRule: 'evenodd',
+            strokeOpacity: 0.25, strokeDasharray: [4, 2], strokeDashoffset: 3,
+            strokeLinecap: 'round', strokeLinejoin: 'bevel', strokeMiterlimit: 2,
+            mixBlendMode: 'multiply',
+        }]);
+        const p = paths(root);
+        expect(p).toHaveLength(1);
+        expect(p[0].fillOpacity).toBe(0.5);
+        expect(p[0].fillRule).toBe('evenodd');
+        expect(p[0].strokeOpacity).toBe(0.25);
+        expect(p[0].strokeDasharray).toEqual([4, 2]);
+        expect(p[0].strokeDashoffset).toBe(3);
+        expect(p[0].strokeLinecap).toBe('round');
+        expect(p[0].strokeLinejoin).toBe('bevel');
+        expect(p[0].strokeMiterlimit).toBe(2);
+        expect(p[0].mixBlendMode).toBe('multiply');
+    });
+
+    it('spans differing ONLY in a paint prop (fillOpacity) do not merge', () => {
+        const { root } = run({ useGlyphs: true }, {}, [
+            { ...SPAN, textContent: 'H', fillOpacity: 0.5 },
+            { ...SPAN, textContent: 'i' },
+        ]);
+        expect(paths(root)).toHaveLength(2);
+    });
+
+    it('paint animate keys are forwarded; GEOMETRY animate keys are not', () => {
+        const fillAnim = { keyframes: [{ time: 0, value: '#f00' }, { time: 1000, value: '#00f' }] };
+        const dashAnim = { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 12 }] };
+        const { root } = run({ useGlyphs: true }, {}, [{
+            ...SPAN,
+            animate: {
+                fill: fillAnim,
+                strokeDashoffset: dashAnim,
+                fontSize: { keyframes: [{ time: 0, value: 100 }, { time: 1000, value: 10 }] },   // geometry — baked
+                x: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 50 }] },            // geometry — baked
+            },
+        }]);
+        const p = paths(root);
+        expect(p).toHaveLength(1);
+        const animate = p[0].animate as any;
+        expect(animate?.fill).toStrictEqual(fillAnim);
+        expect(animate?.strokeDashoffset).toStrictEqual(dashAnim);
+        expect(animate?.fontSize).toBeUndefined();
+        expect(animate?.x).toBeUndefined();
+    });
+
+    it('TEXT-level paint props stay off the paths (they ride the <g> and inherit)', () => {
+        const { root } = run({ useGlyphs: true }, { fillOpacity: 0.5, strokeDashoffset: 3 });
+        const g = collectByType(root, 'g').find(n => n.id === 't');
+        expect(g!.fillOpacity).toBe(0.5);          // toGroup carried it
+        const p = paths(root);
+        expect(p[0].fillOpacity).toBeUndefined();  // not doubled into the paint
+        expect(p[0].strokeDashoffset).toBeUndefined();
+    });
+});
