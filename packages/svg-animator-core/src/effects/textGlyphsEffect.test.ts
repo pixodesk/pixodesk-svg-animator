@@ -532,3 +532,24 @@ describe('textGlyphsEffect — full span paint folds into the baked paths', () =
         expect(p[0].strokeDashoffset).toBeUndefined();
     });
 });
+
+
+describe('textGlyphsEffect — span filter ref folds into the baked paint', () => {
+
+    it('a span filter lands on the emitted <path>; differing filters do not merge', () => {
+        const { root } = run({ useGlyphs: true }, {}, [
+            { type: 'tspan', textContent: 'H', fontFamily: 'F', fontSize: '100px', filter: 'url(#blur1)' },
+            { type: 'tspan', textContent: 'i', fontFamily: 'F', fontSize: '100px' },
+        ]);
+        const p = paths(root);
+        expect(p).toHaveLength(2);
+        expect(p.map(n => n.filter).sort()).toEqual(['url(#blur1)', undefined]);
+    });
+
+    it('TEXT-level filter stays on the <g> (toGroup) — not doubled into the paths', () => {
+        const { root } = run({ useGlyphs: true }, { filter: 'url(#blur1)' });
+        const g = collectByType(root, 'g').find(n => n.id === 't');
+        expect(g!.filter).toBe('url(#blur1)');
+        expect(paths(root)[0].filter).toBeUndefined();
+    });
+});

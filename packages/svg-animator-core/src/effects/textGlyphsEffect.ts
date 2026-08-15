@@ -76,13 +76,13 @@ interface Paint {
     fillOpacity?: any; fillRule?: any;
     strokeOpacity?: any; strokeDasharray?: any; strokeDashoffset?: any;
     strokeLinecap?: any; strokeLinejoin?: any; strokeMiterlimit?: any;
-    mixBlendMode?: any;
+    mixBlendMode?: any; filter?: any;
     animate?: { [k: string]: any };
 }
 /** The per-span statics that fold into `Paint` by simple nearest-wins lookup. */
 const PAINT_STATIC_KEYS = [
     'fillOpacity', 'fillRule', 'strokeOpacity', 'strokeDasharray', 'strokeDashoffset',
-    'strokeLinecap', 'strokeLinejoin', 'strokeMiterlimit', 'mixBlendMode',
+    'strokeLinecap', 'strokeLinejoin', 'strokeMiterlimit', 'mixBlendMode', 'filter',
 ] as const;
 /** `animate.<key>`s that are PAINT (ride the baked path). Geometry keys — x/dx/fontSize/
  *  letterSpacing/… — are baked into the outlines and must NOT be forwarded. */
