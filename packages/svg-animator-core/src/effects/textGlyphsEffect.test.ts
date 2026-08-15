@@ -399,3 +399,71 @@ describe('layoutGlyphTextChars — per-char caret/hit boxes', () => {
         expect(boxes[1].width).toBe(25); // space advance 250 × 0.1 — a real box, not a filler
     });
 });
+
+
+describe('textGlyphsEffect — span opacity folds into the baked paint', () => {
+
+    it('static span opacity lands on the emitted <path> (attr or style form)', () => {
+        for (const span of [
+            { type: 'tspan', textContent: 'Hi', fontFamily: 'F', fontSize: '100px', opacity: 0.35 },
+            { type: 'tspan', textContent: 'Hi', fontFamily: 'F', fontSize: '100px', style: { opacity: 0.35 } },
+        ]) {
+            const { root } = run({ useGlyphs: true }, {}, [span]);
+            const p = paths(root);
+            expect(p).toHaveLength(1);
+            expect(p[0].opacity).toBe(0.35);
+        }
+    });
+
+    it('spans differing ONLY in opacity do not merge into one <path>', () => {
+        const { root } = run({ useGlyphs: true }, {}, [
+            { type: 'tspan', textContent: 'H', fontFamily: 'F', fontSize: '100px', opacity: 0.35 },
+            { type: 'tspan', textContent: 'i', fontFamily: 'F', fontSize: '100px' },
+        ]);
+        const p = paths(root);
+        expect(p).toHaveLength(2);
+        expect(p.map(n => n.opacity).sort()).toEqual([0.35, undefined]);
+    });
+
+    it('animated span opacity rides the emitted <path> as animate.opacity, verbatim', () => {
+        const anim = { keyframes: [{ time: 0, value: 1 }, { time: 1000, value: 0.2 }] };
+        const { root } = run({ useGlyphs: true }, {}, [
+            { type: 'tspan', textContent: 'Hi', fontFamily: 'F', fontSize: '100px', opacity: 1, animate: { opacity: anim } },
+        ]);
+        const p = paths(root);
+        expect(p).toHaveLength(1);
+        expect((p[0].animate as any)?.opacity).toStrictEqual(anim);   // opaque pass-through (pipeline clones nodes)
+    });
+
+    it('nested span opacity: NEAREST wins — the collapsed-line fold duplicates it on two levels', () => {
+        // The editor wire folds a single-span line's style onto the line-tspan AND keeps
+        // the child span — the same opacity on both levels. Multiplying would square it.
+        const { root } = run({ useGlyphs: true }, {}, [
+            {
+                type: 'tspan', opacity: 0.35,
+                children: [{ type: 'tspan', textContent: 'Hi', fontFamily: 'F', fontSize: '100px', opacity: 0.35 }],
+            },
+        ]);
+        const p = paths(root);
+        expect(p).toHaveLength(1);
+        expect(p[0].opacity).toBe(0.35);
+    });
+
+    it('a parent span opacity still reaches leaf spans that have none of their own', () => {
+        const { root } = run({ useGlyphs: true }, {}, [
+            {
+                type: 'tspan', opacity: 0.35,
+                children: [{ type: 'tspan', textContent: 'Hi', fontFamily: 'F', fontSize: '100px' }],
+            },
+        ]);
+        expect(paths(root)[0].opacity).toBe(0.35);
+    });
+
+    it('TEXT-level opacity stays on the <g> (toGroup) — NOT doubled into the paths', () => {
+        const { root } = run({ useGlyphs: true }, { opacity: 0.35 });
+        const g = collectByType(root, 'g').find(n => n.id === 't');
+        expect(g!.opacity).toBe(0.35);
+        const p = paths(root);
+        expect(p[0].opacity).toBeUndefined();
+    });
+});
