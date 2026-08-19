@@ -679,7 +679,15 @@ export interface _PxScroll {
      */
     pin?: boolean;
 
-    /** `pin` only: offset from the top of the scrollport, in px. Default 0. */
+    /**
+     * `pin` only: WHERE in the scrollport the canvas is held — the alignment the sticky
+     * offset is computed from. `top` (default) holds it against the top edge; `center`
+     * and `bottom` need the canvas's own height, so the player measures it and keeps the
+     * offset in sync on resize. `pinTop` is added on top of whichever alignment is chosen.
+     */
+    pinAlign?: 'top' | 'center' | 'bottom';
+
+    /** `pin` only: offset from the alignment position (see `pinAlign`), in px. Default 0. */
     pinTop?: number;
 
     /**
@@ -712,6 +720,7 @@ export const PxScrollSchema = implementsInterface<_PxScroll>()(px.object({
     subject: px.string().optional(),
     smoothing: px.number().optional(),
     pin: px.boolean().optional(),
+    pinAlign: px.enum(['top', 'center', 'bottom'] as const).optional(),
     pinTop: px.number().optional(),
     pinDistance: px.number().optional(),
     range: PxScrollRangeSchema.optional(),

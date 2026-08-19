@@ -327,6 +327,14 @@ export function createScrollDriver(
  *
  * Returns a cleanup that restores the DOM exactly. No-op (and no cleanup cost) when `pin` is off.
  */
+/** Height of the scrollport the canvas is held inside — the nearest y-scroller's, else the
+ *  document's. `clientHeight` (not `innerHeight`) so scrollbars are excluded, matching the
+ *  progress math above. Pinning is a `top` offset, so it is always the VERTICAL size. */
+function pinScrollportHeight(svgRoot: Element): number {
+    const scroller = findNearestScroller(svgRoot, 'y');
+    return scroller ? scroller.clientHeight : document.documentElement.clientHeight;
+}
+
 export function applyScrollPin(svgRoot: Element, scroll: PxScroll | undefined): () => void {
     const styled = svgRoot as Element & Partial<ElementCSSInlineStyle>;
     if (!scroll?.pin || !styled.style) return () => { /* nothing pinned */ };
@@ -335,7 +343,34 @@ export function applyScrollPin(svgRoot: Element, scroll: PxScroll | undefined): 
     const prevPosition = style.position;
     const prevTop = style.top;
     style.position = 'sticky';
-    style.top = (scroll.pinTop ?? 0) + 'px';
+
+    // WHERE it is held: `top` is the alignment position plus the `pinTop` fine-tune.
+    // `center`/`bottom` depend on the canvas's own height AND the scrollport height, neither
+    // of which CSS can express for a sticky offset (a `top` percentage resolves against the
+    // CONTAINING BLOCK, not the element), so they are measured and re-applied on resize.
+    const alignFactor = scroll.pinAlign === 'center' ? 0.5 : scroll.pinAlign === 'bottom' ? 1 : 0;
+    const applyTop = (): void => {
+        const extra = scroll.pinTop ?? 0;
+        if (!alignFactor) {
+            style.top = extra + 'px';
+            return;
+        }
+        const portSize = pinScrollportHeight(svgRoot);
+        const ownSize = svgRoot.getBoundingClientRect().height;
+        style.top = Math.round((portSize - ownSize) * alignFactor + extra) + 'px';
+    };
+    applyTop();
+
+    // Keep a measured offset correct as the viewport or the canvas resizes.
+    let resizeObserver: ResizeObserver | null = null;
+    const onWindowResize = alignFactor ? applyTop : null;
+    if (alignFactor) {
+        if (onWindowResize) window.addEventListener('resize', onWindowResize);
+        if (typeof ResizeObserver !== 'undefined') {
+            resizeObserver = new ResizeObserver(applyTop);
+            resizeObserver.observe(svgRoot);
+        }
+    }
 
     // `pinDistance` (in viewport heights) — the travel the pin should last for.
     let wrapper: HTMLElement | null = null;
@@ -349,6 +384,8 @@ export function applyScrollPin(svgRoot: Element, scroll: PxScroll | undefined): 
     }
 
     return () => {
+        if (onWindowResize) window.removeEventListener('resize', onWindowResize);
+        resizeObserver?.disconnect();
         style.position = prevPosition;
         style.top = prevTop;
         if (wrapper?.parentElement) {
