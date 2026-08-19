@@ -22,10 +22,10 @@ const anim = (n: PxNode | undefined): Record<string, any> => ((n as any)?.animat
 
 describe('unified animatable grammar — loop / kfs alias / value base in effect slots', () => {
 
-    it('trimPath.offset — loop rides into animate.strokeDashoffset and expands via the SHARED loop code', () => {
+    it('strokeTrim.offset — loop rides into animate.strokeDashoffset and expands via the SHARED loop code', () => {
         const input = doc({
             type: 'path', id: 'p', d: 'M0,0 L100,0', stroke: '#000', fill: 'none',
-            effects: { trimPath: {
+            effects: { strokeTrim: {
                 range: [0, 0.5],
                 offset: { keyframes: [{ time: 0, value: 0 }, { time: 500, value: -1 }], loop: true },
             } },

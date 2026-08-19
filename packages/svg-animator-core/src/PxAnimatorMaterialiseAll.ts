@@ -14,7 +14,7 @@
  * player sees internally — no parallel pipeline to drift.
  *
  *   1. `applyPlayerEffects` — `node.effects` (ref / transformation / repeater /
- *      maskedBy / trimPath / retime) materialised into wrappers, defs, clones.
+ *      maskedBy / strokeTrim / retime) materialised into wrappers, defs, clones.
  *   2. `materialiseInternalLoopsInTree` — every `propAnim.loop` expanded into
  *      repeated keyframes filling the duration.
  *   3. `materialiseMotionPathsInTree` — `transform` kfs with tangents +

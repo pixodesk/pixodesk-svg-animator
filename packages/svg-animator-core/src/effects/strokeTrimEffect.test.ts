@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// Pure-JSON in/out tests for the TRIM-PATH effect (`trimPathEffect.ts`).
+// Pure-JSON in/out tests for the TRIM-PATH effect (`strokeTrimEffect.ts`).
 // Converts parametric `offset` + `range` (both 0..1, animatable) into per-subpath
 // `stroke-dasharray` / `stroke-dashoffset` (+ `stroke-opacity` 0 to hide an empty
 // range). Single-subpath host COLLAPSES onto the leaf `<path>`; multi-subpath (or
@@ -16,14 +16,14 @@ import type { PxNode } from '../PxAnimatorTypes';
 import { collectByType, materialise, normaliseGeneratedIds } from './effectTestKit';
 
 /** A stroked leaf `<path>` (straight line, length≈100) carrying a trim effect. */
-const linePath = (trimPath: any, d = 'M0,0 L100,0'): PxNode =>
-    ({ type: 'svg', children: [{ type: 'path', id: 'p', d, stroke: '#000', strokeWidth: 4, fill: 'none', effects: { trimPath } }] } as unknown as PxNode);
+const linePath = (strokeTrim: any, d = 'M0,0 L100,0'): PxNode =>
+    ({ type: 'svg', children: [{ type: 'path', id: 'p', d, stroke: '#000', strokeWidth: 4, fill: 'none', effects: { strokeTrim } }] } as unknown as PxNode);
 
 const animKeys = (n: PxNode): Array<string> => Object.keys((n as any).animate || {});
 const thePath = (out: PxNode): PxNode => collectByType(out, 'path')[0];
 
 
-describe('trimPathEffect — dasharray/dashoffset materialisation', () => {
+describe('strokeTrimEffect — dasharray/dashoffset materialisation', () => {
 
     it('case 1 — single subpath + static range → COLLAPSE: dash attrs on the leaf <path>, no <g>', () => {
         const out = materialise(linePath({ range: [0, 0.5] }));
@@ -206,14 +206,14 @@ describe('trimPathEffect — dasharray/dashoffset materialisation', () => {
     // ── ellipse / circle hosts ───────────────────────────────────────────────
     // Regression (`effect.repeater.trim`): trim measurement only understood a `d`
     // attribute and `<rect>`, so an `<ellipse>` host produced NO measurable leaf and
-    // `applyTrimPathEffect` returned the node untouched — the effect vanished and the
+    // `applyStrokeTrimEffect` returned the node untouched — the effect vanished and the
     // full outline painted at every frame (it read as "stuck at the end frame").
 
     it('case 5 — <ellipse> host + animated range → trim materialises (was silently dropped)', () => {
         const out = materialise({
             type: 'svg', children: [{
                 type: 'ellipse', id: 'e', rx: 6, ry: 6, stroke: '#2673f2', strokeWidth: 3, fill: 'none',
-                effects: { trimPath: { range: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [0, 1] }] } } },
+                effects: { strokeTrim: { range: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [0, 1] }] } } },
             }],
         } as unknown as PxNode);
 
@@ -237,7 +237,7 @@ describe('trimPathEffect — dasharray/dashoffset materialisation', () => {
         const out = materialise({
             type: 'svg', children: [{
                 type: 'circle', id: 'c', r: 10, cx: 50, cy: 50, stroke: '#000', strokeWidth: 2, fill: 'none',
-                effects: { trimPath: { range: [0, 0.5] } },
+                effects: { strokeTrim: { range: [0, 0.5] } },
             }],
         } as unknown as PxNode);
 

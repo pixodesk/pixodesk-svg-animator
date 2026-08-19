@@ -56,7 +56,7 @@ runtime crash on a non-browser platform.
 | **Text** | `materialiseGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
 | **Node helpers** | `getNormalizedProps`, `sanitiseAttributeValue`, `resolveStyle`, `generateNewIds` |
 | **Playback engine** | `createBasicFrameLoopAnimator` + the `PxPlatformAdapter` interface |
-| **Wire enums** | `PxAnimatorMode`, `PxAnimatorEngine`, `PxLoopExtend`, `PxTrimSubPaths`, `PxMaskType`, `PxCloneType`, `PxUnits`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string |
+| **Wire enums** | `PxAnimatorMode`, `PxAnimatorEngine`, `PxLoopExtend`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneType`, `PxUnits`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string |
 
 ### Validating a document
 
@@ -69,7 +69,7 @@ import { PxAnimatedSvgDocumentSchema, type PxValidationContext } from '@pixodesk
 
 const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
 const ok = PxAnimatedSvgDocumentSchema.isValid(doc, ctx, []);
-if (!ok) console.error(ctx.errors);   // ["children[0].effects.trimPath.range: …", …]
+if (!ok) console.error(ctx.errors);   // ["children[0].effects.strokeTrim.range: …", …]
 ```
 
 **Two modes, two different questions:**
@@ -90,7 +90,7 @@ in-memory object that produced it.
 `materialiseAllInTree(doc, engine)` is the single entry point that turns a
 lightweight editor document into a flat tree any renderer can walk:
 
-1. **Effects** — `node.effects` (transformBy, repeater, maskedBy, trimPath,
+1. **Effects** — `node.effects` (transformBy, repeater, maskedBy, strokeTrim,
    clone/retime, gradients, textPath) become real nodes, wrappers and defs.
 2. **Loops** — each property's `loop` is expanded into explicit keyframes.
 3. **Motion paths** — tangented `transform` keyframes plus `autoOrient` are

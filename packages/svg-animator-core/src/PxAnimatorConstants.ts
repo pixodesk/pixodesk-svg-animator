@@ -136,16 +136,16 @@ export const PxTextPathSpacing = {
 
 export type PxTextPathSpacing = typeof PxTextPathSpacing[keyof typeof PxTextPathSpacing];
 
-/** `trimPath.subPaths` — what the 0..1 `range`/`offset` window is measured over.
+/** `strokeTrim.subPaths` — what the 0..1 `range`/`offset` window is measured over.
  *  `separate` (default): each sub-path against its OWN length, all trimmed alike.
  *  `combined`: every descendant sub-path chained end-to-end into one virtual path,
  *  so the window slides across siblings (AE "Trim All As One"). */
-export const PxTrimSubPaths = {
+export const PxStrokeTrimSubPaths = {
     separate: 'separate',
     combined: 'combined',
 } as const;
 
-export type PxTrimSubPaths = typeof PxTrimSubPaths[keyof typeof PxTrimSubPaths];
+export type PxStrokeTrimSubPaths = typeof PxStrokeTrimSubPaths[keyof typeof PxStrokeTrimSubPaths];
 
 /** @deprecated Backwards-compatibility alias — use {@link PxAnimatorMode} for the type. */
 export type JsMode = PxAnimatorMode;

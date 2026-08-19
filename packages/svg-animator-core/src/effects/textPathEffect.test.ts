@@ -61,7 +61,7 @@ describe('textPathEffect — inline path → <path> def + <textPath> wrap', () =
         expect(tp.animate.startOffset.keyframes.map((k: any) => k.value)).toEqual([0, 100]);
         // Animated ALSO writes the first-kf value as the static baseline attr —
         // the shared `writeAnimatableChannel` emit path (pre-tick DOM renders the
-        // kf-at-time-0 state, same as trimPath's dasharray baseline).
+        // kf-at-time-0 state, same as strokeTrim's dasharray baseline).
         expect(tp.startOffset).toBe('0');
     });
 

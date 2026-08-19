@@ -331,7 +331,7 @@ interface SVG_JSON {
         // named ref / array of refs / inline definition / mixed array
         animate?: string | Array<string> | Record<string, ANIMATE> | Array<string | Record<string, ANIMATE>>;
         // Player-materialised structural effects (transformBy/repeater/maskedBy/
-        // trimPath/clone/gradient/textPath/text/isCombinedShape). JSON-only — the
+        // strokeTrim/clone/gradient/textPath/text/isCombinedShape). JSON-only — the
         // Pre-rendered SVG export materialises these in the Editor. See "Player
         // effects" section below.
         effects?: {
@@ -342,7 +342,7 @@ interface SVG_JSON {
                                 maskUnits?, maskContentUnits?: 'userSpaceOnUse' | 'objectBoundingBox',
                                 x?, y?, width?, height?: number };   // mask viewport, user units
             clipPath?:        { d?: string, animate?: ANIMATE };   // static `d`, or animated clip geometry
-            trimPath?:        { offset?: number, range?: [a,b], subPaths?: 'separate' | 'combined' };  // offset/range animatable
+            strokeTrim?:        { offset?: number, range?: [a,b], subPaths?: 'separate' | 'combined' };  // offset/range animatable
             clone?:           { type?: 'content', sourceId?: string,
                                 retime?: { start?, stretch?: number, timeCrop?: [inMs, outMs] } };
             // `animate` = animated geometry: gradientX1/Y1/X2/Y2 (linear),
@@ -701,7 +701,7 @@ of time, so the exported SVG already contains the expanded structure —
 | `repeater` | `{ copies:N, translate?:[x,y], rotate?:deg, scale?:[%, %], origin?:[x,y] }` (each may be animated) | Materialises `N` real copies of the element, each offset by its index (`translate`/`rotate`/`origin` × i, `scale` per-axis `(v/100)^i`). The base element and the per-copy params can both animate. |
 | `maskedBy` | `{ sourceId:"#id", maskType?:"alpha"\|"luminance", maskUnits?, maskContentUnits?, x?, y?, width?, height? }` | Builds a `<mask>` from the referenced element and applies it to this one. `x`/`y`/`width`/`height` are the mask VIEWPORT in user units — content outside it is clipped; omit all four for the SVG default (`-10%,-10%,120%,120%`). A `0` is a real value, not "absent". |
 | `clipPath` | `{ d?:"M…", animate?: ANIMATE }` | Mints a `<clipPath>` from the path data and sets `clip-path` on the host. `animate` is the property animation **itself** (`{keyframes:[…]}`), not `{d:{keyframes:[…]}}` — its keyframe values are `{path:"M…"}`. |
-| `trimPath` | `{ offset?, range?:[a,b], subPaths?:"separate"\|"combined" }` (`offset`/`range` animatable) | Trims the visible stroke segment along a path. `subPaths` says what the 0..1 window is measured over: `"separate"` (default) trims each sub-path against its own length; `"combined"` chains all descendant sub-paths into one virtual path so the window slides across siblings (After Effects "Trim All As One"). |
+| `strokeTrim` | `{ offset?, range?:[a,b], subPaths?:"separate"\|"combined" }` (`offset`/`range` animatable) | Trims the visible stroke segment along a path. `subPaths` says what the 0..1 window is measured over: `"separate"` (default) trims each sub-path against its own length; `"combined"` chains all descendant sub-paths into one virtual path so the window slides across siblings (After Effects "Trim All As One"). |
 | `clone` | `{ type?:"content", sourceId:"#id", retime?:{ start?:ms, stretch?:1.0, timeCrop?:[inMs,outMs] } }` | `<use>`-only. A `<use>` is a clone of something: `sourceId` = the source element id (says WHAT it clones), nested `retime` = optional time-shift of the source's internal timeline (says WHEN). `type:"content"` is a "no-ref-translate" content link — targets the source's content sub-anchor so the source's own outer translate isn't re-applied; `type` absent = direct whole-element link (keeps translate). `retime.timeCrop` clips the clone to a visibility window `[inMs, outMs]` on the DOCUMENT timeline — implemented as a wrapping `<g>` with an opacity gate. |
 | `fillGradient` / `strokeGradient` | `{ type:"linear"\|"radial", p1?,p2? (linear) \| c?,r?,fp? (radial), stops?, animate?, gradientUnits?, spreadMethod?, gradientTransform? }` | Mints a `<linearGradient>`/`<radialGradient>` def and points the host's `fill`/`stroke` at it. `stops` is one timeline — static array, or `{keyframes}` whose each kf `value` is the full stops array snapshot. **`animate` animates the geometry** — `gradientX1/Y1/X2/Y2` (linear), `gradientCx/Cy/Fx/Fy/R` (radial); frames-engine only. `gradientTransform` is static-only. |
 | `textPath` | `{ path:"M…", pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? }` | On a `<text>` host: mints a `<path>` def from the inline `path` and wraps the text's children in a `<textPath>` along it. `startOffset`/`textLength` accept the full animatable shape. `pathOverflow`: `'extend'` (default — glyphs continue along the endpoint tangent) or `'clip'` (native `<textPath>` behaviour). |
@@ -811,11 +811,11 @@ reference, so the browser re-clips every frame):
   } }
 ```
 
-**`trimPath`** — animate a draw-on effect; the wrapping `<g>` carries `isCombinedShape:true` when the children form one logical shape:
+**`strokeTrim`** — animate a draw-on effect; the wrapping `<g>` carries `isCombinedShape:true` when the children form one logical shape:
 
 ```js
 { type: 'g', id: '_px_trim',
-  effects: { trimPath: { range: [0, 0.5] }, isCombinedShape: true },
+  effects: { strokeTrim: { range: [0, 0.5] }, isCombinedShape: true },
   children: [
     { type: 'path', d: 'M0,0 L100,0' },
     { type: 'path', d: 'M0,0 L100,100' }

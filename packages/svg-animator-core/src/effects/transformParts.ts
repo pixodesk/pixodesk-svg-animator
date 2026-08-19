@@ -86,7 +86,7 @@ export function readAnimatable<T>(raw: PxAnimatable<T> | undefined): ReadPart<T>
 
 /**
  * Writes a normalised animatable (`ReadPart`) onto a node as attribute/animation —
- * the ONE emit path shared by the effect appliers (trimPath, textPath, …):
+ * the ONE emit path shared by the effect appliers (strokeTrim, textPath, …):
  *   - Static → `node[attrName] = value` (stringified when `opts.asString`).
  *   - Animated → `node.animate[attrName] = {keyframes, loop?, autoOrient?}` PLUS a
  *     static baseline attr (`base` if present, else the first kf's value). The

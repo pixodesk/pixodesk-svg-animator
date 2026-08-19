@@ -137,7 +137,7 @@ same shape as the JSON export. It comes in two modes:
   element ids to animation specs via `animator.animateById`.
 
 Elements may also carry a `node.effects` bucket (structural effects such as
-`transformBy`, `repeater`, `maskedBy`, `trimPath`, `clone`, `fillGradient` /
+`transformBy`, `repeater`, `maskedBy`, `strokeTrim`, `clone`, `fillGradient` /
 `strokeGradient`, `textAlongPath`). This player materialises and removes them at
 runtime before any other normalisation.
 

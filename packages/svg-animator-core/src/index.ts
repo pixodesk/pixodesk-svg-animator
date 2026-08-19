@@ -119,8 +119,8 @@ export { collectSampleTimes, diffInEffect, visualModelAt } from './effects/Playe
 export { PxCloneEffectSchema, PxEffectsSchema, PxFillGradientEffectSchema, PxGradientStopSchema, PxMaskedByEffectSchema, PxRepeaterEffectSchema, PxRetimeEffectSchema,
     PxScrollRangePointSchema,
     PxScrollRangeSchema,
-    PxScrollSchema, PxStrokeGradientEffectSchema, PxTextPathEffectSchema, PxTextEffectSchema, PxTransformByEffectSchema, PxTrimPathEffectSchema, validateNodeEffects } from './PxAnimatorTypes';
-export { PxGradientSpreadMethod, PxGradientType, PxLoopExtend, PxTrimSubPaths, PxGradientUnits } from './PxAnimatorConstants';
+    PxScrollSchema, PxStrokeGradientEffectSchema, PxTextPathEffectSchema, PxTextEffectSchema, PxTransformByEffectSchema, PxStrokeTrimEffectSchema, validateNodeEffects } from './PxAnimatorTypes';
+export { PxGradientSpreadMethod, PxGradientType, PxLoopExtend, PxStrokeTrimSubPaths, PxGradientUnits } from './PxAnimatorConstants';
 export type {
     PxAnimatable,
     PxCloneEffect,
@@ -133,7 +133,7 @@ export type {
     PxStrokeGradientEffect,
     PxTextPathEffect,
     PxTransformByEffect,
-    PxTrimPathEffect,
+    PxStrokeTrimEffect,
     Vec2,
 } from './PxAnimatorTypes';
 

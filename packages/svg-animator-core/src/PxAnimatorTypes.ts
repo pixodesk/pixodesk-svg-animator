@@ -8,7 +8,7 @@ import { implementsInterface, px } from './PxSchema';
 // Constants live in their own module so importing one does not pull the schema engine
 // in; re-exported here so this module's public surface is unchanged. See there.
 export * from './PxAnimatorConstants';
-import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PxAnimatorMode, PxCloneType, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxGradientUnits, PxLengthAdjust, PxLoopExtend, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxTrimSubPaths, PxUnits, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
+import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PxAnimatorMode, PxCloneType, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxGradientUnits, PxLengthAdjust, PxLoopExtend, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
 import type { FillMode, JsMode, OutAction, PlaybackDirection, PxAnimatorEngine, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
 
 // ============================================================================
@@ -945,7 +945,7 @@ export interface _PxNode {
     meta?: any;
 
     /**
-     * Player-effects bucket (transformation/repeater/maskedBy/trimPath/retime/ref)
+     * Player-effects bucket (transformation/repeater/maskedBy/strokeTrim/retime/ref)
      * emitted by the Editor's lightweight design format. `applyPlayerEffects`
      * materialises and removes these before any other normalisation, so the
      * Player never observes a non-empty `effects` after entry-point processing.
@@ -1177,25 +1177,32 @@ const _ck_PxClipPathEffect: KeysMatch<PxClipPathEffect, _PxClipPathEffect> = tru
 
 
 /**
- * Trim-path effect. `range[0..1]` is the visible fraction of the stroke; `offset`
+ * Stroke-trim effect. `range[0..1]` is the visible fraction of the STROKE; `offset`
  * shifts the visible window along the path (also a fraction). Both are animatable.
  * `subPaths` says what that fraction is measured over: `separate` (default) trims
  * each sub-path against its own length; `combined` chains all descendant sub-path
  * lengths into one virtual path ("Trim All As One") so the window slides across
- * siblings — see `effects/trimPathEffect.ts`.
+ * siblings — see `effects/strokeTrimEffect.ts`.
+ *
+ * NAME — renamed from `trimPath` (2026-08, hard rename, no legacy alias): this
+ * trims the STROKE only. It emits `stroke-dasharray` / `stroke-dashoffset` (plus
+ * `stroke-opacity` for the empty-range hide) and NEVER rewrites `d`, so the fill
+ * is untouched. Lottie's same-named `ty:'tm'` is a path OPERATOR that rewrites
+ * geometry (and therefore does change the fill) — the old name imported that
+ * wrong mental model from the format most authors convert from.
  */
-export interface _PxTrimPathEffect {
+export interface _PxStrokeTrimEffect {
     offset?: PxAnimatable<number>;
     range?: PxAnimatable<Vec2>;
-    subPaths?: PxTrimSubPaths;
+    subPaths?: PxStrokeTrimSubPaths;
 }
-export const PxTrimPathEffectSchema = implementsInterface<_PxTrimPathEffect>()(px.object({
+export const PxStrokeTrimEffectSchema = implementsInterface<_PxStrokeTrimEffect>()(px.object({
     offset: PxAnimatableNumberSchema.optional(),
     range: PxAnimatableVec2Schema.optional(),
-    subPaths: px.enum([PxTrimSubPaths.separate, PxTrimSubPaths.combined] as const).optional(),
+    subPaths: px.enum([PxStrokeTrimSubPaths.separate, PxStrokeTrimSubPaths.combined] as const).optional(),
 }));
-export type PxTrimPathEffect = PxInfer<typeof PxTrimPathEffectSchema>;
-const _ck_PxTrimPathEffect: KeysMatch<PxTrimPathEffect, _PxTrimPathEffect> = true;
+export type PxStrokeTrimEffect = PxInfer<typeof PxStrokeTrimEffectSchema>;
+const _ck_PxStrokeTrimEffect: KeysMatch<PxStrokeTrimEffect, _PxStrokeTrimEffect> = true;
 
 
 /** Ref-attr naming rule (see editor SCHEMA-DESIGN.md): `sourceId` = ref to an EXTERNAL element
@@ -1375,7 +1382,7 @@ const _ck_PxTextEffect: KeysMatch<PxTextEffect, _PxTextEffect> = true;
  *    attribute on the same element, so it stays an attribute.
  *  - An EFFECT is anything whose realisation requires structure — minting defs
  *    (gradient, clipPath, maskedBy, textPath), wrapper nodes (transformation),
- *    clones (repeater, clone), or geometry-derived multi-attr rewrites (trimPath).
+ *    clones (repeater, clone), or geometry-derived multi-attr rewrites (strokeTrim).
  *  - The same attribute name can sit on both sides, split by value: flat `fill`
  *    is an attribute; gradient fill is an effect (no value of `fill` IS a
  *    gradient — it needs a def + stops + a `url(#id)` indirection).
@@ -1384,7 +1391,7 @@ const _ck_PxTextEffect: KeysMatch<PxTextEffect, _PxTextEffect> = true;
  * COMPOSITION ORDER (SCHEMA-DESIGN §R5): one bag per element — JSON key order
  * carries NO meaning and is never read. The applier composes in one hard-coded
  * order, innermost → outermost:
- *   glyphs/textPath → fill/strokeGradient → trimPath → repeater → maskedBy
+ *   glyphs/textPath → fill/strokeGradient → strokeTrim → repeater → maskedBy
  *   → clipPath → clone-href+transformBy         (retime = pass 2, time-remap only)
  * "Other" orders are expressed by STRUCTURE (nest elements), never by key order.
  * If authorable order is ever demanded: an explicit `effects.order: [names]`
@@ -1395,7 +1402,7 @@ export interface _PxEffects {
     repeater?: _PxRepeaterEffect;
     maskedBy?: _PxMaskedByEffect;
     clipPath?: _PxClipPathEffect;
-    trimPath?: _PxTrimPathEffect;
+    strokeTrim?: _PxStrokeTrimEffect;
     clone?: _PxCloneEffect;
     fillGradient?: _PxFillGradientEffect;
     strokeGradient?: _PxStrokeGradientEffect;
@@ -1407,7 +1414,7 @@ export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
     repeater: PxRepeaterEffectSchema.optional(),
     maskedBy: PxMaskedByEffectSchema.optional(),
     clipPath: PxClipPathEffectSchema.optional(),
-    trimPath: PxTrimPathEffectSchema.optional(),
+    strokeTrim: PxStrokeTrimEffectSchema.optional(),
     clone: PxCloneEffectSchema.optional(),
     fillGradient: PxFillGradientEffectSchema.optional(),
     strokeGradient: PxStrokeGradientEffectSchema.optional(),

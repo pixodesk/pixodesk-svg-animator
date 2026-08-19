@@ -28,7 +28,7 @@ import { applyRepeaterEffect } from './repeaterEffect';
 import { applyAllRetimeEffects } from './retimeEffect';
 import { applyTextPathEffect } from './textPathEffect';
 import { applyTextGlyphsAlongPath, applyTextGlyphsEffect } from './textGlyphsEffect';
-import { applyTrimPathEffect } from './trimPathEffect';
+import { applyStrokeTrimEffect } from './strokeTrimEffect';
 import { getDefs } from '../PxAnimatorConstants';
 import { getAnimatorConfig, PxAnimatorEngine, PxAnimatorMode } from '../PxAnimatorConstants';
 import type { PxNode } from '../PxAnimatorTypes';
@@ -102,7 +102,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
 
     if (!fx && !innerIdForContentRef) return node;
 
-    const { transformBy, repeater, maskedBy, clipPath, trimPath, clone: cloneFx, fillGradient, strokeGradient, textPath, text } = fx ?? {};
+    const { transformBy, repeater, maskedBy, clipPath, strokeTrim, clone: cloneFx, fillGradient, strokeGradient, textPath, text } = fx ?? {};
     if (fx) delete node.effects;
 
     let n = node;
@@ -135,7 +135,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     // wrapped — they live in `ctx.defs` independent of the structure walk.
     n = applyFillGradientEffect(n, fillGradient, ctx);
     n = applyStrokeGradientEffect(n, strokeGradient, ctx);
-    n = applyTrimPathEffect(n, trimPath, ctx);         // innermost shape
+    n = applyStrokeTrimEffect(n, strokeTrim, ctx);         // innermost shape
     n = applyRepeaterEffect(n, repeater, ctx);
     n = applyMaskedByEffect(n, maskedBy, transformBy, ctx);          // mask sits on inner element
     n = applyClipPathEffect(n, clipPath, ctx);                         // clip-path ref on the element

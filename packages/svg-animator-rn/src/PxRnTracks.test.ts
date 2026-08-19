@@ -153,7 +153,7 @@ describe('length-list props (stroke-dasharray)', () => {
             animator: { mode: 'frames', duration: 1000 },
             children: [{
                 type: 'path', id: 'p', d: 'M 0 50 L 100 50', stroke: '#000', fill: 'none',
-                effects: { trimPath: { range: { keyframes: [{ time: 0, value: [0, 0.1] }, { time: 1000, value: [0, 1] }] } } },
+                effects: { strokeTrim: { range: { keyframes: [{ time: 0, value: [0, 0.1] }, { time: 1000, value: [0, 1] }] } } },
             }],
         };
         const materialised = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.waapi));

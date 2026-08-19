@@ -31,7 +31,7 @@ is `/examples/react-native-preview-player/index.bundle`, not `/index.bundle`.
 |---|---|
 | **Bouncing ball** | eased keyframes, squash & stretch (`rx`/`ry`), colour interpolation |
 | **Text along path** | per-letter motion path with `autoOrient`, **sampled** by the core — the technique that replaces `<textPath startOffset>` animation, which is unusably janky in react-native-svg |
-| **Trim path** | the `trimPath` effect → animated `strokeDasharray` draw-on |
+| **Trim path** | the `strokeTrim` effect → animated `strokeDasharray` draw-on |
 | **Repeater** | the `repeater` effect (6 materialised copies) + a nested transform stack |
 | **Gradient** | the `fillGradient` effect with animated colour stops |
 | **Path morph** | `d` interpolation between two shapes |

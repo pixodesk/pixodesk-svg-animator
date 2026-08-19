@@ -71,8 +71,8 @@ describe('effect keyframes accept the short wire aliases', () => {
             effects: { repeater: { copies: 2, translate: { keyframes: k([2, 0], [6, 0]) } } } }])],
         ['repeater.rotate', k => D([{ type: 'rect', id: 'a', width: 4, height: 4,
             effects: { repeater: { copies: 2, rotate: { keyframes: k(0, 20) } } } }])],
-        ['trimPath.range', k => D([{ type: 'path', id: 'a', d: 'M0,0 L9,9', stroke: '#000',
-            effects: { trimPath: { range: { keyframes: k([0, 0], [0, 1]) } } } }])],
+        ['strokeTrim.range', k => D([{ type: 'path', id: 'a', d: 'M0,0 L9,9', stroke: '#000',
+            effects: { strokeTrim: { range: { keyframes: k([0, 0], [0, 1]) } } } }])],
     ];
 
     it.each(cases)('%s: {t,v} behaves exactly like {time,value}', (_name, build) => {

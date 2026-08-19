@@ -330,7 +330,7 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
                 type: 'ellipse', rx: 6, ry: 6, stroke: '#2673f2', strokeWidth: 3, fill: 'none',
                 transform: 'translate(120,100)',
                 effects: {
-                    trimPath: { range: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [0, 1] }] } },
+                    strokeTrim: { range: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [0, 1] }] } },
                     repeater: { copies: 4, translate: [18, 0] },
                 },
             }],

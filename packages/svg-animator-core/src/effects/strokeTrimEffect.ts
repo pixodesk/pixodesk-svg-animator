@@ -4,8 +4,8 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import { type PxAnimatable, type PxBezierPath, type PxKeyframe, type PxLoop, type PxNode, type Vec2, type _PxTrimPathEffect } from '../PxAnimatorTypes';
-import { PxTrimSubPaths } from '../PxAnimatorConstants';
+import { type PxAnimatable, type PxBezierPath, type PxKeyframe, type PxLoop, type PxNode, type Vec2, type _PxStrokeTrimEffect } from '../PxAnimatorTypes';
+import { PxStrokeTrimSubPaths } from '../PxAnimatorConstants';
 import { bezier2D_arcLengthLUT, bezierToSvgPath, clamp } from '../PxAnimatorUtil';
 import { parseSvgPathToBezier } from '../PxDefinitions';
 import { ReadKind, readAnimatable, writeAnimatableChannel, type ReadPart } from './transformParts';
@@ -13,7 +13,7 @@ import type { ApplyContext } from './types';
 
 
 /**
- * Applies a `trimPath` effect: collects every descendant shape leaf, slices each
+ * Applies a `strokeTrim` effect: collects every descendant shape leaf, slices each
  * leaf's `d` into sub-paths, measures each in px, and converts the parametric
  * `offset` + `range` to per-sub-path `stroke-dasharray` / `stroke-dashoffset` (and
  * `opacity` for empty-range hide).
@@ -33,14 +33,14 @@ import type { ApplyContext } from './types';
  * `<g>` split). Multi-subpath (or group/descendant) trims still expand to
  * `<g>` + one bare `<path>` per sub-path.
  */
-export function applyTrimPathEffect(
+export function applyStrokeTrimEffect(
     node: PxNode,
-    trimPath: _PxTrimPathEffect | undefined,
+    strokeTrim: _PxStrokeTrimEffect | undefined,
     ctx: ApplyContext,
 ): PxNode {
-    if (!trimPath) return node;
+    if (!strokeTrim) return node;
 
-    const combined = trimPath.subPaths === PxTrimSubPaths.combined;
+    const combined = strokeTrim.subPaths === PxStrokeTrimSubPaths.combined;
 
     // Pass 1a — collect leaves with subpath lengths (no chain offset yet).
     const leafEntries: Array<LeafEntry> = [];
@@ -94,11 +94,11 @@ export function applyTrimPathEffect(
     // `stroke-linecap="round"` from painting a round dot at the zero-length
     // first dash. Missing-emit means no `stroke-dashoffset`, no shift, and
     // the dot reappears.
-    const offsetReadRaw = readAnimatable<number>(trimPath.offset);
+    const offsetReadRaw = readAnimatable<number>(strokeTrim.offset);
     const offsetRead: ReadPart<number> = offsetReadRaw.kind === ReadKind.Absent
         ? { kind: ReadKind.Static, value: 0 }
         : offsetReadRaw;
-    const rangeReadRaw = readRangeWithCrossings(trimPath.range);
+    const rangeReadRaw = readRangeWithCrossings(strokeTrim.range);
     const rangeRead: ReadPart<Vec2> = rangeReadRaw.kind === ReadKind.Absent
         ? { kind: ReadKind.Static, value: [0, 1] }
         : rangeReadRaw;

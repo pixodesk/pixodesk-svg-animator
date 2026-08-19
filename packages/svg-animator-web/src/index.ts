@@ -173,7 +173,7 @@ export {
     PxTextPathEffectSchema,
     PxTextEffectSchema,
     PxTransformByEffectSchema,
-    PxTrimPathEffectSchema,
+    PxStrokeTrimEffectSchema,
     validateNodeEffects,
 } from '@pixodesk/svg-animator-core';
 export type {
@@ -188,6 +188,6 @@ export type {
     PxStrokeGradientEffect,
     PxTextPathEffect,
     PxTransformByEffect,
-    PxTrimPathEffect,
+    PxStrokeTrimEffect,
     Vec2,
 } from '@pixodesk/svg-animator-core';

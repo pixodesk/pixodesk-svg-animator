@@ -290,7 +290,7 @@ player sees plain nodes. **All are supported:**
 | `repeater` | ✅ | copies materialised as real elements; per-copy params animatable |
 | `maskedBy` | ✅ | including an animated mask source |
 | `clipPath` | ✅ | including animated clip geometry |
-| `trimPath` | ✅ | incl. `offset` and `subPaths: 'combined'` |
+| `strokeTrim` | ✅ | incl. `offset` and `subPaths: 'combined'` |
 | `clone` + `retime` | ✅ | each clone keeps its own time shift, incl. `retime.timeCrop` (a visibility window on the document timeline) |
 | `fillGradient` / `strokeGradient` | ✅ | animated stops **and animated geometry** (`animate.gradientX1`/`Cx`/`R`, …); `gradientTransform` is static (core-wide) |
 | `textPath` | ✅ | incl. animated `startOffset` |
