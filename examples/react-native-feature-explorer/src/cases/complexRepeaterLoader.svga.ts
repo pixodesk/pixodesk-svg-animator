@@ -785,7 +785,7 @@ export const complexRepeaterLoader: SvgaCaseJson = {
                     "gradientUnits": "userSpaceOnUse",
                     "spreadMethod": "pad"
                 },
-                "trimPath": {
+                "strokeTrim": {
                     "range": {
                         "loop": true,
                         "keyframes": [

@@ -96,7 +96,7 @@ export const complexTrimLoader: SvgaCaseJson = {
                             "gradientUnits": "userSpaceOnUse",
                             "spreadMethod": "pad"
                         },
-                        "trimPath": {
+                        "strokeTrim": {
                             "range": {
                                 "loop": true,
                                 "keyframes": [
@@ -277,7 +277,7 @@ export const complexTrimLoader: SvgaCaseJson = {
                             "gradientUnits": "userSpaceOnUse",
                             "spreadMethod": "pad"
                         },
-                        "trimPath": {
+                        "strokeTrim": {
                             "range": {
                                 "loop": true,
                                 "keyframes": [
@@ -484,7 +484,7 @@ export const complexTrimLoader: SvgaCaseJson = {
                             "gradientUnits": "userSpaceOnUse",
                             "spreadMethod": "pad"
                         },
-                        "trimPath": {
+                        "strokeTrim": {
                             "range": {
                                 "loop": true,
                                 "keyframes": [

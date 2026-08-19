@@ -24,7 +24,7 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "type": "g",
             "transform": "translate(140,60)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "trimAllAsOne": true,
                     "offset": {
                         "keyframes": [
@@ -69,7 +69,7 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "type": "g",
             "transform": "translate(80,60)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "trimAllAsOne": true,
                     "range": {
                         "keyframes": [
@@ -116,7 +116,7 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "type": "g",
             "transform": "translate(20,60)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "trimAllAsOne": true,
                     "range": [
                         0.125,
@@ -209,7 +209,7 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "type": "g",
             "transform": "translate(140,80)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "trimAllAsOne": true,
                     "offset": {
                         "keyframes": [
@@ -254,7 +254,7 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "type": "g",
             "transform": "translate(80,80)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "trimAllAsOne": true,
                     "range": {
                         "keyframes": [
@@ -301,7 +301,7 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "type": "g",
             "transform": "translate(20,80)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "trimAllAsOne": true,
                     "range": [
                         0.125,
@@ -364,7 +364,7 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "type": "g",
             "transform": "translate(160,160)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "trimAllAsOne": true,
                     "offset": {
                         "keyframes": [
@@ -409,7 +409,7 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "type": "g",
             "transform": "translate(100,160)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "trimAllAsOne": true,
                     "range": {
                         "keyframes": [
@@ -456,7 +456,7 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "type": "g",
             "transform": "translate(40,160)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "trimAllAsOne": true,
                     "range": [
                         0.125,

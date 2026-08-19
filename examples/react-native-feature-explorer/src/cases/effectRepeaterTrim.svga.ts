@@ -29,7 +29,7 @@ export const effectRepeaterTrim: SvgaCaseJson = {
             "strokeWidth": 3,
             "transform": "translate(120,100)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "range": {
                         "keyframes": [
                             {
@@ -84,7 +84,7 @@ export const effectRepeaterTrim: SvgaCaseJson = {
             "strokeWidth": 3,
             "transform": "translate(20,100)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "range": {
                         "keyframes": [
                             {

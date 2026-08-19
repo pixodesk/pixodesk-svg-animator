@@ -230,7 +230,7 @@ export const CASE_SECTIONS: Array<ExplorerSection> = [
             { id: 'complex.maskedRepeaterAnim', description: 'Breaks if **mask + repeater + animation** don\'t compose in motion (both mask and content move).', get doc() { return require('./cases/complexMaskedRepeaterAnim.svga').complexMaskedRepeaterAnim; } },
             { id: 'complex.firework', description: 'Breaks if a **radial-gradient backdrop + repeated animated particles** don\'t compose — a full real-world scene.', get doc() { return require('./cases/complexFirework.svga').complexFirework; } },
             { id: 'complex.repeaterLoader', description: 'Breaks if a **repeater of per-copy fade/rotate** copies doesn\'t sequence — a real-world loader.', get doc() { return require('./cases/complexRepeaterLoader.svga').complexRepeaterLoader; } },
-            { id: 'complex.trimLoader', description: 'Breaks if an **animated trimPath draw-on** on a rotating shape doesn\'t reveal — a real-world loader.', get doc() { return require('./cases/complexTrimLoader.svga').complexTrimLoader; } },
+            { id: 'complex.trimLoader', description: 'Breaks if an **animated strokeTrim draw-on** on a rotating shape doesn\'t reveal — a real-world loader.', get doc() { return require('./cases/complexTrimLoader.svga').complexTrimLoader; } },
         ],
     },
 ];

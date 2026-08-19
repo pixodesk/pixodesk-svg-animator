@@ -38,7 +38,7 @@ translate rotate scale origin skew transform opacity anchor position
 tangentIn tangentOut autoOrient path spatial
 fill stroke strokeWidth strokeLinecap strokeDasharray fontSize fontFamily fontWeight
 width height viewBox preserveAspectRatio gradientUnits spreadMethod stops
-trimPath repeater maskedBy clipPath retime clone transformBy fillGradient strokeGradient
+strokeTrim repeater maskedBy clipPath retime clone transformBy fillGradient strokeGradient
 textPath timeCrop loop extend subPaths timelineSource`.trim().split(/\s+/));
 
 // Schema-engine members. In the UMD these are INTERNAL — `px` and the schema objects

@@ -637,7 +637,7 @@ export const complexFirework: SvgaCaseJson = {
                             "strokeLinejoin": "round",
                             "strokeWidth": 4,
                             "effects": {
-                                "trimPath": {
+                                "strokeTrim": {
                                     "range": {
                                         "keyframes": [
                                             {
@@ -770,7 +770,7 @@ export const complexFirework: SvgaCaseJson = {
                             "strokeLinejoin": "round",
                             "strokeWidth": 8,
                             "effects": {
-                                "trimPath": {
+                                "strokeTrim": {
                                     "range": {
                                         "keyframes": [
                                             {

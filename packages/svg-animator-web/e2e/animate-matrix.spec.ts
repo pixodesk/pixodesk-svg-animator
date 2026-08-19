@@ -176,7 +176,7 @@ function trimPathEffectDoc(): PxAnimatedSvgDocument {
             type: 'path', id: '_px_p', stroke: '#0ea5e9', 'stroke-width': 5, fill: 'none',
             d: 'M 20 100 C 60 20 140 180 180 100',
             effects: {
-                trimPath: {
+                strokeTrim: {
                     range: { keyframes: [{ time: 0, value: [0, 0.1] }, { time: 1000, value: [0, 1] }] },
                 },
             },

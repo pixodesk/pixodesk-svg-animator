@@ -28,7 +28,7 @@ export const effectTrimPathShapePreset: SvgaCaseJson = {
             "strokeWidth": 3,
             "transform": "translate(39.0211,40)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "range": [
                         0.125,
                         0.75
@@ -80,7 +80,7 @@ export const effectTrimPathShapePreset: SvgaCaseJson = {
             "strokeWidth": 3,
             "transform": "translate(39.0211,100.9942)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "range": [
                         0.125,
                         0.75
@@ -130,7 +130,7 @@ export const effectTrimPathShapePreset: SvgaCaseJson = {
             "strokeWidth": 3,
             "transform": "translate(40.0205,161.9884)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "range": [
                         0.125,
                         0.75
@@ -182,7 +182,7 @@ export const effectTrimPathShapePreset: SvgaCaseJson = {
             "strokeWidth": 3,
             "transform": "translate(99.0211,40)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "range": {
                         "keyframes": [
                             {
@@ -248,7 +248,7 @@ export const effectTrimPathShapePreset: SvgaCaseJson = {
             "strokeWidth": 3,
             "transform": "translate(99.0211,100.9942)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "range": {
                         "keyframes": [
                             {
@@ -312,7 +312,7 @@ export const effectTrimPathShapePreset: SvgaCaseJson = {
             "strokeWidth": 3,
             "transform": "translate(100.0205,161.9884)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "range": {
                         "keyframes": [
                             {
@@ -378,7 +378,7 @@ export const effectTrimPathShapePreset: SvgaCaseJson = {
             "strokeWidth": 3,
             "transform": "translate(160.9789,40)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "offset": {
                         "keyframes": [
                             {
@@ -442,7 +442,7 @@ export const effectTrimPathShapePreset: SvgaCaseJson = {
             "strokeWidth": 3,
             "transform": "translate(160.9789,100.9942)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "offset": {
                         "keyframes": [
                             {
@@ -504,7 +504,7 @@ export const effectTrimPathShapePreset: SvgaCaseJson = {
             "strokeWidth": 3,
             "transform": "translate(161.9782,161.9884)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "offset": {
                         "keyframes": [
                             {

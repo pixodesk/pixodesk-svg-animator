@@ -186,10 +186,10 @@ const textAlongPath: PxAnimatedSvgDocument = {
 };
 
 // ---------------------------------------------------------------------------
-// 3. Trim path — draw-on stroke via the trimPath effect
+// 3. Trim path — draw-on stroke via the strokeTrim effect
 // ---------------------------------------------------------------------------
 
-const trimPath: PxAnimatedSvgDocument = {
+const strokeTrim: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         duration: 2600, iterations: 'infinite',
@@ -207,7 +207,7 @@ const trimPath: PxAnimatedSvgDocument = {
             d: 'M 40 220 C 40 60 120 40 150 120 C 180 200 220 210 260 90',
             stroke: '#0ea5e9', 'stroke-width': 8, fill: 'none', 'stroke-linecap': 'round',
             effects: {
-                trimPath: {
+                strokeTrim: {
                     range: {
                         keyframes: [
                             { time: 0, value: [0, 0], easing: [0.4, 0, 0.2, 1] },
@@ -368,7 +368,7 @@ const morph: PxAnimatedSvgDocument = {
 export const SAMPLES: Array<Sample> = [
     { name: 'Bouncing ball', note: 'eased position, squash & stretch, colour', doc: bouncingBall },
     { name: 'Text along path', note: 'per-letter motion path, sampled + auto-orient', doc: textAlongPath },
-    { name: 'Trim path', note: 'draw-on stroke via the trimPath effect', doc: trimPath },
+    { name: 'Trim path', note: 'draw-on stroke via the strokeTrim effect', doc: strokeTrim },
     { name: 'Repeater', note: 'repeater copies + nested transform stack', doc: repeater },
     { name: 'Gradient', note: 'animated gradient stops', doc: gradient },
     { name: 'Path morph', note: 'shape interpolation between two paths', doc: morph },

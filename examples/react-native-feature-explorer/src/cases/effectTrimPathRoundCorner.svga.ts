@@ -30,7 +30,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
             "strokeWidth": 4,
             "transform": "translate(140,60)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "offset": {
                         "loop": true,
                         "keyframes": [
@@ -95,7 +95,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
             "strokeWidth": 4,
             "transform": "translate(80,60)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "range": {
                         "loop": {
                             "alternate": true
@@ -164,7 +164,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
             "strokeWidth": 4,
             "transform": "translate(20,60)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "range": [
                         0.125,
                         0.75
@@ -348,7 +348,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
             "strokeWidth": 4,
             "transform": "translate(140,80)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "offset": {
                         "loop": true,
                         "keyframes": [
@@ -406,7 +406,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
             "strokeWidth": 4,
             "transform": "translate(80,80)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "range": {
                         "loop": {
                             "alternate": true
@@ -468,7 +468,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
             "strokeWidth": 4,
             "transform": "translate(20,80)",
             "effects": {
-                "trimPath": {
+                "strokeTrim": {
                     "range": [
                         0.125,
                         0.75
