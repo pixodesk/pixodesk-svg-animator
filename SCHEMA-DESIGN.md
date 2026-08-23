@@ -86,7 +86,7 @@ what pin it.
 |---|---|---|
 | **`sourceId`** | ref to an **external** element (survives on its own) | `clone.sourceId`, `maskedBy.sourceId`, retime `sourceId`, `retimedCopy.sourceId` |
 | **`coreId`** | my own unit's **survivor** — the node the collapse restores to | `effectsHost.coreId` |
-| **`partOf`** | my **host** — provenance mark on every derived node | `meta.partOf` |
+| **`partOf`** | my **host** — origin mark on every derived node (which host produced it) | `meta.partOf` |
 
 - Wire spelling of every px-meta ref is **`#id`** (E-5 canon); readers accept legacy bare `id`.
 - Native SVG refs (`<use href>`, `mask="url(#…)"`, `fill="url(#…)"`, `offset-path`) stay
@@ -473,7 +473,7 @@ READ      ONE pre-model pass on the raw tree (`UnitRestore.ts`), both carriers:
                        node partOf it deleted (tree and defs); refs into the unit re-pointed.
           core missing / stand-in unreadable → restore NOTHING (unit stays as ordinary
                        content, declarations stripped), one warning PER LOST EFFECT.
-          The unit is OPAQUE (R-5): marks are provenance, never load-bearing; an unmarked
+          The unit is OPAQUE (R-5): marks only record the origin, the restore never depends on them; an unmarked
           node in the interior is cleaned up, not a reason to refuse.
 
 INVARIANT a node is HOST, PART or PLAIN — never two (R-6). Only a PLAIN node carries
@@ -508,7 +508,7 @@ attribute effects — plus the identity effects only materialised output has (`c
 
 **Why TOTAL marking:** the one failure this design makes structurally impossible is
 restore-the-effect-AND-keep-its-materialised-elements — the next write expands again next to the stale
-survivors, doubling forever. Marked set ≡ derived set; provenance is readable off each element;
+survivors, doubling forever. Marked set ≡ derived set; each element's origin is readable off the element itself;
 interiors of copies/clone content are **stripped of their own meta** and carry only `partOf`
 (the derived-content strip — kills per-copy applied-effects duplication and dead meta in one mechanism).
 
@@ -620,7 +620,7 @@ asserts that no `effectsHost` / `partOf` ever reaches the model.
 ("every part present and pointing here, else restore nothing") and so had three readers with
 three validity rules that had to agree — they did not (`__bug-a.svg`). With one host, one core
 and the identity declared in the bucket, the only structural failure is a missing core; marks
-are provenance for the write-side audit (W-1) and nothing else.
+record the origin for the write-side audit (W-1) and nothing else.
 
 ## 4 · Editor schema = player schema + named keys
 
@@ -842,7 +842,7 @@ the lib schema (`resetOnFinish`, kf tangents, `repeater.skew`, `maskedBy.start/s
      per-unit atomicity; one set of applied effects per host stays law.
   2. *Generated defs marked* `partOf` (gradient defs, textPath path def, retime defs-copies,
      materialised-`<use>` viewport clip) via a per-layer `forceElementHostId` provider; removal
-     stays owned by the existing cleanup (marks = provenance, not a second deleter); P5's anchor
+     stays owned by the existing cleanup (marks only record the origin, they are not a second deleter); P5's anchor
      rule extended to `appliedEffects`-carrying elements.
   3. *Mask host id FORCED* (355-fix law) — id-less masked elements now emit full unit marks;
      late-id-flush machinery (`lateForcedElementIds`) stamps the canonical layer only (stamping
