@@ -128,7 +128,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     // structural wrapper (trim/repeater/mask) so the wrapping happens on the un-cloned
     // content first. Skipped when glyphs consumed it.
     if (!consumedByGlyphs) n = applyTextPathEffect(n, textPath, ctx);
-    // Paint-gradient defs are minted FIRST, before any structural wrapper —
+    // Paint-gradient defs are generated FIRST, before any structural wrapper —
     // the gradient effect sits on the innermost element (alongside its `fill`
     // / `stroke` body attrs), so it must materialise before trim/repeater/
     // mask wrap around it. `<linearGradient>` defs themselves don't get

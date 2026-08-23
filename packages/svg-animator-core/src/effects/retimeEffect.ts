@@ -118,7 +118,7 @@ function clearCloneRetime(n: PxNode): void {
 }
 
 
-/** Pass-2 driver. Re-indexes ids (pass-1 mints new ones like `_lw_inner_0`),
+/** Pass-2 driver. Re-indexes ids (pass-1 generates new ones like `_lw_inner_0`),
  *  then materialises retime at every site. Order-independent: each site
  *  recursively expands its own chain via the original retime layout. */
 export function applyAllRetimeEffects(root: PxNode, ctx: ApplyContext): void {

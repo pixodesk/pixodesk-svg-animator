@@ -10,7 +10,7 @@ import { deepClonePxNode, regenerateIdsAndRewriteRefs } from '../PxNodeCloneUtil
 import type { PxNode, Vec2 } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
 
-/** Mints a deterministic id for a generated node (`<mask>`, retimed `<symbol>`, …). */
+/** Generates a deterministic id for a generated node (`<mask>`, retimed `<symbol>`, …). */
 export function genId(ctx: ApplyContext, prefix: string): string {
     return '_lw_' + prefix + '_' + (ctx.nextId++);
 }

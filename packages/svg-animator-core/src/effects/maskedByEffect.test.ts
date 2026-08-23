@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 // Pure-JSON in/out tests for the MASKED-BY effect (`maskedByEffect.ts`).
-// Mints a `<mask>` into defs holding `<use href=#source>` (wrapped in inverse-
+// Generates a `<mask>` into defs holding `<use href=#source>` (wrapped in inverse-
 // transform `<g>`s that cancel the masked element's own + ancestor transforms so
 // the mask source paints at its original world position), then sets
 // `node.mask = url(#maskId)`. `maskType`/`maskUnits`/`maskContentUnits` pass through.
@@ -76,7 +76,7 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
         expect(collectByType(out, 'mask')).toHaveLength(1);
         // mask content references the source via <use href=#src>
         expect(countNodes(mask, n => n.type === 'use' && n.href === '#src')).toBe(1);
-        // target carries the mask attr pointing at the minted id
+        // target carries the mask attr pointing at the generated id
         expect((target(out) as any).mask).toMatch(/^url\(#.+\)$/);
         // no transforms to compensate → bare <use>, no inverse wrappers
         expect(countNodes(mask, n => n.type === 'g')).toBe(0);
@@ -213,7 +213,7 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
         expect(inverseParts.some(p => p.translate && p.translate[0] === -60 && p.translate[1] === 0)).toBe(true);
     });
 
-    it('case 4 — missing sourceId is rejected with an error (no mask minted)', () => {
+    it('case 4 — missing sourceId is rejected with an error (no mask generated)', () => {
         const { root, errors } = materialiseRaw(scene({ maskType: 'alpha' }));
         expect(errors.some(e => e.includes('maskedBy.sourceId missing'))).toBe(true);
         expect(collectByType(root, 'mask')).toHaveLength(0);

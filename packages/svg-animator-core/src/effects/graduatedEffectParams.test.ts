@@ -56,7 +56,7 @@ describe('repeater.skew — per-copy skew increment ×i', () => {
 
 describe('maskedBy viewport (x/y/width/height) — explicit mask region', () => {
 
-    it('x/y/width/height land on the minted <mask> verbatim', () => {
+    it('x/y/width/height land on the generated <mask> verbatim', () => {
         const out = materialise(doc({
             type: 'rect', width: 100, height: 100,
             effects: { maskedBy: {

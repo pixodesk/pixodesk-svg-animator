@@ -345,7 +345,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
 
 describe('transformationEffect — id ownership (B4/A1)', () => {
 
-    // An id names the WHOLE transformed unit — the OUTERMOST minted wrapper must
+    // An id names the WHOLE transformed unit — the OUTERMOST generated wrapper must
     // own it (same law as repeaterEffect and the editor's heavy render), so a
     // live `<use href>` in the DOM resolves to the full transformed result.
     it('the outermost wrapper takes the element id; the core loses it', () => {
@@ -375,7 +375,7 @@ describe('transformationEffect — id ownership (B4/A1)', () => {
         expect(target.transform).toEqual({ value: { translate: [30, 30] } });
     });
 
-    it('no wrappers minted (empty effect) → the id stays on the element', () => {
+    it('no wrappers generated (empty effect) → the id stays on the element', () => {
         const out: any = materialise(wrap({}));
         expect(out.children[0].type).toBe('rect');
         expect(out.children[0].id).toBe('r');

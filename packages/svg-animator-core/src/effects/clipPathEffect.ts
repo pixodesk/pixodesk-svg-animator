@@ -14,7 +14,7 @@ import { genId } from './util';
  * CLIP-PATH → a `<clipPath>` in defs holding a single `<path>` built from the effect's
  * `d`, referenced via `clip-path="url(#…)"` on the host element.
  *
- * Materialiser pattern, mirroring `applyMaskedByEffect` (mint a def, set a URL ref on the
+ * Materialiser pattern, mirroring `applyMaskedByEffect` (generate a def, set a URL ref on the
  * node) but far simpler — the clip geometry is a self-contained vector path (no ancestor
  * transform compensation, no source lookup).
  *

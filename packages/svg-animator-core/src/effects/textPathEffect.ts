@@ -88,7 +88,7 @@ export function shiftAnimatable(v: PxAnimatable<number> | undefined, by: number)
  *  tangents so the browser lays overflow glyphs onto the straight extension (matching
  *  glyph-mode's tangent behavior) instead of dropping them. `'clip'`/closed paths are
  *  returned unchanged (browser clips natively). Shared by the player's browser-font
- *  applier and the editor's live/heavy `<textPath>` def mint (single source of truth).
+ *  applier and the editor's live/heavy `<textPath>` def generate (single source of truth).
  *  Returns the extended `d` AND `startShift` — see {@link ExtendedPath}. */
 export function extendedPathForBrowser(pathD: string, opts: ExtendPathOpts): ExtendedPath {
     if (opts.pathOverflow === 'clip') return { d: pathD, startShift: 0 };
@@ -133,7 +133,7 @@ export function extendedPathForBrowser(pathD: string, opts: ExtendPathOpts): Ext
  *
  * The path geometry is carried INLINE on the effect as `path` (an SVG `d`). SVG's
  * native rendering requires a `<textPath href="#…">` wrapper referencing a `<path>`
- * def, so this applier mints that `<path>` def from the inline geometry, wraps the
+ * def, so this applier generates that `<path>` def from the inline geometry, wraps the
  * text node's children in the `<textPath>`, and forwards the textPath SVG attrs
  * (`lengthAdjust`, `method`, `spacing`, `startOffset`, `textLength`).
  *
@@ -141,9 +141,9 @@ export function extendedPathForBrowser(pathD: string, opts: ExtendPathOpts): Ext
  * number is set as an attribute; the `{keyframes}` form is forwarded to
  * `<textPath>.animate.<attr>`; `{value}` is unwrapped to the static shape.
  *
- * `pathOverflow:'extend'` tangent-extends the minted `<path>` (see
+ * `pathOverflow:'extend'` tangent-extends the generated `<path>` (see
  * {@link extendedPathForBrowser}) so the browser lays overflow glyphs onto the straight
- * extension; `'clip'` mints the geometry as-is and native `<textPath>` drops overflow.
+ * extension; `'clip'` generates the geometry as-is and native `<textPath>` drops overflow.
  */
 export function applyTextPathEffect(
     node: PxNode,

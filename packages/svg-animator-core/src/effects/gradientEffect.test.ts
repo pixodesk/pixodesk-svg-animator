@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 // Pure-JSON in/out tests for the GRADIENT effects (`gradientEffect.ts`) —
-// `fillGradient` / `strokeGradient`. Mints a `<linearGradient>` / `<radialGradient>`
+// `fillGradient` / `strokeGradient`. Generates a `<linearGradient>` / `<radialGradient>`
 // def (geometry as static attrs) with one `<stop>` per colour stop, then rewrites
 // the host's `fill` / `stroke` to `url(#id)`. Static stops are bare; an animated
 // stop timeline is SLICED per-index into each `<stop>`'s `animate.stopColor.keyframes`.

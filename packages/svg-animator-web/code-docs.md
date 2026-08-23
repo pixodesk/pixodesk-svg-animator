@@ -17,7 +17,7 @@ built over the rendered DOM.
   - **`materialiseAllInTree(doc, engine)`** — `PxAnimatorMaterialiseAll.ts` *(also exported for the Editor — one shared pipeline, no drift)*
     - **1. `applyPlayerEffects(doc)`** — `effects/PlayerEffectsUtil.ts` · **both engines** · materialises `node.effects` into wrappers/defs/clones
       - `applyPlayerEffects_exceptRetime` — pass 1, per node (effects bucket deleted up-front, slices passed to each applier):
-        - `applyFillGradientEffect` / `applyStrokeGradientEffect` — `effects/gradientEffect.ts` (mint `<linear/radialGradient>` def, host `fill`/`stroke` → `url(#…)`)
+        - `applyFillGradientEffect` / `applyStrokeGradientEffect` — `effects/gradientEffect.ts` (generate `<linear/radialGradient>` def, host `fill`/`stroke` → `url(#…)`)
         - `applyStrokeTrimEffect` — `effects/strokeTrimEffect.ts` (offset/range → `stroke-dasharray`/`-dashoffset`; collapse vs `<g>`-split)
         - `applyRepeaterEffect` — `effects/repeaterEffect.ts` (N copies; per-copy translate×i / rotate×i / scale^i / origin const)
         - `applyMaskedByEffect` — `effects/maskedByEffect.ts` (`<mask>` def + inverse-transform compensation; uses `collectMaskAncestorChains` pre-pass)

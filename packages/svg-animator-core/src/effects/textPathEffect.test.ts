@@ -4,8 +4,8 @@
  *---------------------------------------------------------------------------------------*/
 
 // Pure-JSON in/out tests for the TEXT-PATH effect (`textPathEffect.ts`, browser-font
-// path). Geometry is INLINE (`textPath.path`): the applier mints a `<path>` def from
-// it and wraps the `<text>` host's children in a `<textPath href="#minted">`, forwarding
+// path). Geometry is INLINE (`textPath.path`): the applier generates a `<path>` def from
+// it and wraps the `<text>` host's children in a `<textPath href="#generated">`, forwarding
 // `lengthAdjust`/`method`/`spacing`. `startOffset`/`textLength` are `PxAnimatable<number>`:
 // static → string attr on `<textPath>`; `{keyframes}` → `<textPath>.animate.<attr>`.
 
@@ -28,14 +28,14 @@ const pathDef = (out: PxNode): any => collectByType(out, 'path')[0];
 
 describe('textPathEffect — inline path → <path> def + <textPath> wrap', () => {
 
-    it('case 1 — mints a <path> def from the inline path and wraps children in <textPath href=#minted>', () => {
-        // clip → the minted def is the geometry verbatim (extend appends a tangent tail, tested below).
+    it('case 1 — generates a <path> def from the inline path and wraps children in <textPath href=#generated>', () => {
+        // clip → the generated def is the geometry verbatim (extend appends a tangent tail, tested below).
         const out = materialise(scene({ path: 'M0,0 Q50,80 100,0', pathOverflow: 'clip' }));
 
         const def = pathDef(out);
-        expect(def.d).toBe('M0,0 Q50,80 100,0');                       // minted from inline geometry
+        expect(def.d).toBe('M0,0 Q50,80 100,0');                       // generated from inline geometry
         const tp = textPathNode(out);
-        expect(tp.href).toBe('#' + def.id);                           // references the minted def
+        expect(tp.href).toBe('#' + def.id);                           // references the generated def
         expect(tp.children).toEqual([{ type: 'tspan', textContent: 'Hi' }]); // original content moved inside
         expect(textNode(out).children).toEqual([tp]);                 // text now holds only the textPath
         expect(textNode(out).effects).toBeUndefined();
@@ -78,7 +78,7 @@ describe('textPathEffect — inline path → <path> def + <textPath> wrap', () =
         expect(textNode(out).children).toEqual([{ type: 'tspan', textContent: 'Hi' }]);
     });
 
-    it('case 6 — pathOverflow:extend extends the minted <path> along the tangent; clip leaves it', () => {
+    it('case 6 — pathOverflow:extend extends the generated <path> along the tangent; clip leaves it', () => {
         const short = 'M0,0 L100,0';
         const extendD = pathDef(materialise(scene({ path: short, pathOverflow: 'extend', textLength: 500 }))).d;
         const clipD = pathDef(materialise(scene({ path: short, pathOverflow: 'clip' }))).d;

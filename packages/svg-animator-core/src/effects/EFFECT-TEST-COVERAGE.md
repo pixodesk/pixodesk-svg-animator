@@ -18,7 +18,7 @@ Schemas: `PxAnimatorTypes.ts` (`_PxEffects` + each `_Px*Effect`). Apply order:
 | maskedBy | `maskedByEffect.test.ts` | `applyMaskedByEffect` | ✅ done | 4 cases: mask def + `<use href>`, attr passthrough, inverse-transform compensation, missing-href error |
 | strokeTrim | `strokeTrimEffect.test.ts` | `applyStrokeTrimEffect` | ✅ done | 5 cases: collapse(static range), animated range, animated offset, empty-range opacity 0, multi-subpath split |
 | fillGradient/strokeGradient | `gradientEffect.test.ts` | `applyFillGradientEffect` / `applyStrokeGradientEffect` | ✅ done | 5 cases: static linear, radial geom, animated per-stop color slice, stroke-vs-fill host, units passthrough |
-| textPath | `textPathEffect.test.ts` | `applyTextPathEffect` | ✅ done | 5 cases: inline path → minted `<path>` def + `<textPath href>` wrap, attr passthrough + static startOffset/textLength, animated startOffset, pathOverflow consumed, empty path no-op |
+| textPath | `textPathEffect.test.ts` | `applyTextPathEffect` | ✅ done | 5 cases: inline path → generated `<path>` def + `<textPath href>` wrap, attr passthrough + static startOffset/textLength, animated startOffset, pathOverflow consumed, empty path no-op |
 | ref + contentRefSplit | `refEffect.test.ts` | `applyRefHref` / `splitForContentRef` | ✅ done | 3 cases: whole-element href rewrite, content-ref split (outer#src>inner>bare, use→inner), source-translate lifts to outer |
 
 **All effects covered.** Shared helpers: `effectTestKit.ts`. Run: `npx vitest run src/effects`.

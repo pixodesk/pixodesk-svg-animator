@@ -1150,12 +1150,12 @@ const _ck_PxMaskedByEffect: KeysMatch<PxMaskedByEffect, _PxMaskedByEffect> = tru
  * Clip-path effect — clips the host element to a vector path. `d` is a standard
  * animatable slot (same grammar as body `d`): static = plain SVG path-data string
  * (one or more subpaths); animated = `{keyframes}` whose values are `{path:"M…"}`.
- * At apply time an animated `d` lands on the minted `<path>`'s `animate.d`, so the
+ * At apply time an animated `d` lands on the generated `<path>`'s `animate.d`, so the
  * player's frame loop rewrites the clip path's `d` attribute per frame. `clip-path`
  * is a live reference, so the browser re-clips each frame (unlike `<marker>` —
  * verified across SMIL/CSS/JS/WAAPI).
  *
- * At apply time the effect mints a `<clipPath><path d/></clipPath>` def and sets
+ * At apply time the effect generates a `<clipPath><path d/></clipPath>` def and sets
  * `clip-path="url(#auto-id)"` on the host (materialiser pattern, like `maskedBy` /
  * gradient). See `effects/clipPathEffect.ts`.
  *
@@ -1322,7 +1322,7 @@ export type PxStrokeGradientEffect = PxFillGradientEffect;
 
 /** Text-path effect on a `<text>` host. The path geometry is carried INLINE as
  *  `path` (an SVG `d`; static for now, keyframed animation is a later step) — the
- *  applier mints a `<path>` def from it and wraps the text's children in a native
+ *  applier generates a `<path>` def from it and wraps the text's children in a native
  *  `<textPath href="#…">` at apply time. All SVG-native textPath attrs
  *  (`lengthAdjust`, `method`, `spacing`, `startOffset`, `textLength`) ride on this
  *  effect; `startOffset`/`textLength` accept the full `PxAnimatable<number>` shape.
@@ -1380,7 +1380,7 @@ const _ck_PxTextEffect: KeysMatch<PxTextEffect, _PxTextEffect> = true;
  *    one channel, zero structure. The test is STRUCTURE, not value-encoding
  *    complexity: `transform` has a parts-record wire value but lands in one
  *    attribute on the same element, so it stays an attribute.
- *  - An EFFECT is anything whose realisation requires structure — minting defs
+ *  - An EFFECT is anything whose realisation requires structure — generating defs
  *    (gradient, clipPath, maskedBy, textPath), wrapper nodes (transformation),
  *    clones (repeater, clone), or geometry-derived multi-attr rewrites (strokeTrim).
  *  - The same attribute name can sit on both sides, split by value: flat `fill`

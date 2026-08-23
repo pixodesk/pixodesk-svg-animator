@@ -189,7 +189,7 @@ export type PxTransformPartKey = typeof PX_TRANSFORM_PART_KEYS[number];
 // Gradient paint effect — `fillGradient` / `strokeGradient`.
 //
 // Materialiser pattern mirrors `maskedByEffect`: at apply time the gradient
-// effect mints a `<linearGradient>` / `<radialGradient>` def into `ctx.defs`,
+// effect generates a `<linearGradient>` / `<radialGradient>` def into `ctx.defs`,
 // then sets the host element's `fill` / `stroke` to `url(#auto-id)`. The wire
 // gradient is geometry parts (`p1`/`p2` linear, `c`/`r`/`fp` radial — standard
 // animatable slots) + a stop sequence that is either static (bare array) or

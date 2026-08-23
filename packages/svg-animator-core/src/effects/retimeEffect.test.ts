@@ -716,7 +716,7 @@ describe('retime.timeCrop — visibility window', () => {
     it('wraps the <use> in a <g> whose opacity gates the window', () => {
         const out = materialiseEngine(cropDoc([500, 1500]), PxAnimatorEngine.frames);
         const g = cropWrapper(out);
-        expect(g, 'a crop wrapper was minted').toBeDefined();
+        expect(g, 'a crop wrapper was generated').toBeDefined();
         expect(g.animate.opacity.keyframes).toEqual([
             { time: 499, value: 0 },   // hidden right up to the edge…
             { time: 500, value: 1 },   // …visible AT the boundary

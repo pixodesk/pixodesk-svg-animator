@@ -112,7 +112,7 @@ describe('gradient geometry animation', () => {
         expect(ok).toBe(true);
     });
 
-    it('drives the minted gradient def\'s own attributes', () => {
+    it('drives the generated gradient def\'s own attributes', () => {
         const m = generateNewIds(materialiseAllInTree(linearDoc(), PxAnimatorEngine.waapi));
         const bindings = getNormalisedBindings(m, PxAnimatorEngine.frames) || [];
         const geom = bindings
