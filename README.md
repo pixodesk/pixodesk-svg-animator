@@ -5,6 +5,9 @@
 
 # 🚧 **Status - This project is currently under development.**
 
+> 📖 **Documentation:** the user guide — quick start, editor, every player's API, the file
+> formats — lives in [`docs/`](docs/README.md). This README is the package overview.
+
 <img src="boat.svg" width="100%"/>
 <!-- <video  src="boat.mp4" autoplay  muted loop playsinline style="width: 100%; height: auto; display: block;"></video> -->
 
@@ -331,7 +334,7 @@ interface SVG_JSON {
         // named ref / array of refs / inline definition / mixed array
         animate?: string | Array<string> | Record<string, ANIMATE> | Array<string | Record<string, ANIMATE>>;
         // Player-materialised structural effects (transformBy/repeater/maskedBy/
-        // strokeTrim/clone/gradient/textPath/text/isCombinedShape). JSON-only — the
+        // strokeTrim/clone/gradient/textPath/text). JSON-only — the
         // Pre-rendered SVG export materialises these in the Editor. See "Player
         // effects" section below.
         effects?: {
@@ -351,7 +354,6 @@ interface SVG_JSON {
             strokeGradient?:  { /* same shape as fillGradient */ };
             textPath?:        { path: string, pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? };
             text?:            { useGlyphs?: boolean };  // render text from embedded glyph outlines (definitions.glyphs)
-            isCombinedShape?: boolean;
         };
         meta?: any;         // editor-only (label, shape, …); not rendered, ignored by player
         children?: Array<any>; // recursive; <g>, <defs>, <symbol>, <text>, <use>, …
@@ -498,7 +500,7 @@ const doc = {
                     animate: {
                         rotate: {
                             keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 360 }],
-                            loop: { segmentCount: 1, before: false, alternate: false },
+                            loop: { segmentCount: 1, extend: 'after', alternate: false },
                         },
                     },
                     children: [{ type: 'rect', x: -22, y: -22, width: 44, height: 44, fill: '#10b981' }],
@@ -652,7 +654,7 @@ The `data` object passed to `createAnimator` is the same `PxAnimatedSvgDocument`
                     'spin':       { 
                           rotate:             { 
                               keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 360 }], 
-                              loop: { segmentCount: 1, before: false, alternate: false } 
+                              loop: { segmentCount: 1, extend: 'after', alternate: false } 
                     } },
                     'morph':      { d:                  { keyframes: [
                         { time: 0, value: 'M-50,0 L0,-50 L50,0 L0,50 Z' }, 
@@ -663,7 +665,7 @@ The `data` object passed to `createAnimator` is the same `PxAnimatedSvgDocument`
                     } },
                 },
             },
-            animate: {
+            animateById: {
                 _px_rect:    'fadeIn',                              // single named ref
                 _px_ellipse: ['colorShift', 'slideIn'],             // array of refs
                 _px_group:   ['pulse', { translate: { keyframes: [  // mixed
@@ -706,7 +708,6 @@ of time, so the exported SVG already contains the expanded structure —
 | `fillGradient` / `strokeGradient` | `{ type:"linear"\|"radial", p1?,p2? (linear) \| c?,r?,fp? (radial), stops?, animate?, gradientUnits?, spreadMethod?, gradientTransform? }` | Generates a `<linearGradient>`/`<radialGradient>` def and points the host's `fill`/`stroke` at it. `stops` is one timeline — static array, or `{keyframes}` whose each kf `value` is the full stops array snapshot. **`animate` animates the geometry** — `gradientX1/Y1/X2/Y2` (linear), `gradientCx/Cy/Fx/Fy/R` (radial); frames-engine only. `gradientTransform` is static-only. |
 | `textPath` | `{ path:"M…", pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? }` | On a `<text>` host: generates a `<path>` def from the inline `path` and wraps the text's children in a `<textPath>` along it. `startOffset`/`textLength` accept the full animatable shape. `pathOverflow`: `'extend'` (default — glyphs continue along the endpoint tangent) or `'clip'` (native `<textPath>` behaviour). |
 | `text` | `{ useGlyphs?: true }` (the effect group — not to be confused with `node.textContent`, the content itself) | Renders the `<text>` from embedded per-glyph outlines in `definitions.glyphs` — self-contained, no external font needed. |
-| `isCombinedShape` | `true` | Flag for the wrapping `<g>` of a multi-`<path>` trim — tells the Player the children form one logical shape. |
 
 **Example — composite transformBy + repeater:**
 
@@ -743,7 +744,7 @@ of time, so the exported SVG already contains the expanded structure —
 ```js
 { type: 'defs', children: [{ type: 'circle', id: '_px_mask', cx: 100, cy: 100, r: 80, fill: '#fff' }] },
 { type: 'rect', id: '_px_r', x: 0, y: 0, width: 200, height: 200, fill: '#ec4899',
-  effects: { maskedBy: { href: '#_px_mask', maskType: 'alpha' } } }
+  effects: { maskedBy: { sourceId: '#_px_mask', maskType: 'alpha' } } }
 ```
 
 **`<use>` + `clone` (retime)** — clone a referenced `<symbol>` and re-time its internal timeline independently of the document timeline:
@@ -811,11 +812,11 @@ reference, so the browser re-clips every frame):
   } }
 ```
 
-**`strokeTrim`** — animate a draw-on effect; the wrapping `<g>` carries `isCombinedShape:true` when the children form one logical shape:
+**`strokeTrim`** — animate a draw-on effect on a group; `subPaths: 'combined'` chains the children's lengths into one so the window slides across them:
 
 ```js
 { type: 'g', id: '_px_trim',
-  effects: { strokeTrim: { range: [0, 0.5] }, isCombinedShape: true },
+  effects: { strokeTrim: { range: [0, 0.5], subPaths: 'combined' } },
   children: [
     { type: 'path', d: 'M0,0 L100,0' },
     { type: 'path', d: 'M0,0 L100,100' }

@@ -1209,8 +1209,9 @@ const _ck_PxStrokeTrimEffect: KeysMatch<PxStrokeTrimEffect, _PxStrokeTrimEffect>
  *  (clone/maskedBy/retime); `coreId` = a unit's own survivor; `partOf` = a derived node's host.
  *
  *  `<use>` retime: `sourceId` = source (`#id` canonical, bare legacy); `start`/`timeCrop` in ms.
- *  NOTE: `timeCrop` is accepted on the wire but not implemented yet — the
- *  applier warns and ignores it (see `effects/retimeEffect.ts`). */
+ *  `timeCrop: [inMs, outMs]` is a VISIBILITY WINDOW on the document timeline — implemented
+ *  (2026-08) as an opacity gate on a player-side wrapper `<g>`, independent of the
+ *  `start`/`stretch` remap (see `effects/retimeEffect.ts`). */
 export interface _PxRetimeEffect {
     sourceId?: string;
     start?: number;

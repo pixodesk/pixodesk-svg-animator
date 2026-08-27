@@ -1,44 +1,189 @@
 # SVGA Format — Schema Design (player + editor)
 
-Short version: **`SCHEMA-DESIGN.brief.md`** — the layers and the five principles, two pages.
+The design record of the SVGA wire format: the layers, the generative rules, the value taxonomy,
+the editor's unit contract, the corpus that pins it all, and the history of every normalisation.
+§I is the two-page version; everything after it is the full treatment.
 
 Sources of truth:
-- **Player schema**: `packages/svg-animator-core/src/PxAnimatorTypes.ts` (`PxAnimatedSvgDocumentSchema`)
+- **Player schema**: `packages/svg-animator-core/src/PxAnimatorTypes.ts` (`PxAnimatedSvgDocumentSchema`) +
+  the wire enums in `PxAnimatorConstants.ts`
 - **Editor schema** (extensions): `kf/app/src/svgeditor/model/serialization/schema/PxSchemaUtil.ts`
-- **Empirical corpus**: 116 feature-explorer cases (`featureexplorer/cases/*.json`)
+- **Empirical corpus**: the feature-explorer cases (`featureexplorer/cases/*.json`, 117 at the last census — §6)
+
+> ⚠️ **A "REAL" claim in this document means verified against WRITTEN OUTPUT** — a probe capture or a
+> corpus census, never a field name read off the model. The trap that produced three wrong examples
+> in the old issues log (S11, N4, J3, all corrected 2026-08): **the wire key comes from the VALUE's
+> own attr names, not from the `@serializable(…)`/schema field name.** `TSvgMaskEffectAttr.start` is
+> declared `start` and writes `x`,`y`; `TSvgUseElement.sz` writes `width`,`height`. When those two
+> disagree the WIRE wins — and where a schema was once written from the field names instead
+> (`maskedBy`), the result was a real shipped bug (B5, §5).
 
 ---
 
-## L · The layers — how each concept builds on the one below
+## I · Introduction — the format in six layers
 
-The format is **nested**: each layer adds one idea and uses everything beneath it; nothing
-above a layer is needed to understand that layer. (§1 tells the same story rule by rule,
-R1–R7; this is the map. The layer's **address on the node** is the contract — the player reads
-`effects` and `animate` and ignores `meta`; the editor owns `meta`.)
+The format is **plain SVG with layers added on top**. Each layer adds one idea, uses only
+the layers beneath it, and has its own *address on the node* — that address is the contract.
+Full treatment: §L (the map and where each layer is enforced), §1 (rules R1–R7), §2 (values),
+§P (the unit contract), §4 (the editor superset).
+
+| layer | | address on the node | what it adds | read by |
+|---|---|---|---|---|
+| **L0** | plain SVG | `{type, ...attrs, children}` | strings · static attributes · static elements | the browser |
+| **L1** | typed values | the same attributes | numbers, vectors, records — seven kinds | player |
+| **L2** | animated attributes | `node.animate[attr]` | a parallel channel per attribute; zero structure | player |
+| **L3** | player effects | `node.effects` | declarative generators, expanded at load | player |
+| **L4** | editor meta | `node.meta` | everything the player ignores | editor |
+| | ↳ own effects | `meta.appliedEffects` | this node's effects the player never sees | editor |
+| | ↳ a unit | `meta.effectsHost` + `meta.partOf` | several emitted elements that fold back into ONE | editor |
+| **L5** | pre-rendered SVG | a real `.svg` file | the same model, flattened | the browser (or the player) |
+
+### L0 · Plain SVG — where we start
+
+An element is `{type, ...attributes, children}`. SVG itself knows only **string** attribute
+values, static attributes, static elements. Nothing of ours yet.
+
+### L1 · Typed values — the same attributes, real types
+
+The first thing we add is not animation but **types**: `opacity: 0.5`, `translate: [96.8,
+46.8]`, `transform: {translate, rotate, scale, skew, origin}`, `d: {path: "M…"}`, gradient
+stops as `[{offset, color}]`. Seven kinds in all (§2). Units are never written — each property
+has one fixed implicit unit. A typed static is byte-for-byte the same shape as a keyframe value,
+which is what makes L2 a one-line addition rather than a second grammar.
+
+### L2 · Animated attributes — `node.animate`
+
+Any attribute animates through a **parallel channel keyed by attribute name**. The static
+stays a plain attribute; the animation sits beside it and never touches the element's shape
+in the tree — **zero structure**. One clock (`animator`), one reusable-definitions store.
+
+```json
+{ "type": "rect", "opacity": 1, "animate": { "opacity": { "keyframes": [] } } }
+```
+
+### L3 · Player effects — `node.effects`
+
+**The law: an attribute is a value the browser consumes as-is; an effect is anything that
+needs STRUCTURE** — generated defs, wrapper nodes, clones, geometry-derived rewrites. The player
+expands `effects` into L0–L2 content at load; its runtime never sees a non-empty `effects`.
+
+The player knows ten: `transformBy repeater maskedBy clipPath strokeTrim clone fillGradient
+strokeGradient textPath text`. The editor's list is a **strict superset** (it widens some and
+adds `shape`, which the player never sees — see L4 and §4).
+
+#### The cut that matters downstream: what an effect LEAVES BEHIND
+
+| kind | applying it produces | examples |
+|---|---|---|
+| **attribute effect** | values on the element (`node[attr]`, `node.animate[attr]`) and/or a def **outside** the tree | `shape` → `d`; single-subpath `strokeTrim` → `stroke-dasharray`; `fillGradient` → `fill=url(#…)` + def; `clipPath`, `maskedBy`, `textPath` → def + ref |
+| **element effect** | **extra elements in place** — the element's position now holds several | `transformBy` (wrapper chain), `repeater` (copies), `clone` (wrapped source), glyph `text` (`<g>` + outlines), **multi**-subpath `strokeTrim` (`<g>` + a `<path>` per subpath) |
+
+The cut is **data-dependent** — `strokeTrim` is on both rows — so readers decide from what
+is *marked in the file*, never from the effect's name.
+
+#### Who expands what
+
+| wire form | the editor writes | who expands |
+|---|---|---|
+| **lightweight JSON** (`.svga`, production) | `effects` **un-expanded** — no wrappers, no hosts | the **player**, at load |
+| **heavy JSON** (test oracle) · **pre-rendered SVG** (L5) | **materialised** — wrappers, copies, hosts | the editor already did |
+
+Two consequences. The player must support every *element* effect — true by construction, it
+is handed `effects` and expands them itself; the editor never writes a unit into a `.svga`.
+And the player need **not** know every *attribute* effect: the editor materialises those into
+`node[attr]` / `node.animate[attr]`, and the player just renders the result.
+
+### L4 · Editor meta — `node.meta`
+
+The player types `meta` as `any` and ignores it wholesale. Everything the editor needs that
+the player does not lives here — and *only* here, so editor additions can never break the
+player.
+
+**`meta.appliedEffects` — this node's own effects.** How an attribute effect the player
+doesn't know survives a round-trip: the editor bakes `shape` into `node.d`, then keeps the
+parametric preset here so the shape re-opens as a shape. Also rich `text` config and the
+gradient mirror. The *tense* is the meaning: `effects` = the player WILL apply; `appliedEffects`
+= these WERE applied — read back, never re-applied.
+
+**`meta.effectsHost` + `meta.partOf` — a UNIT.** Needed because of L3's element effects: once
+one model element is *written* as several (L5 forces this), the reader must fold them back
+into one.
+
+```
+HOST   the outermost emitted element; has an id;
+       declares meta.effectsHost = { coreId?, appliedEffects }
+CORE   the element inside that IS the original, named by coreId
+PART   every element the write derived; marked meta.partOf = '#hostId'
+```
+
+The rules that make this safe, in one breath: `effectsHost` is created **only by element
+effects** — attribute effects, defs included, never make a host; **all** of the original's
+applied effects live on the host, none on a part; the read takes **one verdict per unit** —
+*does it fold back to exactly ONE element?* — and restores everything or nothing; a unit that
+fails keeps its artwork, **loses its effects cleanly**, and the user is told what was lost.
+Every write is checked: an emitted element is either a document element, a marked part, or a
+host — there is no fourth kind. (Full contract: §P.)
+
+The editor can read a unit back from **either** carrier — JSON and SVG share one read pipeline.
+Production `.svga` just never contains one.
+
+### L5 · Pre-rendered SVG — the same model, flattened
+
+A real `.svg` a browser opens with no player: `meta` → a per-element `data-px-meta="…"` JSON5
+string; animation → CSS `@keyframes`, or an embedded player plus an id → animation map (the
+DOM already exists; the player only binds). Every element effect is materialised — which is
+exactly why L4's unit contract has to exist: the file holds the expansion, and the editor
+must be able to fold it back.
+
+### The principles behind the layering
+
+1. **Each layer reduces to the one below.** A document using only L0–L2 is fully playable;
+   everything above is expanded into it. That is what keeps the player small.
+2. **Address is contract.** What a key *means* is fixed by *where* it sits — `effects` vs
+   `appliedEffects` vs `effectsHost.appliedEffects` are three tenses of one idea, told apart
+   by position, not by a flag.
+3. **Widen, never narrow.** Every editor schema is the player schema plus named keys; the
+   player ignores what it doesn't know (`meta` is `any`), so the editor can grow freely.
+4. **Structure is the dividing line.** Attribute or effect, attribute effect or element
+   effect, host or no host — every split in the design is the same question asked again:
+   *does this change the tree?*
+5. **Round-trips must reach a fixed point.** `read ∘ write` is idempotent from the first
+   round-trip on; the first write may bake, no later write may grow. Everything in §P exists
+   to make that true by construction, not by hope.
+
+---
+
+## L · The layer map — rules, materialisers, enforcement
+
+Same six layers as §I, now with the rule that defines each (§1) and the party that expands it.
+The layer's **address on the node** is the contract — the player reads `effects` and `animate`
+and ignores `meta`; the editor owns `meta`.
 
 ```
 L0  plain SVG              static elements + static attributes              the browser     R1
  │
-L1  animated attributes    node.animate[attr] — a parallel channel keyed    player          R2–R4
+L1  typed values           the same attributes, real kinds (§2)             player          R1
+ │
+L2  animated attributes    node.animate[attr] — a parallel channel keyed    player          R2–R4
  │                         by attribute name; zero structure
  │
-L2  player effects         node.effects.{effect} — declarative, expanded    player          R5
- │                         by the player at load into L0+L1
+L3  player effects         node.effects.{effect} — declarative, expanded    player          R5
+ │                         by the player at load into L0+L2
  │
-L3  editor-only info       node.meta — the player types it px.any()        editor          R6, §P
+L4  editor-only info       node.meta — the player types it px.any()        editor          R6, §P, §4
  │   ├ meta.appliedEffects   this node's OWN effects the player never sees
- │   │                       (or that were pre-baked into L0/L1 attrs)
+ │   │                       (or that were pre-baked into L1/L2 attrs)
  │   └ meta.effectsHost      a UNIT: several emitted elements that fold
  │     + meta.partOf         back into ONE model element
  │
-L4  pre-rendered SVG       the same model flattened to a real .svg:         editor          R7
+L5  pre-rendered SVG       the same model flattened to a real .svg:         editor          R7
                            meta → data-px-meta, animation → CSS / JS map
 ```
 
 ### The cut the editor cares about: what an effect LEAVES BEHIND
 
 R5's law says *what* is an effect (anything needing structure). The editor needs a second cut —
-what applying it produces — because that decides whether a unit (L3) has to exist:
+what applying it produces — because that decides whether a unit (L4) has to exist:
 
 | kind | applying it produces | examples | creates `effectsHost` |
 |---|---|---|---|
@@ -59,7 +204,7 @@ what applying it produces — because that decides whether a unit (L3) has to ex
 |---|---|---|
 | **lightweight JSON** (`.svga`, production) | `node.effects` **un-expanded** — no wrappers, no `effectsHost` | the **player**, at load |
 | **heavy JSON** (test oracle only) | effects **materialised**: wrappers, copies, `effectsHost` / `partOf` | the editor already did |
-| **pre-rendered SVG** (L4) | materialised — same as heavy, flattened | the editor already did |
+| **pre-rendered SVG** (L5) | materialised — same as heavy, flattened | the editor already did |
 
 So "the player must support every element effect" holds for `.svga` by construction: the
 player is handed `effects` and expands them itself; the editor never writes a unit into a
@@ -72,11 +217,11 @@ what pin it.
 
 | layer | what can go wrong | check (`PxSchemaValidationUtil.ts`, editor) |
 |---|---|---|
-| L0–L2 | document off-schema; editor-only key in the player bucket | `validateWithSchema`, `lintPlayerEffectsBucketKeys` |
-| L3 | a `partOf` points at nothing; a part outlives its host | `lintPartOfMarks`, `warnOnLeftoverHostParts`, `checkNoUncollapsedUnits` |
-| L3 read | a unit cannot fold back to one element | `isUnitFoldableToOneElement`, `isValidCombinedShapeUnit` |
-| L4 write | an emitted element is neither a document element nor a marked part | `WriteInvariantAudit` (W-1) |
-| L4 ↔ L3 | the document grows on every save → open | `detectWriteReadGrowth` |
+| L0–L3 | document off-schema; editor-only key in the player bucket | `validateWithSchema`, `lintPlayerEffectsBucketKeys` |
+| L4 | a `partOf` points at nothing; a part outlives its host | `lintPartOfMarks`, `warnOnLeftoverHostParts`, `checkNoUncollapsedUnits` |
+| L4 read | a unit cannot fold back to one element | `isUnitFoldableToOneElement`, `isValidCombinedShapeUnit` |
+| L5 write | an emitted element is neither a document element nor a marked part | `WriteInvariantAudit` (W-1) |
+| L5 ↔ L4 | the document grows on every save → open | `detectWriteReadGrowth` |
 
 ---
 
@@ -170,6 +315,32 @@ ever needed one. Flat+prefixed is also the house style of the vocabulary this fo
 `patternUnits`, `maskUnits`, `gradientUnits`, `markerUnits`, `filterUnits`, `primitiveUnits`.
 Revisit only if one mode ever needs several params at once.
 
+**What ADVANCES the clock: `timelineSource` (+ `scroll`) — N10, implemented 2026-08.**
+`trigger.startOn` says what STARTS the animation; `timelineSource` says what MOVES the playhead
+afterwards: `'time'` (the wall clock — default, **omitted from the wire**) or `'scroll'`
+(scroll-linked "scrubbing", the CSS scroll-driven-animations model). With `'scroll'`, `trigger`
+and `iterations: 'infinite'` are meaningless and MUST NOT be written (readers ignore them with a
+warning). The parameters live in `animator.scroll` — structured atomic values, never CSS strings,
+so a mechanical translation to `animation-range` / WAAPI `rangeStart`/`rangeEnd` exists but the
+format is not bound to CSS syntax. All optional; `timelineSource: 'scroll'` alone means *"scrub
+the whole animation as the SVG crosses the viewport"*:
+
+| `scroll.` | values | meaning |
+|---|---|---|
+| `driver` | `custom` (default) · `native` | who computes progress: the player's own DOM-measuring driver (both engines, identical everywhere) or the browser's `ScrollTimeline`/`ViewTimeline` (waapi only; **falls back** to `custom` when unsupported or when `smoothing` is set) |
+| `kind` | `view` (default) · `scroll` | progress = the subject's journey across the scrollport, or the scroller's offset ratio |
+| `axis` | `block` (default) · `inline` · `x` · `y` | writing-mode-relative or physical axis |
+| `source` | `nearest` (default) · `root` | `kind: 'scroll'` only — which scroller |
+| `subject` | `'parent'` · `'scroller'` · a CSS selector | `kind: 'view'` only — WHOSE journey is measured (unset = the `<svg>`); `parent` skips sticky/fixed ancestors, which is what makes a pinned section work |
+| `smoothing` | ms | catch-up lag (GSAP `scrub: seconds`); forces `driver: 'custom'` |
+| `pin` · `pinAlign` · `pinTop` · `pinDistance` | bool · `top`/`center`/`bottom` · px · viewport heights | hold the canvas with `position: sticky` while scrolling scrubs it; `pinDistance` injects a spacer wrapper |
+| `range.start` / `range.end` | `{phase?, fraction?}` | the timeline slice mapped to 0..1; `phase` (view only) ∈ `cover contain entry exit entry-crossing exit-crossing`, default `{cover,0}`→`{cover,1}` |
+
+Pure math in core `PxScrollMath` (`scrollViewProgress`, `scrollOffsetProgress`, …); the DOM half is
+the web player's `PxScrollDriver` (one coalesced measurement + seek per frame). Design and the
+per-parameter semantics: app `svgeditor/animation/scroll-timeline.design.md`. Not yet consumed by
+the RN player or the SVG+CSS export.
+
 ### R4 · Reuse: `animator.definitions`
 Named libraries: `easings`, `animations`, `styles`, `glyphs` (embedded font outlines).
 *Corpus reality: only `glyphs` is used (24 files); named easings/styles are dormant.*
@@ -200,10 +371,10 @@ one attr name can sit on both sides split by value (flat `fill` = attribute; gra
 |---|---|---|
 | `transformBy` | per-part wrapper sandwich `T(+o)·T(t)·R(r)·S(s)·T(−o)` | `translate✚ rotate✚ scale✚ skew✚ origin✚` |
 | `repeater` | N sibling copies, per-copy transform ×i | `copies` (STATIC — see below) + `translate✚ rotate✚ scale✚ skew✚ origin✚` (scale compounds `s^i`) |
-| `maskedBy` | generated `<mask>` + wiring | `sourceId`, `maskType…`, `start`/`size` viewport |
-| `clipPath` | generated `<clipPath><path>` + url | `d✚` |
+| `maskedBy` | generated `<mask>` + wiring | `sourceId`, `maskType` / `maskUnits` / `maskContentUnits`, viewport `x`/`y`/`width`/`height` (B5 — the SVG attrs verbatim, never `start`/`size`) |
+| `clipPath` | generated `<clipPath><path>` + url | `d✚` (legacy sibling `animate` read-only) |
 | `strokeTrim` | dash-based draw-on | `offset✚`, `range✚` (fractions), `subPaths` |
-| `clone` | `<use>` semantics: what + when | `type: 'content'?`, `sourceId`, `retime {sourceId?, start, stretch}` |
+| `clone` | `<use>` semantics: what + when | `type: 'content'?`, `sourceId`, `retime {sourceId?, start, stretch, timeCrop?: [inMs, outMs]}` (`timeCrop` = a visibility window, implemented 2026-08) |
 | `fillGradient`/`strokeGradient` | generated gradient def + url | geometry `p1/p2/c/r/fp`✚ + `stops`✚ |
 | `textPath` | native `<textPath>` + generated path def | `path` (d), `startOffset✚`, `pathOverflow…` |
 | `text` | glyph-outline text rendering | `useGlyphs` |
@@ -269,11 +440,25 @@ glyphs/textPath → fill/strokeGradient → strokeTrim → repeater → maskedBy
   destroy.
 
 ### R6 · Editor layer: `meta`
-Everything the editor needs but the player is free to ignore (player types `meta` as `px.any()`):
-- `meta.label`, `meta.runtime` (export settings, root only);
-- `meta.appliedEffects.{group}` — **this node's own** editor effects/mirrors (parametric `shape`
-  presets, rich `text` config, gradient mirror);
-- `meta.effectsHost` + `meta.partOf` — the expansion-host contract (§P below).
+Everything the editor needs but the player is free to ignore (player types `meta` as `px.any()`).
+The editor's `SvgMetaAttrSchema` (`PxSchemaUtil.ts`) — every key, and where it may appear:
+
+| key | on | holds |
+|---|---|---|
+| `label` | any element | editor-only display name |
+| `runtime` | root `<svg>` only | export-format settings `{useCssAnimation, useJsTriggers, externalJs, unoptimisedJs}` — HOW animation code is generated, not what the animation does (that is `animator`). Player never reads it |
+| `animator` | root `<svg>`, **pre-rendered SVG only** | the animator config's second address (S4, R7) — lifted to the top level on JSON write |
+| `appliedEffects` | a PLAIN node | this node's own effects — the editor bucket (§4): the player bucket + `shape`, widened `clone`/`text`/`clipPath`, `combinedPath` |
+| `timeline` | `<symbol>` only | `{duration}` — the symbol's OWN animation length in ms (unrelated to `animator.timelineSource`) |
+| `lineSpacing` | text LINE tspans (2nd line on) | bare Auto line-height multiplier (`gap = value × maxFontOnLine`); absent = the baked `y` alone is the truth |
+| `effectsHost` | a unit's HOST | `{coreId?, appliedEffects}` — the expansion-host contract (§P) |
+| `partOf` | every derived element of a unit | `'#hostId'` — single string ref (§0 glossary) |
+| `animate` | any element, **`data-px-meta` form only** | the node's channels keyed by attr name; the JSON form hoists the same bucket to `node.animate` |
+
+Two editor widenings ride on the lib's animation grammar without touching the player: keyframe
+`selected` (editor UI state; declared in the lib so strict validation accepts it) and
+`PxPropertyAnimationSchemaExtra.alongPathMode` (`'offsetPath' | 'sampled'` — the motion-along-path
+ENCODING choice for CSS/WAAPI output; absent ⇒ sampled).
 
 ### R7 · Pre-rendered SVG (.svg)
 The same model flattened into a real SVG document: `meta` serialises to a per-element
@@ -630,10 +815,86 @@ the lib schemas outright (`SvgRetimeEffectAttrSchema = PxRetimeEffectSchema`,
 EFFECT BUCKETS are two schemas (V1 closed): `node.effects` = the lib's closed `PxEffectsSchema`
 only (editor-only keys there are flagged by `lintPlayerEffectsBucketKeys` on read);
 `meta.appliedEffects` = `SvgEffectsAttrSchema = extendedObject(PxEffectsSchema, {shape, clone,
-clipPath, text})`. Intentional
-editor-only additions: `alongPathMode`, clone `width/height` (host fields), `animator.timeline`, the
-`shape`/rich-`text` groups, `meta.effectsHost`/`meta.partOf`. Features implemented by the player live ONLY in
-the lib schema (`resetOnFinish`, kf tangents, `repeater.skew`, `maskedBy.start/size`).
+clipPath, text, combinedPath})`. Features implemented by the player live ONLY in the lib schema
+(`resetOnFinish`, kf tangents, `repeater.skew`, `maskedBy` viewport, `retime.timeCrop`).
+
+### 4.1 · Every editor-only key, and why it exists
+
+| slot | editor adds | why the player never needs it |
+|---|---|---|
+| `appliedEffects.shape` | the whole group (§4.2) | an ATTRIBUTE effect: baked into `node.d` / `node.animate.d` before the player sees the file |
+| `appliedEffects.clone` | `width`, `height` | the materialised `<use>`'s explicit size — heavy meta only, seeds the collapse |
+| `appliedEffects.text` | `fontSource` (`'asset'` \| `'browser'`), `content` (a `<text>` node: tspans + text-only geometry) | `content` is the IDENTITY effect of a glyph-baked core (R-4, §P): the `<g>` of outlines cannot carry the text, so the host does |
+| `appliedEffects.clipPath.animate` | widened to `PxPropertyAnimationSchemaExtra` | editor's own animation extras (`alongPathMode`, corners-carrying `value`) |
+| `appliedEffects.combinedPath` | `true` | writer-auto-emitted IDENTITY effect beside a multi-subpath `strokeTrim`: the core is a `<g>` of one `<path>` per sub-path — reassemble ONE shape on read. Never in lightweight output |
+| `meta.runtime` · `meta.timeline` · `meta.lineSpacing` · `meta.label` | R6 | editor state |
+| `animator.timelineSource` | *graduated* — now in the lib too | was editor-only while reserved |
+| `PxPropertyAnimationSchemaExtra` | `alongPathMode`; `value` widened to the corners-carrying path object | encoding choice for CSS/WAAPI output |
+
+`EFFECT_ATTR_KEYS` (built from the same `schemaKeys(...)` constants the writers use) is the
+per-effect field list the reader checks unknown content against (`unsupportedEffectAttribute`
+warning); an effect absent from that map is never field-checked — silence beats a false
+"unsupported". `isKnownEffectName(name)` is the bucket-key test.
+
+### 4.2 · `appliedEffects.shape` — the editor's parametric path source
+
+*(Design record: app `schema/shape-effect.schema.rework.md`; editing-time sync of the clocks:
+`schema/shape-effect.timing-sync.md`. Both IMPLEMENTED 2026-08.)*
+
+`shape` is one **generator** — exactly one of `path` / `preset` (validated, not structural:
+`SHAPE_GENERATORS`) — plus zero or more **modifier** sub-effects applied in `SHAPE_BAKE_ORDER`
+(today one: `corners`). It materialises to the plain `node.d` / `node.animate.d` the player
+consumes; the source stays here so the shape re-opens as a shape.
+
+```jsonc
+"shape": {
+  "path":   "M…" | { "keyframes": [ { "time", "value": { "path": "M…" } } ] },   // GENERATOR — raw source (pre-modifier)
+  "preset": { "type": "star", "points": 5, "radius": 89 | {keyframes}, … },       // GENERATOR — parametric
+  "corners": { "entries": [ {pathIndex?, pointIndex, r?, type?} ] | {keyframes} } // MODIFIER
+}
+```
+
+**The one-sentence animation model:** *every leaf attribute is `T | {keyframes}`; a collection is
+ONE attribute* (animated as whole-array snapshots — the gradient-stops precedent, S9). Scalars
+therefore animate per attribute (`preset.radius` moves, everything else stays static) and
+`corners.entries` animates as snapshots. Three laws are enforced around the schema (named SH-1..3
+here; the rework doc calls them L1–L3 — not the format layers of §I):
+
+- **SH-1 · one clock per shape** — all animated slots inside `shape` (and the baked `animate.d`)
+  carry identical times AND easing. Validated by `validateShapeEffectClock`; the read normalises a
+  violation and warns. At editing time the editor keeps every animated slot on ONE clock
+  (`TBezierPathsCompositeKfGroup` — the timing-sync doc).
+- **SH-2 · write only what cannot be recovered** — no `shape` at all when it would restate
+  `d`/`animate.d` (a plain or morphing path with no preset and no modifier); attributes at their
+  defaults are omitted, recursively per sub-effect.
+- **SH-3 · topology is static** — counts and enums (`points`, `turnsCount`, `segmentsInTurn`,
+  `cycles`, `phase`, `heads`, `teeth`, `boreRadius`, `closeMode`, `waveType`, corner `type`) are
+  plain fields, never `{keyframes}`; every keyframe must bake to the same bezier-point count
+  (presets clamp/pad degenerate values in the animated bake so the count holds).
+
+The fourteen presets (`ShapePresetType`; ✚ = animatable, ⚑ = topology-static):
+
+| type | attributes |
+|---|---|
+| `star` | `points`⚑ `radius`✚ `roundness`✚ `startAngle`✚ `innerRadius`✚ `innerRoundness`✚ |
+| `polygon` | `points`⚑ `radius`✚ `roundness`✚ `startAngle`✚ |
+| `spiral` | `innerRadius`✚ `radiusIncrement`✚ `roundness`✚ `startAngle`✚ `turnsCount`⚑ `segmentsInTurn`⚑ |
+| `arc` | `radius`✚ `innerRadius`✚ (ratio) `startAngle`✚ `sweep`✚ `closeMode`⚑ ∈ `pie`/`chord`/`open` |
+| `wave` | `wavelength`✚ `amplitude`✚ `cycles`⚑ `phase`⚑ `waveform`✚ `waveType`⚑ ∈ `sine`/`square`/`sawtooth` |
+| `arrow` | `length`✚ `baseThickness`✚ `headWidth`✚ `headLength`✚ `headInset`✚ `angle`✚ `heads`⚑ |
+| `heart` | `width`✚ `height`✚ `lobeFullness`✚ `cleftDepth`✚ |
+| `cross` | `width`✚ `height`✚ `armThickness`✚ `shift`✚ `cornerRadius`✚ |
+| `frame` | `width`✚ `height`✚ `thickness`✚ `cornerRadius`✚ |
+| `cog` | `teeth`⚑ `tipRadius`✚ `rootRadius`✚ `innerToothWidth`✚ `outerToothWidth`✚ `roundness`✚ `boreRadius`⚑ |
+| `crescent` | `radius`✚ `arch`✚ `hollow`✚ |
+| `tear` | `radius`✚ `tipLength`✚ `tipRoundness`✚ `angle`✚ |
+| `eye` | `width`✚ `height`✚ `bulge`✚ |
+| `trapezoid` | `width`✚ `height`✚ `topWidth`✚ `skew`✚ |
+
+Unit conventions (the implicit-units doctrine, §2): lengths px, angles degrees, **ratios stored
+0–1** (shown as % in the UI). Placement params are banned — geometry is origin-centred and the
+element transform places it. `corners.entries` is sparse (only vertices with a non-default corner
+appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
 
 ---
 
@@ -837,7 +1098,7 @@ the lib schema (`resetOnFinish`, kf tangents, `repeater.skew`, `maskedBy.start/s
   fixtures regenerated (216 keys), guard-verified; test docs swept to the canon (Slate specs
   untouched — `{text}` there is Slate's own schema).
 - **S5 closed — the host-completeness sitting** (2026-08, one pass over all six recorded
-  follow-ups; working doc `S5-host-completeness.plan.md`):
+  follow-ups; the working doc's stage log is folded into this entry):
   1. *Nested units LEGALISED* (P8) instead of umbrella-hoisting — documenting the implemented
      per-unit atomicity; one set of applied effects per host stays law.
   2. *Generated defs marked* `partOf` (gradient defs, textPath path def, retime defs-copies,
@@ -1128,3 +1389,105 @@ the lib schema (`resetOnFinish`, kf tangents, `repeater.skew`, `maskedBy.start/s
   *Naming & ids*; `isItalic` audited as a non-issue (ships as `fontStyle: 'italic'`, never a wire
   boolean). Pinned by the web loop-expansion spec + editor `loop-config.spec.ts` / `SvgaAttrSerialisationUtil.spec.ts`.
 - **Heavy round-trip idempotency** holds (`write(read(heavy)) == heavy`, canonical ids) across probe combos; accumulation guarded by `applied-effects-accumulation.spec.ts` (11 producers × 2 forms × 3 cycles).
+
+---
+
+## 6 · Corpus & verification — what pins the format
+
+*Method (2026-08 audit): three probes over the feature-explorer corpus, all deleted afterwards.
+(1) validate every case against BOTH `PxAnimatedSvgDocumentSchema` (lib) and
+`PxAnimatedSvgDocumentSchemaExtra` (editor), in default AND strict mode; (2) diff every
+schema-DECLARED key path against every key path actually WRITTEN across the corpus; (3) serialise
+all cases to the pre-rendered SVG form and parse every `data-px-meta` blob. Counts are REAL — read
+off generated output, not off declarations.*
+
+### 6.1 · Baseline — the corpus is schema-clean
+
+**117 / 117 cases pass BOTH schemas in BOTH modes**, with zero errors. After the V6 engine fixes
+`strict: true` is a real gate (it reaches inside unions and ignores `undefined`-valued keys — see
+the core README "Validating a document"), and the corpus still passes it. **Any future strict
+failure is a genuine regression, not noise.**
+
+Fixtures are authored as draft documents, run through `settleCaseJson` to the serializer's
+canonical fixed point (write → read → write), then written to `cases/`; the glob picks them up for
+the explorer and the visual suite automatically. Every fixture is therefore also a round-trip
+guard (P-F).
+
+### 6.2 · Coverage — the slots the corpus exercises by decision
+
+The 2026-08 sweep (C3, §5) added five fixtures for slots that had zero coverage, and two of them
+found real bugs (per-copy `repeater.skew` was never rendered by the editor — three places — and
+gradient `spreadMethod` was silently lost in the Lottie export):
+
+| case | covers |
+|---|---|
+| `effect.maskedBy.viewport` | `maskedBy.x/y/width/height` — uses `x: 0` deliberately, so a dropped `0` (B6) fails it |
+| `effect.transformBy.skew` | `transformBy.skew` |
+| `effect.repeater.skew` | `repeater.skew` (found the bug above) |
+| `effect.textPath.fitting` | `textPath.lengthAdjust: spacingAndGlyphs` + `method: stretch` + `textLength` |
+| `attr.gradient.spreadMethod` | `fillGradient.spreadMethod: reflect` — keeps a `tolerances` entry for the two Lottie columns (Lottie has no spreadMethod; the loss is real and now declared) |
+| `effect.transformBy.splitTiming` | split per-part timing — the reason the effect exists (C1) |
+| `effect.retime.timeCrop` | the visibility window, green on every column (C4) |
+
+**Left uncovered, by decision:** `animator.delay` / `.fill` / `.frameRate` / `.iterations` /
+`.resetOnFinish` / `.trigger.scrollIntoViewThreshold` (document-level config — retimes the whole
+document, and the harness samples at fixed fractions, so a fixture there tests the harness more
+than the format; wants unit coverage instead); `effects.clipPath.animate` (`@deprecated`,
+read-only by design); `fillGradient/strokeGradient.gradientTransform` (documented static-only,
+no author path); `animator.definitions.*` and `animator.animateById` (export/library-only).
+
+### 6.3 · The `data-px-meta` surface, measured
+
+Exactly **six** top-level keys are ever written to a per-element `data-px-meta` across the corpus
+(378 distinct key paths in total, 0 unparseable):
+
+| key | occurrences | meaning |
+|---|---|---|
+| `partOf` | 920 | derived node → its host |
+| `animate` | 600 | the node's own channels |
+| `appliedEffects` | 233 | baked recipe, applied IN PLACE on a plain node |
+| `effectsHost` | 152 | baked recipe for an EXPANSION (carries `coreId` + its own `appliedEffects`) |
+| `label` | 93 | editor-only display name |
+| `timeline` | 2 | symbol duration (R6) |
+
+`appliedEffects` appearing in both positions is the documented §P contract, not drift. Effect keys
+seen inside it: `clone`, `fillGradient`, `maskedBy`, `repeater`, `shape`, `strokeGradient`,
+`text`, `textPath`, `transformBy`, `strokeTrim` (census taken under its pre-rename spelling
+`trimPath`) — `shape` is the editor-only extension (§4.2), correctly absent from the lib's
+`PxEffectsSchema`.
+
+---
+
+## 7 · Open items
+
+Everything closed lives in §5. Ids are stable and never reused (`B*` bugs, `S*` structural, `N*`
+naming, `V*` validation, `J*` janitorial, `C*` coverage). **One row is open, and it is not a
+defect.**
+
+### C4 · Lottie IMPORT still bakes a layer's crop as opacity — PAUSED ★☆☆☆
+
+The wire, the editor, the player and every pre-rendered form already agree on `retime.timeCrop`
+(§5). What remains is that the Lottie IMPORT expresses a layer's `ip`/`op` crop as baked opacity
+rather than emitting the declarative slot. Both render correctly; the declarative form is simply
+the better one to carry. Attempted twice in 2026-08 and reverted both times; paused with the
+ground mapped so the next attempt starts from evidence:
+
+- **Design (settled):** a `<use>` (precomp link) should carry `clone.retime.timeCrop`; anything that
+  is NOT a `<use>` keeps baked opacity (only a `<use>` has a retime slot); `ip`/`op` windows that
+  merely restate the composition's own range are NOT crops and must be dropped — guard written and
+  verified: `timeCrop[0] > (animation.ip ?? 0) || timeCrop[1] < (animation.op ?? +∞)`.
+- **Proven correct with the switch applied** (`143463-boat`, 6 cropped layers): full-range windows
+  ignored; Lottie → model gives `[0,100] [100,200] …` editor frames on the six `<use>`; model →
+  Lottie writes back ×0.6 matching the ORIGINAL file; the SVGA render shows exactly one `<use>`
+  per frame.
+- **What still fails:** only the reverse render (`lottie-in-app-back__vs__svga-in-app`) —
+  `lottie-roundtrip-diff` goes 4 → 9 failures on a quiesced tree. Values and forward rendering are
+  right, so the fault is downstream of both.
+- **Hypothesis to test first:** Lottie `ip`/`op` are relative to the CONTAINING composition's
+  timeline; if the round-trip moves layers between nesting levels (or remaps the `<use>` → precomp
+  linkage), identical numbers denote different windows.
+- ⚠️ Re-establish the diff-suite baseline on a quiesced tree before judging any change — an early
+  "8 → 14" reading compared two different codebases.
+
+Two corpus cases are RED and tracked outside this file (`effect.clone.text`,
+`effect.clone.text.glyphs`) — a read-back defect, see `app/TEST-FAILURES-2026-08.md` §1b.

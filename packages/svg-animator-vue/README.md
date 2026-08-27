@@ -1,5 +1,7 @@
 # animator-vue
 
+> 📖 Full user guide: [docs/09-vue.md](../../docs/09-vue.md) · [all docs](../../docs/README.md)
+
 [![CI](https://github.com/pixodesk/pixodesk-svg-animator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/pixodesk/pixodesk-svg-animator/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
