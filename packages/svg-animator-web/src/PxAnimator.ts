@@ -93,7 +93,22 @@ export function createAnimatorImpl(
         }
     }
 
-    return createAnimatorFromConfig(doc, adapter, callbacks, rootElement);
+    const api = createAnimatorFromConfig(doc, adapter, callbacks, rootElement);
+
+    // The player put the SVG into the container, so destroy() takes it out again —
+    // otherwise a frozen last frame lingers after the animator is gone. Scoped to
+    // the container path on purpose: a root the caller rendered (the React / Vue
+    // adapters, Mode B binding to an existing SVG) is theirs to remove.
+    if (containerElement && rootElement) {
+        const rendered = rootElement;
+        const destroyNative = api.destroy.bind(api);
+        api.destroy = () => {
+            destroyNative();
+            rendered.remove();
+        };
+    }
+
+    return api;
 }
 
 // Re-exported so this module's public surface is unchanged; declared in

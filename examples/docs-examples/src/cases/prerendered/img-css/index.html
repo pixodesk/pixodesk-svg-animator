@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>In an img — static, unless exported On load</title>
+    <link rel="stylesheet" href="../../../case.css" />
+  </head>
+  <body>
+    <h1>In an <code>&lt;img&gt;</code> — static, unless exported <em>On load</em></h1>
+    <p class="summary">Inside an image the browser runs no scripts and the page cannot reach in to add the play classes, so a pre-rendered SVG is a still picture there — <strong>except</strong> the CSS flavour exported with the <em>On load</em> start option, which already carries <code>px-anim-enabled px-anim-playing</code> on its root. Same file, with and without those two classes:</p>
+    <div class="row">
+      <div><p>exported with any other start option → static</p><img id="raw" class="stage" src="../../../../animation.svg" alt="static" /></div>
+      <div><p>exported with <em>On load</em> → animates</p><img id="onload" class="stage" src="../../../../animation-onload.svg" alt="animating" /></div>
+    </div>
+  </body>
+</html>

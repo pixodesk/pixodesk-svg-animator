@@ -1,0 +1,36 @@
+{
+  "name": "@pixodesk/example-docs-examples",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "copy-umd": "cp ../../packages/svg-animator-web/dist/index.umd.min.js public/js/pixodesk-svg-animator.umd.min.js",
+    "predev": "pnpm copy-umd",
+    "dev": "vite",
+    "prebuild": "pnpm copy-umd",
+    "build": "vite build",
+    "preview": "vite preview --port 4174 --strictPort",
+    "pretest": "pnpm copy-umd && vite build",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui"
+  },
+  "dependencies": {
+    "@pixodesk/svg-animator-react": "workspace:*",
+    "@pixodesk/svg-animator-vue": "workspace:*",
+    "@pixodesk/svg-animator-web": "workspace:*",
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3",
+    "vue": "^3.5.27"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0",
+    "@types/react": "^19.2.3",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^4.4.1",
+    "@vitejs/plugin-vue": "^5.2.4",
+    "typescript": "^5.5.3",
+    "vite": "^6.3.5",
+    "vite-plugin-svgr": "^4.3.0",
+    "vite-svg-loader": "^5.0.0"
+  }
+}

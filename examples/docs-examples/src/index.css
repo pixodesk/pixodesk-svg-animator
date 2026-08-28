@@ -1,0 +1,19 @@
+:root { --bg: #fff; --fg: #1a1a1a; --dim: #666; --line: #e3e3e3; --accent: #0069cc; --side: #f7f7f9; }
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { display: flex; font: 14px/1.5 system-ui, sans-serif; color: var(--fg); background: var(--bg); }
+#sidebar { width: 300px; flex: none; background: var(--side); border-right: 1px solid var(--line); overflow: auto; }
+#sidebar header { padding: 16px 16px 8px; }
+#sidebar h1 { font-size: 16px; margin: 0 0 6px; }
+#sidebar header p { margin: 0; font-size: 12px; color: var(--dim); }
+#nav h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--dim); margin: 14px 16px 4px; }
+#nav a { display: block; padding: 5px 16px; color: var(--fg); text-decoration: none; font-size: 13px; }
+#nav a:hover { background: #ececf1; }
+#nav a.active { background: var(--accent); color: #fff; }
+#nav a small { display: block; font-size: 11px; opacity: .7; }
+#main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+#toolbar { display: flex; gap: 16px; align-items: center; padding: 8px 16px; border-bottom: 1px solid var(--line); font-size: 13px; }
+#toolbar .spacer { flex: 1; }
+#toolbar a { color: var(--accent); }
+#crumb { color: var(--dim); }
+#frame { flex: 1; border: 0; width: 100%; }

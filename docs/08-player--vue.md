@@ -31,6 +31,8 @@ Pick one — they are mutually exclusive, and take precedence in the order liste
 
 ### 1 · Autoplay
 
+> **Example:** [`vue/autoplay`](../examples/docs-examples/src/cases/vue/autoplay/) — `pnpm example:docs`, then open `#vue/autoplay`.
+
 ```vue
 <PixodeskSvgAnimator :doc="animation" autoplay />
 ```
@@ -40,6 +42,8 @@ action. Override with `startOn` / `outAction` / `scrollIntoViewThreshold`.
 
 ### 2 · Controlled time (`time` / `timeMs`)
 
+> **Example:** [`vue/controlled-time`](../examples/docs-examples/src/cases/vue/controlled-time/) — `pnpm example:docs`, then open `#vue/controlled-time`.
+
 ```vue
 <PixodeskSvgAnimator :doc="animation" :time="0.5" />     <!-- fraction of the whole timeline -->
 <PixodeskSvgAnimator :doc="animation" :timeMs="500" />   <!-- absolute ms -->
@@ -48,6 +52,8 @@ action. Override with `startOn` / `outAction` / `scrollIntoViewThreshold`.
 Changing the value seeks the existing animator — nothing is recreated.
 
 ### 3 · Declarative play / pause
+
+> **Example:** [`vue/declarative`](../examples/docs-examples/src/cases/vue/declarative/) — `pnpm example:docs`, then open `#vue/declarative`.
 
 ```vue
 <script setup lang="ts">
@@ -64,6 +70,8 @@ const paused = ref(false);
 `play && !pause` plays; `pause` pauses; `play === false` jumps to the end state.
 
 ### 4 · Imperative API (template ref)
+
+> **Example:** [`vue/imperative`](../examples/docs-examples/src/cases/vue/imperative/) — `pnpm example:docs`, then open `#vue/imperative`.
 
 The component exposes the playback API on its template ref, so it is available in every mode:
 
@@ -127,6 +135,8 @@ Swapping `doc` recreates the animator (the old instance emits `cancel`, `remove`
 
 ## CSS-flavour SVGs — `PixodeskSvgCssAnimator`
 
+> **Example:** [`vue/css-loader`](../examples/docs-examples/src/cases/vue/css-loader/) — `pnpm example:docs`, then open `#vue/css-loader`.
+
 For a **pre-rendered SVG + CSS animation** file imported with
 [`vite-svg-loader`](https://github.com/jpkleemans/vite-svg-loader) (or any loader that yields a
 component), this wrapper adds hover / click / scroll triggers by toggling the animation classes
@@ -162,6 +172,9 @@ mount. Nothing special is required beyond importing the component; for a CSS-fla
 
 ## Example
 
-`examples/vue` shows every mode and the CSS wrapper with each trigger — `pnpm example:vue`.
+Every section above links to its case in [`examples/docs-examples`](../examples/docs-examples/)
+— one standalone page per case, with a browser to step through them. `pnpm example:docs`
+opens it; `#vue/autoplay` and friends select a case. Each case has a test that runs on
+every build.
 
 [← React](./07-player--react.md) · [Contents](./README.md) · Next: [React Native →](./09-player--react-native.md)

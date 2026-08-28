@@ -16,6 +16,8 @@ npm install @pixodesk/svg-animator-web
 
 ### Declarative — `data-px-animation-src`
 
+> **Example:** [`web/declarative`](../examples/docs-examples/src/cases/web/declarative/) — `pnpm example:docs`, then open `#web/declarative`.
+
 Point an element at the JSON file and call `loadTagAnimators()` once the DOM is ready. The
 script is the UMD build, copied from the npm package into your site — see
 [Installing the players (overview)](./05-player--installation.md#without-a-bundler--the-umd-build):
@@ -32,6 +34,8 @@ Every matching element gets its own animator, stored on the element as `element.
 elements that do not have one yet, so it is safe to call after inserting new content.
 
 ### Programmatic — `createAnimator(options)`
+
+> **Example:** [`web/programmatic`](../examples/docs-examples/src/cases/web/programmatic/) — `pnpm example:docs`, then open `#web/programmatic`.
 
 ```js
 import { createAnimator } from '@pixodesk/svg-animator-web';
@@ -92,6 +96,8 @@ slider.addEventListener('input', () => {
 
 ## Callbacks
 
+> **Example:** [`web/callbacks`](../examples/docs-examples/src/cases/web/callbacks/) — `pnpm example:docs`, then open `#web/callbacks`.
+
 ```js
 createAnimator({
   data: doc,
@@ -108,6 +114,8 @@ createAnimator({
 
 ## Triggers
 
+> **Example:** [`web/triggers`](../examples/docs-examples/src/cases/web/triggers/) — `pnpm example:docs`, then open `#web/triggers`.
+
 If the document says `trigger.startOn: 'click'` (or `mouseOver`, `scrollIntoView`), the player
 wires the event on the rendered SVG for you; `outAction` (continue / pause / reset / reverse)
 and `scrollIntoViewThreshold` are honoured. With `'load'` it starts immediately; with
@@ -117,6 +125,8 @@ and `scrollIntoViewThreshold` are honoured. With `'load'` it starts immediately;
 the rendered content and need to re-arm the listeners.
 
 ## Engine modes
+
+> **Example:** [`web/engine-modes`](../examples/docs-examples/src/cases/web/engine-modes/) — `pnpm example:docs`, then open `#web/engine-modes`.
 
 `animator.mode` in the document selects the engine:
 
@@ -131,6 +141,8 @@ the whole document runs on the frame loop. Either way it plays.
 
 ## Loading several animations
 
+> **Example:** [`web/several`](../examples/docs-examples/src/cases/web/several/) — `pnpm example:docs`, then open `#web/several`.
+
 ```js
 const animators = [...document.querySelectorAll('.anim')].map(el =>
   createAnimator({ src: el.dataset.src, container: el })
@@ -142,6 +154,8 @@ Each instance regenerates the document's element ids, so many copies of the same
 on one page without id conflicts.
 
 ## Cleaning up
+
+> **Example:** [`web/cleanup`](../examples/docs-examples/src/cases/web/cleanup/) — `pnpm example:docs`, then open `#web/cleanup`.
 
 Call `destroy()` when the container goes away (route change, modal close). `onRemove` fires
 once. Frameworks: the React and Vue components do this on unmount.

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pixodesk SVG Animator — Examples</title>
+    <link rel="stylesheet" href="./src/index.css" />
+  </head>
+  <body>
+    <aside id="sidebar">
+      <header>
+        <h1>Examples</h1>
+        <p>One page per case in the <a href="https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/README.md">docs</a>.
+        Every case is a standalone page — open it on its own, view its source, copy it.</p>
+      </header>
+      <nav id="nav"></nav>
+    </aside>
+    <main id="main">
+      <div id="toolbar">
+        <span id="crumb"></span>
+        <span class="spacer"></span>
+        <a id="open" target="_blank" rel="noopener">open standalone ↗</a>
+        <a id="doc" target="_blank" rel="noopener">read the docs ↗</a>
+      </div>
+      <iframe id="frame" title="case"></iframe>
+    </main>
+    <script type="module" src="./src/index.ts"></script>
+  </body>
+</html>

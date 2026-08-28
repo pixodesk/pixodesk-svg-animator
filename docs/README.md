@@ -39,7 +39,7 @@ This documentation covers the **Pixodesk editor**, the **player**, and the **for
 10. [Playback settings & triggers](./10-player--playback-and-triggers.md) — the `animator` fields in full, and overriding them from props or the player API
 
 ### Play pre-rendered SVG animations (minimal setup)
-11. [Pre-rendered SVG on the web](./11-player--prerendered-svg.md) — inline, `<img>`, framework imports; the three flavours and how to control them
+11. [Pre-rendered SVG on the web](./11-player--prerendered-svg.md) — inline it, import it as a component, why `<img>` is static; the three flavours and how to control them
 12. [Static sites & CMS](./12-player--static-sites-and-cms.md) — Astro, Next.js, Nuxt, SvelteKit, Angular, Jekyll, 11ty, WordPress, Shopify, Webflow…
 
 ### Format (deep dive)
@@ -55,6 +55,6 @@ This documentation covers the **Pixodesk editor**, the **player**, and the **for
 ## Go further
 
 - [Repository README](../README.md) — package overview and examples
-- [Runnable examples](../examples/) — web, React, Vue, a side-by-side preview player, React Native
+- [Runnable examples](../examples/docs-examples/) — one tested page per documented case (web, React, Vue, pre-rendered SVG, static sites); plus a [preview player](../examples/preview-player/) and the [React Native](../examples/react-native-preview-player/) apps
 - [Full format design spec](../SCHEMA-DESIGN.md) — for contributors and tool authors
 - [pixodesk.com](https://pixodesk.com) — the editor

@@ -2,18 +2,27 @@
 
 [← Playback settings & triggers](./10-player--playback-and-triggers.md) · [Contents](./README.md) · Next: [Static sites & CMS →](./12-player--static-sites-and-cms.md)
 
-Put a pre-rendered SVG on a page the way you would any other SVG — it is a normal `.svg`
-file with the animation already inside. This page shows the ways to embed it and how much
-control each flavour gives you once it is there. For which flavour to pick, see
-[Choosing a format](./02-start--choosing-a-format.md).
+Put a pre-rendered SVG on a page by **inlining** it — paste the `<svg>` into the HTML, or let
+your framework or static-site generator inline the file. It is a normal `.svg` with the
+animation already inside, and inline is where it plays with full control.
+
+What does **not** work is treating it as a picture: `<img src>`, SVG `<image>`, CSS
+`background-image`. A browser runs no scripts inside an image and nothing on the page can
+reach into it, so every flavour is static there — with one exception, the CSS flavour exported
+with the *On load* start option, which carries its play state inside the file (details below).
+
+This page shows the embedding options and how much control each flavour gives you once it is
+there. For which flavour to pick, see [Choosing a format](./02-start--choosing-a-format.md).
 
 ## Four ways to embed any SVG
+
+> **Example:** [`prerendered/img-css`](../examples/docs-examples/src/cases/prerendered/img-css/) — `pnpm example:docs`, then open `#prerendered/img-css`.
 
 | Method | Works with | Notes |
 |---|---|---|
 | **Inline** — paste the `<svg>…</svg>` into the HTML | all three flavours | the animation shares the page: styles and scripts run in the page context; best control |
 | **Build-time inline** — the framework or SSG inlines the file | all three flavours | same result as pasting, but the file stays a file — see [Static sites & CMS](./12-player--static-sites-and-cms.md) |
-| **`<img src="a.svg">`** | CSS flavour only | scripts never run inside an image; CSS animation does. No interaction possible |
+| **`<img src="a.svg">`**, SVG `<image>`, CSS `background-image` | **CSS flavour exported with *On load*** — nothing else | the file is treated as a picture: scripts never run, and the page cannot add or toggle the play classes. Only a file that already carries `px-anim-enabled px-anim-playing` on its root animates, and then it just loops; no interaction is possible |
 | **`<object data="a.svg">` / `<iframe src="a.svg">`** | all three flavours | runs in its own document; scripts work but cannot be reached from the page. Not recommended |
 
 Inlining the **same file twice** on one page duplicates its element ids (`id="_px_…"`), which can
@@ -21,6 +30,8 @@ break masks, gradients and JS bindings. Use the JSON format for multiple instanc
 the file twice so each gets fresh ids.
 
 ## Flavour 1 — SVG + CSS animation
+
+> **Example:** [`prerendered/inline-css`](../examples/docs-examples/src/cases/prerendered/inline-css/) — `pnpm example:docs`, then open `#prerendered/inline-css`.
 
 Everything is CSS: a `<style>` block of `@keyframes` and classes on the animated elements.
 
@@ -35,8 +46,7 @@ Everything is CSS: a `<style>` block of `@keyframes` and classes on the animated
 </svg>
 ```
 
-It starts as soon as it is displayed. Two wrapper classes gate playback, so you can control it
-from your own CSS or JavaScript if you want to:
+Two classes on the root gate playback, so you can control it from your own CSS or JavaScript:
 
 | Classes on the root `<svg>` (or a wrapper you control) | State |
 |---|---|
@@ -44,9 +54,11 @@ from your own CSS or JavaScript if you want to:
 | `px-anim-enabled` | started but **paused** |
 | `px-anim-enabled px-anim-playing` | **playing** |
 
-The exported file applies `px-anim-enabled px-anim-playing` itself for the *on load* trigger.
-To start it yourself, export with the *Manually from JS* start option (or remove the classes)
-and toggle them:
+Exported with the **On load** start option, the file has `px-anim-enabled px-anim-playing` on
+its root already, so it plays the moment it is displayed — inline, and also as an `<img>`, since
+nothing has to happen at runtime. With any other start option the root carries no play classes
+and something has to add them: the file's own trigger script (flavour 2), a
+`PixodeskSvgCssAnimator` wrapper, or your code:
 
 ```js
 const svg = document.querySelector('#hero svg');
@@ -71,6 +83,8 @@ Because it has a `<script>`, it cannot be used in `<img>` or through SVGR (which
 Inline it, or use an `<object>`.
 
 ## Flavour 3 — SVG + JS animation
+
+> **Example:** [`prerendered/inline-js`](../examples/docs-examples/src/cases/prerendered/inline-js/) — `pnpm example:docs`, then open `#prerendered/inline-js`.
 
 The web player is embedded in the file and drives the animation from a bindings payload:
 

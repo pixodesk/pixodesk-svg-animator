@@ -146,5 +146,5 @@ runtime before any other normalisation.
 See the [file-format reference](../../README.md#file-formats) and the
 [Player effects](../../README.md#player-effects-nodeeffects) section in the root
 README for the full schema and examples. The wire types live in
-[`PxAnimatorTypes.ts`](src/PxAnimatorTypes.ts).
+[`PxAnimatorTypes.ts`](../svg-animator-core/src/PxAnimatorTypes.ts).
 

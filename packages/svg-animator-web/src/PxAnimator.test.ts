@@ -270,3 +270,30 @@ describe('loadTagAnimators', () => {
         expect(host.querySelector('svg')).not.toBeNull();
     });
 });
+
+describe('destroy() and the rendered SVG', () => {
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="svg-container"></div>';
+    });
+
+    it('removes the SVG it rendered into the container', () => {
+        const api = createAnimator({ data: makeDoc(), container: '#svg-container' });
+        expect(container().querySelector('svg')).not.toBeNull();
+
+        api.destroy();
+
+        // Documented contract: "stop, remove the SVG from the container, release everything".
+        expect(container().querySelector('svg')).toBeNull();
+    });
+
+    it('leaves a root it did NOT render alone', () => {
+        // No container: the caller owns whatever DOM exists (this is the React / Vue
+        // adapter path). destroy() must not reach into it.
+        container().innerHTML = '<svg id="mine"></svg>';
+        const api = createAnimator({ data: makeDoc() });
+
+        api.destroy();
+
+        expect(document.querySelector('#mine')).not.toBeNull();
+    });
+});

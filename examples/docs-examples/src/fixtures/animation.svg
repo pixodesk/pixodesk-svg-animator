@@ -1,0 +1,22 @@
+<svg 
+  xmlns="http://www.w3.org/2000/svg" 
+  viewBox="0 0 400 400" 
+  text-rendering="geometricPrecision" 
+  shape-rendering="geometricPrecision" 
+  id="_px_2p4d44pl"
+  fill="none"   
+  data-px-meta="animator:{duration:1000;iterations:infinite;direction:normal;type:css;mode:frames;timeline:time;trigger:{startOn:load;outAction:pause}}"
+>
+  <style>
+    @keyframes _px_2sc4ae4a {0% {transform:translate(200.1185px,41.3612px);animation-timing-function:cubic-bezier(0.3333,0,0.6667,0.3333);}
+      50% {transform:translate(200.1185px,359.3975px);animation-timing-function:cubic-bezier(0.3333,0.6667,0.6667,1);}
+      100% {transform:translate(200.1185px,41.3612px)}}
+    .px-anim-enabled ._px_2sc4ae4b { animation: 1000ms _px_2sc4ae4a infinite both; }
+    .px-anim-enabled.px-anim-playing .px-anim-element {animation-play-state: running !important;}
+    .px-anim-enabled:not(.px-anim-playing) .px-anim-element {animation-play-state: paused;}
+  </style>
+  
+  <g class="px-anim-element _px_2sc4ae4b" transform="translate(200.1185,41.3612)" data-px-meta="elementEffect:{baseId:_px_2s60ohkl;transform:{translate:{keyframes:[{t:0;v:[200.1185,41.3612];e:[0.3333,0,0.6667,0.3333]},{t:500;v:[200.1185,359.3975];e:[0.3333,0.6667,0.6667,1]},{t:1000;v:[200.1185,41.3612]}]};scale:[25.2234,25.2234]}}">
+    <ellipse id="_px_2s60ohkl" fill="#0087ff" stroke="#ffffff" rx="159.7917" ry="159.7917" transform="scale(0.2522,0.2522)"/>
+  </g>
+</svg>

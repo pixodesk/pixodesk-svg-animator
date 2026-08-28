@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Overriding from the web player</title>
+    <link rel="stylesheet" href="../../../case.css" />
+  </head>
+  <body>
+    <h1>Overriding from the web player</h1>
+    <p class="summary">The player reads <code>animator</code> once, at creation — so edit the object before handing it over. Here: infinite iterations, and a programmatic trigger so nothing happens until <code>play()</code>.</p>
+    <div class="controls"><button id="play">play()</button></div>
+    <div id="box" class="stage"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+dist
+node_modules
+test-results
+playwright-report
+# copied from packages/svg-animator-web/dist on every dev/build/test run
+public/js/

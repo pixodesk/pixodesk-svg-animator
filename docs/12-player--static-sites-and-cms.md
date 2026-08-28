@@ -28,6 +28,8 @@ JS-triggers and JS-animation flavours work in these frameworks. A component impo
 
 ### Vanilla JavaScript on any static page
 
+> **Example:** [`static/vanilla-umd`](../examples/docs-examples/src/cases/static/vanilla-umd/) — `pnpm example:docs`, then open `#static/vanilla-umd`.
+
 ```html
 <div data-px-animation-src="/animation.json"></div>
 <script src="/js/pixodesk-svg-animator.umd.min.js"></script>

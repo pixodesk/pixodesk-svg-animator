@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Programmatic — createAnimator + playback API</title>
+    <link rel="stylesheet" href="../../../case.css" />
+  </head>
+  <body>
+    <h1>Programmatic — createAnimator + playback API</h1>
+    <p class="summary"><code>createAnimator({ src, container })</code> returns the playback API. Control calls made before the file has loaded are queued.</p>
+    <div class="controls">
+      <button id="play">play()</button>
+      <button id="pause">pause()</button>
+      <button id="cancel">cancel()</button>
+      <button id="finish">finish()</button>
+      <button id="reverse">setPlaybackRate(-1)</button>
+      <button id="normal">setPlaybackRate(1)</button>
+      <label>seek <input id="seek" type="range" min="0" max="2000" value="0" /> <span id="ms">0</span> ms</label>
+    </div>
+    <div id="box" class="stage"></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

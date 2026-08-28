@@ -84,6 +84,9 @@ its classes — see [Pre-rendered SVG](./11-player--prerendered-svg.md#flavour-1
 
 ## Overriding from a player
 
+> **Example:** [`playback/override-web`](../examples/docs-examples/src/cases/playback/override-web/) — `pnpm example:docs`, then open `#playback/override-web`.
+> **Example:** [`playback/override-react`](../examples/docs-examples/src/cases/playback/override-react/) — `pnpm example:docs`, then open `#playback/override-react`.
+
 **Web player** — edit the object before handing it over (the player reads `animator` once at
 creation):
 

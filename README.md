@@ -52,9 +52,7 @@ Examples in [`examples/`](examples/):
 
 | Example | Package | Run |
 |---------|---------|-----|
-| [web](examples/web/) | `@pixodesk/svg-animator-web` | `pnpm example:web` |
-| [react](examples/react/) | `@pixodesk/svg-animator-react` | `pnpm example:react` |
-| [vue](examples/vue/) | `@pixodesk/svg-animator-vue` | `pnpm example:vue` |
+| [docs-examples](examples/docs-examples/) | one page per documented case — web, React, Vue, pre-rendered SVG, static sites — with a browser to step through them; every case is tested on each build | `pnpm example:docs` |
 | [preview-player](examples/preview-player/) | web / react / vue side by side | `pnpm example:preview` |
 | [react-native-preview-player](examples/react-native-preview-player/) 🧪 | `@pixodesk/svg-animator-rn` | `pnpm example:rn` |
 | [react-native-feature-explorer](examples/react-native-feature-explorer/) 🧪 | `@pixodesk/svg-animator-rn` — all 118 feature fixtures | `pnpm example:rn:explorer` |
@@ -974,9 +972,7 @@ Examples in [`examples/`](examples/):
 
 | Example | Package | Run |
 |---------|---------|-----|
-| [web](examples/web/) | `@pixodesk/svg-animator-web` | `pnpm example:web` |
-| [react](examples/react/) | `@pixodesk/svg-animator-react` | `pnpm example:react` |
-| [vue](examples/vue/) | `@pixodesk/svg-animator-vue` | `pnpm example:vue` |
+| [docs-examples](examples/docs-examples/) | one page per documented case — web, React, Vue, pre-rendered SVG, static sites — with a browser to step through them; every case is tested on each build | `pnpm example:docs` |
 | [preview-player](examples/preview-player/) | web / react / vue side by side | `pnpm example:preview` |
 | [react-native-preview-player](examples/react-native-preview-player/) 🧪 | `@pixodesk/svg-animator-rn` | `pnpm example:rn` |
 | [react-native-feature-explorer](examples/react-native-feature-explorer/) 🧪 | `@pixodesk/svg-animator-rn` — all 118 feature fixtures | `pnpm example:rn:explorer` |

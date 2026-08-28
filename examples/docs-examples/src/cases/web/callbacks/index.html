@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Callbacks</title>
+    <link rel="stylesheet" href="../../../case.css" />
+  </head>
+  <body>
+    <h1>Callbacks</h1>
+    <p class="summary">Every lifecycle callback, logged as it fires. Play, pause and finish to see the sequence.</p>
+    <div class="controls">
+      <button id="play">play()</button>
+      <button id="pause">pause()</button>
+      <button id="cancel">cancel()</button>
+      <button id="finish">finish()</button>
+      <button id="destroy">destroy()</button>
+    </div>
+    <div class="row">
+      <div id="box" class="stage"></div>
+      <pre id="log" class="log"></pre>
+    </div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

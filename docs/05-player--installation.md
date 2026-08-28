@@ -52,7 +52,7 @@ Then load it with a relative path, like any other script of yours:
 ```
 
 The copied file is pinned by nature — your site keeps playing the version you tested until you
-choose to update it. Renaming it is optional; the [examples](../examples/web/) use
+choose to update it. Renaming it is optional; the [examples](../examples/docs-examples/src/cases/static/vanilla-umd/) use
 `pixodesk-svg-animator.umd.min.js` so the name says what it is.
 
 Files in `dist/`:

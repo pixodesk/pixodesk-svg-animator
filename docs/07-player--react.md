@@ -29,6 +29,8 @@ Pick one — they are mutually exclusive, and take precedence in the order liste
 
 ### 1 · Imperative API (`apiRef`)
 
+> **Example:** [`react/imperative`](../examples/docs-examples/src/cases/react/imperative/) — `pnpm example:docs`, then open `#react/imperative`.
+
 ```tsx
 import { useRef } from 'react';
 import type { ReactAnimatorApi } from '@pixodesk/svg-animator-react';
@@ -53,6 +55,8 @@ const api = useRef<ReactAnimatorApi>(null);
 
 ### 2 · Autoplay
 
+> **Example:** [`react/autoplay`](../examples/docs-examples/src/cases/react/autoplay/) — `pnpm example:docs`, then open `#react/autoplay`.
+
 ```tsx
 <PixodeskSvgAnimator doc={animation} autoplay />
 ```
@@ -61,6 +65,8 @@ Uses the trigger saved in the document — on load, on hover, on click, when scr
 — and its out action. Override with `startOn` / `outAction` / `scrollIntoViewThreshold`.
 
 ### 3 · Controlled time (`time` / `timeMs`)
+
+> **Example:** [`react/controlled-time`](../examples/docs-examples/src/cases/react/controlled-time/) — `pnpm example:docs`, then open `#react/controlled-time`.
 
 Render one frame, and scrub by changing the prop. The animator is **not** recreated on change —
 it just seeks.
@@ -75,6 +81,8 @@ const [timeMs, setTimeMs] = useState(0);
 `time` is a fraction 0–1 of the whole timeline (duration × iterations); `timeMs` is absolute.
 
 ### 4 · Declarative play / pause
+
+> **Example:** [`react/declarative`](../examples/docs-examples/src/cases/react/declarative/) — `pnpm example:docs`, then open `#react/declarative`.
 
 ```tsx
 const [play, setPlay] = useState(false);
@@ -129,6 +137,8 @@ not recreate anything.
 
 ## CSS-flavour SVGs — `PixodeskSvgCssAnimator`
 
+> **Example:** [`react/css-svgr`](../examples/docs-examples/src/cases/react/css-svgr/) — `pnpm example:docs`, then open `#react/css-svgr`.
+
 For a **pre-rendered SVG + CSS animation** file imported as a component with
 [SVGR](https://react-svgr.com/) (`@svgr/webpack`, `vite-plugin-svgr`), this small wrapper adds
 the hover / click / scroll triggers by toggling the animation classes on a `<div>`:
@@ -171,7 +181,9 @@ JSON imports work out of the box in Next.js; for a CSS-flavour SVG use `@svgr/we
 
 ## Example
 
-`examples/react` in the repository shows all four control modes side by side plus the SVGR
-wrapper with every trigger — run it with `pnpm example:react`.
+Every section above links to its case in [`examples/docs-examples`](../examples/docs-examples/)
+— one standalone page per case, with a browser to step through them. `pnpm example:docs`
+opens it; `#react/autoplay` and friends select a case. Each case has a test that runs on
+every build.
 
 [← Web player](./06-player--web-player.md) · [Contents](./README.md) · Next: [Vue →](./08-player--vue.md)

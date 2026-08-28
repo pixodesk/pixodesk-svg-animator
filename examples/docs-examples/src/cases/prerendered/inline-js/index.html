@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Flavour 3 — SVG + JS animation</title>
+    <link rel="stylesheet" href="../../../case.css" />
+  </head>
+  <body>
+    <h1>Flavour 3 — SVG + JS animation</h1>
+    <p class="summary">What the editor's <em>SVG + JS animation</em> export contains: the SVG is already rendered (elements exist, ids assigned), the player is embedded, and a bindings-only payload — <code>animator.definitions</code> + <code>animateById</code>, no <code>children</code> — tells it what to animate. The editor inlines the player; this page loads it from a file to keep the case readable.</p>
+
+    <svg id="root" class="stage" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+      <rect id="box" x="10" y="10" width="80" height="80" fill="#0087ff" />
+    </svg>
+
+    <script src="../../../../js/pixodesk-svg-animator.umd.min.js"></script>
+    <script>
+      PixodeskAnimator.createAnimator({
+        data: {
+          type: 'svg',
+          id: 'root',
+          animator: {
+            duration: 1000,
+            iterations: 'infinite',
+            direction: 'alternate',
+            trigger: { startOn: 'load' },
+            definitions: {
+              animations: {
+                slide: {
+                  transform: { keyframes: [
+                    { time: 0,    value: { translate: [0, 0] } },
+                    { time: 1000, value: { translate: [100, 100] } },
+                  ] },
+                  opacity: { keyframes: [ { time: 0, value: 1 }, { time: 1000, value: 0.2 } ] },
+                },
+              },
+            },
+            animateById: { box: ['slide'] },
+          },
+        },
+      });
+    </script>
+  </body>
+</html>
