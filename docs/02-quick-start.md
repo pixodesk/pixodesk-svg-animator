@@ -7,15 +7,13 @@ matches where the animation is going.
 
 ## 1 · Make (or import) an animation
 
-1. Open the editor at [pixodesk.com](https://pixodesk.com) (or the desktop app).
-2. On the welcome screen choose **New → Document**, set a canvas size, and pick a **file
-   type** — you can change it later:
-   - **SVG + CSS animation** — a self-contained `.svg`, no JavaScript *(default pick for path A)*
-   - **SVG + JS animation** — a self-contained `.svg` with the player embedded
+1. Open the **Pixodesk Animator Studio** editor desktop app ([pixodesk.com](https://pixodesk.com)).
+2. On the welcome screen choose file type:
    - **Pixodesk JSON** — the document the players consume *(pick this for paths B and C)*
-3. Draw a shape (or **Open / Drop** an existing `.svg`), select it, and set a keyframe on the
-   timeline: move the playhead, change a property — position, colour, opacity — and the
-   editor records a keyframe. Move the playhead again, change it again. Press play.
+   - **SVG + CSS animation** — a self-contained `.svg`, no JavaScript *(default pick for path A)*
+   - **SVG + JS (WAAPI/Frames) animation** — a self-contained `.svg` with the player embedded
+3. Add some shapes (or **Open / Drop** an existing `.svg`) and animate them on the timeline —
+   see the [editor guide](./04-editor.md). Press play.
 4. **File → Save** (or *Save As*). That file is what you embed below.
 
 The [editor guide](./04-editor.md) covers everything else — shape presets, effects, easing,

@@ -20,8 +20,16 @@ value, `{ "value": … }`, or a full property animation `{ "keyframes": [ … ],
 same grammar as the `animate` channel.
 
 **Order.** Key order in `effects` carries no meaning; the player always composes in one fixed
-order, innermost → outermost: `text`/`textPath` → gradients → `strokeTrim` → `repeater` →
-`maskedBy` → `clipPath` → `clone` + `transformBy`. So `repeater` + `transformBy` on one element
+order, innermost → outermost:
+
+```mermaid
+%%{init: {'theme':'base', 'flowchart':{'nodeSpacing': 22, 'rankSpacing': 34, 'curve': 'basis'}}}%%
+flowchart LR
+    A["text<br/>textPath"] --> B["gradients"] --> C["strokeTrim"] --> D["repeater"]
+    D --> E["maskedBy"] --> F["clipPath"] --> G["clone<br/>transformBy"]
+```
+
+So `repeater` + `transformBy` on one element
 always means "repeat, then transform the whole row"; for "transform each copy, then repeat",
 put the `transformBy` on a child and the `repeater` on the parent group.
 

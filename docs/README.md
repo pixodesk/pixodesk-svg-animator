@@ -18,16 +18,7 @@ This documentation covers the **Pixodesk editor**, the **player**, and the **for
   player on the engine you choose — WAAPI or frames.  
   Pick whichever suits where it runs.
 
-
-## Start here
-
-| I want to… | Go to |
-|---|---|
-| Understand what this is and which piece I need | [Introduction](./01-introduction.md) |
-| Get an animation on a page in ten minutes | [Quick start](./02-quick-start.md) |
-| Decide between the JSON and pre-rendered SVG formats | [Choosing a format](./03-choosing-a-format.md) |
-| Learn the editor | [The editor](./04-editor.md) |
-
+    
 ## Contents
 
 ### Get started
