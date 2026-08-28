@@ -30,11 +30,13 @@ JS-triggers and JS-animation flavours work in these frameworks. A component impo
 
 ```html
 <div data-px-animation-src="/animation.json"></div>
-<script src="https://unpkg.com/@pixodesk/svg-animator-web/dist/index.umd.min.js"></script>
+<script src="/js/pixodesk-svg-animator.umd.min.js"></script>
 <script>PixodeskAnimator.loadTagAnimators();</script>
 ```
 
-See [Web player](./06-player--web-player.md).
+The script is the player's UMD build, served from your own site — how to get it is in
+[Installing the players (overview)](./05-player--installation.md#without-a-bundler--the-umd-build). The
+API is in [Web player](./06-player--web-player.md).
 
 ## CMS and website builders
 

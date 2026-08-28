@@ -20,7 +20,7 @@ Both are the same document in a different shape. You can switch at any time —
 | **Pre-rendered SVG + JS animation** | `.svg` | ordinary SVG + the web player embedded in a `<script>` (~25–35 KB) | no (the player is inline) |
 
 The editor can also export **Lottie** (`.json` / `.lottie`), **video**, **GIF** and **image**
-snapshots — see [The editor → Exporting](./03-editor--editor.md#exporting).
+snapshots — see [The editor → Save, convert, export](./03-editor--editor.md#save-convert-export).
 
 ## The decision, short version
 

@@ -2,119 +2,113 @@
 
 [← Choosing a format](./02-start--choosing-a-format.md) · [Contents](./README.md) · Next: [Set default playback settings & triggers →](./04-editor--playback-settings.md)
 
-The Pixodesk editor is a vector and animation editor for SVG. It runs in the browser at
-[pixodesk.com](https://pixodesk.com) and as the *Pixodesk Animator Studio* desktop app. This
-page is a tour of what you can do in it, in the order you will meet things; it is not a
-button-by-button manual.
+The Pixodesk editor — the *Pixodesk Animator Studio* desktop app — is a vector and animation
+editor for SVG. This page is what it can do, not where the buttons are: enough to know whether
+a thing is possible before you go looking for it.
 
-## The welcome screen
+## Create content
 
-- **New → Document** — canvas size and playback basics (duration, frame rate), plus the
-  **file type**: Pixodesk JSON, one of the three pre-rendered SVG flavours, or Lottie
-  (JSON / `.lottie`). The type can be changed later from the right panel or the File menu.
-- **Open / Drop file** — open an existing `.json`, `.svg` or Lottie file, or drag one onto the
-  window. Plain SVG files from any tool open as static artwork ready to animate; Lottie files
-  are converted (with a list of anything that could not be represented).
-- **Recent documents** and **Help & Learning** links.
+**Draw it.** Rectangles, ellipses, pen and freehand paths, text. Fills and strokes take solid
+colours or linear / radial gradients.
 
-## The workspace
+**Or use a shape preset.** Stars, polygons, spirals, arcs, waves, arrows, cogs and more are
+*parametric*: you edit a radius or a point count, not individual vertices. Every parameter can
+be animated — a star can grow points, an arc can sweep open — and a preset stays editable
+after you save.
 
-| Area | What it does |
-|---|---|
-| **Canvas** | Draw, select, move, scale and rotate elements; drag the control points of shape presets and effects |
-| **Toolbar** | Selection, shapes (rectangle, ellipse, path/pen, text) and the **shape presets** |
-| **Element tree** | The SVG structure — groups, symbols, defs; reorder and nest by dragging |
-| **Timeline** | One row per animated property, keyframes as diamonds, the playhead, easing per keyframe, loop controls |
-| **Right panel** | Every property of the selected element, grouped in sections (Fill, Stroke, Transform, Corners, Repeater, Text, …) plus the document's file and playback settings |
+**Round any corner**, per vertex, with a radius that can animate too.
 
-## Creating content
+**Or bring it in.**
 
-**Basic shapes and paths** — rectangle, ellipse, freehand and pen paths, text. Fill and stroke
-accept solid colours or gradients (linear / radial, editable on-canvas).
+- **SVG** from Illustrator, Figma, Inkscape or any other tool. **Open** it as a document of
+  its own — the way to turn an existing SVG into a pre-rendered one — or **import** it into a
+  document you already have, such as a Pixodesk JSON. Either way it arrives as static artwork,
+  ready to animate.
+- **Lottie** files are converted into the editor's own model. Anything Lottie expresses that
+  the editor cannot is listed, so you know what changed.
 
-**Shape presets** — parametric shapes you edit with handles rather than points: *star*,
-*polygon*, *spiral*, and (as experimental features) *arc / pie / ring*, *wave*, *arrow*,
-*heart*, *cross*, *frame*, *cog*, *crescent*, *tear*, *eye*, *trapezoid*. Every parameter
-(radius, roundness, sweep, thickness…) can be **animated**, so a star can gain points-of-a-star
-roundness over time or an arc can sweep open. Presets stay editable after you save to JSON.
+## Animate
 
-**Round corners** — round any vertex of any path or preset, per corner, with an animatable
-radius. The *Corners* section appears in the right panel when a shape has rounded corners.
+Any property of any element can carry **keyframes**: position, size, colour, opacity, stroke,
+transform, a path's geometry, a preset's parameters, an effect's settings. Move the playhead,
+change the value, and the editor records a keyframe — either for the properties you have
+switched a *watch* on, or for everything at once with *auto-animate* pinned. Values are
+interpolated between keyframes, with **easing** per keyframe.
 
-**Import** — SVG files from Illustrator, Figma, Inkscape and the like; Lottie animations.
+On top of plain keyframes:
 
-## Animating
+- **Motion along a path** — translate keyframes can carry curved tangents, and *auto-orient*
+  turns the element to face the direction of travel.
+- **Path morphing** — animate a path's `d` between shapes with the same structure.
+- **Independent transform parts** — translate, rotate, scale, skew and origin can each run on
+  their own timeline instead of sharing one.
 
-1. Select an element and move the **playhead** on the timeline.
-2. Change a property — drag on the canvas, or type in the right panel. The editor records a
-   **keyframe** on that property's row (a *watch* button next to each property toggles whether
-   changes create keyframes).
-3. Move the playhead, change the value again. Between keyframes the value is interpolated.
+## Loops
 
-Other things to know:
+Two kinds, and they compose.
 
-- **Easing** — per keyframe, from a dropdown on the timeline (cubic-bezier presets or custom).
-- **Loops** — a property can repeat a segment of its keyframes to fill the whole document
-  duration, forward or ping-pong, independently of the document's own iteration count.
-- **Motion along a path** — translate keyframes can carry curved tangents (edit them on the
-  canvas); *auto-orient* turns the element to follow the curve.
-- **Path morphing** — animate the `d` of a path between shapes with the same structure.
-- **Copy / paste keyframes**, select ranges, stretch and move groups of keyframes.
-- Time is shown in frames in the UI (10 ms per frame by default) and saved as milliseconds.
+**The document loops** by its *iterations* setting — the whole animation plays again, in the
+same or alternating direction. That is the outer loop, and it is what a player's `iterations`
+prop overrides.
+
+**A single property can loop on its own**, inside the document: repeat a segment of its
+keyframes — forward or ping-pong — to fill the document's duration, before its first keyframe
+or after its last. A wheel keeps spinning while everything else runs once; an intro plays and
+the last two keyframes then idle until the end. These inner loops are saved into the file and
+every player honours them.
+
+**Reusable animated components.** Wrap animated content in a **symbol** and place it as many
+times as you like. Each instance can *retime* the symbol — start it later, run it faster or
+slower, or show it only inside a window of the timeline — so one animated component gives you
+a staggered crowd.
 
 ## Effects
 
-Effects add structure the browser cannot express as a single attribute. They live in the
-right panel and, in the JSON format, travel as declarative `effects` the player expands at
-load ([Effects reference](./15-format--effects.md)):
+An attribute is a value the browser reads as-is. An **effect** is something that needs more
+than one attribute to exist — copies, masks, clipping, a gradient, text laid along a path.
+The editor treats each effect as a first-class thing with its own animatable settings; at
+playback it is **materialised** into plain animated SVG attributes, so the browser never sees
+anything but ordinary SVG. In a pre-rendered file that happens at export; in JSON the player
+does it at load ([Effects reference](./15-format--effects.md)).
 
 | Effect | What it does |
 |---|---|
 | **Repeater** | N copies of an element, each stepped by a translation, rotation, scale, skew and origin — all animatable |
-| **Trim Stroke** | Draw-on / draw-off along a stroke; offset and range animatable; trim each sub-path separately or all as one |
-| **Mask** | Mask an element by another (alpha or luminance), with an optional viewport |
+| **Trim stroke** | Draw-on / draw-off along a stroke; offset and range animatable; trim each sub-path separately or all as one |
+| **Mask** | Mask an element by another (alpha or luminance) |
 | **Clip path** | Clip to a path whose geometry can itself animate |
 | **Gradient fill / stroke** | Linear / radial gradients with animatable stops and geometry |
 | **Text on path** | Lay text along a path; animate its start offset |
-| **Glyph text** | Render text from embedded glyph outlines so no font is needed at playback |
-| **Symbols & instances** (`<use>`) | Reuse a symbol many times; each instance can *retime* the symbol's animation (start offset, speed) and be cropped to a time window |
-| **Per-part transforms** | Give translate, rotate, scale, skew and origin independent timings on one element |
+| **Glyph text** | Render text from embedded outlines so no font is needed at playback |
+| **Symbols & instances** | Reuse a symbol; each instance retimes it (see Loops) |
+| **Independent transform parts** | Separate timelines for translate, rotate, scale, skew and origin (see Animate) |
 
-## Playback settings and triggers
+## Set the playback defaults
 
-With nothing selected, the right panel holds the document's own playback settings — duration,
-iterations, direction, fill, engine mode, what starts the animation, and whether the timeline
-follows the clock or the scroll position. They are saved with the file and every player honours
-them.
+Duration, iterations, direction, what starts the animation (load, click, hover, scroll into
+view, or code), what happens when the trigger ends, and whether the timeline follows the clock
+or the page's scroll position — all set once in the editor and saved with the file, so a
+player needs no configuration to play it correctly.
 
-Each control, and the value it writes, is in
+Which control writes which value:
 [Set default playback settings & triggers](./04-editor--playback-settings.md).
 
-## Exporting
+## Save, convert, export
 
-**File type** (right panel *File* section, or the File menu) decides what **Save** writes:
+**Save** writes the document in the file type you have chosen:
 
-- **Pixodesk JSON** — the document for the players; also the best format to keep editing.
-- **SVG + CSS animation** — self-contained, no JavaScript. Properties the CSS engine cannot
-  animate are flagged with a warning icon on their timeline row and in the file-type picker.
-- **SVG + CSS animation + JS triggers** — adds a small inline script for hover / click / scroll
-  triggers.
-- **SVG + JS animation** — embeds the web player. Options: *Embed JS player* (inline it, or
-  reference the library externally), *Unoptimised JS* (readable instead of minified), and the
-  engine mode. The panel shows how many kilobytes the player adds to the file.
+- **Pixodesk JSON** — the source format. Everything survives; the best format to keep editing.
+- **Pre-rendered SVG**, in one of three flavours — CSS animation, CSS + JS triggers, or with
+  the JS player embedded. Anything the chosen flavour cannot animate is flagged on the
+  timeline and in the file-type picker *before* you save.
 
-**Save as JSON / Save as SVG** converts between the two at any time. **Preview** opens the
-current document as it will play outside the editor.
+**Convert freely.** *Save as JSON* / *Save as SVG* switches between them at any time, in
+either direction, so the choice is never final ([Choosing a format](./02-start--choosing-a-format.md)).
 
-**Export** (File → Export) writes other formats: **Lottie** (`.json` or `.lottie`), **video**,
-**GIF** and a still **image**. Conversions that lose something show a warning list before you
-save, so you know exactly which feature was dropped or approximated.
+**Export a fallback** for places that cannot play SVG: **Lottie** (`.json` / `.lottie`),
+**video**, **GIF** or a still **image**. Conversions that lose something show exactly what was
+dropped or approximated before the file is written.
 
-## Tips
-
-- Keep animated elements at the origin and position them with a parent group when you rotate
-  or scale — the pivot then behaves as you expect in every export format.
-- Prefer the JSON format for archival; you can always re-export any SVG flavour from it.
-- Use the file-type picker's warnings as a checklist before shipping a CSS-flavour SVG.
+**Preview** plays the document as it will look outside the editor.
 
 [← Choosing a format](./02-start--choosing-a-format.md) · [Contents](./README.md) · Next: [Set default playback settings & triggers →](./04-editor--playback-settings.md)

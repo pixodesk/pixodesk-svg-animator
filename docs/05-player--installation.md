@@ -1,4 +1,4 @@
-# Installing the players
+# Installing the players (overview)
 
 [← Set default playback settings & triggers](./04-editor--playback-settings.md) · [Contents](./README.md) · Next: [Web player →](./06-player--web-player.md)
 
@@ -23,19 +23,36 @@ browser consumer stays self-contained.
 
 ## Without a bundler — the UMD build
 
-The web player ships as ESM, CJS and **UMD**. The UMD file exposes a `PixodeskAnimator` global:
+The web player ships as ESM, CJS and **UMD**. The UMD file, `index.umd.min.js`, is a single
+self-contained script that exposes a `PixodeskAnimator` global — for plain HTML pages, CMS
+templates and anything else without a build step.
+
+**Host it yourself.** We publish only to [npm](https://www.npmjs.com/package/@pixodesk/svg-animator-web)
+and [GitHub](https://github.com/pixodesk/pixodesk-svg-animator); we do not recommend loading
+the player from a third-party CDN, since that puts a file you did not verify between your
+page and your users. Get the file from the npm package and serve it alongside your site:
+
+```bash
+npm install @pixodesk/svg-animator-web
+cp node_modules/@pixodesk/svg-animator-web/dist/index.umd.min.js ./js/pixodesk-svg-animator.umd.min.js
+```
+
+No project to install into? `npm pack @pixodesk/svg-animator-web` downloads the exact package
+tarball; the file is at `package/dist/index.umd.min.js` inside it.
+
+Then load it with a relative path, like any other script of yours:
 
 ```html
-<script src="https://unpkg.com/@pixodesk/svg-animator-web/dist/index.umd.min.js"></script>
+<script src="/js/pixodesk-svg-animator.umd.min.js"></script>
 <script>
   PixodeskAnimator.loadTagAnimators();                       // declarative
   const a = PixodeskAnimator.createAnimator({ src: '/a.json', container: '#box' }); // programmatic
 </script>
 ```
 
-Pin a version in production (`…/svg-animator-web@1.0.30/dist/…`). jsDelivr works the same way
-(`https://cdn.jsdelivr.net/npm/@pixodesk/svg-animator-web/dist/index.umd.min.js`), or copy the
-file from `node_modules/@pixodesk/svg-animator-web/dist/` into your site.
+The copied file is pinned by nature — your site keeps playing the version you tested until you
+choose to update it. Renaming it is optional; the [examples](../examples/web/) use
+`pixodesk-svg-animator.umd.min.js` so the name says what it is.
 
 Files in `dist/`:
 

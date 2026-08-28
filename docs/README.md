@@ -31,7 +31,7 @@ This documentation covers the **Pixodesk editor**, the **player**, and the **for
 4. [Set default playback settings & triggers](./04-editor--playback-settings.md) — duration, loops, direction, engine mode, what starts it, clock or scroll — saved with the file
 
 ### Play JSON animations
-5. [Installing the players](./05-player--installation.md) — npm packages, CDN builds, TypeScript
+5. [Installing the players (overview)](./05-player--installation.md) — npm packages, CDN builds, TypeScript
 6. [Web player (`@pixodesk/svg-animator-web`)](./06-player--web-player.md) — `createAnimator`, the playback API, callbacks, triggers
 7. [React (`@pixodesk/svg-animator-react`)](./07-player--react.md) — the component, its props, control modes, Next.js
 8. [Vue (`@pixodesk/svg-animator-vue`)](./08-player--vue.md) — the component, props, events, Nuxt

@@ -1,6 +1,6 @@
 # Set default playback settings & triggers
 
-[← The editor](./03-editor--editor.md) · [Contents](./README.md) · Next: [Installing the players →](./05-player--installation.md)
+[← The editor](./03-editor--editor.md) · [Contents](./README.md) · Next: [Installing the players (overview) →](./05-player--installation.md)
 
 Every animation carries its own answer to *how long*, *how many times* and *what starts it*.
 You set those defaults once in the editor and they travel with the file — the players read
@@ -73,4 +73,4 @@ always native-driven.
 
 ---
 
-[← The editor](./03-editor--editor.md) · [Contents](./README.md) · Next: [Installing the players →](./05-player--installation.md)
+[← The editor](./03-editor--editor.md) · [Contents](./README.md) · Next: [Installing the players (overview) →](./05-player--installation.md)

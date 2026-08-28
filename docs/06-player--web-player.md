@@ -1,6 +1,6 @@
 # Web player — `@pixodesk/svg-animator-web`
 
-[← Installing the players](./05-player--installation.md) · [Contents](./README.md) · Next: [React →](./07-player--react.md)
+[← Installing the players (overview)](./05-player--installation.md) · [Contents](./README.md) · Next: [React →](./07-player--react.md)
 
 The browser player for the JSON format. It builds the SVG DOM from the document and drives the
 animation with the Web Animations API or a frame loop, with hover / click / scroll triggers.
@@ -14,12 +14,14 @@ npm install @pixodesk/svg-animator-web
 
 ### Declarative — `data-px-animation-src`
 
-Point an element at the JSON file and call `loadTagAnimators()` once the DOM is ready:
+Point an element at the JSON file and call `loadTagAnimators()` once the DOM is ready. The
+script is the UMD build, copied from the npm package into your site — see
+[Installing the players (overview)](./05-player--installation.md#without-a-bundler--the-umd-build):
 
 ```html
 <div data-px-animation-src="/animation.json" style="width: 400px; height: 300px"></div>
 
-<script src="https://unpkg.com/@pixodesk/svg-animator-web/dist/index.umd.min.js"></script>
+<script src="/js/pixodesk-svg-animator.umd.min.js"></script>
 <script>PixodeskAnimator.loadTagAnimators();</script>
 ```
 
@@ -164,4 +166,4 @@ text materialiser, …). They are documented in [Core library](./16-format--core
 - [JSON format reference](./14-format--json-format.md)
 - [Troubleshooting](./17-help--troubleshooting.md)
 
-[← Installing the players](./05-player--installation.md) · [Contents](./README.md) · Next: [React →](./07-player--react.md)
+[← Installing the players (overview)](./05-player--installation.md) · [Contents](./README.md) · Next: [React →](./07-player--react.md)

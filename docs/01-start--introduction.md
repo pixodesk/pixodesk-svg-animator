@@ -84,7 +84,7 @@ Start from where the animation is going:
   No package to install: paste it in or let your build tool inline it. Start at
   [Pre-rendered SVG on the web](./11-player--prerendered-svg.md).
 - **An app, or anything you need to control from code.** Use **JSON** with the player for your
-  stack. Start at [Installing the players](./05-player--installation.md).
+  stack. Start at [Installing the players (overview)](./05-player--installation.md).
 
 | Your stack | Package |
 |---|---|
@@ -120,7 +120,7 @@ flowchart TD
 - Deciding on a format → [Choosing a format](./02-start--choosing-a-format.md)
 - Learning the editor → [The editor](./03-editor--editor.md)
 - Embedding a pre-rendered SVG → [Pre-rendered SVG on the web](./11-player--prerendered-svg.md)
-- Installing a player → [Installing the players](./05-player--installation.md)
+- Installing a player → [Installing the players (overview)](./05-player--installation.md)
 - Understanding the file → [Format principles](./13-format--format-principles.md), then the
   [JSON format reference](./14-format--json-format.md)
 
