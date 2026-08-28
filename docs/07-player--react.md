@@ -159,6 +159,10 @@ import AnimationSvg from './animation.svg?react';   // vite-plugin-svgr
 | `outAction` | `'continue' \| 'pause' \| 'reset'` | `'continue'` |
 | `className` · `style` | on the wrapper `<div>` | |
 
+> ⚠️ **Render it once per page.** The imported component is the file's markup, ids included —
+> mount it twice and both copies share the same ids, so masks and gradients cross over. For
+> several instances use the JSON component instead ([why](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
+
 SVGR strips `<script>` tags, so only the pure CSS flavour works this way. Files with scripts
 (JS triggers / JS animation) should be inlined as raw HTML, or switched to JSON.
 

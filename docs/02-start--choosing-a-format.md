@@ -26,7 +26,8 @@ snapshots — see [The editor → Save, convert, export](./03-editor--editor.md#
 
 **Default to JSON** when you write code (React, Vue, React Native, vanilla JS with runtime
 control).   
-**Use a pre-rendered SVG** when you just want to drop a file in CMS or static site with minimal setup.
+**Use a pre-rendered SVG** when you just want to drop a file in CMS or static site with minimal setup —
+and you need each file **once per page** ([why](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
 
 | Situation | Pick |
 |---|---|
@@ -43,9 +44,9 @@ control).
 | Format | Advantages | Limitations |
 |---|---|---|
 | **JSON** | Every animation type on every browser · full runtime control (play, pause, seek, reverse, speed) · clean per-instance rendering, no id conflicts · SSR-safe | Needs a player package · two things to wire together (file + component) |
-| **SVG + CSS** | No library, smallest file · no `<script>`, so it works inline, through SVGR, and — exported with *On load* — even as an `<img>` · drop-in icon replacement | Only what CSS `@keyframes` can express (table below) · path morphing in Chrome/Firefox/Edge only, and only between same-structure paths · no runtime control · possible id conflicts if inlined twice |
-| **SVG + CSS + JS triggers** | Same as above plus event-driven start/stop (hover, click, scroll into view) | Same CSS limits · no precise control (seek, reverse, speed) · the `<script>` prevents `<img>` and SVGR use |
-| **SVG + JS animation** | Every animation type · full runtime control · self-contained | Embeds the player (~25–35 KB) · the `<script>` prevents `<img>` and SVGR use · possible id conflicts if inlined twice |
+| **SVG + CSS** | No library, smallest file · no `<script>`, so it works inline and through SVGR · drop-in icon replacement | Only what CSS `@keyframes` can express (table below) · path morphing in Chrome/Firefox/Edge only, and only between same-structure paths · no runtime control · **id conflicts if inlined twice** ([one copy per page](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)) |
+| **SVG + CSS + JS triggers** | Same as above plus event-driven start/stop (hover, click, scroll into view) | Same CSS limits · no precise control (seek, reverse, speed) · the `<script>` prevents SVGR use · **id conflicts if inlined twice** ([one copy per page](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)) |
+| **SVG + JS animation** | Every animation type · full runtime control · self-contained | Embeds the player (~25–35 KB) · the `<script>` prevents SVGR use · possible id conflicts if inlined twice |
 
 ## What each engine can animate
 
@@ -89,7 +90,7 @@ on its timeline row and in the file-type picker, so you never find out after exp
 
 | Engine | Advantages | Limitations |
 |---|---|---|
-| **CSS `@keyframes`** | No JavaScript at all · the browser runs it natively, with transforms and opacity on the compositor · the only engine that can animate inside an `<img>` (*On load* export) · nothing to load | The smallest feature set (❌ rows above) · geometry properties do not animate in Firefox · no runtime control beyond toggling classes |
+| **CSS `@keyframes`** | No JavaScript at all · the browser runs it natively, with transforms and opacity on the compositor · nothing to load | The smallest feature set (❌ rows above) · geometry properties do not animate in Firefox · no runtime control beyond toggling classes |
 | **Web Animations API** | Native and very smooth — transforms and opacity off the main thread · full runtime control · no per-frame JavaScript work | Cannot express structural changes: path morphing, gradient geometry, filters, masks, text on a path · modern browsers only |
 | **Frame loop** | Every animation type, in every browser · full runtime control · the only engine for path morphing in older Safari | Writes attributes from JavaScript every frame, so it shares the main thread with your page · runs uncapped unless you set `frameRate` · still fast, but WAAPI stays smoother when the page is busy |
 

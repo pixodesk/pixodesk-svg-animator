@@ -114,7 +114,7 @@ With `effects.text.useGlyphs: true` the text renders from glyph outlines embedde
 ```json
 "animate": "fadeIn"
 "animate": ["fadeIn", "spin"]
-"animate": ["fadeIn", { "scale": { "keyframes": [ … ] } }]
+"animate": ["fadeIn", { "scale": { "keyframes": [ { "time": 0, "value": [1, 1] }, { "time": 1000, "value": [1.5, 1.5] } ] } }]
 ```
 
 ### Property animation
@@ -165,7 +165,8 @@ the document's `iterations`:
 
 ```json
 "rotate": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 1000, "value": 360 } ], "loop": true }
-"scale":  { "keyframes": [ … ], "loop": { "segmentCount": 1, "extend": "after", "alternate": true } }
+"scale":  { "keyframes": [ { "time": 0, "value": [1, 1] }, { "time": 500, "value": [1.2, 1.2] }, { "time": 1000, "value": [1, 1] } ],
+            "loop": { "segmentCount": 1, "extend": "after", "alternate": true } }
 ```
 
 | Key | Meaning |
@@ -249,7 +250,7 @@ Reusable, named pieces:
   "animations": { "fadeIn": { "opacity": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 2000, "value": 1 } ] } } },
   "styles":     { "label": { "fontFamily": "Inter", "fontSize": 12 } },
   "glyphs":     { "Roboto": { "fFamily": "Roboto", "style": "", "ascent": 928, "unitsPerEm": 1000,
-                              "glyphs": { "H": { "width": 722, "d": "M…" } } } }
+                              "glyphs": { "H": { "width": 722, "d": "M100 0V722H190V400H532V722H622V0H532V320H190V0Z" } } } }
 }
 ```
 
@@ -274,7 +275,7 @@ createAnimator({ data: {
     definitions: { animations: { fadeIn: { opacity: { keyframes: [ { time: 0, value: 0 }, { time: 2000, value: 1 } ] } } } },
     animateById: {
       _px_rect:    'fadeIn',                                     // one named animation
-      _px_ellipse: ['fadeIn', { fill: { keyframes: [ … ] } }],    // several, mixed
+      _px_ellipse: ['fadeIn', { fill: { keyframes: [ { time: 0, value: '#0087ff' }, { time: 2000, value: '#ff3b30' } ] } }],  // several, mixed
     },
   },
 } });

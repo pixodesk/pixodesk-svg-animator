@@ -46,9 +46,14 @@ the file-type picker before you export.
 
 ## The CSS-flavour SVG works, the JS flavours don't
 
-**`<img src="animation.svg">` and SVGR strip or ignore `<script>`.** Only the pure CSS flavour
-animates as an image or through SVGR / `vite-svg-loader`. Inline the scripted flavours as raw
-HTML (see [Static sites & CMS](./12-player--static-sites-and-cms.md)), or switch to JSON.
+**It is used as a picture.** `<img src="animation.svg">`, SVG `<image>` and CSS
+`background-image` show a still frame for every flavour — no script runs inside an image and
+the page cannot add the play classes. Inline the file instead
+([Pre-rendered SVG → Not as a picture](./11-player--prerendered-svg.md#three-ways-to-embed-animated-svg)).
+
+**SVGR / `vite-svg-loader` strip `<script>`.** Only the pure CSS flavour works as an imported
+component. Inline the scripted flavours as raw HTML (see
+[Static sites & CMS](./12-player--static-sites-and-cms.md)), or switch to JSON.
 
 **Content Security Policy.** Inline scripts may be blocked by your CSP. Use the CSS flavour, or
 JSON with the player loaded from your own origin.

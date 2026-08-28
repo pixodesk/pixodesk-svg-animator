@@ -71,7 +71,10 @@ the animation from code.
 
 **Pre-rendered SVG** is a normal `.svg` file with the animation baked in. Drop it into any
 page, CMS or static-site generator and it plays — no library needed for the CSS flavour. It is
-the simplest option and the right one for most icons, loaders and decorative animation.
+the simplest option and the right one for most icons, loaders and decorative animation. Its
+one rule: **inline a given file once per page** — its element ids are fixed, so a second copy
+collides with the first ([why](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)). Several instances of one animation is a job
+for JSON.
 
 Both come out of the same editor document, and the editor converts between them at any time
 (**File → Save as JSON / Save as SVG**), so the choice is never final.

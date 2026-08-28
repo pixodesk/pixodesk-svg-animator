@@ -66,8 +66,8 @@ export const CASES = [
   // -- Pre-rendered SVG ----------------------------------------------------------
   { group: 'prerendered', id: 'inline-css', title: 'Flavour 1 inlined — SVG + CSS animation', anchor: 'flavour-1--svg--css-animation',
     summary: 'An On-load export pasted into the page; the browser runs the @keyframes. No library.' },
-  { group: 'prerendered', id: 'img-css',    title: 'In an <img> — static, unless exported On load', anchor: 'four-ways-to-embed-any-svg',
-    summary: 'Side by side: the same CSS-flavour file without and with the play classes on its root.' },
+  { group: 'prerendered', id: 'img-css',    title: 'In an <img> — static', anchor: 'three-ways-to-embed-animated-svg',
+    summary: 'Used as a picture, a pre-rendered SVG shows a still frame. Inline it instead.' },
   { group: 'prerendered', id: 'inline-js',  title: 'Flavour 3 — SVG + JS animation', anchor: 'flavour-3--svg--js-animation',
     summary: 'An already-rendered SVG plus a bindings payload, driven by the embedded player.' },
 

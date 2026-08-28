@@ -1,0 +1,25 @@
+{
+  "type": "svg",
+  "viewBox": "0 0 400 400",
+  "animator": {
+    "duration": 1000,
+    "iterations": "infinite",
+    "direction": "alternate",
+    "trigger": { "startOn": "load" }
+  },
+  "children": [
+    {
+      "type": "circle",
+      "id": "ball",
+      "cx": 0, "cy": 0, "r": 40, "fill": "#0087ff",
+      "animate": {
+        "translate": {
+          "keyframes": [
+            { "time": 0,    "value": [200, 60],  "easing": [0.33, 0, 0.67, 0.33] },
+            { "time": 1000, "value": [200, 340] }
+          ]
+        }
+      }
+    }
+  ]
+}

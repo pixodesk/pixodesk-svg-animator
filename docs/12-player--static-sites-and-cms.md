@@ -59,8 +59,9 @@ HTML (most do for `<script>`), the CSS flavour is the safe choice.
 - **Content Security Policy.** Inlined scripts (JS-triggers / JS-animation flavours) count as
   inline scripts; if your CSP forbids them, use the CSS flavour, or JSON with the player loaded
   from your own origin.
-- **Repeated animations.** Inlining the same file twice duplicates its ids. Export it twice (each
-  export gets fresh ids) or use JSON, which regenerates ids per instance.
+- ⚠️ **One copy of a file per page.** Inlining the same file twice duplicates its ids and breaks
+  masks, gradients and bindings. Export it once per instance (each export gets fresh ids) or use
+  JSON, which regenerates ids per instance ([why](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
 - **Sizing.** Keep the `viewBox`, remove fixed `width`/`height` if you want the SVG to scale
   with its container, and size the container with CSS.
 - **Lazy pages.** The `scrollIntoView` trigger starts the animation only when it becomes

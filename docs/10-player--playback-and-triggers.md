@@ -15,15 +15,33 @@ defaults there, see
 ```json
 {
   "type": "svg",
+  "viewBox": "0 0 400 400",
   "animator": {
     "duration": 2000,
     "iterations": "infinite",
     "direction": "alternate",
     "trigger": { "startOn": "scrollIntoView", "outAction": "pause", "scrollIntoViewThreshold": 0.5 }
   },
-  "children": [ … ]
+  "children": [
+    {
+      "type": "circle",
+      "id": "ball",
+      "cx": 0, "cy": 0, "r": 40, "fill": "#0087ff",
+      "animate": {
+        "translate": {
+          "keyframes": [
+            { "time": 0,    "value": [200, 60],  "easing": [0.33, 0, 0.67, 0.33] },
+            { "time": 2000, "value": [200, 340] }
+          ]
+        }
+      }
+    }
+  ]
 }
 ```
+
+The same bouncing ball as in the [web player](./06-player--web-player.md#declarative--data-px-animation-src),
+now two seconds per bounce and waiting until half of it has scrolled into view.
 
 ## Timing
 

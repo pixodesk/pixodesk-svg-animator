@@ -31,7 +31,7 @@ isPxElementFileFormatDeep(json);    // { valid, errors } — full schema
 // per-field diagnostics
 const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
 if (!PxAnimatedSvgDocumentSchema.isValid(doc, ctx, [])) console.error(ctx.errors);
-// → ["children[0].effects.strokeTrim.range: …", …]
+// → ["children[0].effects.strokeTrim.range: no union member matched for value 5"]
 ```
 
 | Mode | Question it answers | Unknown keys |
@@ -65,7 +65,7 @@ const flat = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.waapi));
 // values at any time, no renderer involved
 for (const binding of getNormalisedBindings(flat, PxAnimatorEngine.frames) ?? []) {
   const values = calcAnimationValues(binding.animate, 500);   // t = 500 ms
-  console.log(binding.id, values);   // → { opacity: '0.5', transform: 'translate(…)' }
+  console.log(binding.id, values);   // → ball { transform: 'translate(200,129.65)' }   (the bouncing ball, half-way down)
 }
 ```
 

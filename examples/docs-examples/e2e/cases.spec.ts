@@ -159,17 +159,13 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
 
   'prerendered/img-css': async page => {
     // Nothing inside an <img> is reachable from the DOM, so the only honest check
-    // is pixels: screenshot the image twice and see whether anything moved.
-    const moved = async (id: string) => {
-      const img = page.locator('#' + id);
-      await expect(img).toBeVisible();
-      expect(await img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
-      const a = await img.screenshot();
-      await page.waitForTimeout(400);
-      return !a.equals(await img.screenshot());
-    };
-    expect(await moved('raw'), 'without play classes an <img> is static').toBe(false);
-    expect(await moved('onload'), 'an On-load export animates inside <img>').toBe(true);
+    // is pixels: screenshot the image twice and confirm nothing moved.
+    const img = page.locator('#raw');
+    await expect(img).toBeVisible();
+    expect(await img.evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)).toBe(true);
+    const a = await img.screenshot();
+    await page.waitForTimeout(400);
+    expect(a.equals(await img.screenshot()), 'as an <img> the file is a still frame').toBe(true);
   },
 };
 

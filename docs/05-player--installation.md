@@ -4,7 +4,8 @@
 
 Install a package only if you use the **JSON** format. A pre-rendered SVG needs nothing —
 the CSS flavour is plain SVG, and the JS flavour carries its own copy of the player — so if
-that is your route, skip this page.
+that is your route, skip this page. (One limit to know before you commit to it: a pre-rendered
+file can be inlined **once per page** — [why](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page).)
 
 ## Packages
 

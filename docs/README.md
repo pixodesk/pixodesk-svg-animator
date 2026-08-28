@@ -17,7 +17,8 @@ This documentation covers the **Pixodesk editor**, the **player**, and the **for
   Pre-rendered SVG allows: pure **CSS keyframes** for a file that needs **no JavaScript**,
   the same plus a small script for triggers, or embedded **JavaScript** running the
   player on the engine you choose — **WAAPI** or **frames**.  
-  Pick whichever suits where it runs.
+  Pick whichever suits where it runs — and note that a pre-rendered file goes on a page
+  **once**; several instances of one animation is a job for JSON.
 
     
 ## Contents

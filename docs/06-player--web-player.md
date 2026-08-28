@@ -23,10 +23,40 @@ script is the UMD build, copied from the npm package into your site — see
 [Installing the players (overview)](./05-player--installation.md#without-a-bundler--the-umd-build):
 
 ```html
-<div data-px-animation-src="/animation.json" style="width: 400px; height: 300px"></div>
+<div data-px-animation-src="/bouncing-ball.json" style="width: 300px; height: 300px"></div>
 
 <script src="/js/pixodesk-svg-animator.umd.min.js"></script>
 <script>PixodeskAnimator.loadTagAnimators();</script>
+```
+
+`bouncing-ball.json` is the whole document — a ball on an eased, alternating bounce:
+
+```json
+{
+  "type": "svg",
+  "viewBox": "0 0 400 400",
+  "animator": {
+    "duration": 1000,
+    "iterations": "infinite",
+    "direction": "alternate",
+    "trigger": { "startOn": "load" }
+  },
+  "children": [
+    {
+      "type": "circle",
+      "id": "ball",
+      "cx": 0, "cy": 0, "r": 40, "fill": "#0087ff",
+      "animate": {
+        "translate": {
+          "keyframes": [
+            { "time": 0,    "value": [200, 60],  "easing": [0.33, 0, 0.67, 0.33] },
+            { "time": 1000, "value": [200, 340] }
+          ]
+        }
+      }
+    }
+  ]
+}
 ```
 
 Every matching element gets its own animator, stored on the element as `element._px_animator`
@@ -90,7 +120,7 @@ saved by the editor. To override them, change the object before passing it as `d
 const slider = document.querySelector('#scrub');
 slider.addEventListener('input', () => {
   animator.pause();
-  animator.setCurrentTime(Number(slider.value));   // 0 … duration (ms)
+  animator.setCurrentTime(Number(slider.value));   // from 0 to the duration, in ms
 });
 ```
 

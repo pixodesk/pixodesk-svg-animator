@@ -100,7 +100,9 @@ Which control writes which value:
 - **Pixodesk JSON** — the source format. Everything survives; the best format to keep editing.
 - **Pre-rendered SVG**, in one of three flavours — CSS animation, CSS + JS triggers, or with
   the JS player embedded. Anything the chosen flavour cannot animate is flagged on the
-  timeline and in the file-type picker *before* you save.
+  timeline and in the file-type picker *before* you save. A pre-rendered file is meant to be
+  used **once per page**; for several instances export once per instance, or use JSON
+  ([why](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
 
 **Convert freely.** *Save as JSON* / *Save as SVG* switches between them at any time, in
 either direction, so the choice is never final ([Choosing a format](./02-start--choosing-a-format.md)).
