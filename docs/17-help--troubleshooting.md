@@ -1,6 +1,6 @@
 # Troubleshooting & FAQ
 
-[← Format principles](./16-format-principles.md) · [Contents](./README.md) · Next: [Glossary →](./18-glossary.md)
+[← Core library](./16-format--core-library.md) · [Contents](./README.md) · Next: [Glossary →](./18-help--glossary.md)
 
 ## Nothing plays
 
@@ -45,7 +45,7 @@ the file-type picker before you export.
 
 **`<img src="animation.svg">` and SVGR strip or ignore `<script>`.** Only the pure CSS flavour
 animates as an image or through SVGR / `vite-svg-loader`. Inline the scripted flavours as raw
-HTML (see [Static sites & CMS](./11-static-sites-and-cms.md)), or switch to JSON.
+HTML (see [Static sites & CMS](./11-player--static-sites-and-cms.md)), or switch to JSON.
 
 **Content Security Policy.** Inline scripts may be blocked by your CSP. Use the CSS flavour, or
 JSON with the player loaded from your own origin.
@@ -82,14 +82,14 @@ and a string field such as `"mode": "auto"` widens to `string`. Enable `resolveJ
 
 **`View config getter callback for component 'RNSVGLine' must be a function`.** Two copies of
 `react-native-svg` (or reanimated / react) in your node_modules — see
-[Monorepo setup](./10-react-native.md#monorepo-setup).
+[Monorepo setup](./10-player--react-native.md#monorepo-setup).
 
 **Nothing renders, no error.** Pass `onError` — a document that fails to compile is reported
 there and replaced by `fallback` (nothing by default).
 
 **The app crashes on text along a closed path.** A native `react-native-svg` bug the player
 works around on device; if you hit it, keep `startOffset` at 0 on closed paths or use an open
-path. Details in [React Native → Known limitations](./10-react-native.md#known-limitations).
+path. Details in [React Native → Known limitations](./10-player--react-native.md#known-limitations).
 
 **Hover does nothing.** `mouseOver` has no touch equivalent; use `click` or drive `play`
 yourself.
@@ -97,7 +97,7 @@ yourself.
 ## Playback behaviour
 
 **It holds the last frame — I want it to reset.** Set `resetOnFinish: true`, or `fill:
-'none'` (see [Playback settings](./12-playback-and-triggers.md#timing)).
+'none'` (see [Playback settings](./12-player--playback-and-triggers.md#timing)).
 
 **How do I play backwards?** `animator.setPlaybackRate(-1); animator.play();` — also as a
 trigger out action (`outAction: 'reverse'`).
@@ -122,4 +122,4 @@ outlines are embedded in the file and render identically everywhere, with no fon
   JSON (or the SVG), the package version and the browser / platform.
 - The [runnable examples](../examples/) show every control mode working end to end.
 
-[← Format principles](./16-format-principles.md) · [Contents](./README.md) · Next: [Glossary →](./18-glossary.md)
+[← Core library](./16-format--core-library.md) · [Contents](./README.md) · Next: [Glossary →](./18-help--glossary.md)

@@ -1,6 +1,6 @@
 # React Native — `@pixodesk/svg-animator-rn` 🧪
 
-[← Vue](./09-vue.md) · [Contents](./README.md) · Next: [Static sites & CMS →](./11-static-sites-and-cms.md)
+[← Vue](./09-player--vue.md) · [Contents](./README.md) · Next: [Static sites & CMS →](./11-player--static-sites-and-cms.md)
 
 > **Experimental.** The API may change without a major version bump, and a few things are
 > unimplemented or unverified on real devices — see [Feature support](#feature-support) and
@@ -9,7 +9,7 @@
 `<PixodeskSvgAnimator doc={…} />` takes the **same JSON the web player uses** and renders it
 as native SVG (`react-native-svg`), driven on the UI thread by `react-native-reanimated`.
 There is no JavaScript frame loop: once a document is compiled, the JS thread stays idle while
-it plays. Props mirror the [React component](./08-react.md).
+it plays. Props mirror the [React component](./08-player--react.md).
 
 ## Install
 
@@ -291,4 +291,4 @@ pnpm example:rn:explorer   # every feature fixture from the test corpus
 
 See [`examples/react-native-preview-player`](../examples/react-native-preview-player).
 
-[← Vue](./09-vue.md) · [Contents](./README.md) · Next: [Static sites & CMS →](./11-static-sites-and-cms.md)
+[← Vue](./09-player--vue.md) · [Contents](./README.md) · Next: [Static sites & CMS →](./11-player--static-sites-and-cms.md)

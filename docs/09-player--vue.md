@@ -1,10 +1,10 @@
 # Vue — `@pixodesk/svg-animator-vue`
 
-[← React](./08-react.md) · [Contents](./README.md) · Next: [React Native →](./10-react-native.md)
+[← React](./08-player--react.md) · [Contents](./README.md) · Next: [React Native →](./10-player--react-native.md)
 
 A Vue 3 component that renders a JSON animation document and controls its playback. It wraps
-the [web player](./07-web-player.md), renders the SVG through Vue's virtual DOM (SSR-safe,
-Nuxt-ready) and mirrors the [React component](./08-react.md) feature for feature.
+the [web player](./07-player--web-player.md), renders the SVG through Vue's virtual DOM (SSR-safe,
+Nuxt-ready) and mirrors the [React component](./08-player--react.md) feature for feature.
 
 ```bash
 npm install @pixodesk/svg-animator-vue
@@ -163,4 +163,4 @@ mount. Nothing special is required beyond importing the component; for a CSS-fla
 
 `examples/vue` shows every mode and the CSS wrapper with each trigger — `pnpm example:vue`.
 
-[← React](./08-react.md) · [Contents](./README.md) · Next: [React Native →](./10-react-native.md)
+[← React](./08-player--react.md) · [Contents](./README.md) · Next: [React Native →](./10-player--react-native.md)

@@ -1,6 +1,6 @@
 # Playback settings & triggers
 
-[← Static sites & CMS](./11-static-sites-and-cms.md) · [Contents](./README.md) · Next: [JSON format reference →](./13-json-format.md)
+[← Static sites & CMS](./11-player--static-sites-and-cms.md) · [Contents](./README.md) · Next: [Format principles →](./13-format--format-principles.md)
 
 Everything about *when* and *how* an animation plays lives in one place: the document's
 `animator` block. The editor writes it from the playback panel; every player honours it and
@@ -33,7 +33,7 @@ lets you override it.
 | `mode` | `auto` · `waapi` · `frames` | `auto` | the engine — see below |
 
 **Per-property loops vs `iterations`.** A single property can also `loop` — repeat a segment
-of *its own* keyframes to fill the document duration (see [JSON format → Loops](./13-json-format.md#loops)).
+of *its own* keyframes to fill the document duration (see [JSON format → Loops](./14-format--json-format.md#loops)).
 That is a pre-processing step; `iterations` then repeats the whole document. They compose: a
 looping wheel inside an infinitely iterating document spins within every iteration.
 
@@ -74,7 +74,7 @@ second click):
 
 Triggers are implemented by every player (the RN player has no `mouseOver`) and by the
 *SVG + CSS + JS triggers* export flavour. A CSS-only SVG starts on load, or is controlled by
-its classes — see [Pre-rendered SVG](./06-prerendered-svg.md#flavour-1--svg--css-animation).
+its classes — see [Pre-rendered SVG](./06-player--prerendered-svg.md#flavour-1--svg--css-animation).
 
 ## Overriding from a player
 
@@ -127,4 +127,4 @@ Support: the **web player** (both engines, and therefore React and Vue), and the
 animation* export. Not yet: the CSS export or React Native. The complete "scrollytelling"
 pattern is `subject: "parent"` + `pin: true` inside a tall section.
 
-[← Static sites & CMS](./11-static-sites-and-cms.md) · [Contents](./README.md) · Next: [JSON format reference →](./13-json-format.md)
+[← Static sites & CMS](./11-player--static-sites-and-cms.md) · [Contents](./README.md) · Next: [Format principles →](./13-format--format-principles.md)

@@ -1,6 +1,6 @@
 # Glossary
 
-[← Troubleshooting](./17-troubleshooting.md) · [Contents](./README.md)
+[← Troubleshooting](./17-help--troubleshooting.md) · [Contents](./README.md)
 
 | Term | Meaning |
 |---|---|
@@ -33,4 +33,4 @@
 | **UMD build** | The single-file player for a `<script>` tag, exposing the `PixodeskAnimator` global |
 | **SVGR / `vite-svg-loader`** | Build tools that import an `.svg` as a React / Vue component — the way to use a CSS-flavour SVG like an icon |
 
-[← Troubleshooting](./17-troubleshooting.md) · [Contents](./README.md)
+[← Troubleshooting](./17-help--troubleshooting.md) · [Contents](./README.md)

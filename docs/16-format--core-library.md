@@ -1,6 +1,6 @@
 # Core library — `@pixodesk/svg-animator-core`
 
-[← Effects reference](./14-effects.md) · [Contents](./README.md) · Next: [Format principles →](./16-format-principles.md)
+[← Effects reference](./15-format--effects.md) · [Contents](./README.md) · Next: [Troubleshooting →](./17-help--troubleshooting.md)
 
 The platform-neutral heart of every player: the document schema, the effect materialisers,
 the interpolation engine and the path sampler — with **no DOM dependency**. It is what makes
@@ -8,7 +8,7 @@ the web player and the React Native player produce identical values from the sam
 
 ## Do I need it?
 
-Usually **no** — install a [player](./05-installation.md) instead; each depends on the core and
+Usually **no** — install a [player](./05-player--installation.md) instead; each depends on the core and
 re-exports what you need. Install the core directly when you work with **documents rather
 than playback**: validating them, transforming them, flattening them for a renderer of your
 own, or computing values at a given time without rendering anything.
@@ -112,4 +112,4 @@ the engine runs in browsers, React Native and test environments.
 Every package is released in lockstep; a player depends on the matching core version, so
 upgrading a player upgrades the core with it.
 
-[← Effects reference](./14-effects.md) · [Contents](./README.md) · Next: [Format principles →](./16-format-principles.md)
+[← Effects reference](./15-format--effects.md) · [Contents](./README.md) · Next: [Troubleshooting →](./17-help--troubleshooting.md)

@@ -1,6 +1,6 @@
 # Static sites & CMS
 
-[← React Native](./10-react-native.md) · [Contents](./README.md) · Next: [Playback settings & triggers →](./12-playback-and-triggers.md)
+[← React Native](./10-player--react-native.md) · [Contents](./README.md) · Next: [Playback settings & triggers →](./12-player--playback-and-triggers.md)
 
 Pre-rendered SVG files are the natural fit for static-site generators and content platforms:
 the build tool or CMS **inlines the file** and the animation is there before any JavaScript
@@ -12,8 +12,8 @@ client code, the JSON format with a player is available too.
 | Framework | Inline a pre-rendered SVG | JSON alternative |
 |---|---|---|
 | **Astro** | `import svg from './animation.svg?raw';` then `<Fragment set:html={svg} />` | use the React or Vue component inside an island (`client:load`) |
-| **Next.js** | CSS flavour: `import Animation from './animation.svg'` with `@svgr/webpack`; scripted flavours: read the file and render with `dangerouslySetInnerHTML` | [`@pixodesk/svg-animator-react`](./08-react.md#nextjs) in a client component |
-| **Nuxt** | `vite-svg-loader` for the CSS flavour; raw import (`?raw`) + `v-html` for scripted flavours | [`@pixodesk/svg-animator-vue`](./09-vue.md#nuxt) |
+| **Next.js** | CSS flavour: `import Animation from './animation.svg'` with `@svgr/webpack`; scripted flavours: read the file and render with `dangerouslySetInnerHTML` | [`@pixodesk/svg-animator-react`](./08-player--react.md#nextjs) in a client component |
+| **Nuxt** | `vite-svg-loader` for the CSS flavour; raw import (`?raw`) + `v-html` for scripted flavours | [`@pixodesk/svg-animator-vue`](./09-player--vue.md#nuxt) |
 | **SvelteKit** | `import svg from './animation.svg?raw';` then `{@html svg}` | web player in `onMount` |
 | **Angular** | `import svg from './animation.svg?raw';` then `<div [innerHTML]="svg"></div>` (sanitizer: use `bypassSecurityTrustHtml` for scripted flavours) | web player in `ngAfterViewInit` |
 | **Gatsby** | `gatsby-plugin-react-svg` (CSS flavour) or `dangerouslySetInnerHTML` with the raw file | React component |
@@ -34,7 +34,7 @@ JS-triggers and JS-animation flavours work in these frameworks. A component impo
 <script>PixodeskAnimator.loadTagAnimators();</script>
 ```
 
-See [Web player](./07-web-player.md).
+See [Web player](./07-player--web-player.md).
 
 ## CMS and website builders
 
@@ -62,4 +62,4 @@ HTML (most do for `<script>`), the CSS flavour is the safe choice.
 - **Lazy pages.** The `scrollIntoView` trigger starts the animation only when it becomes
   visible — a good default for anything below the fold.
 
-[← React Native](./10-react-native.md) · [Contents](./README.md) · Next: [Playback settings & triggers →](./12-playback-and-triggers.md)
+[← React Native](./10-player--react-native.md) · [Contents](./README.md) · Next: [Playback settings & triggers →](./12-player--playback-and-triggers.md)

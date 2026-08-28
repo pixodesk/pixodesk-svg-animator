@@ -1,6 +1,6 @@
 # Effects reference
 
-[← JSON format reference](./13-json-format.md) · [Contents](./README.md) · Next: [Core library →](./15-core-library.md)
+[← JSON format reference](./14-format--json-format.md) · [Contents](./README.md) · Next: [Core library →](./16-format--core-library.md)
 
 An **attribute** is a value the browser consumes as-is; an **effect** is anything that needs
 *structure* — generated `<defs>`, wrapper groups, copies, geometry-derived rewrites. Effects
@@ -229,4 +229,4 @@ Animating `startOffset` runs on the frame loop.
 The editor embeds the used glyphs when you switch a text to glyph mode. Combined with
 `textPath`, the glyphs are laid along the path directly.
 
-[← JSON format reference](./13-json-format.md) · [Contents](./README.md) · Next: [Core library →](./15-core-library.md)
+[← JSON format reference](./14-format--json-format.md) · [Contents](./README.md) · Next: [Core library →](./16-format--core-library.md)

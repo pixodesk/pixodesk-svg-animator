@@ -1,6 +1,6 @@
 # Installing the players
 
-[← The editor](./04-editor.md) · [Contents](./README.md) · Next: [Pre-rendered SVG on the web →](./06-prerendered-svg.md)
+[← The editor](./04-editor--editor.md) · [Contents](./README.md) · Next: [Pre-rendered SVG on the web →](./06-player--prerendered-svg.md)
 
 You only need a package for the **JSON** format. Pre-rendered SVG files need nothing — the
 CSS flavour is plain SVG, and the JS flavour carries its own copy of the player.
@@ -12,7 +12,7 @@ CSS flavour is plain SVG, and the JS flavour carries its own copy of the player.
 | `@pixodesk/svg-animator-web` | browsers, vanilla JavaScript / any framework via the DOM | `npm install @pixodesk/svg-animator-web` |
 | `@pixodesk/svg-animator-react` | React 18+ / Next.js | `npm install @pixodesk/svg-animator-react` |
 | `@pixodesk/svg-animator-vue` | Vue 3 / Nuxt | `npm install @pixodesk/svg-animator-vue` |
-| `@pixodesk/svg-animator-rn` 🧪 | React Native / Expo (experimental) | `npm install @pixodesk/svg-animator-rn` + peers, see [React Native](./10-react-native.md#install) |
+| `@pixodesk/svg-animator-rn` 🧪 | React Native / Expo (experimental) | `npm install @pixodesk/svg-animator-rn` + peers, see [React Native](./10-player--react-native.md#install) |
 | `@pixodesk/svg-animator-core` | tools — validate, transform, sample documents; no DOM | `npm install @pixodesk/svg-animator-core` |
 
 All packages are published in lockstep and a player depends on the matching core version,
@@ -67,4 +67,4 @@ exported by the core and React Native packages.
 - **React:** 18 or newer. **Vue:** 3. **React Native:** 0.76+, with `react-native-svg` ≥ 15 and
   `react-native-reanimated` ≥ 3.16.
 
-[← The editor](./04-editor.md) · [Contents](./README.md) · Next: [Pre-rendered SVG on the web →](./06-prerendered-svg.md)
+[← The editor](./04-editor--editor.md) · [Contents](./README.md) · Next: [Pre-rendered SVG on the web →](./06-player--prerendered-svg.md)

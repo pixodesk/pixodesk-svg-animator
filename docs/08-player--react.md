@@ -1,9 +1,9 @@
 # React — `@pixodesk/svg-animator-react`
 
-[← Web player](./07-web-player.md) · [Contents](./README.md) · Next: [Vue →](./09-vue.md)
+[← Web player](./07-player--web-player.md) · [Contents](./README.md) · Next: [Vue →](./09-player--vue.md)
 
 A React component that renders a JSON animation document and controls its playback. It wraps
-the [web player](./07-web-player.md), renders the SVG with React (so it is SSR-safe and works
+the [web player](./07-player--web-player.md), renders the SVG with React (so it is SSR-safe and works
 in Next.js), and exposes four control styles: autoplay, declarative props, an imperative ref,
 and controlled time.
 
@@ -109,7 +109,7 @@ renders the first frame statically.
 | `iterations` | `number \| 'infinite'` | |
 | `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | |
 | `fill` | `'forwards' \| 'backwards' \| 'both' \| 'none'` | what shows before start / after the end |
-| `mode` | `'auto' \| 'waapi' \| 'frames'` | engine — see [Web player → Engine modes](./07-web-player.md#engine-modes) |
+| `mode` | `'auto' \| 'waapi' \| 'frames'` | engine — see [Web player → Engine modes](./07-player--web-player.md#engine-modes) |
 | `frameRate` | `number` | target fps (frames engine) |
 | **Trigger overrides** | | |
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | |
@@ -174,4 +174,4 @@ JSON imports work out of the box in Next.js; for a CSS-flavour SVG use `@svgr/we
 `examples/react` in the repository shows all four control modes side by side plus the SVGR
 wrapper with every trigger — run it with `pnpm example:react`.
 
-[← Web player](./07-web-player.md) · [Contents](./README.md) · Next: [Vue →](./09-vue.md)
+[← Web player](./07-player--web-player.md) · [Contents](./README.md) · Next: [Vue →](./09-player--vue.md)

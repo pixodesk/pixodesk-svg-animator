@@ -1,6 +1,6 @@
 # Web player — `@pixodesk/svg-animator-web`
 
-[← Pre-rendered SVG](./06-prerendered-svg.md) · [Contents](./README.md) · Next: [React →](./08-react.md)
+[← Pre-rendered SVG](./06-player--prerendered-svg.md) · [Contents](./README.md) · Next: [React →](./08-player--react.md)
 
 The browser player for the JSON format. It builds the SVG DOM from the document and drives the
 animation with the Web Animations API or a frame loop, with hover / click / scroll triggers.
@@ -58,7 +58,7 @@ animator.play();
 
 The document's own `animator` settings (duration, iterations, trigger, engine mode…) apply as
 saved by the editor. To override them, change the object before passing it as `data` — see
-[Playback settings & triggers](./12-playback-and-triggers.md).
+[Playback settings & triggers](./12-player--playback-and-triggers.md).
 
 ## The playback API
 
@@ -156,12 +156,12 @@ import { createAnimator, type PxAnimatorAPI, type PxAnimatedSvgDocument } from '
 
 For tooling, the package also re-exports the core's document utilities (`materialiseAllInTree`,
 `applyPlayerEffects`, `calcAnimationValues`, `generateNewIds`, validation schemas, the glyph
-text materialiser, …). They are documented in [Core library](./15-core-library.md).
+text materialiser, …). They are documented in [Core library](./16-format--core-library.md).
 
 ## Related
 
-- [Playback settings & triggers](./12-playback-and-triggers.md) — every `animator` field and how to override it
-- [JSON format reference](./13-json-format.md)
-- [Troubleshooting](./17-troubleshooting.md)
+- [Playback settings & triggers](./12-player--playback-and-triggers.md) — every `animator` field and how to override it
+- [JSON format reference](./14-format--json-format.md)
+- [Troubleshooting](./17-help--troubleshooting.md)
 
-[← Pre-rendered SVG](./06-prerendered-svg.md) · [Contents](./README.md) · Next: [React →](./08-react.md)
+[← Pre-rendered SVG](./06-player--prerendered-svg.md) · [Contents](./README.md) · Next: [React →](./08-player--react.md)

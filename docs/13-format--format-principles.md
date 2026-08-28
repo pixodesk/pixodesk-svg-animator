@@ -1,6 +1,6 @@
 # Format principles
 
-[← Core library](./15-core-library.md) · [Contents](./README.md) · Next: [Troubleshooting →](./17-troubleshooting.md)
+[← Playback settings & triggers](./12-player--playback-and-triggers.md) · [Contents](./README.md) · Next: [JSON format reference →](./14-format--json-format.md)
 
 Two pages on *why* the format looks the way it does. You do not need this to use it; it is
 here for tool authors, contributors, and the curious. The complete design record — every rule,
@@ -32,7 +32,7 @@ tree. Remove every `animate` and you have a valid static SVG.
 
 **L3.** *An attribute is a value the browser consumes as-is; an effect is anything that needs
 structure* — generated defs, wrapper nodes, clones, geometry-derived rewrites. The player
-expands `effects` into L0–L2 at load. There are ten of them ([Effects reference](./14-effects.md)).
+expands `effects` into L0–L2 at load. There are ten of them ([Effects reference](./15-format--effects.md)).
 
 **L4.** The player types `meta` as *anything* and ignores it. Everything the editor needs that
 the player does not — labels, shape presets, the parametric sources of baked effects, and the
@@ -68,4 +68,4 @@ how to fold the expansion back.
 - The schemas themselves: [`PxAnimatorTypes.ts`](../packages/svg-animator-core/src/PxAnimatorTypes.ts)
   (player) — every wire type paired with a runtime schema
 
-[← Core library](./15-core-library.md) · [Contents](./README.md) · Next: [Troubleshooting →](./17-troubleshooting.md)
+[← Playback settings & triggers](./12-player--playback-and-triggers.md) · [Contents](./README.md) · Next: [JSON format reference →](./14-format--json-format.md)

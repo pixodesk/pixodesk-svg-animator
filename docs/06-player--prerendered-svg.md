@@ -1,17 +1,17 @@
 # Pre-rendered SVG on the web
 
-[← Installing the players](./05-installation.md) · [Contents](./README.md) · Next: [Web player →](./07-web-player.md)
+[← Installing the players](./05-player--installation.md) · [Contents](./README.md) · Next: [Web player →](./07-player--web-player.md)
 
 A pre-rendered SVG is a normal `.svg` file with the animation inside it. This page covers how
 to put one on a page and how much control each flavour gives you. For which flavour to pick,
-see [Choosing a format](./03-choosing-a-format.md).
+see [Choosing a format](./03-start--choosing-a-format.md).
 
 ## Four ways to embed any SVG
 
 | Method | Works with | Notes |
 |---|---|---|
 | **Inline** — paste the `<svg>…</svg>` into the HTML | all three flavours | the animation shares the page: styles and scripts run in the page context; best control |
-| **Build-time inline** — the framework or SSG inlines the file | all three flavours | same result as pasting, but the file stays a file — see [Static sites & CMS](./11-static-sites-and-cms.md) |
+| **Build-time inline** — the framework or SSG inlines the file | all three flavours | same result as pasting, but the file stays a file — see [Static sites & CMS](./11-player--static-sites-and-cms.md) |
 | **`<img src="a.svg">`** | CSS flavour only | scripts never run inside an image; CSS animation does. No interaction possible |
 | **`<object data="a.svg">` / `<iframe src="a.svg">`** | all three flavours | runs in its own document; scripts work but cannot be reached from the page. Not recommended |
 
@@ -56,8 +56,8 @@ svg.classList.remove('px-anim-enabled', 'px-anim-playing'); // reset to the star
 
 This is exactly what the React and Vue `PixodeskSvgCssAnimator` components do for you — they
 wrap an SVGR / `vite-svg-loader` import in a `<div>` and toggle these classes on hover, click or
-scroll-into-view. See [React → CSS-flavour SVGs](./08-react.md#css-flavour-svgs--pixodesksvgcssanimator)
-and [Vue → CSS-flavour SVGs](./09-vue.md#css-flavour-svgs--pixodesksvgcssanimator).
+scroll-into-view. See [React → CSS-flavour SVGs](./08-player--react.md#css-flavour-svgs--pixodesksvgcssanimator)
+and [Vue → CSS-flavour SVGs](./09-player--vue.md#css-flavour-svgs--pixodesksvgcssanimator).
 
 ## Flavour 2 — SVG + CSS animation + JS triggers
 
@@ -92,15 +92,15 @@ This flavour supports **every** animation type (the editor picks the trimmed pla
 matching the engine mode you chose — *WAAPI only* is the smallest). The editor's *Embed JS
 player* option can instead reference the library externally so several files share one copy.
 
-`createAnimator` returns the same playback API as the web player ([Web player → Playback API](./07-web-player.md#the-playback-api)).
+`createAnimator` returns the same playback API as the web player ([Web player → Playback API](./07-player--web-player.md#the-playback-api)).
 The exported script keeps it in a local variable; if you need to drive the animation from your
 own code, choose the *Manually from JS* start option in the editor and either edit the script
 to store the instance (`window.myAnim = PixodeskAnimator.createAnimator(…)`), or — simpler and
-recommended — use the [JSON format](./07-web-player.md) instead.
+recommended — use the [JSON format](./07-player--web-player.md) instead.
 
 ## Sizing
 
 An inlined SVG sizes like any SVG: keep its `viewBox`, drop or override `width`/`height`, and
 size the container with CSS (`svg { width: 100%; height: auto }`).
 
-[← Installing the players](./05-installation.md) · [Contents](./README.md) · Next: [Web player →](./07-web-player.md)
+[← Installing the players](./05-player--installation.md) · [Contents](./README.md) · Next: [Web player →](./07-player--web-player.md)

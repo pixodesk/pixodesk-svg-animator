@@ -1,6 +1,6 @@
 # Quick start
 
-[← Introduction](./01-introduction.md) · [Contents](./README.md) · Next: [Choosing a format →](./03-choosing-a-format.md)
+[← Introduction](./01-start--introduction.md) · [Contents](./README.md) · Next: [Choosing a format →](./03-start--choosing-a-format.md)
 
 Ten minutes from an empty editor to an animation on a page. Three paths — pick the one that
 matches where the animation is going.
@@ -13,10 +13,10 @@ matches where the animation is going.
    - **SVG + CSS animation** — a self-contained `.svg`, no JavaScript *(default pick for path A)*
    - **SVG + JS (WAAPI/Frames) animation** — a self-contained `.svg` with the player embedded
 3. Add some shapes (or **Open / Drop** an existing `.svg`) and animate them on the timeline —
-   see the [editor guide](./04-editor.md). Press play.
+   see the [editor guide](./04-editor--editor.md). Press play.
 4. **File → Save** (or *Save As*). That file is what you embed below.
 
-The [editor guide](./04-editor.md) covers everything else — shape presets, effects, easing,
+The [editor guide](./04-editor--editor.md) covers everything else — shape presets, effects, easing,
 triggers.
 
 ## 2 · Put it on a page
@@ -38,7 +38,7 @@ HTML file, a CMS "custom HTML" block, an Astro/Jekyll/11ty template. It plays on
 
 The CSS flavour also works as a plain image — `<img src="animation.svg">` — and as a React /
 Vue component via SVGR or `vite-svg-loader`. Details, including how to start it on hover or
-scroll: [Pre-rendered SVG on the web](./06-prerendered-svg.md).
+scroll: [Pre-rendered SVG on the web](./06-player--prerendered-svg.md).
 
 ### Path B — JSON + the web player (vanilla JavaScript)
 
@@ -64,7 +64,7 @@ const animator = createAnimator({ src: '/animation.json', container: '#hero' });
 animator.play();          // also: pause(), setCurrentTime(ms), setPlaybackRate(2), destroy()
 ```
 
-Full API: [Web player](./07-web-player.md).
+Full API: [Web player](./07-player--web-player.md).
 
 ### Path C — JSON in React (or Vue)
 
@@ -82,14 +82,14 @@ export function Hero() {
 ```
 
 `autoplay` honours the trigger you chose in the editor (on load, on hover, on click, when
-scrolled into view). Props for play/pause, seeking and an imperative API: [React](./08-react.md).
-Vue is the same component with Vue props and events: [Vue](./09-vue.md).
+scrolled into view). Props for play/pause, seeking and an imperative API: [React](./08-player--react.md).
+Vue is the same component with Vue props and events: [Vue](./09-player--vue.md).
 
 ## 3 · Next steps
 
-- Not sure the format you picked is right? → [Choosing a format](./03-choosing-a-format.md)
-- Want it to start on hover, click or scroll, or loop forever? → [Playback settings & triggers](./12-playback-and-triggers.md)
-- Embedding in Astro, Next.js, Nuxt, WordPress, Shopify…? → [Static sites & CMS](./11-static-sites-and-cms.md)
-- Something not moving? → [Troubleshooting](./17-troubleshooting.md)
+- Not sure the format you picked is right? → [Choosing a format](./03-start--choosing-a-format.md)
+- Want it to start on hover, click or scroll, or loop forever? → [Playback settings & triggers](./12-player--playback-and-triggers.md)
+- Embedding in Astro, Next.js, Nuxt, WordPress, Shopify…? → [Static sites & CMS](./11-player--static-sites-and-cms.md)
+- Something not moving? → [Troubleshooting](./17-help--troubleshooting.md)
 
-[← Introduction](./01-introduction.md) · [Contents](./README.md) · Next: [Choosing a format →](./03-choosing-a-format.md)
+[← Introduction](./01-start--introduction.md) · [Contents](./README.md) · Next: [Choosing a format →](./03-start--choosing-a-format.md)

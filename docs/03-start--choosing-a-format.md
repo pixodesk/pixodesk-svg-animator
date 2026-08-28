@@ -1,6 +1,6 @@
 # Choosing a format
 
-[← Quick start](./02-quick-start.md) · [Contents](./README.md) · Next: [The editor →](./04-editor.md)
+[← Quick start](./02-start--quick-start.md) · [Contents](./README.md) · Next: [The editor →](./04-editor--editor.md)
 
 The editor saves one document in two interchangeable shapes. You can switch at any time —
 **File → Save as JSON / Save as SVG** — so the choice is never final.
@@ -15,7 +15,7 @@ The editor saves one document in two interchangeable shapes. You can switch at a
 | **Pre-rendered SVG + JS animation** | `.svg` | ordinary SVG + the web player embedded in a `<script>` (~25–35 KB) | no (the player is inline) |
 
 The editor can also export **Lottie** (`.json` / `.lottie`), **video**, **GIF** and **image**
-snapshots — see [The editor → Exporting](./04-editor.md#exporting).
+snapshots — see [The editor → Exporting](./04-editor--editor.md#exporting).
 
 ## The decision, short version
 
@@ -86,4 +86,4 @@ Any time: open the document and **File → Save as JSON** or **Save as SVG**. Th
 editor's parametric information (shape presets, effects), so it is the best archival format;
 the pre-rendered SVG is the derived, ready-to-ship one.
 
-[← Quick start](./02-quick-start.md) · [Contents](./README.md) · Next: [The editor →](./04-editor.md)
+[← Quick start](./02-start--quick-start.md) · [Contents](./README.md) · Next: [The editor →](./04-editor--editor.md)

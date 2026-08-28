@@ -1,10 +1,10 @@
 # JSON format reference
 
-[← Playback settings & triggers](./12-playback-and-triggers.md) · [Contents](./README.md) · Next: [Effects reference →](./14-effects.md)
+[← Format principles](./13-format--format-principles.md) · [Contents](./README.md) · Next: [Effects reference →](./15-format--effects.md)
 
 The JSON document is **SVG written as JSON, plus animation**. If you can read an SVG file you
 can read one of these. This page is the practical reference — every key, its type and its
-meaning. Design rationale lives in [Format principles](./16-format-principles.md) and the full
+meaning. Design rationale lives in [Format principles](./13-format--format-principles.md) and the full
 [design spec](../SCHEMA-DESIGN.md); TypeScript types and runtime schemas are exported by every
 package (`PxAnimatedSvgDocument`, `PxNode`, `PxAnimatorConfig`, …).
 
@@ -48,7 +48,7 @@ Three ideas cover 90 % of the format:
 | `id` | string | DOM id; in Mode B ([below](#mode-b--binding-to-an-existing-svg)) it locates the pre-rendered element |
 | `viewBox` | string | coordinate space, e.g. `"0 0 700 380"` |
 | `width` · `height` | number or SVG length string (`"100%"`) | rendered size |
-| `animator` | object | playback settings, definitions, Mode B bindings — see [Playback settings](./12-playback-and-triggers.md) and [Definitions](#definitions--animatordefinitions) |
+| `animator` | object | playback settings, definitions, Mode B bindings — see [Playback settings](./12-player--playback-and-triggers.md) and [Definitions](#definitions--animatordefinitions) |
 | `children` | array of nodes | the SVG tree (Mode A). Absent → Mode B |
 | any SVG attribute | | passed through (`fill`, `style`, `xmlns` is added for you) |
 
@@ -65,7 +65,7 @@ Three ideas cover 90 % of the format:
 | `id` | DOM id — required when something references the element (`href="#id"`, `maskedBy`, `animateById`). The player regenerates ids per instance, so they need only be unique within the file |
 | `children` | nested nodes |
 | `animate` | this node's animations — [below](#animating--the-animate-channel) |
-| `effects` | structural effects — [Effects reference](./14-effects.md) |
+| `effects` | structural effects — [Effects reference](./15-format--effects.md) |
 | `style` | inline style: a string or an object, or the **name** of a preset in `definitions.styles` |
 | `textContent` | text content of `<text>` / `<tspan>` (the older `text` key is still read) |
 | `meta` | editor-only data (labels, shape presets, applied effects). Players ignore it; safe to strip |
@@ -203,7 +203,7 @@ the canonical **static** `transform` value (`"transform": { "translate": [100, 1
 A static `transform` attribute and an animated `transform` on the same node share one slot, so
 the animation wins; put a static placement on a wrapping `<g>`. To animate parts on
 **different timings** (rotate 0–500 ms while translate runs 500–1000 ms) use the
-[`transformBy` effect](./14-effects.md#transformby).
+[`transformBy` effect](./15-format--effects.md#transformby).
 
 ## Motion along a path
 
@@ -308,6 +308,6 @@ const ctx = { errors: [], warnings: [], strict: true };
 PxAnimatedSvgDocumentSchema.isValid(json, ctx, []);       // full check; ctx.errors lists problems
 ```
 
-See [Core library → Validating](./15-core-library.md#validating-a-document).
+See [Core library → Validating](./16-format--core-library.md#validating-a-document).
 
-[← Playback settings & triggers](./12-playback-and-triggers.md) · [Contents](./README.md) · Next: [Effects reference →](./14-effects.md)
+[← Format principles](./13-format--format-principles.md) · [Contents](./README.md) · Next: [Effects reference →](./15-format--effects.md)

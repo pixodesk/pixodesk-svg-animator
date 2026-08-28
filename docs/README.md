@@ -22,32 +22,32 @@ This documentation covers the **Pixodesk editor**, the **player**, and the **for
 ## Contents
 
 ### Get started
-1. [Introduction](./01-introduction.md) — the editor, the file formats, the players, and how they fit together
-2. [Quick start](./02-quick-start.md) — export from the editor and embed it, three ways
-3. [Choosing a format](./03-choosing-a-format.md) — JSON vs pre-rendered SVG, what each can animate, browser support
+1. [Introduction](./01-start--introduction.md) — the editor, the file formats, the players, and how they fit together
+2. [Quick start](./02-start--quick-start.md) — export from the editor and embed it, three ways
+3. [Choosing a format](./03-start--choosing-a-format.md) — JSON vs pre-rendered SVG, what each can animate, browser support
 
 ### Make animations
-4. [The editor](./04-editor.md) — creating shapes, animating, effects, playback settings, exporting
+4. [The editor](./04-editor--editor.md) — creating shapes, animating, effects, playback settings, exporting
 
 ### Play animations
-5. [Installing the players](./05-installation.md) — npm packages, CDN builds, TypeScript
-6. [Pre-rendered SVG on the web](./06-prerendered-svg.md) — inline, `<img>`, framework imports; the three flavours and how to control them
-7. [Web player (`@pixodesk/svg-animator-web`)](./07-web-player.md) — `createAnimator`, the playback API, callbacks, triggers
-8. [React (`@pixodesk/svg-animator-react`)](./08-react.md) — the component, its props, control modes, Next.js
-9. [Vue (`@pixodesk/svg-animator-vue`)](./09-vue.md) — the component, props, events, Nuxt
-10. [React Native (`@pixodesk/svg-animator-rn`)](./10-react-native.md) 🧪 — install, props, feature support, limitations
-11. [Static sites & CMS](./11-static-sites-and-cms.md) — Astro, Next.js, Nuxt, SvelteKit, Angular, Jekyll, 11ty, WordPress, Shopify, Webflow…
-12. [Playback settings & triggers](./12-playback-and-triggers.md) — duration, loops, direction, engine modes, start triggers, scroll-driven playback
+5. [Installing the players](./05-player--installation.md) — npm packages, CDN builds, TypeScript
+6. [Pre-rendered SVG on the web](./06-player--prerendered-svg.md) — inline, `<img>`, framework imports; the three flavours and how to control them
+7. [Web player (`@pixodesk/svg-animator-web`)](./07-player--web-player.md) — `createAnimator`, the playback API, callbacks, triggers
+8. [React (`@pixodesk/svg-animator-react`)](./08-player--react.md) — the component, its props, control modes, Next.js
+9. [Vue (`@pixodesk/svg-animator-vue`)](./09-player--vue.md) — the component, props, events, Nuxt
+10. [React Native (`@pixodesk/svg-animator-rn`)](./10-player--react-native.md) 🧪 — install, props, feature support, limitations
+11. [Static sites & CMS](./11-player--static-sites-and-cms.md) — Astro, Next.js, Nuxt, SvelteKit, Angular, Jekyll, 11ty, WordPress, Shopify, Webflow…
+12. [Playback settings & triggers](./12-player--playback-and-triggers.md) — duration, loops, direction, engine modes, start triggers, scroll-driven playback
 
-### Look things up
-13. [JSON format reference](./13-json-format.md) — the document, `animator`, nodes, `animate`, keyframes, easing, loops, transforms, motion paths
-14. [Effects reference](./14-effects.md) — `transformBy`, `repeater`, `maskedBy`, `clipPath`, `strokeTrim`, `clone`, gradients, `textPath`, `text`
-15. [Core library (`@pixodesk/svg-animator-core`)](./15-core-library.md) — validate, transform and sample documents without a renderer
-16. [Format principles](./16-format-principles.md) — the six layers in two pages, with a link to the full design spec
+### Format
+13. [Format principles](./13-format--format-principles.md) — the six layers in two pages, with a link to the full design spec
+14. [JSON format reference](./14-format--json-format.md) — the document, `animator`, nodes, `animate`, keyframes, easing, loops, transforms, motion paths
+15. [Effects reference](./15-format--effects.md) — `transformBy`, `repeater`, `maskedBy`, `clipPath`, `strokeTrim`, `clone`, gradients, `textPath`, `text`
+16. [Core library (`@pixodesk/svg-animator-core`)](./16-format--core-library.md) — validate, transform and sample documents without a renderer
 
 ### Get help
-17. [Troubleshooting & FAQ](./17-troubleshooting.md)
-18. [Glossary](./18-glossary.md)
+17. [Troubleshooting & FAQ](./17-help--troubleshooting.md)
+18. [Glossary](./18-help--glossary.md)
 
 ## Go further
 
