@@ -1,18 +1,22 @@
-# Pixodesk SVG Animator — Documentation
+# Pixodesk SVG Animator
 
 
 This documentation covers the **Pixodesk editor**, the **player**, and the **format** between them.
 
-- Use the **editor** to create animation files — a full-featured vector and
-  animation editor. Import and export **Lottie**, or export to video, GIF and
+- Use the **editor** to create animation files — a full-featured vector and animation editor.  
+  Import and export **Lottie**, or export to video, GIF and
   still images.
-- Pick a **player** to run them — in plain HTML, React, Vue or React Native.
+- Pick a **player** to run them — in plain HTML, React, Vue or React Native.  
   Control playback from code, or let the animation start itself on load, click
   or scroll.
 - The **format** stays as close to plain SVG as it can, with a wide vector
-  feature set. It comes in two flavours — canonical **JSON**, or
-  **pre-rendered SVG** that embeds/inlines straight into a page — so pick
-  whichever suits where it runs.
+  feature set.  
+  It comes in two flavours — canonical **JSON**, or
+  **pre-rendered SVG** that embeds/inlines straight into a page.  
+  Pre-rendered goes further: pure **CSS** for a file that needs no JavaScript,
+  the same plus a small script for triggers, or embedded **JS** running the
+  player on the engine you choose — WAAPI or frames.  
+  Pick whichever suits where it runs.
 
 
 ## Start here
