@@ -1,6 +1,6 @@
 # The editor
 
-[← Choosing a format](./03-start--choosing-a-format.md) · [Contents](./README.md) · Next: [Installing the players →](./05-player--installation.md)
+[← Choosing a format](./02-start--choosing-a-format.md) · [Contents](./README.md) · Next: [Set default playback settings & triggers →](./04-editor--playback-settings.md)
 
 The Pixodesk editor is a vector and animation editor for SVG. It runs in the browser at
 [pixodesk.com](https://pixodesk.com) and as the *Pixodesk Animator Studio* desktop app. This
@@ -82,22 +82,13 @@ load ([Effects reference](./15-format--effects.md)):
 
 ## Playback settings and triggers
 
-In the right panel with nothing selected (the document's own settings):
+With nothing selected, the right panel holds the document's own playback settings — duration,
+iterations, direction, fill, engine mode, what starts the animation, and whether the timeline
+follows the clock or the scroll position. They are saved with the file and every player honours
+them.
 
-- **Duration**, **iterations** (a number or infinite), **direction** (normal, reverse,
-  alternate), **fill** (hold the last frame or reset), **frame rate**.
-- **Engine mode** — *auto* (Web Animations API with automatic frame-loop fallback), *WAAPI*
-  only, or *frames* only. Leave it on auto unless you have a reason.
-- **Start** — *On load*, *When visible (e.g. on scroll into view)* with a visibility
-  **threshold**, *On mouse over*, *On click*, or *Manually from JS*; and what happens when the
-  trigger ends (continue, pause, reset); **Reset on finish**.
-- **Timeline** — *time* (the clock) or **scroll**: the animation follows the page's scroll
-  position instead of playing on its own (scroll-driven playback, with pinning and range
-  options).
-
-All of these are explained, with the values they write into the file, in
-[Playback settings & triggers](./12-player--playback-and-triggers.md). The players can override every
-one of them at runtime.
+Each control, and the value it writes, is in
+[Set default playback settings & triggers](./04-editor--playback-settings.md).
 
 ## Exporting
 
@@ -126,4 +117,4 @@ save, so you know exactly which feature was dropped or approximated.
 - Prefer the JSON format for archival; you can always re-export any SVG flavour from it.
 - Use the file-type picker's warnings as a checklist before shipping a CSS-flavour SVG.
 
-[← Choosing a format](./03-start--choosing-a-format.md) · [Contents](./README.md) · Next: [Installing the players →](./05-player--installation.md)
+[← Choosing a format](./02-start--choosing-a-format.md) · [Contents](./README.md) · Next: [Set default playback settings & triggers →](./04-editor--playback-settings.md)

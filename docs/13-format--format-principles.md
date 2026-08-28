@@ -1,6 +1,6 @@
 # Format principles
 
-[← Playback settings & triggers](./12-player--playback-and-triggers.md) · [Contents](./README.md) · Next: [JSON format reference →](./14-format--json-format.md)
+[← Static sites & CMS](./12-player--static-sites-and-cms.md) · [Contents](./README.md) · Next: [JSON format reference →](./14-format--json-format.md)
 
 Two pages on *why* the format looks the way it does. You do not need this to use it; it is
 here for tool authors, contributors, and the curious. The complete design record — every rule,
@@ -68,4 +68,4 @@ how to fold the expansion back.
 - The schemas themselves: [`PxAnimatorTypes.ts`](../packages/svg-animator-core/src/PxAnimatorTypes.ts)
   (player) — every wire type paired with a runtime schema
 
-[← Playback settings & triggers](./12-player--playback-and-triggers.md) · [Contents](./README.md) · Next: [JSON format reference →](./14-format--json-format.md)
+[← Static sites & CMS](./12-player--static-sites-and-cms.md) · [Contents](./README.md) · Next: [JSON format reference →](./14-format--json-format.md)

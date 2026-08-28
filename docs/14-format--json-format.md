@@ -48,7 +48,7 @@ Three ideas cover 90 % of the format:
 | `id` | string | DOM id; in Mode B ([below](#mode-b--binding-to-an-existing-svg)) it locates the pre-rendered element |
 | `viewBox` | string | coordinate space, e.g. `"0 0 700 380"` |
 | `width` · `height` | number or SVG length string (`"100%"`) | rendered size |
-| `animator` | object | playback settings, definitions, Mode B bindings — see [Playback settings](./12-player--playback-and-triggers.md) and [Definitions](#definitions--animatordefinitions) |
+| `animator` | object | playback settings, definitions, Mode B bindings — see [Playback settings](./10-player--playback-and-triggers.md) and [Definitions](#definitions--animatordefinitions) |
 | `children` | array of nodes | the SVG tree (Mode A). Absent → Mode B |
 | any SVG attribute | | passed through (`fill`, `style`, `xmlns` is added for you) |
 

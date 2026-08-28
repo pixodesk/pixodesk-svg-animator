@@ -1,6 +1,6 @@
 # Introduction
 
-[← Contents](./README.md) · Next: [Quick start →](./02-start--quick-start.md)
+[← Contents](./README.md) · Next: [Choosing a format →](./02-start--choosing-a-format.md)
 
 Pixodesk SVG Animator is three things that work together:
 
@@ -45,7 +45,7 @@ page, CMS or static-site generator and it plays — no library needed for the CS
 the simplest option and the right one for most icons, loaders and decorative animation.
 
 Both come out of the same editor document, and the editor converts between them at any time.
-[Choosing a format](./03-start--choosing-a-format.md) has the decision table.
+[Choosing a format](./02-start--choosing-a-format.md) has the decision table.
 
 ## Which package do I need?
 
@@ -79,8 +79,7 @@ flowchart TD
 
 ## Where next
 
-- Never used it before → [Quick start](./02-start--quick-start.md)
-- Deciding on a format → [Choosing a format](./03-start--choosing-a-format.md)
+- Deciding on a format → [Choosing a format](./02-start--choosing-a-format.md)
 - Want to understand the file → [JSON format reference](./14-format--json-format.md) or the two-page [Format principles](./13-format--format-principles.md)
 
-[← Contents](./README.md) · Next: [Quick start →](./02-start--quick-start.md)
+[← Contents](./README.md) · Next: [Choosing a format →](./02-start--choosing-a-format.md)

@@ -5,7 +5,7 @@
 
 # 🚧 **Status - This project is currently under development.**
 
-> 📖 **Documentation:** the user guide — quick start, editor, every player's API, the file
+> 📖 **Documentation:** the user guide — editor, every player's API, the file
 > formats — lives in [`docs/`](docs/README.md). This README is the package overview.
 
 <img src="boat.svg" width="100%"/>

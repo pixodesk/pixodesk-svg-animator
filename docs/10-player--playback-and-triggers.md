@@ -1,10 +1,14 @@
 # Playback settings & triggers
 
-[← Static sites & CMS](./11-player--static-sites-and-cms.md) · [Contents](./README.md) · Next: [Format principles →](./13-format--format-principles.md)
+[← React Native](./09-player--react-native.md) · [Contents](./README.md) · Next: [Pre-rendered SVG on the web →](./11-player--prerendered-svg.md)
 
 Everything about *when* and *how* an animation plays lives in one place: the document's
-`animator` block. The editor writes it from the playback panel; every player honours it and
-lets you override it.
+`animator` block. This page is the reference for those fields and for **overriding them at
+runtime** — from component props, or from the player API.
+
+The editor writes the same block from its playback panel; if you only want to set the
+defaults there, see
+[Set default playback settings & triggers](./04-editor--playback-settings.md).
 
 ```json
 {
@@ -74,7 +78,7 @@ second click):
 
 Triggers are implemented by every player (the RN player has no `mouseOver`) and by the
 *SVG + CSS + JS triggers* export flavour. A CSS-only SVG starts on load, or is controlled by
-its classes — see [Pre-rendered SVG](./06-player--prerendered-svg.md#flavour-1--svg--css-animation).
+its classes — see [Pre-rendered SVG](./11-player--prerendered-svg.md#flavour-1--svg--css-animation).
 
 ## Overriding from a player
 
@@ -127,4 +131,4 @@ Support: the **web player** (both engines, and therefore React and Vue), and the
 animation* export. Not yet: the CSS export or React Native. The complete "scrollytelling"
 pattern is `subject: "parent"` + `pin: true` inside a tall section.
 
-[← Static sites & CMS](./11-player--static-sites-and-cms.md) · [Contents](./README.md) · Next: [Format principles →](./13-format--format-principles.md)
+[← React Native](./09-player--react-native.md) · [Contents](./README.md) · Next: [Pre-rendered SVG on the web →](./11-player--prerendered-svg.md)
