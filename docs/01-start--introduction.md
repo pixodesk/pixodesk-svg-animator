@@ -2,22 +2,51 @@
 
 [← Contents](./README.md) · Next: [Choosing a format →](./02-start--choosing-a-format.md)
 
-Pixodesk SVG Animator is three things that work together:
+Pixodesk SVG Animator is an **editor** that makes SVG animations, a set of **players** that
+run them, and the **file format** that connects the two. You make the animation once, save it
+as a file, and that file plays anywhere SVG does.
 
-| Piece | What it is | Where |
-|---|---|---|
-| **The editor** | A vector & animation editor — draw or import **SVG** or **Lottie**, animate it on a timeline, export | [pixodesk.com](https://pixodesk.com) (*Pixodesk Animator Studio* desktop app Windows/Mac) |
-| **The file formats** | A **JSON** document (elements + animation data) or a **pre-rendered SVG** — a normal `.svg` carrying the animation as pure **CSS keyframes** (no JavaScript at all) or as embedded **JS** running the player, on the WAAPI or frames engine | Written by the editor, read by the players and by browsers |
-| **The players** | Small open-source runtime libraries that play the JSON on the web, in React, Vue and React Native | [this repository](../README.md), MIT-licensed, on npm as `@pixodesk/svg-animator-*` |
+**The editor** is a full-featured vector and animation tool. Draw shapes, paths and text, or
+import SVG from Illustrator, Figma, Inkscape and the like. Animate any property on a timeline,
+add effects, then save. It also imports and exports **Lottie**, and exports to video, GIF and
+still images when you need a fallback. It ships as the *Pixodesk Animator Studio* desktop app
+for Windows and Mac, from [pixodesk.com](https://pixodesk.com).
+
+**The players** are small, open-source runtime libraries — MIT-licensed, published on npm as
+`@pixodesk/svg-animator-*`, and developed in [this repository](../README.md). Pick the one for
+where the animation runs: plain **HTML**, **React**, **Vue** or **React Native**. Control
+playback from code — play, pause, seek, reverse, speed — or let the animation start itself on
+load, click or scroll.
+
+**The format** stays as close to plain SVG as it can, with a wide vector feature set. It comes
+in two flavours. **JSON** is the source: the SVG tree plus its animation, read by a player.
+**Pre-rendered SVG** is a normal `.svg` with the animation already inside, ready to embed or
+inline straight into a page — as pure **CSS keyframes** with no JavaScript at all, the same
+plus a small script for triggers, or with the **JS player** embedded and running on the engine
+you choose, **WAAPI** or **frames**.
+
+The two flavours take different routes to the screen:
 
 ```mermaid
-%%{init: {'theme':'base', 'flowchart':{'nodeSpacing': 50, 'rankSpacing': 60, 'curve': 'basis'}}}%%
+%%{init: {'theme':'base', 'flowchart':{'nodeSpacing': 40, 'rankSpacing': 55, 'curve': 'basis'}}}%%
 flowchart LR
     Editor(["the editor"])
-    Files["JSON<br/>· or ·<br/>pre-rendered SVG"]
-    Players["browser · React · Vue<br/>React Native"]
+    JSON["<b>JSON</b><br/>SVG tree + animation"]
+    Player["a <b>player</b><br/>web · React · Vue<br/>React Native"]
+    App["your page or app"]
 
-    Editor -- export --> Files -- play --> Players
+    Editor -- save --> JSON -- rendered by --> Player --> App
+```
+
+```mermaid
+%%{init: {'theme':'base', 'flowchart':{'nodeSpacing': 40, 'rankSpacing': 55, 'curve': 'basis'}}}%%
+flowchart LR
+    Editor(["the editor"])
+    SVG["<b>pre-rendered SVG</b><br/>CSS keyframes<br/>CSS + JS triggers<br/>JS player"]
+    Page["embed / inline in a page"]
+    Browser["the browser plays it"]
+
+    Editor -- save --> SVG -- no library --> Page --> Browser
 ```
 
 ## What it's good for
@@ -32,34 +61,44 @@ flowchart LR
 Anything you would otherwise reach for a GIF, a video or a Lottie file for — but as crisp,
 tiny, scalable SVG.
 
-## The two formats, in one paragraph each
+## JSON and pre-rendered SVG
 
-**JSON** is the source format: a small document describing the SVG tree plus its
-animation. A player library renders it and gives you complete runtime control — play, pause,
-seek, reverse, speed — and supports every animation type on every browser. It is the right
-choice for apps (React / Vue / React Native), for complex animations, and whenever you need to
-drive the animation from code.
+**JSON** is the source format: a small document describing the SVG tree plus its animation.
+A player library renders it and gives you complete runtime control — play, pause, seek,
+reverse, speed — and supports every animation type on every browser. It is the right choice
+for apps (React / Vue / React Native), for complex animations, and whenever you need to drive
+the animation from code.
 
 **Pre-rendered SVG** is a normal `.svg` file with the animation baked in. Drop it into any
 page, CMS or static-site generator and it plays — no library needed for the CSS flavour. It is
 the simplest option and the right one for most icons, loaders and decorative animation.
 
-Both come out of the same editor document, and the editor converts between them at any time.
-[Choosing a format](./02-start--choosing-a-format.md) has the decision table.
+Both come out of the same editor document, and the editor converts between them at any time
+(**File → Save as JSON / Save as SVG**), so the choice is never final.
 
-## Which package do I need?
+## Which file format do I need?
 
-| You are building… | Use | Install |
-|---|---|---|
-| A plain HTML page, or you just want to drop a file in | a **pre-rendered SVG** — no package at all | — |
-| A page with vanilla JavaScript, and you want runtime control | JSON + the **web player** | `@pixodesk/svg-animator-web` |
-| A React / Next.js app | JSON + the **React component** | `@pixodesk/svg-animator-react` |
-| A Vue / Nuxt app | JSON + the **Vue component** | `@pixodesk/svg-animator-vue` |
-| A React Native / Expo app | JSON + the **React Native component** 🧪 | `@pixodesk/svg-animator-rn` |
-| Tooling that validates, transforms or samples documents without rendering | the **core** | `@pixodesk/svg-animator-core` |
+Start from where the animation is going:
+
+- **A page, a CMS, a static site — and you just want it to play.** Use a **pre-rendered SVG**.
+  No package to install: paste it in or let your build tool inline it. Start at
+  [Pre-rendered SVG on the web](./11-player--prerendered-svg.md).
+- **An app, or anything you need to control from code.** Use **JSON** with the player for your
+  stack. Start at [Installing the players](./05-player--installation.md).
+
+| Your stack | Package |
+|---|---|
+| Vanilla JavaScript | `@pixodesk/svg-animator-web` |
+| React / Next.js | `@pixodesk/svg-animator-react` |
+| Vue / Nuxt | `@pixodesk/svg-animator-vue` |
+| React Native / Expo 🧪 | `@pixodesk/svg-animator-rn` |
+| Tooling that validates, transforms or samples documents without rendering | `@pixodesk/svg-animator-core` |
+
+Still unsure? [Choosing a format](./02-start--choosing-a-format.md) has the side-by-side
+comparison and what each engine can animate.
 
 The React and Vue packages wrap the web player; every player shares the core, so the same
-document produces the same frames everywhere.
+document produces the same frames everywhere:
 
 ```mermaid
 %%{init: {'theme':'base', 'flowchart':{'nodeSpacing': 40, 'rankSpacing': 55, 'curve': 'basis'}}}%%
@@ -76,10 +115,13 @@ flowchart TD
     RN --> Core
 ```
 
-
 ## Where next
 
 - Deciding on a format → [Choosing a format](./02-start--choosing-a-format.md)
-- Want to understand the file → [JSON format reference](./14-format--json-format.md) or the two-page [Format principles](./13-format--format-principles.md)
+- Learning the editor → [The editor](./03-editor--editor.md)
+- Embedding a pre-rendered SVG → [Pre-rendered SVG on the web](./11-player--prerendered-svg.md)
+- Installing a player → [Installing the players](./05-player--installation.md)
+- Understanding the file → [Format principles](./13-format--format-principles.md), then the
+  [JSON format reference](./14-format--json-format.md)
 
 [← Contents](./README.md) · Next: [Choosing a format →](./02-start--choosing-a-format.md)

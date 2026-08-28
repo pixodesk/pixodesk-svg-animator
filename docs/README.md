@@ -14,8 +14,8 @@ This documentation covers the **Pixodesk editor**, the **player**, and the **for
   feature set.  
   It comes in two flavours — canonical **JSON**, or
   **pre-rendered SVG** that embeds/inlines straight into a page.  
-  Pre-rendered goes further: pure **CSS keyframes** for a file that needs no JavaScript,
-  the same plus a small script for triggers, or embedded **JS** running the
+  Pre-rendered SVG allows: pure **CSS keyframes** for a file that needs **no JavaScript**,
+  the same plus a small script for triggers, or embedded **JavaScript** running the
   player on the engine you choose — **WAAPI** or **frames**.  
   Pick whichever suits where it runs.
 

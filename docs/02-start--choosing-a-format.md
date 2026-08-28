@@ -2,7 +2,12 @@
 
 [← Introduction](./01-start--introduction.md) · [Contents](./README.md) · Next: [The editor →](./03-editor--editor.md)
 
-The editor saves one document in two interchangeable shapes. You can switch at any time —
+As the [Introduction](./01-start--introduction.md) covered, the editor saves an animation in
+one of two formats: **JSON**, which a player library renders, or **pre-rendered SVG**, which a
+browser plays on its own. This page is about picking between them — and, for pre-rendered SVG,
+between its three flavours.
+
+Both are the same document in a different shape. You can switch at any time —
 **File → Save as JSON / Save as SVG** — so the choice is never final.
 
 ## The formats at a glance
@@ -20,8 +25,8 @@ snapshots — see [The editor → Exporting](./03-editor--editor.md#exporting).
 ## The decision, short version
 
 **Default to JSON** when you write code (React, Vue, React Native, vanilla JS with runtime
-control). **Use a pre-rendered SVG** when you just want to drop a file in — CMS, static site,
-email-safe `<img>`, an icon in a design system.
+control).   
+**Use a pre-rendered SVG** when you just want to drop a file in CMS or static site with minimal setup.
 
 | Situation | Pick |
 |---|---|
@@ -58,13 +63,13 @@ flavour** cannot do.
 | Size (width, height) | ✅ ¹ | ✅ ¹ | ✅ |
 | Transform (translate, rotate, scale, skew) | ✅ | ✅ | ✅ |
 | Colours (fill, stroke) | ✅ | ✅ | ✅ |
-| Path morphing (`d`) | ⚠️ Chrome / Firefox / Edge ² | ↪ frames | ✅ |
+| Path morphing (`d`) | ⚠️ Chrome / Firefox / Edge ² | ❌ | ✅ |
 | Stroke dash (draw-on) | ✅ | ✅ | ✅ |
-| Gradient stops | ⚠️ colour only ³ | ↪ frames | ✅ |
-| Gradient geometry | ❌ | ↪ frames | ✅ |
-| Filters (blur, brightness…) | ❌ | ↪ frames | ✅ |
-| Clip-path / mask morphing | ❌ | ↪ frames | ✅ |
-| Text on a path (`startOffset`) | ❌ ⁴ | ↪ frames | ✅ |
+| Gradient stops | ⚠️ colour only ³ | ❌ | ✅ |
+| Gradient geometry | ❌ | ❌ | ✅ |
+| Filters (blur, brightness…) | ❌ | ❌ | ✅ |
+| Clip-path / mask morphing | ❌ | ❌ | ✅ |
+| Text on a path (`startOffset`) | ❌ ⁴ | ❌ | ✅ |
 | Performance | ⚡ excellent | ⚡ excellent | good |
 | Browser support | universal | modern browsers | universal |
 
@@ -79,6 +84,18 @@ expressed in CSS at all.
 
 The editor warns you as you go: an attribute the chosen SVG flavour cannot animate is flagged
 on its timeline row and in the file-type picker, so you never find out after export.
+
+### Engine pros and cons
+
+| Engine | Advantages | Limitations |
+|---|---|---|
+| **CSS `@keyframes`** | No JavaScript at all · the browser runs it natively, with transforms and opacity on the compositor · works in `<img>` · nothing to load | The smallest feature set (❌ rows above) · geometry properties do not animate in Firefox · no runtime control beyond toggling classes |
+| **Web Animations API** | Native and very smooth — transforms and opacity off the main thread · full runtime control · no per-frame JavaScript work | Cannot express structural changes: path morphing, gradient geometry, filters, masks, text on a path · modern browsers only |
+| **Frame loop** | Every animation type, in every browser · full runtime control · the only engine for path morphing in older Safari | Writes attributes from JavaScript every frame, so it shares the main thread with your page · runs uncapped unless you set `frameRate` · still fast, but WAAPI stays smoother when the page is busy |
+
+In JSON you rarely choose: `mode: 'auto'` uses WAAPI and switches to the frame loop only for
+what WAAPI cannot do. The choice that matters is the pre-rendered one — **SVG + CSS** locks
+you to the first row.
 
 ## Converting between formats
 
