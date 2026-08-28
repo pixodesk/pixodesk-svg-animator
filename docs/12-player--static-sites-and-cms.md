@@ -12,19 +12,71 @@ the JSON format with a player is available too.
 | Framework | Inline a pre-rendered SVG | JSON alternative |
 |---|---|---|
 | **Astro** | `import svg from './animation.svg?raw';` then `<Fragment set:html={svg} />` | use the React or Vue component inside an island (`client:load`) |
-| **Next.js** | CSS flavour: `import Animation from './animation.svg'` with `@svgr/webpack`; scripted flavours: read the file and render with `dangerouslySetInnerHTML` | [`@pixodesk/svg-animator-react`](./07-player--react.md#nextjs) in a client component |
-| **Nuxt** | `vite-svg-loader` for the CSS flavour; raw import (`?raw`) + `v-html` for scripted flavours | [`@pixodesk/svg-animator-vue`](./08-player--vue.md#nuxt) |
-| **SvelteKit** | `import svg from './animation.svg?raw';` then `{@html svg}` | web player in `onMount` |
-| **Angular** | `import svg from './animation.svg?raw';` then `<div [innerHTML]="svg"></div>` (sanitizer: use `bypassSecurityTrustHtml` for scripted flavours) | web player in `ngAfterViewInit` |
 | **Gatsby** | `gatsby-plugin-react-svg` (CSS flavour) or `dangerouslySetInnerHTML` with the raw file | React component |
 | **Jekyll** | `{% include_relative assets/animation.svg %}` | UMD script tag |
 | **Hugo** | `{{ readFile "static/animation.svg" \| safeHTML }}` | UMD script tag |
 | **11ty (Eleventy)** | `{% include "animation.svg" %}` | UMD script tag |
-| **Docusaurus / MDX** | import the CSS flavour as a component (SVGR is built in) or paste the markup | React component |
+| **Docusaurus / MDX** | import the CSS flavour as a component (SVGR is built in) — [example below](#docusaurus--mdx) | React component |
 
 A "raw import + set HTML" inlines the file verbatim, scripts included — that is what makes the
-JS-triggers and JS-animation flavours work in these frameworks. A component import (SVGR,
+JS-triggers and JS-animation flavours work in these generators. A component import (SVGR,
 `vite-svg-loader`) parses the SVG and drops scripts, so it suits the CSS flavour only.
+
+### Docusaurus / MDX
+
+Docusaurus imports `.svg` files as React components through SVGR, so a CSS-flavour export drops
+into any `.mdx` page like an icon:
+
+```mdx
+import Ball from './animation.svg';
+
+# Our loader
+
+<Ball style={{ width: 300, height: 300 }} />
+```
+
+An *On load* export plays on its own. For a hover, click or scroll trigger, wrap it in the
+React package's `PixodeskSvgCssAnimator`, which toggles the play classes for you:
+
+```mdx
+import Ball from './animation.svg';
+import { PixodeskSvgCssAnimator } from '@pixodesk/svg-animator-react';
+
+<PixodeskSvgCssAnimator startOn="mouseOver" outAction="pause" style={{ width: 300, height: 300 }}>
+  <Ball />
+</PixodeskSvgCssAnimator>
+```
+
+One setting matters: Docusaurus runs **SVGO** on imported SVGs, and SVGO's `inlineStyles`
+optimisation moves the class-based rules out of `<style>` onto the elements — which removes the
+class gate the animation depends on. Turn it off for the SVGR plugin in `docusaurus.config.js`:
+
+```js
+export default {
+  presets: [
+    ['classic', {
+      svgr: { svgrConfig: { svgo: false } },
+    }],
+  ],
+};
+```
+
+Pasting the SVG markup straight into an `.mdx` file does not work: MDX reads the `{ }` inside
+`<style>` as expressions and drops `<script>`. For the scripted flavours, import the file raw
+and set it as HTML — Docusaurus renders the page to static HTML at build time, so the file's
+own `<script>` runs when the page loads:
+
+```mdx
+import svg from '!!raw-loader!./animation.svg';
+
+<div dangerouslySetInnerHTML={{ __html: svg }} />
+```
+
+(`raw-loader` is a one-line `npm install`; Docusaurus documents this pattern for raw file imports.)
+
+Application frameworks that render on the client — Next.js, Nuxt, SvelteKit, Angular — are a
+different case: there the JSON format with a player is the natural fit. See
+[React → Next.js](./07-player--react.md#nextjs) and [Vue → Nuxt](./08-player--vue.md#nuxt).
 
 ### Vanilla JavaScript on any static page
 

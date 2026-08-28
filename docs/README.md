@@ -41,7 +41,7 @@ This documentation covers the **Pixodesk editor**, the **player**, and the **for
 
 ### Play pre-rendered SVG animations (minimal setup)
 11. [Pre-rendered SVG on the web](./11-player--prerendered-svg.md) — inline it, import it as a component, why `<img>` is static; the three flavours and how to control them
-12. [Static sites & CMS](./12-player--static-sites-and-cms.md) — Astro, Next.js, Nuxt, SvelteKit, Angular, Jekyll, 11ty, WordPress, Shopify, Webflow…
+12. [Static sites & CMS](./12-player--static-sites-and-cms.md) — Astro, Jekyll, Hugo, 11ty, Gatsby, Docusaurus, WordPress, Shopify, Webflow…
 
 ### Format (deep dive)
 13. [Format principles](./13-format--format-principles.md) — why the format is shaped this way: the six layers it is built from and the five rules they follow
