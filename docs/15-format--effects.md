@@ -2,10 +2,11 @@
 
 [← JSON format reference](./14-format--json-format.md) · [Contents](./README.md) · Next: [Core library →](./16-format--core-library.md)
 
-An **attribute** is a value the browser consumes as-is; an **effect** is anything that needs
-*structure* — generated `<defs>`, wrapper groups, copies, geometry-derived rewrites. Effects
-are declared on a node's `effects` bucket and expanded by the player when the document loads
-(JSON format only — the pre-rendered SVG exports already contain the expanded structure).
+Reach for an effect when a single attribute is not enough. An **attribute** is a value the
+browser consumes as-is; an **effect** is anything that needs *structure* — generated `<defs>`,
+wrapper groups, copies, geometry-derived rewrites. Declare it on a node's `effects` bucket and
+the player expands it when the document loads (JSON format only — the pre-rendered SVG exports
+already contain the expanded structure).
 
 ```json
 { "type": "rect", "x": 0, "y": 0, "width": 40, "height": 40, "fill": "#3b82f6",

@@ -2,9 +2,11 @@
 
 [← Installing the players (overview)](./05-player--installation.md) · [Contents](./README.md) · Next: [React →](./07-player--react.md)
 
-The browser player for the JSON format. It builds the SVG DOM from the document and drives the
-animation with the Web Animations API or a frame loop, with hover / click / scroll triggers.
-Ships as ESM, CJS and UMD (global `PixodeskAnimator`).
+Use this on a plain web page — or anywhere you write JavaScript without a framework — to play
+a JSON animation with full control. Hand it the document and it builds the SVG DOM, drives the
+animation with the Web Animations API or a frame loop, and wires up hover / click / scroll
+triggers for you. It ships as ESM, CJS and UMD (global `PixodeskAnimator`), so it fits a
+bundler or a plain `<script>` tag equally well.
 
 ```bash
 npm install @pixodesk/svg-animator-web

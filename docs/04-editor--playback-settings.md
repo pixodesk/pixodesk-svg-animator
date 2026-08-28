@@ -2,9 +2,9 @@
 
 [← The editor](./03-editor--editor.md) · [Contents](./README.md) · Next: [Installing the players (overview) →](./05-player--installation.md)
 
-Every animation carries its own answer to *how long*, *how many times* and *what starts it*.
-You set those defaults once in the editor and they travel with the file — the players read
-them and play the animation correctly with no configuration at all.
+Set *how long*, *how many times* and *what starts it* once, in the editor, and forget about
+it: the settings travel inside the file, every player reads them, and the animation plays
+correctly with no configuration on the page.
 
 This page is the **editor** side: which control writes which value. To change any of it at
 runtime, from component props or the player API, see

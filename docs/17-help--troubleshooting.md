@@ -2,6 +2,9 @@
 
 [← Core library](./16-format--core-library.md) · [Contents](./README.md) · Next: [Glossary →](./18-help--glossary.md)
 
+Find your symptom below — each entry says what to check and what to change. If yours is not
+here, go to [Still stuck?](#still-stuck) at the end.
+
 ## Nothing plays
 
 **The trigger is not "on load".** Check `animator.trigger.startOn` in the file (or the *Start*

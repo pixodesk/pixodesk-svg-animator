@@ -2,9 +2,11 @@
 
 [← React Native](./09-player--react-native.md) · [Contents](./README.md) · Next: [Pre-rendered SVG on the web →](./11-player--prerendered-svg.md)
 
-Everything about *when* and *how* an animation plays lives in one place: the document's
-`animator` block. This page is the reference for those fields and for **overriding them at
-runtime** — from component props, or from the player API.
+Change how an animation plays — its length, loops, direction, what starts it — without going
+back to the editor. Everything about *when* and *how* it plays lives in one place, the
+document's `animator` block, and every player lets you **override it at runtime** from
+component props or the player API. This page is the reference for those fields and the
+overrides.
 
 The editor writes the same block from its playback panel; if you only want to set the
 defaults there, see

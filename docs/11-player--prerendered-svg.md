@@ -2,9 +2,10 @@
 
 [← Playback settings & triggers](./10-player--playback-and-triggers.md) · [Contents](./README.md) · Next: [Static sites & CMS →](./12-player--static-sites-and-cms.md)
 
-A pre-rendered SVG is a normal `.svg` file with the animation inside it. This page covers how
-to put one on a page and how much control each flavour gives you. For which flavour to pick,
-see [Choosing a format](./02-start--choosing-a-format.md).
+Put a pre-rendered SVG on a page the way you would any other SVG — it is a normal `.svg`
+file with the animation already inside. This page shows the ways to embed it and how much
+control each flavour gives you once it is there. For which flavour to pick, see
+[Choosing a format](./02-start--choosing-a-format.md).
 
 ## Four ways to embed any SVG
 

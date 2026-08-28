@@ -2,9 +2,10 @@
 
 [← Static sites & CMS](./12-player--static-sites-and-cms.md) · [Contents](./README.md) · Next: [JSON format reference →](./14-format--json-format.md)
 
-Two pages on *why* the format looks the way it does. You do not need this to use it; it is
-here for tool authors, contributors, and the curious. The complete design record — every rule,
-every decision, the editor's unit contract — is [SCHEMA-DESIGN.md](../SCHEMA-DESIGN.md).
+Read this if you want to know *why* the format looks the way it does. You do not need it to
+use the format — it is here for tool authors, contributors, and the curious. The complete
+design record — every rule, every decision, the editor's unit contract — is
+[SCHEMA-DESIGN.md](../SCHEMA-DESIGN.md).
 
 ## Plain SVG, with layers on top
 

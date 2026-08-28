@@ -2,8 +2,9 @@
 
 [← Set default playback settings & triggers](./04-editor--playback-settings.md) · [Contents](./README.md) · Next: [Web player →](./06-player--web-player.md)
 
-You only need a package for the **JSON** format. Pre-rendered SVG files need nothing — the
-CSS flavour is plain SVG, and the JS flavour carries its own copy of the player.
+Install a package only if you use the **JSON** format. A pre-rendered SVG needs nothing —
+the CSS flavour is plain SVG, and the JS flavour carries its own copy of the player — so if
+that is your route, skip this page.
 
 ## Packages
 

@@ -2,9 +2,10 @@
 
 [← React](./07-player--react.md) · [Contents](./README.md) · Next: [React Native →](./09-player--react-native.md)
 
-A Vue 3 component that renders a JSON animation document and controls its playback. It wraps
-the [web player](./06-player--web-player.md), renders the SVG through Vue's virtual DOM (SSR-safe,
-Nuxt-ready) and mirrors the [React component](./07-player--react.md) feature for feature.
+Use this in a Vue 3 or Nuxt app: drop in the component, pass it the JSON, and it renders the
+animation and controls its playback. It wraps the [web player](./06-player--web-player.md) and
+renders the SVG through Vue's virtual DOM, so it is SSR-safe and Nuxt-ready. It mirrors the
+[React component](./07-player--react.md) feature for feature, so the two guides read the same.
 
 ```bash
 npm install @pixodesk/svg-animator-vue

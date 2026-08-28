@@ -2,9 +2,11 @@
 
 [← Effects reference](./15-format--effects.md) · [Contents](./README.md) · Next: [Troubleshooting →](./17-help--troubleshooting.md)
 
-The platform-neutral heart of every player: the document schema, the effect materialisers,
-the interpolation engine and the path sampler — with **no DOM dependency**. It is what makes
-the web player and the React Native player produce identical values from the same document.
+Use the core when you need to validate, transform or sample a document **without rendering
+it** — in a build step, a test, a server, or a tool of your own. It is the platform-neutral
+heart of every player: the document schema, the effect materialisers, the interpolation engine
+and the path sampler, with **no DOM dependency**. It is also what makes the web player and the
+React Native player produce identical values from the same document.
 
 ## Do I need it?
 

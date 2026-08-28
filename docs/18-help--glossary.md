@@ -2,6 +2,9 @@
 
 [← Troubleshooting](./17-help--troubleshooting.md) · [Contents](./README.md)
 
+Look up a term you met anywhere in these docs. Where a term has a JSON key or a TypeScript
+type, the entry names it, so you can go straight from the word to the file.
+
 | Term | Meaning |
 |---|---|
 | **Document** | A JSON animation file: the SVG tree plus its animation, root `type: "svg"`. The type is `PxAnimatedSvgDocument` |

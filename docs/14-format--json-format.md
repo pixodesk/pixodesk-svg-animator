@@ -2,9 +2,9 @@
 
 [← Format principles](./13-format--format-principles.md) · [Contents](./README.md) · Next: [Effects reference →](./15-format--effects.md)
 
-The JSON document is **SVG written as JSON, plus animation**. If you can read an SVG file you
-can read one of these. This page is the practical reference — every key, its type and its
-meaning. Design rationale lives in [Format principles](./13-format--format-principles.md) and the full
+Look up any key of the JSON document here — every key, its type and its meaning. The document
+is **SVG written as JSON, plus animation**: if you can read an SVG file you can read one of
+these, and this page is the practical reference for it. Design rationale lives in [Format principles](./13-format--format-principles.md) and the full
 [design spec](../SCHEMA-DESIGN.md); TypeScript types and runtime schemas are exported by every
 package (`PxAnimatedSvgDocument`, `PxNode`, `PxAnimatorConfig`, …).
 

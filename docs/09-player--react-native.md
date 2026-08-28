@@ -6,10 +6,11 @@
 > unimplemented or unverified on real devices — see [Feature support](#feature-support) and
 > [Known limitations](#known-limitations).
 
-`<PixodeskSvgAnimator doc={…} />` takes the **same JSON the web player uses** and renders it
-as native SVG (`react-native-svg`), driven on the UI thread by `react-native-reanimated`.
-There is no JavaScript frame loop: once a document is compiled, the JS thread stays idle while
-it plays. Props mirror the [React component](./07-player--react.md).
+Use this in a React Native or Expo app. Give `<PixodeskSvgAnimator doc={…} />` the **same
+JSON the web player uses** and it renders native SVG (`react-native-svg`), driven on the UI
+thread by `react-native-reanimated`. There is no JavaScript frame loop: once a document is
+compiled, the JS thread stays idle while it plays, so your app stays responsive. Props mirror
+the [React component](./07-player--react.md), so code moves between the two with little change.
 
 ## Install
 

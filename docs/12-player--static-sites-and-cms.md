@@ -2,10 +2,10 @@
 
 [← Pre-rendered SVG on the web](./11-player--prerendered-svg.md) · [Contents](./README.md) · Next: [Format principles →](./13-format--format-principles.md)
 
-Pre-rendered SVG files are the natural fit for static-site generators and content platforms:
-the build tool or CMS **inlines the file** and the animation is there before any JavaScript
-runs. Even the flavours with a `<script>` just work when inlined. Where a framework also runs
-client code, the JSON format with a player is available too.
+Building with a static-site generator or a CMS? Use a pre-rendered SVG: the build tool or
+CMS **inlines the file** and the animation is on screen before any JavaScript runs. Even the
+flavours with a `<script>` just work when inlined. Where a framework also runs client code,
+the JSON format with a player is available too.
 
 ## Static site generators
 

@@ -2,10 +2,10 @@
 
 [← Web player](./06-player--web-player.md) · [Contents](./README.md) · Next: [Vue →](./08-player--vue.md)
 
-A React component that renders a JSON animation document and controls its playback. It wraps
-the [web player](./06-player--web-player.md), renders the SVG with React (so it is SSR-safe and works
-in Next.js), and exposes four control styles: autoplay, declarative props, an imperative ref,
-and controlled time.
+Use this in a React or Next.js app: drop in the component, pass it the JSON, and it renders
+the animation and controls its playback. It wraps the [web player](./06-player--web-player.md)
+and renders the SVG with React itself, so it is SSR-safe and works in Next.js. Control it the
+way that suits your code — autoplay, declarative props, an imperative ref, or controlled time.
 
 ```bash
 npm install @pixodesk/svg-animator-react
