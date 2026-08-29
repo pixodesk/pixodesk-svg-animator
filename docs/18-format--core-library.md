@@ -21,6 +21,9 @@ npm install @pixodesk/svg-animator-core
 
 ## Validating a document
 
+Validate a document before it reaches a player — in a build step, a test, or a tool that
+accepts files from users:
+
 ```ts
 import { isPxElementFileFormat, isPxElementFileFormatDeep,
          PxAnimatedSvgDocumentSchema, type PxValidationContext } from '@pixodesk/svg-animator-core';

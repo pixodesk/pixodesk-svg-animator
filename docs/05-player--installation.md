@@ -14,20 +14,27 @@ file can be inlined **once per page** — [read more](./11-player--prerendered-s
 | `@pixodesk/svg-animator-web` | browsers, vanilla JavaScript / any framework via the DOM | `npm install @pixodesk/svg-animator-web` |
 | `@pixodesk/svg-animator-react` | React 18+ / Next.js | `npm install @pixodesk/svg-animator-react` |
 | `@pixodesk/svg-animator-vue` | Vue 3 / Nuxt | `npm install @pixodesk/svg-animator-vue` |
-| `@pixodesk/svg-animator-rn` 🧪 | React Native / Expo (experimental) | `npm install @pixodesk/svg-animator-rn` + peers, see [React Native](./09-player--react-native.md#install) |
-| `@pixodesk/svg-animator-core` | tools — validate, transform, sample documents; no DOM | `npm install @pixodesk/svg-animator-core` |
+| `@pixodesk/svg-animator-rn` 🧪 | React Native / Expo (experimental) | `npm install @pixodesk/svg-animator-rn` — plus `react-native-svg` and `react-native-reanimated`, see [React Native](./09-player--react-native.md#install) |
+| `@pixodesk/svg-animator-core` | schema, utils; no DOM | `npm install @pixodesk/svg-animator-core` |
 
-All packages are published in lockstep and a player depends on the matching core version,
-so upgrading a player upgrades the core with it. `pnpm` and `yarn` work the same way.
 
-The React and Vue packages depend on the web package; the web package bundles the core, so a
+The React and Vue packages depend on the web package; the web package depends on the core, so a
 browser consumer stays self-contained.
 
-## Without a bundler — the UMD build
+## The three builds — ESM, CJS and UMD
 
-The web player ships as ESM, CJS and **UMD**. The UMD file, `index.umd.min.js`, is a single
-self-contained script that exposes a `PixodeskAnimator` global — for plain HTML pages, CMS
-templates and anything else without a build step.
+The web player ships in three builds, and your tooling picks the right one by itself:
+
+- **ESM** — for a bundler (Vite, webpack, Rollup, esbuild) or any modern setup:
+  `import { createAnimator } from '@pixodesk/svg-animator-web'`. Nothing to configure after
+  `npm install`; this is what the React and Vue packages use internally, and what every snippet
+  in [Web player](./06-player--web-player.md) assumes.
+- **CJS** — for Node.js and older tooling that uses `require()`. Selected automatically through
+  the package's `exports` map; you never reference the file by name.
+- **UMD** — for pages **without a build step**: plain HTML, CMS templates, code blocks. One
+  self-contained file, `index.umd.min.js`, that exposes a `PixodeskAnimator` global from a
+  `<script>` tag. The rest of this section is about this build, because it is the only one
+  you have to handle by hand.
 
 **Host it yourself.** We publish only to [npm](https://www.npmjs.com/package/@pixodesk/svg-animator-web)
 and [GitHub](https://github.com/pixodesk/pixodesk-svg-animator); we do not recommend loading
@@ -45,16 +52,30 @@ tarball; the file is at `package/dist/index.umd.min.js` inside it.
 Then load it with a relative path, like any other script of yours:
 
 ```html
+<!-- declarative: the element names its file -->
+<div data-px-animation-src="/bouncing-ball.json" style="width: 300px; height: 300px"></div>
+
+<!-- programmatic: an empty container the player renders into -->
+<div id="box" style="width: 300px; height: 300px"></div>
+
 <script src="/js/pixodesk-svg-animator.umd.min.js"></script>
 <script>
-  PixodeskAnimator.loadTagAnimators();                       // declarative
-  const a = PixodeskAnimator.createAnimator({ src: '/a.json', container: '#box' }); // programmatic
+
+  // declarative
+  PixodeskAnimator.loadTagAnimators(); 
+
+  // programmatic
+  const a = PixodeskAnimator.createAnimator({ src: '/bouncing-ball.json', container: '#box' });
+  
 </script>
 ```
 
-The copied file is pinned by nature — your site keeps playing the version you tested until you
-choose to update it. Renaming it is optional; the [examples](../examples/docs-examples/src/cases/static/vanilla-umd/) use
-`pixodesk-svg-animator.umd.min.js` so the name says what it is.
+Because the file is a copy on your own server, it never changes behind your back: your site
+keeps using the exact version you tested until you replace the file yourself. You can keep the
+original name, `index.umd.min.js`, or rename it — the
+[examples](../examples/docs-examples/src/cases/static/vanilla-umd/) call it
+`pixodesk-svg-animator.umd.min.js` so that anyone reading the page source can tell which
+library it is.
 
 Files in `dist/`:
 
@@ -76,14 +97,17 @@ import _animation from './animation.json';
 const animation = _animation as PxAnimatedSvgDocument;
 ```
 
-(`resolveJsonModule: true` is required to import `.json` files at all.) The same type is
-exported by the core and React Native packages.
+Importing a `.json` file at all requires `"resolveJsonModule": true` in your `tsconfig.json`,
+under `compilerOptions`. The same `PxAnimatedSvgDocument` type is exported by the core and React
+Native packages.
 
 ## Requirements
 
 - **Browsers:** any modern browser. The Web Animations API path needs a modern browser; the
   frame-loop fallback runs anywhere `requestAnimationFrame` exists.
-- **React:** 18 or newer. **Vue:** 3. **React Native:** 0.76+, with `react-native-svg` ≥ 15 and
-  `react-native-reanimated` ≥ 3.16.
+- **React:** 18 or newer.
+- **Vue:** 3.
+- **React Native:** 0.76 or newer, with `react-native-svg` 15 or newer and
+  `react-native-reanimated` 3.16 or newer.
 
 [← Set default playback settings & triggers](./04-editor--playback-settings.md) · [Contents](./README.md) · Next: [Web player →](./06-player--web-player.md)

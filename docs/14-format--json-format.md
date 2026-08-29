@@ -10,6 +10,9 @@ are exported by every package (`PxAnimatedSvgDocument`, `PxNode`, `PxAnimatorCon
 
 ## A complete small document
 
+Everything the format is, in one file you can paste and play — a ball that drops with an
+ease-in-out:
+
 ```json
 {
   "type": "svg",
@@ -54,6 +57,9 @@ Three ideas cover 90 % of the format:
 
 ## Nodes
 
+Every element of the SVG tree is a node: the tag as `type`, its attributes as keys, and
+optionally `children`, `animate` and `effects`:
+
 ```json
 { "type": "rect", "id": "box", "x": 10, "y": 10, "width": 80, "height": 40, "rx": 6, "fill": "#6366f1",
   "animate": { "opacity": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 500, "value": 1 } ] } } }
@@ -90,6 +96,8 @@ shape as the keyframe value that animates it — there is one grammar, not two.
 
 ### Text
 
+Text nodes carry their content in `textContent`, not as children:
+
 ```json
 { "type": "text", "x": 20, "y": 40, "fill": "#111", "fontSize": 18, "textContent": "Hello",
   "children": [ { "type": "tspan", "dy": 20, "textContent": "second line" } ] }
@@ -99,6 +107,9 @@ With `effects.text.useGlyphs: true` the text renders from glyph outlines embedde
 `definitions.glyphs` — no font needed on the viewer's machine (the editor embeds them for you).
 
 ## Animating — the `animate` channel
+
+A node animates through its `animate` map — one entry per attribute, each holding that
+attribute's keyframes:
 
 ```json
 "animate": {
@@ -146,9 +157,12 @@ Use one spelling per key, never both.
 | colour (`fill`, `stroke`, `stopColor`, …) | CSS colour string (or an RGBA number array) | `"#ec4899"` |
 | unified `transform` | parts record | `{ "translate": [8, 4], "rotate": 90, "scale": [2, 2] }` |
 | path `d` | `{ "path": "M…" }` (a bare `"M…"` string is also accepted) | `{ "path": "M0,0 L50,0 L50,50 Z" }` |
-| gradient `stops` (inside gradient effects) | array of `{ offset, color }` — one snapshot per keyframe | |
+| gradient `stops` (inside gradient effects) | array of `{ offset, color }` — one snapshot per keyframe | `[{ "offset": 0, "color": "#3b82f6" }, { "offset": 1, "color": "#ec4899" }]` |
 
 ### Easing
+
+Easing is set per keyframe and shapes the interval that starts there — as a cubic-bezier, or as
+the name of a shared definition:
 
 ```json
 { "time": 0, "value": 0, "easing": [0.33, 0, 0.67, 1] }
@@ -300,6 +314,9 @@ Units are never written. Each property has one fixed implicit unit:
 | easing | cubic-bezier `[x1, y1, x2, y2]` |
 
 ## Validating a document
+
+Check a hand-written or generated document before you ship it. The first call answers *is this
+a Pixodesk file at all*; the second lists every problem it finds:
 
 ```ts
 import { isPxElementFileFormat, PxAnimatedSvgDocumentSchema } from '@pixodesk/svg-animator-web';

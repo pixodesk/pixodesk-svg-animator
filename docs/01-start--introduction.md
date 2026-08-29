@@ -65,7 +65,7 @@ flowchart LR
 ## JSON and pre-rendered SVG
 
 **JSON** is the source format: a small document describing the SVG tree plus its animation.
-A player library renders it and gives you complete runtime control — play, pause, seek,
+A player library renders it and gives you complete runtime control — play, pause, jump to any point,
 reverse, speed — and supports every animation type on every browser. It is the right choice
 for apps (React / Vue / React Native), for complex animations, and whenever you need to drive
 the animation from code.

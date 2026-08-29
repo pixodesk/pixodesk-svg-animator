@@ -48,7 +48,7 @@ now two seconds per bounce and waiting until half of it has scrolled into view.
 | Field | Values | Default | Meaning |
 |---|---|---|---|
 | `duration` | ms | `1000` | length of **one** iteration. Keyframe times are absolute offsets within it |
-| `delay` | ms | `0` | wait before starting. **Negative** = start part-way through the timeline |
+| `delay` | ms | `0` | wait this long, then start. A **negative** value skips ahead instead: `-500` starts right away from the frame at 0.5 s, as if the animation had already been running for half a second |
 | `iterations` | number · `"infinite"` | `1` | how many times the whole document timeline repeats |
 | `direction` | `normal` · `reverse` · `alternate` · `alternate-reverse` | `normal` | `alternate` ping-pongs on every other iteration |
 | `fill` | `forwards` · `backwards` · `both` · `none` | `forwards` | what is shown *outside* the active time: `forwards` holds the last frame after the end; `backwards` shows the first frame during the delay; `none` reverts to the static SVG |
@@ -73,6 +73,9 @@ Leave it on `auto` unless you need a guarantee — for instance `frames` for pat
 Safari < 18.5. React Native ignores `mode` (playback is always native-driven).
 
 ## Triggers — what *starts* the animation
+
+The `trigger` block says what starts the animation and what happens when that condition ends.
+The editor writes it from its **Start** setting; every player honours it:
 
 ```json
 "trigger": { "startOn": "mouseOver", "outAction": "reset" }
@@ -109,8 +112,14 @@ back to `load` there — see [Pre-rendered SVG](./11-player--prerendered-svg.md#
 **Web player** — edit the object before handing it over (the player reads `animator` once at
 creation):
 
+```html
+<div id="box" style="width: 300px; height: 300px"></div>
+```
+
 ```js
-const doc = await (await fetch('/animation.json')).json();
+import { createAnimator } from '@pixodesk/svg-animator-web';
+
+const doc = await (await fetch('/bouncing-ball.json')).json();
 doc.animator = { ...doc.animator, iterations: 'infinite', trigger: { startOn: 'programmatic' } };
 const a = createAnimator({ data: doc, container: '#box' });
 a.play();

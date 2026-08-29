@@ -52,7 +52,7 @@ Wraps the element in transform groups so each part has its **own timeline**. Use
 translate and rotate (say) must run at different times — a single `transform` attribute has one
 timeline for all parts.
 
-| Key | Type | |
+| Key | Type | Meaning |
 |---|---|---|
 | `translate` | `[x, y]` ✚ | user units |
 | `rotate` | number ✚ | degrees |
@@ -72,7 +72,7 @@ timeline for all parts.
 Materialises `copies` real copies of the element; copy *i* is offset by *i* × the deltas
 (`scale` compounds: `scale^i`). The base element's own animation is copied too.
 
-| Key | Type | |
+| Key | Type | Meaning |
 |---|---|---|
 | `copies` | number | static — the count cannot animate |
 | `translate` | `[x, y]` ✚ | per-copy step |
@@ -91,7 +91,7 @@ Materialises `copies` real copies of the element; copy *i* is offset by *i* × t
 
 Builds a `<mask>` from the referenced element and applies it to this one.
 
-| Key | Type | |
+| Key | Type | Meaning |
 |---|---|---|
 | `sourceId` | `"#id"` | the element that becomes the mask |
 | `maskType` | `alpha` · `luminance` | how the source's pixels become mask values |
@@ -110,7 +110,7 @@ Builds a `<mask>` from the referenced element and applies it to this one.
 Generates a `<clipPath>` from path data and sets `clip-path` on the element. The geometry can
 animate — the browser re-clips every frame.
 
-| Key | Type | |
+| Key | Type | Meaning |
 |---|---|---|
 | `d` | path string ✚ | static `"M…"`, or `{ "keyframes": [ { "time", "value": { "path": "M…" } } ] }` |
 
@@ -127,7 +127,7 @@ Shows only a window of the **stroke** along the path — a line that draws itsel
 by generating `stroke-dasharray` / `stroke-dashoffset`; the path geometry and fill are
 untouched (unlike Lottie's *trim paths*, which cut the shape itself).
 
-| Key | Type | |
+| Key | Type | Meaning |
 |---|---|---|
 | `range` | `[start, end]` ✚ | visible fraction of the length, 0–1 |
 | `offset` | number ✚ | shifts the window along the path, fraction 0–1 |
@@ -145,7 +145,7 @@ On a group, the trim applies to every path inside it (`subPaths: "combined"` cha
 For `<use>` elements: says **what** the instance copies and, optionally, **when** its source's
 animation runs relative to the document.
 
-| Key | Type | |
+| Key | Type | Meaning |
 |---|---|---|
 | `sourceId` | `"#id"` | the source element / symbol (the `<use>` also keeps its normal `href`) |
 | `type` | absent · `content` | absent = a direct copy of the whole element; `content` = copy the source's content but not its own outer position |
@@ -171,14 +171,14 @@ instances re-time them freely.
 Generates a `<linearGradient>` / `<radialGradient>` and points the element's `fill` (or
 `stroke`) at it. Same shape for both; the only difference is which attribute is painted.
 
-| Key | Type | |
+| Key | Type | Meaning |
 |---|---|---|
-| `type` | `linear` · `radial` | |
+| `type` | `linear` · `radial` | a gradient along a line from `p1` to `p2`, or one spreading out from a centre `c` |
 | `p1` · `p2` | `[x, y]` ✚ | linear start / end |
 | `c` · `r` · `fp` | `[x, y]` ✚ · number ✚ · `[x, y]` ✚ | radial centre, radius, focal point |
 | `stops` | array of `{ offset, color }` ✚ | **one** timeline: an animated `stops` has, per keyframe, the full stop list as its value (same count each time) |
-| `gradientUnits` | `objectBoundingBox` · `userSpaceOnUse` | |
-| `spreadMethod` | `pad` · `reflect` · `repeat` | |
+| `gradientUnits` | `objectBoundingBox` · `userSpaceOnUse` | which coordinates `p1`, `p2`, `c`, `r`, `fp` are in: fractions 0–1 of the element's own box, or the document's user units |
+| `spreadMethod` | `pad` · `reflect` · `repeat` | what to paint beyond the last stop: extend the end colour, mirror the gradient back, or start it over |
 | `gradientTransform` | string | static only |
 
 ```json
@@ -199,14 +199,14 @@ loop (`mode: auto` switches for you). CSS exports can animate stop colours only.
 
 On a `<text>`: lays the text along an inline path and lets you animate its position.
 
-| Key | Type | |
+| Key | Type | Meaning |
 |---|---|---|
 | `path` | path string | the path geometry (inline — no separate element needed) |
 | `startOffset` | number ✚ | where the text starts along the path |
 | `textLength` | number ✚ | stretch / squeeze the text to this length |
-| `lengthAdjust` | `spacing` · `spacingAndGlyphs` | |
-| `method` | `align` · `stretch` | |
-| `spacing` | `auto` · `exact` | |
+| `lengthAdjust` | `spacing` · `spacingAndGlyphs` | how `textLength` is reached: by changing the space between glyphs only, or by stretching the glyphs too |
+| `method` | `align` · `stretch` | each glyph is rotated to sit on the path, or the glyphs themselves are bent to follow its curve |
+| `spacing` | `auto` · `exact` | `exact` places glyphs strictly by the SVG layout rules; `auto` lets the renderer adjust the spacing to look better on curves |
 | `pathOverflow` | `extend` (default) · `clip` | glyphs past the end of an open path continue along the tangent, or disappear |
 
 ```json
@@ -222,7 +222,7 @@ Animating `startOffset` runs on the frame loop.
 
 ## `text`
 
-| Key | Type | |
+| Key | Type | Meaning |
 |---|---|---|
 | `useGlyphs` | boolean | render the text from the glyph outlines in `definitions.glyphs` — self-contained, identical on every machine, no font loading |
 

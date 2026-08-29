@@ -44,8 +44,8 @@ classes. Inline the file instead.
 | | Pick it when | What you get | What you give up |
 |---|---|---|---|
 | **1 · SVG + CSS animation** | a loop, an icon, decoration — it just needs to play, on load or on hover | • the smallest file<br>• no JavaScript at all<br>• a hover trigger through CSS `:hover`<br>• imports as a component through SVGR / `vite-svg-loader` | • only what CSS `@keyframes` can express — path morphing only in recent browsers, no gradient geometry, filters or text on a path<br>• no click or scroll trigger<br>• playback is controlled with CSS classes only |
-| **2 · SVG + CSS animation + JS triggers** | it should start on click or scroll into view, or needs an out action or reset-on-finish, and you don't want to write code | the same file plus a few inline lines of script (added by the editor app) — no library — that wire the trigger, the out action and reset-on-finish for you | • the same CSS limits<br>• no seek, reverse or speed<br>• the `<script>` rules out SVGR import — inline it |
-| **3 · SVG + JS animation** | the animation uses something CSS cannot do, or you want the full playback API | • every animation type<br>• play, pause, seek, reverse, speed<br>• self-contained | • the player is embedded in the file (25–38 KB, unless you reference the library externally)<br>• the `<script>` rules out SVGR import<br>• the exported script keeps its instance local (see below) |
+| **2 · SVG + CSS animation + JS triggers** | it should start on click or scroll into view, or needs an out action or reset-on-finish, and you don't want to write code | the same file plus a few inline lines of script (added by the editor app) — no library — that wire the trigger, the out action and reset-on-finish for you | • the same CSS limits<br>• no jumping to a time, no reverse, no speed change<br>• the `<script>` rules out SVGR import — inline it |
+| **3 · SVG + JS animation** | the animation uses something CSS cannot do, or you want the full playback API | • every animation type<br>• play, pause, jump to any point, reverse, change speed<br>• self-contained | • the player is embedded in the file (25–38 KB, unless you reference the library externally)<br>• the `<script>` rules out SVGR import<br>• the exported script keeps its instance local (see below) |
 
 If you find yourself reaching for Flavour 3 *and* wanting to control it from code, the
 [JSON format](./06-player--web-player.md) is usually the better answer: same player, no
@@ -97,7 +97,7 @@ other start option something has to add the play classes: the file's own trigger
 (flavour 2), a `PixodeskSvgCssAnimator` wrapper, or your code:
 
 ```js
-const svg = document.querySelector('#hero svg');
+const svg = document.getElementById('_px_1');   // the exported <svg>'s own id — see the file above
 svg.classList.add('px-anim-enabled', 'px-anim-playing');   // play
 svg.classList.remove('px-anim-playing');                    // pause
 svg.classList.remove('px-anim-enabled', 'px-anim-playing'); // reset to the start

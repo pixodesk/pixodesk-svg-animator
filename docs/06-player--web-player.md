@@ -20,7 +20,7 @@ npm install @pixodesk/svg-animator-web
 
 Point an element at the JSON file and call `loadTagAnimators()` once the DOM is ready. The
 script is the UMD build, copied from the npm package into your site — see
-[Installing the players (overview)](./05-player--installation.md#without-a-bundler--the-umd-build):
+[Installing the players (overview)](./05-player--installation.md#the-three-builds--esm-cjs-and-umd):
 
 ```html
 <div data-px-animation-src="/bouncing-ball.json" style="width: 300px; height: 300px"></div>
@@ -61,14 +61,23 @@ script is the UMD build, copied from the npm package into your site — see
 
 Every matching element gets its own animator, stored on the element as `element._px_animator`
 (the [playback API](#the-playback-api) below). Calling `loadTagAnimators()` again only picks up
-elements that do not have one yet, so it is safe to call after inserting new content.
+elements that do not have an animator yet, so it is safe to call after inserting new content.
 
 ### Programmatic — `createAnimator(options)`
 
 > **Example:** [`web/programmatic`](../examples/docs-examples/src/cases/web/programmatic/) — `pnpm example:docs`, then open `#web/programmatic`.
 
+Use `createAnimator` when you want to start the animation from code, react to what it does,
+or control it after it has loaded. It returns the playback API at once — even while the
+document is still loading from a URL.
+
+```html
+<div id="hero" style="width: 300px; height: 300px"></div>
+```
+
 ```js
 import { createAnimator } from '@pixodesk/svg-animator-web';
+import animationDoc from './bouncing-ball.json';
 
 // from a URL — returns immediately; control calls made before the file loads are
 // queued and replayed in order once it is ready
@@ -78,7 +87,7 @@ const animator = createAnimator({
   callbacks: { onFinish: () => console.log('done') },
 });
 
-// or from an already-loaded document object
+// or from a document object you already have — imported, fetched, or built in code
 const animator2 = createAnimator({ data: animationDoc, container: document.getElementById('hero') });
 
 animator.play();
@@ -94,8 +103,14 @@ animator.play();
 | `callbacks` | `PxAnimatorCallbacksConfig` | lifecycle callbacks, see [Callbacks](#callbacks) |
 | `adapter` | `PxPlatformAdapter` | advanced — a custom attribute writer for the frame loop (this is how the React and Vue packages route updates through their own DOM refs) |
 
-The document's own `animator` settings (duration, iterations, trigger, engine mode…) apply as
-saved by the editor. To override them, change the object before passing it as `data` — see
+Notice there are no playback options here — no `duration`, no `iterations`, no `trigger`. The
+player takes all of that from the document itself: the `animator` block inside the JSON, which
+holds the settings you chose in the editor (duration, iterations, direction, what starts the
+animation, engine mode). So a file plays the way it was designed, with no configuration.
+
+To change any of those settings for one page, edit the document object before you pass it as
+`data` — for example load the file, set `doc.animator.iterations = 'infinite'`, then call
+`createAnimator({ data: doc, container: '#box' })`. Every field and its meaning is in
 [Playback settings & triggers](./10-player--playback-and-triggers.md).
 
 ## The playback API
@@ -108,13 +123,17 @@ saved by the editor. To override them, change the object before passing it as `d
 | `pause()` | pause at the current time |
 | `cancel()` | stop and reset to the start state |
 | `finish()` | jump to the end and hold the final state |
-| `setPlaybackRate(rate)` | speed: `1` normal, `2` double, `0.5` half, **negative plays in reverse** |
+| `setPlaybackRate(rate)` | speed: `1` normal, `2` double, `0.5` half, **negative value plays in reverse** |
 | `getCurrentTime()` | current time in ms (`null` before a `src` document has loaded) |
-| `setCurrentTime(ms)` | seek. Works while paused (scrubbing) or playing |
+| `setCurrentTime(ms)` | jump to a point in the animation, given in milliseconds from its start. While paused, the animation shows that frame and stays there — that is how a slider scrubs through it; while playing, it continues from the new point |
 | `isPlaying()` | `true` while running |
 | `isReady()` | `true` once a `src` document has loaded and rendered |
 | `getRootElement()` | the rendered `<svg>` element (`null` before ready) |
 | `destroy()` | stop, remove the SVG from the container, release everything |
+
+```html
+<input id="scrub" type="range" min="0" max="1000" value="0">
+```
 
 ```js
 const slider = document.querySelector('#scrub');
@@ -128,7 +147,18 @@ slider.addEventListener('input', () => {
 
 > **Example:** [`web/callbacks`](../examples/docs-examples/src/cases/web/callbacks/) — `pnpm example:docs`, then open `#web/callbacks`.
 
+Pass `callbacks` to be told when the animation starts, pauses, resets, finishes or is
+destroyed — for example to reveal the next section of a page once an intro has finished. Every
+callback is called with no arguments.
+
+```html
+<div id="box" style="width: 300px; height: 300px"></div>
+```
+
 ```js
+import { createAnimator } from '@pixodesk/svg-animator-web';
+import doc from './bouncing-ball.json';
+
 createAnimator({
   data: doc,
   container: '#box',
@@ -151,8 +181,9 @@ wires the event on the rendered SVG for you; `outAction` (continue / pause / res
 and `scrollIntoViewThreshold` are honoured. With `'load'` it starts immediately; with
 `'programmatic'` nothing happens until you call `play()`.
 
-`setupAnimationTriggers(api, triggerConfig)` is exported for the rare case where you replace
-the rendered content and need to re-arm the listeners.
+`setupAnimationTriggers(api, triggerConfig)` is exported for one rare case: you have replaced
+the rendered SVG yourself, so the click / hover / scroll listeners the player attached are gone
+with the old elements, and you need to attach them to the new ones.
 
 ## Engine modes
 
@@ -172,6 +203,10 @@ the whole document runs on the frame loop. Either way it plays.
 ## Loading several animations
 
 > **Example:** [`web/several`](../examples/docs-examples/src/cases/web/several/) — `pnpm example:docs`, then open `#web/several`.
+
+To put several animations on one page — different files, or the same file more than once —
+give each one its own element and call `loadTagAnimators()` once. Every element gets its own
+independent animator, so the copies play, pause and finish on their own.
 
 ```html
 <div class="stage" data-px-animation-src="/bouncing-ball.json"></div>
@@ -198,21 +233,6 @@ on one page without id conflicts.
 Call `destroy()` when the container goes away (route change, modal close). `onRemove` fires
 once. Frameworks: the React and Vue components do this on unmount.
 
-## TypeScript
-
-The package re-exports every document type from the core — `PxAnimatedSvgDocument`, `PxNode`,
-`PxAnimatorConfig`, `PxTrigger`, `PxKeyframe`, `PxPropertyAnimation`, … — plus `PxAnimatorAPI`,
-`PxAnimatorOptions` and `PxAnimatorCallbacksConfig`.
-
-```ts
-import { createAnimator, type PxAnimatorAPI, type PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
-```
-
-## Advanced exports
-
-For tooling, the package also re-exports the core's document utilities (`materialiseAllInTree`,
-`applyPlayerEffects`, `calcAnimationValues`, `generateNewIds`, validation schemas, the glyph
-text materialiser, …). They are documented in [Core library](./18-format--core-library.md).
 
 ## Related
 

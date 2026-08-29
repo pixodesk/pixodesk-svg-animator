@@ -19,7 +19,7 @@ nothing. Add `autoplay`.
 
 **`loadTagAnimators()` ran before the elements existed.** Call it after the DOM is ready (end of
 `<body>`, `DOMContentLoaded`), and call it again after inserting content dynamically — it only
-creates animators for elements that do not have one yet.
+creates animators for elements that do not have an animator yet.
 
 **`createAnimator({ src })` — the file did not load.** Look in the console: the player logs
 `createAnimator: failed to load "…"` or `invalid animation document format`. The JSON must have
@@ -111,8 +111,8 @@ yourself.
 **How do I play backwards?** `animator.setPlaybackRate(-1); animator.play();` — also as a
 trigger out action (`outAction: 'reverse'`).
 
-**Seeking while playing.** `setCurrentTime(ms)` works while playing (continues from the new
-position) and while paused (scrubbing).
+**Jumping to a time while playing.** `setCurrentTime(ms)` works while playing (the animation
+continues from the new point) and while paused (it shows that frame and stays there).
 
 **Frame rate.** `frameRate` applies only to the frames engine; WAAPI runs at the display rate.
 React Native always runs at the display rate.

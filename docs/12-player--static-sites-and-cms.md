@@ -82,6 +82,9 @@ different case: there the JSON format with a player is the natural fit. See
 
 > **Example:** [`static/vanilla-umd`](../examples/docs-examples/src/cases/static/vanilla-umd/) — `pnpm example:docs`, then open `#static/vanilla-umd`.
 
+A page with no framework and no build step: the UMD build copied to your site, one element per
+animation, one call:
+
 ```html
 <div data-px-animation-src="/bouncing-ball.json"></div>
 <script src="/js/pixodesk-svg-animator.umd.min.js"></script>
@@ -89,7 +92,7 @@ different case: there the JSON format with a player is the natural fit. See
 ```
 
 The script is the player's UMD build, served from your own site — how to get it is in
-[Installing the players (overview)](./05-player--installation.md#without-a-bundler--the-umd-build). The
+[Installing the players (overview)](./05-player--installation.md#the-three-builds--esm-cjs-and-umd). The
 API is in [Web player](./06-player--web-player.md).
 
 ## CMS and website builders

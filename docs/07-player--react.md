@@ -34,6 +34,9 @@ and the ref is the only thing that starts playback.
 
 > **Example:** [`react/imperative`](../examples/docs-examples/src/cases/react/imperative/) — `pnpm example:docs`, then open `#react/imperative`.
 
+Pass a ref as `apiRef`. Once the component has mounted, the ref holds the playback API, so
+any button, timer or effect in your app can start, pause, or jump to any point in the animation.
+
 ```tsx
 import { useRef } from 'react';
 import type { ReactAnimatorApi } from '@pixodesk/svg-animator-react';
@@ -56,12 +59,15 @@ const api = useRef<ReactAnimatorApi>(null);
 | `finish()` | jump to the end and hold it |
 | `setPlaybackRate(rate)` | `1` normal, `2` double, negative = reverse |
 | `getCurrentTime()` | ms, or `null` before mount |
-| `setCurrentTime(ms)` | seek |
-| `isPlaying()` | |
+| `setCurrentTime(ms)` | jump to a point in the animation, in milliseconds from its start |
+| `isPlaying()` | `true` while the animation is running, `false` when paused, finished or not started |
 
 ### 2 · Autoplay
 
 > **Example:** [`react/autoplay`](../examples/docs-examples/src/cases/react/autoplay/) — `pnpm example:docs`, then open `#react/autoplay`.
+
+The simplest mode: the component starts the animation the way the file says it should — on
+load, on hover, on click, or when scrolled into view.
 
 ```tsx
 <PixodeskSvgAnimator doc={animation} autoplay />
@@ -75,7 +81,7 @@ Uses the trigger saved in the document — on load, on hover, on click, when scr
 > **Example:** [`react/controlled-time`](../examples/docs-examples/src/cases/react/controlled-time/) — `pnpm example:docs`, then open `#react/controlled-time`.
 
 Render one frame, and scrub by changing the prop. The animator is **not** recreated on change —
-it just seeks.
+it just jumps to the new time.
 
 ```tsx
 const [timeMs, setTimeMs] = useState(0);
@@ -89,6 +95,9 @@ const [timeMs, setTimeMs] = useState(0);
 ### 4 · Declarative play / pause
 
 > **Example:** [`react/declarative`](../examples/docs-examples/src/cases/react/declarative/) — `pnpm example:docs`, then open `#react/declarative`.
+
+Drive playback from your own state with two booleans — handy when play/pause is already part
+of your component's state (a toggle, a visibility flag) and you would rather not hold a ref.
 
 ```tsx
 const [play, setPlay] = useState(false);
@@ -115,24 +124,24 @@ renders the first frame statically.
 | `play` | `boolean` | play unconditionally (ignores document triggers) |
 | `pause` | `boolean` | pause current playback |
 | `apiRef` | `RefObject<ReactAnimatorApi>` | imperative control |
-| `time` | `number` | seek to a fraction 0–1 of the whole timeline |
-| `timeMs` | `number` | seek to a time in ms |
+| `time` | `number` | show the frame at a fraction 0–1 of the whole timeline (duration × iterations) |
+| `timeMs` | `number` | show the frame at that time, in milliseconds from the start |
 | **Timing overrides** | | *(each replaces the document's `animator` value)* |
 | `duration` | `number` | ms for one iteration |
-| `delay` | `number` | ms before start (negative = start part-way through) |
-| `iterations` | `number \| 'infinite'` | |
-| `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | |
+| `delay` | `number` | wait this many ms, then start. A negative value skips ahead instead: `-500` starts right away from the frame at 0.5 s, as if the animation had already been running for half a second |
+| `iterations` | `number \| 'infinite'` | how many times to play; `'infinite'` never stops |
+| `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | play forward, backward, or turn around on every iteration (starting forward or backward) |
 | `fill` | `'forwards' \| 'backwards' \| 'both' \| 'none'` | what shows before start / after the end |
 | `mode` | `'auto' \| 'waapi' \| 'frames'` | engine — see [Web player → Engine modes](./06-player--web-player.md#engine-modes) |
 | `frameRate` | `number` | target fps (frames engine) |
 | **Trigger overrides** | | |
-| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | |
+| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | what starts the animation: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
 | `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | when the trigger ends (mouse out, second click, scrolled out) |
 | `scrollIntoViewThreshold` | `number` | visible fraction 0–1 required to start (default 0 = any pixel) |
 | **Callbacks** | | |
 | `onPlay` | `() => void` | started or resumed |
-| `onPause` | `() => void` | |
-| `onCancel` | `() => void` | |
+| `onPause` | `() => void` | paused |
+| `onCancel` | `() => void` | cancelled (reset to the start) |
 | `onFinish` | `() => void` | finished naturally (or `finish()`) |
 | `onRemove` | `() => void` | destroyed — unmount or `doc` swap |
 | `onStop` | `() => void` | fires alongside **any** halt: pause, cancel, finish, remove |
@@ -160,10 +169,10 @@ import AnimationSvg from './animation.svg?react';   // vite-plugin-svgr
 
 | Prop | Type | Default |
 |---|---|---|
-| `children` | the SVGR component | |
+| `children` | the SVGR component | — (required) |
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView'` | `'load'` |
 | `outAction` | `'continue' \| 'pause' \| 'reset'` | `'continue'` |
-| `className` · `style` | on the wrapper `<div>` | |
+| `className` · `style` | on the wrapper `<div>` | — |
 
 > ⚠️ **Render it once per page.** The imported component is the file's markup, ids included —
 > mount it twice and both copies share the same ids, so masks and gradients cross over. For

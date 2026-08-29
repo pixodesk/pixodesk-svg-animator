@@ -14,15 +14,17 @@ the [React component](./07-player--react.md), so code moves between the two with
 
 ## Install
 
+One package, plus the two native libraries it renders and animates with:
+
 ```bash
 npm install @pixodesk/svg-animator-rn
-# peers, if you don't have them already:
+# also needed, if your app does not have them yet:
 npx expo install react-native-svg react-native-reanimated
 # Reanimated 4 and later also needs its worklets runtime:
 npx expo install react-native-worklets
 ```
 
-Peer dependencies: `react >= 18`, `react-native >= 0.76`, `react-native-svg >= 15`,
+Required alongside it: `react >= 18`, `react-native >= 0.76`, `react-native-svg >= 15`,
 `react-native-reanimated >= 3.16`. Reanimated needs its Babel plugin, last in the list:
 
 ```js
@@ -41,6 +43,8 @@ module.exports = function (api) {
 > must be a function` at runtime. See [Monorepo setup](#monorepo-setup).
 
 ## Quick start
+
+The whole common case — an animation that plays on mount and loops if the document says so:
 
 ```tsx
 import { View } from 'react-native';
@@ -118,8 +122,8 @@ const api = useRef<RnAnimatorApi>(null);
 ```
 
 `RnAnimatorApi`: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`,
-`setPlaybackRate(rate)` (negative = reverse), `getCurrentTime()`, `setCurrentTime(ms)` — seeking
-while playing continues from the new position.
+`setPlaybackRate(rate)` (negative = reverse), `getCurrentTime()`, `setCurrentTime(ms)` — jumping to a time
+while playing continues from there.
 
 **Controlled time:**
 
@@ -137,12 +141,12 @@ while playing continues from the new position.
 | `play` | `boolean` | play unconditionally |
 | `pause` | `boolean` | pause |
 | `apiRef` | `RefObject<RnAnimatorApi>` | imperative control |
-| `time` | `number` | seek to a fraction 0–1 of the whole timeline |
-| `timeMs` | `number` | seek to ms |
+| `time` | `number` | show the frame at a fraction 0–1 of the whole timeline |
+| `timeMs` | `number` | show the frame at that time, in milliseconds from the start |
 | `duration` · `delay` | `number` | ms overrides |
-| `iterations` | `number \| 'infinite'` | |
-| `fill` | `'forwards' \| 'backwards' \| 'both' \| 'none'` | |
-| `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | |
+| `iterations` | `number \| 'infinite'` | how many times to play; `'infinite'` never stops |
+| `fill` | `'forwards' \| 'backwards' \| 'both' \| 'none'` | what shows before the start / after the end |
+| `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | play forward, backward, or turn around on every iteration (starting forward or backward) |
 | `resetOnFinish` | `boolean` | snap back to the start after a natural finish |
 | `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | what a second tap does with the `click` trigger (default: the document's, else `pause`) |
 | `onPlay` · `onPause` · `onFinish` · `onCancel` · `onStop` | `() => void` | lifecycle; `onStop` fires with any halt |
@@ -224,8 +228,8 @@ the example app uses the latter, since animating native `startOffset` is janky i
 `definitions.animations` / `easings` / `styles` / `glyphs`; `node.style`.
 
 **Playback and triggers** — `duration`, `delay`, `iterations` (incl. infinite), all four
-`direction` values, all `fill` values, `resetOnFinish`, play/pause/cancel/finish, seeking
-(also while playing), playback rate (faster, slower, reverse), triggers `load` / `programmatic`
+`direction` values, all `fill` values, `resetOnFinish`, play/pause/cancel/finish, jumping to any
+time (also while playing), playback rate (faster, slower, reverse), triggers `load` / `programmatic`
 / `click` / `scrollIntoView` (incl. `scrollIntoViewThreshold` and `outAction`). Not supported:
 `mouseOver` (no touch equivalent), `frameRate`, `mode`, scroll-driven playback
 (`timelineSource: 'scroll'`).
@@ -285,6 +289,9 @@ For custom rendering or diagnostics:
 | `RN_SVG_COMPONENTS`, `toRnPropName` | the tag and attribute maps |
 
 ## Example apps
+
+Two Expo apps in the repository show the player running on a device. Each is one command from
+the repository root:
 
 ```bash
 pnpm example:rn            # preview player with six animations and transport controls

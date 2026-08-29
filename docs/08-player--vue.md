@@ -33,6 +33,9 @@ Pick one — they are mutually exclusive, and take precedence in the order liste
 
 > **Example:** [`vue/autoplay`](../examples/docs-examples/src/cases/vue/autoplay/) — `pnpm example:docs`, then open `#vue/autoplay`.
 
+The simplest mode: the component starts the animation the way the file says it should — on
+load, on hover, on click, or when scrolled into view.
+
 ```vue
 <PixodeskSvgAnimator :doc="animation" autoplay />
 ```
@@ -44,16 +47,22 @@ action. Override with `startOn` / `outAction` / `scrollIntoViewThreshold`.
 
 > **Example:** [`vue/controlled-time`](../examples/docs-examples/src/cases/vue/controlled-time/) — `pnpm example:docs`, then open `#vue/controlled-time`.
 
+Use these when your code owns the position — a slider, a scroll offset, a step in a
+walkthrough. The component renders exactly that frame and never plays on its own.
+
 ```vue
 <PixodeskSvgAnimator :doc="animation" :time="0.5" />     <!-- fraction of the whole timeline -->
 <PixodeskSvgAnimator :doc="animation" :timeMs="500" />   <!-- absolute ms -->
 ```
 
-Changing the value seeks the existing animator — nothing is recreated.
+Changing the value moves the existing animator to the new time — nothing is recreated.
 
 ### 3 · Declarative play / pause
 
 > **Example:** [`vue/declarative`](../examples/docs-examples/src/cases/vue/declarative/) — `pnpm example:docs`, then open `#vue/declarative`.
+
+Drive playback from your own state with two booleans — handy when play/pause is already part
+of your component's state (a toggle, a visibility flag) and you would rather not hold a ref.
 
 ```vue
 <script setup lang="ts">
@@ -104,16 +113,16 @@ statically and the ref is your only control.
 | `autoplay` | `boolean` | use the document's trigger |
 | `play` | `boolean` | play unconditionally |
 | `pause` | `boolean` | pause |
-| `time` | `number` | seek to a fraction 0–1 of the whole timeline (duration × iterations) |
-| `timeMs` | `number` | seek to ms |
+| `time` | `number` | show the frame at a fraction 0–1 of the whole timeline (duration × iterations) |
+| `timeMs` | `number` | show the frame at that time, in milliseconds from the start |
 | `duration` · `delay` | `number` | ms overrides |
-| `iterations` | `number \| 'infinite'` | |
-| `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | |
-| `fill` | `'forwards' \| 'backwards' \| 'both' \| 'none'` | |
+| `iterations` | `number \| 'infinite'` | how many times to play; `'infinite'` never stops |
+| `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | play forward, backward, or turn around on every iteration (starting forward or backward) |
+| `fill` | `'forwards' \| 'backwards' \| 'both' \| 'none'` | what shows before the start / after the end |
 | `mode` | `'auto' \| 'waapi' \| 'frames'` | engine |
 | `frameRate` | `number` | target fps (frames engine) |
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | trigger override |
-| `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | |
+| `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | when the trigger ends (mouse out, second click, scrolled out) |
 | `scrollIntoViewThreshold` | `number` | 0–1 |
 | `class` · `style` · any other attribute | | fall through to the rendered root `<svg>` (Vue attribute inheritance) — size it there, or via the parent |
 
@@ -160,7 +169,7 @@ import AnimationSvg from './animation.svg';   // vite-svg-loader
 |---|---|---|
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView'` | `'load'` |
 | `outAction` | `'continue' \| 'pause' \| 'reset'` | `'continue'` |
-| other attrs (`class`, `style`, …) | forwarded to the wrapper `<div>` | |
+| other attrs (`class`, `style`, …) | forwarded to the wrapper `<div>` | — |
 
 > ⚠️ **Render it once per page.** The imported component is the file's markup, ids included —
 > mount it twice and both copies share the same ids, so masks and gradients cross over. For
