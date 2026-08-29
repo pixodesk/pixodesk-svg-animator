@@ -40,7 +40,7 @@ put the `transformBy` on a child and the `repeater` on the parent group.
 | [`repeater`](#repeater) | N copies, each stepped by a delta |
 | [`maskedBy`](#maskedby) | mask by another element |
 | [`clipPath`](#clippath) | clip to a (possibly animated) path |
-| [`strokeTrim`](#stroketrim) | draw-on / draw-off along a stroke |
+| [`strokeTrim`](#stroketrim) | reveal or hide a stroke progressively along its path |
 | [`clone`](#clone) | `<use>` semantics: what it copies, and re-timing |
 | [`fillGradient` / `strokeGradient`](#fillgradient--strokegradient) | gradient paint with animatable stops and geometry |
 | [`textPath`](#textpath) | text along a path |
@@ -123,7 +123,7 @@ animate — the browser re-clips every frame.
 
 ## `strokeTrim`
 
-Shows only a window of the **stroke** along the path — the classic draw-on / draw-off. Works
+Shows only a window of the **stroke** along the path — a line that draws itself, or erases itself. Works
 by generating `stroke-dasharray` / `stroke-dashoffset`; the path geometry and fill are
 untouched (unlike Lottie's *trim paths*, which cut the shape itself).
 

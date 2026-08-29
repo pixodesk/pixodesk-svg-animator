@@ -34,17 +34,18 @@ classes. Inline the file instead.
 > Inline the same file twice and the ids are duplicated — the second copy's mask or gradient
 > resolves to the first copy's, and things break in ways that are hard to spot.
 >
-> Need the same animation several times on one page? Either **export it once per instance**
-> from the editor (each export gets fresh ids), or use the **JSON format** — a player
-> regenerates ids per instance, so any number of copies coexist.
+> Need the same animation several times on one page? Either **export a separate file for each
+> place** — every export from the editor gets its own element ids, so the copies don't clash —
+> or use the **JSON format**, where the player gives every instance fresh ids for you, so any
+> number of copies coexist.
 
 ## Which flavour?
 
 | | Pick it when | What you get | What you give up |
 |---|---|---|---|
-| **1 · SVG + CSS animation** | a loop, an icon, decoration — it just needs to play, on load or on hover | the smallest file · no JavaScript at all · a hover trigger through CSS `:hover` · imports as a component through SVGR / `vite-svg-loader` | only what CSS `@keyframes` can express — path morphing only in recent browsers, no gradient geometry, filters or text on a path · no click or scroll trigger · control is limited to toggling two classes |
-| **2 · SVG + CSS animation + JS triggers** | it should start on click or scroll into view, or needs an out action or reset-on-finish, and you don't want to write code | the same file plus a few inline lines of script — no library — that wire the trigger, the out action and reset-on-finish for you | the same CSS limits · no seek, reverse or speed · the `<script>` rules out SVGR import — inline it |
-| **3 · SVG + JS animation** | the animation uses something CSS cannot do, or you want the full playback API | every animation type · play, pause, seek, reverse, speed · self-contained | the player is embedded in the file (25–38 KB, unless you reference the library externally) · the `<script>` rules out SVGR import · the exported script keeps its instance local (see below) |
+| **1 · SVG + CSS animation** | a loop, an icon, decoration — it just needs to play, on load or on hover | • the smallest file<br>• no JavaScript at all<br>• a hover trigger through CSS `:hover`<br>• imports as a component through SVGR / `vite-svg-loader` | • only what CSS `@keyframes` can express — path morphing only in recent browsers, no gradient geometry, filters or text on a path<br>• no click or scroll trigger<br>• playback is controlled with CSS classes only |
+| **2 · SVG + CSS animation + JS triggers** | it should start on click or scroll into view, or needs an out action or reset-on-finish, and you don't want to write code | the same file plus a few inline lines of script (added by the editor app) — no library — that wire the trigger, the out action and reset-on-finish for you | • the same CSS limits<br>• no seek, reverse or speed<br>• the `<script>` rules out SVGR import — inline it |
+| **3 · SVG + JS animation** | the animation uses something CSS cannot do, or you want the full playback API | • every animation type<br>• play, pause, seek, reverse, speed<br>• self-contained | • the player is embedded in the file (25–38 KB, unless you reference the library externally)<br>• the `<script>` rules out SVGR import<br>• the exported script keeps its instance local (see below) |
 
 If you find yourself reaching for Flavour 3 *and* wanting to control it from code, the
 [JSON format](./06-player--web-player.md) is usually the better answer: same player, no

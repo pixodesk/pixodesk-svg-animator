@@ -9,21 +9,24 @@ as a file, and that file plays anywhere SVG does.
 **The editor** is a full-featured vector and animation tool. Draw shapes, paths and text, or
 import SVG from Illustrator, Figma, Inkscape and the like. Animate any property on a timeline,
 add effects, then save. It also imports and exports **Lottie**, and exports to video, GIF and
-still images when you need a fallback. It ships as the *Pixodesk Animator Studio* desktop app
+static images when you need a fallback. It ships as the *Pixodesk Animator Studio* desktop app
 for Windows and Mac, from [pixodesk.com](https://pixodesk.com).
 
 **The players** are small, open-source runtime libraries — MIT-licensed, published on npm as
 `@pixodesk/svg-animator-*`, and developed in [this repository](../README.md). Pick the one for
 where the animation runs: plain **HTML**, **React**, **Vue** or **React Native**. Control
-playback from code — play, pause, seek, reverse, speed — or let the animation start itself on
+playback from code — play, pause, speed — or let the animation start itself on
 load, click or scroll.
 
 **The format** stays as close to plain SVG as it can, with a wide vector feature set. It comes
-in two flavours. **JSON** is the source: the SVG tree plus its animation, read by a player.
-**Pre-rendered SVG** is a normal `.svg` with the animation already inside, ready to embed or
-inline straight into a page — as pure **CSS keyframes** with no JavaScript at all, the same
-plus a small script for triggers, or with the **JS player** embedded and running on the engine
-you choose, **WAAPI** or **frames**.
+in two flavours:
+
+- **JSON** — the source: the SVG tree plus its animation, read by a player.
+- **Pre-rendered SVG** — a normal `.svg` with the animation already inside, ready to embed or
+  inline straight into a page. Three variants:
+  - **SVG + CSS animation** — pure CSS keyframes, no JavaScript at all
+  - **SVG + CSS animation + JS triggers** — the same, plus a few inline lines of script (added by the editor app) for click and scroll triggers
+  - **SVG + JS animation** — the player embedded in the file, running on the engine you choose, **WAAPI** or **frames**
 
 The two flavours take different routes to the screen:
 
@@ -49,7 +52,7 @@ flowchart LR
     Editor -- save --> SVG -- nothing to install --> Page --> Browser
 ```
 
-## What it's good for
+## Use for
 
 - Splash screens
 - Animated backgrounds
@@ -58,8 +61,6 @@ flowchart LR
 - Illustrations that react to hover, click or scroll
 - Animated logos
 
-Anything you would otherwise reach for a GIF, a video or a Lottie file for — but as crisp,
-tiny, scalable SVG.
 
 ## JSON and pre-rendered SVG
 
@@ -73,10 +74,9 @@ the animation from code.
 page, CMS or static-site generator and it plays — no library needed for the CSS flavour. It is
 the simplest option and the right one for most icons, loaders and decorative animation. Its
 one rule: **inline a given file once per page** — its element ids are fixed, so a second copy
-collides with the first ([why](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)). For several instances of one
-animation, use JSON.
+collides with the first ([read more](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)). For several instances of one animation, use JSON.
 
-Both come out of the same editor document, and the editor converts between them at any time
+Both JSON and animated SVG have the same features, and the editor converts between them at any time
 (**File → Save as JSON / Save as SVG**), so the choice is never final.
 
 ## Which file format do I need?
@@ -95,7 +95,7 @@ Start from where the animation is going:
 | React / Next.js | `@pixodesk/svg-animator-react` |
 | Vue / Nuxt | `@pixodesk/svg-animator-vue` |
 | React Native / Expo 🧪 | `@pixodesk/svg-animator-rn` |
-| Tooling that validates, transforms or samples documents without rendering | `@pixodesk/svg-animator-core` |
+| The core every player builds on — the format schema and the shared algorithms | `@pixodesk/svg-animator-core` |
 
 Still unsure? [Choosing a format](./02-start--choosing-a-format.md) has the side-by-side
 comparison and what each engine can animate.
@@ -106,9 +106,9 @@ document produces the same frames everywhere:
 ```mermaid
 %%{init: {'theme':'base', 'flowchart':{'nodeSpacing': 40, 'rankSpacing': 55, 'curve': 'basis'}}}%%
 flowchart TD
-    Core["<b>svg-animator-core</b><br/>schema · materialisers · sampling<br/><i>no DOM</i>"]
-    Web["<b>svg-animator-web</b>"]
-    RN["<b>svg-animator-rn</b> 🧪<br/>react-native-svg + reanimated"]
+    Core["<b>svg-animator-core</b><br/>schema, utils,<br/><i>no DOM</i>"]
+    Web["<b>svg-animator-web</b><br/>DOM"]
+    RN["<b>svg-animator-rn</b> 🧪<br/>Based on <br/>react-native-svg,<br/>reanimated"]
     React["<b>svg-animator-react</b>"]
     Vue["<b>svg-animator-vue</b>"]
 
@@ -124,7 +124,6 @@ flowchart TD
 - Learning the editor → [The editor](./03-editor--editor.md)
 - Embedding a pre-rendered SVG → [Pre-rendered SVG on the web](./11-player--prerendered-svg.md)
 - Installing a player → [Installing the players (overview)](./05-player--installation.md)
-- Understanding the file → [Format principles](./13-format--format-principles.md), then the
-  [JSON format reference](./14-format--json-format.md)
+- Understanding the file → [Format principles](./13-format--format-principles.md), [JSON format reference](./14-format--json-format.md)
 
 [← Contents](./README.md) · Next: [Choosing a format →](./02-start--choosing-a-format.md)

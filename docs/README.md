@@ -1,12 +1,11 @@
 # Pixodesk SVG Animator
 
 
-This documentation covers the **Pixodesk editor**, the **player**, and the **format** between them.
+This documentation covers the **Pixodesk SVG Animator editor**, the **player**, and the **format** between them.
 
-- Use the **editor** — a full-featured vector and animation tool — to create
-  animation files.  
+- Use the **Pixodesk SVG Animator editor** — a full-featured vector and animation tool — to create animation files.  
   Import and export **Lottie** animations.  
-  Export to video, GIF and still images as a fallback.
+  Export to video, GIF and static images as a fallback.
 - Pick a **player** to run them — in plain **HTML**, **React**, **Vue** or **React Native**.  
   Control playback from code, or let the animation start itself on load, click
   or scroll.
@@ -34,14 +33,14 @@ This documentation covers the **Pixodesk editor**, the **player**, and the **for
 ### Play JSON animations
 5. [Installing the players (overview)](./05-player--installation.md) — npm packages, the UMD build for pages without a bundler, TypeScript
 6. [Web player (`@pixodesk/svg-animator-web`)](./06-player--web-player.md) — `createAnimator`, the playback API, callbacks, triggers
-7. [React (`@pixodesk/svg-animator-react`)](./07-player--react.md) — the component, its props, control modes, Next.js
-8. [Vue (`@pixodesk/svg-animator-vue`)](./08-player--vue.md) — the component, props, events, Nuxt
+7. [React (`@pixodesk/svg-animator-react`)](./07-player--react.md) — the player component, its props, control modes, Next.js
+8. [Vue (`@pixodesk/svg-animator-vue`)](./08-player--vue.md) — the player component, props, events, Nuxt
 9. [React Native (`@pixodesk/svg-animator-rn`)](./09-player--react-native.md) 🧪 — install, props, feature support, limitations
-10. [Playback settings & triggers](./10-player--playback-and-triggers.md) — the `animator` fields in full, and overriding them from props or the player API
+10. [Playback settings & triggers](./10-player--playback-and-triggers.md) — the `animator` configuration, and overriding them from props or the player API
 
 ### Play pre-rendered SVG animations (minimal setup)
-11. [Pre-rendered SVG on the web](./11-player--prerendered-svg.md) — inline it, import it as a component, why `<img>` is static; the three flavours and how to control them
-12. [Static sites & CMS](./12-player--static-sites-and-cms.md) — Astro, Jekyll, Hugo, 11ty, Gatsby, Docusaurus, WordPress, Shopify, Webflow…
+11. [Pre-rendered SVG on the web](./11-player--prerendered-svg.md) — inline, import as a component; the three flavours and how to control them
+12. [Static sites & CMS](./12-player--static-sites-and-cms.md) — Astro, Jekyll, Hugo, 11ty, Gatsby, Docusaurus, WordPress, Shopify, Webflow
 
 ### Format (deep dive)
 13. [Format principles](./13-format--format-principles.md) — why the format is shaped this way: the six layers it is built from and the five rules they follow
@@ -59,4 +58,4 @@ This documentation covers the **Pixodesk editor**, the **player**, and the **for
 
 - [Repository README](../README.md) — package overview and examples
 - [Runnable examples](../examples/docs-examples/) — one tested page per documented case (web, React, Vue, pre-rendered SVG, static sites); plus a [preview player](../examples/preview-player/) and the [React Native](../examples/react-native-preview-player/) apps
-- [pixodesk.com](https://pixodesk.com) — the editor
+- [pixodesk.com](https://pixodesk.com) — Pixodesk SVG Animator editor

@@ -65,7 +65,7 @@ looping wheel inside an infinitely iterating document spins within every iterati
 
 | Mode | What runs the animation |
 |---|---|
-| `auto` (default) | the Web Animations API — native, smooth, off the main thread where possible — with an **automatic fallback** to the frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on a path, …) |
+| `auto` (default) | the Web Animations API — played by the browser itself, so it stays smooth even while the page is busy — with an **automatic fallback** to the frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on a path, …) |
 | `waapi` | Web Animations API only |
 | `frames` | a `requestAnimationFrame` loop that writes attributes every frame; honours `frameRate`; universal browser support |
 
@@ -97,7 +97,7 @@ second click):
 | `reverse` | play backwards to the start |
 
 Triggers are implemented by every player (the RN player has no `mouseOver`) and by the
-*SVG + CSS + JS triggers* export flavour, whose few inline lines need no library. A pure-CSS
+*SVG + CSS + JS triggers* export flavour, whose few inline lines (added by the editor app), need no library. A pure-CSS
 export handles `load` and, through `:hover`, `mouseOver`; `click` and `scrollIntoView` fall
 back to `load` there — see [Pre-rendered SVG](./11-player--prerendered-svg.md#flavour-1--svg--css-animation).
 

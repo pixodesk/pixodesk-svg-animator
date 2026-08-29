@@ -41,8 +41,8 @@ missing in Safari < 18.5. Use JSON (`mode: 'auto'` falls back to frames) or the 
 animation* flavour.
 
 **Text on a path, gradient geometry, filters, clip-path morphing.** Not expressible in CSS at
-all; JSON + a player handles them via the frame loop. The editor flags every such attribute in
-the file-type picker before you export.
+all; JSON + a player handles them via the frame loop. The editor flags every such attribute on its timeline row
+and in the file-type picker while you work, and lists them in a notice when you save.
 
 ## The CSS-flavour SVG works, the JS flavours don't
 
@@ -61,8 +61,8 @@ JSON with the player loaded from your own origin.
 ## Two copies of the same SVG interfere with each other
 
 Inlining one file twice duplicates its element ids, so masks, gradients and JS bindings can
-point at the wrong copy. Export the file twice (each export gets fresh ids), or use the JSON
-format — each player instance regenerates ids
+point at the wrong copy. Export a separate file for each place (every export gets its own ids), or use the JSON
+format, where the player gives every instance fresh ids
 ([Pre-rendered SVG → One copy of a file per page](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
 
 ## React

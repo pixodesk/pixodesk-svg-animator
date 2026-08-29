@@ -57,7 +57,7 @@ read it — the keys are unquoted.
 
 | Element | Keys in its `data-px-meta` |
 |---|---|
-| root `<svg>` | `runtime` (how the animation code was generated) · `animator` (the playback settings) |
+| root `<svg>` | • `runtime` (how the animation code was generated)<br>• `animator` (the playback settings) |
 | any element | `label` · `appliedEffects` · `effectsHost` · `partOf` · `animate` |
 | `<symbol>` | `timeline` |
 | text line `<tspan>` | `lineSpacing` |

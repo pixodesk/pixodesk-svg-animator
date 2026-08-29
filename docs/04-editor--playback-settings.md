@@ -74,7 +74,7 @@ always honour the full setting.
 |---|---|
 | **Pixodesk JSON** | everything on this page |
 | **SVG + CSS animation** | timing; *On load*, and *On mouse over* via CSS `:hover`. *On click* / *When visible* fall back to *On load*; *Reset on finish* is not applied |
-| **SVG + CSS + JS triggers** | timing, every trigger, the out action and *Reset on finish* — through a few inline lines of script, no library |
+| **SVG + CSS + JS triggers** | timing, every trigger, the out action and *Reset on finish* — through a few inline lines of script (added by the editor app), no library |
 | **SVG + JS animation** | everything, including engine mode |
 
 [Choosing a format](./02-start--choosing-a-format.md) has the full comparison.

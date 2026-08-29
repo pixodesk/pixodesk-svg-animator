@@ -27,7 +27,7 @@ in a pre-rendered SVG the same object is written into a per-element `data-px-met
 | `effectsHost` | the host of an expanded unit | `{ coreId?, appliedEffects }` — the effects of an element that was written as several elements — see [Units](#units--one-element-written-as-several) |
 | `partOf` | every element derived by that expansion | `"#hostId"` — points back at the host |
 | `runtime` | root `<svg>` only | how the animation code was generated: `{ useCssAnimation, useJsTriggers, externalJs, unoptimisedJs }` — the export-format choices, not the animation |
-| `animator` | root `<svg>`, **pre-rendered SVG only** | the playback settings; in JSON they are the top-level `animator` instead ([why](./17-format--data-px-meta.md#the-animator-config-has-two-addresses)) |
+| `animator` | root `<svg>`, **pre-rendered SVG only** | the playback settings; in JSON they are the top-level `animator` instead ([read more](./17-format--data-px-meta.md#the-animator-config-has-two-addresses)) |
 | `timeline` | `<symbol>` only | `{ duration }` — the symbol's own animation length, ms |
 | `lineSpacing` | text line `<tspan>`s from the second line on | the *Auto* line-height multiplier the baked `y` was computed from |
 | `animate` | any element, **pre-rendered SVG only** | the node's keyframes, so a CSS export can be re-opened; in JSON this is the node's own `animate` |

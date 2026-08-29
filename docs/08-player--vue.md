@@ -164,7 +164,7 @@ import AnimationSvg from './animation.svg';   // vite-svg-loader
 
 > ⚠️ **Render it once per page.** The imported component is the file's markup, ids included —
 > mount it twice and both copies share the same ids, so masks and gradients cross over. For
-> several instances use the JSON component instead ([why](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
+> several instances use the JSON component instead ([read more](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
 
 Only the pure CSS flavour works this way (loaders strip or refuse `<script>`); flavours with
 scripts should be inlined as raw HTML, or use JSON.

@@ -50,7 +50,10 @@ const api = useRef<ReactAnimatorApi>(null);
 
 | Method | Description |
 |---|---|
-| `play()` · `pause()` · `cancel()` · `finish()` | start/resume · pause · stop and reset · jump to the end |
+| `play()` | start, or resume from the current time |
+| `pause()` | pause at the current time |
+| `cancel()` | stop and reset to the start |
+| `finish()` | jump to the end and hold it |
 | `setPlaybackRate(rate)` | `1` normal, `2` double, negative = reverse |
 | `getCurrentTime()` | ms, or `null` before mount |
 | `setCurrentTime(ms)` | seek |
@@ -164,7 +167,7 @@ import AnimationSvg from './animation.svg?react';   // vite-plugin-svgr
 
 > ⚠️ **Render it once per page.** The imported component is the file's markup, ids included —
 > mount it twice and both copies share the same ids, so masks and gradients cross over. For
-> several instances use the JSON component instead ([why](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
+> several instances use the JSON component instead ([read more](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
 
 SVGR strips `<script>` tags, so only the pure CSS flavour works this way. Files with scripts
 (JS triggers / JS animation) should be inlined as raw HTML, or switched to JSON.
