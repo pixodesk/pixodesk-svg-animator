@@ -1,6 +1,6 @@
 # JSON format reference
 
-[← Format principles](./13-format--format-principles.md) · [Contents](./README.md) · Next: [Effects reference →](./15-format--effects.md)
+[← Format principles](./13-format--format-principles.md) · [Contents](./README.md) · Next: [Player effects →](./15-format--effects.md)
 
 Look up any key of the JSON document here — every key, its type and its meaning. The document
 is **SVG written as JSON, plus animation**: if you can read an SVG file you can read one of
@@ -311,4 +311,4 @@ PxAnimatedSvgDocumentSchema.isValid(json, ctx, []);       // full check; ctx.err
 
 See [Core library → Validating](./18-format--core-library.md#validating-a-document).
 
-[← Format principles](./13-format--format-principles.md) · [Contents](./README.md) · Next: [Effects reference →](./15-format--effects.md)
+[← Format principles](./13-format--format-principles.md) · [Contents](./README.md) · Next: [Player effects →](./15-format--effects.md)

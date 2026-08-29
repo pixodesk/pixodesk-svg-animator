@@ -83,7 +83,7 @@ different case: there the JSON format with a player is the natural fit. See
 > **Example:** [`static/vanilla-umd`](../examples/docs-examples/src/cases/static/vanilla-umd/) — `pnpm example:docs`, then open `#static/vanilla-umd`.
 
 ```html
-<div data-px-animation-src="/animation.json"></div>
+<div data-px-animation-src="/bouncing-ball.json"></div>
 <script src="/js/pixodesk-svg-animator.umd.min.js"></script>
 <script>PixodeskAnimator.loadTagAnimators();</script>
 ```

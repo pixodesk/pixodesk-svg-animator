@@ -18,6 +18,8 @@ the [React component](./07-player--react.md), so code moves between the two with
 npm install @pixodesk/svg-animator-rn
 # peers, if you don't have them already:
 npx expo install react-native-svg react-native-reanimated
+# Reanimated 4 and later also needs its worklets runtime:
+npx expo install react-native-worklets
 ```
 
 Peer dependencies: `react >= 18`, `react-native >= 0.76`, `react-native-svg >= 15`,

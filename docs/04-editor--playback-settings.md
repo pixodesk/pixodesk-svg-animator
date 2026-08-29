@@ -19,9 +19,10 @@ document's settings, not an element's. Everything here is written into the docum
 | Control | Writes | Notes |
 |---|---|---|
 | **Duration** | `duration` (ms) | the length of **one** iteration; keyframe times are offsets within it |
+| **Delay** | `delay` (ms) | wait before the first iteration starts |
 | **Iterations** | `iterations` | a number, or *infinite* |
 | **Direction** | `direction` | *normal*, *reverse*, *alternate* (ping-pong), *alternate-reverse* |
-| **Fill** | `fill` | what shows outside the active time — hold the last frame (`forwards`) or revert to the static SVG (`none`) |
+| **Fill mode** | `fill` | what shows outside the active time — *forwards* holds the last frame, *backwards* shows the first frame during the delay, *both*, or *none* to revert to the static SVG |
 | **Reset on finish** | `resetOnFinish` | snap back to the start after a natural finish |
 | **Frame rate** | `frameRate` | a target rate for the frame-loop engine only; leave it unset to run uncapped |
 
@@ -52,6 +53,13 @@ always native-driven.
 **When the trigger ends** (pointer leaves, scrolled out of view, a second click) writes
 `trigger.outAction`: *continue*, *pause*, *reset* or *reverse*.
 
+**Use JS Triggers** decides how a pre-rendered *SVG + CSS* export implements the trigger. Off,
+the file is pure CSS: *On load* plays immediately and *On mouse over* works through CSS
+`:hover` — but *On click* and *When visible* have no CSS equivalent and **fall back to On
+load**. On, the export gains a few lines of inline script (no library) and every trigger, out
+action and *Reset on finish* work as set. The JSON format and the *SVG + JS animation* export
+always honour the full setting.
+
 ## Timeline — clock or scroll
 
 **Timeline** chooses what the playhead follows:
@@ -65,8 +73,8 @@ always native-driven.
 | Export | What survives |
 |---|---|
 | **Pixodesk JSON** | everything on this page |
-| **SVG + CSS animation** | timing only — a CSS file starts on load and has no triggers |
-| **SVG + CSS + JS triggers** | timing, plus *mouse over* / *click* / *when visible* and the out action |
+| **SVG + CSS animation** | timing; *On load*, and *On mouse over* via CSS `:hover`. *On click* / *When visible* fall back to *On load*; *Reset on finish* is not applied |
+| **SVG + CSS + JS triggers** | timing, every trigger, the out action and *Reset on finish* — through a few inline lines of script, no library |
 | **SVG + JS animation** | everything, including engine mode |
 
 [Choosing a format](./02-start--choosing-a-format.md) has the full comparison.

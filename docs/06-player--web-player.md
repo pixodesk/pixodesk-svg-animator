@@ -73,7 +73,7 @@ import { createAnimator } from '@pixodesk/svg-animator-web';
 // from a URL — returns immediately; control calls made before the file loads are
 // queued and replayed in order once it is ready
 const animator = createAnimator({
-  src: '/animation.json',
+  src: '/bouncing-ball.json',
   container: '#hero',
   callbacks: { onFinish: () => console.log('done') },
 });
@@ -173,11 +173,19 @@ the whole document runs on the frame loop. Either way it plays.
 
 > **Example:** [`web/several`](../examples/docs-examples/src/cases/web/several/) — `pnpm example:docs`, then open `#web/several`.
 
+```html
+<div class="stage" data-px-animation-src="/bouncing-ball.json"></div>
+<div class="stage" data-px-animation-src="/bouncing-ball.json"></div>
+<div class="stage" data-px-animation-src="/bouncing-ball.json"></div>
+```
+
 ```js
-const animators = [...document.querySelectorAll('.anim')].map(el =>
-  createAnimator({ src: el.dataset.src, container: el })
-);
-animators.forEach(a => a.play());
+import { loadTagAnimators } from '@pixodesk/svg-animator-web';
+
+loadTagAnimators();
+
+// Calling it again is safe: only elements without an animator are picked up.
+loadTagAnimators();
 ```
 
 Each instance regenerates the document's element ids, so many copies of the same file coexist

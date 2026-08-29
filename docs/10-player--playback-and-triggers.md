@@ -97,8 +97,9 @@ second click):
 | `reverse` | play backwards to the start |
 
 Triggers are implemented by every player (the RN player has no `mouseOver`) and by the
-*SVG + CSS + JS triggers* export flavour. A CSS-only SVG starts on load, or is controlled by
-its classes — see [Pre-rendered SVG](./11-player--prerendered-svg.md#flavour-1--svg--css-animation).
+*SVG + CSS + JS triggers* export flavour, whose few inline lines need no library. A pure-CSS
+export handles `load` and, through `:hover`, `mouseOver`; `click` and `scrollIntoView` fall
+back to `load` there — see [Pre-rendered SVG](./11-player--prerendered-svg.md#flavour-1--svg--css-animation).
 
 ## Overriding from a player
 

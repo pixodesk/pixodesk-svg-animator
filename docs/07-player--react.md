@@ -25,7 +25,10 @@ by sizing the parent (the SVG keeps its `viewBox`).
 
 ## Control modes
 
-Pick one — they are mutually exclusive, and take precedence in the order listed.
+Pick one — they are mutually exclusive, and take precedence in the order listed. The `apiRef`
+is filled in **every** mode, so you can always call `play()` / `pause()` yourself; passing
+`apiRef` and nothing else is the imperative mode, where the document's trigger is switched off
+and the ref is the only thing that starts playback.
 
 ### 1 · Imperative API (`apiRef`)
 

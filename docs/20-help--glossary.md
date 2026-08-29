@@ -30,6 +30,8 @@ type, the entry names it, so you can go straight from the word to the file.
 | **Retime** | Shifting (`start`) or stretching (`stretch`) a symbol's internal timeline for one instance; `timeCrop` limits when the instance is visible |
 | **Mode A / Mode B** | A document *with* `children` (the player builds the SVG) / *without* (the player binds to an existing SVG by id via `animateById`) |
 | **Pre-rendered SVG** | A normal `.svg` with the animation embedded: CSS `@keyframes`, optionally a trigger script, or the whole player |
+| **Flavour** | One of the three pre-rendered SVG exports: *SVG + CSS animation*, *SVG + CSS animation + JS triggers*, *SVG + JS animation* — [which to pick](./11-player--prerendered-svg.md#which-flavour) |
+| **Unit (host / core / part)** | How a pre-rendered file records an effect that was written as several elements: the **host** carries the effects (`meta.effectsHost`), the **core** is the element itself, every **part** points back (`meta.partOf`) — [chapter 16](./16-format--editor-meta.md#units--one-element-written-as-several) |
 | **`data-px-meta`** | The attribute a pre-rendered SVG uses to carry editor metadata per element, so the editor can re-open the file with its effects intact — [chapter 17](./17-format--data-px-meta.md) |
 | **`meta`** | Editor-only data on a node (labels, shape presets, applied effects). Players ignore it — [chapter 16](./16-format--editor-meta.md) |
 | **Core** | `@pixodesk/svg-animator-core` — schema, materialisers, interpolation, sampling; no DOM; shared by every player |

@@ -62,7 +62,8 @@ JSON with the player loaded from your own origin.
 
 Inlining one file twice duplicates its element ids, so masks, gradients and JS bindings can
 point at the wrong copy. Export the file twice (each export gets fresh ids), or use the JSON
-format — each player instance regenerates ids.
+format — each player instance regenerates ids
+([Pre-rendered SVG → One copy of a file per page](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
 
 ## React
 
@@ -128,6 +129,6 @@ outlines are embedded in the file and render identically everywhere, with no fon
 
 - [Repository issues](https://github.com/pixodesk/pixodesk-svg-animator/issues) — include the
   JSON (or the SVG), the package version and the browser / platform.
-- The [runnable examples](../examples/) show every control mode working end to end.
+- The [runnable examples](../examples/docs-examples/) show every documented case working end to end — one page per case, each tested on every build.
 
 [← Core library](./18-format--core-library.md) · [Contents](./README.md) · Next: [Glossary →](./20-help--glossary.md)

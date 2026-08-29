@@ -115,6 +115,7 @@ statically and the ref is your only control.
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | trigger override |
 | `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | |
 | `scrollIntoViewThreshold` | `number` | 0–1 |
+| `class` · `style` · any other attribute | | fall through to the rendered root `<svg>` (Vue attribute inheritance) — size it there, or via the parent |
 
 ## Events
 

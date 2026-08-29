@@ -12,13 +12,13 @@ This documentation covers the **Pixodesk editor**, the **player**, and the **for
   or scroll.
 - The **format** stays as close to plain SVG as it can, with a wide vector
   feature set.  
-  It comes in two flavours — canonical **JSON**, or
+  It comes in two flavours — **JSON**, or
   **pre-rendered SVG** that embeds/inlines straight into a page.  
   Pre-rendered SVG allows: pure **CSS keyframes** for a file that needs **no JavaScript**,
   the same plus a small script for triggers, or embedded **JavaScript** running the
   player on the engine you choose — **WAAPI** or **frames**.  
   Pick whichever suits where it runs — and note that a pre-rendered file goes on a page
-  **once**; several instances of one animation is a job for JSON.
+  **once**; for several instances of one animation, use JSON.
 
     
 ## Contents
@@ -32,7 +32,7 @@ This documentation covers the **Pixodesk editor**, the **player**, and the **for
 4. [Set default playback settings & triggers](./04-editor--playback-settings.md) — duration, loops, direction, engine mode, what starts it, clock or scroll — saved with the file
 
 ### Play JSON animations
-5. [Installing the players (overview)](./05-player--installation.md) — npm packages, CDN builds, TypeScript
+5. [Installing the players (overview)](./05-player--installation.md) — npm packages, the UMD build for pages without a bundler, TypeScript
 6. [Web player (`@pixodesk/svg-animator-web`)](./06-player--web-player.md) — `createAnimator`, the playback API, callbacks, triggers
 7. [React (`@pixodesk/svg-animator-react`)](./07-player--react.md) — the component, its props, control modes, Next.js
 8. [Vue (`@pixodesk/svg-animator-vue`)](./08-player--vue.md) — the component, props, events, Nuxt

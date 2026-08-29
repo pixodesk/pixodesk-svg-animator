@@ -42,9 +42,9 @@ classes. Inline the file instead.
 
 | | Pick it when | What you get | What you give up |
 |---|---|---|---|
-| **1 · SVG + CSS animation** | a loop, an icon, decoration — it just needs to play | the smallest file · no JavaScript at all · imports as a component through SVGR / `vite-svg-loader` | only what CSS `@keyframes` can express — no path morphing outside Chromium / Firefox / Edge, no gradient geometry, filters or text on a path · control is limited to toggling two classes |
-| **2 · SVG + CSS animation + JS triggers** | it should start on hover, click or scroll, and you don't want to write code | the same file plus a tiny script that wires the trigger and the out-action for you | the same CSS limits · no seek, reverse or speed · the `<script>` rules out SVGR import — inline it |
-| **3 · SVG + JS animation** | the animation uses something CSS cannot do, or you want the full playback API | every animation type · play, pause, seek, reverse, speed · self-contained | the player is embedded in the file (~25–35 KB, unless you reference the library externally) · the `<script>` rules out SVGR import · the exported script keeps its instance local (see below) |
+| **1 · SVG + CSS animation** | a loop, an icon, decoration — it just needs to play, on load or on hover | the smallest file · no JavaScript at all · a hover trigger through CSS `:hover` · imports as a component through SVGR / `vite-svg-loader` | only what CSS `@keyframes` can express — path morphing only in recent browsers, no gradient geometry, filters or text on a path · no click or scroll trigger · control is limited to toggling two classes |
+| **2 · SVG + CSS animation + JS triggers** | it should start on click or scroll into view, or needs an out action or reset-on-finish, and you don't want to write code | the same file plus a few inline lines of script — no library — that wire the trigger, the out action and reset-on-finish for you | the same CSS limits · no seek, reverse or speed · the `<script>` rules out SVGR import — inline it |
+| **3 · SVG + JS animation** | the animation uses something CSS cannot do, or you want the full playback API | every animation type · play, pause, seek, reverse, speed · self-contained | the player is embedded in the file (25–38 KB, unless you reference the library externally) · the `<script>` rules out SVGR import · the exported script keeps its instance local (see below) |
 
 If you find yourself reaching for Flavour 3 *and* wanting to control it from code, the
 [JSON format](./06-player--web-player.md) is usually the better answer: same player, no
@@ -89,8 +89,11 @@ Two classes on the root gate playback, so you can control it from your own CSS o
 
 Exported with the **On load** start option, the file has `px-anim-enabled px-anim-playing` on
 its root already, so it plays the moment it is inlined — nothing has to happen at runtime.
-With any other start option the root carries no play classes and something has to add them:
-the file's own trigger script (flavour 2), a `PixodeskSvgCssAnimator` wrapper, or your code:
+Exported with **On mouse over**, the root carries `px-anim-enabled` only and the stylesheet
+gates playback on `:hover` — a hover trigger with no script at all. *On click* and *When
+visible* have no CSS equivalent; a pure-CSS export falls back to On load for them. With any
+other start option something has to add the play classes: the file's own trigger snippet
+(flavour 2), a `PixodeskSvgCssAnimator` wrapper, or your code:
 
 ```js
 const svg = document.querySelector('#hero svg');
@@ -106,10 +109,11 @@ and [Vue → CSS-flavour SVGs](./08-player--vue.md#css-flavour-svgs--pixodesksvg
 
 ## Flavour 2 — SVG + CSS animation + JS triggers
 
-Same file plus a small `<script data-px-script="true">` that listens for the trigger you chose
-in the editor (mouse over, click, scroll into view) and toggles the classes above, including
-the *out action* (continue / pause / reset) and *reset on finish*. Nothing to wire up: inline
-the file and it responds to the user.
+Same file plus a small `<script data-px-script="true">` — a few lines the editor writes, no
+library — that listens for the trigger you chose (mouse over, click, scroll into view) and
+toggles the classes above, including the *out action* (continue / pause / reset / reverse) and
+*reset on finish*. It is the *Use JS Triggers* switch in the editor's trigger panel. Nothing to
+wire up: inline the file and it responds to the user.
 
 Because it has a `<script>`, it cannot go through SVGR or `vite-svg-loader`, which strip
 scripts. Inline it, or use an `<object>`.

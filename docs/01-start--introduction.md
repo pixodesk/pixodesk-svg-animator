@@ -46,7 +46,7 @@ flowchart LR
     Page["embed / inline in a page"]
     Browser["the browser plays it"]
 
-    Editor -- save --> SVG -- no library --> Page --> Browser
+    Editor -- save --> SVG -- nothing to install --> Page --> Browser
 ```
 
 ## What it's good for
@@ -73,8 +73,8 @@ the animation from code.
 page, CMS or static-site generator and it plays — no library needed for the CSS flavour. It is
 the simplest option and the right one for most icons, loaders and decorative animation. Its
 one rule: **inline a given file once per page** — its element ids are fixed, so a second copy
-collides with the first ([why](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)). Several instances of one animation is a job
-for JSON.
+collides with the first ([why](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)). For several instances of one
+animation, use JSON.
 
 Both come out of the same editor document, and the editor converts between them at any time
 (**File → Save as JSON / Save as SVG**), so the choice is never final.

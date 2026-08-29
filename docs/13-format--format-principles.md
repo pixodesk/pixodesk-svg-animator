@@ -53,8 +53,8 @@ how to fold the expansion back.
 ## The five principles
 
 1. **Each layer materialises into the one below.** A document using only L0–L2 is fully
-   playable; everything above is expanded into it, downward only. That
-   is what keeps the players small.
+   playable; everything above is expanded into it, downward only. That is what keeps the
+   players small.
 2. **Address is contract.** What a key *means* is fixed by *where* it sits — `effects` (the
    player will apply these) and `meta.appliedEffects` (these were already applied) are two
    tenses of one idea, told apart by position, not by a flag.
