@@ -1,6 +1,6 @@
 # Troubleshooting & FAQ
 
-[← Core library](./16-format--core-library.md) · [Contents](./README.md) · Next: [Glossary →](./18-help--glossary.md)
+[← Core library](./18-format--core-library.md) · [Contents](./README.md) · Next: [Glossary →](./20-help--glossary.md)
 
 Find your symptom below — each entry says what to check and what to change. If yours is not
 here, go to [Still stuck?](#still-stuck) at the end.
@@ -130,4 +130,4 @@ outlines are embedded in the file and render identically everywhere, with no fon
   JSON (or the SVG), the package version and the browser / platform.
 - The [runnable examples](../examples/) show every control mode working end to end.
 
-[← Core library](./16-format--core-library.md) · [Contents](./README.md) · Next: [Glossary →](./18-help--glossary.md)
+[← Core library](./18-format--core-library.md) · [Contents](./README.md) · Next: [Glossary →](./20-help--glossary.md)

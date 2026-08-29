@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" id="_px_1" data-px-meta="runtime:{useCssAnimation:true},animator:{duration:1000,mode:'auto',iterations:'infinite',direction:'alternate',trigger:{startOn:'programmatic',outAction:'pause'}}">
+  <style>@keyframes _px_2 {0% {transform:translate(200px,60px);animation-timing-function:cubic-bezier(0.33,0,0.67,0.33);}
+100% {transform:translate(200px,340px)}}
+.px-anim-enabled ._px_3 { animation: 1000ms _px_2 infinite alternate both; }
+.px-anim-enabled.px-anim-playing .px-anim-element {animation-play-state: running !important;}
+.px-anim-enabled:not(.px-anim-playing) .px-anim-element {animation-play-state: paused;}</style>
+  <ellipse id="ball" class="px-anim-element _px_3" fill="#0087ff" transform="translate(200,60)" rx="40" ry="40" data-px-meta="animate:{transform:{keyframes:[{time:0,value:{translate:[200,60]},easing:[0.33,0,0.67,0.33]},{time:1000,value:{translate:[200,340]}}]}}"/>
+</svg>

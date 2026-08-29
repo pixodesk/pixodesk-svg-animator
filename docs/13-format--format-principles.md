@@ -2,15 +2,20 @@
 
 [← Static sites & CMS](./12-player--static-sites-and-cms.md) · [Contents](./README.md) · Next: [JSON format reference →](./14-format--json-format.md)
 
-Read this if you want to know *why* the format looks the way it does. You do not need it to
-use the format — it is here for tool authors, contributors, and the curious. The complete
-design record — every rule, every decision, the editor's unit contract — is
-[SCHEMA-DESIGN.md](../SCHEMA-DESIGN.md).
+Read this if you write animation files by hand, need to read one to diagnose a problem, or
+are simply curious *why* the format looks the way it does.
 
 ## Plain SVG, with layers on top
 
 Each layer adds one idea, uses only the layers beneath it, and has its own **address on the
 node** — that address is the contract.
+
+The second rule is the direction of travel: **higher layers materialise into lower ones,
+never the reverse.** Nothing above L2 is ever rendered directly. The editor bakes its L4
+knowledge (a shape preset, the source of an effect) into L3–L0 when it saves; the player expands
+L3 effects into plain L2 animation and L0–L1 attributes when it loads; a pre-rendered export
+flattens the whole stack into L0 plus CSS. At every step the result is expressible in the layers
+below — which is why a renderer only ever has to understand L0–L2.
 
 | Layer | | Address on the node | What it adds | Read by |
 |---|---|---|---|---|
@@ -18,8 +23,8 @@ node** — that address is the contract.
 | **L1** | typed values | the same attributes | numbers, vectors, records — seven value kinds | player |
 | **L2** | animated attributes | `node.animate[attr]` | a parallel channel per attribute; zero structure | player |
 | **L3** | player effects | `node.effects` | declarative generators, expanded at load | player |
-| **L4** | editor meta | `node.meta` | everything the player ignores | editor |
-| **L5** | pre-rendered SVG | a real `.svg` file | the same model, flattened | the browser (or the player) |
+| **L4** | editor meta | `node.meta` | everything the player ignores — [chapter 16](./16-format--editor-meta.md) | editor |
+| **L5** | pre-rendered SVG | a real `.svg` file | the same model, flattened — [chapter 17](./17-format--data-px-meta.md) | the browser (or the player) |
 
 **L0 → L1.** An element is `{type, ...attributes, children}`. The first addition is not
 animation but *types*: `opacity: 0.5`, `translate: [96.8, 46.8]`, `transform: {translate,
@@ -33,7 +38,7 @@ tree. Remove every `animate` and you have a valid static SVG.
 
 **L3.** *An attribute is a value the browser consumes as-is; an effect is anything that needs
 structure* — generated defs, wrapper nodes, clones, geometry-derived rewrites. The player
-expands `effects` into L0–L2 at load. There are ten of them ([Effects reference](./15-format--effects.md)).
+expands `effects` into L0–L2 at load. There are ten of them ([Player effects](./15-format--effects.md)).
 
 **L4.** The player types `meta` as *anything* and ignores it. Everything the editor needs that
 the player does not — labels, shape presets, the parametric sources of baked effects, and the
@@ -47,8 +52,9 @@ how to fold the expansion back.
 
 ## The five principles
 
-1. **Each layer reduces to the one below.** A document using only L0–L2 is fully playable;
-   everything above is expanded into it. That is what keeps the players small.
+1. **Each layer materialises into the one below.** A document using only L0–L2 is fully
+   playable; everything above is expanded into it, downward only. That
+   is what keeps the players small.
 2. **Address is contract.** What a key *means* is fixed by *where* it sits — `effects` (the
    player will apply these) and `meta.appliedEffects` (these were already applied) are two
    tenses of one idea, told apart by position, not by a flag.
@@ -63,9 +69,6 @@ how to fold the expansion back.
 
 ## Where to go deeper
 
-- [SCHEMA-DESIGN.md](../SCHEMA-DESIGN.md) — the full spec: rules R1–R7, the value taxonomy,
-  the unit contract for pre-rendered files, naming laws, the corpus that pins the format, and
-  the history of every change
 - The schemas themselves: [`PxAnimatorTypes.ts`](../packages/svg-animator-core/src/PxAnimatorTypes.ts)
   (player) — every wire type paired with a runtime schema
 

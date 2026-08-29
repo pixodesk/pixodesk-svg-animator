@@ -8,31 +8,16 @@
   </head>
   <body>
     <h1>Flavour 1 inlined — SVG + CSS animation</h1>
-    <p class="summary">A CSS-flavour export with the <em>On load</em> start option, pasted straight into the HTML. The editor put <code>px-anim-enabled px-anim-playing</code> on the root for that option, so the browser runs the <code>@keyframes</code> immediately. No JavaScript, no library.</p>
+    <p class="summary">The editor's <em>SVG + CSS animation</em> export of a bouncing ball, start option <em>On load</em>, pasted straight into the HTML. The editor put <code>px-anim-enabled px-anim-playing</code> on the root for that option, so the browser runs the <code>@keyframes</code> immediately. No JavaScript, no library.</p>
     <div class="stage">
-    <svg 
-      xmlns="http://www.w3.org/2000/svg" 
-      viewBox="0 0 400 400" 
-      text-rendering="geometricPrecision" 
-      shape-rendering="geometricPrecision" 
-      id="_px_2p4d44pl"
-      class="px-anim-enabled px-anim-playing"
-      fill="none"   
-      data-px-meta="animator:{duration:1000;iterations:infinite;direction:normal;type:css;mode:frames;timeline:time;trigger:{startOn:load;outAction:pause}}"
-    >
-      <style>
-        @keyframes _px_2sc4ae4a {0% {transform:translate(200.1185px,41.3612px);animation-timing-function:cubic-bezier(0.3333,0,0.6667,0.3333);}
-          50% {transform:translate(200.1185px,359.3975px);animation-timing-function:cubic-bezier(0.3333,0.6667,0.6667,1);}
-          100% {transform:translate(200.1185px,41.3612px)}}
-        .px-anim-enabled ._px_2sc4ae4b { animation: 1000ms _px_2sc4ae4a infinite both; }
-        .px-anim-enabled.px-anim-playing .px-anim-element {animation-play-state: running !important;}
-        .px-anim-enabled:not(.px-anim-playing) .px-anim-element {animation-play-state: paused;}
-      </style>
-      
-      <g class="px-anim-element _px_2sc4ae4b" transform="translate(200.1185,41.3612)" data-px-meta="elementEffect:{baseId:_px_2s60ohkl;transform:{translate:{keyframes:[{t:0;v:[200.1185,41.3612];e:[0.3333,0,0.6667,0.3333]},{t:500;v:[200.1185,359.3975];e:[0.3333,0.6667,0.6667,1]},{t:1000;v:[200.1185,41.3612]}]};scale:[25.2234,25.2234]}}">
-        <ellipse id="_px_2s60ohkl" fill="#0087ff" stroke="#ffffff" rx="159.7917" ry="159.7917" transform="scale(0.2522,0.2522)"/>
-      </g>
-    </svg>
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" id="_px_1" class="px-anim-enabled px-anim-playing" data-px-meta="runtime:{useCssAnimation:true},animator:{duration:1000,mode:'auto',iterations:'infinite',direction:'alternate',trigger:{startOn:'load',outAction:'pause'}}">
+        <style>@keyframes _px_2 {0% {transform:translate(200px,60px);animation-timing-function:cubic-bezier(0.33,0,0.67,0.33);}
+      100% {transform:translate(200px,340px)}}
+      .px-anim-enabled ._px_3 { animation: 1000ms _px_2 infinite alternate both; }
+      .px-anim-enabled.px-anim-playing .px-anim-element {animation-play-state: running !important;}
+      .px-anim-enabled:not(.px-anim-playing) .px-anim-element {animation-play-state: paused;}</style>
+        <ellipse id="ball" class="px-anim-element _px_3" fill="#0087ff" transform="translate(200,60)" rx="40" ry="40" data-px-meta="animate:{transform:{keyframes:[{time:0,value:{translate:[200,60]},easing:[0.33,0,0.67,0.33]},{time:1000,value:{translate:[200,340]}}]}}"/>
+      </svg>
     </div>
   </body>
 </html>

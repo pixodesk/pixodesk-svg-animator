@@ -4,9 +4,9 @@
 
 Look up any key of the JSON document here — every key, its type and its meaning. The document
 is **SVG written as JSON, plus animation**: if you can read an SVG file you can read one of
-these, and this page is the practical reference for it. Design rationale lives in [Format principles](./13-format--format-principles.md) and the full
-[design spec](../SCHEMA-DESIGN.md); TypeScript types and runtime schemas are exported by every
-package (`PxAnimatedSvgDocument`, `PxNode`, `PxAnimatorConfig`, …).
+these, and this page is the practical reference for it. Design rationale lives in
+[Format principles](./13-format--format-principles.md); TypeScript types and runtime schemas
+are exported by every package (`PxAnimatedSvgDocument`, `PxNode`, `PxAnimatorConfig`, …).
 
 ## A complete small document
 
@@ -65,10 +65,10 @@ Three ideas cover 90 % of the format:
 | `id` | DOM id — required when something references the element (`href="#id"`, `maskedBy`, `animateById`). The player regenerates ids per instance, so they need only be unique within the file |
 | `children` | nested nodes |
 | `animate` | this node's animations — [below](#animating--the-animate-channel) |
-| `effects` | structural effects — [Effects reference](./15-format--effects.md) |
+| `effects` | structural effects — [Player effects](./15-format--effects.md) |
 | `style` | inline style: a string or an object, or the **name** of a preset in `definitions.styles` |
 | `textContent` | text content of `<text>` / `<tspan>` (the older `text` key is still read) |
-| `meta` | editor-only data (labels, shape presets, applied effects). Players ignore it; safe to strip |
+| `meta` | editor-only data (labels, shape presets, applied effects). Players ignore it; safe to strip — [Editor meta and applied effects](./16-format--editor-meta.md) |
 | any other key | an SVG attribute |
 
 **Attribute names** may be written as in SVG (`stroke-width`, `font-size`) or camelCase
@@ -309,6 +309,6 @@ const ctx = { errors: [], warnings: [], strict: true };
 PxAnimatedSvgDocumentSchema.isValid(json, ctx, []);       // full check; ctx.errors lists problems
 ```
 
-See [Core library → Validating](./16-format--core-library.md#validating-a-document).
+See [Core library → Validating](./18-format--core-library.md#validating-a-document).
 
 [← Format principles](./13-format--format-principles.md) · [Contents](./README.md) · Next: [Effects reference →](./15-format--effects.md)

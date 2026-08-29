@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" id="_px_1" class="px-anim-enabled px-anim-playing" data-px-meta="runtime:{useCssAnimation:true},animator:{duration:1000,mode:'auto',iterations:'infinite',direction:'alternate',trigger:{startOn:'load',outAction:'pause'}}">
+  <style>@keyframes _px_3 {0% {opacity:1;animation-timing-function:cubic-bezier(0.167,0.167,0.833,0.833);}
+100% {opacity:0.2}}
+.px-anim-enabled ._px_4 { animation: 1000ms _px_3 infinite alternate both; }
+.px-anim-enabled.px-anim-playing .px-anim-element {animation-play-state: running !important;}
+.px-anim-enabled:not(.px-anim-playing) .px-anim-element {animation-play-state: paused;}</style>
+  <g id="dot" transform="translate(80,200)" data-px-meta="effectsHost:{coreId:'#_px_2',appliedEffects:{transformBy:{translate:[80,200]},repeater:{copies:3,translate:[100,0]}}}">
+    <ellipse id="_px_2" class="px-anim-element _px_4" fill="#0087ff" rx="20" ry="20" data-px-meta="partOf:'#dot',animate:{opacity:{keyframes:[{time:0,value:1},{time:1000,value:0.2}]}}"/>
+    <g transform="matrix(1,0,0,1,100,0)" data-px-meta="partOf:'#dot'">
+      <ellipse class="px-anim-element _px_4" fill="#0087ff" rx="20" ry="20" data-px-meta="partOf:'#dot',animate:{opacity:{keyframes:[{time:0,value:1},{time:1000,value:0.2}]}}"/>
+    </g>
+    <g transform="matrix(1,0,0,1,200,0)" data-px-meta="partOf:'#dot'">
+      <ellipse class="px-anim-element _px_4" fill="#0087ff" rx="20" ry="20" data-px-meta="partOf:'#dot',animate:{opacity:{keyframes:[{time:0,value:1},{time:1000,value:0.2}]}}"/>
+    </g>
+  </g>
+</svg>

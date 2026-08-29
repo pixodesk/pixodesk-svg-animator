@@ -46,16 +46,17 @@ This documentation covers the **Pixodesk editor**, the **player**, and the **for
 ### Format (deep dive)
 13. [Format principles](./13-format--format-principles.md) — why the format is shaped this way: the six layers it is built from and the five rules they follow
 14. [JSON format reference](./14-format--json-format.md) — the document, `animator`, nodes, `animate`, keyframes, easing, loops, transforms, motion paths
-15. [Effects reference](./15-format--effects.md) — `transformBy`, `repeater`, `maskedBy`, `clipPath`, `strokeTrim`, `clone`, gradients, `textPath`, `text`
-16. [Core library (`@pixodesk/svg-animator-core`)](./16-format--core-library.md) — validate, transform and sample documents without a renderer
+15. [Player effects](./15-format--effects.md) — `transformBy`, `repeater`, `maskedBy`, `clipPath`, `strokeTrim`, `clone`, gradients, `textPath`, `text`
+16. [Editor meta and applied effects](./16-format--editor-meta.md) — what the editor keeps in `meta`, applied effects vs effects, how an expanded effect folds back
+17. [Meta in pre-rendered SVG](./17-format--data-px-meta.md) — the `data-px-meta` attribute: notation, what goes where, whether you can strip it
+18. [Core library (`@pixodesk/svg-animator-core`)](./18-format--core-library.md) — validate, transform and sample documents without a renderer
 
 ### Get help
-17. [Troubleshooting & FAQ](./17-help--troubleshooting.md)
-18. [Glossary](./18-help--glossary.md)
+19. [Troubleshooting & FAQ](./19-help--troubleshooting.md)
+20. [Glossary](./20-help--glossary.md)
 
 ## Go further
 
 - [Repository README](../README.md) — package overview and examples
 - [Runnable examples](../examples/docs-examples/) — one tested page per documented case (web, React, Vue, pre-rendered SVG, static sites); plus a [preview player](../examples/preview-player/) and the [React Native](../examples/react-native-preview-player/) apps
-- [Full format design spec](../SCHEMA-DESIGN.md) — for contributors and tool authors
 - [pixodesk.com](https://pixodesk.com) — the editor

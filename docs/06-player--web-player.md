@@ -204,12 +204,12 @@ import { createAnimator, type PxAnimatorAPI, type PxAnimatedSvgDocument } from '
 
 For tooling, the package also re-exports the core's document utilities (`materialiseAllInTree`,
 `applyPlayerEffects`, `calcAnimationValues`, `generateNewIds`, validation schemas, the glyph
-text materialiser, …). They are documented in [Core library](./16-format--core-library.md).
+text materialiser, …). They are documented in [Core library](./18-format--core-library.md).
 
 ## Related
 
 - [Playback settings & triggers](./10-player--playback-and-triggers.md) — every `animator` field and how to override it
 - [JSON format reference](./14-format--json-format.md)
-- [Troubleshooting](./17-help--troubleshooting.md)
+- [Troubleshooting](./19-help--troubleshooting.md)
 
 [← Installing the players (overview)](./05-player--installation.md) · [Contents](./README.md) · Next: [React →](./07-player--react.md)

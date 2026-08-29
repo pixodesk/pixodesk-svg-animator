@@ -1,6 +1,6 @@
 # Glossary
 
-[← Troubleshooting](./17-help--troubleshooting.md) · [Contents](./README.md)
+[← Troubleshooting](./19-help--troubleshooting.md) · [Contents](./README.md)
 
 Look up a term you met anywhere in these docs. Where a term has a JSON key or a TypeScript
 type, the entry names it, so you can go straight from the word to the file.
@@ -30,10 +30,10 @@ type, the entry names it, so you can go straight from the word to the file.
 | **Retime** | Shifting (`start`) or stretching (`stretch`) a symbol's internal timeline for one instance; `timeCrop` limits when the instance is visible |
 | **Mode A / Mode B** | A document *with* `children` (the player builds the SVG) / *without* (the player binds to an existing SVG by id via `animateById`) |
 | **Pre-rendered SVG** | A normal `.svg` with the animation embedded: CSS `@keyframes`, optionally a trigger script, or the whole player |
-| **`data-px-meta`** | The attribute a pre-rendered SVG uses to carry editor metadata per element, so the editor can re-open the file with its effects intact |
-| **`meta`** | Editor-only data on a node (labels, shape presets, applied effects). Players ignore it |
+| **`data-px-meta`** | The attribute a pre-rendered SVG uses to carry editor metadata per element, so the editor can re-open the file with its effects intact — [chapter 17](./17-format--data-px-meta.md) |
+| **`meta`** | Editor-only data on a node (labels, shape presets, applied effects). Players ignore it — [chapter 16](./16-format--editor-meta.md) |
 | **Core** | `@pixodesk/svg-animator-core` — schema, materialisers, interpolation, sampling; no DOM; shared by every player |
 | **UMD build** | The single-file player for a `<script>` tag, exposing the `PixodeskAnimator` global |
 | **SVGR / `vite-svg-loader`** | Build tools that import an `.svg` as a React / Vue component — the way to use a CSS-flavour SVG like an icon |
 
-[← Troubleshooting](./17-help--troubleshooting.md) · [Contents](./README.md)
+[← Troubleshooting](./19-help--troubleshooting.md) · [Contents](./README.md)

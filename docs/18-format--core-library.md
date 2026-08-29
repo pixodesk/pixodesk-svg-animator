@@ -1,6 +1,6 @@
 # Core library — `@pixodesk/svg-animator-core`
 
-[← Effects reference](./15-format--effects.md) · [Contents](./README.md) · Next: [Troubleshooting →](./17-help--troubleshooting.md)
+[← Meta in pre-rendered SVG](./17-format--data-px-meta.md) · [Contents](./README.md) · Next: [Troubleshooting →](./19-help--troubleshooting.md)
 
 Use the core when you need to validate, transform or sample a document **without rendering
 it** — in a build step, a test, a server, or a tool of your own. It is the platform-neutral
@@ -114,4 +114,4 @@ the engine runs in browsers, React Native and test environments.
 Every package is released in lockstep; a player depends on the matching core version, so
 upgrading a player upgrades the core with it.
 
-[← Effects reference](./15-format--effects.md) · [Contents](./README.md) · Next: [Troubleshooting →](./17-help--troubleshooting.md)
+[← Meta in pre-rendered SVG](./17-format--data-px-meta.md) · [Contents](./README.md) · Next: [Troubleshooting →](./19-help--troubleshooting.md)

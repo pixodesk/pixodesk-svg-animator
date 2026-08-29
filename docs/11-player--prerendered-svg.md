@@ -60,38 +60,24 @@ The full comparison — including JSON, and what each engine can animate — is 
 
 Everything is CSS: a `<style>` block of `@keyframes` and classes on the animated elements.
 
-The complete export of a bouncing ball, *On load*, exactly as the editor writes it (this is
-the file the [example](../examples/docs-examples/src/fixtures/animation-onload.svg) uses):
+The complete *SVG + CSS animation* export of a bouncing ball, start option *On load* — exactly
+as the editor writes it (this is the file the
+[example](../examples/docs-examples/src/fixtures/ball-css-onload.svg) inlines):
 
 ```svg
-<svg 
-  xmlns="http://www.w3.org/2000/svg" 
-  viewBox="0 0 400 400" 
-  text-rendering="geometricPrecision" 
-  shape-rendering="geometricPrecision" 
-  id="_px_2p4d44pl"
-  class="px-anim-enabled px-anim-playing"
-  fill="none"   
-  data-px-meta="animator:{duration:1000;iterations:infinite;direction:normal;type:css;mode:frames;timeline:time;trigger:{startOn:load;outAction:pause}}"
->
-  <style>
-    @keyframes _px_2sc4ae4a {0% {transform:translate(200.1185px,41.3612px);animation-timing-function:cubic-bezier(0.3333,0,0.6667,0.3333);}
-      50% {transform:translate(200.1185px,359.3975px);animation-timing-function:cubic-bezier(0.3333,0.6667,0.6667,1);}
-      100% {transform:translate(200.1185px,41.3612px)}}
-    .px-anim-enabled ._px_2sc4ae4b { animation: 1000ms _px_2sc4ae4a infinite both; }
-    .px-anim-enabled.px-anim-playing .px-anim-element {animation-play-state: running !important;}
-    .px-anim-enabled:not(.px-anim-playing) .px-anim-element {animation-play-state: paused;}
-  </style>
-  
-  <g class="px-anim-element _px_2sc4ae4b" transform="translate(200.1185,41.3612)" data-px-meta="elementEffect:{baseId:_px_2s60ohkl;transform:{translate:{keyframes:[{t:0;v:[200.1185,41.3612];e:[0.3333,0,0.6667,0.3333]},{t:500;v:[200.1185,359.3975];e:[0.3333,0.6667,0.6667,1]},{t:1000;v:[200.1185,41.3612]}]};scale:[25.2234,25.2234]}}">
-    <ellipse id="_px_2s60ohkl" fill="#0087ff" stroke="#ffffff" rx="159.7917" ry="159.7917" transform="scale(0.2522,0.2522)"/>
-  </g>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" id="_px_1" class="px-anim-enabled px-anim-playing" data-px-meta="runtime:{useCssAnimation:true},animator:{duration:1000,mode:'auto',iterations:'infinite',direction:'alternate',trigger:{startOn:'load',outAction:'pause'}}">
+  <style>@keyframes _px_2 {0% {transform:translate(200px,60px);animation-timing-function:cubic-bezier(0.33,0,0.67,0.33);}
+100% {transform:translate(200px,340px)}}
+.px-anim-enabled ._px_3 { animation: 1000ms _px_2 infinite alternate both; }
+.px-anim-enabled.px-anim-playing .px-anim-element {animation-play-state: running !important;}
+.px-anim-enabled:not(.px-anim-playing) .px-anim-element {animation-play-state: paused;}</style>
+  <ellipse id="ball" class="px-anim-element _px_3" fill="#0087ff" transform="translate(200,60)" rx="40" ry="40" data-px-meta="animate:{transform:{keyframes:[{time:0,value:{translate:[200,60]},easing:[0.33,0,0.67,0.33]},{time:1000,value:{translate:[200,340]}}]}}"/>
 </svg>
 ```
 
 Three things to notice: the `@keyframes` and the per-element class are the animation; the two
 classes on the root are the play state; and `data-px-meta` is editor bookkeeping that lets the
-file be re-opened with its effects intact — browsers ignore it.
+file be re-opened with its effects intact — browsers ignore it ([Meta in pre-rendered SVG](./17-format--data-px-meta.md)).
 
 Two classes on the root gate playback, so you can control it from your own CSS or JavaScript:
 
@@ -132,48 +118,31 @@ scripts. Inline it, or use an `<object>`.
 
 > **Example:** [`prerendered/inline-js`](../examples/docs-examples/src/cases/prerendered/inline-js/) — `pnpm example:docs`, then open `#prerendered/inline-js`.
 
-The web player is embedded in the file and drives the animation from a bindings payload.
-Below is what the export contains, as the [example](../examples/docs-examples/src/cases/prerendered/inline-js/)
-page has it. The one difference: the editor inlines the player library into the same
-`<script data-px-script="true">` instead of loading it from a file, so the export is
-self-contained.
+The web player drives the animation from a bindings payload carried in the file's own
+`<script>`. Below is the editor's *SVG + JS animation* export of the same ball with the
+*Embed JS player* option **off** — exactly as written (the
+[example](../examples/docs-examples/src/cases/prerendered/inline-js/) inlines it after loading
+the player library). With the option **on**, the editor inlines the player into that same
+`<script data-px-script="true">`, so the file is self-contained.
 
-```html
-<svg id="root" class="stage" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-  <rect id="box" x="10" y="10" width="80" height="80" fill="#0087ff" />
-</svg>
-
-<script src="../../../../js/pixodesk-svg-animator.umd.min.js"></script>
-<script>
-  PixodeskAnimator.createAnimator({
-    data: {
-      type: 'svg',
-      id: 'root',
-      animator: {
-        duration: 1000,
-        iterations: 'infinite',
-        direction: 'alternate',
-        trigger: { startOn: 'load' },
-        definitions: {
-          animations: {
-            slide: {
-              transform: { keyframes: [
-                { time: 0,    value: { translate: [0, 0] } },
-                { time: 1000, value: { translate: [100, 100] } },
-              ] },
-              opacity: { keyframes: [ { time: 0, value: 1 }, { time: 1000, value: 0.2 } ] },
-            },
-          },
-        },
-        animateById: { box: ['slide'] },
-      },
-    },
-  });
+```svg
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" id="_px_1" data-px-meta="runtime:{externalJs:true},animator:{duration:1000,mode:'auto',iterations:'infinite',direction:'alternate',trigger:{startOn:'load',outAction:'pause'}}">
+  <ellipse id="ball" fill="#0087ff" transform="translate(200,60)" rx="40" ry="40" data-px-meta="animate:{transform:{keyframes:[{time:0,value:{translate:[200,60]},easing:[0.33,0,0.67,0.33]},{time:1000,value:{translate:[200,340]}}]}}"/>
+<script data-px-script="true">
+//<![CDATA[
+(function() {
+var a = PixodeskAnimator.createAnimator({"data": 
+{"id":"_px_1","type":"svg","animator":{"duration":1000,"mode":"auto","iterations":"infinite","direction":"alternate","trigger":{"startOn":"load","outAction":"pause"},"definitions":{"animations":{"a0":{"transform":{"keyframes":[{"time":0,"value":{"translate":[200,60]},"easing":[0.33,0,0.67,0.33]},{"time":1000,"value":{"translate":[200,340]}}]}}}},"animateById":{"ball":["a0"]}}}
+});
+})();
+//]]>
 </script>
+</svg>
 ```
 
-`id="root"` on the `<svg>` and `id="box"` on the rectangle are what `animateById` binds to;
-the editor writes `_px_…` ids, and the payload matches them.
+The payload is the JSON format's `animator` block only — `definitions.animations` plus an
+`animateById` map from element id to animation — with no `children`, because the elements
+already exist in the file; the player binds to them by id.
 
 This flavour supports **every** animation type (the editor picks the trimmed player build
 matching the engine mode you chose — *WAAPI only* is the smallest). The editor's *Embed JS

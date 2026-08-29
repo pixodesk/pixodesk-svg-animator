@@ -69,7 +69,7 @@ than one attribute to exist — copies, masks, clipping, a gradient, text laid a
 The editor treats each effect as a first-class thing with its own animatable settings; at
 playback it is **materialised** into plain animated SVG attributes, so the browser never sees
 anything but ordinary SVG. In a pre-rendered file that happens at export; in JSON the player
-does it at load ([Effects reference](./15-format--effects.md)).
+does it at load ([Player effects](./15-format--effects.md)).
 
 | Effect | What it does |
 |---|---|
