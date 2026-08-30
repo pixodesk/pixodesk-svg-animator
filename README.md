@@ -145,10 +145,10 @@ graph TD
 
 | File type | When to use | Advantages | Disadvantages |
 |-----------|-------------|------------|---------------|
-| **JSON file** | Complex animations (shape morph, sequencing) <br> Programmatic control needed <br> Multiple instances on the page <br> React / Vue / Next.js / Nuxt apps | Full animation support including all types <br> Fine-grained runtime control: play, pause, seek, reverse, speed <br> Clean independent rendering per instance — no ID conflicts <br> SSR-safe | Requires `@pixodesk/svg-animator-react`, `-vue`, or `-web` runtime <br> More setup: data file and rendering component must be wired together |
-| **Pre-rendered SVG** with <br> **CSS Keyframes** | Drop-in animated icon in React/Vue <br> Inline HTML <br> Simple looping or entrance animations | No library payload — minimal file size <br> No `<script>` tag — embeds cleanly as inline HTML or through SVGR <br> Works as a drop-in icon replacement | Limited to what CSS `@keyframes` can express (see [Animation Type Support](#animation-type-support)) <br> Shape morphing only in Chrome/FF/Edge, same-structure paths <br> No runtime control (play, pause, seek) <br> Possible ID conflicts when the same SVG is embedded more than once |
-| **Pre-rendered SVG** with <br> **CSS Keyframes + JS triggers** | Static HTML pages with event-triggered start/stop (e.g. play on hover) | No library payload — minimal file size <br> Adds basic event-driven start/stop control | Same CSS `@keyframes` limits as above <br> No precise runtime control (seek, reverse, speed) <br> `<script>` tag prevents embedding via SVGR <br> Possible ID conflicts when the same SVG is embedded more than once |
-| **Pre-rendered SVG** with <br> **JavaScript animation** | Static or server-rendered pages <br> When content must appear before JS hydration <br> All animation types without a separate data file | Supports all animation types including shape morphing <br> Full runtime control: play, pause, seek, reverse, speed <br> Self-contained — no separate data file required | Adds `@pixodesk/svg-animator-web` library overhead <br> `<script>` tag prevents embedding via SVGR <br> Possible ID conflicts when the same SVG is embedded more than once |
+| **JSON file** | Complex animations (shape morph, sequencing) <br> Programmatic control needed <br> Multiple instances on the page <br> React / Vue / Next.js / Nuxt apps | Full animation support including all types <br> Fine-grained runtime control: play, pause, jump to any point, reverse, change speed <br> Clean independent rendering per instance — no ID conflicts <br> SSR-safe | Requires `@pixodesk/svg-animator-react`, `-vue`, or `-web` runtime <br> More setup: data file and rendering component must be wired together |
+| **Pre-rendered SVG** with <br> **CSS Keyframes** | Drop-in animated icon in React/Vue <br> Inline HTML <br> Simple looping or entrance animations | No library payload — minimal file size <br> No `<script>` tag — embeds cleanly as inline HTML or through SVGR <br> Works as a drop-in icon replacement | Limited to what CSS `@keyframes` can express (see [Animation Type Support](#animation-type-support)) <br> Shape morphing only in Chrome/FF/Edge, same-structure paths <br> No runtime control (play, pause, jump to a time) <br> Possible ID conflicts when the same SVG is embedded more than once |
+| **Pre-rendered SVG** with <br> **CSS Keyframes + JS triggers** | Static HTML pages with event-triggered start/stop (e.g. play on hover) | No library payload — minimal file size <br> Adds basic event-driven start/stop control | Same CSS `@keyframes` limits as above <br> No precise runtime control (no jumping to a time, no reverse, no speed change) <br> `<script>` tag prevents embedding via SVGR <br> Possible ID conflicts when the same SVG is embedded more than once |
+| **Pre-rendered SVG** with <br> **JavaScript animation** | Static or server-rendered pages <br> When content must appear before JS hydration <br> All animation types without a separate data file | Supports all animation types including shape morphing <br> Full runtime control: play, pause, jump to any point, reverse, change speed <br> Self-contained — no separate data file required | Adds `@pixodesk/svg-animator-web` library overhead <br> `<script>` tag prevents embedding via SVGR <br> Possible ID conflicts when the same SVG is embedded more than once |
 
 ---
 
@@ -274,7 +274,7 @@ interface SVG_JSON {
     [key: string]: any; // any SVG/CSS presentation attribute; pass-through to DOM
 
     animator?: {
-        delay?: number;                    // delay before start, ms (default 0); negative = seek into the timeline
+        delay?: number;                    // wait before start, ms (default 0); negative = skip ahead, e.g. -500 starts from the 0.5 s frame
         duration?: number;                 // length of ONE iteration, ms (default 1000); keyframe t values are absolute offsets
         iterations?: number | 'infinite'; // repeat count (default 1); composes with per-property loop (loop-within-loop)
         fill?: 'forwards' | 'backwards' | 'both' | 'none'; // WAAPI fill; default 'forwards' holds final state
@@ -286,7 +286,7 @@ interface SVG_JSON {
         trigger?: {
             startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
             outAction?: 'continue' | 'pause' | 'reset' | 'reverse'; // default 'continue'
-            scrollIntoViewThreshold?: number; // visibility fraction 0–1, default 0 (any pixel); scrollIntoView only
+            scrollIntoViewThreshold?: number; // how much must be on screen to start: 0 = any part (default), 1 = all of it; scrollIntoView only
         };
 
         // named reusable easings and animations; resolved at runtime
@@ -910,7 +910,7 @@ const animator = createAnimator({
 
 animator.play();
 animator.pause();
-animator.setCurrentTime(500); // seek to 500ms
+animator.setCurrentTime(500); // jump to 0.5 s from the start
 animator.setPlaybackRate(2);  // 2× speed
 animator.destroy();           // cleanup
 ```

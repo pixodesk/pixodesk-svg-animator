@@ -71,7 +71,7 @@ const animator = createAnimator({ data: animationDoc, container: '#container' })
 
 animator.play();
 animator.pause();
-animator.setCurrentTime(500);   // seek to 500ms
+animator.setCurrentTime(500);   // jump to 0.5 s from the start
 animator.setPlaybackRate(2);    // 2x speed (-1 plays in reverse)
 animator.finish();              // jump to end
 animator.destroy();             // cleanup
@@ -99,7 +99,7 @@ It returns a `PxAnimatorAPI`:
 | `finish()`              | Jump to the end                                                   |
 | `setPlaybackRate(rate)` | Change speed (1 = normal, 2 = double, -1 = reverse)               |
 | `getCurrentTime()`      | Current time in ms                                                |
-| `setCurrentTime(ms)`    | Seek to a specific time                                           |
+| `setCurrentTime(ms)`    | Jump to a point in the animation, in milliseconds from its start |
 | `isPlaying()`           | Whether the animation is currently playing                        |
 | `isReady()`             | Whether the document has loaded (relevant for URL-based creation) |
 | `getRootElement()`      | The rendered SVG DOM element                                      |

@@ -2,15 +2,15 @@
 
 [← Vue](./08-player--vue.md) · [Contents](./README.md) · Next: [Playback settings & triggers →](./10-player--playback-and-triggers.md)
 
-> **Experimental.** The API may change without a major version bump, and a few things are
-> unimplemented or unverified on real devices — see [Feature support](#feature-support) and
-> [Known limitations](#known-limitations).
+> **Experimental.** The API may change without a major version change, and a few things are
+> unimplemented or unverified on real devices — see [Feature support](#feature-support).
 
 Use this in a React Native or Expo app. Give `<PixodeskSvgAnimator doc={…} />` the **same
 JSON the web player uses** and it renders native SVG (`react-native-svg`), driven on the UI
 thread by `react-native-reanimated`. There is no JavaScript frame loop: once a document is
-compiled, the JS thread stays idle while it plays, so your app stays responsive. Props mirror
-the [React component](./07-player--react.md), so code moves between the two with little change.
+compiled, the JS thread stays idle while it plays, so your app stays responsive. The props are
+the same as on the [React web component](./07-player--react.md), so a component you wrote for
+a React website works in the React Native app with little change — and the other way round.
 
 ## Install
 
@@ -40,7 +40,10 @@ module.exports = function (api) {
 
 > **Monorepo users:** `react-native-svg`, `react-native-reanimated` and `react` must resolve to
 > a **single copy** each, or you get `View config getter callback for component 'RNSVGLine'
-> must be a function` at runtime. See [Monorepo setup](#monorepo-setup).
+> must be a function` at runtime. This is a general React Native issue with pnpm / yarn
+> workspaces, not something this package causes — you would hit it with any library that uses
+> `react-native-svg`. We mention it because the error message gives no hint of the cause; the
+> fix is in [Monorepo setup](#monorepo-setup).
 
 ## Quick start
 
@@ -60,7 +63,11 @@ export function Logo() {
 }
 ```
 
-The component is **sized by its container** — wrap it in a `View` with the dimensions you want.
+The component has no size of its own: it fills whatever `View` you put it in. To set its size,
+give that `View` a `width` and `height`, as in the example above.
+
+Common variations. Each line is the `<PixodeskSvgAnimator>` element inside a component like
+`Logo` above; `isPlaying`, `scrollProgress` and `setDone` stand for your own state:
 
 ```tsx
 // Play once when a screen opens, then hold the last frame
@@ -101,24 +108,53 @@ Four ways to drive playback — pick one, they are mutually exclusive.
 animation in a `Pressable`; `scrollIntoView` measures visibility against the window):
 
 ```tsx
-<PixodeskSvgAnimator doc={doc} autoplay />
+import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-rn';
+import doc from './animation.json';
+
+export function Intro() {
+  return <PixodeskSvgAnimator doc={doc} autoplay />;
+}
 ```
 
 **Declarative play / pause:**
 
 ```tsx
-<PixodeskSvgAnimator doc={doc} play={play} pause={pause} />
+import { useState } from 'react';
+import { Button, View } from 'react-native';
+import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-rn';
+import doc from './animation.json';
+
+export function Controlled() {
+  const [play, setPlay] = useState(false);
+  const [pause, setPause] = useState(false);
+  return (
+    <View>
+      <PixodeskSvgAnimator doc={doc} play={play} pause={pause} />
+      <Button title="Play" onPress={() => { setPlay(true); setPause(false); }} />
+      <Button title="Pause" onPress={() => setPause(true)} />
+    </View>
+  );
+}
 ```
 
 **Imperative API:**
 
 ```tsx
 import { useRef } from 'react';
-import type { RnAnimatorApi } from '@pixodesk/svg-animator-rn';
+import { Button, View } from 'react-native';
+import { PixodeskSvgAnimator, type RnAnimatorApi } from '@pixodesk/svg-animator-rn';
+import doc from './animation.json';
 
-const api = useRef<RnAnimatorApi>(null);
-<PixodeskSvgAnimator doc={doc} apiRef={api} />
-<Button title="Play" onPress={() => api.current?.play()} />
+export function Imperative() {
+  const api = useRef<RnAnimatorApi>(null);
+  return (
+    <View>
+      <PixodeskSvgAnimator doc={doc} apiRef={api} />
+      <Button title="Play" onPress={() => api.current?.play()} />
+      <Button title="Pause" onPress={() => api.current?.pause()} />
+    </View>
+  );
+}
 ```
 
 `RnAnimatorApi`: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`,
@@ -128,30 +164,47 @@ while playing continues from there.
 **Controlled time:**
 
 ```tsx
-<PixodeskSvgAnimator doc={doc} timeMs={timeMs} />
-<Slider minimumValue={0} maximumValue={2000} value={timeMs} onValueChange={setTimeMs} />
+import { useState } from 'react';
+import { View } from 'react-native';
+import Slider from '@react-native-community/slider';   // any slider works — this one is `npm install @react-native-community/slider`
+import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-rn';
+import doc from './animation.json';
+
+export function Scrubber() {
+  const [timeMs, setTimeMs] = useState(0);
+  return (
+    <View>
+      <PixodeskSvgAnimator doc={doc} timeMs={timeMs} />
+      <Slider minimumValue={0} maximumValue={2000} value={timeMs} onValueChange={setTimeMs} />
+    </View>
+  );
+}
 ```
 
 ## Props
 
+Only `doc` is required. The file already carries the timing and the trigger you set in the
+editor; every other prop is optional and, when passed, replaces the file's value for this one
+component.
+
 | Prop | Type | Description |
 |---|---|---|
-| `doc` | `PxAnimatedSvgDocument` | **required** |
-| `autoplay` | `boolean` | use the document's trigger |
-| `play` | `boolean` | play unconditionally |
-| `pause` | `boolean` | pause |
+| `doc` | `PxAnimatedSvgDocument` | **required** — the animation, as saved by the editor |
+| `autoplay` | `boolean` | start the way the file says — the *Start* trigger you chose in the editor: at once, on tap, or when scrolled into view |
+| `play` | `boolean` | play now, whatever the file's trigger says |
+| `pause` | `boolean` | pause the current playback; set it back to `false` to resume |
 | `apiRef` | `RefObject<RnAnimatorApi>` | imperative control |
-| `time` | `number` | show the frame at a fraction 0–1 of the whole timeline |
+| `time` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `timeMs` | `number` | show the frame at that time, in milliseconds from the start |
-| `duration` · `delay` | `number` | ms overrides |
+| `duration` · `delay` | `number` | length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component |
 | `iterations` | `number \| 'infinite'` | how many times to play; `'infinite'` never stops |
 | `fill` | `'forwards' \| 'backwards' \| 'both' \| 'none'` | what shows before the start / after the end |
 | `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | play forward, backward, or turn around on every iteration (starting forward or backward) |
 | `resetOnFinish` | `boolean` | snap back to the start after a natural finish |
-| `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | what a second tap does with the `click` trigger (default: the document's, else `pause`) |
+| `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | what happens when the trigger ends — a second tap with the `click` trigger, or scrolling out of view with `scrollIntoView`: keep playing, pause, go back to the start, or play backwards. If you don't pass it, the value saved in the file is used (set in the editor as *When the trigger ends*); if the file has none either, `pause` |
 | `onPlay` · `onPause` · `onFinish` · `onCancel` · `onStop` | `() => void` | lifecycle; `onStop` fires with any halt |
 | `onError` | `(error, componentStack?) => void` | the document could not be compiled or rendered |
-| `fallback` | `(error) => ReactElement \| null` | rendered in place of a failed animation (default: nothing) |
+| `fallback` | `(error) => ReactElement \| null` | rendered in place of a failed animation (default: renders nothing) |
 
 With none of `autoplay` / `play` / `pause` / `time` / `timeMs` set, the first frame renders
 statically.
@@ -160,25 +213,33 @@ statically.
 
 | Prop | Why it differs |
 |---|---|
-| `mode` | not accepted — there is no Web Animations API on RN; playback is always native-driven |
-| `frameRate` | not accepted — reanimated runs at the display refresh rate; the analogous knob is sampling density (`compileTracks({ sampleRate })`) |
+| `mode` | not accepted — there is no Web Animations API on React Native; playback is always native-driven |
+| `frameRate` | not accepted — the screen's own refresh rate is used. On React Native the player does not compute values frame by frame; when the document loads it works out the animated values in advance, as a list of snapshots — 60 per second of animation — and while playing, each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, and that can only be changed when you call the lower-level `compileTracks({ sampleRate })` yourself instead of using the component |
 | `startOn` | not accepted — the document's trigger is honoured via `autoplay` (`load`, `click`, `scrollIntoView`, `programmatic`); `mouseOver` has no touch equivalent |
-| `className` / `style` | not accepted — size with the container `View` (`node.style` *inside* the document is supported) |
-| `onRemove` | not emitted — use React's own unmount cleanup |
+| `className` / `style` | not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height` (see [Quick start](#quick-start)). Styling *inside* the document — `style` on an element in the JSON — is supported |
+| `onRemove` | never called. On the web it tells you the animator was thrown away; here there is nothing to tell — when the component leaves the screen, React removes it and everything it created. If you need to run code at that moment, use a `useEffect` cleanup function in your own component |
 
 ### Failure handling
 
-The component never throws for a bad document: compilation and rendering run in `try/catch`
+The component never throws errors for a bad document: compilation and rendering run in `try/catch`
 and behind an error boundary, so a failure reaches `onError` and shows `fallback` while the
 rest of the screen keeps working.
 
 ```tsx
-<PixodeskSvgAnimator
-  doc={doc}
-  autoplay
-  onError={e => console.warn('animation failed:', e.message)}
-  fallback={() => <Text>could not play this animation</Text>}
-/>
+import { Text } from 'react-native';
+import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-rn';
+import doc from './animation.json';
+
+export function Safe() {
+  return (
+    <PixodeskSvgAnimator
+      doc={doc}
+      autoplay
+      onError={e => console.warn('animation failed:', e.message)}
+      fallback={() => <Text>could not play this animation</Text>}
+    />
+  );
+}
 ```
 
 A crash inside `react-native-svg`'s **native** renderer never reaches JavaScript and cannot be
@@ -186,72 +247,113 @@ caught — see the limitations below.
 
 ## How playback works
 
-1. **Once per document:** the shared core flattens it (`materialiseAllInTree` → effects,
-   loops, motion-path sampling, animated `<use>` inlining), then every animated property is
-   densely sampled into a track with the same `calcAnimationValues` the web frame loop uses —
-   so values match the web player exactly.
-2. **Per frame:** one reanimated progress value (`withTiming` / `withRepeat` on the UI thread)
-   and a tiny worklet per animated element that indexes its precompiled track.
+The work is split into two stages: a heavier one done once, when the document loads, and a
+very light one repeated on every screen refresh while it plays.
 
-Where `react-native-svg` cannot express something directly (motion along a path, text on a
-path), the core converts it into plain values ahead of time instead of fighting the platform.
+1. **Once, when the document loads.** The shared core (the same code the web player uses)
+   first turns everything special in the document into plain SVG elements and attributes —
+   effects, property loops, motion along a path, animated `<use>` copies. Then, for every
+   animated property, it works out the value at each moment of the animation in advance and
+   stores them as a list of snapshots, 60 per second of animation. It uses the same value
+   calculation as the web player's frame loop, so the animation looks exactly the same as on
+   the web.
+2. **On every screen refresh while playing.** A single number — how far along the animation
+   is — is advanced by `react-native-reanimated` directly on the UI thread, the part of the app
+   that draws the screen. Each animated element runs a tiny piece of code there that picks the
+   snapshot for the current moment and applies it. No JavaScript in your app runs per frame,
+   which is why playback stays smooth even while your app is busy.
+
+Anything `react-native-svg` cannot draw directly — motion along a path, text on a path — is
+converted into plain positions and values in stage 1, so stage 2 never has to deal with it.
 
 ## Feature support
 
-Every row was verified by running a document through the real pipeline and checking that the
-element maps to a `react-native-svg` component and that its animated properties change over
-time.
+Every ✅ row was verified by running a document through the real pipeline and checking that
+the element maps to a `react-native-svg` component and that its animated properties change
+over time. The code is unit-tested and was run end-to-end through `react-native-web`; ⚠️
+marks what works there but has not yet been checked on a real iOS / Android device; ❌ is
+not supported.
 
-**Elements** — `svg`, `g`, `defs`, `rect`, `circle`, `ellipse`, `line`, `path`, `polygon`,
-`polyline`, `text`, `tspan`, `textPath`, `image` (`data:` URIs; remote URLs are blocked by the
-sanitiser), `use`/`symbol` (animated targets are inlined into real clones), gradients and
-`stop`, `pattern`, `marker` (static verified; complex cases unverified on device), `mask`,
-`clipPath`, `filter` + all 22 `fe*` primitives (needs the New Architecture; visual parity
-unverified on device). Blocked: `foreignObject`, `script`.
+### Elements
 
-**Animatable attributes** — opacity and the fill/stroke opacities; `fill`, `stroke`,
-`stop-color` (RGBA interpolation); `stroke-width`, `stroke-dasharray`, `stroke-dashoffset`;
-`x`, `y`, `width`, `height`, `cx`, `cy`, `r`, `rx`, `ry`; `d` (path morphing — keyframes must
-share command structure); `transform` (unified parts record) and the legacy per-key
-`translate` / `rotate` / `scale`; gradient stop `offset` / `stop-color`; filter primitive attrs
-(compiles; on-device rendering unverified); `font-size`; any other numeric attribute.
+| Element | Supported | Notes |
+|---|---|---|
+| `svg`, `g`, `defs` | ✅ | |
+| `rect`, `circle`, `ellipse`, `line`, `path`, `polygon`, `polyline` | ✅ | |
+| `text`, `tspan`, `textPath` | ✅ | |
+| `image` | ✅ | `data:` URIs only — remote URLs are removed by the sanitiser |
+| `use`, `symbol` | ✅ | an animated target is copied into a real clone before rendering |
+| `linearGradient`, `radialGradient`, `stop` | ✅ | |
+| `mask`, `clipPath` | ✅ | |
+| `pattern`, `marker` | ⚠️ | static use verified; complex cases not yet checked on a device |
+| `filter` and all 22 `fe*` primitives | ⚠️ | compiles and renders; visual result not yet checked on a device |
+| `foreignObject`, `script` | ❌ | removed |
 
-**Effects** — all of them: `transformBy`, `repeater`, `maskedBy`, `clipPath`, `strokeTrim`
-(incl. `offset` and `subPaths: 'combined'`), `clone` + `retime` (incl. `timeCrop`),
-`fillGradient` / `strokeGradient` (animated stops **and** geometry; `gradientTransform` static),
-`textPath` (incl. animated `startOffset`), `text.useGlyphs`.
+### Animatable attributes
 
-**Motion, timing, references** — motion along a path + `autoOrient` (sampled by the core);
-text along a path two ways (native `textPath`, or per-letter motion paths for smooth results —
-the example app uses the latter, since animating native `startOffset` is janky in
-`react-native-svg`); per-property `loop` incl. ping-pong; cubic-bezier and named easings;
-`definitions.animations` / `easings` / `styles` / `glyphs`; `node.style`.
+| Attribute | Supported | Notes |
+|---|---|---|
+| `opacity`, `fill-opacity`, `stroke-opacity` | ✅ | |
+| `fill`, `stroke`, `stop-color` | ✅ | colours blend through RGBA |
+| `stroke-width`, `stroke-dashoffset` | ✅ | |
+| `stroke-dasharray` | ⚠️ | animates; the native value bridge not yet checked on a device |
+| `x`, `y`, `width`, `height`, `cx`, `cy`, `r`, `rx`, `ry` | ✅ | |
+| `d` (path morphing) | ✅ | keyframes must share the same command structure |
+| `transform` (parts record) and per-key `translate` / `rotate` / `scale` | ✅ | |
+| gradient stop `offset`, `stop-color` | ✅ | |
+| `font-size` and any other numeric attribute | ✅ | |
+| filter primitive attributes | ⚠️ | compiles; on-device rendering not yet checked |
 
-**Playback and triggers** — `duration`, `delay`, `iterations` (incl. infinite), all four
-`direction` values, all `fill` values, `resetOnFinish`, play/pause/cancel/finish, jumping to any
-time (also while playing), playback rate (faster, slower, reverse), triggers `load` / `programmatic`
-/ `click` / `scrollIntoView` (incl. `scrollIntoViewThreshold` and `outAction`). Not supported:
-`mouseOver` (no touch equivalent), `frameRate`, `mode`, scroll-driven playback
-(`timelineSource: 'scroll'`).
+### Effects
 
-## Known limitations
+| Effect | Supported | Notes |
+|---|---|---|
+| `transformBy` | ✅ | |
+| `repeater` | ✅ | |
+| `maskedBy` | ✅ | |
+| `clipPath` | ✅ | |
+| `strokeTrim` | ✅ | incl. `offset` and `subPaths: 'combined'` |
+| `clone` + `retime` | ✅ | incl. `timeCrop` |
+| `fillGradient` / `strokeGradient` | ✅ | animated stops **and** geometry |
+| Animated `gradientTransform` | ❌ | not implemented in the shared core, so unavailable on every player; a static `gradientTransform` works |
+| `textPath` | ✅ | incl. animated `startOffset` |
+| `text.useGlyphs` | ✅ | |
 
-- **On-device verification is incomplete.** The pipeline, prop mapping and driving logic are
-  unit-tested and were exercised end-to-end through `react-native-web`; the native reanimated ↔
-  `react-native-svg` prop bridge (notably filters and `strokeDasharray`) still needs checking on
-  real iOS/Android.
-- **Animated `gradientTransform`** is unimplemented core-wide, so it is unavailable here too.
-- **`mouseOver`** has no touch analogue and will not be implemented.
-- **Text on a closed path is worked around, not fixed.** `react-native-svg`'s native
-  text-on-path layout crashes (an `NSRangeException` on iOS) when a `<textPath>` has a non-zero
-  `startOffset` on a *closed* path. On native the player gives such a `<textPath>` its own open
-  copy of the path (`openClosedTextPathTargets`); text that would have wrapped past the end of
-  the loop is clipped instead. Web is unaffected.
+### Motion, timing, references
+
+| Feature | Supported | Notes |
+|---|---|---|
+| Motion along a path, `autoOrient` | ✅ | positions worked out in advance by the core |
+| Text along a path | ✅ | two ways: native `textPath`, or one motion path per letter. The example app uses the latter — animating native `startOffset` stutters in `react-native-svg` |
+| Text on a *closed* path with a non-zero `startOffset` | ⚠️ | worked around, not fixed: `react-native-svg`'s own text-on-path layout crashes on this (iOS), so the player gives such text its own *open* copy of the path; text that would wrap past the end of the loop is cut off instead. The web player is unaffected |
+| Per-property `loop`, incl. ping-pong | ✅ | |
+| Cubic-bezier and named easings | ✅ | |
+| `definitions.animations` / `easings` / `styles` / `glyphs` | ✅ | |
+| `node.style` | ✅ | |
+
+### Playback and triggers
+
+| Feature | Supported | Notes |
+|---|---|---|
+| `duration`, `delay`, `iterations` (incl. infinite) | ✅ | |
+| All four `direction` values, all `fill` values, `resetOnFinish` | ✅ | |
+| play / pause / cancel / finish | ✅ | |
+| Jumping to any time, also while playing | ✅ | |
+| Playback rate: faster, slower, reverse | ✅ | |
+| Triggers `load`, `programmatic`, `click`, `scrollIntoView` | ✅ | incl. `scrollIntoViewThreshold` and `outAction` |
+| Trigger `mouseOver` | ❌ | no touch equivalent; will not be added |
+| `frameRate`, `mode` | ❌ | see [Differences from the React package](#differences-from-the-react-package) |
+| Scroll-driven playback (`timelineSource: 'scroll'`) | ❌ | |
 
 ## Monorepo setup
 
-pnpm and yarn workspaces can install **two physical copies** of a native package when peer
-versions differ even slightly. Two things prevent it:
+This section is about a general React Native problem, not one this package causes; it is
+here in case you hit it. A plain Expo or React Native app with a single `node_modules` never
+does. pnpm and yarn workspaces, however, can install **two physical copies** of a native
+package when peer versions differ even slightly — and then the copy of `react-native-svg` the
+player imports is not the one whose native views were registered, which fails at runtime with
+`View config getter callback for component 'RNSVGLine' must be a function`. Two things
+prevent it:
 
 1. Keep `@types/react`, `react` and `react-native` versions aligned across every workspace
    package.
@@ -282,7 +384,7 @@ For custom rendering or diagnostics:
 | Export | Purpose |
 |---|---|
 | `renderRnNode(node, opts)` | render a document tree to `react-native-svg` elements, with a `decorate` hook for wrapping animated elements |
-| `compileTracks(doc, { sampleRate, maxSamples, native })` | build the sampled tracks yourself; `sampleRate` trades memory for temporal precision (default 60/s); `native: true` yields the value form native views want (a `transform` becomes a 6-number matrix) |
+| `compileTracks(doc, { sampleRate, maxSamples, native })` | build the sampled tracks yourself; `sampleRate` is how many snapshots per second of animation are prepared — more make fast movement smoother but take more memory (default 60/s); `native: true` yields the value form native views want (a `transform` becomes a 6-number matrix) |
 | `sampleProps(tracks, tMs, stepMs, sampleCount, native)` | the worklet-safe track lookup |
 | `openClosedTextPathTargets(doc, warnings?)` | the closed-path `<textPath>` workaround |
 | `PxRnErrorBoundary` | the boundary the component wraps itself in |
@@ -294,9 +396,9 @@ Two Expo apps in the repository show the player running on a device. Each is one
 the repository root:
 
 ```bash
-pnpm example:rn            # preview player with six animations and transport controls
+pnpm example:rn            # preview player with several animations and controls
 pnpm example:rn:web        # quickest look — runs via react-native-web
-pnpm example:rn:explorer   # every feature fixture from the test corpus
+pnpm example:rn:explorer   # feature explorer
 ```
 
 See [`examples/react-native-preview-player`](../examples/react-native-preview-player).

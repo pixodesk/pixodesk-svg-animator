@@ -75,8 +75,8 @@ inline with a changing value. Build the document once (module level or `useMemo`
 **Console: `setAttribute: No elements found for selector "#…"` on unmount.** Cosmetic — a
 late frame after teardown. Safe to ignore.
 
-**`onCancel` / `onRemove` / `onStop` fire when I swap `doc`.** Expected: the old animator is
-torn down and reports it.
+**`onCancel` / `onRemove` / `onStop` fire when I pass a different `doc`.** Expected: a new
+document means a new animator; the old one is thrown away and reports it on its way out.
 
 **Next.js: "useRef is not a function" / hooks error.** The component must be used from a client
 component — add `'use client'` at the top of the file that renders it.
@@ -98,7 +98,7 @@ there and replaced by `fallback` (nothing by default).
 
 **The app crashes on text along a closed path.** A native `react-native-svg` bug the player
 works around on device; if you hit it, keep `startOffset` at 0 on closed paths or use an open
-path. Details in [React Native → Known limitations](./09-player--react-native.md#known-limitations).
+path. Details in [React Native → Feature support](./09-player--react-native.md#motion-timing-references).
 
 **Hover does nothing.** `mouseOver` has no touch equivalent; use `click` or drive `play`
 yourself.

@@ -66,7 +66,7 @@ const api = useRef<ReactAnimatorApi>(null);
 
 ### Controlled time
 
-Scrub through the animation with a slider or set a fixed frame:
+Move through the animation with a slider, or show one fixed frame:
 
 ```tsx
 const [timeMs, setTimeMs] = useState(0);
@@ -91,8 +91,8 @@ const [timeMs, setTimeMs] = useState(0);
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
 | `apiRef` | `RefObject<ReactAnimatorApi>` | Ref for imperative control |
-| `time` | `number` | Seek to a fraction (0–1) of the whole timeline (duration × iterations) |
-| `timeMs` | `number` | Seek to a time in milliseconds |
+| `time` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
+| `timeMs` | `number` | show the frame at that time, in milliseconds from the start |
 | `mode` | `'auto' \| 'waapi' \| 'frames'` | Animation engine |
 | `duration` | `number` | Duration override (ms) |
 | `delay` | `number` | Delay before start (ms) |
@@ -113,4 +113,4 @@ const [timeMs, setTimeMs] = useState(0);
 
 With none of `autoplay` / `play` / `pause` / `apiRef` / `time` / `timeMs` set, the component renders the animation statically (initial state, no playback).
 
-Note: recreating the animator (unmount or a `doc` swap) emits `onCancel`, `onRemove`, and `onStop` for the torn-down instance. Scrubbing `time` / `timeMs` does **not** recreate the animator — it seeks the existing one.
+Note: passing a different `doc` (or unmounting) throws the old animator away and builds a new one; the old instance emits `onCancel`, `onRemove`, and `onStop` on its way out. Changing `time` / `timeMs` does **not** recreate the animator — it just jumps the existing one to the new time.

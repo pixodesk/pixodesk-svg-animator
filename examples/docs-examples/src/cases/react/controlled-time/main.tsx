@@ -9,7 +9,7 @@ function App() {
     <>
       <div className="controls">
         <label>
-          timeMs <input id="seek" type="range" min={0} max={2000} value={timeMs}
+          timeMs <input id="time-slider" type="range" min={0} max={2000} value={timeMs}
                         onChange={e => setTimeMs(Number(e.target.value))} />
           <span id="ms">{timeMs}</span> ms
         </label>

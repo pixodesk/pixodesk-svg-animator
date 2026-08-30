@@ -282,7 +282,9 @@ exists in the DOM, matching elements by id. This is what the editor's *SVG + JS 
 export embeds.
 
 ```js
-createAnimator({ data: {
+import { createAnimator } from '@pixodesk/svg-animator-web';
+
+createAnimator({ container: '#box', data: {   // an empty <div id="box"> on the page
   type: 'svg', id: '_px_root',
   animator: {
     duration: 2000,
@@ -307,7 +309,7 @@ Units are never written. Each property has one fixed implicit unit:
 | time (`time`, `duration`, `delay`, `retime.start`) | milliseconds |
 | lengths, coordinates, `fontSize` in px | user units (unitless) |
 | `rotate`, `skew`, angles | degrees |
-| `opacity`, trim `range` / `offset`, stop `offset`, `scrollIntoViewThreshold` | fraction 0–1 |
+| `opacity`, trim `range` / `offset`, stop `offset`, `scrollIntoViewThreshold` | a share of the whole, from `0` (none) to `1` (all) |
 | every `scale` | factor (`1` = 100 %) |
 | `retime.stretch` | factor (`0.5` = half speed) |
 | `frameRate` | frames per second |
@@ -320,6 +322,8 @@ a Pixodesk file at all*; the second lists every problem it finds:
 
 ```ts
 import { isPxElementFileFormat, PxAnimatedSvgDocumentSchema } from '@pixodesk/svg-animator-web';
+
+const json = await (await fetch('/animation.json')).json();
 
 isPxElementFileFormat(json);                              // cheap: is this a Pixodesk document at all?
 const ctx = { errors: [], warnings: [], strict: true };

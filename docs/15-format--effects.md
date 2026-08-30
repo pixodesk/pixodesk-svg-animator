@@ -129,9 +129,9 @@ untouched (unlike Lottie's *trim paths*, which cut the shape itself).
 
 | Key | Type | Meaning |
 |---|---|---|
-| `range` | `[start, end]` ✚ | visible fraction of the length, 0–1 |
-| `offset` | number ✚ | shifts the window along the path, fraction 0–1 |
-| `subPaths` | `separate` (default) · `combined` | what the fractions are measured over: each sub-path against its own length, or all sub-paths chained into one so the window slides across them (After Effects "Trim All As One") |
+| `range` | `[start, end]` ✚ | which part of the stroke is visible, as two positions along the path: `0` is the start of the path, `1` its end — `[0, 0.5]` shows the first half |
+| `offset` | number ✚ | slides that visible part along the path, as a share of its length: `0.25` moves it a quarter of the way |
+| `subPaths` | `separate` (default) · `combined` | what those positions are measured against: each sub-path against its own length, or all sub-paths chained into one so the window slides across them (After Effects "Trim All As One") |
 
 ```json
 { "type": "path", "d": "M 30 360 C 130 290 230 420 330 350", "stroke": "#ef4444", "strokeWidth": 3, "fill": "none",
@@ -177,7 +177,7 @@ Generates a `<linearGradient>` / `<radialGradient>` and points the element's `fi
 | `p1` · `p2` | `[x, y]` ✚ | linear start / end |
 | `c` · `r` · `fp` | `[x, y]` ✚ · number ✚ · `[x, y]` ✚ | radial centre, radius, focal point |
 | `stops` | array of `{ offset, color }` ✚ | **one** timeline: an animated `stops` has, per keyframe, the full stop list as its value (same count each time) |
-| `gradientUnits` | `objectBoundingBox` · `userSpaceOnUse` | which coordinates `p1`, `p2`, `c`, `r`, `fp` are in: fractions 0–1 of the element's own box, or the document's user units |
+| `gradientUnits` | `objectBoundingBox` · `userSpaceOnUse` | which coordinates `p1`, `p2`, `c`, `r`, `fp` are in: positions across the element's own box (`0` = its left / top edge, `1` = its right / bottom edge), or the document's user units |
 | `spreadMethod` | `pad` · `reflect` · `repeat` | what to paint beyond the last stop: extend the end colour, mirror the gradient back, or start it over |
 | `gradientTransform` | string | static only |
 

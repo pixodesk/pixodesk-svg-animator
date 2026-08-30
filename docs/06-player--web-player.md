@@ -125,18 +125,24 @@ To change any of those settings for one page, edit the document object before yo
 | `finish()` | jump to the end and hold the final state |
 | `setPlaybackRate(rate)` | speed: `1` normal, `2` double, `0.5` half, **negative value plays in reverse** |
 | `getCurrentTime()` | current time in ms (`null` before a `src` document has loaded) |
-| `setCurrentTime(ms)` | jump to a point in the animation, given in milliseconds from its start. While paused, the animation shows that frame and stays there — that is how a slider scrubs through it; while playing, it continues from the new point |
+| `setCurrentTime(ms)` | jump to a point in the animation, given in milliseconds from its start. While paused, the animation shows that frame and stays there — that is how a slider steps through it frame by frame; while playing, it continues from the new point |
 | `isPlaying()` | `true` while running |
 | `isReady()` | `true` once a `src` document has loaded and rendered |
 | `getRootElement()` | the rendered `<svg>` element (`null` before ready) |
 | `destroy()` | stop, remove the SVG from the container, release everything |
 
 ```html
-<input id="scrub" type="range" min="0" max="1000" value="0">
+<div id="hero" style="width: 300px; height: 300px"></div>
+<input id="time-slider" type="range" min="0" max="1000" value="0">
 ```
 
 ```js
-const slider = document.querySelector('#scrub');
+import { createAnimator } from '@pixodesk/svg-animator-web';
+import doc from './bouncing-ball.json';
+
+const animator = createAnimator({ data: doc, container: '#hero' });
+
+const slider = document.querySelector('#time-slider');
 slider.addEventListener('input', () => {
   animator.pause();
   animator.setCurrentTime(Number(slider.value));   // from 0 to the duration, in ms

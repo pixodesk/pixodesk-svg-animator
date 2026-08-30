@@ -46,7 +46,7 @@ always native-driven.
 | Editor label | Writes | Begins when |
 |---|---|---|
 | On load | `load` | the animation is displayed (default) |
-| When visible | `scrollIntoView` | it scrolls into view; the **threshold** writes `scrollIntoViewThreshold` (0–1) |
+| When visible | `scrollIntoView` | it scrolls into view; the **threshold** writes `scrollIntoViewThreshold` — how much of it must be on screen first, from `0` (any part) to `1` (all of it) |
 | On mouse over | `mouseOver` | the pointer enters it |
 | On click | `click` | it is clicked |
 | Manually from JS | `programmatic` | never on its own — code calls `play()` |

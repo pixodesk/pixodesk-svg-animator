@@ -8,7 +8,7 @@ createApp({
     return () => [
       h('div', { class: 'controls' }, [
         h('label', ['timeMs ',
-          h('input', { id: 'seek', type: 'range', min: 0, max: 2000, value: timeMs.value,
+          h('input', { id: 'time-slider', type: 'range', min: 0, max: 2000, value: timeMs.value,
                        onInput: (e: Event) => { timeMs.value = Number((e.target as HTMLInputElement).value); } }),
           ' ', h('span', { id: 'ms' }, String(timeMs.value)), ' ms']),
       ]),

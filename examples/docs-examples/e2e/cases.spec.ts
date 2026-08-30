@@ -72,7 +72,7 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
     await expectAnimating(page);
     await page.click('#pause');
     await expectFrozen(page);
-    await slide(page, '#seek', 700);
+    await slide(page, '#time-slider', 700);
     const t = await page.evaluate(() => (window as any).animator.getCurrentTime());
     expect(t).toBeCloseTo(700, -1);
     await page.click('#play');
@@ -128,7 +128,7 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
   'react/controlled-time': async page => {
     await expectFrozen(page);
     const at0 = await snapshot(page, 'svg');
-    await slide(page, '#seek', 800);
+    await slide(page, '#time-slider', 800);
     await expect(page.locator('#ms')).toHaveText('800');
     await expectFrozen(page);                       // controlled: still nothing plays
     expect(await snapshot(page, 'svg')).not.toBe(at0);

@@ -84,7 +84,7 @@ The editor writes it from its **Start** setting; every player honours it:
 | `startOn` | Starts when… | Editor label |
 |---|---|---|
 | `load` (default) | the animation is displayed | On load |
-| `scrollIntoView` | the element becomes visible; `scrollIntoViewThreshold` (0–1, default 0 = any pixel) is the fraction that must be visible | When visible |
+| `scrollIntoView` | the element becomes visible; `scrollIntoViewThreshold` says how much of it must be on screen first: `0` (default) any part, `0.5` half of it, `1` all of it | When visible |
 | `mouseOver` | the pointer enters the element | On mouse over |
 | `click` | the element is clicked (a second click applies `outAction`) | On click |
 | `programmatic` | never by itself — you call `play()` | Manually from JS |
@@ -99,7 +99,7 @@ second click):
 | `reset` | jump back to the start |
 | `reverse` | play backwards to the start |
 
-Triggers are implemented by every player (the RN player has no `mouseOver`) and by the
+Triggers are implemented by every player (the React Native player has no `mouseOver`) and by the
 *SVG + CSS + JS triggers* export flavour, whose few inline lines (added by the editor app), need no library. A pure-CSS
 export handles `load` and, through `:hover`, `mouseOver`; `click` and `scrollIntoView` fall
 back to `load` there — see [Pre-rendered SVG](./11-player--prerendered-svg.md#flavour-1--svg--css-animation).
@@ -134,7 +134,9 @@ only `autoplay` mode uses the document's trigger.
 ## Scroll-driven playback
 
 Instead of playing on a clock, the animation can **follow the scroll position** — the playhead
-moves as the user scrolls ("scrubbing"), the model of CSS scroll-driven animations. Choose
+moves as the user scrolls: scroll down and the animation goes forward, scroll back up and it
+goes backward, stop and it stays on that frame. This is the model of CSS scroll-driven
+animations. Choose
 *Timeline → scroll* in the editor's playback panel, or set it in the document:
 
 ```json
@@ -145,8 +147,9 @@ moves as the user scrolls ("scrubbing"), the model of CSS scroll-driven animatio
 }
 ```
 
-`timelineSource: "scroll"` alone means *"scrub the whole animation as the SVG crosses the
-viewport"*. With it, `trigger` and `iterations: "infinite"` are ignored. The optional `scroll`
+`timelineSource: "scroll"` alone means *"show the whole animation, first frame to last, as the
+SVG travels across the viewport — the scroll position, not the clock, decides which frame is on
+screen"*. With it, `trigger` and `iterations: "infinite"` are ignored. The optional `scroll`
 block tunes it:
 
 | `scroll.` | Values | Meaning |
@@ -155,9 +158,9 @@ block tunes it:
 | `axis` | `block` (default) · `inline` · `x` · `y` | which axis; `block` = vertical in normal writing mode |
 | `source` | `nearest` (default) · `root` | for `kind: scroll` — the nearest scrollable ancestor, or the document |
 | `subject` | `parent` · `scroller` · a CSS selector | for `kind: view` — **whose** journey is measured (default: the `<svg>` itself). `parent` is what makes a *pinned* section work |
-| `range.start` / `range.end` | `{ phase, fraction }` | the slice of the journey mapped to 0–100 %; `phase` ∈ `cover` (default) · `contain` · `entry` · `exit` · `entry-crossing` · `exit-crossing`, `fraction` 0–1 |
+| `range.start` / `range.end` | `{ phase, fraction }` | the slice of the journey mapped to 0–100 %; `phase` ∈ `cover` (default) · `contain` · `entry` · `exit` · `entry-crossing` · `exit-crossing`; `fraction` is a position within that phase, `0` = its start, `1` = its end |
 | `smoothing` | ms | catch-up lag — the playhead eases toward the scroll position instead of snapping (smoother under momentum scrolling) |
-| `pin` · `pinAlign` · `pinTop` · `pinDistance` | boolean · `top`/`center`/`bottom` · px · viewport heights | hold the canvas still on screen while scrolling scrubs it (`position: sticky`); `pinDistance` creates the scroll travel |
+| `pin` · `pinAlign` · `pinTop` · `pinDistance` | boolean · `top`/`center`/`bottom` · px · viewport heights | hold the canvas still on screen while scrolling moves the animation forward and back (`position: sticky`); `pinDistance` creates the scroll travel |
 | `driver` | `custom` (default) · `native` | who computes progress: the player's own measurement (identical everywhere) or the browser's `ScrollTimeline` (falls back automatically when unsupported) |
 
 Support: the **web player** (both engines, and therefore React and Vue), and the *SVG + JS

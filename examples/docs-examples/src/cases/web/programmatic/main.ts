@@ -13,12 +13,12 @@ $('finish').onclick = () => animator.finish();
 $('reverse').onclick = () => { animator.setPlaybackRate(-1); animator.play(); };
 $('normal').onclick = () => { animator.setPlaybackRate(1); animator.play(); };
 
-// Scrubbing: pause, then seek to the slider's time.
-const seek = $('seek') as HTMLInputElement;
-seek.oninput = () => {
+// Slider: pause, then jump to the slider's time.
+const slider = $('time-slider') as HTMLInputElement;
+slider.oninput = () => {
   animator.pause();
-  animator.setCurrentTime(Number(seek.value));
-  $('ms').textContent = seek.value;
+  animator.setCurrentTime(Number(slider.value));
+  $('ms').textContent = slider.value;
 };
 
 // Exposed for the tests (and the console).

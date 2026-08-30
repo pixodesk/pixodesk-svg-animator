@@ -37,7 +37,14 @@ The simplest mode: the component starts the animation the way the file says it s
 load, on hover, on click, or when scrolled into view.
 
 ```vue
-<PixodeskSvgAnimator :doc="animation" autoplay />
+<script setup lang="ts">
+import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-vue';
+import animation from './animation.json';
+</script>
+
+<template>
+  <PixodeskSvgAnimator :doc="animation" autoplay />
+</template>
 ```
 
 Uses the trigger saved in the document (load / hover / click / scroll into view) and its out
@@ -51,8 +58,20 @@ Use these when your code owns the position — a slider, a scroll offset, a step
 walkthrough. The component renders exactly that frame and never plays on its own.
 
 ```vue
-<PixodeskSvgAnimator :doc="animation" :time="0.5" />     <!-- fraction of the whole timeline -->
-<PixodeskSvgAnimator :doc="animation" :timeMs="500" />   <!-- absolute ms -->
+<script setup lang="ts">
+import { ref } from 'vue';
+import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-vue';
+import animation from './animation.json';
+const timeMs = ref(0);
+</script>
+
+<template>
+  <PixodeskSvgAnimator :doc="animation" :timeMs="timeMs" />
+  <input type="range" min="0" max="2000" v-model.number="timeMs" />
+
+  <!-- or a fixed frame: 0.5 = the middle of the whole timeline -->
+  <PixodeskSvgAnimator :doc="animation" :time="0.5" />
+</template>
 ```
 
 Changing the value moves the existing animator to the new time — nothing is recreated.
@@ -67,6 +86,8 @@ of your component's state (a toggle, a visibility flag) and you would rather not
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue';
+import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-vue';
+import animation from './animation.json';
 const paused = ref(false);
 </script>
 
@@ -87,7 +108,8 @@ The component exposes the playback API on its template ref, so it is available i
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { VueAnimatorApi } from '@pixodesk/svg-animator-vue';
+import { PixodeskSvgAnimator, type VueAnimatorApi } from '@pixodesk/svg-animator-vue';
+import animation from './animation.json';
 const animator = ref<VueAnimatorApi | null>(null);
 </script>
 
@@ -107,23 +129,27 @@ statically and the ref is your only control.
 
 ## Props
 
+Only `doc` is required. The file already carries the timing and the trigger you set in the
+editor; every other prop is optional and, when passed, replaces the file's value for this one
+component.
+
 | Prop | Type | Description |
 |---|---|---|
-| `doc` | `PxAnimatedSvgDocument` | **required** |
-| `autoplay` | `boolean` | use the document's trigger |
-| `play` | `boolean` | play unconditionally |
-| `pause` | `boolean` | pause |
-| `time` | `number` | show the frame at a fraction 0–1 of the whole timeline (duration × iterations) |
+| `doc` | `PxAnimatedSvgDocument` | **required** — the animation, as saved by the editor |
+| `autoplay` | `boolean` | start the way the file says — the *Start* trigger you chose in the editor: at once, on hover, on click, or when scrolled into view |
+| `play` | `boolean` | play now, whatever the file's trigger says |
+| `pause` | `boolean` | pause the current playback; set it back to `false` to resume |
+| `time` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `timeMs` | `number` | show the frame at that time, in milliseconds from the start |
-| `duration` · `delay` | `number` | ms overrides |
+| `duration` · `delay` | `number` | length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component |
 | `iterations` | `number \| 'infinite'` | how many times to play; `'infinite'` never stops |
 | `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | play forward, backward, or turn around on every iteration (starting forward or backward) |
 | `fill` | `'forwards' \| 'backwards' \| 'both' \| 'none'` | what shows before the start / after the end |
-| `mode` | `'auto' \| 'waapi' \| 'frames'` | engine |
+| `mode` | `'auto' \| 'waapi' \| 'frames'` | engine — see [Web player → Engine modes](./06-player--web-player.md#engine-modes) |
 | `frameRate` | `number` | target fps (frames engine) |
-| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | trigger override |
+| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | what starts the animation: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
 | `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | when the trigger ends (mouse out, second click, scrolled out) |
-| `scrollIntoViewThreshold` | `number` | 0–1 |
+| `scrollIntoViewThreshold` | `number` | how much of the animation must be on screen before it starts, as a share of its area: `0` (default) starts as soon as any part of it shows, `0.5` waits until half of it is visible, `1` until all of it is |
 | `class` · `style` · any other attribute | | fall through to the rendered root `<svg>` (Vue attribute inheritance) — size it there, or via the parent |
 
 ## Events
@@ -134,14 +160,24 @@ statically and the ref is your only control.
 | `pause` | paused |
 | `cancel` | cancelled (reset) |
 | `finish` | finished naturally |
-| `remove` | destroyed — unmount or `doc` swap |
+| `remove` | the animator was thrown away: the component unmounted, or you passed a different `doc` and a new animator was built for it |
 | `stop` | alongside any halt: `pause`, `cancel`, `finish`, `remove` |
 
 ```vue
-<PixodeskSvgAnimator :doc="animation" autoplay @finish="onDone" @stop="onStop" />
+<script setup lang="ts">
+import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-vue';
+import animation from './animation.json';
+const onDone = () => console.log('finished');
+const onStop = () => console.log('stopped');
+</script>
+
+<template>
+  <PixodeskSvgAnimator :doc="animation" autoplay @finish="onDone" @stop="onStop" />
+</template>
 ```
 
-Swapping `doc` recreates the animator (the old instance emits `cancel`, `remove`, `stop`).
+Passing a different `doc` throws the old animator away and builds a new one; the old instance
+emits `cancel`, `remove` and `stop` on its way out.
 
 ## CSS-flavour SVGs — `PixodeskSvgCssAnimator`
 
@@ -149,8 +185,9 @@ Swapping `doc` recreates the animator (the old instance emits `cancel`, `remove`
 
 For a **pre-rendered SVG + CSS animation** file imported with
 [`vite-svg-loader`](https://github.com/jpkleemans/vite-svg-loader) (or any loader that yields a
-component), this wrapper adds hover / click / scroll triggers by toggling the animation classes
-on a `<div>`:
+component), this wrapper adds hover / click / scroll triggers. It renders a `<div>` of its own
+around your SVG component — that is what `PixodeskSvgCssAnimator` becomes on the page — and
+starts, pauses or resets the animation by switching the file's CSS classes on that `<div>`:
 
 ```vue
 <script setup>
@@ -171,9 +208,12 @@ import AnimationSvg from './animation.svg';   // vite-svg-loader
 | `outAction` | `'continue' \| 'pause' \| 'reset'` | `'continue'` |
 | other attrs (`class`, `style`, …) | forwarded to the wrapper `<div>` | — |
 
-> ⚠️ **Render it once per page.** The imported component is the file's markup, ids included —
-> mount it twice and both copies share the same ids, so masks and gradients cross over. For
-> several instances use the JSON component instead ([read more](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
+> ⚠️ **Don't put the same SVG file on a page twice.** You can have as many
+> `<PixodeskSvgCssAnimator>` on a page as you like, each with a *different* file. What does not
+> work is the *same* file twice: the imported component is the file's markup, element ids
+> included, so two copies share the same ids and their masks and gradients cross over. To show
+> one animation several times, use the JSON component instead — the player gives every copy
+> its own ids ([read more](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
 
 Only the pure CSS flavour works this way (loaders strip or refuse `<script>`); flavours with
 scripts should be inlined as raw HTML, or use JSON.

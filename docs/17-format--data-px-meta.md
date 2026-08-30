@@ -45,6 +45,8 @@ To read one, put the braces back and hand it to a JSON5 parser:
 ```js
 import JSON5 from 'json5';
 
+// any element of an inlined pre-rendered SVG that carries the attribute
+const element = document.querySelector('svg [data-px-meta]');
 const meta = JSON5.parse('{' + element.getAttribute('data-px-meta') + '}');
 // → { effectsHost: { coreId: '#_px_2', appliedEffects: { transformBy: { translate: [80, 200] }, repeater: { copies: 3, translate: [100, 0] } } } }
 ```

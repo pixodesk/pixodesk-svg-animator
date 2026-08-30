@@ -85,8 +85,8 @@ Render a single frame at a specific point in time:
 | `autoplay` | `boolean` | Use triggers from the document |
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
-| `time` | `number` | Seek to a fraction (0–1) of the whole timeline (duration × iterations) |
-| `timeMs` | `number` | Seek to a time in milliseconds |
+| `time` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
+| `timeMs` | `number` | show the frame at that time, in milliseconds from the start |
 | `mode` | `'auto' \| 'waapi' \| 'frames'` | Animation engine |
 | `duration` | `number` | Duration override (ms) |
 | `delay` | `number` | Delay before start (ms) |
@@ -99,7 +99,7 @@ Render a single frame at a specific point in time:
 
 With none of `autoplay` / `play` / `pause` / `time` / `timeMs` set, the component renders the animation statically (initial state, no playback); use the template ref for imperative control.
 
-Note: recreating the animator (unmount or a `doc` swap) emits `cancel`, `remove`, and `stop` for the torn-down instance. Scrubbing `time` / `timeMs` does **not** recreate the animator — it seeks the existing one.
+Note: passing a different `doc` (or unmounting) throws the old animator away and builds a new one; the old instance emits `cancel`, `remove`, and `stop` on its way out. Changing `time` / `timeMs` does **not** recreate the animator — it just jumps the existing one to the new time.
 
 ## Events
 

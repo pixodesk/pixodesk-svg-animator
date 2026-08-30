@@ -27,13 +27,16 @@ accepts files from users:
 ```ts
 import { isPxElementFileFormat, isPxElementFileFormatDeep,
          PxAnimatedSvgDocumentSchema, type PxValidationContext } from '@pixodesk/svg-animator-core';
+import { readFile } from 'node:fs/promises';
+
+const json = JSON.parse(await readFile('animation.json', 'utf8'));   // Node — or fetch() in a browser
 
 isPxElementFileFormat(json);        // cheap shallow gate — is this a Pixodesk document at all?
 isPxElementFileFormatDeep(json);    // { valid, errors } — full schema
 
 // per-field diagnostics
 const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
-if (!PxAnimatedSvgDocumentSchema.isValid(doc, ctx, [])) console.error(ctx.errors);
+if (!PxAnimatedSvgDocumentSchema.isValid(json, ctx, [])) console.error(ctx.errors);
 // → ["children[0].effects.strokeTrim.range: no union member matched for value 5"]
 ```
 
@@ -62,6 +65,7 @@ natively.
 ```ts
 import { materialiseAllInTree, generateNewIds, calcAnimationValues,
          getNormalisedBindings, PxAnimatorEngine } from '@pixodesk/svg-animator-core';
+import doc from './bouncing-ball.json';
 
 const flat = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.waapi));
 
@@ -82,7 +86,11 @@ handles timing, delay, direction, iterations, fill, playback rate and the lifecy
 then calls you with plain attribute writes:
 
 ```ts
-import { createBasicFrameLoopAnimator, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { createBasicFrameLoopAnimator, materialiseAllInTree, generateNewIds,
+         PxAnimatorEngine, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import doc from './bouncing-ball.json';
+
+const flatDoc = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.frames));
 
 const adapter: PxPlatformAdapter = {
   isConnected: () => true,

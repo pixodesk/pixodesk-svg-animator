@@ -39,14 +39,20 @@ any button, timer or effect in your app can start, pause, or jump to any point i
 
 ```tsx
 import { useRef } from 'react';
-import type { ReactAnimatorApi } from '@pixodesk/svg-animator-react';
+import { PixodeskSvgAnimator, type ReactAnimatorApi } from '@pixodesk/svg-animator-react';
+import animation from './animation.json';
 
-const api = useRef<ReactAnimatorApi>(null);
-
-<PixodeskSvgAnimator doc={animation} apiRef={api} />
-<button onClick={() => api.current?.play()}>Play</button>
-<button onClick={() => api.current?.pause()}>Pause</button>
-<button onClick={() => api.current?.setPlaybackRate(-1)}>Reverse</button>
+export function Player() {
+  const api = useRef<ReactAnimatorApi>(null);
+  return (
+    <>
+      <PixodeskSvgAnimator doc={animation} apiRef={api} />
+      <button onClick={() => api.current?.play()}>Play</button>
+      <button onClick={() => api.current?.pause()}>Pause</button>
+      <button onClick={() => api.current?.setPlaybackRate(-1)}>Reverse</button>
+    </>
+  );
+}
 ```
 
 `ReactAnimatorApi`:
@@ -70,7 +76,12 @@ The simplest mode: the component starts the animation the way the file says it s
 load, on hover, on click, or when scrolled into view.
 
 ```tsx
-<PixodeskSvgAnimator doc={animation} autoplay />
+import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-react';
+import animation from './animation.json';
+
+export function Intro() {
+  return <PixodeskSvgAnimator doc={animation} autoplay />;
+}
 ```
 
 Uses the trigger saved in the document — on load, on hover, on click, when scrolled into view
@@ -80,17 +91,26 @@ Uses the trigger saved in the document — on load, on hover, on click, when scr
 
 > **Example:** [`react/controlled-time`](../examples/docs-examples/src/cases/react/controlled-time/) — `pnpm example:docs`, then open `#react/controlled-time`.
 
-Render one frame, and scrub by changing the prop. The animator is **not** recreated on change —
+Render one frame, and move through the animation by changing the prop. The animator is **not** recreated on change —
 it just jumps to the new time.
 
 ```tsx
-const [timeMs, setTimeMs] = useState(0);
+import { useState } from 'react';
+import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-react';
+import animation from './animation.json';
 
-<PixodeskSvgAnimator doc={animation} timeMs={timeMs} />
-<input type="range" min={0} max={2000} value={timeMs} onChange={e => setTimeMs(+e.target.value)} />
+export function Scrubber() {
+  const [timeMs, setTimeMs] = useState(0);
+  return (
+    <>
+      <PixodeskSvgAnimator doc={animation} timeMs={timeMs} />
+      <input type="range" min={0} max={2000} value={timeMs} onChange={e => setTimeMs(+e.target.value)} />
+    </>
+  );
+}
 ```
 
-`time` is a fraction 0–1 of the whole timeline (duration × iterations); `timeMs` is absolute.
+`time` is a position in the whole timeline (duration × iterations), from `0`, the first frame, to `1`, the last; `timeMs` is a time in milliseconds from the start.
 
 ### 4 · Declarative play / pause
 
@@ -100,10 +120,21 @@ Drive playback from your own state with two booleans — handy when play/pause i
 of your component's state (a toggle, a visibility flag) and you would rather not hold a ref.
 
 ```tsx
-const [play, setPlay] = useState(false);
-const [pause, setPause] = useState(false);
+import { useState } from 'react';
+import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-react';
+import animation from './animation.json';
 
-<PixodeskSvgAnimator doc={animation} play={play} pause={pause} />
+export function Controlled() {
+  const [play, setPlay] = useState(false);
+  const [pause, setPause] = useState(false);
+  return (
+    <>
+      <PixodeskSvgAnimator doc={animation} play={play} pause={pause} />
+      <button onClick={() => { setPlay(true); setPause(false); }}>Play</button>
+      <button onClick={() => setPause(true)}>Pause</button>
+    </>
+  );
+}
 ```
 
 `play && !pause` plays; `pause` pauses; `play === false` jumps to the end state; a pause that is
@@ -120,11 +151,11 @@ renders the first frame statically.
 | `className` | `string` | class on the rendered root `<svg>` |
 | `style` | `CSSProperties` | inline style on the root `<svg>` |
 | **Control** | | |
-| `autoplay` | `boolean` | use the document's trigger |
+| `autoplay` | `boolean` | start the way the file says — the *Start* trigger you chose in the editor: at once, on hover, on click, or when scrolled into view |
 | `play` | `boolean` | play unconditionally (ignores document triggers) |
 | `pause` | `boolean` | pause current playback |
 | `apiRef` | `RefObject<ReactAnimatorApi>` | imperative control |
-| `time` | `number` | show the frame at a fraction 0–1 of the whole timeline (duration × iterations) |
+| `time` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `timeMs` | `number` | show the frame at that time, in milliseconds from the start |
 | **Timing overrides** | | *(each replaces the document's `animator` value)* |
 | `duration` | `number` | ms for one iteration |
@@ -137,18 +168,18 @@ renders the first frame statically.
 | **Trigger overrides** | | |
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | what starts the animation: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
 | `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | when the trigger ends (mouse out, second click, scrolled out) |
-| `scrollIntoViewThreshold` | `number` | visible fraction 0–1 required to start (default 0 = any pixel) |
+| `scrollIntoViewThreshold` | `number` | how much of the animation must be on screen before it starts, as a share of its area: `0` (default) starts as soon as any part of it shows, `0.5` waits until half of it is visible, `1` until all of it is |
 | **Callbacks** | | |
 | `onPlay` | `() => void` | started or resumed |
 | `onPause` | `() => void` | paused |
 | `onCancel` | `() => void` | cancelled (reset to the start) |
 | `onFinish` | `() => void` | finished naturally (or `finish()`) |
-| `onRemove` | `() => void` | destroyed — unmount or `doc` swap |
+| `onRemove` | `() => void` | the animator was thrown away: the component unmounted, or you passed a different `doc` and a new animator was built for it |
 | `onStop` | `() => void` | fires alongside **any** halt: pause, cancel, finish, remove |
 
-Swapping `doc` (or `className` / `style` / the control mode) recreates the animator; the
-torn-down instance emits `onCancel`, `onRemove` and `onStop`. Scrubbing `time` / `timeMs` does
-not recreate anything.
+Passing a different `doc` (or changing `className` / `style` / the control mode) throws the
+old animator away and builds a new one; the old instance emits `onCancel`, `onRemove` and
+`onStop` on its way out. Changing `time` / `timeMs` does not recreate anything.
 
 ## CSS-flavour SVGs — `PixodeskSvgCssAnimator`
 
@@ -156,27 +187,36 @@ not recreate anything.
 
 For a **pre-rendered SVG + CSS animation** file imported as a component with
 [SVGR](https://react-svgr.com/) (`@svgr/webpack`, `vite-plugin-svgr`), this small wrapper adds
-the hover / click / scroll triggers by toggling the animation classes on a `<div>`:
+the hover / click / scroll triggers. It renders a `<div>` of its own around your SVG component —
+that is what `PixodeskSvgCssAnimator` becomes on the page — and starts, pauses or resets the
+animation by switching the file's CSS classes on that `<div>`:
 
 ```tsx
 import { PixodeskSvgCssAnimator } from '@pixodesk/svg-animator-react';
 import AnimationSvg from './animation.svg?react';   // vite-plugin-svgr
 
-<PixodeskSvgCssAnimator startOn="mouseOver" outAction="pause" style={{ width: 400, height: 400 }}>
-  <AnimationSvg />
-</PixodeskSvgCssAnimator>
+export function HoverLogo() {
+  return (
+    <PixodeskSvgCssAnimator startOn="mouseOver" outAction="pause" style={{ width: 400, height: 400 }}>
+      <AnimationSvg />
+    </PixodeskSvgCssAnimator>
+  );
+}
 ```
 
 | Prop | Type | Default |
 |---|---|---|
-| `children` | the SVGR component | — (required) |
+| `children` | the SVGR component | required |
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView'` | `'load'` |
 | `outAction` | `'continue' \| 'pause' \| 'reset'` | `'continue'` |
 | `className` · `style` | on the wrapper `<div>` | — |
 
-> ⚠️ **Render it once per page.** The imported component is the file's markup, ids included —
-> mount it twice and both copies share the same ids, so masks and gradients cross over. For
-> several instances use the JSON component instead ([read more](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
+> ⚠️ **Don't put the same SVG file on a page twice.** You can have as many
+> `<PixodeskSvgCssAnimator>` on a page as you like, each with a *different* file. What does not
+> work is the *same* file twice: the imported component is the file's markup, element ids
+> included, so two copies share the same ids and their masks and gradients cross over. To show
+> one animation several times, use the JSON component instead — the player gives every copy
+> its own ids ([read more](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
 
 SVGR strips `<script>` tags, so only the pure CSS flavour works this way. Files with scripts
 (JS triggers / JS animation) should be inlined as raw HTML, or switched to JSON.
@@ -198,11 +238,5 @@ export default function Hero() {
 
 JSON imports work out of the box in Next.js; for a CSS-flavour SVG use `@svgr/webpack`.
 
-## Example
-
-Every section above links to its case in [`examples/docs-examples`](../examples/docs-examples/)
-— one standalone page per case, with a browser to step through them. `pnpm example:docs`
-opens it; `#react/autoplay` and friends select a case. Each case has a test that runs on
-every build.
 
 [← Web player](./06-player--web-player.md) · [Contents](./README.md) · Next: [Vue →](./08-player--vue.md)

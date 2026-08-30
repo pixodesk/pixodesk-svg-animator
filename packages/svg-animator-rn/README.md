@@ -24,7 +24,7 @@ native SVG, driven on the UI thread.
   it as `doc`.
 - **Playback control:** declarative props (`autoplay`, `play`, `pause`,
   `timeMs`) or an imperative ref (`play()`, `pause()`, `setCurrentTime()`, …).
-- **Sized by its container:** wrap it in a `View` with the dimensions you want.
+- **No size of its own:** it fills whatever `View` you put it in — give that `View` a `width` and `height`.
 
 ## Quick start
 
@@ -155,7 +155,7 @@ const api = useRef<RnAnimatorApi>(null);
 
 ### Controlled time
 
-Scrub through the animation or pin a fixed frame:
+Move through the animation with a slider, or show one fixed frame:
 
 ```tsx
 const [timeMs, setTimeMs] = useState(0);
@@ -173,8 +173,8 @@ const [timeMs, setTimeMs] = useState(0);
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
 | `apiRef` | `RefObject<RnAnimatorApi>` | Ref for imperative control |
-| `time` | `number` | Seek to a fraction (0–1) of the whole timeline (duration × iterations) |
-| `timeMs` | `number` | Seek to a time in milliseconds |
+| `time` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
+| `timeMs` | `number` | show the frame at that time, in milliseconds from the start |
 | `duration` | `number` | Duration override (ms) |
 | `delay` | `number` | Delay before start (ms) |
 | `iterations` | `number \| 'infinite'` | Loop count |
@@ -217,11 +217,11 @@ renderer never reaches JavaScript and cannot be caught — see
 
 | Prop | Why it differs |
 |---|---|
-| `mode` | Not accepted. There is no Web Animations API on RN; playback is always native-driven. |
-| `frameRate` | Not accepted. Reanimated runs at the display refresh rate. The analogous knob is sampling density — see `compileTracks`. |
+| `mode` | Not accepted. There is no Web Animations API on React Native; playback is always native-driven. |
+| `frameRate` | Not accepted. The screen's own refresh rate is used. The player does not compute values frame by frame: when the document loads it works out the animated values in advance, as a list of snapshots (60 per second of animation), and each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared — `compileTracks({ sampleRate })`, only available when you use the lower-level API instead of the component. |
 | `startOn` | Not accepted as a prop — the document's trigger is honoured via `autoplay` (`load`, `click`, `scrollIntoView`, `programmatic`). `mouseOver` has no touch equivalent. |
-| `className` / `style` | Not accepted. Size the animation with the container `View`. (`node.style` *inside* the document is supported.) |
-| `onRemove` | Not emitted. Use React's own unmount cleanup. |
+| `className` / `style` | Not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height`. Styling *inside* the document (`style` on an element in the JSON) is supported. |
+| `onRemove` | Never called. On the web it tells you the animator was thrown away; here there is nothing to tell — when the component leaves the screen, React removes it and everything it created. To run code at that moment, use a `useEffect` cleanup function in your own component. |
 
 ## How playback works
 
@@ -257,11 +257,11 @@ properties actually change over time.
 | `text`, `tspan` | ✅ | content via the `text` attribute |
 | `textPath` | ✅ | see *Text along a path* below |
 | `image` | ✅ | `href` accepts `data:` URIs; remote URLs are blocked by the sanitiser |
-| `use`, `symbol` | ✅ | animated targets are **inlined into real clones** before render — `<use>` does not propagate animation natively in RN |
+| `use`, `symbol` | ✅ | animated targets are **inlined into real clones** before render — `<use>` does not propagate animation natively in React Native |
 | `linearGradient`, `radialGradient`, `stop` | ✅ | |
 | `pattern`, `marker` | ✅ | static geometry verified; complex cases unverified on device |
 | `mask`, `clipPath` | ✅ | |
-| `filter` + all 22 `fe*` primitives | ✅ | `feGaussianBlur`, `feDropShadow`, `feColorMatrix`, `feMerge`, `feComponentTransfer` + `feFunc*`, … Requires the New Architecture; **visual parity with the web is unverified on device** |
+| `filter` + all 22 `fe*` primitives | ✅ | `feGaussianBlur`, `feDropShadow`, `feColorMatrix`, `feMerge`, `feComponentTransfer` + `feFunc*`, … **The visual result has not yet been checked on a real device** |
 | `foreignObject` | ❌ | blocked by the shared sanitiser (embeds arbitrary host content) |
 | `script` | ❌ | blocked by the shared sanitiser |
 
@@ -271,7 +271,7 @@ properties actually change over time.
 |---|---|---|
 | `opacity`, `fill-opacity`, `stroke-opacity` | ✅ | |
 | `fill`, `stroke`, `stop-color` | ✅ | interpolated as RGBA |
-| `stroke-width`, `stroke-dasharray`, `stroke-dashoffset` | ✅ | dash arrays are converted to the numeric form RN expects |
+| `stroke-width`, `stroke-dasharray`, `stroke-dashoffset` | ✅ | dash arrays are converted to the numeric form React Native expects |
 | `x`, `y`, `width`, `height`, `cx`, `cy`, `r`, `rx`, `ry` | ✅ | |
 | `d` (**path morphing**) | ✅ | keyframes must share command structure |
 | `transform` (unified parts record) | ✅ | `translate`, `rotate`, `skew`, `scale`, `origin` |
@@ -283,7 +283,7 @@ properties actually change over time.
 
 ### Effects (`node.effects`)
 
-All effects are materialised by the shared core before rendering, so the RN
+All effects are materialised by the shared core before rendering, so the React Native
 player sees plain nodes. **All are supported:**
 
 | Effect | Status | Notes |
@@ -308,7 +308,7 @@ player sees plain nodes. **All are supported:**
 | Per-property `loop` (incl. `alternate` pingpong) | ✅ | expanded before playback |
 | Easing (cubic-bezier and named refs) | ✅ | baked into the sampled tracks |
 | `definitions.animations` / `easings` / `styles` / `glyphs` | ✅ | named refs resolved; `style` presets applied as props |
-| `node.style` (inline or named) | ✅ | resolved to props — RN has no CSS, so explicit attributes win |
+| `node.style` (inline or named) | ✅ | resolved to props — React Native has no CSS, so explicit attributes win |
 
 ### Playback and triggers
 
@@ -319,14 +319,14 @@ player sees plain nodes. **All are supported:**
 | `fill` — `forwards` / `backwards` / `both` / `none` | ✅ | |
 | `resetOnFinish` | ✅ | |
 | `play` / `pause` / `cancel` / `finish` | ✅ | |
-| `setCurrentTime` — seek, including **while playing** | ✅ | playback continues from the new position |
+| `setCurrentTime` — jump to a time, including **while playing** | ✅ | playback continues from the new point |
 | `setPlaybackRate` — faster, slower and **reverse** (negative) | ✅ | composes with `direction` |
 | Trigger `load` / `programmatic` | ✅ | |
 | Trigger `click` | ✅ | wrapped in a `Pressable`; a second tap applies `outAction` |
-| Trigger `scrollIntoView` | ✅ | visibility sampled by measuring against the window (RN has no `IntersectionObserver`); honours `scrollIntoViewThreshold` and `outAction` |
+| Trigger `scrollIntoView` | ✅ | visibility sampled by measuring against the window (React Native has no `IntersectionObserver`); honours `scrollIntoViewThreshold` and `outAction` |
 | Trigger `mouseOver` | ❌ | no touch equivalent — use `click`, or drive `play` yourself |
 | `frameRate` | n/a | reanimated runs at the display refresh rate; use `compileTracks({sampleRate})` to trade memory for temporal precision |
-| `mode` (`waapi` / `frames`) | n/a | there is no Web Animations API on RN — playback is always native-driven |
+| `mode` (`waapi` / `frames`) | n/a | there is no Web Animations API on React Native — playback is always native-driven |
 
 ### Known limitations
 
