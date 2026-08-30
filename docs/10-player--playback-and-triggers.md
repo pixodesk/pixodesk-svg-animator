@@ -144,7 +144,11 @@ package page). Note that the components switch the trigger to `programmatic` whe
 `play` / `pause` / `apiRef` / `time`, so only `autoplay` mode uses the trigger saved in the
 file.
 
-## Scroll-driven playback
+## Scroll-driven playback (in development)
+
+> **In development.** Scroll-driven playback is not finished yet: the fields below may change,
+> and not every combination works in every player. Time-driven playback — the default — is
+> not affected.
 
 Instead of playing on a clock, the animation can **follow the scroll position** — the playhead
 moves as the user scrolls: scroll down and the animation goes forward, scroll back up and it

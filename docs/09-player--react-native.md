@@ -1,9 +1,11 @@
-# React Native — `@pixodesk/svg-animator-rn` 🧪
+# React Native — `@pixodesk/svg-animator-rn` 🧪 (in development)
 
 [← Vue](./08-player--vue.md) · [Contents](./README.md) · Next: [Playback settings & triggers →](./10-player--playback-and-triggers.md)
 
-> **Experimental.** The API may change without a major version change, and a few things are
-> unimplemented or unverified on real devices — see [Feature support](#feature-support).
+> **In development.** This player is not finished yet. The API may change without a major
+> version change, and some things are unimplemented or not yet verified on real devices — see
+> [Feature support](#feature-support). Use it to evaluate and prototype; expect to adjust your
+> code as new versions come out.
 
 Use this in a React Native or Expo app. Give `<PixodeskSvgAnimator doc={…} />` the **same
 JSON the web player uses** and it renders native SVG (`react-native-svg`), driven on the UI

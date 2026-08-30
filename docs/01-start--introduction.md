@@ -94,7 +94,7 @@ Start from where the animation is going:
 | Vanilla JavaScript | `@pixodesk/svg-animator-web` |
 | React / Next.js | `@pixodesk/svg-animator-react` |
 | Vue / Nuxt | `@pixodesk/svg-animator-vue` |
-| React Native / Expo 🧪 | `@pixodesk/svg-animator-rn` |
+| React Native / Expo 🧪 *(in development)* | `@pixodesk/svg-animator-rn` |
 | The core every player builds on — the format schema and the shared algorithms | `@pixodesk/svg-animator-core` |
 
 Still unsure? [Choosing a format](./02-start--choosing-a-format.md) has the side-by-side
@@ -108,7 +108,7 @@ document produces the same frames everywhere:
 flowchart TD
     Core["<b>svg-animator-core</b><br/>schema, utils,<br/><i>no DOM</i>"]
     Web["<b>svg-animator-web</b><br/>DOM"]
-    RN["<b>svg-animator-rn</b> 🧪<br/>Based on <br/>react-native-svg,<br/>reanimated"]
+    RN["<b>svg-animator-rn</b> 🧪<br/><i>in development</i><br/>Based on <br/>react-native-svg,<br/>reanimated"]
     React["<b>svg-animator-react</b>"]
     Vue["<b>svg-animator-vue</b>"]
 

@@ -14,7 +14,7 @@ file can be inlined **once per page** — [read more](./11-player--prerendered-s
 | `@pixodesk/svg-animator-web` | browsers, vanilla JavaScript / any framework via the DOM | `npm install @pixodesk/svg-animator-web` |
 | `@pixodesk/svg-animator-react` | React 18+ / Next.js | `npm install @pixodesk/svg-animator-react` |
 | `@pixodesk/svg-animator-vue` | Vue 3 / Nuxt | `npm install @pixodesk/svg-animator-vue` |
-| `@pixodesk/svg-animator-rn` 🧪 | React Native / Expo (experimental) | `npm install @pixodesk/svg-animator-rn` — plus `react-native-svg` and `react-native-reanimated`, see [React Native](./09-player--react-native.md#install) |
+| `@pixodesk/svg-animator-rn` 🧪 | React Native / Expo *(in development)* | `npm install @pixodesk/svg-animator-rn` — plus `react-native-svg` and `react-native-reanimated`, see [React Native](./09-player--react-native.md#install) |
 | `@pixodesk/svg-animator-core` | schema, utils; no DOM | `npm install @pixodesk/svg-animator-core` |
 
 

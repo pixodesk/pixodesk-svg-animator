@@ -18,7 +18,7 @@ type, the entry names it, so you can go straight from the word to the file.
 | **Iterations** | How many times the *whole* document timeline repeats (`"infinite"` allowed) |
 | **Trigger** | What starts the animation: `load`, `scrollIntoView`, `mouseOver`, `click`, `programmatic`; `outAction` says what happens when the trigger ends |
 | **Engine** | How the web player drives frames: the **Web Animations API** (`waapi`) or a **frame loop** (`frames`); `auto` picks WAAPI with automatic fallback |
-| **Timeline source** | What advances the playhead: the clock (`time`) or the page's scroll position (`scroll`) |
+| **Timeline source** | What advances the playhead: the clock (`time`) or the page's scroll position (`scroll` — in development) |
 | **Effect** | A declarative instruction on `node.effects` the player expands into structure at load — `transformBy`, `repeater`, `maskedBy`, `clipPath`, `strokeTrim`, `clone`, `fillGradient`, `strokeGradient`, `textPath`, `text` |
 | **Materialise** | Expand effects (and loops, motion paths, animated `<use>`) into a flat tree a renderer can draw. Done by the player at load, or by the editor at export |
 | **Definitions** | `animator.definitions` — named, reusable easings, animations, styles and embedded glyph outlines |

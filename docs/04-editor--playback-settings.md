@@ -73,9 +73,10 @@ this option says.
 **Timeline** chooses what the playhead follows:
 
 - **Time** (default) — the clock. The animation plays on its own once triggered.
-- **Scroll** — the page's scroll posit  ion drives the playhead: scrolling down plays the
-  animation forward, scrolling back up rewinds it, and it stays at whatever frame you stop on.
-  Pinning and range options choose which part of the page's scroll maps to the animation.
+- **Scroll** *(in development)* — the page's scroll position drives the playhead: scrolling
+  down plays the animation forward, scrolling back up rewinds it, and it stays at whatever
+  frame you stop on. Pinning and range options choose which part of the page's scroll maps to
+  the animation. This option is still in development: expect gaps and changes.
 
 ## Which export formats keep the playback settings and triggers
 

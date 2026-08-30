@@ -68,7 +68,7 @@ pre-rendered file that happens at export; in JSON the player does it at load
 
 Duration, iterations, direction, what starts the animation (load, click, hover, scroll into
 view, or code), what happens when the trigger ends, and whether the timeline follows the clock
-or the page's scroll position — all set once in the editor and saved with the file, so a
+or the page's scroll position (the scroll option is still in development) — all set once in the editor and saved with the file, so a
 player needs no configuration to play it correctly.
 
 Which control writes which value:

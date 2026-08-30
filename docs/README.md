@@ -35,7 +35,7 @@ This documentation covers the **Pixodesk SVG Animator editor**, the **player**, 
 6. [Web player (`@pixodesk/svg-animator-web`)](./06-player--web-player.md) — `createAnimator`, the playback API, callbacks, triggers
 7. [React (`@pixodesk/svg-animator-react`)](./07-player--react.md) — the player component, its props, control modes, Next.js
 8. [Vue (`@pixodesk/svg-animator-vue`)](./08-player--vue.md) — the player component, props, events, Nuxt
-9. [React Native (`@pixodesk/svg-animator-rn`)](./09-player--react-native.md) 🧪 — install, props, feature support, limitations
+9. [React Native (`@pixodesk/svg-animator-rn`)](./09-player--react-native.md) 🧪 — *in development*; install, props, feature support, limitations
 10. [Playback settings & triggers](./10-player--playback-and-triggers.md) — the `animator` configuration, and overriding them from props or the player API
 
 ### Play pre-rendered SVG animations (minimal setup)
