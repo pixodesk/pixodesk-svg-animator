@@ -56,10 +56,14 @@ now two seconds per bounce and waiting until half of it has scrolled into view.
 | `frameRate` | fps | uncapped | target rate for the frame-loop engine only |
 | `mode` | `auto` · `waapi` · `frames` | `auto` | the engine — see below |
 
-**Per-property loops vs `iterations`.** A single property can also `loop` — repeat a segment
-of *its own* keyframes to fill the document duration (see [JSON format → Loops](./14-format--json-format.md#loops)).
-That is a pre-processing step; `iterations` then repeats the whole document. They compose: a
-looping wheel inside an infinitely iterating document spins within every iteration.
+**Per-property loops vs `iterations`.** There are two kinds of repetition, and they work at
+different levels. `iterations` repeats the **whole document** — every element, from the first
+keyframe to the last. A single property can also `loop` on its own: a segment of *its own*
+keyframes repeats until it fills the document's duration, while everything else plays through
+once (see [JSON format → Loops](./14-format--json-format.md#loops)). The property loop is
+applied first, when the document is prepared; `iterations` then repeats the result. So both
+can be used at once, and one runs inside the other: a wheel whose rotation loops, inside a
+document set to infinite iterations, keeps spinning during every iteration.
 
 ## Engine mode
 
@@ -99,10 +103,16 @@ second click):
 | `reset` | jump back to the start |
 | `reverse` | play backwards to the start |
 
-Triggers are implemented by every player (the React Native player has no `mouseOver`) and by the
-*SVG + CSS + JS triggers* export flavour, whose few inline lines (added by the editor app), need no library. A pure-CSS
-export handles `load` and, through `:hover`, `mouseOver`; `click` and `scrollIntoView` fall
-back to `load` there — see [Pre-rendered SVG](./11-player--prerendered-svg.md#flavour-1--svg--css-animation).
+Where triggers work:
+
+- **Every player** — web, React, Vue and React Native — supports all of them, with one
+  exception: React Native has no `mouseOver`, because there is no hover on a touch screen.
+- **Pre-rendered SVG + CSS animation + JS triggers** supports all of them too. The editor
+  writes a few lines of script into the file for this; no library is involved.
+- **Pre-rendered SVG + CSS animation** (no script at all) supports `load`, and `mouseOver`
+  through CSS `:hover`. `click` and `scrollIntoView` cannot be done in pure CSS, so in this
+  flavour they behave like `load` — the animation starts as soon as it is shown. See
+  [Pre-rendered SVG](./11-player--prerendered-svg.md#flavour-1--svg--css-animation).
 
 ## Overriding from a player
 
@@ -125,11 +135,14 @@ const a = createAnimator({ data: doc, container: '#box' });
 a.play();
 ```
 
-**React / Vue / React Native** — props with the same names override the document:
-`duration`, `delay`, `iterations`, `direction`, `fill`, `mode`, `frameRate`, `startOn`,
-`outAction`, `scrollIntoViewThreshold` (see each package page). Note that the components
-switch the trigger to `programmatic` whenever you use `play` / `pause` / `apiRef` / `time`, so
-only `autoplay` mode uses the document's trigger.
+**React / Vue / React Native** — the components take props with the same names as the fields
+of the document's `animator` block, and a prop you pass replaces that one field for that one
+component; the rest of the document is untouched: `duration`, `delay`, `iterations`,
+`direction`, `fill`, `mode`, `frameRate` replace the fields of `animator`; `startOn`,
+`outAction`, `scrollIntoViewThreshold` replace the fields of `animator.trigger` (see each
+package page). Note that the components switch the trigger to `programmatic` whenever you use
+`play` / `pause` / `apiRef` / `time`, so only `autoplay` mode uses the trigger saved in the
+file.
 
 ## Scroll-driven playback
 
