@@ -156,6 +156,21 @@ describe('createBasicFrameLoopAnimator', () => {
         expect(calls[calls.length - 1].value).toBe('0');
     });
 
+    it("fill 'both' holds the first frame during the delay AND the final frame after the end", () => {
+        const { api, calls, opacity } = setup({ delay: 160, fill: 'both' });
+
+        // Backwards side: frame 0 rendered at construction and throughout the delay window.
+        expect(opacity()).toBe(0);
+        api.play();
+        vi.advanceTimersByTime(144); // inside the delay window
+        expect(calls.every(c => c.value === '0')).toBe(true);
+
+        // Forwards side: after the natural end the final frame is held.
+        vi.advanceTimersByTime(16 + DUR + 64); // through animation time 0 → DUR, past the end
+        expect(opacity()).toBe(1);
+        expect(api.isPlaying()).toBe(false);
+    });
+
     it('iterations: 2 wraps progress within each iteration and finishes after both', () => {
         const onFinish = vi.fn();
         const { api, opacity } = setup({ iterations: 2 }, { onFinish });

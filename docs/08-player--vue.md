@@ -50,7 +50,7 @@ import animation from './animation.json';
 Uses the trigger saved in the document (load / hover / click / scroll into view) and its out
 action. Override with `startOn` / `outAction` / `scrollIntoViewThreshold`.
 
-### 2 · Controlled time (`time` / `timeMs`)
+### 2 · Controlled time (`progress` / `time`)
 
 > **Example:** [`vue/controlled-time`](../examples/docs-examples/src/cases/vue/controlled-time/) — `pnpm example:docs`, then open `#vue/controlled-time`.
 
@@ -62,12 +62,12 @@ walkthrough. The component renders exactly that frame and never plays on its own
 import { ref } from 'vue';
 import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-vue';
 import animation from './animation.json';
-const timeMs = ref(0);
+const time = ref(0);
 </script>
 
 <template>
-  <PixodeskSvgAnimator :doc="animation" :timeMs="timeMs" />
-  <input type="range" min="0" max="2000" v-model.number="timeMs" />
+  <PixodeskSvgAnimator :doc="animation" :time="time" />
+  <input type="range" min="0" max="2000" v-model.number="time" />
 
   <!-- or a fixed frame: 0.5 = the middle of the whole timeline -->
   <PixodeskSvgAnimator :doc="animation" :time="0.5" />
@@ -124,7 +124,7 @@ const animator = ref<VueAnimatorApi | null>(null);
 `VueAnimatorApi`: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`,
 `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`.
 
-With none of `autoplay` / `time` / `timeMs` / `play` / `pause` set, the first frame renders
+With none of `autoplay` / `progress` / `time` / `play` / `pause` set, the first frame renders
 statically and the ref is your only control.
 
 ## Props
@@ -139,8 +139,8 @@ component.
 | `autoplay` | `boolean` | start the way the file says — the *Start* trigger you chose in the editor: at once, on hover, on click, or when scrolled into view |
 | `play` | `boolean` | play now, whatever the file's trigger says |
 | `pause` | `boolean` | pause the current playback; set it back to `false` to resume |
-| `time` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
-| `timeMs` | `number` | show the frame at that time, in milliseconds from the start |
+| `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
+| `time` | `number` | show the frame at that time, in milliseconds from the start |
 | `duration` · `delay` | `number` | length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component |
 | `iterations` | `number \| 'infinite'` | how many times to play; `'infinite'` never stops |
 | `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | play forward, backward, or turn around on every iteration (starting forward or backward) |

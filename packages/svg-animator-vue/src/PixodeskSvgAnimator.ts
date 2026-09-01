@@ -98,8 +98,8 @@ interface DocOverrideProps {
     startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
     outAction?: 'continue' | 'pause' | 'reset' | 'reverse';
     scrollIntoViewThreshold?: number;
+    progress?: number;
     time?: number;
-    timeMs?: number;
 }
 
 function applyDocOverrides(
@@ -168,21 +168,21 @@ function applyDocOverrides(
 }
 
 /**
- * Controlled-time mode: absolute seek target in ms. `time` is a fraction
- * (0–1) of the WHOLE timeline (duration × iterations); `timeMs` is absolute.
+ * Controlled-time mode: absolute seek target in ms. `progress` is a fraction
+ * (0–1) of the WHOLE timeline (duration × iterations); `time` is absolute.
  * Applied through the animator API (setCurrentTime) so scrubbing does NOT
  * recreate the animator.
  */
 function calcSeekMs(doc: PxAnimatedSvgDocument, props: DocOverrideProps): number | undefined {
     let seekMs: number | undefined;
     const animator = doc.animator || {};
-    if (props.time !== undefined) {
+    if (props.progress !== undefined) {
         const iterationsValue = props.iterations ?? animator.iterations;
         const iterationsCount = typeof iterationsValue === 'number' && iterationsValue >= 1 ? iterationsValue : 1;
         const singleDuration = props.duration ?? animator.duration ?? 1000; // engine default duration
-        seekMs = props.time * singleDuration * iterationsCount;
+        seekMs = props.progress * singleDuration * iterationsCount;
     }
-    if (props.timeMs !== undefined) seekMs = props.timeMs;
+    if (props.time !== undefined) seekMs = props.time;
     return seekMs;
 }
 
@@ -212,8 +212,8 @@ function calcSeekMs(doc: PxAnimatedSvgDocument, props: DocOverrideProps): number
  *
  * 4. **Controlled time** – renders a single frame at a given time.
  *    ```vue
- *    <PixodeskSvgAnimator :doc="animation" :time="0.5" />
- *    <PixodeskSvgAnimator :doc="animation" :timeMs="500" />
+ *    <PixodeskSvgAnimator :doc="animation" :progress="0.5" />
+ *    <PixodeskSvgAnimator :doc="animation" :time="500" />
  *    ```
  */
 const PixodeskSvgAnimator = defineComponent({
@@ -245,8 +245,8 @@ const PixodeskSvgAnimator = defineComponent({
         pause: { type: Boolean, default: undefined },
 
         // -- Controlled time
+        progress: { type: Number },
         time: { type: Number },
-        timeMs: { type: Number },
     },
 
     emits: ['play', 'stop', 'pause', 'cancel', 'finish', 'remove'],
@@ -259,7 +259,7 @@ const PixodeskSvgAnimator = defineComponent({
 
         const compMode = computed<CompMode>(() => {
             if (props.autoplay) return CompMode.autoplay;
-            if (props.time !== undefined || props.timeMs !== undefined) return CompMode.fixedTime;
+            if (props.progress !== undefined || props.time !== undefined) return CompMode.fixedTime;
             if (props.play !== undefined || props.pause !== undefined) return CompMode.play;
             return CompMode.static;
         });
@@ -366,8 +366,8 @@ const PixodeskSvgAnimator = defineComponent({
         // Sync declarative play/pause props with the animator.
         watch([compMode, () => props.play, () => props.pause], () => syncPlayState());
 
-        // Scrubbing time/timeMs only seeks — the animator is NOT recreated.
-        watch([compMode, () => props.time, () => props.timeMs], () => applySeek());
+        // Scrubbing progress/time only seeks — the animator is NOT recreated.
+        watch([compMode, () => props.progress, () => props.time], () => applySeek());
 
         onUnmounted(() => {
             destroyApi();

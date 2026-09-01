@@ -139,10 +139,10 @@ export interface PixodeskSvgAnimatorProps {
     // -- Controlled (external) time ------------------------------------------
 
     /** Seek to a specific point in the animation, as a fraction (0–1) of the whole timeline (duration × iterations). */
-    time?: number;
+    progress?: number;
 
     /** Seek to a specific point in the animation (milliseconds). */
-    timeMs?: number;
+    time?: number;
 
     // -- Callbacks -----------------------------------------------------------
 
@@ -321,13 +321,13 @@ const PixodeskSvgAnimatorImplOnce = React.memo(
  *
  * 4. **Controlled time** – renders a single frame at a given time.
  *    ```tsx
- *    <PixodeskSvgAnimator doc={animation} time={0.5} />
- *    <PixodeskSvgAnimator doc={animation} timeMs={500} />
+ *    <PixodeskSvgAnimator doc={animation} progress={0.5} />
+ *    <PixodeskSvgAnimator doc={animation} time={500} />
  *    ```
  */
 const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     className, style,
-    doc, autoplay, play, pause, time, timeMs, apiRef,
+    doc, autoplay, play, pause, progress, time, apiRef,
 
     // Overrides
     mode, delay, fill, iterations, duration, direction, frameRate,
@@ -343,7 +343,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
         compMode = PixodeskSvgAnimatorCompMode.imperativeApi;
     } else if (autoplay) {
         compMode = PixodeskSvgAnimatorCompMode.autoplay;
-    } else if (time !== undefined || timeMs !== undefined) {
+    } else if (progress !== undefined || time !== undefined) {
         compMode = PixodeskSvgAnimatorCompMode.fixedTime;
     } else if (play !== undefined || pause !== undefined) {
         compMode = PixodeskSvgAnimatorCompMode.play;
@@ -417,21 +417,21 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
         };
     }
 
-    // Controlled-time mode: compute the absolute seek target. `time` is a
-    // fraction (0–1) of the WHOLE timeline (duration × iterations); `timeMs`
+    // Controlled-time mode: compute the absolute seek target. `progress` is a
+    // fraction (0–1) of the WHOLE timeline (duration × iterations); `time`
     // is absolute milliseconds. The seek is applied through the animator API
     // (setCurrentTime) below — the document itself stays stable, so scrubbing
     // does NOT recreate the animator.
     let seekMs: number | undefined;
     if (compMode === PixodeskSvgAnimatorCompMode.fixedTime) {
         const animator = doc.animator || {};
-        if (time !== undefined) {
+        if (progress !== undefined) {
             const iterationsValue = iterations ?? animator.iterations;
             const iterationsCount = typeof iterationsValue === 'number' && iterationsValue >= 1 ? iterationsValue : 1;
             const singleDuration = duration ?? animator.duration ?? 1000; // engine default duration
-            seekMs = time * singleDuration * iterationsCount;
+            seekMs = progress * singleDuration * iterationsCount;
         }
-        if (timeMs !== undefined) seekMs = timeMs;
+        if (time !== undefined) seekMs = time;
     }
 
     const apiHolderRef = useRef<PxAnimatorAPI | null>(null);
@@ -489,8 +489,8 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
         };
     }, [compMode, play, pause, key]);
 
-    // Controlled-time mode: seek through the animator API. Scrubbing `time` /
-    // `timeMs` only re-runs this effect — the animator is NOT recreated.
+    // Controlled-time mode: seek through the animator API. Scrubbing `progress` /
+    // `time` only re-runs this effect — the animator is NOT recreated.
     useEffect(() => {
         if (compMode === PixodeskSvgAnimatorCompMode.fixedTime && seekMs !== undefined) {
             apiHolderRef.current?.setCurrentTime(seekMs);

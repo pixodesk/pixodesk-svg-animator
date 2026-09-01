@@ -173,11 +173,11 @@ import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-rn';
 import doc from './animation.json';
 
 export function Scrubber() {
-  const [timeMs, setTimeMs] = useState(0);
+  const [time, setTime] = useState(0);
   return (
     <View>
-      <PixodeskSvgAnimator doc={doc} timeMs={timeMs} />
-      <Slider minimumValue={0} maximumValue={2000} value={timeMs} onValueChange={setTimeMs} />
+      <PixodeskSvgAnimator doc={doc} time={time} />
+      <Slider minimumValue={0} maximumValue={2000} value={time} onValueChange={setTime} />
     </View>
   );
 }
@@ -196,8 +196,8 @@ component.
 | `play` | `boolean` | play now, whatever the file's trigger says |
 | `pause` | `boolean` | pause the current playback; set it back to `false` to resume |
 | `apiRef` | `RefObject<RnAnimatorApi>` | imperative control |
-| `time` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
-| `timeMs` | `number` | show the frame at that time, in milliseconds from the start |
+| `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
+| `time` | `number` | show the frame at that time, in milliseconds from the start |
 | `duration` · `delay` | `number` | length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component |
 | `iterations` | `number \| 'infinite'` | how many times to play; `'infinite'` never stops |
 | `fill` | `'forwards' \| 'backwards' \| 'both' \| 'none'` | what shows before the start / after the end |
@@ -208,7 +208,7 @@ component.
 | `onError` | `(error, componentStack?) => void` | the document could not be compiled or rendered |
 | `fallback` | `(error) => ReactElement \| null` | rendered in place of a failed animation (default: renders nothing) |
 
-With none of `autoplay` / `play` / `pause` / `time` / `timeMs` set, the first frame renders
+With none of `autoplay` / `play` / `pause` / `progress` / `time` set, the first frame renders
 statically.
 
 ### Differences from the React package

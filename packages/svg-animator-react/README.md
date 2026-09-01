@@ -69,15 +69,15 @@ const api = useRef<ReactAnimatorApi>(null);
 Move through the animation with a slider, or show one fixed frame:
 
 ```tsx
-const [timeMs, setTimeMs] = useState(0);
+const [time, setTime] = useState(0);
 
-<PixodeskSvgAnimator doc={animation} timeMs={timeMs} />
+<PixodeskSvgAnimator doc={animation} time={time} />
 <input
   type="range"
   min={0}
   max={2000}
-  value={timeMs}
-  onChange={e => setTimeMs(Number(e.target.value))}
+  value={time}
+  onChange={e => setTime(Number(e.target.value))}
 />
 ```
 
@@ -91,8 +91,8 @@ const [timeMs, setTimeMs] = useState(0);
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
 | `apiRef` | `RefObject<ReactAnimatorApi>` | Ref for imperative control |
-| `time` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
-| `timeMs` | `number` | show the frame at that time, in milliseconds from the start |
+| `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
+| `time` | `number` | show the frame at that time, in milliseconds from the start |
 | `mode` | `'auto' \| 'waapi' \| 'frames'` | Animation engine |
 | `duration` | `number` | Duration override (ms) |
 | `delay` | `number` | Delay before start (ms) |
@@ -111,6 +111,6 @@ const [timeMs, setTimeMs] = useState(0);
 | `className` | `string` | CSS class applied to the rendered root `<svg>` |
 | `style` | `CSSProperties` | Inline styles applied to the rendered root `<svg>` |
 
-With none of `autoplay` / `play` / `pause` / `apiRef` / `time` / `timeMs` set, the component renders the animation statically (initial state, no playback).
+With none of `autoplay` / `play` / `pause` / `apiRef` / `progress` / `time` set, the component renders the animation statically (initial state, no playback).
 
-Note: passing a different `doc` (or unmounting) throws the old animator away and builds a new one; the old instance emits `onCancel`, `onRemove`, and `onStop` on its way out. Changing `time` / `timeMs` does **not** recreate the animator — it just jumps the existing one to the new time.
+Note: passing a different `doc` (or unmounting) throws the old animator away and builds a new one; the old instance emits `onCancel`, `onRemove`, and `onStop` on its way out. Changing `progress` / `time` does **not** recreate the animator — it just jumps the existing one to the new time.

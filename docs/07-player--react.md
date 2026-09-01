@@ -87,7 +87,7 @@ export function Intro() {
 Uses the trigger saved in the document — on load, on hover, on click, when scrolled into view
 — and its out action. Override with `startOn` / `outAction` / `scrollIntoViewThreshold`.
 
-### 3 · Controlled time (`time` / `timeMs`)
+### 3 · Controlled time (`progress` / `time`)
 
 > **Example:** [`react/controlled-time`](../examples/docs-examples/src/cases/react/controlled-time/) — `pnpm example:docs`, then open `#react/controlled-time`.
 
@@ -100,17 +100,17 @@ import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Scrubber() {
-  const [timeMs, setTimeMs] = useState(0);
+  const [time, setTime] = useState(0);
   return (
     <>
-      <PixodeskSvgAnimator doc={animation} timeMs={timeMs} />
-      <input type="range" min={0} max={2000} value={timeMs} onChange={e => setTimeMs(+e.target.value)} />
+      <PixodeskSvgAnimator doc={animation} time={time} />
+      <input type="range" min={0} max={2000} value={time} onChange={e => setTime(+e.target.value)} />
     </>
   );
 }
 ```
 
-`time` is a position in the whole timeline (duration × iterations), from `0`, the first frame, to `1`, the last; `timeMs` is a time in milliseconds from the start.
+`progress` is a position in the whole timeline (duration × iterations), from `0`, the first frame, to `1`, the last; `time` is a time in milliseconds from the start.
 
 ### 4 · Declarative play / pause
 
@@ -140,7 +140,7 @@ export function Controlled() {
 `play && !pause` plays; `pause` pauses; `play === false` jumps to the end state; a pause that is
 switched back off resumes.
 
-With none of `apiRef` / `autoplay` / `time` / `timeMs` / `play` / `pause` set, the component
+With none of `apiRef` / `autoplay` / `progress` / `time` / `play` / `pause` set, the component
 renders the first frame statically.
 
 ## Props
@@ -155,8 +155,8 @@ renders the first frame statically.
 | `play` | `boolean` | play unconditionally (ignores document triggers) |
 | `pause` | `boolean` | pause current playback |
 | `apiRef` | `RefObject<ReactAnimatorApi>` | imperative control |
-| `time` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
-| `timeMs` | `number` | show the frame at that time, in milliseconds from the start |
+| `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
+| `time` | `number` | show the frame at that time, in milliseconds from the start |
 | **Timing overrides** | | *(each replaces the document's `animator` value)* |
 | `duration` | `number` | ms for one iteration |
 | `delay` | `number` | wait this many ms, then start. A negative value skips ahead instead: `-500` starts right away from the frame at 0.5 s, as if the animation had already been running for half a second |
@@ -179,7 +179,7 @@ renders the first frame statically.
 
 Passing a different `doc` (or changing `className` / `style` / the control mode) throws the
 old animator away and builds a new one; the old instance emits `onCancel`, `onRemove` and
-`onStop` on its way out. Changing `time` / `timeMs` does not recreate anything.
+`onStop` on its way out. Changing `progress` / `time` does not recreate anything.
 
 ## CSS-flavour SVGs — `PixodeskSvgCssAnimator`
 

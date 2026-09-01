@@ -216,17 +216,17 @@ describe("PixodeskSvgAnimator (Vue)", () => {
     // -- 5. Controlled time ----------------------------------------------------
 
     describe("controlled time", () => {
-        it("renders mid-animation state with timeMs (absolute milliseconds)", () => {
+        it("renders mid-animation state with time (absolute milliseconds)", () => {
             render(PixodeskSvgAnimator, {
-                props: { doc: getTestJson1000(), timeMs: 500 },
+                props: { doc: getTestJson1000(), time: 500 },
             });
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
         });
 
-        it("treats `time` as a fraction of duration (time=0.5, duration=1000 → 500ms)", () => {
+        it("treats `progress` as a fraction of duration (progress=0.5, duration=1000 → 500ms)", () => {
             render(PixodeskSvgAnimator, {
-                props: { doc: getTestJson1000(), time: 0.5 },
+                props: { doc: getTestJson1000(), progress: 0.5 },
             });
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
@@ -234,7 +234,7 @@ describe("PixodeskSvgAnimator (Vue)", () => {
 
         it("does not advance on its own in fixed-time mode", () => {
             render(PixodeskSvgAnimator, {
-                props: { doc: getTestJson1000(), timeMs: 500 },
+                props: { doc: getTestJson1000(), time: 500 },
             });
             const ellipse = document.querySelector("ellipse");
             vi.advanceTimersByTime(1000);
@@ -335,7 +335,7 @@ function getTestJson(): PxAnimatedSvgDocument {
     };
 }
 
-/** Same as getTestJson but with duration 1000ms (for time / timeMs semantics). */
+/** Same as getTestJson but with duration 1000ms (for progress / time semantics). */
 function getTestJson1000(): PxAnimatedSvgDocument {
     return {
         type: "svg",

@@ -117,10 +117,10 @@ export interface PixodeskSvgAnimatorProps {
     // -- Controlled (external) time -------------------------------------------
 
     /** Seek to a fraction (0–1) of the whole timeline (duration × iterations). */
-    time?: number;
+    progress?: number;
 
     /** Seek to a specific time in milliseconds. */
-    timeMs?: number;
+    time?: number;
 
     // -- Callbacks ------------------------------------------------------------
 
@@ -367,7 +367,8 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides)
  */
 export function PixodeskSvgAnimator({
     doc, duration, delay, iterations, fill, direction, resetOnFinish, outAction: outActionProp,
-    autoplay, play, pause, apiRef, time, timeMs,
+    // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
+    autoplay, play, pause, apiRef, progress: progressProp, time,
     onPlay, onStop, onPause, onCancel, onFinish, onError, fallback,
 }: PixodeskSvgAnimatorProps): ReactElement | null {
 
@@ -518,8 +519,8 @@ export function PixodeskSvgAnimator({
     const outAction = outActionProp ?? trigger?.outAction ?? 'pause';
 
     useEffect(() => {
-        if (time !== undefined || timeMs !== undefined) {
-            const seekMs = timeMs !== undefined ? timeMs : (time ?? 0) * totalDuration;
+        if (progressProp !== undefined || time !== undefined) {
+            const seekMs = time !== undefined ? time : (progressProp ?? 0) * totalDuration;
             api.setCurrentTime(seekMs);
             return;
         }
@@ -535,7 +536,7 @@ export function PixodeskSvgAnimator({
             api.play();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compiled, autoplay, play, pause, time, timeMs]);
+    }, [compiled, autoplay, play, pause, progressProp, time]);
 
     // `startOn: 'scrollIntoView'` — react-native has no IntersectionObserver, so
     // visibility is sampled by measuring the view against the window box. The

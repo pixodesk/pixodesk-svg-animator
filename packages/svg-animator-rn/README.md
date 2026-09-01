@@ -23,7 +23,7 @@ native SVG, driven on the UI thread.
 - **One prop to render:** put the `.json` next to your component, import it, pass
   it as `doc`.
 - **Playback control:** declarative props (`autoplay`, `play`, `pause`,
-  `timeMs`) or an imperative ref (`play()`, `pause()`, `setCurrentTime()`, …).
+  `time`) or an imperative ref (`play()`, `pause()`, `setCurrentTime()`, …).
 - **No size of its own:** it fills whatever `View` you put it in — give that `View` a `width` and `height`.
 
 ## Quick start
@@ -158,10 +158,10 @@ const api = useRef<RnAnimatorApi>(null);
 Move through the animation with a slider, or show one fixed frame:
 
 ```tsx
-const [timeMs, setTimeMs] = useState(0);
+const [time, setTime] = useState(0);
 
-<PixodeskSvgAnimator doc={doc} timeMs={timeMs} />
-<Slider minimumValue={0} maximumValue={2000} value={timeMs} onValueChange={setTimeMs} />
+<PixodeskSvgAnimator doc={doc} time={time} />
+<Slider minimumValue={0} maximumValue={2000} value={time} onValueChange={setTime} />
 ```
 
 ## Props
@@ -173,8 +173,8 @@ const [timeMs, setTimeMs] = useState(0);
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
 | `apiRef` | `RefObject<RnAnimatorApi>` | Ref for imperative control |
-| `time` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
-| `timeMs` | `number` | show the frame at that time, in milliseconds from the start |
+| `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
+| `time` | `number` | show the frame at that time, in milliseconds from the start |
 | `duration` | `number` | Duration override (ms) |
 | `delay` | `number` | Delay before start (ms) |
 | `iterations` | `number \| 'infinite'` | Loop count |
@@ -190,7 +190,7 @@ const [timeMs, setTimeMs] = useState(0);
 | `onError` | `(error, componentStack?) => void` | Called when a document cannot be compiled or rendered |
 | `fallback` | `(error) => ReactElement \| null` | Rendered in place of a failed animation (default: nothing) |
 
-With none of `autoplay` / `play` / `pause` / `time` / `timeMs` set, the component
+With none of `autoplay` / `play` / `pause` / `progress` / `time` set, the component
 renders the animation statically (initial state, no playback).
 
 ### Failure handling

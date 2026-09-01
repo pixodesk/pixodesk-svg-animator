@@ -14,7 +14,7 @@ only mode that uses the document's trigger — with `play`, `apiRef`, `time` etc
 switched to programmatic.
 
 **React / Vue component with no control prop.** With none of `autoplay` / `play` / `pause` /
-`apiRef` / `time` / `timeMs` set, the component deliberately renders the first frame and does
+`apiRef` / `progress` / `time` set, the component deliberately renders the first frame and does
 nothing. Add `autoplay`.
 
 **`loadTagAnimators()` ran before the elements existed.** Call it after the DOM is ready (end of
