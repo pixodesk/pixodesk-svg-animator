@@ -125,9 +125,9 @@ same settings; the only difference is which of the two attributes is painted.
 | Field | Type | Meaning |
 |---|---|---|
 | `type` | `linear` · `radial` | a gradient along a line from `p1` to `p2`, or one spreading out from a centre `c` |
-| `p1` · `p2` | `[x, y]` \| `Animated<[x, y]>` | linear start / end |
-| `c` · `r` · `fp` | `[x, y]` \| `Animated<[x, y]>` · number \| `Animated<number>` · `[x, y]` \| `Animated<[x, y]>` | radial centre, radius, focal point |
-| `stops` | array of `{ offset, color }` \| `Animated<array of { offset, color }>` | **one** timeline: an animated `stops` has, per keyframe, the full stop list as its value (same count each time) |
+| `p1` · `p2` | `[x, y]` \| `Animated<[x, y]>` | the line the linear gradient runs along: start and end point — SVG's `x1`/`y1`/`x2`/`y2` ([SVG `<linearGradient>` spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/linearGradient)) |
+| `c` · `r` · `fp` | `[x, y]` \| `Animated<[x, y]>` · number \| `Animated<number>` · `[x, y]` \| `Animated<[x, y]>` | the radial gradient's centre, radius and focal point — SVG's `cx`/`cy`, `r`, `fx`/`fy` ([SVG `<radialGradient>` spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/radialGradient)) |
+| `stops` | array of `{ offset, color }` \| `Animated<array of { offset, color }>` | the gradient's colour stops — each becomes an SVG [`<stop>` element](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/stop). When animated, each keyframe's value is the complete stop list — every stop with its position and colour at that moment — and every keyframe must have the same number of stops |
 | `gradientUnits` | `objectBoundingBox` · `userSpaceOnUse` | which coordinates `p1`, `p2`, `c`, `r`, `fp` are in: positions across the element's own box (`0` = its left / top edge, `1` = its right / bottom edge), or the drawing's own coordinates ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/gradientUnits)) |
 | `spreadMethod` | `pad` · `reflect` · `repeat` | what to paint beyond the last stop: extend the end colour, mirror the gradient back, or start it over ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/spreadMethod)) |
 | `gradientTransform` | string | static only ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/gradientTransform)) |
@@ -149,7 +149,7 @@ loop (`mode: auto` switches for you). CSS exports can animate stop colours only.
 
 ## 4 — `strokeTrim`
 
-Shows only a window of the **stroke** along the path — a line that draws itself, or erases itself. Works
+Shows only a part of the **stroke** along the path — a line that draws itself, or erases itself. Works
 by generating `stroke-dasharray` / `stroke-dashoffset`; the path geometry and fill are
 untouched (unlike Lottie's *trim paths*, which cut the shape itself).
 
@@ -157,7 +157,7 @@ untouched (unlike Lottie's *trim paths*, which cut the shape itself).
 |---|---|---|
 | `range` | `[start, end]` \| `Animated<[start, end]>` | which part of the stroke is visible, as two positions along the path: `0` is the start of the path, `1` its end — `[0, 0.5]` shows the first half |
 | `offset` | number \| `Animated<number>` | slides that visible part along the path, as a share of its length: `0.25` moves it a quarter of the way |
-| `subPaths` | `separate` (default) · `combined` | what those positions are measured against: each sub-path against its own length, or all sub-paths chained into one so the window slides across them (After Effects "Trim All As One") |
+| `subPaths` | `separate` (default) · `combined` | what those positions are measured against: each sub-path against its own length, or all sub-paths chained into one so the visible part slides across them |
 
 ```js
 { "type": "path", "d": "M 30 360 C 130 290 230 420 330 350", "stroke": "#ef4444", "strokeWidth": 3, "fill": "none",
@@ -165,7 +165,12 @@ untouched (unlike Lottie's *trim paths*, which cut the shape itself).
   "effects": { "strokeTrim": { "range": { "keyframes": [ { "time": 0, "value": [0, 0] }, { "time": 2000, "value": [0, 1] } ] } } } }
 ```
 
-On a group, the trim applies to every path inside it (`subPaths: "combined"` chains them).
+The trim can also be put on a group. Then it applies to every path inside the group, and
+`subPaths` decides how:
+
+- `"separate"` — every path inside is trimmed on its own, each against its own length;
+- `"combined"` — all the paths are chained into one long line, and the visible part slides
+  across them as a whole.
 
 ## 5 — `repeater`
 
@@ -199,7 +204,7 @@ Under the hood the player builds a `<mask>` from it and applies it to this eleme
 | `sourceId` | `"#id"` | the element that becomes the mask |
 | `maskType` | `alpha` · `luminance` | how the source's pixels become mask values ([CSS spec](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/mask-type)) |
 | `maskUnits` · `maskContentUnits` | `userSpaceOnUse` · `objectBoundingBox` | SVG's mask coordinate systems ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/maskUnits), [maskContentUnits](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/maskContentUnits)) |
-| `x` · `y` · `width` · `height` | numbers | the mask **viewport** in `maskUnits` space; omit all four for SVG's default (−10 %…120 % of the bounding box). `0` is a real value ([SVG `<mask>` spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/mask)) |
+| `x` · `y` · `width` · `height` | numbers | the area the mask covers; leave them out for SVG's default ([SVG `<mask>` spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/mask)) |
 
 ```js
 // The element that will become the mask — a growing circle
@@ -213,16 +218,16 @@ Under the hood the player builds a `<mask>` from it and applies it to this eleme
 
 ## 7 — `clipPath`
 
-Cuts the element down to a shape: only what falls inside the given path stays visible. The
-shape can animate — the browser re-clips on every frame. Under the hood the player generates
-a `<clipPath>` element and sets `clip-path` on this one.
+Clips the element by the given path — which can be animated. It simply creates a usual
+[`<clipPath>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/clipPath)
+for this element and links the two.
 
 | Field | Type | Meaning |
 |---|---|---|
 | `d` | path string \| `Animated<path string>` | static `"M…"`, or `{ "keyframes": [ { "time", "value": { "path": "M…" } } ] }` |
 
 ```js
-// A clipping window that widens from a narrow strip to the full 200 × 200 square
+// The visible area widens from a narrow strip to the full 200 × 200 square
 "effects": { "clipPath": { "d": { "keyframes": [
   { "time": 0,    "value": { "path": "M0,0 L20,0 L20,200 L0,200 Z" } },
   { "time": 1000, "value": { "path": "M0,0 L200,0 L200,200 L0,200 Z" } }
@@ -231,9 +236,10 @@ a `<clipPath>` element and sets `clip-path` on this one.
 
 ## 8 — `transformBy`
 
-Wraps the element in transform groups so each part has its **own timeline**. Use it when
-translate and rotate (say) must run at different times — a single `transform` attribute has one
-timeline for all parts.
+Lets each part of a transform — translate, rotate, scale, skew — animate on its **own
+schedule**, with its own keyframe times and easing. A plain `transform` animation cannot do
+that: all its parts share one set of keyframes. Under the hood, the effect wraps the element
+in one group per part, and each group animates independently.
 
 | Field | Type | Meaning |
 |---|---|---|
@@ -253,16 +259,21 @@ timeline for all parts.
 
 ## 9 — `clone`
 
-For `<use>` elements: says **what** the instance copies and, optionally, **when** its source's
-animation runs relative to the document.
+Shows copies of one animated element at several places — like a rubber stamp: draw a wheel
+once, stamp it three times, and each copy can play on its own schedule. The copies are
+ordinary SVG [`<use>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/use)
+elements; the effect on each `<use>` says what it copies (`sourceId`) and, optionally,
+re-times that copy's animation (`retime` — start later, play slower, show only for a while).
+It is an effect, rather than a plain `<use>`, because those things need real copies: the
+player materialises each clone into its own elements with its own timing.
 
 | Field | Type | Meaning |
 |---|---|---|
 | `sourceId` | `"#id"` | the source element / symbol (the `<use>` also keeps its normal `href`) |
-| `type` | absent · `content` | absent = a direct copy of the whole element; `content` = copy the source's content but not its own outer position |
+| `type` | `content` (optional) | leave the field out for a direct copy of the whole element; `content` copies the source's content but not its own outer position |
 | `retime.start` | ms | shift the source's internal timeline |
 | `retime.stretch` | a multiplier of duration | `2` = twice as long (half speed), `0.5` = half as long (double speed) |
-| `retime.timeCrop` | `[inMs, outMs]` | show the instance only inside this window of the document timeline |
+| `retime.timeCrop` | `[inMs, outMs]` | show the instance only between these two times of the document timeline |
 
 ```js
 // The source: a spinning-wheel symbol with its own one-second animation
