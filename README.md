@@ -263,11 +263,11 @@ The legacy per-key form (`animate: { translate, rotate, scale }` — used in the
 
 ```typescript
 // PxAnimatedSvgDocument
-// Mode A: has children — player renders SVG tree and animates it
-// Mode B: no children — player animates a pre-existing SVG DOM via animator.animateById
+// Self-contained document: has children — player renders SVG tree and animates it
+// Bind-by-id document: no children — player animates a pre-existing SVG DOM via animator.animateById
 interface SVG_JSON {
     type: 'svg';        // document root marker
-    id?: string;        // DOM id; in Mode B used to locate the pre-rendered element
+    id?: string;        // DOM id; in a bind-by-id document it locates the pre-rendered element
     viewBox?: string;   // internal coordinate space, e.g. "0 0 700 380"
     width?: number;     // rendered size; width accepts CSS units
     height?: number;
@@ -311,7 +311,7 @@ interface SVG_JSON {
                                  // 'scroll' is reserved: scroll-linked playback is coming.
         debugInstName?: string;  // exposes the animator as window[debugInstName]
 
-        // Mode B — maps elementId → animation spec. Same value type as `node.animate`;
+        // bind-by-id documents — maps elementId → animation spec. Same value type as `node.animate`;
         // only the KEYSPACE differs (element id here, attr name there), which is what
         // the `ById` suffix names. Was `animate` before 2026-08.
         animateById?: Record<string,
@@ -322,7 +322,7 @@ interface SVG_JSON {
         >;
     };
 
-    // Mode A — SVG element tree; absence of children signals Mode B
+    // self-contained documents — SVG element tree; its absence makes the document bind-by-id
     children?: Array<{
         type: string;       // SVG element tag: "rect", "g", "path", "ellipse", "use", …
         id?: string;        // DOM id; required for href="#id" refs or animator.animateById targeting
@@ -392,8 +392,8 @@ standard. The reserved wire keys — never written to the DOM as attributes — 
 A JSON document that mirrors SVG structure. The player constructs the SVG DOM and drives the animation at runtime. All animation data, structure, and metadata live in one file.
 
 Two modes share the same root document type (`PxAnimatedSvgDocument`):
-- **Mode A** — `children` present: player renders the element tree and animates it.
-- **Mode B** — no `children`: player animates a pre-existing SVG DOM via `animator.animateById`.
+- **Self-contained document** — `children` present: player renders the element tree and animates it.
+- **Bind-by-id document** — no `children`: player animates a pre-existing SVG DOM via `animator.animateById`.
 
 **Quick example:**
 
@@ -426,7 +426,7 @@ Two modes share the same root document type (`PxAnimatedSvgDocument`):
 }
 ```
 
-#### Full example — Mode A (all animation types)
+#### Full example — self-contained document (all animation types)
 
 ```typescript
 const doc = {
@@ -575,7 +575,7 @@ Same as above, plus a small `<script>` fragment to start/stop the animation on e
 </svg>
 ```
 
-#### **Pre-rendered SVG + JavaScript animation (Mode B)**
+#### **Pre-rendered SVG + JavaScript animation (a bind-by-id document)**
 
 Static SVG markup with `@pixodesk/svg-animator-web` bundled in a `<script>` tag. The player targets existing DOM elements by `id`. Supports all animation types including shape morphing. Uses WAAPI or `requestAnimationFrame`.
 

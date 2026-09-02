@@ -20,9 +20,9 @@ in a pre-rendered SVG the same object is written into a per-element `data-px-met
   "meta": { "label": "Triangle", "appliedEffects": { "shape": { "preset": { "type": "polygon", "points": 3, "radius": 30 } } } } }
 ```
 
-## The keys
+## The fields
 
-| Key | On | Holds |
+| Field | On | Holds |
 |---|---|---|
 | `label` | any element | the display name shown in the editor's element tree |
 | `appliedEffects` | a plain node | this node's own effects, **already applied** — [Applied effects](#applied-effects--the-tense-is-the-meaning) |

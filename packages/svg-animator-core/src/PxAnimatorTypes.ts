@@ -787,7 +787,7 @@ export interface _PxAnimatorConfig {
     definitions?: PxDefs;
 
     /**
-     * Animation map for pre-rendered SVG elements (Mode B) — `node.animate` HOISTED
+     * Animation map for pre-rendered SVG elements (bind-by-id documents, no `children`) — `node.animate` HOISTED
      * to the root and keyed by element id, for when the SVG DOM already exists and the
      * player only needs to bind to it.
      *

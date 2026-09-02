@@ -56,10 +56,10 @@ Three ideas cover 90 % of the format:
 
 ## The document root
 
-| Key | Type | Meaning |
+| Field | Type | Meaning |
 |---|---|---|
 | `type` | always the string `"svg"` | required — marks the root element of the document |
-| `id` | string | the element's identifier — it becomes the DOM id, and other elements and effects reference the element by it ([documents without `children`](#documents-without-children--animating-an-svg-that-is-already-on-the-page) rely on these references) |
+| `id` | string | the element's identifier — it becomes the DOM id, and other elements and effects reference the element by it ([documents without `children`](#animating-a-pre-rendered-svg) rely on these references) |
 | `viewBox` | string | the drawing's coordinate space, exactly as in SVG — e.g. `"0 0 700 380"` means "the drawing spans 700 × 380 units" |
 | `width` · `height` | number or string | how big the drawing appears on the page — the same `width` / `height` you would put on an `<svg>` tag. Write a plain number (`400`) for pixels, or a string for anything with a unit: `"32px"`, `"100%"` |
 | `animator` | object | the playback settings — duration, loops, trigger, etc — see [Playback settings](./10-player--playback-and-triggers.md) and [Definitions](#definitions--animatordefinitions) |
@@ -80,7 +80,7 @@ child elements), `animate` (its animation) and `effects` (its effects):
   "animate": { "opacity": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 500, "value": 1 } ] } } }
 ```
 
-| Key | Meaning |
+| Field | Meaning |
 |---|---|
 | `type` | the SVG tag: `rect`, `circle`, `ellipse`, `line`, `path`, `g`, `text`, `tspan`, `use`, `symbol`, `defs`, `image`, `mask`, `clipPath`, `linearGradient`, `radialGradient`, `stop`, `pattern`, `marker`, `filter` and the `fe*` primitives, … |
 | `id` | DOM id — required when something references the element (`href="#id"`, `maskedBy`, `animateById`). When the player creates the DOM elements, it replaces every id with a fresh one (that is how several copies of one file coexist on a page), so ids need only be unique within the file |
@@ -160,7 +160,7 @@ three shorthand forms, all built on **named animations** — animations defined 
 
 ### Property animation
 
-| Key | Type | Meaning |
+| Field | Type | Meaning |
 |---|---|---|
 | `keyframes` | array | the timeline |
 | `value` | same as a keyframe's `value` ([Keyframe values](#keyframe-values)) | optional static baseline (rarely needed — the static attribute on the node is the baseline) |
@@ -169,7 +169,7 @@ three shorthand forms, all built on **named animations** — animations defined 
 
 ### Keyframes
 
-| Key | Alias | Type | Meaning |
+| Field | Alias | Type | Meaning |
 |---|---|---|---|
 | `time` | `t` | ms | offset from the start of the document timeline |
 | `value` | `v` | depends on the property — [Keyframe values](#keyframe-values) | the property's value at this time |
@@ -229,7 +229,7 @@ the document's `iterations`:
             "loop": { "segmentCount": 1, "extend": "after", "alternate": true } }
 ```
 
-| Key | Meaning |
+| Field | Meaning |
 |---|---|
 | `segmentCount` | how big the repeated piece is, counted in **intervals** — an interval is the stretch between two neighbouring keyframes. By default the whole sequence repeats; `"segmentCount": 1` repeats only one interval — the last one with `extend: "after"`, the first one with `extend: "before"`. In the example above, `scale` has three keyframes (two intervals), and only its second half — the shrink back from 1.2 to 1 — keeps repeating |
 | `extend` | which end of the timeline the repetition fills. `"after"` (default): the animation plays through once, then the **last** intervals repeat until the document's duration is used up — e.g. a character lands and then keeps breathing. `"before"`: the **first** intervals repeat first, and the rest of the keyframes play at the end — e.g. a logo pulses for a while and then settles |
@@ -255,7 +255,7 @@ object holding all the parts — `translate`, `rotate`, `scale` — side by side
 | `translate` | `[x, y]` | how far to move along x and y — plain numbers in the drawing's coordinates (the `viewBox` space) |
 | `rotate` | number | degrees |
 | `skew` | number | skewX degrees, composed between rotate and scale |
-| `scale` | `[sx, sy]` | factors (`1` = 100 %) |
+| `scale` | `[sx, sy]` | multipliers: `1` = unchanged, `2` = double size, `0.5` = half |
 | `origin` | `[x, y]` | pivot for rotate / skew / scale — only meaningful alongside one of them |
 
 The parts are applied in this order: `translate · +origin · rotate · skewX · scale · −origin`.
@@ -268,7 +268,7 @@ transform string is accepted too. Each part can also be animated as its own chan
 An animated `transform` writes the element's one `transform` attribute, so it overwrites a
 static `transform` on the same element — put a fixed placement on a wrapping `<g>` instead.
 And since all parts share one set of keyframes, they run on one schedule; to give each part
-its own timing, use the [`transformBy` effect](./15-format--effects.md#transformby).
+its own timing, use the [`transformBy` effect](./15-format--effects.md#8--transformby).
 
 ## Motion along a path
 
@@ -287,18 +287,19 @@ Translate keyframes can carry Bézier tangents; the element then moves along the
 } }
 ```
 
-Tangents are deltas from the keyframe's own position (`P1 = value + tangentOut`, `P2 =
-next.value + next.tangentIn`). Players sample the curve where the platform cannot follow it
-natively.
+The tangents are the Bézier control points of the curve, written relative to their keyframe's
+own position (like the handles of a pen tool).
 
-## Path morphing
+## Shape morphing — animating a `<path>`'s outline
 
-Animate a path's `d`; every keyframe must have the **same command structure** (same number and
-kinds of segments — the editor guarantees this for shapes it created):
+A path's shape is its `d` attribute — a string of drawing commands. Animate `d` and the
+shape morphs from one form to the next. One rule: every keyframe's path must have the
+**same number of points** (in the example below, both shapes have four). Paths drawn in the
+editor get this right automatically:
 
 ```js
 { "type": "path", "fill": "#f59e0b", "d": "M-50,0 L0,-50 L50,0 L0,50 Z",
-  // The shape morphs — note every keyframe uses the same path commands (M, L, L, L, Z)
+  // The diamond morphs into a square — both shapes have four points
   "animate": { "d": { "keyframes": [
     { "time": 0,    "value": { "path": "M-50,0 L0,-50 L50,0 L0,50 Z" } },
     { "time": 2000, "value": { "path": "M-50,-50 L50,-50 L50,50 L-50,50 Z" } }
@@ -309,7 +310,9 @@ Morphing runs on the frame-loop engine (the `auto` mode switches automatically).
 
 ## Definitions — `animator.definitions`
 
-Reusable, named pieces:
+`animator.definitions` is where things are **defined once, under a name, and used in many
+places by that name** — instead of repeating the same easing curve or the same animation on
+every element that needs it:
 
 ```json
 "definitions": {
@@ -321,20 +324,27 @@ Reusable, named pieces:
 }
 ```
 
-| Key | Referenced by |
-|---|---|
-| `easings` | a keyframe's `easing: "name"` |
-| `animations` | a node's `animate: "name"` (or `animateById` values) |
-| `styles` | a node's `style: "name"` |
-| `glyphs` | `<text>` with `effects.text.useGlyphs`, keyed by the text's `font-family` |
+| Field | What it holds | How an element uses it |
+|---|---|---|
+| `easings` | named easing curves | a keyframe writes the name instead of the curve: `"easing": "smooth"` |
+| `animations` | named animations | a node writes the name instead of the keyframes: `"animate": "fadeIn"` (documents without `children` use the same names in `animateById`) |
+| `styles` | named sets of style attributes | a node writes the name instead of the attributes: `"style": "label"` |
+| `glyphs` | letter outlines: for each font, the shape of every letter used, stored under that font's name (`"Roboto": …` in the example above) | a `<text>` node with `effects.text.useGlyphs: true` is drawn from these outlines — the node's `font-family` says which font's outlines to use. No font file is needed on the viewer's machine |
 
-## Documents without `children` — animating an SVG that is already on the page
+## Animating a pre-rendered SVG
 
-A document **without `children`** does not build anything: it animates an SVG that already
-exists on the page, matching elements by id — the animations are listed in
-`animator.animateById`, keyed by element id. This is what the editor's *SVG + JS animation*
-export embeds. (The code and package READMEs call this kind of document **Mode B**, and a
-normal document with `children` **Mode A**.)
+When the editor saves a **pre-rendered *SVG + JS animation*** file, it puts two things into
+that one `.svg` file:
+
+- the **markup** — the elements, as ordinary SVG, each with an id;
+- a shortened **JSON document** inside the file's `<script>`, which carries only the
+  animations and links them to the markup through those ids.
+
+This section is about that shortened JSON document. It looks like a normal document, with one
+difference: it has no `children` — the elements already exist as markup, so instead of
+carrying them again, it lists its animations in `animator.animateById`, keyed by the id of
+the element each one animates. You will normally never write such a document yourself; the
+editor generates it.
 
 ```js
 import { createAnimator } from '@pixodesk/svg-animator-web';
@@ -355,36 +365,21 @@ createAnimator({ container: '#box', data: {   // an empty <div id="box"> on the 
 `animateById` values have exactly the same shape as a node's `animate`; only the key differs
 (element id here, attribute name there).
 
-## Units
+## Units of the values in a document
 
-Units are never written. Each property has one fixed implicit unit:
+Every number in a document — a keyframe's `time`, a `duration`, a coordinate, an angle — is
+written as a plain number, never with a unit after it (no `"500ms"`, no `"45deg"`). Instead,
+each property has one fixed unit that is always understood:
 
-| Quantity | Unit |
+| Value | Unit |
 |---|---|
 | time (`time`, `duration`, `delay`, `retime.start`) | milliseconds |
 | lengths, coordinates, `fontSize` in px | plain numbers in the drawing's coordinates (the `viewBox` space) — no unit is written |
 | `rotate`, `skew`, angles | degrees |
 | `opacity`, trim `range` / `offset`, stop `offset`, `scrollIntoViewThreshold` | a share of the whole, from `0` (none) to `1` (all) |
-| every `scale` | factor (`1` = 100 %) |
-| `retime.stretch` | factor (`0.5` = half speed) |
+| every `scale` | a multiplier: `1` = unchanged, `2` = double, `0.5` = half |
+| `retime.stretch` | a multiplier of duration: `2` = twice as long (half speed), `0.5` = half as long (double speed) |
 | `frameRate` | frames per second |
 | easing | cubic-bezier `[x1, y1, x2, y2]` |
-
-## Validating a document
-
-Check a hand-written or generated document before you ship it. The first call answers *is this
-a Pixodesk file at all*; the second lists every problem it finds:
-
-```ts
-import { isPxElementFileFormat, PxAnimatedSvgDocumentSchema } from '@pixodesk/svg-animator-web';
-
-const json = await (await fetch('/animation.json')).json();
-
-isPxElementFileFormat(json);                              // cheap: is this a Pixodesk document at all?
-const ctx = { errors: [], warnings: [], strict: true };
-PxAnimatedSvgDocumentSchema.isValid(json, ctx, []);       // full check; ctx.errors lists problems
-```
-
-See [Core library → Validating](./18-format--core-library.md#validating-a-document).
 
 [← Format principles](./13-format--format-principles.md) · [Contents](./README.md) · Next: [Player effects →](./15-format--effects.md)

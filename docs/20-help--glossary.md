@@ -14,7 +14,7 @@ type, the entry names it, so you can go straight from the word to the file.
 | **Keyframe** | `{ time, value, easing?, tangentIn?, tangentOut? }` — the value at a moment (ms) |
 | **Easing** | A cubic-bezier `[x1, y1, x2, y2]` for the interval leaving a keyframe, or a name from `definitions.easings` |
 | **Loop** | A per-property repeat of a segment of its keyframes to fill the document duration (`extend: before/after`, `alternate`) — independent of `iterations` |
-| **`animator`** | The document's playback settings: duration, delay, iterations, direction, fill, engine mode, triggers, scroll timeline, definitions, Mode B bindings |
+| **`animator`** | The document's playback settings: duration, delay, iterations, direction, fill, engine mode, triggers, scroll timeline, definitions, and — for pre-rendered SVG — the `animateById` bindings |
 | **Iterations** | How many times the *whole* document timeline repeats (`"infinite"` allowed) |
 | **Trigger** | What starts the animation: `load`, `scrollIntoView`, `mouseOver`, `click`, `programmatic`; `outAction` says what happens when the trigger ends |
 | **Engine** | How the web player drives frames: the **Web Animations API** (`waapi`) or a **frame loop** (`frames`); `auto` picks WAAPI with automatic fallback |
@@ -28,7 +28,7 @@ type, the entry names it, so you can go straight from the word to the file.
 | **Shape preset** | A parametric editor shape (star, polygon, spiral, arc, wave, arrow, heart, …) whose parameters animate; materialised to a path for playback and kept in `meta` for editing |
 | **Symbol / instance** | An SVG `<symbol>` with its own animation, placed with `<use>`; the `clone` effect re-times each instance |
 | **Retime** | Shifting (`start`) or stretching (`stretch`) a symbol's internal timeline for one instance; `timeCrop` limits when the instance is visible |
-| **Mode A / Mode B** | Names used in the code and package READMEs for the two kinds of document: **Mode A** has `children` and the player builds the SVG from it; **Mode B** has no `children` and animates an SVG already on the page, matching elements by id (`animator.animateById`) — [read more](./14-format--json-format.md#documents-without-children--animating-an-svg-that-is-already-on-the-page) |
+| **Self-contained vs bind-by-id document** | The two kinds of JSON document: a **self-contained** one carries its elements in `children` and the player builds the SVG from it; a **bind-by-id** one has no `children` and animates an SVG already on the page, matching elements by id (`animator.animateById`) — [read more](./14-format--json-format.md#animating-a-pre-rendered-svg) |
 | **Pre-rendered SVG** | A normal `.svg` with the animation embedded: CSS `@keyframes`, optionally a trigger script, or the whole player |
 | **Flavour** | One of the three pre-rendered SVG exports: *SVG + CSS animation*, *SVG + CSS animation + JS triggers*, *SVG + JS animation* — [which to pick](./11-player--prerendered-svg.md#which-flavour) |
 | **Unit (host / core / part)** | How a pre-rendered file records an effect that was written as several elements: the **host** carries the effects (`meta.effectsHost`), the **core** is the element itself, every **part** points back (`meta.partOf`) — [Editor meta → Units](./16-format--editor-meta.md#units--one-element-written-as-several) |

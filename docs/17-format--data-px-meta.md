@@ -65,7 +65,7 @@ read it — the keys are unquoted.
 | text line `<tspan>` | `lineSpacing` |
 
 The keys mean exactly what they mean in the JSON format — the table in
-[Editor meta → The keys](./16-format--editor-meta.md#the-keys) applies unchanged. Two of them
+[Editor meta → The fields](./16-format--editor-meta.md#the-fields) applies unchanged. Two of them
 exist *only* in this form:
 
 ### The animator config lives in two different places

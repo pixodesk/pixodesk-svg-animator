@@ -134,8 +134,8 @@ createAnimator({
 The `doc` passed to `createAnimator` is a `PxAnimatedSvgDocument` (`type: 'svg'`), the
 same shape as the JSON export. It comes in two modes:
 
-- **Mode A** — has `children`: the player renders the SVG tree and animates it.
-- **Mode B** — no `children`: the player animates a pre-existing SVG DOM, mapping
+- **Self-contained document** — has `children`: the player renders the SVG tree and animates it.
+- **Bind-by-id document** — no `children`: the player animates a pre-existing SVG DOM, mapping
   element ids to animation specs via `animator.animateById`.
 
 Elements may also carry a `node.effects` bucket (structural effects such as
