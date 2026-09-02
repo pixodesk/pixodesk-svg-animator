@@ -25,13 +25,13 @@ type, the entry names it, so you can go straight from the word to the file.
 | **Glyph mode** | Rendering a `<text>` from embedded outlines (`effects.text.useGlyphs`) so no font is needed at playback |
 | **Motion along a path** | Translate keyframes carrying Bézier tangents; `autoOrient` turns the element to face the direction of travel |
 | **Path morphing** | Animating a path's `d` between shapes with the same command structure |
-| **Shape preset** | A parametric editor shape (star, polygon, spiral, arc, wave, arrow, heart, …) whose parameters animate; materialised to a path for playback and kept in `meta` for editing |
+| **Shape preset** | A ready-made editor shape (`star`, `polygon`, `spiral`, `arc`, `wave`, `arrow`, `heart`, …) described by a few settings, and those settings can animate; materialised to a path for playback and kept in `meta` for editing |
 | **Symbol / instance** | An SVG `<symbol>` with its own animation, placed with `<use>`; the `clone` effect re-times each instance |
 | **Retime** | Shifting (`start`) or stretching (`stretch`) a symbol's internal timeline for one instance; `timeCrop` limits when the instance is visible |
 | **Self-contained vs bind-by-id document** | The two kinds of JSON document: a **self-contained** one carries its elements in `children` and the player builds the SVG from it; a **bind-by-id** one has no `children` and animates an SVG already on the page, matching elements by id (`animator.animateById`) — [read more](./14-format--json-format.md#animating-a-pre-rendered-svg) |
 | **Pre-rendered SVG** | A normal `.svg` with the animation embedded: CSS `@keyframes`, optionally a trigger script, or the whole player |
 | **Flavour** | One of the three pre-rendered SVG exports: *SVG + CSS animation*, *SVG + CSS animation + JS triggers*, *SVG + JS animation* — [which to pick](./11-player--prerendered-svg.md#which-flavour) |
-| **Unit (host / core / part)** | How a pre-rendered file records an effect that was written as several elements: the **host** carries the effects (`meta.effectsHost`), the **core** is the element itself, every **part** points back (`meta.partOf`) — [Editor meta → Units](./16-format--editor-meta.md#units--one-element-written-as-several) |
+| **Expanded parts (host / core / part)** | How a pre-rendered file records an effect that was written as several elements: the **host** carries the effects (`meta.effectsHost`), the **core** is the element itself, every **part** points back (`meta.partOf`) — [Editor meta → derived elements (host / core / part)](./16-format--editor-meta.md#applied-effects-that-create-derived-elements-host--core--part) |
 | **`data-px-meta`** | The attribute a pre-rendered SVG uses to carry editor metadata per element, so the editor can re-open the file with its effects intact — [Meta in pre-rendered SVG](./17-format--data-px-meta.md) |
 | **`meta`** | Editor-only data on a node (labels, shape presets, applied effects). Players ignore it — [Editor meta and applied effects](./16-format--editor-meta.md) |
 | **Core** | `@pixodesk/svg-animator-core` — schema, materialisers, interpolation, sampling; no DOM; shared by every player |

@@ -12,7 +12,7 @@ one attribute per element. Browsers and players ignore it; only the editor reads
 A complete *SVG + CSS animation* export, exactly as the editor writes it: one circle with a
 `repeater` effect (three copies), fading in and out. The root carries the playback settings;
 the host, its core and every derived copy carry the marks described in
-[Editor meta → Units](./16-format--editor-meta.md#units--one-element-written-as-several):
+[Editor meta → derived elements (host / core / part)](./16-format--editor-meta.md#applied-effects-that-create-derived-elements-host--core--part):
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" id="_px_1" class="px-anim-enabled px-anim-playing" data-px-meta="runtime:{useCssAnimation:true},animator:{duration:1000,mode:'auto',iterations:'infinite',direction:'alternate',trigger:{startOn:'load',outAction:'pause'}}">
@@ -33,14 +33,19 @@ the host, its core and every derived copy carry the marks described in
 </svg>
 ```
 
-## The notation
+## How the value is written — JSON5 without the outer braces
 
 The value is **JSON5 with the outer braces removed** — it is always an object, so the braces
 are dropped for compactness. That gives you unquoted keys, single-quoted strings, and commas
 between entries; numbers are rounded to the editor's display precision, and `null` values are
 never written.
 
-To read one, put the braces back and hand it to a JSON5 parser:
+To read one, put the braces back and hand it to a JSON5 parser. Say the SVG contains this
+element (the host `<g>` from the export above):
+
+```svg
+<g id="dot" data-px-meta="effectsHost:{coreId:'#_px_2',appliedEffects:{transformBy:{translate:[80,200]},repeater:{copies:3,translate:[100,0]}}}">
+```
 
 ```js
 import JSON5 from 'json5';
@@ -51,18 +56,33 @@ const meta = JSON5.parse('{' + element.getAttribute('data-px-meta') + '}');
 // → { effectsHost: { coreId: '#_px_2', appliedEffects: { transformBy: { translate: [80, 200] }, repeater: { copies: 3, translate: [100, 0] } } } }
 ```
 
-A `"` inside a string (a label, say) stays a literal `"` in the JSON5 and is escaped to
+A `"` inside a string — for example in an element's label — stays a literal `"` in the JSON5 and is escaped to
 `&quot;` by the XML layer, so any text survives the round trip. Plain `JSON.parse` will **not**
 read it — the keys are unquoted.
 
 ## What goes where
 
-| Element | Keys in its `data-px-meta` |
-|---|---|
-| root `<svg>` | • `runtime` (how the animation code was generated)<br>• `animator` (the playback settings) |
-| any element | `label` · `appliedEffects` · `effectsHost` · `partOf` · `animate` |
-| `<symbol>` | `timeline` |
-| text line `<tspan>` | `lineSpacing` |
+Which keys appear on which element — a skeleton of a pre-rendered file (values shortened
+to `…`):
+
+```svg
+<!-- root <svg>: runtime (how the animation code was generated) + animator (the playback settings) -->
+<svg data-px-meta="runtime:{…},animator:{…}">
+
+  <!-- any element can carry: label, appliedEffects, effectsHost, partOf, animate -->
+  <g id="dot" data-px-meta="label:'Wheel',effectsHost:{…}">
+    <ellipse data-px-meta="partOf:'#dot',animate:{…}"/>
+  </g>
+
+  <!-- a <symbol>: timeline — the symbol's own animation length -->
+  <symbol data-px-meta="timeline:{duration:2000}">…</symbol>
+
+  <!-- a text line <tspan>: lineSpacing — the line-height its y was computed from -->
+  <text>
+    <tspan data-px-meta="lineSpacing:1.2">second line</tspan>
+  </text>
+</svg>
+```
 
 The keys mean exactly what they mean in the JSON format — the table in
 [Editor meta → The fields](./16-format--editor-meta.md#the-fields) applies unchanged. Two of them
@@ -74,8 +94,24 @@ The playback settings are always called `animator`, but where they sit is forced
 
 | Form | Where it lives |
 |---|---|
-| JSON | top-level `animator` — a JSON document has a top level |
-| pre-rendered SVG | `meta.animator`, inside the root's `data-px-meta` — an SVG file has nowhere else to put a non-SVG key |
+| JSON | the `animator` key of the document's root object, next to `type` and `children` |
+| pre-rendered SVG | inside the root `<svg>` element's `data-px-meta` attribute — an SVG file cannot have keys of its own, so the attribute is the only place to put it |
+
+The same settings, in both forms:
+
+```js
+// JSON document — an ordinary key of the root object
+{
+  "type": "svg",
+  "animator": { "duration": 1000, "trigger": { "startOn": "load" } },
+  "children": [ … ]
+}
+```
+
+```svg
+<!-- pre-rendered SVG — inside the root's data-px-meta -->
+<svg data-px-meta="animator:{duration:1000,trigger:{startOn:'load'}}">
+```
 
 The editor lifts one to the other on save and open. A tool that reads both forms has to check
 both places; `getAnimatorConfig()` in the core library does.
@@ -87,15 +123,16 @@ turned back into the editor's keyframes with their easings and tangents. So each
 element also carries its original `animate` channel in `data-px-meta` — the same object that is
 `node.animate` in JSON. That is what makes a pre-rendered file fully re-openable.
 
-## Can I remove it?
+## Can I remove `data-px-meta` from SVG elements?
 
-Yes, if the file only has to play. Nothing in `data-px-meta` is read by a browser or a player,
-so stripping every `data-px-meta` attribute changes nothing on screen and makes the file
-smaller — for a large export, noticeably.
+> ⚠️ **Only if you will never open this file in the editor again.** `data-px-meta` is what
+> makes a pre-rendered file editable: strip it, and a star preset becomes a plain path, glyph
+> text becomes outlines, an expanded effect becomes ordinary elements
+> ([Applied effects that create derived elements](./16-format--editor-meta.md#applied-effects-that-create-derived-elements-host--core--part)).
+> Keep the original export if you might ever want to edit it again.
 
-What you lose is the ability to open the file in the editor as what it was: a star preset
-becomes a plain path, glyph text becomes outlines, an expanded effect becomes ordinary elements
-([Units](./16-format--editor-meta.md#units--one-element-written-as-several)). Keep the original
-export if you might ever want to edit it again.
+For a file that only has to play, removing it is safe: nothing in `data-px-meta` is read by a
+browser or a player, so stripping every `data-px-meta` attribute changes nothing on screen and
+makes the file smaller.
 
 [← Editor meta and applied effects](./16-format--editor-meta.md) · [Contents](./README.md) · Next: [Core library →](./18-format--core-library.md)
