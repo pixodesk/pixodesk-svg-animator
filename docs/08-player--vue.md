@@ -22,8 +22,9 @@ import animation from './animation.json';
 </template>
 ```
 
-The component renders the document's root `<svg>`; size it via its parent (the SVG keeps its
-`viewBox`).
+The component renders the document's root `<svg>` directly — there is no wrapper element. To
+set its size, give the element that contains it a width and height (or put `style` on the
+component itself — see the props table); the SVG keeps its proportions.
 
 ## Control modes
 
@@ -150,18 +151,18 @@ component.
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | what starts the animation: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
 | `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | when the trigger ends (mouse out, second click, scrolled out) |
 | `scrollIntoViewThreshold` | `number` | how much of the animation must be on screen before it starts, as a share of its area: `0` (default) starts as soon as any part of it shows, `0.5` waits until half of it is visible, `1` until all of it is |
-| `class` · `style` · any other attribute | | fall through to the rendered root `<svg>` (Vue attribute inheritance) — size it there, or via the parent |
+| `class` · `style` · any other attribute | | anything else you put on `<PixodeskSvgAnimator>` ends up on the `<svg>` element it renders (standard Vue attribute inheritance). So to set the animation's size, either put `style="width: 300px; height: 300px"` on the component itself, or give those dimensions to the element that contains it — the SVG keeps its proportions either way |
 
 ## Events
 
 | Event | When |
 |---|---|
-| `play` | started or resumed |
-| `pause` | paused |
-| `cancel` | cancelled (reset) |
-| `finish` | finished naturally |
+| `play` | the animation started playing — for the first time, or resumed after a pause |
+| `pause` | playback paused at the current frame — via the `pause` prop, the API's `pause()`, or a trigger's *out action* |
+| `cancel` | playback stopped and the animation went back to its start state |
+| `finish` | the animation reached its end — it played all its iterations, or `finish()` was called. Does not fire when playback is stopped early |
 | `remove` | the animator was thrown away: the component unmounted, or you passed a different `doc` and a new animator was built for it |
-| `stop` | alongside any halt: `pause`, `cancel`, `finish`, `remove` |
+| `stop` | fires *in addition to* whichever of `pause`, `cancel`, `finish` or `remove` just fired. Listen to this one event when you only care that the animation is no longer playing, whatever the reason |
 
 ```vue
 <script setup lang="ts">
@@ -226,9 +227,11 @@ mount. Nothing special is required beyond importing the component; for a CSS-fla
 
 ## Example
 
-Every section above links to its case in [`examples/docs-examples`](../examples/docs-examples/)
-— one standalone page per case, with a browser to step through them. `pnpm example:docs`
-opens it; `#vue/autoplay` and friends select a case. Each case has a test that runs on
-every build.
+Every section above links to its running example in
+[`examples/docs-examples`](../examples/docs-examples/). Each example is a small standalone
+page, and they are all collected in one app: a list of every example down the side, with the
+selected one running next to it. Run `pnpm example:docs` from the repository root to open it,
+then pick an example from the list — or jump straight to one by its address in the URL, like
+`#vue/autoplay`. Each example has a test that runs on every build.
 
 [← React](./07-player--react.md) · [Contents](./README.md) · Next: [React Native →](./09-player--react-native.md)

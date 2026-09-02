@@ -204,7 +204,7 @@ component.
 | `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | play forward, backward, or turn around on every iteration (starting forward or backward) |
 | `resetOnFinish` | `boolean` | snap back to the start after a natural finish |
 | `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | what happens when the trigger ends — a second tap with the `click` trigger, or scrolling out of view with `scrollIntoView`: keep playing, pause, go back to the start, or play backwards. If you don't pass it, the value saved in the file is used (set in the editor as *When the trigger ends*); if the file has none either, `pause` |
-| `onPlay` · `onPause` · `onFinish` · `onCancel` · `onStop` | `() => void` | lifecycle; `onStop` fires with any halt |
+| `onPlay` · `onPause` · `onFinish` · `onCancel` · `onStop` | `() => void` | called when the animation starts or resumes (`onPlay`), pauses (`onPause`), reaches its end (`onFinish`), or is stopped and reset to the start (`onCancel`) — same meanings as in the [React component](./07-player--react.md#props). `onStop` fires *in addition to* any of the others that halt playback — use it when you only care that the animation is no longer playing |
 | `onError` | `(error, componentStack?) => void` | the document could not be compiled or rendered |
 | `fallback` | `(error) => ReactElement \| null` | rendered in place of a failed animation (default: renders nothing) |
 
@@ -283,7 +283,7 @@ not supported.
 | `svg`, `g`, `defs` | ✅ | |
 | `rect`, `circle`, `ellipse`, `line`, `path`, `polygon`, `polyline` | ✅ | |
 | `text`, `tspan`, `textPath` | ✅ | |
-| `image` | ✅ | `data:` URIs only — remote URLs are removed by the sanitiser |
+| `image` | ✅ | `data:` URIs only — the player has a built-in safety check that removes remote image URLs |
 | `use`, `symbol` | ✅ | an animated target is copied into a real clone before rendering |
 | `linearGradient`, `radialGradient`, `stop` | ✅ | |
 | `mask`, `clipPath` | ✅ | |
@@ -301,7 +301,7 @@ not supported.
 | `stroke-dasharray` | ⚠️ | animates; the native value bridge not yet checked on a device |
 | `x`, `y`, `width`, `height`, `cx`, `cy`, `r`, `rx`, `ry` | ✅ | |
 | `d` (path morphing) | ✅ | keyframes must share the same command structure |
-| `transform` (parts record) and per-key `translate` / `rotate` / `scale` | ✅ | |
+| `transform` (an object holding all the parts: translate, rotate, scale, …) and per-key `translate` / `rotate` / `scale` | ✅ | |
 | gradient stop `offset`, `stop-color` | ✅ | |
 | `font-size` and any other numeric attribute | ✅ | |
 | filter primitive attributes | ⚠️ | compiles; on-device rendering not yet checked |

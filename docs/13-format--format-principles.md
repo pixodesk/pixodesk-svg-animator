@@ -7,69 +7,41 @@ are simply curious *why* the format looks the way it does.
 
 ## Plain SVG, with layers on top
 
-Each layer adds one idea, uses only the layers beneath it, and has its own **address on the
-node** — that address is the contract.
+Start from what already exists: **SVG**, the standard format for vector graphics on the web —
+every browser draws it. What SVG does not give us is a good way to describe *animation*: how
+those shapes move, change colour, morph over time. The Pixodesk format does not replace SVG
+to get there. It **keeps SVG as its base and adds what is missing on top, one addition at a
+time** — first typed values, then animation, then effects, then the editor's own data. Each
+addition is called a **layer**: plain SVG is layer zero (L0), and every layer above it adds
+exactly **one idea** and uses only the layers beneath it.
 
-The second rule is the direction of travel: **higher layers materialise into lower ones,
-never the reverse.** Nothing above L2 is ever rendered directly. The editor bakes its L4
-knowledge (a shape preset, the source of an effect) into L3–L0 when it saves; the player expands
-L3 effects into plain L2 animation and L0–L1 attributes when it loads; a pre-rendered export
-flattens the whole stack into L0 plus CSS. At every step the result is expressible in the layers
-below — which is why a renderer only ever has to understand L0–L2.
+Two rules hold the stack together.
 
-| Layer | | Address on the node | What it adds | Read by |
-|---|---|---|---|---|
-| **L0** | plain SVG | `{type, ...attrs, children}` | strings · static attributes · static elements | the browser |
-| **L1** | typed values | the same attributes | numbers, vectors, records — seven value kinds | player |
-| **L2** | animated attributes | `node.animate[attr]` | a parallel channel per attribute; zero structure | player |
-| **L3** | player effects | `node.effects` | declarative generators, expanded at load | player |
-| **L4** | editor meta | `node.meta` | everything the player ignores — [chapter 16](./16-format--editor-meta.md) | editor |
-| **L5** | pre-rendered SVG | a real `.svg` file | the same model, flattened — [chapter 17](./17-format--data-px-meta.md) | the browser (or the player) |
+**Rule 1 — the layers don't mix.** Each layer keeps its data in its own place: animation
+always under `animate`, effects under `effects`, editor data under `meta`. So a program
+reading the file can take the parts it understands and simply skip the rest.
 
-**L0 → L1.** An element is `{type, ...attributes, children}`. The first addition is not
-animation but *types*: `opacity: 0.5`, `translate: [96.8, 46.8]`, `transform: {translate,
-rotate, scale}`. Units are never written — each property has one fixed implicit unit. A typed
-static is byte-for-byte the same shape as a keyframe value, which is what makes the next layer
-a one-line addition rather than a second grammar.
+**Rule 2 — higher layers get translated down into simpler ones, never the other way.** In
+the end, a browser can only draw plain SVG. So everything a higher layer describes is, at
+some point, converted into the simpler layers below it. This happens at three moments:
 
-**L2.** Any attribute animates through a parallel channel keyed by its name. The static stays
-a plain attribute; the animation sits beside it and never touches the element's place in the
-tree. Remove every `animate` and you have a valid static SVG.
+- when the **editor saves** a file, it converts its editor-only constructs (L4 — for example
+  a star shape preset) into the plain layers below (a path, and its animation);
+- when the **player loads** a JSON file, it converts the effects (L3) into plain elements,
+  attributes and animation (L0–L2);
+- when the **editor exports a pre-rendered SVG**, it converts everything into plain SVG plus
+  CSS (L0).
 
-**L3.** *An attribute is a value the browser consumes as-is; an effect is anything that needs
-structure* — generated defs, wrapper nodes, clones, geometry-derived rewrites. The player
-expands `effects` into L0–L2 at load. There are ten of them ([Player effects](./15-format--effects.md)).
+Whichever of these three conversions runs, its output is always written in the simple layers
+only.
 
-**L4.** The player types `meta` as *anything* and ignores it. Everything the editor needs that
-the player does not — labels, shape presets, the parametric sources of baked effects, and the
-bookkeeping that lets a pre-rendered file be re-opened as the original elements — lives here,
-so editor additions can never break a player.
-
-**L5.** A pre-rendered SVG is the same model flattened into a real `.svg`: `meta` becomes a
-per-element `data-px-meta` attribute, animation becomes CSS `@keyframes` or an embedded player
-plus an id → animation map. Every effect is expanded, which is exactly why L4 has to remember
-how to fold the expansion back.
-
-## The five principles
-
-1. **Each layer materialises into the one below.** A document using only L0–L2 is fully
-   playable; everything above is expanded into it, downward only. That is what keeps the
-   players small.
-2. **Address is contract.** What a key *means* is fixed by *where* it sits — `effects` (the
-   player will apply these) and `meta.appliedEffects` (these were already applied) are two
-   tenses of one idea, told apart by position, not by a flag.
-3. **Widen, never narrow.** Every editor schema is the player schema plus named keys; the
-   player ignores what it does not know, so the editor can grow freely and old players keep
-   playing new files.
-4. **Structure is the dividing line.** Attribute or effect? Effect that leaves values behind or
-   effect that leaves elements behind? Every split in the design is the same question asked
-   again: *does this change the tree?*
-5. **Round-trips reach a fixed point.** Save → open → save produces the same file. The first
-   save may bake (a shape preset into a path), no later save may grow.
-
-## Where to go deeper
-
-- The schemas themselves: [`PxAnimatorTypes.ts`](../packages/svg-animator-core/src/PxAnimatorTypes.ts)
-  (player) — every wire type paired with a runtime schema
+| Layer | Where its data lives | What it adds | Who reads it |
+|---|---|---|---|
+| **L0 — plain SVG** | the element object itself: `{type, ...attributes, children}` | the drawing — elements and their SVG attributes, exactly as in any SVG; values are plain strings | the browser |
+| **L1 — typed values** | the same SVG attributes as L0 — the layer changes their values, not their place | values become typed instead of strings: numbers (`opacity: 0.5`), arrays (`translate: [96.8, 46.8]`), objects (`transform: { translate, rotate, scale }`). Units are never written — each property has one fixed, implied unit. A value written this way is exactly what a keyframe of L2 holds | the player |
+| **L2 — animated attributes** | `node.animate`, one entry per animated attribute name | keyframes for any attribute; the element itself and its place in the tree are untouched — delete every `animate` key and a valid static SVG remains | the player |
+| **L3 — player effects** | `node.effects` | effects — short descriptions of masks, gradients, copies and other effects ([see more](./15-format--effects.md)), which the player expands into plain elements and attributes when the file loads | the player |
+| **L4 — editor meta** | `node.meta` | everything only the editor needs — labels, shape presets, the sources of applied effects; the player ignores this key entirely — [Editor meta and applied effects](./16-format--editor-meta.md) | the editor |
+| **L5 — pre-rendered SVG** | unlike the layers above, this one is not a part of the JSON document — it is a separate `.svg` file the editor produces on export | the same document, converted into an ordinary SVG file: the animation travels as CSS or a script inside it, and the editor data as `data-px-meta` attributes — [Meta in pre-rendered SVG](./17-format--data-px-meta.md) | depends on the flavour: a CSS-animation file is played by the browser alone; a JS-animation file is played by the player embedded in it |
 
 [← Static sites & CMS](./12-player--static-sites-and-cms.md) · [Contents](./README.md) · Next: [JSON format reference →](./14-format--json-format.md)

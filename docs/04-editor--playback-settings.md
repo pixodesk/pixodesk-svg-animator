@@ -45,11 +45,11 @@ always native-driven.
 
 | Editor label | Writes | Begins when |
 |---|---|---|
-| On load | `load` | the animation is displayed (default) |
-| When visible | `scrollIntoView` | it scrolls into view; the **threshold** writes `scrollIntoViewThreshold` — how much of it must be on screen first, from `0` (any part) to `1` (all of it) |
-| On mouse over | `mouseOver` | the pointer enters it |
-| On click | `click` | it is clicked |
-| Manually from JS | `programmatic` | never on its own — code calls `play()` |
+| “On load” | `load` | the animation is displayed (default) |
+| “When visible” | `scrollIntoView` | it scrolls into view; the **threshold** writes `scrollIntoViewThreshold` — how much of it must be on screen first, from `0` (any part) to `1` (all of it) |
+| “On mouse over” | `mouseOver` | the pointer enters it |
+| “On click” | `click` | it is clicked |
+| “Manually from JS” | `programmatic` | never on its own — code calls `play()` |
 
 **When the trigger ends** (pointer leaves, scrolled out of view, a second click) writes
 `trigger.outAction`: “continue”, “pause”, “reset” or “reverse”.
@@ -57,16 +57,16 @@ always native-driven.
 **Use JS Triggers** only matters for the pre-rendered *SVG + CSS animation* export, and decides
 how the trigger is implemented in that file:
 
-- With the option **switched off**, the file contains no script at all. “On load” works, and
+- With **Use JS Triggers** switched **off**, the file contains no script at all. “On load” works, and
   “On mouse over” works through CSS `:hover`. “On click” and “When visible” (start when
   scrolled into view) cannot be done in pure CSS, so the export **falls back to “On load”**
   for them.
-- With the option **switched on**, the export adds a few lines of inline script (no library),
+- With **Use JS Triggers** switched **on**, the export adds a few lines of inline script (no library),
   and the file behaves exactly as this panel says: whichever **Start** trigger you chose, the
   action **when the trigger ends**, and **Reset on finish** all work.
 
 The JSON format and the *SVG + JS animation* export always honour the full setting, whatever
-this option says.
+*Use JS Triggers* says.
 
 ## Timeline — clock or scroll
 
@@ -76,7 +76,7 @@ this option says.
 - **Scroll** *(in development)* — the page's scroll position drives the playhead: scrolling
   down plays the animation forward, scrolling back up rewinds it, and it stays at whatever
   frame you stop on. Pinning and range options choose which part of the page's scroll maps to
-  the animation. This option is still in development: expect gaps and changes.
+  the animation. The “Scroll” option is still in development: expect gaps and changes.
 
 ## Which export formats keep the playback settings and triggers
 

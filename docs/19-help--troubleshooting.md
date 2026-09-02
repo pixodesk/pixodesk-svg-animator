@@ -47,7 +47,7 @@ and in the file-type picker while you work, and lists them in a notice when you 
 ## The CSS-flavour SVG works, the JS flavours don't
 
 **It is used as a picture.** `<img src="animation.svg">`, SVG `<image>` and CSS
-`background-image` show a still frame for every flavour — no script runs inside an image and
+`background-image` show a static frame for every flavour — no script runs inside an image and
 the page cannot add the play classes. Inline the file instead
 ([Pre-rendered SVG → Not as a picture](./11-player--prerendered-svg.md#three-ways-to-embed-animated-svg)).
 
@@ -55,7 +55,7 @@ the page cannot add the play classes. Inline the file instead
 component. Inline the scripted flavours as raw HTML (see
 [Static sites & CMS](./12-player--static-sites-and-cms.md)), or switch to JSON.
 
-**Content Security Policy.** Inline scripts may be blocked by your CSP. Use the CSS flavour, or
+**Content Security Policy (CSP).** Inline scripts may be blocked by your site's CSP. Use the CSS flavour, or
 JSON with the player loaded from your own origin.
 
 ## Two copies of the same SVG interfere with each other

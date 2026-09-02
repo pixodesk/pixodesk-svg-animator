@@ -13,8 +13,10 @@ Every node may carry a `meta` object. In the JSON format it sits on the node as 
 in a pre-rendered SVG the same object is written into a per-element `data-px-meta` attribute
 ([Meta in pre-rendered SVG](./17-format--data-px-meta.md)). One read pipeline handles both.
 
-```json
+```js
+// A plain SVG path — this is what every player draws
 { "type": "path", "id": "star", "d": "M50,122L78,172.4L22,172.4L50,122z",
+  // ADDED: editor-only data — players skip `meta` entirely
   "meta": { "label": "Triangle", "appliedEffects": { "shape": { "preset": { "type": "polygon", "points": 3, "radius": 30 } } } } }
 ```
 
@@ -23,13 +25,13 @@ in a pre-rendered SVG the same object is written into a per-element `data-px-met
 | Key | On | Holds |
 |---|---|---|
 | `label` | any element | the display name shown in the editor's element tree |
-| `appliedEffects` | a plain node | this node's own effects, **already applied** — see below |
+| `appliedEffects` | a plain node | this node's own effects, **already applied** — [Applied effects](#applied-effects--the-tense-is-the-meaning) |
 | `effectsHost` | the host of an expanded unit | `{ coreId?, appliedEffects }` — the effects of an element that was written as several elements — see [Units](#units--one-element-written-as-several) |
 | `partOf` | every element derived by that expansion | `"#hostId"` — points back at the host |
 | `runtime` | root `<svg>` only | how the animation code was generated: `{ useCssAnimation, useJsTriggers, externalJs, unoptimisedJs }` — the export-format choices, not the animation |
-| `animator` | root `<svg>`, **pre-rendered SVG only** | the playback settings; in JSON they are the top-level `animator` instead ([read more](./17-format--data-px-meta.md#the-animator-config-has-two-addresses)) |
+| `animator` | root `<svg>`, **pre-rendered SVG only** | the playback settings; in JSON they are the top-level `animator` instead ([read more](./17-format--data-px-meta.md#the-animator-config-lives-in-two-different-places)) |
 | `timeline` | `<symbol>` only | `{ duration }` — the symbol's own animation length, ms |
-| `lineSpacing` | text line `<tspan>`s from the second line on | the *Auto* line-height multiplier the baked `y` was computed from |
+| `lineSpacing` | text line `<tspan>`s from the second line on | the *Auto* line-height multiplier the materialised `y` was computed from |
 | `animate` | any element, **pre-rendered SVG only** | the node's keyframes, so a CSS export can be re-opened; in JSON this is the node's own `animate` |
 
 ## Applied effects — the tense is the meaning
@@ -42,12 +44,12 @@ An animation file can carry the same effect in two places, and the *position* sa
 | `node.meta.appliedEffects` | nobody | **these were applied.** The result is already in the node's ordinary attributes; this is the recipe kept so the editor can show the effect as an effect again |
 
 The player never reads `appliedEffects`, and the editor never re-applies it. Editing a value
-in `appliedEffects` by hand changes nothing on screen — the baked result is what plays.
+in `appliedEffects` by hand changes nothing on screen — the materialised result is what plays.
 
 What can appear there is the player's effects bucket plus the editor's own keys:
 
 - **`shape`** — the parametric source of a path: a `preset`, or a raw `path` when a modifier
-  (rounded `corners`) was applied. The editor bakes the result into `node.d` (or `node.animate.d`
+  (rounded `corners`) was applied. The editor materialises the result into `node.d` (or `node.animate.d`
   when the preset animates) and keeps `shape` here, so the file re-opens as a star with a
   radius handle, not as a fixed path. Fourteen presets: star, polygon, spiral, arc, wave, arrow,
   heart, cross, frame, cog, crescent, tear, eye, trapezoid. A preset's *topology* (a polygon's
@@ -70,7 +72,7 @@ What can appear there is the player's effects bucket plus the editor's own keys:
 
 ## Units — one element written as several
 
-Some effects cannot be baked into one element. A repeater is *n* copies; a stroke trim on a
+Some effects cannot be materialised into one element. A repeater is *n* copies; a stroke trim on a
 shape with several sub-paths becomes a `<g>` of one `<path>` per sub-path. A pre-rendered file
 holds that expansion — and the editor must be able to fold it back into the one element you
 drew. Three marks make that possible:

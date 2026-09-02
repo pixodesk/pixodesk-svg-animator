@@ -59,7 +59,7 @@ ends up in the file.
 12. [Static sites & CMS](./12-player--static-sites-and-cms.md) — Astro, Jekyll, Hugo, 11ty, Gatsby, Docusaurus, WordPress, Shopify, Webflow
 
 ### Format (deep dive)
-13. [Format principles](./13-format--format-principles.md) — why the format is shaped this way: the six layers it is built from and the five rules they follow
+13. [Format principles](./13-format--format-principles.md) — why the format is shaped this way: plain SVG at the base, with the missing pieces added as layers on top
 14. [JSON format reference](./14-format--json-format.md) — the document, `animator`, nodes, `animate`, keyframes, easing, loops, transforms, motion paths
 15. [Player effects](./15-format--effects.md) — `transformBy`, `repeater`, `maskedBy`, `clipPath`, `strokeTrim`, `clone`, gradients, `textPath`, `text`
 16. [Editor meta and applied effects](./16-format--editor-meta.md) — what the editor keeps in `meta`, applied effects vs effects, how an expanded effect folds back

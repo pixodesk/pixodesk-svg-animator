@@ -68,11 +68,11 @@ The keys mean exactly what they mean in the JSON format — the table in
 [Editor meta → The keys](./16-format--editor-meta.md#the-keys) applies unchanged. Two of them
 exist *only* in this form:
 
-### The animator config has two addresses
+### The animator config lives in two different places
 
 The playback settings are always called `animator`, but where they sit is forced by the file:
 
-| Form | Address |
+| Form | Where it lives |
 |---|---|
 | JSON | top-level `animator` — a JSON document has a top level |
 | pre-rendered SVG | `meta.animator`, inside the root's `data-px-meta` — an SVG file has nowhere else to put a non-SVG key |

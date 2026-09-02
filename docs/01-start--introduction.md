@@ -7,7 +7,7 @@ run them, and the **file format** that connects the two. You make the animation 
 as a file, and that file plays anywhere SVG does.
 
 **The editor** is a full-featured vector and animation tool. Draw shapes, paths and text, or
-import SVG from Illustrator, Figma, Inkscape and the like. Animate any property on a timeline,
+import SVG from Illustrator, Figma, Inkscape and other design tools. Animate any property on a timeline,
 add effects, then save. It also imports and exports **Lottie**, and exports to video, GIF and
 static images when you need a fallback. It ships as the *Pixodesk Animator Studio* desktop app
 for Windows and Mac, from [pixodesk.com](https://pixodesk.com).
@@ -70,10 +70,10 @@ reverse, speed — and supports every animation type on every browser. It is the
 for apps (React / Vue / React Native), for complex animations, and whenever you need to drive
 the animation from code.
 
-**Pre-rendered SVG** is a normal `.svg` file with the animation baked in. Drop it into any
+**Pre-rendered SVG** is a normal `.svg` file with the animation built in. Drop it into any
 page, CMS or static-site generator and it plays — no library needed for the CSS flavour. It is
 the simplest option and the right one for most icons, loaders and decorative animation. Its
-one rule: **inline a given file once per page** — its element ids are fixed, so a second copy
+one rule: **inline each file only once per page** — its element ids are fixed, so a second copy
 collides with the first ([read more](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)). For several instances of one animation, use JSON.
 
 Both JSON and animated SVG have the same features, and the editor converts between them at any time

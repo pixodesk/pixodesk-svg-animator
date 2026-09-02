@@ -8,8 +8,10 @@ wrapper groups, copies, geometry-derived rewrites. Declare it on a node's `effec
 the player expands it when the document loads (JSON format only — the pre-rendered SVG exports
 already contain the expanded structure).
 
-```json
+```js
+// A plain SVG <rect> with ordinary attributes
 { "type": "rect", "x": 0, "y": 0, "width": 40, "height": 40, "fill": "#3b82f6",
+  // ADDED: two effects — the player turns them into real elements when the file loads
   "effects": {
     "transformBy": { "translate": [50, 50], "rotate": 30 },
     "repeater":    { "copies": 5, "translate": [80, 0], "rotate": 15 }
@@ -54,7 +56,7 @@ timeline for all parts.
 
 | Key | Type | Meaning |
 |---|---|---|
-| `translate` | `[x, y]` ✚ | user units |
+| `translate` | `[x, y]` ✚ | how far to move along x and y — plain numbers in the drawing's coordinates |
 | `rotate` | number ✚ | degrees |
 | `skew` | number ✚ | skewX degrees |
 | `scale` | `[sx, sy]` ✚ | factors |
@@ -98,9 +100,11 @@ Builds a `<mask>` from the referenced element and applies it to this one.
 | `maskUnits` · `maskContentUnits` | `userSpaceOnUse` · `objectBoundingBox` | SVG's mask coordinate systems |
 | `x` · `y` · `width` · `height` | numbers | the mask **viewport** in `maskUnits` space; omit all four for SVG's default (−10 %…120 % of the bounding box). `0` is a real value |
 
-```json
+```js
+// The element that will become the mask — a growing circle
 { "type": "defs", "children": [ { "type": "circle", "id": "spot", "cx": 100, "cy": 100, "r": 80, "fill": "#fff",
     "animate": { "r": { "keyframes": [ { "time": 0, "value": 20 }, { "time": 1000, "value": 120 } ] } } } ] },
+// The element being masked — visible only where the circle is
 { "type": "rect", "x": 0, "y": 0, "width": 200, "height": 200, "fill": "#ec4899",
   "effects": { "maskedBy": { "sourceId": "#spot", "maskType": "alpha" } } }
 ```
@@ -153,13 +157,16 @@ animation runs relative to the document.
 | `retime.stretch` | factor | `2` = half speed (twice as long), `0.5` = double speed |
 | `retime.timeCrop` | `[inMs, outMs]` | show the instance only inside this window of the document timeline |
 
-```json
+```js
 { "type": "defs", "children": [ { "type": "symbol", "id": "wheel", "viewBox": "0 0 100 100", "children": [
     { "type": "circle", "cx": 50, "cy": 50, "r": 40, "fill": "none", "stroke": "#0087ff", "stroke-width": 8, "stroke-dasharray": "40 20",
       "animate": { "rotate": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 1000, "value": 360 } ] } } }
 ] } ] },
+// An exact copy of the wheel
 { "type": "use", "href": "#wheel", "x": 0,   "y": 0, "effects": { "clone": { "sourceId": "#wheel" } } },
+// A copy that starts 0.5 s later and spins at half speed
 { "type": "use", "href": "#wheel", "x": 120, "y": 0, "effects": { "clone": { "sourceId": "#wheel", "retime": { "start": 500, "stretch": 2 } } } },
+// A copy shown only between 1 s and 2 s of the document timeline
 { "type": "use", "href": "#wheel", "x": 240, "y": 0, "effects": { "clone": { "sourceId": "#wheel", "retime": { "timeCrop": [1000, 2000] } } } }
 ```
 
@@ -177,7 +184,7 @@ Generates a `<linearGradient>` / `<radialGradient>` and points the element's `fi
 | `p1` · `p2` | `[x, y]` ✚ | linear start / end |
 | `c` · `r` · `fp` | `[x, y]` ✚ · number ✚ · `[x, y]` ✚ | radial centre, radius, focal point |
 | `stops` | array of `{ offset, color }` ✚ | **one** timeline: an animated `stops` has, per keyframe, the full stop list as its value (same count each time) |
-| `gradientUnits` | `objectBoundingBox` · `userSpaceOnUse` | which coordinates `p1`, `p2`, `c`, `r`, `fp` are in: positions across the element's own box (`0` = its left / top edge, `1` = its right / bottom edge), or the document's user units |
+| `gradientUnits` | `objectBoundingBox` · `userSpaceOnUse` | which coordinates `p1`, `p2`, `c`, `r`, `fp` are in: positions across the element's own box (`0` = its left / top edge, `1` = its right / bottom edge), or the drawing's own coordinates |
 | `spreadMethod` | `pad` · `reflect` · `repeat` | what to paint beyond the last stop: extend the end colour, mirror the gradient back, or start it over |
 | `gradientTransform` | string | static only |
 

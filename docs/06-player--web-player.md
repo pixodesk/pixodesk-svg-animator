@@ -29,12 +29,16 @@ script is the UMD build, copied from the npm package into your site — see
 <script>PixodeskAnimator.loadTagAnimators();</script>
 ```
 
-`bouncing-ball.json` is the whole document — a ball on an eased, alternating bounce:
+`bouncing-ball.json` is the whole document — a ball on an eased, alternating bounce. (The
+comments are explanatory; JSON does not allow comments, so the real file has none.)
 
-```json
+```js
 {
+  // The root <svg> element — plain SVG, written as JSON
   "type": "svg",
   "viewBox": "0 0 400 400",
+
+  // ADDED: the playback settings — how long, how many times, what starts it
   "animator": {
     "duration": 1000,
     "iterations": "infinite",
@@ -43,9 +47,12 @@ script is the UMD build, copied from the npm package into your site — see
   },
   "children": [
     {
+      // A plain SVG <circle> with ordinary attributes
       "type": "circle",
       "id": "ball",
       "cx": 0, "cy": 0, "r": 40, "fill": "#0087ff",
+
+      // ADDED: the circle's animation — keyframes for its position
       "animate": {
         "translate": {
           "keyframes": [

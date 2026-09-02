@@ -170,12 +170,12 @@ renders the first frame statically.
 | `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | when the trigger ends (mouse out, second click, scrolled out) |
 | `scrollIntoViewThreshold` | `number` | how much of the animation must be on screen before it starts, as a share of its area: `0` (default) starts as soon as any part of it shows, `0.5` waits until half of it is visible, `1` until all of it is |
 | **Callbacks** | | |
-| `onPlay` | `() => void` | started or resumed |
-| `onPause` | `() => void` | paused |
-| `onCancel` | `() => void` | cancelled (reset to the start) |
-| `onFinish` | `() => void` | finished naturally (or `finish()`) |
+| `onPlay` | `() => void` | the animation started playing — for the first time, or resumed after a pause |
+| `onPause` | `() => void` | playback paused at the current frame — via the `pause` prop, the API's `pause()`, or a trigger's *out action* |
+| `onCancel` | `() => void` | playback stopped and the animation went back to its start state |
+| `onFinish` | `() => void` | the animation reached its end — it played all its iterations, or `finish()` was called. Does not fire when playback is stopped early |
 | `onRemove` | `() => void` | the animator was thrown away: the component unmounted, or you passed a different `doc` and a new animator was built for it |
-| `onStop` | `() => void` | fires alongside **any** halt: pause, cancel, finish, remove |
+| `onStop` | `() => void` | fires *in addition to* whichever of `onPause`, `onCancel`, `onFinish` or `onRemove` just fired. Use this one callback when you only care that the animation is no longer playing, whatever the reason |
 
 Passing a different `doc` (or changing `className` / `style` / the control mode) throws the
 old animator away and builds a new one; the old instance emits `onCancel`, `onRemove` and

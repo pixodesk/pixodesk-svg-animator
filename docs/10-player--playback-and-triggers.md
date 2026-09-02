@@ -12,10 +12,15 @@ The editor writes the same block from its playback panel; if you only want to se
 defaults there, see
 [Set default playback settings & triggers](./04-editor--playback-settings.md).
 
-```json
+A document with its `animator` block. (The comments are explanatory; JSON does not allow
+comments, so a real file has none.)
+
+```js
 {
   "type": "svg",
   "viewBox": "0 0 400 400",
+
+  // Everything about WHEN and HOW the animation plays lives here
   "animator": {
     "duration": 2000,
     "iterations": "infinite",
@@ -54,13 +59,13 @@ now two seconds per bounce and waiting until half of it has scrolled into view.
 | `fill` | `forwards` · `backwards` · `both` · `none` | `forwards` | what is shown *outside* the active time: `forwards` holds the last frame after the end; `backwards` shows the first frame during the delay; `none` reverts to the static SVG |
 | `resetOnFinish` | boolean | `false` | after a natural finish, snap back to the start state (instead of holding per `fill`) |
 | `frameRate` | fps | uncapped | target rate for the frame-loop engine only |
-| `mode` | `auto` · `waapi` · `frames` | `auto` | the engine — see below |
+| `mode` | `auto` · `waapi` · `frames` | `auto` | the engine — [Engine mode](#engine-mode) |
 
 **Per-property loops vs `iterations`.** There are two kinds of repetition, and they work at
 different levels. `iterations` repeats the **whole document** — every element, from the first
 keyframe to the last. A single property can also `loop` on its own: a segment of *its own*
 keyframes repeats until it fills the document's duration, while everything else plays through
-once (see [JSON format → Loops](./14-format--json-format.md#loops)). The property loop is
+once (see [JSON format → Per-property loops](./14-format--json-format.md#per-property-loops)). The property loop is
 applied first, when the document is prepared; `iterations` then repeats the result. So both
 can be used at once, and one runs inside the other: a wheel whose rotation loops, inside a
 document set to infinite iterations, keeps spinning during every iteration.
@@ -87,11 +92,11 @@ The editor writes it from its **Start** setting; every player honours it:
 
 | `startOn` | Starts when… | Editor label |
 |---|---|---|
-| `load` (default) | the animation is displayed | On load |
-| `scrollIntoView` | the element becomes visible; `scrollIntoViewThreshold` says how much of it must be on screen first: `0` (default) any part, `0.5` half of it, `1` all of it | When visible |
-| `mouseOver` | the pointer enters the element | On mouse over |
-| `click` | the element is clicked (a second click applies `outAction`) | On click |
-| `programmatic` | never by itself — you call `play()` | Manually from JS |
+| `load` (default) | the animation is displayed | *On load* |
+| `scrollIntoView` | the element becomes visible; `scrollIntoViewThreshold` says how much of it must be on screen first: `0` (default) any part, `0.5` half of it, `1` all of it | *When visible* |
+| `mouseOver` | the pointer enters the element | *On mouse over* |
+| `click` | the element is clicked (a second click applies `outAction`) | *On click* |
+| `programmatic` | never by itself — you call `play()` | *Manually from JS* |
 
 `outAction` says what happens when the trigger condition ends (pointer leaves, scrolled out,
 second click):
@@ -156,10 +161,14 @@ goes backward, stop and it stays on that frame. This is the model of CSS scroll-
 animations. Choose
 *Timeline → scroll* in the editor's playback panel, or set it in the document:
 
-```json
+```js
 "animator": {
   "duration": 3000,
+
+  // The playhead follows the page's scroll instead of the clock
   "timelineSource": "scroll",
+
+  // Which part of the element's journey through the viewport maps to the animation
   "scroll": { "kind": "view", "range": { "start": { "phase": "entry", "fraction": 0 }, "end": { "phase": "exit", "fraction": 1 } } }
 }
 ```
