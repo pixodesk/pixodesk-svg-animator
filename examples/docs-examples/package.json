@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "copy-umd": "cp ../../packages/svg-animator-web/dist/index.umd.min.js public/js/pixodesk-svg-animator.umd.min.js",
+    "copy-umd": "cp ../../packages/svg-animator-web/dist/pixodesk-svg-animator.umd.min.js public/js/pixodesk-svg-animator.umd.min.js",
     "predev": "pnpm copy-umd",
     "dev": "vite",
     "prebuild": "pnpm copy-umd",

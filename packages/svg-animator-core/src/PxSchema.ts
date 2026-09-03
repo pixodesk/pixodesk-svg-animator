@@ -240,6 +240,8 @@ class Enum<T extends string | number> extends Base<T> {
 
 /** Tries member schemas in order; first whose isValid passes wins. sanitize returns _default when none match. */
 class Union<T> extends Base<T> {
+    /** Structural tag read by {@link describeSchema} — `schemas` alone cannot tell Union from Tuple. */
+    readonly _kind = 'union' as const;
     readonly _default: T;
     constructor(private readonly schemas: ReadonlyArray<PxSchema<T>>, defaultVal?: T) {
         super();
@@ -295,6 +297,8 @@ type AnyDiscriminantShape<K extends string> = Record<K, PxSchema<string | number
  * member for sanitize when no match is found.
  */
 class DiscriminatedUnion<T> extends Base<T> {
+    /** Structural tag read by {@link describeSchema}. */
+    readonly _kind = 'discriminatedUnion' as const;
     readonly _default: T;
     private readonly _map: Map<string | number | boolean, PxSchema<T>>;
 
@@ -539,6 +543,8 @@ class Arr<T> extends Base<Array<T>> {
 
 /** String-keyed record; values failing _canSanitize are dropped rather than blocking the whole record. */
 class Rec<T> extends Base<Record<string, T>> {
+    /** Structural tag read by {@link describeSchema}. */
+    readonly _kind = 'record' as const;
     readonly _default: Record<string, T> = {};
     constructor(private readonly value: PxSchema<T>) { super(); }
 
@@ -635,6 +641,8 @@ type TupleItems<T extends ReadonlyArray<PxSchema<any, any>>> =
 
 /** Fixed-length array schema; validates element count and each position individually. */
 class Tuple<T extends ReadonlyArray<PxSchema<any, any>>> extends Base<TupleItems<T>> {
+    /** Structural tag read by {@link describeSchema} — `schemas` alone cannot tell Tuple from Union. */
+    readonly _kind = 'tuple' as const;
     readonly _default: TupleItems<T>;
 
     constructor(private readonly schemas: T) {
@@ -719,25 +727,50 @@ export function schemaKeys<S extends { readonly _shape: Record<string, any> }>(s
  * Describes the structural kind of a schema for traversal purposes.
  * Use with `getMissingCoveragePaths` or similar tree-walking utilities.
  *
- * - `shape`    — object schema (Obj/OpenObj); `shape` maps key → sub-schema
- * - `array`    — array schema; `item` is the element schema
- * - `optional` — optional wrapper; `inner` is the wrapped schema
- * - `lazy`     — lazy/recursive schema; `resolved` is the resolved schema (cached)
- * - `leaf`     — primitive, union, record, any, tuple — no traversable children
+ * Every composite kind is reported, so a walker can reach EVERY field a document
+ * may legally carry — that is what makes schema-coverage checking possible
+ * (see the app's `collectSchemaFieldUniverse`).
+ *
+ * - `shape`             — object schema (Obj/OpenObj); `shape` maps key → sub-schema.
+ *                         `openValue` is set for open objects: the schema unknown keys
+ *                         are validated against (undefined ⇒ unknown keys pass through as-is)
+ * - `array`             — array schema; `item` is the element schema
+ * - `optional`          — optional wrapper; `inner` is the wrapped schema
+ * - `lazy`              — lazy/recursive schema; `resolved` is the resolved schema (cached)
+ * - `union`             — `px.union`; `members` are the alternatives, tried in order
+ * - `discriminatedUnion`— `px.discriminatedUnion`; `key` is the discriminant field and
+ *                         `members` the alternatives (each an object schema with a literal at `key`)
+ * - `record`            — `px.record`; `value` is the schema every entry's value must match
+ * - `tuple`             — `px.tuple`; `items` are the positional element schemas
+ * - `leaf`              — primitive, literal, enum, any — no traversable children
  */
 export type PxSchemaDesc =
-    | { kind: 'shape';    shape: Record<string, PxSchema<any, any>> }
+    | { kind: 'shape';    shape: Record<string, PxSchema<any, any>>; openValue?: PxSchema<any, any> }
     | { kind: 'array';    item: PxSchema<any, any> }
     | { kind: 'optional'; inner: PxSchema<any, any> }
     | { kind: 'lazy';     resolved: PxSchema<any, any> }
+    | { kind: 'union';    members: ReadonlyArray<PxSchema<any, any>> }
+    | { kind: 'discriminatedUnion'; key: string; members: ReadonlyArray<PxSchema<any, any>> }
+    | { kind: 'record';   value: PxSchema<any, any> }
+    | { kind: 'tuple';    items: ReadonlyArray<PxSchema<any, any>> }
     | { kind: 'leaf' };
 
 export function describeSchema(schema: PxSchema<any, any>): PxSchemaDesc {
     const s = schema as any;
-    if ('_shape' in s) return { kind: 'shape',    shape: s._shape };
+    // `_kind` is set only by the classes that are otherwise indistinguishable by
+    // duck-typing (Union vs Tuple both carry `schemas`), so it is checked first.
+    switch (s._kind) {
+        case 'union':              return { kind: 'union',  members: s.schemas };
+        case 'discriminatedUnion': return { kind: 'discriminatedUnion', key: s._key, members: s._schemas };
+        case 'record':             return { kind: 'record', value: s.value };
+        case 'tuple':              return { kind: 'tuple',  items: s.schemas };
+    }
+    if ('_shape' in s) return { kind: 'shape',    shape: s._shape, openValue: s._openSchema };
     if ('item'   in s) return { kind: 'array',    item: s.item };
     if ('inner'  in s) return { kind: 'optional', inner: s.inner };
-    if ('fn'     in s) return { kind: 'lazy',     resolved: s.resolved ?? s.fn() };
+    // `??=` (not `??`): an unresolved lazy would otherwise build a FRESH schema on
+    // every call, so two traversals could never agree on schema identity.
+    if ('fn'     in s) return { kind: 'lazy',     resolved: (s.resolved ??= s.fn()) };
     return { kind: 'leaf' };
 }
 

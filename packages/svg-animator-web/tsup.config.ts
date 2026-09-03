@@ -7,8 +7,9 @@ import { existsSync, readFileSync } from 'node:fs';
 //   src/index.player.ts -> iife/UMD. Playback surface only, because iife CANNOT
 //                          tree-shake at the consumer, so every exported name
 //                          drags its transitive closure into every <script> tag.
-// The `{ index: … }` entry object keeps the output filenames unchanged
-// (index.umd.js / index.umd.min.js), so this is not a packaging change.
+// The `{ 'pixodesk-svg-animator': … }` entry object names the UMD outputs
+// (pixodesk-svg-animator.umd.js / .umd.min.js) — the file users copy to their own
+// site, so it carries the library's name instead of `index`.
 
 // Bundle the core package into this dist so every output format — including the
 // UMD injected into iframes — stays fully self-contained.
@@ -73,14 +74,14 @@ const prerenderedBuild = (name: string, minified: boolean) => ({
     outExtension: () => ({ js: minified ? '.umd.min.js' : '.umd.js' }),
 });
 
-export default defineConfig([
+export default defineConfig((opts) => [
     // ---- esm + cjs, non-minified (with source maps + the package's .d.ts) ----
     {
         entry: ['src/index.ts'],
         format: ['esm', 'cjs'],
         noExternal: NO_EXTERNAL,
         dts: true,
-        clean: true,
+        clean: !opts.watch,   // watch mode must not wipe dist: dependents (and the examples' copy-umd) resolve files from it
         sourcemap: true,
         minify: false,
         outExtension({ format }) {
@@ -89,7 +90,7 @@ export default defineConfig([
     },
     // ---- UMD, non-minified (used by the e2e fixtures) ----
     {
-        entry: { index: 'src/index.player.ts' },
+        entry: { 'pixodesk-svg-animator': 'src/index.player.ts' },
         format: ['iife'],
         globalName: GLOBAL_NAME,
         noExternal: NO_EXTERNAL,
@@ -118,7 +119,7 @@ export default defineConfig([
     },
     // ---- UMD, minified — the artifact all of this exists for ----
     {
-        entry: { index: 'src/index.player.ts' },
+        entry: { 'pixodesk-svg-animator': 'src/index.player.ts' },
         format: ['iife'],
         globalName: GLOBAL_NAME,
         noExternal: NO_EXTERNAL,

@@ -32,7 +32,7 @@ The web player ships in three builds, and your tooling picks the right one by it
 - **CJS** — for Node.js and older tooling that uses `require()`. Selected automatically through
   the package's `exports` map; you never reference the file by name.
 - **UMD** — for pages **without a build step**: plain HTML, CMS templates, code blocks. One
-  self-contained file, `index.umd.min.js`, that exposes a `PixodeskAnimator` global from a
+  self-contained file, `pixodesk-svg-animator.umd.min.js`, that exposes a `PixodeskAnimator` global from a
   `<script>` tag. The rest of this section is about this build, because it is the only one
   you have to handle by hand.
 
@@ -43,7 +43,7 @@ page and your users. Get the file from the npm package and serve it alongside yo
 
 ```bash
 npm install @pixodesk/svg-animator-web
-cp node_modules/@pixodesk/svg-animator-web/dist/index.umd.min.js ./js/pixodesk-svg-animator.umd.min.js
+cp node_modules/@pixodesk/svg-animator-web/dist/pixodesk-svg-animator.umd.min.js ./js/
 ```
 
 No project to install into? `npm pack @pixodesk/svg-animator-web` downloads the exact package
@@ -71,11 +71,9 @@ Then load it with a relative path, like any other script of yours:
 ```
 
 Because the file is a copy on your own server, it never changes behind your back: your site
-keeps using the exact version you tested until you replace the file yourself. You can keep the
-original name, `index.umd.min.js`, or rename it — the
-[examples](../examples/docs-examples/src/cases/static/vanilla-umd/) call it
-`pixodesk-svg-animator.umd.min.js` so that anyone reading the page source can tell which
-library it is.
+keeps using the exact version you tested until you replace the file yourself. The file's name
+says which library it is, so anyone reading your page source can tell — keep it, or rename it
+if you prefer ([the examples](../examples/docs-examples/src/cases/static/vanilla-umd/) keep it).
 
 Files in `dist/`:
 
@@ -83,7 +81,7 @@ Files in `dist/`:
 |---|---|
 | `index.js` · `index.cjs` (+ `.min` variants) | ESM / CJS entry for bundlers |
 | `index.d.ts` | TypeScript types |
-| `index.umd.js` · `index.umd.min.js` | the full player as a `<script>` global (`PixodeskAnimator`) |
+| `pixodesk-svg-animator.umd.js` · `pixodesk-svg-animator.umd.min.js` | the full player as a `<script>` global (`PixodeskAnimator`) |
 | `index.prerendered*.umd*.js` | trimmed builds the **editor** inlines into *SVG + JS animation* exports — you never load these yourself |
 
 ## TypeScript

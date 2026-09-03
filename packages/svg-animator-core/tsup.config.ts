@@ -1,12 +1,12 @@
 import { defineConfig } from 'tsup';
 
-export default defineConfig([
+export default defineConfig((opts) => [
     // Non-minified build (with source maps)
     {
         entry: ['src/index.ts'],
         format: ['esm', 'cjs'],
         dts: true,
-        clean: true,
+        clean: !opts.watch,   // watch mode must not wipe dist: dependents (and the examples' copy-umd) resolve files from it
         sourcemap: true,
         minify: false,
         outExtension({ format }) {

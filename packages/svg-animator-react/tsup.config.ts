@@ -1,12 +1,12 @@
 import { defineConfig } from 'tsup';
 
-export default defineConfig([
+export default defineConfig((opts) => [
     // ESM and CJS builds - no banner, use proper module imports
     {
         entry: ['src/index.ts'],
         format: ['esm', 'cjs'],
         dts: true,
-        clean: true,
+        clean: !opts.watch,   // watch mode must not wipe dist: dependents (and the examples' copy-umd) resolve files from it
         sourcemap: true,
         minify: false,
         // external: ['react', 'react-dom', '@pixodesk/svg-animator-web'],

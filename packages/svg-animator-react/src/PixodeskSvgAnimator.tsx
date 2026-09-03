@@ -232,12 +232,13 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
 
     const elementRefs = useRef(new Map<string, any>());
 
-    const renderNode = (node: PxNode | undefined, isRoot = false): ReactElement | null => {
+    const renderNode = (node: PxNode | undefined, isRoot = false, key?: React.Key): ReactElement | null => {
         if (!node) return null;
 
         const { type, animate, meta, children, ...props } = node;
 
         const normProps = getNormalizedProps(props);
+        if (key !== undefined) normProps['key'] = key;
 
         normProps['ref'] = (domEl: any) => {
             if (node['id']) elementRefs.current.set(node['id'], domEl);
@@ -254,7 +255,7 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
             if (style) normProps['style'] = style;
         }
 
-        return createElement(type, normProps, children?.map(child => renderNode(child)));
+        return createElement(type, normProps, children?.map((child, i) => renderNode(child, false, child['id'] ?? i)));
     };
 
     const root = doc ? renderNode(doc, true) : null;
