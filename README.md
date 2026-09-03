@@ -298,7 +298,7 @@ interface SVG_JSON {
             // font-family → embedded glyph outlines, for glyph-mode text
             // (effects.text.useGlyphs) — renders without shipping a font
             glyphs?: Record<string, {
-                fFamily: string;      // e.g. "Roboto"
+                fontFamily: string;   // e.g. "Roboto"
                 style: string;        // "" | "italic" | …
                 ascent: number;       // in unitsPerEm
                 unitsPerEm: number;   // e.g. 1000

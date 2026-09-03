@@ -68,7 +68,7 @@ and no font file needs to be installed or loaded.
       // The outlines the text is drawn from — one entry per letter used
       // (paths shortened here; the editor writes the real ones)
       "glyphs": {
-        "Roboto": { "fFamily": "Roboto", "style": "", "ascent": 928, "unitsPerEm": 1000,
+        "Roboto": { "fontFamily": "Roboto", "style": "", "ascent": 928, "unitsPerEm": 1000,
                     "glyphs": { "H": { "width": 722, "d": "M…" }, "e": { "width": 556, "d": "M…" },
                                 "l": { "width": 222, "d": "M…" }, "o": { "width": 556, "d": "M…" } } }
       }

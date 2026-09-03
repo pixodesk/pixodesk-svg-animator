@@ -139,11 +139,17 @@ export const PxKeyframeValueSchema = implementsInterface<_PxKeyframeValue>()(px.
     px.string(), // e.g. for colors
     px.number(),
     px.array(px.number()),
-    px.lazy<PxTransformParts>(() => PxTransformPartsSchema, {}),
+    // ORDER LAW: the key-discriminated object shapes (`{path}`, `{paths}`) come BEFORE the
+    // all-optional transform-parts record. In default (non-strict) mode that record accepts
+    // ANY object (every key optional, unknown keys ignored), so listing it earlier made
+    // Union.sanitize route `{path}`/`{paths}` values into it and strip them to `{}` —
+    // silent morph-data loss (repro: the editor's keyframeValueSanitize spec). Validity is
+    // order-independent (`some()`); only sanitize routing depends on this order.
     px.object({ path: px.string() }),
     px.lazy<{ paths: Array<PxBezierPath> }>(() => px.object({ paths: px.array(PxBezierPathSchema) }), { paths: [] }),
     // Gradient `stops` timeline — each kf value is the full stops-array snapshot.
     px.lazy<Array<_PxGradientStop>>(() => px.array(PxGradientStopSchema), []),
+    px.lazy<PxTransformParts>(() => PxTransformPartsSchema, {}),
 ]));
 
 /** A single keyframe `value` — union of all wire-allowed shapes. */
@@ -525,7 +531,7 @@ const _ck_PxGlyph: KeysMatch<PxGlyph, _PxGlyph> = true; // the key sets are iden
  */
 export interface _PxGlyphFont {
     /** CSS family name, e.g. "Roboto". */
-    fFamily: string;
+    fontFamily: string;
     /** Style notation, e.g. "" | "italic". */
     style: string;
     /** Ascent, in `unitsPerEm` units (baseline placement). */
@@ -537,7 +543,7 @@ export interface _PxGlyphFont {
 }
 
 export const PxGlyphFontSchema = implementsInterface<_PxGlyphFont>()(px.object({
-    fFamily: px.string(),
+    fontFamily: px.string(),
     style: px.string(),
     ascent: px.number(),
     unitsPerEm: px.number(),

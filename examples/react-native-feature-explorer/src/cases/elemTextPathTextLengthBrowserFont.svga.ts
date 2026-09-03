@@ -21,7 +21,7 @@ export const elemTextPathTextLengthBrowserFont: SvgaCaseJson = {
         "definitions": {
             "glyphs": {
                 "sans-serif": {
-                    "fFamily": "sans-serif",
+                    "fontFamily": "sans-serif",
                     "style": "",
                     "ascent": 927.734375,
                     "unitsPerEm": 1000,

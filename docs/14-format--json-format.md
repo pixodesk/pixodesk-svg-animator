@@ -319,7 +319,7 @@ every element that needs it:
   "easings":    { "smooth": [0.42, 0, 0.58, 1] },
   "animations": { "fadeIn": { "opacity": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 2000, "value": 1 } ] } } },
   "styles":     { "label": { "fontFamily": "Inter", "fontSize": 12 } },
-  "glyphs":     { "Roboto": { "fFamily": "Roboto", "style": "", "ascent": 928, "unitsPerEm": 1000,
+  "glyphs":     { "Roboto": { "fontFamily": "Roboto", "style": "", "ascent": 928, "unitsPerEm": 1000,
                               "glyphs": { "H": { "width": 722, "d": "M100 0V722H190V400H532V722H622V0H532V320H190V0Z" } } } }
 }
 ```

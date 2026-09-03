@@ -21,7 +21,7 @@ export const elemTextAnchor: SvgaCaseJson = {
         "definitions": {
             "glyphs": {
                 "Roboto-Regular": {
-                    "fFamily": "Roboto-Regular",
+                    "fontFamily": "Roboto-Regular",
                     "style": "",
                     "ascent": 927.734375,
                     "unitsPerEm": 1000,
