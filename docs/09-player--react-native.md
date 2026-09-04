@@ -202,7 +202,7 @@ component.
 | `iterations` | `number \| 'infinite'` | how many times to play; `'infinite'` never stops |
 | `fill` | `'forwards' \| 'backwards' \| 'both' \| 'none'` | what shows before the start / after the end |
 | `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | play forward, backward, or turn around on every iteration (starting forward or backward) |
-| `resetOnFinish` | `boolean` | snap back to the start after a natural finish |
+| `resetOnFinish` | `boolean` | snap back to the start after a natural finish (the file spells it `timeline.trigger.onFinish: "reset"`) |
 | `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | what happens when the trigger ends — a second tap with the `click` trigger, or scrolling out of view with `scrollIntoView`: keep playing, pause, go back to the start, or play backwards. If you don't pass it, the value saved in the file is used (set in the editor as *When the trigger ends*); if the file has none either, `pause` |
 | `onPlay` · `onPause` · `onFinish` · `onCancel` · `onStop` | `() => void` | called when the animation starts or resumes (`onPlay`), pauses (`onPause`), reaches its end (`onFinish`), or is stopped and reset to the start (`onCancel`) — same meanings as in the [React component](./07-player--react.md#props). `onStop` fires *in addition to* any of the others that halt playback — use it when you only care that the animation is no longer playing |
 | `onError` | `(error, componentStack?) => void` | the document could not be compiled or rendered |
@@ -345,7 +345,7 @@ not supported.
 | Triggers `load`, `programmatic`, `click`, `scrollIntoView` | ✅ | incl. `scrollIntoViewThreshold` and `outAction` |
 | Trigger `mouseOver` | ❌ | no touch equivalent; will not be added |
 | `frameRate`, `mode` | ❌ | see [Differences from the React package](#differences-from-the-react-package) |
-| Scroll-driven playback (`timelineSource: 'scroll'`) | ❌ | |
+| Scroll-driven playback (`timeline.type: 'scroll' / 'view'`) | ❌ | |
 
 ## Monorepo setup
 

@@ -23,9 +23,12 @@ comments, so a real file has none.)
   // Everything about WHEN and HOW the animation plays lives here
   "animator": {
     "duration": 2000,
-    "iterations": "infinite",
-    "direction": "alternate",
-    "trigger": { "startOn": "scrollIntoView", "outAction": "pause", "scrollIntoViewThreshold": 0.5 }
+    "timeline": {
+      "type": "clock",
+      "iterations": "infinite",
+      "direction": "alternate",
+      "trigger": { "startOn": "scrollIntoView", "outAction": "pause", "scrollIntoViewThreshold": 0.5 }
+    }
   },
   "children": [
     {
@@ -48,18 +51,37 @@ comments, so a real file has none.)
 The same bouncing ball as in the [web player](./06-player--web-player.md#declarative--data-px-animation-src),
 now two seconds per bounce and waiting until half of it has scrolled into view.
 
+## The `timeline` — what advances the playhead
+
+`animator.timeline` says what *drives* the animation's progress, exactly like a Web Animations
+API timeline. Its `type` picks one of three, mirroring WAAPI's `DocumentTimeline` /
+`ScrollTimeline` / `ViewTimeline`:
+
+| `timeline.type` | The playhead follows… |
+|---|---|
+| `clock` (default) | wall time — something *starts* it (the `trigger`), and it has the playback dynamics below |
+| `scroll` | a scroll container's offset — [Scroll-driven playback](#scroll-driven-playback-in-development) |
+| `view` | the SVG's journey through the viewport — [Scroll-driven playback](#scroll-driven-playback-in-development) |
+
+Each type carries only the fields that mean something for it — a scrubbed timeline has no
+`trigger` or `delay`, and the format gives them no slot there. Omitting `timeline` entirely
+means a plain clock.
+
 ## Timing
+
+Lengths and the engine stay on `animator` itself; the playback dynamics live in the
+clock timeline:
 
 | Field | Values | Default | Meaning |
 |---|---|---|---|
 | `duration` | ms | `1000` | length of **one** iteration. Keyframe times are absolute offsets within it |
-| `delay` | ms | `0` | wait this long, then start. A **negative** value skips ahead instead: `-500` starts right away from the frame at 0.5 s, as if the animation had already been running for half a second |
-| `iterations` | number · `"infinite"` | `1` | how many times the whole document timeline repeats |
-| `direction` | `normal` · `reverse` · `alternate` · `alternate-reverse` | `normal` | `alternate` ping-pongs on every other iteration |
-| `fill` | `forwards` · `backwards` · `both` · `none` | `forwards` | what is shown *outside* the active time: `forwards` holds the last frame after the end; `backwards` shows the first frame during the delay; `none` reverts to the static SVG |
-| `resetOnFinish` | boolean | `false` | after a natural finish, snap back to the start state (instead of holding per `fill`) |
 | `frameRate` | fps | uncapped | target rate for the frame-loop engine only |
 | `mode` | `auto` · `waapi` · `frames` | `auto` | the engine — [Engine mode](#engine-mode) |
+| `timeline.delay` | ms | `0` | wait this long, then start. A **negative** value skips ahead instead: `-500` starts right away from the frame at 0.5 s, as if the animation had already been running for half a second |
+| `timeline.iterations` | number · `"infinite"` | `1` | how many times the whole document timeline repeats |
+| `timeline.direction` | `normal` · `reverse` · `alternate` · `alternate-reverse` | `normal` | `alternate` ping-pongs on every other iteration |
+| `timeline.fill` | `forwards` · `backwards` · `both` · `none` | `forwards` | what is shown *outside* the active time: `forwards` holds the last frame after the end; `backwards` shows the first frame during the delay; `none` reverts to the static SVG |
+| `timeline.trigger.onFinish` | `hold` · `reset` | `hold` | after a natural finish: keep the end state (per `fill`), or snap back to the start |
 
 **Per-property loops vs `iterations`.** There are two kinds of repetition, and they work at
 different levels. `iterations` repeats the **whole document** — every element, from the first
@@ -83,11 +105,12 @@ Safari < 18.5. React Native ignores `mode` (playback is always native-driven).
 
 ## Triggers — what *starts* the animation
 
-The `trigger` block says what starts the animation and what happens when that condition ends.
-The editor writes it from its **Start** setting; every player honours it:
+The `trigger` block — inside the clock timeline — says what starts the animation and what
+happens when that condition ends. The editor writes it from its **Start** setting; every
+player honours it:
 
 ```json
-"trigger": { "startOn": "mouseOver", "outAction": "reset" }
+"timeline": { "type": "clock", "trigger": { "startOn": "mouseOver", "outAction": "reset" } }
 ```
 
 | `startOn` | Starts when… | Editor label |
@@ -135,7 +158,8 @@ creation):
 import { createAnimator } from '@pixodesk/svg-animator-web';
 
 const doc = await (await fetch('/bouncing-ball.json')).json();
-doc.animator = { ...doc.animator, iterations: 'infinite', trigger: { startOn: 'programmatic' } };
+doc.animator = { ...doc.animator,
+  timeline: { type: 'clock', iterations: 'infinite', trigger: { startOn: 'programmatic' } } };
 const a = createAnimator({ data: doc, container: '#box' });
 a.play();
 ```
@@ -148,6 +172,13 @@ component; the rest of the document is untouched: `duration`, `delay`, `iteratio
 package page). Note that the components switch the trigger to `programmatic` whenever you use
 `play` / `pause` / `apiRef` / `time`, so only `autoplay` mode uses the trigger saved in the
 file.
+
+## Debug handle — `debugInstName`
+
+`"animator": { "debugInstName": "heroBanner" }` makes the player publish its API object as
+`window.heroBanner`, so you can drive a live instance from the browser console —
+`heroBanner.pause()`, `heroBanner.setCurrentTime(500)`, and so on. Purely a debugging
+convenience; remove it (or leave it — it has no other effect) for production files.
 
 ## Scroll-driven playback (in development)
 
@@ -165,29 +196,28 @@ animations. Choose
 "animator": {
   "duration": 3000,
 
-  // The playhead follows the page's scroll instead of the clock
-  "timelineSource": "scroll",
-
-  // Which part of the element's journey through the viewport maps to the animation
-  "scroll": { "kind": "view", "range": { "start": { "phase": "entry", "fraction": 0 }, "end": { "phase": "exit", "fraction": 1 } } }
+  // The playhead follows the SVG's journey through the viewport instead of the clock
+  "timeline": { "type": "view", "range": { "start": { "phase": "entry", "fraction": 0 }, "end": { "phase": "exit", "fraction": 1 } } }
 }
 ```
 
-`timelineSource: "scroll"` alone means *"show the whole animation, first frame to last, as the
-SVG travels across the viewport — the scroll position, not the clock, decides which frame is on
-screen"*. With it, `trigger` and `iterations: "infinite"` are ignored. The optional `scroll`
-block tunes it:
+`timeline: { "type": "view" }` alone means *"show the whole animation, first frame to last, as
+the SVG travels across the viewport — the scroll position, not the clock, decides which frame
+is on screen"*; `type: "scroll"` follows the scroll container's offset instead. The clock
+fields (`trigger`, `delay`, `"infinite"`) have no slot in these timelines. The rest of the
+object tunes it:
 
-| `scroll.` | Values | Meaning |
+| `timeline.` | Values | Meaning |
 |---|---|---|
-| `kind` | `view` (default) · `scroll` | progress = the SVG's journey across the scrollport, or the scroll container's offset ratio |
+| `type` | `view` · `scroll` | progress = the SVG's journey across the scrollport, or the scroll container's offset ratio |
 | `axis` | `block` (default) · `inline` · `x` · `y` | which axis; `block` = vertical in normal writing mode |
-| `source` | `nearest` (default) · `root` | for `kind: scroll` — the nearest scrollable ancestor, or the document |
-| `subject` | `parent` · `scroller` · a CSS selector | for `kind: view` — **whose** journey is measured (default: the `<svg>` itself). `parent` is what makes a *pinned* section work |
+| `source` | `nearest` (default) · `root` | for `type: scroll` — the nearest scrollable ancestor, or the document |
+| `subject` | `parent` · `scroller` · a CSS selector | for `type: view` — **whose** journey is measured (default: the `<svg>` itself). `parent` is what makes a *pinned* section work |
 | `range.start` / `range.end` | `{ phase, fraction }` | the slice of the journey mapped to 0–100 %; `phase` ∈ `cover` (default) · `contain` · `entry` · `exit` · `entry-crossing` · `exit-crossing`; `fraction` is a position within that phase, `0` = its start, `1` = its end |
+| `iterations` | number | the animation repeats this many times across the range (finite only — `"infinite"` cannot map onto a range) |
 | `smoothing` | ms | catch-up lag — the playhead eases toward the scroll position instead of snapping (smoother under momentum scrolling) |
-| `pin` · `pinAlign` · `pinTop` · `pinDistance` | boolean · `top`/`center`/`bottom` · px · viewport heights | hold the canvas still on screen while scrolling moves the animation forward and back (`position: sticky`); `pinDistance` creates the scroll travel |
-| `driver` | `custom` (default) · `native` | who computes progress: the player's own measurement (identical everywhere) or the browser's `ScrollTimeline` (falls back automatically when unsupported) |
+| `pin` | `true` · `{ align, top, distance }` | hold the canvas still on screen while scrolling moves the animation forward and back (`position: sticky`); `align` ∈ `top`/`center`/`bottom`, `top` in px, `distance` in viewport heights creates the scroll travel |
+| `engine` | `custom` (default) · `native` | who computes progress: the player's own measurement (identical everywhere) or the browser's `ScrollTimeline` (falls back automatically when unsupported) |
 
 Support: the **web player** (both engines, and therefore React and Vue), and the *SVG + JS
 animation* export. Not yet: the CSS export or React Native. The complete "scrollytelling"

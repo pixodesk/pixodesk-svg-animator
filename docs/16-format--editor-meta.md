@@ -68,7 +68,7 @@ names as the effects in `node.effects`, plus a few keys only the editor knows:
     `frame`, `cog`, `crescent`, `tear`, `eye`, `trapezoid`. The settings **can carry
     keyframes**; only the structure (say, a polygon's side count) is fixed.
   - `path` — the original path, when a modifier (rounded `corners`) was applied to it.
-- **`text`** — widened with `fontSource` and `source`, the payload that lets glyph-rendered
+- **`text`** — widened with `fontSource` and `content`, the payload that lets glyph-rendered
   text be edited as text again.
 - **`clone`** — widened with the `width` / `height` of a materialised `<use>`.
 - **`combinedPath: true`** — an *identity* effect the writer adds beside `strokeTrim` when it

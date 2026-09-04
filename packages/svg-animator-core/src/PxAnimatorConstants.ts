@@ -20,7 +20,7 @@
 // are fine — they are erased at build time and cannot create a runtime edge.
 // ============================================================================
 
-import type { PxAnimatedSvgDocument, PxAnimatorConfig, PxBinding, PxDefs, PxNode } from './PxAnimatorTypes';
+import type { PxAnimatedSvgDocument, PxAnimatorConfig, PxBinding, PxDefs, PxNode, PxScroll } from './PxAnimatorTypes';
 
 export type FillMode = 'forwards' | 'backwards' | 'both' | 'none';
 
@@ -260,7 +260,128 @@ export function isPxElementFileFormat(fileJson: any): fileJson is PxAnimatedSvgD
  * them and they were never in the schema.
  */
 export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorConfig | undefined {
-    return doc?.animator || doc?.meta?.animator;
+    const cfg = doc?.animator || doc?.meta?.animator;
+    // Every internal consumer sees the FLAT view — the nested `timeline` spelling is
+    // folded down here, once, so the engines/effects/drivers never branch on it.
+    return cfg ? flattenAnimatorTimeline(cfg) : undefined;
+}
+
+
+// ============================================================================
+// TIMELINE SPELLING (review §2.1)
+//
+// The wire spelling is `animator.timeline: { type: 'clock'|'scroll'|'view', … }`;
+// the flat form (`timelineSource` + `scroll` + loose clock knobs) is the INTERNAL
+// runtime view only — not a wire format. These two functions convert between them:
+//   • flattenAnimatorTimeline — wire → runtime view; applied by `getAnimatorConfig`,
+//     so ALL runtime code keeps consuming the flat form it always has.
+//   • nestAnimatorTimeline — runtime view → wire; applied by writers (the editor) so
+//     files carry only the nested spelling and its mode-dead keys are structurally absent.
+// ============================================================================
+
+/** Memo: flatten allocates a new config; repeated `getAnimatorConfig` calls must keep
+ *  returning the SAME object (some callers compare identity / cache off it). */
+const flattenMemo = new WeakMap<object, PxAnimatorConfig>();
+
+/**
+ * Folds `cfg.timeline` (the wire spelling) into the flat runtime-view fields the engines
+ * consume. Returns `cfg` unchanged when there is nothing to fold. Never mutates input.
+ */
+export function flattenAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
+    const timeline: any = (cfg as any).timeline;
+    if (timeline === undefined || timeline === null || typeof timeline !== 'object') return cfg;
+
+    const memoised = flattenMemo.get(cfg as object);
+    if (memoised) return memoised;
+
+    const { timeline: _dropped, ...flat } = cfg as any;
+
+    if (timeline.type === 'scroll' || timeline.type === 'view') {
+        flat.timelineSource = 'scroll';
+        if (timeline.iterations !== undefined) flat.iterations = timeline.iterations;
+        const scroll: PxScroll = { ...(flat.scroll || {}) };
+        scroll.kind = timeline.type;
+        if (timeline.engine !== undefined) scroll.driver = timeline.engine;
+        if (timeline.axis !== undefined) scroll.axis = timeline.axis;
+        if (timeline.source !== undefined) scroll.source = timeline.source;
+        if (timeline.subject !== undefined) scroll.subject = timeline.subject;
+        if (timeline.smoothing !== undefined) scroll.smoothing = timeline.smoothing;
+        if (timeline.range !== undefined) scroll.range = timeline.range;
+        const pin = timeline.pin;
+        if (typeof pin === 'boolean') scroll.pin = pin;
+        else if (pin && typeof pin === 'object') {
+            scroll.pin = true;
+            if (pin.align !== undefined) scroll.pinAlign = pin.align;
+            if (pin.top !== undefined) scroll.pinTop = pin.top;
+            if (pin.distance !== undefined) scroll.pinDistance = pin.distance;
+        }
+        flat.scroll = scroll;
+    } else { // 'clock' (or unknown type — treated as clock, the default mechanism)
+        if (timeline.trigger !== undefined) {
+            const { onFinish, ...restTrigger } = timeline.trigger;
+            if (Object.keys(restTrigger).length) flat.trigger = restTrigger;
+            if (onFinish !== undefined) flat.resetOnFinish = onFinish === 'reset';
+        }
+        if (timeline.delay !== undefined) flat.delay = timeline.delay;
+        if (timeline.iterations !== undefined) flat.iterations = timeline.iterations;
+        if (timeline.direction !== undefined) flat.direction = timeline.direction;
+        if (timeline.fill !== undefined) flat.fill = timeline.fill;
+    }
+
+    flattenMemo.set(cfg as object, flat);
+    return flat;
+}
+
+/**
+ * Converts a FLAT animator config into the written spelling: mode-specific keys fold into
+ * one discriminated `timeline` object; the legacy flat keys are removed from the output.
+ * Returns a new object (input untouched); a config already carrying `timeline` passes
+ * through unchanged; a pure-shared config (duration/mode/… only) gets no `timeline` at all.
+ */
+export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
+    if (!cfg || (cfg as any).timeline !== undefined) return cfg;
+
+    const { timelineSource, scroll, trigger, delay, iterations, direction, fill, resetOnFinish,
+            ...shared } = cfg as any;
+
+    if (timelineSource === 'scroll') {
+        const timeline: any = { type: scroll?.kind === 'view' ? 'view' : 'scroll' };
+        // Finite iterations survive scrubbing (D4); 'infinite' cannot map to a range.
+        if (typeof iterations === 'number') timeline.iterations = iterations;
+        if (scroll) {
+            if (scroll.driver !== undefined) timeline.engine = scroll.driver;
+            if (scroll.axis !== undefined) timeline.axis = scroll.axis;
+            if (scroll.source !== undefined) timeline.source = scroll.source;
+            if (scroll.subject !== undefined) timeline.subject = scroll.subject;
+            if (scroll.smoothing !== undefined) timeline.smoothing = scroll.smoothing;
+            if (scroll.range !== undefined) timeline.range = scroll.range;
+            const hasPinParams = scroll.pinAlign !== undefined || scroll.pinTop !== undefined || scroll.pinDistance !== undefined;
+            if (hasPinParams) {
+                timeline.pin = {
+                    ...(scroll.pinAlign !== undefined ? { align: scroll.pinAlign } : {}),
+                    ...(scroll.pinTop !== undefined ? { top: scroll.pinTop } : {}),
+                    ...(scroll.pinDistance !== undefined ? { distance: scroll.pinDistance } : {}),
+                };
+            } else if (scroll.pin !== undefined) {
+                timeline.pin = scroll.pin;
+            }
+        }
+        return { ...shared, timeline };
+    }
+
+    const timeline: any = { type: 'clock' };
+    if (trigger !== undefined || resetOnFinish) {
+        const t: any = { ...(trigger || {}) };
+        if (resetOnFinish) t.onFinish = 'reset';
+        timeline.trigger = t;
+    }
+    if (delay !== undefined) timeline.delay = delay;
+    if (iterations !== undefined) timeline.iterations = iterations;
+    if (direction !== undefined) timeline.direction = direction;
+    if (fill !== undefined) timeline.fill = fill;
+
+    // A clock timeline with nothing but its type says nothing — omit the block entirely.
+    return Object.keys(timeline).length > 1 ? { ...shared, timeline } : shared;
 }
 
 
@@ -273,7 +394,9 @@ export function getBindings(doc: PxAnimatedSvgDocument): PxBinding[] | undefined
     if (!doc) return undefined;
     const animateById = getAnimatorConfig(doc)?.animateById;
     if (!animateById) return undefined;
-    return Object.entries(animateById).map(([id, anim]) => ({ id, animate: anim }));
+    // Keys are `#id`-spelled (review §3.2 — EVERY element reference carries the hash,
+    // record keys included); the binding id is the bare DOM id.
+    return Object.entries(animateById).map(([id, anim]) => ({ id: id.startsWith('#') ? id.slice(1) : id, animate: anim }));
 }
 
 

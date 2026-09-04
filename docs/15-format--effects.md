@@ -68,7 +68,7 @@ and no font file needs to be installed or loaded.
       // The outlines the text is drawn from — one entry per letter used
       // (paths shortened here; the editor writes the real ones)
       "glyphs": {
-        "Roboto": { "fontFamily": "Roboto", "style": "", "ascent": 928, "unitsPerEm": 1000,
+        "Roboto": { "fontFamily": "Roboto", "fontStyle": "", "ascent": 928, "unitsPerEm": 1000,
                     "glyphs": { "H": { "width": 722, "d": "M…" }, "e": { "width": 556, "d": "M…" },
                                 "l": { "width": 222, "d": "M…" }, "o": { "width": 556, "d": "M…" } } }
       }
@@ -124,11 +124,11 @@ same settings; the only difference is which of the two attributes is painted.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `type` | `linear` · `radial` | a gradient along a line from `p1` to `p2`, or one spreading out from a centre `c` |
-| `p1` · `p2` | `[x, y]` \| `Animated<[x, y]>` | the line the linear gradient runs along: start and end point — SVG's `x1`/`y1`/`x2`/`y2` ([SVG `<linearGradient>` spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/linearGradient)) |
-| `c` · `r` · `fp` | `[x, y]` \| `Animated<[x, y]>` · number \| `Animated<number>` · `[x, y]` \| `Animated<[x, y]>` | the radial gradient's centre, radius and focal point — SVG's `cx`/`cy`, `r`, `fx`/`fy` ([SVG `<radialGradient>` spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/radialGradient)) |
+| `type` | `linear` · `radial` | a gradient along a line from `start` to `end`, or one spreading out from a `center` |
+| `start` · `end` | `[x, y]` \| `Animated<[x, y]>` | the line the linear gradient runs along — SVG's `x1`/`y1`/`x2`/`y2` ([SVG `<linearGradient>` spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/linearGradient)) |
+| `center` · `radius` · `focal` | `[x, y]` \| `Animated<[x, y]>` · number \| `Animated<number>` · `[x, y]` \| `Animated<[x, y]>` | the radial gradient's centre, radius and focal point — SVG's `cx`/`cy`, `r`, `fx`/`fy` ([SVG `<radialGradient>` spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/radialGradient)) |
 | `stops` | array of `{ offset, color }` \| `Animated<array of { offset, color }>` | the gradient's colour stops — each becomes an SVG [`<stop>` element](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/stop). When animated, each keyframe's value is the complete stop list — every stop with its position and colour at that moment — and every keyframe must have the same number of stops |
-| `gradientUnits` | `objectBoundingBox` · `userSpaceOnUse` | which coordinates `p1`, `p2`, `c`, `r`, `fp` are in: positions across the element's own box (`0` = its left / top edge, `1` = its right / bottom edge), or the drawing's own coordinates ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/gradientUnits)) |
+| `gradientUnits` | `objectBoundingBox` · `userSpaceOnUse` | which coordinates `start`, `end`, `center`, `radius`, `focal` are in: positions across the element's own box (`0` = its left / top edge, `1` = its right / bottom edge), or the drawing's own coordinates ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/gradientUnits)) |
 | `spreadMethod` | `pad` · `reflect` · `repeat` | what to paint beyond the last stop: extend the end colour, mirror the gradient back, or start it over ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/spreadMethod)) |
 | `gradientTransform` | string | static only ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/gradientTransform)) |
 
@@ -136,7 +136,7 @@ same settings; the only difference is which of the two attributes is painted.
 { "type": "rect", "x": 0, "y": 0, "width": 200, "height": 120,
   // A horizontal gradient; its two colours cross-fade to new ones over one second
   "effects": { "fillGradient": {
-    "type": "linear", "p1": [0, 0], "p2": [200, 0],
+    "type": "linear", "start": [0, 0], "end": [200, 0],
     "stops": { "keyframes": [
       { "time": 0,    "value": [ { "offset": 0, "color": "#3b82f6" }, { "offset": 1, "color": "#ec4899" } ] },
       { "time": 1000, "value": [ { "offset": 0, "color": "#10b981" }, { "offset": 1, "color": "#f59e0b" } ] }

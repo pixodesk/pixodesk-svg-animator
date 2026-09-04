@@ -20,11 +20,11 @@ save.
 | Control | Writes | Notes |
 |---|---|---|
 | **Duration** | `duration` (ms) | the length of **one** iteration; keyframe times are offsets within it |
-| **Delay** | `delay` (ms) | wait before the first iteration starts |
-| **Iterations** | `iterations` | a number, or “infinite” |
-| **Direction** | `direction` | “normal”, “reverse”, “alternate” (ping-pong), “alternate-reverse” |
-| **Fill mode** | `fill` | what shows outside the active time — “forwards” holds the last frame, “backwards” shows the first frame during the delay, “both”, or “none” to revert to the static SVG |
-| ***Reset on finish*** | `resetOnFinish` | snap back to the start after a natural finish |
+| **Delay** | `timeline.delay` (ms) | wait before the first iteration starts |
+| **Iterations** | `timeline.iterations` | a number, or “infinite” |
+| **Direction** | `timeline.direction` | “normal”, “reverse”, “alternate” (ping-pong), “alternate-reverse” |
+| **Fill mode** | `timeline.fill` | what shows outside the active time — “forwards” holds the last frame, “backwards” shows the first frame during the delay, “both”, or “none” to revert to the static SVG |
+| ***Reset on finish*** | `timeline.trigger.onFinish: "reset"` | snap back to the start after a natural finish |
 | **Frame rate** | `frameRate` | a target rate for the frame-loop engine only; leave it unset to run uncapped |
 
 ## Engine mode
@@ -41,7 +41,7 @@ always native-driven.
 
 ## Start trigger
 
-**Start** writes `trigger.startOn` — what makes the animation begin:
+**Start** writes `timeline.trigger.startOn` — what makes the animation begin:
 
 | Editor label | Writes | Begins when |
 |---|---|---|
@@ -52,7 +52,7 @@ always native-driven.
 | “Manually from JS” | `programmatic` | never on its own — code calls `play()` |
 
 **When the trigger ends** (pointer leaves, scrolled out of view, a second click) writes
-`trigger.outAction`: “continue”, “pause”, “reset” or “reverse”.
+`timeline.trigger.outAction`: “continue”, “pause”, “reset” or “reverse”.
 
 **Use JS Triggers** only matters for the pre-rendered *SVG + CSS animation* export, and decides
 how the trigger is implemented in that file:
@@ -70,7 +70,7 @@ The JSON format and the *SVG + JS animation* export always honour the full setti
 
 ## Timeline — clock or scroll
 
-**Timeline** chooses what the playhead follows:
+**Timeline** chooses what the playhead follows — it writes `timeline.type`:
 
 - **Time** (default) — the clock. The animation plays on its own once triggered.
 - **Scroll** *(in development)* — the page's scroll position drives the playhead: scrolling

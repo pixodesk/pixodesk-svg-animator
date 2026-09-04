@@ -22,7 +22,7 @@ comments, so a real file has none):
   "viewBox": "0 0 400 400",
 
   // ADDED: the playback settings — how long, how many times, what starts it
-  "animator": { "duration": 1000, "iterations": "infinite", "trigger": { "startOn": "load" } },
+  "animator": { "duration": 1000, "timeline": { "type": "clock", "iterations": "infinite", "trigger": { "startOn": "load" } } },
 
   "children": [
     {
@@ -83,7 +83,7 @@ child elements), `animate` (its animation) and `effects` (its effects):
 | Field | Meaning |
 |---|---|
 | `type` | the SVG tag: `rect`, `circle`, `ellipse`, `line`, `path`, `g`, `text`, `tspan`, `use`, `symbol`, `defs`, `image`, `mask`, `clipPath`, `linearGradient`, `radialGradient`, `stop`, `pattern`, `marker`, `filter` and the `fe*` primitives, … |
-| `id` | DOM id — required when something references the element (`href="#id"`, `maskedBy`, `animateById`). When the player creates the DOM elements, it replaces every id with a fresh one (that is how several copies of one file coexist on a page), so ids need only be unique within the file |
+| `id` | DOM id — required when something references the element (`href="#id"`, `maskedBy`, `animateById` — references are always `#id`-spelled, record keys included). When the player creates the DOM elements, it replaces every id with a fresh one (that is how several copies of one file coexist on a page), so ids need only be unique within the file |
 | `children` | nested nodes |
 | `animate` | this node's animations — [below](#animating--the-animate-channel) |
 | `effects` | this node's effects — [Player effects](./15-format--effects.md) |
@@ -319,7 +319,7 @@ every element that needs it:
   "easings":    { "smooth": [0.42, 0, 0.58, 1] },
   "animations": { "fadeIn": { "opacity": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 2000, "value": 1 } ] } } },
   "styles":     { "label": { "fontFamily": "Inter", "fontSize": 12 } },
-  "glyphs":     { "Roboto": { "fontFamily": "Roboto", "style": "", "ascent": 928, "unitsPerEm": 1000,
+  "glyphs":     { "Roboto": { "fontFamily": "Roboto", "fontStyle": "", "ascent": 928, "unitsPerEm": 1000,
                               "glyphs": { "H": { "width": 722, "d": "M100 0V722H190V400H532V722H622V0H532V320H190V0Z" } } } }
 }
 ```
@@ -342,9 +342,9 @@ that one `.svg` file:
 
 This section is about that shortened JSON document. It looks like a normal document, with one
 difference: it has no `children` — the elements already exist as markup, so instead of
-carrying them again, it lists its animations in `animator.animateById`, keyed by the id of
-the element each one animates. You will normally never write such a document yourself; the
-editor generates it.
+carrying them again, it lists its animations in `animator.animateById`, keyed by the
+`#id` of the element each one animates. You will normally never write such a document
+yourself; the editor generates it.
 
 ```js
 import { createAnimator } from '@pixodesk/svg-animator-web';
@@ -355,15 +355,18 @@ createAnimator({ container: '#box', data: {   // an empty <div id="box"> on the 
     duration: 2000,
     definitions: { animations: { fadeIn: { opacity: { keyframes: [ { time: 0, value: 0 }, { time: 2000, value: 1 } ] } } } },
     animateById: {
-      _px_rect:    'fadeIn',                                     // one named animation
-      _px_ellipse: ['fadeIn', { fill: { keyframes: [ { time: 0, value: '#0087ff' }, { time: 2000, value: '#ff3b30' } ] } }],  // several, mixed
+      '#_px_rect':    'fadeIn',                                  // one named animation
+      '#_px_ellipse': ['fadeIn', { fill: { keyframes: [ { time: 0, value: '#0087ff' }, { time: 2000, value: '#ff3b30' } ] } }],  // several, mixed
     },
   },
 } });
 ```
 
 `animateById` values have exactly the same shape as a node's `animate`; only the key differs
-(element id here, attribute name there).
+(element reference here, attribute name there).
+
+**Reference spelling — one rule, everywhere:** every element reference is `#id`-spelled —
+`href`, `partOf`, every `sourceId`, and record keys like `animateById`'s alike.
 
 ## Units of the values in a document
 

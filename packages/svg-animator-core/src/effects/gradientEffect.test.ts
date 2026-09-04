@@ -24,7 +24,7 @@ const stopsOf = (def: PxNode): Array<any> => collectByType(def, 'stop');
 describe('gradientEffect — linear/radial def + stops, static & animated', () => {
 
     it('case 1 — static linear fillGradient → <linearGradient> def + bare stops, fill=url()', () => {
-        const out = materialise(rect({ fillGradient: { type: 'linear', p1: [0, 0], p2: [100, 0], stops: STOPS } }));
+        const out = materialise(rect({ fillGradient: { type: 'linear', start: [0, 0], end: [100, 0], stops: STOPS } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -76,7 +76,7 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
     });
 
     it('case 2 — static radial fillGradient → <radialGradient> with cx/cy/r/fx/fy', () => {
-        const out = materialise(rect({ fillGradient: { type: 'radial', c: [50, 50], r: 40, fp: [50, 50], stops: STOPS } }));
+        const out = materialise(rect({ fillGradient: { type: 'radial', center: [50, 50], radius: 40, focal: [50, 50], stops: STOPS } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -125,7 +125,7 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
     it('case 3 — animated stops → each <stop> gets animate.stopColor.keyframes (sliced per index)', () => {
         const out = materialise(rect({
             fillGradient: {
-                type: 'linear', p1: [0, 0], p2: [100, 0],
+                type: 'linear', start: [0, 0], end: [100, 0],
                 stops: {
                     keyframes: [
                         { time: 0, value: [{ offset: 0, color: '#ff0000' }, { offset: 1, color: '#0000ff' }] },
@@ -183,7 +183,7 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
     });
 
     it('case 4 — strokeGradient rewrites STROKE (not fill)', () => {
-        const out = materialise(rect({ strokeGradient: { type: 'linear', p1: [0, 0], p2: [100, 0], stops: STOPS } }));
+        const out = materialise(rect({ strokeGradient: { type: 'linear', start: [0, 0], end: [100, 0], stops: STOPS } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -232,7 +232,7 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
 
     it('case 5 — gradientUnits / spreadMethod pass through onto the def', () => {
         const out = materialise(rect({
-            fillGradient: { type: 'linear', p1: [0, 0], p2: [100, 0], stops: STOPS, gradientUnits: 'userSpaceOnUse', spreadMethod: 'reflect' },
+            fillGradient: { type: 'linear', start: [0, 0], end: [100, 0], stops: STOPS, gradientUnits: 'userSpaceOnUse', spreadMethod: 'reflect' },
         }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{

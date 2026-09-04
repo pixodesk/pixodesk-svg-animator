@@ -92,12 +92,6 @@ export interface _PxKeyframe {
     /** Short alias for "tangentIn" */
     ti?: [number, number];
 
-    /**
-     * Editor-side UI state (whether the keyframe is selected in the timeline).
-     * Declared here so strict-mode schema validation accepts it on the wire —
-     * the Player ignores it.
-     */
-    selected?: boolean;
 }
 
 /**
@@ -174,7 +168,9 @@ export const PxKeyframeSchema = implementsInterface<_PxKeyframe>()(px.object({
     to:         px.tuple([px.number(), px.number()] as const).optional(),  // short alias
     tangentIn:  px.tuple([px.number(), px.number()] as const).optional(),
     ti:         px.tuple([px.number(), px.number()] as const).optional(),  // short alias
-    selected:   px.boolean().optional(),  // editor-side UI state (Player ignores it)
+    // (`selected` — editor timeline-selection UI state — was REMOVED from the wire
+    // (review §1.3): editor data lives under `meta`. The editor still carries it on
+    // its internal COPY-PASTE payload, which never validates against this schema.)
 }));
 
 /**
@@ -487,12 +483,20 @@ export interface _PxTrigger {
     /** Percentage of element visibility required to trigger (0–1, default 0 = any pixel).
      *  Only applies to scrollIntoView. */
     scrollIntoViewThreshold?: number;
+
+    /** After a NATURAL finish: `'hold'` (default — keep the end state per `fill`) or `'reset'` (snap back to the start). Trigger-vocabulary successor of the top-level `resetOnFinish`. */
+    onFinish?: 'hold' | 'reset';
 }
 
 // `{ startOn?:'load'|'mouseOver'|'click'|'scrollIntoView'|'programmatic', outAction?:..., scrollIntoViewThreshold?:number }`
 export const PxTriggerSchema = implementsInterface<_PxTrigger>()(px.object({
     startOn: px.enum(['load', 'mouseOver', 'click', 'scrollIntoView', 'programmatic'] as const).optional(),
     outAction: px.enum(['continue', 'pause', 'reset', 'reverse'] as const).optional(),
+    // What happens after a NATURAL finish — `'hold'` (default: keep the end state per
+    // `fill`) or `'reset'` (snap back to the start state). The trigger-vocabulary home of
+    // the old top-level `resetOnFinish: boolean` (read-legacy) — review §2.3: both
+    // "what happens at the end" knobs now sit side by side and share one style of value.
+    onFinish: px.enum(['hold', 'reset'] as const).optional(),
     scrollIntoViewThreshold: px.number().optional(),
 }));
 
@@ -532,8 +536,8 @@ const _ck_PxGlyph: KeysMatch<PxGlyph, _PxGlyph> = true; // the key sets are iden
 export interface _PxGlyphFont {
     /** CSS family name, e.g. "Roboto". */
     fontFamily: string;
-    /** Style notation, e.g. "" | "italic". */
-    style: string;
+    /** Font-style notation, e.g. "" | "italic" (review §5.2 — `style` would collide with the node's CSS `style`). */
+    fontStyle: string;
     /** Ascent, in `unitsPerEm` units (baseline placement). */
     ascent: number;
     /** Units per em the glyph `width`/`d` are expressed in, e.g. 1000. */
@@ -544,7 +548,7 @@ export interface _PxGlyphFont {
 
 export const PxGlyphFontSchema = implementsInterface<_PxGlyphFont>()(px.object({
     fontFamily: px.string(),
-    style: px.string(),
+    fontStyle: px.string(),
     ascent: px.number(),
     unitsPerEm: px.number(),
     glyphs: px.record(PxGlyphSchema),
@@ -736,6 +740,69 @@ const _ck_PxScroll: KeysMatch<PxScroll, _PxScroll> = true; // the key sets are i
 
 
 // ============================================================================
+// TIMELINE — what advances the animation's progress (review §2.1)
+// ============================================================================
+//
+// `animator.timeline` is a discriminated object: `type: 'clock' | 'scroll' | 'view'`,
+// deliberately mirroring WAAPI's three timeline classes (DocumentTimeline /
+// ScrollTimeline / ViewTimeline) and CSS `animation-timeline: auto | scroll() | view()`.
+// Each mode carries ONLY its own parameters, so a key that is dead in the other mode is
+// structurally unwritable — the old flat spelling (`timelineSource` + sibling `scroll` +
+// clock knobs loose at the animator root) required design rules (D3/D4) to keep dead keys
+// out; readers accept BOTH spellings (see `flattenAnimatorTimeline`), writers emit only
+// this one.
+
+/** Pin parameters as one object — presence enables pinning (review §2.2; the flat legacy
+ *  spelling is `scroll.pin/pinAlign/pinTop/pinDistance`). */
+export const PxTimelinePinSchema = px.object({
+    align: px.enum(['top', 'center', 'bottom'] as const).optional(),
+    top: px.number().optional(),
+    distance: px.number().optional(),
+});
+export type PxTimelinePin = PxInfer<typeof PxTimelinePinSchema>;
+
+// Clock mode — wall-clock playback: something STARTS it (trigger) and it has the
+// WAAPI playback dynamics. `resetOnFinish` has no slot here: its successor is
+// `trigger.onFinish: 'reset'`.
+const PxClockTimelineSchema = px.object({
+    type: px.literal('clock'),
+    trigger: PxTriggerSchema.optional(),
+    delay: px.number().optional(),
+    iterations: px.union([px.number(), px.literal('infinite')]).optional(),
+    fill: px.enum(['forwards', 'backwards', 'both', 'none'] as const).optional(),
+    direction: px.enum(['normal', 'reverse', 'alternate', 'alternate-reverse'] as const).optional(),
+});
+
+// Scroll-driven modes — progress scrubbed from scroll position; nothing starts or
+// finishes it, so none of the clock knobs exist here. `'scroll'` tracks a scroller's
+// scroll offset, `'view'` tracks the subject's visibility through the viewport —
+// exactly WAAPI ScrollTimeline vs ViewTimeline (the old nested `scroll.kind` dissolved
+// into this discriminant). `engine` is the implementation driver (was `scroll.driver` —
+// renamed so "driver" stays free); `pin` is boolean-or-object (§2.2).
+const scrollishTimelineShape = {
+    // Finite repeat count IS meaningful when scrubbing — the scroll range maps onto
+    // duration × iterations (rule D4; `'infinite'` cannot map to a range, so no literal here).
+    iterations: px.number().optional(),
+    engine: px.enum(['custom', 'native'] as const).optional(),
+    axis: px.enum(['block', 'inline', 'x', 'y'] as const).optional(),
+    source: px.enum(['nearest', 'root'] as const).optional(),
+    subject: px.string().optional(),   // 'parent' | 'scroller' | any CSS selector
+    smoothing: px.number().optional(), // ms
+    pin: px.union([px.boolean(), PxTimelinePinSchema]).optional(),
+    range: PxScrollRangeSchema.optional(),
+};
+const PxScrollTimelineSchema = px.object({ type: px.literal('scroll'), ...scrollishTimelineShape });
+const PxViewTimelineSchema = px.object({ type: px.literal('view'), ...scrollishTimelineShape });
+
+export const PxTimelineSchema = px.discriminatedUnion('type', [
+    PxClockTimelineSchema,
+    PxScrollTimelineSchema,
+    PxViewTimelineSchema,
+]);
+export type PxTimeline = PxInfer<typeof PxTimelineSchema>;
+
+
+// ============================================================================
 // ANIMATOR CONFIG
 // ============================================================================
 
@@ -806,54 +873,57 @@ export interface _PxAnimatorConfig {
     animateById?: Record<string, PxElementAnimation>;
 
     /**
-     * What ADVANCES the animation — the source its timeline reads progress from.
-     * `'time'` (default) is the wall clock; `'scroll'` is scroll-linked playback
-     * ("scrubbing"), matching CSS scroll-driven animations.
+     * RUNTIME VIEW ONLY (not wire) — what ADVANCES the animation. `'time'` (default)
+     * is the wall clock; `'scroll'` is scroll-linked playback ("scrubbing"), matching
+     * CSS scroll-driven animations.
      *
+     * The wire spells this as `timeline.type` ('clock' vs 'scroll'/'view');
+     * `flattenAnimatorTimeline` folds it into this field for the engines.
      * Distinct from `trigger.startOn`, which says what STARTS the animation: one
      * names the beginning, this one names what moves the playhead afterwards.
-     * Omitted from the wire at its default (N10; was named `timeline` until 2026-08,
-     * which collided with a `<symbol>`'s own `meta.timeline`).
-     *
-     * With `'scroll'`, `trigger` and `iterations: 'infinite'` are meaningless and MUST NOT
-     * be written (readers ignore them with a warning); see {@link _PxScroll} for the
-     * scroll parameters. Design: app `svgeditor/animation/scroll-timeline.design.md`.
+     * Design: app `svgeditor/animation/scroll-timeline.design.md`.
      */
     timelineSource?: string;
 
-    /** Scroll-timeline parameters — only consulted when `timelineSource: 'scroll'`. */
+    /** RUNTIME VIEW ONLY (not wire) — scroll-timeline parameters, only consulted when
+     *  `timelineSource: 'scroll'`. The wire spells them inside `timeline`. */
     scroll?: PxScroll;
+
+    /** What advances the animation — THE wire spelling (review §2.1): a discriminated
+     *  `{ type: 'clock' | 'scroll' | 'view', … }` object mirroring WAAPI's timeline
+     *  classes. Carries the playback dynamics (`trigger`/`delay`/`iterations`/`fill`/
+     *  `direction` for clock; scroll geometry for scroll/view); the flat fields above
+     *  are the internal runtime view `flattenAnimatorTimeline` produces from it. */
+    timeline?: PxTimeline;
 
     /** Debug helper: exposes the animator instance as `window[debugInstName]`. */
     debugInstName?: string;
 }
 
-// `{ mode?, duration?, delay?, iterations?, fill?, direction?, frameRate?, trigger?, definitions?, animate?, debugInstName? }`
+// The WIRE format (review §2.1): playback dynamics live only inside `timeline` —
+// the flat spelling (`trigger`/`delay`/`iterations`/`fill`/`direction`/`resetOnFinish`/
+// `timelineSource`/`scroll`) is NOT part of the format. It exists only as the internal
+// runtime VIEW (`_PxAnimatorConfig`) that `flattenAnimatorTimeline` produces for the engines.
 export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(px.object({
     mode: px.enum([PxAnimatorMode.auto, PxAnimatorMode.waapi, PxAnimatorMode.frames] as const).optional(),
     duration: px.number().optional(),
-    delay: px.number().optional(),
-    // LAW (SCHEMA-DESIGN R3, S10): the ONE sanctioned string-in-number union
-    // (CSS animation-iteration-count familiarity) — do not add more mixed unions.
-    iterations: px.union([px.number(), px.literal('infinite')]).optional(),
-    fill: px.enum(['forwards', 'backwards', 'both', 'none'] as const).optional(),
-    direction: px.enum(['normal', 'reverse', 'alternate', 'alternate-reverse'] as const).optional(),
     frameRate: px.number().optional(),
-    trigger: PxTriggerSchema.optional(),
-    resetOnFinish: px.boolean().optional(),
+    // THE spelling of "what advances progress" — clock / scroll / view (review §2.1).
+    timeline: PxTimelineSchema.optional(),
     definitions: PxDefsSchema.optional(),
     animateById: px.record(PxElementAnimationSchema).optional(),
-    timelineSource: px.string().optional(),
-    scroll: PxScrollSchema.optional(),
     debugInstName: px.string().optional(),
 }));
 
 /**
  * Global animation configuration that applies to all animations in the document.
  * Defines timing, playback behavior, and rendering strategy.
+ *
+ * This is the runtime VIEW type: the wire carries the playback dynamics nested in
+ * `timeline` (see `PxAnimatorConfigSchema`), and `flattenAnimatorTimeline` folds them
+ * into the flat fields the engines consume — so the type is a superset of the wire.
  */
-export type PxAnimatorConfig = PxInfer<typeof PxAnimatorConfigSchema>;
-const _ck_PxAnimatorConfig: KeysMatch<PxAnimatorConfig, _PxAnimatorConfig> = true; // the key sets are identical
+export type PxAnimatorConfig = _PxAnimatorConfig;
 
 
 // ============================================================================
@@ -1027,11 +1097,18 @@ export type Vec2 = [number, number];
  */
 export type PxAnimatable<T> = T | { value: T } | _PxPropertyAnimation;
 
+// ORDER LAW (same medicine as PxKeyframeValueSchema): in every animatable union the
+// PropertyAnimation member comes BEFORE the bare `{value}` wrapper. Union.sanitize takes
+// the first member that validates, and default-mode object validation tolerates unknown
+// keys — wrapper-first would route `{value, keyframes}` to the wrapper and silently strip
+// the keyframes. A `{value}`-only static hitting PropertyAnimation first loses nothing
+// (it declares `value` too). Validity is order-independent; only repair cares.
+
 // PxAnimatable<number> — static number OR `{value}` static OR PxPropertyAnimation.
 const PxAnimatableNumberSchema = px.union([
     px.number(),
-    px.object({ value: px.number() }),
     PxPropertyAnimationSchema,
+    px.object({ value: px.number() }),
 ]);
 
 // PxAnimatable<Vec2> — static `[x,y]` OR `{value:[x,y]}` OR PxPropertyAnimation.
@@ -1039,15 +1116,15 @@ const PxAnimatableNumberSchema = px.union([
 // fixed-length tuple = `Vec2`) instead of the looser `number[]`.
 const PxAnimatableVec2Schema = px.union([
     px.tuple([px.number(), px.number()] as const),
-    px.object({ value: px.tuple([px.number(), px.number()] as const) }),
     PxPropertyAnimationSchema,
+    px.object({ value: px.tuple([px.number(), px.number()] as const) }),
 ]);
 
 // PxAnimatable<string> — static `"M…"` OR `{value:"M…"}` OR PxPropertyAnimation.
 const PxAnimatableStringSchema = px.union([
     px.string(),
-    px.object({ value: px.string() }),
     PxPropertyAnimationSchema,
+    px.object({ value: px.string() }),
 ]);
 
 // ── CHANNEL vs CONFIG (V2) — the split is declared in the SOURCE, twice over ──
@@ -1164,19 +1241,12 @@ const _ck_PxMaskedByEffect: KeysMatch<PxMaskedByEffect, _PxMaskedByEffect> = tru
  * At apply time the effect generates a `<clipPath><path d/></clipPath>` def and sets
  * `clip-path="url(#auto-id)"` on the host (materialiser pattern, like `maskedBy` /
  * gradient). See `effects/clipPathEffect.ts`.
- *
- * LEGACY: older files carry the animation as a sibling `animate` key
- * (`{d: "M…", animate: {keyframes}}`). Still read (folded into `d`'s animation
- * at apply time); never written.
  */
 export interface _PxClipPathEffect {
     d?: PxAnimatable<string>;
-    /** @deprecated legacy animated form — read-only; the animation lives on `d` now. */
-    animate?: PxPropertyAnimation;
 }
 export const PxClipPathEffectSchema = implementsInterface<_PxClipPathEffect>()(px.object({
     d: PxAnimatableStringSchema.optional(),
-    animate: PxPropertyAnimationSchema.optional(),
 }));
 export type PxClipPathEffect = PxInfer<typeof PxClipPathEffectSchema>;
 const _ck_PxClipPathEffect: KeysMatch<PxClipPathEffect, _PxClipPathEffect> = true;
@@ -1214,18 +1284,18 @@ const _ck_PxStrokeTrimEffect: KeysMatch<PxStrokeTrimEffect, _PxStrokeTrimEffect>
 /** Ref-attr naming rule (see editor SCHEMA-DESIGN.md): `sourceId` = ref to an EXTERNAL element
  *  (clone/maskedBy/retime); `coreId` = a unit's own survivor; `partOf` = a derived node's host.
  *
- *  `<use>` retime: `sourceId` = source (`#id` canonical, bare legacy); `start`/`timeCrop` in ms.
+ *  `<use>` retime: pure timing — the source ref lives ONCE, on the parent `clone.sourceId`
+ *  (review §4.3; retime's own duplicate `sourceId` was removed outright — no consumer ever
+ *  read it: the materialiser follows `href`). `start`/`timeCrop` in ms.
  *  `timeCrop: [inMs, outMs]` is a VISIBILITY WINDOW on the document timeline — implemented
  *  (2026-08) as an opacity gate on a player-side wrapper `<g>`, independent of the
  *  `start`/`stretch` remap (see `effects/retimeEffect.ts`). */
 export interface _PxRetimeEffect {
-    sourceId?: string;
     start?: number;
     stretch?: number;
     timeCrop?: [number, number];
 }
 export const PxRetimeEffectSchema = implementsInterface<_PxRetimeEffect>()(px.object({
-    sourceId: px.string().optional(),
     start: px.number().optional(),
     stretch: px.number().optional(),
     timeCrop: px.tuple([px.number(), px.number()] as const).optional(),
@@ -1285,21 +1355,21 @@ const PxAnimatableGradientStopsSchema = px.union([
 ]);
 
 /** Gradient paint effect — used by both `fillGradient` and `strokeGradient`
- *  (same shape, different host attribute). Linear: `p1`/`p2`. Radial:
- *  `c`/`r`/`fp`. Stops animate as one timeline; geometry stays static. */
+ *  (same shape, different host attribute). Linear: `start`/`end`. Radial:
+ *  `center`/`radius`/`focal`. Stops animate as one timeline; geometry stays static. */
 // (The old `_PxGradientGeometryAnimation` per-scalar channel record —
 // `animate: {gradientX1: …}` — was REMOVED outright, read included: geometry
-// animates on the `p1`/`p2`/`c`/`r`/`fp` slots. Backward compat dropped
+// animates on the `start`/`end`/`center`/`radius`/`focal` slots. Backward compat dropped
 // deliberately. Frames-engine-only note still applies to animated geometry:
 // CSS/WAAPI cannot animate gradient endpoints; `mode: 'auto'` handles it.)
 
 export interface _PxFillGradientEffect {
     type: PxGradientType;                                 // 'linear' | 'radial'
-    p1?:  PxAnimatable<Vec2>;                             // linear start
-    p2?:  PxAnimatable<Vec2>;                             // linear end
-    c?:   PxAnimatable<Vec2>;                             // radial centre
-    r?:   PxAnimatable<number>;                           // radial radius
-    fp?:  PxAnimatable<Vec2>;                             // radial focal point
+    start?:  PxAnimatable<Vec2>;                          // linear start  ([x1,y1]; review §4.2 — plain words, no abbreviations)
+    end?:    PxAnimatable<Vec2>;                          // linear end    ([x2,y2])
+    center?: PxAnimatable<Vec2>;                          // radial centre ([cx,cy])
+    radius?: PxAnimatable<number>;                        // radial radius (r)
+    focal?:  PxAnimatable<Vec2>;                          // radial focal point ([fx,fy])
     stops?: PxAnimatable<Array<_PxGradientStop>>;          // single animation timeline
     gradientUnits?:  string;                              // PxGradientUnits values
     spreadMethod?:   string;                              // PxGradientSpreadMethod values
@@ -1308,11 +1378,11 @@ export interface _PxFillGradientEffect {
 export const PxFillGradientEffectSchema = implementsInterface<_PxFillGradientEffect>()(px.object({
     // Contextual kind — the `type` convention, see `PxNodeBase.type`.
     type: px.enum([PxGradientType.linear, PxGradientType.radial] as const),
-    p1:   PxAnimatableVec2Schema.optional(),
-    p2:   PxAnimatableVec2Schema.optional(),
-    c:    PxAnimatableVec2Schema.optional(),
-    r:    PxAnimatableNumberSchema.optional(),
-    fp:   PxAnimatableVec2Schema.optional(),
+    start:  PxAnimatableVec2Schema.optional(),
+    end:    PxAnimatableVec2Schema.optional(),
+    center: PxAnimatableVec2Schema.optional(),
+    radius: PxAnimatableNumberSchema.optional(),
+    focal:  PxAnimatableVec2Schema.optional(),
     stops: PxAnimatableGradientStopsSchema.optional(),
     gradientUnits:     px.enum([PxGradientUnits.userSpaceOnUse, PxGradientUnits.objectBoundingBox] as const).optional(),
     spreadMethod:      px.enum([PxGradientSpreadMethod.pad, PxGradientSpreadMethod.reflect, PxGradientSpreadMethod.repeat] as const).optional(),

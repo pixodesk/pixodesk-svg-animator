@@ -26,15 +26,13 @@ import { genId } from './util';
  * across SMIL/CSS/JS/WAAPI), so the clip animates without any per-frame re-binding on
  * the host.
  *
- * LEGACY: `{d: "M…", animate: {keyframes}}` (sibling `animate` key) is still read —
- * the animation is folded onto the same `animate.d`; a slot-driven animation wins.
  */
 export function applyClipPathEffect(
     node: PxNode,
     fx: PxClipPathEffect | undefined,
     ctx: ApplyContext,
 ): PxNode {
-    if (!fx || (!fx.d && !fx.animate)) return node;
+    if (!fx?.d) return node;
 
     const clipId = genId(ctx, 'clip');
     const pathChild: PxNode = { type: 'path' };
@@ -48,11 +46,6 @@ export function applyClipPathEffect(
             writeAnimatableChannel(pathChild, 'd', read);
             if (pathChild.d !== undefined) pathChild.d = pathString(pathChild.d as unknown);
         }
-    }
-    if (fx.animate && !(pathChild.animate as Record<string, unknown> | undefined)?.d) {
-        const animate = (pathChild.animate as Record<string, unknown> | undefined) ?? {};
-        animate.d = fx.animate;
-        pathChild.animate = animate as PxNode['animate'];
     }
     ctx.defs.push({ type: 'clipPath', id: clipId, children: [pathChild] });
     node.clipPath = 'url(#' + clipId + ')';

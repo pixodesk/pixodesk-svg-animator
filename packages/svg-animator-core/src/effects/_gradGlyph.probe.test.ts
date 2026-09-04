@@ -5,7 +5,7 @@ import type { PxNode } from '../PxAnimatorTypes';
 
 const glyphs = { F: { fontFamily: 'F', style: '', ascent: 800, unitsPerEm: 1000,
     glyphs: { H: { width: 700, d: 'M0 0L100 0L100 -700Z' } } } };
-const grad = { type: 'linear', p1: [-100, 0], p2: [100, 0], gradientUnits: 'userSpaceOnUse',
+const grad = { type: 'linear', start: [-100, 0], end: [100, 0], gradientUnits: 'userSpaceOnUse',
     stops: [{ offset: 0, color: '#007fff' }, { offset: 1, color: '#ff0000' }] };
 
 describe('probe', () => {

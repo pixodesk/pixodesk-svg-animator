@@ -7,7 +7,7 @@ here, go to [Still stuck?](#still-stuck) at the end.
 
 ## Nothing plays
 
-**The trigger is not "on load".** Check `animator.trigger.startOn` in the file (or the *Start*
+**The trigger is not "on load".** Check `animator.timeline.trigger.startOn` in the file (or the *Start*
 setting in the editor). `click` / `mouseOver` / `scrollIntoView` wait for the user;
 `programmatic` waits for you to call `play()`. In React/Vue, remember that `autoplay` is the
 only mode that uses the document's trigger — with `play`, `apiRef`, `time` etc. the trigger is
@@ -105,8 +105,9 @@ yourself.
 
 ## Playback behaviour
 
-**It holds the last frame — I want it to reset.** Set `resetOnFinish: true`, or `fill:
-'none'` (see [Playback settings](./10-player--playback-and-triggers.md#timing)).
+**It holds the last frame — I want it to reset.** Set `timeline.trigger.onFinish: "reset"`
+in the file (as a component prop it is `resetOnFinish: true`), or `fill: 'none'` (see
+[Playback settings](./10-player--playback-and-triggers.md#timing)).
 
 **How do I play backwards?** `animator.setPlaybackRate(-1); animator.play();` — also as a
 trigger out action (`outAction: 'reverse'`).

@@ -190,7 +190,7 @@ function expectParity(
 const closedLoopOrbitFixture = (): PxAnimatedSvgDocument => ({
     type: 'svg',
     viewBox: '0 0 1080 1080',
-    animator: { duration: 2836, mode: 'auto', direction: 'normal', timeline: 'time' },
+    animator: { duration: 2836, mode: 'auto', direction: 'normal' },
     children: [
         {
             type: 'rect',
@@ -341,7 +341,7 @@ const motionPathExplicitRotateFixture = (): PxAnimatedSvgDocument => ({
 const rectanglePathSharpCornersFixture = (): PxAnimatedSvgDocument => ({
     type: 'svg',
     viewBox: '0 0 400 400',
-    animator: { duration: 4000, mode: 'auto', direction: 'normal', timeline: 'time' },
+    animator: { duration: 4000, mode: 'auto', direction: 'normal' },
     children: [
         {
             type: 'rect',

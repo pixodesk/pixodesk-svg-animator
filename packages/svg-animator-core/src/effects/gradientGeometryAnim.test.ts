@@ -39,8 +39,8 @@ describe('gradient geometry animation (frames engine)', () => {
             effects: {
                 fillGradient: {
                     type: 'linear',
-                    p1: { value: [-45, -45], keyframes: [{ time: 0, value: [-45, -45] }, { time: 1000, value: [-45, 45] }] },
-                    p2: { value: [45, 45], keyframes: [{ time: 0, value: [45, 45] }, { time: 1000, value: [45, -45] }] },
+                    start: { value: [-45, -45], keyframes: [{ time: 0, value: [-45, -45] }, { time: 1000, value: [-45, 45] }] },
+                    end: { value: [45, 45], keyframes: [{ time: 0, value: [45, 45] }, { time: 1000, value: [45, -45] }] },
                     stops: [{ offset: 0, color: '#ff0000' }, { offset: 1, color: '#0000ff' }],
                     gradientUnits: 'userSpaceOnUse',
                 },
@@ -63,8 +63,8 @@ describe('gradient geometry animation (frames engine)', () => {
             type: 'ellipse', rx: 64, ry: 64,
             effects: {
                 fillGradient: {
-                    type: 'radial', c: [0, 0], r: 56,
-                    fp: { value: [-30, -30], keyframes: [{ time: 0, value: [-30, -30] }, { time: 1000, value: [30, 30] }] },
+                    type: 'radial', center: [0, 0], radius: 56,
+                    focal: { value: [-30, -30], keyframes: [{ time: 0, value: [-30, -30] }, { time: 1000, value: [30, 30] }] },
                     stops: [{ offset: 0, color: '#ff0000' }, { offset: 1, color: '#0000ff' }],
                     gradientUnits: 'userSpaceOnUse',
                 },
@@ -83,7 +83,7 @@ describe('gradient geometry animation (frames engine)', () => {
             type: 'ellipse',
             effects: {
                 fillGradient: {
-                    type: 'linear', p1: [0, 0], p2: [10, 10],
+                    type: 'linear', start: [0, 0], end: [10, 10],
                     stops: [{ offset: 0, color: '#000' }, { offset: 1, color: '#fff' }],
                     animate: { gradientY1: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 10 }] } },
                 },

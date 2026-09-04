@@ -20,7 +20,8 @@
 import { describe, expect, it } from 'vitest';
 import { applyPlayerEffects } from './PlayerEffectsUtil';
 import { collectByType, materialiseEngine, normaliseGeneratedIds, PxAnimatorEngine } from './effectTestKit';
-import type { PxNode } from '../PxAnimatorTypes';
+import { PxCloneEffectSchema, type PxNode } from '../PxAnimatorTypes';
+import type { PxValidationContext } from '../PxSchema';
 
 /** The nested content-ref retime wire (== case 4 input): ell1 ← use1(+250) ← use2(+250). */
 function nestedContentRefWire(): PxNode {
@@ -698,6 +699,58 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
 // animation must keep running (a layer inside its window appears mid-motion, not
 // restarted), and a wrapper keeps an authored opacity on the `<use>` intact. The wrapper
 // is player-side only — it never round-trips to the wire.
+describe('retime is PURE TIMING — no own source ref (review §4.3)', () => {
+
+    // `retime.sourceId` was removed outright (schema included): the source ref lives
+    // ONCE on the parent `clone.sourceId`, and materialisation follows `href` anyway.
+    // These pin every observable angle of that removal.
+
+    it('a retime WITHOUT any source ref works — href is the source of truth', () => {
+        const out = materialise({
+            type: 'svg',
+            children: [
+                { type: 'g', id: 'src', children: [{ type: 'rect', width: 10, height: 10,
+                    animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } } }] },
+                { type: 'use', href: '#src', effects: { clone: { retime: { start: 250 } } } },
+            ],
+        } as unknown as PxNode);
+        const rects: Array<any> = collectByType(out, 'rect') as Array<any>;
+        const retimed = rects.find(r => r.animate?.opacity?.keyframes?.[0]?.time === 250);
+        expect(retimed, 'a clone with +250-shifted keyframes exists').toBeTruthy();
+        expect(retimed.animate.opacity.keyframes.map((k: any) => k.time)).toEqual([250, 1250]);
+    });
+
+    it('a STRAY legacy retime.sourceId changes nothing — materialisation follows href, not it', () => {
+        const build = (retime: object) => normaliseGeneratedIds(materialise({
+            type: 'svg',
+            children: [
+                { type: 'g', id: 'src', children: [{ type: 'rect', width: 10, height: 10 }] },
+                { type: 'g', id: 'decoy', children: [{ type: 'ellipse', rx: 5, ry: 5 }] },
+                { type: 'use', href: '#src', effects: { clone: { sourceId: '#src', retime } } },
+            ],
+        } as unknown as PxNode));
+        // Same output whether the removed key is absent or points somewhere else entirely.
+        expect(build({ start: 250, sourceId: '#decoy' } as object)).toEqual(build({ start: 250 }));
+    });
+
+    it('the schema gives the removed key no slot — strict validation flags it', () => {
+        const ok: PxValidationContext = { errors: [], warnings: [], strict: true };
+        expect(PxCloneEffectSchema.isValid(
+            { sourceId: '#src', retime: { start: 250, stretch: 1.5, timeCrop: [0, 100] } }, ok)).toBe(true);
+        expect(ok.errors).toEqual([]);
+
+        const bad: PxValidationContext = { errors: [], warnings: [], strict: true };
+        expect(PxCloneEffectSchema.isValid(
+            { sourceId: '#src', retime: { sourceId: '#src', start: 250 } }, bad)).toBe(false);
+        expect(bad.errors.length).toBeGreaterThan(0);
+    });
+
+    it('sanitize strips the removed key and keeps the timing fields', () => {
+        expect(PxCloneEffectSchema.sanitize({ sourceId: '#src', retime: { sourceId: '#src', start: 250, stretch: 2 } }))
+            .toEqual({ sourceId: '#src', retime: { start: 250, stretch: 2 } });
+    });
+});
+
 describe('retime.timeCrop — visibility window', () => {
 
     const cropDoc = (timeCrop: [number, number], useExtra: Record<string, unknown> = {}): PxNode => ({

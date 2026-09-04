@@ -25,16 +25,16 @@ export { px, schemaKeys, describeSchema } from './PxSchema';
 export type { KeysMatch, PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, RemoveIndex } from './PxSchema';
 
 // Wire-format schemas
-export { PxAnimatedSvgDocumentSchema, PxAnimationDefinitionSchema, PxAnimatorConfigSchema, PxAttrValueSchema, PxBezierPathSchema, PxBindingSchema, PxDefsSchema, PxEasingOrRefSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBase, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeExtra, PxTransformPartsSchema, PxTransformValueSchema, PxTriggerSchema } from './PxAnimatorTypes';
+export { PxAnimatedSvgDocumentSchema, PxAnimationDefinitionSchema, PxAnimatorConfigSchema, PxAttrValueSchema, PxBezierPathSchema, PxBindingSchema, PxDefsSchema, PxEasingOrRefSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBase, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeExtra, PxTransformPartsSchema, PxTransformValueSchema, PxTriggerSchema, PxTimelineSchema, PxTimelinePinSchema } from './PxAnimatorTypes';
 export { PX_TRANSFORM_PART_KEYS, PxAnimatorEngine, PxAnimatorMode } from './PxAnimatorConstants';
 
 // Document / model types
-export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorAPI, PxAnimatorCallbacksConfig, PxAnimatorConfig, PxAttrValue, PxBasicAnimatorAPI, PxBezierPath, PxBinding, PxDefs, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollPhase, PxScrollRangePoint, PxSvgNode, PxTransformParts, PxTransformValue, PxTrigger, PxValidationResult } from './PxAnimatorTypes';
+export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorAPI, PxAnimatorCallbacksConfig, PxAnimatorConfig, PxAttrValue, PxBasicAnimatorAPI, PxBezierPath, PxBinding, PxDefs, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollPhase, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTimelinePin, PxTransformParts, PxTransformValue, PxTrigger, PxValidationResult } from './PxAnimatorTypes';
 export type { FillMode, JsMode, OutAction, PlaybackDirection, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
 
 export { isPxElementFileFormatDeep } from './PxAnimatorTypes';
 export { getBindings, getChildren, getDefs } from './PxAnimatorConstants';
-export { getAnimatorConfig, isPxElementFileFormat } from './PxAnimatorConstants';
+export { getAnimatorConfig, isPxElementFileFormat, flattenAnimatorTimeline, nestAnimatorTimeline } from './PxAnimatorConstants';
 
 export { INTERNAL_ATTRS, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
 

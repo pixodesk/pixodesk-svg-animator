@@ -27,8 +27,8 @@ function buildStrokeGradientNode(): PxNode {
                 effects: {
                     strokeGradient: {
                         type: 'linear',
-                        p1: [-85.79, -43.19],
-                        p2: [116.05, -43.59],
+                        start: [-85.79, -43.19],
+                        end: [116.05, -43.59],
                         stops: {
                             keyframes: [
                                 { time: 0,    value: [{ offset: 0, color: '#ff0000' }, { offset: 0.512, color: '#ffff00' }, { offset: 0.992, color: '#0000ff' }], easing: [0.167, 0.167, 0.833, 0.833] },

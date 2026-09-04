@@ -153,13 +153,16 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
     collectIds(cloned);
     updateRefs(cloned);
 
-    // Update IDs in the animator.animateById map
+    // Update IDs in the animator.animateById map. Keys are `#id`-spelled
+    // (review §3.2) — strip for the lookup, keep the spelling on the way out.
     const docAnimate = cloned.animator?.animateById;
     if (docAnimate && typeof docAnimate === 'object') {
         const updatedAnimate: Record<string, any> = {};
-        for (const [id, anim] of Object.entries(docAnimate)) {
+        for (const [key, anim] of Object.entries(docAnimate)) {
+            const hashed = key.startsWith('#');
+            const id = hashed ? key.slice(1) : key;
             const newId = idMap.get(id) ?? id;
-            updatedAnimate[newId] = anim;
+            updatedAnimate[hashed ? '#' + newId : newId] = anim;
         }
         cloned.animator = { ...cloned.animator, animateById: updatedAnimate };
     }

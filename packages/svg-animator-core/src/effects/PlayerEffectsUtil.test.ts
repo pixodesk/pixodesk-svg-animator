@@ -278,7 +278,9 @@ describe('applyPlayerEffects — materialisation etalons', () => {
     });
 
 
-    it('case 5c: clipPath (ANIMATED d) → child <path> carries animate.d keyframes', () => {
+    it('case 5c: clipPath (ANIMATED d slot) → child <path> carries animate.d keyframes', () => {
+        // Grammar-1 slot (review §4.1): the animation rides IN `d` — the legacy
+        // sibling `animate` key was removed outright, read included.
         const animate = {
             keyframes: [
                 { time: 0, value: { path: 'M0,0L40,0L40,40L0,40z' } },
@@ -290,7 +292,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
             children: [
                 {
                     type: 'rect', id: 'r1', width: 100, height: 50,
-                    effects: { clipPath: { d: 'M0,0L40,0L40,40L0,40z', animate } },
+                    effects: { clipPath: { d: { value: 'M0,0L40,0L40,40L0,40z', ...animate } } },
                 },
             ],
         };

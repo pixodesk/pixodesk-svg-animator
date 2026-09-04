@@ -103,7 +103,7 @@ The same settings, in both forms:
 // JSON document — an ordinary key of the root object
 {
   "type": "svg",
-  "animator": { "duration": 1000, "trigger": { "startOn": "load" } },
+  "animator": { "duration": 1000, "timeline": { "type": "clock", "trigger": { "startOn": "load" } } },
   "children": [ … ]
 }
 ```

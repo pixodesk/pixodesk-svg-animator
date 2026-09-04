@@ -92,13 +92,13 @@ describe('unified animatable grammar — loop / kfs alias / value base in effect
         const stops = [{ offset: 0, color: '#f00' }, { offset: 1, color: '#00f' }];
         const staticOut = materialise(doc({
             type: 'rect', width: 10, height: 10,
-            effects: { fillGradient: { type: 'linear', p1: [0, 0], p2: [10, 0], stops: { value: stops } } },
+            effects: { fillGradient: { type: 'linear', start: [0, 0], end: [10, 0], stops: { value: stops } } },
         }));
         expect(collectByType(staticOut, 'stop').map((s: any) => s.stopColor)).toEqual(['#f00', '#00f']);
 
         const animOut = materialise(doc({
             type: 'rect', width: 10, height: 10,
-            effects: { fillGradient: { type: 'linear', p1: [0, 0], p2: [10, 0],
+            effects: { fillGradient: { type: 'linear', start: [0, 0], end: [10, 0],
                 stops: { kfs: [{ t: 0, v: stops }, { t: 1000, v: [{ offset: 0, color: '#0f0' }, { offset: 1, color: '#00f' }] }], loop: true } } },
         }));
         const stopNodes = collectByType(animOut, 'stop');
@@ -132,17 +132,19 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
         expect(path.d).toBe('M0,0 L10,0 L10,10 Z'); // baseline unwrapped from {path}
     });
 
-    it('clipPath — LEGACY sibling animate is still read (folded onto animate.d)', () => {
+    it('clipPath — the legacy sibling `animate` key is GONE (removed outright, read included)', () => {
+        // Review §4.1: one grammar-1 `d` slot like every other effect. A leftover
+        // sibling `animate` is ignored by the applier and flagged by strict validation.
         const legacyBlock = { keyframes: [
             { time: 0, value: { path: 'M0,0 L10,0 L10,10 Z' } },
             { time: 1000, value: { path: 'M0,0 L20,0 L20,20 Z' } } ] };
         const out = materialise(doc({
             type: 'rect', width: 10, height: 10,
-            effects: { clipPath: { d: 'M0,0 L10,0 L10,10 Z', animate: legacyBlock } },
+            effects: { clipPath: { d: 'M0,0 L10,0 L10,10 Z', animate: legacyBlock } as any },
         }));
         const path = (collectByType(out, 'clipPath')[0] as any).children[0];
-        expect(path.animate.d).toEqual(legacyBlock);
-        expect(path.d).toBe('M0,0 L10,0 L10,10 Z');
+        expect(path.animate).toBeUndefined();          // NOT folded any more
+        expect(path.d).toBe('M0,0 L10,0 L10,10 Z');    // static clip still applies
     });
 
     it('gradient p1/r — animated slots split into the def\'s axis channels + baselines', () => {
@@ -150,10 +152,10 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
             type: 'circle', r: 5,
             effects: { fillGradient: {
                 type: 'radial',
-                c: { keyframes: [
+                center: { keyframes: [
                     { time: 0, value: [50, 40], easing: [0.4, 0, 0.6, 1] },
                     { time: 1000, value: [10, 0] } ], loop: true },
-                r: { keyframes: [{ time: 0, value: 5 }, { time: 1000, value: 50 }] },
+                radius: { keyframes: [{ time: 0, value: 5 }, { time: 1000, value: 50 }] },
                 stops: [{ offset: 0, color: '#f00' }, { offset: 1, color: '#00f' }],
             } },
         }));
@@ -172,7 +174,7 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
         const out = materialise(doc({
             type: 'rect', width: 10, height: 10,
             effects: { fillGradient: {
-                type: 'linear', p1: [0, 40], p2: [200, 40],
+                type: 'linear', start: [0, 40], end: [200, 40],
                 animate: { gradientY1: { keyframes: [{ time: 0, value: 40 }, { time: 1000, value: 0 }] } },
                 stops: [{ offset: 0, color: '#f00' }, { offset: 1, color: '#00f' }],
             } },

@@ -69,16 +69,16 @@ function synthesiseGradientDef(fx: PxFillGradientEffect, id: string, ctx: ApplyC
     // Geometry — standard animatable slots. Static → body attrs; animated → the
     // def node's own `animate` channels under the real SVG attr names (a vec slot
     // splits into its two axis channels here, in the applier — the wire stays
-    // `p1: {keyframes:[{value:[x,y]}…]}`). The frames engine then drives the
+    // `start: {keyframes:[{value:[x,y]}…]}`). The frames engine then drives the
     // def's attrs exactly like the stops' `stopColor` (CSS/WAAPI can't animate
     // gradient geometry, but this materialiser feeds the JS frame loop).
     if (fx.type === PxGradientType.linear) {
-        applyGeomVec(out, 'x1', 'y1', fx.p1);
-        applyGeomVec(out, 'x2', 'y2', fx.p2);
+        applyGeomVec(out, 'x1', 'y1', fx.start);
+        applyGeomVec(out, 'x2', 'y2', fx.end);
     } else {
-        applyGeomVec(out, 'cx', 'cy', fx.c);
-        applyGeomNumber(out, 'r', fx.r);
-        applyGeomVec(out, 'fx', 'fy', fx.fp);
+        applyGeomVec(out, 'cx', 'cy', fx.center);
+        applyGeomNumber(out, 'r', fx.radius);
+        applyGeomVec(out, 'fx', 'fy', fx.focal);
     }
     if (fx.gradientUnits)     out.gradientUnits = fx.gradientUnits;
     if (fx.spreadMethod)      out.spreadMethod = fx.spreadMethod;
