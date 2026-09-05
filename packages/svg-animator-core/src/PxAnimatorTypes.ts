@@ -1630,7 +1630,12 @@ export const PxSvgNodeExtra = px.object({
  * Extends PxNode (inheriting the open index signature) plus schema-derived
  * SVG-root fields.
  */
-export interface PxSvgNode extends PxNode, PxInfer<typeof PxSvgNodeExtra> {
+export interface PxSvgNode extends PxNode, Omit<PxInfer<typeof PxSvgNodeExtra>, 'animator'> {
+    /** The RUNTIME-VIEW type, not the wire shape: in-memory documents may carry the
+     *  flat playback fields (`flattenAnimatorTimeline` output, prop overrides in the
+     *  RN/React wrappers), while `PxAnimatorConfigSchema` validates only the nested
+     *  `timeline` spelling on the wire (review §2.1). */
+    animator?: PxAnimatorConfig;
 }
 
 
