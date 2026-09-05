@@ -158,7 +158,7 @@ the player library). With *Embed JS Player* switched **on**, the editor inlines 
 //<![CDATA[
 (function() {
 var a = PixodeskAnimator.createAnimator({"data": 
-{"id":"_px_1","type":"svg","animator":{"duration":1000,"mode":"auto","timeline":{"type":"clock","trigger":{"startOn":"load","outAction":"pause"},"iterations":"infinite","direction":"alternate"},"definitions":{"animations":{"a0":{"transform":{"keyframes":[{"time":0,"value":{"translate":[200,60]},"easing":[0.33,0,0.67,0.33]},{"time":1000,"value":{"translate":[200,340]}}]}}}},"animateById":{"#ball":["a0"]}}}
+{"id":"_px_1","type":"svg","animator":{"mode":"auto","timeline":{"type":"clock","duration":1000,"trigger":{"startOn":"load","outAction":"pause"},"iterations":"infinite","direction":"alternate"},"definitions":{"animations":{"a0":{"transform":{"keyframes":[{"time":0,"value":{"translate":[200,60]},"easing":[0.33,0,0.67,0.33]},{"time":1000,"value":{"translate":[200,340]}}]}}}},"animateById":{"#ball":["a0"]}}}
 });
 })();
 //]]>

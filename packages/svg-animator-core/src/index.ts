@@ -46,6 +46,7 @@ export {
     COLOUR_ATTR_NAMES,
     PCT_BASED_ATTR_NAMES,
     composeTransformParts,
+    parseTransformParts,
     cubicBezier,
     DEFAULT_DURATION_MS,
     interpolateBeziers,
@@ -75,6 +76,7 @@ export {
 export {
     calcAnimationValues,
     getNormalisedBindings,
+    mergeStaticTransformIntoAnimDef,
     interpolateValue,
     materialiseInternalLoopsInPropAnim,
     materialiseInternalLoopsInTree,

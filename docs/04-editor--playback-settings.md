@@ -19,7 +19,7 @@ save.
 
 | Control | Writes | Notes |
 |---|---|---|
-| **Duration** | `duration` (ms) | the length of **one** iteration; keyframe times are offsets within it |
+| **Duration** | `timeline.duration` (ms) | the length of **one** iteration; keyframe times are offsets within it |
 | **Delay** | `timeline.delay` (ms) | wait before the first iteration starts |
 | **Iterations** | `timeline.iterations` | a number, or “infinite” |
 | **Direction** | `timeline.direction` | “normal”, “reverse”, “alternate” (ping-pong), “alternate-reverse” |

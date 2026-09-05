@@ -22,7 +22,7 @@ comments, so a real file has none):
   "viewBox": "0 0 400 400",
 
   // ADDED: the playback settings — how long, how many times, what starts it
-  "animator": { "duration": 1000, "timeline": { "type": "clock", "iterations": "infinite", "trigger": { "startOn": "load" } } },
+  "animator": { "timeline": { "type": "clock", "duration": 1000, "iterations": "infinite", "trigger": { "startOn": "load" } } },
 
   "children": [
     {
@@ -169,15 +169,14 @@ three shorthand forms, all built on **named animations** — animations defined 
 
 ### Keyframes
 
-| Field | Alias | Type | Meaning |
-|---|---|---|---|
-| `time` | `t` | ms | offset from the start of the document timeline |
-| `value` | `v` | depends on the property — [Keyframe values](#keyframe-values) | the property's value at this time |
-| `easing` | `e` | `[x1, y1, x2, y2]` or a name | how the value moves **from this keyframe to the next one**: a cubic-bezier curve, or the name of a curve defined in `definitions.easings` |
-| `tangentOut` · `tangentIn` | `to` · `ti` | `[dx, dy]` | spatial tangents for motion along a path (translate only), relative to this keyframe's position |
+| Field | Type | Meaning |
+|---|---|---|
+| `time` | ms | offset from the start of the document timeline |
+| `value` | depends on the property — [Keyframe values](#keyframe-values) | the property's value at this time |
+| `easing` | `[x1, y1, x2, y2]` or a name | how the value moves **from this keyframe to the next one**: a cubic-bezier curve, or the name of a curve defined in `definitions.easings` |
+| `tangentOut` · `tangentIn` | `[dx, dy]` | spatial tangents for motion along a path (translate only), relative to this keyframe's position |
 
-Each key has a short alias (`time` / `t`, `value` / `v`, …). Use either the full name or the
-alias for a key, never both on the same keyframe.
+Every key has exactly one spelling — there are no short aliases.
 
 ### Keyframe values
 
@@ -220,7 +219,7 @@ all the way to the next keyframe.
 
 ### Per-property loops
 
-A property can repeat part of its own keyframes to fill `animator.duration`, independently of
+A property can repeat part of its own keyframes to fill the timeline's `duration`, independently of
 the document's `iterations`:
 
 ```json
@@ -352,7 +351,7 @@ import { createAnimator } from '@pixodesk/svg-animator-web';
 createAnimator({ container: '#box', data: {   // an empty <div id="box"> on the page
   type: 'svg', id: '_px_root',
   animator: {
-    duration: 2000,
+    timeline: { type: 'clock', duration: 2000 },
     definitions: { animations: { fadeIn: { opacity: { keyframes: [ { time: 0, value: 0 }, { time: 2000, value: 1 } ] } } } },
     animateById: {
       '#_px_rect':    'fadeIn',                                  // one named animation
@@ -376,7 +375,7 @@ each property has one fixed unit that is always understood:
 
 | Value | Unit |
 |---|---|
-| time (`time`, `duration`, `delay`, `retime.start`) | milliseconds |
+| time (`time`, `timeline.duration`, `timeline.delay`, `retime.start`) | milliseconds |
 | lengths, coordinates, `fontSize` in px | plain numbers in the drawing's coordinates (the `viewBox` space) — no unit is written |
 | `rotate`, `skew`, angles | degrees |
 | `opacity`, trim `range` / `offset`, stop `offset`, `scrollIntoViewThreshold` | a share of the whole, from `0` (none) to `1` (all) |

@@ -17,9 +17,8 @@ describe('animator.timeline spelling compat', () => {
 
     it('flattens a clock timeline to the legacy flat keys (trigger.onFinish → resetOnFinish)', () => {
         const flat = flattenAnimatorTimeline({
-            duration: 4000,
             timeline: {
-                type: 'clock',
+                type: 'clock', duration: 4000,
                 trigger: { startOn: 'click', outAction: 'pause', onFinish: 'reset' },
                 delay: 250, iterations: 'infinite', direction: 'alternate', fill: 'both'
             }
@@ -35,9 +34,8 @@ describe('animator.timeline spelling compat', () => {
 
     it("flattens 'view' and 'scroll' timelines to timelineSource:'scroll' + scroll.kind, pin object → pin flags, engine → driver", () => {
         const flat = flattenAnimatorTimeline({
-            duration: 4000,
             timeline: {
-                type: 'view', engine: 'custom', axis: 'block', subject: 'parent',
+                type: 'view', duration: 4000, engine: 'custom', axis: 'block', subject: 'parent',
                 smoothing: 120, pin: { align: 'center', top: 24, distance: 600 },
                 range: { start: { phase: 'entry', fraction: 0.1 } }
             }
@@ -54,9 +52,9 @@ describe('animator.timeline spelling compat', () => {
 
     it('finite iterations survive scroll mode in both directions (D4); infinite does not nest', () => {
         expect(nestAnimatorTimeline({ duration: 1, timelineSource: 'scroll', iterations: 3 } as any))
-            .toEqual({ duration: 1, timeline: { type: 'scroll', iterations: 3 } });
+            .toEqual({ timeline: { type: 'scroll', duration: 1, iterations: 3 } });
         expect(nestAnimatorTimeline({ duration: 1, timelineSource: 'scroll', iterations: 'infinite' } as any))
-            .toEqual({ duration: 1, timeline: { type: 'scroll' } });
+            .toEqual({ timeline: { type: 'scroll', duration: 1 } });
         expect(flattenAnimatorTimeline({ timeline: { type: 'view', iterations: 2 } } as any))
             .toMatchObject({ timelineSource: 'scroll', iterations: 2 });
     });
@@ -71,9 +69,10 @@ describe('animator.timeline spelling compat', () => {
     it('getAnimatorConfig serves the flat view (engines never see `timeline`)', () => {
         const cfg = getAnimatorConfig({
             type: 'svg',
-            animator: { duration: 500, timeline: { type: 'clock', delay: 42 } }
+            animator: { timeline: { type: 'clock', duration: 500, delay: 42 } }
         } as any) as any;
         expect(cfg.timeline).toBeUndefined();
+        expect(cfg.duration).toBe(500);   // §2.8: wire timeline.duration → runtime-view duration
         expect(cfg.delay).toBe(42);
     });
 
@@ -86,9 +85,9 @@ describe('animator.timeline spelling compat', () => {
             direction: 'reverse', fill: 'none', resetOnFinish: true
         } as any) as any;
         expect(nested).toEqual({
-            duration: 4000, mode: 'auto',
+            mode: 'auto',
             timeline: {
-                type: 'clock',
+                type: 'clock', duration: 4000,
                 trigger: { startOn: 'click', onFinish: 'reset' },
                 delay: 250, iterations: 3, direction: 'reverse', fill: 'none'
             }
@@ -103,17 +102,19 @@ describe('animator.timeline spelling compat', () => {
                       pin: true, pinAlign: 'center', pinTop: 24 }
         } as any) as any;
         expect(nested).toEqual({
-            duration: 4000,
             timeline: {
-                type: 'view', engine: 'custom', axis: 'block', smoothing: 120,
+                type: 'view', duration: 4000, engine: 'custom', axis: 'block', smoothing: 120,
                 pin: { align: 'center', top: 24 }
             }
         });
     });
 
     it('omits an empty clock timeline entirely, and passes a config that already has one through unchanged', () => {
+        // §2.8: a set duration now forces the timeline block (it lives there on the wire)…
         expect(nestAnimatorTimeline({ duration: 1000, mode: 'auto' } as any))
-            .toEqual({ duration: 1000, mode: 'auto' });
+            .toEqual({ mode: 'auto', timeline: { type: 'clock', duration: 1000 } });
+        // …a config with truly nothing timeline-ish still gets no block at all.
+        expect(nestAnimatorTimeline({ mode: 'auto' } as any)).toEqual({ mode: 'auto' });
         const already = { duration: 1, timeline: { type: 'clock', delay: 2 } } as any;
         expect(nestAnimatorTimeline(already)).toBe(already);
     });
@@ -132,8 +133,7 @@ describe('animator.timeline spelling compat', () => {
     it('the nested spelling validates strictly; a clock knob inside a scroll timeline is a schema error', () => {
         const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
         expect(PxAnimatorConfigSchema.isValid({
-            duration: 4000,
-            timeline: { type: 'view', axis: 'block', pin: { align: 'top' } }
+            timeline: { type: 'view', duration: 4000, axis: 'block', pin: { align: 'top' } }
         }, ctx)).toBe(true);
         expect(ctx.errors).toEqual([]);
 
@@ -148,7 +148,7 @@ describe('animator.timeline spelling compat', () => {
         const clockCtx: PxValidationContext = { errors: [], warnings: [], strict: true };
         expect(PxAnimatorConfigSchema.isValid({
             duration: 1000, trigger: { startOn: 'load' }, iterations: 3, direction: 'normal'
-        }, clockCtx)).toBe(false);
+        }, clockCtx)).toBe(false);   // §2.8: flat duration is not wire either
         expect(clockCtx.errors.length).toBeGreaterThan(0);
 
         const scrollCtx: PxValidationContext = { errors: [], warnings: [], strict: true };

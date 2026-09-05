@@ -6,7 +6,7 @@
 import { type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxBezierPath, type PxBinding, type PxDefs, type PxElementAnimation, type PxKeyframe, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts } from './PxAnimatorTypes';
 import { getBindings, getDefs } from './PxAnimatorConstants';
 import { getAnimatorConfig, PxAnimatorEngine, PxLoopExtend } from './PxAnimatorConstants';
-import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
+import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, parseTransformParts, PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 import { evaluateMotionPathSegment, materialiseMotionPathInPropAnim, propAnimIsMotionPath } from './PxMotionPath';
 
 /**
@@ -687,7 +687,7 @@ function normalizeKeyframes(
     duration: number,
     defs?: PxDefs
 ): PxKeyframe[] {
-    const keyframes = propAnim.keyframes || propAnim.kfs || [];
+    const keyframes = propAnim.keyframes || [];
 
     const normalized: PxKeyframe[] = [];
 
@@ -786,7 +786,7 @@ export function materialiseInternalLoopsInPropAnim(
     const loopRaw = propAnim.loop;
     if (loopRaw === undefined || loopRaw === null || loopRaw === false) return propAnim;
     const loop: PxLoop = loopRaw === true ? {} : (loopRaw as PxLoop);
-    const rawKfs = (propAnim.keyframes ?? propAnim.kfs) as PxKeyframe[] | undefined;
+    const rawKfs = propAnim.keyframes as PxKeyframe[] | undefined;
     if (!Array.isArray(rawKfs) || rawKfs.length < 2) return propAnim;
 
     // `expandLoopKeyframes` reads kf.t / kf.v / kf.e (short form). When this
@@ -813,7 +813,7 @@ export function materialiseInternalLoopsInPropAnim(
     });
 
     const expanded = expandLoopKeyframes(propName, kfs, loop, duration);
-    const out: PxPropertyAnimation = { kfs: expanded } as PxPropertyAnimation;
+    const out: PxPropertyAnimation = { keyframes: expanded };
     if (propAnim.autoOrient !== undefined) (out as { autoOrient?: unknown }).autoOrient = propAnim.autoOrient;
     return out;
 }
@@ -881,6 +881,68 @@ export function resetElementIdCounter(): void {
 }
 
 /**
+ * TRANSFORM PRECEDENCE (review §0.4/§1.6) — CSS's own composition rule, applied at READ:
+ * a static `transform` on the element composes UNDER the animated transform, instead of
+ * being silently clobbered by it. Implemented as a keyframe-value MERGE during
+ * normalisation, so both engines (and every consumer downstream) see complete parts:
+ *
+ *   1. `animate.transform` with PARTIAL parts records — every keyframe value (and the
+ *      base `value`) inherits the static parts it does not set:
+ *      static `{rotate: 45}` + kf `{translate: [80, 0]}` → kf `{rotate: 45, translate: [80, 0]}`.
+ *   2. ONE individual channel (`translate` / `rotate` / `scale` / `skew`) and no
+ *      `transform` channel — the channel is REWRITTEN as a unified `transform` channel
+ *      whose values carry the static parts: the rect stays rotated 45° AND slides.
+ *
+ * The static transform may be a parts record or an attribute string (parsed by the
+ * conservative {@link parseTransformParts} — unparseable strings skip the merge).
+ * NOT merged (documented limitations): several individual channels animated at once
+ * (they still last-write-wins against each other), and an individual channel next to an
+ * animated `transform` (the `transform` channel wins, as before).
+ */
+export function mergeStaticTransformIntoAnimDef(
+    animDef: PxAnimationDefinition,
+    staticTransform: unknown,
+): PxAnimationDefinition {
+    if (!animDef) return animDef;
+    const staticParts: PxTransformParts | undefined =
+        staticTransform && typeof staticTransform === 'object' && !Array.isArray(staticTransform)
+            ? staticTransform as PxTransformParts
+            : parseTransformParts(staticTransform as string);
+    if (!staticParts || !Object.keys(staticParts).length) return animDef;
+
+    const mergeKfValue = (v: unknown): unknown =>
+        v && typeof v === 'object' && !Array.isArray(v) ? { ...staticParts, ...(v as PxTransformParts) } : v;
+
+    const transformAnim = animDef['transform'];
+    if (transformAnim && typeof transformAnim === 'object') {
+        const anim = transformAnim as PxPropertyAnimation;
+        if (Array.isArray(anim.keyframes)) {
+            const out: PxPropertyAnimation = {
+                ...anim,
+                keyframes: anim.keyframes.map(kf => ({ ...kf, value: mergeKfValue(kf.value) })),
+            };
+            if (out.value !== undefined) out.value = mergeKfValue(out.value) as PxPropertyAnimation['value'];
+            return { ...animDef, transform: out };
+        }
+        return animDef;
+    }
+
+    const channels = Object.keys(animDef).filter(k => TRANSFORM_FN_NAMES.has(k));
+    if (channels.length !== 1) return animDef; // several channels: unchanged (documented)
+    const ch = channels[0];
+    const chAnim = animDef[ch] as PxPropertyAnimation;
+    if (!chAnim || typeof chAnim !== 'object' || !Array.isArray(chAnim.keyframes)) return animDef;
+    const lifted: PxPropertyAnimation = {
+        ...chAnim,
+        keyframes: chAnim.keyframes.map(kf => ({ ...kf, value: { ...staticParts, [ch]: kf.value } })),
+    };
+    if (lifted.value !== undefined) lifted.value = { ...staticParts, [ch]: lifted.value };
+    const rest: PxAnimationDefinition = { ...animDef };
+    delete rest[ch];
+    return { ...rest, transform: lifted };
+}
+
+/**
  * Normalizes an animation definition by resolving easing references and normalizing keyframe times.
  * Keeps the key/value mapping structure. `engine` controls motion-along-path
  * handling — see {@link PxAnimatorEngine}.
@@ -913,7 +975,9 @@ function normalizeAnimationDefinition(
         }
         const normalizedKfs = normalizeKeyframes(propName, propAnim, duration, defs);
         if (normalizedKfs.length > 0) {
-            const out: PxPropertyAnimation = { kfs: normalizedKfs };
+            // Internal normalised form converges on `keyframes` too — the `kfs` alias
+            // is gone from the format AND the runtime (review §1.2/§6.1).
+            const out: PxPropertyAnimation = { keyframes: normalizedKfs };
             // Carry top-level animation flags through normalization — `materialiseMotionPathInPropAnim`
             // and the runtime evaluators need `autoOrient` / `loop` to be present
             // alongside the kfs.
@@ -957,14 +1021,18 @@ export function getNormalisedBindings(
     // Helper to resolve and normalize animation for a binding
     const processAnimation = (
         id: string,
-        animate: PxElementAnimation | undefined
+        animate: PxElementAnimation | undefined,
+        staticTransform?: unknown,
     ): PxBinding | null => {
         if (!animate) return null;
 
         const animDefs = resolveElementAnimation(animate, defs);
         if (animDefs.length === 0) return null;
 
-        const merged = mergeAnimationDefinitions(animDefs);
+        // CSS transform precedence (review §0.4/§1.6): the node's static transform
+        // composes under the animated one — merged BEFORE normalisation so both
+        // engines see complete parts records.
+        const merged = mergeStaticTransformIntoAnimDef(mergeAnimationDefinitions(animDefs), staticTransform);
         const normalizedAnim = normalizeAnimationDefinition(merged, duration, defs, engine);
 
         if (Object.keys(normalizedAnim).length === 0) return null;
@@ -996,7 +1064,7 @@ export function getNormalisedBindings(
         if (inlineAnim && Object.keys(inlineAnim).length > 0) {
             const nodeId = node.id || generateElementId();
             node.id = nodeId; // Ensure the node has an ID
-            const normalized = processAnimation(nodeId, inlineAnim);
+            const normalized = processAnimation(nodeId, inlineAnim, node.transform);
             if (normalized) bindings.push(normalized);
         }
 
@@ -1062,7 +1130,7 @@ function calcPropertyValue(
     propAnim: PxPropertyAnimation,
     progress: number
 ): { k: string, v: string } | null {
-    const keyframes = propAnim.kfs || propAnim.keyframes || [];
+    const keyframes = propAnim.keyframes || [];
     if (keyframes.length === 0) return null;
 
     const { prevKf, nextKf } = getKeyframesPair(keyframes, progress);

@@ -157,7 +157,7 @@ export function convertToWebApiKeyframes(
 
     for (const [propName, propAnim] of Object.entries(animDef)) {
         const duration = config.duration || 1;
-        const clippedKeyframes = clipKeyframesToDuration(propName, propAnim.kfs || propAnim.keyframes || [], duration);
+        const clippedKeyframes = clipKeyframesToDuration(propName, propAnim.keyframes || [], duration);
         const cssKeyframes: Keyframe[] = [];
 
         for (let i = 0; i < clippedKeyframes.length; i++) {

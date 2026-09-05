@@ -39,7 +39,7 @@ describe('convertToWebApiKeyframes — animated `d` path', () => {
 
     function build(): Map<string, Keyframe[]> {
         const animDef = {
-            d: { kfs: [{ t: 0, v: { paths: [triangle(0)] } }, { t: 320, v: { paths: [triangle(20)] } }] },
+            d: { keyframes: [{ t: 0, v: { paths: [triangle(0)] } }, { t: 320, v: { paths: [triangle(20)] } }] },
         } as unknown as PxAnimationDefinition;
         return convertToWebApiKeyframes(animDef, new Set<string>(), CONFIG);
     }
@@ -71,7 +71,7 @@ describe('convertToWebApiKeyframes — animated `d` path', () => {
         const straight = { v: [[0, 0], [100, 0], [100, 100]], c: true };                  // sharp corners
         const curved = { v: [[0, 0], [100, 0], [100, 100]], o: [[40, -20], [100, 40], [60, 100]], i: [[60, -20], [100, 60], [40, 100]], c: true };
         const animDef = {
-            d: { kfs: [{ t: 0, v: { paths: [straight] } }, { t: 320, v: { paths: [curved] } }] },
+            d: { keyframes: [{ t: 0, v: { paths: [straight] } }, { t: 320, v: { paths: [curved] } }] },
         } as unknown as PxAnimationDefinition;
         const kfs = convertToWebApiKeyframes(animDef, new Set<string>(), CONFIG).get('d')!;
         const seqs = new Set(kfs.map(kf => ((kf as unknown as { d: string }).d).replace(/[^MLCZmlcz]/g, '')));
@@ -82,7 +82,7 @@ describe('convertToWebApiKeyframes — animated `d` path', () => {
     it('does NOT flag `d` as an unsupported attr (it is emitted as animatable path())', () => {
         const unsupported = new Set<string>();
         const animDef = {
-            d: { kfs: [{ t: 0, v: { paths: [triangle(0)] } }, { t: 320, v: { paths: [triangle(20)] } }] },
+            d: { keyframes: [{ t: 0, v: { paths: [triangle(0)] } }, { t: 320, v: { paths: [triangle(20)] } }] },
         } as unknown as PxAnimationDefinition;
         convertToWebApiKeyframes(animDef, unsupported, CONFIG);
         expect(unsupported.has('d')).toBe(false);

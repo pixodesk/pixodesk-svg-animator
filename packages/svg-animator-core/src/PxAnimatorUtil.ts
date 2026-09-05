@@ -439,6 +439,49 @@ export function composeTransformParts(
     if (o) segs.push('translate(' + (-o[0]) + tu + ',' + (-o[1]) + tu + ')');
     return segs.join('');
 }
+/**
+ * Parses an SVG `transform` attribute string back into a `PxTransformParts` record —
+ * the inverse of {@link composeTransformParts} for its canonical shapes.
+ *
+ * Deliberately CONSERVATIVE (review §0.4 — used to merge a static transform under an
+ * animation, where a wrong guess is worse than no merge): accepts only a linear
+ * sequence with at most one `translate`, `rotate`, `skewX`, `scale` in the canonical
+ * order. Anything else — `matrix(…)`, repeated functions, the ±origin translate
+ * sandwich, three-arg `rotate(a cx cy)` — returns `undefined` (caller skips the merge).
+ */
+export function parseTransformParts(str: string | null | undefined): PxTransformParts | undefined {
+    if (!str || typeof str !== 'string') return undefined;
+    const out: PxTransformParts = {};
+    const re = /([a-zA-Z]+)\s*\(([^)]*)\)/g;
+    const order = ['translate', 'rotate', 'skewX', 'scale'];
+    let lastIdx = -1;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(str)) !== null) {
+        const fn = m[1];
+        const idx = order.indexOf(fn);
+        if (idx < 0 || idx <= lastIdx) return undefined; // unknown fn, repeat, or out of order
+        lastIdx = idx;
+        const nums = m[2].split(/[\s,]+/).filter(Boolean).map(Number);
+        if (nums.some(n => Number.isNaN(n))) return undefined;
+        if (fn === 'translate') {
+            if (nums.length < 1 || nums.length > 2) return undefined;
+            out.translate = [nums[0], nums[1] ?? 0];
+        } else if (fn === 'rotate') {
+            if (nums.length !== 1) return undefined; // rotate(a cx cy) has no parts spelling
+            out.rotate = nums[0];
+        } else if (fn === 'skewX') {
+            if (nums.length !== 1) return undefined;
+            out.skew = nums[0];
+        } else { // scale
+            if (nums.length < 1 || nums.length > 2) return undefined;
+            out.scale = [nums[0], nums[1] ?? nums[0]];
+        }
+    }
+    // Reject when anything but whitespace remains outside the parsed functions.
+    if (str.replace(/([a-zA-Z]+)\s*\(([^)]*)\)/g, '').replace(/[\s,]/g, '').length) return undefined;
+    return Object.keys(out).length ? out : undefined;
+}
+
 export const STYLE_ATTR_NAMES = new Set(["offset-distance", "offsetDistance"]); // Props that need to go to style
 export const DEFAULT_DURATION_MS = 1000;
 

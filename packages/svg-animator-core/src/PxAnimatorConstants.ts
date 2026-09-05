@@ -298,6 +298,7 @@ export function flattenAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig
 
     if (timeline.type === 'scroll' || timeline.type === 'view') {
         flat.timelineSource = 'scroll';
+        if (timeline.duration !== undefined) flat.duration = timeline.duration;   // §2.8
         if (timeline.iterations !== undefined) flat.iterations = timeline.iterations;
         const scroll: PxScroll = { ...(flat.scroll || {}) };
         scroll.kind = timeline.type;
@@ -317,6 +318,7 @@ export function flattenAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig
         }
         flat.scroll = scroll;
     } else { // 'clock' (or unknown type — treated as clock, the default mechanism)
+        if (timeline.duration !== undefined) flat.duration = timeline.duration;   // §2.8
         if (timeline.trigger !== undefined) {
             const { onFinish, ...restTrigger } = timeline.trigger;
             if (Object.keys(restTrigger).length) flat.trigger = restTrigger;
@@ -342,10 +344,11 @@ export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
     if (!cfg || (cfg as any).timeline !== undefined) return cfg;
 
     const { timelineSource, scroll, trigger, delay, iterations, direction, fill, resetOnFinish,
-            ...shared } = cfg as any;
+            duration, ...shared } = cfg as any;
 
     if (timelineSource === 'scroll') {
         const timeline: any = { type: scroll?.kind === 'view' ? 'view' : 'scroll' };
+        if (duration !== undefined) timeline.duration = duration;   // §2.8
         // Finite iterations survive scrubbing (D4); 'infinite' cannot map to a range.
         if (typeof iterations === 'number') timeline.iterations = iterations;
         if (scroll) {
@@ -370,6 +373,7 @@ export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
     }
 
     const timeline: any = { type: 'clock' };
+    if (duration !== undefined) timeline.duration = duration;   // §2.8
     if (trigger !== undefined || resetOnFinish) {
         const t: any = { ...(trigger || {}) };
         if (resetOnFinish) t.onFinish = 'reset';

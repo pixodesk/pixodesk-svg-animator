@@ -243,7 +243,7 @@ function liftBodyTranslate(node: PxNode, transformBy: PxTransformByEffect | unde
             else delete node.transform;
         }
     } else if (node.transform && typeof node.transform === 'object' && !Array.isArray(node.transform)
-               && !(node.transform as any).keyframes && !(node.transform as any).kfs) {
+               && !(node.transform as any).keyframes) {
         // STATIC RECORD — bare `{translate, …}` (canonical) or the legacy
         // `{value: {…}}` wrapper; the rewrite keeps the incoming spelling.
         const wrapped = (node.transform as { value?: Record<string, unknown> }).value;

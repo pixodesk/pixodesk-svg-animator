@@ -63,7 +63,7 @@ and no font file needs to be installed or loaded.
   "type": "svg",
   "viewBox": "0 0 400 100",
   "animator": {
-    "duration": 1000,
+    "timeline": { "type": "clock", "duration": 1000 },
     "definitions": {
       // The outlines the text is drawn from — one entry per letter used
       // (paths shortened here; the editor writes the real ones)

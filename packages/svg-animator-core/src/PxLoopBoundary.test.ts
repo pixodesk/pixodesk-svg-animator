@@ -27,7 +27,7 @@ describe('cycle-loop boundary (B7)', () => {
 
     /** Materialised keyframes keep the short spelling (`t`/`v`); accept either. */
     interface LooseKf { t?: number; time?: number; v?: { translate?: Array<number> }; value?: { translate?: Array<number> } }
-    const kfsOf = (a: PxPropertyAnimation): Array<LooseKf> => ((a.kfs ?? a.keyframes) ?? []) as Array<LooseKf>;
+    const kfsOf = (a: PxPropertyAnimation): Array<LooseKf> => (a.keyframes ?? []) as Array<LooseKf>;
     const times = (a: PxPropertyAnimation) => kfsOf(a).map(k => k.t ?? k.time);
     const xs = (a: PxPropertyAnimation) => kfsOf(a).map(k => (k.v ?? k.value)?.translate?.[0]);
 

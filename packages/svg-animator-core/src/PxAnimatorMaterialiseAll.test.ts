@@ -97,7 +97,7 @@ describe('materialiseAllInTree', () => {
         const src = deepFind(out, n => n.id === 'src')!;
         const anim = getTransformAnim(src)!;
         expect(anim.autoOrient).toBeUndefined();
-        const kfs = (anim.keyframes ?? anim.kfs) as Array<{ tangentIn?: unknown; tangentOut?: unknown }>;
+        const kfs = anim.keyframes as Array<{ tangentIn?: unknown; tangentOut?: unknown }>;
         for (const kf of kfs) {
             expect(kf.tangentIn).toBeUndefined();
             expect(kf.tangentOut).toBeUndefined();
@@ -143,7 +143,7 @@ describe('materialiseAllInTree', () => {
         const src = deepFind(out, n => n.id === 'src')!;
         const anim = getTransformAnim(src)!;
         expect(anim.autoOrient).toBe(true);
-        const kfs = (anim.keyframes ?? anim.kfs) as Array<{ tangentIn?: unknown; tangentOut?: unknown }>;
+        const kfs = anim.keyframes as Array<{ tangentIn?: unknown; tangentOut?: unknown }>;
         const hasAnyTangent = kfs.some(kf => kf.tangentIn || kf.tangentOut);
         expect(hasAnyTangent).toBe(true);
     });

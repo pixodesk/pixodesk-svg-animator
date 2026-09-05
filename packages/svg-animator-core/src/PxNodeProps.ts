@@ -197,7 +197,7 @@ export function getNormalizedProps(props: Record<string, any>) {
             propsCopy[key] = toRGBA(value);
         } else if (
             key === 'transform' && value !== null && typeof value === 'object' &&
-            !Array.isArray(value) && !value.keyframes && !value.kfs
+            !Array.isArray(value) && !value.keyframes
         ) {
             // Unified transform static record — bare `{translate, rotate, …}`
             // (canonical) or the legacy `{value: PxTransformParts}` wrapper.

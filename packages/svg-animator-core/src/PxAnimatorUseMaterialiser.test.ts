@@ -70,7 +70,7 @@ describe('materialiseAnimatedUseInstances', () => {
                     type: 'rect',
                     id: 'animated-rect',
                     width: 10, height: 10,
-                    animate: { transform: { keyframes: [{ t: 0, v: { translate: [0, 0] } }, { t: 1000, v: { translate: [100, 0] } }] } },
+                    animate: { transform: { keyframes: [{ time: 0, value: { translate: [0, 0] } }, { time: 1000, value: { translate: [100, 0] } }] } },
                 } as PxNode,
                 { type: 'use', href: '#animated-rect' } as PxNode,
             ],
@@ -107,7 +107,7 @@ describe('materialiseAnimatedUseInstances', () => {
                             type: 'ellipse',
                             id: 'inner',
                             rx: 5, ry: 5,
-                            animate: { transform: { keyframes: [{ t: 0, v: { translate: [0, 0] } }, { t: 1000, v: { translate: [0, 50] } }] } },
+                            animate: { transform: { keyframes: [{ time: 0, value: { translate: [0, 0] } }, { time: 1000, value: { translate: [0, 50] } }] } },
                         },
                     ] as Array<PxNode>,
                 } as PxNode,
@@ -135,7 +135,7 @@ describe('materialiseAnimatedUseInstances', () => {
                 {
                     type: 'rect',
                     id: 'r',
-                    animate: { transform: { keyframes: [{ t: 0, v: 0 }, { t: 1000, v: 1 }] } },
+                    animate: { transform: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
                 } as PxNode,
                 { type: 'use', href: '#r', transform: 'translate(50,100)' } as PxNode,
             ],
@@ -158,7 +158,7 @@ describe('materialiseAnimatedUseInstances', () => {
                             type: 'rect',
                             id: 'inner-rect',
                             fill: 'url(#localGrad)',
-                            animate: { transform: { keyframes: [{ t: 0, v: 0 }, { t: 1000, v: 1 }] } },
+                            animate: { transform: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
                         },
                         { type: 'linearGradient', id: 'localGrad' },
                     ] as Array<PxNode>,
@@ -210,8 +210,8 @@ describe('materialiseAnimatedUseInstances', () => {
                         transform: {
                             autoOrient: true,
                             keyframes: [
-                                { t: 0, v: { translate: [0, 0] } },
-                                { t: 1000, v: { translate: [100, 100] } },
+                                { time: 0, value: { translate: [0, 0] } },
+                                { time: 1000, value: { translate: [100, 100] } },
                             ],
                         },
                     },
@@ -235,7 +235,7 @@ describe('materialiseAnimatedUseInstances', () => {
                 {
                     type: 'rect',
                     id: 'leaf',
-                    animate: { transform: { keyframes: [{ t: 0, v: 0 }, { t: 1000, v: 1 }] } },
+                    animate: { transform: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
                 } as PxNode,
                 {
                     type: 'g',

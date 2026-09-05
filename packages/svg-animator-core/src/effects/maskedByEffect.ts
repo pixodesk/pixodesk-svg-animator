@@ -267,7 +267,7 @@ function readTransformationFromBody(node: PxNode): PxTransformByEffect | undefin
     // form; values are already wire units (scale = factor), so scale passes
     // through `{value}` like the string branch.
     if (node.transform && typeof node.transform === 'object'
-        && !(node.transform as any).keyframes && !(node.transform as any).kfs) {
+        && !(node.transform as any).keyframes) {
         const wrapped = (node.transform as { value?: Record<string, any> }).value;
         const value = (wrapped && typeof wrapped === 'object' ? wrapped : node.transform) as Record<string, any>;
         if (value && typeof value === 'object') {

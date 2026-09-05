@@ -43,26 +43,31 @@ export type PxEasingOrRef = PxInfer<typeof PxEasingOrRefSchema>;
 
 /**
  * A single animation keyframe defining the state at a specific point in time.
- * Supports both full property names and short aliases for compact notation.
+ *
+ * WIRE vs RUNTIME VIEW (review §1.2/§6.1 — aliases removed from the format):
+ * the wire carries ONLY the long spellings (`time`/`value`/`easing`/`tangentOut`/
+ * `tangentIn` — see `PxKeyframeSchema`). The short fields (`t`/`v`/`e`/`to`/`ti`)
+ * are the INTERNAL NORMALISED form `normalizeKeyframes` produces for the engines
+ * — never written, never accepted by validation.
  */
 export interface _PxKeyframe {
 
     /** Timestamp in milliseconds from animation start */
     time?: number;
 
-    /** Short alias for "time" */
+    /** RUNTIME VIEW ONLY (not wire) — normalised `time` */
     t?: number;
 
     /** The value of the animated property at this keyframe */
     value?: any;
 
-    /** Short alias for "value" */
+    /** RUNTIME VIEW ONLY (not wire) — normalised `value` */
     v?: any;
 
     /** Easing function applied to the interval from this keyframe to the next */
     easing?: PxEasingOrRef;
 
-    /** Short alias for "easing" */
+    /** RUNTIME VIEW ONLY (not wire) — normalised, easing refs resolved */
     e?: PxEasingOrRef;
 
     /**
@@ -77,7 +82,7 @@ export interface _PxKeyframe {
      */
     tangentOut?: [number, number];
 
-    /** Short alias for "tangentOut" */
+    /** RUNTIME VIEW ONLY (not wire) — normalised `tangentOut` */
     to?: [number, number];
 
     /**
@@ -89,7 +94,7 @@ export interface _PxKeyframe {
      */
     tangentIn?: [number, number];
 
-    /** Short alias for "tangentIn" */
+    /** RUNTIME VIEW ONLY (not wire) — normalised `tangentIn` */
     ti?: [number, number];
 
 }
@@ -157,17 +162,15 @@ export type PxKeyframeValue = PxInfer<typeof PxKeyframeValueSchema>;
 // (SCHEMA-DESIGN I-5). The `_PxKeyframe` interface keeps `value?: any` (and
 // `PxKeyframe<T = any>` its generic default) so the duck-typed interpolator
 // access in `PxDefinitions.ts` stays untyped-permissive at compile time.
+// LONG SPELLINGS ONLY (review §1.2/§6.1): the short aliases (`t`/`v`/`e`/`to`/`ti`)
+// were removed from the wire outright — one clear spelling, no mixing ambiguity.
+// They survive only as the internal normalised runtime view (see `_PxKeyframe`).
 export const PxKeyframeSchema = implementsInterface<_PxKeyframe>()(px.object({
     time: px.number().optional(),
-    t: px.number().optional(),
     value: PxKeyframeValueSchema.optional(),
-    v: PxKeyframeValueSchema.optional(),
     easing: PxEasingOrRefSchema.optional(),
-    e: PxEasingOrRefSchema.optional(),
     tangentOut: px.tuple([px.number(), px.number()] as const).optional(),
-    to:         px.tuple([px.number(), px.number()] as const).optional(),  // short alias
     tangentIn:  px.tuple([px.number(), px.number()] as const).optional(),
-    ti:         px.tuple([px.number(), px.number()] as const).optional(),  // short alias
     // (`selected` — editor timeline-selection UI state — was REMOVED from the wire
     // (review §1.3): editor data lives under `meta`. The editor still carries it on
     // its internal COPY-PASTE payload, which never validates against this schema.)
@@ -180,8 +183,9 @@ export const PxKeyframeSchema = implementsInterface<_PxKeyframe>()(px.object({
  * value shape (e.g. `PxKeyframe<Vec2>` in the effect appliers). Defaults to
  * `any`, matching the schema (`value` is stored as `px.any()` on the wire).
  */
-export type PxKeyframe<T = any> = Omit<PxInfer<typeof PxKeyframeSchema>, 'value' | 'v'> & { value?: T; v?: T };
-const _ck_PxKeyframe: KeysMatch<PxKeyframe, _PxKeyframe> = true; // the key sets are identical
+// The runtime-VIEW type (superset of the wire schema — carries the internal
+// normalised short fields; see the interface doc). Generic over the value type.
+export type PxKeyframe<T = any> = Omit<_PxKeyframe, 'value' | 'v'> & { value?: T; v?: T };
 
 
 // ============================================================================
@@ -283,9 +287,6 @@ export interface _PxPropertyAnimation {
     /** Array of keyframes defining the animation timeline */
     keyframes?: PxKeyframe[];
 
-    /** Short alias for "keyframes" */
-    kfs?: PxKeyframe[];
-
     /**
      * Optional loop configuration. When set, the keyframe sequence is expanded at pre-processing
      * time to fill the gap between the keyframe range and `animator.duration` by repeating a
@@ -308,18 +309,19 @@ export interface _PxPropertyAnimation {
     autoOrient?: boolean;
 }
 
-// `{ value?:KeyframeValue, keyframes?:Keyframe[], kfs?:Keyframe[], loop?:Loop|boolean, autoOrient?:bool }`
+// `{ value?:KeyframeValue, keyframes?:Keyframe[], loop?:Loop|boolean, autoOrient?:bool }`
+// (the `kfs` alias was removed outright — review §1.2/§6.1: one spelling only)
 export const PxPropertyAnimationSchema = implementsInterface<_PxPropertyAnimation>()(px.object({
     value: PxKeyframeValueSchema.optional(),
     keyframes: px.array(PxKeyframeSchema).optional(),
-    kfs: px.array(PxKeyframeSchema).optional(),
     loop: px.union([PxLoopSchema, px.boolean()]).optional(),
     autoOrient: px.boolean().optional(),
 }));
 
 /** Animation definition for a single CSS/SVG property. */
-export type PxPropertyAnimation = PxInfer<typeof PxPropertyAnimationSchema>;
-const _ck_PxPropertyAnimation: KeysMatch<PxPropertyAnimation, _PxPropertyAnimation> = true; // the key sets are identical
+// The runtime-VIEW type: its `keyframes` items are runtime-view PxKeyframes (they may
+// carry the internal normalised short fields), which the schema-inferred type cannot.
+export type PxPropertyAnimation = _PxPropertyAnimation;
 
 
 /**
@@ -578,11 +580,13 @@ export interface _PxDefs {
     glyphs?: { [fontName: string]: PxGlyphFont; };
 }
 
-// `{ easings?:Record<name,[x1,y1,x2,y2]>, animations?:Record<name,AnimationDefinition>, styles?:Record<string,any>, glyphs?:Record<fontName,PxGlyphFont> }`
+// `{ easings?:Record<name,[x1,y1,x2,y2]>, animations?:Record<name,AnimationDefinition>, styles?:Record<name,Record<attr,string|number>>, glyphs?:Record<fontName,PxGlyphFont> }`
 export const PxDefsSchema = implementsInterface<_PxDefs>()(px.object({
     easings: px.record(px.tuple([px.number(), px.number(), px.number(), px.number()] as const)).optional(),
     animations: px.record(PxAnimationDefinitionSchema).optional(),
-    styles: px.record(px.any()).optional(),
+    // Review §2.6: the schema now matches the declared type — a style preset is a flat
+    // record of string|number attribute values, nothing nested.
+    styles: px.record(px.record(px.union([px.string(), px.number()]))).optional(),
     glyphs: px.record(PxGlyphFontSchema).optional(),
 }));
 
@@ -766,6 +770,8 @@ export type PxTimelinePin = PxInfer<typeof PxTimelinePinSchema>;
 // `trigger.onFinish: 'reset'`.
 const PxClockTimelineSchema = px.object({
     type: px.literal('clock'),
+    // §2.8: duration is a property of the TIMELINE — how long one pass takes.
+    duration: px.number().optional(),
     trigger: PxTriggerSchema.optional(),
     delay: px.number().optional(),
     iterations: px.union([px.number(), px.literal('infinite')]).optional(),
@@ -780,6 +786,9 @@ const PxClockTimelineSchema = px.object({
 // into this discriminant). `engine` is the implementation driver (was `scroll.driver` —
 // renamed so "driver" stays free); `pin` is boolean-or-object (§2.2).
 const scrollishTimelineShape = {
+    // §2.8: duration is a property of the TIMELINE — under scrubbing it is the keyframe
+    // span the scroll range maps onto.
+    duration: px.number().optional(),
     // Finite repeat count IS meaningful when scrubbing — the scroll range maps onto
     // duration × iterations (rule D4; `'infinite'` cannot map to a range, so no literal here).
     iterations: px.number().optional(),
@@ -815,7 +824,8 @@ export interface _PxAnimatorConfig {
     /** JavaScript animation implementation strategy */
     mode?: PxAnimatorMode;
 
-    /** Total animation duration in milliseconds */
+    /** RUNTIME VIEW ONLY (not wire — §2.8: the wire spells it `timeline.duration`).
+     *  Total animation duration in milliseconds. */
     duration?: number;
 
     /** Delay before animation starts in milliseconds */
@@ -906,7 +916,8 @@ export interface _PxAnimatorConfig {
 // runtime VIEW (`_PxAnimatorConfig`) that `flattenAnimatorTimeline` produces for the engines.
 export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(px.object({
     mode: px.enum([PxAnimatorMode.auto, PxAnimatorMode.waapi, PxAnimatorMode.frames] as const).optional(),
-    duration: px.number().optional(),
+    // (`duration` lives INSIDE `timeline` on the wire — §2.8; the flat field below
+    // exists only on the runtime view, like the rest of the playback dynamics.)
     frameRate: px.number().optional(),
     // THE spelling of "what advances progress" — clock / scroll / view (review §2.1).
     timeline: PxTimelineSchema.optional(),
@@ -971,7 +982,7 @@ const _ck_PxBinding: KeysMatch<PxBinding, _PxBinding> = true; // the key sets ar
  * - a `{value: …}` object — structured static parametric source (record-shaped
  *   static value, used by attributes whose static representation is itself a
  *   record — notably `transform: {value: PxTransformParts}`)
- * - a `{keyframes}` / `{kfs}` object — inline property animation
+ * - a `{keyframes}` object — inline property animation
  *
  * The unified rule (primitive/array | `{value}` | `{keyframes}`) applies across
  * the format. For most attributes the `{value}` form is rarely used on the body
@@ -1050,7 +1061,7 @@ export interface _PxNode {
     /**
      * All other SVG attributes (cx, cy, r, fill, stroke, etc.).
      * A value is either a primitive (static) or a PxPropertyAnimation (in-place
-     * animation `{keyframes: [...]}` / `{kfs: [...]}`).
+     * animation `{keyframes: [...]}`).
      */
     [key: string]: any;
 }
@@ -1082,7 +1093,7 @@ export type Vec2 = [number, number];
  *
  *   T                      — raw static (non-object T)
  *   { value: T }           — structured static
- *   PxPropertyAnimation    — animated: `{value?, keyframes|kfs, loop?, autoOrient?}`
+ *   PxPropertyAnimation    — animated: `{value?, keyframes, loop?, autoOrient?}`
  *
  * The animated form IS `PxPropertyAnimation` — the exact object `node.animate`
  * channels use — so effect slots and node attributes share one schema, one

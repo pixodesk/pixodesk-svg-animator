@@ -40,9 +40,9 @@ comments are explanatory; JSON does not allow comments, so the real file has non
 
   // ADDED: the playback settings — how long, how many times, what starts it
   "animator": {
-    "duration": 1000,
     "timeline": {
       "type": "clock",
+      "duration": 1000,
       "iterations": "infinite",
       "direction": "alternate",
       "trigger": { "startOn": "load" }

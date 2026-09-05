@@ -63,7 +63,7 @@ function getKfEasing(kf: PxKeyframe): Easing | undefined {
  * `transform` slot or a composite per-part `translate` slot.
  */
 export function propAnimIsMotionPath(anim: PxPropertyAnimation): boolean {
-    const kfs: Array<PxKeyframe> | undefined = anim.keyframes ?? anim.kfs;
+    const kfs: Array<PxKeyframe> | undefined = anim.keyframes;
     if (!Array.isArray(kfs)) return false;
     if (anim.autoOrient) return true;
     for (const kf of kfs) {
@@ -228,7 +228,7 @@ export function materialiseMotionPathInPropAnim(
     opts?: MotionPathMaterialisationOptions,
 ): PxPropertyAnimation {
     if (!propAnimIsMotionPath(anim)) return anim;
-    const kfs = (anim.keyframes ?? anim.kfs) as Array<PxKeyframe> | undefined;
+    const kfs = anim.keyframes as Array<PxKeyframe> | undefined;
     if (!Array.isArray(kfs) || kfs.length < 2) return anim;
 
     const autoOrient   = !!anim.autoOrient;
@@ -292,7 +292,8 @@ export function materialiseMotionPathInPropAnim(
     // would otherwise be lerp'd as a ~358° spin instead of a ~2° step.
     if (autoOrient) unwrapAutoOrientRotations(out);
 
-    const result: PxPropertyAnimation = { kfs: out } as PxPropertyAnimation;
+    // Output converges on `keyframes` — the `kfs` alias is gone (review §1.2/§6.1).
+    const result: PxPropertyAnimation = { keyframes: out };
     if (anim.loop !== undefined) (result as { loop?: unknown }).loop = anim.loop;
     return result;
 }

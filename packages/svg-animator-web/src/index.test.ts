@@ -276,7 +276,7 @@ describe('Loop expansion', () => {
     //     };
 
     //     const animDef = getTranslateAnim(doc);
-    //     const kfs = animDef['opacity']?.kfs;
+    //     const kfs = animDef['opacity']?.keyframes;
     //     expect(kfs).toBeDefined();
 
     //     // Should have keyframes beyond the original 0→100 range
@@ -459,7 +459,7 @@ describe('Loop expansion', () => {
         };
 
         const animDef = getTranslateAnim(doc);
-        const kfs = animDef['opacity']?.kfs;
+        const kfs = animDef['opacity']?.keyframes;
 
         // Should only have the original 2 keyframes (no gap to fill)
         expect(kfs?.length).toBe(2);
@@ -493,7 +493,7 @@ describe('Loop expansion', () => {
         };
 
         const animDef = getTranslateAnim(doc);
-        const kfs = animDef['transform']?.kfs as Array<{ t: number; v: { translate: [number, number] } }>;
+        const kfs = animDef['transform']?.keyframes as Array<{ t: number; v: { translate: [number, number] } }>;
         const x = (i: number) => kfs[i].v.translate[0];
 
         // Expected backward-tiled fill (then the 2 original kfs):

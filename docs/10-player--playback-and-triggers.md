@@ -22,9 +22,9 @@ comments, so a real file has none.)
 
   // Everything about WHEN and HOW the animation plays lives here
   "animator": {
-    "duration": 2000,
     "timeline": {
       "type": "clock",
+      "duration": 2000,
       "iterations": "infinite",
       "direction": "alternate",
       "trigger": { "startOn": "scrollIntoView", "outAction": "pause", "scrollIntoViewThreshold": 0.5 }
@@ -69,12 +69,12 @@ means a plain clock.
 
 ## Timing
 
-Lengths and the engine stay on `animator` itself; the playback dynamics live in the
-clock timeline:
+The engine settings stay on `animator` itself; timing and the playback dynamics live in
+the timeline:
 
 | Field | Values | Default | Meaning |
 |---|---|---|---|
-| `duration` | ms | `1000` | length of **one** iteration. Keyframe times are absolute offsets within it |
+| `timeline.duration` | ms | `1000` | length of **one** pass of the timeline. Keyframe times are absolute offsets within it |
 | `frameRate` | fps | uncapped | target rate for the frame-loop engine only |
 | `mode` | `auto` · `waapi` · `frames` | `auto` | the engine — [Engine mode](#engine-mode) |
 | `timeline.delay` | ms | `0` | wait this long, then start. A **negative** value skips ahead instead: `-500` starts right away from the frame at 0.5 s, as if the animation had already been running for half a second |
@@ -194,10 +194,9 @@ animations. Choose
 
 ```js
 "animator": {
-  "duration": 3000,
-
-  // The playhead follows the SVG's journey through the viewport instead of the clock
-  "timeline": { "type": "view", "range": { "start": { "phase": "entry", "fraction": 0 }, "end": { "phase": "exit", "fraction": 1 } } }
+  // The playhead follows the SVG's journey through the viewport instead of the clock;
+  // `duration` is the keyframe span the scroll range maps onto.
+  "timeline": { "type": "view", "duration": 3000, "range": { "start": { "phase": "entry", "fraction": 0 }, "end": { "phase": "exit", "fraction": 1 } } }
 }
 ```
 

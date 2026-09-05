@@ -66,7 +66,7 @@ function buildOffsetPath(propAnim: PxPropertyAnimation): {
 } | undefined {
     if ((propAnim as { alongPathMode?: string }).alongPathMode !== 'offsetPath') return undefined;
 
-    const kfs = (propAnim.keyframes ?? propAnim.kfs) as Array<PxKeyframe> | undefined;
+    const kfs = propAnim.keyframes as Array<PxKeyframe> | undefined;
     if (!kfs || kfs.length < 2) return undefined;
 
     // Every keyframe must supply a translate; other ANIMATED parts (rotate/scale

@@ -90,8 +90,8 @@ describe('propAnimIsMotionPath', () => {
 
     it('accepts short aliases `to` / `ti`', () => {
         const anim = { keyframes: [
-            { t: 0,    v: { translate: [0, 0] }, to: [10, 0] as [number, number] },
-            { t: 1000, v: { translate: [50, 50] } },
+            { time: 0,    value: { translate: [0, 0] }, to: [10, 0] as [number, number] },
+            { time: 1000, value: { translate: [50, 50] } },
         ] } as PxPropertyAnimation;
         expect(propAnimIsMotionPath(anim)).toBe(true);
     });
@@ -166,7 +166,7 @@ describe('evaluateMotionPathSegment', () => {
 
 
 function getKfs(anim: PxPropertyAnimation): Array<PxKeyframe> {
-    const kfs = (anim.keyframes ?? anim.kfs) as Array<PxKeyframe>;
+    const kfs = anim.keyframes as Array<PxKeyframe>;
     return kfs;
 }
 
@@ -188,16 +188,16 @@ function kfRotate(kf: PxKeyframe): number | undefined {
 describe('materialiseMotionPathInPropAnim', () => {
 
     it('returns the input by reference for a non-motion-path animation', () => {
-        const anim: PxPropertyAnimation = { kfs: [
-            { t: 0,    v: { translate: [0, 0] } },
-            { t: 1000, v: { translate: [50, 50] } },
+        const anim: PxPropertyAnimation = { keyframes: [
+            { time: 0,    value: { translate: [0, 0] } },
+            { time: 1000, value: { translate: [50, 50] } },
         ] };
         const out = materialiseMotionPathInPropAnim(anim);
         expect(out).toBe(anim);
     });
 
     it('strips tangentIn/tangentOut and autoOrient from the output', () => {
-        const materialised = materialiseMotionPathInPropAnim({ autoOrient: true, kfs: horseshoeKfs() } as PxPropertyAnimation);
+        const materialised = materialiseMotionPathInPropAnim({ autoOrient: true, keyframes: horseshoeKfs() } as PxPropertyAnimation);
         expect((materialised as PxPropertyAnimation).autoOrient).toBeUndefined();
         for (const kf of getKfs(materialised)) {
             expect(kf.tangentIn).toBeUndefined();
@@ -206,13 +206,13 @@ describe('materialiseMotionPathInPropAnim', () => {
     });
 
     it('emits more kfs than the input (subdivision happened) on a curved segment', () => {
-        const materialised = materialiseMotionPathInPropAnim({ kfs: horseshoeKfs() } as PxPropertyAnimation);
+        const materialised = materialiseMotionPathInPropAnim({ keyframes: horseshoeKfs() } as PxPropertyAnimation);
         const kfs = getKfs(materialised);
         expect(kfs.length).toBeGreaterThan(2);
     });
 
     it('preserves the endpoint translates exactly', () => {
-        const materialised = materialiseMotionPathInPropAnim({ kfs: horseshoeKfs() } as PxPropertyAnimation);
+        const materialised = materialiseMotionPathInPropAnim({ keyframes: horseshoeKfs() } as PxPropertyAnimation);
         const kfs = getKfs(materialised);
         const first = kfTranslate(kfs[0]);
         const last  = kfTranslate(kfs[kfs.length - 1]);
@@ -226,7 +226,7 @@ describe('materialiseMotionPathInPropAnim', () => {
         // Horseshoe: chord midpoint y = 275, chord midpoint x = 60. The curve bows
         // out far in +x (well past 90) — any sample picked from the materialiser that's
         // ~halfway in time should be on the bowed curve, not the chord.
-        const materialised = materialiseMotionPathInPropAnim({ kfs: horseshoeKfs() } as PxPropertyAnimation);
+        const materialised = materialiseMotionPathInPropAnim({ keyframes: horseshoeKfs() } as PxPropertyAnimation);
         const kfs = getKfs(materialised);
         const midIdx = Math.floor(kfs.length / 2);
         const mid = kfTranslate(kfs[midIdx]);
@@ -234,7 +234,7 @@ describe('materialiseMotionPathInPropAnim', () => {
     });
 
     it('autoOrient: true → every output kf has a `rotate` field', () => {
-        const materialised = materialiseMotionPathInPropAnim({ autoOrient: true, kfs: horseshoeKfs() } as PxPropertyAnimation);
+        const materialised = materialiseMotionPathInPropAnim({ autoOrient: true, keyframes: horseshoeKfs() } as PxPropertyAnimation);
         for (const kf of getKfs(materialised)) {
             expect(kfRotate(kf)).toBeDefined();
             expect(Number.isFinite(kfRotate(kf)!)).toBe(true);
@@ -242,7 +242,7 @@ describe('materialiseMotionPathInPropAnim', () => {
     });
 
     it('autoOrient: false → no `rotate` on any output kf', () => {
-        const materialised = materialiseMotionPathInPropAnim({ kfs: horseshoeKfs() } as PxPropertyAnimation);
+        const materialised = materialiseMotionPathInPropAnim({ keyframes: horseshoeKfs() } as PxPropertyAnimation);
         for (const kf of getKfs(materialised)) {
             expect(kfRotate(kf)).toBeUndefined();
         }
@@ -252,11 +252,11 @@ describe('materialiseMotionPathInPropAnim', () => {
         // Diagonal path → tangent orientation is 45° everywhere. An explicit
         // rotate:90 must be ADDED, giving 135° on every sample — not ignored
         // (which would drop the custom rotation and leave the bare 45°).
-        const kfs: Array<PxKeyframe> = [
+        const keyframes: Array<PxKeyframe> = [
             { time: 0,    value: { translate: [0, 0],     rotate: 90 } },
             { time: 1000, value: { translate: [100, 100], rotate: 90 } },
         ] as Array<PxKeyframe>;
-        const materialised = materialiseMotionPathInPropAnim({ autoOrient: true, kfs } as PxPropertyAnimation);
+        const materialised = materialiseMotionPathInPropAnim({ autoOrient: true, keyframes } as PxPropertyAnimation);
         for (const kf of getKfs(materialised)) {
             expect(kfRotate(kf)!).toBeCloseTo(135, 4);
         }
@@ -266,11 +266,11 @@ describe('materialiseMotionPathInPropAnim', () => {
         // Straight horizontal path → tangent orientation is 0° everywhere, so
         // the output rotation equals the (interpolated) explicit rotate alone:
         // 0° at the start ramping to 90° at the end.
-        const kfs: Array<PxKeyframe> = [
+        const keyframes: Array<PxKeyframe> = [
             { time: 0,    value: { translate: [0, 0],   rotate: 0  } },
             { time: 1000, value: { translate: [100, 0], rotate: 90 } },
         ] as Array<PxKeyframe>;
-        const materialised = materialiseMotionPathInPropAnim({ autoOrient: true, kfs } as PxPropertyAnimation);
+        const materialised = materialiseMotionPathInPropAnim({ autoOrient: true, keyframes } as PxPropertyAnimation);
         const out = getKfs(materialised);
         expect(kfRotate(out[0])!).toBeCloseTo(0, 4);
         expect(kfRotate(out[out.length - 1])!).toBeCloseTo(90, 4);
@@ -278,7 +278,7 @@ describe('materialiseMotionPathInPropAnim', () => {
 
     it('rotation deltas between adjacent samples are bounded by rotationTolerance (autoOrient)', () => {
         const materialised = materialiseMotionPathInPropAnim(
-            { autoOrient: true, kfs: squareLoopKfs() } as PxPropertyAnimation,
+            { autoOrient: true, keyframes: squareLoopKfs() } as PxPropertyAnimation,
             { rotationTolerance: 10 },
         );
         const kfs = getKfs(materialised);
@@ -297,14 +297,14 @@ describe('materialiseMotionPathInPropAnim', () => {
     it('preserves `loop` on the output', () => {
         const materialised = materialiseMotionPathInPropAnim({
             loop: true,
-            kfs: horseshoeKfs(),
+            keyframes: horseshoeKfs(),
         } as PxPropertyAnimation);
         expect((materialised as PxPropertyAnimation).loop).toBe(true);
     });
 
     it('honors `maxSamplesPerSegment` as a hard cap', () => {
         const materialised = materialiseMotionPathInPropAnim(
-            { autoOrient: true, kfs: squareLoopKfs() } as PxPropertyAnimation,
+            { autoOrient: true, keyframes: squareLoopKfs() } as PxPropertyAnimation,
             { flatnessTolerance: 0.001, rotationTolerance: 0.1, maxSamplesPerSegment: 4 },
         );
         const kfs = getKfs(materialised);
@@ -313,7 +313,7 @@ describe('materialiseMotionPathInPropAnim', () => {
     });
 
     it('output kf times are monotonically non-decreasing', () => {
-        const materialised = materialiseMotionPathInPropAnim({ kfs: squareLoopKfs() } as PxPropertyAnimation);
+        const materialised = materialiseMotionPathInPropAnim({ keyframes: squareLoopKfs() } as PxPropertyAnimation);
         const kfs = getKfs(materialised);
         for (let i = 1; i < kfs.length; i++) {
             expect(kfTime(kfs[i])).toBeGreaterThanOrEqual(kfTime(kfs[i - 1]));
@@ -321,7 +321,7 @@ describe('materialiseMotionPathInPropAnim', () => {
     });
 
     it('first sample equals input first kf.translate; last sample equals input last kf.translate', () => {
-        const materialised = materialiseMotionPathInPropAnim({ kfs: squareLoopKfs() } as PxPropertyAnimation);
+        const materialised = materialiseMotionPathInPropAnim({ keyframes: squareLoopKfs() } as PxPropertyAnimation);
         const kfs = getKfs(materialised);
         const first = kfTranslate(kfs[0]);
         const last  = kfTranslate(kfs[kfs.length - 1]);
@@ -336,7 +336,7 @@ describe('materialiseMotionPathInPropAnim', () => {
         // (P3=(293,154), tan_in=(0,-39)) has a y-extreme at the endpoints and
         // an interior x-extreme near t ≈ 0.5. The materialiser must include that
         // x-extreme.
-        const materialised = materialiseMotionPathInPropAnim({ kfs: squareLoopKfs() } as PxPropertyAnimation);
+        const materialised = materialiseMotionPathInPropAnim({ keyframes: squareLoopKfs() } as PxPropertyAnimation);
         const kfs = getKfs(materialised);
         // Confine to the first segment by time (input[0].time .. input[1].time = 0..250).
         const firstSegKfs = kfs.filter(kf => {
@@ -466,9 +466,9 @@ describe('invertEasing', () => {
 describe('materialiseInternalLoopsInPropAnim', () => {
 
     it('returns the input by reference when propAnim has no loop', () => {
-        const anim: PxPropertyAnimation = { kfs: [
-            { t: 0,    v: 0 },
-            { t: 1000, v: 100 },
+        const anim: PxPropertyAnimation = { keyframes: [
+            { time: 0,    value: 0 },
+            { time: 1000, value: 100 },
         ] };
         const out = materialiseInternalLoopsInPropAnim('opacity', anim, 2000);
         expect(out).toBe(anim);
@@ -477,9 +477,9 @@ describe('materialiseInternalLoopsInPropAnim', () => {
     it('drops `loop` from the output after expansion', () => {
         const anim: PxPropertyAnimation = {
             loop: true,
-            kfs: [
-                { t: 0,    v: 0 },
-                { t: 500,  v: 1 },
+            keyframes: [
+                { time: 0,    value: 0 },
+                { time: 500,  value: 1 },
             ],
         };
         const out = materialiseInternalLoopsInPropAnim('opacity', anim, 2000);
@@ -495,8 +495,8 @@ describe('materialiseInternalLoopsInTree', () => {
         const tree: PxAnimatedSvgDocument = {
             type: 'svg',
             children: [
-                { type: 'rect', id: 'r', animate: { opacity: { kfs: [
-                    { t: 0, v: 0 }, { t: 1000, v: 1 },
+                { type: 'rect', id: 'r', animate: { opacity: { keyframes: [
+                    { time: 0, value: 0 }, { time: 1000, value: 1 },
                 ] } } } as PxNode,
             ],
         } as PxAnimatedSvgDocument;
@@ -510,7 +510,7 @@ describe('materialiseInternalLoopsInTree', () => {
             children: [
                 { type: 'rect', id: 'r', animate: { opacity: {
                     loop: true,
-                    kfs: [{ t: 0, v: 0 }, { t: 500, v: 1 }],
+                    keyframes: [{ time: 0, value: 0 }, { time: 500, value: 1 }],
                 } } } as PxNode,
             ],
         } as PxAnimatedSvgDocument;
