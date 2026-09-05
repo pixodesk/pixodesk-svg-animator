@@ -210,10 +210,6 @@ interface ANIMATE {
 }
 ```
 
-**Every key has exactly one spelling** — the former short aliases (`kfs`, `t`, `v`,
-`e`, `to`, `ti`) were removed from the format (2026-09) and are rejected by strict
-validation.
-
 **Keyframe values** — the shape depends on the property being animated:
 
 | Property kind | `value` shape | Example |
