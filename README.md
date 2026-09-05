@@ -175,7 +175,7 @@ With `mode: 'auto'` (the default) the player picks the Web Animations API and **
 ¹ SVG geometry as CSS properties (`x`, `cy`, `r`, `width`, …) works in Chromium/WebKit; **Firefox does not implement it** — use the JSON format (auto frames fallback) for guaranteed cross-browser geometry animation.
 ² The player gates each attribute with `CSS.supports(...)` at runtime; if anything in the document isn't natively animatable, the whole document automatically switches to the frames engine (`mode: 'auto'`). The animation still plays — just not via native WAAPI.
 ³ CSS `d: path(...)` morphing requires identical path command structure across keyframes and is unavailable in Safari < 18.5.
-⁴ Per-`<stop>` `stop-color` animates via CSS; stop **`offset`** and gradient **geometry** cannot be expressed in CSS at all — the player animates both via the frames engine (`effects.fillGradient.animate`).
+⁴ Per-`<stop>` `stop-color` animates via CSS; stop **`offset`** and gradient **geometry** cannot be expressed in CSS at all — the player animates both via the frames engine (the `stops` timeline and the animatable geometry slots `start`/`end`/`center`/`radius`/`focal`).
 ⁵ The static `<textPath>` layout renders everywhere; it is the *animation* of `startOffset`/`textLength` that CSS cannot express.
 
 
@@ -190,32 +190,29 @@ With `mode: 'auto'` (the default) the player picks the Web Animations API and **
 ```typescript
 // PxPropertyAnimation — single-property animation
 interface ANIMATE {
-    keyframes?: Array<{                       // alias: kfs
-        time?: number;                        // ms offset; alias: t
-        value?: any;                          // see "Keyframe values" below; alias: v
-        easing?: string | [number, number, number, number]; // named ref or cubic-bezier; alias: e
-        tangentOut?: [number, number];        // motion-path delta tangent at this kf; alias: to
-        tangentIn?:  [number, number];        // motion-path delta tangent at this kf; alias: ti
-        selected?:  boolean;                  // editor-only UI state; accepted on the wire, ignored by the player
+    keyframes?: Array<{
+        time?: number;                        // ms offset from the start of the document timeline
+        value?: any;                          // see "Keyframe values" below
+        easing?: string | [number, number, number, number]; // named ref or cubic-bezier
+        tangentOut?: [number, number];        // motion-path delta tangent at this kf
+        tangentIn?:  [number, number];        // motion-path delta tangent at this kf
     }>;
-    kfs?: Array<…>;                           // alias for `keyframes`
     autoOrient?: boolean;                     // translate-only: rotate element to face the path tangent
-    // pre-processes keyframes to fill animator.duration by repeating a segment
+    // pre-processes keyframes to fill the timeline duration by repeating a segment
     // true → default: repeat last segment, cycling forward
-    // independent of animator.iterations; composes as loop-within-loop
+    // independent of timeline.iterations; composes as loop-within-loop
     loop?: boolean | {
         segmentCount?: number;           // intervals forming the segment; undefined = whole sequence; clamped [1, n-1]
         extend?: 'before' | 'after';     // which END the loop fills: 'after' (default, absent) = idle/outro,
-                                         // 'before' = intro. Was the boolean `before` until 2026-08.
+                                         // 'before' = intro
         alternate?: boolean;             // false (default) = cycle same direction; true = pingpong
     };
 }
 ```
 
-**Use one spelling per key, never both.** The short forms (`kfs`, `t`, `v`, `e`,
-`to`, `ti`) are aliases of the long ones. If both are present the result is not
-well-defined — `v`/`e` prefer the short form, `tangentIn`/`tangentOut` prefer the
-long one, and `kfs` vs `keyframes` differs between code paths.
+**Every key has exactly one spelling** — the former short aliases (`kfs`, `t`, `v`,
+`e`, `to`, `ti`) were removed from the format (2026-09) and are rejected by strict
+validation.
 
 **Keyframe values** — the shape depends on the property being animated:
 
@@ -259,7 +256,7 @@ animate: { transform: { keyframes: [
 
 Composed order: `translate · +origin · rotate · skewX · scale · −origin`.
 
-The legacy per-key form (`animate: { translate, rotate, scale }` — used in the examples below) is still accepted; both produce the same composed `transform` string at render. A static `transform` attribute and an animated transform part **cannot sit on the same node** — they occupy the same slot, so the animation wins. Put the static part on a wrapping `<g>`.
+The per-key form (`animate: { translate, rotate, scale }` — used in the examples below) is also accepted; both produce the same composed `transform` string at render. A static `transform` attribute **composes under** the animated transform (CSS's own precedence, applied at read): partial keyframe parts inherit the static parts they don't set, and a single per-key channel next to a static transform keeps that static — `transform: {rotate: 45}` + an animated `translate` slides the element *while it stays rotated*. The one remaining last-write-wins case: several per-key channels animated at once on one node — compose those by nesting `<g>`s instead.
 
 ```typescript
 // PxAnimatedSvgDocument
@@ -274,46 +271,65 @@ interface SVG_JSON {
     [key: string]: any; // any SVG/CSS presentation attribute; pass-through to DOM
 
     animator?: {
-        delay?: number;                    // wait before start, ms (default 0); negative = skip ahead, e.g. -500 starts from the 0.5 s frame
-        duration?: number;                 // length of ONE iteration, ms (default 1000); keyframe t values are absolute offsets
-        iterations?: number | 'infinite'; // repeat count (default 1); composes with per-property loop (loop-within-loop)
-        fill?: 'forwards' | 'backwards' | 'both' | 'none'; // WAAPI fill; default 'forwards' holds final state
-        direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse'; // default 'normal'
         mode?: 'auto' | 'waapi' | 'frames'; // default 'auto' = WAAPI→RAF fallback; 'waapi' = WAAPI; 'frames' = RAF
         frameRate?: number;                // target fps; RAF mode only (default: uncapped)
-        resetOnFinish?: boolean;           // default false; after a NATURAL finish, snap back to the start state
 
-        trigger?: {
-            startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
-            outAction?: 'continue' | 'pause' | 'reset' | 'reverse'; // default 'continue'
-            scrollIntoViewThreshold?: number; // how much must be on screen to start: 0 = any part (default), 1 = all of it; scrollIntoView only
-        };
+        // WHAT ADVANCES THE PLAYHEAD — a discriminated object mirroring WAAPI's
+        // DocumentTimeline / ScrollTimeline / ViewTimeline. Timing and the playback
+        // dynamics live INSIDE it; each type carries only the fields that mean
+        // something for it. Omitting `timeline` entirely means a plain clock.
+        timeline?:
+            | {
+                type: 'clock';                     // wall time — something STARTS it (the trigger)
+                duration?: number;                 // length of ONE iteration, ms (default 1000); keyframe times are absolute offsets
+                delay?: number;                    // wait before start, ms (default 0); negative = skip ahead, e.g. -500 starts from the 0.5 s frame
+                iterations?: number | 'infinite';  // repeat count (default 1); composes with per-property loop (loop-within-loop)
+                fill?: 'forwards' | 'backwards' | 'both' | 'none';                      // WAAPI fill; default 'forwards' holds final state
+                direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';  // default 'normal'
+                trigger?: {
+                    startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
+                    outAction?: 'continue' | 'pause' | 'reset' | 'reverse'; // when the trigger condition ends; default 'continue'
+                    onFinish?: 'hold' | 'reset';      // after a NATURAL finish; default 'hold' (keep end state per `fill`)
+                    scrollIntoViewThreshold?: number; // how much must be on screen to start: 0 = any part (default), 1 = all of it; scrollIntoView only
+                };
+              }
+            | {
+                type: 'scroll' | 'view';           // scrubbed: the scroll container's offset ('scroll') or the SVG's
+                                                   // journey through the viewport ('view'); no trigger/delay slots exist here
+                duration?: number;                 // the keyframe span the scroll range maps onto, ms
+                iterations?: number;               // finite only — 'infinite' cannot map onto a range
+                engine?: 'custom' | 'native';      // who computes progress: the player (default) or the browser's ScrollTimeline
+                axis?: 'block' | 'inline' | 'x' | 'y';
+                source?: 'nearest' | 'root';       // type 'scroll' — which scroll container
+                subject?: string;                  // type 'view' — whose journey: 'parent' | 'scroller' | a CSS selector
+                smoothing?: number;                // ms catch-up lag toward the scroll position
+                pin?: boolean | { align?: 'top' | 'center' | 'bottom'; top?: number; distance?: number };
+                range?: { start?: { phase?: string; fraction?: number }; end?: { phase?: string; fraction?: number } };
+              };
 
         // named reusable easings and animations; resolved at runtime
         // materialise (inline) all refs before handing to a dumb player
         definitions?: {
             easings?: Record<string, [number, number, number, number]>; // name → [x1,y1,x2,y2]
             animations?: Record<string, Record<string, ANIMATE>>;       // name → { propName: ANIMATE }
-            styles?: Record<string, Record<string, string | number>>;   // name → style preset (node.style may reference by name)
+            styles?: Record<string, Record<string, string | number>>;   // name → style preset, string|number values only (node.style may reference by name)
             // font-family → embedded glyph outlines, for glyph-mode text
             // (effects.text.useGlyphs) — renders without shipping a font
             glyphs?: Record<string, {
                 fontFamily: string;   // e.g. "Roboto"
-                style: string;        // "" | "italic" | …
+                fontStyle: string;    // "" | "italic" | …
                 ascent: number;       // in unitsPerEm
                 unitsPerEm: number;   // e.g. 1000
                 glyphs: Record<string, { width: number; d: string }>;  // keyed by the character
             }>;
         };
 
-        timeline?: 'time' | 'scroll'; // clock that drives playback; default (and today's only
-                                 // implemented value) 'time' — omitted from the wire when default.
-                                 // 'scroll' is reserved: scroll-linked playback is coming.
         debugInstName?: string;  // exposes the animator as window[debugInstName]
 
-        // bind-by-id documents — maps elementId → animation spec. Same value type as `node.animate`;
-        // only the KEYSPACE differs (element id here, attr name there), which is what
-        // the `ById` suffix names. Was `animate` before 2026-08.
+        // bind-by-id documents — maps '#elementId' → animation spec. Same value type as
+        // `node.animate`; only the KEYSPACE differs (an element reference here, an attr
+        // name there). Reference spelling is uniform: every element reference in the
+        // format is '#id'-spelled — record keys included.
         animateById?: Record<string,
             | string
             | Array<string>
@@ -342,13 +358,14 @@ interface SVG_JSON {
             maskedBy?:        { sourceId?: string, maskType?: 'alpha' | 'luminance',
                                 maskUnits?, maskContentUnits?: 'userSpaceOnUse' | 'objectBoundingBox',
                                 x?, y?, width?, height?: number };   // mask viewport, user units
-            clipPath?:        { d?: string, animate?: ANIMATE };   // static `d`, or animated clip geometry
+            clipPath?:        { d?: "M…" | { value } | { keyframes } };   // ONE animatable slot, like every other effect
             strokeTrim?:        { offset?: number, range?: [a,b], subPaths?: 'separate' | 'combined' };  // offset/range animatable
             clone?:           { type?: 'content', sourceId?: string,
-                                retime?: { start?, stretch?: number, timeCrop?: [inMs, outMs] } };
-            // `animate` = animated geometry: gradientX1/Y1/X2/Y2 (linear),
-            // gradientCx/Cy/Fx/Fy/R (radial). Frames engine only.
-            fillGradient?:    { type: 'linear'|'radial', p1?, p2?, c?, r?, fp?, stops?, animate?, gradientUnits?, spreadMethod?, gradientTransform? };
+                                retime?: { start?, stretch?: number, timeCrop?: [inMs, outMs] } };  // retime is PURE timing — the ref lives once, on the clone
+            // Geometry slots animate like any other slot ({value} | {keyframes});
+            // gradient geometry animation runs on the frames engine.
+            fillGradient?:    { type: 'linear'|'radial', start?, end? (linear) , center?, radius?, focal? (radial),
+                                stops?, gradientUnits?, spreadMethod?, gradientTransform? };
             strokeGradient?:  { /* same shape as fillGradient */ };
             textPath?:        { path: string, pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? };
             text?:            { useGlyphs?: boolean };  // render text from embedded glyph outlines (definitions.glyphs)
@@ -402,10 +419,13 @@ Two modes share the same root document type (`PxAnimatedSvgDocument`):
   "type": "svg",
   "viewBox": "0 0 400 400",
   "animator": {
-    "duration": 1000,
-    "iterations": "infinite",
     "mode": "auto",
-    "trigger": { "startOn": "load" }
+    "timeline": {
+      "type": "clock",
+      "duration": 1000,
+      "iterations": "infinite",
+      "trigger": { "startOn": "load" }
+    }
   },
   "children": [
     {
@@ -416,8 +436,8 @@ Two modes share the same root document type (`PxAnimatedSvgDocument`):
       "animate": {
         "translate": {
           "keyframes": [
-            { "t": 0,    "v": [139, 163] },
-            { "t": 1000, "v": [139, 310] }
+            { "time": 0,    "value": [139, 163] },
+            { "time": 1000, "value": [139, 310] }
           ]
         }
       }
@@ -435,12 +455,15 @@ const doc = {
     viewBox: '0 0 600 400',
 
     animator: {
-        duration: 2000,
-        iterations: 'infinite',
-        fill: 'forwards',
-        direction: 'alternate',
         mode: 'auto',
-        trigger: { startOn: 'load', outAction: 'pause' },
+        timeline: {
+            type: 'clock',
+            duration: 2000,
+            iterations: 'infinite',
+            fill: 'forwards',
+            direction: 'alternate',
+            trigger: { startOn: 'load', outAction: 'pause' },
+        },
         definitions: {
             easings: {
                 'smooth': [0.42, 0, 0.58, 1],  // name → [x1,y1,x2,y2]
@@ -490,7 +513,7 @@ const doc = {
                             { time: 1000, value: [1.3, 1.3] },
                             { time: 2000, value: [1,   1  ] },
                         ],
-                        loop: true,  // repeat last segment to fill animator.duration
+                        loop: true,  // repeat last segment to fill the timeline duration
                     },
                 },
                 children: [{
@@ -579,7 +602,7 @@ Same as above, plus a small `<script>` fragment to start/stop the animation on e
 
 Static SVG markup with `@pixodesk/svg-animator-web` bundled in a `<script>` tag. The player targets existing DOM elements by `id`. Supports all animation types including shape morphing. Uses WAAPI or `requestAnimationFrame`.
 
-The `data` object passed to `createAnimator` is the same `PxAnimatedSvgDocument` type as the JSON format — without `children`. All animation config lives in `animator.definitions` (named easings and animations) and `animator.animateById` (element ID → animation spec map).
+The `data` object passed to `createAnimator` is the same `PxAnimatedSvgDocument` type as the JSON format — without `children`. All animation config lives in `animator.definitions` (named easings and animations) and `animator.animateById` (`'#elementId'` → animation spec map).
 
 ```xml
 <!-- static markup; player targets elements by id -->
@@ -617,11 +640,14 @@ The `data` object passed to `createAnimator` is the same `PxAnimatedSvgDocument`
         type: 'svg',
         id: '_px_root',
         animator: {
-            duration: 2000,
-            iterations: 'infinite',
-            fill: 'forwards',
             mode: 'auto',
-            trigger: { startOn: 'load', outAction: 'pause' },
+            timeline: {
+                type: 'clock',
+                duration: 2000,
+                iterations: 'infinite',
+                fill: 'forwards',
+                trigger: { startOn: 'load', outAction: 'pause' },
+            },
             definitions: {
                 easings: {
                     'smooth': [0.42, 0, 0.58, 1],
@@ -664,15 +690,15 @@ The `data` object passed to `createAnimator` is the same `PxAnimatedSvgDocument`
                 },
             },
             animateById: {
-                _px_rect:    'fadeIn',                              // single named ref
-                _px_ellipse: ['colorShift', 'slideIn'],             // array of refs
-                _px_group:   ['pulse', { translate: { keyframes: [  // mixed
+                '#_px_rect':    'fadeIn',                              // single named ref
+                '#_px_ellipse': ['colorShift', 'slideIn'],             // array of refs
+                '#_px_group':   ['pulse', { translate: { keyframes: [  // mixed
                     { time: 0, value: [0, 0] }, 
                     { time: 2000, value: [40, 0] }
                 ] } }],
-                _px_icon:    'spin',
-                _px_morph:   'morph',
-                _px_path:    'draw',
+                '#_px_icon':    'spin',
+                '#_px_morph':   'morph',
+                '#_px_path':    'draw',
             },
         },
     }});
@@ -700,10 +726,10 @@ of time, so the exported SVG already contains the expanded structure —
 | `transformBy` | `{ translate?:[x,y], rotate?:deg, skew?:deg, scale?:[x,y], origin?:[x,y] }` (each may be animated) | Wraps the element in transform `<g>`s; lets you keep `origin` semantics that the body `transform` string can't express. `skew` is a scalar (skewX degrees), composed between `rotate` and `scale`. |
 | `repeater` | `{ copies:N, translate?:[x,y], rotate?:deg, scale?:[%, %], origin?:[x,y] }` (each may be animated) | Materialises `N` real copies of the element, each offset by its index (`translate`/`rotate`/`origin` × i, `scale` per-axis `(v/100)^i`). The base element and the per-copy params can both animate. |
 | `maskedBy` | `{ sourceId:"#id", maskType?:"alpha"\|"luminance", maskUnits?, maskContentUnits?, x?, y?, width?, height? }` | Builds a `<mask>` from the referenced element and applies it to this one. `x`/`y`/`width`/`height` are the mask VIEWPORT in user units — content outside it is clipped; omit all four for the SVG default (`-10%,-10%,120%,120%`). A `0` is a real value, not "absent". |
-| `clipPath` | `{ d?:"M…", animate?: ANIMATE }` | Generates a `<clipPath>` from the path data and sets `clip-path` on the host. `animate` is the property animation **itself** (`{keyframes:[…]}`), not `{d:{keyframes:[…]}}` — its keyframe values are `{path:"M…"}`. |
+| `clipPath` | `{ d?: "M…" \| {value} \| {keyframes} }` | Generates a `<clipPath>` from the path data and sets `clip-path` on the host. `d` is ONE animatable slot like every other effect channel — static string, `{value}`, or `{value, keyframes}` whose keyframe values are `{path:"M…"}`. |
 | `strokeTrim` | `{ offset?, range?:[a,b], subPaths?:"separate"\|"combined" }` (`offset`/`range` animatable) | Trims the visible stroke segment along a path. `subPaths` says what the 0..1 window is measured over: `"separate"` (default) trims each sub-path against its own length; `"combined"` chains all descendant sub-paths into one virtual path so the window slides across siblings (After Effects "Trim All As One"). |
 | `clone` | `{ type?:"content", sourceId:"#id", retime?:{ start?:ms, stretch?:1.0, timeCrop?:[inMs,outMs] } }` | `<use>`-only. A `<use>` is a clone of something: `sourceId` = the source element id (says WHAT it clones), nested `retime` = optional time-shift of the source's internal timeline (says WHEN). `type:"content"` is a "no-ref-translate" content link — targets the source's content sub-anchor so the source's own outer translate isn't re-applied; `type` absent = direct whole-element link (keeps translate). `retime.timeCrop` clips the clone to a visibility window `[inMs, outMs]` on the DOCUMENT timeline — implemented as a wrapping `<g>` with an opacity gate. |
-| `fillGradient` / `strokeGradient` | `{ type:"linear"\|"radial", p1?,p2? (linear) \| c?,r?,fp? (radial), stops?, animate?, gradientUnits?, spreadMethod?, gradientTransform? }` | Generates a `<linearGradient>`/`<radialGradient>` def and points the host's `fill`/`stroke` at it. `stops` is one timeline — static array, or `{keyframes}` whose each kf `value` is the full stops array snapshot. **`animate` animates the geometry** — `gradientX1/Y1/X2/Y2` (linear), `gradientCx/Cy/Fx/Fy/R` (radial); frames-engine only. `gradientTransform` is static-only. |
+| `fillGradient` / `strokeGradient` | `{ type:"linear"\|"radial", start?,end? (linear) \| center?,radius?,focal? (radial), stops?, gradientUnits?, spreadMethod?, gradientTransform? }` | Generates a `<linearGradient>`/`<radialGradient>` def and points the host's `fill`/`stroke` at it. Geometry slots are plain words mapping to SVG's own attrs (`start`=`x1/y1`, `end`=`x2/y2`, `center`=`cx/cy`, `radius`=`r`, `focal`=`fx/fy`) and each is animatable like any slot (`{value}` \| `{keyframes}`; geometry animation runs on the frames engine). `stops` is one timeline — static array, or `{keyframes}` whose each kf `value` is the full stops array snapshot. `gradientTransform` is static-only. |
 | `textPath` | `{ path:"M…", pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? }` | On a `<text>` host: generates a `<path>` def from the inline `path` and wraps the text's children in a `<textPath>` along it. `startOffset`/`textLength` accept the full animatable shape. `pathOverflow`: `'extend'` (default — glyphs continue along the endpoint tangent) or `'clip'` (native `<textPath>` behaviour). |
 | `text` | `{ useGlyphs?: true }` (the effect group — not to be confused with `node.textContent`, the content itself) | Renders the `<text>` from embedded per-glyph outlines in `definitions.glyphs` — self-contained, no external font needed. |
 
@@ -773,7 +799,7 @@ of time, so the exported SVG already contains the expanded structure —
 ```js
 { type: 'rect', id: '_px_g', x: 0, y: 0, width: 200, height: 120,
   effects: { fillGradient: {
-    type: 'linear', p1: [0, 0], p2: [200, 0],
+    type: 'linear', start: [0, 0], end: [200, 0],
     stops: { keyframes: [
       { time: 0,    value: [{ offset: 0, color: '#3b82f6' }, { offset: 1, color: '#ec4899' }] },
       { time: 1000, value: [{ offset: 0, color: '#10b981' }, { offset: 1, color: '#f59e0b' }] },
@@ -799,8 +825,8 @@ reference, so the browser re-clips every frame):
 { type: 'rect', id: '_px_r', x: 0, y: 0, width: 200, height: 200, fill: '#3b82f6',
   effects: {
     clipPath: {
-      d: 'M0,0 L20,0 L20,200 L0,200 Z',          // static / frame-0 geometry
-      animate: {                                  // the property animation itself
+      d: {                                        // ONE animatable slot
+        value: 'M0,0 L20,0 L20,200 L0,200 Z',     // frame-0 baseline
         keyframes: [
           { time: 0,    value: { path: 'M0,0 L20,0 L20,200 L0,200 Z' } },
           { time: 1000, value: { path: 'M0,0 L200,0 L200,200 L0,200 Z' } },
