@@ -1,6 +1,6 @@
 # The editor
 
-[← Choosing a format](./02-start--choosing-a-format.md) · [Contents](./README.md) · Next: [Set default playback settings & triggers →](./04-editor--playback-settings.md)
+[← Choosing a format](./choosing-a-format.md) · [Contents](../../README.md) · Next: [Set default playback settings & triggers →](./editor-playback-settings.md)
 
 The Pixodesk SVG Animator editor is a desktop app for drawing and animating SVG. It saves the
 result in the Pixodesk animation format — as **JSON**, or as a **pre-rendered SVG** — the files
@@ -61,7 +61,7 @@ In the editor you add an effect to an element and adjust it like any other setti
 settings can be animated too. At playback the effect is **materialised** — turned into plain
 animated SVG attributes — so the browser never sees anything but ordinary SVG. In a
 pre-rendered file that happens at export; in JSON the player does it at load
-([Player effects](./15-format--effects.md)).
+([Player effects](../format/effects.md)).
 
 
 ## Set the playback defaults
@@ -72,7 +72,7 @@ or the page's scroll position (the scroll option is still in development) — al
 player needs no configuration to play it correctly.
 
 Which control writes which value:
-[Set default playback settings & triggers](./04-editor--playback-settings.md).
+[Set default playback settings & triggers](./editor-playback-settings.md).
 
 ## Save, convert, export
 
@@ -95,10 +95,10 @@ Which control writes which value:
   notice when you save. A pre-rendered file is meant to be used **once per page**. To show
   the same animation several times, either export a separate file for each place — every
   export gets its own element ids, so the copies don't clash — or use JSON, where the player
-  handles this for you ([read more](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
+  handles this for you ([read more](../prerendered-svg/on-the-web.md#one-copy-of-a-file-per-page)).
 
 **Convert freely.** *Save as JSON* / *Save as SVG* switches between them at any time, in
-either direction, so the choice is never final ([Choosing a format](./02-start--choosing-a-format.md)).
+either direction, so the choice is never final ([Choosing a format](./choosing-a-format.md)).
 
 **Export a fallback** for places that cannot play SVG: **Lottie** (`.json` / `.lottie`),
 **video**, **GIF** or a static **image**. Conversions that lose something show exactly what was
@@ -106,4 +106,4 @@ dropped or approximated before the file is written.
 
 **Preview** plays the document as it will look outside the editor.
 
-[← Choosing a format](./02-start--choosing-a-format.md) · [Contents](./README.md) · Next: [Set default playback settings & triggers →](./04-editor--playback-settings.md)
+[← Choosing a format](./choosing-a-format.md) · [Contents](../../README.md) · Next: [Set default playback settings & triggers →](./editor-playback-settings.md)

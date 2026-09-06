@@ -1,13 +1,13 @@
 # JSON format reference
 
-[← Format principles](./13-format--format-principles.md) · [Contents](./README.md) · Next: [Player effects →](./15-format--effects.md)
+[← Format principles](./principles.md) · [Contents](../README.md) · Next: [Player effects →](./effects.md)
 
 This page is the reference for the JSON format. It lists every key of the document, with its
 type and its meaning. A document is simply **SVG written as JSON, with the animation added
 alongside** — if you understand SVG files, you will understand these too. If SVG itself is
 new to you, start with an SVG introduction first (for example
 [MDN's SVG tutorial](https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorials/SVG_from_scratch)) and come back. Why the
-format is shaped this way: [Format principles](./13-format--format-principles.md).
+format is shaped this way: [Format principles](./principles.md).
 
 ## A complete small document
 
@@ -54,6 +54,152 @@ Three ideas cover 90 % of the format:
 3. **One place for playback settings** — the root `animator` object holds everything about
    how the document plays: duration, loops, what starts it.
 
+## Schema at a glance
+
+The whole format as flattened TypeScript-style typings. A standalone, printable
+copy of this section (with examples) lives in [SCHEMA.md](../../SCHEMA.md).
+
+```typescript
+// PxAnimatedSvgDocument
+// Self-contained document: has children — player renders SVG tree and animates it
+// Bind-by-id document: no children — player animates a pre-existing SVG DOM via animator.animateById
+interface SVG_JSON {
+    type: 'svg';        // document root marker
+    id?: string;        // DOM id; in a bind-by-id document it locates the pre-rendered element
+    viewBox?: string;   // internal coordinate space, e.g. "0 0 700 380"
+    width?: number;     // rendered size; width accepts CSS units
+    height?: number;
+    [key: string]: any; // any SVG/CSS presentation attribute; pass-through to DOM
+
+    animator?: {
+        mode?: 'auto' | 'waapi' | 'frames'; // default 'auto' = WAAPI→RAF fallback; 'waapi' = WAAPI; 'frames' = RAF
+        frameRate?: number;                // target fps; RAF mode only (default: uncapped)
+
+        // WHAT ADVANCES THE PLAYHEAD — a discriminated object mirroring WAAPI's
+        // DocumentTimeline / ScrollTimeline / ViewTimeline. Timing and the playback
+        // dynamics live INSIDE it; each type carries only the fields that mean
+        // something for it. Omitting `timeline` entirely means a plain clock.
+        timeline?:
+            | {
+                type: 'clock';                     // wall time — something STARTS it (the trigger)
+                duration?: number;                 // length of ONE iteration, ms (default 1000); keyframe times are absolute offsets
+                delay?: number;                    // wait before start, ms (default 0); negative = skip ahead, e.g. -500 starts from the 0.5 s frame
+                iterations?: number | 'infinite';  // repeat count (default 1); composes with per-property loop (loop-within-loop)
+                fill?: 'forwards' | 'backwards' | 'both' | 'none';                      // WAAPI fill; default 'forwards' holds final state
+                direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';  // default 'normal'
+                trigger?: {
+                    startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
+                    outAction?: 'continue' | 'pause' | 'reset' | 'reverse'; // when the trigger condition ends; default 'continue'
+                    onFinish?: 'hold' | 'reset';      // after a NATURAL finish; default 'hold' (keep end state per `fill`)
+                    scrollIntoViewThreshold?: number; // how much must be on screen to start: 0 = any part (default), 1 = all of it; scrollIntoView only
+                };
+              }
+            | {
+                type: 'scroll' | 'view';           // scrubbed: the scroll container's offset ('scroll') or the SVG's
+                                                   // journey through the viewport ('view'); no trigger/delay slots exist here
+                duration?: number;                 // the keyframe span the scroll range maps onto, ms
+                iterations?: number;               // finite only — 'infinite' cannot map onto a range
+                engine?: 'custom' | 'native';      // who computes progress: the player (default) or the browser's ScrollTimeline
+                axis?: 'block' | 'inline' | 'x' | 'y';
+                source?: 'nearest' | 'root';       // type 'scroll' — which scroll container
+                subject?: string;                  // type 'view' — whose journey: 'parent' | 'scroller' | a CSS selector
+                smoothing?: number;                // ms catch-up lag toward the scroll position
+                pin?: boolean | { align?: 'top' | 'center' | 'bottom'; top?: number; distance?: number };
+                range?: { start?: { phase?: string; fraction?: number }; end?: { phase?: string; fraction?: number } };
+              };
+
+        // named reusable easings and animations; resolved at runtime
+        // materialise (inline) all refs before handing to a dumb player
+        definitions?: {
+            easings?: Record<string, [number, number, number, number]>; // name → [x1,y1,x2,y2]
+            animations?: Record<string, Record<string, ANIMATE>>;       // name → { propName: ANIMATE }
+            styles?: Record<string, Record<string, string | number>>;   // name → style preset, string|number values only (node.style may reference by name)
+            // font-family → embedded glyph outlines, for glyph-mode text
+            // (effects.text.useGlyphs) — renders without shipping a font
+            glyphs?: Record<string, {
+                fontFamily: string;   // e.g. "Roboto"
+                fontStyle: string;    // "" | "italic" | …
+                ascent: number;       // in unitsPerEm
+                unitsPerEm: number;   // e.g. 1000
+                glyphs: Record<string, { width: number; d: string }>;  // keyed by the character
+            }>;
+        };
+
+        debugInstName?: string;  // exposes the animator as window[debugInstName]
+
+        // bind-by-id documents — maps '#elementId' → animation spec. Same value type as
+        // `node.animate`; only the KEYSPACE differs (an element reference here, an attr
+        // name there). Reference spelling is uniform: every element reference in the
+        // format is '#id'-spelled — record keys included.
+        animateById?: Record<string,
+            | string
+            | Array<string>
+            | Record<string, ANIMATE>
+            | Array<string | Record<string, ANIMATE>>
+        >;
+    };
+
+    // self-contained documents — SVG element tree; its absence makes the document bind-by-id
+    children?: Array<{
+        type: string;       // SVG element tag: "rect", "g", "path", "ellipse", "use", …
+        id?: string;        // DOM id; required for href="#id" refs or animator.animateById targeting
+        [key: string]: any; // SVG/CSS attrs (cx, cy, r, fill, stroke, transform, …); pass-through
+        text?: string;      // text content for <text>/<tspan> (alias: textContent)
+        style?: string | Record<string, string | number>;
+        // named ref / array of refs / inline definition / mixed array
+        animate?: string | Array<string> | Record<string, ANIMATE> | Array<string | Record<string, ANIMATE>>;
+        // Player-materialised structural effects (transformBy/repeater/maskedBy/
+        // strokeTrim/clone/gradient/textPath/text). JSON-only — the
+        // Pre-rendered SVG export materialises these in the Editor. See "Player
+        // effects" section below.
+        effects?: {
+            // each part is animatable: raw value | {value} | {keyframes}
+            transformBy?:     { translate?: [x,y], rotate?: deg, skew?: deg, scale?: [x,y], origin?: [x,y] };
+            repeater?:        { copies?: number, translate?: [x,y], rotate?: deg, scale?: [%,%], origin?: [x,y] };
+            maskedBy?:        { sourceId?: string, maskType?: 'alpha' | 'luminance',
+                                maskUnits?, maskContentUnits?: 'userSpaceOnUse' | 'objectBoundingBox',
+                                x?, y?, width?, height?: number };   // mask viewport, user units
+            clipPath?:        { d?: "M…" | { value } | { keyframes } };   // ONE animatable slot, like every other effect
+            strokeTrim?:        { offset?: number, range?: [a,b], subPaths?: 'separate' | 'combined' };  // offset/range animatable
+            clone?:           { type?: 'content', sourceId?: string,
+                                retime?: { start?, stretch?: number, timeCrop?: [inMs, outMs] } };  // retime is PURE timing — the ref lives once, on the clone
+            // Geometry slots animate like any other slot ({value} | {keyframes});
+            // gradient geometry animation runs on the frames engine.
+            fillGradient?:    { type: 'linear'|'radial', start?, end? (linear) , center?, radius?, focal? (radial),
+                                stops?, gradientUnits?, spreadMethod?, gradientTransform? };
+            strokeGradient?:  { /* same shape as fillGradient */ };
+            textPath?:        { path: string, pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? };
+            text?:            { useGlyphs?: boolean };  // render text from embedded glyph outlines (definitions.glyphs)
+        };
+        meta?: any;         // editor-only (label, shape, …); not rendered, ignored by player
+        children?: Array<any>; // recursive; <g>, <defs>, <symbol>, <text>, <use>, …
+    }>;
+}
+```
+
+```typescript
+// PxPropertyAnimation — single-property animation
+interface ANIMATE {
+    keyframes?: Array<{
+        time?: number;                        // ms offset from the start of the document timeline
+        value?: any;                          // see "Keyframe values" below
+        easing?: string | [number, number, number, number]; // named ref or cubic-bezier
+        tangentOut?: [number, number];        // motion-path delta tangent at this kf
+        tangentIn?:  [number, number];        // motion-path delta tangent at this kf
+    }>;
+    autoOrient?: boolean;                     // translate-only: rotate element to face the path tangent
+    // pre-processes keyframes to fill the timeline duration by repeating a segment
+    // true → default: repeat last segment, cycling forward
+    // independent of timeline.iterations; composes as loop-within-loop
+    loop?: boolean | {
+        segmentCount?: number;           // intervals forming the segment; undefined = whole sequence; clamped [1, n-1]
+        extend?: 'before' | 'after';     // which END the loop fills: 'after' (default, absent) = idle/outro,
+                                         // 'before' = intro
+        alternate?: boolean;             // false (default) = cycle same direction; true = pingpong
+    };
+}
+```
+
 ## The document root
 
 | Field | Type | Meaning |
@@ -62,7 +208,7 @@ Three ideas cover 90 % of the format:
 | `id` | string | the element's identifier — it becomes the DOM id, and other elements and effects reference the element by it ([documents without `children`](#animating-a-pre-rendered-svg) rely on these references) |
 | `viewBox` | string | the drawing's coordinate space, exactly as in SVG — e.g. `"0 0 700 380"` means "the drawing spans 700 × 380 units" |
 | `width` · `height` | number or string | how big the drawing appears on the page — the same `width` / `height` you would put on an `<svg>` tag. Write a plain number (`400`) for pixels, or a string for anything with a unit: `"32px"`, `"100%"` |
-| `animator` | object | the playback settings — duration, loops, trigger, etc — see [Playback settings](./10-player--playback-and-triggers.md) and [Definitions](#definitions--animatordefinitions) |
+| `animator` | object | the playback settings — duration, loops, trigger, etc — see [Playback settings](../library/playback-and-triggers.md) and [Definitions](#definitions--animatordefinitions) |
 | `children` | array of element objects | the nested SVG children tree |
 | any SVG attribute | string or number | any other key is passed through to the rendered `<svg>` as an SVG attribute (`fill`, `style`, …) |
 
@@ -86,10 +232,10 @@ child elements), `animate` (its animation) and `effects` (its effects):
 | `id` | DOM id — required when something references the element (`href="#id"`, `maskedBy`, `animateById` — references are always `#id`-spelled, record keys included). When the player creates the DOM elements, it replaces every id with a fresh one (that is how several copies of one file coexist on a page), so ids need only be unique within the file |
 | `children` | nested nodes |
 | `animate` | this node's animations — [below](#animating--the-animate-channel) |
-| `effects` | this node's effects — [Player effects](./15-format--effects.md) |
+| `effects` | this node's effects — [Player effects](./effects.md) |
 | `style` | inline style: a string or an object, or the **name** of a preset in `definitions.styles` |
 | `textContent` | text content of `<text>` / `<tspan>` |
-| `meta` | editor-only data (labels, shape presets, applied effects). Players ignore it, so if the file will only ever be played — never edited in the editor again — this key can be removed — [Editor meta and applied effects](./16-format--editor-meta.md) |
+| `meta` | editor-only data (labels, shape presets, applied effects). Players ignore it, so if the file will only ever be played — never edited in the editor again — this key can be removed — [Editor meta and applied effects](./editor-meta.md) |
 | any other key | an SVG attribute |
 
 **Attribute names** may be written as in SVG (`stroke-width`, `font-size`) or camelCase
@@ -156,6 +302,14 @@ three shorthand forms, all built on **named animations** — animations defined 
 
 // Named animations mixed with an ordinary inline one
 "animate": ["fadeIn", { "scale": { "keyframes": [ { "time": 0, "value": [1, 1] }, { "time": 1000, "value": [1.5, 1.5] } ] } }]
+```
+
+**Any attribute takes one of three forms**, consistently across the format:
+
+```js
+{ fill: '#3b82f6' }                              // 1. primitive — static
+{ transform: { value: { translate: [10, 10] } } }// 2. {value} — structured static
+{ opacity: { keyframes: [ … ] } }                // 3. {keyframes} — animated
 ```
 
 ### Property animation
@@ -267,7 +421,9 @@ transform string is accepted too. Each part can also be animated as its own chan
 An animated `transform` writes the element's one `transform` attribute, so it overwrites a
 static `transform` on the same element — put a fixed placement on a wrapping `<g>` instead.
 And since all parts share one set of keyframes, they run on one schedule; to give each part
-its own timing, use the [`transformBy` effect](./15-format--effects.md#8--transformby).
+its own timing, use the [`transformBy` effect](./effects.md#8--transformby).
+
+The per-key form (`animate: { translate, rotate, scale }` — used in the examples below) is also accepted; both produce the same composed `transform` string at render. A static `transform` attribute **composes under** the animated transform (CSS's own precedence, applied at read): partial keyframe parts inherit the static parts they don't set, and a single per-key channel next to a static transform keeps that static — `transform: {rotate: 45}` + an animated `translate` slides the element *while it stays rotated*. The one remaining last-write-wins case: several per-key channels animated at once on one node — compose those by nesting `<g>`s instead.
 
 ## Motion along a path
 
@@ -384,4 +540,4 @@ each property has one fixed unit that is always understood:
 | `frameRate` | frames per second |
 | easing | cubic-bezier `[x1, y1, x2, y2]` |
 
-[← Format principles](./13-format--format-principles.md) · [Contents](./README.md) · Next: [Player effects →](./15-format--effects.md)
+[← Format principles](./principles.md) · [Contents](../README.md) · Next: [Player effects →](./effects.md)

@@ -1,6 +1,6 @@
 # Web player — `@pixodesk/svg-animator-web`
 
-[← Installing the players (overview)](./05-player--installation.md) · [Contents](./README.md) · Next: [React →](./07-player--react.md)
+[← Installing the players (overview)](./installation.md) · [Contents](../README.md) · Next: [React →](./react.md)
 
 Use this on a plain web page — or anywhere you write JavaScript without a framework — to play
 a JSON animation with full control. Hand it the document and it builds the SVG DOM, drives the
@@ -16,11 +16,11 @@ npm install @pixodesk/svg-animator-web
 
 ### Declarative — `data-px-animation-src`
 
-> **Example:** [`web/declarative`](../examples/docs-examples/src/cases/web/declarative/) — `pnpm example:docs`, then open `#web/declarative`.
+> **Example:** [`web/declarative`](../../examples/docs-examples/src/cases/web/declarative/) — `pnpm example:docs`, then open `#web/declarative`.
 
 Point an element at the JSON file and call `loadTagAnimators()` once the DOM is ready. The
 script is the UMD build, copied from the npm package into your site — see
-[Installing the players (overview)](./05-player--installation.md#the-three-builds--esm-cjs-and-umd):
+[Installing the players (overview)](./installation.md#the-three-builds--esm-cjs-and-umd):
 
 ```html
 <div data-px-animation-src="/bouncing-ball.json" style="width: 300px; height: 300px"></div>
@@ -75,7 +75,7 @@ elements that do not have an animator yet, so it is safe to call after inserting
 
 ### Programmatic — `createAnimator(options)`
 
-> **Example:** [`web/programmatic`](../examples/docs-examples/src/cases/web/programmatic/) — `pnpm example:docs`, then open `#web/programmatic`.
+> **Example:** [`web/programmatic`](../../examples/docs-examples/src/cases/web/programmatic/) — `pnpm example:docs`, then open `#web/programmatic`.
 
 Use `createAnimator` when you want to start the animation from code, react to what it does,
 or control it after it has loaded. It returns the playback API at once — even while the
@@ -121,7 +121,7 @@ animation, engine mode). So a file plays the way it was designed, with no config
 To change any of those settings for one page, edit the document object before you pass it as
 `data` — for example load the file, set `doc.animator.timeline = { type: 'clock', iterations: 'infinite' }`, then call
 `createAnimator({ data: doc, container: '#box' })`. Every field and its meaning is in
-[Playback settings & triggers](./10-player--playback-and-triggers.md).
+[Playback settings & triggers](./playback-and-triggers.md).
 
 ## The playback API
 
@@ -161,7 +161,7 @@ slider.addEventListener('input', () => {
 
 ## Callbacks
 
-> **Example:** [`web/callbacks`](../examples/docs-examples/src/cases/web/callbacks/) — `pnpm example:docs`, then open `#web/callbacks`.
+> **Example:** [`web/callbacks`](../../examples/docs-examples/src/cases/web/callbacks/) — `pnpm example:docs`, then open `#web/callbacks`.
 
 Pass `callbacks` to be told when the animation starts, pauses, resets, finishes or is
 destroyed — for example to reveal the next section of a page once an intro has finished. Every
@@ -190,7 +190,7 @@ createAnimator({
 
 ## Triggers
 
-> **Example:** [`web/triggers`](../examples/docs-examples/src/cases/web/triggers/) — `pnpm example:docs`, then open `#web/triggers`.
+> **Example:** [`web/triggers`](../../examples/docs-examples/src/cases/web/triggers/) — `pnpm example:docs`, then open `#web/triggers`.
 
 If the document says `trigger.startOn: 'click'` (or `mouseOver`, `scrollIntoView`), the player
 wires the event on the rendered SVG for you; `outAction` (continue / pause / reset / reverse)
@@ -203,7 +203,7 @@ with the old elements, and you need to attach them to the new ones.
 
 ## Engine modes
 
-> **Example:** [`web/engine-modes`](../examples/docs-examples/src/cases/web/engine-modes/) — `pnpm example:docs`, then open `#web/engine-modes`.
+> **Example:** [`web/engine-modes`](../../examples/docs-examples/src/cases/web/engine-modes/) — `pnpm example:docs`, then open `#web/engine-modes`.
 
 `animator.mode` in the document selects the engine:
 
@@ -218,7 +218,7 @@ the whole document runs on the frame loop. Either way it plays.
 
 ## Loading several animations
 
-> **Example:** [`web/several`](../examples/docs-examples/src/cases/web/several/) — `pnpm example:docs`, then open `#web/several`.
+> **Example:** [`web/several`](../../examples/docs-examples/src/cases/web/several/) — `pnpm example:docs`, then open `#web/several`.
 
 To put several animations on one page — different files, or the same file more than once —
 give each one its own element and call `loadTagAnimators()` once. Every element gets its own
@@ -244,7 +244,7 @@ on one page without id conflicts.
 
 ## Cleaning up
 
-> **Example:** [`web/cleanup`](../examples/docs-examples/src/cases/web/cleanup/) — `pnpm example:docs`, then open `#web/cleanup`.
+> **Example:** [`web/cleanup`](../../examples/docs-examples/src/cases/web/cleanup/) — `pnpm example:docs`, then open `#web/cleanup`.
 
 Call `destroy()` when the container goes away (route change, modal close). `onRemove` fires
 once. Frameworks: the React and Vue components do this on unmount.
@@ -252,8 +252,8 @@ once. Frameworks: the React and Vue components do this on unmount.
 
 ## Related
 
-- [Playback settings & triggers](./10-player--playback-and-triggers.md) — every `animator` field and how to override it
-- [JSON format reference](./14-format--json-format.md)
-- [Troubleshooting](./19-help--troubleshooting.md)
+- [Playback settings & triggers](./playback-and-triggers.md) — every `animator` field and how to override it
+- [JSON format reference](../format/json-format.md)
+- [Troubleshooting](./troubleshooting.md)
 
-[← Installing the players (overview)](./05-player--installation.md) · [Contents](./README.md) · Next: [React →](./07-player--react.md)
+[← Installing the players (overview)](./installation.md) · [Contents](../README.md) · Next: [React →](./react.md)

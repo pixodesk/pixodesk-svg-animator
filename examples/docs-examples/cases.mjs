@@ -8,12 +8,12 @@
 // `doc` is the chapter (and optional anchor) under /docs the case belongs to.
 
 export const GROUPS = [
-  { id: 'web',         title: 'Web player',              doc: '06-player--web-player.md' },
-  { id: 'react',       title: 'React',                   doc: '07-player--react.md' },
-  { id: 'vue',         title: 'Vue',                     doc: '08-player--vue.md' },
-  { id: 'playback',    title: 'Playback settings & triggers', doc: '10-player--playback-and-triggers.md' },
-  { id: 'prerendered', title: 'Pre-rendered SVG',        doc: '11-player--prerendered-svg.md' },
-  { id: 'static',      title: 'Static sites & CMS',      doc: '12-player--static-sites-and-cms.md' },
+  { id: 'web',         title: 'Web player',              doc: 'library/web-player.md' },
+  { id: 'react',       title: 'React',                   doc: 'library/react.md' },
+  { id: 'vue',         title: 'Vue',                     doc: 'library/vue.md' },
+  { id: 'playback',    title: 'Playback settings & triggers', doc: 'library/playback-and-triggers.md' },
+  { id: 'prerendered', title: 'Pre-rendered SVG',        doc: 'prerendered-svg/on-the-web.md' },
+  { id: 'static',      title: 'Static sites & CMS',      doc: 'prerendered-svg/static-sites-and-cms.md' },
 ];
 
 export const CASES = [

@@ -1,6 +1,6 @@
 # Pre-rendered SVG on the web
 
-[← Playback settings & triggers](./10-player--playback-and-triggers.md) · [Contents](./README.md) · Next: [Static sites & CMS →](./12-player--static-sites-and-cms.md)
+[← Playback settings & triggers](../library/playback-and-triggers.md) · [Contents](../README.md) · Next: [Static sites & CMS →](./static-sites-and-cms.md)
 
 Put a pre-rendered SVG on a page by **inlining** it — paste the `<svg>` into the HTML, or let
 your framework or static-site generator inline the file. It is a normal `.svg` with the
@@ -13,18 +13,18 @@ What does **not** work is treating it as a picture: `<img src>`, SVG `<image>`, 
 reach into it, so a pre-rendered SVG used that way is a static frame.
 
 This page shows the embedding options and how much control each flavour gives you once it is
-there. For which flavour to pick, see [Choosing a format](./02-start--choosing-a-format.md).
+there. For which flavour to pick, see [Choosing a format](../start/choosing-a-format.md).
 
 ## Three ways to embed animated SVG
 
-> **Example:** [`prerendered/img-css`](../examples/docs-examples/src/cases/prerendered/img-css/) — `pnpm example:docs`, then open `#prerendered/img-css`.
+> **Example:** [`prerendered/img-css`](../../examples/docs-examples/src/cases/prerendered/img-css/) — `pnpm example:docs`, then open `#prerendered/img-css`.
 
 Each of the three works with every flavour:
 
 | Method | Notes |
 |---|---|
 | **Inline** — paste the `<svg>…</svg>` into the HTML | the animation becomes part of your page, like any other HTML: your CSS can style its elements, your JavaScript can reach them (for example to add the play / pause classes), and the file's own script — if its flavour has one — runs as a normal page script. The most capable option |
-| **Build-time inline** — the framework or static-site generator inlines the file | you keep `a.svg` as a separate file in your project, and the tool copies its contents into the HTML when the site is built. The page ends up exactly as in the row above — as if you had pasted the `<svg>` in by hand — but the animation stays editable as its own file. How to set this up per tool: [Static sites & CMS](./12-player--static-sites-and-cms.md) |
+| **Build-time inline** — the framework or static-site generator inlines the file | you keep `a.svg` as a separate file in your project, and the tool copies its contents into the HTML when the site is built. The page ends up exactly as in the row above — as if you had pasted the `<svg>` in by hand — but the animation stays editable as its own file. How to set this up per tool: [Static sites & CMS](./static-sites-and-cms.md) |
 | **`<object data="a.svg">` / `<iframe src="a.svg">`** | runs in its own document; scripts work but cannot be reached from the page. Not recommended |
 
 **Not as a picture.** `<img src="a.svg">`, SVG `<image>` and CSS `background-image` show a
@@ -53,16 +53,16 @@ classes. Inline the file instead.
 | **3 · SVG + JS animation** | the animation uses something CSS cannot do, or you want the full playback API | • every animation type<br>• play, pause, jump to any point, reverse, change speed<br>• self-contained | • the player is embedded in the file (25–38 KB; the editor can instead leave it out and let the page load the player library, [`@pixodesk/svg-animator-web`](https://www.npmjs.com/package/@pixodesk/svg-animator-web), separately — see [Flavour 3](#flavour-3--svg--js-animation))<br>• the `<script>` rules out SVGR import<br>• out of the box, your own page scripts cannot control the playback: the script inside the file starts the player and keeps it to itself, in a local variable. [Flavour 3](#flavour-3--svg--js-animation) shows the workaround — and why JSON is the better choice when you need control from code |
 
 If you find yourself reaching for Flavour 3 *and* wanting to control it from code, the
-[JSON format](./06-player--web-player.md) is usually the better answer: same player, no
+[JSON format](../library/web-player.md) is usually the better answer: same player, no
 embedded copy per file, and any number of instances per page.
 
 The full comparison — including JSON, and what each engine can animate — is in
-[Choosing a format → Pros and cons](./02-start--choosing-a-format.md#pros-and-cons) and
-[Engine pros and cons](./02-start--choosing-a-format.md#engine-pros-and-cons).
+[Choosing a format → Pros and cons](../start/choosing-a-format.md#pros-and-cons) and
+[Engine pros and cons](../start/choosing-a-format.md#engine-pros-and-cons).
 
 ## Flavour 1 — SVG + CSS animation
 
-> **Example:** [`prerendered/inline-css`](../examples/docs-examples/src/cases/prerendered/inline-css/) — `pnpm example:docs`, then open `#prerendered/inline-css`.
+> **Example:** [`prerendered/inline-css`](../../examples/docs-examples/src/cases/prerendered/inline-css/) — `pnpm example:docs`, then open `#prerendered/inline-css`.
 
 In this flavour the file contains no JavaScript at all — the animation is written entirely in
 CSS, which every browser plays by itself. Inside the `.svg` there is a `<style>` block holding
@@ -71,7 +71,7 @@ connects it to its rules. Nothing needs to load or run for it to play.
 
 The complete *SVG + CSS animation* export of a bouncing ball, start option *On load* — exactly
 as the editor writes it (this is the file the
-[example](../examples/docs-examples/src/fixtures/ball-css-onload.svg) inlines):
+[example](../../examples/docs-examples/src/fixtures/ball-css-onload.svg) inlines):
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" id="_px_1" class="px-anim-enabled px-anim-playing" data-px-meta="runtime:{useCssAnimation:true},animator:{duration:1000,mode:'auto',iterations:'infinite',direction:'alternate',trigger:{startOn:'load',outAction:'pause'}}">
@@ -89,7 +89,7 @@ Three things to notice:
 - the `@keyframes` and the per-element class are the animation;
 - the two classes on the root `<svg>` are the play state;
 - `data-px-meta` is editor bookkeeping that lets the file be re-opened with its effects
-  intact — browsers ignore it ([Meta in pre-rendered SVG](./17-format--data-px-meta.md)).
+  intact — browsers ignore it ([Meta in pre-rendered SVG](./data-px-meta.md)).
 
 Whether the animation runs is decided by two CSS classes on the root `<svg>` element. The
 animation only plays while both are present; take one away and it stops. Since adding and
@@ -123,8 +123,8 @@ svg.classList.remove('px-anim-enabled', 'px-anim-playing'); // reset to the star
 
 This is exactly what the React and Vue `PixodeskSvgCssAnimator` components do for you — they
 wrap an SVGR / `vite-svg-loader` import in a `<div>` and toggle these classes on hover, click or
-scroll-into-view. See [React → CSS-flavour SVGs](./07-player--react.md#css-flavour-svgs--pixodesksvgcssanimator)
-and [Vue → CSS-flavour SVGs](./08-player--vue.md#css-flavour-svgs--pixodesksvgcssanimator).
+scroll-into-view. See [React → CSS-flavour SVGs](../library/react.md#css-flavour-svgs--pixodesksvgcssanimator)
+and [Vue → CSS-flavour SVGs](../library/vue.md#css-flavour-svgs--pixodesksvgcssanimator).
 
 ## Flavour 2 — SVG + CSS animation + JS triggers
 
@@ -139,7 +139,7 @@ scripts. Inline it, or use an `<object>`.
 
 ## Flavour 3 — SVG + JS animation
 
-> **Example:** [`prerendered/inline-js`](../examples/docs-examples/src/cases/prerendered/inline-js/) — `pnpm example:docs`, then open `#prerendered/inline-js`.
+> **Example:** [`prerendered/inline-js`](../../examples/docs-examples/src/cases/prerendered/inline-js/) — `pnpm example:docs`, then open `#prerendered/inline-js`.
 
 In this flavour nothing in the file is animated by CSS. Instead, the elements are drawn as
 plain, static SVG, and the file carries a `<script>` holding the animation data — which
@@ -147,7 +147,7 @@ elements move, and how, over time. When the page shows the file, that script han
 to the web player, and the player animates the elements. Below is the editor's
 *SVG + JS animation* export of the same bouncing-ball animation with the *Embed JS Player* option **off** —
 exactly as written (the
-[example](../examples/docs-examples/src/cases/prerendered/inline-js/) inlines it after loading
+[example](../../examples/docs-examples/src/cases/prerendered/inline-js/) inlines it after loading
 the player library). With *Embed JS Player* switched **on**, the editor inlines the player into that same
 `<script data-px-script="true">`, so the file is self-contained.
 
@@ -183,12 +183,12 @@ The player does not have to live inside the file at all. Switch the editor's *Em
 option **off** and the exported file contains only the drawing and the animation data; your
 page then loads the player library,
 [`@pixodesk/svg-animator-web`](https://www.npmjs.com/package/@pixodesk/svg-animator-web), as a
-normal script ([how to host it on your own site](./05-player--installation.md#the-three-builds--esm-cjs-and-umd)).
+normal script ([how to host it on your own site](../library/installation.md#the-three-builds--esm-cjs-and-umd)).
 Do this when several exported files sit on one page: they all use that one copy of the player
 instead of each file carrying its own.
 
 One limitation to know. The script inside the file starts the player and gets back a full
-remote control for the animation — the same [playback API](./06-player--web-player.md#the-playback-api)
+remote control for the animation — the same [playback API](../library/web-player.md#the-playback-api)
 the web player has, with play, pause and everything else. But the script keeps that remote
 control in a variable of its own, where scripts on your page cannot see it. So the animation
 plays fine, but your code has no way to pause it or jump around in it. If you need that
@@ -197,7 +197,7 @@ control, you have two options:
 - choose the *Manually from JS* start option in the editor, then edit the exported script by
   hand so it puts the remote control somewhere your code can reach, for example
   `window.myAnim = PixodeskAnimator.createAnimator(…)`;
-- or — simpler, and recommended — use the [JSON format](./06-player--web-player.md) instead:
+- or — simpler, and recommended — use the [JSON format](../library/web-player.md) instead:
   controlling the animation from code is exactly what it is made for.
 
 ## Sizing
@@ -207,4 +207,4 @@ its `viewBox` attribute (it preserves the proportions), remove or override the `
 `height` attributes, and give the size in CSS — on the `<svg>` itself or on the element that
 contains it, e.g. `svg { width: 100%; height: auto }`.
 
-[← Playback settings & triggers](./10-player--playback-and-triggers.md) · [Contents](./README.md) · Next: [Static sites & CMS →](./12-player--static-sites-and-cms.md)
+[← Playback settings & triggers](../library/playback-and-triggers.md) · [Contents](../README.md) · Next: [Static sites & CMS →](./static-sites-and-cms.md)

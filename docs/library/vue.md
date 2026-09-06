@@ -1,11 +1,11 @@
 # Vue — `@pixodesk/svg-animator-vue`
 
-[← React](./07-player--react.md) · [Contents](./README.md) · Next: [React Native →](./09-player--react-native.md)
+[← React](./react.md) · [Contents](../README.md) · Next: [React Native →](./react-native.md)
 
 Use this in a Vue 3 or Nuxt app: drop in the component, pass it the JSON, and it renders the
-animation and controls its playback. It wraps the [web player](./06-player--web-player.md) and
+animation and controls its playback. It wraps the [web player](./web-player.md) and
 renders the SVG through Vue's virtual DOM, so it is SSR-safe and Nuxt-ready. It mirrors the
-[React component](./07-player--react.md) feature for feature, so the two guides read the same.
+[React component](./react.md) feature for feature, so the two guides read the same.
 
 ```bash
 npm install @pixodesk/svg-animator-vue
@@ -32,7 +32,7 @@ Pick one — they are mutually exclusive, and take precedence in the order liste
 
 ### 1 · Autoplay
 
-> **Example:** [`vue/autoplay`](../examples/docs-examples/src/cases/vue/autoplay/) — `pnpm example:docs`, then open `#vue/autoplay`.
+> **Example:** [`vue/autoplay`](../../examples/docs-examples/src/cases/vue/autoplay/) — `pnpm example:docs`, then open `#vue/autoplay`.
 
 The simplest mode: the component starts the animation the way the file says it should — on
 load, on hover, on click, or when scrolled into view.
@@ -53,7 +53,7 @@ action. Override with `startOn` / `outAction` / `scrollIntoViewThreshold`.
 
 ### 2 · Controlled time (`progress` / `time`)
 
-> **Example:** [`vue/controlled-time`](../examples/docs-examples/src/cases/vue/controlled-time/) — `pnpm example:docs`, then open `#vue/controlled-time`.
+> **Example:** [`vue/controlled-time`](../../examples/docs-examples/src/cases/vue/controlled-time/) — `pnpm example:docs`, then open `#vue/controlled-time`.
 
 Use these when your code owns the position — a slider, a scroll offset, a step in a
 walkthrough. The component renders exactly that frame and never plays on its own.
@@ -79,7 +79,7 @@ Changing the value moves the existing animator to the new time — nothing is re
 
 ### 3 · Declarative play / pause
 
-> **Example:** [`vue/declarative`](../examples/docs-examples/src/cases/vue/declarative/) — `pnpm example:docs`, then open `#vue/declarative`.
+> **Example:** [`vue/declarative`](../../examples/docs-examples/src/cases/vue/declarative/) — `pnpm example:docs`, then open `#vue/declarative`.
 
 Drive playback from your own state with two booleans — handy when play/pause is already part
 of your component's state (a toggle, a visibility flag) and you would rather not hold a ref.
@@ -102,7 +102,7 @@ const paused = ref(false);
 
 ### 4 · Imperative API (template ref)
 
-> **Example:** [`vue/imperative`](../examples/docs-examples/src/cases/vue/imperative/) — `pnpm example:docs`, then open `#vue/imperative`.
+> **Example:** [`vue/imperative`](../../examples/docs-examples/src/cases/vue/imperative/) — `pnpm example:docs`, then open `#vue/imperative`.
 
 The component exposes the playback API on its template ref, so it is available in every mode:
 
@@ -146,7 +146,7 @@ component.
 | `iterations` | `number \| 'infinite'` | how many times to play; `'infinite'` never stops |
 | `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | play forward, backward, or turn around on every iteration (starting forward or backward) |
 | `fill` | `'forwards' \| 'backwards' \| 'both' \| 'none'` | what shows before the start / after the end |
-| `mode` | `'auto' \| 'waapi' \| 'frames'` | engine — see [Web player → Engine modes](./06-player--web-player.md#engine-modes) |
+| `mode` | `'auto' \| 'waapi' \| 'frames'` | engine — see [Web player → Engine modes](./web-player.md#engine-modes) |
 | `frameRate` | `number` | target fps (frames engine) |
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | what starts the animation: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
 | `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | when the trigger ends (mouse out, second click, scrolled out) |
@@ -182,7 +182,7 @@ emits `cancel`, `remove` and `stop` on its way out.
 
 ## CSS-flavour SVGs — `PixodeskSvgCssAnimator`
 
-> **Example:** [`vue/css-loader`](../examples/docs-examples/src/cases/vue/css-loader/) — `pnpm example:docs`, then open `#vue/css-loader`.
+> **Example:** [`vue/css-loader`](../../examples/docs-examples/src/cases/vue/css-loader/) — `pnpm example:docs`, then open `#vue/css-loader`.
 
 For a **pre-rendered SVG + CSS animation** file imported with
 [`vite-svg-loader`](https://github.com/jpkleemans/vite-svg-loader) (or any loader that yields a
@@ -214,7 +214,7 @@ import AnimationSvg from './animation.svg';   // vite-svg-loader
 > work is the *same* file twice: the imported component is the file's markup, element ids
 > included, so two copies share the same ids and their masks and gradients cross over. To show
 > one animation several times, use the JSON component instead — the player gives every copy
-> its own ids ([read more](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
+> its own ids ([read more](../prerendered-svg/on-the-web.md#one-copy-of-a-file-per-page)).
 
 Only the pure CSS flavour works this way (loaders strip or refuse `<script>`); flavours with
 scripts should be inlined as raw HTML, or use JSON.
@@ -228,10 +228,10 @@ mount. Nothing special is required beyond importing the component; for a CSS-fla
 ## Example
 
 Every section above links to its running example in
-[`examples/docs-examples`](../examples/docs-examples/). Each example is a small standalone
+[`examples/docs-examples`](../../examples/docs-examples/). Each example is a small standalone
 page, and they are all collected in one app: a list of every example down the side, with the
 selected one running next to it. Run `pnpm example:docs` from the repository root to open it,
 then pick an example from the list — or jump straight to one by its address in the URL, like
 `#vue/autoplay`. Each example has a test that runs on every build.
 
-[← React](./07-player--react.md) · [Contents](./README.md) · Next: [React Native →](./09-player--react-native.md)
+[← React](./react.md) · [Contents](../README.md) · Next: [React Native →](./react-native.md)

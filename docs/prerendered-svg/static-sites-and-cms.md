@@ -1,6 +1,6 @@
 # Static sites & CMS
 
-[← Pre-rendered SVG on the web](./11-player--prerendered-svg.md) · [Contents](./README.md) · Next: [Format principles →](./13-format--format-principles.md)
+[← Pre-rendered SVG on the web](./on-the-web.md) · [Contents](../README.md) · Next: [Format principles →](../format/principles.md)
 
 Building with a static-site generator or a CMS? Use a pre-rendered SVG: the build tool or
 CMS **inlines the file** and the animation is on screen before any JavaScript runs. Even the
@@ -13,9 +13,9 @@ the JSON format with a player is available too.
 |---|---|---|
 | **Astro** | `import svg from './animation.svg?raw';` then `<Fragment set:html={svg} />` | use the React or Vue component with the `client:load` directive, which tells Astro to run it in the browser (an “island”, in Astro's own terms) |
 | **Gatsby** | `gatsby-plugin-react-svg` (CSS flavour) or `dangerouslySetInnerHTML` with the raw file | React component |
-| **Jekyll** | `{% include_relative assets/animation.svg %}` | use the player library [`@pixodesk/svg-animator-web`](https://www.npmjs.com/package/@pixodesk/svg-animator-web): it ships a single `.js` file (the “UMD” build) that you copy to your site and load with a plain `<script>` tag — [how to get the file](./05-player--installation.md#the-three-builds--esm-cjs-and-umd), [example below](#vanilla-javascript-on-any-static-page) |
-| **Hugo** | `{{ readFile "static/animation.svg" \| safeHTML }}` | use the player library [`@pixodesk/svg-animator-web`](https://www.npmjs.com/package/@pixodesk/svg-animator-web): it ships a single `.js` file (the “UMD” build) that you copy to your site and load with a plain `<script>` tag — [how to get the file](./05-player--installation.md#the-three-builds--esm-cjs-and-umd), [example below](#vanilla-javascript-on-any-static-page) |
-| **11ty (Eleventy)** | `{% include "animation.svg" %}` | use the player library [`@pixodesk/svg-animator-web`](https://www.npmjs.com/package/@pixodesk/svg-animator-web): it ships a single `.js` file (the “UMD” build) that you copy to your site and load with a plain `<script>` tag — [how to get the file](./05-player--installation.md#the-three-builds--esm-cjs-and-umd), [example below](#vanilla-javascript-on-any-static-page) |
+| **Jekyll** | `{% include_relative assets/animation.svg %}` | use the player library [`@pixodesk/svg-animator-web`](https://www.npmjs.com/package/@pixodesk/svg-animator-web): it ships a single `.js` file (the “UMD” build) that you copy to your site and load with a plain `<script>` tag — [how to get the file](../library/installation.md#the-three-builds--esm-cjs-and-umd), [example below](#vanilla-javascript-on-any-static-page) |
+| **Hugo** | `{{ readFile "static/animation.svg" \| safeHTML }}` | use the player library [`@pixodesk/svg-animator-web`](https://www.npmjs.com/package/@pixodesk/svg-animator-web): it ships a single `.js` file (the “UMD” build) that you copy to your site and load with a plain `<script>` tag — [how to get the file](../library/installation.md#the-three-builds--esm-cjs-and-umd), [example below](#vanilla-javascript-on-any-static-page) |
+| **11ty (Eleventy)** | `{% include "animation.svg" %}` | use the player library [`@pixodesk/svg-animator-web`](https://www.npmjs.com/package/@pixodesk/svg-animator-web): it ships a single `.js` file (the “UMD” build) that you copy to your site and load with a plain `<script>` tag — [how to get the file](../library/installation.md#the-three-builds--esm-cjs-and-umd), [example below](#vanilla-javascript-on-any-static-page) |
 | **Docusaurus / MDX** | import the CSS flavour as a component (SVGR is built in) — [example below](#docusaurus--mdx) | React component |
 
 The rows above use two different ways of putting the file into the page, and they are not
@@ -57,7 +57,7 @@ One setting matters. Docusaurus runs **SVGO**, an SVG optimiser, on every import
 one of SVGO's optimisations (`inlineStyles`) rewrites the file's `<style>` rules as plain
 attributes on the elements. That rewrite destroys the animation's on/off switch: the file's
 CSS rules only apply while the play classes are on the root `<svg>`
-([how that works](./11-player--prerendered-svg.md#flavour-1--svg--css-animation)), and once
+([how that works](./on-the-web.md#flavour-1--svg--css-animation)), and once
 the rules are inlined, the classes no longer control anything — the animation cannot be
 started or stopped. Turn SVGO off for the SVGR plugin in `docusaurus.config.js`:
 
@@ -88,11 +88,11 @@ recommends for bringing a file's raw text into a page.
 
 Application frameworks that render on the client — Next.js, Nuxt, SvelteKit, Angular — are a
 different case: there the JSON format with a player is the natural fit. See
-[React → Next.js](./07-player--react.md#nextjs) and [Vue → Nuxt](./08-player--vue.md#nuxt).
+[React → Next.js](../library/react.md#nextjs) and [Vue → Nuxt](../library/vue.md#nuxt).
 
 ### Vanilla JavaScript on any static page
 
-> **Example:** [`static/vanilla-umd`](../examples/docs-examples/src/cases/static/vanilla-umd/) — `pnpm example:docs`, then open `#static/vanilla-umd`.
+> **Example:** [`static/vanilla-umd`](../../examples/docs-examples/src/cases/static/vanilla-umd/) — `pnpm example:docs`, then open `#static/vanilla-umd`.
 
 A page with no framework and no build step: the UMD build copied to your site, one element per
 animation, one call:
@@ -105,9 +105,9 @@ animation, one call:
 
 The `pixodesk-svg-animator.umd.min.js` file in the first `<script>` tag is the player itself —
 one `.js` file you copy out of the npm package and put on your own site;
-[Installing the players (overview)](./05-player--installation.md#the-three-builds--esm-cjs-and-umd)
+[Installing the players (overview)](../library/installation.md#the-three-builds--esm-cjs-and-umd)
 shows exactly how. Everything you can do with the player from here — controlling playback,
-reacting to events — is described in [Web player](./06-player--web-player.md).
+reacting to events — is described in [Web player](../library/web-player.md).
 
 ## CMS and website builders
 
@@ -135,7 +135,7 @@ platform that filters pasted HTML.
   from your own origin.
 - ⚠️ **One copy of a file per page.** Inlining the same file twice duplicates its ids and breaks
   masks, gradients and bindings. Export a separate file for each place (every export gets its own ids) or use
-  JSON, where the player gives every instance fresh ids ([read more](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
+  JSON, where the player gives every instance fresh ids ([read more](./on-the-web.md#one-copy-of-a-file-per-page)).
 - **Sizing.** Keep the `viewBox`, remove fixed `width`/`height` if you want the SVG to scale
   with its container, and size the container with CSS.
 - **Animations further down the page.** For an animation the visitor has to scroll to, use
@@ -143,4 +143,4 @@ platform that filters pasted HTML.
   into view. Otherwise the animation plays while it is still off screen, and by the time the
   visitor reaches it, it is already over.
 
-[← Pre-rendered SVG on the web](./11-player--prerendered-svg.md) · [Contents](./README.md) · Next: [Format principles →](./13-format--format-principles.md)
+[← Pre-rendered SVG on the web](./on-the-web.md) · [Contents](../README.md) · Next: [Format principles →](../format/principles.md)

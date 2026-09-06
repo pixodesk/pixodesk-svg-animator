@@ -1,6 +1,6 @@
 # Playback settings & triggers
 
-[← React Native](./09-player--react-native.md) · [Contents](./README.md) · Next: [Pre-rendered SVG on the web →](./11-player--prerendered-svg.md)
+[← React Native](./react-native.md) · [Contents](../README.md) · Next: [Pre-rendered SVG on the web →](../prerendered-svg/on-the-web.md)
 
 Change how an animation plays — its length, loops, direction, what starts it — without going
 back to the editor. Everything about *when* and *how* it plays lives in one place, the
@@ -10,7 +10,7 @@ overrides.
 
 The editor writes the same block from its playback panel; if you only want to set the
 defaults there, see
-[Set default playback settings & triggers](./04-editor--playback-settings.md).
+[Set default playback settings & triggers](../start/editor-playback-settings.md).
 
 A document with its `animator` block. (The comments are explanatory; JSON does not allow
 comments, so a real file has none.)
@@ -48,7 +48,7 @@ comments, so a real file has none.)
 }
 ```
 
-The same bouncing ball as in the [web player](./06-player--web-player.md#declarative--data-px-animation-src),
+The same bouncing ball as in the [web player](./web-player.md#declarative--data-px-animation-src),
 now two seconds per bounce and waiting until half of it has scrolled into view.
 
 ## The `timeline` — what advances the playhead
@@ -87,7 +87,7 @@ the timeline:
 different levels. `iterations` repeats the **whole document** — every element, from the first
 keyframe to the last. A single property can also `loop` on its own: a segment of *its own*
 keyframes repeats until it fills the document's duration, while everything else plays through
-once (see [JSON format → Per-property loops](./14-format--json-format.md#per-property-loops)). The property loop is
+once (see [JSON format → Per-property loops](../format/json-format.md#per-property-loops)). The property loop is
 applied first, when the document is prepared; `iterations` then repeats the result. So both
 can be used at once, and one runs inside the other: a wheel whose rotation loops, inside a
 document set to infinite iterations, keeps spinning during every iteration.
@@ -140,12 +140,12 @@ Where triggers work:
 - **Pre-rendered SVG + CSS animation** (no script at all) supports `load`, and `mouseOver`
   through CSS `:hover`. `click` and `scrollIntoView` cannot be done in pure CSS, so in this
   flavour they behave like `load` — the animation starts as soon as it is shown. See
-  [Pre-rendered SVG](./11-player--prerendered-svg.md#flavour-1--svg--css-animation).
+  [Pre-rendered SVG](../prerendered-svg/on-the-web.md#flavour-1--svg--css-animation).
 
 ## Overriding from a player
 
-> **Example:** [`playback/override-web`](../examples/docs-examples/src/cases/playback/override-web/) — `pnpm example:docs`, then open `#playback/override-web`.
-> **Example:** [`playback/override-react`](../examples/docs-examples/src/cases/playback/override-react/) — `pnpm example:docs`, then open `#playback/override-react`.
+> **Example:** [`playback/override-web`](../../examples/docs-examples/src/cases/playback/override-web/) — `pnpm example:docs`, then open `#playback/override-web`.
+> **Example:** [`playback/override-react`](../../examples/docs-examples/src/cases/playback/override-react/) — `pnpm example:docs`, then open `#playback/override-react`.
 
 **Web player** — edit the object before handing it over (the player reads `animator` once at
 creation):
@@ -222,4 +222,4 @@ Support: the **web player** (both engines, and therefore React and Vue), and the
 animation* export. Not yet: the CSS export or React Native. The complete "scrollytelling"
 pattern is `subject: "parent"` + `pin: true` inside a tall section.
 
-[← React Native](./09-player--react-native.md) · [Contents](./README.md) · Next: [Pre-rendered SVG on the web →](./11-player--prerendered-svg.md)
+[← React Native](./react-native.md) · [Contents](../README.md) · Next: [Pre-rendered SVG on the web →](../prerendered-svg/on-the-web.md)

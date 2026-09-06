@@ -1,6 +1,6 @@
 # animator-react
 
-> 📖 Full user guide: [docs/07-player--react.md](../../docs/07-player--react.md) · [all docs](../../docs/README.md)
+> 📖 Full user guide: [docs/library/react.md](../../docs/library/react.md) · [all docs](../../docs/README.md)
 
 [![CI](https://github.com/pixodesk/pixodesk-svg-animator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/pixodesk/pixodesk-svg-animator/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

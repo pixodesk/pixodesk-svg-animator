@@ -1,6 +1,6 @@
 # Player effects
 
-[← JSON format reference](./14-format--json-format.md) · [Contents](./README.md) · Next: [Editor meta and applied effects →](./16-format--editor-meta.md)
+[← JSON format reference](./json-format.md) · [Contents](../README.md) · Next: [Editor meta and applied effects →](./editor-meta.md)
 
 An **effect** is a shortcut. Everything an effect does could be written out by hand with
 plain elements and attributes — a mask as a `<mask>` element, five copies of a shape as five
@@ -292,4 +292,4 @@ player materialises each clone into its own elements with its own timing.
 Symbols with their own animation length are how the editor builds reusable animated components;
 instances re-time them freely.
 
-[← JSON format reference](./14-format--json-format.md) · [Contents](./README.md) · Next: [Editor meta and applied effects →](./16-format--editor-meta.md)
+[← JSON format reference](./json-format.md) · [Contents](../README.md) · Next: [Editor meta and applied effects →](./editor-meta.md)

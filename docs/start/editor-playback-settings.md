@@ -1,6 +1,6 @@
 # Set default playback settings & triggers
 
-[← The editor](./03-editor--editor.md) · [Contents](./README.md) · Next: [Installing the players (overview) →](./05-player--installation.md)
+[← The editor](./editor.md) · [Contents](../../README.md) · Next: [Installing the players (overview) →](../library/installation.md)
 
 Set *how long*, *how many times* and *what starts it* once, in the editor, and forget about
 it: the settings travel inside the file, every player reads them, and the animation plays
@@ -8,7 +8,7 @@ correctly with no configuration on the page.
 
 This page is the **editor** side: which control writes which value. To change any of it at
 runtime, from component props or the player API, see
-[Playback settings & triggers](./10-player--playback-and-triggers.md).
+[Playback settings & triggers](../library/playback-and-triggers.md).
 
 These are settings of the whole document, not of an element, so the panel shows them when
 **nothing is selected** — deselect everything (click an empty part of the canvas), or select
@@ -89,8 +89,8 @@ Not every export can carry every setting from this page. What each one keeps:
 | **SVG + CSS + JS triggers** | timing, every trigger, the out action and **Reset on finish** — through a few inline lines of script (added by the editor app), no library |
 | **SVG + JS animation** | everything |
 
-[Choosing a format](./02-start--choosing-a-format.md) has the full comparison.
+[Choosing a format](./choosing-a-format.md) has the full comparison.
 
 ---
 
-[← The editor](./03-editor--editor.md) · [Contents](./README.md) · Next: [Installing the players (overview) →](./05-player--installation.md)
+[← The editor](./editor.md) · [Contents](../../README.md) · Next: [Installing the players (overview) →](../library/installation.md)

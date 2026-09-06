@@ -25,13 +25,13 @@ directly, view source, copy it.
 2. Register it in [`cases.mjs`](cases.mjs) — that one entry adds it to the Vite build, to the
    browser's sidebar, and to the test suite.
 3. If "it animates" is not the right check, add a specific one to
-   [`e2e/cases.spec.ts`](e2e/cases.spec.ts).
+   [`e2e/cases.spec.ts`](./e2e/cases.spec.ts).
 
 ## Not covered
 
 **SVG + CSS + JS triggers** (pre-rendered flavour 2) has no case: its trigger script is
 produced by the editor's export, and nothing in this repo generates it. Full coverage is not a
-goal; the docs describe it in [Pre-rendered SVG → Flavour 2](../../docs/11-player--prerendered-svg.md#flavour-2--svg--css-animation--js-triggers).
+goal; the docs describe it in [Pre-rendered SVG → Flavour 2](../../docs/prerendered-svg/on-the-web.md#flavour-2--svg--css-animation--js-triggers).
 
 ## How the tests gate the build
 

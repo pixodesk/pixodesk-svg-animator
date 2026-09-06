@@ -1,6 +1,6 @@
 # animator-core
 
-> 📖 Full user guide: [docs/18-format--core-library.md](../../docs/18-format--core-library.md) · [all docs](../../docs/README.md)
+> 📖 Full user guide: [docs/format/core-library.md](../../docs/format/core-library.md) · [all docs](../../docs/README.md)
 
 [![CI](https://github.com/pixodesk/pixodesk-svg-animator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/pixodesk/pixodesk-svg-animator/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

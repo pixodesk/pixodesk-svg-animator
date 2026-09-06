@@ -1,18 +1,18 @@
 # Meta in pre-rendered SVG — `data-px-meta`
 
-[← Editor meta and applied effects](./16-format--editor-meta.md) · [Contents](./README.md) · Next: [Core library →](./18-format--core-library.md)
+[← Editor meta and applied effects](../format/editor-meta.md) · [Contents](../README.md) · Next: [Core library →](../format/core-library.md)
 
 Read this if you open a pre-rendered `.svg` in a text editor and want to know what the
 `data-px-meta` attributes are, whether you can remove them, or how to read them from code.
 
 A pre-rendered SVG is a normal SVG file, and SVG has no place for editor data — so the editor's
-`meta` object ([Editor meta and applied effects](./16-format--editor-meta.md)) is written into
+`meta` object ([Editor meta and applied effects](../format/editor-meta.md)) is written into
 one attribute per element. Browsers and players ignore it; only the editor reads it.
 
 A complete *SVG + CSS animation* export, exactly as the editor writes it: one circle with a
 `repeater` effect (three copies), fading in and out. The root carries the playback settings;
 the host, its core and every derived copy carry the marks described in
-[Editor meta → derived elements (host / core / part)](./16-format--editor-meta.md#applied-effects-that-create-derived-elements-host--core--part):
+[Editor meta → derived elements (host / core / part)](../format/editor-meta.md#applied-effects-that-create-derived-elements-host--core--part):
 
 ```svg
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" id="_px_1" class="px-anim-enabled px-anim-playing" data-px-meta="runtime:{useCssAnimation:true},animator:{duration:1000,mode:'auto',iterations:'infinite',direction:'alternate',trigger:{startOn:'load',outAction:'pause'}}">
@@ -85,7 +85,7 @@ to `…`):
 ```
 
 The keys mean exactly what they mean in the JSON format — the table in
-[Editor meta → The fields](./16-format--editor-meta.md#the-fields) applies unchanged. Two of them
+[Editor meta → The fields](../format/editor-meta.md#the-fields) applies unchanged. Two of them
 exist *only* in this form:
 
 ### The animator config lives in two different places
@@ -128,11 +128,11 @@ element also carries its original `animate` channel in `data-px-meta` — the sa
 > ⚠️ **Only if you will never open this file in the editor again.** `data-px-meta` is what
 > makes a pre-rendered file editable: strip it, and a star preset becomes a plain path, glyph
 > text becomes outlines, an expanded effect becomes ordinary elements
-> ([Applied effects that create derived elements](./16-format--editor-meta.md#applied-effects-that-create-derived-elements-host--core--part)).
+> ([Applied effects that create derived elements](../format/editor-meta.md#applied-effects-that-create-derived-elements-host--core--part)).
 > Keep the original export if you might ever want to edit it again.
 
 For a file that only has to play, removing it is safe: nothing in `data-px-meta` is read by a
 browser or a player, so stripping every `data-px-meta` attribute changes nothing on screen and
 makes the file smaller.
 
-[← Editor meta and applied effects](./16-format--editor-meta.md) · [Contents](./README.md) · Next: [Core library →](./18-format--core-library.md)
+[← Editor meta and applied effects](../format/editor-meta.md) · [Contents](../README.md) · Next: [Core library →](../format/core-library.md)

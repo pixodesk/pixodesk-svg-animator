@@ -1,6 +1,6 @@
 # Editor meta and applied effects
 
-[← Player effects](./15-format--effects.md) · [Contents](./README.md) · Next: [Meta in pre-rendered SVG →](./17-format--data-px-meta.md)
+[← Player effects](./effects.md) · [Contents](../README.md) · Next: [Meta in pre-rendered SVG →](../prerendered-svg/data-px-meta.md)
 
 The **editor app** writes its own information into a dedicated field that every **node** can
 carry, called **`meta`**. It holds things like element labels, shape presets, and the
@@ -13,7 +13,7 @@ find in a file — or know what you can safely leave out when writing a file by 
 
 Every node may carry a `meta` object. In the JSON format it sits on the node as `node.meta`;
 in a pre-rendered SVG the same object is written into a per-element `data-px-meta` attribute
-([Meta in pre-rendered SVG](./17-format--data-px-meta.md)). One read pipeline handles both.
+([Meta in pre-rendered SVG](../prerendered-svg/data-px-meta.md)). One read pipeline handles both.
 
 ```js
 // A plain SVG path — this is what every player draws
@@ -31,7 +31,7 @@ in a pre-rendered SVG the same object is written into a per-element `data-px-met
 | `effectsHost` | the host of expanded parts, **pre-rendered SVG only** | some effects turn one drawn element into several written elements (a repeater becomes its copies) — its "expanded parts". This field sits on the expansion's outermost element (its **host**) and holds `{ coreId?, appliedEffects }`: all the effects the drawn element had, so the editor can fold the parts back into that one element — [Expanded parts](#applied-effects-that-create-derived-elements-host--core--part) |
 | `partOf` | every element derived by that expansion, **pre-rendered SVG only** | the counterpart of `effectsHost`: each element the expansion produced carries `"#hostId"` pointing back at the host element that holds the `effectsHost` field, so the whole unit can be found from any of its parts |
 | `runtime` | root `<svg>` only | how the animation code was generated: `{ useCssAnimation, useJsTriggers, externalJs, unoptimisedJs }` — the export-format choices, not the animation |
-| `animator` | root `<svg>`, **pre-rendered SVG only** | the playback settings; in JSON they are the top-level `animator` instead ([read more](./17-format--data-px-meta.md#the-animator-config-lives-in-two-different-places)) |
+| `animator` | root `<svg>`, **pre-rendered SVG only** | the playback settings; in JSON they are the top-level `animator` instead ([read more](../prerendered-svg/data-px-meta.md#the-animator-config-lives-in-two-different-places)) |
 | `timeline` | `<symbol>` only | `{ duration }` — the symbol's own animation length, ms |
 | `lineSpacing` | text line `<tspan>`s from the second line on | the *Auto* line-height multiplier the materialised `y` was computed from |
 | `animate` | any element, **pre-rendered SVG only** | the node's keyframes, so a CSS export can be re-opened; in JSON this is the node's own `animate` |
@@ -49,7 +49,7 @@ means:
 
 | | Meaning | Which effects can appear |
 |---|---|---|
-| `node.effects` | **apply these.** The player reads this when the document loads and applies the effects — [Player effects](./15-format--effects.md) | the player effects: `text`, `textPath`, `fillGradient`, `strokeGradient`, `strokeTrim`, `repeater`, `maskedBy`, `clipPath`, `transformBy`, `clone` |
+| `node.effects` | **apply these.** The player reads this when the document loads and applies the effects — [Player effects](./effects.md) | the player effects: `text`, `textPath`, `fillGradient`, `strokeGradient`, `strokeTrim`, `repeater`, `maskedBy`, `clipPath`, `transformBy`, `clone` |
 | `node.meta.appliedEffects` | **these were already applied.** The result is in the node's ordinary attributes; the settings are kept for the editor, so that when it opens the file it can read the effect back as an effect — not just its materialised result | the same names, plus keys only the editor knows: `shape`, `combinedPath`, and widened `text` / `clone` — listed below |
 
 The player never reads `appliedEffects`, and the editor never re-applies it. Editing a value
@@ -101,7 +101,7 @@ drew. Three marks make that possible:
 
 For example, a fading circle — its opacity is animated — drawn once with a `repeater` effect
 (three copies) is written into a pre-rendered export like this (shortened — the complete,
-genuine export is in [Meta in pre-rendered SVG](./17-format--data-px-meta.md)):
+genuine export is in [Meta in pre-rendered SVG](../prerendered-svg/data-px-meta.md)):
 
 ```svg
 <!-- HOST: the outermost element of the expansion. It keeps the drawn element's own id
@@ -142,4 +142,4 @@ restoring an effect while leaving its old expansion behind would double it on th
 Expanded parts appear in pre-rendered files. A JSON document from the editor carries its
 effects declaratively instead, so it never contains them.
 
-[← Player effects](./15-format--effects.md) · [Contents](./README.md) · Next: [Meta in pre-rendered SVG →](./17-format--data-px-meta.md)
+[← Player effects](./effects.md) · [Contents](../README.md) · Next: [Meta in pre-rendered SVG →](../prerendered-svg/data-px-meta.md)

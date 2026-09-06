@@ -1,11 +1,11 @@
 # Installing the players (overview)
 
-[← Set default playback settings & triggers](./04-editor--playback-settings.md) · [Contents](./README.md) · Next: [Web player →](./06-player--web-player.md)
+[← Set default playback settings & triggers](../start/editor-playback-settings.md) · [Contents](../README.md) · Next: [Web player →](./web-player.md)
 
 Install a package only if you use the **JSON** format. A pre-rendered SVG needs nothing —
 the CSS flavour is plain SVG, and the JS flavour carries its own copy of the player — so if
 that is your route, skip this page. (One limit to know before you commit to it: a pre-rendered
-file can be inlined **once per page** — [read more](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page).)
+file can be inlined **once per page** — [read more](../prerendered-svg/on-the-web.md#one-copy-of-a-file-per-page).)
 
 ## Packages
 
@@ -14,7 +14,7 @@ file can be inlined **once per page** — [read more](./11-player--prerendered-s
 | `@pixodesk/svg-animator-web` | browsers, vanilla JavaScript / any framework via the DOM | `npm install @pixodesk/svg-animator-web` |
 | `@pixodesk/svg-animator-react` | React 18+ / Next.js | `npm install @pixodesk/svg-animator-react` |
 | `@pixodesk/svg-animator-vue` | Vue 3 / Nuxt | `npm install @pixodesk/svg-animator-vue` |
-| `@pixodesk/svg-animator-rn` 🧪 | React Native / Expo *(in development)* | `npm install @pixodesk/svg-animator-rn` — plus `react-native-svg` and `react-native-reanimated`, see [React Native](./09-player--react-native.md#install) |
+| `@pixodesk/svg-animator-rn` 🧪 | React Native / Expo *(in development)* | `npm install @pixodesk/svg-animator-rn` — plus `react-native-svg` and `react-native-reanimated`, see [React Native](./react-native.md#install) |
 | `@pixodesk/svg-animator-core` | schema, utils; no DOM | `npm install @pixodesk/svg-animator-core` |
 
 
@@ -28,7 +28,7 @@ The web player ships in three builds, and your tooling picks the right one by it
 - **ESM** — for a bundler (Vite, webpack, Rollup, esbuild) or any modern setup:
   `import { createAnimator } from '@pixodesk/svg-animator-web'`. Nothing to configure after
   `npm install`; this is what the React and Vue packages use internally, and what every snippet
-  in [Web player](./06-player--web-player.md) assumes.
+  in [Web player](./web-player.md) assumes.
 - **CJS** — for Node.js and older tooling that uses `require()`. Selected automatically through
   the package's `exports` map; you never reference the file by name.
 - **UMD** — for pages **without a build step**: plain HTML, CMS templates, code blocks. One
@@ -73,7 +73,7 @@ Then load it with a relative path, like any other script of yours:
 Because the file is a copy on your own server, it never changes behind your back: your site
 keeps using the exact version you tested until you replace the file yourself. The file's name
 says which library it is, so anyone reading your page source can tell — keep it, or rename it
-if you prefer ([the examples](../examples/docs-examples/src/cases/static/vanilla-umd/) keep it).
+if you prefer ([the examples](../../examples/docs-examples/src/cases/static/vanilla-umd/) keep it).
 
 Files in `dist/`:
 
@@ -108,4 +108,4 @@ Native packages.
 - **React Native:** 0.76 or newer, with `react-native-svg` 15 or newer and
   `react-native-reanimated` 3.16 or newer.
 
-[← Set default playback settings & triggers](./04-editor--playback-settings.md) · [Contents](./README.md) · Next: [Web player →](./06-player--web-player.md)
+[← Set default playback settings & triggers](../start/editor-playback-settings.md) · [Contents](../README.md) · Next: [Web player →](./web-player.md)

@@ -1,6 +1,6 @@
 # Introduction
 
-[← Contents](./README.md) · Next: [Choosing a format →](./02-start--choosing-a-format.md)
+[← Contents](../../README.md) · Next: [Choosing a format →](./choosing-a-format.md)
 
 Pixodesk SVG Animator is an **editor** that makes SVG animations, a set of **players** that
 run them, and the **file format** that connects the two. You make the animation once, save it
@@ -13,7 +13,7 @@ static images when you need a fallback. It ships as the *Pixodesk Animator Studi
 for Windows and Mac, from [pixodesk.com](https://pixodesk.com).
 
 **The players** are small, open-source runtime libraries — MIT-licensed, published on npm as
-`@pixodesk/svg-animator-*`, and developed in [this repository](../README.md). Pick the one for
+`@pixodesk/svg-animator-*`, and developed in [this repository](../../README.md). Pick the one for
 where the animation runs: plain **HTML**, **React**, **Vue** or **React Native**. Control
 playback from code — play, pause, speed — or let the animation start itself on
 load, click or scroll.
@@ -74,7 +74,7 @@ the animation from code.
 page, CMS or static-site generator and it plays — no library needed for the CSS flavour. It is
 the simplest option and the right one for most icons, loaders and decorative animation. Its
 one rule: **inline each file only once per page** — its element ids are fixed, so a second copy
-collides with the first ([read more](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)). For several instances of one animation, use JSON.
+collides with the first ([read more](../prerendered-svg/on-the-web.md#one-copy-of-a-file-per-page)). For several instances of one animation, use JSON.
 
 Both JSON and animated SVG have the same features, and the editor converts between them at any time
 (**File → Save as JSON / Save as SVG**), so the choice is never final.
@@ -85,9 +85,9 @@ Start from where the animation is going:
 
 - **A page, a CMS, a static site — and you just want it to play.** Use a **pre-rendered SVG**.
   No package to install: paste it in or let your build tool inline it. Start at
-  [Pre-rendered SVG on the web](./11-player--prerendered-svg.md).
+  [Pre-rendered SVG on the web](../prerendered-svg/on-the-web.md).
 - **An app, or anything you need to control from code.** Use **JSON** with the player for your
-  stack. Start at [Installing the players (overview)](./05-player--installation.md).
+  stack. Start at [Installing the players (overview)](../library/installation.md).
 
 | Your stack | Package |
 |---|---|
@@ -97,7 +97,7 @@ Start from where the animation is going:
 | React Native / Expo 🧪 *(in development)* | `@pixodesk/svg-animator-rn` |
 | The core every player builds on — the format schema and the shared algorithms | `@pixodesk/svg-animator-core` |
 
-Still unsure? [Choosing a format](./02-start--choosing-a-format.md) has the side-by-side
+Still unsure? [Choosing a format](./choosing-a-format.md) has the side-by-side
 comparison and what each engine can animate.
 
 The React and Vue packages wrap the web player; every player shares the core, so the same
@@ -120,10 +120,10 @@ flowchart TD
 
 ## Where next
 
-- Deciding on a format → [Choosing a format](./02-start--choosing-a-format.md)
-- Learning the editor → [The editor](./03-editor--editor.md)
-- Embedding a pre-rendered SVG → [Pre-rendered SVG on the web](./11-player--prerendered-svg.md)
-- Installing a player → [Installing the players (overview)](./05-player--installation.md)
-- Understanding the file → [Format principles](./13-format--format-principles.md), [JSON format reference](./14-format--json-format.md)
+- Deciding on a format → [Choosing a format](./choosing-a-format.md)
+- Learning the editor → [The editor](./editor.md)
+- Embedding a pre-rendered SVG → [Pre-rendered SVG on the web](../prerendered-svg/on-the-web.md)
+- Installing a player → [Installing the players (overview)](../library/installation.md)
+- Understanding the file → [Format principles](../format/principles.md), [JSON format reference](../format/json-format.md)
 
-[← Contents](./README.md) · Next: [Choosing a format →](./02-start--choosing-a-format.md)
+[← Contents](../../README.md) · Next: [Choosing a format →](./choosing-a-format.md)

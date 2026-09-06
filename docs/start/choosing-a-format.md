@@ -1,8 +1,8 @@
 # Choosing a format
 
-[← Introduction](./01-start--introduction.md) · [Contents](./README.md) · Next: [The editor →](./03-editor--editor.md)
+[← Introduction](./introduction.md) · [Contents](../../README.md) · Next: [The editor →](./editor.md)
 
-As the [Introduction](./01-start--introduction.md) covered, the editor saves an animation in one of two formats: **JSON**, which a player library renders, or **pre-rendered SVG**, which a
+As the [Introduction](./introduction.md) covered, the editor saves an animation in one of two formats: **JSON**, which a player library renders, or **pre-rendered SVG**, which a
 browser plays on its own. This page is about picking between them — and, for pre-rendered SVG,
 between its three flavours.
 
@@ -19,13 +19,13 @@ Both JSON and animated SVG are the same document in a different shape. You can s
 | **Pre-rendered SVG + JS animation** | `.svg` | ordinary SVG + the web player embedded in a `<script>` (25–38 KB) | no (the player is inline) |
 
 The editor can also export **Lottie** (`.json` / `.lottie`), **video**, **GIF** and **image**
-snapshots — see [The editor → Save, convert, export](./03-editor--editor.md#save-convert-export).
+snapshots — see [The editor → Save, convert, export](./editor.md#save-convert-export).
 
 ## The decision, short version
 
 **JSON** fits code: React, Vue, React Native, or vanilla JavaScript that needs runtime control.
 **A pre-rendered SVG** fits a file you drop into a CMS or static site with minimal setup — and
-that you need **once per page** ([read more](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
+that you need **once per page** ([read more](../prerendered-svg/on-the-web.md#one-copy-of-a-file-per-page)).
 
 | Situation | Pick |
 |---|---|
@@ -43,8 +43,8 @@ that you need **once per page** ([read more](./11-player--prerendered-svg.md#one
 | Format | Advantages | Limitations |
 |---|---|---|
 | **JSON** | • Every animation type on every browser<br>• full runtime control (play, pause, jump to any point, reverse, change speed)<br>• clean per-instance rendering, no id conflicts<br>• SSR-safe | You install a player package and add a few lines of code — the `.json` file does nothing on its own, unlike a pre-rendered SVG you can simply paste in |
-| **SVG + CSS** | • No library, smallest file<br>• no `<script>`, so it works inline and through SVGR<br>• starts on load or on hover (`:hover`)<br>• drop-in icon replacement | • Only what CSS `@keyframes` can express — see *What each engine can animate* below<br>• path morphing only between same-structure paths, and not in older browsers<br>• no runtime API — playback is controlled with CSS classes<br>• **id conflicts if inlined twice** ([one copy per page](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)) |
-| **SVG + CSS + JS triggers** | Same as above plus click and scroll-into-view triggers, out actions and reset-on-finish — a few inline lines, no library | • Same CSS limits<br>• no precise control (no jumping to a time, no reverse, no speed change)<br>• the `<script>` prevents SVGR use<br>• **id conflicts if inlined twice** ([one copy per page](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)) |
+| **SVG + CSS** | • No library, smallest file<br>• no `<script>`, so it works inline and through SVGR<br>• starts on load or on hover (`:hover`)<br>• drop-in icon replacement | • Only what CSS `@keyframes` can express — see *What each engine can animate* below<br>• path morphing only between same-structure paths, and not in older browsers<br>• no runtime API — playback is controlled with CSS classes<br>• **id conflicts if inlined twice** ([one copy per page](../prerendered-svg/on-the-web.md#one-copy-of-a-file-per-page)) |
+| **SVG + CSS + JS triggers** | Same as above plus click and scroll-into-view triggers, out actions and reset-on-finish — a few inline lines, no library | • Same CSS limits<br>• no precise control (no jumping to a time, no reverse, no speed change)<br>• the `<script>` prevents SVGR use<br>• **id conflicts if inlined twice** ([one copy per page](../prerendered-svg/on-the-web.md#one-copy-of-a-file-per-page)) |
 | **SVG + JS animation** | • Every animation type<br>• full runtime control<br>• self-contained | • Embeds the player (25–38 KB)<br>• the `<script>` prevents SVGR use<br>• possible id conflicts if inlined twice |
 
 ## What each engine can animate
@@ -110,4 +110,50 @@ your master copy — it holds the animation exactly as you authored it, with eve
 an effect. The pre-rendered SVG is the finished result, everything already expanded into plain
 SVG: the file you put on a page. Both re-open in the editor.
 
-[← Introduction](./01-start--introduction.md) · [Contents](./README.md) · Next: [The editor →](./03-editor--editor.md)
+
+## How each format reaches a page
+
+Every route from the editor's exports to a running animation (`<object>`/`<iframe>` embedding works but is [not recommended](../prerendered-svg/on-the-web.md)):
+
+```mermaid
+%%{init: {'theme':'base', 'themeVariables': {'edgeLabelBackground':'white'}, 'flowchart':{'nodeSpacing': 100, 'rankSpacing': 80, 'curve': 'basis'}}}%%
+graph TD
+    App(["Pixodesk SVG Animator"])
+    
+    JSON["JSON file<br/>elements + animation data"]
+    CSSkeyframes["Pre-rendered SVG<br/>+ CSS Keyframes<br/>(lightweight)"]
+    CSSjs["Pre-rendered SVG<br/>+ CSS Keyframes<br/>+ JS Event Triggers"]
+    JSanim["Pre-rendered SVG<br/>+ JS Animation<br/>(@pixodesk/svg-animator-web)"]
+    
+    ReactVue["React / Vue<br/>Components"]
+    VanillaJS["Vanilla JS<br/>DOM Manipulation"]
+    Embed["Embed/Inline<br/>into Static HTML"]
+
+    App ---> JSON
+    App ---> CSSkeyframes
+    App ---> CSSjs
+    App ---> JSanim
+
+    JSON --->|"@pixodesk/svg-animator-react<br/>@pixodesk/svg-animator-vue"| ReactVue
+    JSON --->|"@pixodesk/svg-animator-web"| VanillaJS
+
+    CSSkeyframes --->|SVGR / vite-svg-loader| ReactVue
+    CSSkeyframes --->|Direct inline| Embed
+
+    CSSjs --->|"&lt;object&gt; / &lt;iframe&gt;<br/>(not recommended)"| VanillaJS
+    CSSjs --->|Direct inline| Embed
+
+    JSanim --->|"&lt;object&gt; / &lt;iframe&gt;<br/>(not recommended)"| VanillaJS
+    JSanim --->|Direct inline| Embed
+    
+    style App fill:#3178c6,color:#fff
+    style JSON fill:#4ecdc4,color:#fff
+    style CSSkeyframes fill:#ffaa6b,color:#fff
+    style CSSjs fill:#ff6b6b,color:#fff
+    style JSanim fill:#ff6b6b,color:#fff
+    style ReactVue fill:#61dafb,color:#000
+    style VanillaJS fill:#f0db4f,color:#000
+    style Embed fill:#95e1d3,color:#000
+```
+
+[← Introduction](./introduction.md) · [Contents](../../README.md) · Next: [The editor →](./editor.md)

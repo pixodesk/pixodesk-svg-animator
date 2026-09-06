@@ -1,6 +1,6 @@
 # React Native — `@pixodesk/svg-animator-rn` 🧪 (in development)
 
-[← Vue](./08-player--vue.md) · [Contents](./README.md) · Next: [Playback settings & triggers →](./10-player--playback-and-triggers.md)
+[← Vue](./vue.md) · [Contents](../README.md) · Next: [Playback settings & triggers →](./playback-and-triggers.md)
 
 > **In development.** This player is not finished yet. The API may change without a major
 > version change, and some things are unimplemented or not yet verified on real devices — see
@@ -11,7 +11,7 @@ Use this in a React Native or Expo app. Give `<PixodeskSvgAnimator doc={…} />`
 JSON the web player uses** and it renders native SVG (`react-native-svg`), driven on the UI
 thread by `react-native-reanimated`. There is no JavaScript frame loop: once a document is
 compiled, the JS thread stays idle while it plays, so your app stays responsive. The props are
-the same as on the [React web component](./07-player--react.md), so a component you wrote for
+the same as on the [React web component](./react.md), so a component you wrote for
 a React website works in the React Native app with little change — and the other way round.
 
 ## Install
@@ -204,7 +204,7 @@ component.
 | `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | play forward, backward, or turn around on every iteration (starting forward or backward) |
 | `resetOnFinish` | `boolean` | snap back to the start after a natural finish (the file spells it `timeline.trigger.onFinish: "reset"`) |
 | `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | what happens when the trigger ends — a second tap with the `click` trigger, or scrolling out of view with `scrollIntoView`: keep playing, pause, go back to the start, or play backwards. If you don't pass it, the value saved in the file is used (set in the editor as *When the trigger ends*); if the file has none either, `pause` |
-| `onPlay` · `onPause` · `onFinish` · `onCancel` · `onStop` | `() => void` | called when the animation starts or resumes (`onPlay`), pauses (`onPause`), reaches its end (`onFinish`), or is stopped and reset to the start (`onCancel`) — same meanings as in the [React component](./07-player--react.md#props). `onStop` fires *in addition to* any of the others that halt playback — use it when you only care that the animation is no longer playing |
+| `onPlay` · `onPause` · `onFinish` · `onCancel` · `onStop` | `() => void` | called when the animation starts or resumes (`onPlay`), pauses (`onPause`), reaches its end (`onFinish`), or is stopped and reset to the start (`onCancel`) — same meanings as in the [React component](./react.md#props). `onStop` fires *in addition to* any of the others that halt playback — use it when you only care that the animation is no longer playing |
 | `onError` | `(error, componentStack?) => void` | the document could not be compiled or rendered |
 | `fallback` | `(error) => ReactElement \| null` | rendered in place of a failed animation (default: renders nothing) |
 
@@ -377,7 +377,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
 ```
 
 A complete config is in
-[`examples/react-native-preview-player/metro.config.js`](../examples/react-native-preview-player/metro.config.js).
+[`examples/react-native-preview-player/metro.config.js`](../../examples/react-native-preview-player/metro.config.js).
 
 ## Advanced exports
 
@@ -403,6 +403,6 @@ pnpm example:rn:web        # quickest look — runs via react-native-web
 pnpm example:rn:explorer   # feature explorer
 ```
 
-See [`examples/react-native-preview-player`](../examples/react-native-preview-player).
+See [`examples/react-native-preview-player`](../../examples/react-native-preview-player).
 
-[← Vue](./08-player--vue.md) · [Contents](./README.md) · Next: [Playback settings & triggers →](./10-player--playback-and-triggers.md)
+[← Vue](./vue.md) · [Contents](../README.md) · Next: [Playback settings & triggers →](./playback-and-triggers.md)

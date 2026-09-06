@@ -1,6 +1,6 @@
 # Core library — `@pixodesk/svg-animator-core`
 
-[← Meta in pre-rendered SVG](./17-format--data-px-meta.md) · [Contents](./README.md) · Next: [Troubleshooting →](./19-help--troubleshooting.md)
+[← Meta in pre-rendered SVG](../prerendered-svg/data-px-meta.md) · [Contents](../README.md) · Next: [Troubleshooting →](../library/troubleshooting.md)
 
 Use the core when you need to validate, transform or sample a document **without rendering
 it** — in a build step, a test, a server, or a tool of your own. It is the platform-neutral
@@ -10,7 +10,7 @@ React Native player produce identical values from the same document.
 
 ## Do I need it?
 
-Usually **no** — install a [player](./05-player--installation.md) instead; each depends on the core and
+Usually **no** — install a [player](../library/installation.md) instead; each depends on the core and
 re-exports what you need. Install the core directly when you work with **documents rather
 than playback**: validating them, transforming them, flattening them for a renderer of your
 own, or computing values at a given time without rendering anything.
@@ -125,4 +125,4 @@ the engine runs in browsers, React Native and test environments.
 Every package is released in lockstep; a player depends on the matching core version, so
 upgrading a player upgrades the core with it.
 
-[← Meta in pre-rendered SVG](./17-format--data-px-meta.md) · [Contents](./README.md) · Next: [Troubleshooting →](./19-help--troubleshooting.md)
+[← Meta in pre-rendered SVG](../prerendered-svg/data-px-meta.md) · [Contents](../README.md) · Next: [Troubleshooting →](../library/troubleshooting.md)

@@ -1,9 +1,9 @@
 # React — `@pixodesk/svg-animator-react`
 
-[← Web player](./06-player--web-player.md) · [Contents](./README.md) · Next: [Vue →](./08-player--vue.md)
+[← Web player](./web-player.md) · [Contents](../README.md) · Next: [Vue →](./vue.md)
 
 Use this in a React or Next.js app: drop in the component, pass it the JSON, and it renders
-the animation and controls its playback. It wraps the [web player](./06-player--web-player.md)
+the animation and controls its playback. It wraps the [web player](./web-player.md)
 and renders the SVG with React itself, so it is SSR-safe and works in Next.js. Control it the
 way that suits your code — autoplay, declarative props, an imperative ref, or controlled time.
 
@@ -32,7 +32,7 @@ and the ref is the only thing that starts playback.
 
 ### 1 · Imperative API (`apiRef`)
 
-> **Example:** [`react/imperative`](../examples/docs-examples/src/cases/react/imperative/) — `pnpm example:docs`, then open `#react/imperative`.
+> **Example:** [`react/imperative`](../../examples/docs-examples/src/cases/react/imperative/) — `pnpm example:docs`, then open `#react/imperative`.
 
 Pass a ref as `apiRef`. Once the component has mounted, the ref holds the playback API, so
 any button, timer or effect in your app can start, pause, or jump to any point in the animation.
@@ -70,7 +70,7 @@ export function Player() {
 
 ### 2 · Autoplay
 
-> **Example:** [`react/autoplay`](../examples/docs-examples/src/cases/react/autoplay/) — `pnpm example:docs`, then open `#react/autoplay`.
+> **Example:** [`react/autoplay`](../../examples/docs-examples/src/cases/react/autoplay/) — `pnpm example:docs`, then open `#react/autoplay`.
 
 The simplest mode: the component starts the animation the way the file says it should — on
 load, on hover, on click, or when scrolled into view.
@@ -89,7 +89,7 @@ Uses the trigger saved in the document — on load, on hover, on click, when scr
 
 ### 3 · Controlled time (`progress` / `time`)
 
-> **Example:** [`react/controlled-time`](../examples/docs-examples/src/cases/react/controlled-time/) — `pnpm example:docs`, then open `#react/controlled-time`.
+> **Example:** [`react/controlled-time`](../../examples/docs-examples/src/cases/react/controlled-time/) — `pnpm example:docs`, then open `#react/controlled-time`.
 
 Render one frame, and move through the animation by changing the prop. The animator is **not** recreated on change —
 it just jumps to the new time.
@@ -114,7 +114,7 @@ export function Scrubber() {
 
 ### 4 · Declarative play / pause
 
-> **Example:** [`react/declarative`](../examples/docs-examples/src/cases/react/declarative/) — `pnpm example:docs`, then open `#react/declarative`.
+> **Example:** [`react/declarative`](../../examples/docs-examples/src/cases/react/declarative/) — `pnpm example:docs`, then open `#react/declarative`.
 
 Drive playback from your own state with two booleans — handy when play/pause is already part
 of your component's state (a toggle, a visibility flag) and you would rather not hold a ref.
@@ -163,7 +163,7 @@ renders the first frame statically.
 | `iterations` | `number \| 'infinite'` | how many times to play; `'infinite'` never stops |
 | `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | play forward, backward, or turn around on every iteration (starting forward or backward) |
 | `fill` | `'forwards' \| 'backwards' \| 'both' \| 'none'` | what shows before start / after the end |
-| `mode` | `'auto' \| 'waapi' \| 'frames'` | engine — see [Web player → Engine modes](./06-player--web-player.md#engine-modes) |
+| `mode` | `'auto' \| 'waapi' \| 'frames'` | engine — see [Web player → Engine modes](./web-player.md#engine-modes) |
 | `frameRate` | `number` | target fps (frames engine) |
 | **Trigger overrides** | | |
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | what starts the animation: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
@@ -183,7 +183,7 @@ old animator away and builds a new one; the old instance emits `onCancel`, `onRe
 
 ## CSS-flavour SVGs — `PixodeskSvgCssAnimator`
 
-> **Example:** [`react/css-svgr`](../examples/docs-examples/src/cases/react/css-svgr/) — `pnpm example:docs`, then open `#react/css-svgr`.
+> **Example:** [`react/css-svgr`](../../examples/docs-examples/src/cases/react/css-svgr/) — `pnpm example:docs`, then open `#react/css-svgr`.
 
 For a **pre-rendered SVG + CSS animation** file imported as a component with
 [SVGR](https://react-svgr.com/) (`@svgr/webpack`, `vite-plugin-svgr`), this small wrapper adds
@@ -216,7 +216,7 @@ export function HoverLogo() {
 > work is the *same* file twice: the imported component is the file's markup, element ids
 > included, so two copies share the same ids and their masks and gradients cross over. To show
 > one animation several times, use the JSON component instead — the player gives every copy
-> its own ids ([read more](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
+> its own ids ([read more](../prerendered-svg/on-the-web.md#one-copy-of-a-file-per-page)).
 
 SVGR strips `<script>` tags, so only the pure CSS flavour works this way. Files with scripts
 (JS triggers / JS animation) should be inlined as raw HTML, or switched to JSON.
@@ -239,4 +239,4 @@ export default function Hero() {
 JSON imports work out of the box in Next.js; for a CSS-flavour SVG use `@svgr/webpack`.
 
 
-[← Web player](./06-player--web-player.md) · [Contents](./README.md) · Next: [Vue →](./08-player--vue.md)
+[← Web player](./web-player.md) · [Contents](../README.md) · Next: [Vue →](./vue.md)

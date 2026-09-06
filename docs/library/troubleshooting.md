@@ -1,9 +1,13 @@
 # Troubleshooting & FAQ
 
-[← Core library](./18-format--core-library.md) · [Contents](./README.md) · Next: [Glossary →](./20-help--glossary.md)
+[← Playback settings & triggers](./playback-and-triggers.md) · [Contents](./README.md)
 
-Find your symptom below — each entry says what to check and what to change. If yours is not
-here, go to [Still stuck?](#still-stuck) at the end.
+Player-library troubleshooting — find your symptom below; each entry says what to check and
+what to change. For pre-rendered SVG issues (a flavour that shows a static frame, `<script>`
+stripped on import, two inlined copies interfering) see
+[Pre-rendered SVG on the web](../prerendered-svg/on-the-web.md); for what each engine can and
+cannot animate per browser, see [Choosing a format](../start/choosing-a-format.md). If yours
+is not here, go to [Still stuck?](#still-stuck) at the end.
 
 ## Nothing plays
 
@@ -29,41 +33,6 @@ not lost — a network or CORS error is the usual cause.
 **Scroll trigger never fires.** The element may already be fully in view at load (then it
 starts immediately), or `scrollIntoViewThreshold` may be higher than the element can ever
 reach on a small viewport. Inside an `<iframe>`, visibility is measured relative to the iframe.
-
-## It plays in Chrome but not in Firefox / Safari
-
-**Geometry attributes in a CSS-flavour SVG (x, y, r, width, …).** Firefox does not implement
-SVG geometry as CSS properties. Use the JSON format (the frame-loop fallback handles it), or
-animate `transform` instead of `x`/`y`.
-
-**Path morphing in a CSS-flavour SVG.** CSS `d: path()` needs identical command structure and is
-missing in Safari < 18.5. Use JSON (`mode: 'auto'` falls back to frames) or the *SVG + JS
-animation* flavour.
-
-**Text on a path, gradient geometry, filters, clip-path morphing.** Not expressible in CSS at
-all; JSON + a player handles them via the frame loop. The editor flags every such attribute on its timeline row
-and in the file-type picker while you work, and lists them in a notice when you save.
-
-## The CSS-flavour SVG works, the JS flavours don't
-
-**It is used as a picture.** `<img src="animation.svg">`, SVG `<image>` and CSS
-`background-image` show a static frame for every flavour — no script runs inside an image and
-the page cannot add the play classes. Inline the file instead
-([Pre-rendered SVG → Not as a picture](./11-player--prerendered-svg.md#three-ways-to-embed-animated-svg)).
-
-**SVGR / `vite-svg-loader` strip `<script>`.** Only the pure CSS flavour works as an imported
-component. Inline the scripted flavours as raw HTML (see
-[Static sites & CMS](./12-player--static-sites-and-cms.md)), or switch to JSON.
-
-**Content Security Policy (CSP).** Inline scripts may be blocked by your site's CSP. Use the CSS flavour, or
-JSON with the player loaded from your own origin.
-
-## Two copies of the same SVG interfere with each other
-
-Inlining one file twice duplicates its element ids, so masks, gradients and JS bindings can
-point at the wrong copy. Export a separate file for each place (every export gets its own ids), or use the JSON
-format, where the player gives every instance fresh ids
-([Pre-rendered SVG → One copy of a file per page](./11-player--prerendered-svg.md#one-copy-of-a-file-per-page)).
 
 ## React
 
@@ -91,14 +60,14 @@ and a string field such as `"mode": "auto"` widens to `string`. Enable `resolveJ
 
 **`View config getter callback for component 'RNSVGLine' must be a function`.** Two copies of
 `react-native-svg` (or reanimated / react) in your node_modules — see
-[Monorepo setup](./09-player--react-native.md#monorepo-setup).
+[Monorepo setup](./react-native.md#monorepo-setup).
 
 **Nothing renders, no error.** Pass `onError` — a document that fails to compile is reported
 there and replaced by `fallback` (nothing by default).
 
 **The app crashes on text along a closed path.** A native `react-native-svg` bug the player
 works around on device; if you hit it, keep `startOffset` at 0 on closed paths or use an open
-path. Details in [React Native → Feature support](./09-player--react-native.md#motion-timing-references).
+path. Details in [React Native → Feature support](./react-native.md#motion-timing-references).
 
 **Hover does nothing.** `mouseOver` has no touch equivalent; use `click` or drive `play`
 yourself.
@@ -107,7 +76,7 @@ yourself.
 
 **It holds the last frame — I want it to reset.** Set `timeline.trigger.onFinish: "reset"`
 in the file (as a component prop it is `resetOnFinish: true`), or `fill: 'none'` (see
-[Playback settings](./10-player--playback-and-triggers.md#timing)).
+[Playback settings](./playback-and-triggers.md#timing)).
 
 **How do I play backwards?** `animator.setPlaybackRate(-1); animator.play();` — also as a
 trigger out action (`outAction: 'reverse'`).
@@ -121,15 +90,10 @@ React Native always runs at the display rate.
 **A property does not animate under `mode: 'waapi'`.** WAAPI cannot drive it (the console
 says which); leave `mode` on `auto` so the document switches to the frame loop.
 
-## Fonts look different on the viewer's machine
-
-Switch the text to **glyph mode** in the editor (`effects.text.useGlyphs`): the used glyph
-outlines are embedded in the file and render identically everywhere, with no font to load.
-
 ## Still stuck?
 
 - [Repository issues](https://github.com/pixodesk/pixodesk-svg-animator/issues) — include the
   JSON (or the SVG), the package version and the browser / platform.
-- The [runnable examples](../examples/docs-examples/) show every documented case working end to end — one page per case, each tested on every build.
+- The [runnable examples](../../examples/docs-examples/) show every documented case working end to end — one page per case, each tested on every build.
 
-[← Core library](./18-format--core-library.md) · [Contents](./README.md) · Next: [Glossary →](./20-help--glossary.md)
+[← Playback settings & triggers](./playback-and-triggers.md) · [Contents](./README.md)

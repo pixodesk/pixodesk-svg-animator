@@ -1,6 +1,6 @@
 # animator-web
 
-> 📖 Full user guide: [docs/06-player--web-player.md](../../docs/06-player--web-player.md) · [all docs](../../docs/README.md)
+> 📖 Full user guide: [docs/library/web-player.md](../../docs/library/web-player.md) · [all docs](../../docs/README.md)
 
 [![CI](https://github.com/pixodesk/pixodesk-svg-animator/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/pixodesk/pixodesk-svg-animator/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -140,11 +140,11 @@ same shape as the JSON export. It comes in two modes:
 
 Elements may also carry a `node.effects` bucket (structural effects such as
 `transformBy`, `repeater`, `maskedBy`, `strokeTrim`, `clone`, `fillGradient` /
-`strokeGradient`, `textAlongPath`). This player materialises and removes them at
+`strokeGradient`, `textPath`). This player materialises and removes them at
 runtime before any other normalisation.
 
-See the [file-format reference](../../README.md#file-formats) and the
-[Player effects](../../README.md#player-effects-nodeeffects) section in the root
-README for the full schema and examples. The wire types live in
-[`PxAnimatorTypes.ts`](../svg-animator-core/src/PxAnimatorTypes.ts).
+See the [JSON format reference](../../docs/format/json-format.md) and
+[Player effects](../../docs/format/effects.md) for the full schema and
+examples (compact printable schema: [SCHEMA.md](../../SCHEMA.md)). The wire
+types live in [`PxAnimatorTypes.ts`](../svg-animator-core/src/PxAnimatorTypes.ts).
 
