@@ -1100,4 +1100,4 @@ the engine runs in browsers, React Native and test environments.
 Every package is released in lockstep; a player depends on the matching core version, so
 upgrading a player upgrades the core with it.
 
-[Contents](../README.md) · [Library documentation](../library/README.md) · [Pre-rendered SVG documentation](https://pixodesk.com/docs/svga/prerendered-svg)
+[Contents](../../README.md#documentation) · [Library documentation](../library/README.md) · [Pre-rendered SVG documentation](https://pixodesk.com/docs/svga/prerendered-svg)

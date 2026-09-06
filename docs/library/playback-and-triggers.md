@@ -1,6 +1,6 @@
 # Playback settings & triggers
 
-[← React Native](./react-native.md) · [Contents](../README.md) · Next: [Pre-rendered SVG on the web →](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web)
+[← React Native](./react-native.md) · [Contents](../../README.md#documentation) · Next: [Pre-rendered SVG on the web →](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web)
 
 Change how an animation plays — its length, loops, direction, what starts it — without going
 back to the editor. Everything about *when* and *how* it plays lives in one place, the
@@ -222,4 +222,4 @@ Support: the **web player** (both engines, and therefore React and Vue), and the
 animation* export. Not yet: the CSS export or React Native. The complete "scrollytelling"
 pattern is `subject: "parent"` + `pin: true` inside a tall section.
 
-[← React Native](./react-native.md) · [Contents](../README.md) · Next: [Pre-rendered SVG on the web →](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web)
+[← React Native](./react-native.md) · [Contents](../../README.md#documentation) · Next: [Pre-rendered SVG on the web →](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web)

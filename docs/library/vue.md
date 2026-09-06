@@ -1,6 +1,6 @@
 # Vue — `@pixodesk/svg-animator-vue`
 
-[← React](./react.md) · [Contents](../README.md) · Next: [React Native →](./react-native.md)
+[← React](./react.md) · [Contents](../../README.md#documentation) · Next: [React Native →](./react-native.md)
 
 Use this in a Vue 3 or Nuxt app: drop in the component, pass it the JSON, and it renders the
 animation and controls its playback. It wraps the [web player](./web-player.md) and
@@ -234,4 +234,4 @@ selected one running next to it. Run `pnpm example:docs` from the repository roo
 then pick an example from the list — or jump straight to one by its address in the URL, like
 `#vue/autoplay`. Each example has a test that runs on every build.
 
-[← React](./react.md) · [Contents](../README.md) · Next: [React Native →](./react-native.md)
+[← React](./react.md) · [Contents](../../README.md#documentation) · Next: [React Native →](./react-native.md)

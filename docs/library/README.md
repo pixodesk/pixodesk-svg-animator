@@ -19,4 +19,4 @@ share. (Playing a **pre-rendered SVG** needs no library — see
 
 - [Which format do I need?](https://pixodesk.com/docs/svga/editor/choosing-a-format)
 - [Format documentation](../format/README.md) — the JSON documents the players consume
-- [Documentation home](../README.md)
+- [Documentation home](../../README.md#documentation)

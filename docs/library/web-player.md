@@ -1,6 +1,6 @@
 # Web player — `@pixodesk/svg-animator-web`
 
-[← Installing the players (overview)](./installation.md) · [Contents](../README.md) · Next: [React →](./react.md)
+[← Installing the players (overview)](./installation.md) · [Contents](../../README.md#documentation) · Next: [React →](./react.md)
 
 Use this on a plain web page — or anywhere you write JavaScript without a framework — to play
 a JSON animation with full control. Hand it the document and it builds the SVG DOM, drives the
@@ -256,4 +256,4 @@ once. Frameworks: the React and Vue components do this on unmount.
 - [JSON format reference](../format/README.md#json-format-reference)
 - [Troubleshooting](./troubleshooting.md)
 
-[← Installing the players (overview)](./installation.md) · [Contents](../README.md) · Next: [React →](./react.md)
+[← Installing the players (overview)](./installation.md) · [Contents](../../README.md#documentation) · Next: [React →](./react.md)

@@ -1,6 +1,6 @@
 # React — `@pixodesk/svg-animator-react`
 
-[← Web player](./web-player.md) · [Contents](../README.md) · Next: [Vue →](./vue.md)
+[← Web player](./web-player.md) · [Contents](../../README.md#documentation) · Next: [Vue →](./vue.md)
 
 Use this in a React or Next.js app: drop in the component, pass it the JSON, and it renders
 the animation and controls its playback. It wraps the [web player](./web-player.md)
@@ -239,4 +239,4 @@ export default function Hero() {
 JSON imports work out of the box in Next.js; for a CSS-flavour SVG use `@svgr/webpack`.
 
 
-[← Web player](./web-player.md) · [Contents](../README.md) · Next: [Vue →](./vue.md)
+[← Web player](./web-player.md) · [Contents](../../README.md#documentation) · Next: [Vue →](./vue.md)

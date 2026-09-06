@@ -23,7 +23,9 @@ jobs:
 
       # examples/docs-examples runs Playwright as its `test` script, and `build`
       # depends on `test` — so the example tests gate the whole build here too.
-      - run: pnpm exec playwright install --with-deps chromium
+      # Playwright is a dependency of that package, not of the workspace root, so
+      # the install must run inside it (a root `pnpm exec` cannot find the binary).
+      - run: pnpm --filter @pixodesk/example-docs-examples exec playwright install --with-deps chromium
 
       # turbo picks up every workspace package automatically, so new packages
       # (svg-animator-core, svg-animator-rn) are covered without changes here.

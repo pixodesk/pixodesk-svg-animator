@@ -1,6 +1,6 @@
 # React Native — `@pixodesk/svg-animator-rn` 🧪 (in development)
 
-[← Vue](./vue.md) · [Contents](../README.md) · Next: [Playback settings & triggers →](./playback-and-triggers.md)
+[← Vue](./vue.md) · [Contents](../../README.md#documentation) · Next: [Playback settings & triggers →](./playback-and-triggers.md)
 
 > **In development.** This player is not finished yet. The API may change without a major
 > version change, and some things are unimplemented or not yet verified on real devices — see
@@ -405,4 +405,4 @@ pnpm example:rn:explorer   # feature explorer
 
 See [`examples/react-native-preview-player`](../../examples/react-native-preview-player).
 
-[← Vue](./vue.md) · [Contents](../README.md) · Next: [Playback settings & triggers →](./playback-and-triggers.md)
+[← Vue](./vue.md) · [Contents](../../README.md#documentation) · Next: [Playback settings & triggers →](./playback-and-triggers.md)
