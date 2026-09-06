@@ -13,7 +13,8 @@ icon animations, loaders.
 
 - **The player** runs the animation on a page or in an app: a library for plain **HTML**,
   **React**, **Vue** or **React Native** (in development) — or none at all, because a
-  pre-rendered SVG file plays on its own.
+  pre-rendered SVG file plays on its own. Control playback from code, or let the animation
+  start itself on load, click, hover or scroll.
 - **The format** stays as close to plain SVG as it can. One animation, two shapes:
   **JSON** (the source a player renders and you control from code) and **pre-rendered SVG**
   (a finished `.svg` you embed or inline straight into a page).
@@ -28,8 +29,13 @@ icon animations, loaders.
 - 🤔 [Which format do I need?](https://pixodesk.com/docs/svga/editor/choosing-a-format) — JSON vs pre-rendered SVG, what each can animate
 - 📄 [The JSON format](./docs/format/README.md) — the full reference · [SCHEMA.md](./SCHEMA.md) — the compact printable schema
 
-**The full documentation lives in [`docs/`](./docs/README.md)** — the editor, every player's API,
-both file formats, troubleshooting.
+## Documentation
+
+- **[Library documentation](./docs/library/README.md)** — every player: web, React, Vue, React Native; installation, APIs, playback settings & triggers
+- **[Format documentation](./docs/format/README.md)** — the JSON document: reference, effects, editor meta, the core library · [SCHEMA.md](./SCHEMA.md) — the compact printable schema
+- **[Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg)** — the self-contained `.svg` flavours: embedding, static sites & CMS, `data-px-meta`
+- **[Editor manual](https://pixodesk.com/docs/svga)** — the full Pixodesk SVG Animator editor documentation, including [choosing a format](https://pixodesk.com/docs/svga/editor/choosing-a-format) and [default playback settings & triggers](https://pixodesk.com/docs/svga/editor/playback-settings)
+- **[Troubleshooting & FAQ](./docs/library/troubleshooting.md)**
 
 ## Packages
 

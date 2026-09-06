@@ -1,6 +1,6 @@
 # docs-examples
 
-One standalone page per case in the [documentation](../../docs/README.md), and a browser to
+One standalone page per case in the [documentation](../../README.md#documentation), and a browser to
 step through them. Web player, React, Vue, playback overrides, pre-rendered SVG and a
 static-site page — all in one Vite project.
 
