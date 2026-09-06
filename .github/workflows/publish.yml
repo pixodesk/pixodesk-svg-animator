@@ -54,6 +54,14 @@ jobs:
             echo "Version already $VERSION — skipping bump"
           fi
 
+      # Fails fast with a clear 401 when NPM_TOKEN is expired or revoked.
+      # Without this, a dead token only surfaces at publish time as a
+      # misleading "404 Not Found - PUT" on the first package.
+      - name: Verify npm auth
+        run: npm whoami
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Build packages
         run: pnpm --filter "./packages/*" run build
 
