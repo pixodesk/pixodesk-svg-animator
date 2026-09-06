@@ -143,8 +143,8 @@ Elements may also carry a `node.effects` bucket (structural effects such as
 `strokeGradient`, `textPath`). This player materialises and removes them at
 runtime before any other normalisation.
 
-See the [JSON format reference](../../docs/format/json-format.md) and
-[Player effects](../../docs/format/effects.md) for the full schema and
+See the [JSON format reference](../../docs/format/README.md#json-format-reference) and
+[Player effects](../../docs/format/README.md#player-effects) for the full schema and
 examples (compact printable schema: [SCHEMA.md](../../SCHEMA.md)). The wire
 types live in [`PxAnimatorTypes.ts`](../svg-animator-core/src/PxAnimatorTypes.ts).
 

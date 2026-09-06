@@ -1,6 +1,6 @@
 # Static sites & CMS
 
-[← Pre-rendered SVG on the web](./on-the-web.md) · [Contents](../README.md) · Next: [Format principles →](../format/principles.md)
+[← Pre-rendered SVG on the web](./on-the-web.md) · [Contents](../README.md) · Next: [Format principles →](../format/README.md#format-principles)
 
 Building with a static-site generator or a CMS? Use a pre-rendered SVG: the build tool or
 CMS **inlines the file** and the animation is on screen before any JavaScript runs. Even the
@@ -143,4 +143,4 @@ platform that filters pasted HTML.
   into view. Otherwise the animation plays while it is still off screen, and by the time the
   visitor reaches it, it is already over.
 
-[← Pre-rendered SVG on the web](./on-the-web.md) · [Contents](../README.md) · Next: [Format principles →](../format/principles.md)
+[← Pre-rendered SVG on the web](./on-the-web.md) · [Contents](../README.md) · Next: [Format principles →](../format/README.md#format-principles)

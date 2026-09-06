@@ -8,7 +8,8 @@ correctly with no configuration on the page.
 
 This page is the **editor** side: which control writes which value. To change any of it at
 runtime, from component props or the player API, see
-[Playback settings & triggers](../library/playback-and-triggers.md).
+[Playback settings & triggers](../library/playback-and-triggers.md). For the editor itself —
+every panel, tool and dialog — see the **[full editor manual](https://pixodesk.com/docs)**.
 
 These are settings of the whole document, not of an element, so the panel shows them when
 **nothing is selected** — deselect everything (click an empty part of the canvas), or select

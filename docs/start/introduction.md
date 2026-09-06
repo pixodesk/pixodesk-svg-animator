@@ -9,8 +9,9 @@ as a file, and that file plays anywhere SVG does.
 **The editor** is a full-featured vector and animation tool. Draw shapes, paths and text, or
 import SVG from Illustrator, Figma, Inkscape and other design tools. Animate any property on a timeline,
 add effects, then save. It also imports and exports **Lottie**, and exports to video, GIF and
-static images when you need a fallback. It ships as the *Pixodesk Animator Studio* desktop app
-for Windows and Mac, from [pixodesk.com](https://pixodesk.com).
+static images when you need a fallback. It ships for Windows and Mac from
+[pixodesk.com](https://pixodesk.com) — on its own, and in *Pixodesk Animator Studio*, the
+edition that adds *Pixodesk 2D Animator (Lottie)*.
 
 **The players** are small, open-source runtime libraries — MIT-licensed, published on npm as
 `@pixodesk/svg-animator-*`, and developed in [this repository](../../README.md). Pick the one for
@@ -124,6 +125,6 @@ flowchart TD
 - Learning the editor → [The editor](./editor.md)
 - Embedding a pre-rendered SVG → [Pre-rendered SVG on the web](../prerendered-svg/on-the-web.md)
 - Installing a player → [Installing the players (overview)](../library/installation.md)
-- Understanding the file → [Format principles](../format/principles.md), [JSON format reference](../format/json-format.md)
+- Understanding the file → [Format principles](../format/README.md#format-principles), [JSON format reference](../format/README.md#json-format-reference)
 
 [← Contents](../../README.md) · Next: [Choosing a format →](./choosing-a-format.md)

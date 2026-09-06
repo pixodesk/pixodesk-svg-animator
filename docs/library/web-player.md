@@ -253,7 +253,7 @@ once. Frameworks: the React and Vue components do this on unmount.
 ## Related
 
 - [Playback settings & triggers](./playback-and-triggers.md) — every `animator` field and how to override it
-- [JSON format reference](../format/json-format.md)
+- [JSON format reference](../format/README.md#json-format-reference)
 - [Troubleshooting](./troubleshooting.md)
 
 [← Installing the players (overview)](./installation.md) · [Contents](../README.md) · Next: [React →](./react.md)

@@ -33,8 +33,8 @@ shapes:
 The **Pixodesk SVG Animator editor** — a full-featured vector and animation tool — creates the
 files in either shape, and sets their playback defaults (duration, loops, what starts it).
 It also imports and exports **Lottie**, and exports video, GIF and static images as a
-fallback. The editor has its own documentation; here it appears only where it decides what
-ends up in the file.
+fallback. The editor has its own **[full manual](https://pixodesk.com/docs)**; here it appears
+only where it decides what ends up in the file.
 
 ## The three documentations
 
@@ -57,4 +57,5 @@ ends up in the file.
 
 - [Repository README](../README.md) — package overview and examples
 - [Runnable examples](../examples/docs-examples/) — one tested page per documented case (web, React, Vue, pre-rendered SVG, static sites); plus a [preview player](../examples/preview-player/) and the [React Native](../examples/react-native-preview-player/) apps
+- [Editor manual](https://pixodesk.com/docs) — the full Pixodesk SVG Animator editor documentation
 - [pixodesk.com](https://pixodesk.com) — Pixodesk SVG Animator editor

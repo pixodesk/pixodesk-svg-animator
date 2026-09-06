@@ -6,6 +6,9 @@ The Pixodesk SVG Animator editor is a desktop app for drawing and animating SVG.
 result in the Pixodesk animation format — as **JSON**, or as a **pre-rendered SVG** — the files
 every player in this documentation plays.
 
+This page covers the editor only as far as it decides what ends up in the file. The editor has
+its own **[full manual](https://pixodesk.com/docs)** — every panel, tool and dialog, in detail.
+
 ## Create content
 
 **Draw it.** The editor is a full-featured SVG vector editor: it supports the same shapes,
@@ -61,7 +64,7 @@ In the editor you add an effect to an element and adjust it like any other setti
 settings can be animated too. At playback the effect is **materialised** — turned into plain
 animated SVG attributes — so the browser never sees anything but ordinary SVG. In a
 pre-rendered file that happens at export; in JSON the player does it at load
-([Player effects](../format/effects.md)).
+([Player effects](../format/README.md#player-effects)).
 
 
 ## Set the playback defaults

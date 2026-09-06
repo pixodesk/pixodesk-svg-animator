@@ -87,7 +87,7 @@ the timeline:
 different levels. `iterations` repeats the **whole document** — every element, from the first
 keyframe to the last. A single property can also `loop` on its own: a segment of *its own*
 keyframes repeats until it fills the document's duration, while everything else plays through
-once (see [JSON format → Per-property loops](../format/json-format.md#per-property-loops)). The property loop is
+once (see [JSON format → Per-property loops](../format/README.md#per-property-loops)). The property loop is
 applied first, when the document is prepared; `iterations` then repeats the result. So both
 can be used at once, and one runs inside the other: a wheel whose rotation loops, inside a
 document set to infinite iterations, keeps spinning during every iteration.
