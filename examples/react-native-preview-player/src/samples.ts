@@ -292,7 +292,7 @@ const gradient: PxAnimatedSvgDocument = {
             type: 'rect', id: 'grad', x: 30, y: 60, width: 240, height: 180, rx: 16,
             effects: {
                 fillGradient: {
-                    type: 'linear', p1: [30, 60], p2: [270, 240],
+                    type: 'linear', start: [30, 60], end: [270, 240],
                     gradientUnits: 'userSpaceOnUse',
                     stops: {
                         keyframes: [
