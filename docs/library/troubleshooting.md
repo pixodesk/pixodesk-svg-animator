@@ -5,8 +5,8 @@
 Player-library troubleshooting — find your symptom below; each entry says what to check and
 what to change. For pre-rendered SVG issues (a flavour that shows a static frame, `<script>`
 stripped on import, two inlined copies interfering) see
-[Pre-rendered SVG on the web](../prerendered-svg/on-the-web.md); for what each engine can and
-cannot animate per browser, see [Choosing a format](../start/choosing-a-format.md). If yours
+[Pre-rendered SVG on the web](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web); for what each engine can and
+cannot animate per browser, see [Choosing a format](https://pixodesk.com/docs/svga/editor/choosing-a-format). If yours
 is not here, go to [Still stuck?](#still-stuck) at the end.
 
 ## Nothing plays

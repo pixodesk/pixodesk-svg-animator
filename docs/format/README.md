@@ -3,7 +3,7 @@
 The **JSON** animation document, in one page: the principles behind the format, the full
 reference, the player effects, the editor's `meta`, and the core library that validates and
 transforms documents. (The other shape an animation takes — a finished `.svg` file — has its
-own documentation: [Pre-rendered SVG](../prerendered-svg/README.md). A compact, printable
+own documentation: [Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg). A compact, printable
 schema-only version: [SCHEMA.md](../../SCHEMA.md).)
 
 **On this page:**
@@ -55,7 +55,7 @@ only.
 | **L2 — animated attributes** | `node.animate`, one entry per animated attribute name | keyframes for any attribute; the element itself and its place in the tree are untouched — delete every `animate` key and a valid static SVG remains | the player |
 | **L3 — player effects** | `node.effects` | effects — short descriptions of masks, gradients, copies and other effects ([see more](#player-effects)), which the player expands into plain elements and attributes when the file loads | the player |
 | **L4 — editor meta** | `node.meta` | everything only the editor needs — labels, shape presets, the sources of applied effects; the player ignores this key entirely — [Editor meta and applied effects](#editor-meta-and-applied-effects) | the editor |
-| **L5 — pre-rendered SVG** | unlike the layers above, this one is not a part of the JSON document — it is a separate `.svg` file the editor produces on export | the same document, converted into an ordinary SVG file: the animation travels as CSS or a script inside it, and the editor data as `data-px-meta` attributes — [Meta in pre-rendered SVG](../prerendered-svg/data-px-meta.md) | depends on the flavour: a CSS-animation file is played by the browser alone; a JS-animation file is played by the player embedded in it |
+| **L5 — pre-rendered SVG** | unlike the layers above, this one is not a part of the JSON document — it is a separate `.svg` file the editor produces on export | the same document, converted into an ordinary SVG file: the animation travels as CSS or a script inside it, and the editor data as `data-px-meta` attributes — [Meta in pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg/data-px-meta) | depends on the flavour: a CSS-animation file is played by the browser alone; a JS-animation file is played by the player embedded in it |
 
 ## JSON format reference
 
@@ -902,7 +902,7 @@ find in a file — or know what you can safely leave out when writing a file by 
 
 Every node may carry a `meta` object. In the JSON format it sits on the node as `node.meta`;
 in a pre-rendered SVG the same object is written into a per-element `data-px-meta` attribute
-([Meta in pre-rendered SVG](../prerendered-svg/data-px-meta.md)). One read pipeline handles both.
+([Meta in pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg/data-px-meta)). One read pipeline handles both.
 
 ```js
 // A plain SVG path — this is what every player draws
@@ -920,7 +920,7 @@ in a pre-rendered SVG the same object is written into a per-element `data-px-met
 | `effectsHost` | the host of expanded parts, **pre-rendered SVG only** | some effects turn one drawn element into several written elements (a repeater becomes its copies) — its "expanded parts". This field sits on the expansion's outermost element (its **host**) and holds `{ coreId?, appliedEffects }`: all the effects the drawn element had, so the editor can fold the parts back into that one element — [Expanded parts](#applied-effects-that-create-derived-elements-host--core--part) |
 | `partOf` | every element derived by that expansion, **pre-rendered SVG only** | the counterpart of `effectsHost`: each element the expansion produced carries `"#hostId"` pointing back at the host element that holds the `effectsHost` field, so the whole unit can be found from any of its parts |
 | `runtime` | root `<svg>` only | how the animation code was generated: `{ useCssAnimation, useJsTriggers, externalJs, unoptimisedJs }` — the export-format choices, not the animation |
-| `animator` | root `<svg>`, **pre-rendered SVG only** | the playback settings; in JSON they are the top-level `animator` instead ([read more](../prerendered-svg/data-px-meta.md#the-animator-config-lives-in-two-different-places)) |
+| `animator` | root `<svg>`, **pre-rendered SVG only** | the playback settings; in JSON they are the top-level `animator` instead ([read more](https://pixodesk.com/docs/svga/prerendered-svg/data-px-meta#the-animator-config-lives-in-two-different-places)) |
 | `timeline` | `<symbol>` only | `{ duration }` — the symbol's own animation length, ms |
 | `lineSpacing` | text line `<tspan>`s from the second line on | the *Auto* line-height multiplier the materialised `y` was computed from |
 | `animate` | any element, **pre-rendered SVG only** | the node's keyframes, so a CSS export can be re-opened; in JSON this is the node's own `animate` |
@@ -973,7 +973,7 @@ names as the effects in `node.effects`, plus a few keys only the editor knows:
 } }
 ```
 
-Some effects expand one drawn element into SEVERAL written elements — that expansion exists only in pre-rendered SVG files and is documented there: [Expanded parts — host / core / part](../prerendered-svg/data-px-meta.md#applied-effects-that-create-derived-elements-host--core--part).
+Some effects expand one drawn element into SEVERAL written elements — that expansion exists only in pre-rendered SVG files and is documented there: [Expanded parts — host / core / part](https://pixodesk.com/docs/svga/prerendered-svg/data-px-meta#applied-effects-that-create-derived-elements-host--core--part).
 
 ## Core library — `@pixodesk/svg-animator-core`
 
@@ -1100,4 +1100,4 @@ the engine runs in browsers, React Native and test environments.
 Every package is released in lockstep; a player depends on the matching core version, so
 upgrading a player upgrades the core with it.
 
-[Contents](../README.md) · [Library documentation](../library/README.md) · [Pre-rendered SVG documentation](../prerendered-svg/README.md)
+[Contents](../README.md) · [Library documentation](../library/README.md) · [Pre-rendered SVG documentation](https://pixodesk.com/docs/svga/prerendered-svg)

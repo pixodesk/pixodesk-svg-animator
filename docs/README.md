@@ -40,14 +40,14 @@ only where it decides what ends up in the file.
 
 - **[Library documentation](./library/README.md)** — the players: web, React, Vue, React Native; installation, APIs, playback settings & triggers
 - **[Format documentation](./format/README.md)** — the JSON document: reference, effects, editor meta, the core library ([compact printable schema](../SCHEMA.md))
-- **[Pre-rendered SVG documentation](./prerendered-svg/README.md)** — the self-contained `.svg` flavours: embedding, static sites & CMS, `data-px-meta`
+- **[Pre-rendered SVG documentation](https://pixodesk.com/docs/svga/prerendered-svg)** — the self-contained `.svg` flavours: embedding, static sites & CMS, `data-px-meta`
 
 ## Get started
 
-1. [Introduction](./start/introduction.md) — the editor, the file formats, the players, and how they fit together
-2. [Choosing a format](./start/choosing-a-format.md) — JSON vs pre-rendered SVG, what each can animate, browser support
-3. [The editor](./start/editor.md) — creating shapes, animating, effects, exporting
-4. [Set default playback settings & triggers](./start/editor-playback-settings.md) — duration, loops, direction, engine mode, what starts it, clock or scroll — saved with the file
+1. [Introduction](https://pixodesk.com/docs/svga/editor/how-it-fits-together) — the editor, the file formats, the players, and how they fit together
+2. [Choosing a format](https://pixodesk.com/docs/svga/editor/choosing-a-format) — JSON vs pre-rendered SVG, what each can animate, browser support
+3. [The editor](https://pixodesk.com/docs/svga) — creating shapes, animating, effects, exporting
+4. [Set default playback settings & triggers](https://pixodesk.com/docs/svga/editor/playback-settings) — duration, loops, direction, engine mode, what starts it, clock or scroll — saved with the file
 
 ## Get help
 

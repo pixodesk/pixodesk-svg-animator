@@ -1,6 +1,6 @@
 # Playback settings & triggers
 
-[← React Native](./react-native.md) · [Contents](../README.md) · Next: [Pre-rendered SVG on the web →](../prerendered-svg/on-the-web.md)
+[← React Native](./react-native.md) · [Contents](../README.md) · Next: [Pre-rendered SVG on the web →](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web)
 
 Change how an animation plays — its length, loops, direction, what starts it — without going
 back to the editor. Everything about *when* and *how* it plays lives in one place, the
@@ -10,7 +10,7 @@ overrides.
 
 The editor writes the same block from its playback panel; if you only want to set the
 defaults there, see
-[Set default playback settings & triggers](../start/editor-playback-settings.md).
+[Set default playback settings & triggers](https://pixodesk.com/docs/svga/editor/playback-settings).
 
 A document with its `animator` block. (The comments are explanatory; JSON does not allow
 comments, so a real file has none.)
@@ -140,7 +140,7 @@ Where triggers work:
 - **Pre-rendered SVG + CSS animation** (no script at all) supports `load`, and `mouseOver`
   through CSS `:hover`. `click` and `scrollIntoView` cannot be done in pure CSS, so in this
   flavour they behave like `load` — the animation starts as soon as it is shown. See
-  [Pre-rendered SVG](../prerendered-svg/on-the-web.md#flavour-1--svg--css-animation).
+  [Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#flavour-1--svg--css-animation).
 
 ## Overriding from a player
 
@@ -222,4 +222,4 @@ Support: the **web player** (both engines, and therefore React and Vue), and the
 animation* export. Not yet: the CSS export or React Native. The complete "scrollytelling"
 pattern is `subject: "parent"` + `pin: true` inside a tall section.
 
-[← React Native](./react-native.md) · [Contents](../README.md) · Next: [Pre-rendered SVG on the web →](../prerendered-svg/on-the-web.md)
+[← React Native](./react-native.md) · [Contents](../README.md) · Next: [Pre-rendered SVG on the web →](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web)

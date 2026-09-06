@@ -12,8 +12,8 @@ export const GROUPS = [
   { id: 'react',       title: 'React',                   doc: 'library/react.md' },
   { id: 'vue',         title: 'Vue',                     doc: 'library/vue.md' },
   { id: 'playback',    title: 'Playback settings & triggers', doc: 'library/playback-and-triggers.md' },
-  { id: 'prerendered', title: 'Pre-rendered SVG',        doc: 'prerendered-svg/on-the-web.md' },
-  { id: 'static',      title: 'Static sites & CMS',      doc: 'prerendered-svg/static-sites-and-cms.md' },
+  { id: 'prerendered', title: 'Pre-rendered SVG',        doc: 'https://pixodesk.com/docs/svga/prerendered-svg/on-the-web' },
+  { id: 'static',      title: 'Static sites & CMS',      doc: 'https://pixodesk.com/docs/svga/prerendered-svg/static-sites-and-cms' },
 ];
 
 export const CASES = [

@@ -3,7 +3,7 @@
 How to install and use the player libraries that render and control **JSON** animations:
 plain HTML, React, Vue and React Native, plus the playback settings and triggers they all
 share. (Playing a **pre-rendered SVG** needs no library — see
-[Pre-rendered SVG documentation](../prerendered-svg/README.md).)
+[Pre-rendered SVG documentation](https://pixodesk.com/docs/svga/prerendered-svg).)
 
 ## Contents
 
@@ -17,6 +17,6 @@ share. (Playing a **pre-rendered SVG** needs no library — see
 
 ## See also
 
-- [Which format do I need?](../start/choosing-a-format.md)
+- [Which format do I need?](https://pixodesk.com/docs/svga/editor/choosing-a-format)
 - [Format documentation](../format/README.md) — the JSON documents the players consume
 - [Documentation home](../README.md)

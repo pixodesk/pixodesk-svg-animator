@@ -1,11 +1,11 @@
 # Installing the players (overview)
 
-[← Set default playback settings & triggers](../start/editor-playback-settings.md) · [Contents](../README.md) · Next: [Web player →](./web-player.md)
+[← Set default playback settings & triggers](https://pixodesk.com/docs/svga/editor/playback-settings) · [Contents](../README.md) · Next: [Web player →](./web-player.md)
 
 Install a package only if you use the **JSON** format. A pre-rendered SVG needs nothing —
 the CSS flavour is plain SVG, and the JS flavour carries its own copy of the player — so if
 that is your route, skip this page. (One limit to know before you commit to it: a pre-rendered
-file can be inlined **once per page** — [read more](../prerendered-svg/on-the-web.md#one-copy-of-a-file-per-page).)
+file can be inlined **once per page** — [read more](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#one-copy-of-a-file-per-page).)
 
 ## Packages
 
@@ -108,4 +108,4 @@ Native packages.
 - **React Native:** 0.76 or newer, with `react-native-svg` 15 or newer and
   `react-native-reanimated` 3.16 or newer.
 
-[← Set default playback settings & triggers](../start/editor-playback-settings.md) · [Contents](../README.md) · Next: [Web player →](./web-player.md)
+[← Set default playback settings & triggers](https://pixodesk.com/docs/svga/editor/playback-settings) · [Contents](../README.md) · Next: [Web player →](./web-player.md)

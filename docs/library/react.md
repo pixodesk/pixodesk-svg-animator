@@ -216,7 +216,7 @@ export function HoverLogo() {
 > work is the *same* file twice: the imported component is the file's markup, element ids
 > included, so two copies share the same ids and their masks and gradients cross over. To show
 > one animation several times, use the JSON component instead — the player gives every copy
-> its own ids ([read more](../prerendered-svg/on-the-web.md#one-copy-of-a-file-per-page)).
+> its own ids ([read more](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#one-copy-of-a-file-per-page)).
 
 SVGR strips `<script>` tags, so only the pure CSS flavour works this way. Files with scripts
 (JS triggers / JS animation) should be inlined as raw HTML, or switched to JSON.

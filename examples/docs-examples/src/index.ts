@@ -36,7 +36,10 @@ function show(): void {
   // Relative to this page, so it works in dev, in dist/, and from a sub-folder.
   frame.src = './' + casePath(c);
   open.href = frame.src;
-  doc.href = DOCS + g.doc + (c.anchor ? '#' + c.anchor : '');
+  // Group docs are repo-relative paths, or absolute URLs for docs that live on
+  // the website (pre-rendered SVG moved there).
+  const docBase = g.doc.startsWith('http') ? g.doc : DOCS + g.doc;
+  doc.href = docBase + (c.anchor ? '#' + c.anchor : '');
   crumb.textContent = `${g.title} › ${c.title}`;
   document.title = `${c.title} — Pixodesk SVG Animator examples`;
   links.get(key(c))?.scrollIntoView({ block: 'nearest' });

@@ -214,7 +214,7 @@ import AnimationSvg from './animation.svg';   // vite-svg-loader
 > work is the *same* file twice: the imported component is the file's markup, element ids
 > included, so two copies share the same ids and their masks and gradients cross over. To show
 > one animation several times, use the JSON component instead — the player gives every copy
-> its own ids ([read more](../prerendered-svg/on-the-web.md#one-copy-of-a-file-per-page)).
+> its own ids ([read more](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#one-copy-of-a-file-per-page)).
 
 Only the pure CSS flavour works this way (loaders strip or refuse `<script>`); flavours with
 scripts should be inlined as raw HTML, or use JSON.

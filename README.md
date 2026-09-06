@@ -22,10 +22,10 @@ icon animations, loaders.
 
 ## Pick your path
 
-- 🚀 [Play a pre-rendered SVG](./docs/prerendered-svg/README.md) — no library, embed or inline the file
+- 🚀 [Play a pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg) — no library, embed or inline the file
 - ⚛️ [Use in React / Next.js](./docs/library/react.md) · 💚 [Vue / Nuxt](./docs/library/vue.md) · 🌐 [Plain HTML / vanilla JS](./docs/library/web-player.md)
 - 📱 [React Native](./docs/library/react-native.md) 🧪 *(experimental)*
-- 🤔 [Which format do I need?](./docs/start/choosing-a-format.md) — JSON vs pre-rendered SVG, what each can animate
+- 🤔 [Which format do I need?](https://pixodesk.com/docs/svga/editor/choosing-a-format) — JSON vs pre-rendered SVG, what each can animate
 - 📄 [The JSON format](./docs/format/README.md) — the full reference · [SCHEMA.md](./SCHEMA.md) — the compact printable schema
 
 **The full documentation lives in [`docs/`](./docs/README.md)** — the editor, every player's API,
