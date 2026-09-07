@@ -66,7 +66,7 @@ const PxAnimatorConfigSchema = px.object({
     direction:     px.enum(['normal', 'reverse', 'alternate', 'alternate-reverse'] as const).optional(),
     frameRate:     px.number().optional(),
     trigger:       PxTriggerSchema.optional(),
-    debugInstName: px.string().optional(),
+    debugGlobalName: px.string().optional(),
 });
 
 // Named easings are 4-element number tuples — approximated as number[].
@@ -132,7 +132,7 @@ const EMPTY_TRIGGER = {
 const EMPTY_CONFIG = {
     mode: undefined, duration: undefined, delay: undefined, iterations: undefined,
     fill: undefined, direction: undefined, frameRate: undefined,
-    trigger: undefined, debugInstName: undefined,
+    trigger: undefined, debugGlobalName: undefined,
 };
 
 const EMPTY_DOC: PxAnimatedSvgDocument = {

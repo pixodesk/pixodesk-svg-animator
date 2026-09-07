@@ -19,7 +19,7 @@ export const elemTextPathTextLengthGlyphsOff: SvgaCaseJson = {
             "outAction": "pause"
         },
         "definitions": {
-            "glyphs": {
+            "fonts": {
                 "Roboto-Regular": {
                     "fontFamily": "Roboto-Regular",
                     "style": "",
@@ -117,7 +117,7 @@ export const elemTextPathTextLengthGlyphsOff: SvgaCaseJson = {
                             }
                         ]
                     },
-                    "path": "M30,170C60,170,60,120,100,120C140,120,140,170,170,170"
+                    "pathData": "M30,170C60,170,60,120,100,120C140,120,140,170,170,170"
                 }
             },
             "meta": {
@@ -187,7 +187,7 @@ export const elemTextPathTextLengthGlyphsOff: SvgaCaseJson = {
                             }
                         ]
                     },
-                    "path": "M30,170C60,170,60,120,100,120C140,120,140,170,170,170"
+                    "pathData": "M30,170C60,170,60,120,100,120C140,120,140,170,170,170"
                 }
             },
             "meta": {
@@ -245,7 +245,7 @@ export const elemTextPathTextLengthGlyphsOff: SvgaCaseJson = {
                     "method": "align",
                     "spacing": "auto",
                     "textLength": 174,
-                    "path": "M30,70C60,70,60,20,100,20C140,20,140,70,170,70"
+                    "pathData": "M30,70C60,70,60,20,100,20C140,20,140,70,170,70"
                 }
             },
             "meta": {
@@ -322,7 +322,7 @@ export const elemTextPathTextLengthGlyphsOff: SvgaCaseJson = {
                             }
                         ]
                     },
-                    "path": "M100,48.0339C116.5685,48.0339,130,61.4654,130,78.0339C130,94.6025,116.5685,108.0339,100,108.0339C83.4315,108.0339,70,94.6025,70,78.0339C70,61.4654,83.4315,48.0339,100,48.0339z"
+                    "pathData": "M100,48.0339C116.5685,48.0339,130,61.4654,130,78.0339C130,94.6025,116.5685,108.0339,100,108.0339C83.4315,108.0339,70,94.6025,70,78.0339C70,61.4654,83.4315,48.0339,100,48.0339z"
                 }
             },
             "meta": {

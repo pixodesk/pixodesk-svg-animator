@@ -5,7 +5,7 @@
 
 import { type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxBezierPath, type PxBinding, type PxDefs, type PxElementAnimation, type PxKeyframe, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts } from './PxAnimatorTypes';
 import { getBindings, getDefs } from './PxAnimatorConstants';
-import { getAnimatorConfig, PxAnimatorEngine, PxLoopExtend } from './PxAnimatorConstants';
+import { getAnimatorConfig, PxAnimatorEngine, PxLoopDirection, PxLoopRepeatAt } from './PxAnimatorConstants';
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, parseTransformParts, PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 import { evaluateMotionPathSegment, materialiseMotionPathInPropAnim, propAnimIsMotionPath } from './PxMotionPath';
 
@@ -406,7 +406,7 @@ function expandLoopKeyframes(
 
     // Extract segment keyframes
     let segKfs: PxKeyframe[];
-    if (loop.extend === PxLoopExtend.before) {
+    if (loop.repeatAt === PxLoopRepeatAt.start) {
         segKfs = keyframes.slice(0, segCount + 1);
     } else {
         segKfs = keyframes.slice(totalIntervals - segCount);
@@ -417,7 +417,7 @@ function expandLoopKeyframes(
     const lastT = keyframes[keyframes.length - 1].t ?? 0;
 
     let fillStart: number, fillEnd: number;
-    if (loop.extend === PxLoopExtend.before) {
+    if (loop.repeatAt === PxLoopRepeatAt.start) {
         fillStart = 0;
         fillEnd = firstT;
     } else {
@@ -463,7 +463,7 @@ function expandLoopKeyframes(
     // keyframe earlier; done naively it inverts keyframe order and re-breaks the
     // loopIn `f0` regression (`appendRepTail`). Left as-is until it has its own
     // editor-CSS evidence; the two sides may still differ at a loopIn boundary.
-    const separateBoundary = loop.extend !== PxLoopExtend.before;
+    const separateBoundary = loop.repeatAt !== PxLoopRepeatAt.start;
     // The keyframe the FIRST repetition butts up against: loopOut tiles forward from
     // the last original keyframe (the originals are concatenated only at assembly).
     const originalTerminalKf: PxKeyframe | undefined = keyframes[keyframes.length - 1];
@@ -622,31 +622,31 @@ function expandLoopKeyframes(
     // The rep closest to the original keyframes boundary must be reversed first
     // in pingpong mode (the animation just finished going forward, so the next
     // iteration goes backward).
-    if (loop.extend === PxLoopExtend.before) {
+    if (loop.repeatAt === PxLoopRepeatAt.start) {
         // loopIn — the fill must END exactly at the first keyframe (firstT), so the
         // reps tile BACKWARD from that boundary: the leftover (partial) rep sits at
         // fillStart showing the segment's tail, then `fullReps` full reps run up to
         // firstT. (Forward-tiling — as loopOut does — would push the partial next to
         // firstT and desync the fill: the loopIn `f0` regression.)
         if (partialFraction > 1e-9) {
-            const isReversed = !!loop.alternate && (fullReps % 2 === 0);
+            const isReversed = loop.direction === PxLoopDirection.alternate && (fullReps % 2 === 0);
             appendRepTail(fillStart, isReversed, partialFraction);
         }
         for (let rep = 0; rep < fullReps; rep++) {
             const distFromBoundary = fullReps - 1 - rep;
-            const isReversed = !!loop.alternate && (distFromBoundary % 2 === 0);
+            const isReversed = loop.direction === PxLoopDirection.alternate && (distFromBoundary % 2 === 0);
             const repStart = fillStart + remainder + rep * segDuration;
             appendRep(repStart, isReversed);
         }
     } else {
         // loopOut — boundary is at fillStart (lastT); tile forward, partial at the end.
         for (let rep = 0; rep < fullReps; rep++) {
-            const isReversed = !!loop.alternate && (rep % 2 === 0);
+            const isReversed = loop.direction === PxLoopDirection.alternate && (rep % 2 === 0);
             const repStart = fillStart + rep * segDuration;
             appendRep(repStart, isReversed);
         }
         if (partialFraction > 1e-9) {
-            const isReversed = !!loop.alternate && (fullReps % 2 === 0);
+            const isReversed = loop.direction === PxLoopDirection.alternate && (fullReps % 2 === 0);
             const repStart = fillStart + fullReps * segDuration;
             appendRep(repStart, isReversed, partialFraction);
         }
@@ -654,7 +654,7 @@ function expandLoopKeyframes(
 
     // Assemble: looped keyframes go before or after the original keyframes.
     // No junction deduplication — cycle mode relies on value jumps at boundaries.
-    if (loop.extend === PxLoopExtend.before) {
+    if (loop.repeatAt === PxLoopRepeatAt.start) {
         return [...looped, ...keyframes];
     } else {
         if (hasTerminalEasingOverride && keyframes.length > 0) {

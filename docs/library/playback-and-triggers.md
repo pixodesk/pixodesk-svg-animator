@@ -23,7 +23,6 @@ comments, so a real file has none.)
   // Everything about WHEN and HOW the animation plays lives here
   "animator": {
     "timeline": {
-      "type": "clock",
       "duration": 2000,
       "iterations": "infinite",
       "direction": "alternate",
@@ -59,13 +58,13 @@ API timeline. Its `type` picks one of three, mirroring WAAPI's `DocumentTimeline
 
 | `timeline.type` | The playhead follows… |
 |---|---|
-| `clock` (default) | wall time — something *starts* it (the `trigger`), and it has the playback dynamics below |
+| `time` (default — may be omitted) | wall time — something *starts* it (the `trigger`), and it has the playback dynamics below |
 | `scroll` | a scroll container's offset — [Scroll-driven playback](#scroll-driven-playback-in-development) |
 | `view` | the SVG's journey through the viewport — [Scroll-driven playback](#scroll-driven-playback-in-development) |
 
 Each type carries only the fields that mean something for it — a scrubbed timeline has no
 `trigger` or `delay`, and the format gives them no slot there. Omitting `timeline` entirely
-means a plain clock.
+means a time-driven timeline with every default.
 
 ## Timing
 
@@ -110,7 +109,7 @@ happens when that condition ends. The editor writes it from its **Start** settin
 player honours it:
 
 ```json
-"timeline": { "type": "clock", "trigger": { "startOn": "mouseOver", "outAction": "reset" } }
+"timeline": { "trigger": { "startOn": "mouseOver", "outAction": "reset" } }
 ```
 
 | `startOn` | Starts when… | Editor label |
@@ -159,7 +158,7 @@ import { createAnimator } from '@pixodesk/svg-animator-web';
 
 const doc = await (await fetch('/bouncing-ball.json')).json();
 doc.animator = { ...doc.animator,
-  timeline: { type: 'clock', iterations: 'infinite', trigger: { startOn: 'programmatic' } } };
+  timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } } };
 const a = createAnimator({ data: doc, container: '#box' });
 a.play();
 ```
@@ -173,9 +172,9 @@ package page). Note that the components switch the trigger to `programmatic` whe
 `play` / `pause` / `apiRef` / `time`, so only `autoplay` mode uses the trigger saved in the
 file.
 
-## Debug handle — `debugInstName`
+## Debug handle — `debugGlobalName`
 
-`"animator": { "debugInstName": "heroBanner" }` makes the player publish its API object as
+`"animator": { "debugGlobalName": "heroBanner" }` makes the player publish its API object as
 `window.heroBanner`, so you can drive a live instance from the browser console —
 `heroBanner.pause()`, `heroBanner.setCurrentTime(500)`, and so on. Purely a debugging
 convenience; remove it (or leave it — it has no other effect) for production files.

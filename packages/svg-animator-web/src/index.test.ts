@@ -313,7 +313,7 @@ describe('Loop expansion', () => {
     //                         { time: 0, value: 0 },
     //                         { time: 100, value: 1 }
     //                     ],
-    //                     loop: { alternate: true }
+    //                     loop: { direction: 'alternate' }
     //                 }
     //             }
     //         }]
@@ -347,7 +347,7 @@ describe('Loop expansion', () => {
     //                         { time: 100, value: 0 },
     //                         { time: 200, value: 1 }
     //                     ],
-    //                     loop: { extend: 'before' }
+    //                     loop: { repeatAt: 'start' }
     //                 }
     //             }
     //         }]
@@ -485,7 +485,7 @@ describe('Loop expansion', () => {
                                 { time: 150, value: { translate: [0, 0] } },
                                 { time: 250, value: { translate: [100, 0] } }
                             ],
-                            loop: { extend: 'before' }
+                            loop: { repeatAt: 'start' }
                         }
                     }
                 }

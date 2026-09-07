@@ -75,7 +75,7 @@ yourself.
 ## Playback behaviour
 
 **It holds the last frame — I want it to reset.** Set `timeline.trigger.onFinish: "reset"`
-in the file (as a component prop it is `resetOnFinish: true`), or `fill: 'none'` (see
+in the file (as a component prop it is `resetOnFinish: true`), or `fillMode: 'none'` (see
 [Playback settings](./playback-and-triggers.md#timing)).
 
 **How do I play backwards?** `animator.setPlaybackRate(-1); animator.play();` — also as a

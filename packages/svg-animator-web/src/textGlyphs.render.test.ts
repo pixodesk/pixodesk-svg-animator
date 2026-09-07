@@ -29,7 +29,7 @@ function scene(): PxNode {
     return {
         type: 'svg',
         viewBox: '0 0 200 100',
-        animator: { definitions: { glyphs } },
+        animator: { definitions: { fonts: glyphs } },
         children: [{
             type: 'text', id: 't', transform: 'translate(10,50)',
             children: [{ type: 'tspan', textContent: 'Hi', fontFamily: 'F', fontSize: '100px', fill: '#f00' }],

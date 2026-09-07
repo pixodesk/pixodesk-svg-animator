@@ -289,7 +289,8 @@ type UnionMembers<T extends ReadonlyArray<PxSchema<any, any>>> = {
 // DiscriminatedUnion — routes by a literal key field, not first-match order
 // ─────────────────────────────────────────────────────────────────────────────
 
-type AnyDiscriminantShape<K extends string> = Record<K, PxSchema<string | number | boolean, any>>;
+// `undefined` admitted: a member may declare its discriminant `.optional()` (see `_absentMember`).
+type AnyDiscriminantShape<K extends string> = Record<K, PxSchema<string | number | boolean | undefined, any>>;
 
 /**
  * Reads `raw[key]`, finds the member schema whose literal matches that value,
@@ -301,6 +302,9 @@ class DiscriminatedUnion<T> extends Base<T> {
     readonly _kind = 'discriminatedUnion' as const;
     readonly _default: T;
     private readonly _map: Map<string | number | boolean, PxSchema<T>>;
+    /** The member an ABSENT discriminant selects — the one whose discriminant slot is
+     *  `.optional()` (e.g. `timeline.type` omitted = the time-driven timeline). */
+    private readonly _absentMember: PxSchema<T> | undefined;
 
     constructor(
         private readonly _key: string,
@@ -311,15 +315,20 @@ class DiscriminatedUnion<T> extends Base<T> {
         this._default = defaultVal ?? _schemas[0]._default;
         this._map = new Map();
         for (const s of _schemas) {
-            const keySchema = s._shape[_key];
-            if (keySchema) this._map.set(keySchema._default, s);
+            const keySchema = s._shape[_key] as any;
+            if (!keySchema) continue;
+            // An optional discriminant wraps its literal: map the literal's value, and
+            // remember this member as the one to use when the key is missing.
+            const literal = keySchema.inner ?? keySchema;
+            this._map.set(literal._default, s);
+            if (keySchema.inner) this._absentMember = s;
         }
     }
 
     private _findSchema(raw: unknown): PxSchema<T> | undefined {
         if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
         const val = (raw as Record<string, unknown>)[this._key];
-        if (val === undefined || val === null) return undefined;
+        if (val === undefined || val === null) return this._absentMember;
         return this._map.get(val as string | number | boolean);
     }
 
@@ -815,7 +824,7 @@ export const px = {
      */
     discriminatedUnion: <
         K extends string,
-        const T extends ReadonlyArray<PxSchema<any, any> & { readonly _shape: Record<K, PxSchema<string | number | boolean, any>> }>
+        const T extends ReadonlyArray<PxSchema<any, any> & { readonly _shape: AnyDiscriminantShape<K> }>
     >(key: K, schemas: T): PxSchema<UnionMembers<T>> =>
         new DiscriminatedUnion(key, schemas as any) as any,
 

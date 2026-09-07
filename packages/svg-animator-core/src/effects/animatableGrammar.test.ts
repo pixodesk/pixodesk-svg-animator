@@ -51,20 +51,20 @@ describe('unified animatable grammar — loop / kfs alias / value base in effect
         const out = materialise(doc({
             type: 'rect', width: 100, height: 50,
             effects: { transformBy: {
-                rotate: { kfs: [{ t: 0, v: 0 }, { t: 1000, v: 90 }], loop: { alternate: true } },
+                rotate: { kfs: [{ t: 0, v: 0 }, { t: 1000, v: 90 }], loop: { direction: 'alternate' } },
             } },
         }));
         const wrapper = collectByType(out, 'g')[0];
         const tr = anim(wrapper).transform;
         expect(tr.keyframes.map((k: any) => k.value.rotate)).toEqual([0, 90]);
-        expect(tr.loop).toEqual({ alternate: true });
+        expect(tr.loop).toEqual({ direction: 'alternate' });
     });
 
     it('textPath.startOffset — kfs alias + loop + static first-kf baseline', () => {
         const out = materialise(doc({
             type: 'text', children: [{ type: 'tspan', textContent: 'hi' }],
             effects: { textPath: {
-                path: 'M0,0 L100,0', pathOverflow: 'clip',
+                pathData: 'M0,0 L100,0', pathOverflow: 'clip',
                 startOffset: { kfs: [{ t: 0, v: 5 }, { t: 1000, v: 50 }], loop: true },
             } },
         }));

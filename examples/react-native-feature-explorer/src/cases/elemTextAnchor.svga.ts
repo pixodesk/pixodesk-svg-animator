@@ -19,7 +19,7 @@ export const elemTextAnchor: SvgaCaseJson = {
             "outAction": "pause"
         },
         "definitions": {
-            "glyphs": {
+            "fonts": {
                 "Roboto-Regular": {
                     "fontFamily": "Roboto-Regular",
                     "style": "",

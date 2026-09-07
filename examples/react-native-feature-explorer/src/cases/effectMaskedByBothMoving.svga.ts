@@ -31,7 +31,7 @@ export const effectMaskedByBothMoving: SvgaCaseJson = {
             "animate": {
                 "transform": {
                     "loop": {
-                        "alternate": true
+                        "direction": "alternate"
                     },
                     "keyframes": [
                         {
@@ -69,7 +69,7 @@ export const effectMaskedByBothMoving: SvgaCaseJson = {
             "animate": {
                 "transform": {
                     "loop": {
-                        "alternate": true
+                        "direction": "alternate"
                     },
                     "keyframes": [
                         {

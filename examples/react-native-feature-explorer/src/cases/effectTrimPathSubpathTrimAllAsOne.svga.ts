@@ -66,7 +66,7 @@ export const effectTrimPathSubpathTrimAllAsOne: SvgaCaseJson = {
                     "trimAllAsOne": true,
                     "range": {
                         "loop": {
-                            "alternate": true
+                            "direction": "alternate"
                         },
                         "keyframes": [
                             {
@@ -213,7 +213,7 @@ export const effectTrimPathSubpathTrimAllAsOne: SvgaCaseJson = {
                     "trimAllAsOne": true,
                     "range": {
                         "loop": {
-                            "alternate": true
+                            "direction": "alternate"
                         },
                         "keyframes": [
                             {
@@ -330,7 +330,7 @@ export const effectTrimPathSubpathTrimAllAsOne: SvgaCaseJson = {
                     "trimAllAsOne": true,
                     "range": {
                         "loop": {
-                            "alternate": true
+                            "direction": "alternate"
                         },
                         "keyframes": [
                             {

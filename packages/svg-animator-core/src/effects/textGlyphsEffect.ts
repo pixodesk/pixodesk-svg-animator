@@ -6,7 +6,7 @@
 
 /**
  * Glyph text materialiser — turns a `<text>`/`<tspan>` subtree into `<path>`
- * outlines from `definitions.glyphs`, so the text renders with no external font.
+ * outlines from `definitions.fonts`, so the text renders with no external font.
  *
  *  - HORIZONTAL ({@link materialiseGlyphTextHorizontal}) — left-to-right by
  *    advance width; honours font-size, text-anchor, letter/word-spacing,
@@ -808,7 +808,7 @@ export function materialiseGlyphText<E = any>(
 /** Pipeline adapter (plain wire nodes) — `effects.text.useGlyphs`, horizontal. */
 export function applyTextGlyphsEffect(node: PxNode, fx: PxTextEffect | undefined, ctx: ApplyContext): PxNode {
     if (!fx?.useGlyphs) return node;
-    if (!ctx.glyphs) { ctx.warnings.push('textGlyphs: no definitions.glyphs — left as native <text>'); return node; }
+    if (!ctx.glyphs) { ctx.warnings.push('textGlyphs: no definitions.fonts — left as native <text>'); return node; }
     return materialiseGlyphTextHorizontal<PxNode>(node, { glyphs: ctx.glyphs, warnings: ctx.warnings });
 }
 

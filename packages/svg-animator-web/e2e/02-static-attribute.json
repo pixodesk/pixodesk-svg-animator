@@ -2,12 +2,14 @@
   "type": "svg",
   "id": "_px_2rrb6uvp",
   "animator": {
-    "duration": 1000,
-    "direction": "normal",
     "mode": "auto",
-    "trigger": {
-      "startOn": "load",
-      "outAction": "pause"
+    "timeline": {
+      "duration": 1000,
+      "trigger": {
+        "startOn": "load",
+        "outAction": "pause"
+      },
+      "direction": "normal"
     }
   },
   "viewBox": "0 0 400 400",

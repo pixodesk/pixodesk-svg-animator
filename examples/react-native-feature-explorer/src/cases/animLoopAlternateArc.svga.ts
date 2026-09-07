@@ -39,7 +39,7 @@ export const animLoopAlternateArc: SvgaCaseJson = {
                     ],
                     "stops": {
                         "loop": {
-                            "alternate": true
+                            "direction": "alternate"
                         },
                         "keyframes": [
                             {
@@ -154,7 +154,7 @@ export const animLoopAlternateArc: SvgaCaseJson = {
             "animate": {
                 "transform": {
                     "loop": {
-                        "alternate": true
+                        "direction": "alternate"
                     },
                     "keyframes": [
                         {

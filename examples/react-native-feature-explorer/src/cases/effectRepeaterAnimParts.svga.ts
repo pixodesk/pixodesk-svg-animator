@@ -32,7 +32,7 @@ export const effectRepeaterAnimParts: SvgaCaseJson = {
                     "copies": 5,
                     "origin": {
                         "loop": {
-                            "alternate": true
+                            "direction": "alternate"
                         },
                         "keyframes": [
                             {
@@ -71,7 +71,7 @@ export const effectRepeaterAnimParts: SvgaCaseJson = {
                     ],
                     "scale": {
                         "loop": {
-                            "alternate": true
+                            "direction": "alternate"
                         },
                         "keyframes": [
                             {
@@ -109,7 +109,7 @@ export const effectRepeaterAnimParts: SvgaCaseJson = {
                     ],
                     "rotate": {
                         "loop": {
-                            "alternate": true
+                            "direction": "alternate"
                         },
                         "keyframes": [
                             {

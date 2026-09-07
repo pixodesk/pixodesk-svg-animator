@@ -40,7 +40,7 @@ describe('cycle-loop boundary (B7)', () => {
     });
 
     it('a pingpong turn emits NO duplicate — the values are equal, so it says nothing', () => {
-        const out = expand({ alternate: true });
+        const out = expand({ direction: 'alternate' });
         expect(times(out)).toEqual([0, 500, 1000]);
         expect(xs(out)).toEqual([20, 160, 20]);
     });

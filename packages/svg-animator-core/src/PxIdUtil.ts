@@ -66,8 +66,12 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
         'filter', 'flood-color', 'lighting-color'
     ]);
 
-    // Attributes that contain direct ID references (no # or url())
-    const directIdRefAttrs = new Set(['sourceId', 'targetId', 'boundElementId']);
+    // Attributes that contain direct ID references (no # or url()). `source` is one
+    // only inside an effect bucket (`maskedBy.source`, `clone.source`) — the scroll
+    // timeline also has a `source` key ('nearest' | 'root'), which is not an id.
+    const directIdRefAttrs = new Set(['targetId', 'boundElementId']);
+    const isEffectSourceRef = (key: string, parentKey: string | undefined) =>
+        key === 'source' && (parentKey === 'maskedBy' || parentKey === 'clone');
 
     // Phase 1: Collect all IDs and generate new ones
     function collectIds(node: any): void {
@@ -92,7 +96,7 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
     }
 
     // Phase 2: Update all references to old IDs
-    function updateRefs(node: any): void {
+    function updateRefs(node: any, parentKey?: string): void {
         if (!node || typeof node !== 'object') return;
 
         for (const [key, value] of Object.entries(node)) {
@@ -118,10 +122,10 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
                 else if (urlRefAttrs.has(key)) {
                     node[key] = replaceUrlRefs(value, idMap);
                 }
-                // Check for direct ID references: sourceId="#_px_xxx" (canonical `#id`,
-                // SCHEMA-DESIGN §4 E-5) or bare sourceId="_px_xxx" (legacy) —
+                // Check for direct ID references: source="#_px_xxx" (canonical `#id`,
+                // SCHEMA-DESIGN §4 E-5) or bare source="_px_xxx" (legacy) —
                 // rewrite preserving the incoming spelling.
-                else if (directIdRefAttrs.has(key)) {
+                else if (directIdRefAttrs.has(key) || isEffectSourceRef(key, parentKey)) {
                     const hasHash = value.startsWith('#');
                     const newId = idMap.get(hasHash ? value.slice(1) : value);
                     if (newId) {
@@ -141,11 +145,11 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
                     }
                 }
             }
-            // Recursively process nested objects (meta contains sourceId/targetId refs;
+            // Recursively process nested objects (effect buckets carry source/targetId refs;
             // in-place animated values like { keyframes: [{ value: "url(#grad)" }] }
             // also need ref rewriting on string values they contain).
             else if (typeof value === 'object' && value !== null) {
-                updateRefs(value);
+                updateRefs(value, key);
             }
         }
     }

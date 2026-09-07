@@ -9,7 +9,7 @@
 // same class of mistake caught in one slot and missed in the next.
 //
 // Plain `px.string()` is kept ONLY where SVG itself is open-ended: `gradientTransform`,
-// `viewBox`, textPath `path` (a `d`), ids/refs, `debugInstName`.
+// `viewBox`, textPath `pathData` (a `d`), ids/refs, `debugGlobalName`.
 
 import { describe, expect, it } from 'vitest';
 import {
@@ -28,10 +28,10 @@ const CASES: Array<[any, string, unknown, unknown, Record<string, unknown>]> = [
     [PxCloneEffectSchema, 'type', 'content', 'contents', {}],
     [PxFillGradientEffectSchema, 'gradientUnits', 'userSpaceOnUse', 'userSpaceOnuse', { type: 'linear' }],
     [PxFillGradientEffectSchema, 'spreadMethod', 'reflect', 'reflectt', { type: 'linear' }],
-    [PxTextPathEffectSchema, 'pathOverflow', 'clip', 'clipp', { path: 'M0,0L10,0' }],
-    [PxTextPathEffectSchema, 'lengthAdjust', 'spacingAndGlyphs', 'spacingAndGlyph', { path: 'M0,0L10,0' }],
-    [PxTextPathEffectSchema, 'method', 'stretch', 'strech', { path: 'M0,0L10,0' }],
-    [PxTextPathEffectSchema, 'spacing', 'exact', 'exactt', { path: 'M0,0L10,0' }],
+    [PxTextPathEffectSchema, 'pathOverflow', 'clip', 'clipp', { pathData: 'M0,0L10,0' }],
+    [PxTextPathEffectSchema, 'lengthAdjust', 'spacingAndGlyphs', 'spacingAndGlyph', { pathData: 'M0,0L10,0' }],
+    [PxTextPathEffectSchema, 'method', 'stretch', 'strech', { pathData: 'M0,0L10,0' }],
+    [PxTextPathEffectSchema, 'spacing', 'exact', 'exactt', { pathData: 'M0,0L10,0' }],
 ];
 
 describe('closed value lists are strict enums (V3)', () => {
@@ -50,9 +50,9 @@ describe('closed value lists are strict enums (V3)', () => {
         // `gradientTransform` is an arbitrary transform string — must NOT be constrained.
         expect(PxFillGradientEffectSchema.isValid(
             { type: 'linear', gradientTransform: 'rotate(31.5) translate(4,2)' }, ctx(), [])).toBe(true);
-        // textPath `path` is a `d` — likewise open.
+        // textPath `pathData` is a `d` — likewise open.
         expect(PxTextPathEffectSchema.isValid(
-            { path: 'M0,0C10,10 20,-10 30,0' }, ctx(), [])).toBe(true);
+            { pathData: 'M0,0C10,10 20,-10 30,0' }, ctx(), [])).toBe(true);
     });
 });
 

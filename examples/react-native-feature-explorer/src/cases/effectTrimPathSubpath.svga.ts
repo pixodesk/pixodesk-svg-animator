@@ -64,7 +64,7 @@ export const effectTrimPathSubpath: SvgaCaseJson = {
                 "strokeTrim": {
                     "range": {
                         "loop": {
-                            "alternate": true
+                            "direction": "alternate"
                         },
                         "keyframes": [
                             {
@@ -208,7 +208,7 @@ export const effectTrimPathSubpath: SvgaCaseJson = {
                 "strokeTrim": {
                     "range": {
                         "loop": {
-                            "alternate": true
+                            "direction": "alternate"
                         },
                         "keyframes": [
                             {
@@ -322,7 +322,7 @@ export const effectTrimPathSubpath: SvgaCaseJson = {
                 "strokeTrim": {
                     "range": {
                         "loop": {
-                            "alternate": true
+                            "direction": "alternate"
                         },
                         "keyframes": [
                             {

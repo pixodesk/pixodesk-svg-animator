@@ -8,7 +8,7 @@ import { implementsInterface, px } from './PxSchema';
 // Constants live in their own module so importing one does not pull the schema engine
 // in; re-exported here so this module's public surface is unchanged. See there.
 export * from './PxAnimatorConstants';
-import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PxAnimatorMode, PxCloneType, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxGradientUnits, PxLengthAdjust, PxLoopExtend, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
+import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PxAnimatorMode, PxCloneType, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxGradientUnits, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
 import type { FillMode, JsMode, OutAction, PlaybackDirection, PxAnimatorEngine, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
 
 // ============================================================================
@@ -222,34 +222,33 @@ export interface _PxLoop {
      * segment.
      *
      * - `undefined` → the entire keyframe sequence is used as the loop segment.
-     * - `N`         → only the first `N` intervals (when `extend: 'before'`) or the last `N`
-     *                 intervals (when `extend: 'after'`) are looped. Clamped to `[1, keyframes.length - 1]`.
+     * - `N`         → only the first `N` intervals (when `repeatAt: 'start'`) or the last `N`
+     *                 intervals (when `repeatAt: 'end'`) are looped. Clamped to `[1, keyframes.length - 1]`.
      */
     segmentCount?: number;
 
     /**
-     * Selects which end of the keyframe sequence is looped — see {@link PxLoopExtend}.
-     * `'before'` extends ahead of the first keyframe (intro loop); `'after'` (default)
-     * extends past the last (idle/outro loop).
+     * Which end of the keyframe sequence the repetition fills — see {@link PxLoopRepeatAt}.
+     * `'start'` repeats ahead of the first keyframe (intro loop); `'end'` (default)
+     * repeats past the last (idle/outro loop).
      */
-    extend?: PxLoopExtend;
+    repeatAt?: PxLoopRepeatAt;
 
     /**
-     * Controls playback direction on each successive loop iteration.
+     * How successive repetitions play — see {@link PxLoopDirection}.
      *
-     * - `false` (default) → **cycle**: every iteration replays the segment in the same direction.
-     *
-     * - `true`  → **pingpong**: iterations alternate between forward and backward playback
-     *             (even iterations play forward, odd iterations play in reverse).
+     * - `'normal'` (default) → **cycle**: every repetition replays the segment the same way round.
+     * - `'alternate'`        → **ping-pong**: repetitions alternate forward and backward
+     *                          (even repetitions play forward, odd ones in reverse).
      */
-    alternate?: boolean;
+    direction?: PxLoopDirection;
 }
 
-// `{ segmentCount?:number, extend?:'before'|'after', alternate?:boolean }`
+// `{ segmentCount?:number, repeatAt?:'start'|'end', direction?:'normal'|'alternate' }`
 export const PxLoopSchema = implementsInterface<_PxLoop>()(px.object({
     segmentCount: px.number().optional(),
-    extend: px.enum([PxLoopExtend.before, PxLoopExtend.after] as const).optional(),
-    alternate: px.boolean().optional(),
+    repeatAt: px.enum([PxLoopRepeatAt.start, PxLoopRepeatAt.end] as const).optional(),
+    direction: px.enum([PxLoopDirection.normal, PxLoopDirection.alternate] as const).optional(),
 }));
 
 /**
@@ -307,15 +306,24 @@ export interface _PxPropertyAnimation {
      * arc-length-parametrised segment.
      */
     autoOrient?: boolean;
+
+    /**
+     * How a motion-along-path `transform` animation is RENDERED: `'sampled'` (default,
+     * absent) — the path is pre-sampled into plain transform keyframes;
+     * `'offsetPath'` — the browser drives it as a CSS Motion Path (`offset-path` /
+     * `offset-distance`). Written by the editor, consumed by `materialiseAllInTree`.
+     */
+    alongPathMode?: 'sampled' | 'offsetPath';
 }
 
-// `{ value?:KeyframeValue, keyframes?:Keyframe[], loop?:Loop|boolean, autoOrient?:bool }`
+// `{ value?:KeyframeValue, keyframes?:Keyframe[], loop?:Loop|boolean, autoOrient?:bool, alongPathMode?:'sampled'|'offsetPath' }`
 // (the `kfs` alias was removed outright — review §1.2/§6.1: one spelling only)
 export const PxPropertyAnimationSchema = implementsInterface<_PxPropertyAnimation>()(px.object({
     value: PxKeyframeValueSchema.optional(),
     keyframes: px.array(PxKeyframeSchema).optional(),
     loop: px.union([PxLoopSchema, px.boolean()]).optional(),
     autoOrient: px.boolean().optional(),
+    alongPathMode: px.enum(['sampled', 'offsetPath'] as const).optional(),
 }));
 
 /** Animation definition for a single CSS/SVG property. */
@@ -533,7 +541,7 @@ const _ck_PxGlyph: KeysMatch<PxGlyph, _PxGlyph> = true; // the key sets are iden
 
 /**
  * The used glyphs of one font, keyed by character. Referenced by a text's
- * `font-family` (the key in {@link _PxDefs.glyphs}).
+ * `font-family` (the key in {@link _PxDefs.fonts}).
  */
 export interface _PxGlyphFont {
     /** CSS family name, e.g. "Roboto". */
@@ -575,19 +583,19 @@ export interface _PxDefs {
      *  resolved and applied at render time (see `resolveStyle` in PxAnimatorDOM). */
     styles?: { [name: string]: Record<string, string | number>; };
 
-    /** Embedded per-font glyph outlines, keyed by the text's `font-family`.
+    /** Embedded fonts — per-font glyph outlines, keyed by the text's `font-family`.
      *  Lets glyph-mode `<text>` render without an external font. */
-    glyphs?: { [fontName: string]: PxGlyphFont; };
+    fonts?: { [fontName: string]: PxGlyphFont; };
 }
 
-// `{ easings?:Record<name,[x1,y1,x2,y2]>, animations?:Record<name,AnimationDefinition>, styles?:Record<name,Record<attr,string|number>>, glyphs?:Record<fontName,PxGlyphFont> }`
+// `{ easings?:Record<name,[x1,y1,x2,y2]>, animations?:Record<name,AnimationDefinition>, styles?:Record<name,Record<attr,string|number>>, fonts?:Record<fontName,PxGlyphFont> }`
 export const PxDefsSchema = implementsInterface<_PxDefs>()(px.object({
     easings: px.record(px.tuple([px.number(), px.number(), px.number(), px.number()] as const)).optional(),
     animations: px.record(PxAnimationDefinitionSchema).optional(),
     // Review §2.6: the schema now matches the declared type — a style preset is a flat
     // record of string|number attribute values, nothing nested.
     styles: px.record(px.record(px.union([px.string(), px.number()]))).optional(),
-    glyphs: px.record(PxGlyphFontSchema).optional(),
+    fonts: px.record(PxGlyphFontSchema).optional(),
 }));
 
 /** Reusable definitions library for easings, animations, and styles. */
@@ -747,7 +755,7 @@ const _ck_PxScroll: KeysMatch<PxScroll, _PxScroll> = true; // the key sets are i
 // TIMELINE — what advances the animation's progress (review §2.1)
 // ============================================================================
 //
-// `animator.timeline` is a discriminated object: `type: 'clock' | 'scroll' | 'view'`,
+// `animator.timeline` is a discriminated object: `type?: 'time' | 'scroll' | 'view'`,
 // deliberately mirroring WAAPI's three timeline classes (DocumentTimeline /
 // ScrollTimeline / ViewTimeline) and CSS `animation-timeline: auto | scroll() | view()`.
 // Each mode carries ONLY its own parameters, so a key that is dead in the other mode is
@@ -765,17 +773,20 @@ export const PxTimelinePinSchema = px.object({
 });
 export type PxTimelinePin = PxInfer<typeof PxTimelinePinSchema>;
 
-// Clock mode — wall-clock playback: something STARTS it (trigger) and it has the
-// WAAPI playback dynamics. `resetOnFinish` has no slot here: its successor is
-// `trigger.onFinish: 'reset'`.
-const PxClockTimelineSchema = px.object({
-    type: px.literal('clock'),
+// Time-driven — wall-clock playback: something STARTS it (trigger) and it has the
+// WAAPI playback dynamics. `type` is OPTIONAL: an absent `type` (or an absent
+// `timeline` altogether) means this one — the common case declares nothing.
+// `resetOnFinish` has no slot here: its successor is `trigger.onFinish: 'reset'`.
+const PxTimeTimelineSchema = px.object({
+    type: px.literal('time').optional(),
     // §2.8: duration is a property of the TIMELINE — how long one pass takes.
     duration: px.number().optional(),
     trigger: PxTriggerSchema.optional(),
     delay: px.number().optional(),
     iterations: px.union([px.number(), px.literal('infinite')]).optional(),
-    fill: px.enum(['forwards', 'backwards', 'both', 'none'] as const).optional(),
+    // `fillMode` on the wire (CSS `animation-fill-mode`; the runtime view calls it `fill`)
+    // — never `fill`, which is paint everywhere else in the format.
+    fillMode: px.enum(['forwards', 'backwards', 'both', 'none'] as const).optional(),
     direction: px.enum(['normal', 'reverse', 'alternate', 'alternate-reverse'] as const).optional(),
 });
 
@@ -804,7 +815,7 @@ const PxScrollTimelineSchema = px.object({ type: px.literal('scroll'), ...scroll
 const PxViewTimelineSchema = px.object({ type: px.literal('view'), ...scrollishTimelineShape });
 
 export const PxTimelineSchema = px.discriminatedUnion('type', [
-    PxClockTimelineSchema,
+    PxTimeTimelineSchema,   // first = the member an absent `type` selects
     PxScrollTimelineSchema,
     PxViewTimelineSchema,
 ]);
@@ -887,7 +898,7 @@ export interface _PxAnimatorConfig {
      * is the wall clock; `'scroll'` is scroll-linked playback ("scrubbing"), matching
      * CSS scroll-driven animations.
      *
-     * The wire spells this as `timeline.type` ('clock' vs 'scroll'/'view');
+     * The wire spells this as `timeline.type` ('time' — or absent — vs 'scroll'/'view');
      * `flattenAnimatorTimeline` folds it into this field for the engines.
      * Distinct from `trigger.startOn`, which says what STARTS the animation: one
      * names the beginning, this one names what moves the playhead afterwards.
@@ -900,14 +911,14 @@ export interface _PxAnimatorConfig {
     scroll?: PxScroll;
 
     /** What advances the animation — THE wire spelling (review §2.1): a discriminated
-     *  `{ type: 'clock' | 'scroll' | 'view', … }` object mirroring WAAPI's timeline
-     *  classes. Carries the playback dynamics (`trigger`/`delay`/`iterations`/`fill`/
-     *  `direction` for clock; scroll geometry for scroll/view); the flat fields above
+     *  `{ type?: 'time' | 'scroll' | 'view', … }` object mirroring WAAPI's timeline
+     *  classes. Carries the playback dynamics (`trigger`/`delay`/`iterations`/`fillMode`/
+     *  `direction` for time; scroll geometry for scroll/view); the flat fields above
      *  are the internal runtime view `flattenAnimatorTimeline` produces from it. */
     timeline?: PxTimeline;
 
-    /** Debug helper: exposes the animator instance as `window[debugInstName]`. */
-    debugInstName?: string;
+    /** Debug helper: exposes the animator instance as `window[debugGlobalName]`. */
+    debugGlobalName?: string;
 }
 
 // The WIRE format (review §2.1): playback dynamics live only inside `timeline` —
@@ -923,7 +934,7 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
     timeline: PxTimelineSchema.optional(),
     definitions: PxDefsSchema.optional(),
     animateById: px.record(PxElementAnimationSchema).optional(),
-    debugInstName: px.string().optional(),
+    debugGlobalName: px.string().optional(),
 }));
 
 /**
@@ -1207,13 +1218,13 @@ const _ck_PxRepeaterEffect: KeysMatch<PxRepeaterEffect, _PxRepeaterEffect> = tru
 
 
 /** Mask source ref + standard `<mask>` attributes.
- *  `sourceId` is `#id` (canonical ref spelling, SCHEMA-DESIGN §4 E-5); bare `id` is legacy, read-only.
+ *  `source` is `#id` (canonical ref spelling, SCHEMA-DESIGN §4 E-5); bare `id` is legacy, read-only.
  *  `start`/`size` are the `<mask>` viewport — its `x`/`y` and `width`/`height` in
  *  `maskUnits` space. Absent = SVG's implicit mask region (−10% … 120% of the
  *  bounding box), which is also the editor's default — so they only appear when a
  *  document (typically an imported SVG) carries explicit mask bounds. */
 export interface _PxMaskedByEffect {
-    sourceId?: string;
+    source?: string;
     maskType?: string;
     maskUnits?: string;
     maskContentUnits?: string;
@@ -1227,7 +1238,7 @@ export interface _PxMaskedByEffect {
     height?: number;
 }
 export const PxMaskedByEffectSchema = implementsInterface<_PxMaskedByEffect>()(px.object({
-    sourceId: px.string().optional(),
+    source: px.string().optional(),
     maskType: px.enum([PxMaskType.luminance, PxMaskType.alpha] as const).optional(),
     maskUnits: px.enum([PxUnits.userSpaceOnUse, PxUnits.objectBoundingBox] as const).optional(),
     maskContentUnits: px.enum([PxUnits.userSpaceOnUse, PxUnits.objectBoundingBox] as const).optional(),
@@ -1292,11 +1303,11 @@ export type PxStrokeTrimEffect = PxInfer<typeof PxStrokeTrimEffectSchema>;
 const _ck_PxStrokeTrimEffect: KeysMatch<PxStrokeTrimEffect, _PxStrokeTrimEffect> = true;
 
 
-/** Ref-attr naming rule (see editor SCHEMA-DESIGN.md): `sourceId` = ref to an EXTERNAL element
+/** Ref-attr naming rule (see editor SCHEMA-DESIGN.md): `source` = ref to an EXTERNAL element
  *  (clone/maskedBy/retime); `coreId` = a unit's own survivor; `partOf` = a derived node's host.
  *
- *  `<use>` retime: pure timing — the source ref lives ONCE, on the parent `clone.sourceId`
- *  (review §4.3; retime's own duplicate `sourceId` was removed outright — no consumer ever
+ *  `<use>` retime: pure timing — the source ref lives ONCE, on the parent `clone.source`
+ *  (review §4.3; retime's own duplicate `source` was removed outright — no consumer ever
  *  read it: the materialiser follows `href`). `start`/`timeCrop` in ms.
  *  `timeCrop: [inMs, outMs]` is a VISIBILITY WINDOW on the document timeline — implemented
  *  (2026-08) as an opacity gate on a player-side wrapper `<g>`, independent of the
@@ -1317,23 +1328,23 @@ const _ck_PxRetimeEffect: KeysMatch<PxRetimeEffect, _PxRetimeEffect> = true;
 
 /**
  * `<use>` CLONE — merges the former `ref` + `retime` effects. A `<use>` is a clone
- * of something: `type`/`sourceId` say WHAT it clones, `retime` says WHEN.
+ * of something: `type`/`source` say WHAT it clones, `retime` says WHEN.
  *   - `type: 'content'` → content-ref (excludes the target's own translate);
  *     `type` absent → direct / whole-element link (keeps translate).
- *   - `sourceId` = the source element ref, `#id` (canonical spelling, SCHEMA-DESIGN §4 E-5;
+ *   - `source` = the source element ref, `#id` (canonical spelling, SCHEMA-DESIGN §4 E-5;
  *     bare `id` is legacy, read-only). Lives once here; the player follows `href`.
  *   - `retime` = optional time-shift (nested).
  * Omitted entirely when all-default (a bare `<use href>` carries no `clone` bucket).
  */
 export interface _PxCloneEffect {
     type?: string;
-    sourceId?: string;
+    source?: string;
     retime?: _PxRetimeEffect;
 }
 export const PxCloneEffectSchema = implementsInterface<_PxCloneEffect>()(px.object({
     // Contextual kind — the `type` convention, see `PxNodeBase.type`.
     type: px.enum([PxCloneType.content] as const).optional(),
-    sourceId: px.string().optional(),
+    source: px.string().optional(),
     retime: PxRetimeEffectSchema.optional(),
 }));
 export type PxCloneEffect = PxInfer<typeof PxCloneEffectSchema>;
@@ -1409,7 +1420,7 @@ export const PxStrokeGradientEffectSchema = PxFillGradientEffectSchema;
 export type PxStrokeGradientEffect = PxFillGradientEffect;
 
 /** Text-path effect on a `<text>` host. The path geometry is carried INLINE as
- *  `path` (an SVG `d`; static for now, keyframed animation is a later step) — the
+ *  `pathData` (an SVG `d`; static for now, keyframed animation is a later step) — the
  *  applier generates a `<path>` def from it and wraps the text's children in a native
  *  `<textPath href="#…">` at apply time. All SVG-native textPath attrs
  *  (`lengthAdjust`, `method`, `spacing`, `startOffset`, `textLength`) ride on this
@@ -1420,7 +1431,7 @@ export type PxStrokeGradientEffect = PxFillGradientEffect;
  *     (Lottie / native-glyph behavior).
  *   - `'clip'`: glyphs past the end disappear (native `<textPath>` behavior). */
 export interface _PxTextPathEffect {
-    path: string;                                         // inline SVG `d`
+    pathData: string;                                     // inline SVG `d`
     pathOverflow?: string;                                // 'clip' | 'extend' (default 'extend')
     lengthAdjust?: string;                                // 'spacing' | 'spacingAndGlyphs'
     method?: string;                                      // 'align' | 'stretch'
@@ -1429,7 +1440,7 @@ export interface _PxTextPathEffect {
     textLength?: PxAnimatable<number>;
 }
 export const PxTextPathEffectSchema = implementsInterface<_PxTextPathEffect>()(px.object({
-    path: px.string(),
+    pathData: px.string(),
     pathOverflow: px.enum([PxPathOverflow.clip, PxPathOverflow.extend] as const).optional(),
     lengthAdjust: px.enum([PxLengthAdjust.spacing, PxLengthAdjust.spacingAndGlyphs] as const).optional(),
     method: px.enum([PxTextPathMethod.align, PxTextPathMethod.stretch] as const).optional(),
@@ -1445,7 +1456,7 @@ const _ck_PxTextPathEffect: KeysMatch<PxTextPathEffect, _PxTextPathEffect> = tru
  * `effects.text` — text-rendering options for a `<text>` node.
  *
  * `useGlyphs: true` tells the player to render this text from the embedded
- * per-glyph outlines in `definitions.glyphs` (self-contained, no external
+ * per-glyph outlines in `definitions.fonts` (self-contained, no external
  * font) instead of a native `<text>`. See svga.text.design.md.
  */
 export interface _PxTextEffect {

@@ -19,7 +19,7 @@ export const effectCloneText: SvgaCaseJson = {
             "outAction": "pause"
         },
         "definitions": {
-            "glyphs": {
+            "fonts": {
                 "Roboto-Regular": {
                     "fontFamily": "Roboto-Regular",
                     "style": "",
@@ -98,7 +98,7 @@ export const effectCloneText: SvgaCaseJson = {
                     "lengthAdjust": "spacing",
                     "method": "align",
                     "spacing": "auto",
-                    "path": "M0,0C0,-7.3848,5.9866,-13.3714,13.3714,-13.3714C20.7562,-13.3714,26.7428,-7.3848,26.7428,0"
+                    "pathData": "M0,0C0,-7.3848,5.9866,-13.3714,13.3714,-13.3714C20.7562,-13.3714,26.7428,-7.3848,26.7428,0"
                 }
             },
             "meta": {
@@ -149,7 +149,7 @@ export const effectCloneText: SvgaCaseJson = {
                     "lengthAdjust": "spacing",
                     "method": "align",
                     "spacing": "auto",
-                    "path": "M0,0C0,-10.5499,8.5524,-19.1023,19.1023,-19.1023C29.6522,-19.1023,38.2046,-10.5499,38.2046,0"
+                    "pathData": "M0,0C0,-10.5499,8.5524,-19.1023,19.1023,-19.1023C29.6522,-19.1023,38.2046,-10.5499,38.2046,0"
                 }
             },
             "meta": {
@@ -203,7 +203,7 @@ export const effectCloneText: SvgaCaseJson = {
                     "lengthAdjust": "spacing",
                     "method": "align",
                     "spacing": "auto",
-                    "path": "M0,0C0,-10.5498,8.5524,-19.1022,19.1022,-19.1022C29.652,-19.1022,38.2045,-10.5498,38.2045,0"
+                    "pathData": "M0,0C0,-10.5498,8.5524,-19.1022,19.1022,-19.1022C29.652,-19.1022,38.2045,-10.5498,38.2045,0"
                 }
             },
             "children": [

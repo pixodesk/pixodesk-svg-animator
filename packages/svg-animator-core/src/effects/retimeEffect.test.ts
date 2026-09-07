@@ -28,8 +28,8 @@ function nestedContentRefWire(): PxNode {
     return {
         type: 'svg', viewBox: '0 0 400 400',
         children: [
-            { type: 'use', href: '#use1', y: '100', effects: { clone: { type: 'content', sourceId: 'use1', retime: { start: 250 } } } },
-            { type: 'use', id: 'use1', href: '#ell1', y: '100', effects: { clone: { type: 'content', sourceId: 'ell1', retime: { start: 250 } } } },
+            { type: 'use', href: '#use1', y: '100', effects: { clone: { type: 'content', source: 'use1', retime: { start: 250 } } } },
+            { type: 'use', id: 'use1', href: '#ell1', y: '100', effects: { clone: { type: 'content', source: 'ell1', retime: { start: 250 } } } },
             { type: 'g', id: 'ell1', children: [animatedBall('ball')] },
         ],
     } as unknown as PxNode;
@@ -297,11 +297,11 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             children: [
                 {
                     type: 'use', href: '#use1', y: '100',
-                    effects: { clone: { type: 'content', sourceId: 'use1', retime: { start: 250 } } },
+                    effects: { clone: { type: 'content', source: 'use1', retime: { start: 250 } } },
                 },
                 {
                     type: 'use', id: 'use1', href: '#ell1', y: '100',
-                    effects: { clone: { type: 'content', sourceId: 'ell1', retime: { start: 250 } } },
+                    effects: { clone: { type: 'content', source: 'ell1', retime: { start: 250 } } },
                 },
                 { type: 'g', id: 'ell1', children: [animatedBall('ball')] },
             ],
@@ -678,11 +678,11 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             children: [
                 // the template (with its retimed inner use) comes FIRST in document order
                 { type: 'g', id: 'tpl1', children: [
-                    { type: 'use', href: '#tpl0', effects: { clone: { type: 'content', sourceId: 'tpl0', retime: { start: 250 } } } },
+                    { type: 'use', href: '#tpl0', effects: { clone: { type: 'content', source: 'tpl0', retime: { start: 250 } } } },
                 ] },
                 { type: 'g', id: 'tpl0', children: [animatedBall('ball')] },
                 // the OUTER site references the template
-                { type: 'use', href: '#tpl1', effects: { clone: { type: 'content', sourceId: 'tpl1', retime: { start: 250 } } } },
+                { type: 'use', href: '#tpl1', effects: { clone: { type: 'content', source: 'tpl1', retime: { start: 250 } } } },
             ],
         } as unknown as PxNode;
         const { root } = applyPlayerEffects(wire);
@@ -701,8 +701,8 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
 // is player-side only — it never round-trips to the wire.
 describe('retime is PURE TIMING — no own source ref (review §4.3)', () => {
 
-    // `retime.sourceId` was removed outright (schema included): the source ref lives
-    // ONCE on the parent `clone.sourceId`, and materialisation follows `href` anyway.
+    // `retime.source` was removed outright (schema included): the source ref lives
+    // ONCE on the parent `clone.source`, and materialisation follows `href` anyway.
     // These pin every observable angle of that removal.
 
     it('a retime WITHOUT any source ref works — href is the source of truth', () => {
@@ -720,34 +720,34 @@ describe('retime is PURE TIMING — no own source ref (review §4.3)', () => {
         expect(retimed.animate.opacity.keyframes.map((k: any) => k.time)).toEqual([250, 1250]);
     });
 
-    it('a STRAY legacy retime.sourceId changes nothing — materialisation follows href, not it', () => {
+    it('a STRAY legacy retime.source changes nothing — materialisation follows href, not it', () => {
         const build = (retime: object) => normaliseGeneratedIds(materialise({
             type: 'svg',
             children: [
                 { type: 'g', id: 'src', children: [{ type: 'rect', width: 10, height: 10 }] },
                 { type: 'g', id: 'decoy', children: [{ type: 'ellipse', rx: 5, ry: 5 }] },
-                { type: 'use', href: '#src', effects: { clone: { sourceId: '#src', retime } } },
+                { type: 'use', href: '#src', effects: { clone: { source: '#src', retime } } },
             ],
         } as unknown as PxNode));
         // Same output whether the removed key is absent or points somewhere else entirely.
-        expect(build({ start: 250, sourceId: '#decoy' } as object)).toEqual(build({ start: 250 }));
+        expect(build({ start: 250, source: '#decoy' } as object)).toEqual(build({ start: 250 }));
     });
 
     it('the schema gives the removed key no slot — strict validation flags it', () => {
         const ok: PxValidationContext = { errors: [], warnings: [], strict: true };
         expect(PxCloneEffectSchema.isValid(
-            { sourceId: '#src', retime: { start: 250, stretch: 1.5, timeCrop: [0, 100] } }, ok)).toBe(true);
+            { source: '#src', retime: { start: 250, stretch: 1.5, timeCrop: [0, 100] } }, ok)).toBe(true);
         expect(ok.errors).toEqual([]);
 
         const bad: PxValidationContext = { errors: [], warnings: [], strict: true };
         expect(PxCloneEffectSchema.isValid(
-            { sourceId: '#src', retime: { sourceId: '#src', start: 250 } }, bad)).toBe(false);
+            { source: '#src', retime: { source: '#src', start: 250 } }, bad)).toBe(false);
         expect(bad.errors.length).toBeGreaterThan(0);
     });
 
     it('sanitize strips the removed key and keeps the timing fields', () => {
-        expect(PxCloneEffectSchema.sanitize({ sourceId: '#src', retime: { sourceId: '#src', start: 250, stretch: 2 } }))
-            .toEqual({ sourceId: '#src', retime: { start: 250, stretch: 2 } });
+        expect(PxCloneEffectSchema.sanitize({ source: '#src', retime: { source: '#src', start: 250, stretch: 2 } }))
+            .toEqual({ source: '#src', retime: { start: 250, stretch: 2 } });
     });
 });
 

@@ -48,8 +48,8 @@ export function finaliseAnimator(
     const res = make(effectiveCallbacks);
     apiRef = res;
 
-    if (animatorConfig.debugInstName) {
-        (window as any)[animatorConfig.debugInstName] = res; // Exposing as global variable for debug
+    if (animatorConfig.debugGlobalName) {
+        (window as any)[animatorConfig.debugGlobalName] = res; // Exposing as global variable for debug
     }
 
     return res;

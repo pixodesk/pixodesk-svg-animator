@@ -42,9 +42,9 @@ export function applyRefHref(
 ): void {
     if (!clone) return;
     // Canonical ref spelling is `#id` (SCHEMA-DESIGN §4 E-5); bare `id` is legacy.
-    const sourceId = stripHash(clone.sourceId);
+    const sourceId = stripHash(clone.source);
     if (!sourceId) {
-        if (clone.type === CONTENT_SUBREF) ctx.errors.push('clone: content ref missing sourceId');
+        if (clone.type === CONTENT_SUBREF) ctx.errors.push('clone: content ref missing `source`');
         return; // direct link → href already correct, nothing to rewrite
     }
     // For content-ref, redirect href to the inner-layer id produced by

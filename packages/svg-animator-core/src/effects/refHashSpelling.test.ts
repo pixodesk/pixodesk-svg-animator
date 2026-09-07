@@ -21,11 +21,11 @@ const REF_FORMS: Array<{ name: string; ref: (id: string) => string }> = [
 describe('ref spelling — #id canonical, bare legacy', () => {
 
     for (const form of REF_FORMS) {
-        it(`clone.sourceId (${form.name}) → <use> href resolves`, () => {
+        it(`clone.source (${form.name}) → <use> href resolves`, () => {
             const out = materialise({
                 type: 'svg', children: [
                     { type: 'rect', id: 'src', width: 10, height: 10 },
-                    { type: 'use', href: '#whatever', effects: { clone: { type: 'content', sourceId: form.ref('src') } } },
+                    { type: 'use', href: '#whatever', effects: { clone: { type: 'content', source: form.ref('src') } } },
                 ],
             } as unknown as PxNode);
             const use = collectByType(out, 'use')[0] as any;
@@ -38,7 +38,7 @@ describe('ref spelling — #id canonical, bare legacy', () => {
             const out = materialise({
                 type: 'svg', children: [
                     { type: 'circle', id: 'msrc', r: 5 },
-                    { type: 'rect', width: 10, height: 10, effects: { maskedBy: { sourceId: form.ref('msrc') } } },
+                    { type: 'rect', width: 10, height: 10, effects: { maskedBy: { source: form.ref('msrc') } } },
                 ],
             } as unknown as PxNode);
             const mask = collectByType(out, 'mask')[0] as any;
@@ -47,29 +47,29 @@ describe('ref spelling — #id canonical, bare legacy', () => {
         });
     }
 
-    it('generateNewIds rewrites a #id sourceId preserving the hash spelling', () => {
+    it('generateNewIds rewrites a #id source preserving the hash spelling', () => {
         const doc = {
             type: 'svg', children: [
                 { type: 'rect', id: 'src', width: 10, height: 10 },
-                { type: 'use', href: '#src', effects: { clone: { sourceId: '#src' } } },
+                { type: 'use', href: '#src', effects: { clone: { source: '#src' } } },
             ],
         } as any;
         const regenerated = generateNewIds(doc) as any;
         const use = regenerated.children[1];
         const newSrcId = regenerated.children[0].id;
         expect(newSrcId).not.toBe('src');
-        expect(use.effects.clone.sourceId).toBe('#' + newSrcId);
+        expect(use.effects.clone.source).toBe('#' + newSrcId);
     });
 
-    it('generateNewIds keeps rewriting a legacy bare sourceId (spelling preserved)', () => {
+    it('generateNewIds keeps rewriting a legacy bare source (spelling preserved)', () => {
         const doc = {
             type: 'svg', children: [
                 { type: 'rect', id: 'src', width: 10, height: 10 },
-                { type: 'use', href: '#src', effects: { clone: { sourceId: 'src' } } },
+                { type: 'use', href: '#src', effects: { clone: { source: 'src' } } },
             ],
         } as any;
         const regenerated = generateNewIds(doc) as any;
         const newSrcId = regenerated.children[0].id;
-        expect(regenerated.children[1].effects.clone.sourceId).toBe(newSrcId);
+        expect(regenerated.children[1].effects.clone.source).toBe(newSrcId);
     });
 });

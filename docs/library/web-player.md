@@ -41,7 +41,6 @@ comments are explanatory; JSON does not allow comments, so the real file has non
   // ADDED: the playback settings — how long, how many times, what starts it
   "animator": {
     "timeline": {
-      "type": "clock",
       "duration": 1000,
       "iterations": "infinite",
       "direction": "alternate",
@@ -119,7 +118,7 @@ holds the settings you chose in the editor (duration, iterations, direction, wha
 animation, engine mode). So a file plays the way it was designed, with no configuration.
 
 To change any of those settings for one page, edit the document object before you pass it as
-`data` — for example load the file, set `doc.animator.timeline = { type: 'clock', iterations: 'infinite' }`, then call
+`data` — for example load the file, set `doc.animator.timeline = { iterations: 'infinite' }`, then call
 `createAnimator({ data: doc, container: '#box' })`. Every field and its meaning is in
 [Playback settings & triggers](./playback-and-triggers.md).
 

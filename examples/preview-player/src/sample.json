@@ -5,14 +5,14 @@
   "preserveAspectRatio": "xMidYMid meet",
   "fill": "none",
   "animator": {
-    "duration": 1500,
-    "iterations": "infinite",
-    "direction": "alternate",
-    "type": "javaScript",
     "mode": "auto",
-    "timeline": "time",
-    "trigger": {
-      "startOn": "load"
+    "timeline": {
+      "duration": 1500,
+      "trigger": {
+        "startOn": "load"
+      },
+      "iterations": "infinite",
+      "direction": "alternate"
     }
   },
   "children": [
@@ -25,14 +25,32 @@
       "animate": {
         "fill": {
           "keyframes": [
-            { "t": 0, "v": "#007fff85" },
-            { "t": 1500, "v": "#ff020085" }
+            {
+              "time": 0,
+              "value": "#007fff85"
+            },
+            {
+              "time": 1500,
+              "value": "#ff020085"
+            }
           ]
         },
         "translate": {
           "keyframes": [
-            { "t": 0, "v": [139.6604, 163.8499] },
-            { "t": 1500, "v": [139.6604, 310.3879] }
+            {
+              "time": 0,
+              "value": [
+                139.6604,
+                163.8499
+              ]
+            },
+            {
+              "time": 1500,
+              "value": [
+                139.6604,
+                310.3879
+              ]
+            }
           ]
         }
       },
@@ -48,8 +66,14 @@
       "animate": {
         "d": {
           "keyframes": [
-            { "t": 0, "v": "M0,0L103.4944,-98.286L128.4891,1.4987L0,0z" },
-            { "t": 1500, "v": "M0,0L157.1641,-191.0395L128.4891,1.4987L0,0z" }
+            {
+              "time": 0,
+              "value": "M0,0L103.4944,-98.286L128.4891,1.4987L0,0z"
+            },
+            {
+              "time": 1500,
+              "value": "M0,0L157.1641,-191.0395L128.4891,1.4987L0,0z"
+            }
           ]
         }
       },

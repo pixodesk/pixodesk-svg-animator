@@ -60,7 +60,7 @@ describe('maskedBy viewport (x/y/width/height) — explicit mask region', () => 
         const out = materialise(doc({
             type: 'rect', width: 100, height: 100,
             effects: { maskedBy: {
-                sourceId: '#msrc', maskUnits: 'userSpaceOnUse',
+                source: '#msrc', maskUnits: 'userSpaceOnUse',
                 x: -20, y: -20, width: 240, height: 240,
             } },
         }));
@@ -75,7 +75,7 @@ describe('maskedBy viewport (x/y/width/height) — explicit mask region', () => 
     it('absent viewport → no viewport attrs (SVG implicit −10%…120% region)', () => {
         const out = materialise(doc({
             type: 'rect', width: 100, height: 100,
-            effects: { maskedBy: { sourceId: '#msrc' } },
+            effects: { maskedBy: { source: '#msrc' } },
         }));
         const mask = collectByType(out, 'mask')[0] as any;
         expect(mask.x).toBeUndefined();

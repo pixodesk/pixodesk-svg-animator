@@ -122,7 +122,7 @@ export { PxCloneEffectSchema, PxEffectsSchema, PxFillGradientEffectSchema, PxGra
     PxScrollRangePointSchema,
     PxScrollRangeSchema,
     PxScrollSchema, PxStrokeGradientEffectSchema, PxTextPathEffectSchema, PxTextEffectSchema, PxTransformByEffectSchema, PxStrokeTrimEffectSchema, validateNodeEffects } from './PxAnimatorTypes';
-export { PxGradientSpreadMethod, PxGradientType, PxLoopExtend, PxStrokeTrimSubPaths, PxGradientUnits } from './PxAnimatorConstants';
+export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxGradientUnits } from './PxAnimatorConstants';
 export type {
     PxAnimatable,
     PxCloneEffect,

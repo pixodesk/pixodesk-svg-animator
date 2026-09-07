@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 // Pure-JSON in/out tests for the GLYPH-TEXT effect (`textGlyphsEffect.ts`).
-// A <text> with `effects.text.useGlyphs` + `definitions.glyphs` is replaced by a
+// A <text> with `effects.text.useGlyphs` + `definitions.fonts` is replaced by a
 // <g> of baked <path> outlines: glyphs sharing paint merge into one path;
 // differing fill splits; text-anchor shifts each line by its advance width.
 //
@@ -31,7 +31,7 @@ const glyphs = {
 function scene(text: any, textAttrs: any = {}, tspans?: Array<any>): PxNode {
     return {
         type: 'svg',
-        animator: { definitions: { glyphs } },
+        animator: { definitions: { fonts: glyphs } },
         children: [{
             type: 'text', id: 't', ...textAttrs,
             children: tspans ?? [{ type: 'tspan', textContent: 'Hi', fontFamily: 'F', fontSize: '100px' }],
@@ -128,21 +128,21 @@ describe('textGlyphsEffect — <text> → baked <path> outlines', () => {
         } as unknown as PxNode;
         const { root, warnings } = materialiseRaw(input);
         expect(collectByType(root, 'text')).toHaveLength(1);
-        expect(warnings.join(' ')).toContain('no definitions.glyphs');
+        expect(warnings.join(' ')).toContain('no definitions.fonts');
     });
 });
 
 
 describe('textGlyphsEffect — along-path', () => {
 
-    // svg root with a glyph text running along an INLINE path (textPath.path).
+    // svg root with a glyph text running along an INLINE path (textPath.pathData).
     function alongScene(pathD: string, startOffset?: number, text = 'Hi', pathOverflow?: string): PxNode {
-        const textPath: any = { path: pathD };
+        const textPath: any = { pathData: pathD };
         if (startOffset !== undefined) textPath.startOffset = startOffset;
         if (pathOverflow !== undefined) textPath.pathOverflow = pathOverflow;
         return {
             type: 'svg',
-            animator: { definitions: { glyphs } },
+            animator: { definitions: { fonts: glyphs } },
             children: [
                 {
                     type: 'text', id: 't',
@@ -248,12 +248,12 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
         if (loop !== undefined) startOffset.loop = loop;
         return {
             type: 'svg',
-            animator: { definitions: { glyphs } },
+            animator: { definitions: { fonts: glyphs } },
             children: [
                 {
                     type: 'text', id: 't',
                     children: [{ type: 'tspan', text, fontFamily: 'F', fontSize: '100px' }],
-                    effects: { text: { useGlyphs: true }, textPath: { path: pathD, startOffset } },
+                    effects: { text: { useGlyphs: true }, textPath: { pathData: pathD, startOffset } },
                 },
             ],
         } as unknown as PxNode;

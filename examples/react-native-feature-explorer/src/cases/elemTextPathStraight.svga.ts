@@ -19,7 +19,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
             "outAction": "pause"
         },
         "definitions": {
-            "glyphs": {
+            "fonts": {
                 "Roboto-Regular": {
                     "fontFamily": "Roboto-Regular",
                     "style": "",
@@ -81,7 +81,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                     "lengthAdjust": "spacing",
                     "method": "align",
                     "spacing": "auto",
-                    "path": "M24,100L176,100"
+                    "pathData": "M24,100L176,100"
                 }
             },
             "meta": {
@@ -131,7 +131,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                     "lengthAdjust": "spacing",
                     "method": "align",
                     "spacing": "auto",
-                    "path": "M24,100L80,83.0864"
+                    "pathData": "M24,100L80,83.0864"
                 }
             },
             "meta": {
@@ -189,7 +189,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                     "lengthAdjust": "spacing",
                     "method": "align",
                     "spacing": "auto",
-                    "path": "M24,100L176,100"
+                    "pathData": "M24,100L176,100"
                 }
             },
             "meta": {
@@ -239,7 +239,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                     "lengthAdjust": "spacing",
                     "method": "align",
                     "spacing": "auto",
-                    "path": "M24,100L110,76.0082"
+                    "pathData": "M24,100L110,76.0082"
                 }
             },
             "meta": {
@@ -300,7 +300,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                     "lengthAdjust": "spacing",
                     "method": "align",
                     "spacing": "auto",
-                    "path": "M24,100L176,100"
+                    "pathData": "M24,100L176,100"
                 }
             },
             "children": [
@@ -346,7 +346,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                     "lengthAdjust": "spacing",
                     "method": "align",
                     "spacing": "auto",
-                    "path": "M24,100L110,73.3"
+                    "pathData": "M24,100L110,73.3"
                 }
             },
             "children": [

@@ -16,7 +16,7 @@ describe('probe', () => {
       ['nested-gradient', { type: 'tspan', textContent: 'H', fontFamily: 'F', fontSize: '100px', effects: { fillGradient: grad },
         children: [{ type: 'tspan', textContent: 'H', fontFamily: 'F', fontSize: '100px', effects: { fillGradient: grad } }] }],
     ] as const) {
-      const scene = { type: 'svg', viewBox: '0 0 200 100', animator: { definitions: { glyphs } },
+      const scene = { type: 'svg', viewBox: '0 0 200 100', animator: { definitions: { fonts: glyphs } },
         children: [{ type: 'text', id: 't', children: [JSON.parse(JSON.stringify(tspan))], effects: { text: { useGlyphs: true } } }] } as unknown as PxNode;
       const { root } = applyPlayerEffects(scene);
       const paths: Array<any> = [];

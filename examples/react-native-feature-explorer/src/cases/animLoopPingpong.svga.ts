@@ -31,7 +31,7 @@ export const animLoopPingpong: SvgaCaseJson = {
                 "opacity": {
                     "loop": {
                         "segmentCount": 1,
-                        "alternate": true
+                        "direction": "alternate"
                     },
                     "keyframes": [
                         {

@@ -220,7 +220,7 @@ function maskedByEffectDoc(): PxAnimatedSvgDocument {
             },
             {
                 type: 'rect', id: '_px_m', x: 0, y: 0, width: 200, height: 200, fill: '#a855f7',
-                effects: { maskedBy: { sourceId: '#_px_mask' } },
+                effects: { maskedBy: { source: '#_px_mask' } },
             },
         ],
     };
@@ -244,7 +244,7 @@ function cloneRetimeEffectDoc(): PxAnimatedSvgDocument {
             { type: 'use', id: '_px_u1', href: '#_px_sym', x: 0, y: 0, width: 100, height: 200 },
             {
                 type: 'use', id: '_px_u2', href: '#_px_sym', x: 100, y: 0, width: 100, height: 200,
-                effects: { clone: { sourceId: '#_px_sym', retime: { start: -500, stretch: 1 } } },
+                effects: { clone: { source: '#_px_sym', retime: { start: -500, stretch: 1 } } },
             },
         ],
     };

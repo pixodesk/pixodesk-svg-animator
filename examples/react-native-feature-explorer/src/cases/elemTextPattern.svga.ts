@@ -19,7 +19,7 @@ export const elemTextPattern: SvgaCaseJson = {
             "outAction": "pause"
         },
         "definitions": {
-            "glyphs": {
+            "fonts": {
                 "Roboto-Black": {
                     "fontFamily": "Roboto-Black",
                     "style": "",

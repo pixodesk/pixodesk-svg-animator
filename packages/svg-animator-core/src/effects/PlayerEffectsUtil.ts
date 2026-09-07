@@ -65,7 +65,7 @@ export function applyPlayerEffects(root: PxNode): ApplyResult {
         engine: getAnimatorConfig(root)?.mode === PxAnimatorMode.frames
             ? PxAnimatorEngine.frames
             : PxAnimatorEngine.waapi,
-        glyphs: getDefs(root)?.glyphs,
+        glyphs: getDefs(root)?.fonts,
     };
 
     const working = clone(root);
@@ -112,8 +112,8 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     let consumedByGlyphs = false;
     if (text?.useGlyphs) {
         if (textPath) {
-            // Path geometry is INLINE (`textPath.path`) — no `<path>` def lookup.
-            const pathD = typeof textPath.path === 'string' ? textPath.path : undefined;
+            // Path geometry is INLINE (`textPath.pathData`) — no `<path>` def lookup.
+            const pathD = typeof textPath.pathData === 'string' ? textPath.pathData : undefined;
             // textLength passes through as a full PxAnimatable — static stretches the
             // run; animated re-spaces the glyphs over time (same per-glyph sampled
             // keyframe machinery as animated startOffset).
@@ -154,14 +154,14 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     }
 
     // Hand off the retime slice to pass 2 (keeps it nested under `clone`). The
-    // ref part (type/sourceId) was consumed above.
+    // ref part (type/source) was consumed above.
     if (cloneFx?.retime) node.effects = { clone: { retime: cloneFx.retime } };
     if (originalId) ctx.idMap.set(originalId, n);                       // outer wrapper is the clone target
     return n;
 }
 
 /** Pass 2 — apply retime to every `<use>` that carries it. Follows the
- *  materialised `<use>.href` (not the editor-side `retime.sourceId`). */
+ *  materialised `<use>.href` (not the editor-side `retime.source`). */
 function applyPlayerEffects_retime(node: PxNode, ctx: ApplyContext): PxNode {
     applyAllRetimeEffects(node, ctx);
     return node;

@@ -4,7 +4,9 @@
  *---------------------------------------------------------------------------------------*/
 
 // The two spellings of "what advances progress" (review §2.1) and the conversions
-// between them: `animator.timeline` (written) ⇄ flat legacy trio (consumed).
+// between them: `animator.timeline` (written) ⇄ flat runtime view (consumed).
+// On the wire the time-driven timeline carries NO `type` (absent = 'time') and
+// spells fill-mode `fillMode`; the runtime view keeps `fill`.
 
 import { describe, expect, it } from 'vitest';
 import { flattenAnimatorTimeline, getAnimatorConfig, nestAnimatorTimeline } from './PxAnimatorConstants';
@@ -15,12 +17,12 @@ describe('animator.timeline spelling compat', () => {
 
     // ── flatten: nested → the flat view every engine consumes ────────────────
 
-    it('flattens a clock timeline to the legacy flat keys (trigger.onFinish → resetOnFinish)', () => {
+    it('flattens a time timeline to the flat runtime keys (trigger.onFinish → resetOnFinish, fillMode → fill)', () => {
         const flat = flattenAnimatorTimeline({
             timeline: {
-                type: 'clock', duration: 4000,
+                type: 'time', duration: 4000,
                 trigger: { startOn: 'click', outAction: 'pause', onFinish: 'reset' },
-                delay: 250, iterations: 'infinite', direction: 'alternate', fill: 'both'
+                delay: 250, iterations: 'infinite', direction: 'alternate', fillMode: 'both'
             }
         } as any) as any;
         expect(flat.timeline).toBeUndefined();
@@ -62,14 +64,14 @@ describe('animator.timeline spelling compat', () => {
     it('is identity for a flat runtime-view config and memoised for a nested one', () => {
         const flat = { duration: 1000, trigger: { startOn: 'load' } } as any;
         expect(flattenAnimatorTimeline(flat)).toBe(flat);            // nothing to fold → same object
-        const nested = { timeline: { type: 'clock', delay: 5 } } as any;
+        const nested = { timeline: { delay: 5 } } as any;   // no `type` = time-driven
         expect(flattenAnimatorTimeline(nested)).toBe(flattenAnimatorTimeline(nested)); // memoised
     });
 
     it('getAnimatorConfig serves the flat view (engines never see `timeline`)', () => {
         const cfg = getAnimatorConfig({
             type: 'svg',
-            animator: { timeline: { type: 'clock', duration: 500, delay: 42 } }
+            animator: { timeline: { duration: 500, delay: 42 } }
         } as any) as any;
         expect(cfg.timeline).toBeUndefined();
         expect(cfg.duration).toBe(500);   // §2.8: wire timeline.duration → runtime-view duration
@@ -78,7 +80,7 @@ describe('animator.timeline spelling compat', () => {
 
     // ── nest: flat → the written spelling; mode-dead keys structurally gone ──
 
-    it('nests flat clock keys under timeline{type:clock} and resetOnFinish under trigger.onFinish', () => {
+    it('nests flat time keys under a type-less timeline (absent type = time), fill → fillMode, resetOnFinish → trigger.onFinish', () => {
         const nested = nestAnimatorTimeline({
             duration: 4000, mode: 'auto',
             trigger: { startOn: 'click' }, delay: 250, iterations: 3,
@@ -87,9 +89,9 @@ describe('animator.timeline spelling compat', () => {
         expect(nested).toEqual({
             mode: 'auto',
             timeline: {
-                type: 'clock', duration: 4000,
+                duration: 4000,
                 trigger: { startOn: 'click', onFinish: 'reset' },
-                delay: 250, iterations: 3, direction: 'reverse', fill: 'none'
+                delay: 250, iterations: 3, direction: 'reverse', fillMode: 'none'
             }
         });
     });
@@ -109,13 +111,13 @@ describe('animator.timeline spelling compat', () => {
         });
     });
 
-    it('omits an empty clock timeline entirely, and passes a config that already has one through unchanged', () => {
+    it('omits an empty time timeline entirely, and passes a config that already has one through unchanged', () => {
         // §2.8: a set duration now forces the timeline block (it lives there on the wire)…
         expect(nestAnimatorTimeline({ duration: 1000, mode: 'auto' } as any))
-            .toEqual({ mode: 'auto', timeline: { type: 'clock', duration: 1000 } });
+            .toEqual({ mode: 'auto', timeline: { duration: 1000 } });
         // …a config with truly nothing timeline-ish still gets no block at all.
         expect(nestAnimatorTimeline({ mode: 'auto' } as any)).toEqual({ mode: 'auto' });
-        const already = { duration: 1, timeline: { type: 'clock', delay: 2 } } as any;
+        const already = { duration: 1, timeline: { delay: 2 } } as any;
         expect(nestAnimatorTimeline(already)).toBe(already);
     });
 
@@ -130,7 +132,7 @@ describe('animator.timeline spelling compat', () => {
 
     // ── schema: the written spelling validates strictly; dead keys have no slot ──
 
-    it('the nested spelling validates strictly; a clock knob inside a scroll timeline is a schema error', () => {
+    it('the nested spelling validates strictly; a time knob inside a scroll timeline is a schema error', () => {
         const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
         expect(PxAnimatorConfigSchema.isValid({
             timeline: { type: 'view', duration: 4000, axis: 'block', pin: { align: 'top' } }
@@ -142,6 +144,20 @@ describe('animator.timeline spelling compat', () => {
             timeline: { type: 'view', trigger: { startOn: 'click' } }   // dead key — no slot
         }, bad)).toBe(false);
         expect(bad.errors.length).toBeGreaterThan(0);
+    });
+
+    it("time timeline: `type: 'time'` and an absent type both validate; the retired 'clock' does not", () => {
+        for (const timeline of [{ type: 'time', duration: 10 }, { duration: 10, fillMode: 'both' }]) {
+            const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
+            expect(PxAnimatorConfigSchema.isValid({ timeline }, ctx)).toBe(true);
+            expect(ctx.errors).toEqual([]);
+        }
+        const bad: PxValidationContext = { errors: [], warnings: [], strict: true };
+        expect(PxAnimatorConfigSchema.isValid({ timeline: { type: 'clock', duration: 10 } }, bad)).toBe(false);
+        expect(bad.errors.length).toBeGreaterThan(0);
+        // the OLD fill spelling has no slot on the wire either
+        const oldFill: PxValidationContext = { errors: [], warnings: [], strict: true };
+        expect(PxAnimatorConfigSchema.isValid({ timeline: { fill: 'both' } }, oldFill)).toBe(false);
     });
 
     it('the flat spelling is NOT wire format — flat playback keys are schema errors', () => {

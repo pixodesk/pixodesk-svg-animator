@@ -38,8 +38,8 @@ export function applyMaskedByEffect(
 ): PxNode {
     if (!fx) return node;
     // Canonical ref spelling is `#id` (SCHEMA-DESIGN §4 E-5); bare `id` is legacy.
-    const sourceId = stripHash(fx.sourceId);
-    if (!sourceId) { ctx.errors.push('maskedBy.sourceId missing — cannot build mask'); return node; }
+    const sourceId = stripHash(fx.source);
+    if (!sourceId) { ctx.errors.push('maskedBy.source missing — cannot build mask'); return node; }
 
     const maskId = genId(ctx, 'mask');
 
@@ -479,7 +479,7 @@ export function collectMaskAncestorChains(root: PxNode, ctx: ApplyContext): void
     // those nodes.
     const interestingNodes = new Set<PxNode>();
     const collectInterestingNodes = (n: PxNode): void => {
-        const maskSourceId = stripHash(n.effects?.maskedBy?.sourceId);
+        const maskSourceId = stripHash(n.effects?.maskedBy?.source);
         if (typeof maskSourceId === 'string') {
             interestingNodes.add(n);                          // masked element
             const sourceNode = ctx.idMap.get(maskSourceId);

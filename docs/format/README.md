@@ -79,7 +79,7 @@ comments, so a real file has none):
   "viewBox": "0 0 400 400",
 
   // ADDED: the playback settings — how long, how many times, what starts it
-  "animator": { "timeline": { "type": "clock", "duration": 1000, "iterations": "infinite", "trigger": { "startOn": "load" } } },
+  "animator": { "timeline": { "duration": 1000, "iterations": "infinite", "trigger": { "startOn": "load" } } },
 
   "children": [
     {
@@ -138,11 +138,11 @@ interface SVG_JSON {
         // something for it. Omitting `timeline` entirely means a plain clock.
         timeline?:
             | {
-                type: 'clock';                     // wall time — something STARTS it (the trigger)
+                type?: 'time';                     // wall time — something STARTS it (the trigger). OPTIONAL: absent = 'time'
                 duration?: number;                 // length of ONE iteration, ms (default 1000); keyframe times are absolute offsets
                 delay?: number;                    // wait before start, ms (default 0); negative = skip ahead, e.g. -500 starts from the 0.5 s frame
                 iterations?: number | 'infinite';  // repeat count (default 1); composes with per-property loop (loop-within-loop)
-                fill?: 'forwards' | 'backwards' | 'both' | 'none';                      // WAAPI fill; default 'forwards' holds final state
+                fillMode?: 'forwards' | 'backwards' | 'both' | 'none';                  // CSS animation-fill-mode; default 'forwards' holds final state
                 direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';  // default 'normal'
                 trigger?: {
                     startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
@@ -173,7 +173,7 @@ interface SVG_JSON {
             styles?: Record<string, Record<string, string | number>>;   // name → style preset, string|number values only (node.style may reference by name)
             // font-family → embedded glyph outlines, for glyph-mode text
             // (effects.text.useGlyphs) — renders without shipping a font
-            glyphs?: Record<string, {
+            fonts?: Record<string, {   // embedded fonts, keyed by font-family
                 fontFamily: string;   // e.g. "Roboto"
                 fontStyle: string;    // "" | "italic" | …
                 ascent: number;       // in unitsPerEm
@@ -182,7 +182,7 @@ interface SVG_JSON {
             }>;
         };
 
-        debugInstName?: string;  // exposes the animator as window[debugInstName]
+        debugGlobalName?: string;  // debug helper: exposes the animator as window[debugGlobalName]
 
         // bind-by-id documents — maps '#elementId' → animation spec. Same value type as
         // `node.animate`; only the KEYSPACE differs (an element reference here, an attr
@@ -213,20 +213,20 @@ interface SVG_JSON {
             // each part is animatable: raw value | {value} | {keyframes}
             transformBy?:     { translate?: [x,y], rotate?: deg, skew?: deg, scale?: [x,y], origin?: [x,y] };
             repeater?:        { copies?: number, translate?: [x,y], rotate?: deg, scale?: [sx,sy] /*per-copy multiplier, compounds v^i*/, origin?: [x,y] };
-            maskedBy?:        { sourceId?: string, maskType?: 'alpha' | 'luminance',
+            maskedBy?:        { source?: '#id', maskType?: 'alpha' | 'luminance',
                                 maskUnits?, maskContentUnits?: 'userSpaceOnUse' | 'objectBoundingBox',
                                 x?, y?, width?, height?: number };   // mask viewport, user units
             clipPath?:        { d?: "M…" | { value } | { keyframes } };   // ONE animatable slot, like every other effect
             strokeTrim?:        { offset?: number, range?: [a,b], subPaths?: 'separate' | 'combined' };  // offset/range animatable
-            clone?:           { type?: 'content', sourceId?: string,
+            clone?:           { type?: 'content', source?: '#id',
                                 retime?: { start?, stretch?: number, timeCrop?: [inMs, outMs] } };  // retime is PURE timing — the ref lives once, on the clone
             // Geometry slots animate like any other slot ({value} | {keyframes});
             // gradient geometry animation runs on the frames engine.
             fillGradient?:    { type: 'linear'|'radial', start?, end? (linear) , center?, radius?, focal? (radial),
                                 stops?, gradientUnits?, spreadMethod?, gradientTransform? };
             strokeGradient?:  { /* same shape as fillGradient */ };
-            textPath?:        { path: string, pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? };
-            text?:            { useGlyphs?: boolean };  // render text from embedded glyph outlines (definitions.glyphs)
+            textPath?:        { pathData: string, pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? };
+            text?:            { useGlyphs?: boolean };  // render text from embedded glyph outlines (definitions.fonts)
         };
         meta?: any;         // editor-only (label, shape, …); not rendered, ignored by player
         children?: Array<any>; // recursive; <g>, <defs>, <symbol>, <text>, <use>, …
@@ -245,14 +245,15 @@ interface ANIMATE {
         tangentIn?:  [number, number];        // motion-path delta tangent at this kf
     }>;
     autoOrient?: boolean;                     // translate-only: rotate element to face the path tangent
+    alongPathMode?: 'sampled' | 'offsetPath'; // transform-only: how a motion path is rendered — pre-sampled keyframes (default) or CSS offset-path
     // pre-processes keyframes to fill the timeline duration by repeating a segment
     // true → default: repeat last segment, cycling forward
     // independent of timeline.iterations; composes as loop-within-loop
     loop?: boolean | {
         segmentCount?: number;           // intervals forming the segment; undefined = whole sequence; clamped [1, n-1]
-        extend?: 'before' | 'after';     // which END the loop fills: 'after' (default, absent) = idle/outro,
-                                         // 'before' = intro
-        alternate?: boolean;             // false (default) = cycle same direction; true = pingpong
+        repeatAt?: 'start' | 'end';      // which END the repetition fills: 'end' (default, absent) = idle/outro,
+                                         // 'start' = intro
+        direction?: 'normal' | 'alternate'; // 'normal' (default) = cycle same direction; 'alternate' = pingpong
     };
 }
 ```
@@ -330,7 +331,7 @@ Text nodes carry their content in `textContent`, not as children:
 ```
 
 With `effects.text.useGlyphs: true` the text renders from glyph outlines embedded in
-`definitions.glyphs` — no font needed on the viewer's machine (the editor embeds them for you).
+`definitions.fonts` — no font needed on the viewer's machine (the editor embeds them for you).
 
 ### Animating — the `animate` channel
 
@@ -436,14 +437,14 @@ the document's `iterations`:
 ```json
 "rotate": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 1000, "value": 360 } ], "loop": true }
 "scale":  { "keyframes": [ { "time": 0, "value": [1, 1] }, { "time": 500, "value": [1.2, 1.2] }, { "time": 1000, "value": [1, 1] } ],
-            "loop": { "segmentCount": 1, "extend": "after", "alternate": true } }
+            "loop": { "segmentCount": 1, "repeatAt": "end", "direction": "alternate" } }
 ```
 
 | Field | Meaning |
 |---|---|
-| `segmentCount` | how big the repeated piece is, counted in **intervals** — an interval is the stretch between two neighbouring keyframes. By default the whole sequence repeats; `"segmentCount": 1` repeats only one interval — the last one with `extend: "after"`, the first one with `extend: "before"`. In the example above, `scale` has three keyframes (two intervals), and only its second half — the shrink back from 1.2 to 1 — keeps repeating |
-| `extend` | which end of the timeline the repetition fills. `"after"` (default): the animation plays through once, then the **last** intervals repeat until the document's duration is used up — e.g. a character lands and then keeps breathing. `"before"`: the **first** intervals repeat first, and the rest of the keyframes play at the end — e.g. a logo pulses for a while and then settles |
-| `alternate` | `false` (default) replays in the same direction; `true` ping-pongs |
+| `segmentCount` | how big the repeated piece is, counted in **intervals** — an interval is the stretch between two neighbouring keyframes. By default the whole sequence repeats; `"segmentCount": 1` repeats only one interval — the last one with `repeatAt: "end"`, the first one with `repeatAt: "start"`. In the example above, `scale` has three keyframes (two intervals), and only its second half — the shrink back from 1.2 to 1 — keeps repeating |
+| `repeatAt` | which end of the timeline the repetition fills. `"end"` (default): the animation plays through once, then the **last** intervals repeat until the document's duration is used up — e.g. a character lands and then keeps breathing. `"start"`: the **first** intervals repeat first, and the rest of the keyframes play at the end — e.g. a logo pulses for a while and then settles |
+| `direction` | `"normal"` (default) replays in the same direction; `"alternate"` ping-pongs |
 
 `loop: true` = repeat the whole sequence, after, forward.
 
@@ -564,7 +565,7 @@ import { createAnimator } from '@pixodesk/svg-animator-web';
 createAnimator({ container: '#box', data: {   // an empty <div id="box"> on the page
   type: 'svg', id: '_px_root',
   animator: {
-    timeline: { type: 'clock', duration: 2000 },
+    timeline: { duration: 2000 },
     definitions: { animations: { fadeIn: { opacity: { keyframes: [ { time: 0, value: 0 }, { time: 2000, value: 1 } ] } } } },
     animateById: {
       '#_px_rect':    'fadeIn',                                  // one named animation
@@ -578,7 +579,7 @@ createAnimator({ container: '#box', data: {   // an empty <div id="box"> on the 
 (element reference here, attribute name there).
 
 **Reference spelling — one rule, everywhere:** every element reference is `#id`-spelled —
-`href`, `partOf`, every `sourceId`, and record keys like `animateById`'s alike.
+`href`, `partOf`, every `source`, and record keys like `animateById`'s alike.
 
 ### Units of the values in a document
 
@@ -648,19 +649,19 @@ group.
 ### 1 — `text`
 
 Draws a `<text>` element from letter outlines stored in the document itself
-(`definitions.glyphs`) instead of using a font: the text looks identical on every machine,
+(`definitions.fonts`) instead of using a font: the text looks identical on every machine,
 and no font file needs to be installed or loaded.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `useGlyphs` | boolean | render the text from the glyph outlines in `definitions.glyphs` — self-contained, identical on every machine, no font loading |
+| `useGlyphs` | boolean | render the text from the glyph outlines in `definitions.fonts` — self-contained, identical on every machine, no font loading |
 
 ```js
 {
   "type": "svg",
   "viewBox": "0 0 400 100",
   "animator": {
-    "timeline": { "type": "clock", "duration": 1000 },
+    "timeline": { "duration": 1000 },
     "definitions": {
       // The outlines the text is drawn from — one entry per letter used
       // (paths shortened here; the editor writes the real ones)
@@ -798,7 +799,7 @@ Under the hood the player builds a `<mask>` from it and applies it to this eleme
 
 | Field | Type | Meaning |
 |---|---|---|
-| `sourceId` | `"#id"` | the element that becomes the mask |
+| `source` | `"#id"` | the element that becomes the mask |
 | `maskType` | `alpha` · `luminance` | how the source's pixels become mask values ([CSS spec](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/mask-type)) |
 | `maskUnits` · `maskContentUnits` | `userSpaceOnUse` · `objectBoundingBox` | SVG's mask coordinate systems ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/maskUnits), [maskContentUnits](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/maskContentUnits)) |
 | `x` · `y` · `width` · `height` | numbers | the area the mask covers, in user units; leave all four out for SVG's default (`-10%,-10%,120%,120%` — [SVG `<mask>` spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/mask)). A `0` is a real value, not "absent" |
@@ -810,7 +811,7 @@ Under the hood the player builds a `<mask>` from it and applies it to this eleme
 // The element being masked
 { "type": "rect", "x": 0, "y": 0, "width": 200, "height": 200, "fill": "#ec4899",
   // Use the circle as this rect's mask: the rect shows only where the circle is
-  "effects": { "maskedBy": { "sourceId": "#spot", "maskType": "alpha" } } }
+  "effects": { "maskedBy": { "source": "#spot", "maskType": "alpha" } } }
 ```
 
 ### 7 — `clipPath`
@@ -859,14 +860,14 @@ in one group per part, and each group animates independently.
 Shows copies of one animated element at several places — like a rubber stamp: draw a wheel
 once, stamp it three times, and each copy can play on its own schedule. The copies are
 ordinary SVG [`<use>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/use)
-elements; the effect on each `<use>` says what it copies (`sourceId`) and, optionally,
+elements; the effect on each `<use>` says what it copies (`source`) and, optionally,
 re-times that copy's animation (`retime` — start later, play slower, show only for a while).
 It is an effect, rather than a plain `<use>`, because those things need real copies: the
 player materialises each clone into its own elements with its own timing.
 
 | Field | Type | Meaning |
 |---|---|---|
-| `sourceId` | `"#id"` | the source element / symbol (the `<use>` also keeps its normal `href`) |
+| `source` | `"#id"` | the source element / symbol (the `<use>` also keeps its normal `href`) |
 | `type` | `content` (optional) | leave the field out for a direct copy of the whole element; `content` copies the source's content but not its own outer position |
 | `retime.start` | ms | shift the source's internal timeline |
 | `retime.stretch` | a multiplier of duration | `2` = twice as long (half speed), `0.5` = half as long (double speed) |
@@ -879,11 +880,11 @@ player materialises each clone into its own elements with its own timing.
       "animate": { "rotate": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 1000, "value": 360 } ] } } }
 ] } ] },
 // An exact copy of the wheel
-{ "type": "use", "href": "#wheel", "x": 0,   "y": 0, "effects": { "clone": { "sourceId": "#wheel" } } },
+{ "type": "use", "href": "#wheel", "x": 0,   "y": 0, "effects": { "clone": { "source": "#wheel" } } },
 // A copy that starts 0.5 s later and spins at half speed
-{ "type": "use", "href": "#wheel", "x": 120, "y": 0, "effects": { "clone": { "sourceId": "#wheel", "retime": { "start": 500, "stretch": 2 } } } },
+{ "type": "use", "href": "#wheel", "x": 120, "y": 0, "effects": { "clone": { "source": "#wheel", "retime": { "start": 500, "stretch": 2 } } } },
 // A copy shown only between 1 s and 2 s of the document timeline
-{ "type": "use", "href": "#wheel", "x": 240, "y": 0, "effects": { "clone": { "sourceId": "#wheel", "retime": { "timeCrop": [1000, 2000] } } } }
+{ "type": "use", "href": "#wheel", "x": 240, "y": 0, "effects": { "clone": { "source": "#wheel", "retime": { "timeCrop": [1000, 2000] } } } }
 ```
 
 Symbols with their own animation length are how the editor builds reusable animated components;

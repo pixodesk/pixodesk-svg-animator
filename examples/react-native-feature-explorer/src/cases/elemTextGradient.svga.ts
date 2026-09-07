@@ -19,7 +19,7 @@ export const elemTextGradient: SvgaCaseJson = {
             "outAction": "pause"
         },
         "definitions": {
-            "glyphs": {
+            "fonts": {
                 "Roboto-Black": {
                     "fontFamily": "Roboto-Black",
                     "style": "",

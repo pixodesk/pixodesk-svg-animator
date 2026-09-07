@@ -32,7 +32,7 @@ export const effectRepeaterAnim: SvgaCaseJson = {
                     "copies": 4,
                     "translate": {
                         "loop": {
-                            "alternate": true
+                            "direction": "alternate"
                         },
                         "keyframes": [
                             {

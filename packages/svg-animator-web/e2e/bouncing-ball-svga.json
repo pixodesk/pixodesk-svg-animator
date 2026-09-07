@@ -6,14 +6,15 @@
   "height": 400,
   "fill": "none",
   "animator": {
-    "duration": 1000,
-    "direction": "normal",
-    "iterations": "infinite",
-    "type": "javaScript",
     "mode": "frames",
-    "trigger": {
-      "startOn": "load",
-      "outAction": "pause"
+    "timeline": {
+      "duration": 1000,
+      "trigger": {
+        "startOn": "load",
+        "outAction": "pause"
+      },
+      "iterations": "infinite",
+      "direction": "normal"
     }
   },
   "children": [
@@ -25,12 +26,12 @@
         "translate": {
           "keyframes": [
             {
-              "t": 0,
-              "v": [
+              "time": 0,
+              "value": [
                 200.1185,
                 41.3612
               ],
-              "e": [
+              "easing": [
                 0.3333,
                 0,
                 0.6667,
@@ -38,12 +39,12 @@
               ]
             },
             {
-              "t": 500,
-              "v": [
+              "time": 500,
+              "value": [
                 200.1185,
                 359.3975
               ],
-              "e": [
+              "easing": [
                 0.3333,
                 0.6667,
                 0.6667,
@@ -51,8 +52,8 @@
               ]
             },
             {
-              "t": 1000,
-              "v": [
+              "time": 1000,
+              "value": [
                 200.1185,
                 41.3612
               ]
@@ -67,12 +68,12 @@
             "translate": {
               "keyframes": [
                 {
-                  "t": 0,
-                  "v": [
+                  "time": 0,
+                  "value": [
                     200.1185,
                     41.3612
                   ],
-                  "e": [
+                  "easing": [
                     0.3333,
                     0,
                     0.6667,
@@ -80,12 +81,12 @@
                   ]
                 },
                 {
-                  "t": 500,
-                  "v": [
+                  "time": 500,
+                  "value": [
                     200.1185,
                     359.3975
                   ],
-                  "e": [
+                  "easing": [
                     0.3333,
                     0.6667,
                     0.6667,
@@ -93,8 +94,8 @@
                   ]
                 },
                 {
-                  "t": 1000,
-                  "v": [
+                  "time": 1000,
+                  "value": [
                     200.1185,
                     41.3612
                   ]

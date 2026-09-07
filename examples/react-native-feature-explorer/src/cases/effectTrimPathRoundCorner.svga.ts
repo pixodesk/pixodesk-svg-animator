@@ -98,7 +98,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
                 "strokeTrim": {
                     "range": {
                         "loop": {
-                            "alternate": true
+                            "direction": "alternate"
                         },
                         "keyframes": [
                             {
@@ -409,7 +409,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
                 "strokeTrim": {
                     "range": {
                         "loop": {
-                            "alternate": true
+                            "direction": "alternate"
                         },
                         "keyframes": [
                             {

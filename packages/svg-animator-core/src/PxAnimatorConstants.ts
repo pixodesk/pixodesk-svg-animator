@@ -61,23 +61,32 @@ export type PxAnimatorEngine = typeof PxAnimatorEngine[keyof typeof PxAnimatorEn
 // V3 — every closed value list is a NAMED const + a strict `px.enum` slot, so a
 // typo is a schema ERROR instead of silently shipping. Plain `px.string()` stays
 // ONLY where SVG itself is open-ended (`gradientTransform`, `viewBox`, `path` d,
-// ids/refs, `debugInstName`).
+// ids/refs, `debugGlobalName`).
 
-/** `loop.extend` — WHICH END of the keyframe sequence the loop segment is taken from,
- *  and therefore which side the animation is extended on. Replaced the boolean
- *  `before` (N8): a bare preposition named no subject ("before what?"), and a
- *  two-way selector reads better as a named enum — which also leaves room for a
- *  third value (e.g. both ends) that a boolean forecloses. */
-export const PxLoopExtend = {
-    /** Segment from the START; the animation is extended BEFORE the first keyframe
-     *  (intro loops that run before the main timeline begins). */
-    before: 'before',
-    /** DEFAULT — segment from the END; extended AFTER the last keyframe (idle/outro
-     *  loops that continue once the main timeline has finished). */
-    after: 'after',
+/** `loop.repeatAt` — WHICH END of the keyframe sequence the repeated segment is taken
+ *  from, and therefore which side of the timeline the repetition fills. A named
+ *  two-way selector (not a boolean) so a third value stays possible. */
+export const PxLoopRepeatAt = {
+    /** Segment from the START; the repetition runs BEFORE the first keyframe
+     *  (intro loops that play until the main timeline begins). */
+    start: 'start',
+    /** DEFAULT — segment from the END; the repetition runs AFTER the last keyframe
+     *  (idle/outro loops that continue once the main timeline has finished). */
+    end: 'end',
 } as const;
 
-export type PxLoopExtend = typeof PxLoopExtend[keyof typeof PxLoopExtend];
+export type PxLoopRepeatAt = typeof PxLoopRepeatAt[keyof typeof PxLoopRepeatAt];
+
+/** `loop.direction` — how successive repetitions play, spelled like the timeline's
+ *  own `direction` so the two read as one idea. */
+export const PxLoopDirection = {
+    /** DEFAULT — cycle: every repetition replays the segment the same way round. */
+    normal: 'normal',
+    /** Ping-pong: repetitions alternate forward / backward. */
+    alternate: 'alternate',
+} as const;
+
+export type PxLoopDirection = typeof PxLoopDirection[keyof typeof PxLoopDirection];
 
 /** SVG `mask-type` — how the mask source's pixels become alpha. */
 export const PxMaskType = {
@@ -270,7 +279,7 @@ export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorConfig 
 // ============================================================================
 // TIMELINE SPELLING (review §2.1)
 //
-// The wire spelling is `animator.timeline: { type: 'clock'|'scroll'|'view', … }`;
+// The wire spelling is `animator.timeline: { type?: 'time'|'scroll'|'view', … }` (absent = 'time');
 // the flat form (`timelineSource` + `scroll` + loose clock knobs) is the INTERNAL
 // runtime view only — not a wire format. These two functions convert between them:
 //   • flattenAnimatorTimeline — wire → runtime view; applied by `getAnimatorConfig`,
@@ -317,7 +326,7 @@ export function flattenAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig
             if (pin.distance !== undefined) scroll.pinDistance = pin.distance;
         }
         flat.scroll = scroll;
-    } else { // 'clock' (or unknown type — treated as clock, the default mechanism)
+    } else { // 'time', absent, or unknown — the time-driven timeline is the default
         if (timeline.duration !== undefined) flat.duration = timeline.duration;   // §2.8
         if (timeline.trigger !== undefined) {
             const { onFinish, ...restTrigger } = timeline.trigger;
@@ -327,7 +336,7 @@ export function flattenAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig
         if (timeline.delay !== undefined) flat.delay = timeline.delay;
         if (timeline.iterations !== undefined) flat.iterations = timeline.iterations;
         if (timeline.direction !== undefined) flat.direction = timeline.direction;
-        if (timeline.fill !== undefined) flat.fill = timeline.fill;
+        if (timeline.fillMode !== undefined) flat.fill = timeline.fillMode;   // wire `fillMode` → runtime `fill`
     }
 
     flattenMemo.set(cfg as object, flat);
@@ -372,7 +381,9 @@ export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
         return { ...shared, timeline };
     }
 
-    const timeline: any = { type: 'clock' };
+    // Time-driven: `type` is optional on the wire and 'time' is the default, so the
+    // writer omits it — the common case declares nothing.
+    const timeline: any = {};
     if (duration !== undefined) timeline.duration = duration;   // §2.8
     if (trigger !== undefined || resetOnFinish) {
         const t: any = { ...(trigger || {}) };
@@ -382,10 +393,10 @@ export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
     if (delay !== undefined) timeline.delay = delay;
     if (iterations !== undefined) timeline.iterations = iterations;
     if (direction !== undefined) timeline.direction = direction;
-    if (fill !== undefined) timeline.fill = fill;
+    if (fill !== undefined) timeline.fillMode = fill;   // runtime `fill` → wire `fillMode`
 
-    // A clock timeline with nothing but its type says nothing — omit the block entirely.
-    return Object.keys(timeline).length > 1 ? { ...shared, timeline } : shared;
+    // An empty time timeline says nothing — omit the block entirely.
+    return Object.keys(timeline).length > 0 ? { ...shared, timeline } : shared;
 }
 
 

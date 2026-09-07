@@ -80,7 +80,7 @@ export interface ApplyContext {
      */
     maskAncestorChains: Map<PxNode, Array<MaskAncestorTransform>>;
     /**
-     * The document's embedded glyph outlines (`definitions.glyphs`), keyed by
+     * The document's embedded fonts (`definitions.fonts`), keyed by
      * font-family. Read once from the root and consumed by the `text.useGlyphs`
      * effect to materialise `<text>` into `<path>` outlines. Undefined when the
      * document carries no glyphs.

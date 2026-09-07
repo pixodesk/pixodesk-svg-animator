@@ -150,10 +150,10 @@ export function applyTextPathEffect(
     fx: PxTextPathEffect | undefined,
     ctx: ApplyContext,
 ): PxNode {
-    if (!fx || typeof fx.path !== 'string' || !fx.path) return node;
+    if (!fx || typeof fx.pathData !== 'string' || !fx.pathData) return node;
 
     const pathId = genId(ctx, 'tpath');
-    const { d, startShift } = extendedPathForBrowser(fx.path, {
+    const { d, startShift } = extendedPathForBrowser(fx.pathData, {
         pathOverflow: fx.pathOverflow, startOffset: fx.startOffset,
         textLength: fx.textLength, advance: estimateTextAdvance(node),
     });
