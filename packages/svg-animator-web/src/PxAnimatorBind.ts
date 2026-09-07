@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, isScrollTimeline, PxAnimatorMode, scrollTotalDurationMs, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, isNativeForced, isScrollTimeline, mayUseNativeScrollTimeline, PxPlaybackMode, scrollTotalDurationMs, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
@@ -56,8 +56,9 @@ export function finaliseAnimator(
 }
 
 /**
- * Picks the engine the way the full player does: `frames` when forced, otherwise waapi
- * with a frames fallback for unsupported attrs.
+ * Picks the engine the way the full player does, from `timeline.mode`: `player` pins the
+ * frame loop; otherwise waapi, with a frames fallback for unsupported attrs unless
+ * `native` demands waapi.
  */
 export function bindWithEngineChoice(
     doc: PxAnimatedSvgDocument,
@@ -68,11 +69,11 @@ export function bindWithEngineChoice(
     const animatorConfig = getAnimatorConfig(doc) || {};
 
     // Scroll-driven document: the playhead follows scroll position, never the wall
-    // clock. Engine × driver matrix (scroll-timeline.design.md §4.0):
-    //   frames                → custom driver → `setCurrentTime` (renders while paused)
-    //   waapi + driver:custom → same seeking, values applied by the browser
-    //   waapi + driver:native → browser ScrollTimeline/ViewTimeline (compositor thread);
-    //                           auto-falls back to custom when unsupported (D8)
+    // clock. One knob — `timeline.mode` — picks the row (scroll-timeline.design.md §4.0):
+    //   player → the player measures progress, frames applies values (`setCurrentTime`)
+    //   native → browser ScrollTimeline/ViewTimeline drives waapi (compositor thread)
+    //   auto   → native first; when unsupported, the player measures and waapi (or
+    //            frames, if waapi declines the doc) applies — the fallback cascade (D8)
     // Triggers are inert either way (D3 — both engines warn + skip
     // `setupAnimationTriggers` for scroll docs). The animator is never `play()`ed by us
     // for custom driving; scrubbing via `setCurrentTime` holds the pose.
@@ -85,13 +86,13 @@ export function bindWithEngineChoice(
             // `subject: 'parent'` is meant to resolve THROUGH the injected wrapper.
             let unpin = () => { /* nothing pinned */ };
 
-            // `driver: 'native'` on a waapi-capable doc: try the browser timeline first.
-            if (animatorConfig.mode !== PxAnimatorMode.frames && animatorConfig.scroll?.driver === 'native' && rootElement) {
+            // `auto` / `native`: try the browser's own timeline first.
+            if (mayUseNativeScrollTimeline(animatorConfig.mode) && rootElement) {
                 unpin = applyScrollPin(rootElement, animatorConfig.scroll);
                 const native = createNativeScrollTimeline(rootElement, animatorConfig);
                 if (native) {
                     const api = createWebApiAnimator(doc, cb, rootElement,
-                        animatorConfig.mode === PxAnimatorMode.waapi, native);
+                        isNativeForced(animatorConfig.mode), native);
                     if (api) {
                         const destroyNative = api.destroy.bind(api);
                         api.destroy = () => { unpin(); destroyNative(); };
@@ -103,11 +104,11 @@ export function bindWithEngineChoice(
                 unpin = () => { /* re-pinned below */ };
             }
 
-            // Custom driver (the default and the reference implementation). Engine per
-            // `mode`: waapi unless frames is forced or waapi declines the doc.
+            // The player measures progress (the reference implementation). Engine per
+            // `mode`: waapi unless `player` pins frames or waapi declines the doc.
             const api = (
-                animatorConfig.mode !== PxAnimatorMode.frames
-                    ? createWebApiAnimator(doc, cb, rootElement, animatorConfig.mode === PxAnimatorMode.waapi)
+                animatorConfig.mode !== PxPlaybackMode.player
+                    ? createWebApiAnimator(doc, cb, rootElement, isNativeForced(animatorConfig.mode))
                     : null
             ) || createFrameLoopAnimator(doc, adapter, cb, rootElement);
 
@@ -133,15 +134,15 @@ export function bindWithEngineChoice(
     }
 
     return finaliseAnimator(animatorConfig, callbacks, cb => {
-        if (animatorConfig.mode === PxAnimatorMode.frames) {
-            // Forcing frames, even if waapi could be used.
+        if (animatorConfig.mode === PxPlaybackMode.player) {
+            // `player` pins the frame loop, even if waapi could be used.
             return createFrameLoopAnimator(doc, adapter, cb, rootElement);
         }
         // Try waapi first; fall back to frames if it returns null (unsupported
-        // attrs) unless the user explicitly forced waapi.
+        // attrs) unless `native` demands waapi.
         return (
             createWebApiAnimator(doc, cb, rootElement,
-                animatorConfig.mode === PxAnimatorMode.waapi // forcing waapi
+                isNativeForced(animatorConfig.mode)
             ) ||
             createFrameLoopAnimator(doc, adapter, cb, rootElement)
         );
@@ -168,7 +169,7 @@ function requireData(options: PxPrerenderedOptions): PxAnimatedSvgDocument {
 }
 
 /**
- * Pre-rendered entry, both engines (`auto` / `frames` / `waapi` all honoured).
+ * Pre-rendered entry, both engines (`auto` / `player` / `native` all honoured).
  *
  * Deliberately skips `validateNodeEffects`, `materialiseAllInTree`, `generateNewIds` and
  * `renderNode`. Safe because the payload has no `children`, so all four are provably

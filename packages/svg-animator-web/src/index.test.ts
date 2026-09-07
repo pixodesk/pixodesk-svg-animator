@@ -108,7 +108,7 @@ describe('animateBackground', () => {
                 type: 'svg',
                 viewBox: '0 0 400 400',
                 animator: {
-                    mode: 'frames',
+                    mode: 'player',
                     duration: 128,
                     fill: 'forwards',
                     direction: 'normal',
@@ -153,7 +153,7 @@ describe('animateBackground', () => {
                 type: 'svg',
                 viewBox: '0 0 400 400',
                 animator: {
-                    mode: 'frames',
+                    mode: 'player',
                     duration: 128,
                     // single play — no looping; animation finishes and holds the last frame
                     iterations: 1,
@@ -202,7 +202,7 @@ describe('animateBackground', () => {
             data: {
                 type: 'svg',
                 viewBox: '0 0 400 400',
-                animator: { mode: 'frames', duration: 100, fill: 'forwards', trigger: { startOn: 'load' } },
+                animator: { mode: 'player', duration: 100, fill: 'forwards', trigger: { startOn: 'load' } },
                 children: [
                     {
                         type: 'path', id: '_px_d_bare', d: 'M0,0L10,0L10,10',
@@ -951,7 +951,7 @@ function getTestJson(): PxAnimatedSvgDocument {
         viewBox: '0 0 400 400',
 
         animator: {
-            mode: 'frames',
+            mode: 'player',
             duration: 128,
             fill: 'forwards',
             direction: 'normal',

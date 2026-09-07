@@ -87,7 +87,7 @@ Render a single frame at a specific point in time:
 | `pause` | `boolean` | Pause current playback |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
-| `mode` | `'auto' \| 'waapi' \| 'frames'` | Animation engine |
+| `mode` | `'auto' \| 'native' \| 'player'` | who runs the animation (overrides the document's `timeline.mode`) |
 | `duration` | `number` | Duration override (ms) |
 | `delay` | `number` | Delay before start (ms) |
 | `iterations` | `number \| 'infinite'` | Loop count |

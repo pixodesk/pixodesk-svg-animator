@@ -24,7 +24,7 @@ export {
     PxAnimationDefinitionSchema,
     PxAnimatorConfigSchema,
     PxAnimatorEngine,
-    PxAnimatorMode,
+    PxPlaybackMode,
     PxAttrValueSchema,
     PxBezierPathSchema,
     PxBindingSchema,
@@ -45,7 +45,7 @@ export {
 
 // Types
 export type {
-    FillMode, JsMode, OutAction, PlaybackDirection,
+    FillMode, OutAction, PlaybackDirection,
     PxAnimatedSvgDocument,
     PxAnimationDefinition,
     PxAnimatorCallbacksConfig,

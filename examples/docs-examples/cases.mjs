@@ -26,7 +26,7 @@ export const CASES = [
     summary: 'onPlay / onPause / onCancel / onFinish / onRemove, logged as they fire.' },
   { group: 'web', id: 'triggers',      title: 'Triggers — start on click', anchor: 'triggers',
     summary: 'The document says startOn: "click"; the player wires the event for you.' },
-  { group: 'web', id: 'engine-modes',  title: 'Engine modes — WAAPI vs frames', anchor: 'engine-modes',
+  { group: 'web', id: 'engine-modes',  title: 'Playback modes — native vs player', anchor: 'playback-modes',
     summary: 'The same document driven by each engine, side by side.' },
   { group: 'web', id: 'several',       title: 'Loading several animations', anchor: 'loading-several-animations',
     summary: 'Three elements, one loadTagAnimators() call.' },

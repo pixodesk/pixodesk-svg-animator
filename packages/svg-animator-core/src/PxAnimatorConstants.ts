@@ -34,29 +34,48 @@ export type StartOn = 'load' | 'mouseOver' | 'click' | 'scrollIntoView';
 
 export type OutAction = 'continue' | 'pause' | 'reset' | 'reverse';
 
-/** Animation engine selection (config level). `auto` means "try `waapi`, fall
- *  back to `frames`"; the runtime resolves it to a concrete {@link PxAnimatorEngine}
- *  via `createAnimatorFromConfig`. Wire as a const-namespace + matching string
- *  type so call sites can use named members (`PxAnimatorMode.frames`) instead of
- *  bare string literals. */
-export const PxAnimatorMode = {
+/** WIRE `timeline.mode` — who runs the animation. `auto` (default) prefers the
+ *  platform's native machinery and falls back to the player's own loop when the
+ *  document needs it; `native` forces the browser (WAAPI — and, for scroll/view
+ *  timelines, the browser's ScrollTimeline); `player` forces the player's own frame
+ *  loop and its own progress measurement. Const-namespace + matching string type so
+ *  call sites use named members (`PxPlaybackMode.player`), not bare literals. */
+export const PxPlaybackMode = {
     auto:   'auto',
+    native: 'native',
+    player: 'player',
+} as const;
+
+export type PxPlaybackMode = typeof PxPlaybackMode[keyof typeof PxPlaybackMode];
+
+/** The concrete engine that applies values — resolved from {@link PxPlaybackMode} by
+ *  the runtime. Used downstream by code that always knows which engine is running
+ *  (e.g. `getNormalisedBindings`'s `engine` arg gates motion-along-path materialisation). */
+export const PxAnimatorEngine = {
     waapi: 'waapi',
     frames: 'frames',
 } as const;
 
-export type PxAnimatorMode = typeof PxAnimatorMode[keyof typeof PxAnimatorMode];
-
-/** Resolved engine after `auto` dispatch — used downstream by code that always
- *  knows exactly which engine is running (e.g. `getNormalisedBindings`'s
- *  `engine` arg gates motion-along-path materialisation). Strictly a subset of
- *  {@link PxAnimatorMode} (no `auto`). */
-export const PxAnimatorEngine = {
-    waapi: PxAnimatorMode.waapi,
-    frames: PxAnimatorMode.frames,
-} as const;
-
 export type PxAnimatorEngine = typeof PxAnimatorEngine[keyof typeof PxAnimatorEngine];
+
+/** The engine a playback mode resolves to BEFORE the runtime probes support: `player`
+ *  pins the frame loop; `auto` and `native` mean WAAPI (`auto` may still fall back to
+ *  frames when WAAPI declines the document). */
+export function engineForPlaybackMode(mode: PxPlaybackMode | undefined): PxAnimatorEngine {
+    return mode === PxPlaybackMode.player ? PxAnimatorEngine.frames : PxAnimatorEngine.waapi;
+}
+
+/** `native` is a demand, not a preference: no frames fallback when WAAPI declines an attribute. */
+export function isNativeForced(mode: PxPlaybackMode | undefined): boolean {
+    return mode === PxPlaybackMode.native;
+}
+
+/** May the browser's ScrollTimeline/ViewTimeline drive a scroll/view timeline?
+ *  `auto` tries it first (falling back to the player's own measurement), `native`
+ *  asks for it, `player` never uses it. */
+export function mayUseNativeScrollTimeline(mode: PxPlaybackMode | undefined): boolean {
+    return mode !== PxPlaybackMode.player;
+}
 
 // V3 — every closed value list is a NAMED const + a strict `px.enum` slot, so a
 // typo is a schema ERROR instead of silently shipping. Plain `px.string()` stays
@@ -156,8 +175,6 @@ export const PxStrokeTrimSubPaths = {
 
 export type PxStrokeTrimSubPaths = typeof PxStrokeTrimSubPaths[keyof typeof PxStrokeTrimSubPaths];
 
-/** @deprecated Backwards-compatibility alias — use {@link PxAnimatorMode} for the type. */
-export type JsMode = PxAnimatorMode;
 
 // S8: `textContent` is the CANONICAL text-content key (DOM property name;
 // `text` was triply overloaded: the `text` tag, the `effects.text` group, and
@@ -305,13 +322,15 @@ export function flattenAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig
 
     const { timeline: _dropped, ...flat } = cfg as any;
 
+    // `mode` is shared by every timeline type: who runs the animation.
+    if (timeline.mode !== undefined) flat.mode = timeline.mode;
+
     if (timeline.type === 'scroll' || timeline.type === 'view') {
         flat.timelineSource = 'scroll';
         if (timeline.duration !== undefined) flat.duration = timeline.duration;   // §2.8
         if (timeline.iterations !== undefined) flat.iterations = timeline.iterations;
         const scroll: PxScroll = { ...(flat.scroll || {}) };
         scroll.kind = timeline.type;
-        if (timeline.engine !== undefined) scroll.driver = timeline.engine;
         if (timeline.axis !== undefined) scroll.axis = timeline.axis;
         if (timeline.source !== undefined) scroll.source = timeline.source;
         if (timeline.subject !== undefined) scroll.subject = timeline.subject;
@@ -353,15 +372,15 @@ export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
     if (!cfg || (cfg as any).timeline !== undefined) return cfg;
 
     const { timelineSource, scroll, trigger, delay, iterations, direction, fill, resetOnFinish,
-            duration, ...shared } = cfg as any;
+            duration, mode, ...shared } = cfg as any;
 
     if (timelineSource === 'scroll') {
         const timeline: any = { type: scroll?.kind === 'view' ? 'view' : 'scroll' };
+        if (mode !== undefined) timeline.mode = mode;
         if (duration !== undefined) timeline.duration = duration;   // §2.8
         // Finite iterations survive scrubbing (D4); 'infinite' cannot map to a range.
         if (typeof iterations === 'number') timeline.iterations = iterations;
         if (scroll) {
-            if (scroll.driver !== undefined) timeline.engine = scroll.driver;
             if (scroll.axis !== undefined) timeline.axis = scroll.axis;
             if (scroll.source !== undefined) timeline.source = scroll.source;
             if (scroll.subject !== undefined) timeline.subject = scroll.subject;
@@ -384,6 +403,7 @@ export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
     // Time-driven: `type` is optional on the wire and 'time' is the default, so the
     // writer omits it — the common case declares nothing.
     const timeline: any = {};
+    if (mode !== undefined) timeline.mode = mode;
     if (duration !== undefined) timeline.duration = duration;   // §2.8
     if (trigger !== undefined || resetOnFinish) {
         const t: any = { ...(trigger || {}) };

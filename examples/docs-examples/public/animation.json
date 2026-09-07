@@ -5,7 +5,6 @@
   "preserveAspectRatio": "none",
   "fill": "none",
   "animator": {
-    "mode": "auto",
     "timeline": {
       "duration": 1000,
       "trigger": {

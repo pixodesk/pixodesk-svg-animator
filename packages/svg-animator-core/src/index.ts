@@ -26,11 +26,11 @@ export type { KeysMatch, PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, R
 
 // Wire-format schemas
 export { PxAnimatedSvgDocumentSchema, PxAnimationDefinitionSchema, PxAnimatorConfigSchema, PxAttrValueSchema, PxBezierPathSchema, PxBindingSchema, PxDefsSchema, PxEasingOrRefSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBase, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeExtra, PxTransformPartsSchema, PxTransformValueSchema, PxTriggerSchema, PxTimelineSchema, PxTimelinePinSchema } from './PxAnimatorTypes';
-export { PX_TRANSFORM_PART_KEYS, PxAnimatorEngine, PxAnimatorMode } from './PxAnimatorConstants';
+export { engineForPlaybackMode, isNativeForced, mayUseNativeScrollTimeline, PX_TRANSFORM_PART_KEYS, PxAnimatorEngine, PxPlaybackMode } from './PxAnimatorConstants';
 
 // Document / model types
 export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorAPI, PxAnimatorCallbacksConfig, PxAnimatorConfig, PxAttrValue, PxBasicAnimatorAPI, PxBezierPath, PxBinding, PxDefs, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollPhase, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTimelinePin, PxTransformParts, PxTransformValue, PxTrigger, PxValidationResult } from './PxAnimatorTypes';
-export type { FillMode, JsMode, OutAction, PlaybackDirection, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
+export type { FillMode, OutAction, PlaybackDirection, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
 
 export { isPxElementFileFormatDeep } from './PxAnimatorTypes';
 export { getBindings, getChildren, getDefs } from './PxAnimatorConstants';
@@ -121,7 +121,7 @@ export { collectSampleTimes, diffInEffect, visualModelAt } from './effects/Playe
 export { PxCloneEffectSchema, PxEffectsSchema, PxFillGradientEffectSchema, PxGradientStopSchema, PxMaskedByEffectSchema, PxRepeaterEffectSchema, PxRetimeEffectSchema,
     PxScrollRangePointSchema,
     PxScrollRangeSchema,
-    PxScrollSchema, PxStrokeGradientEffectSchema, PxTextPathEffectSchema, PxTextEffectSchema, PxTransformByEffectSchema, PxStrokeTrimEffectSchema, validateNodeEffects } from './PxAnimatorTypes';
+    PxScrollSchema, PxStrokeGradientEffectSchema, PxTextPathEffectSchema, PxTextEffectSchema, PxTransformByEffectSchema, PxStrokeTrimEffectSchema, validateDocument, validateNodeEffects } from './PxAnimatorTypes';
 export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxGradientUnits } from './PxAnimatorConstants';
 export type {
     PxAnimatable,

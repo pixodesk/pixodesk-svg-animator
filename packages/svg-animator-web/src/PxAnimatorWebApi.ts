@@ -202,7 +202,7 @@ export function convertToWebApiKeyframes(
  * @param forceEvenIfHasUnsupportedAttrs If true, an animator will be created even if some CSS properties are not supported.
  * @returns An PxAnimatorAPI instance, or null if unsupported features are used and not forced.
  */
-/** `driver: 'native'` payload (see PxScrollDriver.createNativeScrollTimeline): the
+/** Native scroll-timeline payload (`timeline.mode: 'native'` / `auto`; see PxScrollDriver.createNativeScrollTimeline): the
  *  browser-native timeline every Animation attaches to, plus optional range offsets. */
 export interface PxWebApiScrollTimeline {
     timeline: AnimationTimeline;
@@ -316,7 +316,7 @@ export function createWebApiAnimator(
                 if (keyframes.length > 0) {
                     try {
                         const effect = new KeyframeEffect(element, keyframes, effectOptions);
-                        // Native scroll timeline (`driver: 'native'`): the browser computes
+                        // Native scroll timeline (`mode: 'native'` / `auto`): the browser computes
                         // progress AND applies values (compositor-driven). Range offsets are
                         // per-Animation in WAAPI.
                         const anim = new Animation(effect, scrollTimeline ? scrollTimeline.timeline : document.timeline);

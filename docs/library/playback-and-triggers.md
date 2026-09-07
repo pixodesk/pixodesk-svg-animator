@@ -68,18 +68,18 @@ means a time-driven timeline with every default.
 
 ## Timing
 
-The engine settings stay on `animator` itself; timing and the playback dynamics live in
-the timeline:
+Timing, the playback dynamics and the choice of who runs the animation live in the
+timeline; only `frameRate` stays on `animator` itself:
 
 | Field | Values | Default | Meaning |
 |---|---|---|---|
 | `timeline.duration` | ms | `1000` | length of **one** pass of the timeline. Keyframe times are absolute offsets within it |
-| `frameRate` | fps | uncapped | target rate for the frame-loop engine only |
-| `mode` | `auto` · `waapi` · `frames` | `auto` | the engine — [Engine mode](#engine-mode) |
+| `frameRate` | fps | uncapped | target rate for the player's frame loop only |
+| `timeline.mode` | `auto` · `native` · `player` | `auto` | who runs the animation — [Playback mode](#playback-mode) |
 | `timeline.delay` | ms | `0` | wait this long, then start. A **negative** value skips ahead instead: `-500` starts right away from the frame at 0.5 s, as if the animation had already been running for half a second |
 | `timeline.iterations` | number · `"infinite"` | `1` | how many times the whole document timeline repeats |
 | `timeline.direction` | `normal` · `reverse` · `alternate` · `alternate-reverse` | `normal` | `alternate` ping-pongs on every other iteration |
-| `timeline.fill` | `forwards` · `backwards` · `both` · `none` | `forwards` | what is shown *outside* the active time: `forwards` holds the last frame after the end; `backwards` shows the first frame during the delay; `none` reverts to the static SVG |
+| `timeline.fillMode` | `forwards` · `backwards` · `both` · `none` | `forwards` | what is shown *outside* the active time: `forwards` holds the last frame after the end; `backwards` shows the first frame during the delay; `none` reverts to the static SVG |
 | `timeline.trigger.onFinish` | `hold` · `reset` | `hold` | after a natural finish: keep the end state (per `fill`), or snap back to the start |
 
 **Per-property loops vs `iterations`.** There are two kinds of repetition, and they work at
@@ -91,15 +91,17 @@ applied first, when the document is prepared; `iterations` then repeats the resu
 can be used at once, and one runs inside the other: a wheel whose rotation loops, inside a
 document set to infinite iterations, keeps spinning during every iteration.
 
-## Engine mode
+## Playback mode
 
-| Mode | What runs the animation |
-|---|---|
-| `auto` (default) | the Web Animations API — played by the browser itself, so it stays smooth even while the page is busy — with an **automatic fallback** to the frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on a path, …) |
-| `waapi` | Web Animations API only |
-| `frames` | a `requestAnimationFrame` loop that writes attributes every frame; honours `frameRate`; universal browser support |
+`timeline.mode` says **who runs the animation** — the same three values on every timeline type:
 
-Leave it on `auto` unless you need a guarantee — for instance `frames` for path morphing in
+| Mode | Time-driven timeline | Scroll / view timeline |
+|---|---|---|
+| `auto` (default) | the Web Animations API — played by the browser itself, so it stays smooth even while the page is busy — with an **automatic fallback** to the player's frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on a path, …) | the browser's own `ScrollTimeline` / `ViewTimeline` where supported; otherwise the player measures scroll progress itself and drives WAAPI (or the frame loop, if WAAPI declines the document) |
+| `native` | Web Animations API only | the browser's `ScrollTimeline` / `ViewTimeline` driving WAAPI (where unsupported, the player measures progress instead — WAAPI stays) |
+| `player` | a `requestAnimationFrame` loop that writes attributes every frame; honours `frameRate`; universal browser support | the player measures scroll progress *and* applies values through its frame loop — identical everywhere |
+
+Leave it on `auto` unless you need a guarantee — for instance `player` for path morphing in
 Safari < 18.5. React Native ignores `mode` (playback is always native-driven).
 
 ## Triggers — what *starts* the animation
@@ -215,7 +217,7 @@ object tunes it:
 | `iterations` | number | the animation repeats this many times across the range (finite only — `"infinite"` cannot map onto a range) |
 | `smoothing` | ms | catch-up lag — the playhead eases toward the scroll position instead of snapping (smoother under momentum scrolling) |
 | `pin` | `true` · `{ align, top, distance }` | hold the canvas still on screen while scrolling moves the animation forward and back (`position: sticky`); `align` ∈ `top`/`center`/`bottom`, `top` in px, `distance` in viewport heights creates the scroll travel |
-| `engine` | `custom` (default) · `native` | who computes progress: the player's own measurement (identical everywhere) or the browser's `ScrollTimeline` (falls back automatically when unsupported) |
+| `mode` | `auto` (default) · `native` · `player` | who computes progress and applies values — see [Playback mode](#playback-mode): `auto`/`native` use the browser's `ScrollTimeline` where supported, `player` measures itself |
 
 Support: the **web player** (both engines, and therefore React and Vue), and the *SVG + JS
 animation* export. Not yet: the CSS export or React Native. The complete "scrollytelling"

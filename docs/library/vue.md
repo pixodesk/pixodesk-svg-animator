@@ -146,8 +146,8 @@ component.
 | `iterations` | `number \| 'infinite'` | how many times to play; `'infinite'` never stops |
 | `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | play forward, backward, or turn around on every iteration (starting forward or backward) |
 | `fill` | `'forwards' \| 'backwards' \| 'both' \| 'none'` | what shows before the start / after the end |
-| `mode` | `'auto' \| 'waapi' \| 'frames'` | engine — see [Web player → Engine modes](./web-player.md#engine-modes) |
-| `frameRate` | `number` | target fps (frames engine) |
+| `mode` | `'auto' \| 'native' \| 'player'` | who runs the animation — see [Web player → Playback modes](./web-player.md#playback-modes) |
+| `frameRate` | `number` | target fps (`player` mode) |
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | what starts the animation: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
 | `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | when the trigger ends (mouse out, second click, scrolled out) |
 | `scrollIntoViewThreshold` | `number` | how much of the animation must be on screen before it starts, as a share of its area: `0` (default) starts as soon as any part of it shows, `0.5` waits until half of it is visible, `1` until all of it is |

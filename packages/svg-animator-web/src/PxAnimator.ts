@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { generateNewIds, getAnimatorConfig, isPxElementFileFormat, materialiseAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PxAnimatorEngine, PxAnimatorMode, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { generateNewIds, getAnimatorConfig, isPxElementFileFormat, materialiseAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, engineForPlaybackMode, type PxAnimatorEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { bindWithEngineChoice } from './PxAnimatorBind';
 import { renderNode } from './PxAnimatorDOM';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
@@ -58,14 +58,11 @@ export function createAnimatorImpl(
     for (const w of effectsWarnings) console.warn('[PxAnimator] effects shape warning:', w);
 
     // Decide the engine upfront so the materialisation pipeline knows which
-    // stages to run. `auto` (and any non-`frames` value) resolves to `waapi`
-    // for materialisation purposes; if waapi later returns null at engine
-    // construction, frames is used as fallback — slight over-materialisation
-    // for that doc, but no correctness issue.
+    // stages to run. `auto` and `native` resolve to `waapi` for materialisation
+    // purposes; if waapi later returns null at engine construction, frames is used
+    // as fallback — slight over-materialisation for that doc, but no correctness issue.
     const animatorConfig = getAnimatorConfig(doc) || {};
-    const engine: PxAnimatorEngine = animatorConfig.mode === PxAnimatorMode.frames
-        ? PxAnimatorEngine.frames
-        : PxAnimatorEngine.waapi;
+    const engine: PxAnimatorEngine = engineForPlaybackMode(animatorConfig.mode);
 
     // Run the full document materialisation pipeline:
     //   effects → loops → motion-path (waapi only) → animated-use (waapi only)

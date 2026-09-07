@@ -268,7 +268,7 @@ function getTestJson(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            mode: "frames",
+            mode: "player",
             duration: 128,
             fill: "forwards",
             direction: "normal",
@@ -308,7 +308,7 @@ function getTestJson1000(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            mode: "frames",
+            mode: "player",
             duration: 1000,
             fill: "forwards",
             direction: "normal",
@@ -348,7 +348,7 @@ function getTreeJson(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            mode: "frames",
+            mode: "player",
             duration: 128,
             fill: "forwards",
             direction: "normal",
@@ -403,7 +403,7 @@ function getRectJson(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            mode: "frames",
+            mode: "player",
             duration: 128,
             fill: "forwards",
             direction: "normal",

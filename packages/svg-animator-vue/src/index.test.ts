@@ -52,7 +52,7 @@ function getTestJson(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            mode: "frames",
+            mode: "player",
             duration: 128,
             fill: "forwards",
             direction: "normal",

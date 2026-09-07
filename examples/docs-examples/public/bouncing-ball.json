@@ -2,7 +2,6 @@
   "type": "svg",
   "viewBox": "0 0 400 400",
   "animator": {
-    "mode": "auto",
     "timeline": {
       "duration": 1000,
       "trigger": {

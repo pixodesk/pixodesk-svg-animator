@@ -6,8 +6,8 @@
   "height": 400,
   "fill": "none",
   "animator": {
-    "mode": "frames",
     "timeline": {
+      "mode": "player",
       "duration": 1000,
       "trigger": {
         "startOn": "click",

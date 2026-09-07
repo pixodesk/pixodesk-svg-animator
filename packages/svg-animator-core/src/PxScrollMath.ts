@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 // Scroll-timeline PROGRESS MATH — pure functions, no DOM. This is the reference
-// implementation for `animator.timelineSource: 'scroll'` (the `driver: 'custom'` path,
+// implementation for `animator.timelineSource: 'scroll'` (the player-measured path — `timeline.mode: 'player'`, and the fallback of `auto`,
 // both engines): the DOM driver in svg-animator-web measures rects/offsets and calls in
 // here; the editor's design doc (`app/src/svgeditor/animation/scroll-timeline.design.md`
 // §4) documents the same formulas — keep them in sync.

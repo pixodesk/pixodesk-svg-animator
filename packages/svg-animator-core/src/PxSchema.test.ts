@@ -350,7 +350,7 @@ describe('PxAnimatorConfigSchema', () => {
 
     it('valid config passes isValid', () => {
         expect(PxAnimatorConfigSchema.isValid({
-            mode: 'waapi',
+            timeline: { mode: 'native' },
             duration: 1000,
             fill: 'forwards',
             trigger: { startOn: 'load' },

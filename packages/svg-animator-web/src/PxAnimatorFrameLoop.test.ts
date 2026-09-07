@@ -19,7 +19,7 @@ function makeDoc(animator: Record<string, any> = {}): PxAnimatedSvgDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { mode: 'frames', duration: DUR, ...animator },
+        animator: { mode: 'player', duration: DUR, ...animator },
         children: [
             {
                 type: 'rect',

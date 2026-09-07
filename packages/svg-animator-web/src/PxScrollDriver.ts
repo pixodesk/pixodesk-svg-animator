@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// The DOM half of `animator.timelineSource: 'scroll'` (`driver: 'custom'` — the default
+// The DOM half of `animator.timelineSource: 'scroll'` (`timeline.mode: 'player'` — and the fallback of `auto`
 // and the reference implementation): measures the scroller/subject and turns scroll
 // position into animation progress via the pure math in core `PxScrollMath`. The
 // consumer decides what a progress value does (frames: seek `setCurrentTime`; waapi:
@@ -21,7 +21,7 @@ import {
 } from '@pixodesk/svg-animator-core';
 
 
-// ── Native timeline support (`driver: 'native'`) ────────────────────────────────────────
+// ── Native timeline support (`timeline.mode: 'native'`, tried first by `auto`) ────────────────────────────────────────
 // `ScrollTimeline`/`ViewTimeline` aren't in TS's dom lib yet — minimal local declarations,
 // resolved from globalThis so absence is an ordinary feature-detect, never a crash.
 
@@ -43,7 +43,7 @@ function nativeRangeOffset(point: { phase?: string; fraction?: number } | undefi
 }
 
 /**
- * Build the browser-native timeline for `driver: 'native'`, or `null` when the platform
+ * Build the browser-native timeline (`mode: 'native'` / `auto`), or `null` when the platform
  * doesn't support scroll-driven WAAPI timelines — the caller then falls back to the
  * custom driver (D8: the option is a preference, never a requirement).
  */
@@ -59,7 +59,7 @@ export function createNativeScrollTimeline(
     // scroll→time mapping) cannot express. Honour the authored LOOK over the perf hint — D8
     // already makes `native` a preference rather than a requirement.
     if (scroll.smoothing) {
-        console.warn('scroll timeline: `smoothing` needs the built-in driver — ignoring `driver: "native"`');
+        console.warn('scroll timeline: `smoothing` needs the built-in driver — using the built-in driver instead of the browser timeline');
         return null;
     }
 
@@ -81,7 +81,7 @@ export function createNativeScrollTimeline(
             timeline = new Ctor({ source, axis });
         }
     } catch (e) {
-        console.warn('scroll timeline: native timeline construction failed — falling back to the custom driver', e);
+        console.warn('scroll timeline: native timeline construction failed — falling back to the player measuring progress itself', e);
         return null;
     }
 

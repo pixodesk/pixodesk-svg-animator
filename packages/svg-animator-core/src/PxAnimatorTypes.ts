@@ -8,8 +8,8 @@ import { implementsInterface, px } from './PxSchema';
 // Constants live in their own module so importing one does not pull the schema engine
 // in; re-exported here so this module's public surface is unchanged. See there.
 export * from './PxAnimatorConstants';
-import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PxAnimatorMode, PxCloneType, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxGradientUnits, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
-import type { FillMode, JsMode, OutAction, PlaybackDirection, PxAnimatorEngine, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
+import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PxPlaybackMode, PxCloneType, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxGradientUnits, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
+import type { FillMode, OutAction, PlaybackDirection, PxAnimatorEngine, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
 
 // ============================================================================
 // EASING
@@ -644,13 +644,6 @@ const _ck_PxScrollRangePoint: KeysMatch<PxScrollRangePoint, _PxScrollRangePoint>
  * the viewport" (`view` / `block` / full `cover` range).
  */
 export interface _PxScroll {
-    /** Who computes scroll progress. `'custom'` (default): the player's own DOM-measurement
-     *  driver — identical behaviour everywhere, works with BOTH engines (frames applies
-     *  values itself; waapi is seeked via `currentTime`). `'native'`: the browser's
-     *  `ScrollTimeline`/`ViewTimeline` (waapi engine only) — an opt-in optimisation that
-     *  FALLS BACK to `'custom'` automatically when unsupported. */
-    driver?: 'custom' | 'native';
-
     /** What progress measures. `'view'` (default): the SVG's own journey across the
      *  scrollport (enter → leave). `'scroll'`: the scroll container's offset ratio,
      *  regardless of where the SVG sits. */
@@ -687,7 +680,7 @@ export interface _PxScroll {
      * the scrollbar; above 0 the progress eases toward the scroll position instead of snapping
      * to it, which reads far smoother under momentum scrolling and trackpads.
      * Custom driver only — a browser-native `ScrollTimeline` has no equivalent, so setting
-     * this forces `driver: 'custom'`.
+     * this forces the player's own measurement (the browser timeline is skipped).
      */
     smoothing?: number;
 
@@ -734,7 +727,6 @@ export const PxScrollRangeSchema = px.object({
 });
 
 export const PxScrollSchema = implementsInterface<_PxScroll>()(px.object({
-    driver: px.enum(['custom', 'native'] as const).optional(),
     kind: px.enum(['view', 'scroll'] as const).optional(),
     axis: px.enum(['block', 'inline', 'x', 'y'] as const).optional(),
     source: px.enum(['nearest', 'root'] as const).optional(),
@@ -777,8 +769,12 @@ export type PxTimelinePin = PxInfer<typeof PxTimelinePinSchema>;
 // WAAPI playback dynamics. `type` is OPTIONAL: an absent `type` (or an absent
 // `timeline` altogether) means this one — the common case declares nothing.
 // `resetOnFinish` has no slot here: its successor is `trigger.onFinish: 'reset'`.
+/** `timeline.mode` — who runs the animation (every timeline type; default `auto`). */
+const PxPlaybackModeSchema = px.enum([PxPlaybackMode.auto, PxPlaybackMode.native, PxPlaybackMode.player] as const).optional();
+
 const PxTimeTimelineSchema = px.object({
     type: px.literal('time').optional(),
+    mode: PxPlaybackModeSchema,
     // §2.8: duration is a property of the TIMELINE — how long one pass takes.
     duration: px.number().optional(),
     trigger: PxTriggerSchema.optional(),
@@ -794,8 +790,8 @@ const PxTimeTimelineSchema = px.object({
 // finishes it, so none of the clock knobs exist here. `'scroll'` tracks a scroller's
 // scroll offset, `'view'` tracks the subject's visibility through the viewport —
 // exactly WAAPI ScrollTimeline vs ViewTimeline (the old nested `scroll.kind` dissolved
-// into this discriminant). `engine` is the implementation driver (was `scroll.driver` —
-// renamed so "driver" stays free); `pin` is boolean-or-object (§2.2).
+// into this discriminant). `mode` (shared by every timeline type) says who runs the
+// animation; `pin` is boolean-or-object (§2.2).
 const scrollishTimelineShape = {
     // §2.8: duration is a property of the TIMELINE — under scrubbing it is the keyframe
     // span the scroll range maps onto.
@@ -803,7 +799,7 @@ const scrollishTimelineShape = {
     // Finite repeat count IS meaningful when scrubbing — the scroll range maps onto
     // duration × iterations (rule D4; `'infinite'` cannot map to a range, so no literal here).
     iterations: px.number().optional(),
-    engine: px.enum(['custom', 'native'] as const).optional(),
+    mode: PxPlaybackModeSchema,
     axis: px.enum(['block', 'inline', 'x', 'y'] as const).optional(),
     source: px.enum(['nearest', 'root'] as const).optional(),
     subject: px.string().optional(),   // 'parent' | 'scroller' | any CSS selector
@@ -832,8 +828,9 @@ export type PxTimeline = PxInfer<typeof PxTimelineSchema>;
  */
 export interface _PxAnimatorConfig {
 
-    /** JavaScript animation implementation strategy */
-    mode?: PxAnimatorMode;
+    /** RUNTIME VIEW ONLY (not wire — the wire spells it `timeline.mode`, on every
+     *  timeline type). Who runs the animation; see {@link PxPlaybackMode}. */
+    mode?: PxPlaybackMode;
 
     /** RUNTIME VIEW ONLY (not wire — §2.8: the wire spells it `timeline.duration`).
      *  Total animation duration in milliseconds. */
@@ -926,8 +923,7 @@ export interface _PxAnimatorConfig {
 // `timelineSource`/`scroll`) is NOT part of the format. It exists only as the internal
 // runtime VIEW (`_PxAnimatorConfig`) that `flattenAnimatorTimeline` produces for the engines.
 export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(px.object({
-    mode: px.enum([PxAnimatorMode.auto, PxAnimatorMode.waapi, PxAnimatorMode.frames] as const).optional(),
-    // (`duration` lives INSIDE `timeline` on the wire — §2.8; the flat field below
+    // (`mode` and `duration` live INSIDE `timeline` on the wire — §2.8; the flat field below
     // exists only on the runtime view, like the rest of the playback dynamics.)
     frameRate: px.number().optional(),
     // THE spelling of "what advances progress" — clock / scroll / view (review §2.1).
@@ -1549,6 +1545,24 @@ export function validateNodeEffects(root: PxNode, opts?: { strict?: boolean }): 
     };
     walk(root, 'root');
     return warnings;
+}
+
+/**
+ * Validates a WHOLE document against the wire schema — strictly, so undeclared keys are
+ * reported too — plus every node's `effects` bucket. Returns human-readable problems
+ * (`path: what is wrong`), empty when the document is sound; never throws. The player
+ * itself only warns and skips what it cannot read; this is the one call for tooling,
+ * CI and agents that want a yes/no answer before shipping a document.
+ */
+export function validateDocument(doc: unknown): Array<string> {
+    const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
+    const problems: Array<string> = PxAnimatedSvgDocumentSchema.isValid(doc, ctx, ['root']) ? [] : [...ctx.errors];
+    if (doc && typeof doc === 'object') {
+        for (const w of validateNodeEffects(doc as PxNode, { strict: true })) {
+            if (!problems.includes(w)) problems.push(w);
+        }
+    }
+    return problems;
 }
 
 

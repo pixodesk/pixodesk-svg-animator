@@ -129,8 +129,7 @@ interface SVG_JSON {
     [key: string]: any; // any SVG/CSS presentation attribute; pass-through to DOM
 
     animator?: {
-        mode?: 'auto' | 'waapi' | 'frames'; // default 'auto' = WAAPI→RAF fallback; 'waapi' = WAAPI; 'frames' = RAF
-        frameRate?: number;                // target fps; RAF mode only (default: uncapped)
+        frameRate?: number;                // target fps; the player's frame loop only (default: uncapped)
 
         // WHAT ADVANCES THE PLAYHEAD — a discriminated object mirroring WAAPI's
         // DocumentTimeline / ScrollTimeline / ViewTimeline. Timing and the playback
@@ -139,6 +138,9 @@ interface SVG_JSON {
         timeline?:
             | {
                 type?: 'time';                     // wall time — something STARTS it (the trigger). OPTIONAL: absent = 'time'
+                mode?: 'auto' | 'native' | 'player';  // WHO RUNS IT (default 'auto'): the browser where it can — WAAPI here,
+                                                   // its ScrollTimeline for scroll/view — else the player's own frame loop;
+                                                   // 'native' = browser only; 'player' = the player's own loop (+ own scroll measurement)
                 duration?: number;                 // length of ONE iteration, ms (default 1000); keyframe times are absolute offsets
                 delay?: number;                    // wait before start, ms (default 0); negative = skip ahead, e.g. -500 starts from the 0.5 s frame
                 iterations?: number | 'infinite';  // repeat count (default 1); composes with per-property loop (loop-within-loop)
@@ -156,7 +158,7 @@ interface SVG_JSON {
                                                    // journey through the viewport ('view'); no trigger/delay slots exist here
                 duration?: number;                 // the keyframe span the scroll range maps onto, ms
                 iterations?: number;               // finite only — 'infinite' cannot map onto a range
-                engine?: 'custom' | 'native';      // who computes progress: the player (default) or the browser's ScrollTimeline
+                mode?: 'auto' | 'native' | 'player';  // as above — 'auto'/'native' try the browser's ScrollTimeline, 'player' measures itself
                 axis?: 'block' | 'inline' | 'x' | 'y';
                 source?: 'nearest' | 'root';       // type 'scroll' — which scroll container
                 subject?: string;                  // type 'view' — whose journey: 'parent' | 'scroller' | a CSS selector

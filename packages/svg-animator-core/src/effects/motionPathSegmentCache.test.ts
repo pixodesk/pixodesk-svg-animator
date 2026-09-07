@@ -29,7 +29,7 @@ const END: [number, number] = [189.172, 75.1807];
 const mkDoc = (): PxAnimatedSvgDocument => ({
     type: 'svg', viewBox: '0 0 200 200',
     animator: {
-        mode: 'frames', duration: 1000,
+        mode: 'player', duration: 1000,
         definitions: { animations: { a0: { transform: { autoOrient: true, keyframes: [
             { time: 250, value: { translate: START } },
             { time: 500, value: { translate: APEX }, tangentOut: [23.4667, -0.6531], tangentIn: [-23.4668, 0.6532] },

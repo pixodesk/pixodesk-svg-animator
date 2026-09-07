@@ -34,17 +34,18 @@ describe('animator.timeline spelling compat', () => {
         expect(flat.trigger.onFinish).toBeUndefined(); // folded into resetOnFinish
     });
 
-    it("flattens 'view' and 'scroll' timelines to timelineSource:'scroll' + scroll.kind, pin object → pin flags, engine → driver", () => {
+    it("flattens 'view' and 'scroll' timelines to timelineSource:'scroll' + scroll.kind, pin object → pin flags; mode is shared", () => {
         const flat = flattenAnimatorTimeline({
             timeline: {
-                type: 'view', duration: 4000, engine: 'custom', axis: 'block', subject: 'parent',
+                type: 'view', duration: 4000, mode: 'player', axis: 'block', subject: 'parent',
                 smoothing: 120, pin: { align: 'center', top: 24, distance: 600 },
                 range: { start: { phase: 'entry', fraction: 0.1 } }
             }
         } as any) as any;
         expect(flat.timelineSource).toBe('scroll');
+        expect(flat.mode).toBe('player');
         expect(flat.scroll).toEqual({
-            kind: 'view', driver: 'custom', axis: 'block', subject: 'parent', smoothing: 120,
+            kind: 'view', axis: 'block', subject: 'parent', smoothing: 120,
             pin: true, pinAlign: 'center', pinTop: 24, pinDistance: 600,
             range: { start: { phase: 'entry', fraction: 0.1 } }
         });
@@ -87,8 +88,8 @@ describe('animator.timeline spelling compat', () => {
             direction: 'reverse', fill: 'none', resetOnFinish: true
         } as any) as any;
         expect(nested).toEqual({
-            mode: 'auto',
             timeline: {
+                mode: 'auto',
                 duration: 4000,
                 trigger: { startOn: 'click', onFinish: 'reset' },
                 delay: 250, iterations: 3, direction: 'reverse', fillMode: 'none'
@@ -100,12 +101,13 @@ describe('animator.timeline spelling compat', () => {
         const nested = nestAnimatorTimeline({
             duration: 4000, timelineSource: 'scroll',
             trigger: { startOn: 'load' },       // dead under scroll (D3) — dropped by nesting
-            scroll: { kind: 'view', driver: 'custom', axis: 'block', smoothing: 120,
+            mode: 'native',
+            scroll: { kind: 'view', axis: 'block', smoothing: 120,
                       pin: true, pinAlign: 'center', pinTop: 24 }
         } as any) as any;
         expect(nested).toEqual({
             timeline: {
-                type: 'view', duration: 4000, engine: 'custom', axis: 'block', smoothing: 120,
+                type: 'view', mode: 'native', duration: 4000, axis: 'block', smoothing: 120,
                 pin: { align: 'center', top: 24 }
             }
         });
@@ -114,9 +116,10 @@ describe('animator.timeline spelling compat', () => {
     it('omits an empty time timeline entirely, and passes a config that already has one through unchanged', () => {
         // §2.8: a set duration now forces the timeline block (it lives there on the wire)…
         expect(nestAnimatorTimeline({ duration: 1000, mode: 'auto' } as any))
-            .toEqual({ mode: 'auto', timeline: { duration: 1000 } });
-        // …a config with truly nothing timeline-ish still gets no block at all.
-        expect(nestAnimatorTimeline({ mode: 'auto' } as any)).toEqual({ mode: 'auto' });
+            .toEqual({ timeline: { mode: 'auto', duration: 1000 } });
+        // …`mode` lives in the timeline too — but a config with truly nothing timeline-ish gets no block at all.
+        expect(nestAnimatorTimeline({ mode: 'auto' } as any)).toEqual({ timeline: { mode: 'auto' } });
+        expect(nestAnimatorTimeline({ frameRate: 60 } as any)).toEqual({ frameRate: 60 });
         const already = { duration: 1, timeline: { delay: 2 } } as any;
         expect(nestAnimatorTimeline(already)).toBe(already);
     });

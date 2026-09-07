@@ -5,7 +5,6 @@
   "preserveAspectRatio": "xMidYMid meet",
   "fill": "none",
   "animator": {
-    "mode": "auto",
     "timeline": {
       "duration": 1500,
       "trigger": {

@@ -42,8 +42,8 @@ async function advanceTimeIncrementally(
  * WAAPI runs on the compositor timeline, which `page.clock` does NOT control —
  * so waapi docs use `startOn: 'programmatic'` and the test drives them
  * deterministically by seeking via the animator API instead. */
-function animator(mode: 'auto' | 'waapi' | 'frames') {
-    const programmatic = mode === 'waapi';
+function animator(mode: 'auto' | 'native' | 'player') {
+    const programmatic = mode === 'native';
     return {
         duration: 1000,
         mode,
@@ -60,7 +60,7 @@ function animator(mode: 'auto' | 'waapi' | 'frames') {
 // ---------------------------------------------------------------------------
 
 /** Numeric + colour + position attributes: opacity, fill, cx/cy, r. */
-function basicAttrsDoc(mode: 'waapi' | 'frames'): PxAnimatedSvgDocument {
+function basicAttrsDoc(mode: 'native' | 'frames'): PxAnimatedSvgDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
         animator: animator(mode),
@@ -86,7 +86,7 @@ function basicAttrsDoc(mode: 'waapi' | 'frames'): PxAnimatedSvgDocument {
 }
 
 /** Transform parts: translate + rotate + scale (nested, one fn per level). */
-function transformDoc(mode: 'waapi' | 'frames'): PxAnimatedSvgDocument {
+function transformDoc(mode: 'native' | 'frames'): PxAnimatedSvgDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
         animator: animator(mode),
@@ -140,7 +140,7 @@ function shapeDoc(): PxAnimatedSvgDocument {
 // Player-effect docs (materialised by the player at runtime; mode auto)
 // ---------------------------------------------------------------------------
 
-function transformByEffectDoc(mode: 'waapi' | 'frames'): PxAnimatedSvgDocument {
+function transformByEffectDoc(mode: 'native' | 'frames'): PxAnimatedSvgDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
         animator: animator(mode),

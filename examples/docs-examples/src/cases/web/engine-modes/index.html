@@ -2,15 +2,15 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Engine modes — WAAPI vs frames</title>
+    <title>Playback modes — native vs player</title>
     <link rel="stylesheet" href="../../../case.css" />
   </head>
   <body>
-    <h1>Engine modes — WAAPI vs frames</h1>
-    <p class="summary">The same document with <code>animator.mode</code> set to <code>'waapi'</code> and to <code>'frames'</code>. Both play; <code>'auto'</code> (the default) picks WAAPI and falls back to frames only when it has to.</p>
+    <h1>Playback modes — native vs player</h1>
+    <p class="summary">The same document with <code>timeline.mode</code> set to <code>'native'</code> (the browser's Web Animations API) and to <code>'player'</code> (the player's own frame loop). Both play; <code>'auto'</code> (the default) picks native and falls back to the player only when it has to.</p>
     <div class="row">
-      <div><p>mode: waapi</p><div id="waapi" class="stage"></div></div>
-      <div><p>mode: frames</p><div id="frames" class="stage"></div></div>
+      <div><p>mode: native</p><div id="waapi" class="stage"></div></div>
+      <div><p>mode: player</p><div id="frames" class="stage"></div></div>
     </div>
     <script type="module" src="./main.ts"></script>
   </body>

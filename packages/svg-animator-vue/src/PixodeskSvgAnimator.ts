@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxNode, PxPlatformAdapter, PxTrigger } from '@pixodesk/svg-animator-web';
+import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxNode, PxPlatformAdapter, PxPlaybackMode, PxTrigger } from '@pixodesk/svg-animator-web';
 import { camelCaseToKebabWordIfNeeded, createAnimator, FillMode, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES } from '@pixodesk/svg-animator-web';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
@@ -88,7 +88,8 @@ function createVueAdapter(elementRefs: Map<string, Element>) {
 // -- Helper: apply doc overrides --------------------------------------------
 
 interface DocOverrideProps {
-    mode?: 'waapi' | 'frames' | 'auto';
+    /** Overrides the document's `timeline.mode`: who runs the animation. */
+    mode?: PxPlaybackMode;
     delay?: number;
     fill?: FillMode;
     iterations?: number | 'infinite';
@@ -224,7 +225,7 @@ const PixodeskSvgAnimator = defineComponent({
         doc: { type: Object as PropType<PxAnimatedSvgDocument>, required: true },
 
         // -- Rendering mode
-        mode: { type: String as PropType<'waapi' | 'frames' | 'auto'> },
+        mode: { type: String as PropType<PxPlaybackMode> },
 
         // -- Timing overrides
         delay: { type: Number },
