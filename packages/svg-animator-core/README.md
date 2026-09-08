@@ -51,7 +51,7 @@ runtime crash on a non-browser platform.
 | Area | Exports |
 |---|---|
 | **Schema & types** | `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxEffectsSchema`, … plus every `Px*` TypeScript type and the `px` schema builder |
-| **Validation** | `isPxElementFileFormat`, `isPxElementFileFormatDeep`, `validateNodeEffects` |
+| **Validation** | `validateDocument` (the whole document, strict), `isPxElementFileFormat`, `isPxElementFileFormatDeep`, `validateNodeEffects` |
 | **Materialisers** | `materialiseAllInTree`, `applyPlayerEffects`, `materialiseInternalLoopsInTree`, `materialiseMotionPathsInTree`, `materialiseAnimatedUseInstances` |
 | **Interpolation** | `calcAnimationValues`, `interpolateValue`, `getNormalisedBindings` |
 | **Sampling / geometry** | `createPathSampler`, `evaluateMotionPathSegment`, bezier helpers, `cubicBezier`, `splitEasing` |

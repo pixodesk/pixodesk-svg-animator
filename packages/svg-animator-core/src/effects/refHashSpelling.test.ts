@@ -25,7 +25,7 @@ describe('ref spelling — #id canonical, bare legacy', () => {
             const out = materialise({
                 type: 'svg', children: [
                     { type: 'rect', id: 'src', width: 10, height: 10 },
-                    { type: 'use', href: '#whatever', effects: { clone: { type: 'content', source: form.ref('src') } } },
+                    { type: 'use', href: '#whatever', effects: { clone: { without: 'translate', source: form.ref('src') } } },
                 ],
             } as unknown as PxNode);
             const use = collectByType(out, 'use')[0] as any;

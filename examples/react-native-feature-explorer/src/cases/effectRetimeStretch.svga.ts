@@ -27,7 +27,7 @@ export const effectRetimeStretch: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "baseId": "_px_38bqgqqn",
-                    "type": "content",
+                    "without": "translate",
                     "retime": {
                         "stretch": 2
                     }
@@ -97,7 +97,7 @@ export const effectRetimeStretch: SvgaCaseJson = {
                     "effects": {
                         "clone": {
                             "baseId": "_px_38bqgqqp",
-                            "type": "content",
+                            "without": "translate",
                             "retime": {
                                 "stretch": 2
                             }

@@ -117,7 +117,7 @@ export const effectCloneTextBrowserFont: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "baseId": "_px_38gjtr8l",
-                    "type": "content"
+                    "without": "translate"
                 }
             }
         },

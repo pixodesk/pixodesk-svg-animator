@@ -8,7 +8,7 @@ import { implementsInterface, px } from './PxSchema';
 // Constants live in their own module so importing one does not pull the schema engine
 // in; re-exported here so this module's public surface is unchanged. See there.
 export * from './PxAnimatorConstants';
-import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PxPlaybackMode, PxCloneType, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxGradientUnits, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
+import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PxPlaybackMode, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxGradientUnits, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
 import type { FillMode, OutAction, PlaybackDirection, PxAnimatorEngine, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
 
 // ============================================================================
@@ -1325,21 +1325,24 @@ const _ck_PxRetimeEffect: KeysMatch<PxRetimeEffect, _PxRetimeEffect> = true;
 /**
  * `<use>` CLONE — merges the former `ref` + `retime` effects. A `<use>` is a clone
  * of something: `type`/`source` say WHAT it clones, `retime` says WHEN.
- *   - `type: 'content'` → content-ref (excludes the target's own translate);
- *     `type` absent → direct / whole-element link (keeps translate).
+ *   - `without: 'translate'` → content-ref: the source's own translate is left out (the
+ *     clone stays where the `<use>` put it, still rotates/scales with the source);
+ *     absent → direct / whole-element link (keeps translate). A future `'transform'`
+ *     value may leave out the whole transform.
  *   - `source` = the source element ref, `#id` (canonical spelling, SCHEMA-DESIGN §4 E-5;
  *     bare `id` is legacy, read-only). Lives once here; the player follows `href`.
  *   - `retime` = optional time-shift (nested).
  * Omitted entirely when all-default (a bare `<use href>` carries no `clone` bucket).
  */
 export interface _PxCloneEffect {
-    type?: string;
+    without?: string;
     source?: string;
     retime?: _PxRetimeEffect;
 }
 export const PxCloneEffectSchema = implementsInterface<_PxCloneEffect>()(px.object({
-    // Contextual kind — the `type` convention, see `PxNodeBase.type`.
-    type: px.enum([PxCloneType.content] as const).optional(),
+    // Subtractive on purpose: the `<use>` can only point at one wrapper layer of the
+    // source, so the choices form a ladder — 'translate' now, maybe 'transform' later.
+    without: px.enum([PxCloneWithout.translate] as const).optional(),
     source: px.string().optional(),
     retime: PxRetimeEffectSchema.optional(),
 }));
@@ -1581,7 +1584,7 @@ export function validateDocument(doc: unknown): Array<string> {
 export const PxNodeBase = px.openObject({
     // CONVENTION (SCHEMA-DESIGN R1 / issues N4): `type` is the ONE word for "what
     // kind of thing is this", discriminated by its CARRIER — here the node TAG
-    // (`rect`, `text`), and inside a sub-object that object's kind (`clone.type`,
+    // (`rect`, `text`), and inside a sub-object that object's kind (`fillGradient.type`,
     // `fillGradient.type`, editor `preset.type`). Each sits in its own object, so
     // the carrier disambiguates completely; synonyms (`cloneKind`, `presetShape`)
     // would add words that all mean "type" and still need the carrier to read.

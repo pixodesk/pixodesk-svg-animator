@@ -167,7 +167,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 {
                     type: 'use',
                     transform: 'translate(40,200)',
-                    effects: { clone: { source: 'src', type: 'content' } },
+                    effects: { clone: { source: 'src', without: 'translate' } },
                 },
             ],
         };

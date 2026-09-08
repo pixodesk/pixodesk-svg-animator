@@ -27,7 +27,7 @@ export const effectCloneContentRef: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "baseId": "_px_38bqgqon",
-                    "type": "content"
+                    "without": "translate"
                 }
             },
             "meta": {

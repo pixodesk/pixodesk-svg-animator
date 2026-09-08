@@ -54,7 +54,7 @@ describe('refEffect — whole-element ref & content-ref split', () => {
     });
 
     it('case 2 — content ref → source SPLIT (outer#src > inner > bare), <use> points at inner', () => {
-        const out = materialise(scene({}, { clone: { type: 'content', source: 'src' } }));
+        const out = materialise(scene({}, { clone: { without: 'translate', source: 'src' } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -77,7 +77,7 @@ describe('refEffect — whole-element ref & content-ref split', () => {
                 ]
               },
               {
-                "href": "#__GEN_0__",
+                "href": "#src",
                 "type": "use"
               }
             ]
@@ -94,7 +94,7 @@ describe('refEffect — whole-element ref & content-ref split', () => {
     });
 
     it('case 3 — content ref with source TRANSLATE → translate lifts to outer, bare element has none', () => {
-        const out = materialise(scene({ transform: 'translate(30,40)' }, { clone: { type: 'content', source: 'src' } }));
+        const out = materialise(scene({ transform: 'translate(30,40)' }, { clone: { without: 'translate', source: 'src' } }));
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -118,7 +118,7 @@ describe('refEffect — whole-element ref & content-ref split', () => {
                 ]
               },
               {
-                "href": "#__GEN_0__",
+                "href": "#src",
                 "type": "use"
               }
             ]

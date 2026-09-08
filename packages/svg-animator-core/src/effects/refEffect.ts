@@ -9,18 +9,18 @@
  * `applyTransformByEffect` wraps the node so it lands on the actual `<use>`
  * rather than on an outer `<g>` wrapper.
  *
- * For `ref:{type:'content'}` the source is materialised as multi-layer by
+ * For `clone:{without:'translate'}` (a content-ref) the source is materialised as multi-layer by
  * `splitForContentRef` (see `contentRefSplit.ts`), and the use's `href` is
  * rewritten to point at the inner (no-translate) layer's id. No translate
  * cancellation is needed on the use side any more.
  */
 
+import { PxCloneWithout } from '../PxAnimatorConstants';
 import { applyTransformByEffect } from './transformationEffect';
 import type { PxCloneEffect, PxNode, PxTransformByEffect } from '../PxAnimatorTypes';
 import type { ApplyContext } from './types';
 import { stripHash } from './util';
 
-const CONTENT_SUBREF = 'content';
 
 /**
  * Rewrites `node.href` from the clone's reference part (`type`/`sourceId`) —
@@ -44,13 +44,13 @@ export function applyRefHref(
     // Canonical ref spelling is `#id` (SCHEMA-DESIGN §4 E-5); bare `id` is legacy.
     const sourceId = stripHash(clone.source);
     if (!sourceId) {
-        if (clone.type === CONTENT_SUBREF) ctx.errors.push('clone: content ref missing `source`');
+        if (clone.without === PxCloneWithout.translate) ctx.errors.push('clone: content ref missing `source`');
         return; // direct link → href already correct, nothing to rewrite
     }
     // For content-ref, redirect href to the inner-layer id produced by
     // `splitForContentRef`. For whole-element ref (or when no split has
     // happened, e.g. target not in the tree), fall back to sourceId.
-    const targetId = clone.type === CONTENT_SUBREF
+    const targetId = clone.without === PxCloneWithout.translate
         ? (ctx.contentRefInnerIds.get(sourceId) || sourceId)
         : sourceId;
     node.href = '#' + targetId;

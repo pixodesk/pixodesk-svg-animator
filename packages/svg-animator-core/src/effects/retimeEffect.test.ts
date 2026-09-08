@@ -28,8 +28,8 @@ function nestedContentRefWire(): PxNode {
     return {
         type: 'svg', viewBox: '0 0 400 400',
         children: [
-            { type: 'use', href: '#use1', y: '100', effects: { clone: { type: 'content', source: 'use1', retime: { start: 250 } } } },
-            { type: 'use', id: 'use1', href: '#ell1', y: '100', effects: { clone: { type: 'content', source: 'ell1', retime: { start: 250 } } } },
+            { type: 'use', href: '#use1', y: '100', effects: { clone: { without: 'translate', source: 'use1', retime: { start: 250 } } } },
+            { type: 'use', id: 'use1', href: '#ell1', y: '100', effects: { clone: { without: 'translate', source: 'ell1', retime: { start: 250 } } } },
             { type: 'g', id: 'ell1', children: [animatedBall('ball')] },
         ],
     } as unknown as PxNode;
@@ -297,11 +297,11 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             children: [
                 {
                     type: 'use', href: '#use1', y: '100',
-                    effects: { clone: { type: 'content', source: 'use1', retime: { start: 250 } } },
+                    effects: { clone: { without: 'translate', source: 'use1', retime: { start: 250 } } },
                 },
                 {
                     type: 'use', id: 'use1', href: '#ell1', y: '100',
-                    effects: { clone: { type: 'content', source: 'ell1', retime: { start: 250 } } },
+                    effects: { clone: { without: 'translate', source: 'ell1', retime: { start: 250 } } },
                 },
                 { type: 'g', id: 'ell1', children: [animatedBall('ball')] },
             ],
@@ -678,11 +678,11 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             children: [
                 // the template (with its retimed inner use) comes FIRST in document order
                 { type: 'g', id: 'tpl1', children: [
-                    { type: 'use', href: '#tpl0', effects: { clone: { type: 'content', source: 'tpl0', retime: { start: 250 } } } },
+                    { type: 'use', href: '#tpl0', effects: { clone: { without: 'translate', source: 'tpl0', retime: { start: 250 } } } },
                 ] },
                 { type: 'g', id: 'tpl0', children: [animatedBall('ball')] },
                 // the OUTER site references the template
-                { type: 'use', href: '#tpl1', effects: { clone: { type: 'content', source: 'tpl1', retime: { start: 250 } } } },
+                { type: 'use', href: '#tpl1', effects: { clone: { without: 'translate', source: 'tpl1', retime: { start: 250 } } } },
             ],
         } as unknown as PxNode;
         const { root } = applyPlayerEffects(wire);

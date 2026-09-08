@@ -123,13 +123,21 @@ export const PxUnits = {
 
 export type PxUnits = typeof PxUnits[keyof typeof PxUnits];
 
-/** `clone.type` — WHAT a `<use>` clones. Absent = the whole element (a direct link);
+/** `clone.without` — which part of the SOURCE'S OWN transform a `<use>` clone leaves
+ *  out. Absent = the whole element, as SVG `<use>` (a direct link, moves with the source);
+ *  `translate` = the source's placement is dropped, so the clone stays where the `<use>` put
+ *  it but still rotates/scales with the source. A future value `transform` may drop the
+ *  whole transform (content only) — not implemented yet.
+ *  (Was `clone.type: 'content'`; the wire is subtractive because the mechanism is a
+ *  ladder — the `<use>` can only point at one wrapper layer of the source.)
+ *  Old doc line:
  *  `content` excludes the target's own translate (see `contentRefSplit`). */
-export const PxCloneType = {
-    content: 'content',
+export const PxCloneWithout = {
+    translate: 'translate',
+    // transform: 'transform',   // future: drop rotate/scale too (content only)
 } as const;
 
-export type PxCloneType = typeof PxCloneType[keyof typeof PxCloneType];
+export type PxCloneWithout = typeof PxCloneWithout[keyof typeof PxCloneWithout];
 
 /** `textPath.pathOverflow` — glyphs past the path end: hide them, or keep laying
  *  them along the tangent extension. */

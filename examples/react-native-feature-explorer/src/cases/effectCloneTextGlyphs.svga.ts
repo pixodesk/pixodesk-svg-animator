@@ -157,7 +157,7 @@ export const effectCloneTextGlyphs: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "baseId": "_px_38gjtr8j",
-                    "type": "content"
+                    "without": "translate"
                 }
             }
         },
@@ -168,7 +168,7 @@ export const effectCloneTextGlyphs: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "baseId": "_px_38gjtr8h",
-                    "type": "content"
+                    "without": "translate"
                 }
             }
         },

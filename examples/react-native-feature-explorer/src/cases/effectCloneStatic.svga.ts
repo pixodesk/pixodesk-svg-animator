@@ -148,7 +148,7 @@ export const effectCloneStatic: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "baseId": "_px_38bqgqqp",
-                    "type": "content"
+                    "without": "translate"
                 }
             }
         },
@@ -164,7 +164,7 @@ export const effectCloneStatic: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "baseId": "_px_38nb5h1q",
-                    "type": "content"
+                    "without": "translate"
                 }
             }
         },
@@ -180,7 +180,7 @@ export const effectCloneStatic: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "baseId": "_px_38nb5h1o",
-                    "type": "content"
+                    "without": "translate"
                 }
             }
         },
@@ -196,7 +196,7 @@ export const effectCloneStatic: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "baseId": "_px_38nb5h1m",
-                    "type": "content"
+                    "without": "translate"
                 }
             }
         },
@@ -212,7 +212,7 @@ export const effectCloneStatic: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "baseId": "_px_38nb5h1k",
-                    "type": "content"
+                    "without": "translate"
                 }
             }
         },

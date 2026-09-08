@@ -220,7 +220,7 @@ interface SVG_JSON {
                                 x?, y?, width?, height?: number };   // mask viewport, user units
             clipPath?:        { d?: "M…" | { value } | { keyframes } };   // ONE animatable slot, like every other effect
             strokeTrim?:        { offset?: number, range?: [a,b], subPaths?: 'separate' | 'combined' };  // offset/range animatable
-            clone?:           { type?: 'content', source?: '#id',
+            clone?:           { without?: 'translate', source?: '#id',   // absent = whole element; 'translate' = the source's placement is left out ('transform' may follow)
                                 retime?: { start?, stretch?: number, timeCrop?: [inMs, outMs] } };  // retime is PURE timing — the ref lives once, on the clone
             // Geometry slots animate like any other slot ({value} | {keyframes});
             // gradient geometry animation runs on the frames engine.
@@ -1024,7 +1024,7 @@ if (!PxAnimatedSvgDocumentSchema.isValid(json, ctx, [])) console.error(ctx.error
 | `strict: true` | *is this document exactly well-formed?* | reported as errors |
 
 Use the default in production readers and `strict` in tests and tooling.
-`validateNodeEffects(doc)` checks just the `effects` buckets and returns warning strings.
+`validateDocument(doc)` checks the whole document strictly and returns problem strings (`path: what is wrong`), empty when sound; `validateNodeEffects(doc)` checks just the `effects` buckets and returns warning strings.
 
 ### Flattening a document
 
@@ -1087,7 +1087,7 @@ the engine runs in browsers, React Native and test environments.
 | Area | Exports |
 |---|---|
 | **Schema & types** | `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxEffectsSchema`, `PxAnimatorConfigSchema`, `PxKeyframeSchema`, … plus every `Px*` TypeScript type and the `px` schema builder |
-| **Validation** | `isPxElementFileFormat`, `isPxElementFileFormatDeep`, `validateNodeEffects` |
+| **Validation** | `validateDocument` (the whole document, strict), `isPxElementFileFormat`, `isPxElementFileFormatDeep`, `validateNodeEffects` |
 | **Materialisers** | `materialiseAllInTree`, `applyPlayerEffects`, `materialiseInternalLoopsInTree`, `materialiseMotionPathsInTree`, `materialiseAnimatedUseInstances` |
 | **Interpolation** | `calcAnimationValues`, `interpolateValue`, `getNormalisedBindings` |
 | **Sampling / geometry** | `createPathSampler`, `evaluateMotionPathSegment`, Bézier helpers, `cubicBezier`, `splitEasing` |
