@@ -23,6 +23,12 @@
 //                                    JSON round-trips, attribute names, CSS props,
 //                                    getAttribute('...'), and effect-key dispatch tables.
 //   RESERVE  public API            — everything exported from either package's entry.
+//   RESERVE  public TYPE members    — the KEYS of every exported interface / type alias.
+//                                    A consumer builds those objects in THEIR OWN code, so we
+//                                    can never rename what we read off them. Reserving only the
+//                                    declaration name (above) is not enough: that is how
+//                                    `callbacks`, `adapter` and every `on*` callback came to be
+//                                    renamed in the shipped bundles (MINIFICATION-BOUNDARY-PLAN.md).
 //   MANGLE   the rest              — internal plumbing, reachable only as `x.name` in code
 //                                    we compile together.
 
@@ -59,6 +65,7 @@ const declaredProps = new Map();   // name -> count of declaration/access sites
 const wireKeys = new Set();
 const stringLiterals = new Set();
 const exportedNames = new Set();
+const publicTypeMembers = new Set();   // keys of exported interfaces / type aliases
 
 const bump = (name) => declaredProps.set(name, (declaredProps.get(name) || 0) + 1);
 
@@ -122,6 +129,18 @@ for (const file of files) {
         if (ts.isElementAccessExpression(node) && ts.isStringLiteral(node.argumentExpression)) {
             stringLiterals.add(node.argumentExpression.text);
         }
+        // --- exported TYPE declarations: harvest their member names, not just the type name.
+        if ((ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node))
+            && node.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword)) {
+            const harvest = (n) => {
+                if (ts.isPropertySignature(n) || ts.isMethodSignature(n)) {
+                    const m = nameOf(n.name); if (m) publicTypeMembers.add(m);
+                }
+                ts.forEachChild(n, harvest);
+            };
+            harvest(node);
+        }
+
         // --- exports
         if (ts.isExportSpecifier(node)) exportedNames.add((node.propertyName || node.name).text);
         if (node.modifiers?.some(m => m.kind === ts.SyntaxKind.ExportKeyword)) {
@@ -143,6 +162,12 @@ for (const file of files) {
 const dompropsPath = join(ROOT, 'packages/svg-animator-web/node_modules/terser/tools/domprops.js');
 const dompropsMod = await import(pathToFileURL(dompropsPath).href);
 const BUILTIN = new Set(dompropsMod.domprops || dompropsMod.default || []);
+// Platform names too NEW for the bundled domprops list. These are keys the BROWSER reads
+// off objects we hand it, so they are not ours to rename — `rangeName` is a member of
+// WAAPI's `TimelineRangeOffset` (its siblings `rangeStart`/`rangeEnd`/`offset` are already
+// in domprops, which is exactly why the omission went unnoticed). This list needs a new
+// entry whenever we adopt a web API younger than the terser release we build with.
+for (const p of ['rangeName', 'axis', 'source', 'subject', 'timeline', 'view', 'scroll']) BUILTIN.add(p);
 for (const ctor of [Object, Array, String, Number, Boolean, Function, Date, RegExp, Error,
     Map, Set, WeakMap, WeakSet, Promise, Symbol, Math, JSON, ArrayBuffer, Int8Array]) {
     for (const src of [ctor, ctor.prototype]) {
@@ -153,6 +178,7 @@ for (const ctor of [Object, Array, String, Number, Boolean, Function, Date, RegE
 
 const safe = [...declaredProps.keys()].filter(n =>
     !wireKeys.has(n) && !stringLiterals.has(n) && !exportedNames.has(n)
+    && !publicTypeMembers.has(n)
     && !BUILTIN.has(n)
     // 1-2 char names are already minimal; renaming buys nothing and the bundle's
     // own mangled locals share those spellings, which corrupts the occurrence count.
@@ -164,6 +190,7 @@ const result = {
     wireKeys: [...wireKeys].sort(),
     stringLiterals: [...stringLiterals].sort(),
     exportedNames: [...exportedNames].sort(),
+    publicTypeMembers: [...publicTypeMembers].sort(),
     safeToMangle: safe.sort(),
 };
 writeFileSync(join(ROOT, 'scripts/.identifiers.json'), JSON.stringify(result, null, 1));
@@ -173,5 +200,6 @@ console.log(`  declared property/method names : ${declaredProps.size}`);
 console.log(`  wire-format keys (px.object)   : ${wireKeys.size}`);
 console.log(`  names colliding with a string  : ${stringLiterals.size}`);
 console.log(`  exported names                 : ${exportedNames.size}`);
+console.log(`  public type members            : ${publicTypeMembers.size}`);
 console.log(`  => SAFE TO MANGLE              : ${safe.length}`);
 console.log(`\nwrote scripts/.identifiers.json`);

@@ -25,7 +25,7 @@ const CASES: Array<[any, string, unknown, unknown, Record<string, unknown>]> = [
     [PxMaskedByEffectSchema, 'maskType', 'luminance', 'lumnance', {}],
     [PxMaskedByEffectSchema, 'maskUnits', 'objectBoundingBox', 'objectBoundingBoxx', {}],
     [PxMaskedByEffectSchema, 'maskContentUnits', 'userSpaceOnUse', 'userSpace', {}],
-    [PxCloneEffectSchema, 'type', 'content', 'contents', {}],
+    [PxCloneEffectSchema, 'without', 'translate', 'translates', {}],
     [PxFillGradientEffectSchema, 'gradientUnits', 'userSpaceOnUse', 'userSpaceOnuse', { type: 'linear' }],
     [PxFillGradientEffectSchema, 'spreadMethod', 'reflect', 'reflectt', { type: 'linear' }],
     [PxTextPathEffectSchema, 'pathOverflow', 'clip', 'clipp', { pathData: 'M0,0L10,0' }],

@@ -1032,6 +1032,11 @@ export interface _PxNode {
     /** SVG element type (e.g., "circle", "rect", "path", "g") */
     type: string;
 
+    /** A REAL `type` attribute, for the elements that have one (`<feTurbulence
+     *  type="fractalNoise">`, `<feFuncR type="table">`) — `type` itself is the tag name.
+     *  The renderer turns this back into the attribute. */
+    domType?: string;
+
     /** Child elements (for container elements like <g>) */
     children?: PxNode[];
 
@@ -1591,6 +1596,13 @@ export const PxNodeBase = px.openObject({
     // Guarding a `type` SLOT against a wrong VALUE is the job of strict enums
     // (issues V3), never of distinct key names.
     type: px.string(),
+    // The escape hatch for elements that carry a REAL `type` attribute — `<feTurbulence
+    // type="fractalNoise">`, `<feFuncR type="table">`, `<feColorMatrix type="saturate">`.
+    // `type` is taken by the tag name, so the attribute travels here and the renderer puts
+    // it back (`PxAnimatorDOM.renderNode`, `PxRnRender`). Declared here — not merely
+    // documented — because a wire key that is not in a schema is invisible to the
+    // minifier's reserve list and gets renamed (MINIFICATION-BOUNDARY-PLAN.md §1.1).
+    domType: px.string().optional(),
     id: px.string().optional(),
     meta: px.any().optional(),
     // Player-effects bucket emitted by the Editor's lightweight design format.

@@ -192,6 +192,12 @@ export const TEXT_ATTR = 'text';
 
 export const TEXT_CONTENT_ATTR = 'textContent';
 
+/** The DOM `class` attribute. A name we EMIT but do not own, so it is written through this
+ *  constant rather than as an identifier — every other emitted attribute name reaches the
+ *  DOM as a string, and `class` was the one exception, which is why the minifier renamed it
+ *  to `ct` in the shipped bundles (MINIFICATION-BOUNDARY-PLAN.md §1.1). */
+export const CLASS_ATTR = 'class';
+
 // Wire keys that are NEVER DOM attributes (internal use only).
 //
 // `effects` is here for safety rather than necessity: `applyPlayerEffects` deletes it at

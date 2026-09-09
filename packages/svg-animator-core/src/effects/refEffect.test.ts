@@ -77,7 +77,7 @@ describe('refEffect — whole-element ref & content-ref split', () => {
                 ]
               },
               {
-                "href": "#src",
+                "href": "#__GEN_0__",
                 "type": "use"
               }
             ]
@@ -118,7 +118,7 @@ describe('refEffect — whole-element ref & content-ref split', () => {
                 ]
               },
               {
-                "href": "#src",
+                "href": "#__GEN_0__",
                 "type": "use"
               }
             ]

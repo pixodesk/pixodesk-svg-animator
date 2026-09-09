@@ -29,7 +29,7 @@
  */
 
 import { type PxAnimatable, type PxGlyphFont, type PxNode, type PxTextEffect } from '../PxAnimatorTypes';
-import { TEXT_ATTR, TEXT_CONTENT_ATTR } from '../PxAnimatorConstants';
+import { TEXT_ATTR, TEXT_CONTENT_ATTR, CLASS_ATTR } from '../PxAnimatorConstants';
 import { jsonElementFactory, type PxCreateElement } from './elementFactory';
 import { transformPathData, type Affine } from './glyphPathBake';
 import { createPathSampler, type PathSampler } from './pathSampler';
@@ -744,7 +744,7 @@ function paintProps(paint: Paint): { [k: string]: any } {
 
 /** Marks a □-placeholder `<path>` for consumers; nothing at all for real glyphs. */
 function missingGlyphProps(isMissing: boolean | undefined): { [k: string]: any } {
-    return isMissing ? { class: MISSING_GLYPH_CLASS_NAME } : {};
+    return isMissing ? { [CLASS_ATTR]: MISSING_GLYPH_CLASS_NAME } : {};
 }
 
 /** Merges placements sharing paint into baked `<path>` elements. MISSING-glyph boxes merge
