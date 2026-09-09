@@ -3,23 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import {
-    generateNewIds,
-    getAnimatorConfig,
-    getDefs,
-    materialiseAllInTree,
-    validateNodeEffects,
-    PxAnimatorEngine,
-    type FillMode,
-    type OutAction,
-    type PlaybackDirection,
-    type PxAnimatedSvgDocument,
-    type PxAnimatorConfigPatch,
-    type PxNode,
-    type StartOn,
-    applyAnimatorConfig,
-    foldAnimatorConfigShortcuts,
-} from '@pixodesk/svg-animator-core';
+import { reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materialiseAllInTree, validateNodeEffects, PxAnimatorEngine, type FillMode, type OutAction, type PlaybackDirection, type PxAnimatedSvgDocument, type PxAnimatorConfigPatch, type PxNode, type StartOn, applyAnimatorConfig, foldAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
 import Animated, {
@@ -321,6 +305,8 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides)
     const { config, resetDocDefaults, duration, delay, iterations, startOn } = overrides;
     const warnings = validateNodeEffects(doc as PxNode);
     for (const w of warnings) console.warn('[PixodeskSvgAnimator] effects shape warning:', w);
+    // The whole-document boundary diagnostic — see the note in the web player's entry.
+    reportDocumentDiagnostics(doc, '[PixodeskSvgAnimator]');
 
     // The per-instance override, applied to the WIRE document BEFORE anything reads the
     // config — `materialiseAllInTree` samples motion paths against `duration`, so a later

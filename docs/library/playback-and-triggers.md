@@ -68,13 +68,14 @@ means a time-driven timeline with every default.
 
 ## Timing
 
-Timing, the playback dynamics and the choice of who runs the animation live in the
-timeline; only `frameRate` stays on `animator` itself:
+Timing, the playback dynamics, who runs the animation and at what rate ALL live in the
+timeline. `animator` itself keeps only what is not playback: the lookup tables
+(`definitions`, `animateById`) and the `debugGlobalName` handle.
 
 | Field | Values | Default | Meaning |
 |---|---|---|---|
 | `timeline.duration` | ms | `1000` | length of **one** pass of the timeline. Keyframe times are absolute offsets within it |
-| `frameRate` | fps | uncapped | target rate for the player's frame loop only |
+| `timeline.frameRate` | fps | uncapped | target rate for the player's frame loop only — a parameter of the engine `timeline.mode` selects, so it sits beside it |
 | `timeline.mode` | `auto` · `native` · `player` | `auto` | who runs the animation — [Playback mode](#playback-mode) |
 | `timeline.delay` | ms | `0` | wait this long, then start. A **negative** value skips ahead instead: `-500` starts right away from the frame at 0.5 s, as if the animation had already been running for half a second |
 | `timeline.iterations` | number · `"infinite"` | `1` | how many times the whole document timeline repeats |

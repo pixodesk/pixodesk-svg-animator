@@ -41,9 +41,13 @@ const EXEMPT: Record<string, string> = {
         'tests the flat/nested boundary itself — the flat spelling is the subject',
     'packages/svg-animator-core/src/PxAnimatorConfigPatch.test.ts':
         'tests the merge, including its flat-base warning',
+    'packages/svg-animator-core/src/PxDocumentDiagnostic.test.ts':
+        'feeds the diagnostic a deliberately LEGACY-FLAT document — that is the case under test',
 };
 
-/** Keys that belong inside `timeline`. `frameRate`/`debugGlobalName`/the lookup tables do not. */
+/** Keys that belong inside `timeline`. `debugGlobalName` and the lookup tables do not.
+ *  `frameRate` joined them on 2026-09-09 — it parameterises the engine `timeline.mode` selects,
+ *  so keeping it at the animator root split one decision across two levels. */
 const PLAYBACK_KEYS = new Set<string>([
     ...PX_TIMELINE_SHARED_KEYS, ...PX_TIME_ONLY_TIMELINE_KEYS,
     'fill', 'resetOnFinish', 'timelineSource', 'scroll',

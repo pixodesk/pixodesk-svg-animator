@@ -136,9 +136,8 @@ interface PixodeskSvgAnimatorProps {
     // Playback override — one object, shaped exactly like the file's `animator`
     // block, deep-merged over it. `null` at a slot DELETES that key. Everything
     // that used to be its own prop lives here:
-    //   config={{ frameRate, timeline: { mode, fillMode, direction,
-    //                trigger: { outAction, scrollIntoViewThreshold } } }}
-    //   (`frameRate` is a property of `animator` itself, not of the timeline.)
+    //   config={{ timeline: { mode, frameRate, fillMode, direction,
+    //                           trigger: { outAction, scrollIntoViewThreshold } } }}
     config?: PxAnimatorConfigPatch | string;  // a JSON string is accepted too
     resetDocDefaults?: boolean;           // start from the player's defaults, `config` on top
 

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, foldAnimatorConfigShortcuts, generateNewIds, getAnimatorConfig, isPxElementFileFormat, materialiseAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, engineForPlaybackMode, type PxAnimatorEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfigPatch, type PxPlatformAdapter, type PxTrigger } from '@pixodesk/svg-animator-core';
+import { reportDocumentDiagnostics, applyAnimatorConfig, foldAnimatorConfigShortcuts, generateNewIds, getAnimatorConfig, isPxElementFileFormat, materialiseAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, engineForPlaybackMode, type PxAnimatorEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfigPatch, type PxPlatformAdapter, type PxTrigger } from '@pixodesk/svg-animator-core';
 import { bindWithEngineChoice } from './PxAnimatorBind';
 import { renderNode } from './PxAnimatorDOM';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
@@ -58,6 +58,11 @@ export function createAnimatorImpl(
     // regressions early.
     const effectsWarnings = validateNodeEffects(doc as any);
     for (const w of effectsWarnings) console.warn('[PxAnimator] effects shape warning:', w);
+
+    // …and the WHOLE-document check beside it. This is the boundary diagnostic: if a consumer's
+    // build mangled property names, the keys reaching us are unrecognisable and this says so,
+    // instead of the animation silently rendering nothing (MINIFICATION-BOUNDARY-PLAN §3).
+    reportDocumentDiagnostics(doc, '[PxAnimator] createAnimator');
 
     // The per-instance override, applied BEFORE anything reads the config. Everything below
     // depends on the final values: `timeline.mode` picks the engine, `duration` drives loop

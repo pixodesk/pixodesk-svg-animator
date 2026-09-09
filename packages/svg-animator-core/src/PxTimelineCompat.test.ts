@@ -117,9 +117,12 @@ describe('animator.timeline spelling compat', () => {
         // §2.8: a set duration now forces the timeline block (it lives there on the wire)…
         expect(nestAnimatorTimeline({ duration: 1000, mode: 'auto' } as any))
             .toEqual({ timeline: { mode: 'auto', duration: 1000 } });
-        // …`mode` lives in the timeline too — but a config with truly nothing timeline-ish gets no block at all.
+        // …`mode` lives in the timeline too, and since 2026-09-09 so does `frameRate` — it
+        // parameterises the engine `mode` selects, so the two belong at the same level.
         expect(nestAnimatorTimeline({ mode: 'auto' } as any)).toEqual({ timeline: { mode: 'auto' } });
-        expect(nestAnimatorTimeline({ frameRate: 60 } as any)).toEqual({ frameRate: 60 });
+        expect(nestAnimatorTimeline({ frameRate: 60 } as any)).toEqual({ timeline: { frameRate: 60 } });
+        // Only the non-playback keys stay on `animator` itself.
+        expect(nestAnimatorTimeline({ debugGlobalName: 'hero' } as any)).toEqual({ debugGlobalName: 'hero' });
         const already = { duration: 1, timeline: { delay: 2 } } as any;
         expect(nestAnimatorTimeline(already)).toBe(already);
     });

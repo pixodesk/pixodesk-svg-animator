@@ -17,17 +17,15 @@ const DUR = 320;
 /**
  * Minimal frames-mode doc: one rect whose opacity animates 0 → 1 over DUR ms.
  *
- * The override is a `timeline` partial, because that is where the wire format keeps the
- * playback knobs. `frameRate` is the one exception — it belongs to `animator` itself, so it is
- * routed back out here rather than making every call site spell out two objects.
+ * The override is a `timeline` partial — that is where the wire format keeps every playback
+ * knob. `frameRate` used to be the one exception, routed back out to `animator`; since it moved
+ * into the timeline (2026-09-09) there is no exception left to carve out.
  */
-function makeDoc(over: Record<string, any> = {}): PxAnimatedSvgDocument {
-    const { frameRate, ...timeline } = over;
+function makeDoc(timeline: Record<string, any> = {}): PxAnimatedSvgDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
         animator: {
-            ...(frameRate !== undefined ? { frameRate } : {}),
             timeline: { mode: 'player', duration: DUR, ...timeline },
         },
         children: [

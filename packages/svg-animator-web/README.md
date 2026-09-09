@@ -145,7 +145,7 @@ createAnimator({
 
 - `'auto'` (default) — the browser where it can (Web Animations API; its ScrollTimeline for scroll-driven documents), the player's frame loop where it must.
 - `'native'` — the browser only (Web Animations API).
-- `'player'` — the player's `requestAnimationFrame` loop only; honours `animator.frameRate`. Required for path morphing in Safari < 18.5.
+- `'player'` — the player's `requestAnimationFrame` loop only; honours `timeline.frameRate`. Required for path morphing in Safari < 18.5.
 
 ### Document format & effects
 

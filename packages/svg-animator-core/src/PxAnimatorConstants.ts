@@ -41,7 +41,7 @@ export type OutAction = 'continue' | 'pause' | 'reset' | 'reverse';
  *  loop and its own progress measurement. Const-namespace + matching string type so
  *  call sites use named members (`PxPlaybackMode.player`), not bare literals. */
 /** Timeline keys that BOTH union members carry, so they survive a change of `type`. */
-export const PX_TIMELINE_SHARED_KEYS = ['duration', 'iterations', 'mode'] as const;
+export const PX_TIMELINE_SHARED_KEYS = ['duration', 'iterations', 'mode', 'frameRate'] as const;
 
 /** Timeline keys that exist ONLY on the time-driven member — a scroll/view timeline is
  *  scrubbed by position, so nothing starts it and nothing delays it. */
@@ -362,8 +362,10 @@ export function flattenAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig
 
     const { timeline: _dropped, ...flat } = cfg as any;
 
-    // `mode` is shared by every timeline type: who runs the animation.
+    // `mode` and `frameRate` are shared by every timeline type: who runs the animation, and at
+    // what rate when that is the player's own frame loop.
     if (timeline.mode !== undefined) flat.mode = timeline.mode;
+    if (timeline.frameRate !== undefined) flat.frameRate = timeline.frameRate;
 
     if (timeline.type === 'scroll' || timeline.type === 'view') {
         flat.timelineSource = 'scroll';
@@ -412,11 +414,12 @@ export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
     if (!cfg || (cfg as any).timeline !== undefined) return cfg;
 
     const { timelineSource, scroll, trigger, delay, iterations, direction, fill, resetOnFinish,
-            duration, mode, ...shared } = cfg as any;
+            duration, mode, frameRate, ...shared } = cfg as any;
 
     if (timelineSource === 'scroll') {
         const timeline: any = { type: scroll?.kind === 'view' ? 'view' : 'scroll' };
         if (mode !== undefined) timeline.mode = mode;
+        if (frameRate !== undefined) timeline.frameRate = frameRate;
         if (duration !== undefined) timeline.duration = duration;   // §2.8
         // Finite iterations survive scrubbing (D4); 'infinite' cannot map to a range.
         if (typeof iterations === 'number') timeline.iterations = iterations;
@@ -444,6 +447,7 @@ export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
     // writer omits it — the common case declares nothing.
     const timeline: any = {};
     if (mode !== undefined) timeline.mode = mode;
+    if (frameRate !== undefined) timeline.frameRate = frameRate;
     if (duration !== undefined) timeline.duration = duration;   // §2.8
     if (trigger !== undefined || resetOnFinish) {
         const t: any = { ...(trigger || {}) };

@@ -229,7 +229,7 @@ with the old elements, and you need to attach them to the new ones.
 |---|---|
 | `'auto'` (default) | Web Animations API, with an automatic fallback to the player's frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on path…). For scroll-driven documents: the browser's `ScrollTimeline` where supported, else the player measures progress itself |
 | `'native'` | Web Animations API only (and the browser's `ScrollTimeline` for scroll-driven documents) |
-| `'player'` | the player's frame loop only; honours `animator.frameRate`. Required for path morphing in Safari < 18.5 |
+| `'player'` | the player's frame loop only; honours `timeline.frameRate`. Required for path morphing in Safari < 18.5 |
 
 The fallback is per document: if any animated attribute fails the runtime `CSS.supports` gate,
 the whole document runs on the frame loop. Either way it plays.

@@ -86,7 +86,7 @@ trigger out action (`outAction: 'reverse'`).
 **Jumping to a time while playing.** `setCurrentTime(ms)` works while playing (the animation
 continues from the new point) and while paused (it shows that frame and stays there).
 
-**Frame rate.** `frameRate` applies only to the frames engine; WAAPI runs at the display rate.
+**Frame rate.** `timeline.frameRate` applies only to the frames engine; WAAPI runs at the display rate.
 React Native always runs at the display rate.
 
 **A property does not animate under `timeline.mode: 'native'`.** WAAPI cannot drive it (the

@@ -297,9 +297,9 @@ A **parallel channel keyed by attribute name** — never an inline value replace
 
 Why not inline: the static attr stays a plain SVG value — the doc degrades to valid static SVG by
 ignoring `animate`; tools read initial state without understanding animation.
-Keyframe grammar: `{time, value, easing?, tangentIn?/tangentOut?}` (+ short aliases `t/v/e/ti/to`);
-`tangent*` = motion-along-path, `autoOrient` rotates along it; per-property
-`loop {segmentCount?, before?, alternate?}` extends kfs to the document duration.
+Keyframe grammar: `{time, value, easing?, tangentIn?/tangentOut?}` — long forms ONLY, the short
+aliases were deleted 2026-09; `tangent*` = motion-along-path, `autoOrient` rotates along it;
+per-property `loop {segmentCount?, repeatAt?, direction?}` extends keyframes to the document duration.
 
 ### R3 · One clock: root `animator`
 `{duration/delay (ms), mode: auto|waapi|frames, iterations, direction, fill, frameRate,
@@ -527,13 +527,13 @@ discriminate:
 ```
 T                          — raw static (numbers, strings, tuples, arrays)
 { value: T }               — object-shaped static (the wrapper IS the animated form's base slot)
-{ value?, keyframes|kfs, loop?, autoOrient? }   — animated
+{ value?, keyframes, loop?, autoOrient? }      — animated
 ```
 
 `value` inside the animated form is the static baseline. Most slots treat kf values as complete;
 patch-semantics slots (the editor `shape` extended-d) shallow-merge each kf value over the base —
 which is exactly why `shape` KEEPS its `{value:…}` wrapper: the same key is the patch base in both
-tenses, and animating a static shape stays purely additive (`+ keyframes`). `loop`/`kfs` are legal in
+tenses, and animating a static shape stays purely additive (`+ keyframes`). `loop`/`keyframes` are legal in
 every animatable slot. In practice effect-slot statics are never plain objects except `shape`, so the
 wrapper rule exists but rarely fires.
 
@@ -554,7 +554,8 @@ wrapper rule exists but rarely fires.
 
 ### Naming & ids
 - Wire attr names are **camelCase JSX-style** (`strokeDasharray`) → kebab-case on rendered SVG.
-- Short kf aliases (`t/v/e/kfs/ti/to`) are read; the editor writes long forms.
+- Short kf aliases (`t`/`v`/`e`/`kfs`/`ti`/`to`) are **gone** — deleted 2026-09 and now rejected by
+  the schema; long forms are the only spelling (see MINIFICATION-BOUNDARY-PLAN §6.2).
 - Auto-ids `_px_<base36>`, regenerated per write — only reference structure is meaningful.
 
 **The three `animate` keyspaces (N2, settled 2026-08).** One word was doing two jobs; the

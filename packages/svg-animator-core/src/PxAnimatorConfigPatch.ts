@@ -37,7 +37,7 @@ export interface PxAnimatorConfigMergeResult {
 /** Keys that live only on the flat RUNTIME view and have no slot on the wire. */
 const FLAT_ONLY_KEYS = [
     'timelineSource', 'scroll', 'trigger', 'delay', 'iterations',
-    'direction', 'fill', 'resetOnFinish', 'duration', 'mode',
+    'direction', 'fill', 'resetOnFinish', 'duration', 'mode', 'frameRate',
 ];
 
 /** The lookup tables. They are animation CONTENT, not playback, and are never reset. */

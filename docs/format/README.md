@@ -129,8 +129,6 @@ interface SVG_JSON {
     [key: string]: any; // any SVG/CSS presentation attribute; pass-through to DOM
 
     animator?: {
-        frameRate?: number;                // target fps; the player's frame loop only (default: uncapped)
-
         // WHAT ADVANCES THE PLAYHEAD — a discriminated object mirroring WAAPI's
         // DocumentTimeline / ScrollTimeline / ViewTimeline. Timing and the playback
         // dynamics live INSIDE it; each type carries only the fields that mean
@@ -141,6 +139,8 @@ interface SVG_JSON {
                 mode?: 'auto' | 'native' | 'player';  // WHO RUNS IT (default 'auto'): the browser where it can — WAAPI here,
                                                    // its ScrollTimeline for scroll/view — else the player's own frame loop;
                                                    // 'native' = browser only; 'player' = the player's own loop (+ own scroll measurement)
+                frameRate?: number;                // target fps for the player's own frame loop — a parameter of the
+                                                   // engine `mode` selects; uncapped when absent, ignored by WAAPI/RN
                 duration?: number;                 // length of ONE iteration, ms (default 1000); keyframe times are absolute offsets
                 delay?: number;                    // wait before start, ms (default 0); negative = skip ahead, e.g. -500 starts from the 0.5 s frame
                 iterations?: number | 'infinite';  // repeat count (default 1); composes with per-property loop (loop-within-loop)
@@ -159,6 +159,8 @@ interface SVG_JSON {
                 duration?: number;                 // the keyframe span the scroll range maps onto, ms
                 iterations?: number;               // finite only — 'infinite' cannot map onto a range
                 mode?: 'auto' | 'native' | 'player';  // as above — 'auto'/'native' try the browser's ScrollTimeline, 'player' measures itself
+                frameRate?: number;                // target fps for the player's own frame loop — a parameter of the
+                                                   // engine `mode` selects; uncapped when absent, ignored by WAAPI/RN
                 axis?: 'block' | 'inline' | 'x' | 'y';
                 source?: 'nearest' | 'root';       // type 'scroll' — which scroll container
                 subject?: string;                  // type 'view' — whose journey: 'parent' | 'scroller' | a CSS selector

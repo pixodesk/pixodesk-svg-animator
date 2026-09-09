@@ -795,6 +795,9 @@ export interface _PxTimeTimeline {
     type?: 'time';
     /** Who runs the animation. Default `auto`. */
     mode?: PxPlaybackMode;
+    /** Target fps for the player's frame loop — a parameter of the engine `mode` selects, so it
+     *  sits beside it. Uncapped when absent; ignored by every engine except the frame loop. */
+    frameRate?: number;
     /** §2.8: how long one pass takes, ms. */
     duration?: number;
     /** What starts it, and what happens when that condition ends. */
@@ -813,6 +816,7 @@ export interface _PxTimeTimeline {
 const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.object({
     type: px.literal('time').optional(),
     mode: PxPlaybackModeSchema,
+    frameRate: px.number().optional(),
     // §2.8: duration is a property of the TIMELINE — how long one pass takes.
     duration: px.number().optional(),
     trigger: PxTriggerSchema.optional(),
@@ -839,6 +843,7 @@ const scrollishTimelineShape = {
     // duration × iterations (rule D4; `'infinite'` cannot map to a range, so no literal here).
     iterations: px.number().optional(),
     mode: PxPlaybackModeSchema,
+    frameRate: px.number().optional(),
     axis: px.enum(['block', 'inline', 'x', 'y'] as const).optional(),
     source: px.enum(['nearest', 'root'] as const).optional(),
     subject: px.string().optional(),   // 'parent' | 'scroller' | any CSS selector
@@ -854,6 +859,8 @@ export interface _PxScrollishTimelineShape {
     iterations?: number;
     /** Who runs the animation. Default `auto`. */
     mode?: PxPlaybackMode;
+    /** Target fps for the player's frame loop (shared with the time member). */
+    frameRate?: number;
     /** `block`/`inline` are writing-mode relative; `x`/`y` are physical. Default `'block'`. */
     axis?: 'block' | 'inline' | 'x' | 'y';
     /** `'nearest'` (default) scrollable ancestor, or `'root'`, the document. */
@@ -938,7 +945,8 @@ export interface _PxAnimatorConfig {
     /** Direction of animation playback */
     direction?: PlaybackDirection;
 
-    /** Target frame rate for frame-based animations (only applicable when mode="frames") */
+    /** RUNTIME VIEW ONLY — the wire spells it `timeline.frameRate`. Target frame rate for the
+     *  player's frame loop; ignored by WAAPI, React Native and the pre-rendered CSS export. */
     frameRate?: number;
 
     /** Trigger configuration for when animation should start */
@@ -993,9 +1001,8 @@ export interface _PxAnimatorConfig {
 // `timelineSource`/`scroll`) is NOT part of the format. It exists only as the internal
 // runtime VIEW (`_PxAnimatorConfig`) that `flattenAnimatorTimeline` produces for the engines.
 export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(px.object({
-    // (`mode` and `duration` live INSIDE `timeline` on the wire — §2.8; the flat field below
-    // exists only on the runtime view, like the rest of the playback dynamics.)
-    frameRate: px.number().optional(),
+    // (`mode`, `duration` and `frameRate` live INSIDE `timeline` on the wire — §2.8; they exist
+    // at this level only on the runtime view, like the rest of the playback dynamics.)
     // THE spelling of "what advances progress" — clock / scroll / view (review §2.1).
     timeline: PxTimelineSchema.optional(),
     definitions: PxDefsSchema.optional(),
