@@ -229,7 +229,7 @@ what pin it.
 
 | name | relation | carriers |
 |---|---|---|
-| **`sourceId`** | ref to an **external** element (survives on its own) | `clone.sourceId`, `maskedBy.sourceId`, retime `sourceId`, `retimedCopy.sourceId` |
+| **`source`** | ref to an **external** element (survives on its own) | `clone.source`, `maskedBy.source`, retime `source` |
 | **`coreId`** | my own unit's **survivor** — the node the collapse restores to | `effectsHost.coreId` |
 | **`partOf`** | my **host** — origin mark on every derived node (which host produced it) | `meta.partOf` |
 
@@ -237,7 +237,8 @@ what pin it.
 - Native SVG refs (`<use href>`, `mask="url(#…)"`, `fill="url(#…)"`, `offset-path`) stay
   browser-spelled and are always **derived on write**, never design-authored.
 - History: `maskedBy.href`→`sourceId`, `clone.baseId`→`sourceId`, retime `baseId`→`sourceId`;
-  `retimedCopy.{srcId,baseId}` (two fossil fields nothing wrote or read) collapsed to `sourceId`.
+  `retimedCopy.{srcId,baseId}` (two fossil fields nothing wrote or read) collapsed to `sourceId`;
+  then `sourceId`→**`source`** across every carrier (2026-09).
 
 ---
 
@@ -270,7 +271,7 @@ every renderer (web + RN). If another reserved key ever collides, extend this ru
 rather than inventing a per-element name.
 
 **`type` is deliberately ONE word, discriminated by CARRIER (N4 closed)**: the node tag
-(`{type:'rect'}`) and every sub-object's kind (`clone.type`, `preset.type`, `fillGradient.type`)
+(`{type:'rect'}`) and every sub-object's kind (`preset.type`, `fillGradient.type`)
 all spell it `type`. Each occurrence sits inside its own object, so the carrier disambiguates
 completely — `presetShape`/`cloneKind`/`gradientKind` would add three words that all mean "type"
 while still requiring the carrier to interpret. Same for `offset` (`strokeTrim.offset` = dash phase,
@@ -371,12 +372,12 @@ one attr name can sit on both sides split by value (flat `fill` = attribute; gra
 |---|---|---|
 | `transformBy` | per-part wrapper sandwich `T(+o)·T(t)·R(r)·S(s)·T(−o)` | `translate✚ rotate✚ scale✚ skew✚ origin✚` |
 | `repeater` | N sibling copies, per-copy transform ×i | `copies` (STATIC — see below) + `translate✚ rotate✚ scale✚ skew✚ origin✚` (scale compounds `s^i`) |
-| `maskedBy` | generated `<mask>` + wiring | `sourceId`, `maskType` / `maskUnits` / `maskContentUnits`, viewport `x`/`y`/`width`/`height` (B5 — the SVG attrs verbatim, never `start`/`size`) |
+| `maskedBy` | generated `<mask>` + wiring | `source`, `maskType` / `maskUnits` / `maskContentUnits`, viewport `x`/`y`/`width`/`height` (B5 — the SVG attrs verbatim, never `start`/`size`) |
 | `clipPath` | generated `<clipPath><path>` + url | `d✚` (legacy sibling `animate` read-only) |
 | `strokeTrim` | dash-based draw-on | `offset✚`, `range✚` (fractions), `subPaths` |
-| `clone` | `<use>` semantics: what + when | `type: 'content'?`, `sourceId`, `retime {sourceId?, start, stretch, timeCrop?: [inMs, outMs]}` (`timeCrop` = a visibility window, implemented 2026-08) |
-| `fillGradient`/`strokeGradient` | generated gradient def + url | geometry `p1/p2/c/r/fp`✚ + `stops`✚ |
-| `textPath` | native `<textPath>` + generated path def | `path` (d), `startOffset✚`, `pathOverflow…` |
+| `clone` | `<use>` semantics: what + when | `without: 'translate'?`, `source`, `retime {source?, start, stretch, timeCrop?: [inMs, outMs]}` (`timeCrop` = a visibility window, implemented 2026-08) |
+| `fillGradient`/`strokeGradient` | generated gradient def + url | geometry `start/end/center/radius/focal`✚ + `stops`✚ |
+| `textPath` | native `<textPath>` + generated path def | `pathData` (d), `startOffset✚`, `pathOverflow…` |
 | `text` | glyph-outline text rendering | `useGlyphs` |
 
 **Effect NAMING stance (N6 closed — apply to every new effect)**: an effect is an INSTRUCTION
@@ -417,7 +418,7 @@ repeater part is animatable — the `✚` marks in the table above are the chann
 
 **The gradient-stops law (S9 closed)**: gradient `stops` are ONE animatable value — the whole
 stop-array animates as snapshots on a single timeline (`stops.keyframes[i].value = [{offset,
-color}, …]`), while geometry (`p1/p2/c/r/fp`) animates per-slot with independent timelines. There
+color}, …]`), while geometry (`start/end/center/radius/focal`) animates per-slot with independent timelines. There
 is deliberately NO per-stop keyframing/easing; revisit only if per-stop timing is ever demanded.
 
 **The composition-order law (S3 closed)**: `effects` is ONE bag per element — JSON key order carries
@@ -917,7 +918,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
 - **Marker evolution**: `appliedEffectPart:{topId,role,index}` → `[{hostId,effect,role?,index?}]` → **`partOf:'#id'`** (everything else host-declared or derivable). A7 fixed en route (markers now reach heavy JSON; combined-trim no longer splits permanently). A8 (wrong host) and A9 (per-copy meta explosion + dangling ids) died by construction; hosts force + carry their ids.
 - **`sourceId` renames** (see §0 glossary) incl. the `retimedCopy` fossil collapse.
 - **`meta.host` → `meta.effectsHost`** — the host key says what it hosts. The inner key stays `appliedEffects` DELIBERATELY: the tense distinguishes baked-never-re-apply from the declarative `effects` bucket, and it means the same thing as a plain node's `meta.appliedEffects` (applied in place vs applied as an expansion) — see the taxonomy table in §P.
-- **`noRefTranslate`**: dead vocabulary — live mechanism is `clone.type:'content'` (stale comments may linger).
+- **`noRefTranslate`**: dead vocabulary — live mechanism is `clone.without:'translate'` (stale comments may linger).
 - **Editor↔player graduations**: `repeater.skew` (animated, ×i), `maskedBy.start/size` (mask viewport), kf tangent fields, `resetOnFinish`; dead `SvgTransformAttrSchema` decomposed-transform group deleted.
 - **Group-trim safety** (verified): trim on a REAL `<g>` cannot false-collapse — children are per-child wrappers, each its own host.
 - **S1/I-1 closed — transform grammar split FIXED**: the lightweight wire's static `transform` is the
@@ -1002,7 +1003,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
 - **V3 closed — closed value lists are strict enums** (2026-08): ten slots that were plain
   `px.string()` with their values only in a COMMENT are now named consts + `px.enum`, so a typo is a
   schema ERROR instead of validating silently: `maskedBy.{maskType,maskUnits,maskContentUnits}`,
-  `clone.type`, `fillGradient/strokeGradient.{gradientUnits,spreadMethod}`,
+  `clone.without`, `fillGradient/strokeGradient.{gradientUnits,spreadMethod}`,
   `textPath.{pathOverflow,lengthAdjust,method,spacing}`. New consts `PxMaskType`, `PxUnits`,
   `PxCloneType`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` sit
   with the other enum constants (they must precede first use — placing them lower first produced a

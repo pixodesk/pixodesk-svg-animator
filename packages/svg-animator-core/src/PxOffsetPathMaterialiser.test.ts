@@ -4,7 +4,7 @@ import type { PxAnimatedSvgDocument, PxNode } from './PxAnimatorTypes';
 
 const doc = (node: PxNode): PxAnimatedSvgDocument => ({
     type: 'svg', viewBox: '0 0 200 200',
-    animator: { duration: 1000 },
+    animator: { timeline: { duration: 1000 } },
     children: [node],
 } as never);
 

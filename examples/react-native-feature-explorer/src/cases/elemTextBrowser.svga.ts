@@ -10,19 +10,10 @@ export const elemTextBrowser: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
-        },
         "definitions": {
             "fonts": {
                 "Roboto-Regular": {
                     "fontFamily": "Roboto-Regular",
-                    "style": "",
                     "ascent": 927.734375,
                     "unitsPerEm": 1000,
                     "glyphs": {
@@ -62,9 +53,19 @@ export const elemTextBrowser: SvgaCaseJson = {
                             "width": 551.7578125,
                             "d": "M68.36-528.32L153.81-528.32L156.74-461.91Q217.29-538.09 314.94-538.09L314.94-538.09Q482.42-538.09 483.89-349.12L483.89-349.12L483.89 0L393.55 0L393.55-349.61Q393.07-406.74 367.43-434.08Q341.80-461.43 287.60-461.43L287.60-461.43Q243.65-461.43 210.45-437.99Q177.25-414.55 158.69-376.46L158.69-376.46L158.69 0L68.36 0L68.36-528.32Z"
                         }
-                    }
+                    },
+                    "fontStyle": ""
                 }
             }
+        },
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [

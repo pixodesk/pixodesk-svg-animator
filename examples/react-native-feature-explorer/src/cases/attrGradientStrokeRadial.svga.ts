@@ -10,13 +10,14 @@ export const attrGradientStrokeRadial: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [
@@ -28,15 +29,6 @@ export const attrGradientStrokeRadial: SvgaCaseJson = {
             "effects": {
                 "strokeGradient": {
                     "type": "radial",
-                    "c": [
-                        150,
-                        100
-                    ],
-                    "fp": [
-                        150,
-                        100
-                    ],
-                    "r": 38,
                     "stops": {
                         "keyframes": [
                             {
@@ -82,7 +74,16 @@ export const attrGradientStrokeRadial: SvgaCaseJson = {
                         ]
                     },
                     "gradientUnits": "userSpaceOnUse",
-                    "spreadMethod": "pad"
+                    "spreadMethod": "pad",
+                    "center": [
+                        150,
+                        100
+                    ],
+                    "radius": 38,
+                    "focal": [
+                        150,
+                        100
+                    ]
                 }
             }
         },
@@ -94,15 +95,6 @@ export const attrGradientStrokeRadial: SvgaCaseJson = {
             "effects": {
                 "strokeGradient": {
                     "type": "radial",
-                    "c": [
-                        50,
-                        100
-                    ],
-                    "fp": [
-                        50,
-                        100
-                    ],
-                    "r": 38,
                     "stops": [
                         {
                             "offset": 0,
@@ -118,7 +110,16 @@ export const attrGradientStrokeRadial: SvgaCaseJson = {
                         }
                     ],
                     "gradientUnits": "userSpaceOnUse",
-                    "spreadMethod": "pad"
+                    "spreadMethod": "pad",
+                    "center": [
+                        50,
+                        100
+                    ],
+                    "radius": 38,
+                    "focal": [
+                        50,
+                        100
+                    ]
                 }
             }
         }

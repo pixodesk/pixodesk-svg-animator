@@ -16,7 +16,7 @@ function makeDoc(): PxAnimatedSvgDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { mode: 'player', duration: DUR },
+        animator: { timeline: { mode: 'player', duration: DUR } },
         children: [
             {
                 type: 'rect',
@@ -170,11 +170,13 @@ describe('generateNewIds', () => {
             type: 'svg',
             id: 'root1',
             animator: {
-                duration: 100,
                 animateById: {
                     'rect1': {
                         opacity: { keyframes: [{ time: 0, value: 0 }, { time: 100, value: 1 }] },
                     },
+                },
+                timeline: {
+                    duration: 100,
                 },
             },
             children: [

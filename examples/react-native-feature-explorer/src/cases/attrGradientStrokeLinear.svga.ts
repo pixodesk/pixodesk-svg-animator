@@ -10,13 +10,14 @@ export const attrGradientStrokeLinear: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [
@@ -28,14 +29,6 @@ export const attrGradientStrokeLinear: SvgaCaseJson = {
             "effects": {
                 "strokeGradient": {
                     "type": "linear",
-                    "p1": [
-                        118,
-                        100
-                    ],
-                    "p2": [
-                        182,
-                        100
-                    ],
                     "stops": {
                         "keyframes": [
                             {
@@ -81,7 +74,15 @@ export const attrGradientStrokeLinear: SvgaCaseJson = {
                         ]
                     },
                     "gradientUnits": "userSpaceOnUse",
-                    "spreadMethod": "pad"
+                    "spreadMethod": "pad",
+                    "start": [
+                        118,
+                        100
+                    ],
+                    "end": [
+                        182,
+                        100
+                    ]
                 }
             }
         },
@@ -93,14 +94,6 @@ export const attrGradientStrokeLinear: SvgaCaseJson = {
             "effects": {
                 "strokeGradient": {
                     "type": "linear",
-                    "p1": [
-                        18,
-                        100
-                    ],
-                    "p2": [
-                        82,
-                        100
-                    ],
                     "stops": [
                         {
                             "offset": 0,
@@ -116,7 +109,15 @@ export const attrGradientStrokeLinear: SvgaCaseJson = {
                         }
                     ],
                     "gradientUnits": "userSpaceOnUse",
-                    "spreadMethod": "pad"
+                    "spreadMethod": "pad",
+                    "start": [
+                        18,
+                        100
+                    ],
+                    "end": [
+                        82,
+                        100
+                    ]
                 }
             }
         }

@@ -51,7 +51,7 @@ document says so.
 
 ```tsx
 // Play once when a screen opens, then hold the last frame
-<PixodeskSvgAnimator doc={doc} autoplay iterations={1} fill="forwards" />
+<PixodeskSvgAnimator doc={doc} autoplay iterations={1} config={{ timeline: { fillMode: 'forwards' } }} />
 
 // Loop forever regardless of what the document says
 <PixodeskSvgAnimator doc={doc} autoplay iterations="infinite" />
@@ -175,13 +175,12 @@ const [time, setTime] = useState(0);
 | `apiRef` | `RefObject<RnAnimatorApi>` | Ref for imperative control |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
-| `duration` | `number` | Duration override (ms) |
-| `delay` | `number` | Delay before start (ms) |
-| `iterations` | `number \| 'infinite'` | Loop count |
-| `fill` | `FillMode` | Fill behaviour |
-| `direction` | `PlaybackDirection` | Playback direction |
-| `resetOnFinish` | `boolean` | Snap back to the start after a natural finish |
-| `outAction` | `OutAction` | What a second tap does with the `click` trigger (default: the document's, else `pause`) |
+| `config` | `object \| string` | Per-instance override of the document's `animator` block, deep-merged over it — same shape as the file (`{ timeline: { fillMode, direction, trigger: { outAction, finishAction, … } } }`); `null` at a slot deletes that key. A JSON string is accepted too. `timeline.mode` is accepted but ignored here |
+| `resetDocDefaults` | `boolean` | Ignore the document's playback settings and start from the player's defaults, with `config` on top |
+| `duration` | `number` | Shortcut for `config.timeline.duration` (ms) |
+| `delay` | `number` | Shortcut for `config.timeline.delay` (ms) |
+| `iterations` | `number \| 'infinite'` | Shortcut for `config.timeline.iterations` |
+| `startOn` | `StartOn` | Shortcut for `config.timeline.trigger.startOn`. `mouseOver` has no touch equivalent and is ignored |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
 | `onFinish` | `() => void` | Called on natural finish |
@@ -217,9 +216,9 @@ renderer never reaches JavaScript and cannot be caught — see
 
 | Prop | Why it differs |
 |---|---|
-| `mode` | Not accepted. There is no Web Animations API on React Native; playback is always native-driven. |
-| `frameRate` | Not accepted. The screen's own refresh rate is used. The player does not compute values frame by frame: when the document loads it works out the animated values in advance, as a list of snapshots (60 per second of animation), and each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared — `compileTracks({ sampleRate })`, only available when you use the lower-level API instead of the component. |
-| `startOn` | Not accepted as a prop — the document's trigger is honoured via `autoplay` (`load`, `click`, `scrollIntoView`, `programmatic`). `mouseOver` has no touch equivalent. |
+| `timeline.mode` | Accepted inside `config` but ignored. There is no Web Animations API on React Native; playback is always native-driven. |
+| `animator.frameRate` | Ignored. The screen's own refresh rate is used. The player does not compute values frame by frame: when the document loads it works out the animated values in advance, as a list of snapshots (60 per second of animation), and each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared — `compileTracks({ sampleRate })`, only available when you use the lower-level API instead of the component. |
+| `startOn: 'mouseOver'` | Has no touch equivalent, so it is not honoured. The other four values (`load`, `click`, `scrollIntoView`, `programmatic`) work as they do on the web, from the file or from the `startOn` prop. |
 | `className` / `style` | Not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height`. Styling *inside* the document (`style` on an element in the JSON) is supported. |
 | `onRemove` | Never called. On the web it tells you the animator was thrown away; here there is nothing to tell — when the component leaves the screen, React removes it and everything it created. To run code at that moment, use a `useEffect` cleanup function in your own component. |
 
@@ -296,8 +295,7 @@ player sees plain nodes. **All are supported:**
 | `clone` + `retime` | ✅ | each clone keeps its own time shift, incl. `retime.timeCrop` (a visibility window on the document timeline) |
 | `fillGradient` / `strokeGradient` | ✅ | animated stops **and animated geometry** (`animate.gradientX1`/`Cx`/`R`, …); `gradientTransform` is static (core-wide) |
 | `textPath` | ✅ | incl. animated `startOffset` |
-| `text.useGlyphs` | ✅ | text becomes `<path>` outlines from `definitions.glyphs` — no font needed |
-| `isCombinedShape` | ✅ | |
+| `text.useGlyphs` | ✅ | text becomes `<path>` outlines from `definitions.fonts` — no font needed |
 
 ### Motion, timing and references
 
@@ -307,7 +305,7 @@ player sees plain nodes. **All are supported:**
 | **Text along a path** | ✅ two ways | native `textPath` (incl. animated `startOffset`), or **per-letter motion paths** for smooth results — the example app uses the latter, since animating native `startOffset` is janky in `react-native-svg` |
 | Per-property `loop` (incl. `alternate` pingpong) | ✅ | expanded before playback |
 | Easing (cubic-bezier and named refs) | ✅ | baked into the sampled tracks |
-| `definitions.animations` / `easings` / `styles` / `glyphs` | ✅ | named refs resolved; `style` presets applied as props |
+| `definitions.animations` / `easings` / `styles` / `fonts` | ✅ | named refs resolved; `style` presets applied as props |
 | `node.style` (inline or named) | ✅ | resolved to props — React Native has no CSS, so explicit attributes win |
 
 ### Playback and triggers
@@ -316,8 +314,8 @@ player sees plain nodes. **All are supported:**
 |---|---|---|
 | `duration`, `delay`, `iterations` (incl. `'infinite'`) | ✅ | |
 | `direction` — all four values | ✅ | |
-| `fill` — `forwards` / `backwards` / `both` / `none` | ✅ | |
-| `resetOnFinish` | ✅ | |
+| `fillMode` — `forwards` / `backwards` / `both` / `none` | ✅ | |
+| `trigger.finishAction: 'reset'` | ✅ | |
 | `play` / `pause` / `cancel` / `finish` | ✅ | |
 | `setCurrentTime` — jump to a time, including **while playing** | ✅ | playback continues from the new point |
 | `setPlaybackRate` — faster, slower and **reverse** (negative) | ✅ | composes with `direction` |
@@ -326,7 +324,7 @@ player sees plain nodes. **All are supported:**
 | Trigger `scrollIntoView` | ✅ | visibility sampled by measuring against the window (React Native has no `IntersectionObserver`); honours `scrollIntoViewThreshold` and `outAction` |
 | Trigger `mouseOver` | ❌ | no touch equivalent — use `click`, or drive `play` yourself |
 | `frameRate` | n/a | reanimated runs at the display refresh rate; use `compileTracks({sampleRate})` to trade memory for temporal precision |
-| `mode` (`waapi` / `frames`) | n/a | there is no Web Animations API on React Native — playback is always native-driven |
+| `timeline.mode` (`auto` / `native` / `player`) | n/a | there is no Web Animations API on React Native — playback is always native-driven |
 
 ### Known limitations
 

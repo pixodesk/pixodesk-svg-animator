@@ -15,7 +15,7 @@ import type { PxNode } from '../PxAnimatorTypes';
 import { collectByType, materialise, materialiseEngine, PxAnimatorEngine } from './effectTestKit';
 
 const doc = (child: Record<string, unknown>): PxNode =>
-    ({ type: 'svg', animator: { duration: 2000 }, children: [child] } as unknown as PxNode);
+    ({ type: 'svg', animator: { timeline: { duration: 2000 } }, children: [child] } as unknown as PxNode);
 
 const anim = (n: PxNode | undefined): Record<string, any> => ((n as any)?.animate ?? {});
 
@@ -147,7 +147,7 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
         expect(path.d).toBe('M0,0 L10,0 L10,10 Z');    // static clip still applies
     });
 
-    it('gradient p1/r — animated slots split into the def\'s axis channels + baselines', () => {
+    it('gradient start/radius — animated slots split into the def\'s axis channels + baselines', () => {
         const out = materialise(doc({
             type: 'circle', r: 5,
             effects: { fillGradient: {

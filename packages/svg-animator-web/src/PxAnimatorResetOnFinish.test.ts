@@ -16,12 +16,13 @@ import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
 
 const DUR = 320; // multiple of the 16ms fake-timer rAF step
 
-/** Minimal frames-mode doc: one rect whose opacity animates 0 → 1 over DUR ms. */
-function makeDoc(animator: Record<string, unknown> = {}): PxAnimatedSvgDocument {
+/** Minimal frames-mode doc: one rect whose opacity animates 0 → 1 over DUR ms.
+ *  The override is a `timeline` partial — the wire address of the playback knobs. */
+function makeDoc(timeline: Record<string, unknown> = {}): PxAnimatedSvgDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { mode: 'player', duration: DUR, ...animator },
+        animator: { timeline: { mode: 'player', duration: DUR, ...timeline } },
         children: [
             {
                 type: 'rect',
@@ -67,7 +68,7 @@ describe('animator.resetOnFinish', () => {
     });
 
     it('WITH the flag the document snaps back to frame 0 on natural finish', () => {
-        const api = createAnimator({ data: makeDoc({ resetOnFinish: true }), container: '#svg-container' });
+        const api = createAnimator({ data: makeDoc({ trigger: { finishAction: 'reset' } }), container: '#svg-container' });
         api.play();
         vi.advanceTimersByTime(DUR / 2);
         expect(parseFloat(renderedOpacity() ?? 'NaN')).toBeGreaterThan(0);   // mid-flight
@@ -78,7 +79,7 @@ describe('animator.resetOnFinish', () => {
 
     it('the caller’s own onFinish still fires (before the reset)', () => {
         const onFinish = vi.fn();
-        const api = createAnimator({ data: makeDoc({ resetOnFinish: true }), container: '#svg-container', callbacks: { onFinish } });
+        const api = createAnimator({ data: makeDoc({ trigger: { finishAction: 'reset' } }), container: '#svg-container', callbacks: { onFinish } });
         api.play();
         vi.advanceTimersByTime(DUR + 32);
         expect(onFinish).toHaveBeenCalledTimes(1);
@@ -87,7 +88,7 @@ describe('animator.resetOnFinish', () => {
     });
 
     it('reset re-arms the animation — play() after finish runs again from the start', () => {
-        const api = createAnimator({ data: makeDoc({ resetOnFinish: true }), container: '#svg-container' });
+        const api = createAnimator({ data: makeDoc({ trigger: { finishAction: 'reset' } }), container: '#svg-container' });
         api.play();
         vi.advanceTimersByTime(DUR + 32);
         expect(renderedOpacity()).toBe('0');

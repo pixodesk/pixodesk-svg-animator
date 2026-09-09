@@ -10,19 +10,10 @@ export const effectRepeaterText: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
-        },
         "definitions": {
             "fonts": {
                 "Roboto-Regular": {
                     "fontFamily": "Roboto-Regular",
-                    "style": "",
                     "ascent": 927.734375,
                     "unitsPerEm": 1000,
                     "glyphs": {
@@ -62,9 +53,19 @@ export const effectRepeaterText: SvgaCaseJson = {
                             "width": 712.890625,
                             "d": "M628.91-710.94L628.91 0L534.67 0L176.76-547.85L176.76 0L82.52 0L82.52-710.94L176.76-710.94L535.64-160.64L535.64-710.94L628.91-710.94Z"
                         }
-                    }
+                    },
+                    "fontStyle": ""
                 }
             }
+        },
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { generateNewIds, getAnimatorConfig, isPxElementFileFormat, materialiseAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, engineForPlaybackMode, type PxAnimatorEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, foldAnimatorConfigShortcuts, generateNewIds, getAnimatorConfig, isPxElementFileFormat, materialiseAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, engineForPlaybackMode, type PxAnimatorEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfigPatch, type PxPlatformAdapter, type PxTrigger } from '@pixodesk/svg-animator-core';
 import { bindWithEngineChoice } from './PxAnimatorBind';
 import { renderNode } from './PxAnimatorDOM';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
@@ -47,7 +47,9 @@ export function createAnimatorImpl(
     doc: PxAnimatedSvgDocument,
     adapter?: PxPlatformAdapter,
     callbacks?: PxAnimatorCallbacksConfig,
-    containerElement?: string | Element
+    containerElement?: string | Element,
+    config?: PxAnimatorConfigPatch,
+    resetDocDefaults?: boolean
 ): PxAnimatorAPI {
 
     // Validate every `node.effects` bucket against `PxEffectsSchema` and warn
@@ -56,6 +58,16 @@ export function createAnimatorImpl(
     // regressions early.
     const effectsWarnings = validateNodeEffects(doc as any);
     for (const w of effectsWarnings) console.warn('[PxAnimator] effects shape warning:', w);
+
+    // The per-instance override, applied BEFORE anything reads the config. Everything below
+    // depends on the final values: `timeline.mode` picks the engine, `duration` drives loop
+    // expansion and motion-path sampling in `materialiseAllInTree`, and `generateNewIds`
+    // rewrites `animateById` keys — a late patch would be read by none of them.
+    if (config !== undefined || resetDocDefaults) {
+        const patched = applyAnimatorConfig(doc, config ?? {}, { resetDefaults: !!resetDocDefaults });
+        for (const w of patched.warnings) console.warn('[PxAnimator] config override:', w);
+        doc = patched.doc;
+    }
 
     // Decide the engine upfront so the materialisation pipeline knows which
     // stages to run. `auto` and `native` resolve to `waapi` for materialisation
@@ -123,6 +135,43 @@ export interface PxAnimatorOptions {
     callbacks?: PxAnimatorCallbacksConfig;
     /** CSS selector or element to render the SVG into. */
     container?: string | Element;
+
+    /**
+     * Per-instance override of the document's `animator` config — the same shape as
+     * `animator` in SCHEMA.md, deep-merged over what the document says, so one file can play
+     * twice on a page with different timing. `null` at any slot DELETES that key, which is
+     * how you restore a default that absence means.
+     *
+     * Also accepts a JSON STRING of the same object. Strings are immune to property mangling,
+     * so that form survives a build that renames object keys (see docs/library/minification.md).
+     */
+    config?: PxAnimatorConfigPatch | string;
+
+    /**
+     * Ignore the document's own playback settings and start from the player's defaults, with
+     * `config` applied on top. The lookup tables (`definitions`, `animateById`) are kept
+     * either way — resetting those would leave the animation with nothing to animate.
+     */
+    resetDocDefaults?: boolean;
+
+    /** Shortcut for `config.timeline.duration` (ms). Wins over the same key inside `config`. */
+    duration?: number;
+    /** Shortcut for `config.timeline.delay` (ms). */
+    delay?: number;
+    /** Shortcut for `config.timeline.iterations`. */
+    iterations?: number | 'infinite';
+    /** Shortcut for `config.timeline.trigger.startOn`. Typed from the WIRE, so it includes
+     *  `'programmatic'` — the value that says "nothing starts this but a `play()` call". */
+    startOn?: PxTrigger['startOn'];
+}
+
+/**
+ * The `createAnimator` spelling of the shared shortcut fold (core owns the logic so the three
+ * component packages and the plain-JS entry cannot drift).
+ */
+export function resolveAnimatorConfigOption(options: PxAnimatorOptions): PxAnimatorConfigPatch | undefined {
+    const { config, duration, delay, iterations, startOn } = options;
+    return foldAnimatorConfigShortcuts(config, { duration, delay, iterations, startOn });
 }
 
 /**
@@ -135,7 +184,8 @@ export interface PxAnimatorOptions {
  */
 export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
 
-    const { src, data, adapter, callbacks, container } = options;
+    const { src, data, adapter, callbacks, container, resetDocDefaults } = options;
+    const config = resolveAnimatorConfigOption(options);
 
     if (data !== undefined && src !== undefined) {
         throw new Error('createAnimator: provide either `src` or `data`, not both');
@@ -145,7 +195,7 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
     }
 
     if (data !== undefined) {
-        return createAnimatorImpl(data, adapter, callbacks, container);
+        return createAnimatorImpl(data, adapter, callbacks, container, config, resetDocDefaults);
     }
 
     // URL provided - fetch and create animator
@@ -169,7 +219,7 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
     fetch(src!).then(res => res.json()).then(json => {
         if (destroyed) return; // destroy() was called before the document loaded
         if (isPxElementFileFormat(json)) {
-            animator = createAnimatorImpl(json, adapter, callbacks, container);
+            animator = createAnimatorImpl(json, adapter, callbacks, container, config, resetDocDefaults);
             const queued = pending;
             pending = null;
             queued?.forEach(call => call(animator!));

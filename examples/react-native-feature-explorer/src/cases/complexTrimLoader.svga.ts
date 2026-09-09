@@ -10,13 +10,14 @@ export const complexTrimLoader: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 420 420",
     "animator": {
-        "duration": 3750,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
+        "timeline": {
+            "mode": "auto",
+            "duration": 3750,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "meta": {
@@ -74,15 +75,6 @@ export const complexTrimLoader: SvgaCaseJson = {
                     "effects": {
                         "strokeGradient": {
                             "type": "radial",
-                            "c": [
-                                0,
-                                0
-                            ],
-                            "fp": [
-                                0,
-                                0
-                            ],
-                            "r": 94.29927299685441,
                             "stops": [
                                 {
                                     "offset": 0.89,
@@ -94,7 +86,16 @@ export const complexTrimLoader: SvgaCaseJson = {
                                 }
                             ],
                             "gradientUnits": "userSpaceOnUse",
-                            "spreadMethod": "pad"
+                            "spreadMethod": "pad",
+                            "center": [
+                                0,
+                                0
+                            ],
+                            "radius": 94.29927299685441,
+                            "focal": [
+                                0,
+                                0
+                            ]
                         },
                         "strokeTrim": {
                             "range": {
@@ -255,15 +256,6 @@ export const complexTrimLoader: SvgaCaseJson = {
                     "effects": {
                         "strokeGradient": {
                             "type": "radial",
-                            "c": [
-                                0,
-                                0
-                            ],
-                            "fp": [
-                                0,
-                                0
-                            ],
-                            "r": 75.22504842934781,
                             "stops": [
                                 {
                                     "offset": 0.85,
@@ -275,7 +267,16 @@ export const complexTrimLoader: SvgaCaseJson = {
                                 }
                             ],
                             "gradientUnits": "userSpaceOnUse",
-                            "spreadMethod": "pad"
+                            "spreadMethod": "pad",
+                            "center": [
+                                0,
+                                0
+                            ],
+                            "radius": 75.22504842934781,
+                            "focal": [
+                                0,
+                                0
+                            ]
                         },
                         "strokeTrim": {
                             "range": {
@@ -462,15 +463,6 @@ export const complexTrimLoader: SvgaCaseJson = {
                     "effects": {
                         "strokeGradient": {
                             "type": "radial",
-                            "c": [
-                                0,
-                                0
-                            ],
-                            "fp": [
-                                0,
-                                0
-                            ],
-                            "r": 56.942118946215615,
                             "stops": [
                                 {
                                     "offset": 0.78,
@@ -482,7 +474,16 @@ export const complexTrimLoader: SvgaCaseJson = {
                                 }
                             ],
                             "gradientUnits": "userSpaceOnUse",
-                            "spreadMethod": "pad"
+                            "spreadMethod": "pad",
+                            "center": [
+                                0,
+                                0
+                            ],
+                            "radius": 56.942118946215615,
+                            "focal": [
+                                0,
+                                0
+                            ]
                         },
                         "strokeTrim": {
                             "range": {

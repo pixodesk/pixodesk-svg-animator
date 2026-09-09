@@ -111,16 +111,35 @@ animator.play();
 | `container` | `string \| Element` | CSS selector or element the SVG is rendered into |
 | `callbacks` | `PxAnimatorCallbacksConfig` | lifecycle callbacks, see [Callbacks](#callbacks) |
 | `adapter` | `PxPlatformAdapter` | advanced — a custom attribute writer for the frame loop (this is how the React and Vue packages route updates through their own DOM refs) |
+| **Playback overrides** | | *(all optional — see below)* |
+| `config` | `object \| string` | per-instance override of the document's `animator` block, deep-merged over it. Same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too |
+| `resetDocDefaults` | `boolean` | ignore the document's playback settings and start from the player's defaults, with `config` on top |
+| `duration` | `number` | shortcut for `config.timeline.duration` — ms for one iteration |
+| `delay` | `number` | shortcut for `config.timeline.delay` |
+| `iterations` | `number \| 'infinite'` | shortcut for `config.timeline.iterations` |
+| `startOn` | `StartOn` | shortcut for `config.timeline.trigger.startOn` |
 
-Notice there are no playback options here — no `duration`, no `iterations`, no `trigger`. The
-player takes all of that from the document itself: the `animator` block inside the JSON, which
-holds the settings you chose in the editor (duration, iterations, direction, what starts the
-animation, engine mode). So a file plays the way it was designed, with no configuration.
+By default there is nothing to configure: the player takes duration, iterations, direction,
+what starts the animation and the engine mode from the `animator` block inside the JSON — the
+settings you chose in the editor. So a file plays the way it was designed.
 
-To change any of those settings for one page, edit the document object before you pass it as
-`data` — for example load the file, set `doc.animator.timeline = { iterations: 'infinite' }`, then call
-`createAnimator({ data: doc, container: '#box' })`. Every field and its meaning is in
-[Playback settings & triggers](./playback-and-triggers.md).
+`config` is there for when one page needs it to play differently — the same file mounted twice
+at two speeds, or a file that autostarts everywhere except inside your own transport UI:
+
+```js
+const animator = createAnimator({
+  src: '/bouncing-ball.json',
+  container: '#box',
+  config: { timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } } },
+});
+animator.play();
+```
+
+The merge is per key, so everything you do not mention stays as the file has it. Full rules —
+`null` to delete a key, what happens when the override changes the kind of timeline, and the
+shortcut precedence — are in
+[Playback settings & triggers → Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
+Every field and its meaning is in [Playback settings & triggers](./playback-and-triggers.md).
 
 ## The playback API
 

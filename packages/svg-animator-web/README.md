@@ -67,7 +67,7 @@ const animator = createAnimator({
 });
 
 // Or from an already-loaded document object
-const animator = createAnimator({ data: animationDoc, container: '#container' });
+const fromObject = createAnimator({ data: animationDoc, container: '#container' });
 
 animator.play();
 animator.pause();
@@ -88,6 +88,24 @@ animator.destroy();             // cleanup
 | `container` | `string \| Element`       | CSS selector or element to render the SVG into      |
 | `callbacks` | `PxAnimatorCallbacksConfig` | Lifecycle callbacks (see below)                   |
 | `adapter`   | `PxPlatformAdapter`       | Custom attribute-writer for frame-loop rendering (advanced) |
+| `config`    | `object \| string`        | Per-instance playback override, deep-merged over the document's `animator` block — same shape as the file; `null` at a slot deletes that key. A JSON string is accepted too |
+| `resetDocDefaults` | `boolean`          | Ignore the document's playback settings and start from the player's defaults, with `config` on top |
+| `duration` · `delay` | `number`        | Shortcuts for `config.timeline.duration` / `.delay` (ms) |
+| `iterations` | `number \| 'infinite'`   | Shortcut for `config.timeline.iterations` |
+| `startOn`   | `StartOn`                 | Shortcut for `config.timeline.trigger.startOn` |
+
+The document plays the way it was designed with no configuration at all; `config` is for when
+one page needs it to play differently — the same file mounted twice at two speeds, or a file
+that autostarts everywhere except inside your own transport UI:
+
+```js
+const animator = createAnimator({
+  src: '/animation.json',
+  container: '#box',
+  config: { timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } } },
+});
+animator.play();
+```
 
 It returns a `PxAnimatorAPI`:
 
@@ -127,7 +145,7 @@ createAnimator({
 
 - `'auto'` (default) — the browser where it can (Web Animations API; its ScrollTimeline for scroll-driven documents), the player's frame loop where it must.
 - `'native'` — the browser only (Web Animations API).
-- `'player'` — the player's `requestAnimationFrame` loop only; honours `animator.frameRate`. Required for path morphing.
+- `'player'` — the player's `requestAnimationFrame` loop only; honours `animator.frameRate`. Required for path morphing in Safari < 18.5.
 
 ### Document format & effects
 

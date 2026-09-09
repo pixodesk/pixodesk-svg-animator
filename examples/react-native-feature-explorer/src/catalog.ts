@@ -20,7 +20,7 @@ export interface ExplorerCase {
     /**
      * The animation document, loaded ON FIRST ACCESS.
      *
-     * The 118 fixtures are ~1.2 MB of nested object literals. Importing them
+     * The 122 fixtures are ~1.2 MB of nested object literals. Importing them
      * eagerly means the JS engine parses and evaluates all of it before the
      * first frame — on a phone that is seconds of blank screen, and this list
      * only ever shows a handful at a time. The getter defers each one to the
@@ -77,8 +77,8 @@ export const CASE_SECTIONS: Array<ExplorerSection> = [
             { id: 'attr.gradient.fill.radial', description: 'Same for **radial** — catches radial stop animation missing while linear works.', get doc() { return require('./cases/attrGradientFillRadial.svga').attrGradientFillRadial; } },
             { id: 'attr.gradient.stroke.linear', description: 'Breaks if a `url(#grad)` **stroke paint** isn\'t resolved the way a gradient fill is.', get doc() { return require('./cases/attrGradientStrokeLinear.svga').attrGradientStrokeLinear; } },
             { id: 'attr.gradient.stroke.radial', description: 'Radial gradient as a **stroke** — catches radial-stroke resolution bugs.', get doc() { return require('./cases/attrGradientStrokeRadial.svga').attrGradientStrokeRadial; } },
-            { id: 'attr.gradient.endpoints.linear', description: 'Breaks if **non-default endpoint geometry** (diagonal `p1→e`) is ignored — the gradient renders axis-aligned instead of NW→SE.', get doc() { return require('./cases/attrGradientEndpointsLinear.svga').attrGradientEndpointsLinear; } },
-            { id: 'attr.gradient.endpoints.radial', description: 'Breaks if the **focal point (`fp`)** offset is dropped — the highlight sits centred instead of off-centre.', get doc() { return require('./cases/attrGradientEndpointsRadial.svga').attrGradientEndpointsRadial; } },
+            { id: 'attr.gradient.endpoints.linear', description: 'Breaks if **non-default endpoint geometry** (diagonal `start`→`end`) is ignored — the gradient renders axis-aligned instead of NW→SE.', get doc() { return require('./cases/attrGradientEndpointsLinear.svga').attrGradientEndpointsLinear; } },
+            { id: 'attr.gradient.endpoints.radial', description: 'Breaks if the **focal point (`focal`)** offset is dropped — the highlight sits centred instead of off-centre.', get doc() { return require('./cases/attrGradientEndpointsRadial.svga').attrGradientEndpointsRadial; } },
             { id: 'attr.gradient.endpoints.linear.anim', description: '**Frames-engine only**: breaks if animated gradient geometry is emitted for CSS/WAAPI (which can\'t do it) — a per-format fallback check.', get doc() { return require('./cases/attrGradientEndpointsLinearAnim.svga').attrGradientEndpointsLinearAnim; } },
             { id: 'attr.gradient.endpoints.radial.anim', description: '**Frames-only** animated focal point — breaks if focal animation leaks into a non-frames export.', get doc() { return require('./cases/attrGradientEndpointsRadialAnim.svga').attrGradientEndpointsRadialAnim; } },
             { id: 'attr.gradient.objectBoundingBox', description: 'Breaks if `gradientUnits` isn\'t honoured — `objectBoundingBox` (0–1) coords render at userSpace scale, blowing the gradient out of the shape.', get doc() { return require('./cases/attrGradientObjectBoundingBox.svga').attrGradientObjectBoundingBox; } },

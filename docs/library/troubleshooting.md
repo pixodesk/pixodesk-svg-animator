@@ -1,6 +1,7 @@
 # Troubleshooting & FAQ
 
-[← Playback settings & triggers](./playback-and-triggers.md) · [Contents](./README.md)
+[← Minification](./minification.md) · [Contents](../../README.md#documentation) · Next: [Pre-rendered SVG on the web →](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web)
+
 
 Player-library troubleshooting — find your symptom below; each entry says what to check and
 what to change. For pre-rendered SVG issues (a flavour that shows a static frame, `<script>`
@@ -74,9 +75,10 @@ yourself.
 
 ## Playback behaviour
 
-**It holds the last frame — I want it to reset.** Set `timeline.trigger.onFinish: "reset"`
-in the file (as a component prop it is `resetOnFinish: true`), or `fillMode: 'none'` (see
-[Playback settings](./playback-and-triggers.md#timing)).
+**It holds the last frame — I want it to reset.** Set `timeline.trigger.finishAction: "reset"`
+in the file, or `fillMode: 'none'` (see [Playback settings](./playback-and-triggers.md#timing)).
+For one mount only, pass the same thing as an override:
+`config={{ timeline: { trigger: { finishAction: 'reset' } } }}`.
 
 **How do I play backwards?** `animator.setPlaybackRate(-1); animator.play();` — also as a
 trigger out action (`outAction: 'reverse'`).
@@ -101,4 +103,5 @@ unrecognised keys.
   JSON (or the SVG), the package version and the browser / platform.
 - The [runnable examples](../../examples/docs-examples/) show every documented case working end to end — one page per case, each tested on every build.
 
-[← Playback settings & triggers](./playback-and-triggers.md) · [Contents](./README.md)
+
+[← Minification](./minification.md) · [Contents](../../README.md#documentation) · Next: [Pre-rendered SVG on the web →](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web)

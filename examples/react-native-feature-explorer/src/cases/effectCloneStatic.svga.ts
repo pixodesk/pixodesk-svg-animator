@@ -10,13 +10,14 @@ export const effectCloneStatic: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [
@@ -147,8 +148,8 @@ export const effectCloneStatic: SvgaCaseJson = {
             "transform": "translate(110,40.9547)",
             "effects": {
                 "clone": {
-                    "baseId": "_px_38bqgqqp",
-                    "without": "translate"
+                    "without": "translate",
+                    "source": "_px_38bqgqqp"
                 }
             }
         },
@@ -163,8 +164,8 @@ export const effectCloneStatic: SvgaCaseJson = {
             "transform": "translate(95,60.5664)",
             "effects": {
                 "clone": {
-                    "baseId": "_px_38nb5h1q",
-                    "without": "translate"
+                    "without": "translate",
+                    "source": "_px_38nb5h1q"
                 }
             }
         },
@@ -179,8 +180,8 @@ export const effectCloneStatic: SvgaCaseJson = {
             "transform": "translate(110,99.1461)",
             "effects": {
                 "clone": {
-                    "baseId": "_px_38nb5h1o",
-                    "without": "translate"
+                    "without": "translate",
+                    "source": "_px_38nb5h1o"
                 }
             }
         },
@@ -195,8 +196,8 @@ export const effectCloneStatic: SvgaCaseJson = {
             "transform": "translate(90,138.0706)",
             "effects": {
                 "clone": {
-                    "baseId": "_px_38nb5h1m",
-                    "without": "translate"
+                    "without": "translate",
+                    "source": "_px_38nb5h1m"
                 }
             }
         },
@@ -211,8 +212,8 @@ export const effectCloneStatic: SvgaCaseJson = {
             "transform": "translate(105,160.9547)",
             "effects": {
                 "clone": {
-                    "baseId": "_px_38nb5h1k",
-                    "without": "translate"
+                    "without": "translate",
+                    "source": "_px_38nb5h1k"
                 }
             }
         },

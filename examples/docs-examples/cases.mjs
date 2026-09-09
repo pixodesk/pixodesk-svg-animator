@@ -59,9 +59,9 @@ export const CASES = [
 
   // -- Playback settings & triggers ---------------------------------------------
   { group: 'playback', id: 'override-web',   title: 'Overriding from the web player', anchor: 'overriding-from-a-player',
-    summary: 'Edit animator before createAnimator: infinite iterations, programmatic trigger.' },
+    summary: 'A `config` patch on createAnimator: infinite iterations, programmatic trigger.' },
   { group: 'playback', id: 'override-react', title: 'Overriding from component props', anchor: 'overriding-from-a-player',
-    summary: 'iterations / direction / mode props replace the document\'s values.' },
+    summary: 'The `config` prop plus the `iterations` shortcut replace the document\'s values.' },
 
   // -- Pre-rendered SVG ----------------------------------------------------------
   { group: 'prerendered', id: 'inline-css', title: 'Flavour 1 inlined — SVG + CSS animation', anchor: 'flavour-1--svg--css-animation',

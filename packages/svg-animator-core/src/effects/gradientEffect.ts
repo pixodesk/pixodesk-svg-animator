@@ -27,7 +27,7 @@ import { genId } from './util';
  *
  * The wire shape is a gradient as one animatable stop timeline + static geometry
  * (see `_PxFillGradientEffect`). When materialising:
- *   - geometry parts (`p1`, `p2`, `c`, `r`, `fp`) become static body attrs
+ *   - geometry parts (`start`, `end`, `center`, `radius`, `focal`) become static body attrs
  *     on the gradient def;
  *   - the stops array is either static (each `<stop>` is bare) or animated
  *     (each `<stop>` gets `animate.stopColor.keyframes` derived from the

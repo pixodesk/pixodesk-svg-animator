@@ -10,19 +10,10 @@ export const effectMaskedByTextLongPathGlyphsOn: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
-        },
         "definitions": {
             "fonts": {
                 "Roboto-Regular": {
                     "fontFamily": "Roboto-Regular",
-                    "style": "",
                     "ascent": 927.734375,
                     "unitsPerEm": 1000,
                     "glyphs": {
@@ -50,9 +41,19 @@ export const effectMaskedByTextLongPathGlyphsOn: SvgaCaseJson = {
                             "width": 563.96484375,
                             "d": "M46.39-261.72L46.39-268.55Q46.39-390.14 104.00-464.11Q161.62-538.09 254.88-538.09L254.88-538.09Q347.66-538.09 401.86-474.61L401.86-474.61L401.86-750L492.19-750L492.19 0L409.18 0L404.79-56.64Q350.59 9.77 253.91 9.77L253.91 9.77Q162.11 9.77 104.25-65.43Q46.39-140.63 46.39-261.72L46.39-261.72ZM136.72-258.30L136.72-258.30Q136.72-168.46 173.83-117.68Q210.94-66.89 276.37-66.89L276.37-66.89Q362.30-66.89 401.86-144.04L401.86-144.04L401.86-386.72Q361.33-461.43 277.34-461.43L277.34-461.43Q210.94-461.43 173.83-410.16Q136.72-358.89 136.72-258.30Z"
                         }
-                    }
+                    },
+                    "fontStyle": ""
                 }
             }
+        },
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [
@@ -85,8 +86,8 @@ export const effectMaskedByTextLongPathGlyphsOn: SvgaCaseJson = {
                     "pathData": "M37.05,-23.08C50.8571,-23.08,62.05,-11.8871,62.05,1.92C62.05,15.7271,50.8571,26.92,37.05,26.92C23.2429,26.92,12.05,15.7271,12.05,1.92C12.05,-11.8871,23.2429,-23.08,37.05,-23.08z"
                 },
                 "maskedBy": {
-                    "href": "_px_38frce9v",
-                    "maskType": "alpha"
+                    "maskType": "alpha",
+                    "source": "_px_38frce9v"
                 }
             },
             "children": [
@@ -113,8 +114,8 @@ export const effectMaskedByTextLongPathGlyphsOn: SvgaCaseJson = {
                             },
                             "effects": {
                                 "maskedBy": {
-                                    "href": "_px_38frce9v",
-                                    "maskType": "alpha"
+                                    "maskType": "alpha",
+                                    "source": "_px_38frce9v"
                                 }
                             }
                         }
@@ -195,8 +196,8 @@ export const effectMaskedByTextLongPathGlyphsOn: SvgaCaseJson = {
             "transform": "translate(52.16,152)",
             "effects": {
                 "maskedBy": {
-                    "href": "_px_38frce9u",
-                    "maskType": "alpha"
+                    "maskType": "alpha",
+                    "source": "_px_38frce9u"
                 }
             }
         },
@@ -256,8 +257,8 @@ export const effectMaskedByTextLongPathGlyphsOn: SvgaCaseJson = {
                     "pathData": "M37.05,-23.08C50.8571,-23.08,62.05,-11.8872,62.05,1.9199C62.05,15.727,50.8571,26.9199,37.05,26.9199C23.2429,26.9199,12.05,15.727,12.05,1.9199C12.05,-11.8872,23.2429,-23.08,37.05,-23.08z"
                 },
                 "maskedBy": {
-                    "href": "_px_38frce9t",
-                    "maskType": "alpha"
+                    "maskType": "alpha",
+                    "source": "_px_38frce9t"
                 }
             },
             "children": [
@@ -284,8 +285,8 @@ export const effectMaskedByTextLongPathGlyphsOn: SvgaCaseJson = {
                             },
                             "effects": {
                                 "maskedBy": {
-                                    "href": "_px_38frce9t",
-                                    "maskType": "alpha"
+                                    "maskType": "alpha",
+                                    "source": "_px_38frce9t"
                                 }
                             }
                         }
@@ -377,8 +378,8 @@ export const effectMaskedByTextLongPathGlyphsOn: SvgaCaseJson = {
             "transform": "translate(149.16,152)",
             "effects": {
                 "maskedBy": {
-                    "href": "_px_38frce9s",
-                    "maskType": "alpha"
+                    "maskType": "alpha",
+                    "source": "_px_38frce9s"
                 }
             }
         },

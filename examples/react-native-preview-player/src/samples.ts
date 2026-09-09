@@ -25,8 +25,10 @@ const EASE_IN: [number, number, number, number] = [0.33, 0.67, 0.67, 1];
 const bouncingBall: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
-        duration: 1400, iterations: 'infinite',
-        trigger: { startOn: 'load' },
+        timeline: {
+            duration: 1400, iterations: 'infinite',
+            trigger: { startOn: 'load' },
+        },
     },
     children: [
         { type: 'line', x1: 20, y1: 250, x2: 280, y2: 250, stroke: '#ffffff33', 'stroke-width': 2 },
@@ -165,8 +167,10 @@ function shiftedLetters() {
 const textAlongPath: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
-        duration: TEXT_DURATION, iterations: 'infinite',
-        trigger: { startOn: 'load' },
+        timeline: {
+            duration: TEXT_DURATION, iterations: 'infinite',
+            trigger: { startOn: 'load' },
+        },
     },
     children: [
         {
@@ -192,8 +196,10 @@ const textAlongPath: PxAnimatedSvgDocument = {
 const strokeTrim: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
-        duration: 2600, iterations: 'infinite',
-        trigger: { startOn: 'load' },
+        timeline: {
+            duration: 2600, iterations: 'infinite',
+            trigger: { startOn: 'load' },
+        },
     },
     children: [
         // Faint full path underneath so the trim is obvious.
@@ -241,8 +247,10 @@ const strokeTrim: PxAnimatedSvgDocument = {
 const repeater: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
-        duration: 2000, iterations: 'infinite', direction: 'alternate',
-        trigger: { startOn: 'load' },
+        timeline: {
+            duration: 2000, iterations: 'infinite', direction: 'alternate',
+            trigger: { startOn: 'load' },
+        },
     },
     children: [
         {
@@ -284,8 +292,10 @@ const repeater: PxAnimatedSvgDocument = {
 const gradient: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
-        duration: 3000, iterations: 'infinite', direction: 'alternate',
-        trigger: { startOn: 'load' },
+        timeline: {
+            duration: 3000, iterations: 'infinite', direction: 'alternate',
+            trigger: { startOn: 'load' },
+        },
     },
     children: [
         {
@@ -324,8 +334,10 @@ const gradient: PxAnimatedSvgDocument = {
 const morph: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
-        duration: 2400, iterations: 'infinite', direction: 'alternate',
-        trigger: { startOn: 'load' },
+        timeline: {
+            duration: 2400, iterations: 'infinite', direction: 'alternate',
+            trigger: { startOn: 'load' },
+        },
     },
     children: [
         {

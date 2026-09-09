@@ -1,6 +1,6 @@
 # React Native Feature Explorer
 
-Scrolls the **entire feature-fixture suite** — 118 cases across 16 sections —
+Scrolls the **entire feature-fixture suite** — 122 cases across 16 sections —
 through [`@pixodesk/svg-animator-rn`](../../packages/svg-animator-rn/README.md).
 Where the [preview player](../react-native-preview-player) shows one hand-written
 animation at a time, this shows everything the format can do, in one list.
@@ -22,7 +22,7 @@ has to build the whole thing; every one after that is served from Metro's cache.
 Measured here (Apple Silicon, cold cache): Metro ready in **0.6 s**, first
 bundle **5.5 s / 8.9 MB**, subsequent bundles **0.1 s** — down from 1.6 s and
 10.9 s before the changes below. Most of that size is React Native, reanimated
-and react-native-svg; the 118 fixtures account for 0.7 MB of it.
+and react-native-svg; the 122 fixtures account for 0.7 MB of it.
 
 In order:
 
@@ -43,7 +43,7 @@ What the app itself does to keep the wait short:
   startup does not evaluate 1.2 MB of object literals up front
   ([`catalog.ts`](src/catalog.ts))
 - the header renders immediately and the list one frame later, so a slow start
-  shows *Loading 118 cases…* rather than a frozen screen
+  shows *Loading 122 cases…* rather than a frozen screen
 - Metro is told to skip `.git`, test artefacts and the sibling example apps, so
   its startup crawl is not the whole monorepo ([`metro.config.js`](metro.config.js))
 
@@ -54,14 +54,22 @@ own dev feature explorer, so the list matches what you see there:
 
 | Source | Used for |
 |---|---|
-| `featureexplorer/cases/*.svga.ts` | the 118 animation documents |
+| `featureexplorer/cases/*.svga.ts` | the 122 animation documents |
 | `modelCoverage.ts` → `DEV_FIXTURE_GROUPS` | section titles and case order |
 | `cases/registry.ts` | preset id → document |
 | `caseInfo.ts` | the one-line description under each title |
 
-[`src/catalog.ts`](src/catalog.ts) is generated from those four and is what the
-app actually reads. The fixtures themselves are unmodified data — only the file
-header was swapped for this repo's MIT notice.
+[`src/catalog.ts`](src/catalog.ts) was built from those four and is what the app
+actually reads. Nothing regenerates any of it inside THIS repo — these files are a
+hand-taken COPY of the editor's fixtures, so when a case changes there, the copy has
+to be refreshed by hand.
+
+The documents are the editor's data with two edits: this repo's MIT header, and a
+2026-09-09 re-spelling to the current wire format (playback settings moved into
+`animator.timeline`, plus the `fonts.*.fontStyle`, gradient `start/end/center/radius/focal`,
+`maskedBy.source`, `clone.source` and `strokeTrim.subPaths` renames). Five cases still
+carry a pre-rename ANIMATED-gradient payload that cannot be re-spelled mechanically —
+those want a fresh export from the editor.
 
 Sections run `§ 1.1 attr.number` → `§ 5 …`, covering numbers, vectors,
 transforms, colours, gradients, paths, appearance, elements, text, effects
@@ -78,7 +86,7 @@ transforms, colours, gradients, paths, appearance, elements, text, effects
 - **↺** on a row — restart that one case
 - **Theme** — light/dark, following the system scheme by default
 
-## How it stays fast with 118 animations
+## How it stays fast with 122 animations
 
 Two mechanisms, because virtualisation alone is not enough:
 
@@ -114,7 +122,7 @@ itself; see [Known limitations](../../packages/svg-animator-rn/README.md#known-l
 
 ## Notes
 
-- Every one of the 118 fixtures was verified to pass through the pipeline with
+- Every one of the 122 fixtures was verified to pass through the pipeline with
   **no errors, no effects-schema warnings and no unsupported elements** — the
   full suite maps onto `react-native-svg`.
 - Around a third of the cases are deliberately **static** (e.g.

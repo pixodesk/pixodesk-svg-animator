@@ -29,13 +29,16 @@ const END: [number, number] = [189.172, 75.1807];
 const mkDoc = (): PxAnimatedSvgDocument => ({
     type: 'svg', viewBox: '0 0 200 200',
     animator: {
-        mode: 'player', duration: 1000,
         definitions: { animations: { a0: { transform: { autoOrient: true, keyframes: [
             { time: 250, value: { translate: START } },
             { time: 500, value: { translate: APEX }, tangentOut: [23.4667, -0.6531], tangentIn: [-23.4668, 0.6532] },
             { time: 750, value: { translate: END } },
         ] } } } },
         animateById: { el1: ['a0'] },
+        timeline: {
+            mode: 'player',
+            duration: 1000,
+        },
     },
     children: [{ type: 'ellipse', id: 'el1', rx: 9.641, ry: 9.641 }],
 } as unknown as PxAnimatedSvgDocument);

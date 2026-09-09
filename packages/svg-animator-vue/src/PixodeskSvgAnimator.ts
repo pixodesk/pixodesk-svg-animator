@@ -3,8 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxNode, PxPlatformAdapter, PxPlaybackMode, PxTrigger } from '@pixodesk/svg-animator-web';
-import { camelCaseToKebabWordIfNeeded, createAnimator, FillMode, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES } from '@pixodesk/svg-animator-web';
+import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxAnimatorConfigPatch, PxNode, PxPlatformAdapter, PxPlaybackMode, PxTrigger } from '@pixodesk/svg-animator-web';
+import { camelCaseToKebabWordIfNeeded, createAnimator, FillMode, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig } from '@pixodesk/svg-animator-web';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
     watch,
@@ -91,17 +91,16 @@ function createVueAdapter(elementRefs: Map<string, Element>) {
 // -- Helper: apply doc overrides --------------------------------------------
 
 interface DocOverrideProps {
-    /** Overrides the document's `timeline.mode`: who runs the animation. */
-    mode?: PxPlaybackMode;
-    delay?: number;
-    fill?: FillMode;
-    iterations?: number | 'infinite';
+    /** Per-instance override of the document's `animator` config — the same shape as
+     *  `animator` in SCHEMA.md, deep-merged; `null` at a slot deletes it. Also accepts a
+     *  JSON string. Replaces the former flat mode/fill/direction/frameRate/outAction props. */
+    config?: PxAnimatorConfigPatch | string;
+    /** Start from the player's defaults instead of the document's playback settings. */
+    resetDocDefaults?: boolean;
     duration?: number;
-    direction?: PlaybackDirection;
-    frameRate?: number;
+    delay?: number;
+    iterations?: number | 'infinite';
     startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
-    outAction?: 'continue' | 'pause' | 'reset' | 'reverse';
-    scrollIntoViewThreshold?: number;
     progress?: number;
     time?: number;
 }
@@ -112,60 +111,29 @@ function applyDocOverrides(
     compMode: CompMode,
 ): PxAnimatedSvgDocument {
 
-    // In non-autoplay modes, override the document trigger to 'programmatic'
-    // so the component can manage playback itself.
-    if (compMode !== CompMode.autoplay) {
-        const docStartOn = doc.animator?.trigger?.startOn;
-        if (docStartOn && docStartOn !== 'programmatic') { // FIXME: use enum
-            doc = {
-                ...doc,
-                animator: {
-                    ...doc.animator,
-                    trigger: { ...doc.animator?.trigger, startOn: 'programmatic' }
-                }
-            };
+    // ONE patch, applied ONCE: the props, plus the component's own need to take the trigger
+    // over in the non-autoplay control modes.
+    //
+    // This replaces three hand-rolled spread blocks that wrote the FLAT runtime keys. On a
+    // wire-format document — which is what every writer emits — `flattenAnimatorTimeline`
+    // overwrote them from `timeline` immediately afterwards, so the overrides were silently
+    // discarded. See PLAYBACK-OVERRIDE-PLAN.md §1.1.
+    const { config, resetDocDefaults, duration, delay, iterations, startOn } = props;
+    const patch = foldAnimatorConfigShortcuts(config, { duration, delay, iterations, startOn });
+    const fullPatch: any = compMode !== CompMode.autoplay
+        ? {
+            ...(patch ?? {}),
+            timeline: {
+                ...((patch as any)?.timeline ?? {}),
+                trigger: { ...((patch as any)?.timeline?.trigger ?? {}), startOn: 'programmatic' },
+            },
         }
-    }
+        : patch;
 
-    // Apply timing overrides from props onto the document config.
-    const { mode, duration, delay, iterations, fill, direction, frameRate } = props;
-    if (
-        mode !== undefined || duration !== undefined || delay !== undefined ||
-        iterations !== undefined || fill !== undefined || direction !== undefined ||
-        frameRate !== undefined
-    ) {
-        const animator = doc.animator || {};
-        doc = {
-            ...doc,
-            animator: {
-                ...animator,
-                mode: mode !== undefined ? mode : animator.mode,
-                duration: duration !== undefined ? duration : animator.duration,
-                delay: delay !== undefined ? delay : animator.delay,
-                iterations: iterations !== undefined ? iterations : animator.iterations,
-                fill: fill !== undefined ? fill : animator.fill,
-                direction: direction !== undefined ? direction : animator.direction,
-                frameRate: frameRate !== undefined ? frameRate : animator.frameRate,
-            }
-        };
-    }
-
-    // Apply trigger overrides from props.
-    const { startOn, outAction, scrollIntoViewThreshold } = props;
-    if (startOn !== undefined || outAction !== undefined || scrollIntoViewThreshold !== undefined) {
-        const trigger: PxTrigger = doc.animator?.trigger || {};
-        doc = {
-            ...doc,
-            animator: {
-                ...doc.animator,
-                trigger: {
-                    ...trigger,
-                    startOn: startOn !== undefined ? startOn : trigger.startOn,
-                    outAction: outAction !== undefined ? outAction : trigger.outAction,
-                    scrollIntoViewThreshold: scrollIntoViewThreshold !== undefined ? scrollIntoViewThreshold : trigger.scrollIntoViewThreshold,
-                }
-            }
-        };
+    if (fullPatch !== undefined || resetDocDefaults) {
+        const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetDefaults: !!resetDocDefaults });
+        for (const w of applied.warnings) console.warn('[PixodeskSvgAnimator] config override:', w);
+        doc = applied.doc;
     }
 
     return doc;
@@ -179,7 +147,9 @@ function applyDocOverrides(
  */
 function calcSeekMs(doc: PxAnimatedSvgDocument, props: DocOverrideProps): number | undefined {
     let seekMs: number | undefined;
-    const animator = doc.animator || {};
+    // The FLAT runtime view, so this works on a wire-format document too — reading
+    // `doc.animator.duration` directly finds nothing there.
+    const animator = getAnimatorConfig(doc) || {};
     if (props.progress !== undefined) {
         const iterationsValue = props.iterations ?? animator.iterations;
         const iterationsCount = typeof iterationsValue === 'number' && iterationsValue >= 1 ? iterationsValue : 1;
@@ -227,21 +197,14 @@ const PixodeskSvgAnimator = defineComponent({
         // -- Source
         doc: { type: Object as PropType<PxAnimatedSvgDocument>, required: true },
 
-        // -- Rendering mode
-        mode: { type: String as PropType<PxPlaybackMode> },
-
-        // -- Timing overrides
-        delay: { type: Number },
-        fill: { type: String as PropType<FillMode> },
-        iterations: { type: [Number, String] as PropType<number | 'infinite'> },
+        // -- Playback override: one object spelled exactly like `animator` in the file,
+        //    plus the four shortcuts people reach for most.
+        config: { type: [Object, String] as PropType<PxAnimatorConfigPatch | string> },
+        resetDocDefaults: { type: Boolean, default: undefined },
         duration: { type: Number },
-        direction: { type: String as PropType<PlaybackDirection> },
-        frameRate: { type: Number },
-
-        // -- Trigger overrides
+        delay: { type: Number },
+        iterations: { type: [Number, String] as PropType<number | 'infinite'> },
         startOn: { type: String as PropType<'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic'> },
-        outAction: { type: String as PropType<'continue' | 'pause' | 'reset' | 'reverse'> },
-        scrollIntoViewThreshold: { type: Number },
 
         // -- Declarative control
         autoplay: { type: Boolean, default: undefined },

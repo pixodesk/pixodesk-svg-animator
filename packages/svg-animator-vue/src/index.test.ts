@@ -52,11 +52,6 @@ function getTestJson(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            mode: "player",
-            duration: 128,
-            fill: "forwards",
-            direction: "normal",
-            trigger: { startOn: "load" },
             // Animations bound to elements live under `animator.animateById` keyed
             // by element id — `getBindings` consumes this shape. (The earlier
             // top-level `bindings: [...]` form was removed in the file-format
@@ -70,7 +65,14 @@ function getTestJson(): PxAnimatedSvgDocument {
                         ]
                     }
                 }
-            }
+            },
+            timeline: {
+                mode: "player",
+                duration: 128,
+                fillMode: "forwards",
+                direction: "normal",
+                trigger: { startOn: "load" },
+            },
         },
 
         children: [

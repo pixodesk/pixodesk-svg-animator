@@ -18,6 +18,7 @@ export { px, schemaKeys, describeSchema } from '@pixodesk/svg-animator-core';
 export type { KeysMatch, PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, RemoveIndex } from '@pixodesk/svg-animator-core';
 
 export type { PxAnimatorOptions } from './PxAnimator';
+export type { PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
 export {
     PX_TRANSFORM_PART_KEYS,
     PxAnimatedSvgDocumentSchema,
@@ -164,6 +165,10 @@ export {
     PxFillGradientEffectSchema,
     PxGradientSpreadMethod,
     PxGradientStopSchema,
+    PxCloneWithout,
+    PxLoopRepeatAt,
+    PxLoopDirection,
+    PxStrokeTrimSubPaths,
     PxGradientType,
     PxGradientUnits,
     PxMaskedByEffectSchema,
@@ -176,6 +181,9 @@ export {
     PxStrokeTrimEffectSchema,
     validateDocument,
     validateNodeEffects,
+    applyAnimatorConfig,
+    foldAnimatorConfigShortcuts,
+    mergeAnimatorConfig,
 } from '@pixodesk/svg-animator-core';
 export type {
     PxAnimatable,

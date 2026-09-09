@@ -14,7 +14,11 @@ import {
     type OutAction,
     type PlaybackDirection,
     type PxAnimatedSvgDocument,
+    type PxAnimatorConfigPatch,
     type PxNode,
+    type StartOn,
+    applyAnimatorConfig,
+    foldAnimatorConfigShortcuts,
 } from '@pixodesk/svg-animator-core';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
@@ -83,20 +87,22 @@ export interface PixodeskSvgAnimatorProps {
     /** Number of iterations, or 'infinite' for endless looping. */
     iterations?: number | 'infinite';
 
-    /** Defines the element's state when the animation is not active. */
-    fill?: FillMode;
-
-    /** Playback direction. */
-    direction?: PlaybackDirection;
-
-    /** Snap back to the start state after a natural finish. */
-    resetOnFinish?: boolean;
+    /** Shortcut for `config.timeline.trigger.startOn`. */
+    startOn?: StartOn;
 
     /**
-     * What a second tap does when `startOn: 'click'` is active.
-     * Defaults to the document's `trigger.outAction`, else `'pause'`.
+     * Per-instance override of the document's `animator` config — the same shape as `animator`
+     * in SCHEMA.md, deep-merged over what the document says; `null` at a slot deletes it.
+     * Replaces the former flat `fill` / `direction` / `resetOnFinish` / `outAction` props, so
+     * every surface takes one vocabulary. Also accepts a JSON string.
+     *
+     * `timeline.mode` is accepted but ignored here: React Native always materialises the
+     * WAAPI-style flattening, because react-native-svg has no `<use>` shadow-tree propagation.
      */
-    outAction?: OutAction;
+    config?: PxAnimatorConfigPatch | string;
+
+    /** Start from the player's defaults instead of the document's playback settings. */
+    resetDocDefaults?: boolean;
 
     // -- Declarative control --------------------------------------------------
 
@@ -285,12 +291,12 @@ function SampledSubtree({
 
 /** Overrides that shadow the document's own `animator` config. */
 interface ConfigOverrides {
+    config?: PxAnimatorConfigPatch | string;
+    resetDocDefaults?: boolean;
     duration?: number;
     delay?: number;
     iterations?: number | 'infinite';
-    fill?: FillMode;
-    direction?: PlaybackDirection;
-    resetOnFinish?: boolean;
+    startOn?: StartOn;
 }
 
 interface Compiled {
@@ -312,9 +318,19 @@ const EMPTY_TRACKS: PxCompiledTracks = {
  * whole thing sits behind one try/catch, and so it can be tested directly.
  */
 function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides): Compiled {
-    const { duration, delay, iterations, fill, direction, resetOnFinish } = overrides;
+    const { config, resetDocDefaults, duration, delay, iterations, startOn } = overrides;
     const warnings = validateNodeEffects(doc as PxNode);
     for (const w of warnings) console.warn('[PixodeskSvgAnimator] effects shape warning:', w);
+
+    // The per-instance override, applied to the WIRE document BEFORE anything reads the
+    // config — `materialiseAllInTree` samples motion paths against `duration`, so a later
+    // patch would be read by none of the pipeline. Same call, same rules, on every surface.
+    const patch = foldAnimatorConfigShortcuts(config, { duration, delay, iterations, startOn });
+    if (patch !== undefined || resetDocDefaults) {
+        const applied = applyAnimatorConfig(doc, patch ?? {}, { resetDefaults: !!resetDocDefaults });
+        for (const w of applied.warnings) console.warn('[PixodeskSvgAnimator] config override:', w);
+        doc = applied.doc;
+    }
 
     // `waapi` = the FULLY-FLATTENED materialisation: effects + loops +
     // sampled motion paths + animated `<use>` inlined into real `<g>`
@@ -331,21 +347,6 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides)
     if (NATIVE_SVG_VIEWS) {
         prepared = openClosedTextPathTargets(prepared as PxNode) as PxAnimatedSvgDocument;
     }
-
-    // Apply prop overrides onto the animator config (mirrors the react wrapper).
-    const animator = getAnimatorConfig(prepared) || {};
-    prepared = {
-        ...prepared,
-        animator: {
-            ...animator,
-            duration: duration !== undefined ? duration : animator.duration,
-            delay: delay !== undefined ? delay : animator.delay,
-            iterations: iterations !== undefined ? iterations : animator.iterations,
-            fill: fill !== undefined ? fill : animator.fill,
-            direction: direction !== undefined ? direction : animator.direction,
-            resetOnFinish: resetOnFinish !== undefined ? resetOnFinish : animator.resetOnFinish,
-        },
-    };
 
     prepared = generateNewIds(prepared);
     const tracks = compileTracks(prepared, { native: NATIVE_SVG_VIEWS });
@@ -366,7 +367,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides)
  * indexing the precompiled tracks. No JS-thread frame loop.
  */
 export function PixodeskSvgAnimator({
-    doc, duration, delay, iterations, fill, direction, resetOnFinish, outAction: outActionProp,
+    doc, config, resetDocDefaults, duration, delay, iterations, startOn,
     // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
     autoplay, play, pause, apiRef, progress: progressProp, time,
     onPlay, onStop, onPause, onCancel, onFinish, onError, fallback,
@@ -374,11 +375,17 @@ export function PixodeskSvgAnimator({
 
     // -- Compile the document (once per doc/override change) ------------------
 
+    // `config` is an object prop: a fresh literal every render would otherwise recompile the
+    // whole document (materialise + compile tracks), which is the expensive path. Key on its
+    // CONTENT instead — the override is small, the document is not.
+    const configKey = typeof config === 'string' ? config : JSON.stringify(config ?? null);
+
+
     const compiled = useMemo((): Compiled => {
         try {
             return compileDocument(
                 doc,
-                { duration, delay, iterations, fill, direction, resetOnFinish }
+                { config, resetDocDefaults, duration, delay, iterations, startOn }
             );
         } catch (e) {
             // A malformed document must not take the host screen down with it.
@@ -386,7 +393,9 @@ export function PixodeskSvgAnimator({
             console.warn('[PixodeskSvgAnimator] could not compile the document:', error.message);
             return { doc: null, tracks: EMPTY_TRACKS, error };
         }
-    }, [doc, duration, delay, iterations, fill, direction, resetOnFinish]);
+        // `config` is an object prop, so a fresh literal each render would recompile the whole
+        // document. Key on its CONTENT — the override is small, unlike the document.
+    }, [doc, configKey, resetDocDefaults, duration, delay, iterations, startOn]);
 
     const tracks: PxCompiledTracks = compiled.tracks;
     const totalDuration = tracks.duration * (tracks.iterations === Infinity ? 1 : tracks.iterations);
@@ -514,9 +523,11 @@ export function PixodeskSvgAnimator({
 
     // -- Declarative control --------------------------------------------------
 
+    // The EFFECTIVE trigger, read back off the COMPILED document — so it already reflects the
+    // `config` override and the `startOn` shortcut, both merged in before compilation.
     const trigger = compiled.doc ? getAnimatorConfig(compiled.doc)?.trigger : undefined;
-    const startOn = trigger?.startOn ?? 'load';
-    const outAction = outActionProp ?? trigger?.outAction ?? 'pause';
+    const effectiveStartOn = trigger?.startOn ?? 'load';
+    const effectiveOutAction = trigger?.outAction ?? 'pause';
 
     useEffect(() => {
         if (progressProp !== undefined || time !== undefined) {
@@ -532,7 +543,7 @@ export function PixodeskSvgAnimator({
             return;
         }
         // 'click' and 'scrollIntoView' start from their own handlers below.
-        if (autoplay && startOn === 'load') {
+        if (autoplay && effectiveStartOn === 'load') {
             api.play();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -545,7 +556,7 @@ export function PixodeskSvgAnimator({
     const scrollRef = useRef<View | null>(null);
     const inViewRef = useRef(false);
     useEffect(() => {
-        if (!autoplay || startOn !== 'scrollIntoView') return;
+        if (!autoplay || effectiveStartOn !== 'scrollIntoView') return;
         const threshold = trigger?.scrollIntoViewThreshold ?? 0;
         inViewRef.current = false;
 
@@ -563,9 +574,9 @@ export function PixodeskSvgAnimator({
                 if (isIn) {
                     if (rateRef.current < 0) api.setPlaybackRate(Math.abs(rateRef.current));
                     api.play();
-                } else if (outAction === 'reset') api.cancel();
-                else if (outAction === 'reverse') { api.setPlaybackRate(-Math.abs(rateRef.current || 1)); api.play(); }
-                else if (outAction !== 'continue') api.pause();
+                } else if (effectiveOutAction === 'reset') api.cancel();
+                else if (effectiveOutAction === 'reverse') { api.setPlaybackRate(-Math.abs(rateRef.current || 1)); api.play(); }
+                else if (effectiveOutAction !== 'continue') api.pause();
             });
         };
 
@@ -573,7 +584,7 @@ export function PixodeskSvgAnimator({
         const id = setInterval(check, 200);
         return () => clearInterval(id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compiled, autoplay, startOn, outAction]);
+    }, [compiled, autoplay, effectiveStartOn, effectiveOutAction]);
 
     // Stop cleanly on unmount / doc swap.
     useEffect(() => {
@@ -672,17 +683,17 @@ export function PixodeskSvgAnimator({
     // so both are left to the host app.
     let content: ReactElement | null = root;
 
-    if (autoplay && startOn === 'scrollIntoView' && root) {
+    if (autoplay && effectiveStartOn === 'scrollIntoView' && root) {
         // `collapsable={false}` keeps the view in the native tree so it can be measured.
         content = <View ref={scrollRef} collapsable={false}>{root}</View>;
-    } else if (autoplay && startOn === 'click' && root) {
+    } else if (autoplay && effectiveStartOn === 'click' && root) {
         content = (
             <Pressable
                 onPress={() => {
                     if (playingRef.current) {
-                        if (outAction === 'reset') api.cancel();
-                        else if (outAction === 'reverse') { api.setPlaybackRate(-Math.abs(rateRef.current || 1)); api.play(); }
-                        else if (outAction !== 'continue') api.pause();
+                        if (effectiveOutAction === 'reset') api.cancel();
+                        else if (effectiveOutAction === 'reverse') { api.setPlaybackRate(-Math.abs(rateRef.current || 1)); api.play(); }
+                        else if (effectiveOutAction !== 'continue') api.pause();
                     } else {
                         if (rateRef.current < 0) api.setPlaybackRate(Math.abs(rateRef.current));
                         api.play();

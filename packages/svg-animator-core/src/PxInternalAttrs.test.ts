@@ -27,7 +27,7 @@ describe('INTERNAL_ATTRS — structural keys never become DOM attributes (J4)', 
             animate: { opacity: { keyframes: [] } },
             effects: { strokeTrim: { range: [0, 1] } },
             meta: { label: 'x' },
-            animator: { duration: 1000 },
+            animator: { timeline: { duration: 1000 } },
             textContent: 'hello',
             // presentation — must survive
             width: 10,

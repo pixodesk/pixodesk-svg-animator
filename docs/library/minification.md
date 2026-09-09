@@ -3,7 +3,7 @@
 Short version: **the published bundles are safe to use as they are.** This page matters only if
 your build *property-mangles* third-party code — a rare setting that renames object keys.
 
-[← Playback & triggers](./playback-and-triggers.md) · [Contents](./README.md) · Next: [Troubleshooting →](./troubleshooting.md)
+[← Playback & triggers](./playback-and-triggers.md) · [Contents](../../README.md#documentation) · Next: [Troubleshooting →](./troubleshooting.md)
 
 ## The one thing to know
 
@@ -76,4 +76,4 @@ The distinction the build enforces is between names that are ours alone and name
 something outside the bundle — the file format, your code, and the browser. Only the first group is
 ever renamed.
 
-[← Playback & triggers](./playback-and-triggers.md) · [Contents](./README.md) · Next: [Troubleshooting →](./troubleshooting.md)
+[← Playback & triggers](./playback-and-triggers.md) · [Contents](../../README.md#documentation) · Next: [Troubleshooting →](./troubleshooting.md)

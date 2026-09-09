@@ -1,6 +1,6 @@
 # Playback settings & triggers
 
-[← React Native](./react-native.md) · [Contents](../../README.md#documentation) · Next: [Pre-rendered SVG on the web →](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web)
+[← React Native](./react-native.md) · [Contents](../../README.md#documentation) · Next: [Minification →](./minification.md)
 
 Change how an animation plays — its length, loops, direction, what starts it — without going
 back to the editor. Everything about *when* and *how* it plays lives in one place, the
@@ -80,7 +80,7 @@ timeline; only `frameRate` stays on `animator` itself:
 | `timeline.iterations` | number · `"infinite"` | `1` | how many times the whole document timeline repeats |
 | `timeline.direction` | `normal` · `reverse` · `alternate` · `alternate-reverse` | `normal` | `alternate` ping-pongs on every other iteration |
 | `timeline.fillMode` | `forwards` · `backwards` · `both` · `none` | `forwards` | what is shown *outside* the active time: `forwards` holds the last frame after the end; `backwards` shows the first frame during the delay; `none` reverts to the static SVG |
-| `timeline.trigger.onFinish` | `hold` · `reset` | `hold` | after a natural finish: keep the end state (per `fill`), or snap back to the start |
+| `timeline.trigger.finishAction` | `hold` · `reset` | `hold` | after a natural finish: keep the end state (per `timeline.fillMode`), or snap back to the start |
 
 **Per-property loops vs `iterations`.** There are two kinds of repetition, and they work at
 different levels. `iterations` repeats the **whole document** — every element, from the first
@@ -148,8 +148,12 @@ Where triggers work:
 > **Example:** [`playback/override-web`](../../examples/docs-examples/src/cases/playback/override-web/) — `pnpm example:docs`, then open `#playback/override-web`.
 > **Example:** [`playback/override-react`](../../examples/docs-examples/src/cases/playback/override-react/) — `pnpm example:docs`, then open `#playback/override-react`.
 
-**Web player** — edit the object before handing it over (the player reads `animator` once at
-creation):
+One document can play differently in each place you mount it — twice on the same page at two
+speeds, or a file that autostarts everywhere except inside your own transport UI. Every player
+takes the **same** override: a `config` object shaped exactly like the document's `animator`
+block, deep-merged over what the file says. The file on disk is never modified.
+
+**Web player**
 
 ```html
 <div id="box" style="width: 300px; height: 300px"></div>
@@ -158,21 +162,65 @@ creation):
 ```js
 import { createAnimator } from '@pixodesk/svg-animator-web';
 
-const doc = await (await fetch('/bouncing-ball.json')).json();
-doc.animator = { ...doc.animator,
-  timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } } };
-const a = createAnimator({ data: doc, container: '#box' });
+const a = createAnimator({
+  src: '/bouncing-ball.json',
+  container: '#box',
+  config: { timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } } },
+});
 a.play();
 ```
 
-**React / Vue / React Native** — the components take props with the same names as the fields
-of the document's `animator` block, and a prop you pass replaces that one field for that one
-component; the rest of the document is untouched: `duration`, `delay`, `iterations`,
-`direction`, `fill`, `mode`, `frameRate` replace the fields of `animator`; `startOn`,
-`outAction`, `scrollIntoViewThreshold` replace the fields of `animator.trigger` (see each
-package page). Note that the components switch the trigger to `programmatic` whenever you use
-`play` / `pause` / `apiRef` / `time`, so only `autoplay` mode uses the trigger saved in the
-file.
+**React / Vue / React Native** — the same object, as a prop:
+
+```jsx
+<PixodeskSvgAnimator doc={doc} autoplay
+  config={{ timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } } }} />
+```
+
+### How the merge works
+
+| | |
+| --- | --- |
+| **Objects merge, key by key** | `config: { timeline: { duration: 2000 } }` changes the duration and leaves `iterations`, `trigger` and everything else as the file has them |
+| **Values replace** | numbers, strings and arrays are taken as given, never combined |
+| **`null` deletes** | `{ timeline: { delay: null } }` removes the file's delay, restoring what its *absence* means. This is the only way to get a default back, because there is no value that spells "unset" |
+| **Changing `timeline.type` starts over** | switching between a clock and a scroll timeline keeps only `duration`, `iterations` and `mode` — the keys both kinds share. Clock-only keys (`trigger`, `delay`, `fillMode`, `direction`) have no meaning on a scroll timeline and are dropped, with a console warning |
+
+### The four shortcuts
+
+The keys people reach for most also exist as plain props / options, because
+`duration={2000}` reads better than a nested object:
+
+| Shortcut | Same as |
+| --- | --- |
+| `duration` | `config.timeline.duration` |
+| `delay` | `config.timeline.delay` |
+| `iterations` | `config.timeline.iterations` |
+| `startOn` | `config.timeline.trigger.startOn` |
+
+A shortcut wins over the same key inside `config`, the way an inline style beats a stylesheet.
+
+### Starting from the defaults instead
+
+`config` edits what the file says. To *ignore* the file's playback settings and start from the
+player's own defaults, add `resetDocDefaults`:
+
+```jsx
+<PixodeskSvgAnimator doc={doc} resetDocDefaults config={{ timeline: { duration: 3000 } }} />
+```
+
+That plays for 3 s with default timing whatever the file declares. Fonts and the per-element
+animation tables (`definitions`, `animateById`) are always kept — they are the animation
+itself, not playback settings.
+
+### A note on the components' control props
+
+The components switch the trigger to `programmatic` whenever you use `play` / `pause` /
+`apiRef` / `time`, so only `autoplay` mode uses the trigger saved in the file.
+
+> **Mangled builds.** `config` also accepts a **JSON string** —
+> `config='{"timeline":{"duration":2000}}'` — which survives a build that renames object keys.
+> See [Minification](./minification.md).
 
 ## Debug handle — `debugGlobalName`
 
@@ -223,4 +271,4 @@ Support: the **web player** (both engines, and therefore React and Vue), and the
 animation* export. Not yet: the CSS export or React Native. The complete "scrollytelling"
 pattern is `subject: "parent"` + `pin: true` inside a tall section.
 
-[← React Native](./react-native.md) · [Contents](../../README.md#documentation) · Next: [Pre-rendered SVG on the web →](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web)
+[← React Native](./react-native.md) · [Contents](../../README.md#documentation) · Next: [Minification →](./minification.md)

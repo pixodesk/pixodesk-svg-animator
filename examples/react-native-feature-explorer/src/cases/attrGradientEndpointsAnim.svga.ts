@@ -10,13 +10,14 @@ export const attrGradientEndpointsAnim: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [
@@ -29,15 +30,6 @@ export const attrGradientEndpointsAnim: SvgaCaseJson = {
             "effects": {
                 "fillGradient": {
                     "type": "radial",
-                    "c": [
-                        0,
-                        0
-                    ],
-                    "fp": [
-                        -18,
-                        -18
-                    ],
-                    "r": 30,
                     "stops": [
                         {
                             "offset": 0,
@@ -79,7 +71,16 @@ export const attrGradientEndpointsAnim: SvgaCaseJson = {
                         }
                     },
                     "gradientUnits": "userSpaceOnUse",
-                    "spreadMethod": "pad"
+                    "spreadMethod": "pad",
+                    "center": [
+                        0,
+                        0
+                    ],
+                    "radius": 30,
+                    "focal": [
+                        -18,
+                        -18
+                    ]
                 }
             }
         },
@@ -92,14 +93,6 @@ export const attrGradientEndpointsAnim: SvgaCaseJson = {
             "effects": {
                 "fillGradient": {
                     "type": "linear",
-                    "p1": [
-                        -25,
-                        -25
-                    ],
-                    "p2": [
-                        25,
-                        25
-                    ],
                     "stops": [
                         {
                             "offset": 0,
@@ -141,7 +134,15 @@ export const attrGradientEndpointsAnim: SvgaCaseJson = {
                         }
                     },
                     "gradientUnits": "userSpaceOnUse",
-                    "spreadMethod": "pad"
+                    "spreadMethod": "pad",
+                    "start": [
+                        -25,
+                        -25
+                    ],
+                    "end": [
+                        25,
+                        25
+                    ]
                 }
             }
         }

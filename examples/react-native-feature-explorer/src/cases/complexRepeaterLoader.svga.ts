@@ -10,13 +10,14 @@ export const complexRepeaterLoader: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 420 420",
     "animator": {
-        "duration": 3750,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
+        "timeline": {
+            "mode": "auto",
+            "duration": 3750,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "meta": {
@@ -344,15 +345,6 @@ export const complexRepeaterLoader: SvgaCaseJson = {
                     "effects": {
                         "fillGradient": {
                             "type": "radial",
-                            "c": [
-                                0,
-                                0
-                            ],
-                            "fp": [
-                                0,
-                                0
-                            ],
-                            "r": 5,
                             "stops": {
                                 "keyframes": [
                                     {
@@ -410,7 +402,16 @@ export const complexRepeaterLoader: SvgaCaseJson = {
                                 ]
                             },
                             "gradientUnits": "userSpaceOnUse",
-                            "spreadMethod": "pad"
+                            "spreadMethod": "pad",
+                            "center": [
+                                0,
+                                0
+                            ],
+                            "radius": 5,
+                            "focal": [
+                                0,
+                                0
+                            ]
                         }
                     },
                     "meta": {
@@ -610,15 +611,6 @@ export const complexRepeaterLoader: SvgaCaseJson = {
                     "effects": {
                         "fillGradient": {
                             "type": "radial",
-                            "c": [
-                                -2.767059655093931,
-                                -0.30409740395394635
-                            ],
-                            "fp": [
-                                -2.767059655093931,
-                                -0.30409740395394635
-                            ],
-                            "r": 16.538571510007976,
                             "stops": {
                                 "keyframes": [
                                     {
@@ -676,7 +668,16 @@ export const complexRepeaterLoader: SvgaCaseJson = {
                                 ]
                             },
                             "gradientUnits": "userSpaceOnUse",
-                            "spreadMethod": "pad"
+                            "spreadMethod": "pad",
+                            "center": [
+                                -2.767059655093931,
+                                -0.30409740395394635
+                            ],
+                            "radius": 16.538571510007976,
+                            "focal": [
+                                -2.767059655093931,
+                                -0.30409740395394635
+                            ]
                         }
                     },
                     "meta": {
@@ -730,15 +731,6 @@ export const complexRepeaterLoader: SvgaCaseJson = {
             "effects": {
                 "strokeGradient": {
                     "type": "radial",
-                    "c": [
-                        0,
-                        0
-                    ],
-                    "fp": [
-                        0,
-                        0
-                    ],
-                    "r": 32.19858036788542,
                     "stops": {
                         "keyframes": [
                             {
@@ -783,7 +775,16 @@ export const complexRepeaterLoader: SvgaCaseJson = {
                         ]
                     },
                     "gradientUnits": "userSpaceOnUse",
-                    "spreadMethod": "pad"
+                    "spreadMethod": "pad",
+                    "center": [
+                        0,
+                        0
+                    ],
+                    "radius": 32.19858036788542,
+                    "focal": [
+                        0,
+                        0
+                    ]
                 },
                 "strokeTrim": {
                     "range": {

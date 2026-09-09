@@ -10,13 +10,14 @@ export const attrGradientEndpointsRadialAnim: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [
@@ -29,15 +30,6 @@ export const attrGradientEndpointsRadialAnim: SvgaCaseJson = {
             "effects": {
                 "fillGradient": {
                     "type": "radial",
-                    "c": [
-                        0,
-                        0
-                    ],
-                    "fp": [
-                        -30,
-                        -30
-                    ],
-                    "r": 56,
                     "stops": [
                         {
                             "offset": 0,
@@ -79,7 +71,16 @@ export const attrGradientEndpointsRadialAnim: SvgaCaseJson = {
                         }
                     },
                     "gradientUnits": "userSpaceOnUse",
-                    "spreadMethod": "pad"
+                    "spreadMethod": "pad",
+                    "center": [
+                        0,
+                        0
+                    ],
+                    "radius": 56,
+                    "focal": [
+                        -30,
+                        -30
+                    ]
                 }
             }
         }

@@ -10,13 +10,14 @@ export const attrGradientFillRadial: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [
@@ -29,15 +30,6 @@ export const attrGradientFillRadial: SvgaCaseJson = {
             "effects": {
                 "fillGradient": {
                     "type": "radial",
-                    "c": [
-                        0,
-                        0
-                    ],
-                    "fp": [
-                        0,
-                        0
-                    ],
-                    "r": 40,
                     "stops": {
                         "keyframes": [
                             {
@@ -83,7 +75,16 @@ export const attrGradientFillRadial: SvgaCaseJson = {
                         ]
                     },
                     "gradientUnits": "userSpaceOnUse",
-                    "spreadMethod": "pad"
+                    "spreadMethod": "pad",
+                    "center": [
+                        0,
+                        0
+                    ],
+                    "radius": 40,
+                    "focal": [
+                        0,
+                        0
+                    ]
                 }
             }
         },
@@ -96,15 +97,6 @@ export const attrGradientFillRadial: SvgaCaseJson = {
             "effects": {
                 "fillGradient": {
                     "type": "radial",
-                    "c": [
-                        0,
-                        0
-                    ],
-                    "fp": [
-                        0,
-                        0
-                    ],
-                    "r": 40,
                     "stops": [
                         {
                             "offset": 0,
@@ -120,7 +112,16 @@ export const attrGradientFillRadial: SvgaCaseJson = {
                         }
                     ],
                     "gradientUnits": "userSpaceOnUse",
-                    "spreadMethod": "pad"
+                    "spreadMethod": "pad",
+                    "center": [
+                        0,
+                        0
+                    ],
+                    "radius": 40,
+                    "focal": [
+                        0,
+                        0
+                    ]
                 }
             }
         }

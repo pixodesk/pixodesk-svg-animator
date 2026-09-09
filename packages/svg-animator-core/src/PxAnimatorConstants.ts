@@ -40,6 +40,13 @@ export type OutAction = 'continue' | 'pause' | 'reset' | 'reverse';
  *  timelines, the browser's ScrollTimeline); `player` forces the player's own frame
  *  loop and its own progress measurement. Const-namespace + matching string type so
  *  call sites use named members (`PxPlaybackMode.player`), not bare literals. */
+/** Timeline keys that BOTH union members carry, so they survive a change of `type`. */
+export const PX_TIMELINE_SHARED_KEYS = ['duration', 'iterations', 'mode'] as const;
+
+/** Timeline keys that exist ONLY on the time-driven member — a scroll/view timeline is
+ *  scrubbed by position, so nothing starts it and nothing delays it. */
+export const PX_TIME_ONLY_TIMELINE_KEYS = ['trigger', 'delay', 'fillMode', 'direction'] as const;
+
 export const PxPlaybackMode = {
     auto:   'auto',
     native: 'native',
@@ -381,9 +388,9 @@ export function flattenAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig
     } else { // 'time', absent, or unknown — the time-driven timeline is the default
         if (timeline.duration !== undefined) flat.duration = timeline.duration;   // §2.8
         if (timeline.trigger !== undefined) {
-            const { onFinish, ...restTrigger } = timeline.trigger;
+            const { finishAction, ...restTrigger } = timeline.trigger;
             if (Object.keys(restTrigger).length) flat.trigger = restTrigger;
-            if (onFinish !== undefined) flat.resetOnFinish = onFinish === 'reset';
+            if (finishAction !== undefined) flat.resetOnFinish = finishAction === 'reset';
         }
         if (timeline.delay !== undefined) flat.delay = timeline.delay;
         if (timeline.iterations !== undefined) flat.iterations = timeline.iterations;
@@ -440,7 +447,7 @@ export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
     if (duration !== undefined) timeline.duration = duration;   // §2.8
     if (trigger !== undefined || resetOnFinish) {
         const t: any = { ...(trigger || {}) };
-        if (resetOnFinish) t.onFinish = 'reset';
+        if (resetOnFinish) t.finishAction = 'reset';
         timeline.trigger = t;
     }
     if (delay !== undefined) timeline.delay = delay;

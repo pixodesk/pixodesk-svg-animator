@@ -14,12 +14,22 @@ import type { PxAnimatedSvgDocument, PxAnimatorCallbacksConfig } from '@pixodesk
 // lands exactly on a rAF tick.
 const DUR = 320;
 
-/** Minimal frames-mode doc: one rect whose opacity animates 0 → 1 over DUR ms. */
-function makeDoc(animator: Record<string, any> = {}): PxAnimatedSvgDocument {
+/**
+ * Minimal frames-mode doc: one rect whose opacity animates 0 → 1 over DUR ms.
+ *
+ * The override is a `timeline` partial, because that is where the wire format keeps the
+ * playback knobs. `frameRate` is the one exception — it belongs to `animator` itself, so it is
+ * routed back out here rather than making every call site spell out two objects.
+ */
+function makeDoc(over: Record<string, any> = {}): PxAnimatedSvgDocument {
+    const { frameRate, ...timeline } = over;
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { mode: 'player', duration: DUR, ...animator },
+        animator: {
+            ...(frameRate !== undefined ? { frameRate } : {}),
+            timeline: { mode: 'player', duration: DUR, ...timeline },
+        },
         children: [
             {
                 type: 'rect',
@@ -54,9 +64,9 @@ function createMockAdapter() {
     return { adapter, calls, opacity };
 }
 
-function setup(animator: Record<string, any> = {}, callbacks?: PxAnimatorCallbacksConfig) {
+function setup(timeline: Record<string, any> = {}, callbacks?: PxAnimatorCallbacksConfig) {
     const mock = createMockAdapter();
-    const api = createBasicFrameLoopAnimator(makeDoc(animator), mock.adapter, callbacks);
+    const api = createBasicFrameLoopAnimator(makeDoc(timeline), mock.adapter, callbacks);
     return { api, ...mock };
 }
 
@@ -108,7 +118,7 @@ describe('createBasicFrameLoopAnimator', () => {
     });
 
     it("positive delay with fill 'backwards': first frame is rendered during the delay", () => {
-        const { api, calls, opacity } = setup({ delay: 160, fill: 'backwards' });
+        const { api, calls, opacity } = setup({ delay: 160, fillMode: 'backwards' });
 
         // The first frame is rendered already at construction time.
         expect(calls.length).toBeGreaterThan(0);
@@ -147,7 +157,7 @@ describe('createBasicFrameLoopAnimator', () => {
     });
 
     it("fill 'none' reverts to frame 0 at the natural end", () => {
-        const { api, calls } = setup({ fill: 'none' });
+        const { api, calls } = setup({ fillMode: 'none' });
 
         api.play();
         vi.advanceTimersByTime(DUR + 64);
@@ -157,7 +167,7 @@ describe('createBasicFrameLoopAnimator', () => {
     });
 
     it("fill 'both' holds the first frame during the delay AND the final frame after the end", () => {
-        const { api, calls, opacity } = setup({ delay: 160, fill: 'both' });
+        const { api, calls, opacity } = setup({ delay: 160, fillMode: 'both' });
 
         // Backwards side: frame 0 rendered at construction and throughout the delay window.
         expect(opacity()).toBe(0);
@@ -197,12 +207,12 @@ describe('createBasicFrameLoopAnimator', () => {
     });
 
     it.each([
-        { name: "direction 'reverse' mirrors progress", animator: { direction: 'reverse' }, at: 80, expected: 0.75 },
-        { name: "direction 'alternate' plays iteration 0 forward", animator: { direction: 'alternate', iterations: 2 }, at: 80, expected: 0.25 },
-        { name: "direction 'alternate' mirrors iteration 1", animator: { direction: 'alternate', iterations: 2 }, at: DUR + 80, expected: 0.75 },
-        { name: "direction 'alternate-reverse' mirrors iteration 0", animator: { direction: 'alternate-reverse', iterations: 2 }, at: 80, expected: 0.75 },
-    ])('$name', ({ animator, at, expected }) => {
-        const { api, opacity } = setup(animator);
+        { name: "direction 'reverse' mirrors progress", timeline: { direction: 'reverse' }, at: 80, expected: 0.75 },
+        { name: "direction 'alternate' plays iteration 0 forward", timeline: { direction: 'alternate', iterations: 2 }, at: 80, expected: 0.25 },
+        { name: "direction 'alternate' mirrors iteration 1", timeline: { direction: 'alternate', iterations: 2 }, at: DUR + 80, expected: 0.75 },
+        { name: "direction 'alternate-reverse' mirrors iteration 0", timeline: { direction: 'alternate-reverse', iterations: 2 }, at: 80, expected: 0.75 },
+    ])('$name', ({ timeline, at, expected }) => {
+        const { api, opacity } = setup(timeline);
         api.play();
         vi.advanceTimersByTime(at);
         expect(opacity()).toBeCloseTo(expected, 5);
@@ -376,7 +386,7 @@ describe('createBasicFrameLoopAnimator', () => {
     });
 
     it("finish() honours fill:'none' (reverts to frame 0, same as the natural end)", () => {
-        const { api, calls } = setup({ fill: 'none' });
+        const { api, calls } = setup({ fillMode: 'none' });
 
         api.play();
         vi.advanceTimersByTime(64);

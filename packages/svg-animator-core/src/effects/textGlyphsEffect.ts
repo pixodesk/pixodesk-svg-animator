@@ -814,6 +814,6 @@ export function applyTextGlyphsEffect(node: PxNode, fx: PxTextEffect | undefined
 
 /** Pipeline adapter (plain wire nodes) — glyph text along a referenced path. */
 export function applyTextGlyphsAlongPath(node: PxNode, ctx: ApplyContext, pathD: string | undefined, startOffset: PxAnimatable<number> | undefined, textLength?: PxAnimatable<number>, pathOverflow?: string): PxNode | null {
-    if (!ctx.glyphs) { ctx.warnings.push('textGlyphs: no definitions.glyphs'); return null; }
+    if (!ctx.glyphs) { ctx.warnings.push('textGlyphs: no definitions.fonts'); return null; }
     return materialiseGlyphTextAlongPath<PxNode>(node, pathD, startOffset, { glyphs: ctx.glyphs, warnings: ctx.warnings }, textLength, pathOverflow);
 }

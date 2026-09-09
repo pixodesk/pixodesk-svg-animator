@@ -85,7 +85,9 @@ export function Intro() {
 ```
 
 Uses the trigger saved in the document — on load, on hover, on click, when scrolled into view
-— and its out action. Override with `startOn` / `outAction` / `scrollIntoViewThreshold`.
+— and its out action. Override it for this one mount with the `startOn` shortcut, or with
+`config={{ timeline: { trigger: { … } } }}` for the rest of the trigger — see
+[Playback overrides](#playback-overrides).
 
 ### 3 · Controlled time (`progress` / `time`)
 
@@ -143,6 +145,38 @@ switched back off resumes.
 With none of `apiRef` / `autoplay` / `progress` / `time` / `play` / `pause` set, the component
 renders the first frame statically.
 
+## Playback overrides
+
+> **Example:** [`playback/override-react`](../../examples/docs-examples/src/cases/playback/override-react/) — `pnpm example:docs`, then open `#playback/override-react`.
+
+The same document can play differently in each place you mount it. `config` takes an object
+shaped exactly like the file's own `animator` block and deep-merges it over what the file says
+— the document you passed is never modified.
+
+```tsx
+// The file loops twice and starts on load; here it loops forever and waits for play().
+<PixodeskSvgAnimator
+  doc={animation}
+  config={{ timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } } }}
+  apiRef={apiRef}
+/>
+```
+
+Objects merge key by key, values replace, and `null` **deletes** a key so the default its
+absence means comes back:
+
+```tsx
+<PixodeskSvgAnimator doc={animation} autoplay config={{ timeline: { delay: null } }} />
+```
+
+`duration`, `delay`, `iterations` and `startOn` are also plain props, because
+`duration={2000}` reads better than a nested object; a prop wins over the same key inside
+`config`. To ignore the file's playback settings entirely and start from the player's defaults,
+add `resetDocDefaults`.
+
+Full merge rules — including what happens when the override changes the kind of timeline — are
+in [Playback & triggers → Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
+
 ## Props
 
 | Prop | Type | Description |
@@ -157,18 +191,13 @@ renders the first frame statically.
 | `apiRef` | `RefObject<ReactAnimatorApi>` | imperative control |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
-| **Timing overrides** | | *(each replaces the document's `animator` value)* |
-| `duration` | `number` | ms for one iteration |
-| `delay` | `number` | wait this many ms, then start. A negative value skips ahead instead: `-500` starts right away from the frame at 0.5 s, as if the animation had already been running for half a second |
-| `iterations` | `number \| 'infinite'` | how many times to play; `'infinite'` never stops |
-| `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | play forward, backward, or turn around on every iteration (starting forward or backward) |
-| `fill` | `'forwards' \| 'backwards' \| 'both' \| 'none'` | what shows before start / after the end |
-| `mode` | `'auto' \| 'native' \| 'player'` | who runs the animation — see [Web player → Playback modes](./web-player.md#playback-modes) |
-| `frameRate` | `number` | target fps (`player` mode) |
-| **Trigger overrides** | | |
-| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | what starts the animation: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
-| `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | when the trigger ends (mouse out, second click, scrolled out) |
-| `scrollIntoViewThreshold` | `number` | how much of the animation must be on screen before it starts, as a share of its area: `0` (default) starts as soon as any part of it shows, `0.5` waits until half of it is visible, `1` until all of it is |
+| **Playback overrides** | | *(see [Playback overrides](#playback-overrides))* |
+| `config` | `object \| string` | per-instance override of the document's `animator` block, deep-merged over it. Same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too |
+| `resetDocDefaults` | `boolean` | ignore the document's playback settings and start from the player's defaults, with `config` on top |
+| `duration` | `number` | shortcut for `config.timeline.duration` — ms for one iteration |
+| `delay` | `number` | shortcut for `config.timeline.delay`. A negative value skips ahead instead: `-500` starts right away from the frame at 0.5 s, as if the animation had already been running for half a second |
+| `iterations` | `number \| 'infinite'` | shortcut for `config.timeline.iterations`; `'infinite'` never stops |
+| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | shortcut for `config.timeline.trigger.startOn`: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
 | **Callbacks** | | |
 | `onPlay` | `() => void` | the animation started playing — for the first time, or resumed after a pause |
 | `onPause` | `() => void` | playback paused at the current frame — via the `pause` prop, the API's `pause()`, or a trigger's *out action* |

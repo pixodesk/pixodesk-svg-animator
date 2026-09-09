@@ -1,7 +1,7 @@
 /**
  * Pixodesk SVG Animator — React Native Feature Explorer.
  *
- * Scrolls the editor's whole feature-fixture suite (118 cases in 16 sections),
+ * Scrolls the editor's whole feature-fixture suite (122 cases in 16 sections),
  * grouped and ordered exactly as in the editor's explorer. Uses a `SectionList`,
  * so only on-screen rows are mounted, and only rows actually visible are
  * *playing* — see `visibleIds` below.
@@ -167,7 +167,7 @@ function Explorer() {
     // Viewability reporting is not guaranteed on every platform (notably
     // react-native-web). Until it has reported at least once, treat every
     // MOUNTED row as visible — virtualisation already keeps that set small, so
-    // the fallback can never mean "118 animations at once".
+    // the fallback can never mean "122 animations at once".
     const [viewabilityReady, setViewabilityReady] = useState(false);
 
     // Mount the header first and the list one frame later. Building the first

@@ -149,7 +149,7 @@ interface SVG_JSON {
                 trigger?: {
                     startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
                     outAction?: 'continue' | 'pause' | 'reset' | 'reverse'; // when the trigger condition ends; default 'continue'
-                    onFinish?: 'hold' | 'reset';      // after a NATURAL finish; default 'hold' (keep end state per `fill`)
+                    finishAction?: 'hold' | 'reset';  // after a NATURAL finish; default 'hold' (keep end state per `fillMode`)
                     scrollIntoViewThreshold?: number; // how much must be on screen to start: 0 = any part (default), 1 = all of it; scrollIntoView only
                 };
               }
@@ -534,7 +534,7 @@ every element that needs it:
   "easings":    { "smooth": [0.42, 0, 0.58, 1] },
   "animations": { "fadeIn": { "opacity": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 2000, "value": 1 } ] } } },
   "styles":     { "label": { "fontFamily": "Inter", "fontSize": 12 } },
-  "glyphs":     { "Roboto": { "fontFamily": "Roboto", "fontStyle": "", "ascent": 928, "unitsPerEm": 1000,
+  "fonts":      { "Roboto": { "fontFamily": "Roboto", "fontStyle": "", "ascent": 928, "unitsPerEm": 1000,
                               "glyphs": { "H": { "width": 722, "d": "M100 0V722H190V400H532V722H622V0H532V320H190V0Z" } } } }
 }
 ```
@@ -544,7 +544,7 @@ every element that needs it:
 | `easings` | named easing curves | a keyframe writes the name instead of the curve: `"easing": "smooth"` |
 | `animations` | named animations | a node writes the name instead of the keyframes: `"animate": "fadeIn"` (documents without `children` use the same names in `animateById`) |
 | `styles` | named sets of style attributes | a node writes the name instead of the attributes: `"style": "label"` |
-| `glyphs` | letter outlines: for each font, the shape of every letter used, stored under that font's name (`"Roboto": …` in the example above) | a `<text>` node with `effects.text.useGlyphs: true` is drawn from these outlines — the node's `font-family` says which font's outlines to use. No font file is needed on the viewer's machine |
+| `fonts` | embedded fonts: for each font, the outline of every letter used, stored under that font's name (`"Roboto": …` in the example above). Each entry's own `glyphs` map holds the outlines | a `<text>` node with `effects.text.useGlyphs: true` is drawn from these outlines — the node's `font-family` says which font's outlines to use. No font file is needed on the viewer's machine |
 
 ### Animating a pre-rendered SVG
 
@@ -697,7 +697,7 @@ says which:
 
 | Field | Type | Meaning | Applies to |
 |---|---|---|---|
-| `path` | path string | the path geometry (inline — no separate element needed) | browser text, glyphs |
+| `pathData` | path string | the path geometry (inline — no separate element needed) | browser text, glyphs |
 | `startOffset` | number \| `Animated<number>` | where the text starts along the path ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/startOffset)) | browser text, glyphs |
 | `textLength` | number \| `Animated<number>` | stretch / squeeze the text to this length ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/textLength)) | browser text, glyphs |
 | `lengthAdjust` | `spacing` · `spacingAndGlyphs` | how `textLength` is reached: by changing the space between glyphs only, or by stretching the glyphs too ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/lengthAdjust)) | browser text only |
@@ -870,7 +870,7 @@ player materialises each clone into its own elements with its own timing.
 | Field | Type | Meaning |
 |---|---|---|
 | `source` | `"#id"` | the source element / symbol (the `<use>` also keeps its normal `href`) |
-| `type` | `content` (optional) | leave the field out for a direct copy of the whole element; `content` copies the source's content but not its own outer position |
+| `without` | `translate` (optional) | leave the field out for a direct copy of the whole element; `translate` copies the source's content WITHOUT its own outer position |
 | `retime.start` | ms | shift the source's internal timeline |
 | `retime.stretch` | a multiplier of duration | `2` = twice as long (half speed), `0.5` = half as long (double speed) |
 | `retime.timeCrop` | `[inMs, outMs]` | show the instance only between these two times of the document timeline (materialised as a wrapping `<g>` with an opacity gate) |
@@ -920,7 +920,7 @@ in a pre-rendered SVG the same object is written into a per-element `data-px-met
 |---|---|---|
 | `label` | any element | the display name shown in the editor's element tree |
 | `appliedEffects` | a plain node | this node's own effects, **already applied** — [Applied effects](#applied-effects) |
-| `effectsHost` | the host of expanded parts, **pre-rendered SVG only** | some effects turn one drawn element into several written elements (a repeater becomes its copies) — its "expanded parts". This field sits on the expansion's outermost element (its **host**) and holds `{ coreId?, appliedEffects }`: all the effects the drawn element had, so the editor can fold the parts back into that one element — [Expanded parts](#applied-effects-that-create-derived-elements-host--core--part) |
+| `effectsHost` | the host of expanded parts, **pre-rendered SVG only** | some effects turn one drawn element into several written elements (a repeater becomes its copies) — its "expanded parts". This field sits on the expansion's outermost element (its **host**) and holds `{ coreId?, appliedEffects }`: all the effects the drawn element had, so the editor can fold the parts back into that one element — [Expanded parts](https://pixodesk.com/docs/svga/prerendered-svg/data-px-meta#applied-effects-that-create-derived-elements-host--core--part) |
 | `partOf` | every element derived by that expansion, **pre-rendered SVG only** | the counterpart of `effectsHost`: each element the expansion produced carries `"#hostId"` pointing back at the host element that holds the `effectsHost` field, so the whole unit can be found from any of its parts |
 | `runtime` | root `<svg>` only | how the animation code was generated: `{ useCssAnimation, useJsTriggers, externalJs, unoptimisedJs }` — the export-format choices, not the animation |
 | `animator` | root `<svg>`, **pre-rendered SVG only** | the playback settings; in JSON they are the top-level `animator` instead ([read more](https://pixodesk.com/docs/svga/prerendered-svg/data-px-meta#the-animator-config-lives-in-two-different-places)) |
@@ -1096,7 +1096,7 @@ the engine runs in browsers, React Native and test environments.
 | **Document accessors** | `getAnimatorConfig`, `getDefs`, `getBindings`, `getChildren` |
 | **Scroll timeline math** | `isScrollTimeline`, `scrollViewProgress`, `scrollOffsetProgress`, `scrollTotalDurationMs` |
 | **Playback engine** | `createBasicFrameLoopAnimator` + the `PxPlatformAdapter` interface |
-| **Wire enums** | `PxAnimatorMode`, `PxAnimatorEngine`, `PxLoopExtend`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneType`, `PxUnits`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every wire selector is a named constant, not a bare string |
+| **Wire enums** | `PxPlaybackMode`, `PxAnimatorEngine`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod` — the wire selectors that ship as named constants rather than bare strings |
 
 ### Versioning
 

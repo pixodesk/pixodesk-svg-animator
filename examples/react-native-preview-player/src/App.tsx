@@ -7,7 +7,7 @@
  * web version's drag-and-drop, the documents are embedded (see `samples.ts`).
  */
 import { PixodeskSvgAnimator, type RnAnimatorApi } from '@pixodesk/svg-animator-rn';
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig } from '@pixodesk/svg-animator-core';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -19,14 +19,9 @@ import { SeekBar } from './SeekBar';
 type LoopMode = 'auto' | 'loop' | 'no-loop';
 const RATES = [0.25, 0.5, 1, 2, 4];
 
-/** Applies the loop override on top of the sample's own animator config. */
-function withLoop(doc: PxAnimatedSvgDocument, mode: LoopMode): PxAnimatedSvgDocument {
-    if (mode === 'auto') return doc;
-    return {
-        ...doc,
-        animator: { ...doc.animator, iterations: mode === 'loop' ? 'infinite' : 1 },
-    };
-}
+/** The loop override, as the component's `iterations` shortcut. `undefined` = leave the file alone. */
+const loopIterations = (mode: LoopMode): number | 'infinite' | undefined =>
+    mode === 'loop' ? 'infinite' : mode === 'no-loop' ? 1 : undefined;
 
 export default function App() {
     const scheme = useColorScheme();
@@ -41,11 +36,13 @@ export default function App() {
 
     const api = useRef<RnAnimatorApi | null>(null);
     const sample = SAMPLES[sampleIdx];
-    const doc = useMemo(() => withLoop(sample.doc, loopMode), [sample, loopMode]);
+    const doc = sample.doc;
 
     // The animator's duration drives the timeline. `iterations` is expressed by
     // the driver (withRepeat), so the scrubbable range is one iteration.
-    const duration = doc.animator?.duration ?? 1000;
+    // Read through `getAnimatorConfig`, which resolves both animator addresses and
+    // the nested `timeline` — a raw `doc.animator.duration` misses every modern file.
+    const duration = useMemo(() => getAnimatorConfig(doc)?.duration ?? 1000, [doc]);
 
     // Poll the playhead for the timeline read-out. The value lives in a
     // reanimated SharedValue on the UI thread; 20 Hz is plenty for a label and
@@ -105,6 +102,7 @@ export default function App() {
                     <PixodeskSvgAnimator
                         key={sampleIdx + '|' + loopMode}
                         doc={doc}
+                        iterations={loopIterations(loopMode)}
                         autoplay
                         apiRef={api}
                     />

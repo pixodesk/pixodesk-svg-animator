@@ -68,12 +68,12 @@ const animator = ref<VueAnimatorApi | null>(null);
 
 ### Controlled time
 
-Render a single frame at a specific point in time:
+Render a single frame — by time in milliseconds, or by fraction of the whole timeline:
 
 ```vue
 <template>
-  <PixodeskSvgAnimator :doc="animationDoc" :time="0.5" />
-  <PixodeskSvgAnimator :doc="animationDoc" :time="500" />
+  <PixodeskSvgAnimator :doc="animationDoc" :time="500" />      <!-- 500 ms in -->
+  <PixodeskSvgAnimator :doc="animationDoc" :progress="0.5" />  <!-- halfway through -->
 </template>
 ```
 
@@ -87,15 +87,12 @@ Render a single frame at a specific point in time:
 | `pause` | `boolean` | Pause current playback |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
-| `mode` | `'auto' \| 'native' \| 'player'` | who runs the animation (overrides the document's `timeline.mode`) |
-| `duration` | `number` | Duration override (ms) |
-| `delay` | `number` | Delay before start (ms) |
-| `iterations` | `number \| 'infinite'` | Loop count |
-| `fill` | `FillMode` | Fill behaviour |
-| `direction` | `PlaybackDirection` | Playback direction |
-| `frameRate` | `number` | Target FPS |
-| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | Trigger event override |
-| `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | Behaviour when trigger ends |
+| `config` | `object \| string` | Per-instance override of the document's `animator` block, deep-merged over it — same shape as the file (`{ frameRate, timeline: { mode, fillMode, direction, trigger: { outAction, … } } }`); `null` at a slot deletes that key. A JSON string is accepted too |
+| `resetDocDefaults` | `boolean` | Ignore the document's playback settings and start from the player's defaults, with `config` on top |
+| `duration` | `number` | Shortcut for `config.timeline.duration` (ms) |
+| `delay` | `number` | Shortcut for `config.timeline.delay` (ms) |
+| `iterations` | `number \| 'infinite'` | Shortcut for `config.timeline.iterations` |
+| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | Shortcut for `config.timeline.trigger.startOn` |
 
 With none of `autoplay` / `play` / `pause` / `progress` / `time` set, the component renders the animation statically (initial state, no playback); use the template ref for imperative control.
 

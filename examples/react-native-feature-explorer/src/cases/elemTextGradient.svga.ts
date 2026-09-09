@@ -10,19 +10,10 @@ export const elemTextGradient: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
-        },
         "definitions": {
             "fonts": {
                 "Roboto-Black": {
                     "fontFamily": "Roboto-Black",
-                    "style": "",
                     "ascent": 927.734375,
                     "unitsPerEm": 1000,
                     "glyphs": {
@@ -62,9 +53,19 @@ export const elemTextGradient: SvgaCaseJson = {
                             "width": 563.96484375,
                             "d": "M42.97-528.32L197.27-528.32L202.64-466.31Q257.32-538.09 353.52-538.09L353.52-538.09Q436.04-538.09 476.81-488.77Q517.58-439.45 519.04-340.33L519.04-340.33L519.04 0L354.00 0L354.00-333.50Q354.00-373.54 337.89-392.33Q321.78-411.13 279.30-411.13L279.30-411.13Q230.96-411.13 207.52-373.05L207.52-373.05L207.52 0L42.97 0L42.97-528.32Z"
                         }
-                    }
+                    },
+                    "fontStyle": ""
                 }
             }
+        },
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [
@@ -97,14 +98,6 @@ export const elemTextGradient: SvgaCaseJson = {
                     "effects": {
                         "fillGradient": {
                             "type": "linear",
-                            "p1": [
-                                -100,
-                                0
-                            ],
-                            "p2": [
-                                100,
-                                0
-                            ],
                             "stops": [
                                 {
                                     "offset": 0,
@@ -116,7 +109,15 @@ export const elemTextGradient: SvgaCaseJson = {
                                 }
                             ],
                             "gradientUnits": "userSpaceOnUse",
-                            "spreadMethod": "pad"
+                            "spreadMethod": "pad",
+                            "start": [
+                                -100,
+                                0
+                            ],
+                            "end": [
+                                100,
+                                0
+                            ]
                         }
                     },
                     "children": [
@@ -133,14 +134,6 @@ export const elemTextGradient: SvgaCaseJson = {
                             "effects": {
                                 "fillGradient": {
                                     "type": "linear",
-                                    "p1": [
-                                        -100,
-                                        0
-                                    ],
-                                    "p2": [
-                                        100,
-                                        0
-                                    ],
                                     "stops": [
                                         {
                                             "offset": 0,
@@ -152,7 +145,15 @@ export const elemTextGradient: SvgaCaseJson = {
                                         }
                                     ],
                                     "gradientUnits": "userSpaceOnUse",
-                                    "spreadMethod": "pad"
+                                    "spreadMethod": "pad",
+                                    "start": [
+                                        -100,
+                                        0
+                                    ],
+                                    "end": [
+                                        100,
+                                        0
+                                    ]
                                 }
                             }
                         }
@@ -188,14 +189,6 @@ export const elemTextGradient: SvgaCaseJson = {
                     "effects": {
                         "fillGradient": {
                             "type": "linear",
-                            "p1": [
-                                -100,
-                                0
-                            ],
-                            "p2": [
-                                100,
-                                0
-                            ],
                             "stops": [
                                 {
                                     "offset": 0,
@@ -207,7 +200,15 @@ export const elemTextGradient: SvgaCaseJson = {
                                 }
                             ],
                             "gradientUnits": "userSpaceOnUse",
-                            "spreadMethod": "pad"
+                            "spreadMethod": "pad",
+                            "start": [
+                                -100,
+                                0
+                            ],
+                            "end": [
+                                100,
+                                0
+                            ]
                         }
                     },
                     "children": [
@@ -223,14 +224,6 @@ export const elemTextGradient: SvgaCaseJson = {
                             "effects": {
                                 "fillGradient": {
                                     "type": "linear",
-                                    "p1": [
-                                        -100,
-                                        0
-                                    ],
-                                    "p2": [
-                                        100,
-                                        0
-                                    ],
                                     "stops": [
                                         {
                                             "offset": 0,
@@ -242,7 +235,15 @@ export const elemTextGradient: SvgaCaseJson = {
                                         }
                                     ],
                                     "gradientUnits": "userSpaceOnUse",
-                                    "spreadMethod": "pad"
+                                    "spreadMethod": "pad",
+                                    "start": [
+                                        -100,
+                                        0
+                                    ],
+                                    "end": [
+                                        100,
+                                        0
+                                    ]
                                 }
                             }
                         }
@@ -276,14 +277,6 @@ export const elemTextGradient: SvgaCaseJson = {
                     "effects": {
                         "fillGradient": {
                             "type": "linear",
-                            "p1": [
-                                -100,
-                                0
-                            ],
-                            "p2": [
-                                100,
-                                0
-                            ],
                             "stops": [
                                 {
                                     "offset": 0,
@@ -295,7 +288,15 @@ export const elemTextGradient: SvgaCaseJson = {
                                 }
                             ],
                             "gradientUnits": "userSpaceOnUse",
-                            "spreadMethod": "pad"
+                            "spreadMethod": "pad",
+                            "start": [
+                                -100,
+                                0
+                            ],
+                            "end": [
+                                100,
+                                0
+                            ]
                         }
                     },
                     "children": [
@@ -311,14 +312,6 @@ export const elemTextGradient: SvgaCaseJson = {
                             "effects": {
                                 "fillGradient": {
                                     "type": "linear",
-                                    "p1": [
-                                        -100,
-                                        0
-                                    ],
-                                    "p2": [
-                                        100,
-                                        0
-                                    ],
                                     "stops": [
                                         {
                                             "offset": 0,
@@ -330,7 +323,15 @@ export const elemTextGradient: SvgaCaseJson = {
                                         }
                                     ],
                                     "gradientUnits": "userSpaceOnUse",
-                                    "spreadMethod": "pad"
+                                    "spreadMethod": "pad",
+                                    "start": [
+                                        -100,
+                                        0
+                                    ],
+                                    "end": [
+                                        100,
+                                        0
+                                    ]
                                 }
                             }
                         }

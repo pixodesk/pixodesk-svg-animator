@@ -10,13 +10,14 @@ export const effectMaskedByLuminance: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [
@@ -29,8 +30,8 @@ export const effectMaskedByLuminance: SvgaCaseJson = {
             "width": 100,
             "effects": {
                 "maskedBy": {
-                    "href": "_px_38bqgqqc",
-                    "maskType": "luminance"
+                    "maskType": "luminance",
+                    "source": "_px_38bqgqqc"
                 }
             },
             "meta": {
@@ -47,15 +48,6 @@ export const effectMaskedByLuminance: SvgaCaseJson = {
             "effects": {
                 "fillGradient": {
                     "type": "radial",
-                    "c": [
-                        0,
-                        0
-                    ],
-                    "fp": [
-                        0,
-                        0
-                    ],
-                    "r": 50,
                     "stops": [
                         {
                             "offset": 0,
@@ -67,7 +59,16 @@ export const effectMaskedByLuminance: SvgaCaseJson = {
                         }
                     ],
                     "gradientUnits": "userSpaceOnUse",
-                    "spreadMethod": "pad"
+                    "spreadMethod": "pad",
+                    "center": [
+                        0,
+                        0
+                    ],
+                    "radius": 50,
+                    "focal": [
+                        0,
+                        0
+                    ]
                 }
             },
             "meta": {

@@ -10,13 +10,14 @@ export const attrGradientObjectBoundingBox: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [
@@ -29,14 +30,6 @@ export const attrGradientObjectBoundingBox: SvgaCaseJson = {
             "effects": {
                 "fillGradient": {
                     "type": "linear",
-                    "p1": [
-                        0,
-                        0
-                    ],
-                    "p2": [
-                        1,
-                        0
-                    ],
                     "stops": {
                         "keyframes": [
                             {
@@ -82,7 +75,15 @@ export const attrGradientObjectBoundingBox: SvgaCaseJson = {
                         ]
                     },
                     "gradientUnits": "objectBoundingBox",
-                    "spreadMethod": "pad"
+                    "spreadMethod": "pad",
+                    "start": [
+                        0,
+                        0
+                    ],
+                    "end": [
+                        1,
+                        0
+                    ]
                 }
             }
         },
@@ -95,14 +96,6 @@ export const attrGradientObjectBoundingBox: SvgaCaseJson = {
             "effects": {
                 "fillGradient": {
                     "type": "linear",
-                    "p1": [
-                        0,
-                        0
-                    ],
-                    "p2": [
-                        1,
-                        0
-                    ],
                     "stops": [
                         {
                             "offset": 0,
@@ -118,7 +111,15 @@ export const attrGradientObjectBoundingBox: SvgaCaseJson = {
                         }
                     ],
                     "gradientUnits": "objectBoundingBox",
-                    "spreadMethod": "pad"
+                    "spreadMethod": "pad",
+                    "start": [
+                        0,
+                        0
+                    ],
+                    "end": [
+                        1,
+                        0
+                    ]
                 }
             }
         }

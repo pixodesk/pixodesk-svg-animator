@@ -45,7 +45,7 @@ describe('validateNodeEffects', () => {
 
 describe('effect keyframes accept the short wire aliases', () => {
     const D = (children: Array<any>): any => ({
-        type: 'svg', viewBox: '0 0 100 100', animator: { duration: 1000 }, children,
+        type: 'svg', viewBox: '0 0 100 100', animator: { timeline: { duration: 1000 } }, children,
     });
     const long = (a: any, b: any) => [{ time: 0, value: a }, { time: 1000, value: b }];
     const short = (a: any, b: any) => [{ t: 0, v: a }, { t: 1000, v: b }];
@@ -90,7 +90,7 @@ describe('effect keyframes accept the short wire aliases', () => {
 
 describe('gradient geometry animation', () => {
     const linearDoc = (): any => ({
-        type: 'svg', viewBox: '0 0 200 200', animator: { duration: 1000 },
+        type: 'svg', viewBox: '0 0 200 200', animator: { timeline: { duration: 1000 } },
         children: [{
             type: 'ellipse', id: 'a', rx: 50, ry: 50, transform: 'translate(100,100)',
             effects: {
@@ -132,7 +132,7 @@ describe('gradient geometry animation', () => {
 
     it('maps every radial channel onto its SVG attribute', () => {
         const doc: any = {
-            type: 'svg', viewBox: '0 0 200 200', animator: { duration: 1000 },
+            type: 'svg', viewBox: '0 0 200 200', animator: { timeline: { duration: 1000 } },
             children: [{
                 type: 'ellipse', id: 'a', rx: 50, ry: 50,
                 effects: {

@@ -17,11 +17,11 @@ describe('animator.timeline spelling compat', () => {
 
     // ── flatten: nested → the flat view every engine consumes ────────────────
 
-    it('flattens a time timeline to the flat runtime keys (trigger.onFinish → resetOnFinish, fillMode → fill)', () => {
+    it('flattens a time timeline to the flat runtime keys (trigger.finishAction → resetOnFinish, fillMode → fill)', () => {
         const flat = flattenAnimatorTimeline({
             timeline: {
                 type: 'time', duration: 4000,
-                trigger: { startOn: 'click', outAction: 'pause', onFinish: 'reset' },
+                trigger: { startOn: 'click', outAction: 'pause', finishAction: 'reset' },
                 delay: 250, iterations: 'infinite', direction: 'alternate', fillMode: 'both'
             }
         } as any) as any;
@@ -31,7 +31,7 @@ describe('animator.timeline spelling compat', () => {
             fill: 'both', resetOnFinish: true,
             trigger: { startOn: 'click', outAction: 'pause' }
         });
-        expect(flat.trigger.onFinish).toBeUndefined(); // folded into resetOnFinish
+        expect(flat.trigger.finishAction).toBeUndefined(); // folded into resetOnFinish
     });
 
     it("flattens 'view' and 'scroll' timelines to timelineSource:'scroll' + scroll.kind, pin object → pin flags; mode is shared", () => {
@@ -81,7 +81,7 @@ describe('animator.timeline spelling compat', () => {
 
     // ── nest: flat → the written spelling; mode-dead keys structurally gone ──
 
-    it('nests flat time keys under a type-less timeline (absent type = time), fill → fillMode, resetOnFinish → trigger.onFinish', () => {
+    it('nests flat time keys under a type-less timeline (absent type = time), fill → fillMode, resetOnFinish → trigger.finishAction', () => {
         const nested = nestAnimatorTimeline({
             duration: 4000, mode: 'auto',
             trigger: { startOn: 'click' }, delay: 250, iterations: 3,
@@ -91,7 +91,7 @@ describe('animator.timeline spelling compat', () => {
             timeline: {
                 mode: 'auto',
                 duration: 4000,
-                trigger: { startOn: 'click', onFinish: 'reset' },
+                trigger: { startOn: 'click', finishAction: 'reset' },
                 delay: 250, iterations: 3, direction: 'reverse', fillMode: 'none'
             }
         });

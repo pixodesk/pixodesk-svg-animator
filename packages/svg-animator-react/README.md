@@ -93,15 +93,12 @@ const [time, setTime] = useState(0);
 | `apiRef` | `RefObject<ReactAnimatorApi>` | Ref for imperative control |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
-| `mode` | `'auto' \| 'native' \| 'player'` | who runs the animation (overrides the document's `timeline.mode`) |
-| `duration` | `number` | Duration override (ms) |
-| `delay` | `number` | Delay before start (ms) |
-| `iterations` | `number \| 'infinite'` | Loop count |
-| `fill` | `FillMode` | Fill behaviour |
-| `direction` | `PlaybackDirection` | Playback direction |
-| `frameRate` | `number` | Target FPS |
-| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | Trigger event override |
-| `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | Behaviour when trigger ends |
+| `config` | `object \| string` | Per-instance override of the document's `animator` block, deep-merged over it — same shape as the file (`{ frameRate, timeline: { mode, fillMode, direction, trigger: { outAction, … } } }`); `null` at a slot deletes that key. A JSON string is accepted too |
+| `resetDocDefaults` | `boolean` | Ignore the document's playback settings and start from the player's defaults, with `config` on top |
+| `duration` | `number` | Shortcut for `config.timeline.duration` (ms) |
+| `delay` | `number` | Shortcut for `config.timeline.delay` (ms) |
+| `iterations` | `number \| 'infinite'` | Shortcut for `config.timeline.iterations` |
+| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | Shortcut for `config.timeline.trigger.startOn` |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
 | `onFinish` | `() => void` | Called on natural finish |

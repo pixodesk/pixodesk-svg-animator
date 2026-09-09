@@ -7,7 +7,7 @@
 // Bundle composition analyser.
 //
 //   node scripts/analyse-bundle.mjs [path/to/bundle.js]
-//   (default: packages/svg-animator-web/dist/index.umd.min.js)
+//   (default: packages/svg-animator-web/dist/pixodesk-svg-animator.umd.min.js)
 //
 // Answers "what is actually costing us bytes" for an ALREADY-minified bundle.
 //
@@ -22,24 +22,29 @@
 // The shortening is a measurement only; nothing is written back.
 
 import { readFileSync } from 'node:fs';
+import { join, dirname } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { brotliCompressSync, gzipSync, constants } from 'node:zlib';
+import { collectSchemaKeys } from './lib/schema-keys.mjs';
 
-const FILE = process.argv[2] || 'packages/svg-animator-web/dist/index.umd.min.js';
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+const FILE = process.argv[2] || 'packages/svg-animator-web/dist/pixodesk-svg-animator.umd.min.js';
 const TOP = Number(process.env.TOP || 20);
 
 // ---------------------------------------------------------------- categories
 
-// Keys of the on-disk animation format. These can NEVER be renamed — they are the
-// file format, read from JSON authored elsewhere. Listed so the report can say
-// "this cost is structural" rather than implying a saving that does not exist.
-const WIRE = new Set(`children animate animator effects meta type text textContent
-keyframes easing offset value time duration delay direction fillMode iterations
-translate rotate scale origin skew transform opacity anchor position
-tangentIn tangentOut autoOrient path spatial
-fill stroke strokeWidth strokeLinecap strokeDasharray fontSize fontFamily fontWeight
-width height viewBox preserveAspectRatio gradientUnits spreadMethod stops
-strokeTrim repeater maskedBy clipPath retime clone transformBy fillGradient strokeGradient
-textPath timeCrop loop extend subPaths timelineSource`.trim().split(/\s+/));
+// Keys of the on-disk animation format. These can NEVER be renamed — they are the file
+// format, read from JSON authored elsewhere. Reported separately so the output says "this
+// cost is structural" rather than implying a saving that does not exist.
+//
+// DERIVED from the built core's runtime schemas, never listed by hand: this list used to be a
+// literal, and by 2026-09 it had drifted — it still carried `timelineSource` (a runtime-view
+// key that was never on the wire) and had missed `timeline`, `mode`, `trigger`, `startOn`,
+// `finishAction`, `pin`, `range` and the rest of the 2026-09 renames. A wrong list here does
+// not break the build, it just quietly misattributes bytes, which is exactly the kind of error
+// nobody notices.
+const WIRE = collectSchemaKeys(join(ROOT, 'packages/svg-animator-core/dist/index.cjs'), 'analyse-bundle');
 
 // Schema-engine members. In the UMD these are INTERNAL — `px` and the schema objects
 // are no longer exported — so they are renameable in principle.

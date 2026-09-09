@@ -49,7 +49,9 @@ import animation from './animation.json';
 ```
 
 Uses the trigger saved in the document (load / hover / click / scroll into view) and its out
-action. Override with `startOn` / `outAction` / `scrollIntoViewThreshold`.
+action. Override it for this one mount with the `startOn` prop, or with
+`:config="{ timeline: { trigger: { … } } }"` for the rest of the trigger — see
+[Playback overrides](#playback-overrides).
 
 ### 2 · Controlled time (`progress` / `time`)
 
@@ -70,8 +72,9 @@ const time = ref(0);
   <PixodeskSvgAnimator :doc="animation" :time="time" />
   <input type="range" min="0" max="2000" v-model.number="time" />
 
-  <!-- or a fixed frame: 0.5 = the middle of the whole timeline -->
-  <PixodeskSvgAnimator :doc="animation" :time="0.5" />
+  <!-- a fixed frame by FRACTION of the whole timeline — that is `progress`, not `time`
+       (`time` is milliseconds, so `:time="0.5"` would be half a millisecond in) -->
+  <PixodeskSvgAnimator :doc="animation" :progress="0.5" />
 </template>
 ```
 
@@ -128,6 +131,33 @@ const animator = ref<VueAnimatorApi | null>(null);
 With none of `autoplay` / `progress` / `time` / `play` / `pause` set, the first frame renders
 statically and the ref is your only control.
 
+## Playback overrides
+
+The same document can play differently in each place you mount it. `config` takes an object
+shaped exactly like the file's own `animator` block and deep-merges it over what the file says
+— the document you passed is never modified.
+
+```vue
+<template>
+  <!-- The file loops twice and starts on load; here it loops forever and waits for play(). -->
+  <PixodeskSvgAnimator
+    :doc="animation"
+    :config="{ timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } } }"
+    ref="anim"
+  />
+</template>
+```
+
+Objects merge key by key, values replace, and `null` **deletes** a key so the default its
+absence means comes back (`:config="{ timeline: { delay: null } }"`).
+
+`duration`, `delay`, `iterations` and `startOn` are also plain props, because `:duration="2000"`
+reads better than a nested object; a prop wins over the same key inside `config`. To ignore the
+file's playback settings entirely and start from the player's defaults, add `resetDocDefaults`.
+
+Full merge rules — including what happens when the override changes the kind of timeline — are
+in [Playback & triggers → Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
+
 ## Props
 
 Only `doc` is required. The file already carries the timing and the trigger you set in the
@@ -142,15 +172,11 @@ component.
 | `pause` | `boolean` | pause the current playback; set it back to `false` to resume |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
-| `duration` · `delay` | `number` | length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component |
-| `iterations` | `number \| 'infinite'` | how many times to play; `'infinite'` never stops |
-| `direction` | `'normal' \| 'reverse' \| 'alternate' \| 'alternate-reverse'` | play forward, backward, or turn around on every iteration (starting forward or backward) |
-| `fill` | `'forwards' \| 'backwards' \| 'both' \| 'none'` | what shows before the start / after the end |
-| `mode` | `'auto' \| 'native' \| 'player'` | who runs the animation — see [Web player → Playback modes](./web-player.md#playback-modes) |
-| `frameRate` | `number` | target fps (`player` mode) |
-| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | what starts the animation: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
-| `outAction` | `'continue' \| 'pause' \| 'reset' \| 'reverse'` | when the trigger ends (mouse out, second click, scrolled out) |
-| `scrollIntoViewThreshold` | `number` | how much of the animation must be on screen before it starts, as a share of its area: `0` (default) starts as soon as any part of it shows, `0.5` waits until half of it is visible, `1` until all of it is |
+| `config` | `object \| string` | per-instance override of the document's `animator` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
+| `resetDocDefaults` | `boolean` | ignore the document's playback settings and start from the player's defaults, with `config` on top |
+| `duration` · `delay` | `number` | shortcuts for `config.timeline.duration` / `config.timeline.delay`: length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component |
+| `iterations` | `number \| 'infinite'` | shortcut for `config.timeline.iterations`; `'infinite'` never stops |
+| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | shortcut for `config.timeline.trigger.startOn`: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
 | `class` · `style` · any other attribute | | anything else you put on `<PixodeskSvgAnimator>` ends up on the `<svg>` element it renders (standard Vue attribute inheritance). So to set the animation's size, either put `style="width: 300px; height: 300px"` on the component itself, or give those dimensions to the element that contains it — the SVG keeps its proportions either way |
 
 ## Events

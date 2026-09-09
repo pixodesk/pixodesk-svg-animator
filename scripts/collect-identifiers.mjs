@@ -36,6 +36,7 @@ import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
+import { collectSchemaKeys as collectSchemaKeysFrom } from './lib/schema-keys.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 // typescript is a package-level devDependency, not hoisted to the repo root.
@@ -60,53 +61,10 @@ const SCHEMA_FACTORIES = new Set([
 const PLATFORM_NAMES = ['rangeName', 'axis', 'source', 'subject', 'timeline', 'view', 'scroll'];
 const EMITTED_DOM_NAMES = ['class'];
 
-/**
- * The wire format, read from the BUILT core at runtime: every key of every exported schema,
- * followed through shape / array / optional / lazy / union / discriminatedUnion / record /
- * tuple. A key added to a schema is therefore reserved automatically, for ever, with no
- * human action — which is the whole point of deriving instead of guessing.
- */
-function collectSchemaKeys() {
-    const corePath = join(ROOT, 'packages/svg-animator-core/dist/index.cjs');
-    let core;
-    try {
-        core = createRequire(corePath)(corePath);
-    } catch (e) {
-        throw new Error(
-            'collect-identifiers: cannot read the built core at ' + corePath + '.\n' +
-            'Build @pixodesk/svg-animator-core first — the reserved list is derived from its runtime schemas.\n' +
-            String(e));
-    }
-    const keys = new Set();
-    const seen = new Set();
-    const walk = (schema) => {
-        if (!schema || typeof schema !== 'object' || seen.has(schema)) return;
-        seen.add(schema);
-        let d;
-        try { d = core.describeSchema(schema); } catch { return; }
-        if (!d) return;
-        switch (d.kind) {
-            case 'shape':
-                for (const [k, v] of Object.entries(d.shape || {})) { keys.add(k); walk(v); }
-                if (d.openValue) walk(d.openValue);
-                break;
-            case 'array':    walk(d.item); break;
-            case 'optional': walk(d.inner); break;
-            case 'lazy':     walk(d.resolved); break;
-            case 'record':   walk(d.value); break;
-            case 'union':    (d.members || []).forEach(walk); break;
-            case 'discriminatedUnion':
-                if (d.key) keys.add(d.key);
-                (d.members || []).forEach(walk);
-                break;
-            case 'tuple':    (d.items || []).forEach(walk); break;
-        }
-    };
-    for (const [name, value] of Object.entries(core)) {
-        if (/Schema$/.test(name) || name === 'PxNodeBase' || name === 'PxSvgNodeExtra') walk(value);
-    }
-    return keys;
-}
+/** The wire format, derived from the built core's runtime schemas. Shared with
+ *  `analyse-bundle.mjs` so the two scripts can never disagree about what a wire key is. */
+const collectSchemaKeys = () =>
+    collectSchemaKeysFrom(join(ROOT, 'packages/svg-animator-core/dist/index.cjs'), 'collect-identifiers');
 
 function walkDir(dir, out = []) {
     for (const name of readdirSync(dir)) {

@@ -47,7 +47,7 @@ cp node_modules/@pixodesk/svg-animator-web/dist/pixodesk-svg-animator.umd.min.js
 ```
 
 No project to install into? `npm pack @pixodesk/svg-animator-web` downloads the exact package
-tarball; the file is at `package/dist/index.umd.min.js` inside it.
+tarball; the file is at `package/dist/pixodesk-svg-animator.umd.min.js` inside it.
 
 Then load it with a relative path, like any other script of yours:
 

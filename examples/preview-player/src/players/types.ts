@@ -1,3 +1,4 @@
+import { applyAnimatorConfig } from '@pixodesk/svg-animator-web';
 import type { PxAnimatedSvgDocument, PxTrigger } from '@pixodesk/svg-animator-web';
 
 /**
@@ -50,7 +51,7 @@ export interface PlayerOptions {
   /**
    * Trigger handling:
    *  - `undefined` → force `programmatic` (the UI transport owns start; default);
-   *  - `'file'`    → use the document's own `animator.trigger` unchanged;
+   *  - `'file'`    → use the document's own `animator.timeline.trigger` unchanged;
    *  - `PxTrigger` → override the trigger with this custom config.
    */
   trigger?: 'file' | PxTrigger;
@@ -67,13 +68,12 @@ export function applyTriggerOverride(
   doc: PxAnimatedSvgDocument,
   opts?: PlayerOptions,
 ): PxAnimatedSvgDocument {
-  const cfg = doc.animator ?? {};
   const t = opts?.trigger;
-  const trigger: PxTrigger | undefined =
-    t === 'file' ? cfg.trigger
-    : t && typeof t === 'object' ? t
-    : { ...(cfg.trigger ?? {}), startOn: 'programmatic' };
-  return { ...doc, animator: { ...cfg, trigger } };
+  if (t === 'file') return doc;                       // leave the document's own trigger alone
+  // Through the shared merge, so this reaches the WIRE spelling (`animator.timeline.trigger`).
+  // Writing `animator.trigger` directly used to be discarded on any modern document.
+  const trigger = t && typeof t === 'object' ? t : { startOn: 'programmatic' };
+  return applyAnimatorConfig(doc, { timeline: { trigger } }).doc;
 }
 
 /** Translates a {@link LoopMode} into an `iterations` override (or `undefined` for `auto`). */

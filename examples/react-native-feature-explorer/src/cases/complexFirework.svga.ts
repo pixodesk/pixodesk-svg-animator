@@ -10,13 +10,14 @@ export const complexFirework: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 400 400",
     "animator": {
-        "duration": 6250,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
+        "timeline": {
+            "mode": "auto",
+            "duration": 6250,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "meta": {
@@ -34,15 +35,6 @@ export const complexFirework: SvgaCaseJson = {
             "effects": {
                 "fillGradient": {
                     "type": "radial",
-                    "c": [
-                        0,
-                        0
-                    ],
-                    "fp": [
-                        0,
-                        0
-                    ],
-                    "r": 294.5776496891772,
                     "stops": [
                         {
                             "offset": 0,
@@ -66,7 +58,16 @@ export const complexFirework: SvgaCaseJson = {
                         }
                     ],
                     "gradientUnits": "userSpaceOnUse",
-                    "spreadMethod": "pad"
+                    "spreadMethod": "pad",
+                    "center": [
+                        0,
+                        0
+                    ],
+                    "radius": 294.5776496891772,
+                    "focal": [
+                        0,
+                        0
+                    ]
                 }
             },
             "meta": {

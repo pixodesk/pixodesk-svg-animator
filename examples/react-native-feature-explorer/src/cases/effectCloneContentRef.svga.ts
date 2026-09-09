@@ -10,13 +10,14 @@ export const effectCloneContentRef: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [
@@ -26,8 +27,8 @@ export const effectCloneContentRef: SvgaCaseJson = {
             "transform": "translate(150,100)",
             "effects": {
                 "clone": {
-                    "baseId": "_px_38bqgqon",
-                    "without": "translate"
+                    "without": "translate",
+                    "source": "_px_38bqgqon"
                 }
             },
             "meta": {

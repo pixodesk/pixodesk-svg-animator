@@ -43,8 +43,10 @@ describe('animateBackground', () => {
 
     it('Loop (per-property, cycle)', async () => {
         const json = getTestJson();
-        // Double the duration so keyframes occupy first half → loop fills second half
-        json.animator!.duration = 256;
+        // Double the duration so keyframes occupy first half → loop fills second half.
+        // Through `timeline`, which is where the wire format keeps it: a flat `animator.duration`
+        // sibling is silently overwritten by `timeline.duration` when the config is flattened.
+        json.animator!.timeline!.duration = 256;
         // Add loop:true to the translate property
         (json.animator!.animateById as any)['_px_2pp00tnc']['translate'].loop = true;
 
@@ -108,11 +110,13 @@ describe('animateBackground', () => {
                 type: 'svg',
                 viewBox: '0 0 400 400',
                 animator: {
-                    mode: 'player',
-                    duration: 128,
-                    fill: 'forwards',
-                    direction: 'normal',
-                    trigger: { startOn: 'load' }
+                    timeline: {
+                        mode: 'player',
+                        duration: 128,
+                        fillMode: 'forwards',
+                        direction: 'normal',
+                        trigger: { startOn: 'load' },
+                    },
                 },
                 children: [
                     {
@@ -153,12 +157,14 @@ describe('animateBackground', () => {
                 type: 'svg',
                 viewBox: '0 0 400 400',
                 animator: {
-                    mode: 'player',
-                    duration: 128,
-                    // single play — no looping; animation finishes and holds the last frame
-                    iterations: 1,
-                    fill: 'forwards',
-                    trigger: { startOn: 'load' }
+                    timeline: {
+                        mode: 'player',
+                        duration: 128,
+                        // single play — no looping; animation finishes and holds the last frame
+                        iterations: 1,
+                        fillMode: 'forwards',
+                        trigger: { startOn: 'load' },
+                    },
                 },
                 children: [
                     {
@@ -202,7 +208,7 @@ describe('animateBackground', () => {
             data: {
                 type: 'svg',
                 viewBox: '0 0 400 400',
-                animator: { mode: 'player', duration: 100, fill: 'forwards', trigger: { startOn: 'load' } },
+                animator: { timeline: { mode: 'player', duration: 100, fillMode: 'forwards', trigger: { startOn: 'load' } } },
                 children: [
                     {
                         type: 'path', id: '_px_d_bare', d: 'M0,0L10,0L10,10',
@@ -260,7 +266,7 @@ describe('Loop expansion', () => {
     // it('loop:true (default cycle) extends keyframes to fill duration', () => {
     //     const doc: PxAnimatedSvgDocument = {
     //         type: 'svg',
-    //         animator: { duration: 200 },
+    //         animator: { timeline: { duration: 200 } },
     //         bindings: [{
     //             id: 'el1',
     //             animate: {
@@ -304,7 +310,7 @@ describe('Loop expansion', () => {
     // it('loop with alternate (pingpong) reverses direction each rep', () => {
     //     const doc: PxAnimatedSvgDocument = {
     //         type: 'svg',
-    //         animator: { duration: 300 },
+    //         animator: { timeline: { duration: 300 } },
     //         bindings: [{
     //             id: 'el1',
     //             animate: {
@@ -335,10 +341,10 @@ describe('Loop expansion', () => {
     // });
 
     // FIXME
-    // it("loop.extend:'before' extends keyframes before the first keyframe", () => {
+    // it("loop.repeatAt:'start' extends keyframes before the first keyframe", () => {
     //     const doc: PxAnimatedSvgDocument = {
     //         type: 'svg',
-    //         animator: { duration: 200 },
+    //         animator: { timeline: { duration: 200 } },
     //         bindings: [{
     //             id: 'el1',
     //             animate: {
@@ -373,7 +379,7 @@ describe('Loop expansion', () => {
     //     // 3 keyframes (2 intervals), segmentCount=1 → loop only the last interval
     //     const doc: PxAnimatedSvgDocument = {
     //         type: 'svg',
-    //         animator: { duration: 400 },
+    //         animator: { timeline: { duration: 400 } },
     //         bindings: [{
     //             id: 'el1',
     //             animate: {
@@ -415,7 +421,7 @@ describe('Loop expansion', () => {
     //     // 1 full rep (100→200) + 0.5 partial rep (200→250, cut at 50% of segment).
     //     const doc: PxAnimatedSvgDocument = {
     //         type: 'svg',
-    //         animator: { duration: 250 },
+    //         animator: { timeline: { duration: 250 } },
     //         bindings: [{
     //             id: 'el1',
     //             animate: {
@@ -443,7 +449,6 @@ describe('Loop expansion', () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg',
             animator: {
-                duration: 100,
                 animateById: {
                     'el1': {
                         opacity: {
@@ -454,7 +459,10 @@ describe('Loop expansion', () => {
                             loop: true
                         }
                     }
-                }
+                },
+                timeline: {
+                    duration: 100,
+                },
             }
         };
 
@@ -465,7 +473,7 @@ describe('Loop expansion', () => {
         expect(kfs?.length).toBe(2);
     });
 
-    // Regression: loopIn (`before`) with a PARTIAL leftover rep — the fill region
+    // Regression: loop-in (`repeatAt: 'start'`) with a PARTIAL leftover rep — the fill region
     // (0→150ms) is NOT an exact multiple of the segment (100ms): 1 full rep + a 0.5
     // partial. The fill must tile BACKWARD from the boundary (firstT=150ms) so the
     // partial sits at t=0 showing the segment's TAIL and a full rep ends exactly at
@@ -473,11 +481,10 @@ describe('Loop expansion', () => {
     // the element at the segment HEAD (x=0) instead of mid-segment (x=50) → the
     // loopIn `f0` bug. (Linear easing → exact midpoints.) Asserts on the materialised
     // keyframe list since this path keeps kf times in ms (not normalised 0-1).
-    it("loop.extend:'before' with partial rep tiles backward from the first keyframe", () => {
+    it("loop.repeatAt:'start' with partial rep tiles backward from the first keyframe", () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg',
             animator: {
-                duration: 250,
                 animateById: {
                     'el1': {
                         transform: {
@@ -488,7 +495,10 @@ describe('Loop expansion', () => {
                             loop: { repeatAt: 'start' }
                         }
                     }
-                }
+                },
+                timeline: {
+                    duration: 250,
+                },
             }
         };
 
@@ -517,7 +527,7 @@ describe('Loop expansion', () => {
     // it('translate with loop:true cycles correctly', () => {
     //     const doc: PxAnimatedSvgDocument = {
     //         type: 'svg',
-    //         animator: { duration: 256 },
+    //         animator: { timeline: { duration: 256 } },
     //         bindings: [{
     //             id: 'el1',
     //             animate: {
@@ -720,7 +730,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
     it('camelCase `stopColor` is parsed (regression: frames-mode produced rgba(NaN,NaN,NaN,…))', () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg',
-            animator: { duration: 1000 },
+            animator: { timeline: { duration: 1000 } },
             children: [
                 {
                     type: 'stop',
@@ -757,7 +767,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
         for (const prop of ['floodColor', 'lightingColor']) {
             const doc: PxAnimatedSvgDocument = {
                 type: 'svg',
-                animator: { duration: 1000 },
+                animator: { timeline: { duration: 1000 } },
                 children: [
                     {
                         type: 'feFlood',
@@ -793,7 +803,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
         // loop expansion before the binding pipeline's `parseColor` step).
         const doc: PxAnimatedSvgDocument = {
             type: 'svg',
-            animator: { duration: 1500 },  // wider than the kfs range → loop fills tail
+            animator: { timeline: { duration: 1500 } },  // wider than the kfs range → loop fills tail
             children: [
                 {
                     type: 'path',
@@ -836,7 +846,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
     it('loop on a NUMERIC `opacity` animation — no NaN at the seam', () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg',
-            animator: { duration: 1500 },
+            animator: { timeline: { duration: 1500 } },
             children: [
                 { type: 'rect', id: 'r', animate: { opacity: {
                     loop: true,
@@ -862,7 +872,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
         // interpolating — visually wrong even though no NaN.
         const doc: PxAnimatedSvgDocument = {
             type: 'svg',
-            animator: { duration: 1700 },  // 700ms past the kfs range → forces partial-cut
+            animator: { timeline: { duration: 1700 } },  // 700ms past the kfs range → forces partial-cut
             children: [
                 { type: 'rect', id: 'r', animate: { transform: {
                     loop: true,
@@ -892,7 +902,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
     it('loop on a PATH `d` animation — no NaN / no empty paths at the seam', () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg',
-            animator: { duration: 1500 },
+            animator: { timeline: { duration: 1500 } },
             children: [
                 { type: 'path', id: 'p', animate: { d: {
                     loop: true,
@@ -917,7 +927,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
     it('kebab-case `stop-color` still works (no regression)', () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg',
-            animator: { duration: 1000 },
+            animator: { timeline: { duration: 1000 } },
             children: [
                 {
                     type: 'stop',
@@ -951,11 +961,6 @@ function getTestJson(): PxAnimatedSvgDocument {
         viewBox: '0 0 400 400',
 
         animator: {
-            mode: 'player',
-            duration: 128,
-            fill: 'forwards',
-            direction: 'normal',
-            trigger: { startOn: 'load' },
             animateById: {
                 '_px_2pp00tnc': {
                     translate: {
@@ -965,7 +970,14 @@ function getTestJson(): PxAnimatedSvgDocument {
                         ]
                     }
                 }
-            }
+            },
+            timeline: {
+                mode: 'player',
+                duration: 128,
+                fillMode: 'forwards',
+                direction: 'normal',
+                trigger: { startOn: 'load' },
+            },
         },
 
         children: [

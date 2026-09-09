@@ -10,19 +10,10 @@ export const elemMaskBbb: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
-        },
         "definitions": {
             "fonts": {
                 "Roboto-Regular": {
                     "fontFamily": "Roboto-Regular",
-                    "style": "",
                     "ascent": 927.734375,
                     "unitsPerEm": 1000,
                     "glyphs": {
@@ -42,9 +33,19 @@ export const elemMaskBbb: SvgaCaseJson = {
                             "width": 529.78515625,
                             "d": "M287.60 9.77L287.60 9.77Q180.18 9.77 112.79-60.79Q45.41-131.35 45.41-249.51L45.41-249.51L45.41-266.11Q45.41-344.73 75.44-406.49Q105.47-468.26 159.42-503.17Q213.38-538.09 276.37-538.09L276.37-538.09Q379.39-538.09 436.52-470.21Q493.65-402.34 493.65-275.88L493.65-275.88L493.65-238.28L135.74-238.28Q137.70-160.16 181.40-112.06Q225.10-63.96 292.48-63.96L292.48-63.96Q340.33-63.96 373.54-83.50Q406.74-103.03 431.64-135.25L431.64-135.25L486.82-92.29Q420.41 9.77 287.60 9.77ZM276.37-463.87L276.37-463.87Q221.68-463.87 184.57-424.07Q147.46-384.28 138.67-312.50L138.67-312.50L403.32-312.50L403.32-319.34Q399.41-388.18 366.21-426.03Q333.01-463.87 276.37-463.87Z"
                         }
-                    }
+                    },
+                    "fontStyle": ""
                 }
             }
+        },
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [

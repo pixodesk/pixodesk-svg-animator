@@ -21,7 +21,7 @@ import type { PxNode } from '../PxAnimatorTypes';
 import { collectByType, materialise } from './effectTestKit';
 
 const doc = (child: Record<string, unknown>): PxNode =>
-    ({ type: 'svg', animator: { duration: 2000 }, children: [child] } as unknown as PxNode);
+    ({ type: 'svg', animator: { timeline: { duration: 2000 } }, children: [child] } as unknown as PxNode);
 
 const anim = (n: PxNode | undefined): Record<string, any> => ((n as any)?.animate ?? {});
 

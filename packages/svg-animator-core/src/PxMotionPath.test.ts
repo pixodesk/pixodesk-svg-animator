@@ -364,7 +364,7 @@ describe('materialiseMotionPathsInTree', () => {
     function makeTreeWithMotionPath(): PxAnimatedSvgDocument {
         return {
             type: 'svg',
-            animator: { duration: 1020 },
+            animator: { timeline: { duration: 1020 } },
             children: [
                 {
                     type: 'rect',

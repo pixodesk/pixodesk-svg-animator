@@ -16,3 +16,9 @@
 
 /** Key under which `createAnimator` options carry an inline animation document. */
 export const PX_ANIMATOR_DATA_KEY = 'data';
+
+/** Key under which `createAnimator` options carry a per-instance animator-config override. */
+export const PX_ANIMATOR_CONFIG_KEY = 'config';
+
+/** Key that makes the override start from the player's defaults instead of the document's. */
+export const PX_ANIMATOR_RESET_KEY = 'resetDocDefaults';

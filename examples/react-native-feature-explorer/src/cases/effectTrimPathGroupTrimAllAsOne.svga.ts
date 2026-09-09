@@ -10,13 +10,14 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [
@@ -25,7 +26,6 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "transform": "translate(140,60)",
             "effects": {
                 "strokeTrim": {
-                    "trimAllAsOne": true,
                     "offset": {
                         "keyframes": [
                             {
@@ -41,7 +41,8 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
                     "range": [
                         0,
                         0.4
-                    ]
+                    ],
+                    "subPaths": "combined"
                 }
             },
             "children": [
@@ -70,7 +71,6 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "transform": "translate(80,60)",
             "effects": {
                 "strokeTrim": {
-                    "trimAllAsOne": true,
                     "range": {
                         "keyframes": [
                             {
@@ -88,7 +88,8 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
                                 ]
                             }
                         ]
-                    }
+                    },
+                    "subPaths": "combined"
                 }
             },
             "children": [
@@ -117,11 +118,11 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "transform": "translate(20,60)",
             "effects": {
                 "strokeTrim": {
-                    "trimAllAsOne": true,
                     "range": [
                         0.125,
                         0.75
-                    ]
+                    ],
+                    "subPaths": "combined"
                 }
             },
             "children": [
@@ -210,7 +211,6 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "transform": "translate(140,80)",
             "effects": {
                 "strokeTrim": {
-                    "trimAllAsOne": true,
                     "offset": {
                         "keyframes": [
                             {
@@ -226,7 +226,8 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
                     "range": [
                         0,
                         0.4
-                    ]
+                    ],
+                    "subPaths": "combined"
                 }
             },
             "children": [
@@ -255,7 +256,6 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "transform": "translate(80,80)",
             "effects": {
                 "strokeTrim": {
-                    "trimAllAsOne": true,
                     "range": {
                         "keyframes": [
                             {
@@ -273,7 +273,8 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
                                 ]
                             }
                         ]
-                    }
+                    },
+                    "subPaths": "combined"
                 }
             },
             "children": [
@@ -302,11 +303,11 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "transform": "translate(20,80)",
             "effects": {
                 "strokeTrim": {
-                    "trimAllAsOne": true,
                     "range": [
                         0.125,
                         0.75
-                    ]
+                    ],
+                    "subPaths": "combined"
                 }
             },
             "children": [
@@ -365,7 +366,6 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "transform": "translate(160,160)",
             "effects": {
                 "strokeTrim": {
-                    "trimAllAsOne": true,
                     "offset": {
                         "keyframes": [
                             {
@@ -381,7 +381,8 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
                     "range": [
                         0,
                         0.4
-                    ]
+                    ],
+                    "subPaths": "combined"
                 }
             },
             "children": [
@@ -410,7 +411,6 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "transform": "translate(100,160)",
             "effects": {
                 "strokeTrim": {
-                    "trimAllAsOne": true,
                     "range": {
                         "keyframes": [
                             {
@@ -428,7 +428,8 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
                                 ]
                             }
                         ]
-                    }
+                    },
+                    "subPaths": "combined"
                 }
             },
             "children": [
@@ -457,11 +458,11 @@ export const effectTrimPathGroupTrimAllAsOne: SvgaCaseJson = {
             "transform": "translate(40,160)",
             "effects": {
                 "strokeTrim": {
-                    "trimAllAsOne": true,
                     "range": [
                         0.125,
                         0.75
-                    ]
+                    ],
+                    "subPaths": "combined"
                 }
             },
             "children": [

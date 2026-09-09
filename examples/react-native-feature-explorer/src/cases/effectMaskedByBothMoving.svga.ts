@@ -10,13 +10,14 @@ export const effectMaskedByBothMoving: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [
@@ -95,8 +96,8 @@ export const effectMaskedByBothMoving: SvgaCaseJson = {
             },
             "effects": {
                 "maskedBy": {
-                    "href": "_px_38bqgqqa",
-                    "maskType": "alpha"
+                    "maskType": "alpha",
+                    "source": "_px_38bqgqqa"
                 }
             },
             "meta": {

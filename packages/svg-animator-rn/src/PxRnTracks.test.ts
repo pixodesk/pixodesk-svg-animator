@@ -12,7 +12,7 @@ function makeDoc(): PxAnimatedSvgDocument {
     return {
         type: 'svg',
         viewBox: '0 0 200 200',
-        animator: { mode: 'player', duration: 1000, iterations: 2, direction: 'alternate' },
+        animator: { timeline: { mode: 'player', duration: 1000, iterations: 2, direction: 'alternate' } },
         children: [
             {
                 type: 'rect',
@@ -150,7 +150,7 @@ describe('length-list props (stroke-dasharray)', () => {
     it('compiles stroke-dasharray into number arrays (rn-svg native shape)', () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg', viewBox: '0 0 100 100',
-            animator: { mode: 'player', duration: 1000 },
+            animator: { timeline: { mode: 'player', duration: 1000 } },
             children: [{
                 type: 'path', id: 'p', d: 'M 0 50 L 100 50', stroke: '#000', fill: 'none',
                 effects: { strokeTrim: { range: { keyframes: [{ time: 0, value: [0, 0.1] }, { time: 1000, value: [0, 1] }] } } },
@@ -171,7 +171,7 @@ describe('animated <use> flattening (waapi materialisation)', () => {
     it('inlines animated <use> clones so no live references remain', () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg', viewBox: '0 0 300 200',
-            animator: { mode: 'player', duration: 2000 },
+            animator: { timeline: { mode: 'player', duration: 2000 } },
             children: [
                 { type: 'defs', children: [{ type: 'g', id: 'sym', children: [{
                     type: 'circle', id: 'c', cx: 30, cy: 40, r: 16, fill: '#f59e0b',

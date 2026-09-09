@@ -304,11 +304,6 @@ function getTestJson(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            mode: "player",
-            duration: 128,
-            fill: "forwards",
-            direction: "normal",
-            trigger: { startOn: "load" },
             animateById: {
                 '_px_2pp00tnc': {
                     translate: {
@@ -318,7 +313,14 @@ function getTestJson(): PxAnimatedSvgDocument {
                         ]
                     }
                 }
-            }
+            },
+            timeline: {
+                mode: "player",
+                duration: 128,
+                fillMode: "forwards",
+                direction: "normal",
+                trigger: { startOn: "load" },
+            },
         },
 
         children: [
@@ -344,11 +346,6 @@ function getTestJson1000(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            mode: "player",
-            duration: 1000,
-            fill: "forwards",
-            direction: "normal",
-            trigger: { startOn: "load" },
             animateById: {
                 '_px_2pp00tnc': {
                     translate: {
@@ -358,7 +355,14 @@ function getTestJson1000(): PxAnimatedSvgDocument {
                         ]
                     }
                 }
-            }
+            },
+            timeline: {
+                mode: "player",
+                duration: 1000,
+                fillMode: "forwards",
+                direction: "normal",
+                trigger: { startOn: "load" },
+            },
         },
 
         children: [
@@ -384,11 +388,6 @@ function getTreeJson(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            mode: "player",
-            duration: 128,
-            fill: "forwards",
-            direction: "normal",
-            trigger: { startOn: "load" },
             animateById: {
                 '_px_tree_ell': {
                     translate: {
@@ -398,7 +397,14 @@ function getTreeJson(): PxAnimatedSvgDocument {
                         ]
                     }
                 }
-            }
+            },
+            timeline: {
+                mode: "player",
+                duration: 128,
+                fillMode: "forwards",
+                direction: "normal",
+                trigger: { startOn: "load" },
+            },
         },
 
         children: [
@@ -439,11 +445,6 @@ function getRectJson(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            mode: "player",
-            duration: 128,
-            fill: "forwards",
-            direction: "normal",
-            trigger: { startOn: "load" },
             animateById: {
                 '_px_rect_b': {
                     translate: {
@@ -453,7 +454,14 @@ function getRectJson(): PxAnimatedSvgDocument {
                         ]
                     }
                 }
-            }
+            },
+            timeline: {
+                mode: "player",
+                duration: 128,
+                fillMode: "forwards",
+                direction: "normal",
+                trigger: { startOn: "load" },
+            },
         },
 
         children: [
@@ -470,3 +478,40 @@ function getRectJson(): PxAnimatedSvgDocument {
         ]
     };
 }
+
+describe('PixodeskSvgAnimator (Vue) — config override', () => {
+
+    /** A WIRE-format document; the flat props this replaced were discarded on this shape. */
+    const wireJson = (): any => ({
+        type: 'svg', id: '_px_wire', viewBox: '0 0 100 100',
+        animator: { timeline: { mode: 'player', duration: 1000, trigger: { startOn: 'load' } } },
+        children: [{
+            type: 'rect', id: 'r1', opacity: 0,
+            animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
+        }],
+    });
+
+    // Query INSIDE this render's own container: this describe has no cleanup of its own, so a
+    // document-wide selector would find the first rect left behind by an earlier test.
+    const opacityIn = (container: Element) => Number(container.querySelector('rect')?.getAttribute('opacity'));
+
+    it("baseline: progress=0.5 of the document's own 1000ms lands mid-animation", () => {
+        const { container } = render(PixodeskSvgAnimator, { props: { doc: wireJson(), progress: 0.5 } });
+        expect(opacityIn(container)).toBeCloseTo(0.5, 1);
+    });
+
+    it('config overrides duration ON A WIRE DOCUMENT (the flat props never did)', () => {
+        const { container } = render(PixodeskSvgAnimator, { props: { doc: wireJson(), progress: 0.5, config: { timeline: { duration: 4000 } } } });
+        expect(opacityIn(container)).toBe(1);
+    });
+
+    it('the duration SHORTCUT does the same thing', () => {
+        const { container } = render(PixodeskSvgAnimator, { props: { doc: wireJson(), progress: 0.5, duration: 4000 } });
+        expect(opacityIn(container)).toBe(1);
+    });
+
+    it('accepts the JSON-string form of config', () => {
+        const { container } = render(PixodeskSvgAnimator, { props: { doc: wireJson(), progress: 0.5, config: '{"timeline":{"duration":4000}}' } });
+        expect(opacityIn(container)).toBe(1);
+    });
+});

@@ -10,13 +10,14 @@ export const effectRetimeStart: SvgaCaseJson = {
     "fill": "none",
     "viewBox": "0 0 200 200",
     "animator": {
-        "duration": 1000,
-        "mode": "auto",
-        "direction": "normal",
-        "timeline": "time",
-        "trigger": {
-            "startOn": "load",
-            "outAction": "pause"
+        "timeline": {
+            "mode": "auto",
+            "duration": 1000,
+            "trigger": {
+                "startOn": "load",
+                "outAction": "pause"
+            },
+            "direction": "normal"
         }
     },
     "children": [
@@ -26,11 +27,11 @@ export const effectRetimeStart: SvgaCaseJson = {
             "transform": "translate(0,110)",
             "effects": {
                 "clone": {
-                    "baseId": "_px_38bqgqqn",
                     "without": "translate",
                     "retime": {
                         "start": 250
-                    }
+                    },
+                    "source": "_px_38bqgqqn"
                 }
             },
             "meta": {
@@ -96,11 +97,11 @@ export const effectRetimeStart: SvgaCaseJson = {
                     "transform": "translate(0,25)",
                     "effects": {
                         "clone": {
-                            "baseId": "_px_38bqgqqp",
                             "without": "translate",
                             "retime": {
                                 "start": 250
-                            }
+                            },
+                            "source": "_px_38bqgqqp"
                         }
                     },
                     "meta": {

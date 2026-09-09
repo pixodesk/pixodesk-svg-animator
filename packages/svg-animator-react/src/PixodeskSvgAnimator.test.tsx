@@ -254,6 +254,64 @@ describe("PixodeskSvgAnimator (React)", () => {
             expect(rect?.getAttribute("transform")).toMatch("translate(100,0)");
         });
     });
+
+    // -- Playback override (`config` / shortcuts) -----------------------------
+
+    describe("config override", () => {
+
+        /** A WIRE-format document — nested `timeline`, the spelling every writer emits.
+         *  The flat props this replaced were silently discarded on exactly this shape. */
+        function wireJson(): PxAnimatedSvgDocument {
+            return {
+                type: "svg", id: "_px_wire", viewBox: "0 0 100 100",
+                animator: {
+                    timeline: { mode: "player", duration: 1000, trigger: { startOn: "load" } },
+                },
+                children: [{
+                    type: "rect", id: "r1", opacity: 0,
+                    animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
+                }],
+            } as PxAnimatedSvgDocument;
+        }
+
+        // The observable is the rendered attribute at a controlled time, the same way the
+        // existing controlled-time tests assert. `progress` is a fraction of duration x
+        // iterations, so an overridden duration lands the playhead somewhere else: at
+        // progress 0.5 the document's own 1000ms seeks to 500ms (opacity half way), while a
+        // 4000ms override seeks to 2000ms — past the last keyframe, so the value is held at 1.
+        // This also proves the seek maths read the WIRE config: they used to read
+        // `doc.animator.duration`, which is empty on a wire-format document.
+
+        const opacityNow = () => Number(document.querySelector("rect")?.getAttribute("opacity"));
+
+        it("baseline: progress=0.5 of the document's own 1000ms lands mid-animation", () => {
+            render(<PixodeskSvgAnimator doc={wireJson()} progress={0.5} />);
+            expect(opacityNow()).toBeCloseTo(0.5, 1);
+        });
+
+        it("config overrides duration ON A WIRE DOCUMENT (the flat props never did)", () => {
+            render(<PixodeskSvgAnimator doc={wireJson()} progress={0.5} config={{ timeline: { duration: 4000 } }} />);
+            expect(opacityNow()).toBe(1);
+        });
+
+        it("the duration SHORTCUT does the same thing", () => {
+            render(<PixodeskSvgAnimator doc={wireJson()} progress={0.5} duration={4000} />);
+            expect(opacityNow()).toBe(1);
+        });
+
+        it("accepts the JSON-string form of config", () => {
+            render(<PixodeskSvgAnimator doc={wireJson()} progress={0.5} config={'{"timeline":{"duration":4000}}'} />);
+            expect(opacityNow()).toBe(1);
+        });
+
+        it("does not mutate the document the caller passed", () => {
+            const doc = wireJson();
+            const before = JSON.stringify(doc);
+            render(<PixodeskSvgAnimator doc={doc} autoplay config={{ timeline: { duration: 9999 } }} />);
+            expect(JSON.stringify(doc)).toBe(before);
+        });
+    });
+
 });
 
 
@@ -268,11 +326,6 @@ function getTestJson(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            mode: "player",
-            duration: 128,
-            fill: "forwards",
-            direction: "normal",
-            trigger: { startOn: "load" },
             animateById: {
                 '_px_2pp00tnc': {
                     translate: {
@@ -282,7 +335,14 @@ function getTestJson(): PxAnimatedSvgDocument {
                         ]
                     }
                 }
-            }
+            },
+            timeline: {
+                mode: "player",
+                duration: 128,
+                fillMode: "forwards",
+                direction: "normal",
+                trigger: { startOn: "load" },
+            },
         },
 
         children: [
@@ -308,11 +368,6 @@ function getTestJson1000(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            mode: "player",
-            duration: 1000,
-            fill: "forwards",
-            direction: "normal",
-            trigger: { startOn: "load" },
             animateById: {
                 '_px_2pp00tnc': {
                     translate: {
@@ -322,7 +377,14 @@ function getTestJson1000(): PxAnimatedSvgDocument {
                         ]
                     }
                 }
-            }
+            },
+            timeline: {
+                mode: "player",
+                duration: 1000,
+                fillMode: "forwards",
+                direction: "normal",
+                trigger: { startOn: "load" },
+            },
         },
 
         children: [
@@ -348,11 +410,6 @@ function getTreeJson(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            mode: "player",
-            duration: 128,
-            fill: "forwards",
-            direction: "normal",
-            trigger: { startOn: "load" },
             animateById: {
                 '_px_tree_ell': {
                     translate: {
@@ -362,7 +419,14 @@ function getTreeJson(): PxAnimatedSvgDocument {
                         ]
                     }
                 }
-            }
+            },
+            timeline: {
+                mode: "player",
+                duration: 128,
+                fillMode: "forwards",
+                direction: "normal",
+                trigger: { startOn: "load" },
+            },
         },
 
         children: [
@@ -403,11 +467,6 @@ function getRectJson(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            mode: "player",
-            duration: 128,
-            fill: "forwards",
-            direction: "normal",
-            trigger: { startOn: "load" },
             animateById: {
                 '_px_rect_b': {
                     translate: {
@@ -417,7 +476,14 @@ function getRectJson(): PxAnimatedSvgDocument {
                         ]
                     }
                 }
-            }
+            },
+            timeline: {
+                mode: "player",
+                duration: 128,
+                fillMode: "forwards",
+                direction: "normal",
+                trigger: { startOn: "load" },
+            },
         },
 
         children: [

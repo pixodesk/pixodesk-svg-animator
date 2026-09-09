@@ -494,8 +494,11 @@ export interface _PxTrigger {
      *  Only applies to scrollIntoView. */
     scrollIntoViewThreshold?: number;
 
-    /** After a NATURAL finish: `'hold'` (default — keep the end state per `fill`) or `'reset'` (snap back to the start). Trigger-vocabulary successor of the top-level `resetOnFinish`. */
-    onFinish?: 'hold' | 'reset';
+    /** After a NATURAL finish: `'hold'` (default — keep the end state per `fill`) or `'reset'`
+   *  (snap back to the start). Named to pair with its sibling `outAction`, and NOT `onFinish`,
+   *  which is the CALLBACK on `PxAnimatorCallbacksConfig` — a value key and a function key with
+   *  one name read badly side by side in a document literal or in JSX. */
+    finishAction?: 'hold' | 'reset';
 }
 
 // `{ startOn?:'load'|'mouseOver'|'click'|'scrollIntoView'|'programmatic', outAction?:..., scrollIntoViewThreshold?:number }`
@@ -503,10 +506,9 @@ export const PxTriggerSchema = implementsInterface<_PxTrigger>()(px.object({
     startOn: px.enum(['load', 'mouseOver', 'click', 'scrollIntoView', 'programmatic'] as const).optional(),
     outAction: px.enum(['continue', 'pause', 'reset', 'reverse'] as const).optional(),
     // What happens after a NATURAL finish — `'hold'` (default: keep the end state per
-    // `fill`) or `'reset'` (snap back to the start state). The trigger-vocabulary home of
-    // the old top-level `resetOnFinish: boolean` (read-legacy) — review §2.3: both
-    // "what happens at the end" knobs now sit side by side and share one style of value.
-    onFinish: px.enum(['hold', 'reset'] as const).optional(),
+    // `fill`) or `'reset'` (snap back to the start state). Pairs with `outAction` ("what
+    // happens when the trigger condition ends"); both end-of-life knobs now read alike.
+    finishAction: px.enum(['hold', 'reset'] as const).optional(),
     scrollIntoViewThreshold: px.number().optional(),
 }));
 
@@ -758,21 +760,57 @@ const _ck_PxScroll: KeysMatch<PxScroll, _PxScroll> = true; // the key sets are i
 
 /** Pin parameters as one object — presence enables pinning (review §2.2; the flat legacy
  *  spelling is `scroll.pin/pinAlign/pinTop/pinDistance`). */
-export const PxTimelinePinSchema = px.object({
+export interface _PxTimelinePin {
+    /** Where the pinned canvas sits in the viewport. Default `'top'`. */
+    align?: 'top' | 'center' | 'bottom';
+    /** Offset from the alignment position, in px. Default 0. */
+    top?: number;
+    /** How much scroll travel the pin lasts, in VIEWPORT HEIGHTS. Omit to pin inside
+     *  whatever tall section the host page already provides. */
+    distance?: number;
+}
+
+export const PxTimelinePinSchema = implementsInterface<_PxTimelinePin>()(px.object({
     align: px.enum(['top', 'center', 'bottom'] as const).optional(),
     top: px.number().optional(),
     distance: px.number().optional(),
-});
+}));
 export type PxTimelinePin = PxInfer<typeof PxTimelinePinSchema>;
+const _ck_PxTimelinePin: KeysMatch<PxTimelinePin, _PxTimelinePin> = true; // the key sets are identical
 
 // Time-driven — wall-clock playback: something STARTS it (trigger) and it has the
 // WAAPI playback dynamics. `type` is OPTIONAL: an absent `type` (or an absent
 // `timeline` altogether) means this one — the common case declares nothing.
-// `resetOnFinish` has no slot here: its successor is `trigger.onFinish: 'reset'`.
+// `resetOnFinish` has no slot here: its successor is `trigger.finishAction: 'reset'`.
 /** `timeline.mode` — who runs the animation (every timeline type; default `auto`). */
 const PxPlaybackModeSchema = px.enum([PxPlaybackMode.auto, PxPlaybackMode.native, PxPlaybackMode.player] as const).optional();
 
-const PxTimeTimelineSchema = px.object({
+/**
+ * The time-driven timeline. Declared as an interface so a rename inside the schema below is a
+ * COMPILE error rather than a silent wire-format change — `flattenAnimatorTimeline` reads the
+ * timeline through `any`, so without this lock nothing else in the repo would notice.
+ */
+export interface _PxTimeTimeline {
+    /** Optional: an absent `type` (or an absent `timeline`) already means this member. */
+    type?: 'time';
+    /** Who runs the animation. Default `auto`. */
+    mode?: PxPlaybackMode;
+    /** §2.8: how long one pass takes, ms. */
+    duration?: number;
+    /** What starts it, and what happens when that condition ends. */
+    trigger?: _PxTrigger;
+    /** Wait before the first iteration, ms. Negative skips ahead. */
+    delay?: number;
+    /** Repeat count, or `'infinite'`. */
+    iterations?: number | 'infinite';
+    /** CSS `animation-fill-mode` — what shows outside the active time. NEVER spelled `fill`,
+     *  which is paint everywhere else in the format; the runtime view calls it `fill`. */
+    fillMode?: 'forwards' | 'backwards' | 'both' | 'none';
+    /** Forward, backward, or turning around each iteration. */
+    direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';
+}
+
+const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.object({
     type: px.literal('time').optional(),
     mode: PxPlaybackModeSchema,
     // §2.8: duration is a property of the TIMELINE — how long one pass takes.
@@ -784,7 +822,8 @@ const PxTimeTimelineSchema = px.object({
     // — never `fill`, which is paint everywhere else in the format.
     fillMode: px.enum(['forwards', 'backwards', 'both', 'none'] as const).optional(),
     direction: px.enum(['normal', 'reverse', 'alternate', 'alternate-reverse'] as const).optional(),
-});
+}));
+const _ck_PxTimeTimeline: KeysMatch<PxInfer<typeof PxTimeTimelineSchema>, _PxTimeTimeline> = true;
 
 // Scroll-driven modes — progress scrubbed from scroll position; nothing starts or
 // finishes it, so none of the clock knobs exist here. `'scroll'` tracks a scroller's
@@ -807,8 +846,39 @@ const scrollishTimelineShape = {
     pin: px.union([px.boolean(), PxTimelinePinSchema]).optional(),
     range: PxScrollRangeSchema.optional(),
 };
-const PxScrollTimelineSchema = px.object({ type: px.literal('scroll'), ...scrollishTimelineShape });
-const PxViewTimelineSchema = px.object({ type: px.literal('view'), ...scrollishTimelineShape });
+/** The keys both scroll-driven members carry. Locked the same way as the time member. */
+export interface _PxScrollishTimelineShape {
+    /** §2.8: under scrubbing, the keyframe span the scroll range maps onto. */
+    duration?: number;
+    /** Finite only — `'infinite'` cannot map onto a range (rule D4). */
+    iterations?: number;
+    /** Who runs the animation. Default `auto`. */
+    mode?: PxPlaybackMode;
+    /** `block`/`inline` are writing-mode relative; `x`/`y` are physical. Default `'block'`. */
+    axis?: 'block' | 'inline' | 'x' | 'y';
+    /** `'nearest'` (default) scrollable ancestor, or `'root'`, the document. */
+    source?: 'nearest' | 'root';
+    /** `'parent'` · `'scroller'` · any CSS selector. */
+    subject?: string;
+    /** How long the playhead takes to catch up with the scrollbar, ms. */
+    smoothing?: number;
+    /** `true` to pin with defaults, or the parameters (review §2.2). */
+    pin?: boolean | _PxTimelinePin;
+    /** The slice of the timeline mapped onto progress 0..1. */
+    range?: { start?: _PxScrollRangePoint; end?: _PxScrollRangePoint };
+}
+
+/** `interface X extends Y { type: 'scroll' }` — spelled as an intersection so the key-set
+ *  check below compares exactly the discriminant plus the shared shape. */
+export type _PxScrollTimeline = _PxScrollishTimelineShape & { type: 'scroll' };
+export type _PxViewTimeline = _PxScrollishTimelineShape & { type: 'view' };
+
+const PxScrollTimelineSchema = implementsInterface<_PxScrollTimeline>()(
+    px.object({ type: px.literal('scroll'), ...scrollishTimelineShape }));
+const PxViewTimelineSchema = implementsInterface<_PxViewTimeline>()(
+    px.object({ type: px.literal('view'), ...scrollishTimelineShape }));
+const _ck_PxScrollTimeline: KeysMatch<PxInfer<typeof PxScrollTimelineSchema>, _PxScrollTimeline> = true;
+const _ck_PxViewTimeline: KeysMatch<PxInfer<typeof PxViewTimelineSchema>, _PxViewTimeline> = true;
 
 export const PxTimelineSchema = px.discriminatedUnion('type', [
     PxTimeTimelineSchema,   // first = the member an absent `type` selects

@@ -1,14 +1,19 @@
 import { createAnimator } from '@pixodesk/svg-animator-web';
 import animation from '../../../fixtures/animation.json';
 
-const doc = {
-  ...animation,
-  animator: {
-    ...animation.animator,
-    iterations: 'infinite',
-    trigger: { startOn: 'programmatic' },
+// The per-instance override: the document is untouched, and `config` says how THIS
+// instance should play. Spelled exactly like `animator` in the file, so there is one
+// vocabulary to learn — and `startOn: 'programmatic'` means nothing starts it but the
+// button below.
+const animator = createAnimator({
+  data: animation as any,
+  container: '#box',
+  config: {
+    timeline: {
+      iterations: 'infinite',
+      trigger: { startOn: 'programmatic' },
+    },
   },
-};
+});
 
-const animator = createAnimator({ data: doc as any, container: '#box' });
 document.getElementById('play')!.onclick = () => animator.play();
