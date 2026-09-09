@@ -38,12 +38,12 @@ describe('repeater.skew — per-copy skew increment ×i', () => {
         expect(skews).toEqual([4, 8]);   // copies 1 and 2 (copy 0 is the unmodified base)
     });
 
-    it('animated skew (kfs alias + loop): per-copy keyframe values scale ×i', () => {
+    it('animated skew (keyframes + loop): per-copy keyframe values scale ×i', () => {
         const out = materialise(doc({
             type: 'rect', width: 10, height: 10,
             effects: { repeater: {
                 copies: 3,
-                skew: { kfs: [{ t: 0, v: 0 }, { t: 1000, v: 5 }], loop: true },
+                skew: { keyframes: [{ t: 0, v: 0 }, { t: 1000, v: 5 }], loop: true },
             } },
         }));
         const wrappers = collectByType(out, 'g').filter(g => anim(g).transform);

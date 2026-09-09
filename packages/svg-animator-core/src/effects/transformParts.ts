@@ -64,10 +64,10 @@ export function readAnimatable<T>(raw: PxAnimatable<T> | undefined): ReadPart<T>
     if (typeof raw === 'object') {
         const obj = raw as {
             value?: T; v?: T;
-            keyframes?: Array<PxKeyframe<T>>; kfs?: Array<PxKeyframe<T>>;
+            keyframes?: Array<PxKeyframe<T>>;
             autoOrient?: boolean; loop?: PxLoop | boolean;
         };
-        const kfs = obj.keyframes ?? obj.kfs;
+        const kfs = obj.keyframes;
         if (kfs) {
             // Normalise the wire's short aliases ONCE, here, so every consumer
             // downstream (transformation, repeater, …) only ever sees the long

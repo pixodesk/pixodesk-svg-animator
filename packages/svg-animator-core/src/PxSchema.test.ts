@@ -36,7 +36,6 @@ const PxLoopSchema = px.union([
 
 const PxPropertyAnimationSchema = px.object({
     keyframes: px.array(PxKeyframeSchema).optional(),
-    kfs:       px.array(PxKeyframeSchema).optional(), // short alias
     loop:      PxLoopSchema.optional(),
 });
 

@@ -333,7 +333,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
         const animated = collectByType(out, 'g').map(g => (g as any).animate?.transform).find(Boolean) as any;
         // waapi flattens to the SHORT kf form (`kfs` with `t`/`v` aliases): autoOrient
         // consumed, many SAMPLED kfs, each value carries a baked `rotate` (path tangent).
-        const kfs = animated.kfs ?? animated.keyframes;
+        const kfs = animated.keyframes;
         expect(animated.autoOrient).toBeUndefined();
         expect(kfs.length).toBeGreaterThan(2);
         expect(kfs.some((k: any) => { const v = k.v ?? k.value; return v && typeof v.rotate === 'number'; })).toBe(true);

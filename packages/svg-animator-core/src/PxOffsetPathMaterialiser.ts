@@ -21,6 +21,7 @@
 // `path('…')` syntax (the original Motion Path syntax — widest support), same
 // arc-length-fraction keyframe values, easing and loop carried over.
 
+import { OFFSET_DISTANCE_ATTR, TRANSFORM_ATTR, TRANSFORM_PART } from './PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxKeyframe, PxNode, PxPropertyAnimation } from './PxAnimatorTypes';
 
 type Vec2 = [number, number];
@@ -144,10 +145,10 @@ export function materialiseOffsetPathsInTree(root: PxAnimatedSvgDocument): PxAni
             const built = buildOffsetPath(transform);
             if (built) {
                 const newAnimate: Record<string, PxPropertyAnimation> = { ...anim };
-                delete newAnimate['transform'];
+                delete newAnimate[TRANSFORM_ATTR];
                 const distance: PxPropertyAnimation = { keyframes: built.distanceKfs as never } as never;
                 if (transform.loop !== undefined) distance.loop = transform.loop;
-                newAnimate['offsetDistance'] = distance;
+                newAnimate[OFFSET_DISTANCE_ATTR] = distance;
 
                 // The element's position now comes from the path — a remaining static
                 // `translate` (the design base value) would ADD to it. Other static parts
@@ -157,8 +158,8 @@ export function materialiseOffsetPathsInTree(root: PxAnimatedSvgDocument): PxAni
                 let newTransform = staticTr;
                 if (staticTr && typeof staticTr === 'object') {
                     const t = { ...staticTr };
-                    delete t['translate'];
-                    delete t['origin'];   // pivot is offset-anchor now; alone it is identity
+                    delete t[TRANSFORM_PART.translate];
+                    delete t[TRANSFORM_PART.origin];   // pivot is offset-anchor now; alone it is identity
                     newTransform = Object.keys(t).length ? t : undefined;
                 }
 

@@ -12,6 +12,11 @@ import { useDepsVersion } from './Utils';
 
 // -- Public types -----------------------------------------------------------
 
+/** React's own prop names on the element we create — not wire keys, and not names React
+ *  would let us rename. Kept as a record so they are written as data, like every other
+ *  name that crosses out of this bundle. */
+const REACT_PROP = { key: 'key', ref: 'ref', className: 'className', style: 'style' } as const;
+
 export interface ReactAnimatorApi {
     /** Returns true if the animation is currently running. */
     isPlaying(): boolean;
@@ -239,24 +244,24 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
         const { type, animate, meta, children, ...props } = node;
 
         const normProps = getNormalizedProps(props);
-        if (key !== undefined) normProps['key'] = key;
+        if (key !== undefined) normProps[REACT_PROP.key] = key;
 
-        normProps['ref'] = (domEl: any) => {
-            if (node['id']) elementRefs.current.set(node['id'], domEl);
+        normProps[REACT_PROP.ref] = (domEl: any) => {
+            if (node.id) elementRefs.current.set(node.id, domEl);
             // return () => {};
         };
 
         // Apply the component's className/style props to the root SVG element.
         if (isRoot) {
             if (className) {
-                normProps['className'] = normProps['className']
-                    ? normProps['className'] + ' ' + className
+                normProps[REACT_PROP.className] = normProps[REACT_PROP.className]
+                    ? normProps[REACT_PROP.className] + ' ' + className
                     : className;
             }
-            if (style) normProps['style'] = style;
+            if (style) normProps[REACT_PROP.style] = style;
         }
 
-        return createElement(type, normProps, children?.map((child, i) => renderNode(child, false, child['id'] ?? i)));
+        return createElement(type, normProps, children?.map((child, i) => renderNode(child, false, child.id ?? i)));
     };
 
     const root = doc ? renderNode(doc, true) : null;

@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxBezierPath, type PxBinding, type PxDefs, type PxElementAnimation, type PxKeyframe, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts } from './PxAnimatorTypes';
-import { getBindings, getDefs } from './PxAnimatorConstants';
+import { getBindings, getDefs, TRANSFORM_ATTR } from './PxAnimatorConstants';
 import { getAnimatorConfig, PxAnimatorEngine, PxLoopDirection, PxLoopRepeatAt } from './PxAnimatorConstants';
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, parseTransformParts, PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 import { evaluateMotionPathSegment, materialiseMotionPathInPropAnim, propAnimIsMotionPath } from './PxMotionPath';
@@ -913,7 +913,7 @@ export function mergeStaticTransformIntoAnimDef(
     const mergeKfValue = (v: unknown): unknown =>
         v && typeof v === 'object' && !Array.isArray(v) ? { ...staticParts, ...(v as PxTransformParts) } : v;
 
-    const transformAnim = animDef['transform'];
+    const transformAnim = animDef[TRANSFORM_ATTR];
     if (transformAnim && typeof transformAnim === 'object') {
         const anim = transformAnim as PxPropertyAnimation;
         if (Array.isArray(anim.keyframes)) {

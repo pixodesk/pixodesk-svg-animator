@@ -198,6 +198,14 @@ export const TEXT_CONTENT_ATTR = 'textContent';
  *  to `ct` in the shipped bundles (MINIFICATION-BOUNDARY-PLAN.md §1.1). */
 export const CLASS_ATTR = 'class';
 
+/** The DOM `transform` attribute, and the key the animation record uses for it. Both are
+ *  DATA names — a dictionary key, not a field of one of our typed structures — so they are
+ *  written as constants rather than as identifiers. */
+export const TRANSFORM_ATTR = 'transform';
+
+/** `animate.offsetDistance` — the CSS Motion Path channel the offset-path materialiser writes. */
+export const OFFSET_DISTANCE_ATTR = 'offsetDistance';
+
 // Wire keys that are NEVER DOM attributes (internal use only).
 //
 // `effects` is here for safety rather than necessity: `applyPlayerEffects` deletes it at
@@ -220,7 +228,18 @@ export const INTERNAL_ATTRS = new Set([
  * (`translate`, `rotate`, `scale`, `origin`) — those names now live as keys
  * inside a `PxTransformParts` record.
  */
-export const PX_TRANSFORM_PART_KEYS = ['translate', 'rotate', 'scale', 'origin'] as const;
+/** The transform-part names, as a named record — they are keys of a DATA record (the
+ *  transform value), so code reaches them through this rather than as bare literals. */
+export const TRANSFORM_PART = {
+    translate: 'translate',
+    rotate: 'rotate',
+    scale: 'scale',
+    origin: 'origin',
+} as const;
+
+export const PX_TRANSFORM_PART_KEYS = [
+    TRANSFORM_PART.translate, TRANSFORM_PART.rotate, TRANSFORM_PART.scale, TRANSFORM_PART.origin,
+] as const;
 
 /** One of the transform-part key strings. */
 export type PxTransformPartKey = typeof PX_TRANSFORM_PART_KEYS[number];
@@ -285,7 +304,7 @@ export function isPxElementFileFormat(fileJson: any): fileJson is PxAnimatedSvgD
     // (`px.literal('svg')`). A `tagName` alternative was accepted here until 2026-08,
     // which meant a tagName-only document passed this gate and then failed
     // `isPxElementFileFormatDeep`; nothing ever wrote it.
-    return fileJson['type'] === 'svg';
+    return fileJson.type === 'svg';
 }
 
 /**

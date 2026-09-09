@@ -20,7 +20,7 @@ const doc = (child: Record<string, unknown>): PxNode =>
 const anim = (n: PxNode | undefined): Record<string, any> => ((n as any)?.animate ?? {});
 
 
-describe('unified animatable grammar — loop / kfs alias / value base in effect slots', () => {
+describe('unified animatable grammar — loop / value base in effect slots', () => {
 
     it('strokeTrim.offset — loop rides into animate.strokeDashoffset and expands via the SHARED loop code', () => {
         const input = doc({
@@ -41,17 +41,17 @@ describe('unified animatable grammar — loop / kfs alias / value base in effect
         const full = materialiseEngine(input, PxAnimatorEngine.frames);
         const fullPath = collectByType(full, 'path')[0];
         const block = anim(fullPath).strokeDashoffset;
-        const kfs = block.kfs ?? block.keyframes;
+        const kfs = block.keyframes;
         expect(block.loop).toBeUndefined();
         expect(kfs.length).toBeGreaterThan(2);
         expect(kfs[kfs.length - 1].t ?? kfs[kfs.length - 1].time).toBe(2000);
     });
 
-    it('transformBy.rotate — kfs alias + loop are read like long-form keyframes', () => {
+    it('transformBy.rotate — short-form keyframes + loop are read in an effect slot', () => {
         const out = materialise(doc({
             type: 'rect', width: 100, height: 50,
             effects: { transformBy: {
-                rotate: { kfs: [{ t: 0, v: 0 }, { t: 1000, v: 90 }], loop: { direction: 'alternate' } },
+                rotate: { keyframes: [{ t: 0, v: 0 }, { t: 1000, v: 90 }], loop: { direction: 'alternate' } },
             } },
         }));
         const wrapper = collectByType(out, 'g')[0];
@@ -60,12 +60,12 @@ describe('unified animatable grammar — loop / kfs alias / value base in effect
         expect(tr.loop).toEqual({ direction: 'alternate' });
     });
 
-    it('textPath.startOffset — kfs alias + loop + static first-kf baseline', () => {
+    it('textPath.startOffset — keyframes + loop + static first-kf baseline', () => {
         const out = materialise(doc({
             type: 'text', children: [{ type: 'tspan', textContent: 'hi' }],
             effects: { textPath: {
                 pathData: 'M0,0 L100,0', pathOverflow: 'clip',
-                startOffset: { kfs: [{ t: 0, v: 5 }, { t: 1000, v: 50 }], loop: true },
+                startOffset: { keyframes: [{ t: 0, v: 5 }, { t: 1000, v: 50 }], loop: true },
             } },
         }));
         const tp = collectByType(out, 'textPath')[0] as any;
@@ -74,12 +74,12 @@ describe('unified animatable grammar — loop / kfs alias / value base in effect
         expect(tp.startOffset).toBe('5'); // pre-tick baseline, shared writer
     });
 
-    it('repeater.translate — kfs alias gets the ×i per-copy scaling (was silently skipped)', () => {
+    it('repeater.translate — keyframes get the ×i per-copy scaling (was silently skipped)', () => {
         const out = materialise(doc({
             type: 'rect', width: 10, height: 10,
             effects: { repeater: {
                 copies: 3,
-                translate: { kfs: [{ t: 0, v: [0, 0] }, { t: 1000, v: [10, 0] }] },
+                translate: { keyframes: [{ t: 0, v: [0, 0] }, { t: 1000, v: [10, 0] }] },
             } },
         }));
         // Copies 1..2 are wrapped with a per-copy transformation; copy 2 moves ×2.
@@ -88,7 +88,7 @@ describe('unified animatable grammar — loop / kfs alias / value base in effect
         expect(lastCopy.keyframes.map((k: any) => k.value.translate)).toEqual([[0, 0], [20, 0]]);
     });
 
-    it('gradient stops — {value: […]} structured static and kfs alias both read', () => {
+    it('gradient stops — {value: […]} structured static and keyframes both read', () => {
         const stops = [{ offset: 0, color: '#f00' }, { offset: 1, color: '#00f' }];
         const staticOut = materialise(doc({
             type: 'rect', width: 10, height: 10,
@@ -99,7 +99,7 @@ describe('unified animatable grammar — loop / kfs alias / value base in effect
         const animOut = materialise(doc({
             type: 'rect', width: 10, height: 10,
             effects: { fillGradient: { type: 'linear', start: [0, 0], end: [10, 0],
-                stops: { kfs: [{ t: 0, v: stops }, { t: 1000, v: [{ offset: 0, color: '#0f0' }, { offset: 1, color: '#00f' }] }], loop: true } } },
+                stops: { keyframes: [{ t: 0, v: stops }, { t: 1000, v: [{ offset: 0, color: '#0f0' }, { offset: 1, color: '#00f' }] }], loop: true } } },
         }));
         const stopNodes = collectByType(animOut, 'stop');
         expect(anim(stopNodes[0]).stopColor.keyframes.map((k: any) => k.value)).toEqual(['#f00', '#0f0']);

@@ -90,6 +90,11 @@ React Native always runs at the display rate.
 **A property does not animate under `timeline.mode: 'native'`.** WAAPI cannot drive it (the
 console says which); leave `mode` on `auto` so the document switches to the player's frame loop.
 
+**The animation loads but nothing moves, and only in the production build.** Your bundler may be
+property-mangling third-party code, which renames the keys the player reads out of the document.
+See [Minification & property mangling](./minification.md); `validateDocument(doc)` will report the
+unrecognised keys.
+
 ## Still stuck?
 
 - [Repository issues](https://github.com/pixodesk/pixodesk-svg-animator/issues) — include the

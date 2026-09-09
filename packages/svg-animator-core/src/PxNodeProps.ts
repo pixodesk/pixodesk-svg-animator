@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { type PxDefs } from './PxAnimatorTypes';
-import { INTERNAL_ATTRS } from './PxAnimatorConstants';
+import { INTERNAL_ATTRS, TRANSFORM_ATTR } from './PxAnimatorConstants';
 import { COLOUR_ATTR_NAMES, composeTransformParts, kebabToCamelCaseWord, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 
 
@@ -203,14 +203,14 @@ export function getNormalizedProps(props: Record<string, any>) {
             // (canonical) or the legacy `{value: PxTransformParts}` wrapper.
             // Compose into an SVG transform string (no units — SVG transform attribute).
             const parts = value.value && typeof value.value === 'object' ? value.value : value;
-            propsCopy['transform'] = composeTransformParts(parts, { withUnits: false });
+            propsCopy[TRANSFORM_ATTR] = composeTransformParts(parts, { withUnits: false });
         } else if (TRANSFORM_FN_NAMES.has(key)) {
             if (Array.isArray(value)) {
                 if (key === 'translate') value = value.map((v: number) => v + 'px');
                 value = value.join(',');
             }
             if (key === 'rotate') value = value + 'deg';
-            propsCopy['transform'] = key + '(' + value + ')';
+            propsCopy[TRANSFORM_ATTR] = key + '(' + value + ')';
         } else if (Array.isArray(value)) {
             // Raw-array STATIC form of number-list attributes — `strokeDasharray: [16, 16]`
             // (the wire's canonical static shape; the string form "16,16" is also accepted

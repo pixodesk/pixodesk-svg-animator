@@ -13,6 +13,9 @@ import {
 
 // -- Public types -----------------------------------------------------------
 
+/** Vue's own prop names on the vnode — not wire keys. See the React twin. */
+const VUE_PROP = { ref: 'ref' } as const;
+
 export interface VueAnimatorApi {
     /** Returns true if the animation is currently running. */
     isPlaying(): boolean;
@@ -281,9 +284,9 @@ const PixodeskSvgAnimator = defineComponent({
             const normProps = getNormalizedProps(attrs);
 
             // Capture a ref to each element with an id.
-            if (node['id']) {
-                const nodeId = node['id'];
-                normProps['ref'] = (el: Element | null) => {
+            if (node.id) {
+                const nodeId = node.id;
+                normProps[VUE_PROP.ref] = (el: Element | null) => {
                     if (el) {
                         elementRefs.set(nodeId, el);
                     } else {

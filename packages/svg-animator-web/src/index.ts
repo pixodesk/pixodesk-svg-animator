@@ -174,6 +174,7 @@ export {
     PxTextEffectSchema,
     PxTransformByEffectSchema,
     PxStrokeTrimEffectSchema,
+    validateDocument,
     validateNodeEffects,
 } from '@pixodesk/svg-animator-core';
 export type {

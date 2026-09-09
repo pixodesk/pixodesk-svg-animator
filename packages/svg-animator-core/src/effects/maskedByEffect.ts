@@ -515,7 +515,7 @@ function extractTranslateOnly(node: PxNode, ctx: ApplyContext): MaskAncestorTran
     if (typeof tr === 'string') {
         const parts = parseTranslateOnlyFromString(tr, ctx);
         if (parts) out.translate = parts;
-    } else if (tr && typeof tr === 'object' && !(tr as Record<string, any>).keyframes && !(tr as Record<string, any>).kfs) {
+    } else if (tr && typeof tr === 'object' && !(tr as Record<string, any>).keyframes) {
         // bare parts record (canonical) or the legacy {value: record} wrapper
         const wrapped = (tr as Record<string, any>).value;
         const value = (wrapped && typeof wrapped === 'object') ? wrapped : (tr as Record<string, any>);
