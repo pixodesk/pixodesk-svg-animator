@@ -30,7 +30,7 @@ import { applyTextPathEffect } from './textPathEffect';
 import { applyTextGlyphsAlongPath, applyTextGlyphsEffect } from './textGlyphsEffect';
 import { applyStrokeTrimEffect } from './strokeTrimEffect';
 import { getDefs } from '../PxAnimatorConstants';
-import { engineForPlaybackMode, getAnimatorConfig } from '../PxAnimatorConstants';
+import { resolveTimelineEngine, getAnimatorConfig } from '../PxAnimatorConstants';
 import type { PxNode } from '../PxAnimatorTypes';
 import type { ApplyContext, ApplyResult } from './types';
 import { clone, genId, indexById, spliceDefs } from './util';
@@ -62,7 +62,7 @@ export function applyPlayerEffects(root: PxNode): ApplyResult {
         maskAncestorChains: new Map(),
         // Resolved engine: `frames` ONLY when explicitly set; auto/waapi/unset →
         // waapi (we're not 100% sure it's frames, and CSS/WAAPI need the inline form).
-        engine: engineForPlaybackMode(getAnimatorConfig(root)?.mode),
+        engine: resolveTimelineEngine(getAnimatorConfig(root)?.engine),
         glyphs: getDefs(root)?.fonts,
     };
 

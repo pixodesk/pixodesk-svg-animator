@@ -265,7 +265,7 @@ describe("PixodeskSvgAnimator (React)", () => {
             return {
                 type: "svg", id: "_px_wire", viewBox: "0 0 100 100",
                 animator: {
-                    timeline: { mode: "player", duration: 1000, trigger: { startOn: "load" } },
+                    timeline: { engine: "js", duration: 1000, trigger: { startOn: "load" } },
                 },
                 children: [{
                     type: "rect", id: "r1", opacity: 0,
@@ -337,7 +337,7 @@ function getTestJson(): PxAnimatedSvgDocument {
                 }
             },
             timeline: {
-                mode: "player",
+                engine: "js",
                 duration: 128,
                 fillMode: "forwards",
                 direction: "normal",
@@ -379,7 +379,7 @@ function getTestJson1000(): PxAnimatedSvgDocument {
                 }
             },
             timeline: {
-                mode: "player",
+                engine: "js",
                 duration: 1000,
                 fillMode: "forwards",
                 direction: "normal",
@@ -421,7 +421,7 @@ function getTreeJson(): PxAnimatedSvgDocument {
                 }
             },
             timeline: {
-                mode: "player",
+                engine: "js",
                 duration: 128,
                 fillMode: "forwards",
                 direction: "normal",
@@ -478,7 +478,7 @@ function getRectJson(): PxAnimatedSvgDocument {
                 }
             },
             timeline: {
-                mode: "player",
+                engine: "js",
                 duration: 128,
                 fillMode: "forwards",
                 direction: "normal",

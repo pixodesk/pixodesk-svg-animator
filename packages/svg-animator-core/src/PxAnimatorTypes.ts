@@ -8,8 +8,8 @@ import { implementsInterface, px } from './PxSchema';
 // Constants live in their own module so importing one does not pull the schema engine
 // in; re-exported here so this module's public surface is unchanged. See there.
 export * from './PxAnimatorConstants';
-import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PxPlaybackMode, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxGradientUnits, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
-import type { FillMode, OutAction, PlaybackDirection, PxAnimatorEngine, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
+import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PxTimelineEngineExtra, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxGradientUnits, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
+import type { FillMode, OutAction, PlaybackDirection, PxTimelineEngine, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
 
 // ============================================================================
 // EASING
@@ -833,8 +833,9 @@ const _ck_PxTimelinePin: KeysMatch<PxTimelinePin, _PxTimelinePin> = true; // the
 // WAAPI playback dynamics. `type` is OPTIONAL: an absent `type` (or an absent
 // `timeline` altogether) means this one — the common case declares nothing.
 // `resetOnFinish` has no slot here: its successor is `trigger.finishAction: 'reset'`.
-/** `timeline.mode` — who runs the animation (every timeline type; default `auto`). */
-const PxPlaybackModeSchema = px.enum([PxPlaybackMode.auto, PxPlaybackMode.native, PxPlaybackMode.player] as const).optional();
+/** `timeline.engine` — HOW the animated attributes get updated (every timeline type;
+ *  default `auto`). Not `mode`: an implementation preference, not a behaviour switch. */
+const PxTimelineEngineSchema = px.enum([PxTimelineEngineExtra.auto, PxTimelineEngineExtra.native, PxTimelineEngineExtra.js] as const).optional();
 
 /**
  * The time-driven timeline. Declared as an interface so a rename inside the schema below is a
@@ -844,9 +845,9 @@ const PxPlaybackModeSchema = px.enum([PxPlaybackMode.auto, PxPlaybackMode.native
 export interface _PxTimeTimeline {
     /** Optional: an absent `type` (or an absent `timeline`) already means this member. */
     type?: 'time';
-    /** Who runs the animation. Default `auto`. */
-    mode?: PxPlaybackMode;
-    /** Target fps for the player's frame loop — a parameter of the engine `mode` selects, so it
+    /** How the animated attributes get updated. Default `auto`. */
+    engine?: PxTimelineEngineExtra;
+    /** Target fps for the player's frame loop — a parameter of the `engine` chosen above, so it
      *  sits beside it. Uncapped when absent; ignored by every engine except the frame loop. */
     frameRate?: number;
     /** §2.8: how long one pass takes, ms. */
@@ -866,7 +867,7 @@ export interface _PxTimeTimeline {
 
 const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.object({
     type: px.literal('time').optional(),
-    mode: PxPlaybackModeSchema,
+    engine: PxTimelineEngineSchema,
     frameRate: px.number().optional(),
     // §2.8: duration is a property of the TIMELINE — how long one pass takes.
     duration: px.number().optional(),
@@ -893,7 +894,7 @@ const scrollishTimelineShape = {
     // Finite repeat count IS meaningful when scrubbing — the scroll range maps onto
     // duration × iterations (rule D4; `'infinite'` cannot map to a range, so no literal here).
     iterations: px.number().optional(),
-    mode: PxPlaybackModeSchema,
+    engine: PxTimelineEngineSchema,
     frameRate: px.number().optional(),
     axis: px.enum(['block', 'inline', 'x', 'y'] as const).optional(),
     source: px.enum(['nearest', 'root'] as const).optional(),
@@ -908,8 +909,8 @@ export interface _PxScrollishTimelineShape {
     duration?: number;
     /** Finite only — `'infinite'` cannot map onto a range (rule D4). */
     iterations?: number;
-    /** Who runs the animation. Default `auto`. */
-    mode?: PxPlaybackMode;
+    /** How the animated attributes get updated. Default `auto`. */
+    engine?: PxTimelineEngineExtra;
     /** Target fps for the player's frame loop (shared with the time member). */
     frameRate?: number;
     /** `block`/`inline` are writing-mode relative; `x`/`y` are physical. Default `'block'`. */
@@ -956,9 +957,10 @@ export type PxTimeline = PxInfer<typeof PxTimelineSchema>;
  */
 export interface _PxAnimatorConfig {
 
-    /** RUNTIME VIEW ONLY (not wire — the wire spells it `timeline.mode`, on every
-     *  timeline type). Who runs the animation; see {@link PxPlaybackMode}. */
-    mode?: PxPlaybackMode;
+    /** RUNTIME VIEW ONLY (not wire — the wire spells it `timeline.engine`, on every
+     *  timeline type; same word both sides). How the animated attributes get updated;
+     *  see {@link PxTimelineEngineExtra}. */
+    engine?: PxTimelineEngineExtra;
 
     /** RUNTIME VIEW ONLY (not wire — §2.8: the wire spells it `timeline.duration`).
      *  Total animation duration in milliseconds. */

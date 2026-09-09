@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from './PxAnimatorTypes';
-import { getAnimatorConfig, PxAnimatorEngine } from './PxAnimatorConstants';
+import { getAnimatorConfig, PxTimelineEngine } from './PxAnimatorConstants';
 import { camelCaseToKebabWordIfNeeded, clamp, DEFAULT_DURATION_MS, STYLE_ATTR_NAMES } from './PxAnimatorUtil';
 import { calcAnimationValues, getNormalisedBindings } from './PxDefinitions';
 
@@ -52,7 +52,7 @@ export function createBasicFrameLoopAnimator(
 
     const config = getAnimatorConfig(doc) || {};
 
-    const bindings = getNormalisedBindings(doc, PxAnimatorEngine.frames);
+    const bindings = getNormalisedBindings(doc, PxTimelineEngine.js);
 
     // iterations: either number or Infinity
     const _iterations = config.iterations;

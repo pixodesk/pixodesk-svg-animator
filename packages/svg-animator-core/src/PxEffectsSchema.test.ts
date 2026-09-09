@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { PxEffectsSchema, validateNodeEffects } from './PxAnimatorTypes';
-import { PxAnimatorEngine } from './PxAnimatorConstants';
+import { PxTimelineEngine } from './PxAnimatorConstants';
 import type { PxValidationContext } from './PxSchema';
 import { materialiseAllInTree } from './PxAnimatorMaterialiseAll';
 import { calcAnimationValues, getNormalisedBindings } from './PxDefinitions';
@@ -52,8 +52,8 @@ describe('effect keyframes accept the short wire aliases', () => {
 
     /** Values the frames engine would write at t=0 and t=duration. */
     const sample = (doc: any) => {
-        const m = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.waapi));
-        const bindings = getNormalisedBindings(m, PxAnimatorEngine.frames) || [];
+        const m = generateNewIds(materialiseAllInTree(doc, PxTimelineEngine.native));
+        const bindings = getNormalisedBindings(m, PxTimelineEngine.js) || [];
         return bindings.map(b => [
             calcAnimationValues(b.animate as any, 0),
             calcAnimationValues(b.animate as any, 1000),
@@ -113,8 +113,8 @@ describe('gradient geometry animation', () => {
     });
 
     it('drives the generated gradient def\'s own attributes', () => {
-        const m = generateNewIds(materialiseAllInTree(linearDoc(), PxAnimatorEngine.waapi));
-        const bindings = getNormalisedBindings(m, PxAnimatorEngine.frames) || [];
+        const m = generateNewIds(materialiseAllInTree(linearDoc(), PxTimelineEngine.native));
+        const bindings = getNormalisedBindings(m, PxTimelineEngine.js) || [];
         const geom = bindings
             .map(b => calcAnimationValues(b.animate as any, 0))
             .find(v => 'y1' in v || 'y2' in v);
@@ -149,8 +149,8 @@ describe('gradient geometry animation', () => {
         const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
         expect(PxEffectsSchema.isValid(doc.children[0].effects, ctx, ['n.effects'])).toBe(true);
 
-        const m = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.waapi));
-        const bindings = getNormalisedBindings(m, PxAnimatorEngine.frames) || [];
+        const m = generateNewIds(materialiseAllInTree(doc, PxTimelineEngine.native));
+        const bindings = getNormalisedBindings(m, PxTimelineEngine.js) || [];
         const end = bindings.map(b => calcAnimationValues(b.animate as any, 1000)).find(v => 'r' in v)!;
         expect(end).toMatchObject({ cx: '20', cy: '30', fx: '10', fy: '15', r: '90' });
     });

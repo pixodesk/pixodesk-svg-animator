@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// The DOM half of `animator.timelineSource: 'scroll'` (`timeline.mode: 'player'` — and the fallback of `auto`
+// The DOM half of `animator.timelineSource: 'scroll'` (`timeline.engine: 'js'` — and the fallback of `auto`
 // and the reference implementation): measures the scroller/subject and turns scroll
 // position into animation progress via the pure math in core `PxScrollMath`. The
 // consumer decides what a progress value does (frames: seek `setCurrentTime`; waapi:
@@ -21,7 +21,7 @@ import {
 } from '@pixodesk/svg-animator-core';
 
 
-// ── Native timeline support (`timeline.mode: 'native'`, tried first by `auto`) ────────────────────────────────────────
+// ── Native timeline support (`timeline.engine: 'native'`, tried first by `auto`) ────────────────────────────────────────
 // `ScrollTimeline`/`ViewTimeline` aren't in TS's dom lib yet — minimal local declarations,
 // resolved from globalThis so absence is an ordinary feature-detect, never a crash.
 

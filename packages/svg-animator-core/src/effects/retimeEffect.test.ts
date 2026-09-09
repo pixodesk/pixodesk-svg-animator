@@ -19,7 +19,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { applyPlayerEffects } from './PlayerEffectsUtil';
-import { collectByType, materialiseEngine, normaliseGeneratedIds, PxAnimatorEngine } from './effectTestKit';
+import { collectByType, materialiseEngine, normaliseGeneratedIds, PxTimelineEngine } from './effectTestKit';
 import { PxCloneEffectSchema, type PxNode } from '../PxAnimatorTypes';
 import type { PxValidationContext } from '../PxSchema';
 
@@ -432,7 +432,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
     // staircase) is identical in BOTH; only the use-vs-inline structure differs.
 
     it('case 5 — FRAMES engine → animated `<use href>` KEPT (composition still +0/+250/+500)', () => {
-        const out = materialiseEngine(nestedContentRefWire(), PxAnimatorEngine.frames);
+        const out = materialiseEngine(nestedContentRefWire(), PxTimelineEngine.js);
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -547,8 +547,8 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
     });
 
     it('case 6 — WAAPI engine → animated `<use>` INLINED to `<g>`+clone (fewer/no use; same staircase)', () => {
-        const framesOut = materialiseEngine(nestedContentRefWire(), PxAnimatorEngine.frames);
-        const out = materialiseEngine(nestedContentRefWire(), PxAnimatorEngine.waapi);
+        const framesOut = materialiseEngine(nestedContentRefWire(), PxTimelineEngine.js);
+        const out = materialiseEngine(nestedContentRefWire(), PxTimelineEngine.native);
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -767,7 +767,7 @@ describe('retime.timeCrop — visibility window', () => {
         collectByType(out, 'g').find(g => (g as any).animate?.opacity);
 
     it('wraps the <use> in a <g> whose opacity gates the window', () => {
-        const out = materialiseEngine(cropDoc([500, 1500]), PxAnimatorEngine.frames);
+        const out = materialiseEngine(cropDoc([500, 1500]), PxTimelineEngine.js);
         const g = cropWrapper(out);
         expect(g, 'a crop wrapper was generated').toBeDefined();
         expect(g.animate.opacity.keyframes).toEqual([
@@ -781,18 +781,18 @@ describe('retime.timeCrop — visibility window', () => {
     });
 
     it('a window starting at 0 emits no leading hidden keyframe', () => {
-        const g = cropWrapper(materialiseEngine(cropDoc([0, 800]), PxAnimatorEngine.frames));
+        const g = cropWrapper(materialiseEngine(cropDoc([0, 800]), PxTimelineEngine.js));
         expect(g.animate.opacity.keyframes[0]).toEqual({ time: 0, value: 1 });
     });
 
     it('an EMPTY window (end <= start) hides the instance outright', () => {
         // Lottie layers with ip >= op are exactly this — they must never show.
-        const g = cropWrapper(materialiseEngine(cropDoc([900, 900]), PxAnimatorEngine.frames));
+        const g = cropWrapper(materialiseEngine(cropDoc([900, 900]), PxTimelineEngine.js));
         expect(g.animate.opacity.keyframes).toEqual([{ time: 0, value: 0 }]);
     });
 
     it('an authored opacity on the <use> survives — the crop rides on the wrapper', () => {
-        const out = materialiseEngine(cropDoc([100, 200], { opacity: 0.25 }), PxAnimatorEngine.frames);
+        const out = materialiseEngine(cropDoc([100, 200], { opacity: 0.25 }), PxTimelineEngine.js);
         const g = cropWrapper(out);
         expect(g.opacity, 'wrapper carries only the crop').toBeUndefined();
         expect(g.children[0].opacity, 'the instance keeps its own opacity').toBe(0.25);
@@ -805,7 +805,7 @@ describe('retime.timeCrop — visibility window', () => {
                 { type: 'rect', id: 'src', width: 10, height: 10 },
                 { type: 'use', href: '#src', effects: { clone: { retime: { start: 250 } } } },
             ],
-        } as unknown as PxNode, PxAnimatorEngine.frames);
+        } as unknown as PxNode, PxTimelineEngine.js);
         expect(cropWrapper(out)).toBeUndefined();
     });
 });

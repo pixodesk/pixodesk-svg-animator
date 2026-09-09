@@ -238,7 +238,7 @@ are in [Playback & triggers → Overriding from a player](./playback-and-trigger
 
 | Prop | Why it differs |
 |---|---|
-| `timeline.mode` | accepted inside `config` but ignored — there is no Web Animations API on React Native; playback is always native-driven |
+| `timeline.engine` | accepted inside `config` but ignored — there is no Web Animations API on React Native; playback is always native-driven |
 | `timeline.frameRate` | ignored — the screen's own refresh rate is used. On React Native the player does not compute values frame by frame; when the document loads it works out the animated values in advance, as a list of snapshots — 60 per second of animation — and while playing, each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, and that can only be changed when you call the lower-level `compileTracks({ sampleRate })` yourself instead of using the component |
 | `startOn: 'mouseOver'` | has no touch equivalent, so it is not honoured. The other four values (`load`, `click`, `scrollIntoView`, `programmatic`) work as they do on the web, from the file or from the prop |
 | `className` / `style` | not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height` (see [Quick start](#quick-start)). Styling *inside* the document — `style` on an element in the JSON — is supported |
@@ -367,7 +367,7 @@ not supported.
 | Playback rate: faster, slower, reverse | ✅ | |
 | Triggers `load`, `programmatic`, `click`, `scrollIntoView` | ✅ | incl. `scrollIntoViewThreshold` and `outAction` |
 | Trigger `mouseOver` | ❌ | no touch equivalent; will not be added |
-| `timeline.frameRate`, `timeline.mode` | ❌ | see [Differences from the React package](#differences-from-the-react-package) |
+| `timeline.frameRate`, `timeline.engine` | ❌ | see [Differences from the React package](#differences-from-the-react-package) |
 | Scroll-driven playback (`timeline.type: 'scroll' / 'view'`) | ❌ | |
 
 ## Monorepo setup

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materialiseAllInTree, validateNodeEffects, PxAnimatorEngine, type FillMode, type OutAction, type PlaybackDirection, type PxAnimatedSvgDocument, type PxAnimatorConfigPatch, type PxNode, type StartOn, applyAnimatorConfig, foldAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
+import { reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materialiseAllInTree, validateNodeEffects, PxTimelineEngine, type FillMode, type OutAction, type PlaybackDirection, type PxAnimatedSvgDocument, type PxAnimatorConfigPatch, type PxNode, type StartOn, applyAnimatorConfig, foldAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
 import Animated, {
@@ -80,7 +80,7 @@ export interface PixodeskSvgAnimatorProps {
      * Replaces the former flat `fill` / `direction` / `resetOnFinish` / `outAction` props, so
      * every surface takes one vocabulary. Also accepts a JSON string.
      *
-     * `timeline.mode` is accepted but ignored here: React Native always materialises the
+     * `timeline.engine` is accepted but ignored here: React Native always materialises the
      * WAAPI-style flattening, because react-native-svg has no `<use>` shadow-tree propagation.
      */
     config?: PxAnimatorConfigPatch | string;
@@ -325,7 +325,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides)
     // live references, which only work because the DOM propagates
     // attribute writes through `<use>` shadow trees. react-native-svg has
     // no such live propagation, so an animated `<use>` would render frozen.
-    let prepared = materialiseAllInTree(doc, PxAnimatorEngine.waapi);
+    let prepared = materialiseAllInTree(doc, PxTimelineEngine.native);
 
     // Sidestep a react-native-svg NATIVE crash (see PxRnSafety). Guarded on
     // the platform because the DOM renders this case correctly and the web

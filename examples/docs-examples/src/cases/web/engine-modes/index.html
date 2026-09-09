@@ -7,7 +7,7 @@
   </head>
   <body>
     <h1>Playback modes — native vs player</h1>
-    <p class="summary">The same document with <code>timeline.mode</code> set to <code>'native'</code> (the browser's Web Animations API) and to <code>'player'</code> (the player's own frame loop). Both play; <code>'auto'</code> (the default) picks native and falls back to the player only when it has to.</p>
+    <p class="summary">The same document with <code>timeline.engine</code> set to <code>'native'</code> (the browser's Web Animations API) and to <code>'js'</code> (the player's own frame loop). Both play; <code>'auto'</code> (the default) picks native and falls back to the player only when it has to.</p>
     <div class="row">
       <div><p>mode: native</p><div id="waapi" class="stage"></div></div>
       <div><p>mode: player</p><div id="frames" class="stage"></div></div>

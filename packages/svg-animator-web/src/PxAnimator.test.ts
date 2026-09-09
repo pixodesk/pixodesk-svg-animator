@@ -16,7 +16,7 @@ function makeDoc(): PxAnimatedSvgDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { timeline: { mode: 'player', duration: DUR } },
+        animator: { timeline: { engine: 'js', duration: DUR } },
         children: [
             {
                 type: 'rect',

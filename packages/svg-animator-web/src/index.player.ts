@@ -37,7 +37,7 @@ export {
 export { setupAnimationTriggers } from './PxAnimatorTriggers';
 
 // Config enums a caller needs to build `PxAnimatorOptions` by hand.
-export { PxAnimatorEngine, PxPlaybackMode, validateDocument } from '@pixodesk/svg-animator-core';
+export { PxTimelineEngine, PxTimelineEngineExtra, validateDocument } from '@pixodesk/svg-animator-core';
 
 // Attribute names used by the declarative bootstrap.
 export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core';

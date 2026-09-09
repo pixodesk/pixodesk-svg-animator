@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../PxAnimatorTypes';
-import { collectByType, materialise, materialiseEngine, noEffectsRemain, normaliseGeneratedIds, PxAnimatorEngine, transformKfTimes } from './effectTestKit';
+import { collectByType, materialise, materialiseEngine, noEffectsRemain, normaliseGeneratedIds, PxTimelineEngine, transformKfTimes } from './effectTestKit';
 
 const rect = (): PxNode => ({ type: 'rect', id: 'r', width: 100, height: 50 } as unknown as PxNode);
 const wrap = (transformBy: any): PxNode =>
@@ -282,7 +282,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
     };
 
     it('case 7 — autoOrient translate, FRAMES engine → parametric kept (tangents/autoOrient survive)', () => {
-        const out = materialiseEngine(wrap(AUTO_ORIENT), PxAnimatorEngine.frames);
+        const out = materialiseEngine(wrap(AUTO_ORIENT), PxTimelineEngine.js);
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
@@ -309,8 +309,8 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
     });
 
     it('case 8 — autoOrient translate, WAAPI engine → motion-path FLATTENED (sampled, rotate baked, no autoOrient)', () => {
-        const framesOut = materialiseEngine(wrap(AUTO_ORIENT), PxAnimatorEngine.frames);
-        const out = materialiseEngine(wrap(AUTO_ORIENT), PxAnimatorEngine.waapi);
+        const framesOut = materialiseEngine(wrap(AUTO_ORIENT), PxTimelineEngine.js);
+        const out = materialiseEngine(wrap(AUTO_ORIENT), PxTimelineEngine.native);
         expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",

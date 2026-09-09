@@ -60,7 +60,7 @@ export function framesDoc(extra?: Record<string, unknown>) {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { timeline: { mode: 'player', duration: 320 } },
+        animator: { timeline: { engine: 'js', duration: 320 } },
         children: [
             {
                 type: 'rect',

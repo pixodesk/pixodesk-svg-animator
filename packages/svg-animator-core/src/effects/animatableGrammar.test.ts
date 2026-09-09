@@ -12,7 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../PxAnimatorTypes';
-import { collectByType, materialise, materialiseEngine, PxAnimatorEngine } from './effectTestKit';
+import { collectByType, materialise, materialiseEngine, PxTimelineEngine } from './effectTestKit';
 
 const doc = (child: Record<string, unknown>): PxNode =>
     ({ type: 'svg', animator: { timeline: { duration: 2000 } }, children: [child] } as unknown as PxNode);
@@ -38,7 +38,7 @@ describe('unified animatable grammar — loop / value base in effect slots', () 
 
         // Full pipeline: the SAME materialiseInternalLoops code that expands
         // node.animate loops consumes it — loop gone, kfs fill the 2000ms doc.
-        const full = materialiseEngine(input, PxAnimatorEngine.frames);
+        const full = materialiseEngine(input, PxTimelineEngine.js);
         const fullPath = collectByType(full, 'path')[0];
         const block = anim(fullPath).strokeDashoffset;
         const kfs = block.keyframes;

@@ -20,7 +20,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { calcAnimationValues, getNormalisedBindings } from './PxDefinitions';
-import { PxAnimatorEngine } from './PxAnimatorConstants';
+import { PxTimelineEngine } from './PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxKeyframe, PxNode } from './PxAnimatorTypes';
 
 
@@ -92,7 +92,7 @@ function parseTransformString(s: string): Mat {
 // ─────────────────────────────────────────────────────────────────────────────
 
 
-function evaluateAt(doc: PxAnimatedSvgDocument, engine: PxAnimatorEngine, time: number): Record<string, string> | undefined {
+function evaluateAt(doc: PxAnimatedSvgDocument, engine: PxTimelineEngine, time: number): Record<string, string> | undefined {
     const bindings = getNormalisedBindings(doc, engine);
     if (bindings.length === 0) return undefined;
     // Find the binding whose id matches the animated rect/ellipse in the fixture.
@@ -107,7 +107,7 @@ function evaluateAt(doc: PxAnimatedSvgDocument, engine: PxAnimatorEngine, time: 
  *  transform at `time`. Engine is the comparison axis. */
 function worldPos(
     doc: PxAnimatedSvgDocument,
-    engine: PxAnimatorEngine,
+    engine: PxTimelineEngine,
     time: number,
     localPoint: [number, number],
 ): [number, number] | undefined {
@@ -162,8 +162,8 @@ function expectParity(
 
     for (const t of times) {
         for (const probe of probes) {
-            const f = worldPos(doc, PxAnimatorEngine.frames, t, probe);
-            const w = worldPos(doc, PxAnimatorEngine.waapi, t, probe);
+            const f = worldPos(doc, PxTimelineEngine.js, t, probe);
+            const w = worldPos(doc, PxTimelineEngine.native, t, probe);
             if (!f || !w) continue;
             const delta = Math.hypot(f[0] - w[0], f[1] - w[1]);
             if (delta > tol) diffs.push({ time: t, probe, frames: f, waapi: w, delta });
@@ -190,7 +190,7 @@ function expectParity(
 const closedLoopOrbitFixture = (): PxAnimatedSvgDocument => ({
     type: 'svg',
     viewBox: '0 0 1080 1080',
-    animator: { timeline: { duration: 2836, mode: 'auto', direction: 'normal' } },
+    animator: { timeline: { duration: 2836, engine: 'auto', direction: 'normal' } },
     children: [
         {
             type: 'rect',
@@ -341,7 +341,7 @@ const motionPathExplicitRotateFixture = (): PxAnimatedSvgDocument => ({
 const rectanglePathSharpCornersFixture = (): PxAnimatedSvgDocument => ({
     type: 'svg',
     viewBox: '0 0 400 400',
-    animator: { timeline: { duration: 4000, mode: 'auto', direction: 'normal' } },
+    animator: { timeline: { duration: 4000, engine: 'auto', direction: 'normal' } },
     children: [
         {
             type: 'rect',

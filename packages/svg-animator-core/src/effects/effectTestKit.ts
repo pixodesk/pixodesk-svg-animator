@@ -11,10 +11,10 @@
 
 import { applyPlayerEffects } from './PlayerEffectsUtil';
 import { materialiseAllInTree } from '../PxAnimatorMaterialiseAll';
-import { PxAnimatorEngine } from '../PxAnimatorConstants';
+import { PxTimelineEngine } from '../PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxNode } from '../PxAnimatorTypes';
 
-export { PxAnimatorEngine };
+export { PxTimelineEngine };
 
 /** Run the real player-effect pipeline; throw on any materialisation error. */
 export function materialise(input: PxNode): PxNode {
@@ -29,7 +29,7 @@ export function materialise(input: PxNode): PxNode {
  * inline). Use this to test behaviour that DIFFERS between `waapi` and `frames`
  * — the plain {@link materialise} (effects only) is engine-agnostic.
  */
-export function materialiseEngine(input: PxNode, engine: PxAnimatorEngine): PxNode {
+export function materialiseEngine(input: PxNode, engine: PxTimelineEngine): PxNode {
     return materialiseAllInTree(input as PxAnimatedSvgDocument, engine) as unknown as PxNode;
 }
 

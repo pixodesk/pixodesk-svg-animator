@@ -22,7 +22,7 @@ function wireDoc(): PxAnimatedSvgDocument {
         viewBox: '0 0 100 100',
         animator: {
             timeline: {
-                mode: 'player', duration: 1000, iterations: 2,
+                engine: 'js', duration: 1000, iterations: 2,
                 trigger: { startOn: 'load' },
             },
         },
@@ -120,7 +120,7 @@ describe('createAnimator — the override reaches the running animation', () => 
         // falls back to `auto`, which probes WAAPI and is unavailable under jsdom.
         const api = createAnimator({
             data: wireDoc(), container: stage(),
-            resetDocDefaults: true, config: { timeline: { mode: 'player', duration: 4000 } },
+            resetDocDefaults: true, config: { timeline: { engine: 'js', duration: 4000 } },
         });
         expect(api.isPlaying()).toBe(false);
         api.destroy();

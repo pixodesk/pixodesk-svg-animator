@@ -9,7 +9,7 @@ import type { PxAnimatedSvgDocument, PxAnimationDefinition } from '@pixodesk/svg
 import { LOOP_JUMP_SHIFT_MS, cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from '@pixodesk/svg-animator-core';
 import { calcAnimationValues, getNormalisedBindings } from '@pixodesk/svg-animator-core';
 import { materialiseAllInTree } from '@pixodesk/svg-animator-core';
-import { PxAnimatorEngine } from '@pixodesk/svg-animator-core';
+import { PxTimelineEngine } from '@pixodesk/svg-animator-core';
 
 
 describe('animateBackground', () => {
@@ -111,7 +111,7 @@ describe('animateBackground', () => {
                 viewBox: '0 0 400 400',
                 animator: {
                     timeline: {
-                        mode: 'player',
+                        engine: 'js',
                         duration: 128,
                         fillMode: 'forwards',
                         direction: 'normal',
@@ -158,7 +158,7 @@ describe('animateBackground', () => {
                 viewBox: '0 0 400 400',
                 animator: {
                     timeline: {
-                        mode: 'player',
+                        engine: 'js',
                         duration: 128,
                         // single play — no looping; animation finishes and holds the last frame
                         iterations: 1,
@@ -208,7 +208,7 @@ describe('animateBackground', () => {
             data: {
                 type: 'svg',
                 viewBox: '0 0 400 400',
-                animator: { timeline: { mode: 'player', duration: 100, fillMode: 'forwards', trigger: { startOn: 'load' } } },
+                animator: { timeline: { engine: 'js', duration: 100, fillMode: 'forwards', trigger: { startOn: 'load' } } },
                 children: [
                     {
                         type: 'path', id: '_px_d_bare', d: 'M0,0L10,0L10,10',
@@ -822,7 +822,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
         } as PxAnimatedSvgDocument;
 
         // Run the same pipeline the player uses — for BOTH engines.
-        for (const engine of [PxAnimatorEngine.frames, PxAnimatorEngine.waapi]) {
+        for (const engine of [PxTimelineEngine.js, PxTimelineEngine.native]) {
             const flatDoc = materialiseAllInTree(doc, engine);
             const animDef = getBindings(flatDoc);
             // Sample beyond the original kfs range — the loop must repeat
@@ -854,7 +854,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
                 } } } as any,
             ],
         } as PxAnimatedSvgDocument;
-        for (const engine of [PxAnimatorEngine.frames, PxAnimatorEngine.waapi]) {
+        for (const engine of [PxTimelineEngine.js, PxTimelineEngine.native]) {
             const animDef = getBindings(materialiseAllInTree(doc, engine));
             for (const t of [0, 500, 1100, 1400]) {
                 expectNoNaN(calcAnimationValues(animDef, t));
@@ -883,7 +883,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
                 } } } as any,
             ],
         } as PxAnimatedSvgDocument;
-        for (const engine of [PxAnimatorEngine.frames, PxAnimatorEngine.waapi]) {
+        for (const engine of [PxTimelineEngine.js, PxTimelineEngine.native]) {
             const animDef = getBindings(materialiseAllInTree(doc, engine));
             for (const t of [0, 500, 1100, 1500, 1700]) {
                 expectNoNaN(calcAnimationValues(animDef, t));
@@ -913,7 +913,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
                 } } } as any,
             ],
         } as PxAnimatedSvgDocument;
-        for (const engine of [PxAnimatorEngine.frames, PxAnimatorEngine.waapi]) {
+        for (const engine of [PxTimelineEngine.js, PxTimelineEngine.native]) {
             const animDef = getBindings(materialiseAllInTree(doc, engine));
             for (const t of [0, 500, 1100, 1400]) {
                 const out = calcAnimationValues(animDef, t);
@@ -972,7 +972,7 @@ function getTestJson(): PxAnimatedSvgDocument {
                 }
             },
             timeline: {
-                mode: 'player',
+                engine: 'js',
                 duration: 128,
                 fillMode: 'forwards',
                 direction: 'normal',

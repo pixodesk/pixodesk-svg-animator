@@ -1156,7 +1156,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
   measured ALONG the path (`subPaths` still says so) but nothing about the path changes. Breaking for
   documents written before the rename; taken deliberately while pre-release.
 - **N9 mode half closed — `mode: 'webapi'` → `'waapi'`** (2026-08): HARD rename, no legacy alias —
-  on the wire and in every enum: player `PxAnimatorMode.waapi`/`PxAnimatorEngine.waapi`, editor
+  on the wire and in every enum: player `PxAnimatorMode.waapi`/`PxTimelineEngine.native`, editor
   `SvgAnimationMode.waapi`. Old spelling is neither written nor read (breaking for old documents:
   the schema rejects it; a value that slips past validation reads as neither `waapi` nor `frames`
   and behaves like `auto`). `animator.definitions` untouched by decision — its `<defs>` name-shadow

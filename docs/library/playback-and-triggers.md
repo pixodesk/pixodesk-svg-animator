@@ -68,15 +68,15 @@ means a time-driven timeline with every default.
 
 ## Timing
 
-Timing, the playback dynamics, who runs the animation and at what rate ALL live in the
+Timing, the playback dynamics, how the animated attributes get updated and at what rate ALL live in the
 timeline. `animator` itself keeps only what is not playback: the lookup tables
 (`definitions`, `animateById`) and the `debugGlobalName` handle.
 
 | Field | Values | Default | Meaning |
 |---|---|---|---|
 | `timeline.duration` | ms | `1000` | length of **one** pass of the timeline. Keyframe times are absolute offsets within it |
-| `timeline.frameRate` | fps | uncapped | target rate for the player's frame loop only — a parameter of the engine `timeline.mode` selects, so it sits beside it |
-| `timeline.mode` | `auto` · `native` · `player` | `auto` | who runs the animation — [Playback mode](#playback-mode) |
+| `timeline.frameRate` | fps | uncapped | target rate for the player's frame loop only — a parameter of the engine `timeline.engine` selects, so it sits beside it |
+| `timeline.engine` | `auto` · `native` · `js` | `auto` | how the animated attributes get updated — [Engine](#engine) |
 | `timeline.delay` | ms | `0` | wait this long, then start. A **negative** value skips ahead instead: `-500` starts right away from the frame at 0.5 s, as if the animation had already been running for half a second |
 | `timeline.iterations` | number · `"infinite"` | `1` | how many times the whole document timeline repeats |
 | `timeline.direction` | `normal` · `reverse` · `alternate` · `alternate-reverse` | `normal` | `alternate` ping-pongs on every other iteration |
@@ -92,17 +92,17 @@ applied first, when the document is prepared; `iterations` then repeats the resu
 can be used at once, and one runs inside the other: a wheel whose rotation loops, inside a
 document set to infinite iterations, keeps spinning during every iteration.
 
-## Playback mode
+## Engine
 
-`timeline.mode` says **who runs the animation** — the same three values on every timeline type:
+`timeline.engine` says **how the animated attributes get updated** — the same three values on every timeline type:
 
 | Mode | Time-driven timeline | Scroll / view timeline |
 |---|---|---|
 | `auto` (default) | the Web Animations API — played by the browser itself, so it stays smooth even while the page is busy — with an **automatic fallback** to the player's frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on a path, …) | the browser's own `ScrollTimeline` / `ViewTimeline` where supported; otherwise the player measures scroll progress itself and drives WAAPI (or the frame loop, if WAAPI declines the document) |
 | `native` | Web Animations API only | the browser's `ScrollTimeline` / `ViewTimeline` driving WAAPI (where unsupported, the player measures progress instead — WAAPI stays) |
-| `player` | a `requestAnimationFrame` loop that writes attributes every frame; honours `frameRate`; universal browser support | the player measures scroll progress *and* applies values through its frame loop — identical everywhere |
+| `js` | a `requestAnimationFrame` loop that writes attributes every frame; honours `frameRate`; universal browser support | the player measures scroll progress *and* applies values through its frame loop — identical everywhere |
 
-Leave it on `auto` unless you need a guarantee — for instance `player` for path morphing in
+Leave it on `auto` unless you need a guarantee — for instance `js` for path morphing in
 Safari < 18.5. React Native ignores `mode` (playback is always native-driven).
 
 ## Triggers — what *starts* the animation
@@ -266,7 +266,7 @@ object tunes it:
 | `iterations` | number | the animation repeats this many times across the range (finite only — `"infinite"` cannot map onto a range) |
 | `smoothing` | ms | catch-up lag — the playhead eases toward the scroll position instead of snapping (smoother under momentum scrolling) |
 | `pin` | `true` · `{ align, top, distance }` | hold the canvas still on screen while scrolling moves the animation forward and back (`position: sticky`); `align` ∈ `top`/`center`/`bottom`, `top` in px, `distance` in viewport heights creates the scroll travel |
-| `mode` | `auto` (default) · `native` · `player` | who computes progress and applies values — see [Playback mode](#playback-mode): `auto`/`native` use the browser's `ScrollTimeline` where supported, `player` measures itself |
+| `engine` | `auto` (default) · `native` · `js` | who computes progress and applies values — see [Engine](#engine): `auto`/`native` use the browser's `ScrollTimeline` where supported, `js` measures itself |
 
 Support: the **web player** (both engines, and therefore React and Vue), and the *SVG + JS
 animation* export. Not yet: the CSS export or React Native. The complete "scrollytelling"

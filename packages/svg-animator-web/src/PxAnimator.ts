@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { reportDocumentDiagnostics, applyAnimatorConfig, foldAnimatorConfigShortcuts, generateNewIds, getAnimatorConfig, isPxElementFileFormat, materialiseAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, engineForPlaybackMode, type PxAnimatorEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfigPatch, type PxPlatformAdapter, type PxTrigger } from '@pixodesk/svg-animator-core';
+import { reportDocumentDiagnostics, applyAnimatorConfig, foldAnimatorConfigShortcuts, generateNewIds, getAnimatorConfig, isPxElementFileFormat, materialiseAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfigPatch, type PxPlatformAdapter, type PxTrigger } from '@pixodesk/svg-animator-core';
 import { bindWithEngineChoice } from './PxAnimatorBind';
 import { renderNode } from './PxAnimatorDOM';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
@@ -65,7 +65,7 @@ export function createAnimatorImpl(
     reportDocumentDiagnostics(doc, '[PxAnimator] createAnimator');
 
     // The per-instance override, applied BEFORE anything reads the config. Everything below
-    // depends on the final values: `timeline.mode` picks the engine, `duration` drives loop
+    // depends on the final values: `timeline.engine` picks the engine, `duration` drives loop
     // expansion and motion-path sampling in `materialiseAllInTree`, and `generateNewIds`
     // rewrites `animateById` keys — a late patch would be read by none of them.
     if (config !== undefined || resetDocDefaults) {
@@ -79,7 +79,7 @@ export function createAnimatorImpl(
     // purposes; if waapi later returns null at engine construction, frames is used
     // as fallback — slight over-materialisation for that doc, but no correctness issue.
     const animatorConfig = getAnimatorConfig(doc) || {};
-    const engine: PxAnimatorEngine = engineForPlaybackMode(animatorConfig.mode);
+    const engine: PxTimelineEngine = resolveTimelineEngine(animatorConfig.engine);
 
     // Run the full document materialisation pipeline:
     //   effects → loops → motion-path (waapi only) → animated-use (waapi only)

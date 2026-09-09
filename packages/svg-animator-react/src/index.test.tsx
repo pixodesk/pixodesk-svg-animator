@@ -62,7 +62,7 @@ function getTestJson(): PxAnimatedSvgDocument {
                 }
             },
             timeline: {
-                mode: "player",
+                engine: "js",
                 duration: 128,
                 fillMode: "forwards",
                 direction: "normal",

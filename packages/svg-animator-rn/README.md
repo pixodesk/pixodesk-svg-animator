@@ -175,7 +175,7 @@ const [time, setTime] = useState(0);
 | `apiRef` | `RefObject<RnAnimatorApi>` | Ref for imperative control |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
-| `config` | `object \| string` | Per-instance override of the document's `animator` block, deep-merged over it — same shape as the file (`{ timeline: { fillMode, direction, trigger: { outAction, finishAction, … } } }`); `null` at a slot deletes that key. A JSON string is accepted too. `timeline.mode` is accepted but ignored here |
+| `config` | `object \| string` | Per-instance override of the document's `animator` block, deep-merged over it — same shape as the file (`{ timeline: { fillMode, direction, trigger: { outAction, finishAction, … } } }`); `null` at a slot deletes that key. A JSON string is accepted too. `timeline.engine` is accepted but ignored here |
 | `resetDocDefaults` | `boolean` | Ignore the document's playback settings and start from the player's defaults, with `config` on top |
 | `duration` | `number` | Shortcut for `config.timeline.duration` (ms) |
 | `delay` | `number` | Shortcut for `config.timeline.delay` (ms) |
@@ -216,7 +216,7 @@ renderer never reaches JavaScript and cannot be caught — see
 
 | Prop | Why it differs |
 |---|---|
-| `timeline.mode` | Accepted inside `config` but ignored. There is no Web Animations API on React Native; playback is always native-driven. |
+| `timeline.engine` | Accepted inside `config` but ignored. There is no Web Animations API on React Native; playback is always native-driven. |
 | `timeline.frameRate` | Ignored. The screen's own refresh rate is used. The player does not compute values frame by frame: when the document loads it works out the animated values in advance, as a list of snapshots (60 per second of animation), and each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared — `compileTracks({ sampleRate })`, only available when you use the lower-level API instead of the component. |
 | `startOn: 'mouseOver'` | Has no touch equivalent, so it is not honoured. The other four values (`load`, `click`, `scrollIntoView`, `programmatic`) work as they do on the web, from the file or from the `startOn` prop. |
 | `className` / `style` | Not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height`. Styling *inside* the document (`style` on an element in the JSON) is supported. |
@@ -324,7 +324,7 @@ player sees plain nodes. **All are supported:**
 | Trigger `scrollIntoView` | ✅ | visibility sampled by measuring against the window (React Native has no `IntersectionObserver`); honours `scrollIntoViewThreshold` and `outAction` |
 | Trigger `mouseOver` | ❌ | no touch equivalent — use `click`, or drive `play` yourself |
 | `timeline.frameRate` | n/a | reanimated runs at the display refresh rate; use `compileTracks({sampleRate})` to trade memory for temporal precision |
-| `timeline.mode` (`auto` / `native` / `player`) | n/a | there is no Web Animations API on React Native — playback is always native-driven |
+| `timeline.engine` (`auto` / `native` / `js`) | n/a | there is no Web Animations API on React Native — playback is always native-driven |
 
 ### Known limitations
 

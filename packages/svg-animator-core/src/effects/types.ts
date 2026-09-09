@@ -15,7 +15,7 @@
  */
 
 import type { PxGlyphFont, PxNode } from '../PxAnimatorTypes';
-import type { PxAnimatorEngine } from '../PxAnimatorConstants';
+import type { PxTimelineEngine } from '../PxAnimatorConstants';
 
 
 /** Collected diagnostics + new <defs> nodes accumulated during a run. */
@@ -54,7 +54,7 @@ export interface ApplyContext {
      *
      * NOTE: not consumed yet — wired through for the upcoming materialise work.
      */
-    engine: PxAnimatorEngine;
+    engine: PxTimelineEngine;
     /**
      * For every element id referenced by a `<use>` with `clone:{without:'translate'}`,
      * the fresh id of the INNER (no-translate) wrapper produced by

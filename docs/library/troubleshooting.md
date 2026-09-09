@@ -89,7 +89,7 @@ continues from the new point) and while paused (it shows that frame and stays th
 **Frame rate.** `timeline.frameRate` applies only to the frames engine; WAAPI runs at the display rate.
 React Native always runs at the display rate.
 
-**A property does not animate under `timeline.mode: 'native'`.** WAAPI cannot drive it (the
+**A property does not animate under `timeline.engine: 'native'`.** WAAPI cannot drive it (the
 console says which); leave `mode` on `auto` so the document switches to the player's frame loop.
 
 **The animation loads but nothing moves, and only in the production build.** Your bundler may be

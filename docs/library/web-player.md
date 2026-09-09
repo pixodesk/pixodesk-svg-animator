@@ -219,17 +219,17 @@ and `scrollIntoViewThreshold` are honoured. With `'load'` it starts immediately;
 the rendered SVG yourself, so the click / hover / scroll listeners the player attached are gone
 with the old elements, and you need to attach them to the new ones.
 
-## Playback modes
+## Engines
 
 > **Example:** [`web/engine-modes`](../../examples/docs-examples/src/cases/web/engine-modes/) — `pnpm example:docs`, then open `#web/engine-modes`.
 
-`animator.timeline.mode` in the document selects who runs the animation:
+`animator.timeline.engine` in the document selects how the animated attributes get updated:
 
 | Mode | Behaviour |
 |---|---|
 | `'auto'` (default) | Web Animations API, with an automatic fallback to the player's frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on path…). For scroll-driven documents: the browser's `ScrollTimeline` where supported, else the player measures progress itself |
 | `'native'` | Web Animations API only (and the browser's `ScrollTimeline` for scroll-driven documents) |
-| `'player'` | the player's frame loop only; honours `timeline.frameRate`. Required for path morphing in Safari < 18.5 |
+| `'js'` | the player's frame loop only; honours `timeline.frameRate`. Required for path morphing in Safari < 18.5 |
 
 The fallback is per document: if any animated attribute fails the runtime `CSS.supports` gate,
 the whole document runs on the frame loop. Either way it plays.

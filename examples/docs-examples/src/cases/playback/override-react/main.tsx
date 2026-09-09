@@ -11,7 +11,7 @@ createRoot(document.getElementById('root')!).render(
       doc={animation as any}
       autoplay
       iterations="infinite"
-      config={{ timeline: { mode: 'player', direction: 'alternate' } }}
+      config={{ timeline: { engine: 'js', direction: 'alternate' } }}
     />
   </div>
 );

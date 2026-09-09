@@ -93,7 +93,7 @@ interface PxTrigger {                                  // ● also a wire type �
 The UMD build publishes a **narrower** surface on one global, `window.PixodeskAnimator` — it is
 built from its own entry, for embedding in a page rather than for tooling. Exactly eleven names:
 `createAnimator`, `createAnimatorImpl`, `loadTagAnimators`, `setupAnimationTriggers`,
-`validateDocument`, `generateNewIds`, `PxPlaybackMode`, `PxAnimatorEngine`,
+`validateDocument`, `generateNewIds`, `PxTimelineEngineExtra`, `PxTimelineEngine`,
 `PX_ANIMATOR_DATA_KEY`, `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME`. Everything else listed on
 this page — the schemas, the pipeline stages, the maths helpers — is reachable only through the
 ESM/CJS entry.
@@ -108,7 +108,7 @@ from the console. It is opt-in per document — see
 | Symbol | |
 |---|---|
 | `createAnimatorImpl(doc, adapter?, callbacks?, container?, config?, resetDocDefaults?)` | ▪ the non-fetching core of `createAnimator`; the last two are the playback override |
-| `createWebApiAnimator(…)`, `createFrameLoopAnimator(…)` | ▪ the two engines; `createAnimator` picks one via `timeline.mode` |
+| `createWebApiAnimator(…)`, `createFrameLoopAnimator(…)` | ▪ the two engines; `createAnimator` picks one via `timeline.engine` |
 | `createBasicFrameLoopAnimator(doc, adapter, callbacks?)` | ○ frames engine against a custom `PxPlatformAdapter` |
 | `renderNode(node, defs?)`, `getNormalizedProps(props)` | ○ render one wire node to a DOM element / resolve a node's attributes |
 | `validateDocument(doc)` | ● the whole-document check for tooling / CI / agents — returns problems as strings, empty when sound, never throws |
@@ -117,8 +117,8 @@ from the console. It is opt-in per document — see
 | `normalizeDocument` (alias of core `getNormalisedBindings`), `calcAnimationValues`, `materialiseInternalLoops*`, `materialiseMotionPath*`, `materialiseAnimatedUseInstances`, `evaluateMotionPathSegment`, `propAnimIsMotionPath`, `collectSampleTimes`, `diffInEffect`, `visualModelAt` | ▪ pipeline stages, re-exported from core |
 | `PX_ANIMATOR_DATA_KEY`, `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME` | ▪ attribute/property names the player writes |
 | `px`, `schemaKeys`, `describeSchema`, all `Px*Schema` values, glyph/path helpers, string & colour utils | ▪/○ re-exported from core, same marks as there |
-| `PxPlaybackMode`, `FillMode`, `PlaybackDirection`, `StartOn`, `OutAction`, `PxCloneWithout`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod` | ● the enums used by the options and props above, plus every wire selector re-exported from core (`PxPlaybackMode` = `timeline.mode`: `auto` · `native` · `player`) |
-| `PxAnimatorEngine` | ○ the resolved engine (`waapi` · `frames`) — the argument of `materialiseAllInTree`, never an option |
+| `PxTimelineEngineExtra`, `FillMode`, `PlaybackDirection`, `StartOn`, `OutAction`, `PxCloneWithout`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod` | ● the enums used by the options and props above, plus every wire selector re-exported from core (`PxTimelineEngineExtra` = `timeline.engine`: `auto` · `native` · `js`) |
+| `PxTimelineEngine` | ○ the engines themselves (`native` · `js`) — the argument of `materialiseAllInTree`, never an option. `PxTimelineEngineExtra` adds `auto` and is what `timeline.engine` accepts |
 | `PxAnimatedSvgDocument`, `PxNode`, `PxAnimatorConfig`, `PxTrigger`, `PxEffects`, … | ● wire types — the shapes in [SCHEMA.md](./SCHEMA.md) |
 
 ## @pixodesk/svg-animator-react
@@ -232,7 +232,7 @@ const PixodeskSvgCssAnimator: DefineComponent<{
 ## @pixodesk/svg-animator-rn 🧪 experimental
 
 Mirrors the React component on `react-native-svg` + `reanimated`. One
-frame-driven engine (`timeline.mode` is ignored), no CSS-flavour component, no
+frame-driven engine (`timeline.engine` is ignored), no CSS-flavour component, no
 `onRemove`, and a failure path instead of a DOM.
 
 ```typescript
@@ -241,7 +241,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps>;   // ● also the defau
 interface PixodeskSvgAnimatorProps {
     doc: PxAnimatedSvgDocument;           // required
 
-    // Playback override — the same object as React. `timeline.mode` is accepted
+    // Playback override — the same object as React. `timeline.engine` is accepted
     // but ignored: React Native always materialises the WAAPI-style flattening.
     config?: PxAnimatorConfigPatch | string;
     resetDocDefaults?: boolean;
@@ -290,7 +290,7 @@ package already bundles it. Nothing here renders anything.
 //   to feed a renderer that has no effects support.
 function materialiseAllInTree(
     doc: PxAnimatedSvgDocument,
-    engine: 'waapi' | 'frames',
+    engine: 'native' | 'js',
     opts?: { motionPath?: MotionPathMaterialisationOptions },
 ): PxAnimatedSvgDocument;
 
@@ -356,8 +356,8 @@ interface PxPlatformAdapter {
 | Group | Symbols | |
 |---|---|---|
 | Wire types | `PxAnimatedSvgDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTimeline`, `PxTrigger`, `PxElementAnimation`, `PxPropertyAnimation`, `PxKeyframe`, `PxLoop`, `PxBinding`, `PxDefs`, `PxEffects` + one type per effect (`PxCloneEffect`, `PxRepeaterEffect`, `PxRetimeEffect`, `PxMaskedByEffect`, `PxTransformByEffect`, `PxTextPathEffect`, `PxStrokeTrimEffect`, `PxFillGradientEffect`, `PxStrokeGradientEffect`, `PxGradientStop`), `PxAttrValue`, `PxTransformValue`, `PxTransformParts`, `PxBezierPath`, `PxGlyph`, `PxGlyphFont`, `PxAnimationDefinition`, `PxTimelinePin`, `PxScroll`, `PxScrollPhase`, `PxScrollRangePoint`, `PxValidationResult`, `Vec2` | ● the shapes in [SCHEMA.md](./SCHEMA.md) |
-| Playback-mode rules | `engineForPlaybackMode(mode)`, `isNativeForced(mode)`, `mayUseNativeScrollTimeline(mode)` | ○ how a `timeline.mode` resolves to an engine / the browser's ScrollTimeline — the players' own decision helpers |
-| Enums | `PxPlaybackMode`, `PxAnimatorEngine`, `FillMode`, `PlaybackDirection`, `StartOn`, `OutAction`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout` (`clone.without`: `translate`), `PxTransformPartKey`, `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings |
+| Playback-mode rules | `resolveTimelineEngine(mode)`, `isNativeForced(mode)`, `mayUseNativeScrollTimeline(mode)` | ○ how a `timeline.engine` resolves to an engine / the browser's ScrollTimeline — the players' own decision helpers |
+| Enums | `PxTimelineEngineExtra`, `PxTimelineEngine`, `FillMode`, `PlaybackDirection`, `StartOn`, `OutAction`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout` (`clone.without`: `translate`), `PxTransformPartKey`, `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings |
 | Document accessors | `getAnimatorConfig`, `getChildren`, `getBindings`, `getDefs`, `isPxElementFileFormat`, `isPxElementFileFormatDeep` | ○ read a document without knowing its internals |
 | Timeline shape | `flattenAnimatorTimeline`, `nestAnimatorTimeline` | ○ nested `timeline` object ⇄ the flat runtime view |
 | Playback override | `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult`, `PxAnimatorConfigShortcuts` | ● companion types of the three merge functions above |

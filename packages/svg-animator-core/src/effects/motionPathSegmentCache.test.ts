@@ -19,7 +19,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createBasicFrameLoopAnimator, type PxPlatformAdapter } from '../PxFrameLoop';
 import { calcAnimationValues, getNormalisedBindings } from '../PxDefinitions';
 import type { PxAnimatedSvgDocument } from '../PxAnimatorTypes';
-import { PxAnimatorEngine } from '../PxAnimatorConstants';
+import { PxTimelineEngine } from '../PxAnimatorConstants';
 
 const START: [number, number] = [124.7115, 74.3754];
 const APEX: [number, number] = [154.5315, 12.1887];
@@ -36,7 +36,7 @@ const mkDoc = (): PxAnimatedSvgDocument => ({
         ] } } } },
         animateById: { el1: ['a0'] },
         timeline: {
-            mode: 'player',
+            engine: 'js',
             duration: 1000,
         },
     },
@@ -62,7 +62,7 @@ function mkAnimator() {
 describe('frames motion-path — a pre-start frame must not poison the segment cache', () => {
 
     it('evaluating BEFORE the first keyframe leaves mid-segment sampling on the arc', () => {
-        const animDef = getNormalisedBindings(mkDoc(), PxAnimatorEngine.frames)[0].animate as never;
+        const animDef = getNormalisedBindings(mkDoc(), PxTimelineEngine.js)[0].animate as never;
 
         // Frame 0 of playback: before the first kf. This is the call that used to poison.
         calcAnimationValues(animDef, 0);
@@ -72,7 +72,7 @@ describe('frames motion-path — a pre-start frame must not poison the segment c
     });
 
     it('the apex keyframe is honoured at its own time', () => {
-        const animDef = getNormalisedBindings(mkDoc(), PxAnimatorEngine.frames)[0].animate as never;
+        const animDef = getNormalisedBindings(mkDoc(), PxTimelineEngine.js)[0].animate as never;
         calcAnimationValues(animDef, 0);
 
         const [x, y] = xy(calcAnimationValues(animDef, 500).transform);
@@ -81,7 +81,7 @@ describe('frames motion-path — a pre-start frame must not poison the segment c
     });
 
     it('auto-orient before the start uses the real initial tangent, not the chord angle', () => {
-        const animDef = getNormalisedBindings(mkDoc(), PxAnimatorEngine.frames)[0].animate as never;
+        const animDef = getNormalisedBindings(mkDoc(), PxTimelineEngine.js)[0].animate as never;
         const deg = (t: number) => parseFloat((/rotate\(([-\d.]+)\)/.exec(calcAnimationValues(animDef, t).transform) || [])[1]);
 
         // The path leaves START heading steeply up (≈ -84°). The chord is ≈ +0.7°.

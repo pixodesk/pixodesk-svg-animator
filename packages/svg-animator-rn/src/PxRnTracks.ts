@@ -8,7 +8,7 @@ import {
     getAnimatorConfig,
     getNormalisedBindings,
     DEFAULT_DURATION_MS,
-    PxAnimatorEngine,
+    PxTimelineEngine,
     type PxAnimatedSvgDocument,
     type PxAnimationDefinition,
 } from '@pixodesk/svg-animator-core';
@@ -99,7 +99,7 @@ export function compileTracks(doc: PxAnimatedSvgDocument, opts?: CompileTracksOp
     };
     indexTags(doc);
 
-    const bindings = getNormalisedBindings(doc, PxAnimatorEngine.frames) || [];
+    const bindings = getNormalisedBindings(doc, PxTimelineEngine.js) || [];
 
     const elements: Array<PxElementTracks> = [];
     for (const binding of bindings) {

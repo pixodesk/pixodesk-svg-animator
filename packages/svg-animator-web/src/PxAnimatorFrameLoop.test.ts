@@ -26,7 +26,7 @@ function makeDoc(timeline: Record<string, any> = {}): PxAnimatedSvgDocument {
         type: 'svg',
         viewBox: '0 0 100 100',
         animator: {
-            timeline: { mode: 'player', duration: DUR, ...timeline },
+            timeline: { engine: 'js', duration: DUR, ...timeline },
         },
         children: [
             {

@@ -34,16 +34,16 @@ describe('animator.timeline spelling compat', () => {
         expect(flat.trigger.finishAction).toBeUndefined(); // folded into resetOnFinish
     });
 
-    it("flattens 'view' and 'scroll' timelines to timelineSource:'scroll' + scroll.kind, pin object → pin flags; mode is shared", () => {
+    it("flattens 'view' and 'scroll' timelines to timelineSource:'scroll' + scroll.kind, pin object → pin flags; engine is shared", () => {
         const flat = flattenAnimatorTimeline({
             timeline: {
-                type: 'view', duration: 4000, mode: 'player', axis: 'block', subject: 'parent',
+                type: 'view', duration: 4000, engine: 'js', axis: 'block', subject: 'parent',
                 smoothing: 120, pin: { align: 'center', top: 24, distance: 600 },
                 range: { start: { phase: 'entry', fraction: 0.1 } }
             }
         } as any) as any;
         expect(flat.timelineSource).toBe('scroll');
-        expect(flat.mode).toBe('player');
+        expect(flat.engine).toBe('js');
         expect(flat.scroll).toEqual({
             kind: 'view', axis: 'block', subject: 'parent', smoothing: 120,
             pin: true, pinAlign: 'center', pinTop: 24, pinDistance: 600,
@@ -53,7 +53,7 @@ describe('animator.timeline spelling compat', () => {
             .toMatchObject({ timelineSource: 'scroll', scroll: { kind: 'scroll', pin: true } });
     });
 
-    it('finite iterations survive scroll mode in both directions (D4); infinite does not nest', () => {
+    it('finite iterations survive a scroll timeline in both directions (D4); infinite does not nest', () => {
         expect(nestAnimatorTimeline({ duration: 1, timelineSource: 'scroll', iterations: 3 } as any))
             .toEqual({ timeline: { type: 'scroll', duration: 1, iterations: 3 } });
         expect(nestAnimatorTimeline({ duration: 1, timelineSource: 'scroll', iterations: 'infinite' } as any))
@@ -79,17 +79,17 @@ describe('animator.timeline spelling compat', () => {
         expect(cfg.delay).toBe(42);
     });
 
-    // ── nest: flat → the written spelling; mode-dead keys structurally gone ──
+    // ── nest: flat → the written spelling; engine-dead keys structurally gone ──
 
     it('nests flat time keys under a type-less timeline (absent type = time), fill → fillMode, resetOnFinish → trigger.finishAction', () => {
         const nested = nestAnimatorTimeline({
-            duration: 4000, mode: 'auto',
+            duration: 4000, engine: 'auto',
             trigger: { startOn: 'click' }, delay: 250, iterations: 3,
             direction: 'reverse', fill: 'none', resetOnFinish: true
         } as any) as any;
         expect(nested).toEqual({
             timeline: {
-                mode: 'auto',
+                engine: 'auto',
                 duration: 4000,
                 trigger: { startOn: 'click', finishAction: 'reset' },
                 delay: 250, iterations: 3, direction: 'reverse', fillMode: 'none'
@@ -101,13 +101,13 @@ describe('animator.timeline spelling compat', () => {
         const nested = nestAnimatorTimeline({
             duration: 4000, timelineSource: 'scroll',
             trigger: { startOn: 'load' },       // dead under scroll (D3) — dropped by nesting
-            mode: 'native',
+            engine: 'native',
             scroll: { kind: 'view', axis: 'block', smoothing: 120,
                       pin: true, pinAlign: 'center', pinTop: 24 }
         } as any) as any;
         expect(nested).toEqual({
             timeline: {
-                type: 'view', mode: 'native', duration: 4000, axis: 'block', smoothing: 120,
+                type: 'view', engine: 'native', duration: 4000, axis: 'block', smoothing: 120,
                 pin: { align: 'center', top: 24 }
             }
         });
@@ -115,11 +115,11 @@ describe('animator.timeline spelling compat', () => {
 
     it('omits an empty time timeline entirely, and passes a config that already has one through unchanged', () => {
         // §2.8: a set duration now forces the timeline block (it lives there on the wire)…
-        expect(nestAnimatorTimeline({ duration: 1000, mode: 'auto' } as any))
-            .toEqual({ timeline: { mode: 'auto', duration: 1000 } });
-        // …`mode` lives in the timeline too, and since 2026-09-09 so does `frameRate` — it
-        // parameterises the engine `mode` selects, so the two belong at the same level.
-        expect(nestAnimatorTimeline({ mode: 'auto' } as any)).toEqual({ timeline: { mode: 'auto' } });
+        expect(nestAnimatorTimeline({ duration: 1000, engine: 'auto' } as any))
+            .toEqual({ timeline: { engine: 'auto', duration: 1000 } });
+        // …`engine` lives in the timeline too, and so does `frameRate` — it parameterises the
+        // engine chosen there, so the two sit at the same level.
+        expect(nestAnimatorTimeline({ engine: 'auto' } as any)).toEqual({ timeline: { engine: 'auto' } });
         expect(nestAnimatorTimeline({ frameRate: 60 } as any)).toEqual({ timeline: { frameRate: 60 } });
         // Only the non-playback keys stay on `animator` itself.
         expect(nestAnimatorTimeline({ debugGlobalName: 'hero' } as any)).toEqual({ debugGlobalName: 'hero' });
@@ -129,7 +129,7 @@ describe('animator.timeline spelling compat', () => {
 
     it('round-trips: flatten(nest(flat)) reproduces the flat form', () => {
         const flat = {
-            duration: 4000, frameRate: 60, mode: 'auto',
+            duration: 4000, frameRate: 60, engine: 'auto',
             trigger: { startOn: 'click', outAction: 'pause' }, delay: 250,
             iterations: 'infinite', direction: 'alternate', fill: 'both', resetOnFinish: true
         } as any;

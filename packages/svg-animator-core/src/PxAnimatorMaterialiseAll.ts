@@ -36,7 +36,7 @@ import { materialiseInternalLoopsInTree } from './PxDefinitions';
 import { materialiseOffsetPathsInTree } from './PxOffsetPathMaterialiser';
 import { materialiseMotionPathsInTree } from './PxMotionPath';
 import type { MotionPathMaterialisationOptions } from './PxMotionPath';
-import { getAnimatorConfig, PxAnimatorEngine } from './PxAnimatorConstants';
+import { getAnimatorConfig, PxTimelineEngine } from './PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxNode } from './PxAnimatorTypes';
 import { materialiseAnimatedUseInstances } from './PxAnimatorUseMaterialiser';
 
@@ -52,7 +52,7 @@ export interface MaterialiseAllOptions {
 
 export function materialiseAllInTree(
     doc: PxAnimatedSvgDocument,
-    engine: PxAnimatorEngine,
+    engine: PxTimelineEngine,
     opts?: MaterialiseAllOptions,
 ): PxAnimatedSvgDocument {
     // 1. Effects → structural materialisation. Always runs; returns a fresh root.
@@ -70,7 +70,7 @@ export function materialiseAllInTree(
     const duration = getAnimatorConfig(root)?.duration ?? DEFAULT_DURATION_MS;
     root = materialiseInternalLoopsInTree(root, duration);
 
-    if (engine === PxAnimatorEngine.waapi) {
+    if (engine === PxTimelineEngine.native) {
         // 3. Motion-along-path → sampled `{translate, rotate}` kfs. WAAPI can't
         //    evaluate parametric tangents; frames-mode does that per frame so
         //    we skip this for frames.

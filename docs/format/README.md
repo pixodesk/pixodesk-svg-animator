@@ -136,9 +136,9 @@ interface SVG_JSON {
         timeline?:
             | {
                 type?: 'time';                     // wall time — something STARTS it (the trigger). OPTIONAL: absent = 'time'
-                mode?: 'auto' | 'native' | 'player';  // WHO RUNS IT (default 'auto'): the browser where it can — WAAPI here,
+                engine?: 'auto' | 'native' | 'js';  // WHO RUNS IT (default 'auto'): the browser where it can — WAAPI here,
                                                    // its ScrollTimeline for scroll/view — else the player's own frame loop;
-                                                   // 'native' = browser only; 'player' = the player's own loop (+ own scroll measurement)
+                                                   // 'native' = browser only; 'js' = the player's own loop (+ own scroll measurement)
                 frameRate?: number;                // target fps for the player's own frame loop — a parameter of the
                                                    // engine `mode` selects; uncapped when absent, ignored by WAAPI/RN
                 duration?: number;                 // length of ONE iteration, ms (default 1000); keyframe times are absolute offsets
@@ -158,7 +158,7 @@ interface SVG_JSON {
                                                    // journey through the viewport ('view'); no trigger/delay slots exist here
                 duration?: number;                 // the keyframe span the scroll range maps onto, ms
                 iterations?: number;               // finite only — 'infinite' cannot map onto a range
-                mode?: 'auto' | 'native' | 'player';  // as above — 'auto'/'native' try the browser's ScrollTimeline, 'player' measures itself
+                engine?: 'auto' | 'native' | 'js';  // as above — 'auto'/'native' try the browser's ScrollTimeline, 'js' measures itself
                 frameRate?: number;                // target fps for the player's own frame loop — a parameter of the
                                                    // engine `mode` selects; uncapped when absent, ignored by WAAPI/RN
                 axis?: 'block' | 'inline' | 'x' | 'y';
@@ -1038,19 +1038,19 @@ Use the default in production readers and `strict` in tests and tooling.
    `{ translate, rotate }` keyframes.
 4. **Animated `<use>`** — replaced by a `<g>` with a deep clone and fresh ids.
 
-Steps 3–4 run when `engine` is `waapi`. Pass `waapi` for **any renderer without live `<use>`
-propagation** (including `react-native-svg`); `frames` only for the DOM, which resolves `<use>`
+Steps 3–4 run when `engine` is `native`. Pass `native` for **any renderer without live `<use>`
+propagation** (including `react-native-svg`); `js` only for the DOM, which resolves `<use>`
 natively.
 
 ```ts
 import { materialiseAllInTree, generateNewIds, calcAnimationValues,
-         getNormalisedBindings, PxAnimatorEngine } from '@pixodesk/svg-animator-core';
+         getNormalisedBindings, PxTimelineEngine } from '@pixodesk/svg-animator-core';
 import doc from './bouncing-ball.json';
 
-const flat = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.waapi));
+const flat = generateNewIds(materialiseAllInTree(doc, PxTimelineEngine.native));
 
 // values at any time, no renderer involved
-for (const binding of getNormalisedBindings(flat, PxAnimatorEngine.frames) ?? []) {
+for (const binding of getNormalisedBindings(flat, PxTimelineEngine.js) ?? []) {
   const values = calcAnimationValues(binding.animate, 500);   // t = 500 ms
   console.log(binding.id, values);   // → ball { transform: 'translate(200,129.65)' }   (the bouncing ball, half-way down)
 }
@@ -1067,10 +1067,10 @@ then calls you with plain attribute writes:
 
 ```ts
 import { createBasicFrameLoopAnimator, materialiseAllInTree, generateNewIds,
-         PxAnimatorEngine, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+         PxTimelineEngine, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import doc from './bouncing-ball.json';
 
-const flatDoc = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.frames));
+const flatDoc = generateNewIds(materialiseAllInTree(doc, PxTimelineEngine.js));
 
 const adapter: PxPlatformAdapter = {
   isConnected: () => true,
@@ -1098,7 +1098,7 @@ the engine runs in browsers, React Native and test environments.
 | **Document accessors** | `getAnimatorConfig`, `getDefs`, `getBindings`, `getChildren` |
 | **Scroll timeline math** | `isScrollTimeline`, `scrollViewProgress`, `scrollOffsetProgress`, `scrollTotalDurationMs` |
 | **Playback engine** | `createBasicFrameLoopAnimator` + the `PxPlatformAdapter` interface |
-| **Wire enums** | `PxPlaybackMode`, `PxAnimatorEngine`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod` — the wire selectors that ship as named constants rather than bare strings |
+| **Wire enums** | `PxTimelineEngineExtra`, `PxTimelineEngine`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod` — the wire selectors that ship as named constants rather than bare strings |
 
 ### Versioning
 

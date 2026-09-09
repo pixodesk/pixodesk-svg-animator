@@ -34,54 +34,71 @@ export type StartOn = 'load' | 'mouseOver' | 'click' | 'scrollIntoView';
 
 export type OutAction = 'continue' | 'pause' | 'reset' | 'reverse';
 
-/** WIRE `timeline.mode` — who runs the animation. `auto` (default) prefers the
- *  platform's native machinery and falls back to the player's own loop when the
- *  document needs it; `native` forces the browser (WAAPI — and, for scroll/view
- *  timelines, the browser's ScrollTimeline); `player` forces the player's own frame
- *  loop and its own progress measurement. Const-namespace + matching string type so
- *  call sites use named members (`PxPlaybackMode.player`), not bare literals. */
+/** WIRE `timeline.engine` — who runs the animation. `auto` (default) prefers the
+ *  platform's animation API and falls back to JS when the document needs something it
+ *  cannot express; `native` DEMANDS that API (WAAPI — and, for scroll/view timelines,
+ *  the browser's ScrollTimeline) with no fallback; `js` pins the player's own frame loop
+ *  and its own progress measurement. Const-namespace + matching string type so call
+ *  sites use named members (`PxTimelineEngineExtra.js`), not bare literals.
+ *
+ *  NAMED `engine`, not `mode`: it selects HOW the animated attributes get updated, not
+ *  WHAT you see — an implementation preference. (`native` is the one value that can also
+ *  change the outcome: being a demand, an attribute WAAPI declines simply does not
+ *  animate. See `isNativeForced`.) */
 /** Timeline keys that BOTH union members carry, so they survive a change of `type`. */
-export const PX_TIMELINE_SHARED_KEYS = ['duration', 'iterations', 'mode', 'frameRate'] as const;
+export const PX_TIMELINE_SHARED_KEYS = ['duration', 'iterations', 'engine', 'frameRate'] as const;
 
 /** Timeline keys that exist ONLY on the time-driven member — a scroll/view timeline is
  *  scrubbed by position, so nothing starts it and nothing delays it. */
 export const PX_TIME_ONLY_TIMELINE_KEYS = ['trigger', 'delay', 'fillMode', 'direction'] as const;
 
-export const PxPlaybackMode = {
-    auto:   'auto',
+/**
+ * THE ENGINES — the two things that can actually update an animated attribute: hand it to the
+ * platform's animation API (`native`), or write it from the player's own frame loop (`js`).
+ *
+ * This is the CORE set. Code that always knows which engine is running takes this (e.g.
+ * `getNormalisedBindings`'s `engine` arg gates motion-along-path materialisation).
+ */
+export const PxTimelineEngine = {
     native: 'native',
-    player: 'player',
+    js:     'js',
 } as const;
 
-export type PxPlaybackMode = typeof PxPlaybackMode[keyof typeof PxPlaybackMode];
+export type PxTimelineEngine = typeof PxTimelineEngine[keyof typeof PxTimelineEngine];
 
-/** The concrete engine that applies values — resolved from {@link PxPlaybackMode} by
- *  the runtime. Used downstream by code that always knows which engine is running
- *  (e.g. `getNormalisedBindings`'s `engine` arg gates motion-along-path materialisation). */
-export const PxAnimatorEngine = {
-    waapi: 'waapi',
-    frames: 'frames',
+/**
+ * What `timeline.engine` ACCEPTS on the wire: the engines above plus `auto` — "you pick", which
+ * prefers `native` and falls back to `js` per document when the platform API declines an
+ * attribute.
+ *
+ * Built by ADDING to the core set rather than subtracting from a wider one, so the two cannot
+ * drift: every engine is automatically an accepted value, and `auto` is visibly the one extra.
+ */
+export const PxTimelineEngineExtra = {
+    ...PxTimelineEngine,
+    auto: 'auto',
 } as const;
 
-export type PxAnimatorEngine = typeof PxAnimatorEngine[keyof typeof PxAnimatorEngine];
+export type PxTimelineEngineExtra = typeof PxTimelineEngineExtra[keyof typeof PxTimelineEngineExtra];
 
-/** The engine a playback mode resolves to BEFORE the runtime probes support: `player`
- *  pins the frame loop; `auto` and `native` mean WAAPI (`auto` may still fall back to
- *  frames when WAAPI declines the document). */
-export function engineForPlaybackMode(mode: PxPlaybackMode | undefined): PxAnimatorEngine {
-    return mode === PxPlaybackMode.player ? PxAnimatorEngine.frames : PxAnimatorEngine.waapi;
+/** What a requested engine resolves to BEFORE the runtime probes support: `js` pins the frame
+ *  loop, anything else starts at `native`. NOTE this is only the STARTING point — `auto` still
+ *  falls back to `js` per document when the platform API declines an attribute, which happens at
+ *  bind time (see `PxAnimatorBind`), not here. */
+export function resolveTimelineEngine(engine: PxTimelineEngineExtra | undefined): PxTimelineEngine {
+    return engine === PxTimelineEngineExtra.js ? PxTimelineEngine.js : PxTimelineEngine.native;
 }
 
-/** `native` is a demand, not a preference: no frames fallback when WAAPI declines an attribute. */
-export function isNativeForced(mode: PxPlaybackMode | undefined): boolean {
-    return mode === PxPlaybackMode.native;
+/** `native` is a demand, not a preference: no JS fallback when the platform API declines an attribute. */
+export function isNativeForced(engine: PxTimelineEngineExtra | undefined): boolean {
+    return engine === PxTimelineEngineExtra.native;
 }
 
 /** May the browser's ScrollTimeline/ViewTimeline drive a scroll/view timeline?
  *  `auto` tries it first (falling back to the player's own measurement), `native`
- *  asks for it, `player` never uses it. */
-export function mayUseNativeScrollTimeline(mode: PxPlaybackMode | undefined): boolean {
-    return mode !== PxPlaybackMode.player;
+ *  asks for it, `js` never uses it. */
+export function mayUseNativeScrollTimeline(engine: PxTimelineEngineExtra | undefined): boolean {
+    return engine !== PxTimelineEngineExtra.js;
 }
 
 // V3 — every closed value list is a NAMED const + a strict `px.enum` slot, so a
@@ -362,9 +379,9 @@ export function flattenAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig
 
     const { timeline: _dropped, ...flat } = cfg as any;
 
-    // `mode` and `frameRate` are shared by every timeline type: who runs the animation, and at
-    // what rate when that is the player's own frame loop.
-    if (timeline.mode !== undefined) flat.mode = timeline.mode;
+    // `engine` and `frameRate` are shared by every timeline type: how the attributes get
+    // updated, and at what rate when that is the player's own frame loop.
+    if (timeline.engine !== undefined) flat.engine = timeline.engine;
     if (timeline.frameRate !== undefined) flat.frameRate = timeline.frameRate;
 
     if (timeline.type === 'scroll' || timeline.type === 'view') {
@@ -414,11 +431,11 @@ export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
     if (!cfg || (cfg as any).timeline !== undefined) return cfg;
 
     const { timelineSource, scroll, trigger, delay, iterations, direction, fill, resetOnFinish,
-            duration, mode, frameRate, ...shared } = cfg as any;
+            duration, engine, frameRate, ...shared } = cfg as any;
 
     if (timelineSource === 'scroll') {
         const timeline: any = { type: scroll?.kind === 'view' ? 'view' : 'scroll' };
-        if (mode !== undefined) timeline.mode = mode;
+        if (engine !== undefined) timeline.engine = engine;
         if (frameRate !== undefined) timeline.frameRate = frameRate;
         if (duration !== undefined) timeline.duration = duration;   // §2.8
         // Finite iterations survive scrubbing (D4); 'infinite' cannot map to a range.
@@ -446,7 +463,7 @@ export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
     // Time-driven: `type` is optional on the wire and 'time' is the default, so the
     // writer omits it — the common case declares nothing.
     const timeline: any = {};
-    if (mode !== undefined) timeline.mode = mode;
+    if (engine !== undefined) timeline.engine = engine;
     if (frameRate !== undefined) timeline.frameRate = frameRate;
     if (duration !== undefined) timeline.duration = duration;   // §2.8
     if (trigger !== undefined || resetOnFinish) {

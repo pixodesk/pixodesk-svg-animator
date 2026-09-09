@@ -58,7 +58,7 @@ runtime crash on a non-browser platform.
 | **Text** | `materialiseGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
 | **Node helpers** | `getNormalizedProps`, `sanitiseAttributeValue`, `resolveStyle`, `generateNewIds` |
 | **Playback engine** | `createBasicFrameLoopAnimator` + the `PxPlatformAdapter` interface |
-| **Wire enums** | `PxAnimatorMode`, `PxAnimatorEngine`, `PxLoopExtend`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneType`, `PxUnits`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string |
+| **Wire enums** | `PxAnimatorMode`, `PxTimelineEngine`, `PxLoopExtend`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneType`, `PxUnits`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string |
 
 ### Validating a document
 
@@ -99,21 +99,21 @@ lightweight editor document into a flat tree any renderer can walk:
    sampled into plain `{translate, rotate}` keyframes.
 4. **Animated `<use>`** — replaced by `<g>` + a deep clone with fresh ids.
 
-Steps 3 and 4 run when `engine` is `waapi`. Pass `waapi` for **any renderer
+Steps 3 and 4 run when `engine` is `native`. Pass `native` for **any renderer
 without live `<use>` propagation** — that includes `react-native-svg` — and
-`frames` only for the DOM, which resolves `<use>` references natively.
+`js` only for the DOM, which resolves `<use>` references natively.
 
 ```ts
 import {
     materialiseAllInTree, generateNewIds, calcAnimationValues,
-    getNormalisedBindings, PxAnimatorEngine,
+    getNormalisedBindings, PxTimelineEngine,
 } from '@pixodesk/svg-animator-core';
 
 // Flatten once …
-const flat = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.waapi));
+const flat = generateNewIds(materialiseAllInTree(doc, PxTimelineEngine.native));
 
 // … then ask for values at any time, with no renderer involved.
-for (const binding of getNormalisedBindings(flat, PxAnimatorEngine.frames) ?? []) {
+for (const binding of getNormalisedBindings(flat, PxTimelineEngine.js) ?? []) {
     const values = calcAnimationValues(binding.animate, 500); // t = 500 ms
     console.log(binding.id, values);   // → { opacity: '0.5', transform: 'translate(…)' }
 }

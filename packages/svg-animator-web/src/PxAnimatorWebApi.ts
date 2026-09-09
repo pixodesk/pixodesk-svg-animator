@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, getAnimatorConfig, getNormalisedBindings, interpolateValue, kebabToCamelCaseWord, PxAnimatorEngine, splitEasing, toRGBA, TRANSFORM_FN_NAMES, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxAnyKeyframe, type PxBezierPath, type PxNormalisedKeyframe, kfEasing, kfValue } from '@pixodesk/svg-animator-core';
+import { PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, getAnimatorConfig, getNormalisedBindings, interpolateValue, kebabToCamelCaseWord, PxTimelineEngine, splitEasing, toRGBA, TRANSFORM_FN_NAMES, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxAnyKeyframe, type PxBezierPath, type PxNormalisedKeyframe, kfEasing, kfValue } from '@pixodesk/svg-animator-core';
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
 import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
@@ -204,7 +204,7 @@ export function convertToWebApiKeyframes(
  * @param forceEvenIfHasUnsupportedAttrs If true, an animator will be created even if some CSS properties are not supported.
  * @returns An PxAnimatorAPI instance, or null if unsupported features are used and not forced.
  */
-/** Native scroll-timeline payload (`timeline.mode: 'native'` / `auto`; see PxScrollDriver.createNativeScrollTimeline): the
+/** Native scroll-timeline payload (`timeline.engine: 'native'` / `auto`; see PxScrollDriver.createNativeScrollTimeline): the
  *  browser-native timeline every Animation attaches to, plus optional range offsets. */
 export interface PxWebApiScrollTimeline {
     timeline: AnimationTimeline;
@@ -237,7 +237,7 @@ export function createWebApiAnimator(
     // rotate }` transform kfs inside `normalizeAnimationDefinition` (gated on
     // `engine === 'waapi'`). The WAAPI keyframe builder then sees a vanilla
     // unified-transform animation — no DOM-style mutation, no offset-path.
-    const bindings = getNormalisedBindings(doc, PxAnimatorEngine.waapi);
+    const bindings = getNormalisedBindings(doc, PxTimelineEngine.native);
 
     const animations: Array<Animation> = [];
 

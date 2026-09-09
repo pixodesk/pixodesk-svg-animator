@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { describe, expect, it } from 'vitest';
-import { generateNewIds, materialiseAllInTree, PxAnimatorEngine, type PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import { generateNewIds, materialiseAllInTree, PxTimelineEngine, type PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
 import { compileTracks, sampleProps } from './PxRnTracks';
 import { toRnPropName } from './PxRnPropNames';
 
@@ -12,7 +12,7 @@ function makeDoc(): PxAnimatedSvgDocument {
     return {
         type: 'svg',
         viewBox: '0 0 200 200',
-        animator: { timeline: { mode: 'player', duration: 1000, iterations: 2, direction: 'alternate' } },
+        animator: { timeline: { engine: 'js', duration: 1000, iterations: 2, direction: 'alternate' } },
         children: [
             {
                 type: 'rect',
@@ -37,7 +37,7 @@ function makeDoc(): PxAnimatedSvgDocument {
 }
 
 function compile(doc = makeDoc(), opts?: Parameters<typeof compileTracks>[1]) {
-    const materialised = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.frames));
+    const materialised = generateNewIds(materialiseAllInTree(doc, PxTimelineEngine.js));
     return compileTracks(materialised, opts);
 }
 
@@ -150,13 +150,13 @@ describe('length-list props (stroke-dasharray)', () => {
     it('compiles stroke-dasharray into number arrays (rn-svg native shape)', () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg', viewBox: '0 0 100 100',
-            animator: { timeline: { mode: 'player', duration: 1000 } },
+            animator: { timeline: { engine: 'js', duration: 1000 } },
             children: [{
                 type: 'path', id: 'p', d: 'M 0 50 L 100 50', stroke: '#000', fill: 'none',
                 effects: { strokeTrim: { range: { keyframes: [{ time: 0, value: [0, 0.1] }, { time: 1000, value: [0, 1] }] } } },
             }],
         };
-        const materialised = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.waapi));
+        const materialised = generateNewIds(materialiseAllInTree(doc, PxTimelineEngine.native));
         const tracks = compileTracks(materialised);
         const el = tracks.elements.find(e => 'strokeDasharray' in e.props)!;
         expect(el).toBeDefined();
@@ -171,7 +171,7 @@ describe('animated <use> flattening (waapi materialisation)', () => {
     it('inlines animated <use> clones so no live references remain', () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg', viewBox: '0 0 300 200',
-            animator: { timeline: { mode: 'player', duration: 2000 } },
+            animator: { timeline: { engine: 'js', duration: 2000 } },
             children: [
                 { type: 'defs', children: [{ type: 'g', id: 'sym', children: [{
                     type: 'circle', id: 'c', cx: 30, cy: 40, r: 16, fill: '#f59e0b',
@@ -181,7 +181,7 @@ describe('animated <use> flattening (waapi materialisation)', () => {
                 { type: 'use', id: 'u2', href: '#sym', x: 80, effects: { clone: { source: '#sym', retime: { start: -600 } } } },
             ],
         };
-        const materialised = generateNewIds(materialiseAllInTree(doc, PxAnimatorEngine.waapi));
+        const materialised = generateNewIds(materialiseAllInTree(doc, PxTimelineEngine.native));
         const countUse = (n: any): number =>
             (n.type === 'use' ? 1 : 0) + (n.children || []).reduce((s: number, c: any) => s + countUse(c), 0);
         expect(countUse(materialised)).toBe(0);

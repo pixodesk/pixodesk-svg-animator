@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, isNativeForced, isScrollTimeline, mayUseNativeScrollTimeline, PxPlaybackMode, scrollTotalDurationMs, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, isNativeForced, isScrollTimeline, mayUseNativeScrollTimeline, PxTimelineEngineExtra, scrollTotalDurationMs, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
@@ -56,7 +56,7 @@ export function finaliseAnimator(
 }
 
 /**
- * Picks the engine the way the full player does, from `timeline.mode`: `player` pins the
+ * Picks the engine the way the full player does, from `timeline.engine`: `player` pins the
  * frame loop; otherwise waapi, with a frames fallback for unsupported attrs unless
  * `native` demands waapi.
  */
@@ -69,7 +69,7 @@ export function bindWithEngineChoice(
     const animatorConfig = getAnimatorConfig(doc) || {};
 
     // Scroll-driven document: the playhead follows scroll position, never the wall
-    // clock. One knob — `timeline.mode` — picks the row (scroll-timeline.design.md §4.0):
+    // clock. One knob — `timeline.engine` — picks the row (scroll-timeline.design.md §4.0):
     //   player → the player measures progress, frames applies values (`setCurrentTime`)
     //   native → browser ScrollTimeline/ViewTimeline drives waapi (compositor thread)
     //   auto   → native first; when unsupported, the player measures and waapi (or
@@ -87,12 +87,12 @@ export function bindWithEngineChoice(
             let unpin = () => { /* nothing pinned */ };
 
             // `auto` / `native`: try the browser's own timeline first.
-            if (mayUseNativeScrollTimeline(animatorConfig.mode) && rootElement) {
+            if (mayUseNativeScrollTimeline(animatorConfig.engine) && rootElement) {
                 unpin = applyScrollPin(rootElement, animatorConfig.scroll);
                 const native = createNativeScrollTimeline(rootElement, animatorConfig);
                 if (native) {
                     const api = createWebApiAnimator(doc, cb, rootElement,
-                        isNativeForced(animatorConfig.mode), native);
+                        isNativeForced(animatorConfig.engine), native);
                     if (api) {
                         const destroyNative = api.destroy.bind(api);
                         api.destroy = () => { unpin(); destroyNative(); };
@@ -107,8 +107,8 @@ export function bindWithEngineChoice(
             // The player measures progress (the reference implementation). Engine per
             // `mode`: waapi unless `player` pins frames or waapi declines the doc.
             const api = (
-                animatorConfig.mode !== PxPlaybackMode.player
-                    ? createWebApiAnimator(doc, cb, rootElement, isNativeForced(animatorConfig.mode))
+                animatorConfig.engine !== PxTimelineEngineExtra.js
+                    ? createWebApiAnimator(doc, cb, rootElement, isNativeForced(animatorConfig.engine))
                     : null
             ) || createFrameLoopAnimator(doc, adapter, cb, rootElement);
 
@@ -134,7 +134,7 @@ export function bindWithEngineChoice(
     }
 
     return finaliseAnimator(animatorConfig, callbacks, cb => {
-        if (animatorConfig.mode === PxPlaybackMode.player) {
+        if (animatorConfig.engine === PxTimelineEngineExtra.js) {
             // `player` pins the frame loop, even if waapi could be used.
             return createFrameLoopAnimator(doc, adapter, cb, rootElement);
         }
@@ -142,7 +142,7 @@ export function bindWithEngineChoice(
         // attrs) unless `native` demands waapi.
         return (
             createWebApiAnimator(doc, cb, rootElement,
-                isNativeForced(animatorConfig.mode)
+                isNativeForced(animatorConfig.engine)
             ) ||
             createFrameLoopAnimator(doc, adapter, cb, rootElement)
         );

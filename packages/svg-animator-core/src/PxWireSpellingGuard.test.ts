@@ -46,7 +46,7 @@ const EXEMPT: Record<string, string> = {
 };
 
 /** Keys that belong inside `timeline`. `debugGlobalName` and the lookup tables do not.
- *  `frameRate` joined them on 2026-09-09 — it parameterises the engine `timeline.mode` selects,
+ *  `frameRate` joined them on 2026-09-09 — it parameterises the engine `timeline.engine` selects,
  *  so keeping it at the animator root split one decision across two levels. */
 const PLAYBACK_KEYS = new Set<string>([
     ...PX_TIMELINE_SHARED_KEYS, ...PX_TIME_ONLY_TIMELINE_KEYS,
