@@ -387,7 +387,14 @@ class Obj<S extends AnyShape> extends Base<InferShape<S>> {
         const src = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw as any : {};
         const out: any = {};
         for (const key of Object.keys(this._shape)) {
-            out[key] = this._shape[key].sanitize(src[key]);
+            const v = this._shape[key].sanitize(src[key]);
+            // An OPTIONAL key that was absent sanitizes to `undefined`. Writing it anyway
+            // produced a "phantom" own key — invisible to JSON, but NOT to `Object.keys`,
+            // and consumers branch on that: `PxOffsetPathMaterialiser` bails when a transform
+            // carries keys beyond translate/origin, so phantoms silently disabled the CSS
+            // Motion Path path, and `contentRefSplit` emitted `transform=""`. Measured across
+            // 135 real documents: 16,367 phantoms, changing the render of 10 of them.
+            if (v !== undefined) out[key] = v;
         }
         return out;
     }
@@ -468,7 +475,8 @@ class OpenObj<S extends AnyShape, V = any> extends Base<InferOpenShape<S, V>> {
             : {};
         const out: Record<string, unknown> = { ...src };
         for (const key of Object.keys(this._shape)) {
-            out[key] = this._shape[key].sanitize(src[key]);
+            const v = this._shape[key].sanitize(src[key]);
+            if (v !== undefined) out[key] = v;   // no phantom keys — see Obj.sanitize
         }
         if (this._openSchema) {
             for (const key of Object.keys(src)) {

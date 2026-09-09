@@ -14,6 +14,8 @@
  * Run with `npm run test:bundle` AFTER a build — they read `dist/`.
  */
 import { describe, expect, it } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { BUNDLE_PAIRS, bundleText, framesDoc, loadBundle } from './bundleHarness';
 
 /**
@@ -33,6 +35,31 @@ const BOUNDARY_NAMES: Array<{ name: string; why: string }> = [
     { name: 'timelineSource', why: 'legacy flat documents: a scroll timeline plays time-driven' },
     { name: 'resetOnFinish',  why: 'legacy flat documents: the finish action is lost' },
 ];
+
+/**
+ * The published contract — every name a minifier must not rename, generated from the runtime
+ * schemas plus the members of every exported type (scripts/collect-identifiers.mjs).
+ *
+ * Checked against the mangle filter rather than against bundle TEXT: a reserved name may also
+ * happen to be a local variable name (`defs`, `engine`), and terser mangles variables always
+ * and correctly — so grepping the bundle for all 199 names reports false positives. The exact
+ * question is whether any reserved name is in the set the property mangler is allowed to touch.
+ */
+const reservedJson = JSON.parse(readFileSync(resolve(__dirname, '..', 'mangle-reserved.json'), 'utf8'));
+const identsJson = JSON.parse(readFileSync(resolve(__dirname, '..', '..', '..', 'scripts', '.identifiers.json'), 'utf8'));
+
+describe('the mangle filter and the published contract cannot disagree', () => {
+    it('no reserved name is marked safe to mangle', () => {
+        const safe = new Set<string>(identsJson.safeToMangle);
+        expect((reservedJson.reserved as Array<string>).filter(n => safe.has(n))).toEqual([]);
+    });
+
+    it('the published list covers the whole wire format', () => {
+        // Every schema key must be in it; that is what makes a NEW wire key safe by default.
+        const reserved = new Set<string>(reservedJson.reserved);
+        expect((identsJson.wireKeys as Array<string>).filter(k => !reserved.has(k))).toEqual([]);
+    });
+});
 
 describe('shipped bundles: boundary names survive minification', () => {
     for (const pair of BUNDLE_PAIRS) {

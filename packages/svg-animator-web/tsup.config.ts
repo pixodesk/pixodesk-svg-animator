@@ -37,11 +37,23 @@ const umdAlias = (o: { alias?: Record<string, string> }) => {
 // these internals. esm/cjs are left alone because the editor app imports from them and
 // mangled internals could surprise it.
 const IDENTS = path.resolve('../../scripts/.identifiers.json');
+const RESERVED = path.resolve('mangle-reserved.json');
 function internalPropsRegex(): RegExp | undefined {
     if (!existsSync(IDENTS)) return undefined;   // bare `tsup` without the prebuild step
     const { safeToMangle } = JSON.parse(readFileSync(IDENTS, 'utf8'));
     if (!safeToMangle?.length) return undefined;
     return new RegExp(`^(${safeToMangle.join('|')})$`);
+}
+
+// The published contract (schema keys + the members of every exported type + platform and
+// emitted DOM names). Belt and braces with the regex above: `regex` is the primary gate and
+// is fail-CLOSED — a name nobody classified is left alone — while `reserved` is a second,
+// independent net that terser applies on top and that wins when the two disagree. So a bug
+// in the generator still cannot rename a wire key. Never `reserved` alone: that is fail-open.
+function reservedProps(): Array<string> | undefined {
+    if (!existsSync(RESERVED)) return undefined;
+    const { reserved } = JSON.parse(readFileSync(RESERVED, 'utf8'));
+    return reserved?.length ? reserved : undefined;
 }
 
 // --- lever 3: terser's compress runs its rules in a loop; each pass can expose work for
@@ -50,9 +62,10 @@ const COMPRESS_PASSES = 3;
 
 const terserFor = (mangleProps: boolean) => {
     const regex = mangleProps ? internalPropsRegex() : undefined;
+    const reserved = mangleProps ? reservedProps() : undefined;
     return {
         compress: { passes: COMPRESS_PASSES },
-        ...(regex ? { mangle: { properties: { regex } } } : {}),
+        ...(regex ? { mangle: { properties: { regex, ...(reserved ? { reserved } : {}) } } } : {}),
     };
 };
 

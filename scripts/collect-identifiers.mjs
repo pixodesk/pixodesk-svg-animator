@@ -46,9 +46,67 @@ const SRC_DIRS = [
 ];
 
 // Calls whose object-literal keys ARE the wire format.
+// Kept as a CROSS-CHECK only: the authority is now the runtime schema walk below, because
+// pattern-matching source only recognises an object literal passed directly to a px.object
+// call — a schema built any other way is invisible, which is how `domType` came to be a
+// documented wire key that no reserve rule knew about (MINIFICATION-BOUNDARY-PLAN.md §2).
 const SCHEMA_FACTORIES = new Set([
     'object', 'openObject', 'extendedObject', 'record', 'discriminatedUnion',
 ]);
+
+// Names the BROWSER reads off objects we hand it, and names we EMIT as DOM attributes.
+// Neither is ours to rename. `rangeName` is a WAAPI `TimelineRangeOffset` member whose
+// siblings are in terser's domprops — it is simply younger than the bundled list.
+const PLATFORM_NAMES = ['rangeName', 'axis', 'source', 'subject', 'timeline', 'view', 'scroll'];
+const EMITTED_DOM_NAMES = ['class'];
+
+/**
+ * The wire format, read from the BUILT core at runtime: every key of every exported schema,
+ * followed through shape / array / optional / lazy / union / discriminatedUnion / record /
+ * tuple. A key added to a schema is therefore reserved automatically, for ever, with no
+ * human action — which is the whole point of deriving instead of guessing.
+ */
+function collectSchemaKeys() {
+    const corePath = join(ROOT, 'packages/svg-animator-core/dist/index.cjs');
+    let core;
+    try {
+        core = createRequire(corePath)(corePath);
+    } catch (e) {
+        throw new Error(
+            'collect-identifiers: cannot read the built core at ' + corePath + '.\n' +
+            'Build @pixodesk/svg-animator-core first — the reserved list is derived from its runtime schemas.\n' +
+            String(e));
+    }
+    const keys = new Set();
+    const seen = new Set();
+    const walk = (schema) => {
+        if (!schema || typeof schema !== 'object' || seen.has(schema)) return;
+        seen.add(schema);
+        let d;
+        try { d = core.describeSchema(schema); } catch { return; }
+        if (!d) return;
+        switch (d.kind) {
+            case 'shape':
+                for (const [k, v] of Object.entries(d.shape || {})) { keys.add(k); walk(v); }
+                if (d.openValue) walk(d.openValue);
+                break;
+            case 'array':    walk(d.item); break;
+            case 'optional': walk(d.inner); break;
+            case 'lazy':     walk(d.resolved); break;
+            case 'record':   walk(d.value); break;
+            case 'union':    (d.members || []).forEach(walk); break;
+            case 'discriminatedUnion':
+                if (d.key) keys.add(d.key);
+                (d.members || []).forEach(walk);
+                break;
+            case 'tuple':    (d.items || []).forEach(walk); break;
+        }
+    };
+    for (const [name, value] of Object.entries(core)) {
+        if (/Schema$/.test(name) || name === 'PxNodeBase' || name === 'PxSvgNodeExtra') walk(value);
+    }
+    return keys;
+}
 
 function walkDir(dir, out = []) {
     for (const name of readdirSync(dir)) {
@@ -167,7 +225,7 @@ const BUILTIN = new Set(dompropsMod.domprops || dompropsMod.default || []);
 // WAAPI's `TimelineRangeOffset` (its siblings `rangeStart`/`rangeEnd`/`offset` are already
 // in domprops, which is exactly why the omission went unnoticed). This list needs a new
 // entry whenever we adopt a web API younger than the terser release we build with.
-for (const p of ['rangeName', 'axis', 'source', 'subject', 'timeline', 'view', 'scroll']) BUILTIN.add(p);
+for (const p of PLATFORM_NAMES) BUILTIN.add(p);
 for (const ctor of [Object, Array, String, Number, Boolean, Function, Date, RegExp, Error,
     Map, Set, WeakMap, WeakSet, Promise, Symbol, Math, JSON, ArrayBuffer, Int8Array]) {
     for (const src of [ctor, ctor.prototype]) {
@@ -175,6 +233,23 @@ for (const ctor of [Object, Array, String, Number, Boolean, Function, Date, RegE
         for (const p of Object.getOwnPropertyNames(src)) BUILTIN.add(p);
     }
 }
+
+// The wire format, derived from the built core rather than guessed from source.
+const schemaKeys = collectSchemaKeys();
+const astOnly = [...wireKeys].filter(k => !schemaKeys.has(k));
+if (astOnly.length) {
+    console.warn(`  ! ${astOnly.length} key(s) found by the source scan but NOT by the runtime walk: ${astOnly.join(', ')}`);
+    console.warn('    (a schema that is not exported from core, or built in a shape the walk misses)');
+}
+for (const k of schemaKeys) wireKeys.add(k);
+
+// The published contract: everything a consumer's minifier must not rename.
+const reserved = new Set([
+    ...schemaKeys,           // the file format
+    ...publicTypeMembers,    // the keys of every exported type — options, callbacks, API methods
+    ...PLATFORM_NAMES,       // names the browser reads off objects we hand it
+    ...EMITTED_DOM_NAMES,    // names we write into the DOM
+]);
 
 const safe = [...declaredProps.keys()].filter(n =>
     !wireKeys.has(n) && !stringLiterals.has(n) && !exportedNames.has(n)
@@ -184,6 +259,26 @@ const safe = [...declaredProps.keys()].filter(n =>
     // own mangled locals share those spellings, which corrupts the occurrence count.
     && n.length > 2);
 
+// A name can never be both. If this fires, a reserve rule and the mangle filter disagree —
+// which is precisely the silent, configuration-dependent breakage this whole exercise exists
+// to end, so fail the build rather than ship it.
+const collision = safe.filter(n => reserved.has(n));
+if (collision.length) {
+    throw new Error('collect-identifiers: these names are BOTH reserved and marked safe to mangle: '
+        + collision.join(', '));
+}
+
+// Published for third parties: terser takes it as `mangle.properties.reserved`, esbuild as
+// `reserveProps`. There is no npm standard for this, but every mangler accepts such a list.
+writeFileSync(
+    join(ROOT, 'packages/svg-animator-web/mangle-reserved.json'),
+    JSON.stringify({
+        comment: 'Property names @pixodesk/svg-animator reads from, or writes to, objects it does '
+            + 'not own. Feed this to your minifier (terser: mangle.properties.reserved; esbuild: '
+            + 'reserveProps) if you property-mangle this library or the objects you pass it.',
+        reserved: [...reserved].sort(),
+    }, null, 1) + '\n');
+
 const result = {
     files: files.length,
     declared: [...declaredProps.entries()].sort((a, b) => b[1] - a[1]),
@@ -191,6 +286,7 @@ const result = {
     stringLiterals: [...stringLiterals].sort(),
     exportedNames: [...exportedNames].sort(),
     publicTypeMembers: [...publicTypeMembers].sort(),
+    reserved: [...reserved].sort(),
     safeToMangle: safe.sort(),
 };
 writeFileSync(join(ROOT, 'scripts/.identifiers.json'), JSON.stringify(result, null, 1));
@@ -201,5 +297,7 @@ console.log(`  wire-format keys (px.object)   : ${wireKeys.size}`);
 console.log(`  names colliding with a string  : ${stringLiterals.size}`);
 console.log(`  exported names                 : ${exportedNames.size}`);
 console.log(`  public type members            : ${publicTypeMembers.size}`);
+console.log(`  schema keys (runtime walk)     : ${schemaKeys.size}`);
+console.log(`  RESERVED (published)           : ${reserved.size}`);
 console.log(`  => SAFE TO MANGLE              : ${safe.length}`);
 console.log(`\nwrote scripts/.identifiers.json`);

@@ -120,34 +120,24 @@ type PxAnimatedSvgDocument = PxInfer<typeof PxAnimatedSvgDocumentSchema>;
 // Expected shape constants — reused across tests
 // ─────────────────────────────────────────────────────────────────────────────
 
-const EMPTY_KEYFRAME = {
-    time: undefined, t: undefined, value: undefined,
-    v: undefined, easing: undefined, e: undefined,
-};
+// `sanitize` writes only the keys it actually has a value for. An OPTIONAL key that was
+// absent (or dropped as invalid) leaves NO own key behind — it used to be written as
+// `key: undefined`, a "phantom" that is invisible to JSON but not to `Object.keys`, and
+// consumers branch on that (see the guard in `Obj.sanitize`). So an all-empty shape is `{}`,
+// and only REQUIRED fields — which have defaults — survive an empty input.
+const EMPTY_KEYFRAME = {};
 
-const EMPTY_TRIGGER = {
-    startOn: undefined, outAction: undefined, scrollIntoViewThreshold: undefined,
-};
+const EMPTY_TRIGGER = {};
 
-const EMPTY_CONFIG = {
-    mode: undefined, duration: undefined, delay: undefined, iterations: undefined,
-    fill: undefined, direction: undefined, frameRate: undefined,
-    trigger: undefined, debugGlobalName: undefined,
-};
+const EMPTY_CONFIG = {};
 
-const EMPTY_DOC: PxAnimatedSvgDocument = {
-    type: 'svg', width: undefined, height: undefined, viewBox: undefined,
-    animator: undefined, definitions: undefined, bindings: undefined, children: undefined,
-};
+const EMPTY_DOC: PxAnimatedSvgDocument = { type: 'svg' };
 
 // NOTE: px.object() strips keys not declared in the schema shape.
 // For PxNode this means SVG attributes (fill, cx, cy, r, stroke, …) are dropped.
 // Only type, children, animate, and style are preserved.
 const node = (type: string, extras?: Partial<{ children: unknown[]; animate: unknown; style: unknown }>) => ({
     type,
-    children: undefined,
-    animate: undefined,
-    style: undefined,
     ...extras,
 });
 
@@ -257,7 +247,7 @@ describe('PxSchema object', () => {
 
     it('drops invalid optional field', () => {
         const s = px.object({ label: px.string().optional() });
-        expect(s.sanitize({ label: 42 })).toStrictEqual({ label: undefined });
+        expect(s.sanitize({ label: 42 })).toStrictEqual({});
         expect(s.sanitize({ label: 'ok' })).toStrictEqual({ label: 'ok' });
     });
 
@@ -339,8 +329,7 @@ describe('PxKeyframeSchema', () => {
     it('sanitizes a full valid keyframe unchanged', () => {
         const kf = { t: 200, v: [0, 100, 200], e: 'ease-out' };
         expect(PxKeyframeSchema.sanitize(kf)).toStrictEqual({
-            time: undefined, t: 200, value: undefined, v: [0, 100, 200],
-            easing: undefined, e: 'ease-out',
+            t: 200, v: [0, 100, 200], e: 'ease-out',
         });
     });
 });
@@ -376,7 +365,6 @@ describe('PxAnimatorConfigSchema', () => {
             ...EMPTY_CONFIG,
             trigger: {
                 startOn: 'scrollIntoView',
-                outAction: undefined,
                 scrollIntoViewThreshold: 0.5,
                 // garbage stripped
             },

@@ -22,7 +22,8 @@
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "mangle-reserved.json"
   ],
   "scripts": {
     "prepare": "npm run build",
