@@ -3,14 +3,14 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, getAnimatorConfig, getNormalisedBindings, interpolateValue, kebabToCamelCaseWord, PxAnimatorEngine, splitEasing, toRGBA, TRANSFORM_FN_NAMES, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxBezierPath, type PxKeyframe } from '@pixodesk/svg-animator-core';
+import { PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, getAnimatorConfig, getNormalisedBindings, interpolateValue, kebabToCamelCaseWord, PxAnimatorEngine, splitEasing, toRGBA, TRANSFORM_FN_NAMES, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxAnyKeyframe, type PxBezierPath, type PxNormalisedKeyframe, kfEasing, kfValue } from '@pixodesk/svg-animator-core';
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
 import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
 
 
 /**
- * Converts a single PxKeyframe into a Web Animations API Keyframe object.
+ * Converts a single normalised keyframe into a Web Animations API Keyframe object.
  *
  * Handles three categories of CSS property:
  * - **Colour attributes** (e.g. fill, stroke): array values are converted to an rgba() string.
@@ -22,9 +22,11 @@ import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
  * false), cssKey is added to unsupportedSet so the caller can decide whether to fall back to the
  * frame-loop animator.
  */
-function createCssKf(kf: PxKeyframe, t: number, propName: string, unsupportedSet: Set<string>) {
-    let value = kf.v ?? kf.value;
-    const e = kf.e ?? kf.easing; // e is on the source keyframe: applied from this KF to the next (matches WAAPI easing convention)
+function createCssKf(kf: PxAnyKeyframe, t: number, propName: string, unsupportedSet: Set<string>) {
+    let value = kfValue(kf);
+    // The easing is on the SOURCE keyframe: it applies from this kf to the next, matching the
+    // WAAPI convention. Resolved already when the keyframe came through `normalizeKeyframes`.
+    const e = kfEasing(kf);
 
     const cssKf: Keyframe = {
         offset: t,
@@ -93,10 +95,10 @@ function createCssKf(kf: PxKeyframe, t: number, propName: string, unsupportedSet
  */
 function clipKeyframesToDuration(
     propName: string,
-    keyframes: PxKeyframe[],
+    keyframes: PxNormalisedKeyframe[],
     duration: number
-): PxKeyframe[] {
-    const result: PxKeyframe[] = [];
+): PxNormalisedKeyframe[] {
+    const result: PxNormalisedKeyframe[] = [];
 
     for (let i = 0; i < keyframes.length; i++) {
         const kf = keyframes[i];

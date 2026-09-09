@@ -28,15 +28,16 @@
 
 import { bezier2D_arcAtT, bezier2D_arcLengthLUT, bezier2D_derivativeAt, bezier2D_pointAt, clamp, invertEasing, splitEasing } from './PxAnimatorUtil';
 import type { ArcLengthLUT } from './PxAnimatorUtil';
-import type { PxKeyframe, PxNode, PxPropertyAnimation, PxTransformParts } from './PxAnimatorTypes';
+import type { PxAnyKeyframe, PxKeyframe, PxNormalisedKeyframe, PxNode, PxPropertyAnimation, PxTransformParts } from './PxAnimatorTypes';
+import { kfTime, kfValue, kfEasing, kfTangentIn, kfTangentOut } from './PxAnimatorTypes';
 
 
 type Point2 = [number, number];
 type Easing = [number, number, number, number];
 
 
-function getKfTranslate(kf: PxKeyframe): Point2 | undefined {
-    const v = kf.value ?? kf.v;
+function getKfTranslate(kf: PxAnyKeyframe): Point2 | undefined {
+    const v = kfValue(kf);
     if (!v) return undefined;
     if (Array.isArray(v) && v.length >= 2 && typeof v[0] === 'number' && typeof v[1] === 'number') {
         // Composite per-part shape: `value: [x, y]` directly.
@@ -47,12 +48,12 @@ function getKfTranslate(kf: PxKeyframe): Point2 | undefined {
     return undefined;
 }
 
-function getKfTime(kf: PxKeyframe): number {
-    return (kf.time ?? kf.t ?? 0) as number;
+function getKfTime(kf: PxAnyKeyframe): number {
+    return kfTime(kf) as number;
 }
 
-function getKfEasing(kf: PxKeyframe): Easing | undefined {
-    return (kf.easing ?? kf.e) as Easing | undefined;
+function getKfEasing(kf: PxAnyKeyframe): Easing | undefined {
+    return kfEasing(kf) as Easing | undefined;
 }
 
 
@@ -63,11 +64,11 @@ function getKfEasing(kf: PxKeyframe): Easing | undefined {
  * `transform` slot or a composite per-part `translate` slot.
  */
 export function propAnimIsMotionPath(anim: PxPropertyAnimation): boolean {
-    const kfs: Array<PxKeyframe> | undefined = anim.keyframes;
+    const kfs: Array<PxAnyKeyframe> | undefined = anim.keyframes;
     if (!Array.isArray(kfs)) return false;
     if (anim.autoOrient) return true;
     for (const kf of kfs) {
-        if ((kf.tangentIn ?? kf.ti) || (kf.tangentOut ?? kf.to)) return true;
+        if (kfTangentIn(kf) || kfTangentOut(kf)) return true;
     }
     return false;
 }
@@ -93,19 +94,19 @@ interface MotionPathSegmentCache {
 // across evaluations (a lookup that falls outside the keyframe range answers with a
 // first→last pair), and a `prevKf`-only key let that bogus segment's Bezier be served
 // for every later evaluation of the real `prevKf`→next segment.
-const _segmentCache = new WeakMap<PxKeyframe, WeakMap<PxKeyframe, MotionPathSegmentCache>>();
+const _segmentCache = new WeakMap<PxAnyKeyframe, WeakMap<PxAnyKeyframe, MotionPathSegmentCache>>();
 
 function getSegmentCache(
-    prevKf: PxKeyframe,
-    nextKf: PxKeyframe,
+    prevKf: PxAnyKeyframe,
+    nextKf: PxAnyKeyframe,
     prevPos: Point2,
     nextPos: Point2,
 ): MotionPathSegmentCache {
     let byNext = _segmentCache.get(prevKf);
     const existing = byNext?.get(nextKf);
     if (existing) return existing;
-    const to = prevKf.tangentOut ?? prevKf.to;
-    const ti = nextKf.tangentIn ?? nextKf.ti;
+    const to = kfTangentOut(prevKf);
+    const ti = kfTangentIn(nextKf);
     const P1: Point2 = [prevPos[0] + (to ? to[0] : 0), prevPos[1] + (to ? to[1] : 0)];
     const P2: Point2 = [nextPos[0] + (ti ? ti[0] : 0), nextPos[1] + (ti ? ti[1] : 0)];
     const lut = bezier2D_arcLengthLUT(prevPos, P1, P2, nextPos);
@@ -114,7 +115,7 @@ function getSegmentCache(
         lut,
         totalArc: lut.ds[lut.ds.length - 1],
     };
-    if (!byNext) { byNext = new WeakMap<PxKeyframe, MotionPathSegmentCache>(); _segmentCache.set(prevKf, byNext); }
+    if (!byNext) { byNext = new WeakMap<PxAnyKeyframe, MotionPathSegmentCache>(); _segmentCache.set(prevKf, byNext); }
     byNext.set(nextKf, entry);
     return entry;
 }
@@ -228,7 +229,7 @@ export function materialiseMotionPathInPropAnim(
     opts?: MotionPathMaterialisationOptions,
 ): PxPropertyAnimation {
     if (!propAnimIsMotionPath(anim)) return anim;
-    const kfs = anim.keyframes as Array<PxKeyframe> | undefined;
+    const kfs = anim.keyframes as Array<PxAnyKeyframe> | undefined;
     if (!Array.isArray(kfs) || kfs.length < 2) return anim;
 
     const autoOrient   = !!anim.autoOrient;
@@ -236,7 +237,7 @@ export function materialiseMotionPathInPropAnim(
     const rotationTol  = opts?.rotationTolerance  ?? DEFAULT_ROTATION_TOL;
     const maxSamples   = opts?.maxSamplesPerSegment ?? DEFAULT_MAX_SAMPLES;
 
-    const out: Array<PxKeyframe> = [];
+    const out: Array<PxNormalisedKeyframe> = [];
 
     // First output kf — translate from input; rotate from segment-0 derivative
     // at t=0 if autoOrient. All other transform parts (`origin`, `scale`, an
@@ -307,10 +308,10 @@ export function materialiseMotionPathInPropAnim(
  *  CSS / SVG rotation accepts any range. Exported — the glyph along-path baker
  *  (`buildAnimatedAlongPath`) needs the identical seam fix for its sampled
  *  per-glyph tangent rotations. */
-export function unwrapAutoOrientRotations(kfs: Array<PxKeyframe>): void {
+export function unwrapAutoOrientRotations(kfs: Array<PxAnyKeyframe>): void {
     let prev: number | undefined;
     for (const kf of kfs) {
-        const v = (kf.v ?? kf.value) as { rotate?: number } | undefined;
+        const v = kfValue(kf) as { rotate?: number } | undefined;
         if (!v || typeof v.rotate !== 'number') continue;
         if (prev === undefined) { prev = v.rotate; continue; }
         let r = v.rotate;
@@ -322,14 +323,14 @@ export function unwrapAutoOrientRotations(kfs: Array<PxKeyframe>): void {
 }
 
 
-function makeOutKf(time: number, value: PxTransformParts): PxKeyframe {
-    return { t: time, v: value } as PxKeyframe;
+function makeOutKf(time: number, value: PxTransformParts): PxNormalisedKeyframe {
+    return { t: time, v: value };
 }
 
 /** Reads the kf's value-as-parts (object form). Returns `undefined` if the kf
  *  has no value or it's an array form (single-part composite). */
-function getKfValueParts(kf: PxKeyframe): PxTransformParts | undefined {
-    const v = kf.value ?? kf.v;
+function getKfValueParts(kf: PxAnyKeyframe): PxTransformParts | undefined {
+    const v = kfValue(kf);
     if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
     return v as PxTransformParts;
 }
@@ -409,7 +410,7 @@ function explicitRotateAt(
 /** Derivative angle at t=0 of segment kf[0] → kf[1]. Used to seed the first
  *  output kf's rotation; without this the very first frame would render with
  *  no rotation while every subsequent sample has one. */
-function derivAngleForFirstKf(kf0: PxKeyframe, kf1: PxKeyframe): number {
+function derivAngleForFirstKf(kf0: PxAnyKeyframe, kf1: PxAnyKeyframe): number {
     const p0 = getKfTranslate(kf0);
     const p1 = getKfTranslate(kf1);
     if (!p0 || !p1) return 0;
@@ -443,13 +444,13 @@ function wrappedAngleDelta(a: number, b: number): number {
  * easing on segment `i+1` works exactly as before.
  */
 function insertSharpCornerStepKfIfNeeded(
-    out: Array<PxKeyframe>,
-    prevKf: PxKeyframe, nextKf: PxKeyframe,
+    out: Array<PxNormalisedKeyframe>,
+    prevKf: PxAnyKeyframe, nextKf: PxAnyKeyframe,
     prevPos: Point2, nextPos: Point2,
     rotationTol: number,
 ): void {
     const lastKf = out[out.length - 1];
-    const lastV = (lastKf.v ?? lastKf.value) as { rotate?: number } | undefined;
+    const lastV = kfValue(lastKf) as { rotate?: number } | undefined;
     const prevExit = lastV?.rotate;
     if (typeof prevExit !== 'number') return;
 
@@ -491,7 +492,7 @@ const CORNER_STEP_AFTER_BOUNDARY_MS = 0.05;
  *  critical/adaptive points + the next-kf endpoint), with positions, optional
  *  rotations, and split easings. */
 function materialiseSegment(
-    out: Array<PxKeyframe>,
+    out: Array<PxNormalisedKeyframe>,
     prevKf: PxKeyframe, nextKf: PxKeyframe,
     prevPos: Point2, nextPos: Point2,
     autoOrient: boolean,

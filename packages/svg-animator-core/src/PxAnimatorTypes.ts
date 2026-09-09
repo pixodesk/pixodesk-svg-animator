@@ -44,31 +44,25 @@ export type PxEasingOrRef = PxInfer<typeof PxEasingOrRefSchema>;
 /**
  * A single animation keyframe defining the state at a specific point in time.
  *
- * WIRE vs RUNTIME VIEW (review §1.2/§6.1 — aliases removed from the format):
- * the wire carries ONLY the long spellings (`time`/`value`/`easing`/`tangentOut`/
- * `tangentIn` — see `PxKeyframeSchema`). The short fields (`t`/`v`/`e`/`to`/`ti`)
- * are the INTERNAL NORMALISED form `normalizeKeyframes` produces for the engines
- * — never written, never accepted by validation.
+ * THE WIRE FORM, and only that: `time` / `value` / `easing` / `tangentIn` / `tangentOut`.
+ * Locked to `PxKeyframeSchema` by the `KeysMatch` assertion below, so this interface and the
+ * validator cannot drift apart.
+ *
+ * The engines consume {@link _PxNormalisedKeyframe} instead — the short-field form
+ * `normalizeKeyframes` produces, with easing refs resolved and values parsed. The two used to
+ * be ONE interface carrying both spellings, which meant no key-set lock was possible here and
+ * nothing in the types said which form a given function expected.
  */
 export interface _PxKeyframe {
 
     /** Timestamp in milliseconds from animation start */
     time?: number;
 
-    /** RUNTIME VIEW ONLY (not wire) — normalised `time` */
-    t?: number;
-
     /** The value of the animated property at this keyframe */
     value?: any;
 
-    /** RUNTIME VIEW ONLY (not wire) — normalised `value` */
-    v?: any;
-
     /** Easing function applied to the interval from this keyframe to the next */
     easing?: PxEasingOrRef;
-
-    /** RUNTIME VIEW ONLY (not wire) — normalised, easing refs resolved */
-    e?: PxEasingOrRef;
 
     /**
      * Outgoing spatial tangent `[dx, dy]` for motion-along-path interpolation
@@ -82,9 +76,6 @@ export interface _PxKeyframe {
      */
     tangentOut?: [number, number];
 
-    /** RUNTIME VIEW ONLY (not wire) — normalised `tangentOut` */
-    to?: [number, number];
-
     /**
      * Incoming spatial tangent `[dx, dy]` for motion-along-path interpolation
      * (translate animations only). Delta relative to this keyframe's translate
@@ -93,9 +84,6 @@ export interface _PxKeyframe {
      * Defined when the segment arriving at this keyframe is curved.
      */
     tangentIn?: [number, number];
-
-    /** RUNTIME VIEW ONLY (not wire) — normalised `tangentIn` */
-    ti?: [number, number];
 
 }
 
@@ -170,11 +158,56 @@ export const PxKeyframeSchema = implementsInterface<_PxKeyframe>()(px.object({
     value: PxKeyframeValueSchema.optional(),
     easing: PxEasingOrRefSchema.optional(),
     tangentOut: px.tuple([px.number(), px.number()] as const).optional(),
-    tangentIn:  px.tuple([px.number(), px.number()] as const).optional(),
+    tangentIn: px.tuple([px.number(), px.number()] as const).optional(),
     // (`selected` — editor timeline-selection UI state — was REMOVED from the wire
     // (review §1.3): editor data lives under `meta`. The editor still carries it on
     // its internal COPY-PASTE payload, which never validates against this schema.)
 }));
+
+/**
+ * THE RUNTIME FORM — what `normalizeKeyframes` hands the engines, and what the tree-level
+ * materialisers (`materialiseInternalLoopsInTree` and everything after it in
+ * `materialiseAllInTree`) write back into the document.
+ *
+ * Short-named on purpose: these are read once per property per frame. `e` is a RESOLVED easing
+ * (named refs already looked up in `definitions.easings`) and `v` is a PARSED value (colours as
+ * RGBA arrays, path `d` normalised) — which is the substantive difference from the wire form,
+ * not just the spelling. Deliberately NOT a wire shape: `validateDocument` rejects it, and a
+ * materialised document is a runtime artefact that is never written to disk.
+ */
+export interface _PxNormalisedKeyframe {
+    /** Time in ms from the animation start (the wire spells it `time`). */
+    t?: number;
+    /** The parsed value at this keyframe (the wire spells it `value`). */
+    v?: any;
+    /** The RESOLVED easing — never a name (the wire spells it `easing`). */
+    e?: PxEasingOrRef;
+    /** Incoming spatial tangent, same meaning as the wire's. */
+    tangentIn?: [number, number];
+    /** Outgoing spatial tangent, same meaning as the wire's. */
+    tangentOut?: [number, number];
+}
+
+export type PxNormalisedKeyframe = _PxNormalisedKeyframe;
+
+/**
+ * Either spelling. For the handful of helpers that genuinely run on BOTH sides of
+ * normalisation — read them through the `kf*` accessors below rather than branching inline.
+ */
+export type PxAnyKeyframe = _PxKeyframe | _PxNormalisedKeyframe;
+
+const anyKf = (kf: PxAnyKeyframe) => kf as _PxKeyframe & _PxNormalisedKeyframe;
+
+/** Time in ms, whichever spelling the keyframe is in. */
+export const kfTime = (kf: PxAnyKeyframe): number => anyKf(kf).time ?? anyKf(kf).t ?? 0;
+/** Value, whichever spelling. */
+export const kfValue = (kf: PxAnyKeyframe): any => anyKf(kf).value ?? anyKf(kf).v;
+/** Easing — resolved on a normalised keyframe, possibly a NAME on a wire one. */
+export const kfEasing = (kf: PxAnyKeyframe): PxEasingOrRef | undefined => anyKf(kf).easing ?? anyKf(kf).e;
+/** Incoming spatial tangent, whichever spelling. */
+export const kfTangentIn = (kf: PxAnyKeyframe): [number, number] | undefined => anyKf(kf).tangentIn;
+/** Outgoing spatial tangent, whichever spelling. */
+export const kfTangentOut = (kf: PxAnyKeyframe): [number, number] | undefined => anyKf(kf).tangentOut;
 
 /**
  * A single animation keyframe defining the state at a specific point in time.
@@ -183,9 +216,23 @@ export const PxKeyframeSchema = implementsInterface<_PxKeyframe>()(px.object({
  * value shape (e.g. `PxKeyframe<Vec2>` in the effect appliers). Defaults to
  * `any`, matching the schema (`value` is stored as `px.any()` on the wire).
  */
-// The runtime-VIEW type (superset of the wire schema — carries the internal
-// normalised short fields; see the interface doc). Generic over the value type.
-export type PxKeyframe<T = any> = Omit<_PxKeyframe, 'value' | 'v'> & { value?: T; v?: T };
+// The WIRE type, generic over the value type. The engines use `PxNormalisedKeyframe`.
+export type PxKeyframe<T = any> = Omit<_PxKeyframe, 'value'> & { value?: T };
+// Locks the interface to the schema at the default instantiation.
+const _ck_PxKeyframe: KeysMatch<PxInfer<typeof PxKeyframeSchema>, _PxKeyframe> = true;
+
+/** {@link PxNormalisedKeyframe}, generic over the value type — the runtime counterpart. */
+export type PxNormalisedKeyframeOf<T = any> = Omit<_PxNormalisedKeyframe, 'v'> & { v?: T };
+
+/**
+ * A property animation whose keyframes are in the RUNTIME form.
+ *
+ * What `normalizeKeyframes` produces, what the engines consume — and what the EDITOR's in-memory
+ * model is: its keyframe objects carry the short field names and serialise to the long wire ones
+ * through `@serializable`, so the model implements this rather than the wire shape.
+ */
+export type PxNormalisedPropertyAnimation =
+    Omit<_PxPropertyAnimation, 'keyframes'> & { keyframes?: Array<_PxNormalisedKeyframe> };
 
 
 // ============================================================================
@@ -330,6 +377,10 @@ export const PxPropertyAnimationSchema = implementsInterface<_PxPropertyAnimatio
 // The runtime-VIEW type: its `keyframes` items are runtime-view PxKeyframes (they may
 // carry the internal normalised short fields), which the schema-inferred type cannot.
 export type PxPropertyAnimation = _PxPropertyAnimation;
+// KeysMatch compares only the KEY SETS, so it still locks the schema to the interface even
+// though the two disagree about the VALUE type of `keyframes` (above). Worth having here in
+// particular: this is the object that carried the `kfs` alias until it was deleted.
+const _ck_PxPropertyAnimation: KeysMatch<PxInfer<typeof PxPropertyAnimationSchema>, _PxPropertyAnimation> = true;
 
 
 /**

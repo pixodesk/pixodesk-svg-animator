@@ -29,7 +29,7 @@ export { PxAnimatedSvgDocumentSchema, PxAnimationDefinitionSchema, PxAnimatorCon
 export { engineForPlaybackMode, isNativeForced, mayUseNativeScrollTimeline, PX_TRANSFORM_PART_KEYS, PxAnimatorEngine, PxCloneWithout, PxPlaybackMode } from './PxAnimatorConstants';
 
 // Document / model types
-export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorAPI, PxAnimatorCallbacksConfig, PxAnimatorConfig, PxAttrValue, PxBasicAnimatorAPI, PxBezierPath, PxBinding, PxDefs, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollPhase, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTimelinePin, PxTransformParts, PxTransformValue, PxTrigger, PxValidationResult } from './PxAnimatorTypes';
+export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorAPI, PxAnimatorCallbacksConfig, PxAnimatorConfig, PxAttrValue, PxBasicAnimatorAPI, PxBezierPath, PxBinding, PxDefs, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxNormalisedKeyframe, PxNormalisedPropertyAnimation, PxAnyKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollPhase, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTimelinePin, PxTransformParts, PxTransformValue, PxTrigger, PxValidationResult } from './PxAnimatorTypes';
 export type { FillMode, OutAction, PlaybackDirection, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
 
 export { isPxElementFileFormatDeep } from './PxAnimatorTypes';
@@ -122,6 +122,7 @@ export { PxCloneEffectSchema, PxEffectsSchema, PxFillGradientEffectSchema, PxGra
     PxScrollRangePointSchema,
     PxScrollRangeSchema,
     PxScrollSchema, PxStrokeGradientEffectSchema, PxTextPathEffectSchema, PxTextEffectSchema, PxTransformByEffectSchema, PxStrokeTrimEffectSchema, validateDocument, validateNodeEffects } from './PxAnimatorTypes';
+export { kfTime, kfValue, kfEasing, kfTangentIn, kfTangentOut } from './PxAnimatorTypes';
 export { applyAnimatorConfig, foldAnimatorConfigShortcuts, mergeAnimatorConfig } from './PxAnimatorConfigPatch';
 export { diagnoseDocument, reportDocumentDiagnostics } from './PxDocumentDiagnostic';
 export type { PxDocumentDiagnosis } from './PxDocumentDiagnostic';

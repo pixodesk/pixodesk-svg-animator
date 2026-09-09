@@ -23,14 +23,10 @@
 
 import { OFFSET_DISTANCE_ATTR, TRANSFORM_ATTR, TRANSFORM_PART } from './PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxKeyframe, PxNode, PxPropertyAnimation } from './PxAnimatorTypes';
+import { kfTime, kfValue, kfEasing, kfTangentIn, kfTangentOut } from './PxAnimatorTypes';
 
 type Vec2 = [number, number];
 
-const kfTime = (kf: PxKeyframe): number => (kf.t ?? kf.time ?? 0) as number;
-const kfValue = (kf: PxKeyframe): { translate?: Vec2 } | undefined => (kf.v ?? kf.value) as never;
-const kfEasing = (kf: PxKeyframe): unknown => kf.e ?? kf.easing;
-const kfTangentIn = (kf: PxKeyframe): Vec2 | undefined => (kf.tangentIn ?? kf.ti) as never;
-const kfTangentOut = (kf: PxKeyframe): Vec2 | undefined => (kf.tangentOut ?? kf.to) as never;
 
 /** Cubic-bezier point at parameter t. */
 function cubicAt(p0: Vec2, c1: Vec2, c2: Vec2, p1: Vec2, t: number): Vec2 {

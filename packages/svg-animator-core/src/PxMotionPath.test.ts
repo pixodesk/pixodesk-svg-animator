@@ -1,3 +1,4 @@
+import { type PxAnyKeyframe, kfValue, kfTime as kfTimeOf } from './PxAnimatorTypes';
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -88,9 +89,13 @@ describe('propAnimIsMotionPath', () => {
         expect(propAnimIsMotionPath({} as PxPropertyAnimation)).toBe(false);
     });
 
-    it('accepts short aliases `to` / `ti`', () => {
+    // The short tangent aliases `to`/`ti` were removed with the rest of the keyframe aliases
+    // (MINIFICATION-BOUNDARY-PLAN §6.2) — `validateDocument` rejects them, and the reader
+    // tolerance that outlived them went with this refactor. Long names only, both spellings
+    // of the keyframe: a WIRE keyframe carries `tangentOut`, and so does a normalised one.
+    it('detects a curved segment from `tangentOut`', () => {
         const anim = { keyframes: [
-            { time: 0,    value: { translate: [0, 0] }, to: [10, 0] as [number, number] },
+            { time: 0,    value: { translate: [0, 0] }, tangentOut: [10, 0] as [number, number] },
             { time: 1000, value: { translate: [50, 50] } },
         ] } as PxPropertyAnimation;
         expect(propAnimIsMotionPath(anim)).toBe(true);
@@ -170,17 +175,17 @@ function getKfs(anim: PxPropertyAnimation): Array<PxKeyframe> {
     return kfs;
 }
 
-function kfTranslate(kf: PxKeyframe): [number, number] {
-    const v = (kf.value ?? kf.v) as { translate?: [number, number] };
+function kfTranslate(kf: PxAnyKeyframe): [number, number] {
+    const v = kfValue(kf) as { translate?: [number, number] };
     return v.translate as [number, number];
 }
 
-function kfTime(kf: PxKeyframe): number {
-    return (kf.time ?? kf.t ?? 0) as number;
+function kfTime(kf: PxAnyKeyframe): number {
+    return kfTimeOf(kf);
 }
 
-function kfRotate(kf: PxKeyframe): number | undefined {
-    const v = (kf.value ?? kf.v) as { rotate?: number };
+function kfRotate(kf: PxAnyKeyframe): number | undefined {
+    const v = kfValue(kf) as { rotate?: number };
     return v.rotate;
 }
 

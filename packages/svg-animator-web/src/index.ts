@@ -59,6 +59,8 @@ export type {
     PxGlyph,
     PxGlyphFont,
     PxKeyframe,
+    PxNormalisedKeyframe,
+    PxAnyKeyframe,
     PxLoop,
     PxNode,
     PxPropertyAnimation,

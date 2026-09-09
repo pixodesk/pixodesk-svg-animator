@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxBezierPath, type PxBinding, type PxDefs, type PxElementAnimation, type PxKeyframe, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts } from './PxAnimatorTypes';
+import { type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxBezierPath, type PxBinding, type PxDefs, type PxElementAnimation, type PxKeyframe, type PxNormalisedKeyframe, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts, kfTime, kfValue, kfEasing, kfTangentIn, kfTangentOut } from './PxAnimatorTypes';
 import { getBindings, getDefs, TRANSFORM_ATTR } from './PxAnimatorConstants';
 import { getAnimatorConfig, PxAnimatorEngine, PxLoopDirection, PxLoopRepeatAt } from './PxAnimatorConstants';
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, parseTransformParts, PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
@@ -397,15 +397,15 @@ interface LoopTemplateEntry {
  */
 function expandLoopKeyframes(
     propName: string,
-    keyframes: PxKeyframe[],
+    keyframes: PxNormalisedKeyframe[],
     loop: PxLoop,
     duration: number
-): PxKeyframe[] {
+): PxNormalisedKeyframe[] {
     const totalIntervals = keyframes.length - 1;
     const segCount = clamp(loop.segmentCount ?? totalIntervals, 1, totalIntervals);
 
     // Extract segment keyframes
-    let segKfs: PxKeyframe[];
+    let segKfs: PxNormalisedKeyframe[];
     if (loop.repeatAt === PxLoopRepeatAt.start) {
         segKfs = keyframes.slice(0, segCount + 1);
     } else {
@@ -439,15 +439,15 @@ function expandLoopKeyframes(
         relT: (kf.t! - segStartT) / segDuration,
         v: kf.v,
         e: kf.e as [number, number, number, number] | undefined,
-        tangentIn: (kf.tangentIn ?? kf.ti) as [number, number] | undefined,
-        tangentOut: (kf.tangentOut ?? kf.to) as [number, number] | undefined
+        tangentIn: kfTangentIn(kf) as [number, number] | undefined,
+        tangentOut: kfTangentOut(kf) as [number, number] | undefined
     }));
 
     const fullReps = Math.floor(fillDuration / segDuration);
     const remainder = fillDuration - fullReps * segDuration;
     const partialFraction = remainder / segDuration;
 
-    const looped: PxKeyframe[] = [];
+    const looped: PxNormalisedKeyframe[] = [];
 
     // A cycle's first keyframe lands at the SAME time as the previous repetition's
     // last one. Emitting both at that time makes the value at that instant depend on
@@ -466,7 +466,7 @@ function expandLoopKeyframes(
     const separateBoundary = loop.repeatAt !== PxLoopRepeatAt.start;
     // The keyframe the FIRST repetition butts up against: loopOut tiles forward from
     // the last original keyframe (the originals are concatenated only at assembly).
-    const originalTerminalKf: PxKeyframe | undefined = keyframes[keyframes.length - 1];
+    const originalTerminalKf: PxNormalisedKeyframe | undefined = keyframes[keyframes.length - 1];
 
     // Easing that a skipped boundary keyframe hands to the ORIGINAL terminal keyframe.
     // Easing describes the interval that FOLLOWS a keyframe, so when a pingpong turn's
@@ -474,7 +474,7 @@ function expandLoopKeyframes(
     // redundant — it owns the return leg. Without this hand-off the return leg renders
     // LINEAR while the outbound is eased. The originals belong to the caller, so it is
     // applied by replacing the terminal with a copy at assembly, never by mutation.
-    let terminalEasingOverride: PxKeyframe['e'] | undefined;
+    let terminalEasingOverride: PxNormalisedKeyframe['e'] | undefined;
     let hasTerminalEasingOverride = false;
 
     // Helper: append one full or partial repetition
@@ -551,7 +551,7 @@ function expandLoopKeyframes(
                 if (looped.length > 0) { delete prevKf.tangentIn; delete prevKf.tangentOut; }
             }
 
-            const pushed: PxKeyframe = {
+            const pushed: PxNormalisedKeyframe = {
                 t: repStart + entry.relT * segDuration + (isBoundary ? LOOP_JUMP_SHIFT_MS : 0),
                 v: entry.v,
                 e: i < entries.length - 1 ? entry.e : undefined
@@ -607,7 +607,7 @@ function expandLoopKeyframes(
                 looped.push({ t: repStart, v: startValue, e: rightEasing });
             }
 
-            const pushed: PxKeyframe = {
+            const pushed: PxNormalisedKeyframe = {
                 t: repStart + (entry.relT - startRelT) * segDuration,
                 v: entry.v,
                 e: i < entries.length - 1 ? entry.e : undefined
@@ -686,15 +686,15 @@ function normalizeKeyframes(
     propAnim: PxPropertyAnimation,
     duration: number,
     defs?: PxDefs
-): PxKeyframe[] {
+): PxNormalisedKeyframe[] {
     const keyframes = propAnim.keyframes || [];
 
-    const normalized: PxKeyframe[] = [];
+    const normalized: PxNormalisedKeyframe[] = [];
 
     for (const kf of keyframes) {
-        const timePct = kf.time ?? kf.t ?? 0;
-        let value = kf.value ?? kf.v;
-        const easing = kf.easing ?? kf.e;
+        const timePct = kfTime(kf);
+        let value = kfValue(kf);
+        const easing = kfEasing(kf);
 
         // Normalize path values for 'd' attribute
         if (propName === 'd') {
@@ -712,7 +712,7 @@ function normalizeKeyframes(
             value = parseColor(value) ?? value;
         }
 
-        const normKf: PxKeyframe = {
+        const normKf: PxNormalisedKeyframe = {
             t: timePct,
             v: value,
             e: resolveEasing(easing, defs)
@@ -721,8 +721,8 @@ function normalizeKeyframes(
         // `materialiseMotionPathInPropAnim` (called in `normalizeAnimationDefinition`) can
         // sample them into transform kfs. Short aliases `ti` / `to` collapse
         // into their canonical names.
-        const tIn = kf.tangentIn ?? kf.ti;
-        const tOut = kf.tangentOut ?? kf.to;
+        const tIn = kfTangentIn(kf);
+        const tOut = kfTangentOut(kf);
         if (tIn) normKf.tangentIn = tIn;
         if (tOut) normKf.tangentOut = tOut;
 
@@ -800,15 +800,17 @@ export function materialiseInternalLoopsInPropAnim(
     // animation cycle restarts.
     const propNameKebab = isCamelCaseWord(propName) ? camelCaseToKebabWordIfNeeded(propName) : propName;
     const isColour = COLOUR_ATTR_NAMES.has(propNameKebab);
-    const kfs: PxKeyframe[] = rawKfs.map(kf => {
-        const t = kf.t ?? kf.time;
-        let v: unknown = kf.v ?? kf.value;
+    const kfs: PxNormalisedKeyframe[] = rawKfs.map(kf => {
+        const t = kfTime(kf);
+        let v: unknown = kfValue(kf);
         if (propName === 'd') v = normalizePathValue(v);
         if (isColour) v = parseColor(v) ?? v;
-        const e = kf.e ?? kf.easing;
-        const out: PxKeyframe = { t, v, e } as PxKeyframe;
-        if (kf.tangentIn ?? kf.ti) out.tangentIn = (kf.tangentIn ?? kf.ti) as [number, number];
-        if (kf.tangentOut ?? kf.to) out.tangentOut = (kf.tangentOut ?? kf.to) as [number, number];
+        const e = kfEasing(kf);
+        const out: PxNormalisedKeyframe = { t, v, e };
+        const tIn = kfTangentIn(kf);
+        const tOut = kfTangentOut(kf);
+        if (tIn) out.tangentIn = tIn;
+        if (tOut) out.tangentOut = tOut;
         return out;
     });
 
@@ -1094,7 +1096,7 @@ export function getNormalisedBindings(
 /**
  * Finds prev/next keyframes for a given progress.
  */
-function getKeyframesPair(keyframes: PxKeyframe[], progress: number) {
+function getKeyframesPair(keyframes: PxNormalisedKeyframe[], progress: number) {
     // Outside the keyframe range, clamp to the NEAREST REAL segment (the caller clamps
     // `localProgress` to 0/1, so that holds the boundary pose). Spanning first→last
     // instead would invent a segment that exists nowhere in the animation: for keyframes
@@ -1138,7 +1140,7 @@ function calcPropertyValue(
     // remap to local 0..1 within prevKf..nextKf
     let localProgress = (prevKf === nextKf) ? 0 : remap(progress, prevKf.t ?? 0, nextKf.t ?? 0, 0, 1);
     localProgress = clamp(localProgress, 0, 1);
-    const easing = prevKf.e ?? prevKf.easing; // e is on the source keyframe: applied from this KF to the next
+    const easing = kfEasing(prevKf); // e is on the source keyframe: applied from this KF to the next
     if (easing && Array.isArray(easing)) {
         try {
             localProgress = cubicBezier(easing as [number, number, number, number])(localProgress);
@@ -1150,8 +1152,8 @@ function calcPropertyValue(
     let cssAttrName = isCamelCaseWord(propName) ? camelCaseToKebabWordIfNeeded(propName) : propName;
     let cssValue: string | number | null = null;
 
-    const prevV = prevKf?.v ?? prevKf?.value;
-    const nextV = nextKf?.v ?? nextKf?.value;
+    const prevV = prevKf?.v;
+    const nextV = nextKf?.v;
 
     if (cssAttrName === 'd') {
         // Extract paths from { paths: [...] } format
