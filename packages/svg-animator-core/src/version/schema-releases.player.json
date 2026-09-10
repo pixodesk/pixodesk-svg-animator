@@ -1,0 +1,10 @@
+[
+ {
+  "version": "1.1",
+  "date": "2026-09-10",
+  "baseline": true,
+  "added": [],
+  "removed": [],
+  "note": "The first stamped player schema. Nothing precedes it: every older document was pre-release and was migrated by hand."
+ }
+]

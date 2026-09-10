@@ -10,9 +10,9 @@
 // skips it and tsup never bundles it (entry is index.ts only).
 
 import { applyPlayerEffects } from './PlayerEffectsUtil';
-import { materialiseAllInTree } from '../PxAnimatorMaterialiseAll';
-import { PxTimelineEngine } from '../PxAnimatorConstants';
-import type { PxAnimatedSvgDocument, PxNode } from '../PxAnimatorTypes';
+import { materialiseAllInTree } from '../materialise/PxAnimatorMaterialiseAll';
+import { PxTimelineEngine } from '../format/PxAnimatorConstants';
+import type { PxAnimatedSvgDocument, PxNode } from '../format/PxAnimatorTypes';
 
 export { PxTimelineEngine };
 

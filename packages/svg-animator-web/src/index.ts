@@ -12,12 +12,12 @@
 // so consumers — including the UMD build — stay self-contained.
 // ============================================================================
 
-export { createAnimator, createAnimatorImpl, generateNewIds, loadTagAnimators, PX_ANIMATOR_DATA_KEY } from './PxAnimator';
+export { createAnimator, createAnimatorImpl, generateNewIds, loadTagAnimators, PX_ANIMATOR_DATA_KEY } from './animator/PxAnimator';
 
 export { px, schemaKeys, describeSchema } from '@pixodesk/svg-animator-core';
 export type { KeysMatch, PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, RemoveIndex } from '@pixodesk/svg-animator-core';
 
-export type { PxAnimatorOptions } from './PxAnimator';
+export type { PxAnimatorOptions } from './animator/PxAnimator';
 export type { PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
 export {
     PX_TRANSFORM_PART_KEYS,
@@ -74,7 +74,7 @@ export type {
 } from '@pixodesk/svg-animator-core';
 
 // DOM specialisations — on the web `getRootElement()` returns a DOM Element.
-export type { PxAnimatorAPI, PxBasicAnimatorAPI } from './PxAnimatorWebTypes';
+export type { PxAnimatorAPI, PxBasicAnimatorAPI } from './shared/PxAnimatorWebTypes';
 
 export {
     getAnimatorConfig,
@@ -91,7 +91,7 @@ export { camelCaseToKebabWordIfNeeded, COLOUR_ATTR_NAMES, STYLE_ATTR_NAMES, toRG
 
 
 // Triggers
-export { setupAnimationTriggers } from './PxAnimatorTriggers';
+export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 
 // Normalization utilities
 export {
@@ -131,7 +131,7 @@ export { materialiseAllInTree } from '@pixodesk/svg-animator-core';
 export type { MaterialiseAllOptions } from '@pixodesk/svg-animator-core';
 
 // Low-level APIs (for advanced usage)
-export { getNormalizedProps, renderNode } from './PxAnimatorDOM';
+export { getNormalizedProps, renderNode } from './dom/PxAnimatorDOM';
 
 // Element-creation factory + glyph-text materialiser. The materialiser emits
 // via an injected factory so the SAME layout produces plain wire nodes (effects
@@ -146,9 +146,9 @@ export { createPathSampler } from '@pixodesk/svg-animator-core';
 export type { PathPoint, PathSampler } from '@pixodesk/svg-animator-core';
 export { extendedPathForBrowser, shiftAnimatable } from '@pixodesk/svg-animator-core';
 export type { ExtendPathOpts, ExtendedPath } from '@pixodesk/svg-animator-core';
-export { createBasicFrameLoopAnimator, createFrameLoopAnimator } from './PxAnimatorFrameLoop';
+export { createBasicFrameLoopAnimator, createFrameLoopAnimator } from './engines/PxAnimatorFrameLoop';
 export type { PxPlatformAdapter } from '@pixodesk/svg-animator-core';
-export { createWebApiAnimator } from './PxAnimatorWebApi';
+export { createWebApiAnimator } from './engines/PxAnimatorWebApi';
 
 // Player-effects materialiser — turns `node.effects` (the lightweight design format
 // emitted by the Editor) into a plain renderable node tree. Called automatically by

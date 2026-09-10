@@ -1,0 +1,2000 @@
+/*---------------------------------------------------------------------------------------
+ * Copyright (c) Pixodesk LTD.
+ * Licensed under the MIT License. See the LICENSE file in the project root for details.
+ *---------------------------------------------------------------------------------------*/
+
+import type { KeysMatch, PxInfer, PxSchema, PxValidationContext, RemoveIndex } from '../schema/PxSchema';
+import { implementsInterface, px } from '../schema/PxSchema';
+// Constants live in their own module so importing one does not pull the schema engine
+// in; re-exported here so this module's public surface is unchanged. See there.
+export * from './PxAnimatorConstants';
+import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PxTimelineEngineExtra, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxGradientUnits, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
+import type { FillMode, OutAction, PlaybackDirection, PxTimelineEngine, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
+
+// ============================================================================
+// EASING
+// ============================================================================
+
+/**
+ * Easing function definition.
+ * Can be a named reference to a predefined easing or a cubic-bezier array [x1, y1, x2, y2].
+ *
+ * @example "ease-in" | [0.68, -0.55, 0.265, 1.55]
+ *
+ * `string | [x1, y1, x2, y2]`
+ */
+export const PxEasingOrRefSchema = px.union([
+    px.string(),
+    px.tuple([px.number(), px.number(), px.number(), px.number()] as const),
+]);
+
+/**
+ * Easing function definition.
+ * Can be a named reference to a predefined easing or a cubic-bezier array [x1, y1, x2, y2].
+ *
+ * @example "ease-in" | "easeOut" | [0.68, -0.55, 0.265, 1.55]
+ */
+export type PxEasingOrRef = PxInfer<typeof PxEasingOrRefSchema>;
+
+
+// ============================================================================
+// KEYFRAME
+// ============================================================================
+
+/**
+ * A single animation keyframe defining the state at a specific point in time.
+ *
+ * THE WIRE FORM, and only that: `time` / `value` / `easing` / `tangentIn` / `tangentOut`.
+ * Locked to `PxKeyframeSchema` by the `KeysMatch` assertion below, so this interface and the
+ * validator cannot drift apart.
+ *
+ * The engines consume {@link _PxNormalisedKeyframe} instead — the short-field form
+ * `normalizeKeyframes` produces, with easing refs resolved and values parsed. The two used to
+ * be ONE interface carrying both spellings, which meant no key-set lock was possible here and
+ * nothing in the types said which form a given function expected.
+ */
+export interface _PxKeyframe {
+
+    /** Timestamp in milliseconds from animation start */
+    time?: number;
+
+    /** The value of the animated property at this keyframe */
+    value?: any;
+
+    /** Easing function applied to the interval from this keyframe to the next */
+    easing?: PxEasingOrRef;
+
+    /**
+     * Outgoing spatial tangent `[dx, dy]` for motion-along-path interpolation
+     * (translate animations only).
+     *
+     * Stored as a *delta relative to* this keyframe's translate position —
+     * the cubic Bezier segment between this kf and the next is built from
+     * `(P0=value, P1=value+tangentOut, P2=next.value+next.tangentIn, P3=next.value)`.
+     *
+     * Defined when the segment leaving this keyframe is curved.
+     */
+    tangentOut?: [number, number];
+
+    /**
+     * Incoming spatial tangent `[dx, dy]` for motion-along-path interpolation
+     * (translate animations only). Delta relative to this keyframe's translate
+     * position. See `tangentOut` for the segment construction.
+     *
+     * Defined when the segment arriving at this keyframe is curved.
+     */
+    tangentIn?: [number, number];
+
+}
+
+/**
+ * Allowed shapes for a single keyframe `value` across the wire schema:
+ *  - `number`                       — scalar properties (rotate-degree, opacity, offset-distance, …)
+ *  - `Array<number>`                — vector properties (translate `[x,y]`, scale `[sx,sy]`, stroke-dasharray, RGBA …)
+ *  - `string`                       — color (hex / `url(#…)` / named) and other string-valued props
+ *  - `PxTransformParts`             — unified body `transform` parts record
+ *                                     `{translate, rotate, scale, origin}`
+ *  - `{ paths: Array<PxBezierPath> }` — animated SVG path `d` value
+ *  - `Array<PxGradientStop>`        — gradient `stops` timeline (each kf value is
+ *                                     the FULL `[{offset, color}, …]` snapshot)
+ *
+ * Plugged into `PxKeyframeSchema.value` / `.v` — every keyframe value on the
+ * wire is validated against this union. The inferred TS type of `PxKeyframe`
+ * stays permissive (`value?: any` via the generic default) so the duck-typed
+ * interpolator code in `PxDefinitions.ts` (`prevV?.paths`,
+ * `Array.isArray(prevV)`, …) keeps working without per-shape narrowing.
+ */
+export type _PxKeyframeValue =
+    | string
+    | number
+    | Array<number>
+    | PxTransformParts
+    | { path: string }
+    | { paths: Array<PxBezierPath> }
+    | Array<_PxGradientStop>;
+
+// `string | number | Array<number> | PxTransformParts | { path: string } | { paths: BezierPath[] }`
+//
+// `{ path: "M…" }` is the unified single-`d`-string form for animated paths
+// (compound shapes are one string with multiple `M…` sub-paths); `{ paths: […] }`
+// is the legacy bezier-array form, both accepted.
+//
+// `PxTransformPartsSchema` / `PxBezierPathSchema` are declared later in this
+// file — `px.lazy` defers the lookup until validation time so the declarations
+// stay in narrative order without a TDZ at module load.
+export const PxKeyframeValueSchema = implementsInterface<_PxKeyframeValue>()(px.union([
+    px.string(), // e.g. for colors
+    px.number(),
+    px.array(px.number()),
+    // ORDER LAW: the key-discriminated object shapes (`{path}`, `{paths}`) come BEFORE the
+    // all-optional transform-parts record. In default (non-strict) mode that record accepts
+    // ANY object (every key optional, unknown keys ignored), so listing it earlier made
+    // Union.sanitize route `{path}`/`{paths}` values into it and strip them to `{}` —
+    // silent morph-data loss (repro: the editor's keyframeValueSanitize spec). Validity is
+    // order-independent (`some()`); only sanitize routing depends on this order.
+    px.object({ path: px.string() }),
+    px.lazy<{ paths: Array<PxBezierPath> }>(() => px.object({ paths: px.array(PxBezierPathSchema) }), { paths: [] }),
+    // Gradient `stops` timeline — each kf value is the full stops-array snapshot.
+    px.lazy<Array<_PxGradientStop>>(() => px.array(PxGradientStopSchema), []),
+    px.lazy<PxTransformParts>(() => PxTransformPartsSchema, {}),
+]));
+
+/** A single keyframe `value` — union of all wire-allowed shapes. */
+export type PxKeyframeValue = PxInfer<typeof PxKeyframeValueSchema>;
+
+// `{ time?:number, t?:number, value?:PxKeyframeValue, v?:PxKeyframeValue,
+//    easing?:Easing, e?:Easing, tangentOut?:[dx,dy], tangentIn?:[dx,dy] }`
+//
+// `value` / `v` validate against {@link PxKeyframeValueSchema} — malformed
+// keyframe values are now schema errors instead of passing as `px.any()`
+// (SCHEMA-DESIGN I-5). The `_PxKeyframe` interface keeps `value?: any` (and
+// `PxKeyframe<T = any>` its generic default) so the duck-typed interpolator
+// access in `PxDefinitions.ts` stays untyped-permissive at compile time.
+// LONG SPELLINGS ONLY (review §1.2/§6.1): the short aliases (`t`/`v`/`e`/`to`/`ti`)
+// were removed from the wire outright — one clear spelling, no mixing ambiguity.
+// They survive only as the internal normalised runtime view (see `_PxKeyframe`).
+export const PxKeyframeSchema = implementsInterface<_PxKeyframe>()(px.object({
+    time: px.number().optional(),
+    value: PxKeyframeValueSchema.optional(),
+    easing: PxEasingOrRefSchema.optional(),
+    tangentOut: px.tuple([px.number(), px.number()] as const).optional(),
+    tangentIn: px.tuple([px.number(), px.number()] as const).optional(),
+    // (`selected` — editor timeline-selection UI state — was REMOVED from the wire
+    // (review §1.3): editor data lives under `meta`. The editor still carries it on
+    // its internal COPY-PASTE payload, which never validates against this schema.)
+}));
+
+/**
+ * THE RUNTIME FORM — what `normalizeKeyframes` hands the engines, and what the tree-level
+ * materialisers (`materialiseInternalLoopsInTree` and everything after it in
+ * `materialiseAllInTree`) write back into the document.
+ *
+ * Short-named on purpose: these are read once per property per frame. `e` is a RESOLVED easing
+ * (named refs already looked up in `definitions.easings`) and `v` is a PARSED value (colours as
+ * RGBA arrays, path `d` normalised) — which is the substantive difference from the wire form,
+ * not just the spelling. Deliberately NOT a wire shape: `validateDocument` rejects it, and a
+ * materialised document is a runtime artefact that is never written to disk.
+ */
+export interface _PxNormalisedKeyframe {
+    /** Time in ms from the animation start (the wire spells it `time`). */
+    t?: number;
+    /** The parsed value at this keyframe (the wire spells it `value`). */
+    v?: any;
+    /** The RESOLVED easing — never a name (the wire spells it `easing`). */
+    e?: PxEasingOrRef;
+    /** Incoming spatial tangent, same meaning as the wire's. */
+    tangentIn?: [number, number];
+    /** Outgoing spatial tangent, same meaning as the wire's. */
+    tangentOut?: [number, number];
+}
+
+export type PxNormalisedKeyframe = _PxNormalisedKeyframe;
+
+/**
+ * Either spelling. For the handful of helpers that genuinely run on BOTH sides of
+ * normalisation — read them through the `kf*` accessors below rather than branching inline.
+ */
+export type PxAnyKeyframe = _PxKeyframe | _PxNormalisedKeyframe;
+
+const anyKf = (kf: PxAnyKeyframe) => kf as _PxKeyframe & _PxNormalisedKeyframe;
+
+/** Time in ms, whichever spelling the keyframe is in. */
+export const kfTime = (kf: PxAnyKeyframe): number => anyKf(kf).time ?? anyKf(kf).t ?? 0;
+/** Value, whichever spelling. */
+export const kfValue = (kf: PxAnyKeyframe): any => anyKf(kf).value ?? anyKf(kf).v;
+/** Easing — resolved on a normalised keyframe, possibly a NAME on a wire one. */
+export const kfEasing = (kf: PxAnyKeyframe): PxEasingOrRef | undefined => anyKf(kf).easing ?? anyKf(kf).e;
+/** Incoming spatial tangent, whichever spelling. */
+export const kfTangentIn = (kf: PxAnyKeyframe): [number, number] | undefined => anyKf(kf).tangentIn;
+/** Outgoing spatial tangent, whichever spelling. */
+export const kfTangentOut = (kf: PxAnyKeyframe): [number, number] | undefined => anyKf(kf).tangentOut;
+
+/**
+ * A single animation keyframe defining the state at a specific point in time.
+ *
+ * Generic over the keyframe `value` type for callers that know the per-property
+ * value shape (e.g. `PxKeyframe<Vec2>` in the effect appliers). Defaults to
+ * `any`, matching the schema (`value` is stored as `px.any()` on the wire).
+ */
+// The WIRE type, generic over the value type. The engines use `PxNormalisedKeyframe`.
+export type PxKeyframe<T = any> = Omit<_PxKeyframe, 'value'> & { value?: T };
+// Locks the interface to the schema at the default instantiation.
+const _ck_PxKeyframe: KeysMatch<PxInfer<typeof PxKeyframeSchema>, _PxKeyframe> = true;
+
+/** {@link PxNormalisedKeyframe}, generic over the value type — the runtime counterpart. */
+export type PxNormalisedKeyframeOf<T = any> = Omit<_PxNormalisedKeyframe, 'v'> & { v?: T };
+
+/**
+ * A property animation whose keyframes are in the RUNTIME form.
+ *
+ * What `normalizeKeyframes` produces, what the engines consume — and what the EDITOR's in-memory
+ * model is: its keyframe objects carry the short field names and serialise to the long wire ones
+ * through `@serializable`, so the model implements this rather than the wire shape.
+ */
+export type PxNormalisedPropertyAnimation =
+    Omit<_PxPropertyAnimation, 'keyframes'> & { keyframes?: Array<_PxNormalisedKeyframe> };
+
+
+// ============================================================================
+// LOOP
+// ============================================================================
+
+/**
+ * Defines how a property's keyframe animation is extended beyond its defined keyframe range
+ * by continuously repeating a chosen segment of the sequence.
+ *
+ * The repeated segment is a contiguous run of keyframe *intervals* (gaps between consecutive
+ * keyframes). Which end of the sequence is repeated is controlled by `before`, and whether
+ * each repetition plays in the same direction or alternates is controlled by `alternate`.
+ *
+ * **Relationship to `animator.iterations`**
+ *
+ * `PxLoop` and `animator.iterations` are independent mechanisms operating at different levels:
+ *
+ * - `PxLoop` is a **pre-processing step**: it expands the property's keyframe list to fill the
+ *   full `animator.duration` before any playback begins. The runtime sees a single, fully
+ *   expanded keyframe sequence — it has no knowledge of the loop.
+ *
+ * - `animator.iterations` repeats the **entire document timeline** (all properties, all
+ *   elements) as a unit, after the expanded keyframes are already in place.
+ *
+ * The two compose independently: a property with `loop: true` inside a document with
+ * `iterations: "infinite"` will cycle its own segment within each document iteration, and
+ * that iteration will itself repeat forever — loop-within-loop.
+ */
+export interface _PxLoop {
+
+    /**
+     * Number of keyframe intervals (gaps between consecutive keyframes) that form the repeating
+     * segment.
+     *
+     * - `undefined` → the entire keyframe sequence is used as the loop segment.
+     * - `N`         → only the first `N` intervals (when `repeatAt: 'start'`) or the last `N`
+     *                 intervals (when `repeatAt: 'end'`) are looped. Clamped to `[1, keyframes.length - 1]`.
+     */
+    segmentCount?: number;
+
+    /**
+     * Which end of the keyframe sequence the repetition fills — see {@link PxLoopRepeatAt}.
+     * `'start'` repeats ahead of the first keyframe (intro loop); `'end'` (default)
+     * repeats past the last (idle/outro loop).
+     */
+    repeatAt?: PxLoopRepeatAt;
+
+    /**
+     * How successive repetitions play — see {@link PxLoopDirection}.
+     *
+     * - `'normal'` (default) → **cycle**: every repetition replays the segment the same way round.
+     * - `'alternate'`        → **ping-pong**: repetitions alternate forward and backward
+     *                          (even repetitions play forward, odd ones in reverse).
+     */
+    direction?: PxLoopDirection;
+}
+
+// `{ segmentCount?:number, repeatAt?:'start'|'end', direction?:'normal'|'alternate' }`
+export const PxLoopSchema = implementsInterface<_PxLoop>()(px.object({
+    segmentCount: px.number().optional(),
+    repeatAt: px.enum([PxLoopRepeatAt.start, PxLoopRepeatAt.end] as const).optional(),
+    direction: px.enum([PxLoopDirection.normal, PxLoopDirection.alternate] as const).optional(),
+}));
+
+/**
+ * Defines how a property's keyframe animation is extended beyond its defined keyframe range
+ * by continuously repeating a chosen segment of the sequence.
+ */
+export type PxLoop = PxInfer<typeof PxLoopSchema>;
+const _ck_PxLoop: KeysMatch<PxLoop, _PxLoop> = true; // the key sets are identical
+
+
+// ============================================================================
+// PROPERTY ANIMATION
+// ============================================================================
+
+/**
+ * Animation definition for a single CSS/SVG property.
+ * Contains an array of keyframes that define how the property changes over time.
+ */
+export interface _PxPropertyAnimation {
+
+    /**
+     * Optional static / base value for the animated property.
+     *
+     * Two uses:
+     *  - structured static: `{value}` with no keyframes is the static form of
+     *    the universal animatable pattern (`PxAnimatable<T>`);
+     *  - base + keyframes: when both are present, `value` is the baseline the
+     *    animation starts from. For most properties keyframe values are
+     *    complete and `value` is just the pre-tick DOM baseline; slots with
+     *    patch semantics (the editor's extended-d `shape` effect) merge each
+     *    keyframe's partial value over this base.
+     */
+    value?: any;
+
+    /** Array of keyframes defining the animation timeline */
+    keyframes?: PxKeyframe[];
+
+    /**
+     * Optional loop configuration. When set, the keyframe sequence is expanded at pre-processing
+     * time to fill the gap between the keyframe range and `animator.duration` by repeating a
+     * chosen segment. `true` is shorthand for the default {@link PxLoop} (loop the last segment
+     * after the final keyframe, cycling forward). See {@link PxLoop} for details.
+     *
+     * Note: this operates independently of `animator.iterations` — see {@link _PxLoop} for the
+     * interaction between the two.
+     */
+    loop?: PxLoop | boolean;
+
+    /**
+     * Motion-along-path "auto-orient" flag. Only meaningful for translate
+     * animations whose keyframes carry spatial tangents (`tangentIn` /
+     * `tangentOut`): when true, the element rotates so its local X axis aligns
+     * with the path tangent at the current position. The rotation is computed
+     * from the cubic-Bezier derivative at the eased progress along the
+     * arc-length-parametrised segment.
+     */
+    autoOrient?: boolean;
+
+    /**
+     * How a motion-along-path `transform` animation is RENDERED: `'sampled'` (default,
+     * absent) — the path is pre-sampled into plain transform keyframes;
+     * `'offsetPath'` — the browser drives it as a CSS Motion Path (`offset-path` /
+     * `offset-distance`). Written by the editor, consumed by `materialiseAllInTree`.
+     */
+    alongPathMode?: 'sampled' | 'offsetPath';
+}
+
+// `{ value?:KeyframeValue, keyframes?:Keyframe[], loop?:Loop|boolean, autoOrient?:bool, alongPathMode?:'sampled'|'offsetPath' }`
+// (the `kfs` alias was removed outright — review §1.2/§6.1: one spelling only)
+export const PxPropertyAnimationSchema = implementsInterface<_PxPropertyAnimation>()(px.object({
+    value: PxKeyframeValueSchema.optional(),
+    keyframes: px.array(PxKeyframeSchema).optional(),
+    loop: px.union([PxLoopSchema, px.boolean()]).optional(),
+    autoOrient: px.boolean().optional(),
+    alongPathMode: px.enum(['sampled', 'offsetPath'] as const).optional(),
+}));
+
+/** Animation definition for a single CSS/SVG property. */
+// The runtime-VIEW type: its `keyframes` items are runtime-view PxKeyframes (they may
+// carry the internal normalised short fields), which the schema-inferred type cannot.
+export type PxPropertyAnimation = _PxPropertyAnimation;
+// KeysMatch compares only the KEY SETS, so it still locks the schema to the interface even
+// though the two disagree about the VALUE type of `keyframes` (above). Worth having here in
+// particular: this is the object that carried the `kfs` alias until it was deleted.
+const _ck_PxPropertyAnimation: KeysMatch<PxInfer<typeof PxPropertyAnimationSchema>, _PxPropertyAnimation> = true;
+
+
+/**
+ * Record of transform parts forming a single transform `value`. Each present
+ * key contributes one segment of the composed CSS transform string at render /
+ * interpolation time, in the canonical order
+ * `translate, translate(+origin), rotate, scale, translate(-origin)`.
+ *
+ * `origin` is meaningful only when `rotate` or `scale` is also present in the
+ * same record — see "When does origin belong inside a keyframe value?" in
+ * `file-format-remaining-design-issues2.md`.
+ */
+export interface _PxTransformParts {
+
+    /** Translation offset `[x, y]` in user units. */
+    translate?: [number, number];
+
+    /** Rotation in degrees. */
+    rotate?: number;
+
+    /** Skew (skewX) in degrees, pivoting at `origin` — composed between `rotate`
+     *  and `scale` (matches Lottie's transform order). */
+    skew?: number;
+
+    /** Scale factor `[sx, sy]`. */
+    scale?: [number, number];
+
+    /**
+     * Pivot for rotate / scale `[x, y]`. Only meaningful alongside `rotate` or
+     * `scale` in the same record.
+     */
+    origin?: [number, number];
+}
+
+// `{ translate?:[x,y], rotate?:deg, skew?:deg, scale?:[sx,sy], origin?:[x,y] }`
+export const PxTransformPartsSchema = implementsInterface<_PxTransformParts>()(px.object({
+    translate: px.tuple([px.number(), px.number()] as const).optional(),
+    rotate: px.number().optional(),
+    skew: px.number().optional(),
+    scale: px.tuple([px.number(), px.number()] as const).optional(),
+    origin: px.tuple([px.number(), px.number()] as const).optional(),
+}));
+
+/** Record of transform parts forming a single transform `value`. */
+export type PxTransformParts = PxInfer<typeof PxTransformPartsSchema>;
+const _ck_PxTransformParts: KeysMatch<PxTransformParts, _PxTransformParts> = true; // the key sets are identical
+
+/**
+ * Unified `transform` slot value. Valid shapes:
+ *
+ * - **Bare parts record** — `{translate:[100,100], rotate:45, scale:[1.5,1.5],
+ *   origin:[25,25]}` — THE canonical lightweight static (SCHEMA-DESIGN §2/S1):
+ *   the authored parts verbatim, the exact record grammar animated keyframe
+ *   values use. Unambiguous because a body attr never carries animation — that
+ *   lives in the parallel `animate` channel (R2); the parts keys are disjoint
+ *   from the animation-wrapper keys.
+ * - **SVG transform string** — `"translate(125,125)rotate(45)…translate(-25,-25)"`.
+ *   The pre-rendered/browser form (origin baked into a pivot sandwich) and the
+ *   foreign-SVG import path. Read forever.
+ * - **Structured static** — `{value: PxTransformParts}`. Read-accepted legacy
+ *   spelling of the record.
+ * - **Animated** — `{keyframes: [{time, value: PxTransformParts, …}, …]}`.
+ *   Legacy inline form (the editor writes the `animate` channel instead).
+ *
+ * Replaces the earlier convention of putting each animated transform part
+ * under its own top-level attribute name (`translate`, `rotate`, `scale`,
+ * `origin`).
+ */
+export const PxTransformValueSchema = px.union([
+    px.string(),
+    PxTransformPartsSchema,
+    px.object({ value: PxTransformPartsSchema }),
+    PxPropertyAnimationSchema,
+]);
+
+/** Unified `transform` slot value: string | structured static | animated. */
+export type PxTransformValue = PxInfer<typeof PxTransformValueSchema>;
+
+
+// ============================================================================
+// ANIMATION DEFINITION
+// ============================================================================
+
+/**
+ * Complete animation definition containing one or more property animations.
+ * Each key is a CSS/SVG property name (e.g., "opacity", "translate", "fill").
+ *
+ * @example
+ * { "opacity": { keyframes: [...] }, "translate": { keyframes: [...] } }
+ */
+export interface _PxAnimationDefinition {
+    [property: string]: PxPropertyAnimation;
+}
+
+// `Record<propName, PropertyAnimation>`
+export const PxAnimationDefinitionSchema = implementsInterface<_PxAnimationDefinition>()(
+    px.record(PxPropertyAnimationSchema)
+);
+
+/**
+ * Complete animation definition containing one or more property animations.
+ * Each key is a CSS/SVG property name (e.g., "opacity", "scale", "rotate").
+ */
+export type PxAnimationDefinition = PxInfer<typeof PxAnimationDefinitionSchema>;
+
+
+// ============================================================================
+// ELEMENT ANIMATION
+// ============================================================================
+
+/**
+ * Element animation specification. Can be:
+ * - A string referencing a named animation from `definitions.animations`
+ * - An array of named references
+ * - An inline `AnimationDefinition` object
+ * - A mixed array of references and inline definitions
+ *
+ * @example
+ * "fadeIn"
+ * ["fadeIn", "spin"]
+ * { opacity: { keyframes: [...] } }
+ * ["fadeIn", { scale: { keyframes: [...] } }]
+ */
+export type _PxElementAnimation =
+    | string
+    | string[]
+    | PxAnimationDefinition
+    | (string | PxAnimationDefinition)[];
+
+// `string | Array<string|AnimationDefinition> | AnimationDefinition`
+export const PxElementAnimationSchema = implementsInterface<_PxElementAnimation>()(px.union([
+    px.string(),
+    px.array(px.union([px.string(), PxAnimationDefinitionSchema])),
+    PxAnimationDefinitionSchema,
+]));
+
+/**
+ * Element animation specification.
+ * Can be a string reference, array of references, inline definition, or a mixed array.
+ */
+export type PxElementAnimation = PxInfer<typeof PxElementAnimationSchema>;
+
+
+// ============================================================================
+// TRIGGER
+// ============================================================================
+
+type StartOnExtra = StartOn | 'programmatic';
+
+/**
+ * Defines when and how an animation should be triggered.
+ */
+export interface _PxTrigger {
+
+    /** Event that starts the animation */
+    startOn?: StartOnExtra;
+
+    /** Action to take when the trigger condition is no longer met (e.g., mouse leaves) */
+    outAction?: 'continue' | 'pause' | 'reset' | 'reverse';
+
+    /** Percentage of element visibility required to trigger (0–1, default 0 = any pixel).
+     *  Only applies to scrollIntoView. */
+    scrollIntoViewThreshold?: number;
+
+    /** After a NATURAL finish: `'hold'` (default — keep the end state per `fill`) or `'reset'`
+   *  (snap back to the start). Named to pair with its sibling `outAction`, and NOT `onFinish`,
+   *  which is the CALLBACK on `PxAnimatorCallbacksConfig` — a value key and a function key with
+   *  one name read badly side by side in a document literal or in JSX. */
+    finishAction?: 'hold' | 'reset';
+}
+
+// `{ startOn?:'load'|'mouseOver'|'click'|'scrollIntoView'|'programmatic', outAction?:..., scrollIntoViewThreshold?:number }`
+export const PxTriggerSchema = implementsInterface<_PxTrigger>()(px.object({
+    startOn: px.enum(['load', 'mouseOver', 'click', 'scrollIntoView', 'programmatic'] as const).optional(),
+    outAction: px.enum(['continue', 'pause', 'reset', 'reverse'] as const).optional(),
+    // What happens after a NATURAL finish — `'hold'` (default: keep the end state per
+    // `fill`) or `'reset'` (snap back to the start state). Pairs with `outAction` ("what
+    // happens when the trigger condition ends"); both end-of-life knobs now read alike.
+    finishAction: px.enum(['hold', 'reset'] as const).optional(),
+    scrollIntoViewThreshold: px.number().optional(),
+}));
+
+/** Defines when and how an animation should be triggered. */
+export type PxTrigger = PxInfer<typeof PxTriggerSchema>;
+const _ck_PxTrigger: KeysMatch<PxTrigger, _PxTrigger> = true; // the key sets are identical
+
+
+// ============================================================================
+// DEFS
+// ============================================================================
+
+/**
+ * A single character's embedded outline (glyph-mode text). Coordinates and
+ * advance are in the owning {@link _PxGlyphFont}'s `unitsPerEm` units, so the
+ * player can render text without the original font. See svga.text.design.md.
+ */
+export interface _PxGlyph {
+    /** Advance width, in the font's `unitsPerEm`. */
+    width: number;
+    /** Outline path `d`, in the font's `unitsPerEm` (empty for whitespace). */
+    d: string;
+}
+
+export const PxGlyphSchema = implementsInterface<_PxGlyph>()(px.object({
+    width: px.number(),
+    d: px.string(),
+}));
+
+export type PxGlyph = PxInfer<typeof PxGlyphSchema>;
+const _ck_PxGlyph: KeysMatch<PxGlyph, _PxGlyph> = true; // the key sets are identical
+
+/**
+ * The used glyphs of one font, keyed by character. Referenced by a text's
+ * `font-family` (the key in {@link _PxDefs.fonts}).
+ */
+export interface _PxGlyphFont {
+    /** CSS family name, e.g. "Roboto". */
+    fontFamily: string;
+    /** Font-style notation, e.g. "" | "italic" (review §5.2 — `style` would collide with the node's CSS `style`). */
+    fontStyle: string;
+    /** Ascent, in `unitsPerEm` units (baseline placement). */
+    ascent: number;
+    /** Units per em the glyph `width`/`d` are expressed in, e.g. 1000. */
+    unitsPerEm: number;
+    /** Outlines of the used characters, keyed by the character itself. */
+    glyphs: { [char: string]: PxGlyph; };
+}
+
+export const PxGlyphFontSchema = implementsInterface<_PxGlyphFont>()(px.object({
+    fontFamily: px.string(),
+    fontStyle: px.string(),
+    ascent: px.number(),
+    unitsPerEm: px.number(),
+    glyphs: px.record(PxGlyphSchema),
+}));
+
+export type PxGlyphFont = PxInfer<typeof PxGlyphFontSchema>;
+const _ck_PxGlyphFont: KeysMatch<PxGlyphFont, _PxGlyphFont> = true; // the key sets are identical
+
+/**
+ * Reusable definitions library for easings, animations, and styles.
+ * Defined once here, referenced by name on elements.
+ */
+export interface _PxDefs {
+
+    /** Named cubic-bezier easing functions */
+    easings?: { [name: string]: [number, number, number, number]; };
+
+    /** Named animation definitions that can be referenced by elements */
+    animations?: { [name: string]: PxAnimationDefinition; };
+
+    /** Named style presets. A node's `style` may reference one by name;
+     *  resolved and applied at render time (see `resolveStyle` in PxAnimatorDOM). */
+    styles?: { [name: string]: Record<string, string | number>; };
+
+    /** Embedded fonts — per-font glyph outlines, keyed by the text's `font-family`.
+     *  Lets glyph-mode `<text>` render without an external font. */
+    fonts?: { [fontName: string]: PxGlyphFont; };
+}
+
+// `{ easings?:Record<name,[x1,y1,x2,y2]>, animations?:Record<name,AnimationDefinition>, styles?:Record<name,Record<attr,string|number>>, fonts?:Record<fontName,PxGlyphFont> }`
+export const PxDefsSchema = implementsInterface<_PxDefs>()(px.object({
+    easings: px.record(px.tuple([px.number(), px.number(), px.number(), px.number()] as const)).optional(),
+    animations: px.record(PxAnimationDefinitionSchema).optional(),
+    // Review §2.6: the schema now matches the declared type — a style preset is a flat
+    // record of string|number attribute values, nothing nested.
+    styles: px.record(px.record(px.union([px.string(), px.number()]))).optional(),
+    fonts: px.record(PxGlyphFontSchema).optional(),
+}));
+
+/** Reusable definitions library for easings, animations, and styles. */
+export type PxDefs = PxInfer<typeof PxDefsSchema>;
+const _ck_PxDefs: KeysMatch<PxDefs, _PxDefs> = true; // the key sets are identical
+
+
+// ============================================================================
+// SCROLL TIMELINE
+// ============================================================================
+
+/**
+ * A point on a scroll timeline's range, anchoring where the animation's 0%/100% sit.
+ *
+ * For `kind: 'view'`, `phase` names WHICH slice of the subject's journey across the
+ * scrollport the point is measured in (CSS "timeline range name"), and `fraction` is the
+ * 0..1 position within that slice. For `kind: 'scroll'` there are no phases — `phase` is
+ * ignored and `fraction` is a fraction of the scroller's total scroll range.
+ *
+ * Structured on purpose (never a CSS string like `"cover 0%"`): atomic values, mechanical
+ * translation to CSS `animation-range` / WAAPI `rangeStart/rangeEnd` where needed.
+ */
+export interface _PxScrollRangePoint {
+    /** `view` kind only: the journey phase this point is anchored in. Default `'cover'`. */
+    phase?: PxScrollPhase;
+    /** 0..1 within the phase (or of the total scroll range for `kind: 'scroll'`). */
+    fraction?: number;
+}
+
+/** The subject's journey phases across the scrollport (see scroll-timeline.design.md §4
+ *  for the exact `u`-space intervals each phase maps to). */
+export type PxScrollPhase = 'cover' | 'contain' | 'entry' | 'exit' | 'entry-crossing' | 'exit-crossing';
+
+const PX_SCROLL_PHASES = ['cover', 'contain', 'entry', 'exit', 'entry-crossing', 'exit-crossing'] as const;
+
+export const PxScrollRangePointSchema = implementsInterface<_PxScrollRangePoint>()(px.object({
+    phase: px.enum(PX_SCROLL_PHASES).optional(),
+    fraction: px.number().optional(),
+}));
+export type PxScrollRangePoint = PxInfer<typeof PxScrollRangePointSchema>;
+const _ck_PxScrollRangePoint: KeysMatch<PxScrollRangePoint, _PxScrollRangePoint> = true; // the key sets are identical
+
+/**
+ * Scroll-timeline configuration — consulted only when `timelineSource: 'scroll'`.
+ * All fields optional; the defaults give "scrub the whole animation as the SVG crosses
+ * the viewport" (`view` / `block` / full `cover` range).
+ */
+export interface _PxScroll {
+    /** What progress measures. `'view'` (default): the SVG's own journey across the
+     *  scrollport (enter → leave). `'scroll'`: the scroll container's offset ratio,
+     *  regardless of where the SVG sits. */
+    kind?: 'view' | 'scroll';
+
+    /** Scroll axis. `block`/`inline` are writing-mode relative (block = vertical in
+     *  horizontal writing); `x`/`y` are physical. Default `'block'`. */
+    axis?: 'block' | 'inline' | 'x' | 'y';
+
+    /** `kind: 'scroll'` only: which scroller. `'nearest'` (default) = nearest scrollable
+     *  ancestor of the SVG; `'root'` = the document. (`view` always tracks the nearest
+     *  scrollport.) */
+    source?: 'nearest' | 'root';
+
+    /**
+     * `kind: 'view'` only — WHICH ELEMENT'S journey is measured. Unset (default) = the
+     * animation's own `<svg>`. The same indirection CSS gives via `view-timeline-name` +
+     * `timeline-scope`, GSAP via `trigger`, Framer via "Section in view".
+     *
+     * - `'parent'` — the nearest ancestor that actually scrolls past: any `sticky`/`fixed`
+     *   ancestors are skipped and their container is used instead. This is what makes a
+     *   PINNED section work (a stuck element's rect stops moving, so measuring the graphic
+     *   itself would freeze); its `contain` phase is exactly the pinned stretch.
+     * - `'scroller'` — the scroll container itself.
+     * - anything else — a CSS selector, resolved against the host document.
+     *
+     * An unresolvable selector warns and falls back to the `<svg>` (never a silent freeze).
+     */
+    subject?: string;
+
+    /**
+     * MILLISECONDS of catch-up lag — the same idea as GSAP's `scrub: <seconds>`, in the unit
+     * the rest of this schema uses (`duration`, `delay`). Unset/0 = the playhead is locked to
+     * the scrollbar; above 0 the progress eases toward the scroll position instead of snapping
+     * to it, which reads far smoother under momentum scrolling and trackpads.
+     * Custom driver only — a browser-native `ScrollTimeline` has no equivalent, so setting
+     * this forces the player's own measurement (the browser timeline is skipped).
+     */
+    smoothing?: number;
+
+    /**
+     * Hold the canvas still on screen while scrolling scrubs it — GSAP's `pin: true`, done with
+     * `position: sticky` (which keeps the element's space in normal flow, so unlike GSAP's
+     * `position: fixed` no spacer padding has to be injected into the host's layout).
+     *
+     * The player owns the DOM inside its own container, so this needs NO host CSS. Pair it with
+     * `subject: 'parent'` for the complete scrollytelling pattern.
+     */
+    pin?: boolean;
+
+    /**
+     * `pin` only: WHERE in the scrollport the canvas is held — the alignment the sticky
+     * offset is computed from. `top` (default) holds it against the top edge; `center`
+     * and `bottom` need the canvas's own height, so the player measures it and keeps the
+     * offset in sync on resize. `pinTop` is added on top of whichever alignment is chosen.
+     */
+    pinAlign?: 'top' | 'center' | 'bottom';
+
+    /** `pin` only: offset from the alignment position (see `pinAlign`), in px. Default 0. */
+    pinTop?: number;
+
+    /**
+     * `pin` only: how much scroll travel the pin should last, in VIEWPORT HEIGHTS — the player
+     * injects a wrapper of that height around the canvas to create it. Omit to pin inside
+     * whatever tall section the host page already provides.
+     */
+    pinDistance?: number;
+
+    /** The timeline slice mapped onto animation progress 0..1.
+     *  Default `{ start: {phase:'cover', fraction:0}, end: {phase:'cover', fraction:1} }`. */
+    range?: {
+        start?: _PxScrollRangePoint;
+        end?: _PxScrollRangePoint;
+    };
+}
+
+/** The `range` sub-object — named so consumers can derive its keys. */
+export const PxScrollRangeSchema = px.object({
+    start: PxScrollRangePointSchema.optional(),
+    end: PxScrollRangePointSchema.optional(),
+});
+
+export const PxScrollSchema = implementsInterface<_PxScroll>()(px.object({
+    kind: px.enum(['view', 'scroll'] as const).optional(),
+    axis: px.enum(['block', 'inline', 'x', 'y'] as const).optional(),
+    source: px.enum(['nearest', 'root'] as const).optional(),
+    // Free-form: the two keywords `parent`/`scroller` plus any CSS selector.
+    subject: px.string().optional(),
+    smoothing: px.number().optional(),
+    pin: px.boolean().optional(),
+    pinAlign: px.enum(['top', 'center', 'bottom'] as const).optional(),
+    pinTop: px.number().optional(),
+    pinDistance: px.number().optional(),
+    range: PxScrollRangeSchema.optional(),
+}));
+export type PxScroll = PxInfer<typeof PxScrollSchema>;
+const _ck_PxScroll: KeysMatch<PxScroll, _PxScroll> = true; // the key sets are identical
+
+
+// ============================================================================
+// TIMELINE — what advances the animation's progress (review §2.1)
+// ============================================================================
+//
+// `animator.timeline` is a discriminated object: `type?: 'time' | 'scroll' | 'view'`,
+// deliberately mirroring WAAPI's three timeline classes (DocumentTimeline /
+// ScrollTimeline / ViewTimeline) and CSS `animation-timeline: auto | scroll() | view()`.
+// Each mode carries ONLY its own parameters, so a key that is dead in the other mode is
+// structurally unwritable — the old flat spelling (`timelineSource` + sibling `scroll` +
+// clock knobs loose at the animator root) required design rules (D3/D4) to keep dead keys
+// out; readers accept BOTH spellings (see `flattenAnimatorTimeline`), writers emit only
+// this one.
+
+/** Pin parameters as one object — presence enables pinning (review §2.2; the flat legacy
+ *  spelling is `scroll.pin/pinAlign/pinTop/pinDistance`). */
+export interface _PxTimelinePin {
+    /** Where the pinned canvas sits in the viewport. Default `'top'`. */
+    align?: 'top' | 'center' | 'bottom';
+    /** Offset from the alignment position, in px. Default 0. */
+    top?: number;
+    /** How much scroll travel the pin lasts, in VIEWPORT HEIGHTS. Omit to pin inside
+     *  whatever tall section the host page already provides. */
+    distance?: number;
+}
+
+export const PxTimelinePinSchema = implementsInterface<_PxTimelinePin>()(px.object({
+    align: px.enum(['top', 'center', 'bottom'] as const).optional(),
+    top: px.number().optional(),
+    distance: px.number().optional(),
+}));
+export type PxTimelinePin = PxInfer<typeof PxTimelinePinSchema>;
+const _ck_PxTimelinePin: KeysMatch<PxTimelinePin, _PxTimelinePin> = true; // the key sets are identical
+
+// Time-driven — wall-clock playback: something STARTS it (trigger) and it has the
+// WAAPI playback dynamics. `type` is OPTIONAL: an absent `type` (or an absent
+// `timeline` altogether) means this one — the common case declares nothing.
+// `resetOnFinish` has no slot here: its successor is `trigger.finishAction: 'reset'`.
+/** `timeline.engine` — HOW the animated attributes get updated (every timeline type;
+ *  default `auto`). Not `mode`: an implementation preference, not a behaviour switch. */
+const PxTimelineEngineSchema = px.enum([PxTimelineEngineExtra.auto, PxTimelineEngineExtra.native, PxTimelineEngineExtra.js] as const).optional();
+
+/**
+ * The time-driven timeline. Declared as an interface so a rename inside the schema below is a
+ * COMPILE error rather than a silent wire-format change — `flattenAnimatorTimeline` reads the
+ * timeline through `any`, so without this lock nothing else in the repo would notice.
+ */
+export interface _PxTimeTimeline {
+    /** Optional: an absent `type` (or an absent `timeline`) already means this member. */
+    type?: 'time';
+    /** How the animated attributes get updated. Default `auto`. */
+    engine?: PxTimelineEngineExtra;
+    /** Target fps for the player's frame loop — a parameter of the `engine` chosen above, so it
+     *  sits beside it. Uncapped when absent; ignored by every engine except the frame loop. */
+    frameRate?: number;
+    /** §2.8: how long one pass takes, ms. */
+    duration?: number;
+    /** What starts it, and what happens when that condition ends. */
+    trigger?: _PxTrigger;
+    /** Wait before the first iteration, ms. Negative skips ahead. */
+    delay?: number;
+    /** Repeat count, or `'infinite'`. */
+    iterations?: number | 'infinite';
+    /** CSS `animation-fill-mode` — what shows outside the active time. NEVER spelled `fill`,
+     *  which is paint everywhere else in the format; the runtime view calls it `fill`. */
+    fillMode?: 'forwards' | 'backwards' | 'both' | 'none';
+    /** Forward, backward, or turning around each iteration. */
+    direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';
+}
+
+const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.object({
+    type: px.literal('time').optional(),
+    engine: PxTimelineEngineSchema,
+    frameRate: px.number().optional(),
+    // §2.8: duration is a property of the TIMELINE — how long one pass takes.
+    duration: px.number().optional(),
+    trigger: PxTriggerSchema.optional(),
+    delay: px.number().optional(),
+    iterations: px.union([px.number(), px.literal('infinite')]).optional(),
+    // `fillMode` on the wire (CSS `animation-fill-mode`; the runtime view calls it `fill`)
+    // — never `fill`, which is paint everywhere else in the format.
+    fillMode: px.enum(['forwards', 'backwards', 'both', 'none'] as const).optional(),
+    direction: px.enum(['normal', 'reverse', 'alternate', 'alternate-reverse'] as const).optional(),
+}));
+const _ck_PxTimeTimeline: KeysMatch<PxInfer<typeof PxTimeTimelineSchema>, _PxTimeTimeline> = true;
+
+// Scroll-driven modes — progress scrubbed from scroll position; nothing starts or
+// finishes it, so none of the clock knobs exist here. `'scroll'` tracks a scroller's
+// scroll offset, `'view'` tracks the subject's visibility through the viewport —
+// exactly WAAPI ScrollTimeline vs ViewTimeline (the old nested `scroll.kind` dissolved
+// into this discriminant). `mode` (shared by every timeline type) says who runs the
+// animation; `pin` is boolean-or-object (§2.2).
+const scrollishTimelineShape = {
+    // §2.8: duration is a property of the TIMELINE — under scrubbing it is the keyframe
+    // span the scroll range maps onto.
+    duration: px.number().optional(),
+    // Finite repeat count IS meaningful when scrubbing — the scroll range maps onto
+    // duration × iterations (rule D4; `'infinite'` cannot map to a range, so no literal here).
+    iterations: px.number().optional(),
+    engine: PxTimelineEngineSchema,
+    frameRate: px.number().optional(),
+    axis: px.enum(['block', 'inline', 'x', 'y'] as const).optional(),
+    source: px.enum(['nearest', 'root'] as const).optional(),
+    subject: px.string().optional(),   // 'parent' | 'scroller' | any CSS selector
+    smoothing: px.number().optional(), // ms
+    pin: px.union([px.boolean(), PxTimelinePinSchema]).optional(),
+    range: PxScrollRangeSchema.optional(),
+};
+/** The keys both scroll-driven members carry. Locked the same way as the time member. */
+export interface _PxScrollishTimelineShape {
+    /** §2.8: under scrubbing, the keyframe span the scroll range maps onto. */
+    duration?: number;
+    /** Finite only — `'infinite'` cannot map onto a range (rule D4). */
+    iterations?: number;
+    /** How the animated attributes get updated. Default `auto`. */
+    engine?: PxTimelineEngineExtra;
+    /** Target fps for the player's frame loop (shared with the time member). */
+    frameRate?: number;
+    /** `block`/`inline` are writing-mode relative; `x`/`y` are physical. Default `'block'`. */
+    axis?: 'block' | 'inline' | 'x' | 'y';
+    /** `'nearest'` (default) scrollable ancestor, or `'root'`, the document. */
+    source?: 'nearest' | 'root';
+    /** `'parent'` · `'scroller'` · any CSS selector. */
+    subject?: string;
+    /** How long the playhead takes to catch up with the scrollbar, ms. */
+    smoothing?: number;
+    /** `true` to pin with defaults, or the parameters (review §2.2). */
+    pin?: boolean | _PxTimelinePin;
+    /** The slice of the timeline mapped onto progress 0..1. */
+    range?: { start?: _PxScrollRangePoint; end?: _PxScrollRangePoint };
+}
+
+/** `interface X extends Y { type: 'scroll' }` — spelled as an intersection so the key-set
+ *  check below compares exactly the discriminant plus the shared shape. */
+export type _PxScrollTimeline = _PxScrollishTimelineShape & { type: 'scroll' };
+export type _PxViewTimeline = _PxScrollishTimelineShape & { type: 'view' };
+
+const PxScrollTimelineSchema = implementsInterface<_PxScrollTimeline>()(
+    px.object({ type: px.literal('scroll'), ...scrollishTimelineShape }));
+const PxViewTimelineSchema = implementsInterface<_PxViewTimeline>()(
+    px.object({ type: px.literal('view'), ...scrollishTimelineShape }));
+const _ck_PxScrollTimeline: KeysMatch<PxInfer<typeof PxScrollTimelineSchema>, _PxScrollTimeline> = true;
+const _ck_PxViewTimeline: KeysMatch<PxInfer<typeof PxViewTimelineSchema>, _PxViewTimeline> = true;
+
+export const PxTimelineSchema = px.discriminatedUnion('type', [
+    PxTimeTimelineSchema,   // first = the member an absent `type` selects
+    PxScrollTimelineSchema,
+    PxViewTimelineSchema,
+]);
+export type PxTimeline = PxInfer<typeof PxTimelineSchema>;
+
+
+// ============================================================================
+// ANIMATOR CONFIG
+// ============================================================================
+
+/**
+ * Global animation configuration that applies to all animations in the document.
+ * Defines timing, playback behaviour, and rendering strategy.
+ */
+export interface _PxAnimatorConfig {
+
+    /** RUNTIME VIEW ONLY (not wire — the wire spells it `timeline.engine`, on every
+     *  timeline type; same word both sides). How the animated attributes get updated;
+     *  see {@link PxTimelineEngineExtra}. */
+    engine?: PxTimelineEngineExtra;
+
+    /** RUNTIME VIEW ONLY (not wire — §2.8: the wire spells it `timeline.duration`).
+     *  Total animation duration in milliseconds. */
+    duration?: number;
+
+    /** Delay before animation starts in milliseconds */
+    delay?: number;
+
+    /**
+     * Number of times to repeat the entire document timeline. Use `"infinite"` for endless loop.
+     *
+     * This repeats **all properties across all elements** as a unit. It is independent of
+     * per-property `loop` configuration: if a property uses `loop`, its keyframes are already
+     * expanded to fill `duration` before `iterations` takes effect — the two do not interfere,
+     * but they do compose (a looping property inside an infinitely iterating document loops
+     * within each iteration).
+     */
+    iterations?: number | "infinite";
+
+    /** After a natural finish, snap the document back to its start state (same
+     *  mechanics as the trigger `reset` out-action). Off by default — the animation
+     *  holds its end state per `fill`. */
+    resetOnFinish?: boolean;
+
+    /**
+     * Defines which values are applied before/after the active animation period
+     * (maps directly to the Web Animations API `fill` option).
+     * Defaults to `'forwards'` when not set so that elements hold their final
+     * state after the animation ends — consistent with Lottie and other animation
+     * runtimes. Without this default, seeking to the last frame would cause
+     * elements to revert to their pre-animation state.
+     */
+    fill?: FillMode;
+
+    /** Direction of animation playback */
+    direction?: PlaybackDirection;
+
+    /** RUNTIME VIEW ONLY — the wire spells it `timeline.frameRate`. Target frame rate for the
+     *  player's frame loop; ignored by WAAPI, React Native and the pre-rendered CSS export. */
+    frameRate?: number;
+
+    /** Trigger configuration for when animation should start */
+    trigger?: PxTrigger;
+
+    /** Named easings, animations, and styles — referenced by elements */
+    definitions?: PxDefs;
+
+    /**
+     * Animation map for pre-rendered SVG elements (bind-by-id documents, no `children`) — `node.animate` HOISTED
+     * to the root and keyed by element id, for when the SVG DOM already exists and the
+     * player only needs to bind to it.
+     *
+     * The value type is identical to `node.animate` (`PxElementAnimation`); only the
+     * KEYSPACE differs — attr name there, element id here — which is what the `ById`
+     * suffix names (N2; same pattern as `transform` → `transformBy`).
+     *
+     * @example { "_px_abc": { opacity: { keyframes: [...] } }, "_px_def": ["fadeIn"] }
+     */
+    animateById?: Record<string, PxElementAnimation>;
+
+    /**
+     * RUNTIME VIEW ONLY (not wire) — what ADVANCES the animation. `'time'` (default)
+     * is the wall clock; `'scroll'` is scroll-linked playback ("scrubbing"), matching
+     * CSS scroll-driven animations.
+     *
+     * The wire spells this as `timeline.type` ('time' — or absent — vs 'scroll'/'view');
+     * `flattenAnimatorTimeline` folds it into this field for the engines.
+     * Distinct from `trigger.startOn`, which says what STARTS the animation: one
+     * names the beginning, this one names what moves the playhead afterwards.
+     * Design: app `svgeditor/animation/scroll-timeline.design.md`.
+     */
+    timelineSource?: string;
+
+    /** RUNTIME VIEW ONLY (not wire) — scroll-timeline parameters, only consulted when
+     *  `timelineSource: 'scroll'`. The wire spells them inside `timeline`. */
+    scroll?: PxScroll;
+
+    /** What advances the animation — THE wire spelling (review §2.1): a discriminated
+     *  `{ type?: 'time' | 'scroll' | 'view', … }` object mirroring WAAPI's timeline
+     *  classes. Carries the playback dynamics (`trigger`/`delay`/`iterations`/`fillMode`/
+     *  `direction` for time; scroll geometry for scroll/view); the flat fields above
+     *  are the internal runtime view `flattenAnimatorTimeline` produces from it. */
+    timeline?: PxTimeline;
+
+    /** Debug helper: exposes the animator instance as `window[debugGlobalName]`. */
+    debugGlobalName?: string;
+
+    /**
+     * WIRE FORMAT VERSION, `"a.b.c"` — the layering, not a build number:
+     *   `a.b`  the PLAYER schema. A reader at `a.b` reads any file at `a.[b' <= b]`.
+     *   `c`    the EDITOR's extension on top of that player schema (`meta.*`). The player
+     *          ignores it entirely; it is scoped to `(a,b)` and restarts when `b` moves.
+     *
+     * A mismatch on its own means NOTHING and must never warn: a bump says the schema gained
+     * something, not that this document uses it. The number is consulted only when a
+     * conversion needs it, or when unknown content was actually met — where it turns
+     * "something is wrong" into "written for 1.5, this build reads 1.1; update the player".
+     *
+     * ABSENT means unknown, never "oldest": no version is assumed and no migration is guessed.
+     */
+    version?: string;
+}
+
+// The WIRE format (review §2.1): playback dynamics live only inside `timeline` —
+// the flat spelling (`trigger`/`delay`/`iterations`/`fill`/`direction`/`resetOnFinish`/
+// `timelineSource`/`scroll`) is NOT part of the format. It exists only as the internal
+// runtime VIEW (`_PxAnimatorConfig`) that `flattenAnimatorTimeline` produces for the engines.
+export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(px.object({
+    // (`mode`, `duration` and `frameRate` live INSIDE `timeline` on the wire — §2.8; they exist
+    // at this level only on the runtime view, like the rest of the playback dynamics.)
+    // THE spelling of "what advances progress" — clock / scroll / view (review §2.1).
+    timeline: PxTimelineSchema.optional(),
+    definitions: PxDefsSchema.optional(),
+    animateById: px.record(PxElementAnimationSchema).optional(),
+    debugGlobalName: px.string().optional(),
+    // Declared HERE because this is a closed object: an undeclared key would be stripped by
+    // `sanitize` and flagged by strict validation on our own files.
+    version: px.string().optional(),
+}));
+
+/**
+ * Global animation configuration that applies to all animations in the document.
+ * Defines timing, playback behavior, and rendering strategy.
+ *
+ * This is the runtime VIEW type: the wire carries the playback dynamics nested in
+ * `timeline` (see `PxAnimatorConfigSchema`), and `flattenAnimatorTimeline` folds them
+ * into the flat fields the engines consume — so the type is a superset of the wire.
+ */
+export type PxAnimatorConfig = _PxAnimatorConfig;
+
+
+// ============================================================================
+// BINDING
+// ============================================================================
+
+/**
+ * Binds animations to existing DOM elements by ID.
+ * Used when the SVG tree is pre-rendered and animations are applied separately.
+ */
+export interface _PxBinding {
+
+    /** ID targeting elements in the DOM (data-px-id="...") */
+    id: string;
+
+    /** Animation to apply to matched elements */
+    animate: PxElementAnimation;
+}
+
+// `{ id:string, animate:ElementAnimation }`
+export const PxBindingSchema = implementsInterface<_PxBinding>()(px.object({
+    id: px.string(),
+    animate: PxElementAnimationSchema,
+}));
+
+/**
+ * Binds animations to existing DOM elements via CSS selectors.
+ * Used when the SVG tree is pre-rendered and animations are applied separately.
+ */
+export type PxBinding = PxInfer<typeof PxBindingSchema>;
+const _ck_PxBinding: KeysMatch<PxBinding, _PxBinding> = true; // the key sets are identical
+
+
+// ============================================================================
+// NODE
+// ============================================================================
+
+/**
+ * Per-attribute value shape on the element body. A property key carries either:
+ * - a primitive (string/number) — static SVG attribute
+ * - a number array — static number-LIST attribute (`strokeDasharray: [16, 16]`);
+ *   the canonical static form for list attrs (the "5,5" string form is also
+ *   accepted). Raw arrays are unambiguous — only plain OBJECTS need the
+ *   `{value}` wrapper.
+ * - a `{value: …}` object — structured static parametric source (record-shaped
+ *   static value, used by attributes whose static representation is itself a
+ *   record — notably `transform: {value: PxTransformParts}`)
+ * - a `{keyframes}` object — inline property animation
+ *
+ * The unified rule (primitive/array | `{value}` | `{keyframes}`) applies across
+ * the format. For most attributes the `{value}` form is rarely used on the body
+ * (a primitive suffices for static); for `transform` it is the canonical
+ * structured-static shape. See `PxTransformValueSchema`.
+ */
+/**
+ * Value of an open (undeclared) attribute key on a node — i.e. a BODY attribute.
+ *
+ * STATIC ONLY (R2/J3): a body attr never carries its own animation. Animation goes
+ * in the parallel `animate` channel, keyed by attribute name — that is what keeps a
+ * document degradable to valid static SVG. `PxPropertyAnimationSchema` used to be a
+ * member here, which made an inline `"opacity": {keyframes:[…]}` schema-LEGAL even
+ * though nothing writes it and nothing reads it; worse, being an all-optional object
+ * schema it was ALSO what (accidentally) validated the transform parts record. The
+ * parts record is now declared explicitly, so the two are no longer conflated.
+ */
+export const PxAttrValueSchema = px.union([
+    px.string(),
+    px.number(),
+    px.array(px.number()),
+    // Structured static — `{value: …}` (read-accepted transitional spelling, S1).
+    // `defined`, not `any`: the KEY's presence is what identifies this branch (V6).
+    px.object({ value: px.defined() }),
+    // Bare transform parts record — the canonical static `transform` on the wire (T2).
+    PxTransformPartsSchema,
+]);
+
+/** Per-attribute value: primitive/number-array for static, `{value}` for structured
+ *  static, or a bare transform parts record. NEVER an animation — see `animate` (R2). */
+export type PxAttrValue = string | number | Array<number> | { value: any } | PxTransformParts;
+
+
+/**
+ * Base interface for all SVG elements.
+ * Named properties take precedence over the index signature when accessed.
+ */
+export interface _PxNode {
+
+    /** SVG element type (e.g., "circle", "rect", "path", "g") */
+    type: string;
+
+    /** A REAL `type` attribute, for the elements that have one (`<feTurbulence
+     *  type="fractalNoise">`, `<feFuncR type="table">`) — `type` itself is the tag name.
+     *  The renderer turns this back into the attribute. */
+    domType?: string;
+
+    /** Child elements (for container elements like <g>) */
+    children?: PxNode[];
+
+    /** Meta informaion about this element */
+    meta?: any;
+
+    /**
+     * Player-effects bucket (transformation/repeater/maskedBy/strokeTrim/retime/ref)
+     * emitted by the Editor's lightweight design format. `applyPlayerEffects`
+     * materialises and removes these before any other normalisation, so the
+     * Player never observes a non-empty `effects` after entry-point processing.
+     *
+     * Typed against `PxEffectsSchema` (closed object — strict-mode validation
+     * flags unknown effect keys). Adding a new effect requires extending the
+     * `_PxEffects` interface AND the schema in lockstep.
+     */
+    effects?: PxEffects;
+
+    /**
+     * In-place property animations for this element. Same shape as the
+     * `animator.animateById` map values: string ref, array of refs, inline
+     * definition (`{propName: PxPropertyAnimation}`), or mixed array.
+     * The static initial value of an animated property is still carried as a
+     * plain attribute on the body.
+     */
+    animate?: PxElementAnimation;
+
+    /**
+     * FIXME - do we need it?
+     * Style applied to this element (named reference or inline object)
+     */
+    style?: string | Record<string, string | number>;
+
+    /**
+     * All other SVG attributes (cx, cy, r, fill, stroke, etc.).
+     * A value is either a primitive (static) or a PxPropertyAnimation (in-place
+     * animation `{keyframes: [...]}`).
+     */
+    [key: string]: any;
+}
+
+// ============================================================================
+// PLAYER-EFFECTS BUCKET — INTERFACES + SCHEMAS (linked via `implementsInterface`)
+// ============================================================================
+//
+// Schemas for the `node.effects` payload emitted by the Editor's lightweight
+// design format. `applyPlayerEffects` (in `effects/PlayerEffectsUtil.ts`)
+// materialises and removes these before any other normalisation, so the Player
+// never observes a non-empty `effects` after entry-point processing.
+//
+// Each effect is declared as a `_Px*` interface, paired with a `Px*Schema`
+// wrapped in `implementsInterface<_Px*>()(…)`. The runtime schema and the
+// compile-time interface drift together: a new field added to either without
+// matching the other is a TS error. `KeysMatch` asserts key-set equality so
+// renames are caught too. This is the same pattern used by `PxKeyframe`,
+// `PxLoop`, etc. earlier in this file.
+//
+// `effects/types.ts` re-exports these types so the applier internals
+// (`effects/*.ts`) can still `import from './types'` unchanged.
+
+/** Fixed-length 2-number tuple. `[x, y]` for positions, `[sx, sy]` for scale, …. */
+export type Vec2 = [number, number];
+
+/**
+ * Animatable wire value — the ONE grammar for every animatable slot:
+ *
+ *   T                      — raw static (non-object T)
+ *   { value: T }           — structured static
+ *   PxPropertyAnimation    — animated: `{value?, keyframes, loop?, autoOrient?}`
+ *
+ * The animated form IS `PxPropertyAnimation` — the exact object `node.animate`
+ * channels use — so effect slots and node attributes share one schema, one
+ * reader (`effects/transformParts.readAnimatable`) and one loop-materialisation
+ * path. `value` inside the animated form is the optional static baseline (see
+ * `_PxPropertyAnimation.value`).
+ *
+ * Generic over the per-kf value type `T` for compile-time narrowing of the
+ * static / `{value}` forms. The animated form uses the lib's non-generic
+ * `PxKeyframe` (whose `value` is `any`) — kf values are read with care in the
+ * applier (the visualModel walker / `interpParts` know per-property shapes).
+ */
+export type PxAnimatable<T> = T | { value: T } | _PxPropertyAnimation;
+
+// ORDER LAW (same medicine as PxKeyframeValueSchema): in every animatable union the
+// PropertyAnimation member comes BEFORE the bare `{value}` wrapper. Union.sanitize takes
+// the first member that validates, and default-mode object validation tolerates unknown
+// keys — wrapper-first would route `{value, keyframes}` to the wrapper and silently strip
+// the keyframes. A `{value}`-only static hitting PropertyAnimation first loses nothing
+// (it declares `value` too). Validity is order-independent; only repair cares.
+
+// PxAnimatable<number> — static number OR `{value}` static OR PxPropertyAnimation.
+const PxAnimatableNumberSchema = px.union([
+    px.number(),
+    PxPropertyAnimationSchema,
+    px.object({ value: px.number() }),
+]);
+
+// PxAnimatable<Vec2> — static `[x,y]` OR `{value:[x,y]}` OR PxPropertyAnimation.
+// `as const` on the tuples is REQUIRED for TS to infer `[number, number]` (a
+// fixed-length tuple = `Vec2`) instead of the looser `number[]`.
+const PxAnimatableVec2Schema = px.union([
+    px.tuple([px.number(), px.number()] as const),
+    PxPropertyAnimationSchema,
+    px.object({ value: px.tuple([px.number(), px.number()] as const) }),
+]);
+
+// PxAnimatable<string> — static `"M…"` OR `{value:"M…"}` OR PxPropertyAnimation.
+const PxAnimatableStringSchema = px.union([
+    px.string(),
+    PxPropertyAnimationSchema,
+    px.object({ value: px.string() }),
+]);
+
+// ── CHANNEL vs CONFIG (V2) — the split is declared in the SOURCE, twice over ──
+// An effect slot is one of exactly two kinds, and both declarations must agree:
+//   channel (samplable per frame) → interface `PxAnimatable<T>` + a named
+//                                   `PxAnimatable*Schema` in the schema
+//   static config (read once)     → the bare type + a bare `px.*()` slot
+// Never hand-inline the `[T, {value:T}, PxPropertyAnimation]` union at a slot:
+// the NAME is what makes the split machine-readable. Editor side mirrors this
+// with `isAnimatable: true` on the value's config.
+
+
+/** Per-part editor transform (`transformBy` effect). All parts optional and animatable. */
+export interface _PxTransformByEffect {
+    translate?: PxAnimatable<Vec2>;
+    rotate?: PxAnimatable<number>;
+    scale?: PxAnimatable<Vec2>;
+    /** Skew (skewX) in degrees — a NUMBER (matches the editor's scalar skew part). */
+    skew?: PxAnimatable<number>;
+    origin?: PxAnimatable<Vec2>;
+}
+export const PxTransformByEffectSchema = implementsInterface<_PxTransformByEffect>()(px.object({
+    translate: PxAnimatableVec2Schema.optional(),
+    rotate: PxAnimatableNumberSchema.optional(),
+    scale: PxAnimatableVec2Schema.optional(),
+    skew: PxAnimatableNumberSchema.optional(),
+    origin: PxAnimatableVec2Schema.optional(),
+}));
+export type PxTransformByEffect = PxInfer<typeof PxTransformByEffectSchema>;
+const _ck_PxTransformByEffect: KeysMatch<PxTransformByEffect, _PxTransformByEffect> = true;
+
+
+/** Per-copy repeater offsets. Each part is animatable; per-copy values scale
+ *  with the copy index `i` (translate/rotate/skew × i; scale per-axis `v^i`).
+ *  Static repeater values pass through as a structured `transform: {value:…}` on
+ *  the per-copy wrapper; animated values are emitted as `animate.transform.keyframes`
+ *  with each kf value scaled by `i`. See `effects/repeaterEffect.ts`.
+ *
+ *  NAMING — why `repeater`, NOT `repeat` (SCHEMA-DESIGN R5 / issues N6): this
+ *  effect repeats in SPACE (N copies, each with a compounding per-copy delta), but
+ *  in an ANIMATION format a bare `repeat` reads as TIME — and this format has real
+ *  time-repetition concepts for it to be confused with: `animator.iterations`,
+ *  per-property `loop {segmentCount, alternate}`, and SVG/SMIL's own
+ *  `repeatCount`/`repeatDur`. The agent noun keeps it unambiguously spatial, and
+ *  matches the term the audience already knows (After Effects "Repeater",
+ *  Lottie shape item `rp`). Same principle as `maskedBy` over `mask`: prefer the
+ *  form that preserves the right MEANING over the grammatically uniform one. */
+export interface _PxRepeaterEffect {
+    copies?: number;
+    translate?: PxAnimatable<Vec2>;
+    rotate?: PxAnimatable<number>;
+    /** Per-copy skew (skewX) increment in degrees — copy `i` is skewed by `skew × i`. */
+    skew?: PxAnimatable<number>;
+    scale?: PxAnimatable<Vec2>;       // per-copy FACTOR (0.85 = 85% per copy), like every other scale
+    origin?: PxAnimatable<Vec2>;
+}
+export const PxRepeaterEffectSchema = implementsInterface<_PxRepeaterEffect>()(px.object({
+    // STATIC config, not a channel (V2/SCHEMA-DESIGN R5): the copy COUNT is read
+    // once at expansion time and never sampled — plain number, no `keyframes`.
+    copies: px.number().optional(),
+    translate: PxAnimatableVec2Schema.optional(),
+    rotate: PxAnimatableNumberSchema.optional(),
+    skew: PxAnimatableNumberSchema.optional(),
+    scale: PxAnimatableVec2Schema.optional(),
+    origin: PxAnimatableVec2Schema.optional(),
+}));
+export type PxRepeaterEffect = PxInfer<typeof PxRepeaterEffectSchema>;
+const _ck_PxRepeaterEffect: KeysMatch<PxRepeaterEffect, _PxRepeaterEffect> = true;
+
+
+/** Mask source ref + standard `<mask>` attributes.
+ *  `source` is `#id` (canonical ref spelling, SCHEMA-DESIGN §4 E-5); bare `id` is legacy, read-only.
+ *  `start`/`size` are the `<mask>` viewport — its `x`/`y` and `width`/`height` in
+ *  `maskUnits` space. Absent = SVG's implicit mask region (−10% … 120% of the
+ *  bounding box), which is also the editor's default — so they only appear when a
+ *  document (typically an imported SVG) carries explicit mask bounds. */
+export interface _PxMaskedByEffect {
+    source?: string;
+    maskType?: string;
+    maskUnits?: string;
+    maskContentUnits?: string;
+    // Mask viewport in `maskUnits` space — the SVG `<mask>` attrs verbatim (B5).
+    // NOT `start`/`size` pairs: those were the EDITOR's model FIELD names, never a
+    // wire spelling — the editor has always written these four scalars, so the old
+    // pair declaration meant the player silently dropped every non-default viewport.
+    x?: number;
+    y?: number;
+    width?: number;
+    height?: number;
+}
+export const PxMaskedByEffectSchema = implementsInterface<_PxMaskedByEffect>()(px.object({
+    source: px.string().optional(),
+    maskType: px.enum([PxMaskType.luminance, PxMaskType.alpha] as const).optional(),
+    maskUnits: px.enum([PxUnits.userSpaceOnUse, PxUnits.objectBoundingBox] as const).optional(),
+    maskContentUnits: px.enum([PxUnits.userSpaceOnUse, PxUnits.objectBoundingBox] as const).optional(),
+    x: px.number().optional(),
+    y: px.number().optional(),
+    width: px.number().optional(),
+    height: px.number().optional(),
+}));
+export type PxMaskedByEffect = PxInfer<typeof PxMaskedByEffectSchema>;
+const _ck_PxMaskedByEffect: KeysMatch<PxMaskedByEffect, _PxMaskedByEffect> = true;
+
+
+/**
+ * Clip-path effect — clips the host element to a vector path. `d` is a standard
+ * animatable slot (same grammar as body `d`): static = plain SVG path-data string
+ * (one or more subpaths); animated = `{keyframes}` whose values are `{path:"M…"}`.
+ * At apply time an animated `d` lands on the generated `<path>`'s `animate.d`, so the
+ * player's frame loop rewrites the clip path's `d` attribute per frame. `clip-path`
+ * is a live reference, so the browser re-clips each frame (unlike `<marker>` —
+ * verified across SMIL/CSS/JS/WAAPI).
+ *
+ * At apply time the effect generates a `<clipPath><path d/></clipPath>` def and sets
+ * `clip-path="url(#auto-id)"` on the host (materialiser pattern, like `maskedBy` /
+ * gradient). See `effects/clipPathEffect.ts`.
+ */
+export interface _PxClipPathEffect {
+    d?: PxAnimatable<string>;
+}
+export const PxClipPathEffectSchema = implementsInterface<_PxClipPathEffect>()(px.object({
+    d: PxAnimatableStringSchema.optional(),
+}));
+export type PxClipPathEffect = PxInfer<typeof PxClipPathEffectSchema>;
+const _ck_PxClipPathEffect: KeysMatch<PxClipPathEffect, _PxClipPathEffect> = true;
+
+
+/**
+ * Stroke-trim effect. `range[0..1]` is the visible fraction of the STROKE; `offset`
+ * shifts the visible window along the path (also a fraction). Both are animatable.
+ * `subPaths` says what that fraction is measured over: `separate` (default) trims
+ * each sub-path against its own length; `combined` chains all descendant sub-path
+ * lengths into one virtual path ("Trim All As One") so the window slides across
+ * siblings — see `effects/strokeTrimEffect.ts`.
+ *
+ * NAME — renamed from `trimPath` (2026-08, hard rename, no legacy alias): this
+ * trims the STROKE only. It emits `stroke-dasharray` / `stroke-dashoffset` (plus
+ * `stroke-opacity` for the empty-range hide) and NEVER rewrites `d`, so the fill
+ * is untouched. Lottie's same-named `ty:'tm'` is a path OPERATOR that rewrites
+ * geometry (and therefore does change the fill) — the old name imported that
+ * wrong mental model from the format most authors convert from.
+ */
+export interface _PxStrokeTrimEffect {
+    offset?: PxAnimatable<number>;
+    range?: PxAnimatable<Vec2>;
+    subPaths?: PxStrokeTrimSubPaths;
+}
+export const PxStrokeTrimEffectSchema = implementsInterface<_PxStrokeTrimEffect>()(px.object({
+    offset: PxAnimatableNumberSchema.optional(),
+    range: PxAnimatableVec2Schema.optional(),
+    subPaths: px.enum([PxStrokeTrimSubPaths.separate, PxStrokeTrimSubPaths.combined] as const).optional(),
+}));
+export type PxStrokeTrimEffect = PxInfer<typeof PxStrokeTrimEffectSchema>;
+const _ck_PxStrokeTrimEffect: KeysMatch<PxStrokeTrimEffect, _PxStrokeTrimEffect> = true;
+
+
+/** Ref-attr naming rule (see editor SCHEMA-DESIGN.md): `source` = ref to an EXTERNAL element
+ *  (clone/maskedBy/retime); `coreId` = a unit's own survivor; `partOf` = a derived node's host.
+ *
+ *  `<use>` retime: pure timing — the source ref lives ONCE, on the parent `clone.source`
+ *  (review §4.3; retime's own duplicate `source` was removed outright — no consumer ever
+ *  read it: the materialiser follows `href`). `start`/`timeCrop` in ms.
+ *  `timeCrop: [inMs, outMs]` is a VISIBILITY WINDOW on the document timeline — implemented
+ *  (2026-08) as an opacity gate on a player-side wrapper `<g>`, independent of the
+ *  `start`/`stretch` remap (see `effects/retimeEffect.ts`). */
+export interface _PxRetimeEffect {
+    start?: number;
+    stretch?: number;
+    timeCrop?: [number, number];
+}
+export const PxRetimeEffectSchema = implementsInterface<_PxRetimeEffect>()(px.object({
+    start: px.number().optional(),
+    stretch: px.number().optional(),
+    timeCrop: px.tuple([px.number(), px.number()] as const).optional(),
+}));
+export type PxRetimeEffect = PxInfer<typeof PxRetimeEffectSchema>;
+const _ck_PxRetimeEffect: KeysMatch<PxRetimeEffect, _PxRetimeEffect> = true;
+
+
+/**
+ * `<use>` CLONE — merges the former `ref` + `retime` effects. A `<use>` is a clone
+ * of something: `type`/`source` say WHAT it clones, `retime` says WHEN.
+ *   - `without: 'translate'` → content-ref: the source's own translate is left out (the
+ *     clone stays where the `<use>` put it, still rotates/scales with the source);
+ *     absent → direct / whole-element link (keeps translate). A future `'transform'`
+ *     value may leave out the whole transform.
+ *   - `source` = the source element ref, `#id` (canonical spelling, SCHEMA-DESIGN §4 E-5;
+ *     bare `id` is legacy, read-only). Lives once here; the player follows `href`.
+ *   - `retime` = optional time-shift (nested).
+ * Omitted entirely when all-default (a bare `<use href>` carries no `clone` bucket).
+ */
+export interface _PxCloneEffect {
+    without?: string;
+    source?: string;
+    retime?: _PxRetimeEffect;
+}
+export const PxCloneEffectSchema = implementsInterface<_PxCloneEffect>()(px.object({
+    // Subtractive on purpose: the `<use>` can only point at one wrapper layer of the
+    // source, so the choices form a ladder — 'translate' now, maybe 'transform' later.
+    without: px.enum([PxCloneWithout.translate] as const).optional(),
+    source: px.string().optional(),
+    retime: PxRetimeEffectSchema.optional(),
+}));
+export type PxCloneEffect = PxInfer<typeof PxCloneEffectSchema>;
+const _ck_PxCloneEffect: KeysMatch<PxCloneEffect, _PxCloneEffect> = true;
+
+
+/** A single colour stop. `offset` is in `[0, 1]`; `color` is a CSS colour
+ *  string (`#rrggbb`, `rgb(…)`, `rgba(…)`, or named). */
+export interface _PxGradientStop {
+    offset: number;
+    color: string;
+}
+export const PxGradientStopSchema = implementsInterface<_PxGradientStop>()(px.object({
+    offset: px.number(),
+    color:  px.string(),
+}));
+export type PxGradientStop = PxInfer<typeof PxGradientStopSchema>;
+const _ck_PxGradientStop: KeysMatch<PxGradientStop, _PxGradientStop> = true;
+
+/** `PxAnimatable<Array<PxGradientStop>>` schema. Static is the bare array;
+ *  `{value: […]}` wraps the same; the animated form is `PxPropertyAnimation`
+ *  (one timeline whose each kf's `value` is the FULL stops array at that time).
+ *  LAW (SCHEMA-DESIGN R5, S9): stops are ONE animatable value — whole-array
+ *  snapshots on a single timeline, deliberately NO per-stop keyframes/easing
+ *  (gradient GEOMETRY animates per-slot with independent timelines). */
+const PxAnimatableGradientStopsSchema = px.union([
+    px.array(PxGradientStopSchema),
+    px.object({ value: px.array(PxGradientStopSchema) }),
+    PxPropertyAnimationSchema,
+]);
+
+/** Gradient paint effect — used by both `fillGradient` and `strokeGradient`
+ *  (same shape, different host attribute). Linear: `start`/`end`. Radial:
+ *  `center`/`radius`/`focal`. Stops animate as one timeline; geometry stays static. */
+// (The old `_PxGradientGeometryAnimation` per-scalar channel record —
+// `animate: {gradientX1: …}` — was REMOVED outright, read included: geometry
+// animates on the `start`/`end`/`center`/`radius`/`focal` slots. Backward compat dropped
+// deliberately. Frames-engine-only note still applies to animated geometry:
+// CSS/WAAPI cannot animate gradient endpoints; `mode: 'auto'` handles it.)
+
+export interface _PxFillGradientEffect {
+    type: PxGradientType;                                 // 'linear' | 'radial'
+    start?:  PxAnimatable<Vec2>;                          // linear start  ([x1,y1]; review §4.2 — plain words, no abbreviations)
+    end?:    PxAnimatable<Vec2>;                          // linear end    ([x2,y2])
+    center?: PxAnimatable<Vec2>;                          // radial centre ([cx,cy])
+    radius?: PxAnimatable<number>;                        // radial radius (r)
+    focal?:  PxAnimatable<Vec2>;                          // radial focal point ([fx,fy])
+    stops?: PxAnimatable<Array<_PxGradientStop>>;          // single animation timeline
+    gradientUnits?:  string;                              // PxGradientUnits values
+    spreadMethod?:   string;                              // PxGradientSpreadMethod values
+    gradientTransform?: string;                           // static only in v1
+}
+export const PxFillGradientEffectSchema = implementsInterface<_PxFillGradientEffect>()(px.object({
+    // Contextual kind — the `type` convention, see `PxNodeBase.type`.
+    type: px.enum([PxGradientType.linear, PxGradientType.radial] as const),
+    start:  PxAnimatableVec2Schema.optional(),
+    end:    PxAnimatableVec2Schema.optional(),
+    center: PxAnimatableVec2Schema.optional(),
+    radius: PxAnimatableNumberSchema.optional(),
+    focal:  PxAnimatableVec2Schema.optional(),
+    stops: PxAnimatableGradientStopsSchema.optional(),
+    gradientUnits:     px.enum([PxGradientUnits.userSpaceOnUse, PxGradientUnits.objectBoundingBox] as const).optional(),
+    spreadMethod:      px.enum([PxGradientSpreadMethod.pad, PxGradientSpreadMethod.reflect, PxGradientSpreadMethod.repeat] as const).optional(),
+    gradientTransform: px.string().optional(),
+}));
+export type PxFillGradientEffect = PxInfer<typeof PxFillGradientEffectSchema>;
+const _ck_PxFillGradientEffect: KeysMatch<PxFillGradientEffect, _PxFillGradientEffect> = true;
+
+/** Stroke gradient is the same shape as fill gradient; the difference is
+ *  only which host attribute (`fill` vs `stroke`) the applier rewrites. */
+export type _PxStrokeGradientEffect = _PxFillGradientEffect;
+export const PxStrokeGradientEffectSchema = PxFillGradientEffectSchema;
+export type PxStrokeGradientEffect = PxFillGradientEffect;
+
+/** Text-path effect on a `<text>` host. The path geometry is carried INLINE as
+ *  `pathData` (an SVG `d`; static for now, keyframed animation is a later step) — the
+ *  applier generates a `<path>` def from it and wraps the text's children in a native
+ *  `<textPath href="#…">` at apply time. All SVG-native textPath attrs
+ *  (`lengthAdjust`, `method`, `spacing`, `startOffset`, `textLength`) ride on this
+ *  effect; `startOffset`/`textLength` accept the full `PxAnimatable<number>` shape.
+ *
+ *  `pathOverflow` controls what happens to glyphs past the end of an OPEN path:
+ *   - `'extend'` (default): glyphs continue straight along the endpoint tangent
+ *     (Lottie / native-glyph behavior).
+ *   - `'clip'`: glyphs past the end disappear (native `<textPath>` behavior). */
+export interface _PxTextPathEffect {
+    pathData: string;                                     // inline SVG `d`
+    pathOverflow?: string;                                // 'clip' | 'extend' (default 'extend')
+    lengthAdjust?: string;                                // 'spacing' | 'spacingAndGlyphs'
+    method?: string;                                      // 'align' | 'stretch'
+    spacing?: string;                                     // 'auto' | 'exact'
+    startOffset?: PxAnimatable<number>;
+    textLength?: PxAnimatable<number>;
+}
+export const PxTextPathEffectSchema = implementsInterface<_PxTextPathEffect>()(px.object({
+    pathData: px.string(),
+    pathOverflow: px.enum([PxPathOverflow.clip, PxPathOverflow.extend] as const).optional(),
+    lengthAdjust: px.enum([PxLengthAdjust.spacing, PxLengthAdjust.spacingAndGlyphs] as const).optional(),
+    method: px.enum([PxTextPathMethod.align, PxTextPathMethod.stretch] as const).optional(),
+    spacing: px.enum([PxTextPathSpacing.auto, PxTextPathSpacing.exact] as const).optional(),
+    startOffset: PxAnimatableNumberSchema.optional(),
+    textLength: PxAnimatableNumberSchema.optional(),
+}));
+export type PxTextPathEffect = PxInfer<typeof PxTextPathEffectSchema>;
+const _ck_PxTextPathEffect: KeysMatch<PxTextPathEffect, _PxTextPathEffect> = true;
+
+
+/**
+ * `effects.text` — text-rendering options for a `<text>` node.
+ *
+ * `useGlyphs: true` tells the player to render this text from the embedded
+ * per-glyph outlines in `definitions.fonts` (self-contained, no external
+ * font) instead of a native `<text>`. See svga.text.design.md.
+ */
+export interface _PxTextEffect {
+    useGlyphs?: boolean;
+}
+export const PxTextEffectSchema = implementsInterface<_PxTextEffect>()(px.object({
+    useGlyphs: px.boolean().optional(),
+}));
+export type PxTextEffect = PxInfer<typeof PxTextEffectSchema>;
+const _ck_PxTextEffect: KeysMatch<PxTextEffect, _PxTextEffect> = true;
+
+
+/**
+ * The full `node.effects` bucket. Closed — each known effect is declared
+ * (strict-mode validation flags an unknown effect key as a wire-format drift).
+ *
+ * DESIGN LAW — attribute vs effect:
+ *  - An ATTRIBUTE is a value the browser consumes as-is on that element
+ *    (`fill="#f00"`, `opacity`, `d`); animating it is "this value over time" —
+ *    one channel, zero structure. The test is STRUCTURE, not value-encoding
+ *    complexity: `transform` has a parts-record wire value but lands in one
+ *    attribute on the same element, so it stays an attribute.
+ *  - An EFFECT is anything whose realisation requires structure — generating defs
+ *    (gradient, clipPath, maskedBy, textPath), wrapper nodes (transformation),
+ *    clones (repeater, clone), or geometry-derived multi-attr rewrites (strokeTrim).
+ *  - The same attribute name can sit on both sides, split by value: flat `fill`
+ *    is an attribute; gradient fill is an effect (no value of `fill` IS a
+ *    gradient — it needs a def + stops + a `url(#id)` indirection).
+ *  New features follow the same test: pattern fills / filters need defs → effects.
+ *
+ * COMPOSITION ORDER (SCHEMA-DESIGN §R5): one bag per element — JSON key order
+ * carries NO meaning and is never read. The applier composes in one hard-coded
+ * order, innermost → outermost:
+ *   glyphs/textPath → fill/strokeGradient → strokeTrim → repeater → maskedBy
+ *   → clipPath → clone-href+transformBy         (retime = pass 2, time-remap only)
+ * "Other" orders are expressed by STRUCTURE (nest elements), never by key order.
+ * If authorable order is ever demanded: an explicit `effects.order: [names]`
+ * extension — never key-order significance (JSON tooling silently reorders).
+ */
+export interface _PxEffects {
+    transformBy?: _PxTransformByEffect;
+    repeater?: _PxRepeaterEffect;
+    maskedBy?: _PxMaskedByEffect;
+    clipPath?: _PxClipPathEffect;
+    strokeTrim?: _PxStrokeTrimEffect;
+    clone?: _PxCloneEffect;
+    fillGradient?: _PxFillGradientEffect;
+    strokeGradient?: _PxStrokeGradientEffect;
+    textPath?: _PxTextPathEffect;
+    text?: _PxTextEffect;
+}
+export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
+    transformBy: PxTransformByEffectSchema.optional(),
+    repeater: PxRepeaterEffectSchema.optional(),
+    maskedBy: PxMaskedByEffectSchema.optional(),
+    clipPath: PxClipPathEffectSchema.optional(),
+    strokeTrim: PxStrokeTrimEffectSchema.optional(),
+    clone: PxCloneEffectSchema.optional(),
+    fillGradient: PxFillGradientEffectSchema.optional(),
+    strokeGradient: PxStrokeGradientEffectSchema.optional(),
+    textPath: PxTextPathEffectSchema.optional(),
+    text: PxTextEffectSchema.optional(),
+}));
+export type PxEffects = PxInfer<typeof PxEffectsSchema>;
+const _ck_PxEffects: KeysMatch<PxEffects, _PxEffects> = true;
+
+/**
+ * Walks `root` and validates every `node.effects` bucket against `PxEffectsSchema`.
+ * Returns an array of human-readable warning strings (empty when all good).
+ * Doesn't mutate the tree. Called by `createAnimatorImpl` before applying effects.
+ *
+ * Pass `strict: true` to also flag undeclared keys (useful in dev / tests).
+ */
+export function validateNodeEffects(root: PxNode, opts?: { strict?: boolean }): Array<string> {
+    const warnings: Array<string> = [];
+    // `path` is a human-readable breadcrumb prepended to each warning so the
+    // reader can locate the offending node in the tree (e.g.
+    // `root.children[0].children[2].effects.transformBy.translate: …`).
+    const walk = (node: PxNode, path: string): void => {
+        if (node && node.effects) {
+            const ctx: PxValidationContext = { errors: [], warnings: [], strict: !!opts?.strict };
+            const ok = PxEffectsSchema.isValid(node.effects, ctx, [path + '.effects']);
+            if (!ok) {
+                for (const err of ctx.errors) warnings.push(err);
+            }
+        }
+        if (node && Array.isArray(node.children)) {
+            node.children.forEach((c, i) => walk(c, path + '.children[' + i + ']'));
+        }
+    };
+    walk(root, 'root');
+    return warnings;
+}
+
+/**
+ * Validates a WHOLE document against the wire schema — strictly, so undeclared keys are
+ * reported too — plus every node's `effects` bucket. Returns human-readable problems
+ * (`path: what is wrong`), empty when the document is sound; never throws. The player
+ * itself only warns and skips what it cannot read; this is the one call for tooling,
+ * CI and agents that want a yes/no answer before shipping a document.
+ */
+export function validateDocument(doc: unknown): Array<string> {
+    const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
+    const problems: Array<string> = PxAnimatedSvgDocumentSchema.isValid(doc, ctx, ['root']) ? [] : [...ctx.errors];
+    if (doc && typeof doc === 'object') {
+        for (const w of validateNodeEffects(doc as PxNode, { strict: true })) {
+            if (!problems.includes(w)) problems.push(w);
+        }
+    }
+    return problems;
+}
+
+
+// ============================================================================
+// NODE
+// ============================================================================
+
+/**
+ * Base shape for all SVG element nodes.
+ * Open object: validated known keys + arbitrary SVG attributes whose values are
+ * either primitives (static) or PxPropertyAnimation objects (in-place animation).
+ * Non-recursive — excludes `children` (circular reference). Used for type extraction via PxInfer.
+ *
+ * `{ type:string, style?:…, [key:string]: string|number|PxPropertyAnimation }`
+ */
+export const PxNodeBase = px.openObject({
+    // CONVENTION (SCHEMA-DESIGN R1 / issues N4): `type` is the ONE word for "what
+    // kind of thing is this", discriminated by its CARRIER — here the node TAG
+    // (`rect`, `text`), and inside a sub-object that object's kind (`fillGradient.type`,
+    // `fillGradient.type`, editor `preset.type`). Each sits in its own object, so
+    // the carrier disambiguates completely; synonyms (`cloneKind`, `presetShape`)
+    // would add words that all mean "type" and still need the carrier to read.
+    // Guarding a `type` SLOT against a wrong VALUE is the job of strict enums
+    // (issues V3), never of distinct key names.
+    type: px.string(),
+    // The escape hatch for elements that carry a REAL `type` attribute — `<feTurbulence
+    // type="fractalNoise">`, `<feFuncR type="table">`, `<feColorMatrix type="saturate">`.
+    // `type` is taken by the tag name, so the attribute travels here and the renderer puts
+    // it back (`PxAnimatorDOM.renderNode`, `PxRnRender`). Declared here — not merely
+    // documented — because a wire key that is not in a schema is invisible to the
+    // minifier's reserve list and gets renamed (MINIFICATION-BOUNDARY-PLAN.md §1.1).
+    domType: px.string().optional(),
+    id: px.string().optional(),
+    meta: px.any().optional(),
+    // Player-effects bucket emitted by the Editor's lightweight design format.
+    // Consumed and removed by `applyPlayerEffects` before any other normalisation
+    // (see `createAnimatorImpl`), so downstream code never sees it.
+    effects: PxEffectsSchema.optional(),
+    // `PxElementAnimation` (not just `PxAnimationDefinition`) — accepts
+    // string ref / array of refs / inline definition / mixed array; mirrors
+    // `animator.animateById` map values and what `processNode` resolves at runtime.
+    animate: PxElementAnimationSchema.optional(),
+    style: px.union([px.string(), px.record(px.union([px.string(), px.number()]))]).optional(),
+}, PxAttrValueSchema);
+
+// `let` so the lazy closure can capture the variable reference after assignment.
+// By the time the lazy resolves (first isValid/sanitize call), PxNodeSchema is assigned.
+// `PxNodeBase & { children?:PxNode[] }`
+let PxNodeSchema: PxSchema<any> = px.openObject({
+    ...PxNodeBase._shape,
+    children: px.lazy(() => px.array(PxNodeSchema), []).optional(),
+}, PxAttrValueSchema);
+export { PxNodeSchema };
+
+/**
+ * Base interface for all SVG elements.
+ * Extends schema-derived typed fields; adds recursive children and the open
+ * index signature for arbitrary SVG attributes (cx, cy, r, fill, etc.).
+ * Named properties take precedence over the index signature when accessed.
+ */
+export interface PxNode extends PxInfer<typeof PxNodeBase> {
+    children?: PxNode[];
+    [key: string]: any;
+}
+
+
+// ============================================================================
+// SVG NODE (ROOT)
+// ============================================================================
+
+/**
+ * Root SVG element containing the entire animated graphic.
+ * Extends PxNode with SVG-specific properties and global configuration.
+ */
+export interface _PxSvgNode extends PxNode {
+
+    /** SVG viewport width. `number` OR an SVG length string (`"100%"`, `"12em"`) —
+     *  percentages are legal SVG and appear in real documents. */
+    width?: number | string;
+
+    /** SVG viewport height — `number` or SVG length string, see `width`. */
+    height?: number | string;
+
+    /** FIXME - do we need it? SVG viewBox attribute defining coordinate system */
+    viewBox?: string;
+
+    /** Global animation configuration */
+    animator?: PxAnimatorConfig;
+}
+
+/**
+ * Extra fields present on the root SVG node, on top of PxNode.
+ * Used for type extraction via PxInfer.
+ *
+ * `{ width?:number, height?:number, viewBox?:string, animator?:AnimatorConfig }`
+ */
+export const PxSvgNodeExtra = px.object({
+    // `"100%"` and other SVG length strings are legal here — a number-only slot rejected
+    // real documents (e.g. apple-store-look-14-main.json) at the root <svg>.
+    width: px.union([px.number(), px.string()]).optional(),
+    height: px.union([px.number(), px.string()]).optional(),
+    viewBox: px.string().optional(),
+    animator: PxAnimatorConfigSchema.optional(),
+});
+
+/**
+ * Root SVG element containing the entire animated graphic.
+ * Extends PxNode (inheriting the open index signature) plus schema-derived
+ * SVG-root fields.
+ */
+export interface PxSvgNode extends PxNode, Omit<PxInfer<typeof PxSvgNodeExtra>, 'animator'> {
+    /** The RUNTIME-VIEW type, not the wire shape: in-memory documents may carry the
+     *  flat playback fields (`flattenAnimatorTimeline` output, prop overrides in the
+     *  RN/React wrappers), while `PxAnimatorConfigSchema` validates only the nested
+     *  `timeline` spelling on the wire (review §2.1). */
+    animator?: PxAnimatorConfig;
+}
+
+
+// ============================================================================
+// DOCUMENT
+// ============================================================================
+
+/**
+ * Root SVG document schema. Enforces `type === 'svg'` to distinguish from child nodes.
+ * This is the root type for the entire file format.
+ *
+ * `{ type:'svg', style?:…, width?:number, height?:number,
+ *    viewBox?:string, animator?:AnimatorConfig, children?:PxNode[],
+ *    [svgAttr]: string|number|PxPropertyAnimation }`
+ */
+export const PxAnimatedSvgDocumentSchema = px.openObject({
+    ...PxNodeBase._shape,
+    ...PxSvgNodeExtra._shape,
+    type: px.literal('svg'),     // override string → literal to require 'svg'
+    children: px.array(PxNodeSchema).optional()
+}, PxAttrValueSchema);
+
+/**
+ * The complete animated SVG document.
+ * This is the root type for the entire file format.
+ */
+export interface PxAnimatedSvgDocument extends PxSvgNode {
+}
+
+
+// ============================================================================
+// API INTERFACES
+// ============================================================================
+
+/** A configuration object for animation lifecycle callbacks. */
+export interface PxAnimatorCallbacksConfig {
+
+    /** Callback executed when the animation starts or resumes. */
+    onPlay?: () => void;
+
+    /** Callback executed when the animation is paused. */
+    onPause?: () => void;
+
+    /** Callback executed when the animation is cancelled. */
+    onCancel?: () => void;
+
+    /** Callback executed when the animation finishes naturally. */
+    onFinish?: () => void;
+
+    /** Callback executed when the animation is removed. */
+    onRemove?: () => void;
+}
+
+
+export type PxPoint2D = Array<number>;
+
+
+// ============================================================================
+// BEZIER PATH
+// ============================================================================
+
+/** Represents a vector path for SVG shape animations. */
+export interface _PxBezierPath {
+
+    /** An array of vertex points [[x, y], ...]. */
+    v: Array<PxPoint2D>;
+
+    /** An array of 'in' tangent handles for each vertex [[x, y], ...]. */
+    i?: Array<PxPoint2D>;
+
+    /** An array of 'out' tangent handles for each vertex [[x, y], ...]. */
+    o?: Array<PxPoint2D>;
+
+    /** A boolean indicating if the path is closed. */
+    c?: boolean;
+}
+
+// `{ v:number[][], i?:number[][], o?:number[][], c?:boolean }`
+export const PxBezierPathSchema = implementsInterface<_PxBezierPath>()(px.object({
+    v: px.array(px.array(px.number())),
+    i: px.array(px.array(px.number())).optional(),
+    o: px.array(px.array(px.number())).optional(),
+    c: px.boolean().optional(),
+}));
+
+/** Represents a vector path for SVG shape animations. */
+export type PxBezierPath = PxInfer<typeof PxBezierPathSchema>;
+const _ck_PxBezierPath: KeysMatch<PxBezierPath, _PxBezierPath> = true; // the key sets are identical
+
+
+// ============================================================================
+// ANIMATOR API
+// ============================================================================
+
+/**
+ * Basic animation controls common to all animator types.
+ *
+ * Generic over the platform's root-element type (`TRoot`) so this package stays
+ * platform-neutral: the web player specialises it to the DOM `Element`, a
+ * React Native player to its own view handle. Defaults to `unknown`.
+ */
+export interface PxBasicAnimatorAPI<TRoot = unknown> {
+
+    isReady(): boolean;
+
+    /** Returns the root element for the animation (platform-specific type). */
+    getRootElement(): TRoot | null;
+
+    /** Returns true if the animation is currently running. */
+    isPlaying(): boolean;
+
+    /** Starts or resumes the animation. */
+    play(): void;
+
+    /** Pauses the animation at its current state. */
+    pause(): void;
+
+    /** Stops the animation and resets it to its initial state. */
+    cancel(): void;
+
+}
+
+/** The full programmatic control interface for an animation. */
+export interface PxAnimatorAPI<TRoot = unknown> extends PxBasicAnimatorAPI<TRoot> {
+
+    /** Jumps to the end of the animation and holds the final state. */
+    finish(): void;
+
+    /** Changes the speed of the animation. 1 is normal, 2 is double, -1 is reverse. */
+    setPlaybackRate(rate: number): void;
+
+    /** Returns the current playback time in milliseconds. */
+    getCurrentTime(): number | null;
+
+    /** Jumps to a specific time (in milliseconds) in the animation. */
+    setCurrentTime(time: number): void;
+
+    /** Stops the animation and cleans up all associated resources. */
+    destroy(): void;
+}
+
+
+// ============================================================================
+// DEEP VALIDATION
+// ============================================================================
+
+export interface PxValidationResult {
+    valid: boolean;
+    errors: string[];
+}
+
+/**
+ * Deep validation of PxAnimatedSvgDocument using the PxAnimatedSvgDocumentSchema.
+ * @returns PxValidationResult with valid flag and array of error messages
+ */
+export function isPxElementFileFormatDeep(fileJson: any): PxValidationResult {
+    const valid: boolean = PxAnimatedSvgDocumentSchema.isValid(fileJson);
+    return { valid, errors: valid ? [] : ['Document failed schema validation'] };
+}
+
+
+
+// FIXME - do we need it?

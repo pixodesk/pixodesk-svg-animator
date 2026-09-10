@@ -5,7 +5,7 @@ the editor's unit contract, the corpus that pins it all, and the history of ever
 §I is the two-page version; everything after it is the full treatment.
 
 Sources of truth:
-- **Player schema**: `packages/svg-animator-core/src/PxAnimatorTypes.ts` (`PxAnimatedSvgDocumentSchema`) +
+- **Player schema**: `packages/svg-animator-core/src/format/PxAnimatorTypes.ts` (`PxAnimatedSvgDocumentSchema`) +
   the wire enums in `PxAnimatorConstants.ts`
 - **Editor schema** (extensions): `kf/app/src/svgeditor/model/serialization/schema/PxSchemaUtil.ts`
 - **Empirical corpus**: the feature-explorer cases (`featureexplorer/cases/*.json`, 117 at the last census — §6)

@@ -11,7 +11,7 @@
 // loop materialisation. These tests pin that contract per applier.
 
 import { describe, expect, it } from 'vitest';
-import type { PxNode } from '../PxAnimatorTypes';
+import type { PxNode } from '../format/PxAnimatorTypes';
 import { collectByType, materialise, materialiseEngine, PxTimelineEngine } from './effectTestKit';
 
 const doc = (child: Record<string, unknown>): PxNode =>

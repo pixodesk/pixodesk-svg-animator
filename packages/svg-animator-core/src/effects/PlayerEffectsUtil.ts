@@ -19,24 +19,24 @@
  * folder can move into the Player codebase verbatim.
  */
 
-import { identifyContentRefTargets, splitForContentRef } from './contentRefSplit';
-import { applyFillGradientEffect, applyStrokeGradientEffect } from './gradientEffect';
-import { applyClipPathEffect } from './clipPathEffect';
-import { applyMaskedByEffect, collectMaskAncestorChains } from './maskedByEffect';
-import { applyRefAndTransformationEffect, applyRefHref } from './refEffect';
-import { applyRepeaterEffect } from './repeaterEffect';
-import { applyAllRetimeEffects } from './retimeEffect';
-import { applyTextPathEffect } from './textPathEffect';
-import { applyTextGlyphsAlongPath, applyTextGlyphsEffect } from './textGlyphsEffect';
-import { applyStrokeTrimEffect } from './strokeTrimEffect';
-import { getDefs } from '../PxAnimatorConstants';
-import { resolveTimelineEngine, getAnimatorConfig } from '../PxAnimatorConstants';
-import type { PxNode } from '../PxAnimatorTypes';
-import type { ApplyContext, ApplyResult } from './types';
-import { clone, genId, indexById, spliceDefs } from './util';
+import { identifyContentRefTargets, splitForContentRef } from './reference/contentRefSplit';
+import { applyFillGradientEffect, applyStrokeGradientEffect } from './paint/gradientEffect';
+import { applyClipPathEffect } from './clipping/clipPathEffect';
+import { applyMaskedByEffect, collectMaskAncestorChains } from './clipping/maskedByEffect';
+import { applyRefAndTransformationEffect, applyRefHref } from './reference/refEffect';
+import { applyRepeaterEffect } from './transform/repeaterEffect';
+import { applyAllRetimeEffects } from './reference/retimeEffect';
+import { applyTextPathEffect } from './text/textPathEffect';
+import { applyTextGlyphsAlongPath, applyTextGlyphsEffect } from './text/textGlyphsEffect';
+import { applyStrokeTrimEffect } from './stroke/strokeTrimEffect';
+import { getDefs } from '../format/PxAnimatorConstants';
+import { resolveTimelineEngine, getAnimatorConfig } from '../format/PxAnimatorConstants';
+import type { PxNode } from '../format/PxAnimatorTypes';
+import type { ApplyContext, ApplyResult } from './shared/types';
+import { clone, genId, indexById, spliceDefs } from './shared/util';
 
-export type { PxNode } from '../PxAnimatorTypes';
-export type { ApplyResult } from './types';
+export type { PxNode } from '../format/PxAnimatorTypes';
+export type { ApplyResult } from './shared/types';
 
 
 /**

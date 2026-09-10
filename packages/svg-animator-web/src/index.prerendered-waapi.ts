@@ -15,11 +15,11 @@
 // See PRERENDERED-PLAYER-BUILDS.md.
 // ============================================================================
 
-export { createPrerenderedWaapiAnimator as createAnimator } from './PxAnimatorBind';
-export { PX_ANIMATOR_DATA_KEY } from './PxAnimatorKeys';
+export { createPrerenderedWaapiAnimator as createAnimator } from './engines/PxAnimatorBind';
+export { PX_ANIMATOR_DATA_KEY } from './shared/PxAnimatorKeys';
 
-export { setupAnimationTriggers } from './PxAnimatorTriggers';
+export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 
-export type { PxPrerenderedOptions } from './PxAnimatorBind';
-export type { PxAnimatorAPI, PxBasicAnimatorAPI } from './PxAnimatorWebTypes';
+export type { PxPrerenderedOptions } from './engines/PxAnimatorBind';
+export type { PxAnimatorAPI, PxBasicAnimatorAPI } from './shared/PxAnimatorWebTypes';
 export type { PxAnimatedSvgDocument, PxAnimatorCallbacksConfig } from '@pixodesk/svg-animator-core';

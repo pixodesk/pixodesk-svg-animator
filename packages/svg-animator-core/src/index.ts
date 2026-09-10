@@ -19,24 +19,38 @@ export {
     scrollResolveAxis,
     scrollTotalDurationMs,
     scrollViewProgress,
-} from './PxScrollMath';
+} from './playback/PxScrollMath';
 
-export { px, schemaKeys, describeSchema } from './PxSchema';
-export type { KeysMatch, PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, RemoveIndex } from './PxSchema';
+export { px, schemaKeys, describeSchema, PX_UNKNOWN_KEY_ERROR } from './schema/PxSchema';
+export {
+    WIRE_VERSION_KEY, PLAYER_WIRE_VERSION, BASELINE_PLAYER_VERSION, PLAYER_WIRE_STEPS,
+    WireVersionRelation, WireStepKind,
+    parseWireVersion, formatWireVersion, readWireVersion, compareWireVersion, versionAdvice,
+    convertPlayerDocument, applyWireSteps, applyWireStepsDown, downgradePlayerDocument,
+} from './version/PxWireVersion';
+export { schemaFieldUniverse } from './version/PxSchemaFieldUniverse';
+export { diffFieldUniverse, planSchemaRelease, releaseLogProblems } from './version/PxSchemaRelease';
+export type { SchemaReleasePlan, SchemaReleaseRecord } from './version/PxSchemaRelease';
+export type {
+    WireVersion, WireVersionStep, PlayerConversionResult, WireConversionConfig,
+    WireDowngradeResult, WireDowngradeConfig,
+} from './version/PxWireVersion';
+export type { KeysMatch, PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, RemoveIndex } from './schema/PxSchema';
 
 // Wire-format schemas
-export { PxAnimatedSvgDocumentSchema, PxAnimationDefinitionSchema, PxAnimatorConfigSchema, PxAttrValueSchema, PxBezierPathSchema, PxBindingSchema, PxDefsSchema, PxEasingOrRefSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBase, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeExtra, PxTransformPartsSchema, PxTransformValueSchema, PxTriggerSchema, PxTimelineSchema, PxTimelinePinSchema } from './PxAnimatorTypes';
-export { resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline, PX_TRANSFORM_PART_KEYS, PxTimelineEngine, PxCloneWithout, PxTimelineEngineExtra } from './PxAnimatorConstants';
+export { PxAnimatedSvgDocumentSchema, PxAnimationDefinitionSchema, PxAnimatorConfigSchema, PxAttrValueSchema, PxBezierPathSchema, PxBindingSchema, PxDefsSchema, PxEasingOrRefSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBase, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeExtra, PxTransformPartsSchema, PxTransformValueSchema, PxTriggerSchema, PxTimelineSchema, PxTimelinePinSchema } from './format/PxAnimatorTypes';
+export { resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline, PX_TRANSFORM_PART_KEYS, PxTimelineEngine, PxCloneWithout, PxTimelineEngineExtra } from './format/PxAnimatorConstants';
+export { PX_PLAYER_SCHEMA_VERSION } from './version/PxSchemaVersion';
 
 // Document / model types
-export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorAPI, PxAnimatorCallbacksConfig, PxAnimatorConfig, PxAttrValue, PxBasicAnimatorAPI, PxBezierPath, PxBinding, PxDefs, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxNormalisedKeyframe, PxNormalisedPropertyAnimation, PxAnyKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollPhase, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTimelinePin, PxTransformParts, PxTransformValue, PxTrigger, PxValidationResult } from './PxAnimatorTypes';
-export type { FillMode, OutAction, PlaybackDirection, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
+export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorAPI, PxAnimatorCallbacksConfig, PxAnimatorConfig, PxAttrValue, PxBasicAnimatorAPI, PxBezierPath, PxBinding, PxDefs, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxNormalisedKeyframe, PxNormalisedPropertyAnimation, PxAnyKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollPhase, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTimelinePin, PxTransformParts, PxTransformValue, PxTrigger, PxValidationResult } from './format/PxAnimatorTypes';
+export type { FillMode, OutAction, PlaybackDirection, PxTransformPartKey, StartOn } from './format/PxAnimatorConstants';
 
-export { isPxElementFileFormatDeep } from './PxAnimatorTypes';
-export { getBindings, getChildren, getDefs } from './PxAnimatorConstants';
-export { getAnimatorConfig, isPxElementFileFormat, flattenAnimatorTimeline, nestAnimatorTimeline } from './PxAnimatorConstants';
+export { isPxElementFileFormatDeep } from './format/PxAnimatorTypes';
+export { getBindings, getChildren, getDefs } from './format/PxAnimatorConstants';
+export { getAnimatorConfig, isPxElementFileFormat, flattenAnimatorTimeline, nestAnimatorTimeline } from './format/PxAnimatorConstants';
 
-export { INTERNAL_ATTRS, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
+export { INTERNAL_ATTRS, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, TEXT_ATTR, TEXT_CONTENT_ATTR } from './format/PxAnimatorConstants';
 
 // Utils (string/colour/easing/bezier math)
 export {
@@ -57,10 +71,10 @@ export {
     subdivideCubicBezier,
     toRGBA,
     TRANSFORM_FN_NAMES
-} from './PxAnimatorUtil';
+} from './util/PxAnimatorUtil';
 
 // Document id regeneration (fresh ids + rewritten internal refs)
-export { deepClone, generateNewIds, generateUniqueId } from './PxIdUtil';
+export { deepClone, generateNewIds, generateUniqueId } from './util/PxIdUtil';
 
 // Node props normalisation + attribute/tag sanitisation (platform-neutral —
 // renderers on every platform share the same security and normalisation rules)
@@ -70,7 +84,7 @@ export {
     getNormalizedProps,
     resolveStyle,
     sanitiseAttributeValue
-} from './PxNodeProps';
+} from './util/PxNodeProps';
 
 // Normalization / interpolation
 export {
@@ -80,7 +94,7 @@ export {
     interpolateValue,
     materialiseInternalLoopsInPropAnim,
     materialiseInternalLoopsInTree,
-} from './PxDefinitions';
+} from './animation/PxDefinitions';
 
 // Motion-along-path materialiser (sampling)
 export {
@@ -88,46 +102,46 @@ export {
     materialiseMotionPathsInTree,
     evaluateMotionPathSegment,
     propAnimIsMotionPath,
-} from './PxMotionPath';
-export type { MotionPathMaterialisationOptions, MotionPathSample } from './PxMotionPath';
+} from './materialise/PxMotionPath';
+export type { MotionPathMaterialisationOptions, MotionPathSample } from './materialise/PxMotionPath';
 
 // `<use>` instance materialiser
-export { materialiseAnimatedUseInstances } from './PxAnimatorUseMaterialiser';
+export { materialiseAnimatedUseInstances } from './materialise/PxAnimatorUseMaterialiser';
 
 // Single-call materialisation pipeline (effects → loops → motion-path → use)
-export { materialiseAllInTree } from './PxAnimatorMaterialiseAll';
-export type { MaterialiseAllOptions } from './PxAnimatorMaterialiseAll';
+export { materialiseAllInTree } from './materialise/PxAnimatorMaterialiseAll';
+export type { MaterialiseAllOptions } from './materialise/PxAnimatorMaterialiseAll';
 
 // Adapter-driven frame-loop engine (platform-neutral playback)
-export { createBasicFrameLoopAnimator } from './PxFrameLoop';
-export type { PxPlatformAdapter } from './PxFrameLoop';
+export { createBasicFrameLoopAnimator } from './playback/PxFrameLoop';
+export type { PxPlatformAdapter } from './playback/PxFrameLoop';
 
 // Element-creation factory + glyph-text materialiser
-export { jsonElementFactory } from './effects/elementFactory';
-export type { PxCreateElement } from './effects/elementFactory';
-export { layoutGlyphTextChars, materialiseGlyphText, materialiseGlyphTextAlongPath, materialiseGlyphTextHorizontal, MISSING_GLYPH_CLASS_NAME } from './effects/textGlyphsEffect';
-export type { GlyphCharBox, GlyphCharBoxAlongPath, GlyphMaterialiseOpts } from './effects/textGlyphsEffect';
-export { createPathSampler } from './effects/pathSampler';
-export type { PathPoint, PathSampler } from './effects/pathSampler';
-export { extendedPathForBrowser, shiftAnimatable } from './effects/textPathEffect';
-export type { ExtendPathOpts, ExtendedPath } from './effects/textPathEffect';
+export { jsonElementFactory } from './effects/text/elementFactory';
+export type { PxCreateElement } from './effects/text/elementFactory';
+export { layoutGlyphTextChars, materialiseGlyphText, materialiseGlyphTextAlongPath, materialiseGlyphTextHorizontal, MISSING_GLYPH_CLASS_NAME } from './effects/text/textGlyphsEffect';
+export type { GlyphCharBox, GlyphCharBoxAlongPath, GlyphMaterialiseOpts } from './effects/text/textGlyphsEffect';
+export { createPathSampler } from './effects/text/pathSampler';
+export type { PathPoint, PathSampler } from './effects/text/pathSampler';
+export { extendedPathForBrowser, shiftAnimatable } from './effects/text/textPathEffect';
+export type { ExtendPathOpts, ExtendedPath } from './effects/text/textPathEffect';
 
 // Player-effects materialiser + visual-model diff harness
 export { applyPlayerEffects } from './effects/PlayerEffectsUtil';
-export type { ApplyResult } from './effects/types';
+export type { ApplyResult } from './effects/shared/types';
 export { collectSampleTimes, diffInEffect, visualModelAt } from './effects/PlayerEffectsUtil.visualModel';
 
 // Effects schemas + walker validator
 export { PxCloneEffectSchema, PxEffectsSchema, PxFillGradientEffectSchema, PxGradientStopSchema, PxMaskedByEffectSchema, PxRepeaterEffectSchema, PxRetimeEffectSchema,
     PxScrollRangePointSchema,
     PxScrollRangeSchema,
-    PxScrollSchema, PxStrokeGradientEffectSchema, PxTextPathEffectSchema, PxTextEffectSchema, PxTransformByEffectSchema, PxStrokeTrimEffectSchema, validateDocument, validateNodeEffects } from './PxAnimatorTypes';
-export { kfTime, kfValue, kfEasing, kfTangentIn, kfTangentOut } from './PxAnimatorTypes';
-export { applyAnimatorConfig, foldAnimatorConfigShortcuts, mergeAnimatorConfig } from './PxAnimatorConfigPatch';
-export { diagnoseDocument, reportDocumentDiagnostics } from './PxDocumentDiagnostic';
-export type { PxDocumentDiagnosis } from './PxDocumentDiagnostic';
-export type { PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxAnimatorConfigShortcuts } from './PxAnimatorConfigPatch';
-export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxGradientUnits } from './PxAnimatorConstants';
+    PxScrollSchema, PxStrokeGradientEffectSchema, PxTextPathEffectSchema, PxTextEffectSchema, PxTransformByEffectSchema, PxStrokeTrimEffectSchema, validateDocument, validateNodeEffects } from './format/PxAnimatorTypes';
+export { kfTime, kfValue, kfEasing, kfTangentIn, kfTangentOut } from './format/PxAnimatorTypes';
+export { applyAnimatorConfig, foldAnimatorConfigShortcuts, mergeAnimatorConfig } from './playback/PxAnimatorConfigPatch';
+export { diagnoseDocument, reportDocumentDiagnostics } from './format/PxDocumentDiagnostic';
+export type { PxDocumentDiagnosis } from './format/PxDocumentDiagnostic';
+export type { PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxAnimatorConfigShortcuts } from './playback/PxAnimatorConfigPatch';
+export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxGradientUnits } from './format/PxAnimatorConstants';
 export type {
     PxAnimatable,
     PxCloneEffect,
@@ -142,7 +156,7 @@ export type {
     PxTransformByEffect,
     PxStrokeTrimEffect,
     Vec2,
-} from './PxAnimatorTypes';
+} from './format/PxAnimatorTypes';
 
 // Loop snap-back gap — the editor imports this so both sides stay in lockstep.
-export { LOOP_JUMP_SHIFT_MS } from './PxDefinitions';
+export { LOOP_JUMP_SHIFT_MS } from './animation/PxDefinitions';

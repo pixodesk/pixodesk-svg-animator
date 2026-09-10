@@ -22,14 +22,14 @@
 // keeps `validateNodeEffects` and its warnings.
 // ============================================================================
 
-export { createPrerenderedAnimator as createAnimator } from './PxAnimatorBind';
-export { PX_ANIMATOR_DATA_KEY } from './PxAnimatorKeys';
+export { createPrerenderedAnimator as createAnimator } from './engines/PxAnimatorBind';
+export { PX_ANIMATOR_DATA_KEY } from './shared/PxAnimatorKeys';
 
 // Trigger wiring — used internally; exposed so a page can re-arm triggers after
 // swapping document content.
-export { setupAnimationTriggers } from './PxAnimatorTriggers';
+export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 
 // Types are erased at build time — zero bytes.
-export type { PxPrerenderedOptions } from './PxAnimatorBind';
-export type { PxAnimatorAPI, PxBasicAnimatorAPI } from './PxAnimatorWebTypes';
+export type { PxPrerenderedOptions } from './engines/PxAnimatorBind';
+export type { PxAnimatorAPI, PxBasicAnimatorAPI } from './shared/PxAnimatorWebTypes';
 export type { PxAnimatedSvgDocument, PxAnimatorCallbacksConfig } from '@pixodesk/svg-animator-core';

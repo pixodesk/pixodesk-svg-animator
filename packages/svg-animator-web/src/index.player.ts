@@ -30,11 +30,11 @@ export {
     generateNewIds,
     loadTagAnimators,
     PX_ANIMATOR_DATA_KEY,
-} from './PxAnimator';
+} from './animator/PxAnimator';
 
 // Trigger wiring — `createAnimator` uses it internally; exposed so a page can
 // re-arm triggers after swapping document content.
-export { setupAnimationTriggers } from './PxAnimatorTriggers';
+export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 
 // Config enums a caller needs to build `PxAnimatorOptions` by hand.
 export { PxTimelineEngine, PxTimelineEngineExtra, validateDocument } from '@pixodesk/svg-animator-core';
@@ -43,8 +43,8 @@ export { PxTimelineEngine, PxTimelineEngineExtra, validateDocument } from '@pixo
 export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core';
 
 // Types are erased at build time — zero bytes, kept for editor tooling.
-export type { PxAnimatorOptions } from './PxAnimator';
-export type { PxAnimatorAPI, PxBasicAnimatorAPI } from './PxAnimatorWebTypes';
+export type { PxAnimatorOptions } from './animator/PxAnimator';
+export type { PxAnimatorAPI, PxBasicAnimatorAPI } from './shared/PxAnimatorWebTypes';
 export type {
     PxAnimatedSvgDocument,
     PxAnimatorCallbacksConfig,

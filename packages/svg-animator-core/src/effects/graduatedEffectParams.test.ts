@@ -17,7 +17,7 @@
 // which drives the editor writer end-to-end rather than hand-authoring).
 
 import { describe, expect, it } from 'vitest';
-import type { PxNode } from '../PxAnimatorTypes';
+import type { PxNode } from '../format/PxAnimatorTypes';
 import { collectByType, materialise } from './effectTestKit';
 
 const doc = (child: Record<string, unknown>): PxNode =>
