@@ -120,7 +120,7 @@ for (const binding of getNormalisedBindings(flat, PxTimelineEngine.js) ?? []) {
 ```
 
 This is exactly how the React Native player precomputes its animation tracks, and
-how the frames engine renders each tick in the browser — same function, same
+how the frame-loop engine renders each tick in the browser — same function, same
 numbers.
 
 ## Writing your own player

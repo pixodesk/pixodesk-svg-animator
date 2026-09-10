@@ -55,7 +55,7 @@ component — add `'use client'` at the top of the file that renders it.
 
 **`Type '…' is not assignable to type 'PxAnimatedSvgDocument'` when importing JSON.** Cast
 once: `const doc = animation as PxAnimatedSvgDocument;` — JSON imports are typed structurally
-and a string field such as `"mode": "auto"` widens to `string`. Enable `resolveJsonModule`.
+and a string field such as `"engine": "auto"` widens to `string`. Enable `resolveJsonModule`.
 
 ## React Native
 
@@ -86,11 +86,12 @@ trigger out action (`outAction: 'reverse'`).
 **Jumping to a time while playing.** `setCurrentTime(ms)` works while playing (the animation
 continues from the new point) and while paused (it shows that frame and stays there).
 
-**Frame rate.** `timeline.frameRate` applies only to the frames engine; WAAPI runs at the display rate.
+**Frame rate.** `timeline.frameRate` applies only to the player's own frame loop (`engine: 'js'`,
+or `'auto'` after falling back to it); WAAPI runs at the display rate.
 React Native always runs at the display rate.
 
 **A property does not animate under `timeline.engine: 'native'`.** WAAPI cannot drive it (the
-console says which); leave `mode` on `auto` so the document switches to the player's frame loop.
+console says which); leave `engine` on `auto` so the document switches to the player's frame loop.
 
 **The animation loads but nothing moves, and only in the production build.** Your bundler may be
 property-mangling third-party code, which renames the keys the player reads out of the document.

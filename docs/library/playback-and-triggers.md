@@ -96,14 +96,14 @@ document set to infinite iterations, keeps spinning during every iteration.
 
 `timeline.engine` says **how the animated attributes get updated** — the same three values on every timeline type:
 
-| Mode | Time-driven timeline | Scroll / view timeline |
+| Value | Time-driven timeline | Scroll / view timeline |
 |---|---|---|
 | `auto` (default) | the Web Animations API — played by the browser itself, so it stays smooth even while the page is busy — with an **automatic fallback** to the player's frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on a path, …) | the browser's own `ScrollTimeline` / `ViewTimeline` where supported; otherwise the player measures scroll progress itself and drives WAAPI (or the frame loop, if WAAPI declines the document) |
 | `native` | Web Animations API only | the browser's `ScrollTimeline` / `ViewTimeline` driving WAAPI (where unsupported, the player measures progress instead — WAAPI stays) |
 | `js` | a `requestAnimationFrame` loop that writes attributes every frame; honours `frameRate`; universal browser support | the player measures scroll progress *and* applies values through its frame loop — identical everywhere |
 
 Leave it on `auto` unless you need a guarantee — for instance `js` for path morphing in
-Safari < 18.5. React Native ignores `mode` (playback is always native-driven).
+Safari < 18.5. React Native ignores `engine` (playback is always native-driven).
 
 ## Triggers — what *starts* the animation
 
@@ -185,7 +185,7 @@ a.play();
 | **Objects merge, key by key** | `config: { timeline: { duration: 2000 } }` changes the duration and leaves `iterations`, `trigger` and everything else as the file has them |
 | **Values replace** | numbers, strings and arrays are taken as given, never combined |
 | **`null` deletes** | `{ timeline: { delay: null } }` removes the file's delay, restoring what its *absence* means. This is the only way to get a default back, because there is no value that spells "unset" |
-| **Changing `timeline.type` starts over** | switching between a clock and a scroll timeline keeps only `duration`, `iterations` and `mode` — the keys both kinds share. Clock-only keys (`trigger`, `delay`, `fillMode`, `direction`) have no meaning on a scroll timeline and are dropped, with a console warning |
+| **Changing `timeline.type` starts over** | switching between a clock and a scroll timeline keeps only `duration`, `iterations`, `engine` and `frameRate` — the keys both kinds share. Clock-only keys (`trigger`, `delay`, `fillMode`, `direction`) have no meaning on a scroll timeline and are dropped, with a console warning |
 
 ### The four shortcuts
 

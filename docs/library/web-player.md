@@ -120,7 +120,7 @@ animator.play();
 | `startOn` | `StartOn` | shortcut for `config.timeline.trigger.startOn` |
 
 By default there is nothing to configure: the player takes duration, iterations, direction,
-what starts the animation and the engine mode from the `animator` block inside the JSON — the
+what starts the animation and the engine from the `animator` block inside the JSON — the
 settings you chose in the editor. So a file plays the way it was designed.
 
 `config` is there for when one page needs it to play differently — the same file mounted twice
@@ -225,7 +225,7 @@ with the old elements, and you need to attach them to the new ones.
 
 `animator.timeline.engine` in the document selects how the animated attributes get updated:
 
-| Mode | Behaviour |
+| Value | Behaviour |
 |---|---|
 | `'auto'` (default) | Web Animations API, with an automatic fallback to the player's frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on path…). For scroll-driven documents: the browser's `ScrollTimeline` where supported, else the player measures progress itself |
 | `'native'` | Web Animations API only (and the browser's `ScrollTimeline` for scroll-driven documents) |

@@ -230,7 +230,7 @@ animation runs.
 1. **Once per document:** the shared core flattens it
    (`materialiseAllInTree` → effects, loops, motion-path sampling, animated
    `<use>` inlining), then a track compiler densely samples every animated
-   property with `calcAnimationValues` — the same function the web frames engine
+   property with `calcAnimationValues` — the same function the web frame-loop engine
    renders with, so values match the web player exactly.
 2. **Per frame:** one reanimated progress value, driven by
    `withTiming`/`withRepeat` on the UI thread, and a tiny worklet per animated

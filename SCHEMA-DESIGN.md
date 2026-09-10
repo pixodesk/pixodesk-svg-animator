@@ -632,7 +632,7 @@ ephemeral — rendered, never serialised back.
 | `effectsHost` | — | the node hosting a baked expansion (carries the host `appliedEffects`) |
 
 Editor-expanded effects in pre-rendered output follow one formula — **ONE HOST, ONE CORE**
-(`kf/app/src/svgeditor/model/serialization/schema/complex-effects.brainstorm.md` §10, rules
+(`kf/app/src/svgeditor/model/serialization/schema/docs/complex-effects.brainstorm.md` §10, rules
 R-0…R-6, implemented 2026-08):
 
 ```
@@ -722,7 +722,7 @@ interiors of copies/clone content are **stripped of their own meta** and carry o
 P1–P8 state the contract; these name the properties that turned out to be **load-bearing**
 when a glyph-baked text under `transformBy` grew one wrapper per save, for ever. Each is now
 enforced in code; the design and measurements are in the editor's
-`schema/all-or-nothing-restore.design.md`, the guards in `spec/allOrNothingRestore.spec.ts`
+`schema/docs/all-or-nothing-restore.design.md`, the guards in `spec/allOrNothingRestore.spec.ts`
 and `spec/effectFixedPointMatrix.spec.ts`.
 
 - **P-H · THE TRIGGER RULE** — `effectsHost` is created ONLY by **element effects** (L, above):
@@ -840,8 +840,8 @@ warning); an effect absent from that map is never field-checked — silence beat
 
 ### 4.2 · `appliedEffects.shape` — the editor's parametric path source
 
-*(Design record: app `schema/shape-effect.schema.rework.md`; editing-time sync of the clocks:
-`schema/shape-effect.timing-sync.md`. Both IMPLEMENTED 2026-08.)*
+*(Design record: app `schema/docs/shape-effect.schema.rework.md`; editing-time sync of the clocks:
+`schema/docs/shape-effect.timing-sync.md`. Both IMPLEMENTED 2026-08.)*
 
 `shape` is one **generator** — exactly one of `path` / `preset` (validated, not structural:
 `SHAPE_GENERATORS`) — plus zero or more **modifier** sub-effects applied in `SHAPE_BAKE_ORDER`

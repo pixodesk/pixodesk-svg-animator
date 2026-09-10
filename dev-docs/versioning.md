@@ -6,7 +6,7 @@ Two unrelated numbers. Never derive one from the other.
 |---|---|---|---|---|
 | **Library** (npm) | `1.0.35` | `version` in all five `packages/*/package.json` | you, by hand | every publish |
 | **Player schema** `a.b` | `1.1` | `PX_PLAYER_SCHEMA_VERSION` — `packages/svg-animator-core/src/version/PxSchemaVersion.ts` | you, by hand, **with a step** | the player wire format changes |
-| **Editor extension** `c` | `1` | `EDITOR_EXTENSION_REVISION` — app repo `src/svgeditor/model/serialization/schema/PxWireVersion.ts` | you, by hand, **with a step** | anything under `meta.*` changes shape |
+| **Editor extension** `c` | `1` | `EDITOR_EXTENSION_REVISION` — app repo `src/svgeditor/model/serialization/schema/version/PxWireVersion.ts` | you, by hand, **with a step** | anything under `meta.*` changes shape |
 
 Documents carry `animator.version: "a.b.c"` (today `"1.1.1"`), written by the editor on every save.
 The player never writes it.
@@ -107,7 +107,7 @@ Rules:
 ### B · Editor `meta.*` change — `1.1.1 → 1.1.2` (app repo)
 
 1. Change the meta schema — `src/svgeditor/model/serialization/schema/PxSchemaUtil.ts`.
-2. Set `EDITOR_EXTENSION_REVISION = 2` — `src/svgeditor/model/serialization/schema/PxWireVersion.ts`.
+2. Set `EDITOR_EXTENSION_REVISION = 2` — `src/svgeditor/model/serialization/schema/version/PxWireVersion.ts`.
 3. Add the step to `EDITOR_WIRE_STEPS` — full `a.b.c` versions, `meta.*` only:
    ```ts
    { from: '1.1.1', to: '1.1.2', kind: WireStepKind.converted, reason: '…', up: (doc) => { /* meta.* */ } },
@@ -140,7 +140,7 @@ The library is not involved. A `c` bump never needs a player release.
 | release check / apply | `node scripts/schema-release.mjs [--apply] [--lib-version x.y.z]` | lib root |
 | regenerate `SCHEMA.json` only | `node scripts/gen-schema-json.mjs` | lib root |
 | regenerate **player** field snapshot | `PX_REGEN_FIELD_UNIVERSE=1 npx vitest run src/version/PxSchemaFieldUniverse.test.ts` | `packages/svg-animator-core` |
-| regenerate **editor** field snapshot | `PX_REGEN_FIELD_UNIVERSE=1 npx vitest run --config vitest.browser.config.ts src/svgeditor/model/serialization/schema/PxSchemaFieldUniverse.gen.spec.ts` | app root |
+| regenerate **editor** field snapshot | `PX_REGEN_FIELD_UNIVERSE=1 npx vitest run --config vitest.browser.config.ts src/svgeditor/model/serialization/schema/version/PxSchemaFieldUniverse.gen.spec.ts` | app root |
 | upgrade a document | `node scripts/upgrade-document.mjs <in.json> [--out <file> \| --in-place]` | lib root |
 | down-convert a document | `node scripts/upgrade-document.mjs <in.json> --to 1.1` | lib root |
 
@@ -199,7 +199,7 @@ Everything versioning-related is in `src/version/`.
 
 | app | |
 |---|---|
-| `src/svgeditor/model/serialization/schema/PxWireVersion.ts` | `c`, `EDITOR_WIRE_STEPS`, `convertEditorDocument` |
-| `…/schema/schema-field-universe.snapshot.json` + `PxSchemaFieldUniverse.spec.ts` / `.gen.spec.ts` | editor inventory, guard, regenerator |
-| `…/schema/wireVersionGuard.spec.ts` | editor bump guard, editor/player seam, SVG tripwire |
-| `…/schema/read-audit-completeness.design.md` §6 | the full design and the decisions behind it |
+| `src/svgeditor/model/serialization/schema/version/PxWireVersion.ts` | `c`, `EDITOR_WIRE_STEPS`, `convertEditorDocument` |
+| `…/schema/version/schema-field-universe.snapshot.json` + `PxSchemaFieldUniverse.spec.ts` / `.gen.spec.ts` | editor inventory, guard, regenerator |
+| `…/schema/version/wireVersionGuard.spec.ts` | editor bump guard, editor/player seam, SVG tripwire |
+| `…/schema/docs/read-audit-completeness.design.md` §6 | the full design and the decisions behind it |

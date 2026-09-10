@@ -139,8 +139,8 @@ interface SVG_JSON {
                 engine?: 'auto' | 'native' | 'js';  // WHO RUNS IT (default 'auto'): the browser where it can — WAAPI here,
                                                    // its ScrollTimeline for scroll/view — else the player's own frame loop;
                                                    // 'native' = browser only; 'js' = the player's own loop (+ own scroll measurement)
-                frameRate?: number;                // target fps for the player's own frame loop — a parameter of the
-                                                   // engine `mode` selects; uncapped when absent, ignored by WAAPI/RN
+                frameRate?: number;                // target fps for the player's own frame loop ('js', or 'auto' after
+                                                   // falling back to it); uncapped when absent, ignored by WAAPI/RN
                 duration?: number;                 // length of ONE iteration, ms (default 1000); keyframe times are absolute offsets
                 delay?: number;                    // wait before start, ms (default 0); negative = skip ahead, e.g. -500 starts from the 0.5 s frame
                 iterations?: number | 'infinite';  // repeat count (default 1); composes with per-property loop (loop-within-loop)
@@ -159,8 +159,8 @@ interface SVG_JSON {
                 duration?: number;                 // the keyframe span the scroll range maps onto, ms
                 iterations?: number;               // finite only — 'infinite' cannot map onto a range
                 engine?: 'auto' | 'native' | 'js';  // as above — 'auto'/'native' try the browser's ScrollTimeline, 'js' measures itself
-                frameRate?: number;                // target fps for the player's own frame loop — a parameter of the
-                                                   // engine `mode` selects; uncapped when absent, ignored by WAAPI/RN
+                frameRate?: number;                // target fps for the player's own frame loop ('js', or 'auto' after
+                                                   // falling back to it); uncapped when absent, ignored by WAAPI/RN
                 axis?: 'block' | 'inline' | 'x' | 'y';
                 source?: 'nearest' | 'root';       // type 'scroll' — which scroll container
                 subject?: string;                  // type 'view' — whose journey: 'parent' | 'scroller' | a CSS selector
@@ -187,6 +187,9 @@ interface SVG_JSON {
         };
 
         debugGlobalName?: string;  // debug helper: exposes the animator as window[debugGlobalName]
+
+        version?: string;          // "a.b.c" — the schema the file was written for (see Versioning); written
+                                   // by the editor on save, never by the player; absent = unknown
 
         // bind-by-id documents — maps '#elementId' → animation spec. Same value type as
         // `node.animate`; only the KEYSPACE differs (an element reference here, an attr
@@ -225,7 +228,7 @@ interface SVG_JSON {
             clone?:           { without?: 'translate', source?: '#id',   // absent = whole element; 'translate' = the source's placement is left out ('transform' may follow)
                                 retime?: { start?, stretch?: number, timeCrop?: [inMs, outMs] } };  // retime is PURE timing — the ref lives once, on the clone
             // Geometry slots animate like any other slot ({value} | {keyframes});
-            // gradient geometry animation runs on the frames engine.
+            // gradient geometry animation runs on the player's frame loop ('auto' switches to it).
             fillGradient?:    { type: 'linear'|'radial', start?, end? (linear) , center?, radius?, focal? (radial),
                                 stops?, gradientUnits?, spreadMethod?, gradientTransform? };
             strokeGradient?:  { /* same shape as fillGradient */ };
@@ -523,7 +526,7 @@ editor get this right automatically:
   ] } } }
 ```
 
-Morphing runs on the frame-loop engine (the `auto` mode switches automatically).
+Morphing runs on the player's frame loop (`engine: 'auto'` switches to it automatically).
 
 ### Definitions — `animator.definitions`
 
@@ -747,7 +750,7 @@ same settings; the only difference is which of the two attributes is painted.
 ```
 
 Animated stop **colours** work everywhere; animated stop *offsets* and geometry need the frame
-loop (`mode: auto` switches for you). CSS exports can animate stop colours only.
+loop (`engine: 'auto'` switches for you). CSS exports can animate stop colours only.
 
 ### 4 — `strokeTrim`
 
@@ -1099,10 +1102,78 @@ the engine runs in browsers, React Native and test environments.
 | **Scroll timeline math** | `isScrollTimeline`, `scrollViewProgress`, `scrollOffsetProgress`, `scrollTotalDurationMs` |
 | **Playback engine** | `createBasicFrameLoopAnimator` + the `PxPlatformAdapter` interface |
 | **Wire enums** | `PxTimelineEngineExtra`, `PxTimelineEngine`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod` — the wire selectors that ship as named constants rather than bare strings |
+| **Schema versioning** | `PX_PLAYER_SCHEMA_VERSION`, `readWireVersion`, `parseWireVersion`, `formatWireVersion`, `compareWireVersion`, `versionAdvice`, `convertPlayerDocument`, `downgradePlayerDocument`, `WireVersionRelation` — see [Versioning](#versioning) |
 
 ### Versioning
 
-Every package is released in lockstep; a player depends on the matching core version, so
-upgrading a player upgrades the core with it.
+Two numbers, unrelated to each other:
+
+| Number | Lives in | Moves when |
+|---|---|---|
+| **Package version** | every `@pixodesk/svg-animator-*` package | every release. All packages are released in lockstep; a player depends on the matching core version, so upgrading a player upgrades the core with it |
+| **Schema version** | `animator.version` in the document | the file format changes — not on every release |
+
+#### Schema version — `animator.version`
+
+A string `"a.b.c"`:
+
+| Part | Meaning |
+|---|---|
+| `a` | format generation. Nothing converts across a change of `a` |
+| `b` | player schema revision. A player at `a.b` reads files of the same `a` and any `b` up to its own |
+| `c` | editor extension — covers `meta.*` only. The player ignores it |
+
+This release reads schema **`1.1`** (`PX_PLAYER_SCHEMA_VERSION`). The editor stamps every file it
+saves (`"1.1.1"` today); the player never writes the stamp.
+
+- **Not a gate.** A version gap on its own never refuses a file or warns. The player does not
+  read the stamp when it plays a file — it checks the document against the schema it ships.
+- **Absent means unknown.** An unstamped file is not assumed to be old, and nothing is converted
+  on a guess.
+
+`readWireVersion(doc)` reads the stamp from `animator.version`, or from `meta.animator.version`
+where the animator block is carried under `meta`.
+
+#### Converting a document
+
+Schema `1.1` is the first release, so there are no conversion steps yet: every current file
+converts to itself. The converters exist so that an older file can be brought forward once the
+schema moves.
+
+```ts
+import { convertPlayerDocument, downgradePlayerDocument, parseWireVersion } from '@pixodesk/svg-animator-core';
+
+// Up to this player's schema. Never refuses, never throws, never mutates `json`.
+const { doc, from, relation, applied, advice } = convertPlayerDocument(json);
+
+// Down to an older schema — all or nothing.
+const target = parseWireVersion('1.1');
+const down = target && downgradePlayerDocument(json, target);
+if (down && !down.ok) console.warn(down.reason);
+```
+
+- `relation` is one of `unstamped` · `same` · `older` · `newer` · `otherGeneration`
+  (`WireVersionRelation`).
+- `advice` is set only when the version explains a gap, e.g. *"This file is written for schema
+  1.5.0, this player reads 1.1.0. Update the player to open it fully."*
+- Up-conversion works on a copy. A step that fails returns the original document, never a
+  half-converted one.
+- Down-conversion refuses (`ok: false`, with a `reason` naming the steps that block it) unless
+  every step on the way back can be undone. It also refuses an unstamped document.
+- Neither direction touches `meta.*` — that part belongs to the editor.
+
+From the command line, in a checkout of this repository. The script reads the built core, so run
+`pnpm --filter @pixodesk/svg-animator-core build` first:
+
+```sh
+node scripts/upgrade-document.mjs animation.json                 # writes animation.upgraded.json
+node scripts/upgrade-document.mjs animation.json --out new.json
+node scripts/upgrade-document.mjs animation.json --in-place
+node scripts/upgrade-document.mjs animation.json --to 1.1        # down-convert
+```
+
+It prints the file's schema and each step applied, and writes nothing when there is nothing to
+convert. It takes JSON documents only: a pre-rendered SVG is an export, so re-export it from the
+editor.
 
 [Contents](../../README.md#documentation) · [Library documentation](../library/README.md) · [Pre-rendered SVG documentation](https://pixodesk.com/docs/svga/prerendered-svg)
