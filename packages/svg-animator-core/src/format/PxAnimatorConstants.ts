@@ -20,7 +20,7 @@
 // are fine — they are erased at build time and cannot create a runtime edge.
 // ============================================================================
 
-import type { PxAnimatedSvgDocument, PxAnimatorConfig, PxBinding, PxDefs, PxNode, PxScroll } from './PxAnimatorTypes';
+import type { PxAnimatedSvgDocument, PxAnimatorConfig, PxBinding, PxDefs, PxNode, PxScroll, PxTrigger } from './PxAnimatorTypes';
 
 export type FillMode = 'forwards' | 'backwards' | 'both' | 'none';
 
@@ -100,6 +100,37 @@ export function isNativeForced(engine: PxTimelineEngineExtra | undefined): boole
  *  asks for it, `js` never uses it. */
 export function mayUseNativeScrollTimeline(engine: PxTimelineEngineExtra | undefined): boolean {
     return engine !== PxTimelineEngineExtra.js;
+}
+
+/**
+ * THE TRIGGER DEFAULTS — what a missing `trigger` field means. One table, declared by
+ * `PxTriggerSchema` and applied by {@link resolveTrigger}, which every player calls (the web's
+ * `setupAnimationTriggers`, the React Native component) — so a file behaves the same everywhere:
+ *   - `startOn` 'load' — a document is designed to play
+ *   - `outAction` 'continue' — leaving the trigger does not interrupt playback
+ *   - `scrollIntoViewThreshold` 0 — any visible pixel counts
+ */
+export const PX_TRIGGER_DEFAULTS = {
+    startOn: 'load',
+    outAction: 'continue',
+    scrollIntoViewThreshold: 0,
+} as const;
+
+/** A trigger with every default filled in. */
+export interface PxResolvedTrigger {
+    readonly startOn: NonNullable<PxTrigger['startOn']>;
+    readonly outAction: NonNullable<PxTrigger['outAction']>;
+    readonly scrollIntoViewThreshold: number;
+}
+
+/** A document's trigger with the defaults filled in. (`finishAction` is not a start/stop decision:
+ *  it reaches the engines as the runtime view's `resetOnFinish`.) */
+export function resolveTrigger(trigger: PxTrigger | undefined): PxResolvedTrigger {
+    return {
+        startOn: trigger?.startOn ?? PX_TRIGGER_DEFAULTS.startOn,
+        outAction: trigger?.outAction ?? PX_TRIGGER_DEFAULTS.outAction,
+        scrollIntoViewThreshold: trigger?.scrollIntoViewThreshold ?? PX_TRIGGER_DEFAULTS.scrollIntoViewThreshold,
+    };
 }
 
 // V3 — every closed value list is a NAMED const + a strict `px.enum` slot, so a

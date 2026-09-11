@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxTrigger } from '@pixodesk/svg-animator-core';
+import { resolveTrigger, type PxTrigger } from '@pixodesk/svg-animator-core';
 import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
 
 
@@ -15,7 +15,7 @@ import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
  * or visibility changes.
  *
  * ### Trigger Options (startOn):
- * - 'load': Starts after the page loads.
+ * - 'load' (default): Starts after the page loads.
  * - 'mouseOver': Starts on mouse enter.
  * - 'click': Toggles play/end action on click.
  * - 'scrollIntoView': Starts when the element scrolls into the viewport.
@@ -23,7 +23,7 @@ import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
  *
  * ### End Action Options (outAction):
  * Defines behavior when the trigger condition ends (e.g., mouse leave).
- * - 'continue': Animation continues playing.
+ * - 'continue' (default): Animation continues playing.
  * - 'pause': Pauses the animation.
  * - 'reset': Cancels the animation, resetting it to the start.
  * - 'reverse': Reverses the animation playback.
@@ -36,10 +36,11 @@ export function setupAnimationTriggers(
     api: PxAnimatorAPI,
     config: PxTrigger
 ): PxAnimatorAPI {
-    // Threshold default 0 — "any pixel visible starts it". Keep in sync with the editor
-    // model's default (TSvgSvgAnimationAttr.scrollIntoViewThreshold), which OMITS the
-    // value on the wire when it equals this default.
-    const { startOn, outAction = 'continue', scrollIntoViewThreshold = 0 } = config;
+    // The defaults come from core's one table, shared with every player (`PX_TRIGGER_DEFAULTS`):
+    // no `startOn` = 'load', no `outAction` = 'continue', no threshold = 0 ("any pixel visible").
+    // The threshold default must match the editor model's (TSvgSvgAnimationAttr
+    // .scrollIntoViewThreshold), which OMITS the value on the wire when it equals it.
+    const { startOn, outAction, scrollIntoViewThreshold } = resolveTrigger(config);
 
     const root = api.getRootElement();
 

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materialiseAllInTree, validateNodeEffects, PxTimelineEngine, type FillMode, type OutAction, type PlaybackDirection, type PxAnimatedSvgDocument, type PxAnimatorConfigPatch, type PxNode, type StartOn, applyAnimatorConfig, foldAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
+import { reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materialiseAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, type FillMode, type OutAction, type PlaybackDirection, type PxAnimatedSvgDocument, type PxAnimatorConfigPatch, type PxNode, type StartOn, applyAnimatorConfig, foldAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
 import Animated, {
@@ -511,9 +511,11 @@ export function PixodeskSvgAnimator({
 
     // The EFFECTIVE trigger, read back off the COMPILED document — so it already reflects the
     // `config` override and the `startOn` shortcut, both merged in before compilation.
-    const trigger = compiled.doc ? getAnimatorConfig(compiled.doc)?.trigger : undefined;
-    const effectiveStartOn = trigger?.startOn ?? 'load';
-    const effectiveOutAction = trigger?.outAction ?? 'pause';
+    // Resolved through core's one table, so a document means the same here as on the web:
+    // no `startOn` = 'load', no `outAction` = 'continue'.
+    const trigger = resolveTrigger(compiled.doc ? getAnimatorConfig(compiled.doc)?.trigger : undefined);
+    const effectiveStartOn = trigger.startOn;
+    const effectiveOutAction = trigger.outAction;
 
     useEffect(() => {
         if (progressProp !== undefined || time !== undefined) {
@@ -543,7 +545,7 @@ export function PixodeskSvgAnimator({
     const inViewRef = useRef(false);
     useEffect(() => {
         if (!autoplay || effectiveStartOn !== 'scrollIntoView') return;
-        const threshold = trigger?.scrollIntoViewThreshold ?? 0;
+        const threshold = trigger.scrollIntoViewThreshold;
         inViewRef.current = false;
 
         const check = () => {

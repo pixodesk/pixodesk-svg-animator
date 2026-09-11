@@ -39,12 +39,12 @@ export type { KeysMatch, PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, R
 
 // Wire-format schemas
 export { PxAnimatedSvgDocumentSchema, PxAnimationDefinitionSchema, PxAnimatorConfigSchema, PxAttrValueSchema, PxBezierPathSchema, PxBindingSchema, PxDefsSchema, PxEasingOrRefSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBase, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeExtra, PxTransformPartsSchema, PxTransformValueSchema, PxTriggerSchema, PxTimelineSchema, PxTimelinePinSchema } from './format/PxAnimatorTypes';
-export { resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline, PX_TRANSFORM_PART_KEYS, PxTimelineEngine, PxCloneWithout, PxTimelineEngineExtra } from './format/PxAnimatorConstants';
+export { resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline, PX_TRANSFORM_PART_KEYS, PxTimelineEngine, PxCloneWithout, PxTimelineEngineExtra, PX_TRIGGER_DEFAULTS, resolveTrigger } from './format/PxAnimatorConstants';
 export { PX_PLAYER_SCHEMA_VERSION } from './version/PxSchemaVersion';
 
 // Document / model types
 export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorAPI, PxAnimatorCallbacksConfig, PxAnimatorConfig, PxAttrValue, PxBasicAnimatorAPI, PxBezierPath, PxBinding, PxDefs, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxNormalisedKeyframe, PxNormalisedPropertyAnimation, PxAnyKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollPhase, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTimelinePin, PxTransformParts, PxTransformValue, PxTrigger, PxValidationResult } from './format/PxAnimatorTypes';
-export type { FillMode, OutAction, PlaybackDirection, PxTransformPartKey, StartOn } from './format/PxAnimatorConstants';
+export type { FillMode, OutAction, PlaybackDirection, PxResolvedTrigger, PxTransformPartKey, StartOn } from './format/PxAnimatorConstants';
 
 export { isPxElementFileFormatDeep } from './format/PxAnimatorTypes';
 export { getBindings, getChildren, getDefs } from './format/PxAnimatorConstants';

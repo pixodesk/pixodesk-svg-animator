@@ -432,12 +432,11 @@ export function createWebApiAnimator(
 
     // D3 (scroll-timeline.design.md): triggers are inert on a scroll-driven document —
     // writers must not emit them; a doc that carries them anyway gets a warning.
-    if (config.trigger) {
-        if (config.timelineSource === 'scroll') {
-            console.warn('scroll timeline: `animator.trigger` is ignored (triggers do not apply to scroll-driven playback)');
-        } else {
-            setupAnimationTriggers(api, config.trigger);
-        }
+    // Every time-driven document IS wired: no `trigger` means the defaults (`startOn` 'load').
+    if (config.timelineSource === 'scroll') {
+        if (config.trigger) console.warn('scroll timeline: `animator.trigger` is ignored (triggers do not apply to scroll-driven playback)');
+    } else {
+        setupAnimationTriggers(api, config.trigger ?? {});
     }
 
     // A progress-based timeline only tracks while the animation is PLAYING — start it

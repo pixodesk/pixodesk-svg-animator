@@ -48,6 +48,25 @@ describe('setupAnimationTriggers', () => {
         expect(api.play).toHaveBeenCalledTimes(1);
     });
 
+    it('no startOn: starts on load — the default every player applies', () => {
+        const { api } = createMockApi();
+
+        setupAnimationTriggers(api, {});
+
+        expect(api.play).toHaveBeenCalledTimes(1);
+    });
+
+    it("no outAction: a second click keeps playing ('continue')", () => {
+        const { api, root } = createMockApi({ isPlaying: vi.fn(() => true) });
+        setupAnimationTriggers(api, { startOn: 'click' });
+
+        root.dispatchEvent(new Event('click'));
+
+        expect(api.pause).not.toHaveBeenCalled();
+        expect(api.cancel).not.toHaveBeenCalled();
+        expect(api.setPlaybackRate).not.toHaveBeenCalled();
+    });
+
     it("startOn 'mouseOver': mouseenter plays", () => {
         const { api, root } = createMockApi();
         setupAnimationTriggers(api, { startOn: 'mouseOver' });

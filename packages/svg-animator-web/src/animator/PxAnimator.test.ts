@@ -91,6 +91,18 @@ describe('createAnimator', () => {
         expect(api.getCurrentTime()).toBe(DUR / 2);
     });
 
+    it('a document with no trigger starts on load — startOn defaults to load', () => {
+        const api = createAnimator({ data: makeDoc(), container: '#svg-container' });
+        expect(api.isPlaying()).toBe(true);
+    });
+
+    it('an explicit programmatic trigger still waits for play()', () => {
+        const doc = makeDoc();
+        doc.animator = { timeline: { engine: 'js', duration: DUR, trigger: { startOn: 'programmatic' } } };
+        const api = createAnimator({ data: doc, container: '#svg-container' });
+        expect(api.isPlaying()).toBe(false);
+    });
+
     it('URL path: queues control calls made before the fetch resolves and replays them', async () => {
         const fetchMock = stubFetch(makeDoc());
         const onPlay = vi.fn();

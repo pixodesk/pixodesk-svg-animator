@@ -8,7 +8,7 @@ import { implementsInterface, px } from '../schema/PxSchema';
 // Constants live in their own module so importing one does not pull the schema engine
 // in; re-exported here so this module's public surface is unchanged. See there.
 export * from './PxAnimatorConstants';
-import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PxTimelineEngineExtra, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxGradientUnits, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
+import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PX_TRIGGER_DEFAULTS, PxTimelineEngineExtra, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxGradientUnits, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
 import type { FillMode, OutAction, PlaybackDirection, PxTimelineEngine, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
 
 // ============================================================================
@@ -535,10 +535,12 @@ type StartOnExtra = StartOn | 'programmatic';
  */
 export interface _PxTrigger {
 
-    /** Event that starts the animation */
+    /** Event that starts the animation. Default `'load'` — a document is designed to play;
+     *  `'programmatic'` waits for `play()`. */
     startOn?: StartOnExtra;
 
-    /** Action to take when the trigger condition is no longer met (e.g., mouse leaves) */
+    /** Action to take when the trigger condition is no longer met (e.g., mouse leaves).
+     *  Default `'continue'`. */
     outAction?: 'continue' | 'pause' | 'reset' | 'reverse';
 
     /** Percentage of element visibility required to trigger (0–1, default 0 = any pixel).
@@ -553,9 +555,10 @@ export interface _PxTrigger {
 }
 
 // `{ startOn?:'load'|'mouseOver'|'click'|'scrollIntoView'|'programmatic', outAction?:..., scrollIntoViewThreshold?:number }`
+// An absent field means its PX_TRIGGER_DEFAULTS entry — the table every player resolves through.
 export const PxTriggerSchema = implementsInterface<_PxTrigger>()(px.object({
-    startOn: px.enum(['load', 'mouseOver', 'click', 'scrollIntoView', 'programmatic'] as const).optional(),
-    outAction: px.enum(['continue', 'pause', 'reset', 'reverse'] as const).optional(),
+    startOn: px.enum(['load', 'mouseOver', 'click', 'scrollIntoView', 'programmatic'] as const, PX_TRIGGER_DEFAULTS.startOn).optional(),
+    outAction: px.enum(['continue', 'pause', 'reset', 'reverse'] as const, PX_TRIGGER_DEFAULTS.outAction).optional(),
     // What happens after a NATURAL finish — `'hold'` (default: keep the end state per
     // `fill`) or `'reset'` (snap back to the start state). Pairs with `outAction` ("what
     // happens when the trigger condition ends"); both end-of-life knobs now read alike.
