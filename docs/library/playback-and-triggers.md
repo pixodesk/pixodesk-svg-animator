@@ -117,11 +117,14 @@ player honours it:
 
 | `startOn` | Starts when… | Editor label |
 |---|---|---|
-| `load` (default) | the animation is displayed | *On load* |
+| `load` | the animation is displayed | *On load* (the editor's default) |
 | `scrollIntoView` | the element becomes visible; `scrollIntoViewThreshold` says how much of it must be on screen first: `0` (default) any part, `0.5` half of it, `1` all of it | *When visible* |
 | `mouseOver` | the pointer enters the element | *On mouse over* |
 | `click` | the element is clicked (a second click applies `outAction`) | *On click* |
 | `programmatic` | never by itself — you call `play()` | *Manually from JS* |
+
+A document with no `trigger`, or a `trigger` without `startOn`, behaves like `programmatic`:
+nothing starts it until you call `play()`.
 
 `outAction` says what happens when the trigger condition ends (pointer leaves, scrolled out,
 second click):

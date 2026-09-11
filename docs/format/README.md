@@ -124,8 +124,8 @@ interface SVG_JSON {
     type: 'svg';        // document root marker
     id?: string;        // DOM id; in a bind-by-id document it locates the pre-rendered element
     viewBox?: string;   // internal coordinate space, e.g. "0 0 700 380"
-    width?: number;     // rendered size; width accepts CSS units
-    height?: number;
+    width?: number | string;   // rendered size; a string may carry CSS units, e.g. "100%"
+    height?: number | string;
     [key: string]: any; // any SVG/CSS presentation attribute; pass-through to DOM
 
     animator?: {
@@ -165,8 +165,16 @@ interface SVG_JSON {
                 source?: 'nearest' | 'root';       // type 'scroll' — which scroll container
                 subject?: string;                  // type 'view' — whose journey: 'parent' | 'scroller' | a CSS selector
                 smoothing?: number;                // ms catch-up lag toward the scroll position
-                pin?: boolean | { align?: 'top' | 'center' | 'bottom'; top?: number; distance?: number };
-                range?: { start?: { phase?: string; fraction?: number }; end?: { phase?: string; fraction?: number } };
+                pin?: boolean | {                  // hold the canvas on screen while the scroll drives it
+                    align?: 'top' | 'center' | 'bottom';  // default 'top'
+                    top?: number;                  // px offset from the aligned position (default 0)
+                    distance?: number;             // scroll travel the pin lasts, in viewport heights
+                };
+                range?: {                          // the slice mapped onto progress 0..1;
+                                                   // default { start: {phase:'cover', fraction:0}, end: {phase:'cover', fraction:1} }
+                    start?: { phase?: PHASE; fraction?: number };  // fraction: 0..1 within the phase
+                    end?:   { phase?: PHASE; fraction?: number };
+                };  // PHASE = 'cover' | 'contain' | 'entry' | 'exit' | 'entry-crossing' | 'exit-crossing'
               };
 
         // named reusable easings and animations; resolved at runtime
@@ -208,7 +216,7 @@ interface SVG_JSON {
         type: string;       // SVG element tag: "rect", "g", "path", "ellipse", "use", …
         id?: string;        // DOM id; required for href="#id" refs or animator.animateById targeting
         [key: string]: any; // SVG/CSS attrs (cx, cy, r, fill, stroke, transform, …); pass-through
-        text?: string;      // text content for <text>/<tspan> (alias: textContent)
+        textContent?: string; // text content for <text>/<tspan> (`text` is read too)
         style?: string | Record<string, string | number>;
         // named ref / array of refs / inline definition / mixed array
         animate?: string | Array<string> | Record<string, ANIMATE> | Array<string | Record<string, ANIMATE>>;
