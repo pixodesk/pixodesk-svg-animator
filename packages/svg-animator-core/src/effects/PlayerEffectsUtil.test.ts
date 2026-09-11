@@ -247,7 +247,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
             children: [
                 {
                     type: 'rect', id: 'r1', width: 100, height: 50,
-                    effects: { clipPath: { d: 'M0,0L40,0L40,40L0,40z' } },
+                    effects: { clipPath: { pathData: 'M0,0L40,0L40,40L0,40z' } },
                 },
             ],
         };
@@ -283,8 +283,8 @@ describe('applyPlayerEffects — materialisation etalons', () => {
         // sibling `animate` key was removed outright, read included.
         const animate = {
             keyframes: [
-                { time: 0, value: { path: 'M0,0L40,0L40,40L0,40z' } },
-                { time: 30, value: { path: 'M0,0L80,0L80,80L0,80z' } },
+                { time: 0, value: { pathData: 'M0,0L40,0L40,40L0,40z' } },
+                { time: 30, value: { pathData: 'M0,0L80,0L80,80L0,80z' } },
             ],
         };
         const input: PxNode = {
@@ -292,7 +292,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
             children: [
                 {
                     type: 'rect', id: 'r1', width: 100, height: 50,
-                    effects: { clipPath: { d: { value: 'M0,0L40,0L40,40L0,40z', ...animate } } },
+                    effects: { clipPath: { pathData: { value: 'M0,0L40,0L40,40L0,40z', ...animate } } },
                 },
             ],
         };

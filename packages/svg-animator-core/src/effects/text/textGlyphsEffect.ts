@@ -241,8 +241,8 @@ export function materialiseGlyphTextHorizontal<E = any>(node: PxNode, opts: Glyp
         for (let i = 0; i < content.length; i++) {
             const ch = content.charAt(i);
             const g = gf?.glyphs[ch];
-            if (g && g.d) {
-                placements.push({ glyphD: g.d, m: [scale, 0, 0, scale, pen.x, pen.y], paint, line, x: pen.x, y: pen.y, scale });
+            if (g && g.pathData) {
+                placements.push({ glyphD: g.pathData, m: [scale, 0, 0, scale, pen.x, pen.y], paint, line, x: pen.x, y: pen.y, scale });
                 pen.x += g.width * scale;
             } else if (/\S/.test(ch)) {
                 // Missing glyph (font absent, or the char has no outline) → a visible □
@@ -490,9 +490,9 @@ function collectAlongPathCells(node: PxNode, glyphs: Record<string, PxGlyphFont>
                 for (let i = 0; i < content.length; i++) {
                     const ch = content.charAt(i);
                     const g = gf.glyphs[ch];
-                    if (g && g.d) {
+                    if (g && g.pathData) {
                         const glyphAdv = g.width * scale;
-                        cells.push({ glyphD: g.d, widthEm: g.width, scale, paint, midBase: adv + glyphAdv / 2 });
+                        cells.push({ glyphD: g.pathData, widthEm: g.width, scale, paint, midBase: adv + glyphAdv / 2 });
                         adv += glyphAdv;
                     } else if (/\S/.test(ch)) {
                         // Missing glyph → a visible □ placeholder box (see missingGlyphBoxEm).

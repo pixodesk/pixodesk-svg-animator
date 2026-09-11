@@ -115,14 +115,17 @@ describe('createAnimator — the override reaches the running animation', () => 
         api.destroy();
     });
 
-    it('resetDocDefaults drops the document trigger, so nothing autostarts', () => {
+    it("resetDocDefaults drops the document trigger, so the default startOn:'load' applies", () => {
         // `mode` is part of the reset too, so it is restated — otherwise the engine choice
         // falls back to `auto`, which probes WAAPI and is unavailable under jsdom.
+        // Since review §2.1 a MISSING trigger resolves to `startOn: 'load'`, so dropping the
+        // document's trigger no longer means "nothing starts" — it means the default applies.
+        // To get "nothing autostarts", ask for it: see the `startOn: 'programmatic'` test above.
         const api = createAnimator({
             data: wireDoc(), container: stage(),
             resetDocDefaults: true, config: { timeline: { engine: 'js', duration: 4000 } },
         });
-        expect(api.isPlaying()).toBe(false);
+        expect(api.isPlaying()).toBe(true);
         api.destroy();
     });
 

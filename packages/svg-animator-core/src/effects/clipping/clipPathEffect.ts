@@ -18,8 +18,8 @@ import { genId } from '../shared/util';
  * node) but far simpler — the clip geometry is a self-contained vector path (no ancestor
  * transform compensation, no source lookup).
  *
- * `d` is a standard animatable slot (static string / `{value}` / `{keyframes}` with
- * `{path}` values — same grammar as body `d`). An animated `d` becomes the child
+ * `pathData` is a standard animatable slot (static string / `{value}` / `{keyframes}` with
+ * `{pathData}` values — same grammar as the body `d` attribute). An animated slot becomes the child
  * `<path>`'s `animate.d` block. The def is spliced into the walked tree, so `collectIds`
  * auto-assigns the animated path an id and the frame loop rewrites its `d` per frame.
  * `clip-path` is a live reference (verified: the browser re-clips on every `d` change
@@ -32,13 +32,13 @@ export function applyClipPathEffect(
     fx: PxClipPathEffect | undefined,
     ctx: ApplyContext,
 ): PxNode {
-    if (!fx?.d) return node;
+    if (!fx?.pathData) return node;
 
     const clipId = genId(ctx, 'clip');
     const pathChild: PxNode = { type: 'path' };
-    const read = readAnimatable<string>(fx.d);
+    const read = readAnimatable<string>(fx.pathData);
     if (read.kind !== ReadKind.Absent) {
-        // Static values may be the bare `d` string or a `{path}` object (the kf
+        // Static values may be the bare path string or a `{pathData}` object (the kf
         // value encoding) — normalise to the string for the body attr.
         if (read.kind === ReadKind.Static) {
             pathChild.d = pathString(read.value);
@@ -52,9 +52,9 @@ export function applyClipPathEffect(
     return node;
 }
 
-/** Unwraps a `{path: "M…"}` kf-value object to its string; passes strings through. */
+/** Unwraps a `{pathData: "M…"}` kf-value object to its string; passes strings through. */
 function pathString(v: unknown): string | undefined {
     if (typeof v === 'string') return v;
-    if (v && typeof v === 'object' && typeof (v as { path?: unknown }).path === 'string') return (v as { path: string }).path;
+    if (v && typeof v === 'object' && typeof (v as { pathData?: unknown }).pathData === 'string') return (v as { pathData: string }).pathData;
     return undefined;
 }

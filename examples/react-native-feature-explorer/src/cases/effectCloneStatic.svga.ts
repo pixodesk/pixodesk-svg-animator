@@ -75,7 +75,7 @@ export const effectCloneStatic: SvgaCaseJson = {
                                     "r": 7.9271
                                 }
                             ],
-                            "path": "M0,0L20,-10L30,10L0,0z"
+                            "pathData": "M0,0L20,-10L30,10L0,0z"
                         }
                     }
                 }

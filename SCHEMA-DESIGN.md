@@ -504,7 +504,7 @@ Consequence: editor output and player output cannot be diffed node-for-node.
 | number array | `[16,16]` | dasharray (canonical static AND kf form; legacy `"5,5"` read-only), RGBA |
 | string | `"#33b366"`, `"none"`, `"0 0 200 200"` | colors, enums, viewBox, transform-as-string |
 | transform parts record | `{translate:[x,y], rotate:deg, scale:[sx,sy], skew:deg, origin:[x,y]}` | unified `transform` |
-| path value | `{path: "M…"}` (legacy `{paths:[…]}` bezier read-only) | animated `d`, clipPath |
+| path value | `{pathData: "M…"}` (the Lottie-style `{paths:[…]}` member was retired, §2.4) | animated `d`, clipPath |
 | gradient stops | `[{offset: 0.4, color: "#f00"}, …]` | gradient effects |
 
 ### The ONE animatable grammar
@@ -843,14 +843,14 @@ warning); an effect absent from that map is never field-checked — silence beat
 *(Design record: app `schema/docs/shape-effect.schema.rework.md`; editing-time sync of the clocks:
 `schema/docs/shape-effect.timing-sync.md`. Both IMPLEMENTED 2026-08.)*
 
-`shape` is one **generator** — exactly one of `path` / `preset` (validated, not structural:
+`shape` is one **generator** — exactly one of `pathData` / `preset` (validated, not structural:
 `SHAPE_GENERATORS`) — plus zero or more **modifier** sub-effects applied in `SHAPE_BAKE_ORDER`
 (today one: `corners`). It materialises to the plain `node.d` / `node.animate.d` the player
 consumes; the source stays here so the shape re-opens as a shape.
 
 ```jsonc
 "shape": {
-  "path":   "M…" | { "keyframes": [ { "time", "value": { "path": "M…" } } ] },   // GENERATOR — raw source (pre-modifier)
+  "pathData": "M…" | { "keyframes": [ { "time", "value": { "pathData": "M…" } } ] }, // GENERATOR — raw source (pre-modifier)
   "preset": { "type": "star", "points": 5, "radius": 89 | {keyframes}, … },       // GENERATOR — parametric
   "corners": { "entries": [ {pathIndex?, pointIndex, r?, type?} ] | {keyframes} } // MODIFIER
 }

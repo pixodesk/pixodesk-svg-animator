@@ -80,7 +80,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
                                     "type": "b"
                                 }
                             ],
-                            "path": "M0,0L10,-40L20,0L30,-40L40,0"
+                            "pathData": "M0,0L10,-40L20,0L30,-40L40,0"
                         }
                     }
                 }
@@ -149,7 +149,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
                                     "type": "b"
                                 }
                             ],
-                            "path": "M0,0L10,-40L20,0L30,-40L40,0"
+                            "pathData": "M0,0L10,-40L20,0L30,-40L40,0"
                         }
                     }
                 }
@@ -201,7 +201,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
                                     "type": "b"
                                 }
                             ],
-                            "path": "M0,0L10,-40L20,0L30,-40L40,0"
+                            "pathData": "M0,0L10,-40L20,0L30,-40L40,0"
                         }
                     }
                 }
@@ -245,7 +245,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
                                     "type": "b"
                                 }
                             ],
-                            "path": "M0,0L10,-40L20,0L30,-40L40,0"
+                            "pathData": "M0,0L10,-40L20,0L30,-40L40,0"
                         }
                     }
                 }
@@ -289,7 +289,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
                                     "type": "b"
                                 }
                             ],
-                            "path": "M0,0L10,-40L20,0L30,-40L40,0"
+                            "pathData": "M0,0L10,-40L20,0L30,-40L40,0"
                         }
                     }
                 }
@@ -333,7 +333,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
                                     "type": "b"
                                 }
                             ],
-                            "path": "M0,0L10,-40L20,0L30,-40L40,0"
+                            "pathData": "M0,0L10,-40L20,0L30,-40L40,0"
                         }
                     }
                 }
@@ -391,7 +391,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
                                     "r": 12
                                 }
                             ],
-                            "path": "M0,0L40,0L40,40L0,40L0,0z"
+                            "pathData": "M0,0L40,0L40,40L0,40L0,0z"
                         }
                     }
                 }
@@ -453,7 +453,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
                                     "r": 12
                                 }
                             ],
-                            "path": "M0,0L40,0L40,40L0,40L0,0z"
+                            "pathData": "M0,0L40,0L40,40L0,40L0,0z"
                         }
                     }
                 }
@@ -498,7 +498,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
                                     "r": 12
                                 }
                             ],
-                            "path": "M0,0L40,0L40,40L0,40L0,0z"
+                            "pathData": "M0,0L40,0L40,40L0,40L0,0z"
                         }
                     }
                 }
@@ -535,7 +535,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
                                     "r": 12
                                 }
                             ],
-                            "path": "M0,0L40,0L40,40L0,40L0,0z"
+                            "pathData": "M0,0L40,0L40,40L0,40L0,0z"
                         }
                     }
                 }
@@ -572,7 +572,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
                                     "r": 12
                                 }
                             ],
-                            "path": "M0,0L40,0L40,40L0,40L0,0z"
+                            "pathData": "M0,0L40,0L40,40L0,40L0,0z"
                         }
                     }
                 }
@@ -609,7 +609,7 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
                                     "r": 12
                                 }
                             ],
-                            "path": "M0,0L40,0L40,40L0,40L0,0z"
+                            "pathData": "M0,0L40,0L40,40L0,40L0,0z"
                         }
                     }
                 }

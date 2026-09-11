@@ -113,7 +113,7 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
     it('clipPath.d — static string', () => {
         const out = materialise(doc({
             type: 'rect', width: 10, height: 10,
-            effects: { clipPath: { d: 'M0,0 L10,0 L10,10 Z' } },
+            effects: { clipPath: { pathData: 'M0,0 L10,0 L10,10 Z' } },
         }));
         const clipPath = collectByType(out, 'clipPath')[0] as any;
         expect(clipPath.children[0].d).toBe('M0,0 L10,0 L10,10 Z');
@@ -122,9 +122,9 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
     it('clipPath.d — animated slot ({path} kf values) + baseline d', () => {
         const out = materialise(doc({
             type: 'rect', width: 10, height: 10,
-            effects: { clipPath: { d: { keyframes: [
-                { time: 0, value: { path: 'M0,0 L10,0 L10,10 Z' } },
-                { time: 1000, value: { path: 'M0,0 L20,0 L20,20 Z' } } ], loop: true } } },
+            effects: { clipPath: { pathData: { keyframes: [
+                { time: 0, value: { pathData: 'M0,0 L10,0 L10,10 Z' } },
+                { time: 1000, value: { pathData: 'M0,0 L20,0 L20,20 Z' } } ], loop: true } } },
         }));
         const path = (collectByType(out, 'clipPath')[0] as any).children[0];
         expect(path.animate.d.keyframes).toHaveLength(2);
@@ -136,11 +136,11 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
         // Review §4.1: one grammar-1 `d` slot like every other effect. A leftover
         // sibling `animate` is ignored by the applier and flagged by strict validation.
         const legacyBlock = { keyframes: [
-            { time: 0, value: { path: 'M0,0 L10,0 L10,10 Z' } },
-            { time: 1000, value: { path: 'M0,0 L20,0 L20,20 Z' } } ] };
+            { time: 0, value: { pathData: 'M0,0 L10,0 L10,10 Z' } },
+            { time: 1000, value: { pathData: 'M0,0 L20,0 L20,20 Z' } } ] };
         const out = materialise(doc({
             type: 'rect', width: 10, height: 10,
-            effects: { clipPath: { d: 'M0,0 L10,0 L10,10 Z', animate: legacyBlock } as any },
+            effects: { clipPath: { pathData: 'M0,0 L10,0 L10,10 Z', animate: legacyBlock } as any },
         }));
         const path = (collectByType(out, 'clipPath')[0] as any).children[0];
         expect(path.animate).toBeUndefined();          // NOT folded any more

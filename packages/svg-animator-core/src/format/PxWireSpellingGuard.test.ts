@@ -152,6 +152,25 @@ describe('wire spelling — our own fixtures use `animator.timeline`', () => {
         expect(offenders, 'rename these node keys to `textContent` — see SCHEMA.md').toEqual([]);
     });
 
+    it('path data is spelled `pathData` — no `path` / `paths` keys in a document', () => {
+        // `d` stays SVG's own name for the node ATTRIBUTE; every other slot spells it out, and
+        // the Lottie-style `{paths: [{v,i,o,c}]}` array is gone (§2.4). Quoted keys only: the
+        // interpolator's INTERNAL `{ paths: [...] }` shape is unquoted TS, not a document.
+        const offenders: Array<string> = [];
+        for (const root of ROOTS) {
+            for (const file of walk(join(REPO, root))) {
+                const rel = relative(REPO, file).split('\\').join('/');
+                if (rel.endsWith('tsconfig.json')) continue;   // `"paths"` there is a compiler option
+                const src = readFileSync(file, 'utf8');
+                const re = /"(path|paths)"\s*:/g;
+                for (let m = re.exec(src); m; m = re.exec(src)) {
+                    offenders.push(rel + ':' + src.slice(0, m.index).split('\n').length + '  ' + m[1]);
+                }
+            }
+        }
+        expect(offenders, 'rename these keys to `pathData` — see SCHEMA.md').toEqual([]);
+    });
+
     it('scans a meaningful number of files (the guard itself is not silently empty)', () => {
         const n = ROOTS.reduce((sum, r) => sum + walk(join(REPO, r)).length, 0);
         expect(n).toBeGreaterThan(200);

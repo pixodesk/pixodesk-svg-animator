@@ -109,31 +109,29 @@ export type _PxKeyframeValue =
     | number
     | Array<number>
     | PxTransformParts
-    | { path: string }
-    | { paths: Array<PxBezierPath> }
+    | { pathData: string }
     | Array<_PxGradientStop>;
 
-// `string | number | Array<number> | PxTransformParts | { path: string } | { paths: BezierPath[] }`
+// `string | number | Array<number> | PxTransformParts | { pathData: string }`
 //
-// `{ path: "M…" }` is the unified single-`d`-string form for animated paths
-// (compound shapes are one string with multiple `M…` sub-paths); `{ paths: […] }`
-// is the legacy bezier-array form, both accepted.
+// `{ pathData: "M…" }` is the ONE form for animated path geometry: a single `d` string
+// (a compound shape is one string with several `M…` sub-paths). The Lottie-style
+// `{ paths: [{v,i,o,c}] }` array was retired 2026-09-11 — it lives on only as the
+// interpolator's INTERNAL shape (`normalizePathValue` in `PxDefinitions.ts`).
 //
-// `PxTransformPartsSchema` / `PxBezierPathSchema` are declared later in this
-// file — `px.lazy` defers the lookup until validation time so the declarations
-// stay in narrative order without a TDZ at module load.
+// `PxTransformPartsSchema` is declared later in this file — `px.lazy` defers the lookup
+// until validation time so the declarations stay in narrative order without a TDZ at load.
 export const PxKeyframeValueSchema = implementsInterface<_PxKeyframeValue>()(px.union([
     px.string(), // e.g. for colors
     px.number(),
     px.array(px.number()),
-    // ORDER LAW: the key-discriminated object shapes (`{path}`, `{paths}`) come BEFORE the
+    // ORDER LAW: the key-discriminated object shape (`{pathData}`) comes BEFORE the
     // all-optional transform-parts record. In default (non-strict) mode that record accepts
     // ANY object (every key optional, unknown keys ignored), so listing it earlier made
-    // Union.sanitize route `{path}`/`{paths}` values into it and strip them to `{}` —
+    // Union.sanitize route `{pathData}` values into it and strip them to `{}` —
     // silent morph-data loss (repro: the editor's keyframeValueSanitize spec). Validity is
     // order-independent (`some()`); only sanitize routing depends on this order.
-    px.object({ path: px.string() }),
-    px.lazy<{ paths: Array<PxBezierPath> }>(() => px.object({ paths: px.array(PxBezierPathSchema) }), { paths: [] }),
+    px.object({ pathData: px.string() }),
     // Gradient `stops` timeline — each kf value is the full stops-array snapshot.
     px.lazy<Array<_PxGradientStop>>(() => px.array(PxGradientStopSchema), []),
     px.lazy<PxTransformParts>(() => PxTransformPartsSchema, {}),
@@ -583,13 +581,15 @@ const _ck_PxTrigger: KeysMatch<PxTrigger, _PxTrigger> = true; // the key sets ar
 export interface _PxGlyph {
     /** Advance width, in the font's `unitsPerEm`. */
     width: number;
-    /** Outline path `d`, in the font's `unitsPerEm` (empty for whitespace). */
-    d: string;
+    /** Outline path data, in the font's `unitsPerEm` (empty for whitespace). Named
+     *  `pathData`, never `d`: `d` is SVG's name for the node ATTRIBUTE only, and every
+     *  structure of ours spells the concept out (review §2.4). */
+    pathData: string;
 }
 
 export const PxGlyphSchema = implementsInterface<_PxGlyph>()(px.object({
     width: px.number(),
-    d: px.string(),
+    pathData: px.string(),
 }));
 
 export type PxGlyph = PxInfer<typeof PxGlyphSchema>;
@@ -606,7 +606,7 @@ export interface _PxGlyphFont {
     fontStyle: string;
     /** Ascent, in `unitsPerEm` units (baseline placement). */
     ascent: number;
-    /** Units per em the glyph `width`/`d` are expressed in, e.g. 1000. */
+    /** Units per em the glyph `width`/`pathData` are expressed in, e.g. 1000. */
     unitsPerEm: number;
     /** Outlines of the used characters, keyed by the character itself. */
     glyphs: { [char: string]: PxGlyph; };
@@ -1407,10 +1407,11 @@ const _ck_PxMaskedByEffect: KeysMatch<PxMaskedByEffect, _PxMaskedByEffect> = tru
 
 
 /**
- * Clip-path effect — clips the host element to a vector path. `d` is a standard
- * animatable slot (same grammar as body `d`): static = plain SVG path-data string
- * (one or more subpaths); animated = `{keyframes}` whose values are `{path:"M…"}`.
- * At apply time an animated `d` lands on the generated `<path>`'s `animate.d`, so the
+ * Clip-path effect — clips the host element to a vector path. `pathData` is a standard
+ * animatable slot (same grammar as the body `d` ATTRIBUTE, which keeps SVG's own name):
+ * static = plain SVG path-data string (one or more subpaths); animated = `{keyframes}`
+ * whose values are `{pathData:"M…"}`.
+ * At apply time an animated slot lands on the generated `<path>`'s `animate.d`, so the
  * player's frame loop rewrites the clip path's `d` attribute per frame. `clip-path`
  * is a live reference, so the browser re-clips each frame (unlike `<marker>` —
  * verified across SMIL/CSS/JS/WAAPI).
@@ -1420,10 +1421,10 @@ const _ck_PxMaskedByEffect: KeysMatch<PxMaskedByEffect, _PxMaskedByEffect> = tru
  * gradient). See `effects/clipPathEffect.ts`.
  */
 export interface _PxClipPathEffect {
-    d?: PxAnimatable<string>;
+    pathData?: PxAnimatable<string>;
 }
 export const PxClipPathEffectSchema = implementsInterface<_PxClipPathEffect>()(px.object({
-    d: PxAnimatableStringSchema.optional(),
+    pathData: PxAnimatableStringSchema.optional(),
 }));
 export type PxClipPathEffect = PxInfer<typeof PxClipPathEffectSchema>;
 const _ck_PxClipPathEffect: KeysMatch<PxClipPathEffect, _PxClipPathEffect> = true;

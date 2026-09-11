@@ -220,8 +220,8 @@ describe('animateBackground', () => {
                     {
                         type: 'path', id: '_px_d_obj', d: 'M0,0L10,0L10,10',
                         animate: { d: { keyframes: [
-                            { time: 0, value: { path: 'M0,0L10,0L10,10' } }, // unified { path } form
-                            { time: 100, value: { path: 'M0,0L20,0L20,20' } },
+                            { time: 0, value: { pathData: 'M0,0L10,0L10,10' } }, // unified { path } form
+                            { time: 100, value: { pathData: 'M0,0L20,0L20,20' } },
                         ] } },
                     },
                 ],

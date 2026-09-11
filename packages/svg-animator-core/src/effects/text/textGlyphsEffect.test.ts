@@ -20,9 +20,9 @@ const glyphs = {
     F: {
         fontFamily: 'F', fontStyle: '', ascent: 800, unitsPerEm: 1000,
         glyphs: {
-            H: { width: 700, d: 'M0 0L100 0L100 -700Z' },
-            i: { width: 300, d: 'M0 0L50 0L50 -500Z' },
-            ' ': { width: 250, d: '' },
+            H: { width: 700, pathData: 'M0 0L100 0L100 -700Z' },
+            i: { width: 300, pathData: 'M0 0L50 0L50 -500Z' },
+            ' ': { width: 250, pathData: '' },
         },
     },
 };

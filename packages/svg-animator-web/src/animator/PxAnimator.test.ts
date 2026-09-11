@@ -104,7 +104,12 @@ describe('createAnimator', () => {
     });
 
     it('URL path: queues control calls made before the fetch resolves and replays them', async () => {
-        const fetchMock = stubFetch(makeDoc());
+        // Explicitly programmatic: since review §2.1 a document with no trigger autostarts on
+        // load, which would fire `onPlay` a second time and hide this test's subject — that a
+        // control call made before the fetch resolves is queued and replayed exactly once.
+        const doc = makeDoc();
+        doc.animator = { timeline: { engine: 'js', duration: DUR, trigger: { startOn: 'programmatic' } } };
+        const fetchMock = stubFetch(doc);
         const onPlay = vi.fn();
 
         const api = createAnimator({ src: 'anim.json', callbacks: { onPlay }, container: '#svg-container' });
