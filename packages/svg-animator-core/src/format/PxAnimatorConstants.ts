@@ -54,6 +54,18 @@ export const PX_TIMELINE_SHARED_KEYS = ['duration', 'iterations', 'engine', 'fra
 export const PX_TIME_ONLY_TIMELINE_KEYS = ['trigger', 'delay', 'fillMode', 'direction'] as const;
 
 /**
+ * The flat RUNTIME-VIEW keys — `duration`, `trigger`, `scroll`, … at the animator ROOT.
+ *
+ * They are the internal view the engines consume, never a wire spelling: on the wire playback
+ * lives inside `timeline`. `getAnimatorConfig` drops them from a document, so a stray one is an
+ * unknown key the diagnostic reports rather than a second spelling that quietly plays.
+ */
+export const PX_FLAT_RUNTIME_VIEW_KEYS: ReadonlyArray<string> = [
+    ...PX_TIMELINE_SHARED_KEYS, ...PX_TIME_ONLY_TIMELINE_KEYS,
+    'fill', 'resetOnFinish', 'timelineSource', 'scroll',
+];
+
+/**
  * THE ENGINES — the two things that can actually update an animated attribute: hand it to the
  * platform's animation API (`native`), or write it from the player's own frame loop (`js`).
  *
@@ -373,10 +385,29 @@ export function isPxElementFileFormat(fileJson: any): fileJson is PxAnimatedSvgD
  */
 export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorConfig | undefined {
     const cfg = doc?.animator || doc?.meta?.animator;
+    if (!cfg) return undefined;
+    const memoised = wireViewMemo.get(cfg as object);
+    if (memoised) return memoised;
+
+    // A document states playback ONLY inside `timeline`. A flat key at the animator root is not a
+    // second spelling to honour — it is an unknown key (`validateDocument` and the entry diagnostic
+    // both report it), so it is dropped here and never reaches an engine.
+    const wire = cfg as Record<string, unknown>;
+    const stray = PX_FLAT_RUNTIME_VIEW_KEYS.filter(k => wire[k] !== undefined);
+    const source = stray.length ? { ...wire } : cfg;
+    for (const k of stray) delete (source as Record<string, unknown>)[k];
+
     // Every internal consumer sees the FLAT view — the nested `timeline` spelling is
     // folded down here, once, so the engines/effects/drivers never branch on it.
-    return cfg ? flattenAnimatorTimeline(cfg) : undefined;
+    const view = flattenAnimatorTimeline(source as PxAnimatorConfig);
+    // Memoised on the DOCUMENT's config: repeated calls must return the same object (callers
+    // compare identity and cache off it), and `source` is a fresh object when keys were dropped.
+    wireViewMemo.set(cfg as object, view);
+    return view;
 }
+
+/** Memo for {@link getAnimatorConfig} — see the identity note inside it. */
+const wireViewMemo = new WeakMap<object, PxAnimatorConfig>();
 
 
 // ============================================================================

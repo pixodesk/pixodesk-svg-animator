@@ -81,6 +81,30 @@ describe('animator.timeline spelling compat', () => {
         expect(cfg.delay).toBe(42);
     });
 
+    it('getAnimatorConfig DROPS flat playback keys found on a document — the wire states playback only inside `timeline`', () => {
+        const cfg = getAnimatorConfig({
+            type: 'svg',
+            animator: { duration: 1000, trigger: { startOn: 'load' }, fill: 'both', resetOnFinish: true },
+        } as any) as any;
+
+        expect(cfg.duration).toBeUndefined();
+        expect(cfg.trigger).toBeUndefined();
+        expect(cfg.fill).toBeUndefined();
+        expect(cfg.resetOnFinish).toBeUndefined();
+    });
+
+    it('a stray flat key never shadows the timeline, and the lookup tables still come through', () => {
+        const doc = {
+            type: 'svg',
+            animator: { duration: 9, timeline: { duration: 500 }, definitions: { easings: {} } },
+        } as any;
+        const cfg = getAnimatorConfig(doc) as any;
+
+        expect(cfg.duration).toBe(500);                  // the timeline wins — the stray key is gone
+        expect(cfg.definitions).toEqual({ easings: {} }); // content keys are untouched
+        expect(getAnimatorConfig(doc)).toBe(cfg);        // identity memo holds even when keys were dropped
+    });
+
     // ── nest: flat → the written spelling; engine-dead keys structurally gone ──
 
     it('nests flat time keys under a type-less timeline (absent type = time), fill → fillMode, resetOnFinish → trigger.finishAction', () => {

@@ -19,48 +19,29 @@
  *   - nodes are `px.openObject`, so an unknown attribute on a node is indistinguishable from a
  *     legitimate SVG attribute. The diagnostic therefore keys off the strict parts.
  */
-import { PX_TIME_ONLY_TIMELINE_KEYS, PX_TIMELINE_SHARED_KEYS } from './PxAnimatorConstants';
 import { validateDocument } from './PxAnimatorTypes';
 
 /** How many problems to print before summarising the rest. A wall of text gets scrolled past. */
 const MAX_REPORTED = 6;
 
 /**
- * The pre-2026-09 FLAT animator spelling. Still accepted on purpose (old files keep playing), so
- * seeing it is not a defect and must not be reported as one — it would cry wolf on every legacy
- * document and train people to ignore the channel.
- */
-const LEGACY_FLAT_KEYS: ReadonlyArray<string> = [
-    ...PX_TIMELINE_SHARED_KEYS, ...PX_TIME_ONLY_TIMELINE_KEYS,
-    'fill', 'resetOnFinish', 'timelineSource', 'scroll',
-];
-
-const isLegacyFlatAnimatorKey = (w: string): boolean =>
-    LEGACY_FLAT_KEYS.some(k => w.indexOf('animator.' + k + ':') >= 0);
-
-/**
- * Splits the raw findings into the two things a reader has to tell apart: a document written in
- * the old-but-supported spelling, and one whose keys we simply do not recognise.
+ * A document's schema findings. The pre-2026-09 FLAT animator spelling is NOT a category of its
+ * own: those keys are no longer read (`getAnimatorConfig` drops them), so a document still
+ * carrying them is reported like any other unrecognised key — silence would hide a file that
+ * plays with its playback settings ignored.
  */
 export interface PxDocumentDiagnosis {
     /** Findings worth showing — unrecognised keys and shape violations. */
     problems: Array<string>;
-    /** Findings that are just the legacy flat spelling, which still plays correctly. */
-    legacy: Array<string>;
 }
 
-/** Pure: classify a document's schema findings. Never throws. */
+/** Pure: collect a document's schema findings. Never throws. */
 export function diagnoseDocument(doc: unknown): PxDocumentDiagnosis {
-    let all: Array<string>;
     try {
-        all = validateDocument(doc);
+        return { problems: validateDocument(doc) };
     } catch {
-        return { problems: [], legacy: [] };   // a diagnostic must never be the thing that breaks
+        return { problems: [] };   // a diagnostic must never be the thing that breaks
     }
-    const problems: Array<string> = [];
-    const legacy: Array<string> = [];
-    for (const w of all) (isLegacyFlatAnimatorKey(w) ? legacy : problems).push(w);
-    return { problems, legacy };
 }
 
 /**

@@ -6,11 +6,10 @@
 /**
  * THE FIXTURES MUST USE THE WIRE FORMAT.
  *
- * `flattenAnimatorTimeline` accepts the flat runtime spelling as well as the nested wire one —
- * deliberately, so files written before 2026-09 keep playing. The cost of that tolerance is that
- * a test fixture written the old way passes without ever exercising the real format, which is
- * exactly how the per-instance-override bug survived: every override test used a flat document,
- * so nobody noticed that overrides were discarded on a modern one.
+ * The flat spelling is the internal runtime view, not a wire format: `getAnimatorConfig` drops a
+ * flat key found at the animator root. A fixture written the old way therefore exercises nothing
+ * real — which is exactly how the per-instance-override bug survived: every override test used a
+ * flat document, so nobody noticed that overrides were discarded on a modern one.
  *
  * This scans our own sources for `animator: { … }` literals whose TOP level carries a playback
  * key. On the wire those live inside `timeline`; at the animator root they are the runtime view,

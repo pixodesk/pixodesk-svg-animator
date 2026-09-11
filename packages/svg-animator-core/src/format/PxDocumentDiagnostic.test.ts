@@ -6,9 +6,9 @@
 /**
  * The entry diagnostic has exactly one job: make a SILENT failure audible.
  *
- * The two ways it can fail are symmetrical, and both are tested here — staying quiet when a
- * consumer's build mangled the keys (the bug it exists for), and crying wolf on a legacy-but-
- * supported document (which would train people to ignore the channel).
+ * The way it fails is staying quiet when a consumer's build mangled the keys — the bug it exists
+ * for. The pre-2026-09 flat spelling is no longer a special case: those keys are not read, so a
+ * document still carrying them is reported like any other unrecognised key.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { diagnoseDocument, reportDocumentDiagnostics } from './PxDocumentDiagnostic';
@@ -27,8 +27,8 @@ const mangled = {
     children: [{ type: 'rect', id: 'r' }],
 };
 
-/** The pre-2026-09 flat spelling — still accepted, still plays, must NOT be reported. */
-const legacyFlat = {
+/** The pre-2026-09 flat spelling — no longer read, so it MUST be reported. */
+const flatSpelling = {
     type: 'svg',
     animator: { duration: 1000, trigger: { startOn: 'load' }, fill: 'both', resetOnFinish: true },
     children: [{ type: 'rect', id: 'r' }],
@@ -37,19 +37,17 @@ const legacyFlat = {
 describe('diagnoseDocument', () => {
 
     it('says nothing about a document in the current wire spelling', () => {
-        expect(diagnoseDocument(sound)).toEqual({ problems: [], legacy: [] });
+        expect(diagnoseDocument(sound)).toEqual({ problems: [] });
     });
 
     it('reports mangled keys as PROBLEMS', () => {
-        const { problems, legacy } = diagnoseDocument(mangled);
-        expect(problems.length).toBeGreaterThan(0);
-        expect(legacy).toEqual([]);
+        expect(diagnoseDocument(mangled).problems.length).toBeGreaterThan(0);
     });
 
-    it('classifies the legacy flat spelling as legacy, NOT a problem', () => {
-        const { problems, legacy } = diagnoseDocument(legacyFlat);
-        expect(problems).toEqual([]);              // it plays correctly — crying wolf here is the bug
-        expect(legacy.length).toBeGreaterThan(0);
+    it('reports the flat spelling — those keys are dropped on read, so the file plays without them', () => {
+        const { problems } = diagnoseDocument(flatSpelling);
+        expect(problems.length).toBeGreaterThan(0);
+        expect(problems.join(' ')).toContain('animator.duration');
     });
 
     it('never throws, whatever it is handed', () => {
@@ -69,9 +67,9 @@ describe('reportDocumentDiagnostics', () => {
         return out;
     };
 
-    it('is SILENT on a sound document and on a legacy flat one', () => {
+    it('is SILENT on a sound document, and speaks up on the flat spelling', () => {
         expect(captured(sound)).toBe('');
-        expect(captured(legacyFlat)).toBe('');
+        expect(captured(flatSpelling)).toContain('animator.duration');
     });
 
     it('names property mangling and points at the reserved list — a bare "extra key" helps nobody', () => {
