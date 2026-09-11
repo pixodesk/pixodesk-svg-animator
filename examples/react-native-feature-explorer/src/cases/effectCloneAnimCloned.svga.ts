@@ -198,7 +198,7 @@ export const effectCloneAnimCloned: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Courier",
                     "fontSize": "13px",
-                    "text": "Apple",
+                    "textContent": "Apple",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -209,7 +209,7 @@ export const effectCloneAnimCloned: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Courier",
                             "fontSize": "13px",
-                            "text": "Apple",
+                            "textContent": "Apple",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"

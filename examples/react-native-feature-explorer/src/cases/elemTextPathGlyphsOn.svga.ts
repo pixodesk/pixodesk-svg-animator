@@ -130,7 +130,7 @@ export const elemTextPathGlyphsOn: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "13px",
-                    "text": "Glyphs on text extend",
+                    "textContent": "Glyphs on text extend",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -141,7 +141,7 @@ export const elemTextPathGlyphsOn: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "13px",
-                            "text": "Glyphs on text extend",
+                            "textContent": "Glyphs on text extend",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -196,7 +196,7 @@ export const elemTextPathGlyphsOn: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "13px",
-                    "text": "Glyphs on text clip",
+                    "textContent": "Glyphs on text clip",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -207,7 +207,7 @@ export const elemTextPathGlyphsOn: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "13px",
-                            "text": "Glyphs on text clip",
+                            "textContent": "Glyphs on text clip",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -249,7 +249,7 @@ export const elemTextPathGlyphsOn: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "13px",
-                    "text": "Glyphs on text",
+                    "textContent": "Glyphs on text",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -260,7 +260,7 @@ export const elemTextPathGlyphsOn: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "13px",
-                            "text": "Glyphs on text",
+                            "textContent": "Glyphs on text",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -322,7 +322,7 @@ export const elemTextPathGlyphsOn: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "13px",
-                    "text": "Glyphs on text clip",
+                    "textContent": "Glyphs on text clip",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -333,7 +333,7 @@ export const elemTextPathGlyphsOn: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "13px",
-                            "text": "Glyphs on text clip",
+                            "textContent": "Glyphs on text clip",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -388,7 +388,7 @@ export const elemTextPathGlyphsOn: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "13px",
-                    "text": "Glyphs on text extend",
+                    "textContent": "Glyphs on text extend",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -399,7 +399,7 @@ export const elemTextPathGlyphsOn: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "13px",
-                            "text": "Glyphs on text extend",
+                            "textContent": "Glyphs on text extend",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"

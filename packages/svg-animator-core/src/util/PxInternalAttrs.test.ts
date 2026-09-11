@@ -14,9 +14,13 @@ import { getNormalizedProps } from './PxNodeProps';
 describe('INTERNAL_ATTRS — structural keys never become DOM attributes (J4)', () => {
 
     it('lists every key that carries structure rather than presentation', () => {
-        for (const key of ['type', 'children', 'animator', 'meta', 'animate', 'effects', 'text', 'textContent']) {
+        for (const key of ['type', 'children', 'animator', 'meta', 'animate', 'effects', 'textContent']) {
             expect(INTERNAL_ATTRS.has(key), key).toBe(true);
         }
+    });
+
+    it('`text` is not reserved — `textContent` is the one text-content key, with no alias', () => {
+        expect(INTERNAL_ATTRS.has('text')).toBe(false);
     });
 
     it('strips them from rendered props, and keeps real SVG attributes', () => {

@@ -106,7 +106,7 @@ export const elemMaskTextLongPathGlyphsOff: SvgaCaseJson = {
                                     "fill": "#007fff",
                                     "fontFamily": "Roboto-Regular",
                                     "fontSize": "32px",
-                                    "text": "Mask",
+                                    "textContent": "Mask",
                                     "xml:space": "preserve",
                                     "style": {
                                         "white-space": "pre"
@@ -117,7 +117,7 @@ export const elemMaskTextLongPathGlyphsOff: SvgaCaseJson = {
                                             "fill": "#007fff",
                                             "fontFamily": "Roboto-Regular",
                                             "fontSize": "32px",
-                                            "text": "Mask",
+                                            "textContent": "Mask",
                                             "xml:space": "preserve",
                                             "style": {
                                                 "white-space": "pre"
@@ -179,7 +179,7 @@ export const elemMaskTextLongPathGlyphsOff: SvgaCaseJson = {
                                     "fill": "#007fff",
                                     "fontFamily": "Roboto-Regular",
                                     "fontSize": "32px",
-                                    "text": "Mask",
+                                    "textContent": "Mask",
                                     "xml:space": "preserve",
                                     "style": {
                                         "white-space": "pre"
@@ -190,7 +190,7 @@ export const elemMaskTextLongPathGlyphsOff: SvgaCaseJson = {
                                             "fill": "#007fff",
                                             "fontFamily": "Roboto-Regular",
                                             "fontSize": "32px",
-                                            "text": "Mask",
+                                            "textContent": "Mask",
                                             "xml:space": "preserve",
                                             "style": {
                                                 "white-space": "pre"
@@ -250,7 +250,7 @@ export const elemMaskTextLongPathGlyphsOff: SvgaCaseJson = {
                     "fill": "#007fff",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "32px",
-                    "text": "Masked",
+                    "textContent": "Masked",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -261,7 +261,7 @@ export const elemMaskTextLongPathGlyphsOff: SvgaCaseJson = {
                             "fill": "#007fff",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "32px",
-                            "text": "Masked",
+                            "textContent": "Masked",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -354,7 +354,7 @@ export const elemMaskTextLongPathGlyphsOff: SvgaCaseJson = {
                     "fill": "#007fff",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "32px",
-                    "text": "Masked",
+                    "textContent": "Masked",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -365,7 +365,7 @@ export const elemMaskTextLongPathGlyphsOff: SvgaCaseJson = {
                             "fill": "#007fff",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "32px",
-                            "text": "Masked",
+                            "textContent": "Masked",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"

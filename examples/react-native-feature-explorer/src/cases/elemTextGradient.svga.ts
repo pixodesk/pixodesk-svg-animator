@@ -90,7 +90,7 @@ export const elemTextGradient: SvgaCaseJson = {
                     "fontFamily": "Courier",
                     "fontSize": "32px",
                     "fontWeight": "900",
-                    "text": "Browser",
+                    "textContent": "Browser",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -126,7 +126,7 @@ export const elemTextGradient: SvgaCaseJson = {
                             "fontFamily": "Courier",
                             "fontSize": "32px",
                             "fontWeight": "900",
-                            "text": "Browser",
+                            "textContent": "Browser",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -181,7 +181,7 @@ export const elemTextGradient: SvgaCaseJson = {
                     "type": "tspan",
                     "fontFamily": "Roboto-Black",
                     "fontSize": "32px",
-                    "text": "Glyphs off",
+                    "textContent": "Glyphs off",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -216,7 +216,7 @@ export const elemTextGradient: SvgaCaseJson = {
                             "type": "tspan",
                             "fontFamily": "Roboto-Black",
                             "fontSize": "32px",
-                            "text": "Glyphs off",
+                            "textContent": "Glyphs off",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -269,7 +269,7 @@ export const elemTextGradient: SvgaCaseJson = {
                     "type": "tspan",
                     "fontFamily": "Roboto-Black",
                     "fontSize": "32px",
-                    "text": "Glyphs on",
+                    "textContent": "Glyphs on",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -304,7 +304,7 @@ export const elemTextGradient: SvgaCaseJson = {
                             "type": "tspan",
                             "fontFamily": "Roboto-Black",
                             "fontSize": "32px",
-                            "text": "Glyphs on",
+                            "textContent": "Glyphs on",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getDefs, getNormalizedProps, resolveStyle, sanitiseAttributeValue, camelCaseToKebabWordIfNeeded, CSS_ONLY_STYLE_PROPS, DISALLOWED_SVG_TAGS_LOWER, TEXT_ATTR, TEXT_CONTENT_ATTR, type PxAnimatedSvgDocument, type PxDefs, type PxNode } from '@pixodesk/svg-animator-core';
+import { getDefs, getNormalizedProps, resolveStyle, sanitiseAttributeValue, camelCaseToKebabWordIfNeeded, CSS_ONLY_STYLE_PROPS, DISALLOWED_SVG_TAGS_LOWER, TEXT_CONTENT_ATTR, type PxAnimatedSvgDocument, type PxDefs, type PxNode } from '@pixodesk/svg-animator-core';
 
 // Re-export from the historical home so the package surface is unchanged.
 export { getNormalizedProps };
@@ -49,13 +49,17 @@ function createElement(
         }
     }
 
-    if (children) {
+    // Children first, and a node's own `textContent` ONLY when it has none: a line <tspan> can
+    // carry both, and then the styled child spans are what renders. Assigning `textContent` with
+    // children already appended REPLACES them (DOM semantics), so the spans were added and
+    // immediately dropped — every other player keeps the children.
+    if (children?.length) {
         for (const child of children) {
             element.appendChild(child);
         }
+    } else if (textContent) {
+        element.textContent = textContent;
     }
-
-    if (textContent) element.textContent = textContent;
 
     return element;
 }
@@ -103,7 +107,7 @@ export function renderNode(node: PxNode, defs?: PxDefs): Element | null {
         getNormalizedProps(props),
         resolvedStyle,
         childElements,
-        props[TEXT_CONTENT_ATTR] || props[TEXT_ATTR]
+        props[TEXT_CONTENT_ATTR]
     );
 
     // `type` is an INTERNAL_ATTR (reserved for the node tag), so the value relayed

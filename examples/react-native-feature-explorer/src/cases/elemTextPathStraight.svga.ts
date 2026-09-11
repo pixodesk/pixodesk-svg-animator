@@ -98,7 +98,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Courier",
                     "fontSize": "15px",
-                    "text": "browser",
+                    "textContent": "browser",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -109,7 +109,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Courier",
                             "fontSize": "15px",
-                            "text": "browser",
+                            "textContent": "browser",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -148,7 +148,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Courier",
                     "fontSize": "15px",
-                    "text": "browser",
+                    "textContent": "browser",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -159,7 +159,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Courier",
                             "fontSize": "15px",
-                            "text": "browser",
+                            "textContent": "browser",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -206,7 +206,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "15px",
-                    "text": "glyphs off",
+                    "textContent": "glyphs off",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -217,7 +217,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "15px",
-                            "text": "glyphs off",
+                            "textContent": "glyphs off",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -256,7 +256,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "15px",
-                    "text": "glyphs off",
+                    "textContent": "glyphs off",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -267,7 +267,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "15px",
-                            "text": "glyphs off",
+                            "textContent": "glyphs off",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -310,7 +310,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "15px",
-                    "text": "glyphs of",
+                    "textContent": "glyphs of",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -321,7 +321,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "15px",
-                            "text": "glyphs of",
+                            "textContent": "glyphs of",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -356,7 +356,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "15px",
-                    "text": "glyphs of",
+                    "textContent": "glyphs of",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -367,7 +367,7 @@ export const elemTextPathStraight: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "15px",
-                            "text": "glyphs of",
+                            "textContent": "glyphs of",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"

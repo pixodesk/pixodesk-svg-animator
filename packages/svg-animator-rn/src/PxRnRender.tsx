@@ -8,7 +8,6 @@ import {
     resolveStyle,
     sanitiseAttributeValue,
     DISALLOWED_SVG_TAGS_LOWER,
-    TEXT_ATTR,
     TEXT_CONTENT_ATTR,
     type PxDefs,
     type PxNode,
@@ -107,8 +106,8 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
         }
     }
 
-    // Text content: wire nodes carry it as `text` / `textContent` attr.
-    const textContent: string | undefined = props[TEXT_ATTR] || props[TEXT_CONTENT_ATTR];
+    // Text content: wire nodes carry it in `textContent` — the one key.
+    const textContent: string | undefined = props[TEXT_CONTENT_ATTR];
 
     let childElements: ReactNode = undefined;
     if (Array.isArray(children) && children.length > 0) {

@@ -90,7 +90,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                     "fill": "#334d99",
                     "fontFamily": "Courier",
                     "fontSize": "14px",
-                    "text": "browser",
+                    "textContent": "browser",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -101,7 +101,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                             "fill": "#334d99",
                             "fontFamily": "Courier",
                             "fontSize": "14px",
-                            "text": "browser",
+                            "textContent": "browser",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -132,7 +132,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                     "fill": "#334d99",
                     "fontFamily": "Courier",
                     "fontSize": "14px",
-                    "text": "browser",
+                    "textContent": "browser",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -143,7 +143,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                             "fill": "#334d99",
                             "fontFamily": "Courier",
                             "fontSize": "14px",
-                            "text": "browser",
+                            "textContent": "browser",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -173,7 +173,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                     "fill": "#334d99",
                     "fontFamily": "Courier",
                     "fontSize": "14px",
-                    "text": "browser",
+                    "textContent": "browser",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -184,7 +184,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                             "fill": "#334d99",
                             "fontFamily": "Courier",
                             "fontSize": "14px",
-                            "text": "browser",
+                            "textContent": "browser",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -215,7 +215,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                     "fill": "#334d99",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "14px",
-                    "text": "glyphs off",
+                    "textContent": "glyphs off",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -226,7 +226,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                             "fill": "#334d99",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "14px",
-                            "text": "glyphs off",
+                            "textContent": "glyphs off",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -257,7 +257,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                     "fill": "#334d99",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "14px",
-                    "text": "glyphs off",
+                    "textContent": "glyphs off",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -268,7 +268,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                             "fill": "#334d99",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "14px",
-                            "text": "glyphs off",
+                            "textContent": "glyphs off",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -298,7 +298,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                     "fill": "#334d99",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "14px",
-                    "text": "glyphs off",
+                    "textContent": "glyphs off",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -309,7 +309,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                             "fill": "#334d99",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "14px",
-                            "text": "glyphs off",
+                            "textContent": "glyphs off",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -338,7 +338,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                     "fill": "#334d99",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "14px",
-                    "text": "glyphs on",
+                    "textContent": "glyphs on",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -349,7 +349,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                             "fill": "#334d99",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "14px",
-                            "text": "glyphs on",
+                            "textContent": "glyphs on",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -378,7 +378,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                     "fill": "#334d99",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "14px",
-                    "text": "glyphs on",
+                    "textContent": "glyphs on",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -389,7 +389,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                             "fill": "#334d99",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "14px",
-                            "text": "glyphs on",
+                            "textContent": "glyphs on",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -417,7 +417,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                     "fill": "#334d99",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "14px",
-                    "text": "glyphs on",
+                    "textContent": "glyphs on",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -428,7 +428,7 @@ export const elemTextAnchor: SvgaCaseJson = {
                             "fill": "#334d99",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "14px",
-                            "text": "glyphs on",
+                            "textContent": "glyphs on",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"

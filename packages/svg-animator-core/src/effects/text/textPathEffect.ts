@@ -37,7 +37,7 @@ function estimateTextAdvance(node: PxNode): number {
     const walk = (el: PxNode): void => {
         const fs = parseFloat(String((el as any).fontSize ?? '')) || 0;
         if (fs) maxFont = Math.max(maxFont, fs);
-        const t = (el as any).text ?? (el as any).textContent;
+        const t = el.textContent;
         if (typeof t === 'string') chars += t.length;
         if (el.children) for (const c of el.children) walk(c);
     };

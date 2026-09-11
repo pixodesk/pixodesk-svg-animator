@@ -146,7 +146,7 @@ describe('textGlyphsEffect — along-path', () => {
             children: [
                 {
                     type: 'text', id: 't',
-                    children: [{ type: 'tspan', text, fontFamily: 'F', fontSize: '100px' }],
+                    children: [{ type: 'tspan', textContent: text, fontFamily: 'F', fontSize: '100px' }],
                     effects: { text: { useGlyphs: true }, textPath },
                 },
             ],
@@ -252,7 +252,7 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
             children: [
                 {
                     type: 'text', id: 't',
-                    children: [{ type: 'tspan', text, fontFamily: 'F', fontSize: '100px' }],
+                    children: [{ type: 'tspan', textContent: text, fontFamily: 'F', fontSize: '100px' }],
                     effects: { text: { useGlyphs: true }, textPath: { pathData: pathD, startOffset } },
                 },
             ],

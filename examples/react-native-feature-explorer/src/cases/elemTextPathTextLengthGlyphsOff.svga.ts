@@ -134,7 +134,7 @@ export const elemTextPathTextLengthGlyphsOff: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "13px",
-                    "text": "Glyphs off text extend",
+                    "textContent": "Glyphs off text extend",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -145,7 +145,7 @@ export const elemTextPathTextLengthGlyphsOff: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "13px",
-                            "text": "Glyphs off text extend",
+                            "textContent": "Glyphs off text extend",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -204,7 +204,7 @@ export const elemTextPathTextLengthGlyphsOff: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "13px",
-                    "text": "Glyphs off text clip",
+                    "textContent": "Glyphs off text clip",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -215,7 +215,7 @@ export const elemTextPathTextLengthGlyphsOff: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "13px",
-                            "text": "Glyphs off text clip",
+                            "textContent": "Glyphs off text clip",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -262,7 +262,7 @@ export const elemTextPathTextLengthGlyphsOff: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "13px",
-                    "text": "Glyphs off text",
+                    "textContent": "Glyphs off text",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -273,7 +273,7 @@ export const elemTextPathTextLengthGlyphsOff: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "13px",
-                            "text": "Glyphs off text",
+                            "textContent": "Glyphs off text",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -339,7 +339,7 @@ export const elemTextPathTextLengthGlyphsOff: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "13px",
-                    "text": "Glyphs off text clip",
+                    "textContent": "Glyphs off text clip",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -350,7 +350,7 @@ export const elemTextPathTextLengthGlyphsOff: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "13px",
-                            "text": "Glyphs off text clip",
+                            "textContent": "Glyphs off text clip",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"

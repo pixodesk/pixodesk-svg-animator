@@ -131,6 +131,28 @@ describe('wire spelling — our own fixtures use `animator.timeline`', () => {
         expect(offenders, 'move these keys inside `animator.timeline` — see SCHEMA.md').toEqual([]);
     });
 
+    it('text content travels only as `textContent` — no node carries a `text` key', () => {
+        // `text` was a read alias until 2026-09-11 and no player reads it now: a fixture that
+        // still spells it renders an EMPTY <text> and passes everything else.
+        const TEXT_EXEMPT: Record<string, string> = {
+            'packages/svg-animator-web/src/dom/PxAnimatorDOM.test.ts':
+                'asserts that `text` is NOT read — the old spelling is the subject',
+        };
+        const offenders: Array<string> = [];
+        for (const root of ROOTS) {
+            for (const file of walk(join(REPO, root))) {
+                const rel = relative(REPO, file).split('\\').join('/');
+                if (TEXT_EXEMPT[rel]) continue;
+                const src = readFileSync(file, 'utf8');
+                const re = /(^|[{,\s])["']?text["']?\s*:\s*["'`]/gm;
+                for (let m = re.exec(src); m; m = re.exec(src)) {
+                    offenders.push(rel + ':' + src.slice(0, m.index + m[1].length).split('\n').length);
+                }
+            }
+        }
+        expect(offenders, 'rename these node keys to `textContent` — see SCHEMA.md').toEqual([]);
+    });
+
     it('scans a meaningful number of files (the guard itself is not silently empty)', () => {
         const n = ROOTS.reduce((sum, r) => sum + walk(join(REPO, r)).length, 0);
         expect(n).toBeGreaterThan(200);

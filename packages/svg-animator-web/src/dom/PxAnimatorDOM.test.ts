@@ -7,6 +7,37 @@ import { describe, expect, it } from 'vitest';
 import { renderNode } from './PxAnimatorDOM';
 import type { PxNode } from '@pixodesk/svg-animator-core';
 
+describe('renderNode — text content', () => {
+    it('renders `textContent` as the element text, never as an attribute', () => {
+        const el = renderNode({ type: 'text', textContent: 'Hello' } as PxNode) as SVGElement;
+        expect(el.textContent).toBe('Hello');
+        expect(el.getAttribute('textContent')).toBeNull();
+    });
+
+    it('`text` is not a text-content key — nothing is rendered from it', () => {
+        const el = renderNode({ type: 'text', text: 'Hello' } as unknown as PxNode) as SVGElement;
+        expect(el.textContent).toBe('');
+    });
+
+    it('a node with child nodes keeps its children and does not also render its own `textContent`', () => {
+        // The shape the editor writes for a one-span line: the line <tspan> carries its folded
+        // text AND the styled child span. The children are what renders (the rule every player
+        // follows); setting the parent's own text would wipe the styled span out.
+        const el = renderNode({
+            type: 'text',
+            children: [{
+                type: 'tspan', textContent: 'Hi',
+                children: [{ type: 'tspan', fill: '#ff0000', textContent: 'Hi' }],
+            }],
+        } as PxNode) as SVGElement;
+
+        const inner = el.querySelector('tspan > tspan');
+        expect(inner).not.toBeNull();
+        expect(inner!.getAttribute('fill')).toBe('#ff0000');
+        expect(el.textContent).toBe('Hi');
+    });
+});
+
 describe('renderNode — feFunc type attribute', () => {
     // The lightweight-JSON `type` key is the node tag, so feFunc's SVG `type`
     // attribute (identity/table/…) travels under `domType` and must be restored

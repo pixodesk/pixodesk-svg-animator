@@ -8,7 +8,7 @@ import { implementsInterface, px } from '../schema/PxSchema';
 // Constants live in their own module so importing one does not pull the schema engine
 // in; re-exported here so this module's public surface is unchanged. See there.
 export * from './PxAnimatorConstants';
-import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PX_TRIGGER_DEFAULTS, PxTimelineEngineExtra, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxGradientUnits, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits, TEXT_ATTR, TEXT_CONTENT_ATTR } from './PxAnimatorConstants';
+import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PX_TRIGGER_DEFAULTS, PxTimelineEngineExtra, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxGradientUnits, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits } from './PxAnimatorConstants';
 import type { FillMode, OutAction, PlaybackDirection, PxTimelineEngine, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
 
 // ============================================================================
@@ -1188,6 +1188,9 @@ export interface _PxNode {
      *  The renderer turns this back into the attribute. */
     domType?: string;
 
+    /** Text content of a `<text>` / `<tspan>` — the one text-content key (the DOM property name). */
+    textContent?: string;
+
     /** Child elements (for container elements like <g>) */
     children?: PxNode[];
 
@@ -1754,6 +1757,9 @@ export const PxNodeBase = px.openObject({
     // documented — because a wire key that is not in a schema is invisible to the
     // minifier's reserve list and gets renamed (MINIFICATION-BOUNDARY-PLAN.md §1.1).
     domType: px.string().optional(),
+    // Text content of a `<text>` / `<tspan>`. Declared, so a non-string value is a schema error
+    // and the minifier reserves the key; `text` is NOT an alias for it and is not read anywhere.
+    textContent: px.string().optional(),
     id: px.string().optional(),
     meta: px.any().optional(),
     // Player-effects bucket emitted by the Editor's lightweight design format.

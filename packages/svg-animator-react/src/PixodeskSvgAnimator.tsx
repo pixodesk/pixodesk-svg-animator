@@ -258,7 +258,13 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
             if (style) normProps[REACT_PROP.style] = style;
         }
 
-        return createElement(type, normProps, children?.map((child, i) => renderNode(child, false, child.id ?? i)));
+        // Text content: a node's own `textContent` renders only when it has no child nodes — a line
+        // <tspan> can carry both, and then its children are the styled spans (the React Native
+        // renderer's rule). `getNormalizedProps` strips `textContent` from the attributes.
+        const content = children?.length
+            ? children.map((child, i) => renderNode(child, false, child.id ?? i))
+            : (typeof node.textContent === 'string' ? node.textContent : undefined);
+        return createElement(type, normProps, content);
     };
 
     const root = doc ? renderNode(doc, true) : null;

@@ -77,7 +77,7 @@ export const elemMaskBbb: SvgaCaseJson = {
                                     "fill": "#3366b3",
                                     "fontFamily": "Courier",
                                     "fontSize": "47px",
-                                    "text": "Apple",
+                                    "textContent": "Apple",
                                     "xml:space": "preserve",
                                     "style": {
                                         "white-space": "pre"
@@ -88,7 +88,7 @@ export const elemMaskBbb: SvgaCaseJson = {
                                             "fill": "#3366b3",
                                             "fontFamily": "Courier",
                                             "fontSize": "47px",
-                                            "text": "Apple",
+                                            "textContent": "Apple",
                                             "xml:space": "preserve",
                                             "style": {
                                                 "white-space": "pre"

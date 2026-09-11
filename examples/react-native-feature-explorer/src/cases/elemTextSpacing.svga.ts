@@ -122,7 +122,7 @@ export const elemTextSpacing: SvgaCaseJson = {
                     "fill": "#3366b3",
                     "fontFamily": "Courier",
                     "fontSize": "14px",
-                    "text": "BROWSER",
+                    "textContent": "BROWSER",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -147,7 +147,7 @@ export const elemTextSpacing: SvgaCaseJson = {
                             "fill": "#3366b3",
                             "fontFamily": "Courier",
                             "fontSize": "14px",
-                            "text": "BROWSER",
+                            "textContent": "BROWSER",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -192,7 +192,7 @@ export const elemTextSpacing: SvgaCaseJson = {
                     "fill": "#3366b3",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "14px",
-                    "text": "GLYPHS OFF",
+                    "textContent": "GLYPHS OFF",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -217,7 +217,7 @@ export const elemTextSpacing: SvgaCaseJson = {
                             "fill": "#3366b3",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "14px",
-                            "text": "GLYPHS OFF",
+                            "textContent": "GLYPHS OFF",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -260,7 +260,7 @@ export const elemTextSpacing: SvgaCaseJson = {
                     "fill": "#3366b3",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "14px",
-                    "text": "GLYPHS ON",
+                    "textContent": "GLYPHS ON",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -285,7 +285,7 @@ export const elemTextSpacing: SvgaCaseJson = {
                             "fill": "#3366b3",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "14px",
-                            "text": "GLYPHS ON",
+                            "textContent": "GLYPHS ON",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -330,7 +330,7 @@ export const elemTextSpacing: SvgaCaseJson = {
                     "fill": "#b34d66",
                     "fontFamily": "Courier",
                     "fontSize": "14px",
-                    "text": "BROWSER words apart",
+                    "textContent": "BROWSER words apart",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -355,7 +355,7 @@ export const elemTextSpacing: SvgaCaseJson = {
                             "fill": "#b34d66",
                             "fontFamily": "Courier",
                             "fontSize": "14px",
-                            "text": "BROWSER words apart",
+                            "textContent": "BROWSER words apart",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -400,7 +400,7 @@ export const elemTextSpacing: SvgaCaseJson = {
                     "fill": "#b34d66",
                     "fontFamily": "Roboto-Regular",
                     "fontSize": "14px",
-                    "text": "GLYPHS OFF words apart",
+                    "textContent": "GLYPHS OFF words apart",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -425,7 +425,7 @@ export const elemTextSpacing: SvgaCaseJson = {
                             "fill": "#b34d66",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "14px",
-                            "text": "GLYPHS OFF words apart",
+                            "textContent": "GLYPHS OFF words apart",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -475,7 +475,7 @@ export const elemTextSpacing: SvgaCaseJson = {
                             "fill": "#b34d66",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "14px",
-                            "text": "GLYPHS ON",
+                            "textContent": "GLYPHS ON",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -486,7 +486,7 @@ export const elemTextSpacing: SvgaCaseJson = {
                             "fill": "#b34d66",
                             "fontFamily": "Roboto-Regular",
                             "fontSize": "14px",
-                            "text": " words apart",
+                            "textContent": " words apart",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"

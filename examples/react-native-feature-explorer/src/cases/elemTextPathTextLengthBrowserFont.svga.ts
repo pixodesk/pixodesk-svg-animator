@@ -118,7 +118,7 @@ export const elemTextPathTextLengthBrowserFont: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Courier",
                     "fontSize": "13px",
-                    "text": "Browser text extend",
+                    "textContent": "Browser text extend",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -129,7 +129,7 @@ export const elemTextPathTextLengthBrowserFont: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Courier",
                             "fontSize": "13px",
-                            "text": "Browser text extend",
+                            "textContent": "Browser text extend",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -188,7 +188,7 @@ export const elemTextPathTextLengthBrowserFont: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Courier",
                     "fontSize": "13px",
-                    "text": "Browser text clip",
+                    "textContent": "Browser text clip",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -199,7 +199,7 @@ export const elemTextPathTextLengthBrowserFont: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Courier",
                             "fontSize": "13px",
-                            "text": "Browser text clip",
+                            "textContent": "Browser text clip",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -246,7 +246,7 @@ export const elemTextPathTextLengthBrowserFont: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Courier",
                     "fontSize": "13px",
-                    "text": "Browser text",
+                    "textContent": "Browser text",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -257,7 +257,7 @@ export const elemTextPathTextLengthBrowserFont: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Courier",
                             "fontSize": "13px",
-                            "text": "Browser text",
+                            "textContent": "Browser text",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -323,7 +323,7 @@ export const elemTextPathTextLengthBrowserFont: SvgaCaseJson = {
                     "fill": "#4d33b3",
                     "fontFamily": "Courier",
                     "fontSize": "13px",
-                    "text": "Browser text clip",
+                    "textContent": "Browser text clip",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -334,7 +334,7 @@ export const elemTextPathTextLengthBrowserFont: SvgaCaseJson = {
                             "fill": "#4d33b3",
                             "fontFamily": "Courier",
                             "fontSize": "13px",
-                            "text": "Browser text clip",
+                            "textContent": "Browser text clip",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"

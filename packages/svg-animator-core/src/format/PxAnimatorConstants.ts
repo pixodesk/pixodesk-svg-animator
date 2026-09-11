@@ -240,12 +240,9 @@ export const PxStrokeTrimSubPaths = {
 export type PxStrokeTrimSubPaths = typeof PxStrokeTrimSubPaths[keyof typeof PxStrokeTrimSubPaths];
 
 
-// S8: `textContent` is the CANONICAL text-content key (DOM property name;
-// `text` was triply overloaded: the `text` tag, the `effects.text` group, and
-// this key). `text` is READ-ONLY legacy — readers accept both, writers emit
-// only `textContent`.
-export const TEXT_ATTR = 'text';
-
+// S8: `textContent` is the ONE text-content key (the DOM property name). `text` is not a wire
+// key: it was triply overloaded (the `text` tag, the `effects.text` group, and a content alias)
+// and no reader accepts it.
 export const TEXT_CONTENT_ATTR = 'textContent';
 
 /** The DOM `class` attribute. A name we EMIT but do not own, so it is written through this
@@ -271,7 +268,7 @@ export const OFFSET_DISTANCE_ATTR = 'offsetDistance';
 // the object behind and the renderer would write `effects="[object Object]"` with no error
 // anywhere. Listing it makes the invariant structural (J4).
 export const INTERNAL_ATTRS = new Set([
-    'type', 'children', 'animator', 'meta', 'animate', 'effects', TEXT_ATTR, TEXT_CONTENT_ATTR
+    'type', 'children', 'animator', 'meta', 'animate', 'effects', TEXT_CONTENT_ATTR
 ]);
 
 // ============================================================================

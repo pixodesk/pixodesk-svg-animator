@@ -90,7 +90,7 @@ export const effectCloneTextBrowserFont: SvgaCaseJson = {
                     "fill": "#3366b3",
                     "fontFamily": "Courier",
                     "fontSize": "10px",
-                    "text": "BROWSER",
+                    "textContent": "BROWSER",
                     "xml:space": "preserve",
                     "style": {
                         "white-space": "pre"
@@ -101,7 +101,7 @@ export const effectCloneTextBrowserFont: SvgaCaseJson = {
                             "fill": "#3366b3",
                             "fontFamily": "Courier",
                             "fontSize": "10px",
-                            "text": "BROWSER",
+                            "textContent": "BROWSER",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"

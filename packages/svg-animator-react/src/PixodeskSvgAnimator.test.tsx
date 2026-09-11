@@ -52,6 +52,24 @@ describe("PixodeskSvgAnimator (React)", () => {
             expect(rect?.getAttribute("height")).toBe("30");
         });
 
+        it("renders text content — a leaf <text> and its <tspan> children carry `textContent`", () => {
+            const { container } = render(<PixodeskSvgAnimator doc={getTextJson()} />);
+
+            const [leaf, spans] = Array.from(container.querySelectorAll("svg > text"));
+            expect(leaf?.textContent).toBe("Leaf");
+            expect(spans?.querySelectorAll("tspan")).toHaveLength(2);
+            expect(spans?.textContent).toBe("Hello World");
+            // content, never an attribute
+            expect(container.querySelector("[textcontent]")).toBeNull();
+        });
+
+        it("a node with child nodes renders its children, not its own `textContent` too", () => {
+            const { container } = render(<PixodeskSvgAnimator doc={getTextJson()} />);
+
+            // the line <tspan> carries BOTH its folded text and the styled child span
+            expect(container.querySelector("tspan > tspan")?.parentElement?.textContent).toBe("Hi");
+        });
+
         it("regenerates ids (rendered id differs from doc id)", () => {
             const doc = getTreeJson();
             const { container } = render(<PixodeskSvgAnimator doc={doc} />);
@@ -398,6 +416,32 @@ function getTestJson1000(): PxAnimatedSvgDocument {
                 ry: "50"
             }
         ]
+    };
+}
+
+/** Doc with text: a leaf <text>, a <text> with two <tspan>s, and a line <tspan> carrying BOTH its
+ *  folded text and a styled child span (the shape the editor writes for a one-span line). */
+function getTextJson(): PxAnimatedSvgDocument {
+    return {
+        type: "svg",
+        viewBox: "0 0 200 150",
+        children: [
+            { type: "text", id: "leaf", x: 10, y: 20, textContent: "Leaf" },
+            {
+                type: "text", id: "spans", x: 10, y: 60,
+                children: [
+                    { type: "tspan", id: "s1", textContent: "Hello " },
+                    { type: "tspan", id: "s2", textContent: "World" },
+                ],
+            },
+            {
+                type: "text", id: "lineText", x: 10, y: 100,
+                children: [{
+                    type: "tspan", id: "line", textContent: "Hi",
+                    children: [{ type: "tspan", id: "span", fill: "#ff0000", textContent: "Hi" }],
+                }],
+            },
+        ],
     };
 }
 

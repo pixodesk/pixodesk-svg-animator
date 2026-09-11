@@ -50,7 +50,7 @@ export { isPxElementFileFormatDeep } from './format/PxAnimatorTypes';
 export { getBindings, getChildren, getDefs } from './format/PxAnimatorConstants';
 export { getAnimatorConfig, isPxElementFileFormat, flattenAnimatorTimeline, nestAnimatorTimeline } from './format/PxAnimatorConstants';
 
-export { INTERNAL_ATTRS, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, TEXT_ATTR, TEXT_CONTENT_ATTR } from './format/PxAnimatorConstants';
+export { INTERNAL_ATTRS, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, TEXT_CONTENT_ATTR } from './format/PxAnimatorConstants';
 
 // Utils (string/colour/easing/bezier math)
 export {

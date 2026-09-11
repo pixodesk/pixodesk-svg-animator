@@ -47,7 +47,7 @@ export const elemTextMixedSpans: SvgaCaseJson = {
                             "fill": "#33334d",
                             "fontFamily": "sans-serif",
                             "fontSize": "15px",
-                            "text": "plain ",
+                            "textContent": "plain ",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -59,7 +59,7 @@ export const elemTextMixedSpans: SvgaCaseJson = {
                             "fontFamily": "sans-serif",
                             "fontSize": "15px",
                             "fontWeight": "700",
-                            "text": "bold ",
+                            "textContent": "bold ",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -71,7 +71,7 @@ export const elemTextMixedSpans: SvgaCaseJson = {
                             "fontFamily": "sans-serif",
                             "fontSize": "15px",
                             "fontStyle": "italic",
-                            "text": "italic ",
+                            "textContent": "italic ",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"
@@ -82,7 +82,7 @@ export const elemTextMixedSpans: SvgaCaseJson = {
                             "fill": "#e64d33",
                             "fontFamily": "sans-serif",
                             "fontSize": "15px",
-                            "text": "fill",
+                            "textContent": "fill",
                             "xml:space": "preserve",
                             "style": {
                                 "white-space": "pre"

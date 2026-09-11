@@ -259,7 +259,11 @@ const PixodeskSvgAnimator = defineComponent({
             }
 
             const childVNodes = children?.map(child => renderNode(child)).filter(Boolean) as VNode[] | undefined;
-            return h(type, normProps, childVNodes);
+            // Text content: a node's own `textContent` renders only when it has no child nodes — a
+            // line <tspan> can carry both, and then its children are the styled spans (the React
+            // Native renderer's rule). `getNormalizedProps` strips `textContent` from the attributes.
+            const text = typeof node.textContent === 'string' ? node.textContent : undefined;
+            return h(type, normProps, childVNodes?.length ? childVNodes : text);
         }
 
         // -- Animator lifecycle -------------------------------------------------

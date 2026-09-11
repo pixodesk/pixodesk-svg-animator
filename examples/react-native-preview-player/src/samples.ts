@@ -183,7 +183,7 @@ const textAlongPath: PxAnimatedSvgDocument = {
         },
         ...shiftedLetters(),
         {
-            type: 'text', x: 150, y: 250, text: 'sampled per-letter motion path',
+            type: 'text', x: 150, y: 250, textContent: 'sampled per-letter motion path',
             fill: '#8899aa', 'font-size': 11, 'text-anchor': 'middle',
         },
     ],
@@ -279,7 +279,7 @@ const repeater: PxAnimatedSvgDocument = {
             }],
         },
         {
-            type: 'text', x: 150, y: 250, text: 'repeater copies + nested transforms',
+            type: 'text', x: 150, y: 250, textContent: 'repeater copies + nested transforms',
             fill: '#8899aa', 'font-size': 11, 'text-anchor': 'middle',
         },
     ],
@@ -321,7 +321,7 @@ const gradient: PxAnimatedSvgDocument = {
             },
         },
         {
-            type: 'text', x: 150, y: 275, text: 'animated gradient stops',
+            type: 'text', x: 150, y: 275, textContent: 'animated gradient stops',
             fill: '#8899aa', 'font-size': 11, 'text-anchor': 'middle',
         },
     ],
@@ -369,7 +369,7 @@ const morph: PxAnimatedSvgDocument = {
             }],
         },
         {
-            type: 'text', x: 150, y: 265, text: 'path morph (frames-only feature)',
+            type: 'text', x: 150, y: 265, textContent: 'path morph (frames-only feature)',
             fill: '#8899aa', 'font-size': 11, 'text-anchor': 'middle',
         },
     ],
