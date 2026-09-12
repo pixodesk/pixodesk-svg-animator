@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materialiseAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, type FillMode, type OutAction, type PlaybackDirection, type PxAnimatedSvgDocument, type PxAnimatorConfigPatch, type PxNode, type StartOn, applyAnimatorConfig, foldAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
+import { reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materialiseAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, type PxFillMode, type PxOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxAnimatorConfigPatch, type PxNode, type PxStartOn, applyAnimatorConfig, foldAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
 import Animated, {
@@ -72,7 +72,7 @@ export interface PixodeskSvgAnimatorProps {
     iterations?: number | 'infinite';
 
     /** Shortcut for `config.timeline.trigger.startOn`. */
-    startOn?: StartOn;
+    startOn?: PxStartOn;
 
     /**
      * Per-instance override of the document's `animator` config — the same shape as `animator`
@@ -280,7 +280,7 @@ interface ConfigOverrides {
     duration?: number;
     delay?: number;
     iterations?: number | 'infinite';
-    startOn?: StartOn;
+    startOn?: PxStartOn;
 }
 
 interface Compiled {

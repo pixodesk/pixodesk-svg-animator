@@ -3,8 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { OutAction, PxAnimatedSvgDocument, PxAnimatorAPI, PxAnimatorConfigPatch, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger, StartOn } from '@pixodesk/svg-animator-web';
-import { camelCaseToKebabWordIfNeeded, createAnimator, FillMode, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig } from '@pixodesk/svg-animator-web';
+import type { PxOutAction, PxAnimatedSvgDocument, PxAnimatorAPI, PxAnimatorConfigPatch, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger, PxStartOn } from '@pixodesk/svg-animator-web';
+import { camelCaseToKebabWordIfNeeded, createAnimator, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig } from '@pixodesk/svg-animator-web';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
 import { useDepsVersion } from './Utils';
@@ -118,7 +118,7 @@ export interface PixodeskSvgAnimatorProps {
     iterations?: number | 'infinite';
 
     /** Shortcut for `config.timeline.trigger.startOn`. */
-    startOn?: StartOn;
+    startOn?: PxStartOn;
 
     // -- Declarative control -------------------------------------------------
 

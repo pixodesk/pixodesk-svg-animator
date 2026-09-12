@@ -117,7 +117,7 @@ animator.play();
 | `duration` | `number` | shortcut for `config.timeline.duration` — ms for one iteration |
 | `delay` | `number` | shortcut for `config.timeline.delay` |
 | `iterations` | `number \| 'infinite'` | shortcut for `config.timeline.iterations` |
-| `startOn` | `StartOn` | shortcut for `config.timeline.trigger.startOn` |
+| `startOn` | `PxStartOn` | shortcut for `config.timeline.trigger.startOn` |
 
 By default there is nothing to configure: the player takes duration, iterations, direction,
 what starts the animation and the engine from the `animator` block inside the JSON — the

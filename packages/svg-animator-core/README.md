@@ -58,7 +58,7 @@ runtime crash on a non-browser platform.
 | **Text** | `materialiseGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
 | **Node helpers** | `getNormalizedProps`, `sanitiseAttributeValue`, `resolveStyle`, `generateNewIds` |
 | **Playback engine** | `createBasicFrameLoopAnimator` + the `PxPlatformAdapter` interface |
-| **Wire enums** | `PxAnimatorMode`, `PxTimelineEngine`, `PxLoopExtend`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneType`, `PxUnits`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string |
+| **Wire enums** | `PxTimelineEngine` / `PxTimelineEngineExtra`, `PxStartOn`, `PxOutAction`, `PxFinishAction`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneWithout`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxStartOn.click` and `startOn?: PxStartOn` come from one import |
 
 ### Validating a document
 

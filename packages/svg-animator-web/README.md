@@ -92,7 +92,7 @@ animator.destroy();             // cleanup
 | `resetDocDefaults` | `boolean`          | Ignore the document's playback settings and start from the player's defaults, with `config` on top |
 | `duration` · `delay` | `number`        | Shortcuts for `config.timeline.duration` / `.delay` (ms) |
 | `iterations` | `number \| 'infinite'`   | Shortcut for `config.timeline.iterations` |
-| `startOn`   | `StartOn`                 | Shortcut for `config.timeline.trigger.startOn` |
+| `startOn`   | `PxStartOn`               | Shortcut for `config.timeline.trigger.startOn` |
 
 The document plays the way it was designed with no configuration at all; `config` is for when
 one page needs it to play differently — the same file mounted twice at two speeds, or a file

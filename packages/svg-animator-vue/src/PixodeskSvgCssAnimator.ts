@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { OutAction, StartOn } from "@pixodesk/svg-animator-web";
+import { PxOutAction, PxStartOn } from "@pixodesk/svg-animator-web";
 import { computed, defineComponent, h, onMounted, onUnmounted, ref, useAttrs, type PropType } from 'vue';
 
 
@@ -50,8 +50,8 @@ const PixodeskSvgCssAnimator = defineComponent({
     inheritAttrs: false,
 
     props: {
-        startOn:   { type: String as PropType<StartOn>,   default: 'load' },
-        outAction: { type: String as PropType<OutAction>, default: 'continue' },
+        startOn:   { type: String as PropType<PxStartOn>,   default: 'load' },
+        outAction: { type: String as PropType<PxOutAction>, default: 'continue' },
     },
 
     setup(props, { slots }) {

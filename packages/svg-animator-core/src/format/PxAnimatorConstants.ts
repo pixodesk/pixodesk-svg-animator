@@ -22,18 +22,127 @@
 
 import type { PxAnimatedSvgDocument, PxAnimatorConfig, PxBinding, PxDefs, PxNode, PxScroll, PxTrigger } from './PxAnimatorTypes';
 
-export type FillMode = 'forwards' | 'backwards' | 'both' | 'none';
+// ── WIRE ENUMS (review §2.7) ────────────────────────────────────────────────
+// ONE shape for every enumerated wire value: an exported `Px*` const namespace plus the
+// string type derived from it, so a call site can write `PxFillMode.forwards` and the
+// schema can reference the same members instead of repeating bare literals.
+//
+// NOT a TypeScript `enum`: these are WIRE values, and a document is authored as plain
+// JSON — `{ fill: 'forwards' }`. A string `enum` is nominal, so that literal would not
+// typecheck without importing the enum; the derived union accepts both spellings. It is
+// also the only form that composes (`PxTimelineEngineExtra` spreads `PxTimelineEngine`)
+// and that survives erasable-syntax / type-stripping builds.
 
-export type PlaybackDirection = 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';
+/** WAAPI `fill` — which values apply outside the active period. */
+export const PxFillMode = {
+    forwards:  'forwards',
+    backwards: 'backwards',
+    both:      'both',
+    none:      'none',
+} as const;
+
+export type PxFillMode = typeof PxFillMode[keyof typeof PxFillMode];
+
+/** WAAPI `direction` — which way each iteration runs. */
+export const PxPlaybackDirection = {
+    normal:            'normal',
+    reverse:           'reverse',
+    alternate:         'alternate',
+    alternateReverse:  'alternate-reverse',
+} as const;
+
+export type PxPlaybackDirection = typeof PxPlaybackDirection[keyof typeof PxPlaybackDirection];
 
 
 export const PX_ANIM_SRC_ATTR_NAME = 'data-px-animation-src';
 
 export const PX_ANIM_ATTR_NAME = '_px_animator';
 
-export type StartOn = 'load' | 'mouseOver' | 'click' | 'scrollIntoView';
+/** `trigger.startOn` — what starts the animation. `programmatic` waits for `play()`. */
+export const PxStartOn = {
+    load:           'load',
+    mouseOver:      'mouseOver',
+    click:          'click',
+    scrollIntoView: 'scrollIntoView',
+    programmatic:   'programmatic',
+} as const;
 
-export type OutAction = 'continue' | 'pause' | 'reset' | 'reverse';
+export type PxStartOn = typeof PxStartOn[keyof typeof PxStartOn];
+
+/** `trigger.outAction` — what happens when the trigger condition stops holding. */
+export const PxOutAction = {
+    continue: 'continue',
+    pause:    'pause',
+    reset:    'reset',
+    reverse:  'reverse',
+} as const;
+
+export type PxOutAction = typeof PxOutAction[keyof typeof PxOutAction];
+
+/** `trigger.finishAction` — what happens after a NATURAL finish. */
+export const PxFinishAction = {
+    hold:  'hold',
+    reset: 'reset',
+} as const;
+
+export type PxFinishAction = typeof PxFinishAction[keyof typeof PxFinishAction];
+
+/** `scroll.kind` — which scroll-driven timeline member this is: the subject's journey
+ *  through the scrollport (`view`), or the scroll container's own offset (`scroll`). */
+export const PxScrollKind = {
+    view:   'view',
+    scroll: 'scroll',
+} as const;
+
+export type PxScrollKind = typeof PxScrollKind[keyof typeof PxScrollKind];
+
+/** `timeline.axis` — which axis of the scroll container drives progress. */
+export const PxScrollAxis = {
+    block:  'block',
+    inline: 'inline',
+    x:      'x',
+    y:      'y',
+} as const;
+
+export type PxScrollAxis = typeof PxScrollAxis[keyof typeof PxScrollAxis];
+
+/** `timeline.source` (`scroll` kind) — which scroll container is measured. */
+export const PxScrollSource = {
+    nearest: 'nearest',
+    root:    'root',
+} as const;
+
+export type PxScrollSource = typeof PxScrollSource[keyof typeof PxScrollSource];
+
+/** `timeline.pin.align` — where the pinned canvas is held in the scrollport. */
+export const PxPinAlign = {
+    top:    'top',
+    center: 'center',
+    bottom: 'bottom',
+} as const;
+
+export type PxPinAlign = typeof PxPinAlign[keyof typeof PxPinAlign];
+
+/** The subject's journey phases across the scrollport (see scroll-timeline.design.md §4
+ *  for the exact `u`-space intervals each phase maps to). */
+export const PxScrollPhase = {
+    cover:         'cover',
+    contain:       'contain',
+    entry:         'entry',
+    exit:          'exit',
+    entryCrossing: 'entry-crossing',
+    exitCrossing:  'exit-crossing',
+} as const;
+
+export type PxScrollPhase = typeof PxScrollPhase[keyof typeof PxScrollPhase];
+
+/** `alongPathMode` — how a value is sampled along a motion path. */
+export const PxAlongPathMode = {
+    sampled:    'sampled',
+    offsetPath: 'offsetPath',
+} as const;
+
+export type PxAlongPathMode = typeof PxAlongPathMode[keyof typeof PxAlongPathMode];
 
 /** WIRE `timeline.engine` — who runs the animation. `auto` (default) prefers the
  *  platform's animation API and falls back to JS when the document needs something it
@@ -327,16 +436,12 @@ export type PxTransformPartKey = typeof PX_TRANSFORM_PART_KEYS[number];
 // only (animated transform is vanishingly rare).
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Loose enums for `gradientUnits` / `spreadMethod` — kept on the wire as
+/** Loose enums for `spreadMethod` / gradient `type` — kept on the wire as
  *  plain strings (matches the rest of the schema's loose-enum stance) but
- *  collected here so call sites use named constants instead of bare literals. */
-export const PxGradientUnits = {
-    userSpaceOnUse:    'userSpaceOnUse',
-    objectBoundingBox: 'objectBoundingBox',
-} as const;
-
-export type PxGradientUnits = typeof PxGradientUnits[keyof typeof PxGradientUnits];
-
+ *  collected here so call sites use named constants instead of bare literals.
+ *
+ *  `gradientUnits` has NO enum of its own: it takes the same two values as every other
+ *  units slot, so it reuses {@link PxUnits} (review §2.7 — one name per value set). */
 export const PxGradientSpreadMethod = {
     pad:     'pad',
     reflect: 'reflect',

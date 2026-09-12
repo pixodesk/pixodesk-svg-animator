@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { OutAction, StartOn } from "@pixodesk/svg-animator-web";
+import { PxOutAction, PxStartOn } from "@pixodesk/svg-animator-web";
 import { CSSProperties, FC, ReactNode, useEffect, useRef, useState } from "react";
 
 
@@ -46,8 +46,8 @@ const PixodeskSvgCssAnimator: FC<{
     className?: string;
     style?: CSSProperties;
     children: ReactNode;
-    startOn?: StartOn;
-    outAction?: OutAction;
+    startOn?: PxStartOn;
+    outAction?: PxOutAction;
 }> = ({ className, style, children, startOn = 'load', outAction = 'continue' }) => {
 
     const [state, setState] = useState<AnimState>(startOn === 'load' ? 'playing' : 'idle');

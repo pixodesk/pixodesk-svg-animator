@@ -180,7 +180,7 @@ const [time, setTime] = useState(0);
 | `duration` | `number` | Shortcut for `config.timeline.duration` (ms) |
 | `delay` | `number` | Shortcut for `config.timeline.delay` (ms) |
 | `iterations` | `number \| 'infinite'` | Shortcut for `config.timeline.iterations` |
-| `startOn` | `StartOn` | Shortcut for `config.timeline.trigger.startOn`. `mouseOver` has no touch equivalent and is ignored |
+| `startOn` | `PxStartOn` | Shortcut for `config.timeline.trigger.startOn`. `mouseOver` has no touch equivalent and is ignored |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
 | `onFinish` | `() => void` | Called on natural finish |

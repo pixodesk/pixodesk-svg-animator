@@ -43,8 +43,12 @@ export { resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline, PX_T
 export { PX_PLAYER_SCHEMA_VERSION } from './version/PxSchemaVersion';
 
 // Document / model types
-export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorAPI, PxAnimatorCallbacksConfig, PxAnimatorConfig, PxAttrValue, PxBasicAnimatorAPI, PxBezierPath, PxBinding, PxDefs, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxNormalisedKeyframe, PxNormalisedPropertyAnimation, PxAnyKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollPhase, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTimelinePin, PxTransformParts, PxTransformValue, PxTrigger, PxValidationResult } from './format/PxAnimatorTypes';
-export type { FillMode, OutAction, PlaybackDirection, PxResolvedTrigger, PxTransformPartKey, StartOn } from './format/PxAnimatorConstants';
+export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorAPI, PxAnimatorCallbacksConfig, PxAnimatorConfig, PxAttrValue, PxBasicAnimatorAPI, PxBezierPath, PxBinding, PxDefs, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxNormalisedKeyframe, PxNormalisedPropertyAnimation, PxAnyKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTimelinePin, PxTransformParts, PxTransformValue, PxTrigger, PxValidationResult } from './format/PxAnimatorTypes';
+export type { PxResolvedTrigger, PxTransformPartKey } from './format/PxAnimatorConstants';
+// VALUE exports, not `export type`: each wire enum is a const namespace AND the string type
+// derived from it under the same name (review §2.7), so a consumer gets both `PxStartOn.click`
+// and `startOn?: PxStartOn` from one import.
+export { PxFillMode, PxOutAction, PxPlaybackDirection, PxStartOn } from './format/PxAnimatorConstants';
 
 export { isPxElementFileFormatDeep } from './format/PxAnimatorTypes';
 export { getBindings, getChildren, getDefs } from './format/PxAnimatorConstants';
@@ -141,7 +145,11 @@ export { applyAnimatorConfig, foldAnimatorConfigShortcuts, mergeAnimatorConfig }
 export { diagnoseDocument, reportDocumentDiagnostics } from './format/PxDocumentDiagnostic';
 export type { PxDocumentDiagnosis } from './format/PxDocumentDiagnostic';
 export type { PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxAnimatorConfigShortcuts } from './playback/PxAnimatorConfigPatch';
-export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxGradientUnits } from './format/PxAnimatorConstants';
+export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxUnits } from './format/PxAnimatorConstants';
+// The remaining wire enums (review §2.7). `PxFillMode` / `PxOutAction` / `PxPlaybackDirection` /
+// `PxStartOn` are exported above and must NOT be repeated here — one export per identifier.
+export { PxAlongPathMode, PxFinishAction, PxPinAlign, PxScrollAxis, PxScrollKind, PxScrollPhase,
+    PxScrollSource } from './format/PxAnimatorConstants';
 export type {
     PxAnimatable,
     PxCloneEffect,

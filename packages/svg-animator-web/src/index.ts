@@ -46,7 +46,7 @@ export {
 
 // Types
 export type {
-    FillMode, OutAction, PlaybackDirection,
+    PxFillMode, PxOutAction, PxPlaybackDirection,
     PxAnimatedSvgDocument,
     PxAnimationDefinition,
     PxAnimatorCallbacksConfig,
@@ -70,7 +70,7 @@ export type {
     PxTransformValue,
     PxTrigger,
     PxValidationResult,
-    StartOn
+    PxStartOn
 } from '@pixodesk/svg-animator-core';
 
 // DOM specialisations — on the web `getRootElement()` returns a DOM Element.
@@ -172,7 +172,17 @@ export {
     PxLoopDirection,
     PxStrokeTrimSubPaths,
     PxGradientType,
-    PxGradientUnits,
+    PxUnits,
+    // One `Px*` const per wire enum (review §2.7) — forwarded so React/Vue can name values.
+    // The four that are also re-exported as TYPES above (PxFillMode, PxOutAction,
+    // PxPlaybackDirection, PxStartOn) must not be repeated here: same identifier, one export.
+    PxAlongPathMode,
+    PxFinishAction,
+    PxPinAlign,
+    PxScrollAxis,
+    PxScrollKind,
+    PxScrollPhase,
+    PxScrollSource,
     PxMaskedByEffectSchema,
     PxRepeaterEffectSchema,
     PxRetimeEffectSchema,

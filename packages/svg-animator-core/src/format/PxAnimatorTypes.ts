@@ -8,8 +8,11 @@ import { implementsInterface, px } from '../schema/PxSchema';
 // Constants live in their own module so importing one does not pull the schema engine
 // in; re-exported here so this module's public surface is unchanged. See there.
 export * from './PxAnimatorConstants';
-import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PX_TRIGGER_DEFAULTS, PxTimelineEngineExtra, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxGradientUnits, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits } from './PxAnimatorConstants';
-import type { FillMode, OutAction, PlaybackDirection, PxTimelineEngine, PxTransformPartKey, StartOn } from './PxAnimatorConstants';
+import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_PART_KEYS, PX_TRIGGER_DEFAULTS, PxTimelineEngineExtra, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits,
+    // Wire enums named in review §2.7 — used as VALUES by the schemas below.
+    PxAlongPathMode, PxFillMode, PxFinishAction, PxOutAction, PxPinAlign, PxPlaybackDirection,
+    PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxStartOn } from './PxAnimatorConstants';
+import type { PxTimelineEngine, PxTransformPartKey } from './PxAnimatorConstants';
 
 // ============================================================================
 // EASING
@@ -368,7 +371,7 @@ export const PxPropertyAnimationSchema = implementsInterface<_PxPropertyAnimatio
     keyframes: px.array(PxKeyframeSchema).optional(),
     loop: px.union([PxLoopSchema, px.boolean()]).optional(),
     autoOrient: px.boolean().optional(),
-    alongPathMode: px.enum(['sampled', 'offsetPath'] as const).optional(),
+    alongPathMode: px.enum([PxAlongPathMode.sampled, PxAlongPathMode.offsetPath] as const).optional(),
 }));
 
 /** Animation definition for a single CSS/SVG property. */
@@ -526,8 +529,6 @@ export type PxElementAnimation = PxInfer<typeof PxElementAnimationSchema>;
 // TRIGGER
 // ============================================================================
 
-type StartOnExtra = StartOn | 'programmatic';
-
 /**
  * Defines when and how an animation should be triggered.
  */
@@ -535,11 +536,11 @@ export interface _PxTrigger {
 
     /** Event that starts the animation. Default `'load'` — a document is designed to play;
      *  `'programmatic'` waits for `play()`. */
-    startOn?: StartOnExtra;
+    startOn?: PxStartOn;
 
     /** Action to take when the trigger condition is no longer met (e.g., mouse leaves).
      *  Default `'continue'`. */
-    outAction?: 'continue' | 'pause' | 'reset' | 'reverse';
+    outAction?: PxOutAction;
 
     /** Percentage of element visibility required to trigger (0–1, default 0 = any pixel).
      *  Only applies to scrollIntoView. */
@@ -549,18 +550,18 @@ export interface _PxTrigger {
    *  (snap back to the start). Named to pair with its sibling `outAction`, and NOT `onFinish`,
    *  which is the CALLBACK on `PxAnimatorCallbacksConfig` — a value key and a function key with
    *  one name read badly side by side in a document literal or in JSX. */
-    finishAction?: 'hold' | 'reset';
+    finishAction?: PxFinishAction;
 }
 
 // `{ startOn?:'load'|'mouseOver'|'click'|'scrollIntoView'|'programmatic', outAction?:..., scrollIntoViewThreshold?:number }`
 // An absent field means its PX_TRIGGER_DEFAULTS entry — the table every player resolves through.
 export const PxTriggerSchema = implementsInterface<_PxTrigger>()(px.object({
-    startOn: px.enum(['load', 'mouseOver', 'click', 'scrollIntoView', 'programmatic'] as const, PX_TRIGGER_DEFAULTS.startOn).optional(),
-    outAction: px.enum(['continue', 'pause', 'reset', 'reverse'] as const, PX_TRIGGER_DEFAULTS.outAction).optional(),
+    startOn: px.enum([PxStartOn.load, PxStartOn.mouseOver, PxStartOn.click, PxStartOn.scrollIntoView, PxStartOn.programmatic] as const, PX_TRIGGER_DEFAULTS.startOn).optional(),
+    outAction: px.enum([PxOutAction.continue, PxOutAction.pause, PxOutAction.reset, PxOutAction.reverse] as const, PX_TRIGGER_DEFAULTS.outAction).optional(),
     // What happens after a NATURAL finish — `'hold'` (default: keep the end state per
     // `fill`) or `'reset'` (snap back to the start state). Pairs with `outAction` ("what
     // happens when the trigger condition ends"); both end-of-life knobs now read alike.
-    finishAction: px.enum(['hold', 'reset'] as const).optional(),
+    finishAction: px.enum([PxFinishAction.hold, PxFinishAction.reset] as const).optional(),
     scrollIntoViewThreshold: px.number().optional(),
 }));
 
@@ -681,14 +682,9 @@ export interface _PxScrollRangePoint {
     fraction?: number;
 }
 
-/** The subject's journey phases across the scrollport (see scroll-timeline.design.md §4
- *  for the exact `u`-space intervals each phase maps to). */
-export type PxScrollPhase = 'cover' | 'contain' | 'entry' | 'exit' | 'entry-crossing' | 'exit-crossing';
-
-const PX_SCROLL_PHASES = ['cover', 'contain', 'entry', 'exit', 'entry-crossing', 'exit-crossing'] as const;
-
 export const PxScrollRangePointSchema = implementsInterface<_PxScrollRangePoint>()(px.object({
-    phase: px.enum(PX_SCROLL_PHASES).optional(),
+    phase: px.enum([PxScrollPhase.cover, PxScrollPhase.contain, PxScrollPhase.entry,
+                    PxScrollPhase.exit, PxScrollPhase.entryCrossing, PxScrollPhase.exitCrossing] as const).optional(),
     fraction: px.number().optional(),
 }));
 export type PxScrollRangePoint = PxInfer<typeof PxScrollRangePointSchema>;
@@ -784,14 +780,14 @@ export const PxScrollRangeSchema = px.object({
 });
 
 export const PxScrollSchema = implementsInterface<_PxScroll>()(px.object({
-    kind: px.enum(['view', 'scroll'] as const).optional(),
-    axis: px.enum(['block', 'inline', 'x', 'y'] as const).optional(),
-    source: px.enum(['nearest', 'root'] as const).optional(),
+    kind: px.enum([PxScrollKind.view, PxScrollKind.scroll] as const).optional(),
+    axis: px.enum([PxScrollAxis.block, PxScrollAxis.inline, PxScrollAxis.x, PxScrollAxis.y] as const).optional(),
+    source: px.enum([PxScrollSource.nearest, PxScrollSource.root] as const).optional(),
     // Free-form: the two keywords `parent`/`scroller` plus any CSS selector.
     subject: px.string().optional(),
     smoothing: px.number().optional(),
     pin: px.boolean().optional(),
-    pinAlign: px.enum(['top', 'center', 'bottom'] as const).optional(),
+    pinAlign: px.enum([PxPinAlign.top, PxPinAlign.center, PxPinAlign.bottom] as const).optional(),
     pinOffset: px.number().optional(),
     pinDistance: px.number().optional(),
     range: PxScrollRangeSchema.optional(),
@@ -828,7 +824,7 @@ export interface _PxTimelinePin {
 }
 
 export const PxTimelinePinSchema = implementsInterface<_PxTimelinePin>()(px.object({
-    align: px.enum(['top', 'center', 'bottom'] as const).optional(),
+    align: px.enum([PxPinAlign.top, PxPinAlign.center, PxPinAlign.bottom] as const).optional(),
     offset: px.number().optional(),
     distance: px.number().optional(),
 }));
@@ -882,8 +878,8 @@ const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.object({
     iterations: px.union([px.number(), px.literal('infinite')]).optional(),
     // `fillMode` on the wire (CSS `animation-fill-mode`; the runtime view calls it `fill`)
     // — never `fill`, which is paint everywhere else in the format.
-    fillMode: px.enum(['forwards', 'backwards', 'both', 'none'] as const).optional(),
-    direction: px.enum(['normal', 'reverse', 'alternate', 'alternate-reverse'] as const).optional(),
+    fillMode: px.enum([PxFillMode.forwards, PxFillMode.backwards, PxFillMode.both, PxFillMode.none] as const).optional(),
+    direction: px.enum([PxPlaybackDirection.normal, PxPlaybackDirection.reverse, PxPlaybackDirection.alternate, PxPlaybackDirection.alternateReverse] as const).optional(),
 }));
 const _ck_PxTimeTimeline: KeysMatch<PxInfer<typeof PxTimeTimelineSchema>, _PxTimeTimeline> = true;
 
@@ -902,8 +898,8 @@ const scrollishTimelineShape = {
     iterations: px.number().optional(),
     engine: PxTimelineEngineSchema,
     frameRate: px.number().optional(),
-    axis: px.enum(['block', 'inline', 'x', 'y'] as const).optional(),
-    source: px.enum(['nearest', 'root'] as const).optional(),
+    axis: px.enum([PxScrollAxis.block, PxScrollAxis.inline, PxScrollAxis.x, PxScrollAxis.y] as const).optional(),
+    source: px.enum([PxScrollSource.nearest, PxScrollSource.root] as const).optional(),
     subject: px.string().optional(),   // 'parent' | 'scroller' | any CSS selector
     smoothing: px.number().optional(), // ms
     pin: px.union([px.boolean(), PxTimelinePinSchema]).optional(),
@@ -999,10 +995,10 @@ export interface _PxAnimatorConfig {
      * runtimes. Without this default, seeking to the last frame would cause
      * elements to revert to their pre-animation state.
      */
-    fill?: FillMode;
+    fill?: PxFillMode;
 
     /** Direction of animation playback */
-    direction?: PlaybackDirection;
+    direction?: PxPlaybackDirection;
 
     /** RUNTIME VIEW ONLY — the wire spells it `timeline.frameRate`. Target frame rate for the
      *  player's frame loop; ignored by WAAPI, React Native and the pre-rendered CSS export. */
@@ -1555,7 +1551,7 @@ export interface _PxFillGradientEffect {
     radius?: PxAnimatable<number>;                        // radial radius (r)
     focal?:  PxAnimatable<Vec2>;                          // radial focal point ([fx,fy])
     stops?: PxAnimatable<Array<_PxGradientStop>>;          // single animation timeline
-    gradientUnits?:  string;                              // PxGradientUnits values
+    gradientUnits?:  string;                              // PxUnits values
     spreadMethod?:   string;                              // PxGradientSpreadMethod values
     gradientTransform?: string;                           // static only in v1
 }
@@ -1568,7 +1564,7 @@ export const PxFillGradientEffectSchema = implementsInterface<_PxFillGradientEff
     radius: PxAnimatableNumberSchema.optional(),
     focal:  PxAnimatableVec2Schema.optional(),
     stops: PxAnimatableGradientStopsSchema.optional(),
-    gradientUnits:     px.enum([PxGradientUnits.userSpaceOnUse, PxGradientUnits.objectBoundingBox] as const).optional(),
+    gradientUnits:     px.enum([PxUnits.userSpaceOnUse, PxUnits.objectBoundingBox] as const).optional(),
     spreadMethod:      px.enum([PxGradientSpreadMethod.pad, PxGradientSpreadMethod.reflect, PxGradientSpreadMethod.repeat] as const).optional(),
     gradientTransform: px.string().optional(),
 }));
