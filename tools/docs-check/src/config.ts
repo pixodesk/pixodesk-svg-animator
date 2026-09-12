@@ -28,8 +28,8 @@ export const PKG_DTS: Record<Pkg, string> = {
 /** The public markdown files, relative to the repo root. Internal notes (reviews, plans, dev-docs) are not listed. */
 export const DOC_FILES: ReadonlyArray<string> = [
     'README.md',
-    'API-SCHEMA.md',
-    'SCHEMA.md',
+    // 'API-SCHEMA.md',
+    // 'SCHEMA.md',
     'docs/format/README.md',
     'docs/library/README.md',
     'docs/library/installation.md',
