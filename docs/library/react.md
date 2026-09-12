@@ -65,9 +65,11 @@ export function Player() {
 | `pause()` | pause at the current time |
 | `cancel()` | stop and reset to the start |
 | `finish()` | jump to the end and hold it |
-| `setPlaybackRate(rate)` | `1` normal, `2` double, negative = reverse |
-| `getCurrentTime()` | ms, or `null` before mount |
-| `setCurrentTime(ms)` | jump to a point in the animation, in milliseconds from its start |
+| `setPlaybackRate(rate)` | `1` normal, `2` double, negative = reverse. `0` is rejected with a warning — use `pause()` |
+| `getCurrentTime()` | ms from the start of the whole run (every iteration included), or `null` before mount |
+| `setCurrentTime(ms)` | jump to a point in the animation, in milliseconds from its start; clamped to the run |
+| `getCurrentProgress()` | the same position as `0`–`1` of the whole run — the read twin of the `progress` prop |
+| `setCurrentProgress(p)` | jump to `0`–`1` of the whole run |
 | `isPlaying()` | `true` while the animation is running, `false` when paused, finished or not started |
 
 ### Autoplay
@@ -207,6 +209,9 @@ in [Playback & triggers → Overriding from a player](./playback-and-triggers.md
 | `onFinish` | `() => void` | the animation reached its end — it played all its iterations, or `finish()` was called. Does not fire when playback is stopped early |
 | `onRemove` | `() => void` | the animator was thrown away: the component unmounted, or you passed a different `doc` and a new animator was built for it |
 | `onStop` | `() => void` | fires *in addition to* whichever of `onPause`, `onCancel`, `onFinish` or `onRemove` just fired. Use this one callback when you only care that the animation is no longer playing, whatever the reason |
+| `onWarn` | `(message, detail?) => void` | something is off but the animation still plays — an unknown easing, a config key that could not be applied, two control props at once. Without this it goes to `console.warn` |
+| `onError` | `(error) => void` | the animation could not be produced at all — a document that failed to parse or render. Without this it goes to `console.error` |
+| `silent` | `boolean` | silences the console *fallback* above. `onWarn` / `onError` still fire if you gave them — it is not a mute button |
 
 Passing a different `doc` (or changing `className` / `style` / the control mode) throws the
 old animator away and builds a new one; the old instance emits `onCancel`, `onRemove` and

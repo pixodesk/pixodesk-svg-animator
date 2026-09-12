@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materialiseAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxAnimatorConfigPatch, type PxNode, type PxStartOn, applyAnimatorConfig, foldAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
+import { clampSeekMs, createDiagnostics, createRunClock, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PX_RATE_REJECTED, seekCeilingMs, timeToProgress, type PxDiagnostics,
+    reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materialiseAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxAnimatorConfigPatch, type PxNode, type PxStartOn, applyAnimatorConfig, foldAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
 import Animated, {
@@ -46,11 +47,20 @@ export interface RnAnimatorApi {
     /** Changes the speed of the animation. 1 is normal, 2 is double. */
     setPlaybackRate(rate: number): void;
 
-    /** Returns the current playback time in milliseconds. */
+    /** Current playback time, ms from the start of the whole run (iterations included). */
     getCurrentTime(): number | null;
 
-    /** Jumps to a specific time (in milliseconds) in the animation. */
+    /** Seeks, ms from the start of the whole run; clamped to `[0, duration × iterations]`. */
     setCurrentTime(time: number): void;
+
+    /**
+     * Current position as 0–1 of the whole run — the read twin of the `progress` prop,
+     * and ONE iteration when `iterations` is `'infinite'`.
+     */
+    getCurrentProgress(): number | null;
+
+    /** Seeks to 0–1 of the whole run, clamped to `[0, 1]`. */
+    setCurrentProgress(progress: number): void;
 }
 
 export interface PixodeskSvgAnimatorProps {
@@ -135,6 +145,19 @@ export interface PixodeskSvgAnimatorProps {
 
     /** Rendered in place of the animation after a failure. Default: nothing. */
     fallback?: (error: Error) => ReactElement | null;
+
+    // -- Diagnostics (API review §5) -----------------------------------------
+
+    /**
+     * Called for anything survivable — an unknown easing, a config key that could not be
+     * applied, a rejected playback rate. The animation still plays.
+     *
+     * Without this, these go to `console.warn`.
+     */
+    onWarn?: (message: string, detail?: unknown) => void;
+
+    /** Silence the console FALLBACK. `onWarn` / `onError` still fire if given. */
+    silent?: boolean;
 }
 
 
@@ -301,10 +324,10 @@ const EMPTY_TRACKS: PxCompiledTracks = {
  * Materialises + compiles a document. Extracted from the component so the
  * whole thing sits behind one try/catch, and so it can be tested directly.
  */
-function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides): Compiled {
+function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides, diag: PxDiagnostics): Compiled {
     const { config, resetDocDefaults, duration, delay, iterations, startOn } = overrides;
     const warnings = validateNodeEffects(doc as PxNode);
-    for (const w of warnings) console.warn('[PixodeskSvgAnimator] effects shape warning:', w);
+    for (const w of warnings) diag.warn('effects shape warning: ' + w);
     // The whole-document boundary diagnostic — see the note in the web player's entry.
     reportDocumentDiagnostics(doc, '[PixodeskSvgAnimator]');
 
@@ -314,7 +337,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides)
     const patch = foldAnimatorConfigShortcuts(config, { duration, delay, iterations, startOn });
     if (patch !== undefined || resetDocDefaults) {
         const applied = applyAnimatorConfig(doc, patch ?? {}, { resetDefaults: !!resetDocDefaults });
-        for (const w of applied.warnings) console.warn('[PixodeskSvgAnimator] config override:', w);
+        for (const w of applied.warnings) diag.warn('config override: ' + w);
         doc = applied.doc;
     }
 
@@ -356,7 +379,7 @@ export function PixodeskSvgAnimator({
     doc, config, resetDocDefaults, duration, delay, iterations, startOn,
     // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
     autoplay, play, pause, apiRef, progress: progressProp, time,
-    onPlay, onStop, onPause, onCancel, onFinish, onError, fallback,
+    onPlay, onStop, onPause, onCancel, onFinish, onError, fallback, onWarn, silent,
 }: PixodeskSvgAnimatorProps): ReactElement | null {
 
     // -- Compile the document (once per doc/override change) ------------------
@@ -367,16 +390,26 @@ export function PixodeskSvgAnimator({
     const configKey = typeof config === 'string' ? config : JSON.stringify(config ?? null);
 
 
+    /**
+     * The diagnostics channel, built from the CURRENT props each time (API review §5).
+     * Deliberately not hoisted into a wrapper closure: `(m, d) => onWarn?.(m, d)` would always
+     * be a function, so the channel would believe a handler exists and the console fallback
+     * would never fire for anyone who passed nothing.
+     */
+    const makeDiag = (): PxDiagnostics =>
+        createDiagnostics({ onWarn, onError, silent }, '[PixodeskSvgAnimator]');
+
     const compiled = useMemo((): Compiled => {
         try {
             return compileDocument(
                 doc,
-                { config, resetDocDefaults, duration, delay, iterations, startOn }
+                { config, resetDocDefaults, duration, delay, iterations, startOn },
+                makeDiag(),
             );
         } catch (e) {
             // A malformed document must not take the host screen down with it.
             const error = e instanceof Error ? e : new Error(String(e));
-            console.warn('[PixodeskSvgAnimator] could not compile the document:', error.message);
+            makeDiag().warn('could not compile the document: ' + error.message);
             return { doc: null, tracks: EMPTY_TRACKS, error };
         }
         // `config` is an object prop, so a fresh literal each render would recompile the whole
@@ -384,7 +417,15 @@ export function PixodeskSvgAnimator({
     }, [doc, configKey, resetDocDefaults, duration, delay, iterations, startOn]);
 
     const tracks: PxCompiledTracks = compiled.tracks;
-    const totalDuration = tracks.duration * (tracks.iterations === Infinity ? 1 : tracks.iterations);
+    // The span `progress` 0–1 covers (ONE iteration when endless) — NOT the seek ceiling.
+    const totalDuration = progressSpanMs(tracks.duration, tracks.iterations);
+    // How far a seek may go: unbounded when endless (review §3).
+    const seekCeiling = seekCeilingMs(tracks.duration, tracks.iterations);
+
+    // Whole-run time lives on its own clock: `progress` below is deliberately within ONE
+    // iteration, and `withRepeat` never reports how many have elapsed, so the run time cannot
+    // be read back off it. See `createRunClock`.
+    const runClock = useMemo(() => createRunClock(seekCeiling), [seekCeiling]);
 
     // -- Playback state -------------------------------------------------------
 
@@ -407,6 +448,8 @@ export function PixodeskSvgAnimator({
 
     const notifyFinish = () => {
         playingRef.current = false;
+        runClock.seek(Number.isFinite(seekCeiling) ? seekCeiling : tracks.duration);
+        runClock.stop();
         progress.value = restingPosition();
         onFinish?.();
         onStop?.();
@@ -457,13 +500,17 @@ export function PixodeskSvgAnimator({
         play: () => {
             // `startFrom` rewinds to the opposite end when the playhead is
             // already resting at a boundary (mirrors WAAPI, where play() on a
-            // finished animation auto-rewinds).
+            // finished animation auto-rewinds) — the run clock rewinds with it,
+            // or the time would keep counting on from the old end.
+            if (Number.isFinite(seekCeiling) && runClock.now() >= seekCeiling) runClock.seek(0);
+            runClock.start(rateRef.current);
             startFrom(progress.value);
             onPlay?.();
         },
         pause: () => {
             cancelAnimation(progress);
             playingRef.current = false;
+            runClock.stop();
             onPause?.();
             onStop?.();
         },
@@ -471,30 +518,45 @@ export function PixodeskSvgAnimator({
             cancelAnimation(progress);
             progress.value = 0;
             playingRef.current = false;
+            runClock.seek(0);
+            runClock.stop();
             onCancel?.();
             onStop?.();
         },
         finish: () => {
             cancelAnimation(progress);
             playingRef.current = false;
+            runClock.seek(Number.isFinite(seekCeiling) ? seekCeiling : tracks.duration);
+            runClock.stop();
             progress.value = restingPosition();
             onFinish?.();
             onStop?.();
         },
         setPlaybackRate: (rate: number) => {
-            if (!isFinite(rate) || rate === 0) {
-                console.warn('setPlaybackRate: rate must be finite and non-zero');
+            if (!isValidPlaybackRate(rate)) {
+                makeDiag().warn(PX_RATE_REJECTED);
                 return;
             }
             rateRef.current = rate;
-            if (playingRef.current) startFrom(progress.value);
+            if (playingRef.current) {
+                runClock.start(rate);   // resume from the current time at the new rate
+                startFrom(progress.value);
+            }
         },
-        getCurrentTime: () => progress.value,
+
+        // Ms from the start of the WHOLE run, like every other engine (review §3). This used
+        // to return `progress.value`, which is ms within the current iteration — so a slider
+        // built on it jumped back to 0 every time the animation repeated.
+        getCurrentTime: () => runClock.now(),
+
         setCurrentTime: (t: number) => {
             const wasPlaying = playingRef.current;
             cancelAnimation(progress);
             playingRef.current = false;
-            const clamped = Math.max(0, Math.min(t, totalDuration));
+            // Clamp against the SEEK ceiling, not the progress span — the old clamp capped an
+            // endless timeline at one iteration.
+            const clamped = clampSeekMs(t, seekCeiling);
+            runClock.seek(clamped);
             const withinIteration = tracks.duration > 0
                 ? (clamped % tracks.duration) || (clamped === 0 ? 0 : tracks.duration)
                 : 0;
@@ -502,6 +564,13 @@ export function PixodeskSvgAnimator({
             // Seeking mid-playback continues from the new position rather than
             // silently pausing.
             if (wasPlaying) startFrom(withinIteration);
+            else runClock.stop();
+        },
+
+        getCurrentProgress: () => timeToProgress(runClock.now(), tracks.duration, tracks.iterations),
+
+        setCurrentProgress: (p: number) => {
+            api.setCurrentTime(progressToTimeMs(p, tracks.duration, tracks.iterations));
         },
     };
 
@@ -524,13 +593,16 @@ export function PixodeskSvgAnimator({
         resolveControlMode({ progress: progressProp, time, play, pause, autoplay });
 
     useEffect(() => {
-        for (const w of modeWarnings) console.warn('[PixodeskSvgAnimator] ' + w);
+        const diag = makeDiag();
+        for (const w of modeWarnings) diag.warn(w);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [modeWarnings.join('|')]);
 
     useEffect(() => {
         if (compMode === PxControlMode.fixedTime) {
-            const seekMs = time !== undefined ? time : (progressProp ?? 0) * totalDuration;
+            const seekMs = time !== undefined
+                ? time
+                : progressToTimeMs(progressProp ?? 0, tracks.duration, tracks.iterations);
             api.setCurrentTime(seekMs);
             return;
         }
@@ -657,14 +729,16 @@ export function PixodeskSvgAnimator({
             // rather than propagating and unmounting the host screen.
             const error = e instanceof Error ? e : new Error(String(e));
             renderErrorRef.current = error;
-            console.warn('[PixodeskSvgAnimator] could not render the document:', error.message);
+            makeDiag().warn('could not render the document: ' + error.message);
             return null;
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [compiled, trackById]);
 
     useEffect(() => {
-        for (const w of warningsRef.current) console.warn('[PixodeskSvgAnimator]', w);
+        const diag = makeDiag();
+        for (const w of warningsRef.current) diag.warn(w);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [root]);
 
     // Surface compile/render failures to the host exactly once per occurrence.

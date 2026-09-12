@@ -23,6 +23,8 @@ function createMockApi(overrides: Partial<PxAnimatorAPI> = {}) {
         setPlaybackRate: vi.fn(),
         getCurrentTime: vi.fn(() => 0),
         setCurrentTime: vi.fn(),
+        getCurrentProgress: vi.fn(() => 0),
+        setCurrentProgress: vi.fn(),
         destroy: vi.fn(),
         ...overrides,
     };

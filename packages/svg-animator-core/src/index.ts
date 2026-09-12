@@ -123,6 +123,15 @@ export type { MaterialiseAllOptions } from './materialise/PxAnimatorMaterialiseA
 export { createBasicFrameLoopAnimator } from './playback/PxFrameLoop';
 export type { PxPlatformAdapter } from './playback/PxFrameLoop';
 
+// The ONE time contract every engine implements (review §3)
+export { clampSeekMs, createRunClock, isValidPlaybackRate, progressSpanMs, progressToTimeMs,
+    PX_RATE_REJECTED, seekCeilingMs, timeToProgress } from './playback/PxPlaybackTime';
+export type { PxRunClock } from './playback/PxPlaybackTime';
+
+// The ONE diagnostics channel every player reports through (review §5)
+export { createDiagnostics } from './playback/PxDiagnostics';
+export type { PxDiagnostics, PxDiagnosticsConfig } from './playback/PxDiagnostics';
+
 // Element-creation factory + glyph-text materialiser
 export { jsonElementFactory } from './effects/text/elementFactory';
 export type { PxCreateElement } from './effects/text/elementFactory';

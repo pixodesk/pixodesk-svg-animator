@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import type { PxOutAction, PxAnimatedSvgDocument, PxAnimatorAPI, PxAnimatorConfigPatch, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger, PxStartOn } from '@pixodesk/svg-animator-web';
-import { camelCaseToKebabWordIfNeeded, createAnimator, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from '@pixodesk/svg-animator-web';
+import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
 import { useDepsVersion } from './Utils';
@@ -36,11 +36,20 @@ export interface ReactAnimatorApi {
     /** Changes the speed of the animation. 1 is normal, 2 is double, -1 is reverse. */
     setPlaybackRate(rate: number): void;
 
-    /** Returns the current playback time in milliseconds. */
+    /** Current playback time, ms from the start of the whole run (iterations included). */
     getCurrentTime(): number | null;
 
-    /** Jumps to a specific time (in milliseconds) in the animation. */
+    /** Seeks, ms from the start of the whole run; clamped to `[0, duration × iterations]`. */
     setCurrentTime(time: number): void;
+
+    /**
+     * Current position as 0–1 of the whole run — the read twin of the `progress` prop,
+     * and ONE iteration when `iterations` is `'infinite'`.
+     */
+    getCurrentProgress(): number | null;
+
+    /** Seeks to 0–1 of the whole run, clamped to `[0, 1]`. */
+    setCurrentProgress(progress: number): void;
 }
 
 export interface PixodeskSvgAnimatorImplProps {
@@ -58,6 +67,13 @@ export interface PixodeskSvgAnimatorImplProps {
      * re-renders.
      */
     callbacksRef: React.RefObject<PixodeskSvgAnimatorCallbacks>;
+
+    /**
+     * Latest diagnostics props (API review §5). Kept OUT of
+     * {@link PixodeskSvgAnimatorCallbacks} on purpose: that type is indexed with `keyof` and
+     * every member invoked as a function, so a `silent: boolean` in there would not type.
+     */
+    diagRef: React.RefObject<PxDiagnosticsConfig>;
 }
 
 /** Lifecycle callback props (subset of {@link PixodeskSvgAnimatorProps}). */
@@ -166,6 +182,27 @@ export interface PixodeskSvgAnimatorProps {
 
     /** Called when the animation is removed. */
     onRemove?: () => void;
+
+    // -- Diagnostics (API review §5) -----------------------------------------
+
+    /**
+     * Called for anything survivable — an unknown easing, a config key that could not be
+     * applied, an attribute the browser will not animate. The animation still plays.
+     *
+     * Without this, these go to `console.warn`.
+     */
+    onWarn?: (message: string, detail?: unknown) => void;
+
+    /**
+     * Called when the animation could not be produced at all — a document that failed to
+     * parse, or a render that threw. The component stays inert rather than throwing.
+     *
+     * Without this, these go to `console.error`.
+     */
+    onError?: (error: Error) => void;
+
+    /** Silence the console FALLBACK above. `onWarn` / `onError` still fire if given. */
+    silent?: boolean;
 }
 
 
@@ -182,7 +219,7 @@ export interface PixodeskSvgAnimatorProps {
  * Creates a platform adapter that routes animator attribute updates
  * to the corresponding React-managed DOM refs.
  */
-export function createReactAdapter(elementRefs: React.RefObject<Map<string, any>>) {
+export function createReactAdapter(elementRefs: React.RefObject<Map<string, any>>, diag: PxDiagnostics) {
     const warnedSelectors = new Set<string>();
 
     const adapter: PxPlatformAdapter = {
@@ -199,8 +236,9 @@ export function createReactAdapter(elementRefs: React.RefObject<Map<string, any>
 
             if (!element && !warnedSelectors.has(selector)) {
                 warnedSelectors.add(selector);
-                console.warn('setAttribute: No elements found for selector "' + selector + '"');
-                console.warn(elementRefs.current);
+                // The element map rides along as the DETAIL rather than a second bare log, so a
+                // handler can inspect it and the console stays readable.
+                diag.warn('setAttribute: No elements found for selector "' + selector + '"', elementRefs.current);
             }
 
             if (element) {
@@ -224,7 +262,7 @@ export function getSelector(id: string) {
 // -- Inner component (memoised, never re-renders) ---------------------------
 
 const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
-    className, style, doc, compMode, apiHolderRef, callbacksRef
+    className, style, doc, compMode, apiHolderRef, callbacksRef, diagRef
 }) => {
 
     doc = generateNewIds(doc);
@@ -274,15 +312,22 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
             callbacksRef.current?.[name]?.();
             if (alsoStop) callbacksRef.current?.onStop?.();
         };
+        // The player's own diagnostics reach the same handlers as the component's (§5). Spread
+        // the CURRENT values rather than wrapping them: `(m, d) => diagRef.current?.onWarn?.(m, d)`
+        // would always be a function, so the channel would never fall back to the console.
         const callbacks = {
             onPlay:   cb('onPlay'),
             onPause:  cb('onPause', true),
             onCancel: cb('onCancel', true),
             onFinish: cb('onFinish', true),
             onRemove: cb('onRemove', true),
+            onWarn:   diagRef.current?.onWarn,
+            onError:  diagRef.current?.onError,
+            silent:   diagRef.current?.silent,
         };
 
-        let api: PxAnimatorAPI | undefined = createAnimator({ data: doc, adapter: createReactAdapter(elementRefs), callbacks });
+        const adapterDiag = createDiagnostics(diagRef.current ?? undefined, '[PixodeskSvgAnimator]');
+        let api: PxAnimatorAPI | undefined = createAnimator({ data: doc, adapter: createReactAdapter(elementRefs, adapterDiag), callbacks });
         apiHolderRef.current = api;
 
         return () => {
@@ -338,7 +383,10 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     // Overrides
     config, resetDocDefaults, duration, delay, iterations, startOn,
 
-    onPlay, onStop, onPause, onCancel, onFinish, onRemove
+    onPlay, onStop, onPause, onCancel, onFinish, onRemove,
+
+    // Diagnostics (API review §5)
+    onWarn, onError, silent
 }) => {
 
     // ONE control-mode rule, decided in core and shared with Vue and React Native
@@ -348,10 +396,20 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     const { mode: compMode, warnings: modeWarnings } =
         resolveControlMode({ progress, time, play, pause, autoplay });
 
+    /**
+     * The diagnostics channel, built from the CURRENT props each time (API review §5).
+     * Deliberately not hoisted into a wrapper closure: `(m, d) => onWarn?.(m, d)` would always
+     * be a function, so the channel would believe a handler exists and the console fallback
+     * would never fire for anyone who passed nothing.
+     */
+    const makeDiag = (): PxDiagnostics =>
+        createDiagnostics({ onWarn, onError, silent }, '[PixodeskSvgAnimator]');
+
     // Warn once per distinct conflict, not once per render — a parent re-rendering on unrelated
     // state must not repeat the sentence. React Native guards it the same way.
     useEffect(() => {
-        for (const w of modeWarnings) console.warn('[PixodeskSvgAnimator] ' + w);
+        const diag = makeDiag();
+        for (const w of modeWarnings) diag.warn(w);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [modeWarnings.join('|')]);
 
@@ -377,7 +435,8 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
 
     if (fullPatch !== undefined || resetDocDefaults) {
         const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetDefaults: !!resetDocDefaults });
-        for (const w of applied.warnings) console.warn('[PixodeskSvgAnimator] config override:', w);
+        const diag = makeDiag();
+        for (const w of applied.warnings) diag.warn('config override: ' + w);
         doc = applied.doc;
     }
 
@@ -406,6 +465,11 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     const callbacksRef = useRef<PixodeskSvgAnimatorCallbacks>({});
     callbacksRef.current = { onPlay, onStop, onPause, onCancel, onFinish, onRemove };
 
+    // Same idea for the diagnostics props, so the player and the adapter report where the
+    // component does (§5).
+    const diagRef = useRef<PxDiagnosticsConfig>({});
+    diagRef.current = { onWarn, onError, silent };
+
     // Expose the imperative API via the consumer-provided ref.
     useImperativeHandle(apiRef, () => {
         return {
@@ -417,6 +481,8 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
             setPlaybackRate: (rate: number) => apiHolderRef.current?.setPlaybackRate(rate),
             getCurrentTime: () => apiHolderRef.current?.getCurrentTime() ?? null,
             setCurrentTime: (time: number) => apiHolderRef.current?.setCurrentTime(time),
+            getCurrentProgress: () => apiHolderRef.current?.getCurrentProgress() ?? null,
+            setCurrentProgress: (progress: number) => apiHolderRef.current?.setCurrentProgress(progress),
         };
     }, []);
 
@@ -473,6 +539,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
             doc={doc}
             apiHolderRef={apiHolderRef}
             callbacksRef={callbacksRef}
+            diagRef={diagRef}
         />
     );
 };

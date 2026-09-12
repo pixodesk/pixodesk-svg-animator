@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { reportDocumentDiagnostics, applyAnimatorConfig, foldAnimatorConfigShortcuts, generateNewIds, getAnimatorConfig, isPxElementFileFormat, materialiseAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfigPatch, type PxPlatformAdapter, type PxTrigger } from '@pixodesk/svg-animator-core';
+import { reportDocumentDiagnostics, applyAnimatorConfig, createDiagnostics, foldAnimatorConfigShortcuts, generateNewIds, getAnimatorConfig, isPxElementFileFormat, materialiseAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfigPatch, type PxPlatformAdapter, type PxTrigger } from '@pixodesk/svg-animator-core';
 import { bindWithEngineChoice } from '../engines/PxAnimatorBind';
 import { renderNode } from '../dom/PxAnimatorDOM';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
@@ -56,8 +56,12 @@ export function createAnimatorImpl(
     // about any shape drift. Doesn't mutate or block — the materialiser tries
     // its best even when shapes are off, but a warning helps spot wire-format
     // regressions early.
+    // Everything this player has to say goes through one channel (API review §5): the caller's
+    // `onWarn` / `onError` if given, the console otherwise, and neither when `silent`.
+    const diag = createDiagnostics(callbacks, '[PxAnimator]');
+
     const effectsWarnings = validateNodeEffects(doc as any);
-    for (const w of effectsWarnings) console.warn('[PxAnimator] effects shape warning:', w);
+    for (const w of effectsWarnings) diag.warn('effects shape warning: ' + w);
 
     // …and the WHOLE-document check beside it. This is the boundary diagnostic: if a consumer's
     // build mangled property names, the keys reaching us are unrecognisable and this says so,
@@ -70,7 +74,7 @@ export function createAnimatorImpl(
     // rewrites `animateById` keys — a late patch would be read by none of them.
     if (config !== undefined || resetDocDefaults) {
         const patched = applyAnimatorConfig(doc, config ?? {}, { resetDefaults: !!resetDocDefaults });
-        for (const w of patched.warnings) console.warn('[PxAnimator] config override:', w);
+        for (const w of patched.warnings) diag.warn('config override: ' + w);
         doc = patched.doc;
     }
 
@@ -221,6 +225,10 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
         }
     };
 
+    // A failed load is the one thing the web player could never tell anyone about: it went to
+    // `console.error` and the proxy then answered `isReady() === false` for ever (API review §5).
+    const loadDiag = createDiagnostics(callbacks, '[PxAnimator]');
+
     fetch(src!).then(res => res.json()).then(json => {
         if (destroyed) return; // destroy() was called before the document loaded
         if (isPxElementFileFormat(json)) {
@@ -229,11 +237,11 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
             pending = null;
             queued?.forEach(call => call(animator!));
         } else {
-            console.error('createAnimator: invalid animation document format at "' + src + '"');
+            loadDiag.error('createAnimator: invalid animation document format at "' + src + '"');
         }
     }).catch(err => {
         pending = null;
-        console.error('createAnimator: failed to load "' + src + '"', err);
+        loadDiag.error('createAnimator: failed to load "' + src + '" — ' + (err?.message ?? String(err)));
     });
 
     // Return a proxy that forwards calls once loaded
@@ -248,6 +256,8 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
         "setPlaybackRate": (rate: number) => { enqueue(api => api.setPlaybackRate(rate)); },
         "getCurrentTime": () => animator ? animator.getCurrentTime() : null,
         "setCurrentTime": (time: number) => { enqueue(api => api.setCurrentTime(time)); },
+        "getCurrentProgress": () => animator ? animator.getCurrentProgress() : null,
+        "setCurrentProgress": (progress: number) => { enqueue(api => api.setCurrentProgress(progress)); },
         "destroy": () => {
             destroyed = true;
             pending = null; // drop any queued calls
@@ -273,8 +283,11 @@ export function loadTagAnimators() {
     }
 }
 
-if (typeof window !== 'undefined') {
-    (window as any)["loadTagAnimators"] = loadTagAnimators;
-    (window as any)["createAnimator"] = createAnimator;
-    (window as any)["setupAnimationTriggers"] = setupAnimationTriggers;
-}
+// No module-level globals (API review §4). This file used to end by assigning
+// `window.createAnimator` / `loadTagAnimators` / `setupAnimationTriggers` whenever it loaded —
+// for every ESM and CJS consumer too, not just `<script>` pages. That could overwrite a page's
+// own `createAnimator`, and the side effect made the whole module untree-shakable.
+//
+// `<script>` users reach all three through `PixodeskAnimator.*` on the UMD build, which is what
+// the editor's exported SVG+JS calls. Older exported files are unaffected: they inline their own
+// player and assign these names themselves.

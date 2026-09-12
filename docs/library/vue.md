@@ -130,7 +130,12 @@ const animator = ref<VueAnimatorApi | null>(null);
 ```
 
 `VueAnimatorApi`: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`,
-`setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`.
+`setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`,
+`getCurrentProgress()`, `setCurrentProgress(p)`.
+
+Time is ms from the start of the whole run, seeks are clamped to it, and a rate of `0` is
+rejected with a warning — the same on every player. `getCurrentProgress()` is the same position
+as 0–1, the read twin of the `progress` prop.
 
 With none of `autoplay` / `progress` / `time` / `play` / `pause` set, the first frame renders
 statically and the ref is your only control.
@@ -181,6 +186,9 @@ component.
 | `duration` · `delay` | `number` | shortcuts for `config.timeline.duration` / `config.timeline.delay`: length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component |
 | `iterations` | `number \| 'infinite'` | shortcut for `config.timeline.iterations`; `'infinite'` never stops |
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | shortcut for `config.timeline.trigger.startOn`: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
+| `onWarn` | `(message, detail?) => void` | something is off but the animation still plays — an unknown easing, a config key that could not be applied, two control props at once. Without this it goes to `console.warn` |
+| `onError` | `(error) => void` | the animation could not be produced at all — a document that failed to parse or render. Without this it goes to `console.error` |
+| `silent` | `boolean` | silences the console *fallback* above. `onWarn` / `onError` still fire if you gave them — it is not a mute button |
 | `class` · `style` · any other attribute | | anything else you put on `<PixodeskSvgAnimator>` ends up on the `<svg>` element it renders (standard Vue attribute inheritance). So to set the animation's size, either put `style="width: 300px; height: 300px"` on the component itself, or give those dimensions to the element that contains it — the SVG keeps its proportions either way |
 
 ## Events
@@ -193,6 +201,11 @@ component.
 | `finish` | the animation reached its end — it played all its iterations, or `finish()` was called. Does not fire when playback is stopped early |
 | `remove` | the animator was thrown away: the component unmounted, or you passed a different `doc` and a new animator was built for it |
 | `stop` | fires *in addition to* whichever of `pause`, `cancel`, `finish` or `remove` just fired. Listen to this one event when you only care that the animation is no longer playing, whatever the reason |
+
+`onWarn` and `onError` are **props**, not events, on purpose. An event handler exists whether or
+not you listen, so wiring them to `emit` would have silenced the console fallback for everyone
+who never subscribed. As props, leaving them out really does mean "not given" — and the console
+still speaks by default.
 
 ```vue
 <script setup lang="ts">

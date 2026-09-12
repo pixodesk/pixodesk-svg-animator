@@ -161,7 +161,12 @@ describe('createAnimator', () => {
 
         await flushMicrotasks();
 
-        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('failed to load'), expect.any(Error));
+        // One message, not (message, Error): failures go through the shared diagnostics channel
+        // now, which hands a handler a single Error and prints a single line (API review §5).
+        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('failed to load'));
+        // The cause still has to be reported — it rides inside the message instead of as a
+        // second argument, so this keeps what `expect.any(Error)` used to cover.
+        expect(String(errorSpy.mock.calls[0][0])).toContain('network down');
         expect(api.isReady()).toBe(false);
         expect(() => api.play()).not.toThrow(); // late calls are no-ops, not errors
     });

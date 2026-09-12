@@ -9,6 +9,7 @@
     "directory": "packages/svg-animator-web"
   },
   "private": false,
+  "sideEffects": false,
   "type": "module",
   "main": "dist/index.cjs",
   "module": "dist/index.js",

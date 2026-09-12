@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, getAnimatorConfig, getNormalisedBindings, interpolateValue, kebabToCamelCaseWord, PxTimelineEngine, splitEasing, toRGBA, TRANSFORM_FN_NAMES, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxAnyKeyframe, type PxBezierPath, type PxNormalisedKeyframe, kfEasing, kfValue } from '@pixodesk/svg-animator-core';
+import { PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, getAnimatorConfig, getNormalisedBindings, interpolateValue, kebabToCamelCaseWord, PxTimelineEngine, splitEasing, toRGBA, TRANSFORM_FN_NAMES, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxAnyKeyframe, type PxBezierPath, type PxNormalisedKeyframe, kfEasing, kfValue, clampSeekMs, createDiagnostics, isValidPlaybackRate, progressToTimeMs, PX_RATE_REJECTED, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
 import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
@@ -222,14 +222,17 @@ export function createWebApiAnimator(
 
     const config = getAnimatorConfig(doc) || {};
 
+    // One channel for everything this engine has to say (API review §5).
+    const diag = createDiagnostics(callbacks, '[PxAnimator]');
+
     // Use provided root element or try to find by selector
     if (!rootElement) {
         if (doc.id) {
             const rootSelector = getSelector(doc.id);
             rootElement = document.querySelector(rootSelector);
-            if (!rootElement) console.warn("createFrameLoopAnimator: No root element found for selector: ", rootSelector);
+            if (!rootElement) diag.warn('createWebApiAnimator: No root element found for selector: ' + rootSelector);
         } else {
-            console.warn("createFrameLoopAnimator: No root element provided");
+            diag.warn('createWebApiAnimator: No root element provided');
         }
     }
 
@@ -259,13 +262,13 @@ export function createWebApiAnimator(
 
     // Warn if no bindings defined
     if (!bindings?.length) {
-        console.warn('createWebApiAnimator: No animation bindings defined');
+        diag.warn('createWebApiAnimator: No animation bindings defined');
     }
 
     for (const binding of bindings || []) {
         const animDef = binding.animate;
         if (!animDef || typeof animDef !== 'object' || Array.isArray(animDef)) {
-            console.warn('createWebApiAnimator: Empty or unresolved binding', binding);
+            diag.warn('createWebApiAnimator: Empty or unresolved binding', binding);
             continue;
         }
 
@@ -275,7 +278,7 @@ export function createWebApiAnimator(
         const elements = rootElement?.querySelectorAll(selector) || document.querySelectorAll(selector);
 
         if (elements.length === 0) {
-            console.warn('createWebApiAnimator: No elements found for selector "' + selector + '"');
+            diag.warn('createWebApiAnimator: No elements found for selector "' + selector + '"');
         }
 
         // Convert animation definition to Web API keyframes
@@ -347,7 +350,9 @@ export function createWebApiAnimator(
 
                         animations.push(anim);
                     } catch (e) {
-                        console.warn(e);
+                        // Was a bare dump of the error object; the channel carries it as the
+                        // DETAIL so a handler gets something it can act on (review §5).
+                        diag.warn('createWebApiAnimator: could not build the animation', e);
                     }
                 }
             }
@@ -357,7 +362,7 @@ export function createWebApiAnimator(
     ////////////////////////////////////////////////////////////////
 
     if (!forceEvenIfHasUnsupportedAttrs && unsupportedSet.size) {
-        console.warn('Unsupported CSS attrs: ' + [...unsupportedSet].join(', '));
+        diag.warn('Unsupported CSS attrs: ' + [...unsupportedSet].join(', '));
         return null;
     }
 
@@ -404,6 +409,12 @@ export function createWebApiAnimator(
         },
 
         "setPlaybackRate": (rate: number) => {
+            // WAAPI itself accepts 0 and silently freezes; the other two engines reject it.
+            // One answer everywhere (review §3) — `pause()` is how you stop.
+            if (!isValidPlaybackRate(rate)) {
+                diag.warn(PX_RATE_REJECTED);
+                return api;
+            }
             animations.forEach(a => (a.playbackRate = rate));
             return api;
         },
@@ -412,10 +423,24 @@ export function createWebApiAnimator(
             return res !== null ? +res : null;
         },
         "setCurrentTime": (time: number) => {
+            // Clamp like every other engine (review §3). A duration is not always declared,
+            // and a ceiling of 0 would pin every seek to the first frame — so clamp only when
+            // the timeline length is actually known, and otherwise just floor at 0.
+            const ceiling = seekCeilingMs(config.duration ?? 0, iterations ?? 1);
+            const seek = ceiling > 0 ? clampSeekMs(time, ceiling) : Math.max(0, time);
             finishNotified = false; // re-arm finish notification
             animations.forEach(a => {
-                a.currentTime = time;
+                a.currentTime = seek;
             });
+        },
+
+        "getCurrentProgress": (): number | null => {
+            const t = api.getCurrentTime();
+            return t === null ? null : timeToProgress(t, config.duration ?? 0, iterations ?? 1);
+        },
+
+        "setCurrentProgress": (progress: number) => {
+            api.setCurrentTime(progressToTimeMs(progress, config.duration ?? 0, iterations ?? 1));
         },
 
         "destroy": () => {
@@ -434,7 +459,7 @@ export function createWebApiAnimator(
     // writers must not emit them; a doc that carries them anyway gets a warning.
     // Every time-driven document IS wired: no `trigger` means the defaults (`startOn` 'load').
     if (config.timelineSource === 'scroll') {
-        if (config.trigger) console.warn('scroll timeline: `animator.trigger` is ignored (triggers do not apply to scroll-driven playback)');
+        if (config.trigger) diag.warn('scroll timeline: `animator.trigger` is ignored (triggers do not apply to scroll-driven playback)');
     } else {
         setupAnimationTriggers(api, config.trigger ?? {});
     }

@@ -7,6 +7,7 @@ import { type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxAnimatorCallback
 import { getAnimatorConfig, PxTimelineEngine } from '../format/PxAnimatorConstants';
 import { camelCaseToKebabWordIfNeeded, clamp, DEFAULT_DURATION_MS, STYLE_ATTR_NAMES } from '../util/PxAnimatorUtil';
 import { calcAnimationValues, getNormalisedBindings } from '../animation/PxDefinitions';
+import { clampSeekMs, isValidPlaybackRate, progressToTimeMs, PX_RATE_REJECTED, timeToProgress } from './PxPlaybackTime';
 
 
 // Frame scheduling — resolved LAZILY from globalThis on every call so test
@@ -441,8 +442,8 @@ export function createBasicFrameLoopAnimator(
         },
 
         "setPlaybackRate": (rate: number) => {
-            if (!isFinite(rate) || rate === 0) {
-                console.warn('setPlaybackRate: rate must be finite and non-zero');
+            if (!isValidPlaybackRate(rate)) {
+                console.warn(PX_RATE_REJECTED);
                 return;
             }
             // Preserve the RAW logical time when changing rate — during the
@@ -460,9 +461,8 @@ export function createBasicFrameLoopAnimator(
         "getCurrentTime": (): number | null => { return getAnimCurrentTime(); },
 
         "setCurrentTime": (newTime: number) => {
-            // clamp newTime
-            if (newTime < 0) newTime = 0;
-            if (Number.isFinite(totalDuration) && newTime > (totalDuration as number)) newTime = totalDuration as number;
+            // One clamp rule for every engine (review §3).
+            newTime = clampSeekMs(newTime, totalDuration as number);
 
             timeBeforeLastStartMs = newTime;
             if (playing) lastStartedTs = Date.now();
@@ -470,6 +470,12 @@ export function createBasicFrameLoopAnimator(
             if (!Number.isFinite(totalDuration) || newTime < (totalDuration as number)) finishCalled = false;
             // render immediately to reflect the change
             renderFrame(getAnimCurrentTime());
+        },
+
+        "getCurrentProgress": (): number | null => timeToProgress(getAnimCurrentTime(), duration, iterations),
+
+        "setCurrentProgress": (progress: number) => {
+            api.setCurrentTime(progressToTimeMs(progress, duration, iterations));
         },
 
         "destroy": () => {

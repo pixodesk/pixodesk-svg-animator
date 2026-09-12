@@ -164,8 +164,13 @@ export function Imperative() {
 ```
 
 `RnAnimatorApi`: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`,
-`setPlaybackRate(rate)` (negative = reverse), `getCurrentTime()`, `setCurrentTime(ms)` — jumping to a time
-while playing continues from there.
+`setPlaybackRate(rate)` (negative = reverse; `0` is rejected with a warning — use `pause()`),
+`getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)` —
+jumping to a time while playing continues from there.
+
+`getCurrentTime()` is ms from the start of the whole run, every iteration included — the same
+as the web players. It used to be ms within the *current* iteration here, so a slider built on
+it jumped back to zero each time the animation repeated.
 
 **Controlled time:**
 
@@ -208,7 +213,9 @@ component.
 | `iterations` | `number \| 'infinite'` | shortcut for `config.timeline.iterations`; `'infinite'` never stops |
 | `startOn` | `'load' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | shortcut for `config.timeline.trigger.startOn`. `mouseOver` has no touch equivalent — see [Differences from the React package](#differences-from-the-react-package) |
 | `onPlay` · `onPause` · `onFinish` · `onCancel` · `onStop` | `() => void` | called when the animation starts or resumes (`onPlay`), pauses (`onPause`), reaches its end (`onFinish`), or is stopped and reset to the start (`onCancel`) — same meanings as in the [React component](./react.md#props). `onStop` fires *in addition to* any of the others that halt playback — use it when you only care that the animation is no longer playing |
-| `onError` | `(error, componentStack?) => void` | the document could not be compiled or rendered |
+| `onError` | `(error, componentStack?) => void` | the document could not be compiled or rendered. Without this it goes to `console.error` |
+| `onWarn` | `(message, detail?) => void` | something is off but the animation still plays — an unknown easing, a config key that could not be applied, two control props at once. Without this it goes to `console.warn`. The same channel as the [React component](./react.md#props) |
+| `silent` | `boolean` | silences the console *fallback* above. `onWarn` / `onError` still fire if you gave them |
 | `fallback` | `(error) => ReactElement \| null` | rendered in place of a failed animation (default: renders nothing) |
 
 With none of `autoplay` / `play` / `pause` / `progress` / `time` set, the first frame renders

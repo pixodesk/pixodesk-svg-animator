@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, isNativeForced, isScrollTimeline, mayUseNativeScrollTimeline, PxTimelineEngineExtra, scrollTotalDurationMs, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { createDiagnostics, getAnimatorConfig, isNativeForced, isScrollTimeline, mayUseNativeScrollTimeline, PxTimelineEngineExtra, scrollTotalDurationMs, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
@@ -127,7 +127,8 @@ export function bindWithEngineChoice(
                     api.destroy = () => { driver.destroy(); unpin(); destroy(); };
                 }
             } else {
-                console.warn('scroll timeline: no root element to observe — animation will stay at frame 0');
+                createDiagnostics(callbacks, '[PxAnimator]')
+                    .warn('scroll timeline: no root element to observe — animation will stay at frame 0');
             }
             return api;
         });

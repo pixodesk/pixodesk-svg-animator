@@ -2005,6 +2005,30 @@ export interface PxAnimatorCallbacksConfig {
 
     /** Callback executed when the animation is removed. */
     onRemove?: () => void;
+
+    // -- Diagnostics (API review §5) -----------------------------------------
+    // One channel for every player. A player WARNS and carries on; it does not throw at the
+    // caller. Give a handler and it takes over from the console; give none and the console is
+    // the fallback, so nothing is lost by default. See `createDiagnostics`.
+
+    /**
+     * Something is off, but the animation still plays — an unknown easing, a config key that
+     * could not be applied, an attribute the browser will not animate.
+     *
+     * With no handler these go to `console.warn`.
+     */
+    onWarn?: (message: string, detail?: unknown) => void;
+
+    /**
+     * The animation could not be produced at all: a document that failed to load or parse, or
+     * a render that threw. The player stays inert rather than throwing at the caller.
+     *
+     * With no handler these go to `console.error`.
+     */
+    onError?: (error: Error) => void;
+
+    /** Suppress the console FALLBACK above. Handlers still fire — this is not a mute button. */
+    silent?: boolean;
 }
 
 
@@ -2076,20 +2100,50 @@ export interface PxBasicAnimatorAPI<TRoot = unknown> {
 
 }
 
-/** The full programmatic control interface for an animation. */
+/**
+ * The full programmatic control interface for an animation.
+ *
+ * ### The time contract (API review §3)
+ *
+ * Every engine — the browser's WAAPI, the frame loop, React Native — answers these the same way:
+ *
+ * - **Time is ms from the start of the WHOLE run**, iterations included; never ms within the
+ *   current iteration. A time slider therefore reads the same on every player instead of
+ *   jumping back each time the animation repeats.
+ * - **A seek clamps to `[0, duration × iterations]`**, with no upper bound when `iterations`
+ *   is `'infinite'`.
+ * - **A rate of 0 is rejected** with a warning, everywhere. Use `pause()`.
+ *
+ * The maths behind it lives in `playback/PxPlaybackTime.ts`, so there is one implementation
+ * rather than one per engine.
+ */
 export interface PxAnimatorAPI<TRoot = unknown> extends PxBasicAnimatorAPI<TRoot> {
 
     /** Jumps to the end of the animation and holds the final state. */
     finish(): void;
 
-    /** Changes the speed of the animation. 1 is normal, 2 is double, -1 is reverse. */
+    /**
+     * Changes the speed of the animation. 1 is normal, 2 is double, -1 is reverse.
+     * A rate of 0 — or a non-finite one — is rejected with a warning; use `pause()`.
+     */
     setPlaybackRate(rate: number): void;
 
-    /** Returns the current playback time in milliseconds. */
+    /** Current playback time, ms from the start of the whole run. `null` before ready. */
     getCurrentTime(): number | null;
 
-    /** Jumps to a specific time (in milliseconds) in the animation. */
+    /** Seeks, ms from the start of the whole run; clamped to `[0, duration × iterations]`. */
     setCurrentTime(time: number): void;
+
+    /**
+     * Current position as 0–1 of the whole run. `null` before ready.
+     *
+     * The span is `duration × iterations`, or ONE iteration when `iterations` is `'infinite'`
+     * (where the value wraps) — the same rule the components' `progress` prop already uses.
+     */
+    getCurrentProgress(): number | null;
+
+    /** Seeks to 0–1 of the whole run, clamped to `[0, 1]`. The twin of `getCurrentProgress`. */
+    setCurrentProgress(progress: number): void;
 
     /** Stops the animation and cleans up all associated resources. */
     destroy(): void;

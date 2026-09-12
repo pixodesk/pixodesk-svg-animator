@@ -161,6 +161,52 @@ describe("PixodeskSvgAnimator (React)", () => {
         });
     });
 
+    // -- 2c. The shared diagnostics channel (API review §5) --------------------
+
+    describe("diagnostics channel", () => {
+        it("onWarn takes over from the console — handing it over means owning it", () => {
+            const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
+            const onWarn = vi.fn();
+
+            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay onWarn={onWarn} />);
+
+            expect(onWarn).toHaveBeenCalled();
+            expect(String(onWarn.mock.calls[0][0])).toContain("progress/time");
+            // ...and the console said nothing, so nothing is reported twice.
+            expect(warn).not.toHaveBeenCalled();
+            warn.mockRestore();
+        });
+
+        it("falls back to the console when no handler is given", () => {
+            const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
+
+            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay />);
+
+            expect(warn).toHaveBeenCalled();
+            warn.mockRestore();
+        });
+
+        it("silent suppresses the console fallback", () => {
+            const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
+
+            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay silent />);
+
+            expect(warn).not.toHaveBeenCalled();
+            warn.mockRestore();
+        });
+
+        it("silent is not a mute button — onWarn still fires", () => {
+            const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
+            const onWarn = vi.fn();
+
+            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay silent onWarn={onWarn} />);
+
+            expect(onWarn).toHaveBeenCalled();
+            expect(warn).not.toHaveBeenCalled();
+            warn.mockRestore();
+        });
+    });
+
     // -- 3. Imperative API -----------------------------------------------------
 
     describe("imperative API (apiRef)", () => {

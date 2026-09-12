@@ -151,9 +151,11 @@ Every field and its meaning is in [Playback settings & triggers](./playback-and-
 | `pause()` | pause at the current time |
 | `cancel()` | stop and reset to the start state |
 | `finish()` | jump to the end and hold the final state |
-| `setPlaybackRate(rate)` | speed: `1` normal, `2` double, `0.5` half, **negative value plays in reverse** |
-| `getCurrentTime()` | current time in ms (`null` before a `src` document has loaded) |
-| `setCurrentTime(ms)` | jump to a point in the animation, given in milliseconds from its start. While paused, the animation shows that frame and stays there — that is how a slider steps through it frame by frame; while playing, it continues from the new point |
+| `setPlaybackRate(rate)` | speed: `1` normal, `2` double, `0.5` half, **negative value plays in reverse**. `0` is rejected with a warning — use `pause()` |
+| `getCurrentTime()` | current time in ms from the start of the whole run, every iteration included (`null` before a `src` document has loaded) |
+| `setCurrentTime(ms)` | jump to a point in the animation, given in milliseconds from its start; clamped to the run. While paused, the animation shows that frame and stays there — that is how a slider steps through it frame by frame; while playing, it continues from the new point |
+| `getCurrentProgress()` | the same position as `0`–`1` of the whole run (`null` before ready) |
+| `setCurrentProgress(p)` | jump to `0`–`1` of the whole run |
 | `isPlaying()` | `true` while running |
 | `isReady()` | `true` once a `src` document has loaded and rendered |
 | `getRootElement()` | the rendered `<svg>` element (`null` before ready) |
@@ -183,7 +185,12 @@ slider.addEventListener('input', () => {
 
 Pass `callbacks` to be told when the animation starts, pauses, resets, finishes or is
 destroyed — for example to reveal the next section of a page once an intro has finished. Every
-callback is called with no arguments.
+lifecycle callback is called with no arguments.
+
+The same object carries the player's diagnostics: `onWarn(message, detail?)` for anything
+survivable, `onError(error)` for a document that could not be loaded, parsed or rendered, and
+`silent` to suppress the console fallback those two replace. Give a handler and the console
+stays out of it; give none and the console still speaks, so nothing is lost by default.
 
 ```html
 <div id="box" style="width: 300px; height: 300px"></div>
@@ -202,6 +209,10 @@ createAnimator({
     onCancel: () => {},   // cancelled (reset)
     onFinish: () => {},   // finished naturally, or finish() was called
     onRemove: () => {},   // destroyed
+
+    onWarn:  (message, detail) => {},   // survivable; else console.warn
+    onError: (error) => {},             // could not play at all; else console.error
+    silent:  false,                     // true suppresses the console fallback only
   },
 });
 ```

@@ -392,4 +392,94 @@ describe('createBasicFrameLoopAnimator', () => {
 
         expect(calls[calls.length - 1].value).toBe('0');
     });
+
+    // -- The shared time contract (API review §3) -----------------------------
+
+    describe('time contract', () => {
+
+        it('rejects a rate of 0 with a warning and keeps playing at the old rate', () => {
+            const warn = vi.spyOn(console, 'warn').mockImplementation(() => { });
+            const { api, opacity } = setup();
+
+            api.play();
+            api.setPlaybackRate(0);
+            expect(warn).toHaveBeenCalled();
+
+            // Still advancing at 1×: a rate of 0 must not have frozen it.
+            vi.advanceTimersByTime(DUR / 2);
+            expect(opacity()).toBeCloseTo(0.5, 5);
+            warn.mockRestore();
+        });
+
+        it('clamps a seek past the end instead of parking beyond it', () => {
+            const { api } = setup();
+
+            api.setCurrentTime(99_999);
+            expect(api.getCurrentTime()).toBe(DUR);
+
+            api.setCurrentTime(-500);
+            expect(api.getCurrentTime()).toBe(0);
+        });
+
+        it('getCurrentProgress reads 0–1 of the whole run', () => {
+            const { api } = setup();
+
+            expect(api.getCurrentProgress()).toBe(0);
+            api.setCurrentTime(DUR / 2);
+            expect(api.getCurrentProgress()).toBeCloseTo(0.5, 5);
+            api.setCurrentTime(DUR);
+            expect(api.getCurrentProgress()).toBe(1);
+        });
+
+        it('setCurrentProgress is the inverse of getCurrentProgress', () => {
+            const { api } = setup();
+
+            api.setCurrentProgress(0.5);
+            expect(api.getCurrentTime()).toBeCloseTo(DUR / 2, 5);
+            expect(api.getCurrentProgress()).toBeCloseTo(0.5, 5);
+        });
+
+        it('progress spans EVERY iteration, not just one', () => {
+            // 2 × 320ms: half the run is the end of iteration 1, not the middle of it.
+            const { api } = setup({ iterations: 2 });
+
+            api.setCurrentProgress(0.5);
+            expect(api.getCurrentTime()).toBeCloseTo(DUR, 5);
+
+            api.setCurrentProgress(1);
+            expect(api.getCurrentTime()).toBeCloseTo(DUR * 2, 5);
+        });
+
+        it('getCurrentProgress spans every iteration too, not just the first', () => {
+            // The READ direction of the case above. Without it, `getCurrentProgress` is only
+            // ever asserted on a single-iteration run — where a denominator of "one iteration"
+            // and "the whole run" are the same number, so the bug hides.
+            const { api } = setup({ iterations: 2 });
+
+            api.setCurrentTime(DUR);             // end of iteration 1 = half the run
+            expect(api.getCurrentProgress()).toBeCloseTo(0.5, 5);
+
+            api.setCurrentTime(DUR * 2);
+            expect(api.getCurrentProgress()).toBe(1);
+        });
+
+        it('an endless run wraps getCurrentProgress inside the current iteration', () => {
+            const { api } = setup({ iterations: 'infinite' });
+
+            api.setCurrentTime(DUR * 2 + DUR / 2);   // two iterations done, halfway through the third
+            expect(api.getCurrentProgress()).toBeCloseTo(0.5, 5);
+        });
+
+        it('an endless run maps progress onto ONE iteration, and seeks past it', () => {
+            const { api } = setup({ iterations: 'infinite' });
+
+            // progress: one iteration (the documented `progress` prop rule)
+            api.setCurrentProgress(0.5);
+            expect(api.getCurrentTime()).toBeCloseTo(DUR / 2, 5);
+
+            // seeking: unbounded, because there is no end to clamp to
+            api.setCurrentTime(DUR * 10);
+            expect(api.getCurrentTime()).toBe(DUR * 10);
+        });
+    });
 });

@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxAnimatorConfigPatch, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger } from '@pixodesk/svg-animator-web';
-import { camelCaseToKebabWordIfNeeded, createAnimator, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from '@pixodesk/svg-animator-web';
+import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
     watch,
@@ -35,11 +35,20 @@ export interface VueAnimatorApi {
     /** Changes the speed of the animation. 1 is normal, 2 is double, -1 is reverse. */
     setPlaybackRate(rate: number): void;
 
-    /** Returns the current playback time in milliseconds. */
+    /** Current playback time, ms from the start of the whole run (iterations included). */
     getCurrentTime(): number | null;
 
-    /** Jumps to a specific time (in milliseconds) in the animation. */
+    /** Seeks, ms from the start of the whole run; clamped to `[0, duration × iterations]`. */
     setCurrentTime(time: number): void;
+
+    /**
+     * Current position as 0–1 of the whole run — the read twin of the `progress` prop,
+     * and ONE iteration when `iterations` is `'infinite'`.
+     */
+    getCurrentProgress(): number | null;
+
+    /** Seeks to 0–1 of the whole run, clamped to `[0, 1]`. */
+    setCurrentProgress(progress: number): void;
 }
 
 
@@ -55,7 +64,7 @@ export interface VueAnimatorApi {
  * Creates a platform adapter that routes animator attribute updates
  * to the corresponding Vue-managed DOM element refs.
  */
-function createVueAdapter(elementRefs: Map<string, Element>) {
+function createVueAdapter(elementRefs: Map<string, Element>, diag: PxDiagnostics) {
     const warnedSelectors = new Set<string>();
 
     const adapter: PxPlatformAdapter = {
@@ -67,7 +76,7 @@ function createVueAdapter(elementRefs: Map<string, Element>) {
 
             if (!element && !warnedSelectors.has(id)) {
                 warnedSelectors.add(id);
-                console.warn('setAttribute: No elements found for id "' + id + '"');
+                diag.warn('setAttribute: No elements found for id "' + id + '"');
             }
 
             if (element) {
@@ -105,6 +114,7 @@ function applyDocOverrides(
     doc: PxAnimatedSvgDocument,
     props: DocOverrideProps,
     compMode: PxControlMode,
+    diag: PxDiagnostics,
 ): PxAnimatedSvgDocument {
 
     // ONE patch, applied ONCE: the props, plus the component's own need to take the trigger
@@ -128,7 +138,7 @@ function applyDocOverrides(
 
     if (fullPatch !== undefined || resetDocDefaults) {
         const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetDefaults: !!resetDocDefaults });
-        for (const w of applied.warnings) console.warn('[PixodeskSvgAnimator] config override:', w);
+        for (const w of applied.warnings) diag.warn('config override: ' + w);
         doc = applied.doc;
     }
 
@@ -210,6 +220,15 @@ const PixodeskSvgAnimator = defineComponent({
         // -- Controlled time
         progress: { type: Number },
         time: { type: Number },
+
+        // -- Diagnostics (API review §5).
+        //    Function PROPS, not emits, on purpose: an emit handler always exists, so wiring
+        //    these to `emit` would permanently suppress the console fallback for anyone who
+        //    never listens. As props, "not given" really is undefined and the console still
+        //    speaks by default — the same contract as React and React Native.
+        onWarn: { type: Function as PropType<(message: string, detail?: unknown) => void> },
+        onError: { type: Function as PropType<(error: Error) => void> },
+        silent: { type: Boolean, default: undefined },
     },
 
     emits: ['play', 'stop', 'pause', 'cancel', 'finish', 'remove'],
@@ -217,6 +236,17 @@ const PixodeskSvgAnimator = defineComponent({
     setup(props, { expose, emit }) {
         const elementRefs = new Map<string, Element>();
         const apiRef = shallowRef<PxAnimatorAPI | null>(null);
+
+        /**
+         * The diagnostics channel, built from the CURRENT props each time (API review §5).
+         * Not hoisted into a constant wrapper: `(m, d) => props.onWarn?.(m, d)` would always be
+         * a function, so the channel would think a handler exists and the console fallback
+         * would never fire for anyone who passed nothing.
+         */
+        const makeDiag = (): PxDiagnostics => createDiagnostics(
+            { onWarn: props.onWarn, onError: props.onError, silent: props.silent },
+            '[PixodeskSvgAnimator]',
+        );
 
         // -- Determine control mode ---------------------------------------------
 
@@ -231,14 +261,15 @@ const PixodeskSvgAnimator = defineComponent({
         // Warn where the mode is COMPUTED, not inside `applyDocOverrides` — that runs again on
         // every doc recompute and would repeat the same sentence.
         watch(resolvedMode, r => {
-            for (const w of r.warnings) console.warn('[PixodeskSvgAnimator] ' + w);
+            const diag = makeDiag();
+            for (const w of r.warnings) diag.warn(w);
         }, { immediate: true });
 
         // -- Prepare the document with overrides --------------------------------
 
         const resolvedDoc = computed(() => {
             let doc = generateNewIds(props.doc);
-            return applyDocOverrides(doc, props, compMode.value);
+            return applyDocOverrides(doc, props, compMode.value, makeDiag());
         });
 
         // -- Render the SVG node tree -------------------------------------------
@@ -284,9 +315,13 @@ const PixodeskSvgAnimator = defineComponent({
                 onCancel: () => { emit('cancel'); emit('stop'); },
                 onFinish: () => { emit('finish'); emit('stop'); },
                 onRemove: () => { emit('remove'); emit('stop'); },
+                // The player's own diagnostics reach the same handlers as the component's.
+                onWarn: props.onWarn,
+                onError: props.onError,
+                silent: props.silent,
             };
 
-            apiRef.value = createAnimator({ data: doc, adapter: createVueAdapter(elementRefs), callbacks });
+            apiRef.value = createAnimator({ data: doc, adapter: createVueAdapter(elementRefs, makeDiag()), callbacks });
 
             // (Re)apply the declarative control state to the fresh animator —
             // covers both the initial mount (e.g. `:play="true"` from the
@@ -358,6 +393,8 @@ const PixodeskSvgAnimator = defineComponent({
             setPlaybackRate: (rate: number) => apiRef.value?.setPlaybackRate(rate),
             getCurrentTime: () => apiRef.value?.getCurrentTime() ?? null,
             setCurrentTime: (time: number) => apiRef.value?.setCurrentTime(time),
+            getCurrentProgress: () => apiRef.value?.getCurrentProgress() ?? null,
+            setCurrentProgress: (progress: number) => apiRef.value?.setCurrentProgress(progress),
         };
 
         expose(publicApi);
