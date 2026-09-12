@@ -1711,17 +1711,64 @@ export function validateNodeEffects(root: PxNode, opts?: { strict?: boolean }): 
 }
 
 /**
+ * Cross-checks glyph-mode text against the embedded faces (review §2.5).
+ *
+ * A `definitions.fonts` key IS the face name, matched against the node's `font-family`
+ * verbatim — so a name with no entry renders a row of □ placeholder boxes behind nothing but
+ * a console warning. Nothing else catches that: the schema validates each side's SHAPE, never
+ * that the two agree.
+ *
+ * Deliberately silent in two legal cases:
+ *  - the document embeds NO faces — browser-font text, a different situation entirely;
+ *  - a node carries no `font-family` — with exactly one face embedded the player resolves it
+ *    (`soleFont`), and with none there is nothing to name.
+ *
+ * The reverse (a face nothing references) is NOT reported: keeping the outlines of a text
+ * whose glyph mode is currently off is legal and deliberate, so that toggling it back on
+ * needs no font reload.
+ */
+export function validateGlyphFontRefs(root: PxNode, fonts: { [face: string]: unknown; } | undefined): Array<string> {
+    if (!fonts || !Object.keys(fonts).length) return [];
+
+    const problems: Array<string> = [];
+    const walk = (node: PxNode, path: string, inherited: string | undefined, inGlyphText: boolean): void => {
+        if (!node) return;
+        // `font-family` inherits down the text tree, exactly as the renderer resolves it.
+        const own = typeof node.fontFamily === 'string' ? node.fontFamily : undefined;
+        const family = own ?? inherited;
+        const isGlyphText = inGlyphText || (node.type === 'text' && !!node.effects?.text?.useGlyphs);
+
+        // Report at the node that DECLARES the family — one problem per mistake, not one per
+        // descendant that merely inherits it.
+        if (isGlyphText && own && !Object.prototype.hasOwnProperty.call(fonts, own)) {
+            const problem = path + ': glyph-mode text uses font-family "' + own
+                + '", which has no entry in animator.definitions.fonts';
+            if (!problems.includes(problem)) problems.push(problem);
+        }
+        if (Array.isArray(node.children)) {
+            node.children.forEach((c, i) => walk(c, path + '.children[' + i + ']', family, isGlyphText));
+        }
+    };
+    walk(root, 'root', undefined, false);
+    return problems;
+}
+
+/**
  * Validates a WHOLE document against the wire schema — strictly, so undeclared keys are
- * reported too — plus every node's `effects` bucket. Returns human-readable problems
- * (`path: what is wrong`), empty when the document is sound; never throws. The player
- * itself only warns and skips what it cannot read; this is the one call for tooling,
- * CI and agents that want a yes/no answer before shipping a document.
+ * reported too — plus every node's `effects` bucket and the glyph-font references. Returns
+ * human-readable problems (`path: what is wrong`), empty when the document is sound; never
+ * throws. The player itself only warns and skips what it cannot read; this is the one call
+ * for tooling, CI and agents that want a yes/no answer before shipping a document.
  */
 export function validateDocument(doc: unknown): Array<string> {
     const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
     const problems: Array<string> = PxAnimatedSvgDocumentSchema.isValid(doc, ctx, ['root']) ? [] : [...ctx.errors];
     if (doc && typeof doc === 'object') {
         for (const w of validateNodeEffects(doc as PxNode, { strict: true })) {
+            if (!problems.includes(w)) problems.push(w);
+        }
+        const fonts = getAnimatorConfig(doc as PxAnimatedSvgDocument)?.definitions?.fonts;
+        for (const w of validateGlyphFontRefs(doc as PxNode, fonts)) {
             if (!problems.includes(w)) problems.push(w);
         }
     }

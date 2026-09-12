@@ -174,6 +174,9 @@ function paintOf(s: Style): Paint {
     return p;
 }
 
+/** The embedded outlines for a span. `font-family` holds the FACE name the author picked
+ *  (`Roboto-Light`), which is exactly the key the writer stored, so this is a direct lookup —
+ *  weight/slant are CSS attrs and never select a face. */
 function glyphFontFor(s: Style, glyphs: Record<string, PxGlyphFont>, soleFont: PxGlyphFont | undefined, warnings?: Array<string>): PxGlyphFont | undefined {
     const gf = s.fontFamily ? glyphs[s.fontFamily] : soleFont;
     if (!gf) warnings?.push('textGlyphs: no glyphs for font "' + (s.fontFamily ?? '') + '"');

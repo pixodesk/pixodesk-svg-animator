@@ -553,3 +553,51 @@ describe('textGlyphsEffect — span filter ref folds into the baked paint', () =
         expect(paths(root)[0].filter).toBeUndefined();
     });
 });
+
+
+// `font-family` holds the FACE name the author picked (`F-Bold`), and that is exactly the
+// `definitions.fonts` key — so the lookup is a direct one. Two faces of one family are two
+// separate entries, and the CSS `font-weight` / `font-style` attrs never pick between them.
+const faceGlyphs = {
+    // Same char, a DIFFERENT outline per face — so the assertions can tell them apart.
+    F: {
+        fontFamily: 'F', fontStyle: '', ascent: 800, unitsPerEm: 1000,
+        glyphs: { H: { width: 700, pathData: 'M0 0L100 0L100 -700Z' } },
+    },
+    'F-Bold': {
+        fontFamily: 'F', fontStyle: 'Bold', ascent: 800, unitsPerEm: 1000,
+        glyphs: { H: { width: 700, pathData: 'M0 0L200 0L200 -700Z' } },
+    },
+};
+
+/** One <text> whose span carries the given attrs, against the two-face defs. */
+function faceScene(spanAttrs: Record<string, unknown>): PxNode {
+    return {
+        type: 'svg',
+        animator: { definitions: { fonts: faceGlyphs } },
+        children: [{
+            type: 'text', id: 't',
+            children: [{ type: 'tspan', textContent: 'H', fontFamily: 'F', fontSize: '100px', ...spanAttrs }],
+            effects: { text: { useGlyphs: true } },
+        }],
+    } as unknown as PxNode;
+}
+
+describe('textGlyphsEffect — the face name IS the lookup key', () => {
+
+    it('each face resolves its own outlines', () => {
+        expect(paths(materialiseRaw(faceScene({})).root)[0].d).toBe('M0 0L10 0L10-70Z');            // F
+        expect(paths(materialiseRaw(faceScene({ fontFamily: 'F-Bold' })).root)[0].d)
+            .toBe('M0 0L20 0L20-70Z');                                                             // F-Bold
+    });
+
+    it('the CSS weight/slant attrs do NOT re-pick the face', () => {
+        // The author picked face `F`; `font-weight: 700` is styling on top of it and must not
+        // silently swap in F-Bold's outlines.
+        expect(paths(materialiseRaw(faceScene({ fontWeight: '700' })).root)[0].d).toBe('M0 0L10 0L10-70Z');
+        expect(paths(materialiseRaw(faceScene({ fontStyle: 'italic' })).root)[0].d).toBe('M0 0L10 0L10-70Z');
+        // …and a contradicting weight never overrides the picked face either.
+        expect(paths(materialiseRaw(faceScene({ fontFamily: 'F-Bold', fontWeight: '300' })).root)[0].d)
+            .toBe('M0 0L20 0L20-70Z');
+    });
+});
