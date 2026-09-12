@@ -248,6 +248,10 @@ class Enum<T extends string | number> extends Base<T> {
 // _canSanitize: true if any member can attempt sanitization
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** How many of the best-matching member's errors a failed union appends after its headline
+ *  (review §2.8). Enough to name the offending key and its neighbours, short of a wall. */
+const UNION_MEMBER_ERROR_LIMIT = 4;
+
 /** Tries member schemas in order; first whose isValid passes wins. sanitize returns _default when none match. */
 class Union<T> extends Base<T> {
     /** Structural tag read by {@link describeSchema} — `schemas` alone cannot tell Union from Tuple. */
@@ -271,7 +275,55 @@ class Union<T> extends Base<T> {
         // flags and swallows the per-branch noise.
         const probe: PxValidationContext | undefined = ctx && { errors: [], warnings: [], strict: ctx.strict };
         if (this.schemas.some(s => s.isValid(raw, probe, path ? [...path] : undefined))) return true;
-        ctx?.errors.push(pathStr(path ?? []) + ': no union member matched for value ' + (JSON.stringify(raw) ?? '').slice(0, 240));
+        if (!ctx) return false;
+
+        const base = pathStr(path ?? []);
+        ctx.errors.push(base + ': no union member matched for value ' + (JSON.stringify(raw) ?? '').slice(0, 240));
+
+        // …then say WHY (review §2.8). The headline alone reads the same for a
+        // `keyframes`/`keyframe` typo, for short `t`/`v` keys and for a plain type
+        // mismatch, so an entry diagnostic — or an LLM repair loop — got no pointer to
+        // the fix. Re-run each member into its OWN sink and report the one that got
+        // FURTHEST into the value: the likeliest intended shape.
+        //
+        // Not every member's errors: the real unions run to 11 alternatives
+        // (`PxKeyframeValueSchema`), so a typo inside one object member would arrive
+        // buried under ten "expected string, got object" lines.
+        let best: Array<string> | undefined;
+        let bestDepth = -1;
+        const leafExpectations: Array<string> = [];
+
+        for (const member of this.schemas) {
+            const sink: PxValidationContext = { errors: [], warnings: [], strict: ctx.strict };
+            member.isValid(raw, sink, path ? [...path] : undefined);
+            if (!sink.errors.length) continue;   // cannot happen (it failed), but keeps this total
+
+            // How far in did it get? Every message is "<path>: <reason>", and a member that
+            // descended reports at a LONGER path than the union's own.
+            const depth = Math.max(...sink.errors.map(e => e.slice(0, e.indexOf(':')).length));
+            if (depth > bestDepth || (depth === bestDepth && best && sink.errors.length < best.length)) {
+                bestDepth = depth;
+                best = sink.errors;
+            }
+            // A member that stayed at the union's own path is a shape mismatch, not a
+            // near-miss: collect just its expectation for the folded line below.
+            if (depth <= base.length) {
+                for (const e of sink.errors) {
+                    const m = /: expected (.+?), got /.exec(e);
+                    if (m && !leafExpectations.includes(m[1])) leafExpectations.push(m[1]);
+                }
+            }
+        }
+
+        if (best && bestDepth > base.length) {
+            // One member reached inside the value — its errors ARE the diagnosis.
+            for (const e of best.slice(0, UNION_MEMBER_ERROR_LIMIT)) {
+                if (!ctx.errors.includes(e)) ctx.errors.push(e);
+            }
+        } else if (leafExpectations.length) {
+            // Nothing descended: one line naming every shape this slot accepts.
+            ctx.errors.push(base + ': expected ' + leafExpectations.join(' | '));
+        }
         return false;
     }
     override _canSanitize(raw: unknown): boolean { return this.schemas.some(s => s._canSanitize(raw)); }
