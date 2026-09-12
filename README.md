@@ -33,12 +33,14 @@ icon animations, loaders.
 
 - **[Library documentation](./docs/library/README.md)** — every player: web, React, Vue, React Native; installation, APIs, playback settings & triggers
 - **[Format documentation](./docs/format/README.md)** — the JSON document: reference, effects, editor meta, the core library · [SCHEMA.md](./SCHEMA.md) — the compact printable schema
+- **[API reference](./API-SCHEMA.md)** — every export of the five packages, with full signatures for the ones you use. The reference pages are checked against the packages' types and schemas on every build — [tools/docs-check](./tools/docs-check/README.md)
 - **[Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg)** — the self-contained `.svg` flavors: embedding, static sites & CMS, `data-px-meta`
 - **[Editor manual](https://pixodesk.com/docs/svga)** — the full Pixodesk SVG Animator editor documentation, including [choosing a format](https://pixodesk.com/docs/svga/editor/choosing-a-format) and [default playback settings & triggers](https://pixodesk.com/docs/svga/editor/playback-settings)
 - **[Troubleshooting & FAQ](./docs/library/troubleshooting.md)**
 
 ## Packages
 
+<!-- px-check off the package list, prose -->
 | Package | Description |
 |---------|-------------|
 | **[@pixodesk/svg-animator-core](./packages/svg-animator-core/README.md)** | Platform-neutral core — schema, document types, interpolation, effect materializers and path sampling. No DOM. Shared by every player; you only depend on it directly to inspect or transform documents. |
@@ -64,6 +66,7 @@ motion paths once, and each player renders the result its own way.
 
 Examples in [`examples/`](examples/):
 
+<!-- px-check off the example list, prose -->
 | Example | Package | Run |
 |---------|---------|-----|
 | [docs-examples](examples/docs-examples/) | one page per documented case — web, React, Vue, pre-rendered SVG, static sites — with a browser to step through them; every case is tested on each build | `pnpm example:docs` |

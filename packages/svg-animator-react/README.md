@@ -62,7 +62,8 @@ const api = useRef<ReactAnimatorApi>(null);
 <button onClick={() => api.current?.finish()}>Finish</button>
 ```
 
-`ReactAnimatorApi` methods: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`.
+<!-- px-check members ReactAnimatorApi pkg=react -->
+`ReactAnimatorApi` methods: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
 
 ### Controlled time
 
@@ -84,6 +85,7 @@ const [time, setTime] = useState(0);
 
 ## Props
 
+<!-- px-check props PixodeskSvgAnimatorProps pkg=react -->
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxAnimatedSvgDocument` | The animation document to render (required) |
@@ -105,6 +107,9 @@ const [time, setTime] = useState(0);
 | `onCancel` | `() => void` | Called on cancel |
 | `onRemove` | `() => void` | Called when the animation is destroyed (e.g. unmount) |
 | `onStop` | `() => void` | Called whenever playback halts (pause / cancel / finish / remove) |
+| `onWarn` | `(diagnostic) => void` | something is off but the animation still plays; without it → `console.warn` |
+| `onError` | `(diagnostic) => void` | the animation could not be produced at all; without it → `console.error` |
+| `silent` | `boolean \| PxDiagnosticKind[]` | silences the console fallback — everything, or just the kinds listed; `onWarn` / `onError` still fire |
 | `className` | `string` | CSS class applied to the rendered root `<svg>` |
 | `style` | `CSSProperties` | Inline styles applied to the rendered root `<svg>` |
 

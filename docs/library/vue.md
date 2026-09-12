@@ -173,6 +173,7 @@ Only `doc` is required. The file already carries the timing and the trigger you 
 editor; every other prop is optional and, when passed, replaces the file's value for this one
 component.
 
+<!-- px-check props PixodeskSvgAnimator pkg=vue -->
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxAnimatedSvgDocument` | **required** — the animation, as saved by the editor |
@@ -183,16 +184,17 @@ component.
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
 | `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
 | `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
-| `duration` · `delay` | `number` | shortcuts for `timeline.duration` / `timeline.delay`: length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component |
+| `duration` · `delay` | `number` | shortcuts for `timeline.duration` / `timeline.delay`: length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component | <!-- px names=duration,delay -->
 | `iterations` | `number \| 'infinite'` | shortcut for `timeline.iterations`; `'infinite'` never stops |
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | shortcut for `timeline.trigger.startOn`: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
 | `onWarn` | `(diagnostic) => void` | something is off but the animation still plays — an unknown easing, a config key that could not be applied, two control props at once. Without this it goes to `console.warn` |
 | `onError` | `(diagnostic) => void` | the animation could not be produced at all — a document that failed to parse or render. Without this it goes to `console.error` |
 | `silent` | `boolean \| PxDiagnosticKind[]` | silences the console *fallback* above — everything, or just the kinds you list. `onWarn` / `onError` still fire if you gave them — it is not a mute button |
-| `class` · `style` · any other attribute | | anything else you put on `<PixodeskSvgAnimator>` ends up on the `<svg>` element it renders (standard Vue attribute inheritance). So to set the animation's size, either put `style="width: 300px; height: 300px"` on the component itself, or give those dimensions to the element that contains it — the SVG keeps its proportions either way |
+| `class` · `style` · any other attribute | | anything else you put on `<PixodeskSvgAnimator>` ends up on the `<svg>` element it renders (standard Vue attribute inheritance). So to set the animation's size, either put `style="width: 300px; height: 300px"` on the component itself, or give those dimensions to the element that contains it — the SVG keeps its proportions either way | <!-- px skip -->
 
 ## Events
 
+<!-- px-check emits PixodeskSvgAnimator pkg=vue -->
 | Event | When |
 |---|---|
 | `play` | the animation started playing — for the first time, or resumed after a pause |
@@ -252,11 +254,13 @@ import AnimationSvg from './animation.svg';   // vite-svg-loader
 </template>
 ```
 
+<!-- px-check props PixodeskSvgCssAnimator pkg=vue -->
 | Prop | Type | Default |
 |---|---|---|
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView'` | `'load'` |
 | `outAction` | `'continue' \| 'pause' \| 'reset'` | `'continue'` |
-| other attrs (`class`, `style`, …) | forwarded to the wrapper `<div>` | — |
+| `scrollIntoViewThreshold` | `number` | `0` — how much of the SVG must be visible (0–1) before `'scrollIntoView'` starts |
+| other attrs (`class`, `style`, …) | forwarded to the wrapper `<div>` | — | <!-- px skip -->
 
 > ⚠️ **Don't put the same SVG file on a page twice.** You can have as many
 > `<PixodeskSvgCssAnimator>` on a page as you like, each with a *different* file. What does not

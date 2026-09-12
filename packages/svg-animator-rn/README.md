@@ -166,6 +166,7 @@ const [time, setTime] = useState(0);
 
 ## Props
 
+<!-- px-check props PixodeskSvgAnimatorProps pkg=rn -->
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxAnimatedSvgDocument` | The animation document to render (required) |
@@ -188,6 +189,8 @@ const [time, setTime] = useState(0);
 | `onRemove` | `() => void` | Called when the animator is thrown away — the component unmounted, or a new `doc` replaced it |
 | `onStop` | `() => void` | Called whenever playback halts (pause / cancel / finish / remove) |
 | `onError` | `(error, componentStack?) => void` | Called when a document cannot be compiled or rendered |
+| `onWarn` | `(diagnostic) => void` | something is off but the animation still plays; without it → `console.warn` |
+| `silent` | `boolean \| PxDiagnosticKind[]` | silences the console fallback — everything, or just the kinds listed |
 | `fallback` | `(error) => ReactElement \| null` | Rendered in place of a failed animation (default: nothing) |
 
 With none of `autoplay` / `play` / `pause` / `progress` / `time` set, the component
@@ -215,6 +218,7 @@ renderer never reaches JavaScript and cannot be caught — see
 
 ### Differences from the React package
 
+<!-- px-check off differences from React, prose -->
 | Prop | Why it differs |
 |---|---|
 | `timeline.engine` | Accepted inside `timeline` but ignored. There is no Web Animations API on React Native; playback is always native-driven. |
@@ -250,6 +254,7 @@ properties actually change over time.
 
 ### Elements
 
+<!-- px-check off support matrix, prose -->
 | Element | Renders | Notes |
 |---|---|---|
 | `svg`, `g`, `defs` | ✅ | |
@@ -267,6 +272,7 @@ properties actually change over time.
 
 ### Animatable attributes
 
+<!-- px-check off support matrix, prose -->
 | Attribute | Animates | Notes |
 |---|---|---|
 | `opacity`, `fill-opacity`, `stroke-opacity` | ✅ | |
@@ -286,6 +292,7 @@ properties actually change over time.
 All effects are materialized by the shared core before rendering, so the React Native
 player sees plain nodes. **All are supported:**
 
+<!-- px-check schema PxEffectsSchema -->
 | Effect | Status | Notes |
 |---|---|---|
 | `transformBy` | ✅ | all parts animatable, including `skew` |
@@ -294,12 +301,13 @@ player sees plain nodes. **All are supported:**
 | `clipPath` | ✅ | including animated clip geometry |
 | `strokeTrim` | ✅ | incl. `offset` and `subPaths: 'combined'` |
 | `clone` + `retime` | ✅ | each clone keeps its own time shift, incl. `retime.timeCrop` (a visibility window on the document timeline) |
-| `fillGradient` / `strokeGradient` | ✅ | animated stops **and animated geometry** (`animate.gradientX1`/`Cx`/`R`, …); `gradientTransform` is static (core-wide) |
+| `fillGradient` / `strokeGradient` | ✅ | animated stops **and animated geometry** (`animate.gradientX1`/`Cx`/`R`, …); `gradientTransform` is static (core-wide) | <!-- px names=fillGradient,strokeGradient -->
 | `textPath` | ✅ | incl. animated `startOffset` |
 | `text.useGlyphs` | ✅ | text becomes `<path>` outlines from `definitions.fonts` — no font needed |
 
 ### Motion, timing and references
 
+<!-- px-check off support matrix, prose -->
 | Feature | Status | Notes |
 |---|---|---|
 | **Motion along a path** + `autoOrient` | ✅ | **sampled** by the core into plain transform keyframes — `react-native-svg` has no native path motion |
@@ -311,6 +319,7 @@ player sees plain nodes. **All are supported:**
 
 ### Playback and triggers
 
+<!-- px-check off support matrix, prose -->
 | Feature | Status | Notes |
 |---|---|---|
 | `duration`, `delay`, `iterations` (incl. `'infinite'`) | ✅ | |

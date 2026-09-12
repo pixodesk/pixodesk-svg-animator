@@ -198,6 +198,7 @@ Only `doc` is required. The file already carries the timing and the trigger you 
 editor; every other prop is optional and, when passed, replaces the file's value for this one
 component.
 
+<!-- px-check props PixodeskSvgAnimatorProps pkg=rn -->
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxAnimatedSvgDocument` | **required** — the animation, as saved by the editor |
@@ -209,10 +210,11 @@ component.
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
 | `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
 | `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
-| `duration` · `delay` | `number` | shortcuts for `timeline.duration` / `timeline.delay`: length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component |
+| `duration` · `delay` | `number` | shortcuts for `timeline.duration` / `timeline.delay`: length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component | <!-- px names=duration,delay -->
 | `iterations` | `number \| 'infinite'` | shortcut for `timeline.iterations`; `'infinite'` never stops |
 | `startOn` | `'load' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | shortcut for `timeline.trigger.startOn`. `mouseOver` has no touch equivalent — see [Differences from the React package](#differences-from-the-react-package) |
-| `onPlay` · `onPause` · `onFinish` · `onCancel` · `onStop` | `() => void` | called when the animation starts or resumes (`onPlay`), pauses (`onPause`), reaches its end (`onFinish`), or is stopped and reset to the start (`onCancel`) — same meanings as in the [React component](./react.md#props). `onStop` fires *in addition to* any of the others that halt playback — use it when you only care that the animation is no longer playing |
+| `onPlay` · `onPause` · `onFinish` · `onCancel` · `onStop` | `() => void` | called when the animation starts or resumes (`onPlay`), pauses (`onPause`), reaches its end (`onFinish`), or is stopped and reset to the start (`onCancel`) — same meanings as in the [React component](./react.md#props). `onStop` fires *in addition to* any of the others that halt playback — use it when you only care that the animation is no longer playing | <!-- px names=onPlay,onPause,onFinish,onCancel,onStop -->
+| `onRemove` | `() => void` | the animator was thrown away: the component unmounted, or a new `doc` replaced it (review §18) |
 | `onError` | `(error, componentStack?) => void` | the document could not be compiled or rendered. Keeps this richer signature — the error boundary hands it a component stack — while feeding the same channel as everything else. Without it, failures go to `console.error` |
 | `onWarn` | `(diagnostic) => void` | something is off but the animation still plays — an unknown easing, a config key that could not be applied, two control props at once. Without this it goes to `console.warn`. The same channel as the [React component](./react.md#props) |
 | `silent` | `boolean \| PxDiagnosticKind[]` | silences the console *fallback* above — everything, or just the kinds you list. `onWarn` / `onError` still fire if you gave them |
@@ -247,6 +249,7 @@ are in [Playback & triggers → Overriding from a player](./playback-and-trigger
 
 ### Differences from the React package
 
+<!-- px-check off differences from React, prose -->
 | Prop | Why it differs |
 |---|---|
 | `timeline.engine` | accepted inside `timeline` but ignored — there is no Web Animations API on React Native; playback is always native-driven |
@@ -311,6 +314,7 @@ not supported.
 
 ### Elements
 
+<!-- px-check off support matrix, prose -->
 | Element | Supported | Notes |
 |---|---|---|
 | `svg`, `g`, `defs` | ✅ | |
@@ -326,6 +330,7 @@ not supported.
 
 ### Animatable attributes
 
+<!-- px-check off support matrix, prose -->
 | Attribute | Supported | Notes |
 |---|---|---|
 | `opacity`, `fill-opacity`, `stroke-opacity` | ✅ | |
@@ -341,6 +346,7 @@ not supported.
 
 ### Effects
 
+<!-- px-check schema PxEffectsSchema -->
 | Effect | Supported | Notes |
 |---|---|---|
 | `transformBy` | ✅ | |
@@ -349,13 +355,14 @@ not supported.
 | `clipPath` | ✅ | |
 | `strokeTrim` | ✅ | incl. `offset` and `subPaths: 'combined'` |
 | `clone` + `retime` | ✅ | incl. `timeCrop` |
-| `fillGradient` / `strokeGradient` | ✅ | animated stops **and** geometry |
-| Animated `gradientTransform` | ❌ | not implemented in the shared core, so unavailable on every player; a static `gradientTransform` works |
+| `fillGradient` / `strokeGradient` | ✅ | animated stops **and** geometry | <!-- px names=fillGradient,strokeGradient -->
+| Animated `gradientTransform` | ❌ | not implemented in the shared core, so unavailable on every player; a static `gradientTransform` works | <!-- px skip -->
 | `textPath` | ✅ | incl. animated `startOffset` |
 | `text.useGlyphs` | ✅ | |
 
 ### Motion, timing, references
 
+<!-- px-check off support matrix, prose -->
 | Feature | Supported | Notes |
 |---|---|---|
 | Motion along a path, `autoOrient` | ✅ | positions worked out in advance by the core |
@@ -368,6 +375,7 @@ not supported.
 
 ### Playback and triggers
 
+<!-- px-check off support matrix, prose -->
 | Feature | Supported | Notes |
 |---|---|---|
 | `duration`, `delay`, `iterations` (incl. infinite) | ✅ | |
@@ -416,6 +424,7 @@ A complete config is in
 
 For custom rendering or diagnostics:
 
+<!-- px-check exports @pixodesk/svg-animator-rn partial -->
 | Export | Purpose |
 |---|---|
 | `renderRnNode(node, opts)` | render a document tree to `react-native-svg` elements, with a `decorate` hook for wrapping animated elements |

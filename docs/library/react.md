@@ -59,6 +59,7 @@ export function Player() {
 
 `ReactAnimatorApi`:
 
+<!-- px-check props ReactAnimatorApi pkg=react -->
 | Method | Description |
 |---|---|
 | `play()` | start, or resume from the current time |
@@ -183,6 +184,7 @@ in [Playback & triggers → Overriding from a player](./playback-and-triggers.md
 
 ## Props
 
+<!-- px-check props PixodeskSvgAnimatorProps pkg=react -->
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxAnimatedSvgDocument` | **required** — the animation document |
@@ -246,12 +248,14 @@ export function HoverLogo() {
 }
 ```
 
+<!-- px-check props PixodeskSvgCssAnimator pkg=react -->
 | Prop | Type | Default |
 |---|---|---|
 | `children` | the SVGR component | required |
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView'` | `'load'` |
 | `outAction` | `'continue' \| 'pause' \| 'reset'` | `'continue'` |
-| `className` · `style` | on the wrapper `<div>` | — |
+| `scrollIntoViewThreshold` | `number` | `0` — how much of the SVG must be visible (0–1) before `'scrollIntoView'` starts |
+| `className` · `style` | on the wrapper `<div>` | — | <!-- px names=className,style -->
 
 > ⚠️ **Don't put the same SVG file on a page twice.** You can have as many
 > `<PixodeskSvgCssAnimator>` on a page as you like, each with a *different* file. What does not

@@ -104,12 +104,13 @@ animator.play();
 
 #### Options
 
+<!-- px-check props PxAnimatorOptions pkg=web -->
 | Option | Type | Description |
 |---|---|---|
 | `src` | `string` | URL of the JSON document. Provide **either** `src` **or** `doc` |
 | `doc` | `PxAnimatedSvgDocument` | the document object |
 | `container` | `string \| Element` | CSS selector or element the SVG is rendered into |
-| `onPlay` · `onPause` · `onCancel` · `onFinish` · `onRemove` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take; plus `onWarn`, `onError`, `silent` for diagnostics. See [Callbacks](#callbacks) |
+| `onPlay` · `onPause` · `onCancel` · `onFinish` · `onRemove` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take; plus `onWarn`, `onError`, `silent` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onPlay,onPause,onCancel,onFinish,onRemove,onStop,onWarn,onError,silent -->
 | `adapter` | `PxPlatformAdapter` | advanced — a custom attribute writer for the frame loop (this is how the React and Vue packages route updates through their own DOM refs) |
 | **Playback overrides** | | *(all optional — see below)* |
 | `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
@@ -145,6 +146,7 @@ Every field and its meaning is in [Playback settings & triggers](./playback-and-
 
 `createAnimator` returns a `PxAnimatorAPI`:
 
+<!-- px-check props PxAnimatorAPI pkg=web -->
 | Method | Description |
 |---|---|
 | `play()` | start, or resume from the current time. On a finished animation, rewinds and plays again |
@@ -240,6 +242,7 @@ with the old elements, and you need to attach them to the new ones.
 
 `animator.timeline.engine` in the document selects how the animated attributes get updated:
 
+<!-- px-check values PxTimelineEngineExtra pkg=web -->
 | Value | Behavior |
 |---|---|
 | `'auto'` (default) | Web Animations API, with an automatic fallback to the player's frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on path…). For scroll-driven documents: the browser's `ScrollTimeline` where supported, else the player measures progress itself |

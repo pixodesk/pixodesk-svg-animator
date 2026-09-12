@@ -16,6 +16,9 @@
 // internal, and nothing outside this file ever called it — `createAnimator` is the door.
 export { createAnimator, generateNewIds, loadTagAnimators, PX_ANIMATOR_DOC_KEY } from './animator/PxAnimator';
 export type { PxTagAnimatorOptions } from './animator/PxAnimator';
+// The options of the pre-rendered builds' `createAnimator` — a type only, so the main entry can
+// describe every `createAnimator` there is (API-SCHEMA.md checks the docs against this file).
+export type { PxPrerenderedOptions } from './engines/PxAnimatorBind';
 
 export { px, schemaKeys, describeSchema } from '@pixodesk/svg-animator-core';
 export type { KeysMatch, PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, RemoveIndex } from '@pixodesk/svg-animator-core';
@@ -206,6 +209,11 @@ export {
     PxStrokeTrimSubPaths,
     PxGradientType,
     PxUnits,
+    PxMaskType,
+    PxPathOverflow,
+    PxLengthAdjust,
+    PxTextPathMethod,
+    PxTextPathSpacing,
     // One `Px*` const per wire enum (review §2.7) — forwarded so React/Vue can name values.
     // The four that are also re-exported as TYPES above (PxFillMode, PxOutAction,
     // PxPlaybackDirection, PxStartOn) must not be repeated here: same identifier, one export.
@@ -222,6 +230,7 @@ export {
     PxStrokeGradientEffectSchema,
     PxTextPathEffectSchema,
     PxTextEffectSchema,
+    PxClipPathEffectSchema,
     PxTransformByEffectSchema,
     PxStrokeTrimEffectSchema,
     validateDocument,

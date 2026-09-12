@@ -81,16 +81,17 @@ animator.destroy();             // cleanup
 
 `createAnimator(options)` takes a single options object:
 
+<!-- px-check props PxAnimatorOptions pkg=web -->
 | Option | Type | Description |
 | ----------- | ------------------------- | -------------------------------------------------- |
 | `src`       | `string`                  | URL to fetch the animation document from (provide either `src` or `doc`) |
 | `doc`       | `PxAnimatedSvgDocument`   | Inline animation document object                    |
 | `container` | `string \| Element`       | CSS selector or element to render the SVG into      |
-| `onPlay` · `onPause` · `onCancel` · `onFinish` · `onRemove` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take; plus `onWarn`, `onError`, `silent` for diagnostics. See [Callbacks](#callbacks) |
+| `onPlay` · `onPause` · `onCancel` · `onFinish` · `onRemove` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take; plus `onWarn`, `onError`, `silent` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onPlay,onPause,onCancel,onFinish,onRemove,onStop,onWarn,onError,silent -->
 | `adapter`   | `PxPlatformAdapter`       | Custom attribute-writer for frame-loop rendering (advanced) |
 | `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
 | `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
-| `duration` · `delay` | `number`        | Shortcuts for `timeline.duration` / `.delay` (ms) |
+| `duration` · `delay` | `number`        | Shortcuts for `timeline.duration` / `.delay` (ms) | <!-- px names=duration,delay -->
 | `iterations` | `number \| 'infinite'`   | Shortcut for `timeline.iterations` |
 | `startOn`   | `PxStartOn`               | Shortcut for `timeline.trigger.startOn` |
 
@@ -109,6 +110,7 @@ animator.play();
 
 It returns a `PxAnimatorAPI`:
 
+<!-- px-check props PxAnimatorAPI pkg=web -->
 | Method                  | Description                                                       |
 | ----------------------- | ----------------------------------------------------------------- |
 | `play()`                | Start or resume playback                                          |
@@ -118,6 +120,8 @@ It returns a `PxAnimatorAPI`:
 | `setPlaybackRate(rate)` | Change speed (1 = normal, 2 = double, -1 = reverse)               |
 | `getCurrentTime()`      | Current time in ms                                                |
 | `setCurrentTime(ms)`    | Jump to a point in the animation, in milliseconds from its start |
+| `getCurrentProgress()`  | The same position as 0–1 of the whole run (`null` before ready)   |
+| `setCurrentProgress(p)` | Jump to 0–1 of the whole run                                      |
 | `isPlaying()`           | Whether the animation is currently playing                        |
 | `isReady()`             | Whether the document has loaded (relevant for URL-based creation) |
 | `getRootElement()`      | The rendered SVG DOM element                                      |

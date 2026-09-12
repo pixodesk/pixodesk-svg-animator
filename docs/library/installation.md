@@ -9,6 +9,7 @@ file can be inlined **once per page** — [read more](https://pixodesk.com/docs/
 
 ## Packages
 
+<!-- px-check off the package list, prose -->
 | Package | For | Install |
 |---|---|---|
 | `@pixodesk/svg-animator-web` | browsers, vanilla JavaScript / any framework via the DOM | `npm install @pixodesk/svg-animator-web` |
@@ -77,6 +78,7 @@ if you prefer ([the examples](../../examples/docs-examples/src/cases/static/vani
 
 Files in `dist/`:
 
+<!-- px-check off the dist file list, prose -->
 | File | Use |
 |---|---|
 | `index.js` · `index.cjs` (+ `.min` variants) | ESM / CJS entry for bundlers |

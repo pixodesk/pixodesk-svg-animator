@@ -152,7 +152,7 @@ export type { ApplyResult } from './effects/shared/types';
 export { collectSampleTimes, diffInEffect, visualModelAt } from './effects/PlayerEffectsUtil.visualModel';
 
 // Effects schemas + walker validator
-export { PxCloneEffectSchema, PxEffectsSchema, PxFillGradientEffectSchema, PxGradientStopSchema, PxMaskedByEffectSchema, PxRepeaterEffectSchema, PxRetimeEffectSchema,
+export { PxClipPathEffectSchema, PxCloneEffectSchema, PxEffectsSchema, PxFillGradientEffectSchema, PxGradientStopSchema, PxMaskedByEffectSchema, PxRepeaterEffectSchema, PxRetimeEffectSchema,
     PxScrollRangePointSchema,
     PxScrollRangeSchema,
     PxScrollSchema, PxStrokeGradientEffectSchema, PxTextPathEffectSchema, PxTextEffectSchema, PxTransformByEffectSchema, PxStrokeTrimEffectSchema, validateDocument, validateNodeEffects } from './format/PxAnimatorTypes';
@@ -161,7 +161,7 @@ export { applyAnimatorConfig, foldTimelineOverride, mergeAnimatorConfig } from '
 export { diagnoseDocument, reportDocumentDiagnostics } from './format/PxDocumentDiagnostic';
 export type { PxDocumentDiagnosis } from './format/PxDocumentDiagnostic';
 export type { PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxAnimatorConfigShortcuts, PxTimelinePatch } from './playback/PxAnimatorConfigPatch';
-export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxUnits } from './format/PxAnimatorConstants';
+export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxUnits, PxMaskType, PxPathOverflow, PxLengthAdjust, PxTextPathMethod, PxTextPathSpacing } from './format/PxAnimatorConstants';
 // The remaining wire enums (review §2.7). `PxFillMode` / `PxOutAction` / `PxPlaybackDirection` /
 // `PxStartOn` are exported above and must NOT be repeated here — one export per identifier.
 export { PxAlongPathMode, PxFinishAction, PxPinAlign, PxScrollAxis, PxScrollKind, PxScrollPhase,

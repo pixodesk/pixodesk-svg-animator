@@ -1,0 +1,21 @@
+{
+  "name": "@pixodesk/docs-check",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Keeps the public markdown docs in sync with the packages' types and runtime schemas — see README.md",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "devDependencies": {
+    "@pixodesk/svg-animator-core": "workspace:*",
+    "@pixodesk/svg-animator-react": "workspace:*",
+    "@pixodesk/svg-animator-rn": "workspace:*",
+    "@pixodesk/svg-animator-vue": "workspace:*",
+    "@pixodesk/svg-animator-web": "workspace:*",
+    "@types/node": "^22.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^2.0.0"
+  }
+}

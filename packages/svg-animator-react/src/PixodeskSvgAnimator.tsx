@@ -73,10 +73,8 @@ export interface PixodeskSvgAnimatorProps extends PxPlaybackOverrideProps, PxCon
     // -- Source ---------------------------------------------------------------
 
     /**
-     * The animation document to render.
-     *
-     * TODO: Accept PxFileConfig | string to support URL-based loading, e.g.
-     *   <PixodeskSvgAnimator doc="/animation.json" />
+     * The animation document to render. No URL form by design (review §16): in a component
+     * tree the app already owns loading — import the JSON or fetch it, then pass it down.
      */
     doc: PxAnimatedSvgDocument;
 

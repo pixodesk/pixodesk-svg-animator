@@ -16,6 +16,7 @@ the React Native player produce identical values from the same document.
 
 Usually **no**. If you just want to play an animation, install a player:
 
+<!-- px-check off the package list, prose -->
 | You are building for | Install |
 |---|---|
 | Browser (vanilla JS) | [`@pixodesk/svg-animator-web`](../svg-animator-web/README.md) |
@@ -48,6 +49,7 @@ runtime crash on a non-browser platform.
 
 ## What's inside
 
+<!-- px-check exports @pixodesk/svg-animator-core partial -->
 | Area | Exports |
 |---|---|
 | **Schema & types** | `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxEffectsSchema`, … plus every `Px*` TypeScript type and the `px` schema builder |
@@ -76,6 +78,7 @@ if (!ok) console.error(ctx.errors);   // ["children[0].effects.strokeTrim.range:
 
 **Two modes, two different questions:**
 
+<!-- px-check off validation modes, prose -->
 | mode | question it answers | undeclared keys |
 |---|---|---|
 | default (`strict` absent/false) | *is this document repairable?* — what `sanitize` would accept | ignored, so unknown future fields stay forward-compatible |

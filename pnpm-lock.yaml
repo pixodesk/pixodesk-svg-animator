@@ -453,6 +453,33 @@ importers:
         specifier: ^2.0.0
         version: 2.1.9(@types/node@22.19.11)(jsdom@25.0.1)(lightningcss@1.33.0)(terser@5.46.0)
 
+  tools/docs-check:
+    devDependencies:
+      '@pixodesk/svg-animator-core':
+        specifier: workspace:*
+        version: link:../../packages/svg-animator-core
+      '@pixodesk/svg-animator-react':
+        specifier: workspace:*
+        version: link:../../packages/svg-animator-react
+      '@pixodesk/svg-animator-rn':
+        specifier: workspace:*
+        version: link:../../packages/svg-animator-rn
+      '@pixodesk/svg-animator-vue':
+        specifier: workspace:*
+        version: link:../../packages/svg-animator-vue
+      '@pixodesk/svg-animator-web':
+        specifier: workspace:*
+        version: link:../../packages/svg-animator-web
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.11
+      typescript:
+        specifier: ^5.0.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.0.0
+        version: 2.1.9(@types/node@22.19.11)(jsdom@25.0.1)(lightningcss@1.33.0)(terser@5.46.0)
+
 packages:
 
   '@0no-co/graphql.web@1.3.3':

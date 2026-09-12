@@ -64,7 +64,8 @@ const animator = ref<VueAnimatorApi | null>(null);
 </template>
 ```
 
-`VueAnimatorApi` methods: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`.
+<!-- px-check members VueAnimatorApi pkg=vue -->
+`VueAnimatorApi` methods: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
 
 ### Controlled time
 
@@ -79,6 +80,7 @@ Render a single frame — by time in milliseconds, or by fraction of the whole t
 
 ## Props
 
+<!-- px-check props PixodeskSvgAnimator pkg=vue -->
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxAnimatedSvgDocument` | The animation document to render (required) |
@@ -93,6 +95,9 @@ Render a single frame — by time in milliseconds, or by fraction of the whole t
 | `delay` | `number` | Shortcut for `timeline.delay` (ms) |
 | `iterations` | `number \| 'infinite'` | Shortcut for `timeline.iterations` |
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | Shortcut for `timeline.trigger.startOn` |
+| `onWarn` | `(diagnostic) => void` | something is off but the animation still plays; without it → `console.warn` (a prop, not an event — see below) |
+| `onError` | `(diagnostic) => void` | the animation could not be produced at all; without it → `console.error` |
+| `silent` | `boolean \| PxDiagnosticKind[]` | silences the console fallback — everything, or just the kinds listed |
 
 With none of `autoplay` / `play` / `pause` / `progress` / `time` set, the component renders the animation statically (initial state, no playback); use the template ref for imperative control.
 
@@ -100,6 +105,7 @@ Note: passing a different `doc` (or unmounting) throws the old animator away and
 
 ## Events
 
+<!-- px-check emits PixodeskSvgAnimator pkg=vue -->
 | Event | Description |
 |---|---|
 | `play` | Animation started or resumed |
