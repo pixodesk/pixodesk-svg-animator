@@ -58,7 +58,7 @@ describe('scrollViewProgress', () => {
         expect(p(-300)).toBe(1);   // clamped past
     });
 
-    it('honours a custom range (entry 0 → contain 1: "while entering and visible")', () => {
+    it('honors a custom range (entry 0 → contain 1: "while entering and visible")', () => {
         const range = { start: { phase: 'entry', fraction: 0 }, end: { phase: 'contain', fraction: 1 } } as const;
         // u interval = [0, 400]
         expect(scrollViewProgress(400, 100, 400, range)).toBe(0);            // u=0

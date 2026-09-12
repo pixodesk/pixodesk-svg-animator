@@ -9,7 +9,7 @@
  *
  * When a `<use>` references another element with `clone:{without:'translate'}` it wants
  * to render the source EXCLUDING the source's own translate (and along-path
- * positioning for auto-orient). The heavy form achieves this by materialising the
+ * positioning for auto-orient). The heavy form achieves this by materializing the
  * source as a wrapper tree
  *
  *     <g translate>            ← outer, holds translate (+ along-path/origin for autoOrient)
@@ -87,7 +87,7 @@ export function splitForContentRef(
 
     // Strip the bare element's `id` — the outer wrapper takes ownership of `originalId`,
     // and the inner wrapper carries `innerId`. The element itself doesn't need either;
-    // leaving it would create a duplicate of `originalId` in the materialised tree.
+    // leaving it would create a duplicate of `originalId` in the materialized tree.
     if (typeof node.id === 'string') delete node.id;
 
     // 2. Split `effects.transformBy` between outer (translate, plus origin for
@@ -232,7 +232,7 @@ function liftBodyTranslate(node: PxNode, transformBy: PxTransformByEffect | unde
                 // redundancy as a `translate(...)` string. Wipe.
                 delete node.transform;
             } else if (liftedAnimateIsAutoOriented && isSingleMatrixBody(node.transform)) {
-                // Body is a non-pure `matrix(…)` — the autoOrient-materialised t=0
+                // Body is a non-pure `matrix(…)` — the autoOrient-materialized t=0
                 // value baked by the writer. The outer wrapper reproduces it via
                 // `animate.transform` + `autoOrient`; wipe to avoid double-apply.
                 delete node.transform;

@@ -12,7 +12,7 @@
 // Event model: `scroll` (+`resize`) listeners, passive, coalesced into ONE
 // requestAnimationFrame tick — at most one measurement + one seek per frame. A
 // `ResizeObserver` (where available) catches subject/scroller size changes that happen
-// without a scroll. TODO (optimisation, deliberate v1 omission): an IntersectionObserver
+// without a scroll. TODO (optimization, deliberate v1 omission): an IntersectionObserver
 // gate to park the listeners entirely while the subject is far outside its range.
 
 import {
@@ -59,7 +59,7 @@ export function createNativeScrollTimeline(
     const kind = scroll.kind ?? 'view';
 
     // Smoothing is a per-frame easing of progress, which a browser-native timeline (a direct
-    // scroll→time mapping) cannot express. Honour the authored LOOK over the perf hint — D8
+    // scroll→time mapping) cannot express. Honor the authored LOOK over the perf hint — D8
     // already makes `native` a preference rather than a requirement.
     if (scroll.smoothing) {
         report.warn(PxDiagnosticKind.platform, 'scroll timeline: `smoothing` needs the built-in driver — using the built-in driver instead of the browser timeline');
@@ -142,7 +142,7 @@ const SUBJECT_SCROLLER = 'scroller';
 
 /**
  * WHICH element's journey `kind: 'view'` measures — `scroll.subject`. Unset = the animation's
- * own `<svg>` (the original behaviour).
+ * own `<svg>` (the original behavior).
  *
  * `'parent'` is the pinned-section answer and needs no knowledge of the host's markup: a
  * `position: sticky` element STOPS MOVING once stuck, so measuring the graphic itself freezes
@@ -210,7 +210,7 @@ export function createScrollDriver(
     const measured = resolveScrollSubject(subject, scroll.subject, report);
 
     // Scroller resolution (once, at attach): `view` always tracks the nearest scrollport;
-    // `scroll` honours `source`. Axis resolves against the SCROLLER's writing mode.
+    // `scroll` honors `source`. Axis resolves against the SCROLLER's writing mode.
     const nearest = findNearestScroller(subject, 'y') || findNearestScroller(subject, 'x');
     const scroller: Element = (kind === 'scroll' && scroll.source === 'root')
         ? documentScroller()

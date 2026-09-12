@@ -9,7 +9,7 @@
  * `applyTransformByEffect` wraps the node so it lands on the actual `<use>`
  * rather than on an outer `<g>` wrapper.
  *
- * For `clone:{without:'translate'}` (a content-ref) the source is materialised as multi-layer by
+ * For `clone:{without:'translate'}` (a content-ref) the source is materialized as multi-layer by
  * `splitForContentRef` (see `contentRefSplit.ts`), and the use's `href` is
  * rewritten to point at the inner (no-translate) layer's id. No translate
  * cancellation is needed on the use side any more.

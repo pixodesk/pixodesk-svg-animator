@@ -54,7 +54,7 @@ export interface PxValidationContext {
     /**
      * When true, closed objects (`px.object` / `px.extendedObject`) report any
      * extra (undeclared) keys as errors. Default `false` (or omitted) — extras
-     * are ignored, matching `sanitize`'s strip-extras behaviour, which is what
+     * are ignored, matching `sanitize`'s strip-extras behavior, which is what
      * production app code wants (forward-compat with unknown future fields).
      * Tests that want to lock the wire shape down to its declared schema
      * should pass `strict: true`.
@@ -452,7 +452,7 @@ class Obj<S extends AnyShape> extends Base<InferShape<S>> {
             const v = this._shape[key].sanitize(src[key]);
             // An OPTIONAL key that was absent sanitizes to `undefined`. Writing it anyway
             // produced a "phantom" own key — invisible to JSON, but NOT to `Object.keys`,
-            // and consumers branch on that: `PxOffsetPathMaterialiser` bails when a transform
+            // and consumers branch on that: `PxOffsetPathMaterializer` bails when a transform
             // carries keys beyond translate/origin, so phantoms silently disabled the CSS
             // Motion Path path, and `contentRefSplit` emitted `transform=""`. Measured across
             // 135 real documents: 16,367 phantoms, changing the render of 10 of them.
@@ -482,7 +482,7 @@ class Obj<S extends AnyShape> extends Base<InferShape<S>> {
                 // An undefined-valued key is indistinguishable from an absent one for
                 // every consumer, and JSON.stringify drops it — strict judges the
                 // DOCUMENT, not the in-memory object that produced it (V6). Without
-                // this, validating a freshly-built (pre-serialisation) object flags
+                // this, validating a freshly-built (pre-serialization) object flags
                 // phantom keys that cannot exist on the wire.
                 if (obj[key] === undefined) continue;
                 p.push(key);

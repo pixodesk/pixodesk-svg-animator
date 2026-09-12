@@ -1,7 +1,7 @@
 # SVGA Format — Schema Design (player + editor)
 
 The design record of the SVGA wire format: the layers, the generative rules, the value taxonomy,
-the editor's unit contract, the corpus that pins it all, and the history of every normalisation.
+the editor's unit contract, the corpus that pins it all, and the history of every normalization.
 §I is the two-page version; everything after it is the full treatment.
 
 Sources of truth:
@@ -86,11 +86,11 @@ is *marked in the file*, never from the effect's name.
 | wire form | the editor writes | who expands |
 |---|---|---|
 | **lightweight JSON** (`.svga`, production) | `effects` **un-expanded** — no wrappers, no hosts | the **player**, at load |
-| **heavy JSON** (test oracle) · **pre-rendered SVG** (L5) | **materialised** — wrappers, copies, hosts | the editor already did |
+| **heavy JSON** (test oracle) · **pre-rendered SVG** (L5) | **materialized** — wrappers, copies, hosts | the editor already did |
 
 Two consequences. The player must support every *element* effect — true by construction, it
 is handed `effects` and expands them itself; the editor never writes a unit into a `.svga`.
-And the player need **not** know every *attribute* effect: the editor materialises those into
+And the player need **not** know every *attribute* effect: the editor materializes those into
 `node[attr]` / `node.animate[attr]`, and the player just renders the result.
 
 ### L4 · Editor meta — `node.meta`
@@ -131,7 +131,7 @@ Production `.svga` just never contains one.
 
 A real `.svg` a browser opens with no player: `meta` → a per-element `data-px-meta="…"` JSON5
 string; animation → CSS `@keyframes`, or an embedded player plus an id → animation map (the
-DOM already exists; the player only binds). Every element effect is materialised — which is
+DOM already exists; the player only binds). Every element effect is materialized — which is
 exactly why L4's unit contract has to exist: the file holds the expansion, and the editor
 must be able to fold it back.
 
@@ -153,7 +153,7 @@ must be able to fold it back.
 
 ---
 
-## L · The layer map — rules, materialisers, enforcement
+## L · The layer map — rules, materializers, enforcement
 
 Same six layers as §I, now with the rule that defines each (§1) and the party that expands it.
 The layer's **address on the node** is the contract — the player reads `effects` and `animate`
@@ -198,13 +198,13 @@ what applying it produces — because that decides whether a unit (L4) has to ex
 - `<symbol>`, `<pattern>`, `<marker>`, `<filter>`, `<mask>` are ordinary model elements
   wherever they are written — "inside `<defs>`" is never the test; "has a model node" is.
 
-### Who materialises — per wire form
+### Who materializes — per wire form
 
 | wire form | the editor writes | who expands the effects |
 |---|---|---|
 | **lightweight JSON** (`.svga`, production) | `node.effects` **un-expanded** — no wrappers, no `effectsHost` | the **player**, at load |
-| **heavy JSON** (test oracle only) | effects **materialised**: wrappers, copies, `effectsHost` / `partOf` | the editor already did |
-| **pre-rendered SVG** (L5) | materialised — same as heavy, flattened | the editor already did |
+| **heavy JSON** (test oracle only) | effects **materialized**: wrappers, copies, `effectsHost` / `partOf` | the editor already did |
+| **pre-rendered SVG** (L5) | materialized — same as heavy, flattened | the editor already did |
 
 So "the player must support every element effect" holds for `.svga` by construction: the
 player is handed `effects` and expands them itself; the editor never writes a unit into a
@@ -362,7 +362,7 @@ Kept as-is: a rename would break the wire to fix a word.
 (`applyPlayerEffects`; the runtime never sees a non-empty `effects` after entry).
 
 **The attribute-vs-effect law**: an *attribute* is a value the browser consumes as-is on that element —
-animating it is one channel, zero structure. An *effect* is anything whose realisation requires
+animating it is one channel, zero structure. An *effect* is anything whose realization requires
 **structure**: generating defs (gradient, clipPath, maskedBy, textPath), wrapper nodes (`transformBy`),
 clones (repeater, clone), or geometry-derived multi-attr rewrites (strokeTrim). The test is structure,
 not value complexity (`transform` has a parts-record value but lands in one attribute → attribute);
@@ -447,7 +447,7 @@ The editor's `SvgMetaAttrSchema` (`PxSchemaUtil.ts`) — every key, and where it
 | key | on | holds |
 |---|---|---|
 | `label` | any element | editor-only display name |
-| `runtime` | root `<svg>` only | export-format settings `{useCssAnimation, useJsTriggers, externalJs, unoptimisedJs}` — HOW animation code is generated, not what the animation does (that is `animator`). Player never reads it |
+| `runtime` | root `<svg>` only | export-format settings `{useCssAnimation, useJsTriggers, externalJs, unoptimizedJs}` — HOW animation code is generated, not what the animation does (that is `animator`). Player never reads it |
 | `animator` | root `<svg>`, **pre-rendered SVG only** | the animator config's second address (S4, R7) — lifted to the top level on JSON write |
 | `appliedEffects` | a PLAIN node | this node's own effects — the editor bucket (§4): the player bucket + `shape`, widened `clone`/`text`/`clipPath`, `combinedPath` |
 | `timeline` | `<symbol>` only | `{duration}` — the symbol's OWN animation length in ms (unrelated to `animator.timelineSource`) |
@@ -462,7 +462,7 @@ Two editor widenings ride on the lib's animation grammar without touching the pl
 ENCODING choice for CSS/WAAPI output; absent ⇒ sampled).
 
 ### R7 · Pre-rendered SVG (.svg)
-The same model flattened into a real SVG document: `meta` serialises to a per-element
+The same model flattened into a real SVG document: `meta` serializes to a per-element
 `data-px-meta="…"` string; animation ships as CSS `@keyframes` or as embedded player +
 `animator.animate` **id → animation map** (the DOM already exists; the player only binds by id).
 
@@ -484,7 +484,7 @@ schema requires (`px.literal('svg')`). The `animation` / `meta.animation` config
 `tagName` discriminator were deleted in 2026-08: nothing wrote any of them, none were in the schema,
 and `tagName` actively disagreed with deep validation.
 
-**The two materialisers agree visually, not structurally** (S6/A2 — intentional, don't read it as
+**The two materializers agree visually, not structurally** (S6/A2 — intentional, don't read it as
 drift): for STATIC repeated content the editor emits `<use href>` copies while the player deep-clones
 the subtree. Each fits its medium — the editor's SVG is a FILE (a `<use>` beats re-emitting a whole
 subtree, and stays re-editable), the player's tree is EPHEMERAL and in-memory (cloning is simpler and
@@ -606,7 +606,7 @@ an effect (R5 law). Five representations exist, each with a defined role:
 | **T2** | bare parts record `{translate:[100,100], rotate:45, scale:[1.5,1.5], origin:[25,25]}` — authored parts verbatim, wire units; static value ≡ kf value | **the lightweight wire** (implemented; readers also accept the `{value:…}` spelling + the string, forever) |
 | **T3** | body `animate.transform`, ONE timeline, parts-record kf values | SHARED timing (the common case) |
 | **T4** | `effects.transformBy` — per-part independent slots | SPLIT timing, **the lightweight wire** |
-| **T5** | pre-materialised wrapper tree + `meta.effectsHost` applied effects | heavy/pre-rendered SVG only |
+| **T5** | pre-materialized wrapper tree + `meta.effectsHost` applied effects | heavy/pre-rendered SVG only |
 
 **Unifiability rule (deliberate design, not drift):** the writer emits ONE body channel (T3) whenever
 part timings coincide — cheapest for CSS/WAAPI, degrades to valid static SVG — and the
@@ -614,10 +614,10 @@ part timings coincide — cheapest for CSS/WAAPI, degrades to valid static SVG �
 translate+rotate" depends on whether keyframes share times. Accepted cost; readers must handle both.
 
 **Effect = semantic source; baked structure = render artifact** (the "gradient law", holds for
-transforms too): lightweight JSON never materialises expansions — it carries T4 and the player expands
+transforms too): lightweight JSON never materializes expansions — it carries T4 and the player expands
 at load. Only the editor's pre-rendered outputs (heavy JSON oracle + .svg) carry the baked tree, and
-then ALWAYS with the host applied effects alongside (`meta.effectsHost`, §P). Player-materialised output is
-ephemeral — rendered, never serialised back.
+then ALWAYS with the host applied effects alongside (`meta.effectsHost`, §P). Player-materialized output is
+ephemeral — rendered, never serialized back.
 
 ---
 
@@ -688,19 +688,19 @@ INVARIANT a node is HOST, PART or PLAIN — never two (R-6). Only a PLAIN node c
 
 **Host applied-effects invariant (now literally true):** `effectsHost.appliedEffects` ≡ the
 restored element's complete effects bucket — same keys, same shapes, element effects AND
-attribute effects — plus the identity effects only materialised output has (`combinedPath`,
+attribute effects — plus the identity effects only materialized output has (`combinedPath`,
 `text.content`). The core and every part carry no bucket. The only structure fact is `coreId`;
 `combinedShape` became the `combinedPath` applied effect, clone `width/height` moved inside
 `appliedEffects.clone`.
 
 **Why TOTAL marking:** the one failure this design makes structurally impossible is
-restore-the-effect-AND-keep-its-materialised-elements — the next write expands again next to the stale
+restore-the-effect-AND-keep-its-materialized-elements — the next write expands again next to the stale
 survivors, doubling forever. Marked set ≡ derived set; each element's origin is readable off the element itself;
 interiors of copies/clone content are **stripped of their own meta** and carry only `partOf`
 (the derived-content strip — kills per-copy applied-effects duplication and dead meta in one mechanism).
 
 **Contract rules (P1–P8, condensed):**
-- **P1** player-materialised output is ephemeral; the contract concerns editor output only.
+- **P1** player-materialized output is ephemeral; the contract concerns editor output only.
 - **P2** the host declares; effect grammar `true | {…params}` (`true` ≡ `{}`, survives empty-group pruning).
 - **P3** writer-auto-triggered identity effects (`combinedPath` beside `strokeTrim`) use the same machinery, editor bucket only.
 - **P4** TOTAL marking of the TREE, single-string `partOf` naming the HOST. Generated out-of-tree
@@ -744,27 +744,27 @@ and `spec/effectFixedPointMatrix.spec.ts`.
   writer cannot know whether it will be wrapped, so it REGISTERS host applied effects
   (`ElementEffectRenderingContext.addHostAppliedEffectsWriter`) and the context places them;
   `SvgHostAppliedEffectsSchema` is the list `promoteToEffectsHost()` hoists — keep them in step.
-- **P-N · CLEAN LEFTOVER** — when atomic read (P6) leaves a unit materialised, the leftover
+- **P-N · CLEAN LEFTOVER** — when atomic read (P6) leaves a unit materialized, the leftover
   becomes ORDINARY content: effects lost, markers stripped, user told (one warning PER lost
   capability, not per unit). No "frozen" state, no retained applied effects, nothing to remember — a
   plain write of plain elements is already a fixed point. Read-time scaffolding
   (`_readAdaptor`) is cleared at the end of the read (the "seal") so stale file state cannot
   leak into a later write. *(An earlier draft preserved the markers so the leftover stayed
-  recognisable for a future recovery — rejected: a half-alive element kept for ever is the
+  recognizable for a future recovery — rejected: a half-alive element kept for ever is the
   class of mystery this contract exists to remove.)*
 - **P-F · FIXED POINT** — the observable consequence: for every element × effect × carrier,
   `read ∘ write` is idempotent from the first round-trip onward. The first write may change
-  the element count (materialisation bakes shapes); no write after that may. Guarded by a
+  the element count (materialization bakes shapes); no write after that may. Guarded by a
   matrix GENERATED from the effects schema — an effect with no sample fails, so a new effect
   must bring its own coverage.
 - **W-1 · THE WRITE INVARIANT** (how P4 stops being a rule writers must *remember*): every
   element emitted into the document tree is (a) one-to-one with a TDomElement of the USER's
   document, (b) marked `partOf`, (c) inside a marked subtree, (d) a host wrapper, or
-  (e) materialises to a model node on read (`<textPath>`). Verified on EVERY write
+  (e) materializes to a model node on read (`<textPath>`). Verified on EVERY write
   (`WriteInvariantAudit`); a violation reaches the user through the growth dialog. Two
   things measurement forced into it: clause (d) — host wrappers are neither 1:1 nor marked,
   123 false reports without it — and "(a) means the *user's* document": pre-write
-  materialisation creates real model elements, which would otherwise launder every baked
+  materialization creates real model elements, which would otherwise launder every baked
   outline into legitimate content.
 
 ### Worked example (heavy SVG, condensed)
@@ -800,7 +800,7 @@ element again (a real child of a plain core may be a host). Core missing or stan
 
 What the model reader then sees is an ordinary element with an ordinary `meta.appliedEffects` —
 exactly what a lightweight `.svga` gives it. No adoption pass, no collapse, no parts-deletion
-step exist on the model side any more; `SvgaDeserialisationChecks.checkNoUncollapsedUnits`
+step exist on the model side any more; `SvgaDeserializationChecks.checkNoUncollapsedUnits`
 asserts that no `effectsHost` / `partOf` ever reaches the model.
 
 **Why the unit is OPAQUE (R-5), not mark-validated:** the previous read validated marks
@@ -825,7 +825,7 @@ clipPath, text, combinedPath})`. Features implemented by the player live ONLY in
 | slot | editor adds | why the player never needs it |
 |---|---|---|
 | `appliedEffects.shape` | the whole group (§4.2) | an ATTRIBUTE effect: baked into `node.d` / `node.animate.d` before the player sees the file |
-| `appliedEffects.clone` | `width`, `height` | the materialised `<use>`'s explicit size — heavy meta only, seeds the collapse |
+| `appliedEffects.clone` | `width`, `height` | the materialized `<use>`'s explicit size — heavy meta only, seeds the collapse |
 | `appliedEffects.text` | `fontSource` (`'asset'` \| `'browser'`), `content` (a `<text>` node: tspans + text-only geometry) | `content` is the IDENTITY effect of a glyph-baked core (R-4, §P): the `<g>` of outlines cannot carry the text, so the host does |
 | `appliedEffects.clipPath.animate` | widened to `PxPropertyAnimationSchemaExtra` | editor's own animation extras (`alongPathMode`, corners-carrying `value`) |
 | `appliedEffects.combinedPath` | `true` | writer-auto-emitted IDENTITY effect beside a multi-subpath `strokeTrim`: the core is a `<g>` of one `<path>` per sub-path — reassemble ONE shape on read. Never in lightweight output |
@@ -845,7 +845,7 @@ warning); an effect absent from that map is never field-checked — silence beat
 
 `shape` is one **generator** — exactly one of `pathData` / `preset` (validated, not structural:
 `SHAPE_GENERATORS`) — plus zero or more **modifier** sub-effects applied in `SHAPE_BAKE_ORDER`
-(today one: `corners`). It materialises to the plain `node.d` / `node.animate.d` the player
+(today one: `corners`). It materializes to the plain `node.d` / `node.animate.d` the player
 consumes; the source stays here so the shape re-opens as a shape.
 
 ```jsonc
@@ -863,7 +863,7 @@ therefore animate per attribute (`preset.radius` moves, everything else stays st
 here; the rework doc calls them L1–L3 — not the format layers of §I):
 
 - **SH-1 · one clock per shape** — all animated slots inside `shape` (and the baked `animate.d`)
-  carry identical times AND easing. Validated by `validateShapeEffectClock`; the read normalises a
+  carry identical times AND easing. Validated by `validateShapeEffectClock`; the read normalizes a
   violation and warns. At editing time the editor keeps every animated slot on ONE clock
   (`TBezierPathsCompositeKfGroup` — the timing-sync doc).
 - **SH-2 · write only what cannot be recovered** — no `shape` at all when it would restate
@@ -894,13 +894,13 @@ The fourteen presets (`ShapePresetType`; ✚ = animatable, ⚑ = topology-static
 | `trapezoid` | `width`✚ `height`✚ `topWidth`✚ `skew`✚ |
 
 Unit conventions (the implicit-units doctrine, §2): lengths px, angles degrees, **ratios stored
-0–1** (shown as % in the UI). Placement params are banned — geometry is origin-centred and the
+0–1** (shown as % in the UI). Placement params are banned — geometry is origin-centered and the
 element transform places it. `corners.entries` is sparse (only vertices with a non-default corner
 appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
 
 ---
 
-## 5 · Normalisation history (resolved — recorded so it doesn't resurface)
+## 5 · Normalization history (resolved — recorded so it doesn't resurface)
 
 > Entries below are HISTORY and name things by their names at the time. Superseded 2026-08 by
 > ONE HOST, ONE CORE (§P): `effectsHost:{combinedShape:true}` → the `combinedPath: true`
@@ -930,7 +930,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
   string — the law: *declarative wire carries the record; pre-rendered forms carry the browser
   string*. Readers accept string + bare record + `{value:…}` forever (string = foreign-SVG import
   path; the editor's missing record reader was added first). Player gained record support in the
-  schema, normaliser, `contentRefSplit`, `maskedBy` body-inverse and ancestor chains; 104 corpus
+  schema, normalizer, `contentRefSplit`, `maskedBy` body-inverse and ancestor chains; 104 corpus
   fixtures regenerated via write(read(stored)) with the round-trip guard verifying each. Body-attr
   slots are declared statics-only (inline `{keyframes}` stays legacy read-only — see issues J3).
   Pinned by `transform-structured-static.spec.ts`.
@@ -963,7 +963,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
 - **`retime.timeCrop` IMPLEMENTED in the player** (2026-08): was accepted on the wire, modelled by
   the editor, and warned-and-ignored by the applier. `timeCrop: [start, end]` (ms, document time) is
   a VISIBILITY WINDOW on the instance — independent of the retime remap, which shifts/stretches the
-  target's own timeline. Materialised as an opacity animation on a wrapper `<g>` rather than by
+  target's own timeline. Materialized as an opacity animation on a wrapper `<g>` rather than by
   clipping the timeline, so the target keeps running (a layer inside its window appears mid-motion,
   not restarted); the wrapper is player-side only and never round-trips. A wrapper — rather than
   opacity on the `<use>` — keeps an authored instance opacity intact, mirroring what the Lottie
@@ -978,7 +978,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
   `if (getValue())`, which can never be falsy. So attrs NOBODY had set were written forever
   (`textPath.lengthAdjust:'spacing'` in all 62 cases). Fixing it globally was tried and REJECTED:
   it strips `animator.{mode,direction,timeline,trigger}` from all 117 documents — including the
-  `timeline` slot deliberately deferred in J1 — and breaks 108 specs, so plenty of behaviour still
+  `timeline` slot deliberately deferred in J1 — and breaks 108 specs, so plenty of behavior still
   relies on defaults being written. Instead an OPT-IN `omitWhenDefault` flag on `SvgStrValConfig`,
   set only where OUR default equals what a consumer assumes when the key is ABSENT (for a DOM attr
   that means SVG's own initial value — the `textPath.spacing` trap is why that qualifier matters).
@@ -994,7 +994,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
   matter: validation still cannot REJECT the inline form, for two engine-level reasons filed as
   issues V6 (`Union.isValid` drops `ctx`, so `strict` is inert inside unions; `{value: px.any()}`
   matches any object). Pinned by the body-attrs block in `PxEnumSlots.test.ts`, which asserts the
-  gap as current behaviour so it flips when V6 is fixed.
+  gap as current behavior so it flips when V6 is fixed.
 - **J1 (partial) — dead declarations removed** (2026-08): `meta.retimedCopy` (+ its schema/keys),
   `TDomElement.__ser_renderExtraPxAttrs` (the hook it was supposed to arrive through — nothing ever
   assigned it) and `animator.debug` deleted after checking each for a writer AND a reader. Three
@@ -1058,7 +1058,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
   always truthy — kept in step so the two can't drift). Pinned by the zero-component case in
   `mask-viewport-clip.spec.ts` (wire + rendered SVG). No fixture changed: the 116-case round-trip
   guard passed untouched.
-- **B5 closed — `maskedBy` viewport FIXED** (2026-08, found by re-verifying a mislabelled "REAL"
+- **B5 closed — `maskedBy` viewport FIXED** (2026-08, found by re-verifying a mislabeled "REAL"
   example): the editor had always written the viewport as the SVG `<mask>` attrs `x/y/width/height`,
   while the player schema declared — and `maskedByEffect` read — `start`/`size`, which were the
   EDITOR's model FIELD names and never a wire spelling. Disjoint vocabularies in both directions, so
@@ -1075,7 +1075,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
 - **V5 closed — units table completed** (2026-08): added `retime.stretch` (factor), `frameRate`
   (fps) and the `maskedBy` viewport (`maskUnits` space) — the table claims completeness, so the gaps
   were a correctness problem in the doc itself.
-- **V4 closed — `appliedEffects.text.source` typed** (2026-08): was `px.any()` (a whole serialised
+- **V4 closed — `appliedEffects.text.source` typed** (2026-08): was `px.any()` (a whole serialized
   `<text>` subtree with zero validation — the same hole class the keyframe-value fix closed); now a
   `px.lazy(() => PxNodeSchemaExtra)` reference, i.e. the recursive node schema it actually is.
   Runtime-only tightening, no wire change.
@@ -1104,7 +1104,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
   1. *Nested units LEGALISED* (P8) instead of umbrella-hoisting — documenting the implemented
      per-unit atomicity; one set of applied effects per host stays law.
   2. *Generated defs marked* `partOf` (gradient defs, textPath path def, retime defs-copies,
-     materialised-`<use>` viewport clip) via a per-layer `forceElementHostId` provider; removal
+     materialized-`<use>` viewport clip) via a per-layer `forceElementHostId` provider; removal
      stays owned by the existing cleanup (marks only record the origin, they are not a second deleter); P5's anchor
      rule extended to `appliedEffects`-carrying elements.
   3. *Mask host id FORCED* (355-fix law) — id-less masked elements now emit full unit marks;
@@ -1147,7 +1147,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
   `TSvgStrokeTrimEffect*`. The name made a FALSE CLAIM: the effect emits `stroke-dasharray` /
   `stroke-dashoffset` (+ `stroke-opacity` for the empty-range hide) and never rewrites `d`, so the
   fill is untouched — while Lottie's same-named `ty:'tm'`, the format most authors convert from, IS
-  a path operator that rewrites geometry. That is misdirection about BEHAVIOUR, not the "break the
+  a path operator that rewrites geometry. That is misdirection about BEHAVIOR, not the "break the
   wire to fix a word" case R4 declines (there the shadow is nominal only — different address,
   content and reference syntax). Two independent confirmations the new name is the house one:
   the sibling effects already prefix by the channel they target (`fillGradient` / `strokeGradient`),
@@ -1173,7 +1173,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
      what identifies the branch.
   3. **Strict ignores `undefined`-valued keys.** Turning (1) on immediately failed 480 permutations in
      the editor's strict round-trip spec, on values that printed as perfectly valid JSON: freshly-built
-     (pre-serialisation) objects carry declared-elsewhere keys set to `undefined` (`alongPathMode`,
+     (pre-serialization) objects carry declared-elsewhere keys set to `undefined` (`alongPathMode`,
      `kfs`, …), which `Object.keys` counts but `JSON.stringify` drops. Strict now judges the DOCUMENT,
      not the in-memory object that produced it — an undefined-valued key cannot exist on the wire.
   Net effect: an inline animation on a body attr is REJECTED under `strict` (was accepted in both
@@ -1196,7 +1196,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
     `duration` in FRAMES while the schema — and the identical field on the root — say milliseconds, so
     a symbol declaring `500` ran for 5000ms, ten times its own content. It now converts at the
     boundary exactly like `TSvgSvgElement.getAnimOutFrame`.
-  - *Method note, worth keeping:* the first attempt "preserved behaviour" by migrating the corpus
+  - *Method note, worth keeping:* the first attempt "preserved behavior" by migrating the corpus
     values 500 → 5000. That preserved the BUG. The evidence that settles it is the symbol's own inner
     keyframe times — `[0, 250, 500]`, i.e. ms — which match `duration: 500` exactly. The fixtures were
     right all along and are byte-unchanged. The feature-explorer could not catch this either way: it
@@ -1209,14 +1209,14 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
   the wire keys that carry STRUCTURE and must never reach the DOM as attributes; `effects` was absent
   and safe only because `applyPlayerEffects` deletes it at load — a property of the pipeline, not of
   the contract. An applier returning early, or a document carrying an effect key the pipeline does not
-  recognise, would have left the object attached and `getNormalizedProps` (the single gate) would have
+  recognize, would have left the object attached and `getNormalizedProps` (the single gate) would have
   written `effects="[object Object]"` on the element, silently. Pinned by `PxInternalAttrs.test.ts`,
   which also covers an UNCONSUMED bucket — the case the invariant exists for.
 - **C3 closed — the zero-coverage slots got fixtures, and two of them were broken** (2026-08). Five
   feature-explorer cases added (`maskedBy.viewport`, `transformBy.skew`, `repeater.skew`,
   `textPath.fitting`, `gradient.spreadMethod`), all green across every column. What the coverage
   found:
-  - **Per-copy repeater `skew` was never implemented** anywhere that renders — declared, serialised
+  - **Per-copy repeater `skew` was never implemented** anywhere that renders — declared, serialized
     and round-tripped, and applied by the PLAYER (`skew × i`), but missing from
     `buildPerCopyTransform` (editor render/export), `TSvgRepeaterElementEffectAttr.applyToMatrix`
     (selection boxes), `RepeaterAttrsPartMC` (SVGA ⇄ Lottie, both directions) and
@@ -1240,9 +1240,9 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
   3-component value reached the wire and failed validation outright — every Lottie-converted document
   with spatial tangents reported `…transformBy.translate: no union member matched`. (Invisible until
   V6 closed the `{value: any}` catch-all that had been swallowing it.)
-  - **Centralised:** `POINT_COMPONENTS` + `normalisePoint()` in `TypeAndCastUtil.ts` are now the only
+  - **Centralised:** `POINT_COMPONENTS` + `normalizePoint()` in `TypeAndCastUtil.ts` are now the only
     place that knows a point is 2D. `castValidPoint` delegates to it and TRUNCATES a longer vector
-    instead of rejecting it — the old behaviour dropped an imported tangent whole. Supporting 3D later
+    instead of rejecting it — the old behavior dropped an imported tangent whole. Supporting 3D later
     is a change to that one file, not a hunt through call sites.
   - **Guarded in DEPTH, at three layers**, because Lottie is 3D in more places than the importer knew:
     1. *Importer* (`TransformAttrsPartMC`): position, both spatial tangents, **anchor** and **scale**.
@@ -1258,10 +1258,10 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
     would flag every ordinary 3D-scale document. `PointNeutralZ` names both. A genuinely lossy Z
     raises `lottie_point3d`.
   - **Measured, not assumed.** A census of 43 real Lottie files found the 3-component fields to be
-    `p`/`to`/`ti` (z=0), `a` (z=0), `s` (z=100 — 119 of 119) and `c` — which is COLOUR, not a point,
+    `p`/`to`/`ti` (z=0), `a` (z=0), `s` (z=100 — 119 of 119) and `c` — which is COLOR, not a point,
     and must never be narrowed. Converting all **127** corpus files afterwards yields **0** length-3
     arrays on the SVGA wire and **0** 3D warnings.
-  - Pinned by `PointNormalisation.spec.ts` (8 tests: helper, read path, per-property neutral Z, and
+  - Pinned by `PointNormalization.spec.ts` (8 tests: helper, read path, per-property neutral Z, and
     the model-side clamp). The `no union member matched` errors are gone from the Lottie suites.
 - **S4 closed — four config spellings and two doc discriminators reduced to the truth** (2026-08).
   `getAnimatorConfig` was `doc.animator || doc.meta.animator || doc.animation || doc.meta.animation`
@@ -1284,7 +1284,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
   the value at that instant fell out of `findBracketingKeyframes`' first-match-wins tie-break and
   disagreed with every other output form. It now mirrors `TLoop.toKeyframes`: separate the pair by
   `LOOP_JUMP_SHIFT_MS` (10ms = one editor frame), and DROP the duplicate outright when the two values
-  are equal (a pingpong turn says nothing). Both sides now materialise identical keyframes —
+  are equal (a pingpong turn says nothing). Both sides now materialize identical keyframes —
   `0:20 500:160 510:20 1000:160` for a cycle and `0:20 500:160 1000:20` for a pingpong, byte-for-byte
   the editor's CSS export (`0% / 50% / 51% / 100%` and `0% / 50% / 100%`).
   - *Scope:* loopOut only. For loopIn the coincident pair sits in the opposite array order, so
@@ -1324,7 +1324,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
   round-trip spec now asserts BOTH halves — 16 default rows expect the key absent, and a new
   `timeline = scroll` row proves a non-default value still ships (without it, silently dropping the
   slot would have passed).
-- **S6 closed — the two materialisers agree visually, not structurally** (2026-08): documented as
+- **S6 closed — the two materializers agree visually, not structurally** (2026-08): documented as
   intentional in R7, nothing to change. Of the three original sub-items only A2 was real: for STATIC
   repeated content the editor's heavy SVG emits `<use href>` copies while the player deep-clones the
   subtree (re-verified: `clone(base)` in `repeaterEffect.ts`, `createPxElement('use', …)` in
@@ -1383,13 +1383,13 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
 - **N8 closed — `loop.before: boolean` → `loop.extend: 'before' | 'after'`** (2026-08): HARD rename,
   no legacy alias. Player `PxLoopExtend` enum + `px.enum([...])` slot; all four `if (loop.before)`
   branches in `PxDefinitions.ts` now test `loop.extend === PxLoopExtend.before`. Editor: `PxAttrLoopObj.extend`
-  (`str()`, typed `PxLoopExtend`), `TLoop.isBefore` mapped at both ends (`PxAttrSerialisationObjs`,
-  `SvgGradientElements.readStopColorLoop`, `GlyphMaterialiseSvgUtil.to/fromPxLoop`). `TLoop.isBefore`
+  (`str()`, typed `PxLoopExtend`), `TLoop.isBefore` mapped at both ends (`PxAttrSerializationObjs`,
+  `SvgGradientElements.readStopColorLoop`, `GlyphMaterializeSvgUtil.to/fromPxLoop`). `TLoop.isBefore`
   keeps its editor-model name — the law governs the wire, not the model. Absent `extend` = `'after'`,
   so the boolean shorthand `loop: true` and every corpus case are byte-identical (the key was DECLARED
   but written 0 times in 116 cases — zero migration risk). Boolean-naming law recorded in §2
   *Naming & ids*; `isItalic` audited as a non-issue (ships as `fontStyle: 'italic'`, never a wire
-  boolean). Pinned by the web loop-expansion spec + editor `loop-config.spec.ts` / `SvgaAttrSerialisationUtil.spec.ts`.
+  boolean). Pinned by the web loop-expansion spec + editor `loop-config.spec.ts` / `SvgaAttrSerializationUtil.spec.ts`.
 - **Heavy round-trip idempotency** holds (`write(read(heavy)) == heavy`, canonical ids) across probe combos; accumulation guarded by `applied-effects-accumulation.spec.ts` (11 producers × 2 forms × 3 cycles).
 
 ---
@@ -1399,7 +1399,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
 *Method (2026-08 audit): three probes over the feature-explorer corpus, all deleted afterwards.
 (1) validate every case against BOTH `PxAnimatedSvgDocumentSchema` (lib) and
 `PxAnimatedSvgDocumentSchemaExtra` (editor), in default AND strict mode; (2) diff every
-schema-DECLARED key path against every key path actually WRITTEN across the corpus; (3) serialise
+schema-DECLARED key path against every key path actually WRITTEN across the corpus; (3) serialize
 all cases to the pre-rendered SVG form and parse every `data-px-meta` blob. Counts are REAL — read
 off generated output, not off declarations.*
 

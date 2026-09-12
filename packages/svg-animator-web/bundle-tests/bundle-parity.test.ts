@@ -77,9 +77,9 @@ describe('shipped bundles: boundary names survive minification', () => {
     }
 });
 
-describe('shipped bundles: behaviour is identical minified and unminified', () => {
+describe('shipped bundles: behavior is identical minified and unminified', () => {
 
-    /** Runs one scenario against both flavours and returns the two observations. */
+    /** Runs one scenario against both flavors and returns the two observations. */
     function ab(pair: typeof BUNDLE_PAIRS[number], scenario: (px: any, win: any) => unknown) {
         const a = loadBundle(pair.unmin);
         const b = loadBundle(pair.min);

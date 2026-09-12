@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../../format/PxAnimatorTypes';
-import { collectByType, materialise, materialiseEngine, noEffectsRemain, normaliseGeneratedIds, PxTimelineEngine, transformKfTimes } from '../effectTestKit';
+import { collectByType, materialize, materializeEngine, noEffectsRemain, normalizeGeneratedIds, PxTimelineEngine, transformKfTimes } from '../effectTestKit';
 
 const rect = (): PxNode => ({ type: 'rect', id: 'r', width: 100, height: 50 } as unknown as PxNode);
 const wrap = (transformBy: any): PxNode =>
@@ -30,8 +30,8 @@ const stringTransforms = (out: PxNode): Array<string> =>
 describe('transformationEffect — wrappers, static & animated parts', () => {
 
     it('case 1 — static translate → single <g transform:{value:{translate}}>', () => {
-        const out = materialise(wrap({ translate: [40, 20] }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(wrap({ translate: [40, 20] }));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -63,8 +63,8 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
     });
 
     it('case 2 — static scale is a FACTOR on the wire (1.5 = 150%), passed through as-is', () => {
-        const out = materialise(wrap({ scale: [1.5, 1.5] }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(wrap({ scale: [1.5, 1.5] }));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -98,8 +98,8 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
     // Vec2 `skewX()skewY()` string form never matched what the editor writes and is gone
     // (see skew-support.plan.md; user-approved order/semantics unification).
     it('case 3 — static skew → standard parts-record wrapper (scalar skewX)', () => {
-        const out = materialise(wrap({ skew: 10 }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(wrap({ skew: 10 }));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -127,8 +127,8 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
     });
 
     it('case 4 — static rotate + origin → +origin / rotate / -origin sandwich', () => {
-        const out = materialise(wrap({ rotate: 45, origin: [50, 25] }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(wrap({ rotate: 45, origin: [50, 25] }));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -185,10 +185,10 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
     });
 
     it('case 5 — animated translate → wrapper carries animate.transform.keyframes', () => {
-        const out = materialise(wrap({
+        const out = materialize(wrap({
             translate: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [100, 0] }] },
         }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -212,11 +212,11 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
     });
 
     it('case 6 — animated rotate + static origin → rotate kfs pivot inside origin sandwich', () => {
-        const out = materialise(wrap({
+        const out = materialize(wrap({
             rotate: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 90 }] },
             origin: [50, 25],
         }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -267,7 +267,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
         expect(noEffectsRemain(out)).toBe(true);
     });
 
-    // ── Engine difference (full pipeline `materialiseAllInTree`) ──────────────
+    // ── Engine difference (full pipeline `materializeAllInTree`) ──────────────
     // The effect pass itself is engine-agnostic; the WAAPI-vs-frames difference
     // is the waapi-only MOTION-PATH flatten. An autoOrient translate (curved,
     // with tangent handles) is the transformation case that exercises it.
@@ -282,8 +282,8 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
     };
 
     it('case 7 — autoOrient translate, FRAMES engine → parametric kept (tangents/autoOrient survive)', () => {
-        const out = materialiseEngine(wrap(AUTO_ORIENT), PxTimelineEngine.js);
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materializeEngine(wrap(AUTO_ORIENT), PxTimelineEngine.js);
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -309,9 +309,9 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
     });
 
     it('case 8 — autoOrient translate, WAAPI engine → motion-path FLATTENED (sampled, rotate baked, no autoOrient)', () => {
-        const framesOut = materialiseEngine(wrap(AUTO_ORIENT), PxTimelineEngine.js);
-        const out = materialiseEngine(wrap(AUTO_ORIENT), PxTimelineEngine.native);
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const framesOut = materializeEngine(wrap(AUTO_ORIENT), PxTimelineEngine.js);
+        const out = materializeEngine(wrap(AUTO_ORIENT), PxTimelineEngine.native);
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -349,7 +349,7 @@ describe('transformationEffect — id ownership (B4/A1)', () => {
     // own it (same law as repeaterEffect and the editor's heavy render), so a
     // live `<use href>` in the DOM resolves to the full transformed result.
     it('the outermost wrapper takes the element id; the core loses it', () => {
-        const out = materialise(wrap({ translate: [30, 30], rotate: 45 }));
+        const out = materialize(wrap({ translate: [30, 30], rotate: 45 }));
         const outermost: any = (out as any).children[0];
         expect(outermost.type).toBe('g');
         expect(outermost.id).toBe('r');
@@ -366,7 +366,7 @@ describe('transformationEffect — id ownership (B4/A1)', () => {
                 { type: 'use', href: '#r' },
             ],
         } as unknown as PxNode;
-        const out: any = materialise(doc);
+        const out: any = materialize(doc);
         // The use stays live and its target id now sits on the wrapper that
         // carries the translate — the browser clones the transformed unit.
         expect(out.children[1]).toEqual({ type: 'use', href: '#r' });
@@ -376,7 +376,7 @@ describe('transformationEffect — id ownership (B4/A1)', () => {
     });
 
     it('no wrappers generated (empty effect) → the id stays on the element', () => {
-        const out: any = materialise(wrap({}));
+        const out: any = materialize(wrap({}));
         expect(out.children[0].type).toBe('rect');
         expect(out.children[0].id).toBe('r');
     });

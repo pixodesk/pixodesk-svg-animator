@@ -14,7 +14,7 @@
 // `animate` key is simply ignored by the applier and flagged by strict validation.
 
 import { describe, expect, it } from 'vitest';
-import { materialise } from '../effectTestKit';
+import { materialize } from '../effectTestKit';
 import type { PxNode } from '../../format/PxAnimatorTypes';
 
 
@@ -29,7 +29,7 @@ function findDef(root: PxNode, type: string): PxNode | undefined {
 }
 
 function applied(node: PxNode): PxNode {
-    return materialise({ type: 'svg', children: [node] } as unknown as PxNode);
+    return materialize({ type: 'svg', children: [node] } as unknown as PxNode);
 }
 
 describe('gradient geometry animation (frames engine)', () => {

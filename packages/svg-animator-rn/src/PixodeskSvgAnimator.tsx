@@ -3,8 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { clampSeekMs, createDiagnostics, createRunClock, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PX_RATE_REJECTED, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxDiagnostic, type PxDiagnostics,
-    reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materialiseAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxAnimatorConfigPatch, type PxNode, type PxStartOn, applyAnimatorConfig, foldAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
+import { clampSeekMs, createDiagnostics, createRunClock, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PX_RATE_REJECTED, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxComponentCallbacks, type PxControlProps, type PxPlaybackOverrideProps, type PxDiagnostic, type PxDiagnostics,
+    reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxAnimatorConfigPatch, type PxNode, applyAnimatorConfig, foldAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
 import Animated, {
@@ -27,109 +27,44 @@ import { openClosedTextPathTargets } from './PxRnSafety';
 
 // -- Public types -----------------------------------------------------------
 
-/** Imperative playback API — mirrors ReactAnimatorApi from svg-animator-react. */
-export interface RnAnimatorApi {
-    /** Returns true if the animation is currently running. */
-    isPlaying(): boolean;
+/**
+ * The imperative handle `apiRef` is filled with — core's `PxAnimatorHandle` under this package's
+ * name (review §9). It no longer "mirrors" the React one by hand: the local copy had already
+ * drifted (its `setPlaybackRate` comment lost "negative plays backwards"). One definition.
+ */
+export type RnAnimatorApi = PxAnimatorHandle;
 
-    /** Starts or resumes the animation. */
-    play(): void;
-
-    /** Pauses the animation at its current state. */
-    pause(): void;
-
-    /** Stops the animation and resets it to its initial state. */
-    cancel(): void;
-
-    /** Jumps to the end of the animation and holds the final state. */
-    finish(): void;
-
-    /** Changes the speed of the animation. 1 is normal, 2 is double. */
-    setPlaybackRate(rate: number): void;
-
-    /** Current playback time, ms from the start of the whole run (iterations included). */
-    getCurrentTime(): number | null;
-
-    /** Seeks, ms from the start of the whole run; clamped to `[0, duration × iterations]`. */
-    setCurrentTime(time: number): void;
-
-    /**
-     * Current position as 0–1 of the whole run — the read twin of the `progress` prop,
-     * and ONE iteration when `iterations` is `'infinite'`.
-     */
-    getCurrentProgress(): number | null;
-
-    /** Seeks to 0–1 of the whole run, clamped to `[0, 1]`. */
-    setCurrentProgress(progress: number): void;
-}
-
-export interface PixodeskSvgAnimatorProps {
+/**
+ * The component's props. The playback override, the control props and the callbacks are core's
+ * shared shapes (review §9) — `PxPlaybackOverrideProps`, `PxControlProps` and
+ * `PxComponentCallbacks` — so React, Vue and React Native cannot drift apart. Only what differs
+ * on this platform is declared here: `onError` keeps its richer signature (the error boundary
+ * hands it a component stack), and `fallback` has no web counterpart.
+ */
+export interface PixodeskSvgAnimatorProps
+    extends PxPlaybackOverrideProps, PxControlProps, Omit<PxComponentCallbacks, 'onError'> {
 
     // -- Source ---------------------------------------------------------------
 
     /** The animation document to render. */
     doc: PxAnimatedSvgDocument;
 
-    // -- Timing overrides -----------------------------------------------------
-
-    /** Duration of a single iteration in milliseconds. */
-    duration?: number;
-
-    /** Delay before the animation starts, in milliseconds. */
-    delay?: number;
-
-    /** Number of iterations, or 'infinite' for endless looping. */
-    iterations?: number | 'infinite';
-
-    /** Shortcut for `config.timeline.trigger.startOn`. */
-    startOn?: PxStartOn;
-
     /**
-     * Per-instance override of the document's `animator` config — the same shape as `animator`
-     * in SCHEMA.md, deep-merged over what the document says; `null` at a slot deletes it.
-     * Replaces the former flat `fill` / `direction` / `resetOnFinish` / `outAction` props, so
-     * every surface takes one vocabulary. Also accepts a JSON string.
+     * Per-instance override of the document's `animator` config — see `PxPlaybackOverrideProps`.
      *
-     * `timeline.engine` is accepted but ignored here: React Native always materialises the
-     * WAAPI-style flattening, because react-native-svg has no `<use>` shadow-tree propagation.
+     * `timeline.engine` is accepted but ignored here: React Native always uses the `native`
+     * (fully flattened) materialization, because react-native-svg has no `<use>` shadow-tree
+     * propagation.
      */
     config?: PxAnimatorConfigPatch | string;
 
-    /** Start from the player's defaults instead of the document's playback settings. */
-    resetDocDefaults?: boolean;
-
-    // -- Declarative control --------------------------------------------------
-
-    /** When true, honours the document trigger (`startOn: 'load'` plays on mount). */
-    autoplay?: boolean;
-
-    /** Starts playback unconditionally. */
-    play?: boolean;
-
-    /** Pauses current playback. */
-    pause?: boolean;
-
     // -- Imperative control ---------------------------------------------------
 
-    /** Ref populated with the imperative playback API. */
+    /**
+     * Ref populated with the imperative playback API. Filled in EVERY mode and never picks one
+     * (review §1): `autoplay` next to it still autoplays.
+     */
     apiRef?: React.RefObject<RnAnimatorApi | null>;
-
-    // -- Controlled (external) time -------------------------------------------
-
-    /** Seek to a fraction (0–1) of the whole timeline (duration × iterations). */
-    progress?: number;
-
-    /** Seek to a specific time in milliseconds. */
-    time?: number;
-
-    // -- Callbacks ------------------------------------------------------------
-
-    onPlay?: () => void;
-    onStop?: () => void;
-    onPause?: () => void;
-    onCancel?: () => void;
-    onFinish?: () => void;
-
 
     // -- Failure handling -----------------------------------------------------
 
@@ -139,29 +74,14 @@ export interface PixodeskSvgAnimatorProps {
      * animation never takes down the screen around it.
      *
      * Only JavaScript failures reach this — a crash inside react-native-svg's
-     * native renderer bypasses JavaScript entirely.
+     * native renderer bypasses JavaScript entirely. Richer than the web's
+     * `onError(diagnostic)` because the error boundary hands it a component stack; it is
+     * adapted into the shared diagnostics channel rather than narrowed to match it.
      */
     onError?: (error: Error, componentStack?: string) => void;
 
     /** Rendered in place of the animation after a failure. Default: nothing. */
     fallback?: (error: Error) => ReactElement | null;
-
-    // -- Diagnostics (API review §5) -----------------------------------------
-
-    /**
-     * Called for anything survivable — an unknown easing, a config key that could not be
-     * applied, a rejected playback rate. The animation still plays.
-     *
-     * Without this, these go to `console.warn`.
-     */
-    onWarn?: (diagnostic: PxDiagnostic) => void;
-
-    /**
-     * Silence the console FALLBACK — `true` for everything, or just the kinds listed, so
-     * `platform` chatter can be quiet while `document` problems still speak.
-     * `onWarn` / `onError` still fire if given.
-     */
-    silent?: boolean | ReadonlyArray<PxDiagnosticKind>;
 }
 
 
@@ -301,17 +221,11 @@ function SampledSubtree({
 
 
 /** Overrides that shadow the document's own `animator` config. */
-interface ConfigOverrides {
-    config?: PxAnimatorConfigPatch | string;
-    resetDocDefaults?: boolean;
-    duration?: number;
-    delay?: number;
-    iterations?: number | 'infinite';
-    startOn?: PxStartOn;
-}
+/** The override subset of the props — core's shared shape, not a local copy (review §9). */
+type ConfigOverrides = PxPlaybackOverrideProps;
 
 interface Compiled {
-    /** Materialised document, or null when compilation failed. */
+    /** Materialized document, or null when compilation failed. */
     doc: PxAnimatedSvgDocument | null;
     tracks: PxCompiledTracks;
     error: Error | null;
@@ -325,7 +239,7 @@ const EMPTY_TRACKS: PxCompiledTracks = {
 };
 
 /**
- * Materialises + compiles a document. Extracted from the component so the
+ * Materializes + compiles a document. Extracted from the component so the
  * whole thing sits behind one try/catch, and so it can be tested directly.
  */
 function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides, diag: PxDiagnostics): Compiled {
@@ -336,7 +250,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
     reportDocumentDiagnostics(doc, '[PixodeskSvgAnimator]');
 
     // The per-instance override, applied to the WIRE document BEFORE anything reads the
-    // config — `materialiseAllInTree` samples motion paths against `duration`, so a later
+    // config — `materializeAllInTree` samples motion paths against `duration`, so a later
     // patch would be read by none of the pipeline. Same call, same rules, on every surface.
     const patch = foldAnimatorConfigShortcuts(config, { duration, delay, iterations, startOn });
     if (patch !== undefined || resetDocDefaults) {
@@ -345,14 +259,14 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
         doc = applied.doc;
     }
 
-    // `waapi` = the FULLY-FLATTENED materialisation: effects + loops +
+    // `native` = the FULLY-FLATTENED materialization: effects + loops +
     // sampled motion paths + animated `<use>` inlined into real `<g>`
     // clones + orphaned defs pruned. That last part is why RN must not use
-    // the `frames` flavour: frames keeps `<use href="#animatedTarget">`
+    // the `js` flavor: the frame loop keeps `<use href="#animatedTarget">`
     // live references, which only work because the DOM propagates
     // attribute writes through `<use>` shadow trees. react-native-svg has
     // no such live propagation, so an animated `<use>` would render frozen.
-    let prepared = materialiseAllInTree(doc, PxTimelineEngine.native);
+    let prepared = materializeAllInTree(doc, PxTimelineEngine.native);
 
     // Sidestep a react-native-svg NATIVE crash (see PxRnSafety). Guarded on
     // the platform because the DOM renders this case correctly and the web
@@ -372,9 +286,10 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
 /**
  * React Native component for rendering and controlling Pixodesk SVG animations.
  *
- * The document is materialised once through the shared core pipeline (effects,
+ * The document is materialized once through the shared core pipeline (effects,
  * loops, motion-path sampling, animated-`<use>` inlining — identical to the
- * web frames engine), compiled into densely sampled per-element tracks, and
+ * web's `native` engine, NOT the frame loop, which keeps `<use>` live), compiled
+ * into densely sampled per-element tracks, and
  * played back natively: a single reanimated progress value driven by
  * `withTiming`/`withRepeat` on the UI thread, with per-element worklets
  * indexing the precompiled tracks. No JS-thread frame loop.
@@ -383,13 +298,13 @@ export function PixodeskSvgAnimator({
     doc, config, resetDocDefaults, duration, delay, iterations, startOn,
     // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
     autoplay, play, pause, apiRef, progress: progressProp, time,
-    onPlay, onStop, onPause, onCancel, onFinish, onError, fallback, onWarn, silent,
+    onPlay, onStop, onPause, onCancel, onFinish, onRemove, onError, fallback, onWarn, silent,
 }: PixodeskSvgAnimatorProps): ReactElement | null {
 
     // -- Compile the document (once per doc/override change) ------------------
 
     // `config` is an object prop: a fresh literal every render would otherwise recompile the
-    // whole document (materialise + compile tracks), which is the expensive path. Key on its
+    // whole document (materialize + compile tracks), which is the expensive path. Key on its
     // CONTENT instead — the override is small, the document is not.
     const configKey = typeof config === 'string' ? config : JSON.stringify(config ?? null);
 
@@ -619,7 +534,7 @@ export function PixodeskSvgAnimator({
         if (compMode === PxControlMode.play) {
             if (play && !pause) api.play();
             else if (pause) api.pause();
-            else if (play === false) api.finish();
+            else if (play === false) api.pause();   // hold, not finish() — review §8, same as web
             else api.play();
             return;
         }
@@ -667,11 +582,14 @@ export function PixodeskSvgAnimator({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [compiled, autoplay, effectiveStartOn, effectiveOutAction]);
 
-    // Stop cleanly on unmount / doc swap.
+    // Stop cleanly on unmount / doc swap — and say so, the way the web's destroy() does (§18):
+    // both are "the animator was thrown away", so `onRemove` fires, and `onStop` with it.
     useEffect(() => {
         return () => {
             cancelAnimation(progress);
             playingRef.current = false;
+            onRemove?.();
+            onStop?.();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [compiled]);

@@ -3,11 +3,11 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxBezierPath, type PxBinding, type PxDefs, type PxElementAnimation, type PxKeyframe, type PxNormalisedKeyframe, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts, kfTime, kfValue, kfEasing, kfTangentIn, kfTangentOut } from '../format/PxAnimatorTypes';
+import { type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxBezierPath, type PxBinding, type PxDefs, type PxElementAnimation, type PxKeyframe, type PxNormalizedKeyframe, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts, kfTime, kfValue, kfEasing, kfTangentIn, kfTangentOut } from '../format/PxAnimatorTypes';
 import { getBindings, getDefs, TRANSFORM_ATTR } from '../format/PxAnimatorConstants';
 import { getAnimatorConfig, PxTimelineEngine, PxLoopDirection, PxLoopRepeatAt } from '../format/PxAnimatorConstants';
-import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, parseTransformParts, PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
-import { evaluateMotionPathSegment, materialiseMotionPathInPropAnim, propAnimIsMotionPath } from '../materialise/PxMotionPath';
+import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, parseTransformParts, PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
+import { evaluateMotionPathSegment, materializeMotionPathInPropAnim, propAnimIsMotionPath } from '../materialize/PxMotionPath';
 
 /**
  * Time separation between a cycle's snap-back keyframe and the previous repetition's
@@ -15,7 +15,7 @@ import { evaluateMotionPathSegment, materialiseMotionPathInPropAnim, propAnimIsM
  *
  * SINGLE SOURCE OF TRUTH — the editor imports this and converts to its own frame unit
  * (`TLoop.smallFrameShift = LOOP_JUMP_SHIFT_MS / FRAME_DURATION_MS`), so the two sides
- * cannot drift apart and materialise different keyframes (B7).
+ * cannot drift apart and materialize different keyframes (B7).
  *
  * 1ms, not one 10ms editor frame: a 10ms snap-back is long enough to read as a visible
  * jump in a looping animation (confirmed visually). The gap only has to be non-zero — it
@@ -335,7 +335,7 @@ export function interpolateValue(propName: string, a: any, b: any, t: number): a
         const bPaths = b?.paths ?? (Array.isArray(b) ? b : []);
         return { paths: interpolateBeziers(aPaths, bPaths, t) };
     }
-    if (COLOUR_ATTR_NAMES.has(propName)) {
+    if (COLOR_ATTR_NAMES.has(propName)) {
         return interpolateColor(a || [0, 0, 0, 1], b || [0, 0, 0, 1], t);
     }
     // Unified-transform record (`{translate, rotate, scale, origin}`) — the
@@ -398,15 +398,15 @@ interface LoopTemplateEntry {
  */
 function expandLoopKeyframes(
     propName: string,
-    keyframes: PxNormalisedKeyframe[],
+    keyframes: PxNormalizedKeyframe[],
     loop: PxLoop,
     duration: number
-): PxNormalisedKeyframe[] {
+): PxNormalizedKeyframe[] {
     const totalIntervals = keyframes.length - 1;
     const segCount = clamp(loop.segmentCount ?? totalIntervals, 1, totalIntervals);
 
     // Extract segment keyframes
-    let segKfs: PxNormalisedKeyframe[];
+    let segKfs: PxNormalizedKeyframe[];
     if (loop.repeatAt === PxLoopRepeatAt.start) {
         segKfs = keyframes.slice(0, segCount + 1);
     } else {
@@ -448,7 +448,7 @@ function expandLoopKeyframes(
     const remainder = fillDuration - fullReps * segDuration;
     const partialFraction = remainder / segDuration;
 
-    const looped: PxNormalisedKeyframe[] = [];
+    const looped: PxNormalizedKeyframe[] = [];
 
     // A cycle's first keyframe lands at the SAME time as the previous repetition's
     // last one. Emitting both at that time makes the value at that instant depend on
@@ -457,7 +457,7 @@ function expandLoopKeyframes(
     //   - values EQUAL (pingpong turn, closed loop) → the duplicate says nothing, skip it;
     //   - values DIFFER (a real cycle snap)         → separate them by LOOP_JUMP_SHIFT_MS.
     // The editor's shift is one 10ms frame (`smallFrameShift`), so the two sides
-    // materialise identical keyframes. Anything smaller is blocked editor-side: a
+    // materialize identical keyframes. Anything smaller is blocked editor-side: a
     // fractional-frame shift was tried there and reverted (TKeyframeGroup mishandles it).
     // SCOPE: loopOut (`after`) only — see the note above. For loopIn the pair sits in
     // the opposite order in the array, so separating it means moving the EARLIER
@@ -467,7 +467,7 @@ function expandLoopKeyframes(
     const separateBoundary = loop.repeatAt !== PxLoopRepeatAt.start;
     // The keyframe the FIRST repetition butts up against: loopOut tiles forward from
     // the last original keyframe (the originals are concatenated only at assembly).
-    const originalTerminalKf: PxNormalisedKeyframe | undefined = keyframes[keyframes.length - 1];
+    const originalTerminalKf: PxNormalizedKeyframe | undefined = keyframes[keyframes.length - 1];
 
     // Easing that a skipped boundary keyframe hands to the ORIGINAL terminal keyframe.
     // Easing describes the interval that FOLLOWS a keyframe, so when a pingpong turn's
@@ -475,7 +475,7 @@ function expandLoopKeyframes(
     // redundant — it owns the return leg. Without this hand-off the return leg renders
     // LINEAR while the outbound is eased. The originals belong to the caller, so it is
     // applied by replacing the terminal with a copy at assembly, never by mutation.
-    let terminalEasingOverride: PxNormalisedKeyframe['e'] | undefined;
+    let terminalEasingOverride: PxNormalizedKeyframe['e'] | undefined;
     let hasTerminalEasingOverride = false;
 
     // Helper: append one full or partial repetition
@@ -552,7 +552,7 @@ function expandLoopKeyframes(
                 if (looped.length > 0) { delete prevKf.tangentIn; delete prevKf.tangentOut; }
             }
 
-            const pushed: PxNormalisedKeyframe = {
+            const pushed: PxNormalizedKeyframe = {
                 t: repStart + entry.relT * segDuration + (isBoundary ? LOOP_JUMP_SHIFT_MS : 0),
                 v: entry.v,
                 e: i < entries.length - 1 ? entry.e : undefined
@@ -608,7 +608,7 @@ function expandLoopKeyframes(
                 looped.push({ t: repStart, v: startValue, e: rightEasing });
             }
 
-            const pushed: PxNormalisedKeyframe = {
+            const pushed: PxNormalizedKeyframe = {
                 t: repStart + (entry.relT - startRelT) * segDuration,
                 v: entry.v,
                 e: i < entries.length - 1 ? entry.e : undefined
@@ -687,10 +687,10 @@ function normalizeKeyframes(
     propAnim: PxPropertyAnimation,
     duration: number,
     defs?: PxDefs
-): PxNormalisedKeyframe[] {
+): PxNormalizedKeyframe[] {
     const keyframes = propAnim.keyframes || [];
 
-    const normalized: PxNormalisedKeyframe[] = [];
+    const normalized: PxNormalizedKeyframe[] = [];
 
     for (const kf of keyframes) {
         const timePct = kfTime(kf);
@@ -703,23 +703,23 @@ function normalizeKeyframes(
         }
 
         // Normalize color values (hex/rgb/rgba strings to [0-1] vectors).
-        // `COLOUR_ATTR_NAMES` is keyed in kebab-case (`stop-color`, `flood-color`,
+        // `COLOR_ATTR_NAMES` is keyed in kebab-case (`stop-color`, `flood-color`,
         // `lighting-color`); the wire format uses both kebab AND camelCase
         // (`stopColor`) for these props. Without converting, frames-mode would
         // call `interpolateColor` on the raw strings and produce `NaN` channels
         // — the visible "rgba(NaN,NaN,NaN,…)" bug on stop-color animations.
         const propNameKebab = isCamelCaseWord(propName) ? camelCaseToKebabWordIfNeeded(propName) : propName;
-        if (COLOUR_ATTR_NAMES.has(propNameKebab)) {
+        if (COLOR_ATTR_NAMES.has(propNameKebab)) {
             value = parseColor(value) ?? value;
         }
 
-        const normKf: PxNormalisedKeyframe = {
+        const normKf: PxNormalizedKeyframe = {
             t: timePct,
             v: value,
             e: resolveEasing(easing, defs)
         };
         // Motion-along-path: keep the spatial tangents so the downstream
-        // `materialiseMotionPathInPropAnim` (called in `normalizeAnimationDefinition`) can
+        // `materializeMotionPathInPropAnim` (called in `normalizeAnimationDefinition`) can
         // sample them into transform kfs. Short aliases `ti` / `to` collapse
         // into their canonical names.
         const tIn = kfTangentIn(kf);
@@ -762,14 +762,14 @@ function mergeAnimationDefinitions(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Public loop-materialisation API
+//  Public loop-materialization API
 //
 //  Used internally by `normalizeKeyframes` (where `expandLoopKeyframes` is
-//  already called at the tail of normalisation). Exposed here at the propAnim
+//  already called at the tail of normalization). Exposed here at the propAnim
 //  and tree levels so the Editor (or any external caller) can compose:
 //      root = applyPlayerEffects(root).root;
-//      root = materialiseInternalLoopsInTree(root, duration);
-//      root = materialiseMotionPathsInTree(root);
+//      root = materializeInternalLoopsInTree(root, duration);
+//      root = materializeMotionPathsInTree(root);
 //  to produce a fully-flat document with no `loop`, no `effects`, no tangents.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -779,7 +779,7 @@ function mergeAnimationDefinitions(
  * `expandLoopKeyframes`. Returns the input by reference when no loop is
  * configured (no-op). Output drops the `loop` field (consumed).
  */
-export function materialiseInternalLoopsInPropAnim(
+export function materializeInternalLoopsInPropAnim(
     propName: string,
     propAnim: PxPropertyAnimation,
     duration: number,
@@ -791,23 +791,23 @@ export function materialiseInternalLoopsInPropAnim(
     if (!Array.isArray(rawKfs) || rawKfs.length < 2) return propAnim;
 
     // `expandLoopKeyframes` reads kf.t / kf.v / kf.e (short form). When this
-    // function is called from the materialisation pipeline OUTSIDE the
-    // binding-normalisation path (e.g. by `materialiseAllInTree`), the input
+    // function is called from the materialization pipeline OUTSIDE the
+    // binding-normalization path (e.g. by `materializeAllInTree`), the input
     // kfs may still be in long form (`time` / `value` / `easing`) AND the
-    // values may be unparsed (hex colour strings, raw path-`d`). Normalise
+    // values may be unparsed (hex color strings, raw path-`d`). Normalize
     // both here so `interpolateValue` (called by `expandLoopKeyframes` at the
-    // loop seam) sees structured data — without this, a colour boundary kf
+    // loop seam) sees structured data — without this, a color boundary kf
     // ends up `[NaN,NaN,NaN,NaN]` and the bug stays visible until the
     // animation cycle restarts.
     const propNameKebab = isCamelCaseWord(propName) ? camelCaseToKebabWordIfNeeded(propName) : propName;
-    const isColour = COLOUR_ATTR_NAMES.has(propNameKebab);
-    const kfs: PxNormalisedKeyframe[] = rawKfs.map(kf => {
+    const isColor = COLOR_ATTR_NAMES.has(propNameKebab);
+    const kfs: PxNormalizedKeyframe[] = rawKfs.map(kf => {
         const t = kfTime(kf);
         let v: unknown = kfValue(kf);
         if (propName === 'd') v = normalizePathValue(v);
-        if (isColour) v = parseColor(v) ?? v;
+        if (isColor) v = parseColor(v) ?? v;
         const e = kfEasing(kf);
-        const out: PxNormalisedKeyframe = { t, v, e };
+        const out: PxNormalizedKeyframe = { t, v, e };
         const tIn = kfTangentIn(kf);
         const tOut = kfTangentOut(kf);
         if (tIn) out.tangentIn = tIn;
@@ -823,24 +823,24 @@ export function materialiseInternalLoopsInPropAnim(
 
 
 /**
- * Walks `root` and materialises every animated property's `loop` via
- * `materialiseInternalLoopsInPropAnim`. Immutable — returns the input by
+ * Walks `root` and materializes every animated property's `loop` via
+ * `materializeInternalLoopsInPropAnim`. Immutable — returns the input by
  * reference when no loop was found anywhere; otherwise clones along the path
  * to each affected node, sharing untouched sub-trees.
  */
-export function materialiseInternalLoopsInTree(
+export function materializeInternalLoopsInTree(
     root: PxNode,
     duration: number,
 ): PxNode {
-    const ret = walkAndMaterialiseLoops(root, duration);
+    const ret = walkAndMaterializeLoops(root, duration);
     return ret ?? root;
 }
 
-function walkAndMaterialiseLoops(node: PxNode, duration: number): PxNode | null {
+function walkAndMaterializeLoops(node: PxNode, duration: number): PxNode | null {
     let newChildren: Array<PxNode> | undefined;
     if (node.children) {
         for (let i = 0; i < node.children.length; i++) {
-            const ret = walkAndMaterialiseLoops(node.children[i], duration);
+            const ret = walkAndMaterializeLoops(node.children[i], duration);
             if (ret !== null) {
                 if (!newChildren) newChildren = node.children.slice();
                 newChildren[i] = ret;
@@ -853,10 +853,10 @@ function walkAndMaterialiseLoops(node: PxNode, duration: number): PxNode | null 
         const animDef = animBucket as Record<string, PxPropertyAnimation>;
         for (const propName of Object.keys(animDef)) {
             const propAnim = animDef[propName];
-            const materialised = materialiseInternalLoopsInPropAnim(propName, propAnim, duration);
-            if (materialised !== propAnim) {
+            const materialized = materializeInternalLoopsInPropAnim(propName, propAnim, duration);
+            if (materialized !== propAnim) {
                 if (!newAnimate) newAnimate = { ...animDef };
-                newAnimate[propName] = materialised;
+                newAnimate[propName] = materialized;
             }
         }
     }
@@ -887,7 +887,7 @@ export function resetElementIdCounter(): void {
  * TRANSFORM PRECEDENCE (review §0.4/§1.6) — CSS's own composition rule, applied at READ:
  * a static `transform` on the element composes UNDER the animated transform, instead of
  * being silently clobbered by it. Implemented as a keyframe-value MERGE during
- * normalisation, so both engines (and every consumer downstream) see complete parts:
+ * normalization, so both engines (and every consumer downstream) see complete parts:
  *
  *   1. `animate.transform` with PARTIAL parts records — every keyframe value (and the
  *      base `value`) inherits the static parts it does not set:
@@ -969,7 +969,7 @@ function normalizeAnimationDefinition(
             && (propAnim as { alongPathMode?: string }).alongPathMode === 'offsetPath'
             // …but ONLY when the offset infrastructure actually exists (an `offsetDistance`
             // track in the same definition — the pre-rendered dict shape, or a lightweight
-            // doc the offset materialiser rewrote). A marked transform the materialiser
+            // doc the offset materializer rewrote). A marked transform the materializer
             // BAILED on (e.g. rotate animated in the same keyframes — inexpressible as
             // offset-path) must fall through to the ordinary sampled pipeline; skipping it
             // unconditionally froze those elements at their base pose.
@@ -978,26 +978,26 @@ function normalizeAnimationDefinition(
         }
         const normalizedKfs = normalizeKeyframes(propName, propAnim, duration, defs);
         if (normalizedKfs.length > 0) {
-            // Internal normalised form converges on `keyframes` too — the `kfs` alias
+            // Internal normalized form converges on `keyframes` too — the `kfs` alias
             // is gone from the format AND the runtime (review §1.2/§6.1).
             const out: PxPropertyAnimation = { keyframes: normalizedKfs };
-            // Carry top-level animation flags through normalization — `materialiseMotionPathInPropAnim`
+            // Carry top-level animation flags through normalization — `materializeMotionPathInPropAnim`
             // and the runtime evaluators need `autoOrient` / `loop` to be present
             // alongside the kfs.
             if (propAnim.autoOrient !== undefined) out.autoOrient = propAnim.autoOrient;
             if (propAnim.loop !== undefined) out.loop = propAnim.loop;
 
             // Pipeline: loops are already expanded by `normalizeKeyframes` above.
-            // For the `waapi` engine ONLY, materialise motion-along-path
+            // For the `waapi` engine ONLY, materialize motion-along-path
             // (tangented `transform` kfs + autoOrient) into plain sampled
             // `{ translate, rotate? }` kfs — CSS WAAPI can't evaluate parametric
             // tangents at runtime. Frames-mode keeps the parametric form so the
             // frame-loop kernel `evaluateMotionPathSegment` can sample per frame
             // (better spatial fidelity than any finite sampling).
-            // `materialiseMotionPathInPropAnim` is a no-op for non-motion-path
+            // `materializeMotionPathInPropAnim` is a no-op for non-motion-path
             // animations, so non-transform props pay zero cost.
             normalized[propName] = (engine === PxTimelineEngine.native && propName === 'transform')
-                ? materialiseMotionPathInPropAnim(out)
+                ? materializeMotionPathInPropAnim(out)
                 : out;
         }
     }
@@ -1011,7 +1011,7 @@ function normalizeAnimationDefinition(
  * Resolves animation/easing references. `engine` controls motion-along-path
  * handling — see {@link PxTimelineEngine}.
  */
-export function getNormalisedBindings(
+export function getNormalizedBindings(
     doc: PxAnimatedSvgDocument,
     engine: PxTimelineEngine = PxTimelineEngine.native,
 ): PxBinding[] {
@@ -1033,7 +1033,7 @@ export function getNormalisedBindings(
         if (animDefs.length === 0) return null;
 
         // CSS transform precedence (review §0.4/§1.6): the node's static transform
-        // composes under the animated one — merged BEFORE normalisation so both
+        // composes under the animated one — merged BEFORE normalization so both
         // engines see complete parts records.
         const merged = mergeStaticTransformIntoAnimDef(mergeAnimationDefinitions(animDefs), staticTransform);
         const normalizedAnim = normalizeAnimationDefinition(merged, duration, defs, engine);
@@ -1097,7 +1097,7 @@ export function getNormalisedBindings(
 /**
  * Finds prev/next keyframes for a given progress.
  */
-function getKeyframesPair(keyframes: PxNormalisedKeyframe[], progress: number) {
+function getKeyframesPair(keyframes: PxNormalizedKeyframe[], progress: number) {
     // Outside the keyframe range, clamp to the NEAREST REAL segment (the caller clamps
     // `localProgress` to 0/1, so that holds the boundary pose). Spanning first→last
     // instead would invent a segment that exists nowhere in the animation: for keyframes
@@ -1165,7 +1165,7 @@ function calcPropertyValue(
             nextPaths,
             localProgress
         ).map(bz => bezierToSvgPath(bz)).join('');
-    } else if (COLOUR_ATTR_NAMES.has(cssAttrName)) {
+    } else if (COLOR_ATTR_NAMES.has(cssAttrName)) {
         cssValue = toRGBA(interpolateColor(
             prevV || [0, 0, 0, 1],
             nextV || [0, 0, 0, 1],
@@ -1203,10 +1203,10 @@ function calcPropertyValue(
             }
         }
         // Motion-along-path override (frames-mode only). The WAAPI binding
-        // pipeline materialises tangents + autoOrient into sampled
+        // pipeline materializes tangents + autoOrient into sampled
         // `{translate, rotate}` kfs upstream (in `normalizeAnimationDefinition`),
         // so for WAAPI this branch is a no-op (`propAnimIsMotionPath` returns
-        // false on already-materialised kfs). Frames-mode preserves the
+        // false on already-materialized kfs). Frames-mode preserves the
         // parametric form and we evaluate the Bezier per frame here — gives
         // exact spatial fidelity vs. any finite sampling.
         if (propAnimIsMotionPath(propAnim)) {

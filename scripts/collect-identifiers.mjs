@@ -48,7 +48,7 @@ const SRC_DIRS = [
 
 // Calls whose object-literal keys ARE the wire format.
 // Kept as a CROSS-CHECK only: the authority is now the runtime schema walk below, because
-// pattern-matching source only recognises an object literal passed directly to a px.object
+// pattern-matching source only recognizes an object literal passed directly to a px.object
 // call — a schema built any other way is invisible, which is how `domType` came to be a
 // documented wire key that no reserve rule knew about (MINIFICATION-BOUNDARY-PLAN.md §2).
 const SCHEMA_FACTORIES = new Set([
@@ -62,7 +62,7 @@ const PLATFORM_NAMES = ['rangeName', 'axis', 'source', 'subject', 'timeline', 'v
 const EMITTED_DOM_NAMES = ['class'];
 
 /** The wire format, derived from the built core's runtime schemas. Shared with
- *  `analyse-bundle.mjs` so the two scripts can never disagree about what a wire key is. */
+ *  `analyze-bundle.mjs` so the two scripts can never disagree about what a wire key is. */
 const collectSchemaKeys = () =>
     collectSchemaKeysFrom(join(ROOT, 'packages/svg-animator-core/dist/index.cjs'), 'collect-identifiers');
 

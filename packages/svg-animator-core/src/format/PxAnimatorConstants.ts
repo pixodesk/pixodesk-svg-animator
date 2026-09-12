@@ -179,7 +179,7 @@ export const PX_FLAT_RUNTIME_VIEW_KEYS: ReadonlyArray<string> = [
  * platform's animation API (`native`), or write it from the player's own frame loop (`js`).
  *
  * This is the CORE set. Code that always knows which engine is running takes this (e.g.
- * `getNormalisedBindings`'s `engine` arg gates motion-along-path materialisation).
+ * `getNormalizedBindings`'s `engine` arg gates motion-along-path materialization).
  */
 export const PxTimelineEngine = {
     native: 'native',
@@ -268,12 +268,25 @@ export const PxControlMode = {
 
 export type PxControlMode = typeof PxControlMode[keyof typeof PxControlMode];
 
-/** What a component passes in: whether each control prop was SET (not its value). */
+/**
+ * The control props every framework component takes. `resolveControlMode` reads only WHICH
+ * are set; the components read the values. ONE definition (review §9) — React and React
+ * Native extend it, so the hover text below is what their users see.
+ */
 export interface PxControlProps {
+    /**
+     * Show the frame at this position in the whole timeline (duration × iterations): `0` the
+     * first frame, `1` the last — of ONE iteration when `iterations` is `'infinite'`, since an
+     * endless run has no whole to be a fraction of. Wins over every other control prop.
+     */
     progress?: number;
+    /** Show the frame at this time, ms from the start of the whole run. Wins like `progress`. */
     time?: number;
+    /** `true` plays now, whatever the document's trigger says; `false` holds where it is. */
     play?: boolean;
+    /** Hold the current frame; set it back to `false` to resume. */
     pause?: boolean;
+    /** Start the way the document says — its own `startOn` / `outAction` trigger. */
     autoplay?: boolean;
 }
 
@@ -466,7 +479,7 @@ export const CLASS_ATTR = 'class';
  *  written as constants rather than as identifiers. */
 export const TRANSFORM_ATTR = 'transform';
 
-/** `animate.offsetDistance` — the CSS Motion Path channel the offset-path materialiser writes. */
+/** `animate.offsetDistance` — the CSS Motion Path channel the offset-path materializer writes. */
 export const OFFSET_DISTANCE_ATTR = 'offsetDistance';
 
 // Wire keys that are NEVER DOM attributes (internal use only).
@@ -474,7 +487,7 @@ export const OFFSET_DISTANCE_ATTR = 'offsetDistance';
 // `effects` is here for safety rather than necessity: `applyPlayerEffects` deletes it at
 // load, so today nothing reaches the renderer with it still attached. That is a property
 // of the pipeline, though, not of the contract — an effect path that returns early, or a
-// document carrying an effect key the pipeline does not recognise, would otherwise leave
+// document carrying an effect key the pipeline does not recognize, would otherwise leave
 // the object behind and the renderer would write `effects="[object Object]"` with no error
 // anywhere. Listing it makes the invariant structural (J4).
 export const INTERNAL_ATTRS = new Set([
@@ -510,7 +523,7 @@ export type PxTransformPartKey = typeof PX_TRANSFORM_PART_KEYS[number];
 // ─────────────────────────────────────────────────────────────────────────────
 // Gradient paint effect — `fillGradient` / `strokeGradient`.
 //
-// Materialiser pattern mirrors `maskedByEffect`: at apply time the gradient
+// Materializer pattern mirrors `maskedByEffect`: at apply time the gradient
 // effect generates a `<linearGradient>` / `<radialGradient>` def into `ctx.defs`,
 // then sets the host element's `fill` / `stroke` to `url(#auto-id)`. The wire
 // gradient is geometry parts (`p1`/`p2` linear, `c`/`r`/`fp` radial — standard
@@ -518,7 +531,7 @@ export type PxTransformPartKey = typeof PX_TRANSFORM_PART_KEYS[number];
 // animated (a single `{keyframes}` block whose each kf's `value` is the FULL
 // `Array<{offset, color}>` snapshot at that time). Per-stop independent
 // timelines are intentionally NOT modelled — the source is a single
-// stop-colour keyframe group. Animated geometry is frames-engine only
+// stop-color keyframe group. Animated geometry is frames-engine only
 // (CSS/WAAPI cannot animate gradient endpoints; `mode: 'auto'` handles it).
 //
 // Stop count is constant across kfs. `gradientTransform` is captured as static
@@ -584,7 +597,7 @@ export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorConfig 
     if (memoised) return memoised;
 
     // A document states playback ONLY inside `timeline`. A flat key at the animator root is not a
-    // second spelling to honour — it is an unknown key (`validateDocument` and the entry diagnostic
+    // second spelling to honor — it is an unknown key (`validateDocument` and the entry diagnostic
     // both report it), so it is dropped here and never reaches an engine.
     const wire = cfg as Record<string, unknown>;
     const stray = PX_FLAT_RUNTIME_VIEW_KEYS.filter(k => wire[k] !== undefined);

@@ -29,9 +29,9 @@ directly, view source, copy it.
 
 ## Not covered
 
-**SVG + CSS + JS triggers** (pre-rendered flavour 2) has no case: its trigger script is
+**SVG + CSS + JS triggers** (pre-rendered flavor 2) has no case: its trigger script is
 produced by the editor's export, and nothing in this repo generates it. Full coverage is not a
-goal; the docs describe it in [Pre-rendered SVG → Flavour 2](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#flavour-2--svg--css-animation--js-triggers).
+goal; the docs describe it in [Pre-rendered SVG → Flavor 2](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#flavour-2--svg--css-animation--js-triggers).
 
 ## How the tests gate the build
 

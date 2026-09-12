@@ -24,7 +24,7 @@ function triangle(dx: number): PxBezierPath {
 
 const CONFIG: PxAnimatorConfig = { duration: 320 };
 
-/** jsdom has no CSS.supports; stub a REALISTIC one — `d` is supported only as `path("…")`, so the
+/** jsdom has no CSS.supports; stub a REALIZTIC one — `d` is supported only as `path("…")`, so the
  *  old "[object Object]" value would (correctly) be reported unsupported. */
 beforeEach(() => {
     (globalThis as unknown as { CSS: { supports: (k: string, v: string) => boolean } }).CSS = {

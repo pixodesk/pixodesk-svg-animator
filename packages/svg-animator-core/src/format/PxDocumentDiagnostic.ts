@@ -21,17 +21,17 @@
  */
 import { validateDocument } from './PxAnimatorTypes';
 
-/** How many problems to print before summarising the rest. A wall of text gets scrolled past. */
+/** How many problems to print before summarizing the rest. A wall of text gets scrolled past. */
 const MAX_REPORTED = 6;
 
 /**
  * A document's schema findings. The pre-2026-09 FLAT animator spelling is NOT a category of its
  * own: those keys are no longer read (`getAnimatorConfig` drops them), so a document still
- * carrying them is reported like any other unrecognised key — silence would hide a file that
+ * carrying them is reported like any other unrecognized key — silence would hide a file that
  * plays with its playback settings ignored.
  */
 export interface PxDocumentDiagnosis {
-    /** Findings worth showing — unrecognised keys and shape violations. */
+    /** Findings worth showing — unrecognized keys and shape violations. */
     problems: Array<string>;
 }
 

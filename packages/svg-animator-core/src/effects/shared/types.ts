@@ -52,7 +52,7 @@ export interface ApplyContext {
      * read this to decide whether to INLINE the animated clone content (only the
      * frame loop animates `<use>` shadow trees natively, so it needn't inline).
      *
-     * NOTE: not consumed yet — wired through for the upcoming materialise work.
+     * NOTE: not consumed yet — wired through for the upcoming materialize work.
      */
     engine: PxTimelineEngine;
     /**
@@ -82,7 +82,7 @@ export interface ApplyContext {
     /**
      * The document's embedded fonts (`definitions.fonts`), keyed by
      * font-family. Read once from the root and consumed by the `text.useGlyphs`
-     * effect to materialise `<text>` into `<path>` outlines. Undefined when the
+     * effect to materialize `<text>` into `<path>` outlines. Undefined when the
      * document carries no glyphs.
      */
     glyphs?: Record<string, PxGlyphFont>;

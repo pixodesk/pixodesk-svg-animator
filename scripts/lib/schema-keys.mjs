@@ -11,7 +11,7 @@
 // point of deriving instead of guessing.
 //
 // Two scripts need this and must not disagree: `collect-identifiers.mjs` (which names the
-// keys a minifier must not rename) and `analyse-bundle.mjs` (which reports their byte cost as
+// keys a minifier must not rename) and `analyze-bundle.mjs` (which reports their byte cost as
 // structural rather than as a saving that does not exist).
 
 import { createRequire } from 'node:module';

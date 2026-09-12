@@ -129,6 +129,7 @@
   "onPause",
   "onPlay",
   "onRemove",
+  "onStop",
   "onWarn",
   "onlyInA",
   "onlyInB",

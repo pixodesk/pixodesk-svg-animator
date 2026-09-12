@@ -8,7 +8,7 @@
  *
  * The way it fails is staying quiet when a consumer's build mangled the keys — the bug it exists
  * for. The pre-2026-09 flat spelling is no longer a special case: those keys are not read, so a
- * document still carrying them is reported like any other unrecognised key.
+ * document still carrying them is reported like any other unrecognized key.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { diagnoseDocument, reportDocumentDiagnostics } from './PxDocumentDiagnostic';

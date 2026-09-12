@@ -3,15 +3,15 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// Ref-spelling normalisation (SCHEMA-DESIGN §4 E-5): the canonical wire form of
+// Ref-spelling normalization (SCHEMA-DESIGN §4 E-5): the canonical wire form of
 // every element reference is `#id`; bare `id` is legacy and must keep working.
 // Each applier that consumes a ref reads through `stripHash`, so both spellings
-// materialise identically.
+// materialize identically.
 
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../../format/PxAnimatorTypes';
 import { generateNewIds } from '../../util/PxIdUtil';
-import { collectByType, materialise } from '../effectTestKit';
+import { collectByType, materialize } from '../effectTestKit';
 
 const REF_FORMS: Array<{ name: string; ref: (id: string) => string }> = [
     { name: 'canonical #id', ref: id => '#' + id },
@@ -22,7 +22,7 @@ describe('ref spelling — #id canonical, bare legacy', () => {
 
     for (const form of REF_FORMS) {
         it(`clone.source (${form.name}) → <use> href resolves`, () => {
-            const out = materialise({
+            const out = materialize({
                 type: 'svg', children: [
                     { type: 'rect', id: 'src', width: 10, height: 10 },
                     { type: 'use', href: '#whatever', effects: { clone: { without: 'translate', source: form.ref('src') } } },
@@ -35,7 +35,7 @@ describe('ref spelling — #id canonical, bare legacy', () => {
         });
 
         it(`maskedBy.href (${form.name}) → mask def references the source`, () => {
-            const out = materialise({
+            const out = materialize({
                 type: 'svg', children: [
                     { type: 'circle', id: 'msrc', r: 5 },
                     { type: 'rect', width: 10, height: 10, effects: { maskedBy: { source: form.ref('msrc') } } },

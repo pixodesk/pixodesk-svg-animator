@@ -29,11 +29,11 @@ is `/examples/react-native-preview-player/index.bundle`, not `/index.bundle`.
 
 | Example | Demonstrates |
 |---|---|
-| **Bouncing ball** | eased keyframes, squash & stretch (`rx`/`ry`), colour interpolation |
+| **Bouncing ball** | eased keyframes, squash & stretch (`rx`/`ry`), color interpolation |
 | **Text along path** | per-letter motion path with `autoOrient`, **sampled** by the core — the technique that replaces `<textPath startOffset>` animation, which is unusably janky in react-native-svg |
 | **Trim path** | the `strokeTrim` effect → animated `strokeDasharray` draw-on |
-| **Repeater** | the `repeater` effect (6 materialised copies) + a nested transform stack |
-| **Gradient** | the `fillGradient` effect with animated colour stops |
+| **Repeater** | the `repeater` effect (6 materialized copies) + a nested transform stack |
+| **Gradient** | the `fillGradient` effect with animated color stops |
 | **Path morph** | `d` interpolation between two shapes |
 
 Every document is the **same wire format the web player and the editor export**
@@ -50,7 +50,7 @@ Every document is the **same wire format the web player and the editor export**
 ## How playback works
 
 There is **no JavaScript frame loop**. On load the document goes through the
-shared core pipeline (`materialiseAllInTree` → effects, loops, motion-path
+shared core pipeline (`materializeAllInTree` → effects, loops, motion-path
 sampling, animated-`<use>` inlining) and is then compiled into densely sampled
 per-element tracks. Playback is a single reanimated progress value driven by
 `withTiming`/`withRepeat` on the UI thread; each animated element reads its

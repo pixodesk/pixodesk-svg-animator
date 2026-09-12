@@ -4,7 +4,7 @@
 
 
 Player-library troubleshooting — find your symptom below; each entry says what to check and
-what to change. For pre-rendered SVG issues (a flavour that shows a static frame, `<script>`
+what to change. For pre-rendered SVG issues (a flavor that shows a static frame, `<script>`
 stripped on import, two inlined copies interfering) see
 [Pre-rendered SVG on the web](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web); for what each engine can and
 cannot animate per browser, see [Choosing a format](https://pixodesk.com/docs/svga/editor/choosing-a-format). If yours
@@ -74,7 +74,7 @@ path. Details in [React Native → Feature support](./react-native.md#motion-tim
 **Hover does nothing.** `mouseOver` has no touch equivalent; use `click` or drive `play`
 yourself.
 
-## Playback behaviour
+## Playback behavior
 
 **It holds the last frame — I want it to reset.** Set `timeline.trigger.finishAction: "reset"`
 in the file, or `fillMode: 'none'` (see [Playback settings](./playback-and-triggers.md#timing)).
@@ -97,7 +97,7 @@ console says which); leave `engine` on `auto` so the document switches to the pl
 **The animation loads but nothing moves, and only in the production build.** Your bundler may be
 property-mangling third-party code, which renames the keys the player reads out of the document.
 See [Minification & property mangling](./minification.md); `validateDocument(doc)` will report the
-unrecognised keys.
+unrecognized keys.
 
 ## Still stuck?
 

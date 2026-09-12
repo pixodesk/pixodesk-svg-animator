@@ -105,7 +105,7 @@ const paused = ref(false);
 </template>
 ```
 
-`play && !pause` plays; `pause` pauses; `play === false` jumps to the end state.
+`play && !pause` plays; `pause` pauses; `play === false` holds where it is (it used to jump to the end).
 
 ### Imperative API (template ref)
 
@@ -229,7 +229,7 @@ const onStop = () => console.log('stopped');
 Passing a different `doc` throws the old animator away and builds a new one; the old instance
 emits `cancel`, `remove` and `stop` on its way out.
 
-## CSS-flavour SVGs — `PixodeskSvgCssAnimator`
+## CSS-flavor SVGs — `PixodeskSvgCssAnimator`
 
 > **Example:** [`vue/css-loader`](../../examples/docs-examples/src/cases/vue/css-loader/) — `pnpm example:docs`, then open `#vue/css-loader`.
 
@@ -265,13 +265,13 @@ import AnimationSvg from './animation.svg';   // vite-svg-loader
 > one animation several times, use the JSON component instead — the player gives every copy
 > its own ids ([read more](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#one-copy-of-a-file-per-page)).
 
-Only the pure CSS flavour works this way (loaders strip or refuse `<script>`); flavours with
+Only the pure CSS flavor works this way (loaders strip or refuse `<script>`); flavors with
 scripts should be inlined as raw HTML, or use JSON.
 
 ## Nuxt
 
 The component is SSR-safe: the SVG is rendered on the server, the animator is created on
-mount. Nothing special is required beyond importing the component; for a CSS-flavour SVG add
+mount. Nothing special is required beyond importing the component; for a CSS-flavor SVG add
 `vite-svg-loader` to your Nuxt/Vite config.
 
 ## Example

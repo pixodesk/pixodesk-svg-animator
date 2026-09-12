@@ -101,7 +101,7 @@ const [time, setTime] = useState(0);
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | Shortcut for `config.timeline.trigger.startOn` |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
-| `onFinish` | `() => void` | Called on natural finish |
+| `onFinish` | `() => void` | Called when the animation reaches its end — every iteration played, or `finish()` was called |
 | `onCancel` | `() => void` | Called on cancel |
 | `onRemove` | `() => void` | Called when the animation is destroyed (e.g. unmount) |
 | `onStop` | `() => void` | Called whenever playback halts (pause / cancel / finish / remove) |

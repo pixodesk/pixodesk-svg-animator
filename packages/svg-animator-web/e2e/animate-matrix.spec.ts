@@ -59,7 +59,7 @@ function animator(mode: 'auto' | 'native' | 'player') {
 // Attribute-type docs (each is run through BOTH engines)
 // ---------------------------------------------------------------------------
 
-/** Numeric + colour + position attributes: opacity, fill, cx/cy, r. */
+/** Numeric + color + position attributes: opacity, fill, cx/cy, r. */
 function basicAttrsDoc(mode: 'native' | 'frames'): PxAnimatedSvgDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
@@ -69,7 +69,7 @@ function basicAttrsDoc(mode: 'native' | 'frames'): PxAnimatedSvgDocument {
                 type: 'rect', id: '_px_op', x: 10, y: 10, width: 50, height: 50, fill: '#6366f1',
                 animate: { opacity: { keyframes: [{ time: 0, value: 1 }, { time: 1000, value: 0.2 }] } },
             },
-            { // fill colour
+            { // fill color
                 type: 'rect', id: '_px_col', x: 140, y: 10, width: 50, height: 50,
                 fill: '#3b82f6',
                 animate: { fill: { keyframes: [{ time: 0, value: '#3b82f6' }, { time: 1000, value: '#ec4899' }] } },
@@ -137,7 +137,7 @@ function shapeDoc(): PxAnimatedSvgDocument {
 }
 
 // ---------------------------------------------------------------------------
-// Player-effect docs (materialised by the player at runtime; mode auto)
+// Player-effect docs (materialized by the player at runtime; mode auto)
 // ---------------------------------------------------------------------------
 
 function transformByEffectDoc(mode: 'native' | 'frames'): PxAnimatedSvgDocument {
@@ -297,7 +297,7 @@ test.describe("animate-matrix (frames, clock-driven)", () => {
     screenshotTest('transform-frames', transformDoc('frames'));
     screenshotTest('shape-frames', shapeDoc());
 
-    // Player effects (materialised at runtime)
+    // Player effects (materialized at runtime)
     screenshotTest('effect-transformBy', transformByEffectDoc('frames'));
     screenshotTest('effect-repeater', repeaterEffectDoc());
     screenshotTest('effect-trimpath', trimPathEffectDoc());

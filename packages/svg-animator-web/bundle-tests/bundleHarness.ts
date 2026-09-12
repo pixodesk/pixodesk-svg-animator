@@ -17,7 +17,7 @@ import { JSDOM } from 'jsdom';
 
 export const DIST = resolve(__dirname, '..', 'dist');
 
-/** The three bundles we ship as UMD, each in both flavours. */
+/** The three bundles we ship as UMD, each in both flavors. */
 export const BUNDLE_PAIRS = [
     { name: 'full player',       unmin: 'pixodesk-svg-animator.umd.js', min: 'pixodesk-svg-animator.umd.min.js', renders: true },
     { name: 'pre-rendered',      unmin: 'index.prerendered.umd.js',      min: 'index.prerendered.umd.min.js',      renders: false },
@@ -44,7 +44,7 @@ export function loadBundle(file: string): LoadedBundle {
     });
     // jsdom has no CSS.supports; the WAAPI engine probes it before accepting a document.
     // Answering "no" keeps every bundle on the frame-loop path, which is the one we can
-    // observe here — and it is the same path in both flavours, so parity still holds.
+    // observe here — and it is the same path in both flavors, so parity still holds.
     (dom.window as any).CSS = { supports: () => false };
     // The bundles open with `"use strict"`, and a strict-mode eval keeps its `var`
     // declarations in its OWN variable environment — so the UMD global never lands on

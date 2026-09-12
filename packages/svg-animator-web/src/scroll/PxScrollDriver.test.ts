@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// DOM-side behaviour of the scroll driver (the pure math is covered in core
+// DOM-side behavior of the scroll driver (the pure math is covered in core
 // `PxScrollMath.test.ts`): attach/emit/coalesce/teardown, scroller resolution, and the
 // `kind: 'scroll'` offset path. jsdom has no layout, so sizes/rects are stubbed.
 

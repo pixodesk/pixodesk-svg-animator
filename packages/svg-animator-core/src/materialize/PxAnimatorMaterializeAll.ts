@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 /**
- * Single-call materialisation pipeline.
+ * Single-call materialization pipeline.
  *
  * Runs the full sequence of document-level transformations that turn the
  * wire-format `PxAnimatedSvgDocument` into a flat tree any renderer can
@@ -14,14 +14,14 @@
  * player sees internally — no parallel pipeline to drift.
  *
  *   1. `applyPlayerEffects` — `node.effects` (ref / transformation / repeater /
- *      maskedBy / strokeTrim / retime) materialised into wrappers, defs, clones.
- *   2. `materialiseInternalLoopsInTree` — every `propAnim.loop` expanded into
+ *      maskedBy / strokeTrim / retime) materialized into wrappers, defs, clones.
+ *   2. `materializeInternalLoopsInTree` — every `propAnim.loop` expanded into
  *      repeated keyframes filling the duration.
- *   3. `materialiseMotionPathsInTree` — `transform` kfs with tangents +
+ *   3. `materializeMotionPathsInTree` — `transform` kfs with tangents +
  *      `autoOrient` flattened into sampled `{translate, rotate}` kfs. Only
  *      for `engine === waapi` — frames-mode keeps the parametric form and
  *      evaluates per frame for max spatial fidelity.
- *   4. `materialiseAnimatedUseInstances` — `<use>` referencing an animated
+ *   4. `materializeAnimatedUseInstances` — `<use>` referencing an animated
  *      subtree replaced with a `<g>` carrying a deep clone (fresh ids).
  *      Only for `engine === waapi` — frames-mode updates source attrs
  *      per frame, which propagate through `<use>` shadow trees natively.
@@ -32,55 +32,55 @@
 
 import { applyPlayerEffects } from '../effects/PlayerEffectsUtil';
 import { DEFAULT_DURATION_MS } from '../util/PxAnimatorUtil';
-import { materialiseInternalLoopsInTree } from '../animation/PxDefinitions';
-import { materialiseOffsetPathsInTree } from './PxOffsetPathMaterialiser';
-import { materialiseMotionPathsInTree } from './PxMotionPath';
-import type { MotionPathMaterialisationOptions } from './PxMotionPath';
+import { materializeInternalLoopsInTree } from '../animation/PxDefinitions';
+import { materializeOffsetPathsInTree } from './PxOffsetPathMaterializer';
+import { materializeMotionPathsInTree } from './PxMotionPath';
+import type { MotionPathMaterializationOptions } from './PxMotionPath';
 import { getAnimatorConfig, PxTimelineEngine } from '../format/PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxNode } from '../format/PxAnimatorTypes';
-import { materialiseAnimatedUseInstances } from './PxAnimatorUseMaterialiser';
+import { materializeAnimatedUseInstances } from './PxAnimatorUseMaterializer';
 
 
-/** Options accepted by {@link materialiseAllInTree}. Mostly forwarded to the
- *  per-stage materialisers; ordering is fixed (see module doc). */
-export interface MaterialiseAllOptions {
-    /** Knobs forwarded to `materialiseMotionPathsInTree`. Only consulted for
+/** Options accepted by {@link materializeAllInTree}. Mostly forwarded to the
+ *  per-stage materializers; ordering is fixed (see module doc). */
+export interface MaterializeAllOptions {
+    /** Knobs forwarded to `materializeMotionPathsInTree`. Only consulted for
      *  `engine === waapi` — frames-mode skips that stage entirely. */
-    motionPath?: MotionPathMaterialisationOptions;
+    motionPath?: MotionPathMaterializationOptions;
 }
 
 
-export function materialiseAllInTree(
+export function materializeAllInTree(
     doc: PxAnimatedSvgDocument,
     engine: PxTimelineEngine,
-    opts?: MaterialiseAllOptions,
+    opts?: MaterializeAllOptions,
 ): PxAnimatedSvgDocument {
-    // 1. Effects → structural materialisation. Always runs; returns a fresh root.
+    // 1. Effects → structural materialization. Always runs; returns a fresh root.
     let root = applyPlayerEffects(doc).root as PxAnimatedSvgDocument;
 
     // 1b. `alongPathMode: 'offsetPath'` transforms → CSS Motion Path (offset-path style
     //     + `offsetDistance` binding). Both engines: frames drives `offset-distance` per
     //     rAF, waapi animates it natively (percent values). BEFORE loop expansion so a
     //     carried `loop` expands on the rewritten binding.
-    root = materialiseOffsetPathsInTree(root);
+    root = materializeOffsetPathsInTree(root);
 
     // 2. Loops → flat repeated keyframes. Always runs (both engines need flat
     //    kfs covering the duration; per-binding expansion in
     //    `normalizeKeyframes` becomes a no-op once the loop field is consumed).
     const duration = getAnimatorConfig(root)?.duration ?? DEFAULT_DURATION_MS;
-    root = materialiseInternalLoopsInTree(root, duration);
+    root = materializeInternalLoopsInTree(root, duration);
 
     if (engine === PxTimelineEngine.native) {
         // 3. Motion-along-path → sampled `{translate, rotate}` kfs. WAAPI can't
         //    evaluate parametric tangents; frames-mode does that per frame so
         //    we skip this for frames.
-        root = materialiseMotionPathsInTree(root, opts?.motionPath);
+        root = materializeMotionPathsInTree(root, opts?.motionPath);
 
         // 4. <use> referencing animated subtrees → <g> wrapping a fresh clone.
         //    WAAPI / CSS animations don't reliably propagate through SVG <use>
         //    shadow trees in Chrome / Safari; frames-mode updates source
         //    attributes per frame and the shadow tree picks those up natively.
-        root = materialiseAnimatedUseInstances(root);
+        root = materializeAnimatedUseInstances(root);
 
         // 5. Prune <defs> `<g>`/`<symbol>` entries that step 4 orphaned — i.e. no
         //    `<use>` references them any more (the animated uses that did got
@@ -96,7 +96,7 @@ export function materialiseAllInTree(
 /**
  * Removes orphaned `<defs>` entries: direct `<defs>` children of type `<g>` /
  * `<symbol>` whose `id` is no longer targeted by ANY `<use href>` in the tree.
- * Runs after step 4 (`materialiseAnimatedUseInstances`), which inlines animated
+ * Runs after step 4 (`materializeAnimatedUseInstances`), which inlines animated
  * `<use>`s and thereby leaves their former defs targets unreferenced.
  *
  * Loops to a fixpoint so chains collapse fully: pruning an entry can drop the
@@ -106,7 +106,7 @@ export function materialiseAllInTree(
  * Scope is intentionally limited to `<g>`/`<symbol>` (the `<use>`-target element
  * types) so `url(#…)`-referenced defs (gradients / masks / clipPaths / filters)
  * are never touched. Mutates `root` in place — safe, as it's a freshly
- * materialised tree owned by {@link materialiseAllInTree}.
+ * materialized tree owned by {@link materializeAllInTree}.
  */
 function pruneUnreferencedDefs(root: PxAnimatedSvgDocument): PxAnimatedSvgDocument {
     const stripHash = (h: string): string => (h.startsWith('#') ? h.slice(1) : h);

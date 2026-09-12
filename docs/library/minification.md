@@ -27,7 +27,7 @@ the build itself:
 - the names the library hands to the browser (WAAPI dictionary members) or writes into the DOM.
 
 A test suite loads the shipped minified and unminified bundles side by side and fails if their
-behaviour differs, so this is verified per release rather than assumed.
+behavior differs, so this is verified per release rather than assumed.
 
 ## If you compile the library from source and mangle properties
 
@@ -66,7 +66,7 @@ import { validateDocument } from '@pixodesk/svg-animator-web';
 console.log(validateDocument(doc));   // [] when the document is sound
 ```
 
-Against a mangled document this reports keys it does not recognise, which is the signature of the
+Against a mangled document this reports keys it does not recognize, which is the signature of the
 problem: the file on disk says `timeline`, the object in memory says something else.
 
 ## Why we do not simply avoid the issue

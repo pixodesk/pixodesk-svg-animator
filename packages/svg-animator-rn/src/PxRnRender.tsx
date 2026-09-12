@@ -6,7 +6,7 @@
 import {
     getNormalizedProps,
     resolveStyle,
-    sanitiseAttributeValue,
+    sanitizeAttributeValue,
     DISALLOWED_SVG_TAGS_LOWER,
     TEXT_CONTENT_ATTR,
     type PxDefs,
@@ -41,25 +41,25 @@ export interface RenderRnNodeOptions {
 }
 
 /**
- * Converts core-normalised wire props into react-native-svg props: RN prop
- * naming, sanitisation (same security rules as the web renderer), numeric
+ * Converts core-normalized wire props into react-native-svg props: RN prop
+ * naming, sanitization (same security rules as the web renderer), numeric
  * coercion where possible.
  */
 export function toRnProps(props: Record<string, any>, warnings?: Array<string>, tag?: string): Record<string, any> {
-    const normalised = getNormalizedProps(props);
+    const normalized = getNormalizedProps(props);
     const out: Record<string, any> = {};
-    for (const key of Object.keys(normalised)) {
-        const sanitised = sanitiseAttributeValue(key, normalised[key]);
-        if (sanitised === undefined) continue;
+    for (const key of Object.keys(normalized)) {
+        const sanitized = sanitizeAttributeValue(key, normalized[key]);
+        if (sanitized === undefined) continue;
         const rnKey = toRnPropName(key);
         if (!rnKey) continue;
-        out[rnKey] = toRnPropValue(rnKey, String(sanitised), tag);
+        out[rnKey] = toRnPropValue(rnKey, String(sanitized), tag);
     }
     return out;
 }
 
 /**
- * Renders a (materialised) PxNode tree to react-native-svg elements.
+ * Renders a (materialized) PxNode tree to react-native-svg elements.
  * Mirrors the web `renderNode` contract: unsupported/dangerous tags are
  * skipped with a warning, never a crash.
  */
@@ -100,9 +100,9 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
         for (const [k, v] of Object.entries(resolved)) {
             const rnKey = toRnPropName(k);
             if (!rnKey || rnKey in rnProps) continue;
-            const sanitised = sanitiseAttributeValue(rnKey, v);
-            if (sanitised === undefined) continue;
-            rnProps[rnKey] = toRnPropValue(rnKey, String(sanitised), tag);
+            const sanitized = sanitizeAttributeValue(rnKey, v);
+            if (sanitized === undefined) continue;
+            rnProps[rnKey] = toRnPropValue(rnKey, String(sanitized), tag);
         }
     }
 

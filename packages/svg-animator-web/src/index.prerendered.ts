@@ -4,12 +4,13 @@
  *---------------------------------------------------------------------------------------*/
 
 // ============================================================================
-// UMD entry for PRE-RENDERED SVG — both engines (waapi with frames fallback).
+// UMD entry for PRE-RENDERED SVG — both engines (the native WAAPI engine with the frame
+// loop as fallback).
 //
-// Inlined by the Editor into SVG+JS exports whose animator mode is `auto` or
-// `frames`. The exported SVG already contains every element: the payload is only
+// Inlined by the Editor into SVG+JS exports whose `timeline.engine` is `auto` or
+// `js`. The exported SVG already contains every element: the payload is only
 // `animator.definitions` + `animator.animateById`, so the whole construction half of
-// the player (effects, materialisers, DOM rendering, schema validation) is
+// the player (effects, materializers, DOM rendering, schema validation) is
 // unreachable and gets tree-shaken away. See PRERENDERED-PLAYER-BUILDS.md.
 //
 // `createPrerenderedAnimator` is exported AS `createAnimator` so the emitted

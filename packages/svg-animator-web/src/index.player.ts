@@ -8,7 +8,7 @@
 //
 // Why this file exists (see BUNDLE-SIZE-PLAN.md §1):
 //   `index.ts` exports ~96 names, most of them editor-facing (schema objects,
-//   validators, materialisers, the visual-diff harness). esm/cjs consumers
+//   validators, materializers, the visual-diff harness). esm/cjs consumers
 //   tree-shake those away, but **iife cannot tree-shake at the consumer** — so
 //   every `<script>` user was downloading the transitive closure of all 96.
 //
@@ -26,7 +26,6 @@
 // declarative `data-px-animation-src` bootstrap.
 export {
     createAnimator,
-    createAnimatorImpl,
     generateNewIds,
     loadTagAnimators,
     PX_ANIMATOR_DATA_KEY,

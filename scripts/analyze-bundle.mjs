@@ -4,9 +4,9 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// Bundle composition analyser.
+// Bundle composition analyzer.
 //
-//   node scripts/analyse-bundle.mjs [path/to/bundle.js]
+//   node scripts/analyze-bundle.mjs [path/to/bundle.js]
 //   (default: packages/svg-animator-web/dist/pixodesk-svg-animator.umd.min.js)
 //
 // Answers "what is actually costing us bytes" for an ALREADY-minified bundle.
@@ -44,7 +44,7 @@ const TOP = Number(process.env.TOP || 20);
 // `finishAction`, `pin`, `range` and the rest of the 2026-09 renames. A wrong list here does
 // not break the build, it just quietly misattributes bytes, which is exactly the kind of error
 // nobody notices.
-const WIRE = collectSchemaKeys(join(ROOT, 'packages/svg-animator-core/dist/index.cjs'), 'analyse-bundle');
+const WIRE = collectSchemaKeys(join(ROOT, 'packages/svg-animator-core/dist/index.cjs'), 'analyze-bundle');
 
 // Schema-engine members. In the UMD these are INTERNAL — `px` and the schema objects
 // are no longer exported — so they are renameable in principle.

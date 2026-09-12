@@ -3,7 +3,7 @@
 [← Set default playback settings & triggers](https://pixodesk.com/docs/svga/editor/playback-settings) · [Contents](../../README.md#documentation) · Next: [Web player →](./web-player.md)
 
 Install a package only if you use the **JSON** format. A pre-rendered SVG needs nothing —
-the CSS flavour is plain SVG, and the JS flavour carries its own copy of the player — so if
+the CSS flavor is plain SVG, and the JS flavor carries its own copy of the player — so if
 that is your route, skip this page. (One limit to know before you commit to it: a pre-rendered
 file can be inlined **once per page** — [read more](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#one-copy-of-a-file-per-page).)
 

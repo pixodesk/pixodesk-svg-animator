@@ -11,7 +11,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../../format/PxAnimatorTypes';
-import { collectByType, materialise } from '../effectTestKit';
+import { collectByType, materialize } from '../effectTestKit';
 
 /** A `<text>` host with an inline-path textPath effect. */
 const scene = (textPath: any): PxNode => ({
@@ -30,7 +30,7 @@ describe('textPathEffect — inline path → <path> def + <textPath> wrap', () =
 
     it('case 1 — generates a <path> def from the inline path and wraps children in <textPath href=#generated>', () => {
         // clip → the generated def is the geometry verbatim (extend appends a tangent tail, tested below).
-        const out = materialise(scene({ pathData: 'M0,0 Q50,80 100,0', pathOverflow: 'clip' }));
+        const out = materialize(scene({ pathData: 'M0,0 Q50,80 100,0', pathOverflow: 'clip' }));
 
         const def = pathDef(out);
         expect(def.d).toBe('M0,0 Q50,80 100,0');                       // generated from inline geometry
@@ -42,7 +42,7 @@ describe('textPathEffect — inline path → <path> def + <textPath> wrap', () =
     });
 
     it('case 2 — lengthAdjust/method/spacing + static startOffset/textLength forwarded as attrs', () => {
-        const out = materialise(scene({
+        const out = materialize(scene({
             pathData: 'M0,0 L100,0', lengthAdjust: 'spacingAndGlyphs', method: 'stretch', spacing: 'exact',
             startOffset: 25, textLength: 200,
         }));
@@ -53,7 +53,7 @@ describe('textPathEffect — inline path → <path> def + <textPath> wrap', () =
     });
 
     it('case 3 — animated startOffset → <textPath>.animate.startOffset.keyframes', () => {
-        const out = materialise(scene({
+        const out = materialize(scene({
             pathData: 'M0,0 L100,0',
             startOffset: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 100 }] },
         }));
@@ -66,22 +66,22 @@ describe('textPathEffect — inline path → <path> def + <textPath> wrap', () =
     });
 
     it('case 4 — pathOverflow rides on the effect (consumed, not leaked onto <textPath>)', () => {
-        const out = materialise(scene({ pathData: 'M0,0 L100,0', pathOverflow: 'clip' }));
+        const out = materialize(scene({ pathData: 'M0,0 L100,0', pathOverflow: 'clip' }));
         const tp = textPathNode(out);
         expect(tp).toBeTruthy();
         expect(tp.pathOverflow).toBeUndefined(); // not an SVG textPath attr
     });
 
     it('case 5 — empty path → no wrap (node unchanged)', () => {
-        const out = materialise(scene({ pathData: '' }));
+        const out = materialize(scene({ pathData: '' }));
         expect(collectByType(out, 'textPath')).toHaveLength(0);
         expect(textNode(out).children).toEqual([{ type: 'tspan', textContent: 'Hi' }]);
     });
 
     it('case 6 — pathOverflow:extend extends the generated <path> along the tangent; clip leaves it', () => {
         const short = 'M0,0 L100,0';
-        const extendD = pathDef(materialise(scene({ pathData: short, pathOverflow: 'extend', textLength: 500 }))).d;
-        const clipD = pathDef(materialise(scene({ pathData: short, pathOverflow: 'clip' }))).d;
+        const extendD = pathDef(materialize(scene({ pathData: short, pathOverflow: 'extend', textLength: 500 }))).d;
+        const clipD = pathDef(materialize(scene({ pathData: short, pathOverflow: 'clip' }))).d;
 
         expect(clipD).toBe(short);                          // clip → browser drops overflow, path unchanged
         expect(extendD.length).toBeGreaterThan(short.length); // extend → straight tangent tail appended
@@ -91,7 +91,7 @@ describe('textPathEffect — inline path → <path> def + <textPath> wrap', () =
 
     it('case 7 — default overflow (undefined) extends (extend is the default)', () => {
         const short = 'M0,0 L100,0';
-        const d = pathDef(materialise(scene({ pathData: short, textLength: 500 }))).d;
+        const d = pathDef(materialize(scene({ pathData: short, textLength: 500 }))).d;
         expect(d.length).toBeGreaterThan(short.length);
     });
 });

@@ -18,7 +18,7 @@
  * inputs (in effect) yield equal output regardless of how each was encoded.
  *
  * Dependency-free on purpose (mirrors the applier's isolation). Scope: the node
- * types and transform forms the player-effects / heavy serialisers emit. Colour
+ * types and transform forms the player-effects / heavy serializers emit. Color
  * animation is not interpolated — leaves are compared at keyframe instants where
  * sampled values are exact.
  */

@@ -58,7 +58,7 @@ export type PxEasingOrRef = PxInfer<typeof PxEasingOrRefSchema>;
  * Locked to `PxKeyframeSchema` by the `KeysMatch` assertion below, so this interface and the
  * validator cannot drift apart.
  *
- * The engines consume {@link _PxNormalisedKeyframe} instead — the short-field form
+ * The engines consume {@link _PxNormalizedKeyframe} instead — the short-field form
  * `normalizeKeyframes` produces, with easing refs resolved and values parsed. The two used to
  * be ONE interface carrying both spellings, which meant no key-set lock was possible here and
  * nothing in the types said which form a given function expected.
@@ -160,7 +160,7 @@ export type PxKeyframeValue = PxInfer<typeof PxKeyframeValueSchema>;
 // access in `PxDefinitions.ts` stays untyped-permissive at compile time.
 // LONG SPELLINGS ONLY (review §1.2/§6.1): the short aliases (`t`/`v`/`e`/`to`/`ti`)
 // were removed from the wire outright — one clear spelling, no mixing ambiguity.
-// They survive only as the internal normalised runtime view (see `_PxKeyframe`).
+// They survive only as the internal normalized runtime view (see `_PxKeyframe`).
 export const PxKeyframeSchema = implementsInterface<_PxKeyframe>()(px.object({
     time: px.number().optional(),
     value: PxKeyframeValueSchema.optional(),
@@ -174,16 +174,16 @@ export const PxKeyframeSchema = implementsInterface<_PxKeyframe>()(px.object({
 
 /**
  * THE RUNTIME FORM — what `normalizeKeyframes` hands the engines, and what the tree-level
- * materialisers (`materialiseInternalLoopsInTree` and everything after it in
- * `materialiseAllInTree`) write back into the document.
+ * materializers (`materializeInternalLoopsInTree` and everything after it in
+ * `materializeAllInTree`) write back into the document.
  *
  * Short-named on purpose: these are read once per property per frame. `e` is a RESOLVED easing
- * (named refs already looked up in `definitions.easings`) and `v` is a PARSED value (colours as
- * RGBA arrays, path `d` normalised) — which is the substantive difference from the wire form,
+ * (named refs already looked up in `definitions.easings`) and `v` is a PARSED value (colors as
+ * RGBA arrays, path `d` normalized) — which is the substantive difference from the wire form,
  * not just the spelling. Deliberately NOT a wire shape: `validateDocument` rejects it, and a
- * materialised document is a runtime artefact that is never written to disk.
+ * materialized document is a runtime artefact that is never written to disk.
  */
-export interface _PxNormalisedKeyframe {
+export interface _PxNormalizedKeyframe {
     /** Time in ms from the animation start (the wire spells it `time`). */
     t?: number;
     /** The parsed value at this keyframe (the wire spells it `value`). */
@@ -196,21 +196,21 @@ export interface _PxNormalisedKeyframe {
     tangentOut?: [number, number];
 }
 
-export type PxNormalisedKeyframe = _PxNormalisedKeyframe;
+export type PxNormalizedKeyframe = _PxNormalizedKeyframe;
 
 /**
  * Either spelling. For the handful of helpers that genuinely run on BOTH sides of
- * normalisation — read them through the `kf*` accessors below rather than branching inline.
+ * normalization — read them through the `kf*` accessors below rather than branching inline.
  */
-export type PxAnyKeyframe = _PxKeyframe | _PxNormalisedKeyframe;
+export type PxAnyKeyframe = _PxKeyframe | _PxNormalizedKeyframe;
 
-const anyKf = (kf: PxAnyKeyframe) => kf as _PxKeyframe & _PxNormalisedKeyframe;
+const anyKf = (kf: PxAnyKeyframe) => kf as _PxKeyframe & _PxNormalizedKeyframe;
 
 /** Time in ms, whichever spelling the keyframe is in. */
 export const kfTime = (kf: PxAnyKeyframe): number => anyKf(kf).time ?? anyKf(kf).t ?? 0;
 /** Value, whichever spelling. */
 export const kfValue = (kf: PxAnyKeyframe): any => anyKf(kf).value ?? anyKf(kf).v;
-/** Easing — resolved on a normalised keyframe, possibly a NAME on a wire one. */
+/** Easing — resolved on a normalized keyframe, possibly a NAME on a wire one. */
 export const kfEasing = (kf: PxAnyKeyframe): PxEasingOrRef | undefined => anyKf(kf).easing ?? anyKf(kf).e;
 /** Incoming spatial tangent, whichever spelling. */
 export const kfTangentIn = (kf: PxAnyKeyframe): [number, number] | undefined => anyKf(kf).tangentIn;
@@ -224,23 +224,23 @@ export const kfTangentOut = (kf: PxAnyKeyframe): [number, number] | undefined =>
  * value shape (e.g. `PxKeyframe<Vec2>` in the effect appliers). Defaults to
  * `any`, matching the schema (`value` is stored as `px.any()` on the wire).
  */
-// The WIRE type, generic over the value type. The engines use `PxNormalisedKeyframe`.
+// The WIRE type, generic over the value type. The engines use `PxNormalizedKeyframe`.
 export type PxKeyframe<T = any> = Omit<_PxKeyframe, 'value'> & { value?: T };
 // Locks the interface to the schema at the default instantiation.
 const _ck_PxKeyframe: KeysMatch<PxInfer<typeof PxKeyframeSchema>, _PxKeyframe> = true;
 
-/** {@link PxNormalisedKeyframe}, generic over the value type — the runtime counterpart. */
-export type PxNormalisedKeyframeOf<T = any> = Omit<_PxNormalisedKeyframe, 'v'> & { v?: T };
+/** {@link PxNormalizedKeyframe}, generic over the value type — the runtime counterpart. */
+export type PxNormalizedKeyframeOf<T = any> = Omit<_PxNormalizedKeyframe, 'v'> & { v?: T };
 
 /**
  * A property animation whose keyframes are in the RUNTIME form.
  *
  * What `normalizeKeyframes` produces, what the engines consume — and what the EDITOR's in-memory
- * model is: its keyframe objects carry the short field names and serialise to the long wire ones
+ * model is: its keyframe objects carry the short field names and serialize to the long wire ones
  * through `@serializable`, so the model implements this rather than the wire shape.
  */
-export type PxNormalisedPropertyAnimation =
-    Omit<_PxPropertyAnimation, 'keyframes'> & { keyframes?: Array<_PxNormalisedKeyframe> };
+export type PxNormalizedPropertyAnimation =
+    Omit<_PxPropertyAnimation, 'keyframes'> & { keyframes?: Array<_PxNormalizedKeyframe> };
 
 
 // ============================================================================
@@ -366,7 +366,7 @@ export interface _PxPropertyAnimation {
      * How a motion-along-path `transform` animation is RENDERED: `'sampled'` (default,
      * absent) — the path is pre-sampled into plain transform keyframes;
      * `'offsetPath'` — the browser drives it as a CSS Motion Path (`offset-path` /
-     * `offset-distance`). Written by the editor, consumed by `materialiseAllInTree`.
+     * `offset-distance`). Written by the editor, consumed by `materializeAllInTree`.
      */
     alongPathMode?: 'sampled' | 'offsetPath';
 }
@@ -383,7 +383,7 @@ export const PxPropertyAnimationSchema = implementsInterface<_PxPropertyAnimatio
 
 /** Animation definition for a single CSS/SVG property. */
 // The runtime-VIEW type: its `keyframes` items are runtime-view PxKeyframes (they may
-// carry the internal normalised short fields), which the schema-inferred type cannot.
+// carry the internal normalized short fields), which the schema-inferred type cannot.
 export type PxPropertyAnimation = _PxPropertyAnimation;
 // KeysMatch compares only the KEY SETS, so it still locks the schema to the interface even
 // though the two disagree about the VALUE type of `keyframes` (above). Worth having here in
@@ -843,7 +843,7 @@ const _ck_PxTimelinePin: KeysMatch<PxTimelinePin, _PxTimelinePin> = true; // the
 // `timeline` altogether) means this one — the common case declares nothing.
 // `resetOnFinish` has no slot here: its successor is `trigger.finishAction: 'reset'`.
 /** `timeline.engine` — HOW the animated attributes get updated (every timeline type;
- *  default `auto`). Not `mode`: an implementation preference, not a behaviour switch. */
+ *  default `auto`). Not `mode`: an implementation preference, not a behavior switch. */
 const PxTimelineEngineSchema = px.enum([PxTimelineEngineExtra.auto, PxTimelineEngineExtra.native, PxTimelineEngineExtra.js] as const).optional();
 
 /**
@@ -962,7 +962,7 @@ export type PxTimeline = PxInfer<typeof PxTimelineSchema>;
 
 /**
  * Global animation configuration that applies to all animations in the document.
- * Defines timing, playback behaviour, and rendering strategy.
+ * Defines timing, playback behavior, and rendering strategy.
  */
 export interface _PxAnimatorConfig {
 
@@ -1206,7 +1206,7 @@ export interface _PxNode {
     /**
      * Player-effects bucket (transformation/repeater/maskedBy/strokeTrim/retime/ref)
      * emitted by the Editor's lightweight design format. `applyPlayerEffects`
-     * materialises and removes these before any other normalisation, so the
+     * materializes and removes these before any other normalization, so the
      * Player never observes a non-empty `effects` after entry-point processing.
      *
      * Typed against `PxEffectsSchema` (closed object — strict-mode validation
@@ -1244,7 +1244,7 @@ export interface _PxNode {
 //
 // Schemas for the `node.effects` payload emitted by the Editor's lightweight
 // design format. `applyPlayerEffects` (in `effects/PlayerEffectsUtil.ts`)
-// materialises and removes these before any other normalisation, so the Player
+// materializes and removes these before any other normalization, so the Player
 // never observes a non-empty `effects` after entry-point processing.
 //
 // Each effect is declared as a `_Px*` interface, paired with a `Px*Schema`
@@ -1269,7 +1269,7 @@ export type Vec2 = [number, number];
  *
  * The animated form IS `PxPropertyAnimation` — the exact object `node.animate`
  * channels use — so effect slots and node attributes share one schema, one
- * reader (`effects/transformParts.readAnimatable`) and one loop-materialisation
+ * reader (`effects/transformParts.readAnimatable`) and one loop-materialization
  * path. `value` inside the animated form is the optional static baseline (see
  * `_PxPropertyAnimation.value`).
  *
@@ -1423,7 +1423,7 @@ const _ck_PxMaskedByEffect: KeysMatch<PxMaskedByEffect, _PxMaskedByEffect> = tru
  * verified across SMIL/CSS/JS/WAAPI).
  *
  * At apply time the effect generates a `<clipPath><path d/></clipPath>` def and sets
- * `clip-path="url(#auto-id)"` on the host (materialiser pattern, like `maskedBy` /
+ * `clip-path="url(#auto-id)"` on the host (materializer pattern, like `maskedBy` /
  * gradient). See `effects/clipPathEffect.ts`.
  */
 export interface _PxClipPathEffect {
@@ -1470,7 +1470,7 @@ const _ck_PxStrokeTrimEffect: KeysMatch<PxStrokeTrimEffect, _PxStrokeTrimEffect>
  *
  *  `<use>` retime: pure timing — the source ref lives ONCE, on the parent `clone.source`
  *  (review §4.3; retime's own duplicate `source` was removed outright — no consumer ever
- *  read it: the materialiser follows `href`). `start`/`timeCrop` in ms.
+ *  read it: the materializer follows `href`). `start`/`timeCrop` in ms.
  *  `timeCrop: [inMs, outMs]` is a VISIBILITY WINDOW on the document timeline — implemented
  *  (2026-08) as an opacity gate on a player-side wrapper `<g>`, independent of the
  *  `start`/`stretch` remap (see `effects/retimeEffect.ts`). */
@@ -1516,7 +1516,7 @@ export type PxCloneEffect = PxInfer<typeof PxCloneEffectSchema>;
 const _ck_PxCloneEffect: KeysMatch<PxCloneEffect, _PxCloneEffect> = true;
 
 
-/** A single colour stop. `offset` is in `[0, 1]`; `color` is a CSS colour
+/** A single color stop. `offset` is in `[0, 1]`; `color` is a CSS color
  *  string (`#rrggbb`, `rgb(…)`, `rgba(…)`, or named). */
 export interface _PxGradientStop {
     offset: number;
@@ -1554,7 +1554,7 @@ export interface _PxFillGradientEffect {
     type: PxGradientType;                                 // 'linear' | 'radial'
     start?:  PxAnimatable<Vec2>;                          // linear start  ([x1,y1]; review §4.2 — plain words, no abbreviations)
     end?:    PxAnimatable<Vec2>;                          // linear end    ([x2,y2])
-    center?: PxAnimatable<Vec2>;                          // radial centre ([cx,cy])
+    center?: PxAnimatable<Vec2>;                          // radial center ([cx,cy])
     radius?: PxAnimatable<number>;                        // radial radius (r)
     focal?:  PxAnimatable<Vec2>;                          // radial focal point ([fx,fy])
     stops?: PxAnimatable<Array<_PxGradientStop>>;          // single animation timeline
@@ -1644,7 +1644,7 @@ const _ck_PxTextEffect: KeysMatch<PxTextEffect, _PxTextEffect> = true;
  *    one channel, zero structure. The test is STRUCTURE, not value-encoding
  *    complexity: `transform` has a parts-record wire value but lands in one
  *    attribute on the same element, so it stays an attribute.
- *  - An EFFECT is anything whose realisation requires structure — generating defs
+ *  - An EFFECT is anything whose realization requires structure — generating defs
  *    (gradient, clipPath, maskedBy, textPath), wrapper nodes (transformation),
  *    clones (repeater, clone), or geometry-derived multi-attr rewrites (strokeTrim).
  *  - The same attribute name can sit on both sides, split by value: flat `fill`
@@ -1819,11 +1819,15 @@ export function validateVersionStamp(doc: PxAnimatedSvgDocument): Array<string> 
  * throws. The player itself only warns and skips what it cannot read; this is the one call
  * for tooling, CI and agents that want a yes/no answer before shipping a document.
  */
-export function validateDocument(doc: unknown): Array<string> {
-    const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
+export function validateDocument(doc: unknown, opts?: { strict?: boolean }): Array<string> {
+    // Strict (the default) rejects keys the schema does not declare — the right answer for a
+    // document you are about to ship. `strict: false` tolerates them, which is what a READER
+    // wants: an unknown key usually means a newer writer — worth a warning, never a refusal.
+    const strict = opts?.strict !== false;
+    const ctx: PxValidationContext = { errors: [], warnings: [], strict };
     const problems: Array<string> = PxAnimatedSvgDocumentSchema.isValid(doc, ctx, ['root']) ? [] : [...ctx.errors];
     if (doc && typeof doc === 'object') {
-        for (const w of validateNodeEffects(doc as PxNode, { strict: true })) {
+        for (const w of validateNodeEffects(doc as PxNode, { strict })) {
             if (!problems.includes(w)) problems.push(w);
         }
         const defs = getAnimatorConfig(doc as PxAnimatedSvgDocument)?.definitions;
@@ -1876,7 +1880,7 @@ export const PxNodeBase = px.openObject({
     id: px.string().optional(),
     meta: px.any().optional(),
     // Player-effects bucket emitted by the Editor's lightweight design format.
-    // Consumed and removed by `applyPlayerEffects` before any other normalisation
+    // Consumed and removed by `applyPlayerEffects` before any other normalization
     // (see `createAnimatorImpl`), so downstream code never sees it.
     effects: PxEffectsSchema.optional(),
     // `PxElementAnimation` (not just `PxAnimationDefinition`) — accepts
@@ -2000,10 +2004,13 @@ export interface PxAnimatorCallbacksConfig {
     /** Callback executed when the animation is paused. */
     onPause?: () => void;
 
-    /** Callback executed when the animation is cancelled. */
+    /** Callback executed when the animation is canceled. */
     onCancel?: () => void;
 
-    /** Callback executed when the animation finishes naturally. */
+    /**
+     * Callback executed when the animation reaches its end — it played every iteration, or
+     * `finish()` was called. Not fired when playback is stopped early (pause / cancel / remove).
+     */
     onFinish?: () => void;
 
     /** Callback executed when the animation is removed. */
@@ -2037,6 +2044,18 @@ export interface PxAnimatorCallbacksConfig {
      * Handlers still fire either way — this is not a mute button.
      */
     silent?: boolean | ReadonlyArray<PxDiagnosticKind>;
+}
+
+/**
+ * The callbacks a framework COMPONENT takes: the player's, plus `onStop`, which fires after any
+ * of `onPause` / `onCancel` / `onFinish` / `onRemove` — for callers who only care that playback
+ * is no longer running, whatever the reason.
+ *
+ * ONE definition (review §9): React, Vue and React Native derive their props from it instead of
+ * each spelling the same six names, which is how their comments had already started to drift.
+ */
+export interface PxComponentCallbacks extends PxAnimatorCallbacksConfig {
+    onStop?: () => void;
 }
 
 
@@ -2084,7 +2103,7 @@ const _ck_PxBezierPath: KeysMatch<PxBezierPath, _PxBezierPath> = true; // the ke
  * Basic animation controls common to all animator types.
  *
  * Generic over the platform's root-element type (`TRoot`) so this package stays
- * platform-neutral: the web player specialises it to the DOM `Element`, a
+ * platform-neutral: the web player specializes it to the DOM `Element`, a
  * React Native player to its own view handle. Defaults to `unknown`.
  */
 export interface PxBasicAnimatorAPI<TRoot = unknown> {
@@ -2157,6 +2176,17 @@ export interface PxAnimatorAPI<TRoot = unknown> extends PxBasicAnimatorAPI<TRoot
     destroy(): void;
 }
 
+/**
+ * The imperative handle a framework component exposes through its ref: the player API minus
+ * what the component itself owns — `isReady` (the document is inline, so it is always ready),
+ * `getRootElement` (the framework renders it) and `destroy` (unmounting does it).
+ *
+ * ONE definition (review §9). `ReactAnimatorApi`, `VueAnimatorApi` and `RnAnimatorApi` are
+ * aliases of this, so the three can no longer drift — they had: React Native's
+ * `setPlaybackRate` comment had already lost "negative plays backwards".
+ */
+export type PxAnimatorHandle = Omit<PxAnimatorAPI, 'isReady' | 'getRootElement' | 'destroy'>;
+
 
 // ============================================================================
 // DEEP VALIDATION
@@ -2164,18 +2194,19 @@ export interface PxAnimatorAPI<TRoot = unknown> extends PxBasicAnimatorAPI<TRoot
 
 export interface PxValidationResult {
     valid: boolean;
-    errors: string[];
+    errors: Array<string>;
 }
 
 /**
- * Deep validation of PxAnimatedSvgDocument using the PxAnimatedSvgDocumentSchema.
- * @returns PxValidationResult with valid flag and array of error messages
+ * The pass/fail form of {@link validateDocument}, NON-strict — unknown keys are tolerated —
+ * for readers that want a flag plus messages rather than a list.
+ *
+ * One implementation (review §10). This used to run the schema on its own and answer
+ * `'Document failed schema validation'` without ever saying what failed; now every problem
+ * `validateDocument` can name comes back with its path. Non-strict on purpose: the editor calls
+ * this on OPEN, where a key from a newer version is worth a warning, never a refusal.
  */
-export function isPxElementFileFormatDeep(fileJson: any): PxValidationResult {
-    const valid: boolean = PxAnimatedSvgDocumentSchema.isValid(fileJson);
-    return { valid, errors: valid ? [] : ['Document failed schema validation'] };
+export function isPxElementFileFormatDeep(fileJson: unknown): PxValidationResult {
+    const errors = validateDocument(fileJson, { strict: false });
+    return { valid: errors.length === 0, errors };
 }
-
-
-
-// FIXME - do we need it?

@@ -12,7 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../../format/PxAnimatorTypes';
-import { collectByType, materialise, materialiseRaw, noEffectsRemain, normaliseGeneratedIds, transformKfTimes } from '../effectTestKit';
+import { collectByType, materialize, materializeRaw, noEffectsRemain, normalizeGeneratedIds, transformKfTimes } from '../effectTestKit';
 
 const rect = (): PxNode => ({ type: 'rect', id: 'r', width: 20, height: 20 } as unknown as PxNode);
 const wrap = (repeater: any): PxNode =>
@@ -32,8 +32,8 @@ const animTranslateEnds = (out: PxNode): Array<any> =>
 describe('repeaterEffect — per-copy transform synthesis', () => {
 
     it('case 1 — static translate, 3 copies → copy i shifted by translate×i', () => {
-        const out = materialise(wrap({ copies: 3, translate: [30, 0] }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(wrap({ copies: 3, translate: [30, 0] }));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -94,11 +94,11 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
     });
 
     it('case 2 — animated translate, 3 copies → each copy carries animate.transform, kf values ×i', () => {
-        const out = materialise(wrap({
+        const out = materialize(wrap({
             copies: 3,
             translate: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [100, 0] }] },
         }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -145,8 +145,8 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
     });
 
     it('case 3 — static scale (FACTOR bare array) compounds per axis s^i', () => {
-        const out = materialise(wrap({ copies: 3, scale: [0.5, 0.5] }));   // factor: 0.5× per copy
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(wrap({ copies: 3, scale: [0.5, 0.5] }));   // factor: 0.5× per copy
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -206,8 +206,8 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
     });
 
     it('case 4 — rotate×i with CONSTANT origin (no spiral drift)', () => {
-        const out = materialise(wrap({ copies: 3, rotate: 30, origin: [40, 40] }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(wrap({ copies: 3, rotate: 30, origin: [40, 40] }));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -316,7 +316,7 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
     });
 
     it('case 5 — copies < 1 is rejected with an error (no crash)', () => {
-        const { errors } = materialiseRaw(wrap({ copies: 0, translate: [10, 0] }));
+        const { errors } = materializeRaw(wrap({ copies: 0, translate: [10, 0] }));
         expect(errors.some(e => e.includes('repeater.copies invalid'))).toBe(true);
     });
     // Reported as `effect.repeater.trim` in the feature explorer's [JSON] column: the
@@ -325,7 +325,7 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
     // inherit the dash animation; it did not, because the trim measurement could not
     // read an `<ellipse>` at all and bailed out before emitting anything.
     it('case 6 — repeater over a TRIMMED <ellipse>: every copy inherits the trim animation', () => {
-        const out = materialise({
+        const out = materialize({
             type: 'svg', children: [{
                 type: 'ellipse', rx: 6, ry: 6, stroke: '#2673f2', strokeWidth: 3, fill: 'none',
                 transform: 'translate(120,100)',

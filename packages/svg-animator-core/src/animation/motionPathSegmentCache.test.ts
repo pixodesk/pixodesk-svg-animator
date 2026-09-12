@@ -13,11 +13,11 @@
 // the chord from start to end and then jumped to the apex to run the (correctly cached)
 // second segment.
 //
-// Only frames-mode is affected: WAAPI materialises motion paths into sampled kfs upstream.
+// Only frames-mode is affected: WAAPI materializes motion paths into sampled kfs upstream.
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createBasicFrameLoopAnimator, type PxPlatformAdapter } from '../playback/PxFrameLoop';
-import { calcAnimationValues, getNormalisedBindings } from './PxDefinitions';
+import { calcAnimationValues, getNormalizedBindings } from './PxDefinitions';
 import type { PxAnimatedSvgDocument } from '../format/PxAnimatorTypes';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
 
@@ -62,7 +62,7 @@ function mkAnimator() {
 describe('frames motion-path — a pre-start frame must not poison the segment cache', () => {
 
     it('evaluating BEFORE the first keyframe leaves mid-segment sampling on the arc', () => {
-        const animDef = getNormalisedBindings(mkDoc(), PxTimelineEngine.js)[0].animate as never;
+        const animDef = getNormalizedBindings(mkDoc(), PxTimelineEngine.js)[0].animate as never;
 
         // Frame 0 of playback: before the first kf. This is the call that used to poison.
         calcAnimationValues(animDef, 0);
@@ -71,8 +71,8 @@ describe('frames motion-path — a pre-start frame must not poison the segment c
         expect(y, 'mid-first-segment must be up on the arc, not on the START→END chord').toBeLessThan(50);
     });
 
-    it('the apex keyframe is honoured at its own time', () => {
-        const animDef = getNormalisedBindings(mkDoc(), PxTimelineEngine.js)[0].animate as never;
+    it('the apex keyframe is honored at its own time', () => {
+        const animDef = getNormalizedBindings(mkDoc(), PxTimelineEngine.js)[0].animate as never;
         calcAnimationValues(animDef, 0);
 
         const [x, y] = xy(calcAnimationValues(animDef, 500).transform);
@@ -81,7 +81,7 @@ describe('frames motion-path — a pre-start frame must not poison the segment c
     });
 
     it('auto-orient before the start uses the real initial tangent, not the chord angle', () => {
-        const animDef = getNormalisedBindings(mkDoc(), PxTimelineEngine.js)[0].animate as never;
+        const animDef = getNormalizedBindings(mkDoc(), PxTimelineEngine.js)[0].animate as never;
         const deg = (t: number) => parseFloat((/rotate\(([-\d.]+)\)/.exec(calcAnimationValues(animDef, t).transform) || [])[1]);
 
         // The path leaves START heading steeply up (≈ -84°). The chord is ≈ +0.7°.

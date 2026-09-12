@@ -4,18 +4,18 @@
  *---------------------------------------------------------------------------------------*/
 
 /**
- * Tests for `materialiseAnimatedUseInstances` — the post-processing pass that
+ * Tests for `materializeAnimatedUseInstances` — the post-processing pass that
  * replaces `<use>` instances referencing animated subtrees with deep clones.
  *
  * Background: WAAPI / CSS animations applied to an SVG element don't reliably
  * render through `<use>` shadow trees in Chrome and Safari — the source
- * animates, the `<use>` instance shows static. The materialiser sidesteps the
+ * animates, the `<use>` instance shows static. The materializer sidesteps the
  * issue by deep-cloning the target into the `<use>` site (with fresh ids and
  * rewritten internal refs); both engines then animate the clone directly.
  */
 
 import { describe, expect, it } from 'vitest';
-import { materialiseAnimatedUseInstances } from './PxAnimatorUseMaterialiser';
+import { materializeAnimatedUseInstances } from './PxAnimatorUseMaterializer';
 import type { PxNode } from '../format/PxAnimatorTypes';
 
 
@@ -37,7 +37,7 @@ function deepCountByType(node: PxNode, type: string): number {
 }
 
 
-describe('materialiseAnimatedUseInstances', () => {
+describe('materializeAnimatedUseInstances', () => {
 
     it('returns the input by reference when no <use> exists', () => {
         const tree: PxNode = {
@@ -46,7 +46,7 @@ describe('materialiseAnimatedUseInstances', () => {
                 { type: 'rect', id: 'r', width: 10, height: 10 } as PxNode,
             ],
         };
-        const out = materialiseAnimatedUseInstances(tree);
+        const out = materializeAnimatedUseInstances(tree);
         expect(out).toBe(tree);
     });
 
@@ -58,11 +58,11 @@ describe('materialiseAnimatedUseInstances', () => {
                 { type: 'use', href: '#static-rect' } as PxNode,
             ],
         };
-        const out = materialiseAnimatedUseInstances(tree);
+        const out = materializeAnimatedUseInstances(tree);
         expect(out).toBe(tree);
     });
 
-    it('materialises <use> when the target itself has an `animate` bucket', () => {
+    it('materializes <use> when the target itself has an `animate` bucket', () => {
         const tree: PxNode = {
             type: 'svg',
             children: [
@@ -76,7 +76,7 @@ describe('materialiseAnimatedUseInstances', () => {
             ],
         };
 
-        const out = materialiseAnimatedUseInstances(tree);
+        const out = materializeAnimatedUseInstances(tree);
         expect(out).not.toBe(tree);
 
         // The <use> child must now be a <g> with the cloned content.
@@ -95,7 +95,7 @@ describe('materialiseAnimatedUseInstances', () => {
         expect(((clonedRect as PxNode).animate as { transform?: unknown }).transform).toBeDefined();
     });
 
-    it('materialises <use> when the target has an animated DESCENDANT', () => {
+    it('materializes <use> when the target has an animated DESCENDANT', () => {
         const tree: PxNode = {
             type: 'svg',
             children: [
@@ -115,7 +115,7 @@ describe('materialiseAnimatedUseInstances', () => {
             ],
         };
 
-        const out = materialiseAnimatedUseInstances(tree);
+        const out = materializeAnimatedUseInstances(tree);
         const useReplacement = out.children![1];
         expect(useReplacement.type).toBe('g');
 
@@ -128,7 +128,7 @@ describe('materialiseAnimatedUseInstances', () => {
         expect((clonedInner as PxNode).animate).toBeDefined();
     });
 
-    it('preserves the <use>\'s own transform on the materialised <g>', () => {
+    it('preserves the <use>\'s own transform on the materialized <g>', () => {
         const tree: PxNode = {
             type: 'svg',
             children: [
@@ -140,7 +140,7 @@ describe('materialiseAnimatedUseInstances', () => {
                 { type: 'use', href: '#r', transform: 'translate(50,100)' } as PxNode,
             ],
         };
-        const out = materialiseAnimatedUseInstances(tree);
+        const out = materializeAnimatedUseInstances(tree);
         const useReplacement = out.children![1];
         expect(useReplacement.transform).toBe('translate(50,100)');
     });
@@ -167,7 +167,7 @@ describe('materialiseAnimatedUseInstances', () => {
             ],
         };
 
-        const out = materialiseAnimatedUseInstances(tree);
+        const out = materializeAnimatedUseInstances(tree);
         const cloneRoot = out.children![1].children![0];
         const clonedRect = deepFind(cloneRoot, n => n.type === 'rect');
         const clonedGrad = deepFind(cloneRoot, n => n.type === 'linearGradient');
@@ -219,7 +219,7 @@ describe('materialiseAnimatedUseInstances', () => {
             ],
         };
 
-        const out = materialiseAnimatedUseInstances(tree);
+        const out = materializeAnimatedUseInstances(tree);
         // Find the use's replacement inside the mask.
         const replacement = deepFind(out, n => n.type === 'g' && Array.isArray(n.children) && n.children.length === 1 && n.children[0].type === 'rect');
         expect(replacement).toBeDefined();
@@ -228,7 +228,7 @@ describe('materialiseAnimatedUseInstances', () => {
         expect((clonedRect as PxNode).animate).toBeDefined();
     });
 
-    it('recursively materialises: clone of an animated subtree may contain another <use> needing materialisation', () => {
+    it('recursively materializes: clone of an animated subtree may contain another <use> needing materialization', () => {
         const tree: PxNode = {
             type: 'svg',
             children: [
@@ -248,22 +248,22 @@ describe('materialiseAnimatedUseInstances', () => {
             ],
         };
 
-        const out = materialiseAnimatedUseInstances(tree);
+        const out = materializeAnimatedUseInstances(tree);
 
         // Count rect copies — original + nested-use-in-middle + middle-clone's inner use.
-        // After materialisation, the tree should contain THREE rect instances:
+        // After materialization, the tree should contain THREE rect instances:
         //   1. The original `leaf` rect.
-        //   2. The materialised rect inside the original `<g id="middle">` (from <use href="#leaf">).
-        //   3. The materialised rect inside the OUTER `<use href="#middle">`'s clone.
+        //   2. The materialized rect inside the original `<g id="middle">` (from <use href="#leaf">).
+        //   3. The materialized rect inside the OUTER `<use href="#middle">`'s clone.
         expect(deepCountByType(out, 'rect')).toBe(3);
-        // No <use> elements should remain (all materialised).
+        // No <use> elements should remain (all materialized).
         expect(deepCountByType(out, 'use')).toBe(0);
     });
 
 
-    it('materialised <use> targeting a <symbol> rewrites the clone root into a <g> with viewport-fitting transform + clip', () => {
+    it('materialized <use> targeting a <symbol> rewrites the clone root into a <g> with viewport-fitting transform + clip', () => {
         // <symbol> doesn't render unless instantiated by <use>. If the
-        // materialiser just deep-clones the <symbol> into a <g> parent, the
+        // materializer just deep-clones the <symbol> into a <g> parent, the
         // cloned <symbol> is still invisible. Replace the clone-root <symbol>
         // with a <g> that:
         //   - translate(xOff, yOff) → centers the scaled viewBox in the use's
@@ -304,7 +304,7 @@ describe('materialiseAnimatedUseInstances', () => {
             ],
         };
 
-        const out = materialiseAnimatedUseInstances(tree);
+        const out = materializeAnimatedUseInstances(tree);
         // The original <symbol> is untouched.
         expect(out.children![0].type).toBe('symbol');
         // The <use>'s replacement is a <g>, with NO <symbol> inside the cloned
@@ -365,7 +365,7 @@ describe('materialiseAnimatedUseInstances', () => {
                 { type: 'use', href: '#sym2' } as PxNode,
             ],
         };
-        const out = materialiseAnimatedUseInstances(tree);
+        const out = materializeAnimatedUseInstances(tree);
         const replacement = out.children![1];
         expect(replacement.type).toBe('g');
         const cloneRoot = replacement.children![0];

@@ -143,7 +143,7 @@ export function Controlled() {
 }
 ```
 
-`play && !pause` plays; `pause` pauses; `play === false` jumps to the end state; a pause that is
+`play && !pause` plays; `pause` pauses; `play === false` holds where it is (it used to jump to the end); a pause that is
 switched back off resumes.
 
 With none of `autoplay` / `progress` / `time` / `play` / `pause` set, the component renders the
@@ -223,7 +223,7 @@ Passing a different `doc` (or changing `className` / `style` / the control mode)
 old animator away and builds a new one; the old instance emits `onCancel`, `onRemove` and
 `onStop` on its way out. Changing `progress` / `time` does not recreate anything.
 
-## CSS-flavour SVGs — `PixodeskSvgCssAnimator`
+## CSS-flavor SVGs — `PixodeskSvgCssAnimator`
 
 > **Example:** [`react/css-svgr`](../../examples/docs-examples/src/cases/react/css-svgr/) — `pnpm example:docs`, then open `#react/css-svgr`.
 
@@ -260,7 +260,7 @@ export function HoverLogo() {
 > one animation several times, use the JSON component instead — the player gives every copy
 > its own ids ([read more](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#one-copy-of-a-file-per-page)).
 
-SVGR strips `<script>` tags, so only the pure CSS flavour works this way. Files with scripts
+SVGR strips `<script>` tags, so only the pure CSS flavor works this way. Files with scripts
 (JS triggers / JS animation) should be inlined as raw HTML, or switched to JSON.
 
 ## Next.js
@@ -278,7 +278,7 @@ export default function Hero() {
 }
 ```
 
-JSON imports work out of the box in Next.js; for a CSS-flavour SVG use `@svgr/webpack`.
+JSON imports work out of the box in Next.js; for a CSS-flavor SVG use `@svgr/webpack`.
 
 
 [← Web player](./web-player.md) · [Contents](../../README.md#documentation) · Next: [Vue →](./vue.md)

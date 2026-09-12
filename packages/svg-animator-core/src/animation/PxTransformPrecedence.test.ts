@@ -6,10 +6,10 @@
 // TRANSFORM PRECEDENCE (review §0.4/§1.6) — CSS's composition rule at read time:
 // a static `transform` composes UNDER the animated transform instead of being
 // clobbered. Pins the merge itself (`mergeStaticTransformIntoAnimDef`), the
-// conservative string parser, and the end-to-end normalisation path.
+// conservative string parser, and the end-to-end normalization path.
 
 import { describe, expect, it } from 'vitest';
-import { getNormalisedBindings, mergeStaticTransformIntoAnimDef } from './PxDefinitions';
+import { getNormalizedBindings, mergeStaticTransformIntoAnimDef } from './PxDefinitions';
 import { parseTransformParts } from '../util/PxAnimatorUtil';
 import type { PxAnimatedSvgDocument, PxAnimationDefinition } from '../format/PxAnimatorTypes';
 
@@ -99,7 +99,7 @@ describe('mergeStaticTransformIntoAnimDef — the merge rules', () => {
     });
 });
 
-describe('end-to-end — getNormalisedBindings composes the static transform under the animation', () => {
+describe('end-to-end — getNormalizedBindings composes the static transform under the animation', () => {
 
     const docWith = (animate: object, staticTransform: unknown): PxAnimatedSvgDocument => ({
         type: 'svg',
@@ -108,7 +108,7 @@ describe('end-to-end — getNormalisedBindings composes the static transform und
     } as unknown as PxAnimatedSvgDocument);
 
     it('the §0.4 worked example: rect rotated 45° slides AND stays rotated', () => {
-        const bindings = getNormalisedBindings(docWith({
+        const bindings = getNormalizedBindings(docWith({
             translate: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [80, 0] }] },
         }, { rotate: 45 }));
         const anim: any = bindings[0].animate;
@@ -119,7 +119,7 @@ describe('end-to-end — getNormalisedBindings composes the static transform und
     });
 
     it('partial transform parts records inherit a STRING static transform', () => {
-        const bindings = getNormalisedBindings(docWith({
+        const bindings = getNormalizedBindings(docWith({
             transform: { keyframes: [
                 { time: 0, value: { translate: [0, 0] } },
                 { time: 1000, value: { translate: [80, 0] } },

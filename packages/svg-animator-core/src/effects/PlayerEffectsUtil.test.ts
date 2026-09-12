@@ -5,8 +5,8 @@
 
 // Self-contained tests for `applyPlayerEffects` — each case carries its INPUT
 // (`node.effects` bucket emitted by the Editor's lightweight writer) and the
-// EXPECTED materialised tree as a full JSON etalon. Deep-equality is checked
-// after normalising auto-allocated `_lw_*` ids → stable `__GEN_N__` slugs.
+// EXPECTED materialized tree as a full JSON etalon. Deep-equality is checked
+// after normalizing auto-allocated `_lw_*` ids → stable `__GEN_N__` slugs.
 
 import { describe, expect, it } from 'vitest';
 import { applyPlayerEffects } from './PlayerEffectsUtil';
@@ -18,7 +18,7 @@ import type { PxNode } from '../format/PxAnimatorTypes';
  * rewrites references to those ids inside `href` (`#…`) and inline
  * `url(#…)` occurrences.
  */
-function normaliseGeneratedIds(tree: PxNode): PxNode {
+function normalizeGeneratedIds(tree: PxNode): PxNode {
     const cloned: PxNode = JSON.parse(JSON.stringify(tree));
     const map = new Map<string, string>();
     let counter = 0;
@@ -60,15 +60,15 @@ function normaliseGeneratedIds(tree: PxNode): PxNode {
     return cloned;
 }
 
-/** Materialise + normalise ids — convenience for test assertions. */
-function materialise(input: PxNode): PxNode {
+/** Materialize + normalize ids — convenience for test assertions. */
+function materialize(input: PxNode): PxNode {
     const { root, errors } = applyPlayerEffects(input);
     if (errors.length) throw new Error('applyPlayerEffects errors:\n' + errors.join('\n'));
-    return normaliseGeneratedIds(root);
+    return normalizeGeneratedIds(root);
 }
 
 
-describe('applyPlayerEffects — materialisation etalons', () => {
+describe('applyPlayerEffects — materialization etalons', () => {
 
     it('case 1: no effects → unchanged tree', () => {
         const input: PxNode = {
@@ -83,7 +83,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 { type: 'rect', id: 'r1', fill: '#f00', width: 100, height: 50 },
             ],
         };
-        expect(materialise(input)).toEqual(expected);
+        expect(materialize(input)).toEqual(expected);
     });
 
 
@@ -110,7 +110,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 },
             ],
         };
-        expect(materialise(input)).toEqual(expected);
+        expect(materialize(input)).toEqual(expected);
     });
 
 
@@ -150,7 +150,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 },
             ],
         };
-        expect(materialise(input)).toEqual(expected);
+        expect(materialize(input)).toEqual(expected);
     });
 
 
@@ -197,7 +197,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 },
             ],
         };
-        expect(materialise(input)).toEqual(expected);
+        expect(materialize(input)).toEqual(expected);
     });
 
 
@@ -214,7 +214,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 { type: 'ellipse', id: 'm-src', rx: 30, ry: 20 },
             ],
         };
-        // <mask> goes into auto-emitted <defs>, materialised element gets `mask=url(#__GEN_0__)`
+        // <mask> goes into auto-emitted <defs>, materialized element gets `mask=url(#__GEN_0__)`
         const expected: PxNode = {
             type: 'svg',
             children: [
@@ -237,7 +237,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 { type: 'ellipse', id: 'm-src', rx: 30, ry: 20 },
             ],
         };
-        expect(materialise(input)).toEqual(expected);
+        expect(materialize(input)).toEqual(expected);
     });
 
 
@@ -274,7 +274,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 },
             ],
         };
-        expect(materialise(input)).toEqual(expected);
+        expect(materialize(input)).toEqual(expected);
     });
 
 
@@ -319,7 +319,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 },
             ],
         };
-        expect(materialise(input)).toEqual(expected);
+        expect(materialize(input)).toEqual(expected);
     });
 
 
@@ -333,7 +333,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 },
             ],
         };
-        const result = materialise(input);
+        const result = materialize(input);
         // Repeater emits N copies wrapped in a parent <g>. Exact structure varies;
         // assert key invariants: 3 children. Copies 1..N have per-copy `transform`
         // (translate × i, rotate × i). Copy 0 is the identity baseline (no transform).
@@ -368,7 +368,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 },
             ],
         };
-        const result = materialise(input);
+        const result = materialize(input);
         const parent = result.children![0];
         expect(parent.type).toBe('g');
         expect(parent.children?.length).toBe(3);
@@ -425,7 +425,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 },
             ],
         };
-        const result = materialise(input);
+        const result = materialize(input);
         const parent = result.children![0];
         expect(parent.children?.length).toBe(3);
 
@@ -475,7 +475,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 },
             ],
         };
-        const result = materialise(input);
+        const result = materialize(input);
         // <defs> contains the cloned symbol with a fresh id; inner rect has a regenerated id
         const defs = result.children?.find(c => c.type === 'defs');
         expect(defs).toBeDefined();
@@ -514,7 +514,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 },
             ],
         };
-        const result = materialise(input);
+        const result = materialize(input);
         // Outermost should be +origin translate, then animated translate with autoOrient,
         // then -origin translate, then rect.
         const outer = result.children![0];
@@ -534,7 +534,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
     });
 
 
-    it('case 9: node.effects is fully removed after materialisation', () => {
+    it('case 9: node.effects is fully removed after materialization', () => {
         const input: PxNode = {
             type: 'svg',
             children: [
@@ -544,7 +544,7 @@ describe('applyPlayerEffects — materialisation etalons', () => {
                 },
             ],
         };
-        const result = materialise(input);
+        const result = materialize(input);
         // Walk the tree and assert NO `effects` bucket survives anywhere.
         const walk = (n: PxNode): void => {
             expect(n.effects).toBeUndefined();

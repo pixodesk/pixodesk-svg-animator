@@ -211,7 +211,7 @@ export interface PlayerConversionResult {
     readonly relation: WireVersionRelation;
     /** The steps actually applied, oldest first. Empty when nothing was needed. */
     readonly applied: ReadonlyArray<WireVersionStep>;
-    /** Set only when the version could not be honoured — never a refusal to render. */
+    /** Set only when the version could not be honored — never a refusal to render. */
     readonly advice?: string;
 }
 

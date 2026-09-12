@@ -16,7 +16,7 @@ interface State {
 }
 
 /**
- * Last line of defence: shows the failure ON THE DEVICE.
+ * Last line of defense: shows the failure ON THE DEVICE.
  *
  * Without this, a throw during render takes the whole app down — a white screen
  * in production, and a red box that says nothing useful once the dev server has

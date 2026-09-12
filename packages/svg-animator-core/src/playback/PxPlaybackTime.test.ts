@@ -190,7 +190,7 @@ describe('createRunClock — whole-run time across iterations', () => {
         expect(clock.now()).toBe(2500);
     });
 
-    it('honours the rate', () => {
+    it('honors the rate', () => {
         const { clock, advance } = fake();
         clock.start(2);
         advance(500);

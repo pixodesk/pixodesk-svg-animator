@@ -29,16 +29,24 @@ import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
  * - 'reverse': Reverses the animation playback.
  *
  * @param {!PxAnimatorAPI} api The animator API instance to control.
- * @param {!PxTrigger} config The trigger configuration object.
- * @returns {!PxAnimatorAPI} The same animator API instance, for chaining.
+ * @param {!PxTrigger} config The trigger configuration object. Only `startOn`, `outAction` and
+ *   `scrollIntoViewThreshold` are read here; `finishAction` belongs to the PLAYER (what happens
+ *   after a natural end), not to the trigger wiring.
+ * @returns A disposer that detaches every listener and observer this call attached (review §14).
+ *   `createAnimator` ties it to `destroy()`. Call it yourself before re-arming an element you
+ *   wired by hand — otherwise the old listeners stay live next to the new ones.
  */
 export function setupAnimationTriggers(
     api: PxAnimatorAPI,
     config: PxTrigger,
     diag?: PxDiagnostics
-): PxAnimatorAPI {
+): () => void {
     // Public export, so the channel is optional and falls back to the console (review §5).
     const report = diag ?? createDiagnostics(undefined, '[PxAnimator]');
+
+    // Everything attached below registers its own undo here, so one call detaches it all.
+    const cleanups: Array<() => void> = [];
+    const dispose = (): void => { for (const undo of cleanups.splice(0)) undo(); };
     // The defaults come from core's one table, shared with every player (`PX_TRIGGER_DEFAULTS`):
     // no `startOn` = 'load', no `outAction` = 'continue', no threshold = 0 ("any pixel visible").
     // The threshold default must match the editor model's (TSvgSvgAnimationAttr
@@ -49,7 +57,7 @@ export function setupAnimationTriggers(
 
     if (!root) {
         report.warn(PxDiagnosticKind.host, 'setupAnimationTriggers: No root element found for animation.');
-        return api;
+        return dispose;
     }
 
     // Tracks whether the LAST out-action put the animation into reverse, so the
@@ -96,6 +104,7 @@ export function setupAnimationTriggers(
                 startHandler();
             } else {
                 window.addEventListener('load', startHandler, { once: true });
+                cleanups.push(() => window.removeEventListener('load', startHandler));
             }
             break;
         }
@@ -112,6 +121,10 @@ export function setupAnimationTriggers(
 
             root.addEventListener('mouseenter', mouseOverHandler);
             root.addEventListener('mouseleave', mouseOutHandler);
+            cleanups.push(() => {
+                root.removeEventListener('mouseenter', mouseOverHandler);
+                root.removeEventListener('mouseleave', mouseOutHandler);
+            });
             break;
         }
 
@@ -124,6 +137,7 @@ export function setupAnimationTriggers(
                 }
             };
             root.addEventListener('click', clickHandler);
+            cleanups.push(() => root.removeEventListener('click', clickHandler));
             break;
         }
 
@@ -136,7 +150,7 @@ export function setupAnimationTriggers(
             // BACKWARDS on page load. An OUT is only meaningful after an IN, so require one.
             // A target TALLER than the viewport can never reach a high ratio (ratio is measured
             // against the TARGET's own size), so a 0.5/0.9 threshold would be unsatisfiable and the
-            // animation would never play. Normalise by what could possibly be visible, and register
+            // animation would never play. Normalize by what could possibly be visible, and register
             // a granular threshold list — registering the raw threshold would mean the callback
             // never fires at all for such a target.
             const effectiveRatio = (entry: IntersectionObserverEntry): number => {
@@ -147,7 +161,7 @@ export function setupAnimationTriggers(
                 if (!target?.height || !visible) return entry.intersectionRatio;
                 // Use the SMALLER of `rootBounds` and the live viewport. `rootBounds` can be null
                 // (implicit root in some embeddings) and can also report a box LARGER than the
-                // actual viewport — trusting it then reinstates the very cap this normalisation
+                // actual viewport — trusting it then reinstates the very cap this normalization
                 // exists to remove. `intersectionRect` is already clipped to the real viewport, so
                 // the denominator must be too.
                 const live = typeof window !== 'undefined' && window.innerHeight ? window.innerHeight : Infinity;
@@ -175,6 +189,7 @@ export function setupAnimationTriggers(
                 { threshold: thresholdSteps }
             );
             observer.observe(root);
+            cleanups.push(() => observer.disconnect());
             break;
         }
 
@@ -183,5 +198,5 @@ export function setupAnimationTriggers(
             break;
     }
 
-    return api;
+    return dispose;
 }

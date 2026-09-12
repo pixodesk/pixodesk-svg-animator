@@ -25,7 +25,7 @@ const staticDoc: PxAnimatedSvgDocument = {
     ],
 };
 
-/** Transforms + colour + opacity + geometry — the core animated-attr set. */
+/** Transforms + color + opacity + geometry — the core animated-attr set. */
 const animatedDoc: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
@@ -62,7 +62,7 @@ const animatedDoc: PxAnimatedSvgDocument = {
     ],
 };
 
-/** Motion along a curved path with auto-orient — materialised by core sampling. */
+/** Motion along a curved path with auto-orient — materialized by core sampling. */
 const motionPathDoc: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 200',
     animator: { timeline: { duration: 3000, iterations: 'infinite', trigger: { startOn: 'load' } } },

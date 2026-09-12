@@ -7,9 +7,9 @@
  * Shared "clone a subtree and rewire its internal references" primitives.
  *
  * Used by:
- *   - The retime effect's `<use>` chain materialiser (`effects/util.ts`'s
+ *   - The retime effect's `<use>` chain materializer (`effects/util.ts`'s
  *     `clone` + `regenerateIdsInClone`, which now delegate here).
- *   - `PxAnimatorUseMaterialiser` — the WAAPI-side post-pass that replaces
+ *   - `PxAnimatorUseMaterializer` — the WAAPI-side post-pass that replaces
  *     `<use>` instances referencing animated subtrees with deep clones.
  *
  * Both call sites need the exact same two operations: a structural deep clone
@@ -23,7 +23,7 @@ import type { PxNode } from '../format/PxAnimatorTypes';
 
 /** Recursive deep clone for plain JSON-shaped `PxNode` data (objects, arrays,
  *  primitives). Faster than `JSON.parse(JSON.stringify(x))` for large trees,
- *  no behaviour difference for our wire format (no `Date` / `Map` / functions).
+ *  no behavior difference for our wire format (no `Date` / `Map` / functions).
  */
 export function deepClonePxNode<T>(value: T): T {
     if (value === null || typeof value !== 'object') return value;
@@ -93,7 +93,7 @@ function toFiniteNum(v: unknown): number {
 }
 
 /**
- * Applies a `<use>`'s `x`/`y` offset when it is materialised into a `<g>`.
+ * Applies a `<use>`'s `x`/`y` offset when it is materialized into a `<g>`.
  *
  * Per SVG 2, `<use x y>` is an extra `translate(x, y)` appended AFTER the use's
  * own `transform`, so it composes innermost (closest to the referenced content).

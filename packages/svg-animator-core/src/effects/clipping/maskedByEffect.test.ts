@@ -11,7 +11,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../../format/PxAnimatorTypes';
-import { collectByType, countNodes, materialise, materialiseRaw, normaliseGeneratedIds } from '../effectTestKit';
+import { collectByType, countNodes, materialize, materializeRaw, normalizeGeneratedIds } from '../effectTestKit';
 
 /** A mask SOURCE shape + a TARGET rect masked by it. `extraEffects` merge
  *  alongside `maskedBy` on the target (e.g. add a `transformBy`). */
@@ -30,8 +30,8 @@ const target = (out: PxNode): PxNode => collectByType(out, 'rect').find(r => (r 
 describe('maskedByEffect — <mask> def + mask attr', () => {
 
     it('case 1 — static source → one <mask> in defs holding <use href=#src>, target gets mask=url()', () => {
-        const out = materialise(scene({ source: 'src' }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(scene({ source: 'src' }));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -83,10 +83,10 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
     });
 
     it('case 2 — maskType / maskUnits / maskContentUnits pass through onto the <mask>', () => {
-        const out = materialise(scene({
+        const out = materialize(scene({
             source: 'src', maskType: 'alpha', maskUnits: 'userSpaceOnUse', maskContentUnits: 'objectBoundingBox',
         }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -138,8 +138,8 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
     it('case 3 — masked element with own transformBy → mask source gets the INVERSE translate', () => {
         // target also translated +[60,0]; the mask must cancel it (inverse -[60,0])
         // so the source paints where it really is.
-        const out = materialise(scene({ source: 'src' }, { transformBy: { translate: [60, 0] } }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(scene({ source: 'src' }, { transformBy: { translate: [60, 0] } }));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -214,7 +214,7 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
     });
 
     it('case 4 — missing source is rejected with an error (no mask generated)', () => {
-        const { root, errors } = materialiseRaw(scene({ maskType: 'alpha' }));
+        const { root, errors } = materializeRaw(scene({ maskType: 'alpha' }));
         expect(errors.some(e => e.includes('maskedBy.source missing'))).toBe(true);
         expect(collectByType(root, 'mask')).toHaveLength(0);
     });

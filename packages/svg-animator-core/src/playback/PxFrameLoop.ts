@@ -6,13 +6,13 @@
 import { type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from '../format/PxAnimatorTypes';
 import { getAnimatorConfig, PxTimelineEngine } from '../format/PxAnimatorConstants';
 import { camelCaseToKebabWordIfNeeded, clamp, DEFAULT_DURATION_MS, STYLE_ATTR_NAMES } from '../util/PxAnimatorUtil';
-import { calcAnimationValues, getNormalisedBindings } from '../animation/PxDefinitions';
+import { calcAnimationValues, getNormalizedBindings } from '../animation/PxDefinitions';
 import { clampSeekMs, isValidPlaybackRate, progressToTimeMs, PX_RATE_REJECTED, timeToProgress } from './PxPlaybackTime';
 
 
 // Frame scheduling — resolved LAZILY from globalThis on every call so test
 // harnesses that install fake timers (and hosts that polyfill rAF late) are
-// honoured. Falls back to a ~60fps setTimeout when rAF is unavailable.
+// honored. Falls back to a ~60fps setTimeout when rAF is unavailable.
 function requestFrame(cb: () => void): number {
     const g: any = globalThis as any;
     if (typeof g.requestAnimationFrame === 'function') return g.requestAnimationFrame(cb);
@@ -53,7 +53,7 @@ export function createBasicFrameLoopAnimator(
 
     const config = getAnimatorConfig(doc) || {};
 
-    const bindings = getNormalisedBindings(doc, PxTimelineEngine.js);
+    const bindings = getNormalizedBindings(doc, PxTimelineEngine.js);
 
     // iterations: either number or Infinity
     const _iterations = config.iterations;
@@ -404,7 +404,7 @@ export function createBasicFrameLoopAnimator(
             cancelFrame(timerId);
             timerId = null;
         }
-        // Render the end state honouring `fill` (same rule as the natural
+        // Render the end state honoring `fill` (same rule as the natural
         // finish in `tick()`, and same as WAAPI where fill:'none' reverts even
         // after an explicit finish()).
         renderFrame(fillsForwards ? timeBeforeLastStartMs : 0);

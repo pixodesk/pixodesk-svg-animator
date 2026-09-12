@@ -107,10 +107,10 @@ function wrapInversePart(
     // 1.0-units before reading, so `invertPartValue([1.5,1.5])` produces
     // the right `[2/3, 2/3]` instead of `[1/150, 1/150]`. Keyframe / {value}
     // forms already use 1.0-units per the wire convention.
-    const normalisedRaw: PxAnimatable<any> | undefined = (part === TransformPart.Scale && Array.isArray(raw))
+    const normalizedRaw: PxAnimatable<any> | undefined = (part === TransformPart.Scale && Array.isArray(raw))
         ? [raw[0] / 100, raw[1] / 100] as unknown as PxAnimatable<any>
         : raw;
-    const v = readAnimatable<any>(normalisedRaw);
+    const v = readAnimatable<any>(normalizedRaw);
     if (v.kind === ReadKind.Static) {
         return { type: 'g', transform: { value: partsRecord(part, invertPartValue(part, v.value), origin) }, children: [inner] };
     }
@@ -257,7 +257,7 @@ function readTransformationFromBody(node: PxNode): PxTransformByEffect | undefin
         if (parts.rotate !== undefined) out.rotate = parts.rotate;
         // Scale parsed from the string is in 1.0-units (e.g. `scale(1.5)`).
         // Pass it through the `{value}` form so `wrapInversePart`'s
-        // bare-array → percent normalisation doesn't re-divide by 100.
+        // bare-array → percent normalization doesn't re-divide by 100.
         if (parts.scale) out.scale = { value: parts.scale };
         if (parts.origin) out.origin = parts.origin;
         return Object.keys(out).length ? out : undefined;
@@ -288,7 +288,7 @@ function readTransformationFromBody(node: PxNode): PxTransformByEffect | undefin
  *  — back into a `PxTransformParts`-style record. The origin sandwich
  *  (`translate(o) … translate(-o)`) is recovered as `origin: o`; the leading
  *  translate (if any) becomes `translate: t`. Returns `undefined` when no
- *  recognised ops are found. */
+ *  recognized ops are found. */
 function parseTransformStringToParts(s: string): { translate?: Vec2; rotate?: number; scale?: Vec2; origin?: Vec2 } | undefined {
     interface Op { name: string; args: Array<number>; }
     const re = /([a-zA-Z]+)\s*\(([^)]*)\)/g;

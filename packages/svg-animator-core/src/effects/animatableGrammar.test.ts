@@ -8,11 +8,11 @@
 // Every effect slot reads through `readAnimatable` and emits through the shared
 // channel writer, so `loop` / the `kfs` alias / the `{value}` base behave the same
 // in every effect as they do on `node.animate` channels — including the shared
-// loop materialisation. These tests pin that contract per applier.
+// loop materialization. These tests pin that contract per applier.
 
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../format/PxAnimatorTypes';
-import { collectByType, materialise, materialiseEngine, PxTimelineEngine } from './effectTestKit';
+import { collectByType, materialize, materializeEngine, PxTimelineEngine } from './effectTestKit';
 
 const doc = (child: Record<string, unknown>): PxNode =>
     ({ type: 'svg', animator: { timeline: { duration: 2000 } }, children: [child] } as unknown as PxNode);
@@ -32,13 +32,13 @@ describe('unified animatable grammar — loop / value base in effect slots', () 
         });
 
         // Effects-only: the synthesized channel carries the loop verbatim.
-        const out = materialise(input);
+        const out = materialize(input);
         const path = collectByType(out, 'path')[0];
         expect(anim(path).strokeDashoffset.loop).toBe(true);
 
-        // Full pipeline: the SAME materialiseInternalLoops code that expands
+        // Full pipeline: the SAME materializeInternalLoops code that expands
         // node.animate loops consumes it — loop gone, kfs fill the 2000ms doc.
-        const full = materialiseEngine(input, PxTimelineEngine.js);
+        const full = materializeEngine(input, PxTimelineEngine.js);
         const fullPath = collectByType(full, 'path')[0];
         const block = anim(fullPath).strokeDashoffset;
         const kfs = block.keyframes;
@@ -48,7 +48,7 @@ describe('unified animatable grammar — loop / value base in effect slots', () 
     });
 
     it('transformBy.rotate — short-form keyframes + loop are read in an effect slot', () => {
-        const out = materialise(doc({
+        const out = materialize(doc({
             type: 'rect', width: 100, height: 50,
             effects: { transformBy: {
                 rotate: { keyframes: [{ t: 0, v: 0 }, { t: 1000, v: 90 }], loop: { direction: 'alternate' } },
@@ -61,7 +61,7 @@ describe('unified animatable grammar — loop / value base in effect slots', () 
     });
 
     it('textPath.startOffset — keyframes + loop + static first-kf baseline', () => {
-        const out = materialise(doc({
+        const out = materialize(doc({
             type: 'text', children: [{ type: 'tspan', textContent: 'hi' }],
             effects: { textPath: {
                 pathData: 'M0,0 L100,0', pathOverflow: 'clip',
@@ -75,7 +75,7 @@ describe('unified animatable grammar — loop / value base in effect slots', () 
     });
 
     it('repeater.translate — keyframes get the ×i per-copy scaling (was silently skipped)', () => {
-        const out = materialise(doc({
+        const out = materialize(doc({
             type: 'rect', width: 10, height: 10,
             effects: { repeater: {
                 copies: 3,
@@ -90,13 +90,13 @@ describe('unified animatable grammar — loop / value base in effect slots', () 
 
     it('gradient stops — {value: […]} structured static and keyframes both read', () => {
         const stops = [{ offset: 0, color: '#f00' }, { offset: 1, color: '#00f' }];
-        const staticOut = materialise(doc({
+        const staticOut = materialize(doc({
             type: 'rect', width: 10, height: 10,
             effects: { fillGradient: { type: 'linear', start: [0, 0], end: [10, 0], stops: { value: stops } } },
         }));
         expect(collectByType(staticOut, 'stop').map((s: any) => s.stopColor)).toEqual(['#f00', '#00f']);
 
-        const animOut = materialise(doc({
+        const animOut = materialize(doc({
             type: 'rect', width: 10, height: 10,
             effects: { fillGradient: { type: 'linear', start: [0, 0], end: [10, 0],
                 stops: { keyframes: [{ t: 0, v: stops }, { t: 1000, v: [{ offset: 0, color: '#0f0' }, { offset: 1, color: '#00f' }] }], loop: true } } },
@@ -111,7 +111,7 @@ describe('unified animatable grammar — loop / value base in effect slots', () 
 describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
 
     it('clipPath.d — static string', () => {
-        const out = materialise(doc({
+        const out = materialize(doc({
             type: 'rect', width: 10, height: 10,
             effects: { clipPath: { pathData: 'M0,0 L10,0 L10,10 Z' } },
         }));
@@ -120,7 +120,7 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
     });
 
     it('clipPath.d — animated slot ({path} kf values) + baseline d', () => {
-        const out = materialise(doc({
+        const out = materialize(doc({
             type: 'rect', width: 10, height: 10,
             effects: { clipPath: { pathData: { keyframes: [
                 { time: 0, value: { pathData: 'M0,0 L10,0 L10,10 Z' } },
@@ -138,7 +138,7 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
         const legacyBlock = { keyframes: [
             { time: 0, value: { pathData: 'M0,0 L10,0 L10,10 Z' } },
             { time: 1000, value: { pathData: 'M0,0 L20,0 L20,20 Z' } } ] };
-        const out = materialise(doc({
+        const out = materialize(doc({
             type: 'rect', width: 10, height: 10,
             effects: { clipPath: { pathData: 'M0,0 L10,0 L10,10 Z', animate: legacyBlock } as any },
         }));
@@ -148,7 +148,7 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
     });
 
     it('gradient start/radius — animated slots split into the def\'s axis channels + baselines', () => {
-        const out = materialise(doc({
+        const out = materialize(doc({
             type: 'circle', r: 5,
             effects: { fillGradient: {
                 type: 'radial',
@@ -171,7 +171,7 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
     });
 
     it('gradient — REMOVED legacy per-scalar animate channels are ignored', () => {
-        const out = materialise(doc({
+        const out = materialize(doc({
             type: 'rect', width: 10, height: 10,
             effects: { fillGradient: {
                 type: 'linear', start: [0, 40], end: [200, 40],

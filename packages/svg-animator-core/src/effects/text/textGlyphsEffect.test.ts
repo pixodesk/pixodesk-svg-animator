@@ -13,8 +13,8 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../../format/PxAnimatorTypes';
-import { collectByType, materialiseRaw } from '../effectTestKit';
-import { layoutGlyphTextChars, materialiseGlyphText } from './textGlyphsEffect';
+import { collectByType, materializeRaw } from '../effectTestKit';
+import { layoutGlyphTextChars, materializeGlyphText } from './textGlyphsEffect';
 
 const glyphs = {
     F: {
@@ -40,7 +40,7 @@ function scene(text: any, textAttrs: any = {}, tspans?: Array<any>): PxNode {
     } as unknown as PxNode;
 }
 
-const run = (text: any, textAttrs?: any, tspans?: Array<any>) => materialiseRaw(scene(text, textAttrs, tspans));
+const run = (text: any, textAttrs?: any, tspans?: Array<any>) => materializeRaw(scene(text, textAttrs, tspans));
 const paths = (root: PxNode) => collectByType(root, 'path');
 
 
@@ -126,7 +126,7 @@ describe('textGlyphsEffect — <text> → baked <path> outlines', () => {
             type: 'svg',
             children: [{ type: 'text', id: 't', children: [{ type: 'tspan', textContent: 'Hi', fontFamily: 'F' }], effects: { text: { useGlyphs: true } } }],
         } as unknown as PxNode;
-        const { root, warnings } = materialiseRaw(input);
+        const { root, warnings } = materializeRaw(input);
         expect(collectByType(root, 'text')).toHaveLength(1);
         expect(warnings.join(' ')).toContain('no definitions.fonts');
     });
@@ -167,7 +167,7 @@ describe('textGlyphsEffect — along-path', () => {
     };
 
     it('on a straight horizontal path reduces to horizontal layout', () => {
-        const { root } = materialiseRaw(alongScene('M0 0L1000 0'));
+        const { root } = materializeRaw(alongScene('M0 0L1000 0'));
         expect(collectByType(root, 'text')).toHaveLength(0);
         expect(collectByType(root, 'textPath')).toHaveLength(0); // native textPath NOT used
         const p = glyphPaths(root);
@@ -176,7 +176,7 @@ describe('textGlyphsEffect — along-path', () => {
     });
 
     it('applies startOffset as distance along the path', () => {
-        const { root } = materialiseRaw(alongScene('M0 0L1000 0', 100, 'H'));
+        const { root } = materializeRaw(alongScene('M0 0L1000 0', 100, 'H'));
         expectD(glyphPaths(root)[0].d, [100, 0, 110, 0, 110, -70]);
     });
 
@@ -191,24 +191,24 @@ describe('textGlyphsEffect — along-path', () => {
     };
 
     it('x is an offset ALONG the path (like startOffset)', () => {
-        expectD(glyphPaths(materialiseRaw(alongWith({ x: 100 })).root)[0].d, [100, 0, 110, 0, 110, -70]);
+        expectD(glyphPaths(materializeRaw(alongWith({ x: 100 })).root)[0].d, [100, 0, 110, 0, 110, -70]);
     });
     it('dx is an offset ALONG the path', () => {
-        expectD(glyphPaths(materialiseRaw(alongWith({ dx: 100 })).root)[0].d, [100, 0, 110, 0, 110, -70]);
+        expectD(glyphPaths(materializeRaw(alongWith({ dx: 100 })).root)[0].d, [100, 0, 110, 0, 110, -70]);
     });
     it('x and dx ADD along the path', () => {
-        expectD(glyphPaths(materialiseRaw(alongWith({ x: 60, dx: 40 })).root)[0].d, [100, 0, 110, 0, 110, -70]);
+        expectD(glyphPaths(materializeRaw(alongWith({ x: 60, dx: 40 })).root)[0].d, [100, 0, 110, 0, 110, -70]);
     });
     it('dy shifts PERPENDICULAR to the path', () => {
         // Horizontal path (tangent +x) → left normal is +y, so dy=50 lowers the glyph by 50.
-        expectD(glyphPaths(materialiseRaw(alongWith({ dy: 50 })).root)[0].d, [0, 50, 10, 50, 10, -20]);
+        expectD(glyphPaths(materializeRaw(alongWith({ dy: 50 })).root)[0].d, [0, 50, 10, 50, 10, -20]);
     });
     it('y (on the <text> containing the <textPath>) is IGNORED', () => {
-        expectD(glyphPaths(materialiseRaw(alongWith({ y: 50 })).root)[0].d, [0, 0, 10, 0, 10, -70]);
+        expectD(glyphPaths(materializeRaw(alongWith({ y: 50 })).root)[0].d, [0, 0, 10, 0, 10, -70]);
     });
 
     it('rotates each glyph to the path tangent (90° down)', () => {
-        const { root } = materialiseRaw(alongScene('M0 0L0 1000', undefined, 'H'));
+        const { root } = materializeRaw(alongScene('M0 0L0 1000', undefined, 'H'));
         const d = glyphPaths(root)[0].d as string;
         expect(d).not.toBe('M0 0L10 0L10-70Z');   // not the horizontal placement
         // H rotated 90°: advance (10 wide) now runs down +y; the stem (70 up) → +x.
@@ -216,26 +216,26 @@ describe('textGlyphsEffect — along-path', () => {
     });
 
     it('needs no external guide <path> def — geometry is inline on the effect', () => {
-        const { root } = materialiseRaw(alongScene('M0 0L1000 0'));
+        const { root } = materializeRaw(alongScene('M0 0L1000 0'));
         expect(collectByType(root, 'path').some(p => p.id === 'curve')).toBe(false); // no external def
         expect(glyphPaths(root).length).toBeGreaterThan(0);                          // glyphs baked from inline path
     });
 
-    // Text "Hi" @ 100px on a path of length 50: 'H' centre ≈ 35 (on-path), 'i' centre
+    // Text "Hi" @ 100px on a path of length 50: 'H' center ≈ 35 (on-path), 'i' center
     // ≈ 85 (off the end). clip drops 'i'; extend continues it along the tangent.
     const numCount = (d: unknown) => (String(d).match(/-?\d*\.?\d+/g) ?? []).length;
     const glyphNums = (root: PxNode) => numCount(glyphPaths(root).map(p => p.d).join(''));
 
     it('pathOverflow:clip drops glyphs past the path end (extend keeps them)', () => {
-        const clip = materialiseRaw(alongScene('M0 0L50 0', undefined, 'Hi', 'clip')).root;
-        const extend = materialiseRaw(alongScene('M0 0L50 0', undefined, 'Hi', 'extend')).root;
+        const clip = materializeRaw(alongScene('M0 0L50 0', undefined, 'Hi', 'clip')).root;
+        const extend = materializeRaw(alongScene('M0 0L50 0', undefined, 'Hi', 'extend')).root;
         expect(glyphNums(clip)).toBeGreaterThan(0);                 // on-path 'H' kept
         expect(glyphNums(extend)).toBeGreaterThan(glyphNums(clip)); // 'i' dropped only under clip
     });
 
     it('pathOverflow default (undefined) = extend — nothing dropped', () => {
-        const def = materialiseRaw(alongScene('M0 0L50 0', undefined, 'Hi')).root;
-        const extend = materialiseRaw(alongScene('M0 0L50 0', undefined, 'Hi', 'extend')).root;
+        const def = materializeRaw(alongScene('M0 0L50 0', undefined, 'Hi')).root;
+        const extend = materializeRaw(alongScene('M0 0L50 0', undefined, 'Hi', 'extend')).root;
         expect(glyphNums(def)).toBe(glyphNums(extend));
     });
 });
@@ -264,10 +264,10 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
 
     it('emits a separate <path> per glyph with sampled translate+rotate keyframes', () => {
         // H (adv 70, mid 35) slides 0→100 along a straight path over 0→1000ms.
-        const { root } = materialiseRaw(animScene('M0 0L1000 0', [{ time: 0, value: 0 }, { time: 1000, value: 100 }], 'H'));
+        const { root } = materializeRaw(animScene('M0 0L1000 0', [{ time: 0, value: 0 }, { time: 1000, value: 100 }], 'H'));
         const p = glyphPaths(root);
         expect(p).toHaveLength(1);
-        // Outline baked centred on mid-advance (scale only, no position/rotation).
+        // Outline baked centered on mid-advance (scale only, no position/rotation).
         expect(p[0].d).toBe('M-35 0L-25 0L-25-70Z');
 
         const kfs = (p[0].animate as any).transform.keyframes;
@@ -281,7 +281,7 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
     });
 
     it('gives each glyph its own animated path (no merge)', () => {
-        const { root } = materialiseRaw(animScene('M0 0L1000 0', [{ time: 0, value: 0 }, { time: 1000, value: 100 }], 'Hi'));
+        const { root } = materializeRaw(animScene('M0 0L1000 0', [{ time: 0, value: 0 }, { time: 1000, value: 100 }], 'Hi'));
         const p = glyphPaths(root);
         expect(p).toHaveLength(2);
         expect((p[0].animate as any).transform.keyframes.length).toBeGreaterThan(1);
@@ -290,7 +290,7 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
 
     it('sub-samples so glyphs follow a curve (intermediate points off the chord)', () => {
         // Quarter-circle-ish path; a 2-kf straight interp would cut the corner.
-        const { root } = materialiseRaw(animScene('M0 0Q100 0 100 100', [{ time: 0, value: 0 }, { time: 1000, value: 140 }], 'H'));
+        const { root } = materializeRaw(animScene('M0 0Q100 0 100 100', [{ time: 0, value: 0 }, { time: 1000, value: 140 }], 'H'));
         const kfs = (glyphPaths(root)[0].animate as any).transform.keyframes;
         expect(kfs.length).toBeGreaterThan(3);
         // rotation changes along the curve (not constant like a straight path)
@@ -299,12 +299,12 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
     });
 
     it('propagates loop to animate.transform', () => {
-        const { root } = materialiseRaw(animScene('M0 0L1000 0', [{ time: 0, value: 0 }, { time: 1000, value: 100 }], 'H', true));
+        const { root } = materializeRaw(animScene('M0 0L1000 0', [{ time: 0, value: 0 }, { time: 1000, value: 100 }], 'H', true));
         expect((glyphPaths(root)[0].animate as any).transform.loop).toBe(true);
     });
 
     it('treats a single startOffset keyframe as static (merged, no animation)', () => {
-        const { root } = materialiseRaw(animScene('M0 0L1000 0', [{ time: 0, value: 100 }], 'Hi'));
+        const { root } = materializeRaw(animScene('M0 0L1000 0', [{ time: 0, value: 100 }], 'Hi'));
         const p = glyphPaths(root);
         expect(p).toHaveLength(1);               // merged
         expect(p[0].animate).toBeUndefined();
@@ -312,7 +312,7 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
 });
 
 
-describe('materialiseGlyphText — injected element factory (editor reuse)', () => {
+describe('materializeGlyphText — injected element factory (editor reuse)', () => {
 
     // A non-JSON factory standing in for the editor's React/px `createPxElement`.
     interface Fake { tag: string; attrs: Record<string, any>; kids: Array<Fake>; }
@@ -325,7 +325,7 @@ describe('materialiseGlyphText — injected element factory (editor reuse)', () 
     } as unknown as PxNode);
 
     it('builds the group + paths via the caller-supplied factory (not JSON nodes)', () => {
-        const g = materialiseGlyphText<Fake>(textNode(), { glyphs, create: fakeFactory });
+        const g = materializeGlyphText<Fake>(textNode(), { glyphs, create: fakeFactory });
         expect(g).toBeTruthy();
         expect(g!.tag).toBe('g');
         expect(g!.attrs.id).toBe('t');
@@ -338,7 +338,7 @@ describe('materialiseGlyphText — injected element factory (editor reuse)', () 
     });
 
     it('defaults to plain wire nodes when no factory is passed', () => {
-        const g = materialiseGlyphText<PxNode>(textNode(), { glyphs });
+        const g = materializeGlyphText<PxNode>(textNode(), { glyphs });
         expect(g!.type).toBe('g');
         expect((g!.children as Array<PxNode>)[0].type).toBe('path');
     });
@@ -586,18 +586,18 @@ function faceScene(spanAttrs: Record<string, unknown>): PxNode {
 describe('textGlyphsEffect — the face name IS the lookup key', () => {
 
     it('each face resolves its own outlines', () => {
-        expect(paths(materialiseRaw(faceScene({})).root)[0].d).toBe('M0 0L10 0L10-70Z');            // F
-        expect(paths(materialiseRaw(faceScene({ fontFamily: 'F-Bold' })).root)[0].d)
+        expect(paths(materializeRaw(faceScene({})).root)[0].d).toBe('M0 0L10 0L10-70Z');            // F
+        expect(paths(materializeRaw(faceScene({ fontFamily: 'F-Bold' })).root)[0].d)
             .toBe('M0 0L20 0L20-70Z');                                                             // F-Bold
     });
 
     it('the CSS weight/slant attrs do NOT re-pick the face', () => {
         // The author picked face `F`; `font-weight: 700` is styling on top of it and must not
         // silently swap in F-Bold's outlines.
-        expect(paths(materialiseRaw(faceScene({ fontWeight: '700' })).root)[0].d).toBe('M0 0L10 0L10-70Z');
-        expect(paths(materialiseRaw(faceScene({ fontStyle: 'italic' })).root)[0].d).toBe('M0 0L10 0L10-70Z');
+        expect(paths(materializeRaw(faceScene({ fontWeight: '700' })).root)[0].d).toBe('M0 0L10 0L10-70Z');
+        expect(paths(materializeRaw(faceScene({ fontStyle: 'italic' })).root)[0].d).toBe('M0 0L10 0L10-70Z');
         // …and a contradicting weight never overrides the picked face either.
-        expect(paths(materialiseRaw(faceScene({ fontFamily: 'F-Bold', fontWeight: '300' })).root)[0].d)
+        expect(paths(materializeRaw(faceScene({ fontFamily: 'F-Bold', fontWeight: '300' })).root)[0].d)
             .toBe('M0 0L20 0L20-70Z');
     });
 });

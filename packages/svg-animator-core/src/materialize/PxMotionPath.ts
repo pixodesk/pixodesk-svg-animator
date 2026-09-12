@@ -28,7 +28,7 @@
 
 import { bezier2D_arcAtT, bezier2D_arcLengthLUT, bezier2D_derivativeAt, bezier2D_pointAt, clamp, invertEasing, splitEasing } from '../util/PxAnimatorUtil';
 import type { ArcLengthLUT } from '../util/PxAnimatorUtil';
-import type { PxAnyKeyframe, PxKeyframe, PxNormalisedKeyframe, PxNode, PxPropertyAnimation, PxTransformParts } from '../format/PxAnimatorTypes';
+import type { PxAnyKeyframe, PxKeyframe, PxNormalizedKeyframe, PxNode, PxPropertyAnimation, PxTransformParts } from '../format/PxAnimatorTypes';
 import { kfTime, kfValue, kfEasing, kfTangentIn, kfTangentOut } from '../format/PxAnimatorTypes';
 
 
@@ -76,7 +76,7 @@ export function propAnimIsMotionPath(anim: PxPropertyAnimation): boolean {
 
 // ─────────────────────────────────────────────────────────────────────────────
 //  Segment cache — shared by `evaluateMotionPathSegment` (frames-mode kernel)
-//  and the materialiser. Keyed by FROM-keyframe identity (WeakMap), so cache
+//  and the materializer. Keyed by FROM-keyframe identity (WeakMap), so cache
 //  entries vanish automatically when keyframes are replaced.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -130,7 +130,7 @@ export function _resetMotionPathSegmentCache(): void {
 // ─────────────────────────────────────────────────────────────────────────────
 //  Frames-mode kernel — preserved for any caller that still wants parametric
 //  evaluation. The binding pipeline no longer needs it (motion-path is
-//  materialised at `getNormalisedBindings` time), but it's a useful primitive
+//  materialized at `getNormalizedBindings` time), but it's a useful primitive
 //  on its own.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -190,12 +190,12 @@ function tFromArcFraction(lut: ArcLengthLUT, arcFrac: number): number {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Public API — materialise parametric motion-path into plain transform kfs
+//  Public API — materialize parametric motion-path into plain transform kfs
 // ─────────────────────────────────────────────────────────────────────────────
 
 
-/** Sampling configuration shared by `materialiseMotionPathInPropAnim` + `materialiseMotionPathsInTree`. */
-export interface MotionPathMaterialisationOptions {
+/** Sampling configuration shared by `materializeMotionPathInPropAnim` + `materializeMotionPathsInTree`. */
+export interface MotionPathMaterializationOptions {
     /** Max chord-to-curve deviation per sub-interval, in user units (default 0.5). */
     flatnessTolerance?: number;
     /** Max rotation delta (in degrees) between adjacent samples when `autoOrient`
@@ -224,9 +224,9 @@ const DEFAULT_MAX_SAMPLES  = 32;
  * Returns the input unchanged (by reference) when it's not a motion-path
  * animation — callers can blindly run it through every propAnim.
  */
-export function materialiseMotionPathInPropAnim(
+export function materializeMotionPathInPropAnim(
     anim: PxPropertyAnimation,
-    opts?: MotionPathMaterialisationOptions,
+    opts?: MotionPathMaterializationOptions,
 ): PxPropertyAnimation {
     if (!propAnimIsMotionPath(anim)) return anim;
     const kfs = anim.keyframes as Array<PxAnyKeyframe> | undefined;
@@ -237,7 +237,7 @@ export function materialiseMotionPathInPropAnim(
     const rotationTol  = opts?.rotationTolerance  ?? DEFAULT_ROTATION_TOL;
     const maxSamples   = opts?.maxSamplesPerSegment ?? DEFAULT_MAX_SAMPLES;
 
-    const out: Array<PxNormalisedKeyframe> = [];
+    const out: Array<PxNormalizedKeyframe> = [];
 
     // First output kf — translate from input; rotate from segment-0 derivative
     // at t=0 if autoOrient. All other transform parts (`origin`, `scale`, an
@@ -278,7 +278,7 @@ export function materialiseMotionPathInPropAnim(
             insertSharpCornerStepKfIfNeeded(out, prevKf, nextKf, prevPos, nextPos, rotationTol);
         }
 
-        materialiseSegment(out, prevKf, nextKf, prevPos, nextPos, autoOrient, flatnessTol, rotationTol, maxSamples);
+        materializeSegment(out, prevKf, nextKf, prevPos, nextPos, autoOrient, flatnessTol, rotationTol, maxSamples);
     }
 
     // The very last out-kf inherits the original last kf's `easing` (which
@@ -323,7 +323,7 @@ export function unwrapAutoOrientRotations(kfs: Array<PxAnyKeyframe>): void {
 }
 
 
-function makeOutKf(time: number, value: PxTransformParts): PxNormalisedKeyframe {
+function makeOutKf(time: number, value: PxTransformParts): PxNormalizedKeyframe {
     return { t: time, v: value };
 }
 
@@ -437,14 +437,14 @@ function wrappedAngleDelta(a: number, b: number): number {
  * `rotate` — making engines render an instant rotation snap at the boundary
  * rather than linearly sliding rotation across the whole next segment.
  *
- * Called between `materialiseSegment` calls. The boundary kf already in `out`
+ * Called between `materializeSegment` calls. The boundary kf already in `out`
  * keeps its outgoing easing as undefined (no easing between the two duplicates
- * — the step is instant); the next `materialiseSegment` will then attach its
+ * — the step is instant); the next `materializeSegment` will then attach its
  * sequential-split easing to the newly-inserted duplicate, so the per-sample
  * easing on segment `i+1` works exactly as before.
  */
 function insertSharpCornerStepKfIfNeeded(
-    out: Array<PxNormalisedKeyframe>,
+    out: Array<PxNormalizedKeyframe>,
     prevKf: PxAnyKeyframe, nextKf: PxAnyKeyframe,
     prevPos: Point2, nextPos: Point2,
     rotationTol: number,
@@ -488,11 +488,11 @@ function insertSharpCornerStepKfIfNeeded(
 const CORNER_STEP_AFTER_BOUNDARY_MS = 0.05;
 
 
-/** Materialises a single segment into `out`. Appends one kf per sample (interior
+/** Materializes a single segment into `out`. Appends one kf per sample (interior
  *  critical/adaptive points + the next-kf endpoint), with positions, optional
  *  rotations, and split easings. */
-function materialiseSegment(
-    out: Array<PxNormalisedKeyframe>,
+function materializeSegment(
+    out: Array<PxNormalizedKeyframe>,
     prevKf: PxKeyframe, nextKf: PxKeyframe,
     prevPos: Point2, nextPos: Point2,
     autoOrient: boolean,
@@ -682,27 +682,27 @@ function perpDist(q: Point2, pA: Point2, pB: Point2): number {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Tree walker — applies `materialiseMotionPathInPropAnim` to every `node.animate.transform`
+//  Tree walker — applies `materializeMotionPathInPropAnim` to every `node.animate.transform`
 //  whose propAnim is a motion-path. Immutable: returns the input by reference
 //  when no changes were needed; otherwise clones along the path to each
 //  converted node and shares all other sub-trees.
 // ─────────────────────────────────────────────────────────────────────────────
 
 
-export function materialiseMotionPathsInTree(
+export function materializeMotionPathsInTree(
     root: PxNode,
-    opts?: MotionPathMaterialisationOptions,
+    opts?: MotionPathMaterializationOptions,
 ): PxNode {
-    const out = walkAndMaterialise(root, opts);
+    const out = walkAndMaterialize(root, opts);
     return out ?? root;
 }
 
-function walkAndMaterialise(node: PxNode, opts?: MotionPathMaterialisationOptions): PxNode | null {
+function walkAndMaterialize(node: PxNode, opts?: MotionPathMaterializationOptions): PxNode | null {
     let newChildren: Array<PxNode> | undefined;
     if (node.children) {
         for (let i = 0; i < node.children.length; i++) {
             const ch = node.children[i];
-            const ret = walkAndMaterialise(ch, opts);
+            const ret = walkAndMaterialize(ch, opts);
             if (ret !== null) {
                 if (!newChildren) newChildren = node.children.slice();
                 newChildren[i] = ret;
@@ -716,9 +716,9 @@ function walkAndMaterialise(node: PxNode, opts?: MotionPathMaterialisationOption
         const animDef = animBucket as Record<string, PxPropertyAnimation>;
         const transformAnim = animDef.transform;
         if (transformAnim && typeof transformAnim === 'object' && propAnimIsMotionPath(transformAnim)) {
-            const materialised = materialiseMotionPathInPropAnim(transformAnim, opts);
-            if (materialised !== transformAnim) {
-                newAnimate = { ...animDef, transform: materialised };
+            const materialized = materializeMotionPathInPropAnim(transformAnim, opts);
+            if (materialized !== transformAnim) {
+                newAnimate = { ...animDef, transform: materialized };
             }
         }
     }

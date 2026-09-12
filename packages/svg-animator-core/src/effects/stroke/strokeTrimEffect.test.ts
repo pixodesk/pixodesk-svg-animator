@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../../format/PxAnimatorTypes';
-import { collectByType, materialise, normaliseGeneratedIds } from '../effectTestKit';
+import { collectByType, materialize, normalizeGeneratedIds } from '../effectTestKit';
 
 /** A stroked leaf `<path>` (straight line, length≈100) carrying a trim effect. */
 const linePath = (strokeTrim: any, d = 'M0,0 L100,0'): PxNode =>
@@ -23,11 +23,11 @@ const animKeys = (n: PxNode): Array<string> => Object.keys((n as any).animate ||
 const thePath = (out: PxNode): PxNode => collectByType(out, 'path')[0];
 
 
-describe('strokeTrimEffect — dasharray/dashoffset materialisation', () => {
+describe('strokeTrimEffect — dasharray/dashoffset materialization', () => {
 
     it('case 1 — single subpath + static range → COLLAPSE: dash attrs on the leaf <path>, no <g>', () => {
-        const out = materialise(linePath({ range: [0, 0.5] }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(linePath({ range: [0, 0.5] }));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -58,10 +58,10 @@ describe('strokeTrimEffect — dasharray/dashoffset materialisation', () => {
     });
 
     it('case 2 — animated range → animate.strokeDasharray.keyframes + static baseline', () => {
-        const out = materialise(linePath({
+        const out = materialize(linePath({
             range: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [0, 1] }] },
         }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -92,11 +92,11 @@ describe('strokeTrimEffect — dasharray/dashoffset materialisation', () => {
     });
 
     it('case 3 — animated offset → animate.strokeDashoffset.keyframes', () => {
-        const out = materialise(linePath({
+        const out = materialize(linePath({
             range: [0, 0.4],
             offset: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] },
         }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -127,8 +127,8 @@ describe('strokeTrimEffect — dasharray/dashoffset materialisation', () => {
     });
 
     it('case 4 — empty static range [0,0] → stroke-opacity 0 (hidden), fill untouched', () => {
-        const out = materialise(linePath({ range: [0, 0] }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(linePath({ range: [0, 0] }));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -156,8 +156,8 @@ describe('strokeTrimEffect — dasharray/dashoffset materialisation', () => {
     });
 
     it('case 5 — multi-subpath → SPLIT into <g> + one bare <path> per subpath, each trimmed', () => {
-        const out = materialise(linePath({ range: [0, 0.5] }, 'M0,0 L100,0 M0,20 L100,20'));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(linePath({ range: [0, 0.5] }, 'M0,0 L100,0 M0,20 L100,20'));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -209,8 +209,8 @@ describe('strokeTrimEffect — dasharray/dashoffset materialisation', () => {
     // `applyStrokeTrimEffect` returned the node untouched — the effect vanished and the
     // full outline painted at every frame (it read as "stuck at the end frame").
 
-    it('case 5 — <ellipse> host + animated range → trim materialises (was silently dropped)', () => {
-        const out = materialise({
+    it('case 5 — <ellipse> host + animated range → trim materializes (was silently dropped)', () => {
+        const out = materialize({
             type: 'svg', children: [{
                 type: 'ellipse', id: 'e', rx: 6, ry: 6, stroke: '#2673f2', strokeWidth: 3, fill: 'none',
                 effects: { strokeTrim: { range: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [0, 1] }] } } },
@@ -234,7 +234,7 @@ describe('strokeTrimEffect — dasharray/dashoffset materialisation', () => {
     });
 
     it('case 6 — <circle> host trims on its own circumference', () => {
-        const out = materialise({
+        const out = materialize({
             type: 'svg', children: [{
                 type: 'circle', id: 'c', r: 10, cx: 50, cy: 50, stroke: '#000', strokeWidth: 2, fill: 'none',
                 effects: { strokeTrim: { range: [0, 0.5] } },

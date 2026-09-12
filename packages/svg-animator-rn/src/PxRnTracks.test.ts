@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { describe, expect, it } from 'vitest';
-import { generateNewIds, materialiseAllInTree, PxTimelineEngine, type PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import { generateNewIds, materializeAllInTree, PxTimelineEngine, type PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
 import { compileTracks, sampleProps } from './PxRnTracks';
 import { toRnPropName } from './PxRnPropNames';
 
@@ -37,8 +37,8 @@ function makeDoc(): PxAnimatedSvgDocument {
 }
 
 function compile(doc = makeDoc(), opts?: Parameters<typeof compileTracks>[1]) {
-    const materialised = generateNewIds(materialiseAllInTree(doc, PxTimelineEngine.js));
-    return compileTracks(materialised, opts);
+    const materialized = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.js));
+    return compileTracks(materialized, opts);
 }
 
 describe('compileTracks', () => {
@@ -76,7 +76,7 @@ describe('compileTracks', () => {
         expect(+rect.props.strokeWidth[rect.props.strokeWidth.length - 1]).toBe(5);
     });
 
-    it('samples colour props as rgba strings', () => {
+    it('samples color props as rgba strings', () => {
         const tracks = compile();
         const rect = tracks.elements.find(e => 'fill' in e.props)!;
         expect(String(rect.props.fill[0])).toMatch(/^rgba\(/);
@@ -156,8 +156,8 @@ describe('length-list props (stroke-dasharray)', () => {
                 effects: { strokeTrim: { range: { keyframes: [{ time: 0, value: [0, 0.1] }, { time: 1000, value: [0, 1] }] } } },
             }],
         };
-        const materialised = generateNewIds(materialiseAllInTree(doc, PxTimelineEngine.native));
-        const tracks = compileTracks(materialised);
+        const materialized = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
+        const tracks = compileTracks(materialized);
         const el = tracks.elements.find(e => 'strokeDasharray' in e.props)!;
         expect(el).toBeDefined();
         const first = el.props.strokeDasharray[0];
@@ -167,7 +167,7 @@ describe('length-list props (stroke-dasharray)', () => {
     });
 });
 
-describe('animated <use> flattening (waapi materialisation)', () => {
+describe('animated <use> flattening (waapi materialization)', () => {
     it('inlines animated <use> clones so no live references remain', () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg', viewBox: '0 0 300 200',
@@ -181,12 +181,12 @@ describe('animated <use> flattening (waapi materialisation)', () => {
                 { type: 'use', id: 'u2', href: '#sym', x: 80, effects: { clone: { source: '#sym', retime: { start: -600 } } } },
             ],
         };
-        const materialised = generateNewIds(materialiseAllInTree(doc, PxTimelineEngine.native));
+        const materialized = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
         const countUse = (n: any): number =>
             (n.type === 'use' ? 1 : 0) + (n.children || []).reduce((s: number, c: any) => s + countUse(c), 0);
-        expect(countUse(materialised)).toBe(0);
+        expect(countUse(materialized)).toBe(0);
 
-        const tracks = compileTracks(materialised);
+        const tracks = compileTracks(materialized);
         const cyTracks = tracks.elements.filter(e => 'cy' in e.props);
         expect(cyTracks.length).toBe(2);
         expect(cyTracks[0].props.cy[0]).not.toBe(cyTracks[1].props.cy[0]);
@@ -195,9 +195,9 @@ describe('animated <use> flattening (waapi materialisation)', () => {
 
 describe('compileTracks platform gating', () => {
     /** The DEFAULT is the DOM form. react-native-web passes values straight to
-     *  the DOM, where a matrix array serialises to `transform="1,0,0,1,x,y"` —
+     *  the DOM, where a matrix array serializes to `transform="1,0,0,1,x,y"` —
      *  invalid, so the element silently stops moving. Web is the priority
-     *  behaviour; native is the one that has to opt in. */
+     *  behavior; native is the one that has to opt in. */
     it('samples transforms as SVG STRINGS by default', () => {
         const tracks = compile();
         const g = tracks.elements.find(e => 'transform' in e.props)!;

@@ -52,7 +52,7 @@ export type ReadPart<T> =
     | { kind: ReadKind.Static; value: T }
     | { kind: ReadKind.Animated; keyframes: Array<PxKeyframe<T>>; autoOrient?: boolean; loop?: PxLoop | boolean; base?: T };
 
-/** Normalises an animatable field into a static value or a keyframe list (with
+/** Normalizes an animatable field into a static value or a keyframe list (with
  *  `autoOrient` and `loop` propagated — the latter so timeline-level loop config
  *  reaches the per-attribute `animate.X.loop` emitted by callers; without it,
  *  effect-driven animations would silently ignore `loop.alternate`/cycle while
@@ -69,11 +69,11 @@ export function readAnimatable<T>(raw: PxAnimatable<T> | undefined): ReadPart<T>
         };
         const kfs = obj.keyframes;
         if (kfs) {
-            // Normalise the wire's short aliases ONCE, here, so every consumer
+            // Normalize the wire's short aliases ONCE, here, so every consumer
             // downstream (transformation, repeater, …) only ever sees the long
             // form. Without this a keyframe authored `{t, v}` lost both its time
             // and its value and the animation silently froze at frame 0.
-            const out: ReadPart<T> = { kind: ReadKind.Animated, keyframes: kfs.map(normaliseKeyframe), autoOrient: obj.autoOrient, loop: obj.loop };
+            const out: ReadPart<T> = { kind: ReadKind.Animated, keyframes: kfs.map(normalizeKeyframe), autoOrient: obj.autoOrient, loop: obj.loop };
             const base = obj.value ?? obj.v;
             if (base !== undefined && out.kind === ReadKind.Animated) out.base = base;
             return out;
@@ -85,7 +85,7 @@ export function readAnimatable<T>(raw: PxAnimatable<T> | undefined): ReadPart<T>
 }
 
 /**
- * Writes a normalised animatable (`ReadPart`) onto a node as attribute/animation —
+ * Writes a normalized animatable (`ReadPart`) onto a node as attribute/animation —
  * the ONE emit path shared by the effect appliers (strokeTrim, textPath, …):
  *   - Static → `node[attrName] = value` (stringified when `opts.asString`).
  *   - Animated → `node.animate[attrName] = {keyframes, loop?, autoOrient?}` PLUS a
@@ -120,7 +120,7 @@ export function writeAnimatableChannel(
 /** Rewrites a keyframe's short aliases (`t`/`v`/`e`/`to`/`ti`) to their long
  *  names. Long names win when both are present, matching `PxMotionPath`'s
  *  `tangentIn ?? ti` precedence. */
-function normaliseKeyframe<T>(kf: PxKeyframe<T>): PxKeyframe<T> {
+function normalizeKeyframe<T>(kf: PxKeyframe<T>): PxKeyframe<T> {
     if (!kf || typeof kf !== 'object') return kf;
     const k = kf as PxKeyframe<T> & { t?: number; v?: T; e?: unknown; to?: Vec2; ti?: Vec2 };
     if (k.t === undefined && k.v === undefined && k.e === undefined && k.to === undefined && k.ti === undefined) {

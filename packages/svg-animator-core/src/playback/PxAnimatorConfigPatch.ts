@@ -22,6 +22,7 @@
  * on the nested form is the only place those values mean what they say.
  */
 import { PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS } from '../format/PxAnimatorConstants';
+import type { PxStartOn } from '../format/PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxAnimatorConfig } from '../format/PxAnimatorTypes';
 
 /** A deep-partial of the WIRE animator config; `null` at any slot deletes it. */
@@ -46,7 +47,7 @@ const CONTENT_KEYS = ['definitions', 'animateById'];
 const isPlainObject = (v: unknown): v is Record<string, any> =>
     !!v && typeof v === 'object' && !Array.isArray(v);
 
-/** Absent `type` means the time-driven timeline, so compare the normalised values (RULE 2). */
+/** Absent `type` means the time-driven timeline, so compare the normalized values (RULE 2). */
 const timelineTypeOf = (t: unknown): string =>
     (isPlainObject(t) && typeof t.type === 'string') ? t.type : 'time';
 
@@ -76,7 +77,7 @@ function mergePlain(base: unknown, patch: Record<string, any>): Record<string, a
  *          scroll timeline, where the format has no slot for them.
  * RULE 2 — same type, or the patch does not mention one: merge. A patch that spells
  *          `type: 'time'` against a document with an ABSENT type must count as a match, hence
- *          the normalisation above.
+ *          the normalization above.
  * RULE 3 — time-only keys landing on a scroll/view timeline are dropped with a warning, the
  *          same way the wire has no slot for them.
  * RULE 4 — `iterations: 'infinite'` cannot map onto a scroll range.
@@ -116,10 +117,39 @@ function mergeTimeline(base: unknown, patch: Record<string, any>, warn: (m: stri
 
 /** The four flat shortcuts every surface offers for the keys people reach for most. */
 export interface PxAnimatorConfigShortcuts {
+    /** Shortcut for `config.timeline.duration` — one iteration, ms. Wins over the same key in `config`. */
     duration?: number;
+    /** Shortcut for `config.timeline.delay` — the wait before the first iteration, ms. */
     delay?: number;
+    /** Shortcut for `config.timeline.iterations`; `'infinite'` never stops. */
     iterations?: number | 'infinite';
-    startOn?: string;
+    /**
+     * Shortcut for `config.timeline.trigger.startOn`. Typed from the WIRE, so it includes
+     * `'programmatic'` — "nothing starts this but a `play()` call". Was a bare `string`.
+     */
+    startOn?: PxStartOn;
+}
+
+/**
+ * The playback-override props every framework component takes: the whole `animator` block as a
+ * patch, the reset flag, and the four shortcuts above.
+ *
+ * ONE definition (review §9): React and React Native extend it, Vue derives its internal shape
+ * from it. Before this each spelled the same six members separately.
+ */
+export interface PxPlaybackOverrideProps extends PxAnimatorConfigShortcuts {
+    /**
+     * Per-instance override of the document's `animator` config — the same shape as `animator`
+     * in SCHEMA.md, deep-merged over what the document says. `null` at any slot DELETES that key,
+     * restoring the default its absence means. Also accepts a JSON STRING, which survives a build
+     * that mangles object keys.
+     */
+    config?: PxAnimatorConfigPatch | string;
+    /**
+     * Ignore the document's own playback settings and start from the player's defaults, with
+     * `config` on top. `definitions` and `animateById` are kept either way.
+     */
+    resetDocDefaults?: boolean;
 }
 
 /**

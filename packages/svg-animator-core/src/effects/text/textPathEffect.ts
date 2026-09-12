@@ -69,7 +69,7 @@ export interface ExtendedPath {
 
 /** Shift a `PxAnimatable<number>` by a constant (base + all keyframes). No-op for `0`.
  *  Reads via the shared `readAnimatable` (kfs/loop aliases handled), emits the
- *  normalised long form. */
+ *  normalized long form. */
 export function shiftAnimatable(v: PxAnimatable<number> | undefined, by: number): PxAnimatable<number> | undefined {
     if (!by || v === undefined || v === null) return v;
     const read = readAnimatable<number>(v);
@@ -129,7 +129,7 @@ export function extendedPathForBrowser(pathD: string, opts: ExtendPathOpts): Ext
 
 
 /**
- * `effects.textPath` materialiser (browser-font / non-glyph path).
+ * `effects.textPath` materializer (browser-font / non-glyph path).
  *
  * The path geometry is carried INLINE on the effect as `path` (an SVG `d`). SVG's
  * native rendering requires a `<textPath href="#…">` wrapper referencing a `<path>`

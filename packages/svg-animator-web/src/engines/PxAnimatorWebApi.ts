@@ -3,17 +3,17 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOUR_ATTR_NAMES, composeTransformParts, cubicBezier, getAnimatorConfig, getNormalisedBindings, interpolateValue, kebabToCamelCaseWord, PxTimelineEngine, splitEasing, toRGBA, TRANSFORM_FN_NAMES, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxAnyKeyframe, type PxBezierPath, type PxNormalisedKeyframe, kfEasing, kfValue, clampSeekMs, createDiagnostics, isValidPlaybackRate, progressToTimeMs, PX_RATE_REJECTED, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
+import { PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, getAnimatorConfig, getNormalizedBindings, interpolateValue, kebabToCamelCaseWord, PxTimelineEngine, splitEasing, toRGBA, TRANSFORM_FN_NAMES, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxAnyKeyframe, type PxBezierPath, type PxNormalizedKeyframe, kfEasing, kfValue, clampSeekMs, createDiagnostics, isValidPlaybackRate, progressToTimeMs, PX_RATE_REJECTED, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
 import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
 
 
 /**
- * Converts a single normalised keyframe into a Web Animations API Keyframe object.
+ * Converts a single normalized keyframe into a Web Animations API Keyframe object.
  *
  * Handles three categories of CSS property:
- * - **Colour attributes** (e.g. fill, stroke): array values are converted to an rgba() string.
+ * - **Color attributes** (e.g. fill, stroke): array values are converted to an rgba() string.
  * - **Transform functions** (e.g. translate, rotate, scale): values are formatted as a
  *   CSS transform function string and mapped to the transform property.
  * - **All other properties**: the value is coerced to a string as-is.
@@ -36,7 +36,7 @@ function createCssKf(kf: PxAnyKeyframe, t: number, propName: string, unsupported
     let cssValue: any;
     let cssKey = propName;
 
-    if (COLOUR_ATTR_NAMES.has(propName) && Array.isArray(value)) {
+    if (COLOR_ATTR_NAMES.has(propName) && Array.isArray(value)) {
         cssValue = toRGBA(value);
     } else if (propName === 'transform' && value !== null && typeof value === 'object' && !Array.isArray(value)) {
         // Unified transform: keyframe value is a parts record (PxTransformParts).
@@ -77,7 +77,7 @@ function createCssKf(kf: PxAnyKeyframe, t: number, propName: string, unsupported
 
     // `CSS.supports` takes a CSS PROPERTY name, so it must be asked in kebab-case —
     // `CSS.supports('strokeDasharray', …)` is always false. Prop names reach us in
-    // either form (the app materialises trim paths as camelCase `strokeDasharray` /
+    // either form (the app materializes trim paths as camelCase `strokeDasharray` /
     // `strokeDashoffset` / `strokeOpacity`), and an unsupported entry makes the caller
     // discard EVERY animation on the document, so a false negative here is costly.
     if (!CSS.supports(camelCaseToKebabWordIfNeeded(cssKey), cssValue)) unsupportedSet.add(cssKey);
@@ -95,10 +95,10 @@ function createCssKf(kf: PxAnyKeyframe, t: number, propName: string, unsupported
  */
 function clipKeyframesToDuration(
     propName: string,
-    keyframes: PxNormalisedKeyframe[],
+    keyframes: PxNormalizedKeyframe[],
     duration: number
-): PxNormalisedKeyframe[] {
-    const result: PxNormalisedKeyframe[] = [];
+): PxNormalizedKeyframe[] {
+    const result: PxNormalizedKeyframe[] = [];
 
     for (let i = 0; i < keyframes.length; i++) {
         const kf = keyframes[i];
@@ -143,10 +143,10 @@ function clipKeyframesToDuration(
  *
  * For each property in the definition the function:
  * 1. Clips keyframes to [0, duration], interpolating boundary values when a pair straddles an edge.
- * 2. Normalises keyframe time values to the [0, 1] offset range (time / duration).
+ * 2. Normalizes keyframe time values to the [0, 1] offset range (time / duration).
  * 3. Delegates CSS value conversion to createCssKf.
  * 4. Ensures the keyframe sequence always starts at offset: 0 and ends at offset: 1 — a
- *    requirement of the Web Animations API for correct looping behaviour. If the first keyframe
+ *    requirement of the Web Animations API for correct looping behavior. If the first keyframe
  *    starts after 0 or the last keyframe ends before 1, a copy of that keyframe is inserted at the
  *    boundary with the adjusted offset.
  */
@@ -236,11 +236,11 @@ export function createWebApiAnimator(
         }
     }
 
-    // WAAPI bindings: motion-along-path is materialised into plain `{ translate,
+    // WAAPI bindings: motion-along-path is materialized into plain `{ translate,
     // rotate }` transform kfs inside `normalizeAnimationDefinition` (gated on
     // `engine === 'waapi'`). The WAAPI keyframe builder then sees a vanilla
     // unified-transform animation — no DOM-style mutation, no offset-path.
-    const bindings = getNormalisedBindings(doc, PxTimelineEngine.native);
+    const bindings = getNormalizedBindings(doc, PxTimelineEngine.native);
 
     const animations: Array<Animation> = [];
 
@@ -461,7 +461,10 @@ export function createWebApiAnimator(
     if (config.timelineSource === 'scroll') {
         if (config.trigger) diag.warn(PxDiagnosticKind.usage, 'scroll timeline: `animator.trigger` is ignored (triggers do not apply to scroll-driven playback)');
     } else {
-        setupAnimationTriggers(api, config.trigger ?? {}, diag);
+        // The disposer rides on destroy(), so the listeners go when the animator does (§14).
+        const detachTriggers = setupAnimationTriggers(api, config.trigger ?? {}, diag);
+        const destroyEngine = api.destroy.bind(api);
+        api.destroy = () => { detachTriggers(); destroyEngine(); };
     }
 
     // A progress-based timeline only tracks while the animation is PLAYING — start it

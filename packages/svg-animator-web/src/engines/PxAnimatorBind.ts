@@ -13,13 +13,13 @@ import { applyScrollPin, createNativeScrollTimeline, createScrollDriver } from '
  * Engine construction, shared by the full player and the pre-rendered builds.
  *
  * Everything here operates on a document that is ALREADY in its final shape — no
- * validation, no materialisation, no rendering. `createAnimatorImpl` calls in after it
+ * validation, no materialization, no rendering. `createAnimatorImpl` calls in after it
  * has done those stages; the pre-rendered entries call in directly, because the Editor
  * did them at export time. See PRERENDERED-PLAYER-BUILDS.md.
  */
 
 /**
- * Applies the two `animator` config behaviours that are engine-independent, then hands
+ * Applies the two `animator` config behaviors that are engine-independent, then hands
  * off to `make` for the actual engine.
  *
  * `resetOnFinish` is composed here so BOTH engines get it: after a NATURAL finish the
@@ -171,9 +171,9 @@ function requireData(options: PxPrerenderedOptions): PxAnimatedSvgDocument {
 }
 
 /**
- * Pre-rendered entry, both engines (`auto` / `player` / `native` all honoured).
+ * Pre-rendered entry, both engines (`auto` / `player` / `native` all honored).
  *
- * Deliberately skips `validateNodeEffects`, `materialiseAllInTree`, `generateNewIds` and
+ * Deliberately skips `validateNodeEffects`, `materializeAllInTree`, `generateNewIds` and
  * `renderNode`. Safe because the payload has no `children`, so all four are provably
  * no-ops for this document shape — and none of them reads `animator.animateById`.
  */

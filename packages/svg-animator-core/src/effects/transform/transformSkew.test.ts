@@ -15,7 +15,7 @@ import { describe, expect, it } from 'vitest';
 import { composeTransformParts } from '../../util/PxAnimatorUtil';
 import { interpolateValue } from '../../animation/PxDefinitions';
 import type { PxNode } from '../../format/PxAnimatorTypes';
-import { materialise } from '../effectTestKit';
+import { materialize } from '../effectTestKit';
 
 
 describe('skew transform part', () => {
@@ -40,7 +40,7 @@ describe('skew transform part', () => {
                 effects: { transformBy: { skew: 15 } },
             }],
         } as unknown as PxNode;
-        const out = materialise(node);
+        const out = materialize(node);
         const json = JSON.stringify(out);
         expect(json).toContain('"skew":15');
     });
@@ -53,7 +53,7 @@ describe('skew transform part', () => {
                 effects: { transformBy: { skew: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 30 }] } } },
             }],
         } as unknown as PxNode;
-        const out = materialise(node);
+        const out = materialize(node);
         const json = JSON.stringify(out);
         expect(json).toContain('"skew":0');
         expect(json).toContain('"skew":30');

@@ -14,7 +14,7 @@ import { genId } from '../shared/util';
  * CLIP-PATH → a `<clipPath>` in defs holding a single `<path>` built from the effect's
  * `d`, referenced via `clip-path="url(#…)"` on the host element.
  *
- * Materialiser pattern, mirroring `applyMaskedByEffect` (generate a def, set a URL ref on the
+ * Materializer pattern, mirroring `applyMaskedByEffect` (generate a def, set a URL ref on the
  * node) but far simpler — the clip geometry is a self-contained vector path (no ancestor
  * transform compensation, no source lookup).
  *
@@ -39,7 +39,7 @@ export function applyClipPathEffect(
     const read = readAnimatable<string>(fx.pathData);
     if (read.kind !== ReadKind.Absent) {
         // Static values may be the bare path string or a `{pathData}` object (the kf
-        // value encoding) — normalise to the string for the body attr.
+        // value encoding) — normalize to the string for the body attr.
         if (read.kind === ReadKind.Static) {
             pathChild.d = pathString(read.value);
         } else {

@@ -5,13 +5,13 @@
 
 
 /**
- * Glyph text materialiser — turns a `<text>`/`<tspan>` subtree into `<path>`
+ * Glyph text materializer — turns a `<text>`/`<tspan>` subtree into `<path>`
  * outlines from `definitions.fonts`, so the text renders with no external font.
  *
- *  - HORIZONTAL ({@link materialiseGlyphTextHorizontal}) — left-to-right by
- *    advance width; honours font-size, text-anchor, letter/word-spacing,
+ *  - HORIZONTAL ({@link materializeGlyphTextHorizontal}) — left-to-right by
+ *    advance width; honors font-size, text-anchor, letter/word-spacing,
  *    per-tspan x/y/dx/dy, fill/stroke, nested tspans.
- *  - ALONG-PATH ({@link materialiseGlyphTextAlongPath}) — each glyph placed and
+ *  - ALONG-PATH ({@link materializeGlyphTextAlongPath}) — each glyph placed and
  *    rotated to the referenced path's tangent. Static `startOffset` → glyphs
  *    bake+merge; animated `startOffset` → per-glyph `<path>` with sampled
  *    `animate.transform`. Text-level `x`/`dx` add distance ALONG the path (≈
@@ -22,7 +22,7 @@
  * Element creation goes through an injected {@link PxCreateElement} factory, so
  * the SAME layout produces plain wire nodes here (the effects pipeline) or the
  * editor's React/px elements when the editor calls it — see
- * {@link materialiseGlyphText}.
+ * {@link materializeGlyphText}.
  *
  * v1 scope (see svga.text.design.md): keyframe-interval easing is linear;
  * kerning/ligatures, per-tspan opacity, text-level animated fill are out of scope.
@@ -33,14 +33,14 @@ import { TEXT_CONTENT_ATTR, CLASS_ATTR } from '../../format/PxAnimatorConstants'
 import { jsonElementFactory, type PxCreateElement } from './elementFactory';
 import { transformPathData, type Affine } from './glyphPathBake';
 import { createPathSampler, type PathSampler } from './pathSampler';
-import { unwrapAutoOrientRotations } from '../../materialise/PxMotionPath';
+import { unwrapAutoOrientRotations } from '../../materialize/PxMotionPath';
 import { ReadKind, readAnimatable, TransformPart } from '../shared/transformParts';
 import type { ApplyContext } from '../shared/types';
 
 
 const DEFAULT_FONT_SIZE = 16;
 
-/** Text/tspan attribute keys that don't belong on the materialised `<g>`. */
+/** Text/tspan attribute keys that don't belong on the materialized `<g>`. */
 const TEXT_ATTR_KEYS: ReadonlyArray<string> = [
     'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'textAnchor',
     'letterSpacing', 'wordSpacing', 'textDecoration', 'textTransform',
@@ -49,9 +49,9 @@ const TEXT_ATTR_KEYS: ReadonlyArray<string> = [
     TEXT_CONTENT_ATTR, 'xml:space',
 ];
 
-/** Inputs for a glyph materialisation, decoupled from the effects `ApplyContext`
- *  so the editor can call the materialiser directly. */
-export interface GlyphMaterialiseOpts<E = any> {
+/** Inputs for a glyph materialization, decoupled from the effects `ApplyContext`
+ *  so the editor can call the materializer directly. */
+export interface GlyphMaterializeOpts<E = any> {
     /** Embedded glyph fonts, keyed by `font-family`. */
     glyphs: Record<string, PxGlyphFont>;
     /** Element factory — defaults to plain wire nodes ({@link jsonElementFactory}). */
@@ -226,7 +226,7 @@ function missingGlyphBoxEm(advanceEm: number, ascentEm: number): string {
 
 // ── HORIZONTAL ──────────────────────────────────────────────────────────────
 
-export function materialiseGlyphTextHorizontal<E = any>(node: PxNode, opts: GlyphMaterialiseOpts<E>): E {
+export function materializeGlyphTextHorizontal<E = any>(node: PxNode, opts: GlyphMaterializeOpts<E>): E {
     const { glyphs, create = jsonElementFactory as PxCreateElement<E>, warnings } = opts;
     const soleFont = soleFontOf(glyphs);
 
@@ -309,7 +309,7 @@ export interface GlyphCharBox {
 }
 
 /** Optional along-path geometry for {@link layoutGlyphTextChars}: when given, chars are
- *  placed + rotated along `pathD` (mirrors {@link materialiseGlyphTextAlongPath}) at the
+ *  placed + rotated along `pathD` (mirrors {@link materializeGlyphTextAlongPath}) at the
  *  STATIC / frame-0 startOffset, so the editor caret follows the path. */
 export interface GlyphCharBoxAlongPath { pathD?: string; startOffset?: PxAnimatable<number>; textLength?: PxAnimatable<number>; pathOverflow?: string; }
 
@@ -317,12 +317,12 @@ export interface GlyphCharBoxAlongPath { pathD?: string; startOffset?: PxAnimata
  *  (a space has no glyph but advances the pen) AND one zero-width filler box per EMPTY
  *  line — the editor's edit canvas renders a zero-width filler char for an empty line
  *  (so the caret has something to measure), and DOM char indices must stay aligned.
- *  HORIZONTAL by default — mirrors `materialiseGlyphTextHorizontal`'s pen-walk exactly
+ *  HORIZONTAL by default — mirrors `materializeGlyphTextHorizontal`'s pen-walk exactly
  *  (same x/y/dx/dy, spacing and text-anchor). When `opts.alongPath` is given, mirrors
- *  `materialiseGlyphTextAlongPath` (each char placed + rotated to the path tangent). So
+ *  `materializeGlyphTextAlongPath` (each char placed + rotated to the path tangent). So
  *  an editor caret built from these lands on the rendered glyphs. Empty for a text with
  *  no glyph font / unparsable path. */
-export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterialiseOpts, 'glyphs' | 'warnings'> & { alongPath?: GlyphCharBoxAlongPath }): Array<GlyphCharBox> {
+export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterializeOpts, 'glyphs' | 'warnings'> & { alongPath?: GlyphCharBoxAlongPath }): Array<GlyphCharBox> {
     if (opts.alongPath?.pathD) return layoutGlyphTextCharsAlongPath(node, opts.alongPath.pathD, opts);
     const { glyphs, warnings } = opts;
     const soleFont = soleFontOf(glyphs);
@@ -392,10 +392,10 @@ export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterialiseOp
 
 /** Along-path variant of {@link layoutGlyphTextChars}: one box per DOM char (spaces
  *  included), placed + rotated along `pathD` at the static / frame-0 startOffset.
- *  Mirrors `collectAlongPathCells` + `materialiseGlyphTextAlongPath`, but records EVERY
- *  char (the materialiser's cells skip glyph-less chars). `pStart`=char leading edge on
+ *  Mirrors `collectAlongPathCells` + `materializeGlyphTextAlongPath`, but records EVERY
+ *  char (the materializer's cells skip glyph-less chars). `pStart`=char leading edge on
  *  the path, `end`=trailing edge, `rotation`=tangent at the char midpoint. */
-function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<GlyphMaterialiseOpts, 'glyphs' | 'warnings'> & { alongPath?: GlyphCharBoxAlongPath }): Array<GlyphCharBox> {
+function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<GlyphMaterializeOpts, 'glyphs' | 'warnings'> & { alongPath?: GlyphCharBoxAlongPath }): Array<GlyphCharBox> {
     const { glyphs, warnings, alongPath } = opts;
     const sampler = createPathSampler(pathD);
     if (!sampler) { warnings?.push('textGlyphs: unparsable along-path geometry (caret)'); return []; }
@@ -434,8 +434,8 @@ function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<G
     const tlv = tlr.kind === ReadKind.Animated ? (Number(tlr.keyframes[0]?.value) || 0)
         : tlr.kind === ReadKind.Static ? (Number(tlr.value) || 0) : 0;
     const k = (tlv > 0 && width > 0) ? tlv / width : 1;
-    // startOffset base — static or frame-0 keyframe (matches the materialiser's static place).
-    // x/dx add along-path distance; dy shifts perpendicular (both mirror the materialiser).
+    // startOffset base — static or frame-0 keyframe (matches the materializer's static place).
+    // x/dx add along-path distance; dy shifts perpendicular (both mirror the materializer).
     const so = readAnimatable<number>(alongPath?.startOffset);
     const { along: alongOffset, perp } = alongPathNodeOffsets(node);
     const base = alongOffset + (so.kind === ReadKind.Animated ? (Number(so.keyframes[0]?.value) || 0)
@@ -453,7 +453,7 @@ function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<G
         const p1 = withPerp(sampler.sampleAtDistance(dEnd));
         // Caret rotation = tangent at the GLYPH's own midpoint (advStart + glyphW/2), which
         // DISREGARDS the char's letter/word spacing. This keeps the synthetic caret aligned
-        // with the baked glyph outline (which is placed at its glyph centre), so letter
+        // with the baked glyph outline (which is placed at its glyph center), so letter
         // spacing doesn't add extra tilt to the caret.
         const glyphMid = sampler.sampleAtDistance(base + (c.advStart + c.glyphW / 2) * k);
         return {
@@ -539,11 +539,11 @@ function alongPathNodeOffsets(node: PxNode): { along: number; perp: number } {
     };
 }
 
-export function materialiseGlyphTextAlongPath<E = any>(
+export function materializeGlyphTextAlongPath<E = any>(
     node: PxNode,
     pathD: string | undefined,
     startOffset: PxAnimatable<number> | undefined,
-    opts: GlyphMaterialiseOpts<E>,
+    opts: GlyphMaterializeOpts<E>,
     textLength?: PxAnimatable<number>,
     pathOverflow?: string,
 ): E | null {
@@ -643,7 +643,7 @@ function roundN(v: number, n: number): number {
     return Math.round(v * f) / f;
 }
 
-/** Builds a separate glyph element per glyph, its outline baked centred at the
+/** Builds a separate glyph element per glyph, its outline baked centered at the
  *  origin (mid-advance baseline) so `animate.transform` translate+rotate places
  *  it along the path over time. `distOf` gives the glyph's along-path distance at a
  *  time (startOffset(t) + textLength-scale(t)·midBase + x/dx — both drivers merged
@@ -665,8 +665,8 @@ function buildAnimatedAlongPath<E>(
 
     const out: Array<E> = [];
     for (const c of cells) {
-        const centred: Affine = [c.scale, 0, 0, c.scale, -c.scale * (c.widthEm / 2), 0];
-        const d = transformPathData(c.glyphD, centred);
+        const centered: Affine = [c.scale, 0, 0, c.scale, -c.scale * (c.widthEm / 2), 0];
+        const d = transformPathData(c.glyphD, centered);
 
         const sampleKf = (dist: number, time: number): TransformKeyframe => {
             const { x, y, angle } = sampler.sampleAtDistance(dist);
@@ -682,7 +682,7 @@ function buildAnimatedAlongPath<E>(
         };
 
         const kfs: Array<TransformKeyframe> = [];
-        // Clip: opacity 1 while the glyph's centre is on the path, 0 off — the
+        // Clip: opacity 1 while the glyph's center is on the path, 0 off — the
         // sampling is dense (`step`), so the linear fade across one step reads as a
         // near-sharp pop (a robust stand-in for the hard native-<textPath> drop).
         const opKfs: Array<TransformKeyframe<number>> = [];
@@ -798,25 +798,25 @@ function toGroup<E>(node: PxNode, children: Array<E>, create: PxCreateElement<E>
 
 // ── editor-facing convenience + pipeline adapters ──────────────────────────────
 
-/** Single entry the EDITOR calls: materialises a glyph `<text>` node into the
+/** Single entry the EDITOR calls: materializes a glyph `<text>` node into the
  *  factory's element type, choosing along-path when `alongPath` is given. */
-export function materialiseGlyphText<E = any>(
+export function materializeGlyphText<E = any>(
     node: PxNode,
-    opts: GlyphMaterialiseOpts<E> & { alongPath?: { pathD?: string; startOffset?: PxAnimatable<number>; textLength?: PxAnimatable<number>; pathOverflow?: string } },
+    opts: GlyphMaterializeOpts<E> & { alongPath?: { pathD?: string; startOffset?: PxAnimatable<number>; textLength?: PxAnimatable<number>; pathOverflow?: string } },
 ): E | null {
-    if (opts.alongPath) return materialiseGlyphTextAlongPath(node, opts.alongPath.pathD, opts.alongPath.startOffset, opts, opts.alongPath.textLength, opts.alongPath.pathOverflow);
-    return materialiseGlyphTextHorizontal(node, opts);
+    if (opts.alongPath) return materializeGlyphTextAlongPath(node, opts.alongPath.pathD, opts.alongPath.startOffset, opts, opts.alongPath.textLength, opts.alongPath.pathOverflow);
+    return materializeGlyphTextHorizontal(node, opts);
 }
 
 /** Pipeline adapter (plain wire nodes) — `effects.text.useGlyphs`, horizontal. */
 export function applyTextGlyphsEffect(node: PxNode, fx: PxTextEffect | undefined, ctx: ApplyContext): PxNode {
     if (!fx?.useGlyphs) return node;
     if (!ctx.glyphs) { ctx.warnings.push('textGlyphs: no definitions.fonts — left as native <text>'); return node; }
-    return materialiseGlyphTextHorizontal<PxNode>(node, { glyphs: ctx.glyphs, warnings: ctx.warnings });
+    return materializeGlyphTextHorizontal<PxNode>(node, { glyphs: ctx.glyphs, warnings: ctx.warnings });
 }
 
 /** Pipeline adapter (plain wire nodes) — glyph text along a referenced path. */
 export function applyTextGlyphsAlongPath(node: PxNode, ctx: ApplyContext, pathD: string | undefined, startOffset: PxAnimatable<number> | undefined, textLength?: PxAnimatable<number>, pathOverflow?: string): PxNode | null {
     if (!ctx.glyphs) { ctx.warnings.push('textGlyphs: no definitions.fonts'); return null; }
-    return materialiseGlyphTextAlongPath<PxNode>(node, pathD, startOffset, { glyphs: ctx.glyphs, warnings: ctx.warnings }, textLength, pathOverflow);
+    return materializeGlyphTextAlongPath<PxNode>(node, pathD, startOffset, { glyphs: ctx.glyphs, warnings: ctx.warnings }, textLength, pathOverflow);
 }

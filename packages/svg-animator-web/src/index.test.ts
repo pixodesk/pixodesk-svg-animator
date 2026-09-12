@@ -7,8 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAnimator } from './index';
 import type { PxAnimatedSvgDocument, PxAnimationDefinition } from '@pixodesk/svg-animator-core';
 import { LOOP_JUMP_SHIFT_MS, cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from '@pixodesk/svg-animator-core';
-import { calcAnimationValues, getNormalisedBindings } from '@pixodesk/svg-animator-core';
-import { materialiseAllInTree } from '@pixodesk/svg-animator-core';
+import { calcAnimationValues, getNormalizedBindings } from '@pixodesk/svg-animator-core';
+import { materializeAllInTree } from '@pixodesk/svg-animator-core';
 import { PxTimelineEngine } from '@pixodesk/svg-animator-core';
 
 
@@ -67,7 +67,7 @@ describe('animateBackground', () => {
         // Second half: the repeat runs (128 + LOOP_JUMP_SHIFT_MS)→256ms, NOT 128→256. A
         // cycle snaps back instantly, so its first keyframe would land on the same time as
         // the previous cycle's last one; the expander separates them by
-        // LOOP_JUMP_SHIFT_MS so both sides materialise identical keyframes (B7).
+        // LOOP_JUMP_SHIFT_MS so both sides materialize identical keyframes (B7).
         //
         // DERIVED, not hard-coded: the gap is a tuning value (10ms read as a visible jump,
         // so it is now 1ms). This asserts the interpolation MATHS, not a magic number.
@@ -244,14 +244,14 @@ describe('animateBackground', () => {
 
 
 // ============================================================================
-// Loop expansion tests (via getNormalisedBindings + calcAnimationValues)
+// Loop expansion tests (via getNormalizedBindings + calcAnimationValues)
 // ============================================================================
 
 describe('Loop expansion', () => {
 
-    /** Helper: get normalised binding's animate definition for translate */
+    /** Helper: get normalized binding's animate definition for translate */
     function getTranslateAnim(doc: PxAnimatedSvgDocument): PxAnimationDefinition {
-        const bindings = getNormalisedBindings(doc);
+        const bindings = getNormalizedBindings(doc);
         expect(bindings.length).toBeGreaterThan(0);
         return bindings[0].animate! as PxAnimationDefinition;
     }
@@ -479,8 +479,8 @@ describe('Loop expansion', () => {
     // partial sits at t=0 showing the segment's TAIL and a full rep ends exactly at
     // firstT. The pre-fix forward-tiling put the partial next to firstT and started
     // the element at the segment HEAD (x=0) instead of mid-segment (x=50) → the
-    // loopIn `f0` bug. (Linear easing → exact midpoints.) Asserts on the materialised
-    // keyframe list since this path keeps kf times in ms (not normalised 0-1).
+    // loopIn `f0` bug. (Linear easing → exact midpoints.) Asserts on the materialized
+    // keyframe list since this path keeps kf times in ms (not normalized 0-1).
     it("loop.repeatAt:'start' with partial rep tiles backward from the first keyframe", () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg',
@@ -711,9 +711,9 @@ describe('reverseEasing', () => {
 });
 
 
-describe('Color attribute normalisation (frames-mode parity)', () => {
+describe('Color attribute normalization (frames-mode parity)', () => {
 
-    /** Walk a transform / colour string out of `calcAnimationValues` and check
+    /** Walk a transform / color string out of `calcAnimationValues` and check
      *  it never contains the literal "NaN". */
     function expectNoNaN(values: Record<string, string>): void {
         for (const [k, v] of Object.entries(values)) {
@@ -722,7 +722,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
     }
 
     function getBindings(doc: PxAnimatedSvgDocument): PxAnimationDefinition {
-        const bindings = getNormalisedBindings(doc);
+        const bindings = getNormalizedBindings(doc);
         expect(bindings.length).toBeGreaterThan(0);
         return bindings[0].animate! as PxAnimationDefinition;
     }
@@ -752,7 +752,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
 
         const animDef = getBindings(doc);
         // Sample at several intermediate times. Each must produce a clean
-        // rgba(…) string with no NaN channels. The colour branch in
+        // rgba(…) string with no NaN channels. The color branch in
         // `calcPropertyValue` emits under the ORIGINAL propName (camelCase
         // preserved), so look up `stopColor` not `stop-color`.
         for (const t of [0, 100, 250, 500, 750, 900, 1000]) {
@@ -763,7 +763,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
         }
     });
 
-    it('camelCase `floodColor` and `lightingColor` are also normalised', () => {
+    it('camelCase `floodColor` and `lightingColor` are also normalized', () => {
         for (const prop of ['floodColor', 'lightingColor']) {
             const doc: PxAnimatedSvgDocument = {
                 type: 'svg',
@@ -790,15 +790,15 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
         }
     });
 
-    it('loop on a `stroke` animation through the materialise-all umbrella does NOT produce NaN at the loop seam', () => {
+    it('loop on a `stroke` animation through the materialize-all umbrella does NOT produce NaN at the loop seam', () => {
         // Repro of the visible bug: `<g>` in a repeater + an animated stroke
         // that LOOPS. When the loop cuts mid-segment (segment doesn't fit the
         // duration evenly), `expandLoopKeyframes` interpolates a boundary kf —
-        // and `interpolateValue` for a colour attr expects an [r,g,b,a] array,
+        // and `interpolateValue` for a color attr expects an [r,g,b,a] array,
         // not the original hex string. Without pre-parsing, the boundary kf
         // ends up `[NaN,NaN,NaN,NaN]` and stays NaN for every sample past it.
         //
-        // Goes through `materialiseAllInTree` to mirror the player's actual
+        // Goes through `materializeAllInTree` to mirror the player's actual
         // pipeline — the bug surfaced specifically there (raw kfs reach the
         // loop expansion before the binding pipeline's `parseColor` step).
         const doc: PxAnimatedSvgDocument = {
@@ -823,10 +823,10 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
 
         // Run the same pipeline the player uses — for BOTH engines.
         for (const engine of [PxTimelineEngine.js, PxTimelineEngine.native]) {
-            const flatDoc = materialiseAllInTree(doc, engine);
+            const flatDoc = materializeAllInTree(doc, engine);
             const animDef = getBindings(flatDoc);
             // Sample beyond the original kfs range — the loop must repeat
-            // without producing NaN colour channels.
+            // without producing NaN color channels.
             for (const t of [0, 250, 500, 999, 1000, 1100, 1250, 1400, 1500]) {
                 const values = calcAnimationValues(animDef, t);
                 for (const [k, v] of Object.entries(values)) {
@@ -839,7 +839,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
     // Audit other value types — same umbrella path, same loop-seam scenario.
     // Bug shape: `expandLoopKeyframes` calls `interpolateValue(propName, prev.v,
     // next.v, t)` at a partial-cut boundary. Each value type needs `interpolateValue`
-    // (and the pre-normalisation in `materialiseInternalLoopsInPropAnim`) to
+    // (and the pre-normalization in `materializeInternalLoopsInPropAnim`) to
     // produce a clean result there — otherwise the boundary kf is NaN / broken
     // and stays that way past the seam.
 
@@ -855,7 +855,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
             ],
         } as PxAnimatedSvgDocument;
         for (const engine of [PxTimelineEngine.js, PxTimelineEngine.native]) {
-            const animDef = getBindings(materialiseAllInTree(doc, engine));
+            const animDef = getBindings(materializeAllInTree(doc, engine));
             for (const t of [0, 500, 1100, 1400]) {
                 expectNoNaN(calcAnimationValues(animDef, t));
             }
@@ -884,7 +884,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
             ],
         } as PxAnimatedSvgDocument;
         for (const engine of [PxTimelineEngine.js, PxTimelineEngine.native]) {
-            const animDef = getBindings(materialiseAllInTree(doc, engine));
+            const animDef = getBindings(materializeAllInTree(doc, engine));
             for (const t of [0, 500, 1100, 1500, 1700]) {
                 expectNoNaN(calcAnimationValues(animDef, t));
             }
@@ -914,7 +914,7 @@ describe('Color attribute normalisation (frames-mode parity)', () => {
             ],
         } as PxAnimatedSvgDocument;
         for (const engine of [PxTimelineEngine.js, PxTimelineEngine.native]) {
-            const animDef = getBindings(materialiseAllInTree(doc, engine));
+            const animDef = getBindings(materializeAllInTree(doc, engine));
             for (const t of [0, 500, 1100, 1400]) {
                 const out = calcAnimationValues(animDef, t);
                 expectNoNaN(out);

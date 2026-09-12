@@ -143,7 +143,7 @@ describe('createDiagnostics — errors', () => {
         expect(error).not.toHaveBeenCalled();
     });
 
-    it('normalises a string into an Error, so a handler always gets one shape', () => {
+    it('normalizes a string into an Error, so a handler always gets one shape', () => {
         const onError = vi.fn();
         createDiagnostics({ onError }).error(PxDiagnosticKind.internal, 'plain string failure');
 

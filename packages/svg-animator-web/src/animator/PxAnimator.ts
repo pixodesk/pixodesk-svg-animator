@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { reportDocumentDiagnostics, applyAnimatorConfig, createDiagnostics, foldAnimatorConfigShortcuts, generateNewIds, getAnimatorConfig, isPxElementFileFormat, materialiseAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfigPatch, type PxPlatformAdapter, type PxTrigger } from '@pixodesk/svg-animator-core';
+import { reportDocumentDiagnostics, applyAnimatorConfig, createDiagnostics, foldAnimatorConfigShortcuts, generateNewIds, getAnimatorConfig, isPxElementFileFormat, materializeAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfigPatch, type PxPlatformAdapter, type PxTrigger } from '@pixodesk/svg-animator-core';
 import { bindWithEngineChoice } from '../engines/PxAnimatorBind';
 import { renderNode } from '../dom/PxAnimatorDOM';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
@@ -34,16 +34,16 @@ function createAnimatorFromConfig(
 /**
  * Creates an animator instance from an AnimatedSvgDocument.
  *
- * This function serves as the main entry point for the animation library. It automatically
- * chooses the best animation engine available ('waapi' or 'frames') or can be
- * forced to use a specific one.
+ * This function serves as the main entry point for the animation library. The engine comes from
+ * `timeline.engine`: `auto` tries the browser's Web Animations API and falls back to the frame
+ * loop, `native` and `js` force one — see `resolveTimelineEngine`.
  *
  * @param doc The animated SVG document.
  * @param callbacks Optional object with callback functions for animation lifecycle events (play, pause, finish, etc.).
  * @param containerElement Optional selector or element to render the SVG into.
  * @returns An PxAnimatorAPI instance to programmatically control the animation.
  */
-export function createAnimatorImpl(
+function createAnimatorImpl(
     doc: PxAnimatedSvgDocument,
     adapter?: PxPlatformAdapter,
     callbacks?: PxAnimatorCallbacksConfig,
@@ -53,7 +53,7 @@ export function createAnimatorImpl(
 ): PxAnimatorAPI {
 
     // Validate every `node.effects` bucket against `PxEffectsSchema` and warn
-    // about any shape drift. Doesn't mutate or block — the materialiser tries
+    // about any shape drift. Doesn't mutate or block — the materializer tries
     // its best even when shapes are off, but a warning helps spot wire-format
     // regressions early.
     // Everything this player has to say goes through one channel (API review §5): the caller's
@@ -64,13 +64,13 @@ export function createAnimatorImpl(
     for (const w of effectsWarnings) diag.warn(PxDiagnosticKind.document, 'effects shape: ' + w);
 
     // …and the WHOLE-document check beside it. This is the boundary diagnostic: if a consumer's
-    // build mangled property names, the keys reaching us are unrecognisable and this says so,
+    // build mangled property names, the keys reaching us are unrecognizable and this says so,
     // instead of the animation silently rendering nothing (MINIFICATION-BOUNDARY-PLAN §3).
     reportDocumentDiagnostics(doc, '[PxAnimator] createAnimator');
 
     // The per-instance override, applied BEFORE anything reads the config. Everything below
     // depends on the final values: `timeline.engine` picks the engine, `duration` drives loop
-    // expansion and motion-path sampling in `materialiseAllInTree`, and `generateNewIds`
+    // expansion and motion-path sampling in `materializeAllInTree`, and `generateNewIds`
     // rewrites `animateById` keys — a late patch would be read by none of them.
     if (config !== undefined || resetDocDefaults) {
         const patched = applyAnimatorConfig(doc, config ?? {}, { resetDefaults: !!resetDocDefaults });
@@ -78,17 +78,17 @@ export function createAnimatorImpl(
         doc = patched.doc;
     }
 
-    // Decide the engine upfront so the materialisation pipeline knows which
-    // stages to run. `auto` and `native` resolve to `waapi` for materialisation
-    // purposes; if waapi later returns null at engine construction, frames is used
-    // as fallback — slight over-materialisation for that doc, but no correctness issue.
+    // Decide the engine upfront so the materialization pipeline knows which
+    // stages to run. `auto` and `native` resolve to the native (WAAPI) materialization; if the
+    // native engine later declines the document at construction, the frame loop (`js`) is used
+    // as fallback — slight over-materialization for that doc, but no correctness issue.
     const animatorConfig = getAnimatorConfig(doc) || {};
     const engine: PxTimelineEngine = resolveTimelineEngine(animatorConfig.engine);
 
-    // Run the full document materialisation pipeline:
-    //   effects → loops → motion-path (waapi only) → animated-use (waapi only)
+    // Run the full document materialization pipeline:
+    //   effects → loops → motion-path (native engine only) → animated-use (native engine only)
     // The exact same function is exported for the Editor — no parallel pipeline.
-    doc = materialiseAllInTree(doc, engine);
+    doc = materializeAllInTree(doc, engine);
 
     let rootElement: Element | null = null;
 
@@ -273,14 +273,28 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
  * Scan and load for tags, e.g.
  *  <div data-px-animation-src="animation.json"></div>
  */
-export function loadTagAnimators() {
+/**
+ * Everything `createAnimator` takes except the three the tag supplies (`src`, `container`) or
+ * forbids (`data`): callbacks, the diagnostics channel, a playback override and its shortcuts.
+ */
+export type PxTagAnimatorOptions = Omit<PxAnimatorOptions, 'src' | 'data' | 'container'>;
+
+/**
+ * Scan the page for `<div data-px-animation-src="animation.json">` and create one player per
+ * match, rendered into that element and stored on it. Safe to call repeatedly: elements that
+ * already carry a player are skipped.
+ *
+ * `options` applies to EVERY player this call creates (review §15) — the same callbacks, the
+ * same override. Omit it for the zero-config path.
+ */
+export function loadTagAnimators(options?: PxTagAnimatorOptions) {
     const elements = document.querySelectorAll('[' + PX_ANIM_SRC_ATTR_NAME + ']');
     for (let i = 0; i < elements.length; i++) {
         const element = elements[i];
         if (!(element as any)[PX_ANIM_ATTR_NAME]) {
             const src = element.getAttribute(PX_ANIM_SRC_ATTR_NAME);
             if (src) {
-                (element as any)[PX_ANIM_ATTR_NAME] = createAnimator({ src, container: element });
+                (element as any)[PX_ANIM_ATTR_NAME] = createAnimator({ ...options, src, container: element });
             }
         }
     }

@@ -24,10 +24,10 @@ Schemas: `PxAnimatorTypes.ts` (`_PxEffects` + each `_Px*Effect`). Apply order:
 **All effects covered.** Shared helpers: `effectTestKit.ts`. Run: `npx vitest run src/effects`.
 
 ## Engine (WAAPI vs frames) coverage
-The effect pass (`applyPlayerEffects`, used by `materialise`) is **engine-agnostic** — same
-output for both. The WAAPI-vs-frames difference lives in the later `materialiseAllInTree`
+The effect pass (`applyPlayerEffects`, used by `materialize`) is **engine-agnostic** — same
+output for both. The WAAPI-vs-frames difference lives in the later `materializeAllInTree`
 stages (waapi-only): **motion-path flatten** + **animated-`<use>` inline**. Use the
-`materialiseEngine(input, engine)` kit helper to exercise those.
+`materializeEngine(input, engine)` kit helper to exercise those.
 
 - ✅ **transformation** cases 7/8 cover the motion-path-flatten difference (autoOrient
   translate: frames keeps parametric 2-kf form; WAAPI flattens to ~29 sampled `{translate,rotate}` kfs).

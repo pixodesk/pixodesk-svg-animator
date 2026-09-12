@@ -116,7 +116,7 @@ function synthesisePerCopyFx(fx: PxRepeaterEffect, i: number): PxTransformByEffe
  * Applies `fn` to every value of an animatable (base + all keyframes) via the
  * shared `readAnimatable` — one mapper for number and Vec2 parts alike (the old
  * per-type copies missed the `kfs` alias, so an alias-authored part silently
- * skipped its ×i scaling). Re-emits the normalised unified form:
+ * skipped its ×i scaling). Re-emits the normalized unified form:
  * raw static in → raw static out (or `{value}` when `wrapStatic`); animated in →
  * `{keyframes, loop?, autoOrient?, value?}` with kf values mapped and
  * time/easing/tangents preserved.

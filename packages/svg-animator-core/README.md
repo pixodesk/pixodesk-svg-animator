@@ -6,7 +6,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Platform-neutral core of the Pixodesk SVG animator: the document schema, the
-effect materialisers, the interpolation engine and the path sampler — with **no
+effect materializers, the interpolation engine and the path sampler — with **no
 DOM dependency at all**. It is what every player shares, so the web player and
 the React Native player produce identical values from the same document.
 
@@ -52,11 +52,11 @@ runtime crash on a non-browser platform.
 |---|---|
 | **Schema & types** | `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxEffectsSchema`, … plus every `Px*` TypeScript type and the `px` schema builder |
 | **Validation** | `validateDocument` (the whole document, strict), `isPxElementFileFormat`, `isPxElementFileFormatDeep`, `validateNodeEffects` |
-| **Materialisers** | `materialiseAllInTree`, `applyPlayerEffects`, `materialiseInternalLoopsInTree`, `materialiseMotionPathsInTree`, `materialiseAnimatedUseInstances` |
-| **Interpolation** | `calcAnimationValues`, `interpolateValue`, `getNormalisedBindings` |
+| **Materializers** | `materializeAllInTree`, `applyPlayerEffects`, `materializeInternalLoopsInTree`, `materializeMotionPathsInTree`, `materializeAnimatedUseInstances` |
+| **Interpolation** | `calcAnimationValues`, `interpolateValue`, `getNormalizedBindings` |
 | **Sampling / geometry** | `createPathSampler`, `evaluateMotionPathSegment`, bezier helpers, `cubicBezier`, `splitEasing` |
-| **Text** | `materialiseGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
-| **Node helpers** | `getNormalizedProps`, `sanitiseAttributeValue`, `resolveStyle`, `generateNewIds` |
+| **Text** | `materializeGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
+| **Node helpers** | `getNormalizedProps`, `sanitizeAttributeValue`, `resolveStyle`, `generateNewIds` |
 | **Playback engine** | `createBasicFrameLoopAnimator` + the `PxPlatformAdapter` interface |
 | **Wire enums** | `PxTimelineEngine` / `PxTimelineEngineExtra`, `PxStartOn`, `PxOutAction`, `PxFinishAction`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneWithout`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxStartOn.click` and `startOn?: PxStartOn` come from one import |
 
@@ -87,9 +87,9 @@ per-branch errors are not reported unless every branch fails), and it **ignores 
 `undefined`** — those cannot survive `JSON.stringify`, so strict judges the document rather than the
 in-memory object that produced it.
 
-## The materialisation pipeline
+## The materialization pipeline
 
-`materialiseAllInTree(doc, engine)` is the single entry point that turns a
+`materializeAllInTree(doc, engine)` is the single entry point that turns a
 lightweight editor document into a flat tree any renderer can walk:
 
 1. **Effects** — `node.effects` (transformBy, repeater, maskedBy, strokeTrim,
@@ -105,15 +105,15 @@ without live `<use>` propagation** — that includes `react-native-svg` — and
 
 ```ts
 import {
-    materialiseAllInTree, generateNewIds, calcAnimationValues,
-    getNormalisedBindings, PxTimelineEngine,
+    materializeAllInTree, generateNewIds, calcAnimationValues,
+    getNormalizedBindings, PxTimelineEngine,
 } from '@pixodesk/svg-animator-core';
 
 // Flatten once …
-const flat = generateNewIds(materialiseAllInTree(doc, PxTimelineEngine.native));
+const flat = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
 
 // … then ask for values at any time, with no renderer involved.
-for (const binding of getNormalisedBindings(flat, PxTimelineEngine.js) ?? []) {
+for (const binding of getNormalizedBindings(flat, PxTimelineEngine.js) ?? []) {
     const values = calcAnimationValues(binding.animate, 500); // t = 500 ms
     console.log(binding.id, values);   // → { opacity: '0.5', transform: 'translate(…)' }
 }

@@ -5,13 +5,13 @@
 
 // Pure-JSON in/out tests for the GRADIENT effects (`gradientEffect.ts`) —
 // `fillGradient` / `strokeGradient`. Generates a `<linearGradient>` / `<radialGradient>`
-// def (geometry as static attrs) with one `<stop>` per colour stop, then rewrites
+// def (geometry as static attrs) with one `<stop>` per color stop, then rewrites
 // the host's `fill` / `stroke` to `url(#id)`. Static stops are bare; an animated
 // stop timeline is SLICED per-index into each `<stop>`'s `animate.stopColor.keyframes`.
 
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../../format/PxAnimatorTypes';
-import { collectByType, materialise, normaliseGeneratedIds } from '../effectTestKit';
+import { collectByType, materialize, normalizeGeneratedIds } from '../effectTestKit';
 
 const STOPS = [{ offset: 0, color: '#ff0000' }, { offset: 1, color: '#0000ff' }];
 const rect = (effects: any): PxNode =>
@@ -24,8 +24,8 @@ const stopsOf = (def: PxNode): Array<any> => collectByType(def, 'stop');
 describe('gradientEffect — linear/radial def + stops, static & animated', () => {
 
     it('case 1 — static linear fillGradient → <linearGradient> def + bare stops, fill=url()', () => {
-        const out = materialise(rect({ fillGradient: { type: 'linear', start: [0, 0], end: [100, 0], stops: STOPS } }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(rect({ fillGradient: { type: 'linear', start: [0, 0], end: [100, 0], stops: STOPS } }));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -76,8 +76,8 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
     });
 
     it('case 2 — static radial fillGradient → <radialGradient> with cx/cy/r/fx/fy', () => {
-        const out = materialise(rect({ fillGradient: { type: 'radial', center: [50, 50], radius: 40, focal: [50, 50], stops: STOPS } }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(rect({ fillGradient: { type: 'radial', center: [50, 50], radius: 40, focal: [50, 50], stops: STOPS } }));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -123,7 +123,7 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
     });
 
     it('case 3 — animated stops → each <stop> gets animate.stopColor.keyframes (sliced per index)', () => {
-        const out = materialise(rect({
+        const out = materialize(rect({
             fillGradient: {
                 type: 'linear', start: [0, 0], end: [100, 0],
                 stops: {
@@ -134,7 +134,7 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
                 },
             },
         }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -183,8 +183,8 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
     });
 
     it('case 4 — strokeGradient rewrites STROKE (not fill)', () => {
-        const out = materialise(rect({ strokeGradient: { type: 'linear', start: [0, 0], end: [100, 0], stops: STOPS } }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(rect({ strokeGradient: { type: 'linear', start: [0, 0], end: [100, 0], stops: STOPS } }));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -231,10 +231,10 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
     });
 
     it('case 5 — gradientUnits / spreadMethod pass through onto the def', () => {
-        const out = materialise(rect({
+        const out = materialize(rect({
             fillGradient: { type: 'linear', start: [0, 0], end: [100, 0], stops: STOPS, gradientUnits: 'userSpaceOnUse', spreadMethod: 'reflect' },
         }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [

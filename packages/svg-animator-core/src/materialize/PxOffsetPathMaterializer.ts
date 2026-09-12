@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// Materialises `animate.transform` bindings marked `alongPathMode: 'offsetPath'` into
+// Materializes `animate.transform` bindings marked `alongPathMode: 'offsetPath'` into
 // CSS Motion Path form:
 //
 //   style: { offsetPath: "path('M…C…')", offsetAnchor: '0 0',
@@ -75,7 +75,7 @@ function buildOffsetPath(propAnim: PxPropertyAnimation): {
     // point of the element, located at t+o. Encode exactly that: the path traces t_i+o and
     // `offset-anchor` pins the element's own origin point (o, in its box) to the path.
     // Anchoring 0 0 on the raw translates put the element's CORNER on a corner-trajectory
-    // and pivoted rotation about the corner — visibly off the path for centred origins.
+    // and pivoted rotation about the corner — visibly off the path for centered origins.
     const first = kfValue(kfs[0]) as { origin?: Vec2 } | undefined;
     const anchor: Vec2 = first?.origin && first.origin.length >= 2
         ? [first.origin[0], first.origin[1]] : [0, 0];
@@ -132,7 +132,7 @@ function buildOffsetPath(propAnim: PxPropertyAnimation): {
  * offset-path styles + an `offsetDistance` binding. Non-candidates are left untouched.
  * Runs BEFORE loop expansion so a carried `loop` expands on the new binding.
  */
-export function materialiseOffsetPathsInTree(root: PxAnimatedSvgDocument): PxAnimatedSvgDocument {
+export function materializeOffsetPathsInTree(root: PxAnimatedSvgDocument): PxAnimatedSvgDocument {
     const walk = (node: PxNode): PxNode => {
         let out = node;
         const anim = node.animate as Record<string, PxPropertyAnimation> | undefined;

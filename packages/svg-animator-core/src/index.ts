@@ -5,7 +5,7 @@
 
 // ============================================================================
 // @pixodesk/svg-animator-core — platform-neutral animator core.
-// Schema, document types, interpolation, materialisers (effects → plain JSON),
+// Schema, document types, interpolation, materializers (effects → plain JSON),
 // sampling, and the adapter-driven frame-loop engine. No DOM: this package
 // compiles without the "dom" lib and is shared by the web and React Native
 // players.
@@ -46,7 +46,7 @@ export type { PxControlProps, PxResolvedControlMode } from './format/PxAnimatorC
 export { PX_PLAYER_SCHEMA_VERSION } from './version/PxSchemaVersion';
 
 // Document / model types
-export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorAPI, PxAnimatorCallbacksConfig, PxAnimatorConfig, PxAttrValue, PxBasicAnimatorAPI, PxBezierPath, PxBinding, PxDefs, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxNormalisedKeyframe, PxNormalisedPropertyAnimation, PxAnyKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTimelinePin, PxTransformParts, PxTransformValue, PxTrigger, PxValidationResult } from './format/PxAnimatorTypes';
+export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorAPI, PxAnimatorCallbacksConfig, PxAnimatorConfig, PxAttrValue, PxBasicAnimatorAPI, PxBezierPath, PxBinding, PxDefs, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxNormalizedKeyframe, PxNormalizedPropertyAnimation, PxAnyKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTimelinePin, PxTransformParts, PxTransformValue, PxTrigger, PxValidationResult } from './format/PxAnimatorTypes';
 export type { PxResolvedTrigger, PxTransformPartKey } from './format/PxAnimatorConstants';
 // VALUE exports, not `export type`: each wire enum is a const namespace AND the string type
 // derived from it under the same name (review §2.7), so a consumer gets both `PxStartOn.click`
@@ -59,12 +59,12 @@ export { getAnimatorConfig, isPxElementFileFormat, flattenAnimatorTimeline, nest
 
 export { INTERNAL_ATTRS, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, TEXT_CONTENT_ATTR } from './format/PxAnimatorConstants';
 
-// Utils (string/colour/easing/bezier math)
+// Utils (string/color/easing/bezier math)
 export {
     bezierToSvgPath,
     camelCaseToKebabWordIfNeeded,
     clamp,
-    COLOUR_ATTR_NAMES,
+    COLOR_ATTR_NAMES,
     PCT_BASED_ATTR_NAMES,
     composeTransformParts,
     parseTransformParts,
@@ -83,41 +83,41 @@ export {
 // Document id regeneration (fresh ids + rewritten internal refs)
 export { deepClone, generateNewIds, generateUniqueId } from './util/PxIdUtil';
 
-// Node props normalisation + attribute/tag sanitisation (platform-neutral —
-// renderers on every platform share the same security and normalisation rules)
+// Node props normalization + attribute/tag sanitization (platform-neutral —
+// renderers on every platform share the same security and normalization rules)
 export {
     CSS_ONLY_STYLE_PROPS,
     DISALLOWED_SVG_TAGS_LOWER,
     getNormalizedProps,
     resolveStyle,
-    sanitiseAttributeValue
+    sanitizeAttributeValue
 } from './util/PxNodeProps';
 
 // Normalization / interpolation
 export {
     calcAnimationValues,
-    getNormalisedBindings,
+    getNormalizedBindings,
     mergeStaticTransformIntoAnimDef,
     interpolateValue,
-    materialiseInternalLoopsInPropAnim,
-    materialiseInternalLoopsInTree,
+    materializeInternalLoopsInPropAnim,
+    materializeInternalLoopsInTree,
 } from './animation/PxDefinitions';
 
-// Motion-along-path materialiser (sampling)
+// Motion-along-path materializer (sampling)
 export {
-    materialiseMotionPathInPropAnim,
-    materialiseMotionPathsInTree,
+    materializeMotionPathInPropAnim,
+    materializeMotionPathsInTree,
     evaluateMotionPathSegment,
     propAnimIsMotionPath,
-} from './materialise/PxMotionPath';
-export type { MotionPathMaterialisationOptions, MotionPathSample } from './materialise/PxMotionPath';
+} from './materialize/PxMotionPath';
+export type { MotionPathMaterializationOptions, MotionPathSample } from './materialize/PxMotionPath';
 
-// `<use>` instance materialiser
-export { materialiseAnimatedUseInstances } from './materialise/PxAnimatorUseMaterialiser';
+// `<use>` instance materializer
+export { materializeAnimatedUseInstances } from './materialize/PxAnimatorUseMaterializer';
 
-// Single-call materialisation pipeline (effects → loops → motion-path → use)
-export { materialiseAllInTree } from './materialise/PxAnimatorMaterialiseAll';
-export type { MaterialiseAllOptions } from './materialise/PxAnimatorMaterialiseAll';
+// Single-call materialization pipeline (effects → loops → motion-path → use)
+export { materializeAllInTree } from './materialize/PxAnimatorMaterializeAll';
+export type { MaterializeAllOptions } from './materialize/PxAnimatorMaterializeAll';
 
 // Adapter-driven frame-loop engine (platform-neutral playback)
 export { createBasicFrameLoopAnimator } from './playback/PxFrameLoop';
@@ -132,17 +132,21 @@ export type { PxRunClock } from './playback/PxPlaybackTime';
 export { createDiagnostics, PxDiagnosticKind } from './playback/PxDiagnostics';
 export type { PxDiagnostic, PxDiagnostics, PxDiagnosticsConfig } from './playback/PxDiagnostics';
 
-// Element-creation factory + glyph-text materialiser
+// The shapes every framework component shares (review §9) — one definition, three aliases.
+export type { PxAnimatorHandle, PxComponentCallbacks } from './format/PxAnimatorTypes';
+export type { PxPlaybackOverrideProps } from './playback/PxAnimatorConfigPatch';
+
+// Element-creation factory + glyph-text materializer
 export { jsonElementFactory } from './effects/text/elementFactory';
 export type { PxCreateElement } from './effects/text/elementFactory';
-export { layoutGlyphTextChars, materialiseGlyphText, materialiseGlyphTextAlongPath, materialiseGlyphTextHorizontal, MISSING_GLYPH_CLASS_NAME } from './effects/text/textGlyphsEffect';
-export type { GlyphCharBox, GlyphCharBoxAlongPath, GlyphMaterialiseOpts } from './effects/text/textGlyphsEffect';
+export { layoutGlyphTextChars, materializeGlyphText, materializeGlyphTextAlongPath, materializeGlyphTextHorizontal, MISSING_GLYPH_CLASS_NAME } from './effects/text/textGlyphsEffect';
+export type { GlyphCharBox, GlyphCharBoxAlongPath, GlyphMaterializeOpts } from './effects/text/textGlyphsEffect';
 export { createPathSampler } from './effects/text/pathSampler';
 export type { PathPoint, PathSampler } from './effects/text/pathSampler';
 export { extendedPathForBrowser, shiftAnimatable } from './effects/text/textPathEffect';
 export type { ExtendPathOpts, ExtendedPath } from './effects/text/textPathEffect';
 
-// Player-effects materialiser + visual-model diff harness
+// Player-effects materializer + visual-model diff harness
 export { applyPlayerEffects } from './effects/PlayerEffectsUtil';
 export type { ApplyResult } from './effects/shared/types';
 export { collectSampleTimes, diffInEffect, visualModelAt } from './effects/PlayerEffectsUtil.visualModel';

@@ -33,7 +33,7 @@ icon animations, loaders.
 
 - **[Library documentation](./docs/library/README.md)** — every player: web, React, Vue, React Native; installation, APIs, playback settings & triggers
 - **[Format documentation](./docs/format/README.md)** — the JSON document: reference, effects, editor meta, the core library · [SCHEMA.md](./SCHEMA.md) — the compact printable schema
-- **[Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg)** — the self-contained `.svg` flavours: embedding, static sites & CMS, `data-px-meta`
+- **[Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg)** — the self-contained `.svg` flavors: embedding, static sites & CMS, `data-px-meta`
 - **[Editor manual](https://pixodesk.com/docs/svga)** — the full Pixodesk SVG Animator editor documentation, including [choosing a format](https://pixodesk.com/docs/svga/editor/choosing-a-format) and [default playback settings & triggers](https://pixodesk.com/docs/svga/editor/playback-settings)
 - **[Troubleshooting & FAQ](./docs/library/troubleshooting.md)**
 
@@ -41,7 +41,7 @@ icon animations, loaders.
 
 | Package | Description |
 |---------|-------------|
-| **[@pixodesk/svg-animator-core](./packages/svg-animator-core/README.md)** | Platform-neutral core — schema, document types, interpolation, effect materialisers and path sampling. No DOM. Shared by every player; you only depend on it directly to inspect or transform documents. |
+| **[@pixodesk/svg-animator-core](./packages/svg-animator-core/README.md)** | Platform-neutral core — schema, document types, interpolation, effect materializers and path sampling. No DOM. Shared by every player; you only depend on it directly to inspect or transform documents. |
 | **[@pixodesk/svg-animator-web](./packages/svg-animator-web/README.md)** | Web player — renders JSON animations in the browser via the Web Animations API or `requestAnimationFrame`. Ships as ESM, CJS, and UMD. |
 | **[@pixodesk/svg-animator-react](./packages/svg-animator-react/README.md)** | React component — SSR-safe wrapper around the web player |
 | **[@pixodesk/svg-animator-vue](./packages/svg-animator-vue/README.md)** | Vue component — SSR-safe wrapper around the web player |
@@ -50,7 +50,7 @@ icon animations, loaders.
 How they fit together:
 
 ```
-                    svg-animator-core          (schema · materialisers · sampling — no DOM)
+                    svg-animator-core          (schema · materializers · sampling — no DOM)
                        ↑              ↑
         svg-animator-web        svg-animator-rn 🧪   (react-native-svg + reanimated)
           ↑          ↑

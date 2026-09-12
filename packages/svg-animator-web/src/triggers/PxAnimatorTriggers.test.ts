@@ -178,7 +178,7 @@ describe('setupAnimationTriggers', () => {
             // The observer registers a GRANULAR threshold list, not the author's raw value: a
             // target taller than the viewport can never reach a high ratio, so registering the raw
             // threshold would mean the callback never fires. The author's value is applied to a
-            // NORMALISED ratio inside the callback instead (asserted by the behaviour tests below).
+            // NORMALIZED ratio inside the callback instead (asserted by the behavior tests below).
             expect(Array.isArray(io.options.threshold)).toBe(true);
             expect(io.options.threshold).toContain(0);
             expect(io.options.threshold).toContain(1);
@@ -201,13 +201,13 @@ describe('setupAnimationTriggers', () => {
             expect(api.pause).toHaveBeenCalledTimes(1);
         });
 
-        it('honours scrollIntoViewThreshold: intersecting below the threshold does not play', () => {
+        it('honors scrollIntoViewThreshold: intersecting below the threshold does not play', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
             setupAnimationTriggers(api, { startOn: 'scrollIntoView', scrollIntoViewThreshold: 0.8 });
 
             // See the note above: the registration is a granular list; the 0.8 gate is applied to
-            // the normalised ratio in the callback, which the assertions below exercise.
+            // the normalized ratio in the callback, which the assertions below exercise.
             expect(Array.isArray(io.options.threshold)).toBe(true);
 
             io.callback!([{ isIntersecting: true, intersectionRatio: 0.6 }]);
@@ -218,7 +218,7 @@ describe('setupAnimationTriggers', () => {
         });
     });
 
-    // ── behaviours pinned by the app's `trigger-explorer.spec.ts` integration suite,
+    // ── behaviors pinned by the app's `trigger-explorer.spec.ts` integration suite,
     //    mirrored here so the LIB's own suite (this file) also guards them ─────────────
 
     it('click DURING reverse playback is another OUT, not a start (the toggle sees "playing")', () => {
@@ -312,15 +312,30 @@ describe('setupAnimationTriggers', () => {
         readyStateSpy.mockRestore();
     });
 
-    it('warns and returns the api unchanged when there is no root element', () => {
+    it('warns and returns a no-op disposer when there is no root element', () => {
         const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => { /* silence */ });
         const { api } = createMockApi({ getRootElement: vi.fn(() => null) });
 
-        const res = setupAnimationTriggers(api, { startOn: 'load' });
+        // Used to return the api "for chaining" (review §14). A disposer is what a caller can
+        // actually use — and with nothing attached, it must simply be safe to call.
+        const dispose = setupAnimationTriggers(api, { startOn: 'load' });
 
-        expect(res).toBe(api);
+        expect(typeof dispose).toBe('function');
+        expect(() => dispose()).not.toThrow();
         expect(api.play).not.toHaveBeenCalled();
         expect(warnSpy).toHaveBeenCalled();
         warnSpy.mockRestore();
+    });
+
+    it('the disposer detaches every listener it attached (review §14)', () => {
+        const { api, root } = createMockApi();
+        const dispose = setupAnimationTriggers(api, { startOn: 'mouseOver' });
+
+        root.dispatchEvent(new Event('mouseenter'));
+        expect(api.play).toHaveBeenCalledTimes(1);
+
+        dispose();
+        root.dispatchEvent(new Event('mouseenter'));
+        expect(api.play).toHaveBeenCalledTimes(1);   // still 1 — the listener is gone
     });
 });

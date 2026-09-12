@@ -6,7 +6,7 @@
 import {
     calcAnimationValues,
     getAnimatorConfig,
-    getNormalisedBindings,
+    getNormalizedBindings,
     DEFAULT_DURATION_MS,
     PxTimelineEngine,
     type PxAnimatedSvgDocument,
@@ -20,7 +20,7 @@ import { toRnPropName, toRnPropValue } from './PxRnPropNames';
  * The compiler densely samples every animated property through core's
  * `calcAnimationValues` — the exact function the web frames engine renders
  * with — so RN playback is value-identical to the web player. Easing, loops,
- * transform composition, colour interpolation and path morphing are all baked
+ * transform composition, color interpolation and path morphing are all baked
  * into the samples at compile time; the UI-thread worklet only indexes arrays.
  */
 export interface PxElementTracks {
@@ -70,7 +70,7 @@ export interface CompileTracksOptions {
 
 
 /**
- * Compiles a MATERIALISED document (run `materialiseAllInTree(doc, 'frames')`
+ * Compiles a MATERIALIZED document (run `materializeAllInTree(doc, 'frames')`
  * + `generateNewIds` first) into densely sampled per-element tracks.
  */
 export function compileTracks(doc: PxAnimatedSvgDocument, opts?: CompileTracksOptions): PxCompiledTracks {
@@ -99,7 +99,7 @@ export function compileTracks(doc: PxAnimatedSvgDocument, opts?: CompileTracksOp
     };
     indexTags(doc);
 
-    const bindings = getNormalisedBindings(doc, PxTimelineEngine.js) || [];
+    const bindings = getNormalizedBindings(doc, PxTimelineEngine.js) || [];
 
     const elements: Array<PxElementTracks> = [];
     for (const binding of bindings) {

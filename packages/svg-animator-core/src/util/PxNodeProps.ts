@@ -5,7 +5,7 @@
 
 import { type PxDefs } from '../format/PxAnimatorTypes';
 import { INTERNAL_ATTRS, TRANSFORM_ATTR } from '../format/PxAnimatorConstants';
-import { COLOUR_ATTR_NAMES, composeTransformParts, kebabToCamelCaseWord, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
+import { COLOR_ATTR_NAMES, composeTransformParts, kebabToCamelCaseWord, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 
 
 /**
@@ -16,7 +16,7 @@ import { COLOUR_ATTR_NAMES, composeTransformParts, kebabToCamelCaseWord, toRGBA,
  * Everything else (shape elements, gradients, patterns, markers, filters
  * including `feComponentTransfer` / `feFuncA` / `feFlood` / `feComposite` /
  * `feImage`, SMIL `<animate>` family, `<a>` hyperlinks, …) is allowed. URL
- * sanitisation in `sanitiseAttributeValue` blocks `javascript:` / external
+ * sanitization in `sanitizeAttributeValue` blocks `javascript:` / external
  * refs on `href` / `src` / `mask` / `marker*`.
  */
 export const DISALLOWED_SVG_TAGS_LOWER = new Set([
@@ -28,7 +28,7 @@ export const DISALLOWED_SVG_TAGS_LOWER = new Set([
 /**
  * URL-valued attributes that must reference an internal `#id` / `url(#id)`
  * only — never an external URL, `javascript:`, etc. Values for these names
- * are sanitised in `sanitiseAttributeValue`; non-internal refs are dropped.
+ * are sanitized in `sanitizeAttributeValue`; non-internal refs are dropped.
  *
  * Exception: image-ref attributes (`href` / `xlink:href` / `src`) ALSO
  * accept `data:image/…` URIs — base64 raster (`image/png`, `image/jpeg`,
@@ -40,7 +40,7 @@ export const DISALLOWED_SVG_TAGS_LOWER = new Set([
  * therefore safe as an image source even though a top-level SVG document
  * with the same bytes could embed scripts.
  *
- * Stored lowercased so `sanitiseAttributeValue`'s `name.toLowerCase()`
+ * Stored lowercased so `sanitizeAttributeValue`'s `name.toLowerCase()`
  * lookup matches regardless of input casing (`href` / `xlink:href` /
  * `clipPath` / `clip-path` all hit the same entry).
  */
@@ -64,7 +64,7 @@ const IMAGE_REF_ATTRS_LOWER = new Set(['href', 'xlink:href', 'src']);
 
 /** CSS-only properties that are NOT SVG presentation attributes — the browser
  *  ignores them via `setAttribute`, so they must be applied through `element.style`.
- *  Keyed camelCase to match the normalised prop names (`element.style.mixBlendMode`). */
+ *  Keyed camelCase to match the normalized prop names (`element.style.mixBlendMode`). */
 export const CSS_ONLY_STYLE_PROPS = new Set<string>(['mixBlendMode', 'isolation']);
 
 /** Matches `data:image/{png|jpeg|jpg|gif|webp|bmp};base64,<payload>`.
@@ -83,7 +83,7 @@ const DATA_SVG_IMAGE_RE = /^data:image\/svg\+xml(?:;[^,]*)?,/i;
  *  sniffing the leading bytes; we mirror that by matching the base64 payload
  *  against common raster magic numbers (PNG `\x89PNG`, JPEG `\xFF\xD8\xFF`, GIF
  *  `GIF8`, WebP/RIFF, BMP `BM`). Accepting on real image bytes keeps the
- *  sanitiser's safety guarantee — raster bytes are inert — without trusting the
+ *  sanitizer's safety guarantee — raster bytes are inert — without trusting the
  *  (here bogus) subtype, so the image renders instead of being dropped. */
 const DATA_IMAGE_BASE64_PAYLOAD_RE = /^data:image\/[^;,]*;base64,([A-Za-z0-9+/]{8})/i;
 const BASE64_RASTER_MAGICS = ['iVBORw0K', '/9j/', 'R0lGOD', 'UklGR', 'Qk'];
@@ -97,7 +97,7 @@ function isContentSniffedRasterImage(str: string): boolean {
  * Attribute-name predicate: anything `name` matching this is dropped at
  * `setAttribute` time. The list is intentionally small — SVG's real
  * security surface is event handlers; every other concerning attribute
- * (URL refs, fill/stroke `url(…)`) is value-sanitised below, not name-
+ * (URL refs, fill/stroke `url(…)`) is value-sanitized below, not name-
  * blocked. Adding entries here is a structural decision, not whack-a-mole.
  */
 function isDangerousAttrName(nameLower: string): boolean {
@@ -127,7 +127,7 @@ function isDangerousAttrName(nameLower: string): boolean {
  *      source). Blocks `javascript:` and external URLs.
  * Everything else passes through.
  */
-export function sanitiseAttributeValue(name: string, value: any): any | undefined {
+export function sanitizeAttributeValue(name: string, value: any): any | undefined {
     const nameLower = name.toLowerCase();
 
     if (isDangerousAttrName(nameLower)) {
@@ -183,7 +183,7 @@ export function getNormalizedProps(props: Record<string, any>) {
     // Process regular attributes
     for (const rawKey of Object.keys(props)) {
         // Wire-format inputs may use kebab-case SVG attribute names (e.g.
-        // `stroke-width`); normalise to camelCase up-front so the whitelist
+        // `stroke-width`); normalize to camelCase up-front so the whitelist
         // (camelCase) and the `camelCaseToKebabWordIfNeeded` re-conversion
         // at write time both work. `kebabToCamelCaseWord` is a no-op for
         // keys with no `-`, leaving camelCase inputs untouched.
@@ -193,7 +193,7 @@ export function getNormalizedProps(props: Record<string, any>) {
 
         let value = props[rawKey];
 
-        if (COLOUR_ATTR_NAMES.has(key) && Array.isArray(value)) {
+        if (COLOR_ATTR_NAMES.has(key) && Array.isArray(value)) {
             propsCopy[key] = toRGBA(value);
         } else if (
             key === 'transform' && value !== null && typeof value === 'object' &&
@@ -215,7 +215,7 @@ export function getNormalizedProps(props: Record<string, any>) {
             // Raw-array STATIC form of number-list attributes — `strokeDasharray: [16, 16]`
             // (the wire's canonical static shape; the string form "16,16" is also accepted
             // and passes through the String() branch below). SVG list attributes take the
-            // comma-separated string. Colour arrays were already handled above.
+            // comma-separated string. Color arrays were already handled above.
             propsCopy[key] = value.join(',');
         } else if (value !== undefined && value !== null) {
             propsCopy[key] = String(value);

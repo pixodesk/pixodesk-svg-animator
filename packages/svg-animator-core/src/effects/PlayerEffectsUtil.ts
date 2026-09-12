@@ -7,12 +7,12 @@
 /**
  * Lightweight, dependency-free applier for "player-effects" SVGA JSON.
  *
- * Input: the JSON produced by `SvgaJsonWithPlayerEffectsSerialisationUtil`, where
+ * Input: the JSON produced by `SvgaJsonWithPlayerEffectsSerializationUtil`, where
  * structure-creating effects are left UN-applied on `node.effects`. This module
- * reads those effects and MATERIALISES them into a plain node tree (extra `<g>`
+ * reads those effects and MATERIALIZES them into a plain node tree (extra `<g>`
  * wrappers, copies, mask defs) that renders identically to the heavy editor path.
  *
- * Design goals (intentional): minimal, transparent, no merging/optimisation. It
+ * Design goals (intentional): minimal, transparent, no merging/optimization. It
  * is fine to emit more nodes than strictly necessary — the only contract is "same
  * result on screen". Each effect lives in its own file; this module only wires
  * them into the recursion. Nothing here imports outside `effects/`, so the whole
@@ -40,12 +40,12 @@ export type { ApplyResult } from './shared/types';
 
 
 /**
- * Applies all player-effects in `root` and returns a materialised copy plus any
+ * Applies all player-effects in `root` and returns a materialized copy plus any
  * generated <defs> nodes, warnings and errors. `root` is not mutated.
  *
  * Two passes:
- *  1. `applyPlayerEffects_exceptRetime` — materialises every effect except retime.
- *  2. `applyPlayerEffects_retime` — applies retime, cloning the NOW-materialised
+ *  1. `applyPlayerEffects_exceptRetime` — materializes every effect except retime.
+ *  2. `applyPlayerEffects_retime` — applies retime, cloning the NOW-materialized
  *     subtrees so retimed `<use>`s see the same wrappers/animations the heavy
  *     editor path would produce.
  *
@@ -79,15 +79,15 @@ export function applyPlayerEffects(root: PxNode): ApplyResult {
 }
 
 /**
- * Pass 1 — materialise every effect except retime. Retime is preserved on the
+ * Pass 1 — materialize every effect except retime. Retime is preserved on the
  * original (now wrapped-inner) node so pass 2 can find and apply it.
  *
  * After wrapping, the outer-most wrapper for a node with `originalId` is written
- * back into `ctx.idMap` so retime's clone target picks up the FULL materialised
+ * back into `ctx.idMap` so retime's clone target picks up the FULL materialized
  * subtree, not the bare un-wrapped original.
  *
  * If the node is a content-ref target, `splitForContentRef` re-shapes the
- * materialised result into outer-translate + inner-rest layers — the outer keeps
+ * materialized result into outer-translate + inner-rest layers — the outer keeps
  * the original id, the inner gets the pre-allocated inner id so the `<use>` can
  * target it.
  */
@@ -128,7 +128,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     if (!consumedByGlyphs) n = applyTextPathEffect(n, textPath, ctx);
     // Paint-gradient defs are generated FIRST, before any structural wrapper —
     // the gradient effect sits on the innermost element (alongside its `fill`
-    // / `stroke` body attrs), so it must materialise before trim/repeater/
+    // / `stroke` body attrs), so it must materialize before trim/repeater/
     // mask wrap around it. `<linearGradient>` defs themselves don't get
     // wrapped — they live in `ctx.defs` independent of the structure walk.
     n = applyFillGradientEffect(n, fillGradient, ctx);
@@ -159,7 +159,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
 }
 
 /** Pass 2 — apply retime to every `<use>` that carries it. Follows the
- *  materialised `<use>.href` (not the editor-side `retime.source`). */
+ *  materialized `<use>.href` (not the editor-side `retime.source`). */
 function applyPlayerEffects_retime(node: PxNode, ctx: ApplyContext): PxNode {
     applyAllRetimeEffects(node, ctx);
     return node;

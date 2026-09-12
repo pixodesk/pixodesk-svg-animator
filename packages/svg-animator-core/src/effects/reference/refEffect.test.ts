@@ -12,7 +12,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../../format/PxAnimatorTypes';
-import { collectByType, materialise, normaliseGeneratedIds } from '../effectTestKit';
+import { collectByType, materialize, normalizeGeneratedIds } from '../effectTestKit';
 
 /** A `<rect id=src>` source + a `<use>` referencing it. */
 const scene = (srcExtra: any, useEffects: any): PxNode => ({
@@ -30,8 +30,8 @@ const gById = (out: PxNode, id: string): any => collectByType(out, 'g').find(g =
 describe('refEffect — whole-element ref & content-ref split', () => {
 
     it('case 1 — whole-element ref → <use>.href rewritten to #source, source untouched', () => {
-        const out = materialise(scene({}, { clone: { source: 'src' } }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(scene({}, { clone: { source: 'src' } }));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -54,8 +54,8 @@ describe('refEffect — whole-element ref & content-ref split', () => {
     });
 
     it('case 2 — content ref → source SPLIT (outer#src > inner > bare), <use> points at inner', () => {
-        const out = materialise(scene({}, { clone: { without: 'translate', source: 'src' } }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(scene({}, { clone: { without: 'translate', source: 'src' } }));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [
@@ -94,8 +94,8 @@ describe('refEffect — whole-element ref & content-ref split', () => {
     });
 
     it('case 3 — content ref with source TRANSLATE → translate lifts to outer, bare element has none', () => {
-        const out = materialise(scene({ transform: 'translate(30,40)' }, { clone: { without: 'translate', source: 'src' } }));
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(scene({ transform: 'translate(30,40)' }, { clone: { without: 'translate', source: 'src' } }));
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "children": [

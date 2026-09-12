@@ -6,10 +6,10 @@
 // ============================================================================
 // UMD entry for PRE-RENDERED SVG — WAAPI only. The smallest build.
 //
-// Inlined by the Editor into SVG+JS exports whose animator mode is `waapi`. On top of
-// what `index.prerendered.ts` drops, this also excludes the frame-loop engine: waapi is
-// forced, so there is no fallback path to link against (`createWebApiAnimator` never
-// returns null when forced — it only warns about unsupported attrs).
+// Inlined by the Editor into SVG+JS exports whose `timeline.engine` is `native`. On top of
+// what `index.prerendered.ts` drops, this also excludes the frame-loop engine: the native
+// engine is forced, so there is no fallback path to link against (`createWebApiAnimator`
+// never returns null when forced — it only warns about unsupported attrs).
 //
 // Exported AS `createAnimator` so the emitted `<script>` is identical across bundles.
 // See PRERENDERED-PLAYER-BUILDS.md.

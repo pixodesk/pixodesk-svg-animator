@@ -54,7 +54,7 @@ function numbers(raw: string): Array<number> {
 
 /**
  * Parses an SVG transform list. Returns `undefined` when the string contains no
- * recognisable function, so callers can leave the original value untouched
+ * recognizable function, so callers can leave the original value untouched
  * rather than silently replacing it with an identity matrix.
  */
 export function svgTransformToMatrix(value: string): Mat2D | undefined {

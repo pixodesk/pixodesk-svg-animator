@@ -26,7 +26,7 @@ const BUNDLE = process.argv[2] || join(ROOT, 'packages/svg-animator-web/dist/ind
 const ids = JSON.parse(readFileSync(join(ROOT, 'scripts/.identifiers.json'), 'utf8'));
 const src = readFileSync(BUNDLE, 'utf8');
 
-/** Count identifier occurrences OUTSIDE string literals (see analyse-bundle.mjs). */
+/** Count identifier occurrences OUTSIDE string literals (see analyze-bundle.mjs). */
 function codeOnly(s) {
     let out = '', i = 0, start = 0;
     while (i < s.length) {

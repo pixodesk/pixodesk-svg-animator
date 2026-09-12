@@ -9,7 +9,7 @@
 // offset jumps 0.512 → 0.713 between the t=3070 and t=3990 keyframes). The bug
 // was that `animatedStopNode` (effects/gradientEffect.ts) emitted only
 // `stop.animate.stopColor.keyframes` and froze `offset` to the first kf, so
-// stops stayed put on the canvas while colours animated.
+// stops stayed put on the canvas while colors animated.
 
 import { describe, expect, it } from 'vitest';
 import { applyPlayerEffects } from '../PlayerEffectsUtil';
@@ -47,7 +47,7 @@ function buildStrokeGradientNode(): PxNode {
 }
 
 
-/** Finds the materialised `<stop>` children of the synthesised gradient def. */
+/** Finds the materialized `<stop>` children of the synthesised gradient def. */
 function findStops(root: PxNode): Array<PxNode> {
     const out: Array<PxNode> = [];
     const walk = (n: PxNode) => {

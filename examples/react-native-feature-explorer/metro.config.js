@@ -13,7 +13,7 @@ const config = getDefaultConfig(projectRoot);
 
 // Watch the workspace root so the local @pixodesk/* packages are picked up.
 // Everything Metro does at startup scales with how many files this covers, so
-// the blockList below is not an optimisation — without it Metro crawls every
+// the blockList below is not an optimization — without it Metro crawls every
 // node_modules in the monorepo (~50k files) before it can serve the first
 // bundle, and a phone waiting on that request gives up with "The request timed
 // out" long before Metro is ready.
@@ -79,7 +79,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
 
 // NB: do NOT set `transformer.getTransformOptions` with `inlineRequires` here.
 // It looks like an easy startup win, but moving requires inline reorders module
-// initialisation in a way react-native-worklets cannot survive — every render
+// initialization in a way react-native-worklets cannot survive — every render
 // then dies with "[Worklets] createSerializableObject should never be called in
 // JSWorklets". Deferred loading belongs in application code instead; see the
 // lazy fixture getters in `src/catalog.ts`.

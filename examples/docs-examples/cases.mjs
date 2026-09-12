@@ -37,24 +37,24 @@ export const CASES = [
   { group: 'react', id: 'imperative',      title: 'Imperative API (apiRef)', anchor: 'imperative-api-apiref',
     summary: 'play / pause / cancel / finish through a ref.' },
   { group: 'react', id: 'autoplay',        title: 'Autoplay', anchor: 'autoplay',
-    summary: 'The component honours the document\'s own trigger.' },
+    summary: 'The component honors the document\'s own trigger.' },
   { group: 'react', id: 'controlled-time', title: 'Controlled time (time)', anchor: 'controlled-time-progress--time',
     summary: 'A slider drives time (ms); the component renders that exact frame.' },
   { group: 'react', id: 'declarative',     title: 'Declarative play / pause', anchor: 'declarative-play--pause',
     summary: 'Boolean play and pause props.' },
-  { group: 'react', id: 'css-svgr',        title: 'CSS-flavour SVG — PixodeskSvgCssAnimator + SVGR', anchor: 'css-flavour-svgs--pixodesksvgcssanimator',
+  { group: 'react', id: 'css-svgr',        title: 'CSS-flavor SVG — PixodeskSvgCssAnimator + SVGR', anchor: 'css-flavor-svgs--pixodesksvgcssanimator',
     summary: 'A pre-rendered SVG imported as a component, with a click trigger added by the wrapper.' },
 
   // -- Vue --------------------------------------------------------------------
   { group: 'vue', id: 'autoplay',        title: 'Autoplay', anchor: 'autoplay',
-    summary: 'The component honours the document\'s own trigger.' },
+    summary: 'The component honors the document\'s own trigger.' },
   { group: 'vue', id: 'controlled-time', title: 'Controlled time (time)', anchor: 'controlled-time-progress--time',
     summary: 'A slider drives time (ms); the component renders that exact frame.' },
   { group: 'vue', id: 'declarative',     title: 'Declarative play / pause', anchor: 'declarative-play--pause',
     summary: 'Boolean play and pause props.' },
   { group: 'vue', id: 'imperative',      title: 'Imperative API (template ref)', anchor: 'imperative-api-template-ref',
     summary: 'play / pause / cancel / finish through a template ref.' },
-  { group: 'vue', id: 'css-loader',      title: 'CSS-flavour SVG — PixodeskSvgCssAnimator + vite-svg-loader', anchor: 'css-flavour-svgs--pixodesksvgcssanimator',
+  { group: 'vue', id: 'css-loader',      title: 'CSS-flavor SVG — PixodeskSvgCssAnimator + vite-svg-loader', anchor: 'css-flavor-svgs--pixodesksvgcssanimator',
     summary: 'A pre-rendered SVG imported as a component, with a click trigger added by the wrapper.' },
 
   // -- Playback settings & triggers ---------------------------------------------
@@ -64,11 +64,11 @@ export const CASES = [
     summary: 'The `config` prop plus the `iterations` shortcut replace the document\'s values.' },
 
   // -- Pre-rendered SVG ----------------------------------------------------------
-  { group: 'prerendered', id: 'inline-css', title: 'Flavour 1 inlined — SVG + CSS animation', anchor: 'flavour-1--svg--css-animation',
+  { group: 'prerendered', id: 'inline-css', title: 'Flavor 1 inlined — SVG + CSS animation', anchor: 'flavor-1--svg--css-animation',
     summary: 'An On-load export pasted into the page; the browser runs the @keyframes. No library.' },
   { group: 'prerendered', id: 'img-css',    title: 'In an <img> — static', anchor: 'three-ways-to-embed-animated-svg',
     summary: 'Used as a picture, a pre-rendered SVG shows a still frame. Inline it instead.' },
-  { group: 'prerendered', id: 'inline-js',  title: 'Flavour 3 — SVG + JS animation', anchor: 'flavour-3--svg--js-animation',
+  { group: 'prerendered', id: 'inline-js',  title: 'Flavor 3 — SVG + JS animation', anchor: 'flavor-3--svg--js-animation',
     summary: 'An already-rendered SVG plus a bindings payload, driven by the embedded player.' },
 
   // -- Static sites & CMS --------------------------------------------------------

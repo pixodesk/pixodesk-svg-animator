@@ -33,7 +33,7 @@ describe('svgTransformToMatrix', () => {
         expect(y).toBeCloseTo(1, 9);
     });
 
-    it('honours a rotation centre', () => {
+    it('honors a rotation center', () => {
         // rotate(180, 5, 0) maps (0,0) → (10,0)
         const m = svgTransformToMatrix('rotate(180,5,0)')!;
         expect(m[0] * 0 + m[2] * 0 + m[4]).toBeCloseTo(10, 9);
@@ -53,7 +53,7 @@ describe('toRnPropValue transform handling', () => {
 
     it('leaves the transform ALONE by default, for the DOM', () => {
         // react-native-web hands the value straight to the DOM, where an array
-        // serialises to `transform="1,0,0,1,3,4"` and the element stops moving.
+        // serializes to `transform="1,0,0,1,3,4"` and the element stops moving.
         expect(toRnPropValue('transform', 'translate(3,4)')).toBe('translate(3,4)');
     });
 

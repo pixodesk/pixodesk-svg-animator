@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 // Effect params that GRADUATED from editor-only schema extensions into the
-// player wire (SCHEMA-DESIGN §4 catalogue): `repeater.skew` (per-copy ×i,
+// player wire (SCHEMA-DESIGN §4 catalog): `repeater.skew` (per-copy ×i,
 // animatable) and the `maskedBy` mask VIEWPORT. Before the graduation the player
 // silently ignored both — editor and player rendered differently whenever they
 // were set.
@@ -18,7 +18,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../format/PxAnimatorTypes';
-import { collectByType, materialise } from './effectTestKit';
+import { collectByType, materialize } from './effectTestKit';
 
 const doc = (child: Record<string, unknown>): PxNode =>
     ({ type: 'svg', animator: { timeline: { duration: 2000 } }, children: [child] } as unknown as PxNode);
@@ -29,7 +29,7 @@ const anim = (n: PxNode | undefined): Record<string, any> => ((n as any)?.animat
 describe('repeater.skew — per-copy skew increment ×i', () => {
 
     it('static skew: copy i gets a transform with skew × i', () => {
-        const out = materialise(doc({
+        const out = materialize(doc({
             type: 'rect', width: 10, height: 10,
             effects: { repeater: { copies: 3, skew: 4 } },
         }));
@@ -39,7 +39,7 @@ describe('repeater.skew — per-copy skew increment ×i', () => {
     });
 
     it('animated skew (keyframes + loop): per-copy keyframe values scale ×i', () => {
-        const out = materialise(doc({
+        const out = materialize(doc({
             type: 'rect', width: 10, height: 10,
             effects: { repeater: {
                 copies: 3,
@@ -57,7 +57,7 @@ describe('repeater.skew — per-copy skew increment ×i', () => {
 describe('maskedBy viewport (x/y/width/height) — explicit mask region', () => {
 
     it('x/y/width/height land on the generated <mask> verbatim', () => {
-        const out = materialise(doc({
+        const out = materialize(doc({
             type: 'rect', width: 100, height: 100,
             effects: { maskedBy: {
                 source: '#msrc', maskUnits: 'userSpaceOnUse',
@@ -73,7 +73,7 @@ describe('maskedBy viewport (x/y/width/height) — explicit mask region', () => 
     });
 
     it('absent viewport → no viewport attrs (SVG implicit −10%…120% region)', () => {
-        const out = materialise(doc({
+        const out = materialize(doc({
             type: 'rect', width: 100, height: 100,
             effects: { maskedBy: { source: '#msrc' } },
         }));

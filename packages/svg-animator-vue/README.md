@@ -104,7 +104,7 @@ Note: passing a different `doc` (or unmounting) throws the old animator away and
 |---|---|
 | `play` | Animation started or resumed |
 | `pause` | Animation paused |
-| `cancel` | Animation cancelled |
-| `finish` | Animation finished naturally |
+| `cancel` | Animation canceled |
+| `finish` | Animation reached its end — every iteration played, or `finish()` was called |
 | `remove` | Animation cleaned up (e.g. on unmount) |
 | `stop` | Fired alongside any event that halts playback (`pause` / `cancel` / `finish` / `remove`) |

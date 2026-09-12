@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxAnimatorConfigPatch, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger } from '@pixodesk/svg-animator-web';
-import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, PxDiagnosticKind, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
+import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, PxDiagnosticKind, progressToTimeMs, DEFAULT_DURATION_MS, type PxAnimatorHandle, type PxControlProps, type PxPlaybackOverrideProps, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
     watch,
@@ -16,40 +16,11 @@ import {
 /** Vue's own prop names on the vnode — not wire keys. See the React twin. */
 const VUE_PROP = { ref: 'ref' } as const;
 
-export interface VueAnimatorApi {
-    /** Returns true if the animation is currently running. */
-    isPlaying(): boolean;
-
-    /** Starts or resumes the animation. */
-    play(): void;
-
-    /** Pauses the animation at its current state. */
-    pause(): void;
-
-    /** Stops the animation and resets it to its initial state. */
-    cancel(): void;
-
-    /** Jumps to the end of the animation and holds the final state. */
-    finish(): void;
-
-    /** Changes the speed of the animation. 1 is normal, 2 is double, -1 is reverse. */
-    setPlaybackRate(rate: number): void;
-
-    /** Current playback time, ms from the start of the whole run (iterations included). */
-    getCurrentTime(): number | null;
-
-    /** Seeks, ms from the start of the whole run; clamped to `[0, duration × iterations]`. */
-    setCurrentTime(time: number): void;
-
-    /**
-     * Current position as 0–1 of the whole run — the read twin of the `progress` prop,
-     * and ONE iteration when `iterations` is `'infinite'`.
-     */
-    getCurrentProgress(): number | null;
-
-    /** Seeks to 0–1 of the whole run, clamped to `[0, 1]`. */
-    setCurrentProgress(progress: number): void;
-}
+/**
+ * The imperative handle the template ref exposes — core's `PxAnimatorHandle` under this
+ * package's name (review §9). One definition for React, Vue and React Native.
+ */
+export type VueAnimatorApi = PxAnimatorHandle;
 
 
 // -- Internal types ---------------------------------------------------------
@@ -95,20 +66,12 @@ function createVueAdapter(elementRefs: Map<string, Element>, diag: PxDiagnostics
 
 // -- Helper: apply doc overrides --------------------------------------------
 
-interface DocOverrideProps {
-    /** Per-instance override of the document's `animator` config — the same shape as
-     *  `animator` in SCHEMA.md, deep-merged; `null` at a slot deletes it. Also accepts a
-     *  JSON string. Replaces the former flat mode/fill/direction/frameRate/outAction props. */
-    config?: PxAnimatorConfigPatch | string;
-    /** Start from the player's defaults instead of the document's playback settings. */
-    resetDocDefaults?: boolean;
-    duration?: number;
-    delay?: number;
-    iterations?: number | 'infinite';
-    startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
-    progress?: number;
-    time?: number;
-}
+/**
+ * What `applyDocOverrides` / `calcSeekMs` read off the props — core's shared shapes, not a local
+ * copy (review §9). The runtime `props: {…}` block below stays Vue's own, because Vue needs
+ * runtime prop declarations; this is only the TypeScript view of the same members.
+ */
+type DocOverrideProps = PxPlaybackOverrideProps & Pick<PxControlProps, 'progress' | 'time'>;
 
 function applyDocOverrides(
     doc: PxAnimatedSvgDocument,
@@ -147,9 +110,9 @@ function applyDocOverrides(
 
 /**
  * Controlled-time mode: absolute seek target in ms. `progress` is a fraction
- * (0–1) of the WHOLE timeline (duration × iterations); `time` is absolute.
- * Applied through the animator API (setCurrentTime) so scrubbing does NOT
- * recreate the animator.
+ * (0–1) of the WHOLE timeline (duration × iterations — ONE iteration when
+ * endless); `time` is absolute. Applied through the animator API
+ * (setCurrentTime) so scrubbing does NOT recreate the animator.
  */
 function calcSeekMs(doc: PxAnimatedSvgDocument, props: DocOverrideProps): number | undefined {
     let seekMs: number | undefined;
@@ -157,10 +120,13 @@ function calcSeekMs(doc: PxAnimatedSvgDocument, props: DocOverrideProps): number
     // `doc.animator.duration` directly finds nothing there.
     const animator = getAnimatorConfig(doc) || {};
     if (props.progress !== undefined) {
+        // ONE rule for progress → time (core's `progressToTimeMs`): the same mapping
+        // `getCurrentProgress` reads back, so a prop of 0.5 and a read of 0.5 agree.
         const iterationsValue = props.iterations ?? animator.iterations;
-        const iterationsCount = typeof iterationsValue === 'number' && iterationsValue >= 1 ? iterationsValue : 1;
-        const singleDuration = props.duration ?? animator.duration ?? 1000; // engine default duration
-        seekMs = props.progress * singleDuration * iterationsCount;
+        const iterationsCount = iterationsValue === 'infinite' ? Infinity
+            : (typeof iterationsValue === 'number' && iterationsValue >= 1 ? iterationsValue : 1);
+        const singleDuration = props.duration ?? animator.duration ?? DEFAULT_DURATION_MS;
+        seekMs = progressToTimeMs(props.progress, singleDuration, iterationsCount);
     }
     if (props.time !== undefined) seekMs = props.time;
     return seekMs;
@@ -345,8 +311,9 @@ const PixodeskSvgAnimator = defineComponent({
             } else if (props.pause) {
                 apiRef.value?.pause();
             } else if (props.play === false) {
-                // explicit play=false → jump to the end state
-                apiRef.value?.finish();
+                // explicit play=false → hold where it is (review §8). This used to `finish()`;
+                // a boolean whose `false` means "jump to the end" is not what anyone guesses.
+                apiRef.value?.pause();
             } else {
                 // pause-only usage: pause switched off → resume
                 apiRef.value?.play();

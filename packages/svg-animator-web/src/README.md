@@ -13,7 +13,7 @@ this package adds the DOM: building the SVG, driving it with an engine, and wiri
 | `scroll/` | `PxScrollDriver` — the DOM half of scroll/view timelines: measures scroller and subject, feeds core's scroll math |
 | `triggers/` | `PxAnimatorTriggers` — what STARTS an animation: load, click, hover, scroll-into-view |
 | `dom/` | `PxAnimatorDOM` — renders the document's nodes to SVG elements |
-| `shared/` | `PxAnimatorKeys` (wire keys every entry reads) and `PxAnimatorWebTypes` (DOM specialisations of core's types) |
+| `shared/` | `PxAnimatorKeys` (wire keys every entry reads) and `PxAnimatorWebTypes` (DOM specializations of core's types) |
 
 Conventions:
 

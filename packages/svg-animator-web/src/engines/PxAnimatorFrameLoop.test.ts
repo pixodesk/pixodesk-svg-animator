@@ -383,7 +383,7 @@ describe('createBasicFrameLoopAnimator', () => {
         expect(calls.length).toBe(0);
     });
 
-    it("finish() honours fill:'none' (reverts to frame 0, same as the natural end)", () => {
+    it("finish() honors fill:'none' (reverts to frame 0, same as the natural end)", () => {
         const { api, calls } = setup({ fillMode: 'none' });
 
         api.play();

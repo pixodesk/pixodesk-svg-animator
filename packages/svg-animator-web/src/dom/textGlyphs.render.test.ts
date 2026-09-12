@@ -5,8 +5,8 @@
 
 // @vitest-environment jsdom
 
-// Full "materialise → render → serialize" pipeline for glyph text — the exact
-// chain the editor's `writeMaterialisedStaticSvg` runs to produce a static,
+// Full "materialize → render → serialize" pipeline for glyph text — the exact
+// chain the editor's `writeMaterializedStaticSvg` runs to produce a static,
 // font-free SVG string (Step 3). Verifies glyph <text> becomes real <path>
 // geometry in the serialized output.
 
@@ -38,7 +38,7 @@ function scene(): PxNode {
     } as unknown as PxNode;
 }
 
-describe('glyph text — materialise → renderNode → serialize (static SVG)', () => {
+describe('glyph text — materialize → renderNode → serialize (static SVG)', () => {
 
     it('produces a font-free SVG with <path> geometry and no <text>', () => {
         const { root } = applyPlayerEffects(scene());

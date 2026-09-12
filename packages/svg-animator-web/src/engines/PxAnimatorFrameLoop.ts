@@ -61,19 +61,22 @@ export function createFrameLoopAnimator(
         callbacks
     );
 
-    // Specialise the platform-neutral API to the DOM: the root is an Element.
+    // Specialize the platform-neutral API to the DOM: the root is an Element.
     const api: PxAnimatorAPI = {
         ...basicApi,
         "getRootElement": () => rootElement || null
     };
     // D3 (scroll-timeline.design.md): triggers are meaningless when the playhead is
     // scroll-driven — writers must not emit them, and a document that carries them
-    // anyway gets a warning, not behaviour.
+    // anyway gets a warning, not behavior.
     // Every time-driven document IS wired: no `trigger` means the defaults (`startOn` 'load').
     if (isScrollTimeline(config)) {
         if (config.trigger) diag.warn(PxDiagnosticKind.usage, 'scroll timeline: `animator.trigger` is ignored (triggers do not apply to scroll-driven playback)');
     } else {
-        setupAnimationTriggers(api, config.trigger ?? {}, diag);
+        // The disposer rides on destroy(), so the listeners go when the animator does (§14).
+        const detachTriggers = setupAnimationTriggers(api, config.trigger ?? {}, diag);
+        const destroyEngine = api.destroy.bind(api);
+        api.destroy = () => { detachTriggers(); destroyEngine(); };
     }
     return api;
 }

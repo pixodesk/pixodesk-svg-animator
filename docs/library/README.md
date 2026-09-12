@@ -14,7 +14,7 @@ share. (Playing a **pre-rendered SVG** needs no library — see
 5. [React Native (`@pixodesk/svg-animator-rn`)](./react-native.md) 🧪 — *in development*; install, props, feature support, limitations
 6. [Playback settings & triggers](./playback-and-triggers.md) — the `animator` configuration, and overriding it from props or the player API
 7. [Minification & property mangling](./minification.md) — safe by default; what to do if your build renames object keys
-8. [Troubleshooting & FAQ](./troubleshooting.md) — nothing plays, React/TypeScript/React Native gotchas, playback behaviour
+8. [Troubleshooting & FAQ](./troubleshooting.md) — nothing plays, React/TypeScript/React Native gotchas, playback behavior
 
 ## See also
 

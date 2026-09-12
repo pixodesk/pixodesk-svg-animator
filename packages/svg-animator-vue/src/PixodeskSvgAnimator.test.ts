@@ -206,7 +206,7 @@ describe("PixodeskSvgAnimator (Vue)", () => {
             expect(spies.onStop).toHaveBeenCalledTimes(1);
         });
 
-        it("emits 'cancel' and 'stop' when cancelled", () => {
+        it("emits 'cancel' and 'stop' when canceled", () => {
             const { api, spies } = renderWithListeners();
             api.value!.play();
             api.value!.cancel();

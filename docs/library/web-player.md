@@ -212,7 +212,7 @@ createAnimator({
   callbacks: {
     onPlay:   () => {},   // started or resumed
     onPause:  () => {},   // paused
-    onCancel: () => {},   // cancelled (reset)
+    onCancel: () => {},   // canceled (reset)
     onFinish: () => {},   // finished naturally, or finish() was called
     onRemove: () => {},   // destroyed
 
@@ -229,7 +229,7 @@ createAnimator({
 
 If the document says `trigger.startOn: 'click'` (or `mouseOver`, `scrollIntoView`), the player
 wires the event on the rendered SVG for you; `outAction` (continue / pause / reset / reverse)
-and `scrollIntoViewThreshold` are honoured. With `'load'` it starts immediately; with
+and `scrollIntoViewThreshold` are honored. With `'load'` it starts immediately; with
 `'programmatic'` nothing happens until you call `play()`.
 
 `setupAnimationTriggers(api, triggerConfig)` is exported for one rare case: you have replaced
@@ -242,11 +242,11 @@ with the old elements, and you need to attach them to the new ones.
 
 `animator.timeline.engine` in the document selects how the animated attributes get updated:
 
-| Value | Behaviour |
+| Value | Behavior |
 |---|---|
 | `'auto'` (default) | Web Animations API, with an automatic fallback to the player's frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on path…). For scroll-driven documents: the browser's `ScrollTimeline` where supported, else the player measures progress itself |
 | `'native'` | Web Animations API only (and the browser's `ScrollTimeline` for scroll-driven documents) |
-| `'js'` | the player's frame loop only; honours `timeline.frameRate`. Required for path morphing in Safari < 18.5 |
+| `'js'` | the player's frame loop only; honors `timeline.frameRate`. Required for path morphing in Safari < 18.5 |
 
 The fallback is per document: if any animated attribute fails the runtime `CSS.supports` gate,
 the whole document runs on the frame loop. Either way it plays.

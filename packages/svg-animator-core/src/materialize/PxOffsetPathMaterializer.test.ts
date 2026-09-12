@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { materialiseOffsetPathsInTree } from './PxOffsetPathMaterialiser';
+import { materializeOffsetPathsInTree } from './PxOffsetPathMaterializer';
 import type { PxAnimatedSvgDocument, PxNode } from '../format/PxAnimatorTypes';
 
 const doc = (node: PxNode): PxAnimatedSvgDocument => ({
@@ -17,10 +17,10 @@ const curvedTransform = (extra?: object) => ({
     ...extra,
 } as never);
 
-describe('offset-path materialiser (lightweight JSON → player)', () => {
+describe('offset-path materializer (lightweight JSON → player)', () => {
 
     it('rewrites a marked curved transform into offset styles + an offsetDistance binding', () => {
-        const out = materialiseOffsetPathsInTree(doc({
+        const out = materializeOffsetPathsInTree(doc({
             type: 'rect', width: 26, height: 8,
             transform: { translate: [20, 120] },
             animate: { transform: curvedTransform() },
@@ -39,7 +39,7 @@ describe('offset-path materialiser (lightweight JSON → player)', () => {
     });
 
     it('autoOrient becomes offset-rotate:auto; multi-segment values are arc-length fractions', () => {
-        const out = materialiseOffsetPathsInTree(doc({
+        const out = materializeOffsetPathsInTree(doc({
             type: 'rect',
             animate: { transform: {
                 alongPathMode: 'offsetPath', autoOrient: true,
@@ -71,7 +71,7 @@ describe('offset-path materialiser (lightweight JSON → player)', () => {
             { time: 0, value: { translate: [0, 0], rotate: 0 }, tangentOut: [5, 5] },
             { time: 1000, value: { translate: [10, 10], rotate: 90 } }] };
         for (const transform of [unmarked, straight, rotating]) {
-            const out = materialiseOffsetPathsInTree(doc({ type: 'rect', animate: { transform } } as never));
+            const out = materializeOffsetPathsInTree(doc({ type: 'rect', animate: { transform } } as never));
             const n = out.children![0] as never as { style?: unknown; animate: Record<string, unknown> };
             expect(n.animate.transform).toBeDefined();
             expect(n.animate.offsetDistance).toBeUndefined();
@@ -80,7 +80,7 @@ describe('offset-path materialiser (lightweight JSON → player)', () => {
     });
 
     it('carries loop and easing onto the offsetDistance binding', () => {
-        const out = materialiseOffsetPathsInTree(doc({
+        const out = materializeOffsetPathsInTree(doc({
             type: 'rect',
             animate: { transform: curvedTransform({ loop: true }) },
         } as never));

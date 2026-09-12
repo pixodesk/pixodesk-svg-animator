@@ -29,7 +29,7 @@ import type { ApplyContext } from '../shared/types';
  *     fill stays visible).
  *
  * COLLAPSE: when the trim host is itself a single shape leaf with exactly ONE
- * sub-path, the trim materialises directly onto that leaf's own `<path>` (no
+ * sub-path, the trim materializes directly onto that leaf's own `<path>` (no
  * `<g>` split). Multi-subpath (or group/descendant) trims still expand to
  * `<g>` + one bare `<path>` per sub-path.
  */

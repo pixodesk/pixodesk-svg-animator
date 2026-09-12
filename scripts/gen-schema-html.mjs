@@ -47,7 +47,7 @@ function inline(text) {
   return s.replace(HOLE, (_, n) => '<code>' + esc(codes[+n]) + '</code>');
 }
 
-// ── code highlighting (TypeScript / JSON / JS flavours share one tokenizer) ─
+// ── code highlighting (TypeScript / JSON / JS flavors share one tokenizer) ─
 const KW = /\b(interface|type|const|let|var|function|return|import|export|from|extends|true|false|null|undefined|number|string|boolean|any|Record|Array|Partial)\b/;
 function highlight(code) {
   // De-columnise trailing line comments: one space before `//`, never aligned.

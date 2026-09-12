@@ -16,7 +16,7 @@ const ATTR_NAME_OVERRIDES: Record<string, string> = {
 const DROPPED_ATTRS = new Set(['class', 'className', 'style', 'xmlns', 'xmlns:xlink', 'data-px-meta']);
 
 /**
- * Converts one normalised wire attribute name (camelCase after core's
+ * Converts one normalized wire attribute name (camelCase after core's
  * `getNormalizedProps`, or kebab-case raw) to a react-native-svg prop name.
  * Returns undefined for props that must be dropped.
  *
@@ -57,7 +57,7 @@ export function toRnPropValue(
     // On a device `transform` must arrive as a matrix, not a string: the
     // string→matrix parse happens in JS during render, which reanimated's
     // animated-props path skips entirely. See PxRnMatrix for the full why.
-    // On the web the DOM parses the string itself and an array would serialise
+    // On the web the DOM parses the string itself and an array would serialize
     // to a meaningless `transform="1,0,0,1,3,4"`, so it must stay a string.
     if (native && rnPropName === 'transform' && typeof value === 'string' && tag !== 'svg') {
         const m = svgTransformToMatrix(value);

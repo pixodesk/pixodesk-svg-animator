@@ -13,13 +13,13 @@ import { kfTime, kfValue, kfEasing } from '../../format/PxAnimatorTypes';
 
 
 /**
- * `effects.fillGradient` / `effects.strokeGradient` materialiser.
+ * `effects.fillGradient` / `effects.strokeGradient` materializer.
  *
  * WHY AN EFFECT (not a `fill` value): no value of `fill` IS a gradient — the
  * browser can only render one through a `<linearGradient>`/`<radialGradient>`
  * def with `<stop>` children plus a `url(#id)` indirection. Per the format's
  * attribute-vs-effect law (see `_PxEffects`), anything that requires generating
- * structure is an effect; flat `fill` colours stay plain animated attributes.
+ * structure is an effect; flat `fill` colors stay plain animated attributes.
  *
  * Mirrors `maskedByEffect`: generate a `<linearGradient>` or `<radialGradient>`
  * def into `ctx.defs`, push the host element's `fill` / `stroke` to
@@ -27,7 +27,7 @@ import { kfTime, kfValue, kfEasing } from '../../format/PxAnimatorTypes';
  * difference is which host attribute is rewritten.
  *
  * The wire shape is a gradient as one animatable stop timeline + static geometry
- * (see `_PxFillGradientEffect`). When materialising:
+ * (see `_PxFillGradientEffect`). When materializing:
  *   - geometry parts (`start`, `end`, `center`, `radius`, `focal`) become static body attrs
  *     on the gradient def;
  *   - the stops array is either static (each `<stop>` is bare) or animated
@@ -36,7 +36,7 @@ import { kfTime, kfValue, kfEasing } from '../../format/PxAnimatorTypes';
  *     stop's index).
  *
  * The per-stop slicing produces the standard `<linearGradient>` + `<stop>`
- * def chain, so the materialised tree round-trips through the usual reader.
+ * def chain, so the materialized tree round-trips through the usual reader.
  */
 export function applyFillGradientEffect(node: PxNode, fx: PxFillGradientEffect | undefined, ctx: ApplyContext): PxNode {
     return applyGradient(node, fx, ctx, 'fill');
@@ -72,7 +72,7 @@ function synthesiseGradientDef(fx: PxFillGradientEffect, id: string, ctx: ApplyC
     // splits into its two axis channels here, in the applier — the wire stays
     // `start: {keyframes:[{value:[x,y]}…]}`). The frames engine then drives the
     // def's attrs exactly like the stops' `stopColor` (CSS/WAAPI can't animate
-    // gradient geometry, but this materialiser feeds the JS frame loop).
+    // gradient geometry, but this materializer feeds the JS frame loop).
     if (fx.type === PxGradientType.linear) {
         applyGeomVec(out, 'x1', 'y1', fx.start);
         applyGeomVec(out, 'x2', 'y2', fx.end);
@@ -151,7 +151,7 @@ function buildStopChildren(stops: PxAnimatable<Array<PxGradientStop>> | undefine
     if (!kfs.length) return [];
     // Per-stop animations inherit the timeline-level `loop` (alternate/cycle/etc.).
     // Without forwarding it, animating a gradient with `loop.alternate:true`
-    // would slice each stop's colours into separate `animate.stopColor`
+    // would slice each stop's colors into separate `animate.stopColor`
     // entries that lose the loop config → no reversal past the last kf,
     // even though every non-gradient animatable property loops fine. See
     // also: the gradient stop "slice" docstring above.
@@ -167,7 +167,7 @@ function buildStopChildren(stops: PxAnimatable<Array<PxGradientStop>> | undefine
     if (!stopCount) return [];
 
     // Baseline stop info from kf[0] — offsets stay fixed across kfs, only
-    // colours animate; offset rarely animates but if it does we sample at
+    // colors animate; offset rarely animates but if it does we sample at
     // each kf.
     const firstKfValue = kfValue(kfs[0]) as Array<PxGradientStop> | undefined;
     const baselineStops: Array<PxGradientStop> = [];
@@ -191,7 +191,7 @@ function animatedStopNode(baseline: PxGradientStop, kfs: Array<PxKeyframe>, stop
     const colorKfs: Array<PxKeyframe> = [];
     const offsetKfs: Array<PxKeyframe> = [];
     // Only emit an `offset` timeline when the offset actually moves across
-    // kfs — most gradients animate colour only, and a static offset attr is
+    // kfs — most gradients animate color only, and a static offset attr is
     // cheaper than a runtime binding that recomputes the same value.
     let offsetVaries = false;
     for (const kf of kfs) {

@@ -79,7 +79,7 @@ describe('mergeAnimatorConfig — the timeline union', () => {
     });
 
     it('RULE 2: an explicit `time` against an ABSENT type is a match, not a type change', () => {
-        // The trap: `timelineTypeOf` must normalise absent -> 'time', or this replaces.
+        // The trap: `timelineTypeOf` must normalize absent -> 'time', or this replaces.
         const { config } = merge(timeBase, { timeline: { type: 'time', duration: 3000 } });
         expect((config as any).timeline.trigger).toEqual({ startOn: 'load', outAction: 'pause' });
     });

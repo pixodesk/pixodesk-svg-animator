@@ -9,7 +9,7 @@ import type {
 } from '@pixodesk/svg-animator-core';
 
 /**
- * DOM specialisations of the platform-neutral animator API types.
+ * DOM specializations of the platform-neutral animator API types.
  * `getRootElement()` returns a DOM `Element` on the web — these aliases keep
  * the historical (pre-core-extraction) signatures for web consumers.
  */

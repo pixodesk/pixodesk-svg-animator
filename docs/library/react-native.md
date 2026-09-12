@@ -110,7 +110,7 @@ component warns, naming both props and the winner; set none of them and the firs
 statically. `apiRef` is filled in every mode and never changes which one you are in. React, Vue
 and React Native all resolve this the same way, from one rule in core.
 
-**Autoplay** — honours the document's trigger (`load` plays on mount; `click` wraps the
+**Autoplay** — honors the document's trigger (`load` plays on mount; `click` wraps the
 animation in a `Pressable`; `scrollIntoView` measures visibility against the window):
 
 ```tsx
@@ -251,9 +251,8 @@ are in [Playback & triggers → Overriding from a player](./playback-and-trigger
 |---|---|
 | `timeline.engine` | accepted inside `config` but ignored — there is no Web Animations API on React Native; playback is always native-driven |
 | `timeline.frameRate` | ignored — the screen's own refresh rate is used. On React Native the player does not compute values frame by frame; when the document loads it works out the animated values in advance, as a list of snapshots — 60 per second of animation — and while playing, each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, and that can only be changed when you call the lower-level `compileTracks({ sampleRate })` yourself instead of using the component |
-| `startOn: 'mouseOver'` | has no touch equivalent, so it is not honoured. The other four values (`load`, `click`, `scrollIntoView`, `programmatic`) work as they do on the web, from the file or from the prop |
+| `startOn: 'mouseOver'` | has no touch equivalent, so it is not honored. The other four values (`load`, `click`, `scrollIntoView`, `programmatic`) work as they do on the web, from the file or from the prop |
 | `className` / `style` | not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height` (see [Quick start](#quick-start)). Styling *inside* the document — `style` on an element in the JSON — is supported |
-| `onRemove` | never called. On the web it tells you the animator was thrown away; here there is nothing to tell — when the component leaves the screen, React removes it and everything it created. If you need to run code at that moment, use a `useEffect` cleanup function in your own component |
 
 ### Failure handling
 
@@ -330,7 +329,7 @@ not supported.
 | Attribute | Supported | Notes |
 |---|---|---|
 | `opacity`, `fill-opacity`, `stroke-opacity` | ✅ | |
-| `fill`, `stroke`, `stop-color` | ✅ | colours blend through RGBA |
+| `fill`, `stroke`, `stop-color` | ✅ | colors blend through RGBA |
 | `stroke-width`, `stroke-dashoffset` | ✅ | |
 | `stroke-dasharray` | ⚠️ | animates; the native value bridge not yet checked on a device |
 | `x`, `y`, `width`, `height`, `cx`, `cy`, `r`, `rx`, `ry` | ✅ | |

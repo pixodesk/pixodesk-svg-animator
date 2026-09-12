@@ -4,22 +4,22 @@
  *---------------------------------------------------------------------------------------*/
 
 /**
- * Parity tests — `waapi` materialisation must match `frames` parametric output.
+ * Parity tests — `waapi` materialization must match `frames` parametric output.
  *
  * The frames engine evaluates motion-along-path parametrically per frame via
  * `evaluateMotionPathSegment` — that's the reference. The waapi engine
  * pre-samples the parametric form into plain `{translate, rotate, …}` kfs via
- * `materialiseMotionPathInPropAnim` so CSS WAAPI can consume it. Both paths
+ * `materializeMotionPathInPropAnim` so CSS WAAPI can consume it. Both paths
  * should produce the SAME rendered position/orientation at any time.
  *
  * Method: for each fixture + sample time, render via both engines, compose the
  * resulting transform string into a 2D matrix, apply to known local-space
- * probe points (centre + corners of the bounding box), and compare world-space
- * positions with a tolerance equal to the materialiser's `flatnessTolerance`.
+ * probe points (center + corners of the bounding box), and compare world-space
+ * positions with a tolerance equal to the materializer's `flatnessTolerance`.
  */
 
 import { describe, expect, it } from 'vitest';
-import { calcAnimationValues, getNormalisedBindings } from '../animation/PxDefinitions';
+import { calcAnimationValues, getNormalizedBindings } from '../animation/PxDefinitions';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxKeyframe, PxNode } from '../format/PxAnimatorTypes';
 
@@ -93,7 +93,7 @@ function parseTransformString(s: string): Mat {
 
 
 function evaluateAt(doc: PxAnimatedSvgDocument, engine: PxTimelineEngine, time: number): Record<string, string> | undefined {
-    const bindings = getNormalisedBindings(doc, engine);
+    const bindings = getNormalizedBindings(doc, engine);
     if (bindings.length === 0) return undefined;
     // Find the binding whose id matches the animated rect/ellipse in the fixture.
     const animatedBinding = bindings.find(b => b.animate && Object.keys(b.animate).length > 0);
@@ -186,7 +186,7 @@ function expectParity(
 
 /** Rect orbiting a closed path (4 kfs + closing kf), autoOrient
  *  on, every kf carries a static `origin` of [59.0992, 27.1254]. Reproduces
- *  the WAAPI bug where the materialiser dropped non-translate parts. */
+ *  the WAAPI bug where the materializer dropped non-translate parts. */
 const closedLoopOrbitFixture = (): PxAnimatedSvgDocument => ({
     type: 'svg',
     viewBox: '0 0 1080 1080',
@@ -236,7 +236,7 @@ const horseshoeNoOriginFixture = (): PxAnimatedSvgDocument => ({
 
 
 /** Horseshoe + autoOrient + static origin. The static origin should be
- *  preserved on every materialised sub-kf. */
+ *  preserved on every materialized sub-kf. */
 const horseshoeAutoOrientStaticOriginFixture = (): PxAnimatedSvgDocument => ({
     type: 'svg',
     animator: { timeline: { duration: 1000 } },
@@ -259,8 +259,8 @@ const horseshoeAutoOrientStaticOriginFixture = (): PxAnimatedSvgDocument => ({
 
 
 /** S-curve with autoOrient AND an ANIMATED origin (changes between kfs).
- *  Materialised sub-kfs need to interpolate origin per-sample at the EASED
- *  progress, matching frames-mode behaviour. */
+ *  Materialized sub-kfs need to interpolate origin per-sample at the EASED
+ *  progress, matching frames-mode behavior. */
 const sCurveAnimatedOriginFixture = (): PxAnimatedSvgDocument => ({
     type: 'svg',
     animator: { timeline: { duration: 1000 } },
@@ -334,7 +334,7 @@ const motionPathExplicitRotateFixture = (): PxAnimatedSvgDocument => ({
  *  the boundary, not linearly slide across the next segment.
  *
  *  Frames-mode evaluates the curve parametrically per frame so the step is
- *  automatic. The materialiser must emit a DUPLICATE kf at each boundary
+ *  automatic. The materializer must emit a DUPLICATE kf at each boundary
  *  carrying the next-segment entry angle, otherwise engines linearly interp
  *  toward the next-segment end angle and the element rotates wrongly through
  *  the next segment. */
@@ -450,7 +450,7 @@ const curveSharpCurveFixture = (): PxAnimatedSvgDocument => ({
 // ─────────────────────────────────────────────────────────────────────────────
 
 
-describe('motion-along-path materialisation parity (waapi vs frames)', () => {
+describe('motion-along-path materialization parity (waapi vs frames)', () => {
 
     it('horseshoe (no origin, no autoOrient) — chord error within tolerance', () => {
         expectParity(horseshoeNoOriginFixture(), {
@@ -460,7 +460,7 @@ describe('motion-along-path materialisation parity (waapi vs frames)', () => {
         });
     });
 
-    it('horseshoe + autoOrient + STATIC origin — origin must survive materialisation', () => {
+    it('horseshoe + autoOrient + STATIC origin — origin must survive materialization', () => {
         expectParity(horseshoeAutoOrientStaticOriginFixture(), {
             duration: 1000,
             // Probes far from origin amplify any rotation-pivot drift.
@@ -472,7 +472,7 @@ describe('motion-along-path materialisation parity (waapi vs frames)', () => {
     it('rect orbiting a closed loop + autoOrient + static origin', () => {
         // The bug the user originally reported: rotation pivot lost
         // → element flies off the path. Probes at the rect's corners + its
-        // centre-of-rotation amplify any drift in the origin / rotate parts.
+        // center-of-rotation amplify any drift in the origin / rotate parts.
         //
         // Densify sampling around the kf boundaries so any autoOrient atan2
         // wrap-around (±180° boundary) is caught — the wrap window is ~30 ms
@@ -486,10 +486,10 @@ describe('motion-along-path materialisation parity (waapi vs frames)', () => {
     });
 
     it('S-curve with ANIMATED origin — origin interpolates per sub-kf', () => {
-        // Probes at (±40, ±20) are 44.7px from origin; with the materialiser's
+        // Probes at (±40, ±20) are 44.7px from origin; with the materializer's
         // default 5° rotation tolerance, the worst-case chord error a probe can
         // accumulate near a sample boundary is `2·sin(5°/2)·44.7 ≈ 3.9px`. The
-        // 4px test tolerance matches the materialiser's own per-sample budget.
+        // 4px test tolerance matches the materializer's own per-sample budget.
         expectParity(sCurveAnimatedOriginFixture(), {
             duration: 1000,
             probes: [[0, 0], [40, 20], [-40, -20]],
@@ -516,7 +516,7 @@ describe('motion-along-path materialisation parity (waapi vs frames)', () => {
     it('rectangular path with SHARP CORNERS (no tangents) — autoOrient must STEP at each corner, not linearly slide', () => {
         // Frames-mode: each segment evaluated parametrically per frame →
         // rotation is per-segment constant (90° / 180° / -90° / 0°) and steps
-        // instantly at each corner. WAAPI: materialised kfs interp linearly →
+        // instantly at each corner. WAAPI: materialized kfs interp linearly →
         // rotation slides across the next segment, mis-orienting the rect for
         // most of it.
         expectParity(rectanglePathSharpCornersFixture(), {
@@ -530,7 +530,7 @@ describe('motion-along-path materialisation parity (waapi vs frames)', () => {
     it('U-turn (180° corner) — autoOrient must step instantly from 0° to 180°', () => {
         // Sharp corner with exactly opposite incoming/outgoing tangents.
         // atan2 returns 0° on segment 0 (going +X), 180° on segment 1 (going
-        // -X). Without the step, the materialiser would interpolate from 0°
+        // -X). Without the step, the materializer would interpolate from 0°
         // to 180° across the second 1000ms — element rotating slowly during
         // what should be a straight-line return.
         expectParity(uTurnFixture(), {
@@ -556,7 +556,7 @@ describe('motion-along-path materialisation parity (waapi vs frames)', () => {
         //       step (curve exits +X, next segment heads -Y).
         //   (b) the smooth curve-to-curve transitions (no sharp corner) must
         //       NOT produce a false step — adjacent tangent directions line up
-        //       within rotationTolerance, so the materialiser must NOT emit a
+        //       within rotationTolerance, so the materializer must NOT emit a
         //       duplicate kf there.
         expectParity(curveSharpCurveFixture(), {
             duration: 3000,

@@ -183,9 +183,10 @@ const [time, setTime] = useState(0);
 | `startOn` | `PxStartOn` | Shortcut for `config.timeline.trigger.startOn`. `mouseOver` has no touch equivalent and is ignored |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
-| `onFinish` | `() => void` | Called on natural finish |
+| `onFinish` | `() => void` | Called when the animation reaches its end — every iteration played, or `finish()` was called |
 | `onCancel` | `() => void` | Called on cancel |
-| `onStop` | `() => void` | Called whenever playback halts (pause / cancel / finish) |
+| `onRemove` | `() => void` | Called when the animator is thrown away — the component unmounted, or a new `doc` replaced it |
+| `onStop` | `() => void` | Called whenever playback halts (pause / cancel / finish / remove) |
 | `onError` | `(error, componentStack?) => void` | Called when a document cannot be compiled or rendered |
 | `fallback` | `(error) => ReactElement \| null` | Rendered in place of a failed animation (default: nothing) |
 
@@ -218,7 +219,7 @@ renderer never reaches JavaScript and cannot be caught — see
 |---|---|
 | `timeline.engine` | Accepted inside `config` but ignored. There is no Web Animations API on React Native; playback is always native-driven. |
 | `timeline.frameRate` | Ignored. The screen's own refresh rate is used. The player does not compute values frame by frame: when the document loads it works out the animated values in advance, as a list of snapshots (60 per second of animation), and each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared — `compileTracks({ sampleRate })`, only available when you use the lower-level API instead of the component. |
-| `startOn: 'mouseOver'` | Has no touch equivalent, so it is not honoured. The other four values (`load`, `click`, `scrollIntoView`, `programmatic`) work as they do on the web, from the file or from the `startOn` prop. |
+| `startOn: 'mouseOver'` | Has no touch equivalent, so it is not honored. The other four values (`load`, `click`, `scrollIntoView`, `programmatic`) work as they do on the web, from the file or from the `startOn` prop. |
 | `className` / `style` | Not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height`. Styling *inside* the document (`style` on an element in the JSON) is supported. |
 | `onRemove` | Never called. On the web it tells you the animator was thrown away; here there is nothing to tell — when the component leaves the screen, React removes it and everything it created. To run code at that moment, use a `useEffect` cleanup function in your own component. |
 
@@ -228,7 +229,7 @@ There is **no JavaScript frame loop** — the JS thread is idle while an
 animation runs.
 
 1. **Once per document:** the shared core flattens it
-   (`materialiseAllInTree` → effects, loops, motion-path sampling, animated
+   (`materializeAllInTree` → effects, loops, motion-path sampling, animated
    `<use>` inlining), then a track compiler densely samples every animated
    property with `calcAnimationValues` — the same function the web frame-loop engine
    renders with, so values match the web player exactly.
@@ -243,7 +244,7 @@ converts it into plain values ahead of time instead of fighting the platform.
 ## Feature support
 
 Every row below was verified by running the document through the real
-pipeline (`materialiseAllInTree` → track compilation) and checking that the
+pipeline (`materializeAllInTree` → track compilation) and checking that the
 element maps to a `react-native-svg` component and that its animated
 properties actually change over time.
 
@@ -255,14 +256,14 @@ properties actually change over time.
 | `rect`, `circle`, `ellipse`, `line`, `path`, `polygon`, `polyline` | ✅ | |
 | `text`, `tspan` | ✅ | content via the `text` attribute |
 | `textPath` | ✅ | see *Text along a path* below |
-| `image` | ✅ | `href` accepts `data:` URIs; remote URLs are blocked by the sanitiser |
+| `image` | ✅ | `href` accepts `data:` URIs; remote URLs are blocked by the sanitizer |
 | `use`, `symbol` | ✅ | animated targets are **inlined into real clones** before render — `<use>` does not propagate animation natively in React Native |
 | `linearGradient`, `radialGradient`, `stop` | ✅ | |
 | `pattern`, `marker` | ✅ | static geometry verified; complex cases unverified on device |
 | `mask`, `clipPath` | ✅ | |
 | `filter` + all 22 `fe*` primitives | ✅ | `feGaussianBlur`, `feDropShadow`, `feColorMatrix`, `feMerge`, `feComponentTransfer` + `feFunc*`, … **The visual result has not yet been checked on a real device** |
-| `foreignObject` | ❌ | blocked by the shared sanitiser (embeds arbitrary host content) |
-| `script` | ❌ | blocked by the shared sanitiser |
+| `foreignObject` | ❌ | blocked by the shared sanitizer (embeds arbitrary host content) |
+| `script` | ❌ | blocked by the shared sanitizer |
 
 ### Animatable attributes
 
@@ -282,13 +283,13 @@ properties actually change over time.
 
 ### Effects (`node.effects`)
 
-All effects are materialised by the shared core before rendering, so the React Native
+All effects are materialized by the shared core before rendering, so the React Native
 player sees plain nodes. **All are supported:**
 
 | Effect | Status | Notes |
 |---|---|---|
 | `transformBy` | ✅ | all parts animatable, including `skew` |
-| `repeater` | ✅ | copies materialised as real elements; per-copy params animatable |
+| `repeater` | ✅ | copies materialized as real elements; per-copy params animatable |
 | `maskedBy` | ✅ | including an animated mask source |
 | `clipPath` | ✅ | including animated clip geometry |
 | `strokeTrim` | ✅ | incl. `offset` and `subPaths: 'combined'` |
@@ -321,7 +322,7 @@ player sees plain nodes. **All are supported:**
 | `setPlaybackRate` — faster, slower and **reverse** (negative) | ✅ | composes with `direction` |
 | Trigger `load` / `programmatic` | ✅ | |
 | Trigger `click` | ✅ | wrapped in a `Pressable`; a second tap applies `outAction` |
-| Trigger `scrollIntoView` | ✅ | visibility sampled by measuring against the window (React Native has no `IntersectionObserver`); honours `scrollIntoViewThreshold` and `outAction` |
+| Trigger `scrollIntoView` | ✅ | visibility sampled by measuring against the window (React Native has no `IntersectionObserver`); honors `scrollIntoViewThreshold` and `outAction` |
 | Trigger `mouseOver` | ❌ | no touch equivalent — use `click`, or drive `play` yourself |
 | `timeline.frameRate` | n/a | reanimated runs at the display refresh rate; use `compileTracks({sampleRate})` to trade memory for temporal precision |
 | `timeline.engine` (`auto` / `native` / `js`) | n/a | there is no Web Animations API on React Native — playback is always native-driven |

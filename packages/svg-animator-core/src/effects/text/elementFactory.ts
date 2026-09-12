@@ -6,7 +6,7 @@
 
 /**
  * Element-creation factory — abstracts WHAT an "element" is so the same
- * geometry/layout code (e.g. the glyph text materialiser) can emit plain wire
+ * geometry/layout code (e.g. the glyph text materializer) can emit plain wire
  * nodes here, or the editor's React / px elements when called from the editor.
  *
  * The signature intentionally mirrors the editor's `createPxElement(type,

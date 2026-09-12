@@ -11,7 +11,7 @@
 // `stretch`): every keyframe `time` becomes `start + time*stretch`. Nested
 // `<use>`s COMPOSE via `concatRetime`. The cleanest, most reason-about-able
 // assertion is therefore the multiset of transform-keyframe `time` arrays that
-// survive in the materialised tree — one entry per rendered animated element.
+// survive in the materialized tree — one entry per rendered animated element.
 //
 //   leaf ball animates translate over [0 .. 1000]ms.
 //   a +250ms (=25f) retime  → that ball's clone animates over [250 .. 1250].
@@ -19,7 +19,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { applyPlayerEffects } from '../PlayerEffectsUtil';
-import { collectByType, materialiseEngine, normaliseGeneratedIds, PxTimelineEngine } from '../effectTestKit';
+import { collectByType, materializeEngine, normalizeGeneratedIds, PxTimelineEngine } from '../effectTestKit';
 import { PxCloneEffectSchema, type PxNode } from '../../format/PxAnimatorTypes';
 import type { PxValidationContext } from '../../schema/PxSchema';
 
@@ -64,7 +64,7 @@ function transformKfTimes(root: PxNode): Array<Array<number>> {
     return out.sort((a, b) => (a[0] - b[0]) || (a[1] - b[1]));
 }
 
-/** A `<use>` that still carries an un-consumed retime effect = a materialisation
+/** A `<use>` that still carries an un-consumed retime effect = a materialization
  *  miss (retime should always be folded into a clone, never left dangling). */
 function danglingRetimeCount(root: PxNode): number {
     let n = 0;
@@ -76,7 +76,7 @@ function danglingRetimeCount(root: PxNode): number {
     return n;
 }
 
-function materialise(input: PxNode): PxNode {
+function materialize(input: PxNode): PxNode {
     const { root, errors } = applyPlayerEffects(input);
     if (errors.length) throw new Error('applyPlayerEffects errors:\n' + errors.join('\n'));
     return root;
@@ -93,8 +93,8 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             ],
         } as unknown as PxNode;
 
-        const out = materialise(input);
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(input);
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "viewBox": "0 0 400 400",
@@ -153,8 +153,8 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             ],
         } as unknown as PxNode;
 
-        const out = materialise(input);
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(input);
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "viewBox": "0 0 400 400",
@@ -214,8 +214,8 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             ],
         } as unknown as PxNode;
 
-        const out = materialise(input);
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(input);
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "viewBox": "0 0 400 400",
@@ -307,8 +307,8 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             ],
         } as unknown as PxNode;
 
-        const out = materialise(input);
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materialize(input);
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "viewBox": "0 0 400 400",
@@ -423,17 +423,17 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
         expect(danglingRetimeCount(out)).toBe(0);
     });
 
-    // ── Engine difference (full pipeline `materialiseAllInTree`) ─────────────────
+    // ── Engine difference (full pipeline `materializeAllInTree`) ─────────────────
     // The retime EFFECT pass is engine-agnostic, but the full pipeline's waapi-only
-    // step 4 (`materialiseAnimatedUseInstances`) INLINES every `<use>` that targets
+    // step 4 (`materializeAnimatedUseInstances`) INLINES every `<use>` that targets
     // an animated subtree — because WAAPI/CSS animations don't propagate through a
     // `<use>` shadow tree. frames keeps the `<use href>` (it drives source attrs per
     // frame, which the shadow tree picks up natively). Composition (the +0/+250/+500
     // staircase) is identical in BOTH; only the use-vs-inline structure differs.
 
     it('case 5 — FRAMES engine → animated `<use href>` KEPT (composition still +0/+250/+500)', () => {
-        const out = materialiseEngine(nestedContentRefWire(), PxTimelineEngine.js);
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const out = materializeEngine(nestedContentRefWire(), PxTimelineEngine.js);
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "viewBox": "0 0 400 400",
@@ -547,9 +547,9 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
     });
 
     it('case 6 — WAAPI engine → animated `<use>` INLINED to `<g>`+clone (fewer/no use; same staircase)', () => {
-        const framesOut = materialiseEngine(nestedContentRefWire(), PxTimelineEngine.js);
-        const out = materialiseEngine(nestedContentRefWire(), PxTimelineEngine.native);
-        expect(normaliseGeneratedIds(out)).toMatchInlineSnapshot(`
+        const framesOut = materializeEngine(nestedContentRefWire(), PxTimelineEngine.js);
+        const out = materializeEngine(nestedContentRefWire(), PxTimelineEngine.native);
+        expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
           "{
             "type": "svg",
             "viewBox": "0 0 400 400",
@@ -667,12 +667,12 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
     });
 
     // The shape a Lottie-precomp import produces: the retimed inner use lives inside a
-    // SYMBOL-like template that serialises BEFORE the outer site. Materialising sites in
+    // SYMBOL-like template that serializes BEFORE the outer site. Materializing sites in
     // plain document order consumed the inner retime in place first, so the outer chain
     // clone found nothing to compose — the doubly-retimed content started at +250 instead
     // of +500. Site ordering is by reachability now (outer-most first), which must make
     // this layout equivalent to case 3.
-    it('case 6 — inner retimed use INSIDE the referenced template, template serialised first → still composes to +500', () => {
+    it('case 6 — inner retimed use INSIDE the referenced template, template serialized first → still composes to +500', () => {
         const wire = {
             type: 'svg', viewBox: '0 0 400 400',
             children: [
@@ -695,18 +695,18 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
 
 
 // `retime.timeCrop: [start, end]` (ms, document time) — a VISIBILITY WINDOW on the
-// instance. Materialised as an opacity animation on a wrapper `<g>`: the target's own
+// instance. Materialized as an opacity animation on a wrapper `<g>`: the target's own
 // animation must keep running (a layer inside its window appears mid-motion, not
 // restarted), and a wrapper keeps an authored opacity on the `<use>` intact. The wrapper
 // is player-side only — it never round-trips to the wire.
 describe('retime is PURE TIMING — no own source ref (review §4.3)', () => {
 
     // `retime.source` was removed outright (schema included): the source ref lives
-    // ONCE on the parent `clone.source`, and materialisation follows `href` anyway.
+    // ONCE on the parent `clone.source`, and materialization follows `href` anyway.
     // These pin every observable angle of that removal.
 
     it('a retime WITHOUT any source ref works — href is the source of truth', () => {
-        const out = materialise({
+        const out = materialize({
             type: 'svg',
             children: [
                 { type: 'g', id: 'src', children: [{ type: 'rect', width: 10, height: 10,
@@ -720,8 +720,8 @@ describe('retime is PURE TIMING — no own source ref (review §4.3)', () => {
         expect(retimed.animate.opacity.keyframes.map((k: any) => k.time)).toEqual([250, 1250]);
     });
 
-    it('a STRAY legacy retime.source changes nothing — materialisation follows href, not it', () => {
-        const build = (retime: object) => normaliseGeneratedIds(materialise({
+    it('a STRAY legacy retime.source changes nothing — materialization follows href, not it', () => {
+        const build = (retime: object) => normalizeGeneratedIds(materialize({
             type: 'svg',
             children: [
                 { type: 'g', id: 'src', children: [{ type: 'rect', width: 10, height: 10 }] },
@@ -767,7 +767,7 @@ describe('retime.timeCrop — visibility window', () => {
         collectByType(out, 'g').find(g => (g as any).animate?.opacity);
 
     it('wraps the <use> in a <g> whose opacity gates the window', () => {
-        const out = materialiseEngine(cropDoc([500, 1500]), PxTimelineEngine.js);
+        const out = materializeEngine(cropDoc([500, 1500]), PxTimelineEngine.js);
         const g = cropWrapper(out);
         expect(g, 'a crop wrapper was generated').toBeDefined();
         expect(g.animate.opacity.keyframes).toEqual([
@@ -781,25 +781,25 @@ describe('retime.timeCrop — visibility window', () => {
     });
 
     it('a window starting at 0 emits no leading hidden keyframe', () => {
-        const g = cropWrapper(materialiseEngine(cropDoc([0, 800]), PxTimelineEngine.js));
+        const g = cropWrapper(materializeEngine(cropDoc([0, 800]), PxTimelineEngine.js));
         expect(g.animate.opacity.keyframes[0]).toEqual({ time: 0, value: 1 });
     });
 
     it('an EMPTY window (end <= start) hides the instance outright', () => {
         // Lottie layers with ip >= op are exactly this — they must never show.
-        const g = cropWrapper(materialiseEngine(cropDoc([900, 900]), PxTimelineEngine.js));
+        const g = cropWrapper(materializeEngine(cropDoc([900, 900]), PxTimelineEngine.js));
         expect(g.animate.opacity.keyframes).toEqual([{ time: 0, value: 0 }]);
     });
 
     it('an authored opacity on the <use> survives — the crop rides on the wrapper', () => {
-        const out = materialiseEngine(cropDoc([100, 200], { opacity: 0.25 }), PxTimelineEngine.js);
+        const out = materializeEngine(cropDoc([100, 200], { opacity: 0.25 }), PxTimelineEngine.js);
         const g = cropWrapper(out);
         expect(g.opacity, 'wrapper carries only the crop').toBeUndefined();
         expect(g.children[0].opacity, 'the instance keeps its own opacity').toBe(0.25);
     });
 
     it('no timeCrop → no wrapper at all', () => {
-        const out = materialiseEngine({
+        const out = materializeEngine({
             type: 'svg', animator: { timeline: { duration: 2000 } },
             children: [
                 { type: 'rect', id: 'src', width: 10, height: 10 },

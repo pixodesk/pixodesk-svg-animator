@@ -380,7 +380,7 @@ function parseHex(s: string): number[] {
     return result;
 }
 
-//// FIXME - support normalisation of config from different formats
+//// FIXME - support normalization of config from different formats
 /** Parse color string (hex or rgb/rgba) to normalized [r, g, b] or [r, g, b, a] array (0-1 range) */
 export function parseColor(s: any): number[] | undefined {
     if (!s) return undefined;
@@ -397,7 +397,7 @@ export function parseColor(s: any): number[] | undefined {
     return undefined;
 }
 
-export const COLOUR_ATTR_NAMES = new Set(["color", "fill", "flood-color", "lighting-color", "stop-color", "stroke"]);
+export const COLOR_ATTR_NAMES = new Set(["color", "fill", "flood-color", "lighting-color", "stop-color", "stroke"]);
 export const TRANSFORM_FN_NAMES = new Set(["translate", "rotate", "scale", "skew"]);
 export const PCT_BASED_ATTR_NAMES = new Set(["offset-distance", "offsetDistance"]);
 
@@ -604,7 +604,7 @@ export function clamp(value: number, min: number, max: number): number {
 // ============================================================================
 //
 // Hand-written, dependency-free 2D Bézier maths used by the motion-along-path
-// playback paths (both WAAPI normalisation and frames-mode direct compute).
+// playback paths (both WAAPI normalization and frames-mode direct compute).
 // See `fix-motion-along-path--fix-plan.md` for the wider plan.
 //
 // Conventions:

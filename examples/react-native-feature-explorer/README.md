@@ -72,7 +72,7 @@ carry a pre-rename ANIMATED-gradient payload that cannot be re-spelled mechanica
 those want a fresh export from the editor.
 
 Sections run `§ 1.1 attr.number` → `§ 5 …`, covering numbers, vectors,
-transforms, colours, gradients, paths, appearance, elements, text, effects
+transforms, colors, gradients, paths, appearance, elements, text, effects
 (clone, repeater, mask, clip, trim, gradients, text-path) and animation config
 (easing, loops, direction).
 

@@ -3,7 +3,7 @@
  *
  * These are plain Pixodesk animator documents — the same wire format the web
  * player and the editor's JSON export use. Every one of them was verified
- * through the real core pipeline (`materialiseAllInTree` + track compilation)
+ * through the real core pipeline (`materializeAllInTree` + track compilation)
  * so the demo only ships shapes the RN player can actually render.
  */
 import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
@@ -378,7 +378,7 @@ const morph: PxAnimatedSvgDocument = {
 // ---------------------------------------------------------------------------
 
 export const SAMPLES: Array<Sample> = [
-    { name: 'Bouncing ball', note: 'eased position, squash & stretch, colour', doc: bouncingBall },
+    { name: 'Bouncing ball', note: 'eased position, squash & stretch, color', doc: bouncingBall },
     { name: 'Text along path', note: 'per-letter motion path, sampled + auto-orient', doc: textAlongPath },
     { name: 'Trim path', note: 'draw-on stroke via the strokeTrim effect', doc: strokeTrim },
     { name: 'Repeater', note: 'repeater copies + nested transform stack', doc: repeater },

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOOP_JUMP_SHIFT_MS, calcAnimationValues, materialiseInternalLoopsInPropAnim } from './PxDefinitions';
+import { LOOP_JUMP_SHIFT_MS, calcAnimationValues, materializeInternalLoopsInPropAnim } from './PxDefinitions';
 import type { PxPropertyAnimation } from '../format/PxAnimatorTypes';
 
 /**
@@ -23,9 +23,9 @@ describe('cycle-loop boundary (B7)', () => {
     const SEGMENT = [KF(0, 20), KF(500, 160)];
 
     const expand = (loop: unknown): PxPropertyAnimation =>
-        materialiseInternalLoopsInPropAnim('transform', { loop, keyframes: SEGMENT } as never, 1000);
+        materializeInternalLoopsInPropAnim('transform', { loop, keyframes: SEGMENT } as never, 1000);
 
-    /** Materialised keyframes keep the short spelling (`t`/`v`); accept either. */
+    /** Materialized keyframes keep the short spelling (`t`/`v`); accept either. */
     interface LooseKf { t?: number; time?: number; v?: { translate?: Array<number> }; value?: { translate?: Array<number> } }
     const kfsOf = (a: PxPropertyAnimation): Array<LooseKf> => (a.keyframes ?? []) as Array<LooseKf>;
     const times = (a: PxPropertyAnimation) => kfsOf(a).map(k => k.t ?? k.time);

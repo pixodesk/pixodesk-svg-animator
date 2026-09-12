@@ -161,6 +161,26 @@ describe("PixodeskSvgAnimator (React)", () => {
         });
     });
 
+    // -- 2b′. Declarative play / pause (API review §8) -------------------------
+
+    describe("declarative play={false}", () => {
+        it("HOLDS where it is — it no longer jumps to the end (review §8)", () => {
+            const onPause = vi.fn();
+            const onFinish = vi.fn();
+            // ONE document object for both renders: a fresh one would change the `doc`
+            // identity, remount the animator, and let a remount satisfy this by accident.
+            const doc = getTestJson();
+            const { rerender } = render(
+                <PixodeskSvgAnimator doc={doc} play onPause={onPause} onFinish={onFinish} />);
+            vi.advanceTimersByTime(32);
+
+            rerender(<PixodeskSvgAnimator doc={doc} play={false} onPause={onPause} onFinish={onFinish} />);
+
+            expect(onPause).toHaveBeenCalled();
+            expect(onFinish).not.toHaveBeenCalled();   // this used to be finish()
+        });
+    });
+
     // -- 2c. The shared diagnostics channel (API review §5) --------------------
 
     describe("diagnostics channel", () => {
@@ -290,7 +310,7 @@ describe("PixodeskSvgAnimator (React)", () => {
             expect(spies.onStop).toHaveBeenCalledTimes(1);
         });
 
-        it("fires onCancel and onStop when cancelled", () => {
+        it("fires onCancel and onStop when canceled", () => {
             const { apiRef, spies } = renderWithCallbacks();
             apiRef.current!.play();
             apiRef.current!.cancel();

@@ -3,8 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxOutAction, PxAnimatedSvgDocument, PxAnimatorAPI, PxAnimatorConfigPatch, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger, PxStartOn } from '@pixodesk/svg-animator-web';
-import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, PxDiagnosticKind, type PxDiagnostic, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
+import type { PxOutAction, PxAnimatedSvgDocument, PxAnimatorAPI, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger } from '@pixodesk/svg-animator-web';
+import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, PxDiagnosticKind, progressToTimeMs, DEFAULT_DURATION_MS, type PxAnimatorHandle, type PxComponentCallbacks, type PxControlProps, type PxPlaybackOverrideProps, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
 import { useDepsVersion } from './Utils';
@@ -17,40 +17,12 @@ import { useDepsVersion } from './Utils';
  *  name that crosses out of this bundle. */
 const REACT_PROP = { key: 'key', ref: 'ref', className: 'className', style: 'style' } as const;
 
-export interface ReactAnimatorApi {
-    /** Returns true if the animation is currently running. */
-    isPlaying(): boolean;
-
-    /** Starts or resumes the animation. */
-    play(): void;
-
-    /** Pauses the animation at its current state. */
-    pause(): void;
-
-    /** Stops the animation and resets it to its initial state. */
-    cancel(): void;
-
-    /** Jumps to the end of the animation and holds the final state. */
-    finish(): void;
-
-    /** Changes the speed of the animation. 1 is normal, 2 is double, -1 is reverse. */
-    setPlaybackRate(rate: number): void;
-
-    /** Current playback time, ms from the start of the whole run (iterations included). */
-    getCurrentTime(): number | null;
-
-    /** Seeks, ms from the start of the whole run; clamped to `[0, duration × iterations]`. */
-    setCurrentTime(time: number): void;
-
-    /**
-     * Current position as 0–1 of the whole run — the read twin of the `progress` prop,
-     * and ONE iteration when `iterations` is `'infinite'`.
-     */
-    getCurrentProgress(): number | null;
-
-    /** Seeks to 0–1 of the whole run, clamped to `[0, 1]`. */
-    setCurrentProgress(progress: number): void;
-}
+/**
+ * The imperative handle `apiRef` is filled with — core's `PxAnimatorHandle` under this package's
+ * name (review §9). One definition for React, Vue and React Native: the three used to declare
+ * the same methods separately, and their comments had already begun to drift.
+ */
+export type ReactAnimatorApi = PxAnimatorHandle;
 
 export interface PixodeskSvgAnimatorImplProps {
     className?: string;
@@ -76,20 +48,26 @@ export interface PixodeskSvgAnimatorImplProps {
     diagRef: React.RefObject<PxDiagnosticsConfig>;
 }
 
-/** Lifecycle callback props (subset of {@link PixodeskSvgAnimatorProps}). */
-export interface PixodeskSvgAnimatorCallbacks {
-    onPlay?: () => void;
-    onStop?: () => void;
-    onPause?: () => void;
-    onCancel?: () => void;
-    onFinish?: () => void;
-    onRemove?: () => void;
-}
+/**
+ * The six lifecycle callbacks — a subset of {@link PixodeskSvgAnimatorProps}, derived from core's
+ * `PxComponentCallbacks` (review §9). Kept under its own name because the inner component indexes
+ * it with `keyof` and invokes every member, which the diagnostics members would not allow.
+ */
+export type PixodeskSvgAnimatorCallbacks =
+    Pick<PxComponentCallbacks, 'onPlay' | 'onStop' | 'onPause' | 'onCancel' | 'onFinish' | 'onRemove'>;
 
-export interface PixodeskSvgAnimatorProps {
+/**
+ * The component's props. The playback override, the control props and every callback are
+ * core's shared shapes (review §9) — `PxPlaybackOverrideProps`, `PxControlProps` and
+ * `PxComponentCallbacks` — so React, Vue and React Native cannot drift apart. Only what is
+ * React-specific is declared here.
+ */
+export interface PixodeskSvgAnimatorProps extends PxPlaybackOverrideProps, PxControlProps, PxComponentCallbacks {
 
+    /** Added to the root `<svg>`. */
     className?: string;
 
+    /** Set on the root `<svg>`. */
     style?: CSSProperties;
 
     // -- Source ---------------------------------------------------------------
@@ -102,111 +80,13 @@ export interface PixodeskSvgAnimatorProps {
      */
     doc: PxAnimatedSvgDocument;
 
-    // -- Playback override ---------------------------------------------------
-
-    /**
-     * Per-instance override of the document's `animator` config — the same shape as `animator`
-     * in SCHEMA.md, deep-merged over what the document says. `null` at any slot DELETES that
-     * key, restoring the default its absence means.
-     *
-     * Replaces the former flat `mode` / `fill` / `direction` / `frameRate` / `outAction` /
-     * `scrollIntoViewThreshold` props: one object, spelled exactly like the file, so there is a
-     * single vocabulary to learn — and, unlike those props, it takes effect on a wire-format
-     * document. Also accepts a JSON STRING, which survives a build that mangles object keys.
-     */
-    config?: PxAnimatorConfigPatch | string;
-
-    /**
-     * Ignore the document's own playback settings and start from the player's defaults, with
-     * `config` on top. `definitions` and `animateById` are kept either way.
-     */
-    resetDocDefaults?: boolean;
-
-    // -- Shortcuts for the keys people reach for most -------------------------
-
-    /** Shortcut for `config.timeline.duration` (ms). Wins over the same key inside `config`. */
-    duration?: number;
-
-    /** Shortcut for `config.timeline.delay` (ms). */
-    delay?: number;
-
-    /** Shortcut for `config.timeline.iterations`. */
-    iterations?: number | 'infinite';
-
-    /** Shortcut for `config.timeline.trigger.startOn`. */
-    startOn?: PxStartOn;
-
-    // -- Declarative control -------------------------------------------------
-
-    /** When true, uses triggers defined in the animation document. */
-    autoplay?: boolean;
-
-    /**
-     * Starts the animation unconditionally, ignoring document triggers.
-     * Equivalent to `startOn="load"` / `outAction="continue"`.
-     */
-    play?: boolean;
-
-    /** Pauses current playback. Only meaningful when `play` or `autoplay` is set. */
-    pause?: boolean;
-
     // -- Imperative control --------------------------------------------------
 
-    /** Ref populated with the imperative playback API. */
+    /**
+     * Ref populated with the imperative playback API. Filled in EVERY mode and never picks one
+     * (review §1): `autoplay` next to it still autoplays.
+     */
     apiRef?: React.RefObject<ReactAnimatorApi | null>;
-
-    // -- Controlled (external) time ------------------------------------------
-
-    /** Seek to a specific point in the animation, as a fraction (0–1) of the whole timeline (duration × iterations). */
-    progress?: number;
-
-    /** Seek to a specific point in the animation (milliseconds). */
-    time?: number;
-
-    // -- Callbacks -----------------------------------------------------------
-
-    /** Called when the animation starts or resumes. */
-    onPlay?: () => void;
-
-    /** Called when the animation stops for any reason (pause / cancel / finish / removal). */
-    onStop?: () => void;
-
-    /** Called when the animation is paused. */
-    onPause?: () => void;
-
-    /** Called when the animation is cancelled. */
-    onCancel?: () => void;
-
-    /** Called when the animation finishes naturally. */
-    onFinish?: () => void;
-
-    /** Called when the animation is removed. */
-    onRemove?: () => void;
-
-    // -- Diagnostics (API review §5) -----------------------------------------
-
-    /**
-     * Called for anything survivable — an unknown easing, a config key that could not be
-     * applied, an attribute the browser will not animate. The animation still plays.
-     *
-     * Without this, these go to `console.warn`.
-     */
-    onWarn?: (diagnostic: PxDiagnostic) => void;
-
-    /**
-     * Called when the animation could not be produced at all — a document that failed to
-     * parse, or a render that threw. The component stays inert rather than throwing.
-     *
-     * Without this, these go to `console.error`.
-     */
-    onError?: (diagnostic: PxDiagnostic) => void;
-
-    /**
-     * Silence the console FALLBACK above — `true` for everything, or just the kinds listed,
-     * so `platform` chatter can be quiet while `document` problems still speak.
-     * `onWarn` / `onError` still fire if given.
-     */
-    silent?: boolean | ReadonlyArray<PxDiagnosticKind>;
 }
 
 
@@ -338,7 +218,7 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
             api?.destroy();
             apiHolderRef.current = null;
         };
-    }, [doc, apiHolderRef, callbacksRef]);
+    }, [doc, apiHolderRef, callbacksRef, diagRef]);
 
     return root;
 };
@@ -445,20 +325,23 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     }
 
     // Controlled-time mode: compute the absolute seek target. `progress` is a
-    // fraction (0–1) of the WHOLE timeline (duration × iterations); `time`
-    // is absolute milliseconds. The seek is applied through the animator API
-    // (setCurrentTime) below — the document itself stays stable, so scrubbing
-    // does NOT recreate the animator.
+    // fraction (0–1) of the WHOLE timeline (duration × iterations — ONE iteration
+    // when endless); `time` is absolute milliseconds. The seek is applied through
+    // the animator API (setCurrentTime) below — the document itself stays stable,
+    // so scrubbing does NOT recreate the animator.
     let seekMs: number | undefined;
     if (compMode === PxControlMode.fixedTime) {
         // `getAnimatorConfig` returns the FLAT runtime view, so this works for a wire-format
         // document too — reading `doc.animator.duration` directly would find nothing there.
         const animator = getAnimatorConfig(doc) || {};
         if (progress !== undefined) {
+            // ONE rule for progress → time (core's `progressToTimeMs`): the same mapping
+            // `getCurrentProgress` reads back, so a prop of 0.5 and a read of 0.5 agree.
             const iterationsValue = iterations ?? animator.iterations;
-            const iterationsCount = typeof iterationsValue === 'number' && iterationsValue >= 1 ? iterationsValue : 1;
-            const singleDuration = duration ?? animator.duration ?? 1000; // engine default duration
-            seekMs = progress * singleDuration * iterationsCount;
+            const iterationsCount = iterationsValue === 'infinite' ? Infinity
+                : (typeof iterationsValue === 'number' && iterationsValue >= 1 ? iterationsValue : 1);
+            const singleDuration = duration ?? animator.duration ?? DEFAULT_DURATION_MS;
+            seekMs = progressToTimeMs(progress, singleDuration, iterationsCount);
         }
         if (time !== undefined) seekMs = time;
     }
@@ -504,8 +387,9 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
             } else if (pause) {
                 apiHolderRef.current?.pause();
             } else if (play === false) {
-                // explicit play=false → jump to the end state
-                apiHolderRef.current?.finish();
+                // explicit play=false → hold where it is (review §8). This used to `finish()`;
+                // a boolean whose `false` means "jump to the end" is not what anyone guesses.
+                apiHolderRef.current?.pause();
             } else {
                 // pause-only usage: pause switched off → resume
                 apiHolderRef.current?.play();

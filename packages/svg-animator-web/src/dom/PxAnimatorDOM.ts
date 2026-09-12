@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createDiagnostics, getDefs, getNormalizedProps, resolveStyle, sanitiseAttributeValue, camelCaseToKebabWordIfNeeded, CSS_ONLY_STYLE_PROPS, DISALLOWED_SVG_TAGS_LOWER, PxDiagnosticKind, TEXT_CONTENT_ATTR, type PxAnimatedSvgDocument, type PxDefs, type PxDiagnostics, type PxNode } from '@pixodesk/svg-animator-core';
+import { createDiagnostics, getDefs, getNormalizedProps, resolveStyle, sanitizeAttributeValue, camelCaseToKebabWordIfNeeded, CSS_ONLY_STYLE_PROPS, DISALLOWED_SVG_TAGS_LOWER, PxDiagnosticKind, TEXT_CONTENT_ATTR, type PxAnimatedSvgDocument, type PxDefs, type PxDiagnostics, type PxNode } from '@pixodesk/svg-animator-core';
 
 // Re-export from the historical home so the package surface is unchanged.
 export { getNormalizedProps };
@@ -13,7 +13,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 
 function createElement(
     tagName: string,
-    normalisedProps: { [k: string]: string },
+    normalizedProps: { [k: string]: string },
     style: Record<string, string | number> | undefined,
     children: Array<Element> | undefined,
     textContent?: string,
@@ -28,21 +28,21 @@ function createElement(
 
     const element = document.createElementNS(SVG_NS, tagName);
 
-    for (const propName in normalisedProps) {
-        // `sanitiseAttributeValue` returns `undefined` to mean "do not emit"
+    for (const propName in normalizedProps) {
+        // `sanitizeAttributeValue` returns `undefined` to mean "do not emit"
         // (whitelist miss, blocked dangerous value, …). Browsers coerce
         // `undefined` to the literal string `"undefined"` at `setAttribute`,
         // which is exactly the bug we keep hitting — skip instead.
-        const sanitised = sanitiseAttributeValue(propName, normalisedProps[propName]);
-        if (sanitised === undefined) continue;
+        const sanitized = sanitizeAttributeValue(propName, normalizedProps[propName]);
+        if (sanitized === undefined) continue;
         // CSS-only properties (mix-blend-mode, isolation) aren't SVG presentation
         // attributes — the browser ignores them via setAttribute, so route them
         // through `element.style` (camelCase key) instead.
         if (CSS_ONLY_STYLE_PROPS.has(propName)) {
-            (element as unknown as { style: Record<string, string> }).style[propName] = String(sanitised);
+            (element as unknown as { style: Record<string, string> }).style[propName] = String(sanitized);
             continue;
         }
-        element.setAttribute(camelCaseToKebabWordIfNeeded(propName), sanitised);
+        element.setAttribute(camelCaseToKebabWordIfNeeded(propName), sanitized);
     }
 
     // Apply style properties directly (avoids kebab-case issues)

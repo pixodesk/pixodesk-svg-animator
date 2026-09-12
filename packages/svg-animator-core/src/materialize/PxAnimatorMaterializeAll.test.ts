@@ -4,13 +4,13 @@
  *---------------------------------------------------------------------------------------*/
 
 /**
- * Tests for `materialiseAllInTree` — the single-call pipeline that the player
+ * Tests for `materializeAllInTree` — the single-call pipeline that the player
  * uses internally AND the editor uses externally. Confirms each of the four
- * stages runs in the right order, and that engine gating is honoured.
+ * stages runs in the right order, and that engine gating is honored.
  */
 
 import { describe, expect, it } from 'vitest';
-import { materialiseAllInTree } from './PxAnimatorMaterialiseAll';
+import { materializeAllInTree } from './PxAnimatorMaterializeAll';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxNode, PxPropertyAnimation } from '../format/PxAnimatorTypes';
 
@@ -44,7 +44,7 @@ function getTransformAnim(node: PxNode | undefined): PxPropertyAnimation | undef
 }
 
 
-describe('materialiseAllInTree', () => {
+describe('materializeAllInTree', () => {
 
     // One fixture covering all four stages: it has a node.effects (retime), an
     // animation with a loop, a tangented `transform` (motion-along-path), and
@@ -70,7 +70,7 @@ describe('materialiseAllInTree', () => {
                         },
                     },
                 } as PxNode,
-                // <use> referring to src — animated target, must materialise for waapi.
+                // <use> referring to src — animated target, must materialize for waapi.
                 { type: 'use', id: 'inst', href: '#src' } as PxNode,
                 // A second element with an `effects.clone.retime` bucket, just to verify
                 // applyPlayerEffects ran.
@@ -88,12 +88,12 @@ describe('materialiseAllInTree', () => {
     // ── Engine: waapi ────────────────────────────────────────────────────
 
     it('waapi: applyPlayerEffects ran — no node.effects remains anywhere', () => {
-        const out = materialiseAllInTree(fixture(), PxTimelineEngine.native);
+        const out = materializeAllInTree(fixture(), PxTimelineEngine.native);
         expect(deepHasAnyEffects(out)).toBe(false);
     });
 
-    it('waapi: motion-path materialised — tangents and autoOrient removed from `src`', () => {
-        const out = materialiseAllInTree(fixture(), PxTimelineEngine.native);
+    it('waapi: motion-path materialized — tangents and autoOrient removed from `src`', () => {
+        const out = materializeAllInTree(fixture(), PxTimelineEngine.native);
         const src = deepFind(out, n => n.id === 'src')!;
         const anim = getTransformAnim(src)!;
         expect(anim.autoOrient).toBeUndefined();
@@ -106,20 +106,20 @@ describe('materialiseAllInTree', () => {
         expect(kfs.length).toBeGreaterThan(2);
     });
 
-    it('waapi: loop materialised — `loop` field consumed', () => {
-        const out = materialiseAllInTree(fixture(), PxTimelineEngine.native);
+    it('waapi: loop materialized — `loop` field consumed', () => {
+        const out = materializeAllInTree(fixture(), PxTimelineEngine.native);
         const src = deepFind(out, n => n.id === 'src')!;
         const anim = getTransformAnim(src)!;
         expect(anim.loop).toBeUndefined();
     });
 
-    it('waapi: <use> referencing animated subtree materialised — replaced by <g>', () => {
-        const out = materialiseAllInTree(fixture(), PxTimelineEngine.native);
+    it('waapi: <use> referencing animated subtree materialized — replaced by <g>', () => {
+        const out = materializeAllInTree(fixture(), PxTimelineEngine.native);
         // The `inst` <use> is the simple ref one. No <use href="#src"> should remain
-        // in the output (all materialised).
+        // in the output (all materialized).
         const remainingUses = deepCountByType(out, 'use');
         // The retime effect's <use> is consumed by applyPlayerEffects, the plain
-        // `inst` <use> by materialiseAnimatedUseInstances. Both gone.
+        // `inst` <use> by materializeAnimatedUseInstances. Both gone.
         expect(remainingUses).toBe(0);
     });
 
@@ -127,19 +127,19 @@ describe('materialiseAllInTree', () => {
     // ── Engine: frames ────────────────────────────────────────────────────
 
     it('frames: applyPlayerEffects ran — no node.effects remains', () => {
-        const out = materialiseAllInTree(fixture(), PxTimelineEngine.js);
+        const out = materializeAllInTree(fixture(), PxTimelineEngine.js);
         expect(deepHasAnyEffects(out)).toBe(false);
     });
 
-    it('frames: loop materialised — same as waapi (both engines need flat kfs)', () => {
-        const out = materialiseAllInTree(fixture(), PxTimelineEngine.js);
+    it('frames: loop materialized — same as waapi (both engines need flat kfs)', () => {
+        const out = materializeAllInTree(fixture(), PxTimelineEngine.js);
         const src = deepFind(out, n => n.id === 'src')!;
         const anim = getTransformAnim(src)!;
         expect(anim.loop).toBeUndefined();
     });
 
     it('frames: motion-path KEPT parametric — tangents + autoOrient intact', () => {
-        const out = materialiseAllInTree(fixture(), PxTimelineEngine.js);
+        const out = materializeAllInTree(fixture(), PxTimelineEngine.js);
         const src = deepFind(out, n => n.id === 'src')!;
         const anim = getTransformAnim(src)!;
         expect(anim.autoOrient).toBe(true);
@@ -148,8 +148,8 @@ describe('materialiseAllInTree', () => {
         expect(hasAnyTangent).toBe(true);
     });
 
-    it('frames: <use> KEPT — animated-use materialisation skipped', () => {
-        const out = materialiseAllInTree(fixture(), PxTimelineEngine.js);
+    it('frames: <use> KEPT — animated-use materialization skipped', () => {
+        const out = materializeAllInTree(fixture(), PxTimelineEngine.js);
         // The plain `inst` <use> survives; the retime effect's <use> is still
         // consumed by applyPlayerEffects.
         const remainingUses = deepCountByType(out, 'use');
@@ -162,7 +162,7 @@ describe('materialiseAllInTree', () => {
     it('does not mutate the input doc', () => {
         const doc = fixture();
         const snapshot = JSON.stringify(doc);
-        materialiseAllInTree(doc, PxTimelineEngine.native);
+        materializeAllInTree(doc, PxTimelineEngine.native);
         expect(JSON.stringify(doc)).toBe(snapshot);
     });
 });

@@ -132,7 +132,7 @@ createAnimator({
   callbacks: {
     onPlay:   () => { /* started/resumed */ },
     onPause:  () => { /* paused */ },
-    onCancel: () => { /* cancelled */ },
+    onCancel: () => { /* canceled */ },
     onFinish: () => { /* finished naturally (or via finish()) */ },
     onRemove: () => { /* destroyed / cleaned up */ },
   },
@@ -145,7 +145,7 @@ createAnimator({
 
 - `'auto'` (default) — the browser where it can (Web Animations API; its ScrollTimeline for scroll-driven documents), the player's frame loop where it must.
 - `'native'` — the browser only (Web Animations API).
-- `'js'` — the player's `requestAnimationFrame` loop only; honours `timeline.frameRate`. Required for path morphing in Safari < 18.5.
+- `'js'` — the player's `requestAnimationFrame` loop only; honors `timeline.frameRate`. Required for path morphing in Safari < 18.5.
 
 ### Document format & effects
 
@@ -158,8 +158,8 @@ same shape as the JSON export. It comes in two modes:
 
 Elements may also carry a `node.effects` bucket (structural effects such as
 `transformBy`, `repeater`, `maskedBy`, `strokeTrim`, `clone`, `fillGradient` /
-`strokeGradient`, `textPath`). This player materialises and removes them at
-runtime before any other normalisation.
+`strokeGradient`, `textPath`). This player materializes and removes them at
+runtime before any other normalization.
 
 See the [JSON format reference](../../docs/format/README.md#json-format-reference) and
 [Player effects](../../docs/format/README.md#player-effects) for the full schema and
