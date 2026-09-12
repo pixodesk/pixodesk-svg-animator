@@ -28,9 +28,13 @@ component itself — see the props table); the SVG keeps its proportions.
 
 ## Control modes
 
-Pick one — they are mutually exclusive, and take precedence in the order listed.
+Three control modes, plus a template ref that is not one. Set more than one control prop and the
+highest-priority one wins — `progress` / `time` → `play` / `pause` → `autoplay` — and the
+component warns, naming both props and the winner. The ref is available in every mode and never
+changes which one you are in. React, Vue and React Native all resolve this the same way, from one
+rule in core.
 
-### 1 · Autoplay
+### Autoplay
 
 > **Example:** [`vue/autoplay`](../../examples/docs-examples/src/cases/vue/autoplay/) — `pnpm example:docs`, then open `#vue/autoplay`.
 
@@ -53,7 +57,7 @@ action. Override it for this one mount with the `startOn` prop, or with
 `:config="{ timeline: { trigger: { … } } }"` for the rest of the trigger — see
 [Playback overrides](#playback-overrides).
 
-### 2 · Controlled time (`progress` / `time`)
+### Controlled time (`progress` / `time`)
 
 > **Example:** [`vue/controlled-time`](../../examples/docs-examples/src/cases/vue/controlled-time/) — `pnpm example:docs`, then open `#vue/controlled-time`.
 
@@ -80,7 +84,7 @@ const time = ref(0);
 
 Changing the value moves the existing animator to the new time — nothing is recreated.
 
-### 3 · Declarative play / pause
+### Declarative play / pause
 
 > **Example:** [`vue/declarative`](../../examples/docs-examples/src/cases/vue/declarative/) — `pnpm example:docs`, then open `#vue/declarative`.
 
@@ -103,7 +107,7 @@ const paused = ref(false);
 
 `play && !pause` plays; `pause` pauses; `play === false` jumps to the end state.
 
-### 4 · Imperative API (template ref)
+### Imperative API (template ref)
 
 > **Example:** [`vue/imperative`](../../examples/docs-examples/src/cases/vue/imperative/) — `pnpm example:docs`, then open `#vue/imperative`.
 

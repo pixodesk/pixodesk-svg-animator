@@ -121,6 +121,46 @@ describe("PixodeskSvgAnimator (React)", () => {
         });
     });
 
+    // -- 2b. Control-mode precedence (API review §1) ---------------------------
+
+    describe("control-mode precedence", () => {
+        it("autoplay still starts when an apiRef is passed — a handle is not a mode", () => {
+            // The §1 bug: passing `apiRef` forced startOn:'programmatic', so this
+            // never moved on its own and `autoplay` was silently dead.
+            const apiRef = createRef<ReactAnimatorApi>();
+            render(<PixodeskSvgAnimator doc={getTestJson()} autoplay apiRef={apiRef} />);
+
+            const ellipse = document.querySelector("ellipse");
+            expect(ellipse?.getAttribute("transform")).toMatch("translate(200,100)");
+
+            vi.advanceTimersByTime(64);
+            expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
+
+            // ...and the handle is still live in the same mode.
+            expect(apiRef.current).not.toBeNull();
+            expect(apiRef.current!.isPlaying()).toBe(true);
+        });
+
+        it("warns when two control tiers are set, naming both and the winner", () => {
+            const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
+            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay />);
+
+            const said = warn.mock.calls.map(c => String(c[0])).join("\n");
+            expect(said).toContain("progress/time");
+            expect(said).toContain("autoplay");
+            expect(said).toContain("ignored");
+            warn.mockRestore();
+        });
+
+        it("says nothing when only one tier is used", () => {
+            const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
+            render(<PixodeskSvgAnimator doc={getTestJson()} autoplay />);
+
+            expect(warn).not.toHaveBeenCalled();
+            warn.mockRestore();
+        });
+    });
+
     // -- 3. Imperative API -----------------------------------------------------
 
     describe("imperative API (apiRef)", () => {

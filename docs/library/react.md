@@ -25,12 +25,14 @@ by sizing the parent (the SVG keeps its `viewBox`).
 
 ## Control modes
 
-Pick one — they are mutually exclusive, and take precedence in the order listed. The `apiRef`
-is filled in **every** mode, so you can always call `play()` / `pause()` yourself; passing
-`apiRef` and nothing else is the imperative mode, where the document's trigger is switched off
-and the ref is the only thing that starts playback.
+Three control modes, plus a handle that is not one. Set more than one control prop and the
+highest-priority one wins — `progress` / `time` → `play` / `pause` → `autoplay` — and the
+component warns, naming both props and the winner. `apiRef` is filled in **every** mode and never
+changes which one you are in, so you can always call `play()` / `pause()` yourself; `apiRef` with
+no control prop beside it is simply the static mode, where nothing plays until you say so. React,
+Vue and React Native all resolve this the same way, from one rule in core.
 
-### 1 · Imperative API (`apiRef`)
+### Imperative API (`apiRef`)
 
 > **Example:** [`react/imperative`](../../examples/docs-examples/src/cases/react/imperative/) — `pnpm example:docs`, then open `#react/imperative`.
 
@@ -68,7 +70,7 @@ export function Player() {
 | `setCurrentTime(ms)` | jump to a point in the animation, in milliseconds from its start |
 | `isPlaying()` | `true` while the animation is running, `false` when paused, finished or not started |
 
-### 2 · Autoplay
+### Autoplay
 
 > **Example:** [`react/autoplay`](../../examples/docs-examples/src/cases/react/autoplay/) — `pnpm example:docs`, then open `#react/autoplay`.
 
@@ -89,7 +91,7 @@ Uses the trigger saved in the document — on load, on hover, on click, when scr
 `config={{ timeline: { trigger: { … } } }}` for the rest of the trigger — see
 [Playback overrides](#playback-overrides).
 
-### 3 · Controlled time (`progress` / `time`)
+### Controlled time (`progress` / `time`)
 
 > **Example:** [`react/controlled-time`](../../examples/docs-examples/src/cases/react/controlled-time/) — `pnpm example:docs`, then open `#react/controlled-time`.
 
@@ -114,7 +116,7 @@ export function Scrubber() {
 
 `progress` is a position in the whole timeline (duration × iterations), from `0`, the first frame, to `1`, the last; `time` is a time in milliseconds from the start.
 
-### 4 · Declarative play / pause
+### Declarative play / pause
 
 > **Example:** [`react/declarative`](../../examples/docs-examples/src/cases/react/declarative/) — `pnpm example:docs`, then open `#react/declarative`.
 
@@ -142,8 +144,8 @@ export function Controlled() {
 `play && !pause` plays; `pause` pauses; `play === false` jumps to the end state; a pause that is
 switched back off resumes.
 
-With none of `apiRef` / `autoplay` / `progress` / `time` / `play` / `pause` set, the component
-renders the first frame statically.
+With none of `autoplay` / `progress` / `time` / `play` / `pause` set, the component renders the
+first frame statically — `apiRef` on its own is such a case, so playback waits for your `play()`.
 
 ## Playback overrides
 

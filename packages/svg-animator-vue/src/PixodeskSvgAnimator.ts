@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxAnimatorConfigPatch, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger } from '@pixodesk/svg-animator-web';
-import { camelCaseToKebabWordIfNeeded, createAnimator, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig } from '@pixodesk/svg-animator-web';
+import { camelCaseToKebabWordIfNeeded, createAnimator, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from '@pixodesk/svg-animator-web';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
     watch,
@@ -45,12 +45,8 @@ export interface VueAnimatorApi {
 
 // -- Internal types ---------------------------------------------------------
 
-enum CompMode {
-    static = 'static',
-    autoplay = 'autoplay',
-    play = 'play',
-    fixedTime = 'fixedTime'
-}
+// The control mode is core's `PxControlMode`, shared with React and React Native
+// (API review §1/§7) — one precedence rule, one set of conflict warnings.
 
 
 // -- Vue ↔ Animator bridge --------------------------------------------------
@@ -108,7 +104,7 @@ interface DocOverrideProps {
 function applyDocOverrides(
     doc: PxAnimatedSvgDocument,
     props: DocOverrideProps,
-    compMode: CompMode,
+    compMode: PxControlMode,
 ): PxAnimatedSvgDocument {
 
     // ONE patch, applied ONCE: the props, plus the component's own need to take the trigger
@@ -120,7 +116,7 @@ function applyDocOverrides(
     // discarded. See PLAYBACK-OVERRIDE-PLAN.md §1.1.
     const { config, resetDocDefaults, duration, delay, iterations, startOn } = props;
     const patch = foldAnimatorConfigShortcuts(config, { duration, delay, iterations, startOn });
-    const fullPatch: any = compMode !== CompMode.autoplay
+    const fullPatch: any = controlModeTakesOverTrigger(compMode)
         ? {
             ...(patch ?? {}),
             timeline: {
@@ -224,12 +220,19 @@ const PixodeskSvgAnimator = defineComponent({
 
         // -- Determine control mode ---------------------------------------------
 
-        const compMode = computed<CompMode>(() => {
-            if (props.autoplay) return CompMode.autoplay;
-            if (props.progress !== undefined || props.time !== undefined) return CompMode.fixedTime;
-            if (props.play !== undefined || props.pause !== undefined) return CompMode.play;
-            return CompMode.static;
-        });
+        // ONE control-mode rule, decided in core (API review §1/§7). The template ref is not an
+        // input: it is exposed in every mode and never changes which one is chosen.
+        const resolvedMode = computed(() => resolveControlMode({
+            progress: props.progress, time: props.time,
+            play: props.play, pause: props.pause, autoplay: props.autoplay,
+        }));
+        const compMode = computed<PxControlMode>(() => resolvedMode.value.mode);
+
+        // Warn where the mode is COMPUTED, not inside `applyDocOverrides` — that runs again on
+        // every doc recompute and would repeat the same sentence.
+        watch(resolvedMode, r => {
+            for (const w of r.warnings) console.warn('[PixodeskSvgAnimator] ' + w);
+        }, { immediate: true });
 
         // -- Prepare the document with overrides --------------------------------
 
@@ -299,7 +302,7 @@ const PixodeskSvgAnimator = defineComponent({
 
         /** Declarative play/pause → animator calls. */
         function syncPlayState() {
-            if (compMode.value !== CompMode.play) return;
+            if (compMode.value !== PxControlMode.play) return;
             if (props.play && !props.pause) {
                 apiRef.value?.play();
             } else if (props.pause) {
@@ -315,7 +318,7 @@ const PixodeskSvgAnimator = defineComponent({
 
         /** Controlled-time mode: seek through the animator API (no recreate). */
         function applySeek() {
-            if (compMode.value !== CompMode.fixedTime) return;
+            if (compMode.value !== PxControlMode.fixedTime) return;
             const doc = resolvedDoc.value;
             if (!doc) return;
             const seekMs = calcSeekMs(doc, props);

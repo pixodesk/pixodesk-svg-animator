@@ -104,7 +104,11 @@ const doc = animation as PxAnimatedSvgDocument;
 
 ## Control modes
 
-Four ways to drive playback — pick one, they are mutually exclusive.
+Three control modes, plus a handle that is not one. Set more than one control prop and the
+highest-priority one wins — `progress` / `time` → `play` / `pause` → `autoplay` — and the
+component warns, naming both props and the winner; set none of them and the first frame renders
+statically. `apiRef` is filled in every mode and never changes which one you are in. React, Vue
+and React Native all resolve this the same way, from one rule in core.
 
 **Autoplay** — honours the document's trigger (`load` plays on mount; `click` wraps the
 animation in a `Pressable`; `scrollIntoView` measures visibility against the window):

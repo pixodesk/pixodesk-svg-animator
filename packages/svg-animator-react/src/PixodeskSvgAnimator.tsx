@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import type { PxOutAction, PxAnimatedSvgDocument, PxAnimatorAPI, PxAnimatorConfigPatch, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger, PxStartOn } from '@pixodesk/svg-animator-web';
-import { camelCaseToKebabWordIfNeeded, createAnimator, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig } from '@pixodesk/svg-animator-web';
+import { camelCaseToKebabWordIfNeeded, createAnimator, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from '@pixodesk/svg-animator-web';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
 import { useDepsVersion } from './Utils';
@@ -47,7 +47,7 @@ export interface PixodeskSvgAnimatorImplProps {
     className?: string;
     style?: CSSProperties;
     doc: PxAnimatedSvgDocument;
-    compMode: PixodeskSvgAnimatorCompMode;
+    compMode: PxControlMode;
 
     /** Imperative API handle populated by the inner component. */
     apiHolderRef: React.RefObject<PxAnimatorAPI | null>;
@@ -171,13 +171,9 @@ export interface PixodeskSvgAnimatorProps {
 
 // -- Internal types ---------------------------------------------------------
 
-enum PixodeskSvgAnimatorCompMode {
-    static = 'static',
-    autoplay = 'autoplay',
-    play = 'play',
-    imperativeApi = 'imperativeApi',
-    fixedTime = 'fixedTime'
-}
+// The control mode is core's `PxControlMode`, shared with Vue and React Native (API review
+// §1/§7). The local enum is gone — and with it `imperativeApi`, which existed only to make a
+// REF pick a mode and so silently disabled `autoplay`.
 
 
 // -- React ↔ Animator bridge ------------------------------------------------
@@ -345,17 +341,19 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     onPlay, onStop, onPause, onCancel, onFinish, onRemove
 }) => {
 
-    // Determine which control mode is active.
-    let compMode = PixodeskSvgAnimatorCompMode.static;
-    if (apiRef) {
-        compMode = PixodeskSvgAnimatorCompMode.imperativeApi;
-    } else if (autoplay) {
-        compMode = PixodeskSvgAnimatorCompMode.autoplay;
-    } else if (progress !== undefined || time !== undefined) {
-        compMode = PixodeskSvgAnimatorCompMode.fixedTime;
-    } else if (play !== undefined || pause !== undefined) {
-        compMode = PixodeskSvgAnimatorCompMode.play;
-    }
+    // ONE control-mode rule, decided in core and shared with Vue and React Native
+    // (API review §1/§7). `apiRef` is deliberately NOT an input: the handle is populated in
+    // every mode, so `<PixodeskSvgAnimator autoplay apiRef={api} />` now autostarts AND gives
+    // you the handle, instead of the ref silently forcing `startOn: 'programmatic'`.
+    const { mode: compMode, warnings: modeWarnings } =
+        resolveControlMode({ progress, time, play, pause, autoplay });
+
+    // Warn once per distinct conflict, not once per render — a parent re-rendering on unrelated
+    // state must not repeat the sentence. React Native guards it the same way.
+    useEffect(() => {
+        for (const w of modeWarnings) console.warn('[PixodeskSvgAnimator] ' + w);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [modeWarnings.join('|')]);
 
     // ONE patch, applied ONCE: the props, plus the component's own need to take the trigger
     // over in the non-autoplay control modes.
@@ -366,7 +364,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     // `timeline` immediately afterwards, so every one of those overrides was silently discarded.
     // See PLAYBACK-OVERRIDE-PLAN.md §1.1.
     const patch = foldAnimatorConfigShortcuts(config, { duration, delay, iterations, startOn });
-    const takeOverTrigger = compMode !== PixodeskSvgAnimatorCompMode.autoplay;
+    const takeOverTrigger = controlModeTakesOverTrigger(compMode);
     const fullPatch: any = takeOverTrigger
         ? {
             ...(patch ?? {}),
@@ -389,7 +387,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     // (setCurrentTime) below — the document itself stays stable, so scrubbing
     // does NOT recreate the animator.
     let seekMs: number | undefined;
-    if (compMode === PixodeskSvgAnimatorCompMode.fixedTime) {
+    if (compMode === PxControlMode.fixedTime) {
         // `getAnimatorConfig` returns the FLAT runtime view, so this works for a wire-format
         // document too — reading `doc.animator.duration` directly would find nothing there.
         const animator = getAnimatorConfig(doc) || {};
@@ -430,7 +428,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     // remount (`key` in deps) so a doc swap re-applies the current state.
     useEffect(() => {
 
-        if (compMode === PixodeskSvgAnimatorCompMode.play) {
+        if (compMode === PxControlMode.play) {
             if (play && !pause) {
                 apiHolderRef.current?.play();
             } else if (pause) {
@@ -445,7 +443,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
         }
 
         return () => {
-            if (compMode === PixodeskSvgAnimatorCompMode.play) {
+            if (compMode === PxControlMode.play) {
                 // Intentionally read at cleanup time (NOT snapshotted at effect
                 // time): the inner component nulls the ref when it destroys the
                 // animator, so this pauses only a still-live instance. A
@@ -460,7 +458,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     // Controlled-time mode: seek through the animator API. Scrubbing `progress` /
     // `time` only re-runs this effect — the animator is NOT recreated.
     useEffect(() => {
-        if (compMode === PixodeskSvgAnimatorCompMode.fixedTime && seekMs !== undefined) {
+        if (compMode === PxControlMode.fixedTime && seekMs !== undefined) {
             apiHolderRef.current?.setCurrentTime(seekMs);
             apiHolderRef.current?.pause();
         }

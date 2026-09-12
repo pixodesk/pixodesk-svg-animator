@@ -244,6 +244,95 @@ export interface PxResolvedTrigger {
     readonly scrollIntoViewThreshold: number;
 }
 
+// ── CONTROL MODE (API review §1 / §7) ────────────────────────────────────────
+// Which set of props drives playback. Every component picked its own order, so
+// `autoplay` + `progress={0.5}` played on React and Vue but seeked on React Native, and
+// React let a REF choose the mode — `<PixodeskSvgAnimator autoplay apiRef={api} />` never
+// started, because the imperative branch forced `startOn: 'programmatic'`.
+//
+// One order, decided once, used by react / vue / rn. This module owns the LOGIC and the
+// WARNING TEXT only; each component keeps its own `console.warn` wiring.
+
+/** Which props drive playback. `apiRef` is deliberately NOT a mode: the handle is filled in
+ *  every mode, so passing it alone leaves the document's own trigger in charge. */
+export const PxControlMode = {
+    /** No control props — the document's trigger decides, and nothing is taken over. */
+    static:    'static',
+    /** `progress` / `time` — the host scrubs; the component seeks and stays paused. */
+    fixedTime: 'fixedTime',
+    /** `play` / `pause` — the host drives playback with booleans. */
+    play:      'play',
+    /** `autoplay` — the document's own trigger starts it. */
+    autoplay:  'autoplay',
+} as const;
+
+export type PxControlMode = typeof PxControlMode[keyof typeof PxControlMode];
+
+/** What a component passes in: whether each control prop was SET (not its value). */
+export interface PxControlProps {
+    progress?: number;
+    time?: number;
+    play?: boolean;
+    pause?: boolean;
+    autoplay?: boolean;
+}
+
+/** The chosen mode plus any conflict warnings — ready-made sentences, so three components
+ *  cannot word the same conflict three ways. */
+export interface PxResolvedControlMode {
+    readonly mode: PxControlMode;
+    readonly warnings: ReadonlyArray<string>;
+}
+
+/**
+ * Picks the control mode from the props a component was given.
+ *
+ * PRECEDENCE, most specific first:
+ *   1. `progress` / `time`  — an explicit position is the most precise instruction there is
+ *   2. `play` / `pause`     — explicit playback state
+ *   3. `autoplay`           — defer to the document's trigger
+ *   4. otherwise `static`   — the document's trigger, with nothing taken over
+ *
+ * `apiRef` is absent on purpose. A ref is a handle, not an instruction: it is populated in
+ * every mode, so `autoplay` + `apiRef` autostarts AND gives you the handle.
+ *
+ * A warning is produced only when props from two different tiers are set together — the
+ * lower tier is then ignored, and silence about that is what made this hard to debug.
+ */
+export function resolveControlMode(props: PxControlProps): PxResolvedControlMode {
+    const hasFixedTime = props.progress !== undefined || props.time !== undefined;
+    const hasPlayPause = props.play !== undefined || props.pause !== undefined;
+    const hasAutoplay  = !!props.autoplay;
+
+    const warnings: Array<string> = [];
+    const named = (a: string, b: string, winner: string): string =>
+        a + ' and ' + b + ' were both set — ' + winner + ' wins, ' + (winner === a ? b : a) + ' is ignored.';
+
+    if (hasFixedTime) {
+        if (hasPlayPause) warnings.push(named('progress/time', 'play/pause', 'progress/time'));
+        if (hasAutoplay)  warnings.push(named('progress/time', 'autoplay', 'progress/time'));
+        return { mode: PxControlMode.fixedTime, warnings };
+    }
+    if (hasPlayPause) {
+        if (hasAutoplay) warnings.push(named('play/pause', 'autoplay', 'play/pause'));
+        return { mode: PxControlMode.play, warnings };
+    }
+    if (hasAutoplay) return { mode: PxControlMode.autoplay, warnings };
+    return { mode: PxControlMode.static, warnings };
+}
+
+/**
+ * True when the component must take the document's trigger over, by forcing
+ * `startOn: 'programmatic'` into its config patch.
+ *
+ * Every mode except `autoplay` — INCLUDING `static`. A component given no control props at all
+ * must not start on its own: `<PixodeskSvgAnimator doc={…} />` renders the first frame and waits.
+ * `autoplay` is the one mode that says "let the document's trigger decide".
+ */
+export function controlModeTakesOverTrigger(mode: PxControlMode): boolean {
+    return mode !== PxControlMode.autoplay;
+}
+
 /** A document's trigger with the defaults filled in. (`finishAction` is not a start/stop decision:
  *  it reaches the engines as the runtime view's `resetOnFinish`.) */
 export function resolveTrigger(trigger: PxTrigger | undefined): PxResolvedTrigger {

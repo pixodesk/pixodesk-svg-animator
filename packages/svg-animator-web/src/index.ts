@@ -86,6 +86,10 @@ export {
 } from '@pixodesk/svg-animator-core';
 
 export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core';
+// ONE control-mode rule for every component (API review §1, §7). React and Vue reach core
+// through this package, so the resolver is forwarded here; React Native imports core directly.
+export { PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from '@pixodesk/svg-animator-core';
+export type { PxControlProps, PxResolvedControlMode } from '@pixodesk/svg-animator-core';
 export { camelCaseToKebabWordIfNeeded, COLOUR_ATTR_NAMES, STYLE_ATTR_NAMES, toRGBA, TRANSFORM_FN_NAMES } from '@pixodesk/svg-animator-core';
 
 

@@ -14,13 +14,14 @@ is not here, go to [Still stuck?](#still-stuck) at the end.
 
 **The trigger is not "on load".** Check `animator.timeline.trigger.startOn` in the file (or the *Start*
 setting in the editor). `click` / `mouseOver` / `scrollIntoView` wait for the user;
-`programmatic` waits for you to call `play()`. In React/Vue, remember that `autoplay` is the
-only mode that uses the document's trigger — with `play`, `apiRef`, `time` etc. the trigger is
-switched to programmatic.
+`programmatic` waits for you to call `play()`. In React/Vue/React Native, remember that
+`autoplay` is the only mode that uses the document's trigger — with `play`, `pause`, `progress`
+or `time` the trigger is switched to programmatic. Passing `apiRef` does **not** change the mode.
 
 **React / Vue component with no control prop.** With none of `autoplay` / `play` / `pause` /
-`apiRef` / `progress` / `time` set, the component deliberately renders the first frame and does
-nothing. Add `autoplay`.
+`progress` / `time` set, the component deliberately renders the first frame and does
+nothing. Add `autoplay`. `apiRef` on its own is such a case: the ref is a handle, not an
+instruction, so nothing moves until you call `play()` on it.
 
 **`loadTagAnimators()` ran before the elements existed.** Call it after the DOM is ready (end of
 `<body>`, `DOMContentLoaded`), and call it again after inserting content dynamically — it only

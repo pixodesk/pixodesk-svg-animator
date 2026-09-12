@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materialiseAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, type PxFillMode, type PxOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxAnimatorConfigPatch, type PxNode, type PxStartOn, applyAnimatorConfig, foldAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
+import { reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materialiseAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxAnimatorConfigPatch, type PxNode, type PxStartOn, applyAnimatorConfig, foldAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
 import Animated, {
@@ -517,13 +517,24 @@ export function PixodeskSvgAnimator({
     const effectiveStartOn = trigger.startOn;
     const effectiveOutAction = trigger.outAction;
 
+    // ONE control-mode rule, decided in core and shared with React and Vue (API review §1/§7).
+    // This component always had the right ORDER but no name for it, and never told anyone when
+    // two tiers of props were passed together.
+    const { mode: compMode, warnings: modeWarnings } =
+        resolveControlMode({ progress: progressProp, time, play, pause, autoplay });
+
     useEffect(() => {
-        if (progressProp !== undefined || time !== undefined) {
+        for (const w of modeWarnings) console.warn('[PixodeskSvgAnimator] ' + w);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [modeWarnings.join('|')]);
+
+    useEffect(() => {
+        if (compMode === PxControlMode.fixedTime) {
             const seekMs = time !== undefined ? time : (progressProp ?? 0) * totalDuration;
             api.setCurrentTime(seekMs);
             return;
         }
-        if (play !== undefined || pause !== undefined) {
+        if (compMode === PxControlMode.play) {
             if (play && !pause) api.play();
             else if (pause) api.pause();
             else if (play === false) api.finish();
@@ -531,11 +542,11 @@ export function PixodeskSvgAnimator({
             return;
         }
         // 'click' and 'scrollIntoView' start from their own handlers below.
-        if (autoplay && effectiveStartOn === 'load') {
+        if (compMode === PxControlMode.autoplay && effectiveStartOn === 'load') {
             api.play();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compiled, autoplay, play, pause, progressProp, time]);
+    }, [compiled, compMode, autoplay, play, pause, progressProp, time]);
 
     // `startOn: 'scrollIntoView'` — react-native has no IntersectionObserver, so
     // visibility is sampled by measuring the view against the window box. The

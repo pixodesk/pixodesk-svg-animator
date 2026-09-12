@@ -40,6 +40,9 @@ export type { KeysMatch, PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, R
 // Wire-format schemas
 export { PxAnimatedSvgDocumentSchema, PxAnimationDefinitionSchema, PxAnimatorConfigSchema, PxAttrValueSchema, PxBezierPathSchema, PxBindingSchema, PxDefsSchema, PxEasingOrRefSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBase, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeExtra, PxTransformPartsSchema, PxTransformValueSchema, PxTriggerSchema, PxTimelineSchema, PxTimelinePinSchema } from './format/PxAnimatorTypes';
 export { resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline, PX_TRANSFORM_PART_KEYS, PxTimelineEngine, PxCloneWithout, PxTimelineEngineExtra, PX_TRIGGER_DEFAULTS, resolveTrigger } from './format/PxAnimatorConstants';
+// ONE control-mode rule for react / vue / rn (API review §1, §7) — logic + warning text.
+export { PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from './format/PxAnimatorConstants';
+export type { PxControlProps, PxResolvedControlMode } from './format/PxAnimatorConstants';
 export { PX_PLAYER_SCHEMA_VERSION } from './version/PxSchemaVersion';
 
 // Document / model types
