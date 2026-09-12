@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { reportDocumentDiagnostics, applyAnimatorConfig, createDiagnostics, foldAnimatorConfigShortcuts, generateNewIds, getAnimatorConfig, isPxElementFileFormat, materializeAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfigPatch, type PxPlatformAdapter, type PxTrigger } from '@pixodesk/svg-animator-core';
+import { reportDocumentDiagnostics, applyAnimatorConfig, createDiagnostics, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxElementFileFormat, materializeAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfigPatch, type PxComponentCallbacks, type PxPlaybackOverrideProps, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { bindWithEngineChoice } from '../engines/PxAnimatorBind';
 import { renderNode } from '../dom/PxAnimatorDOM';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
@@ -48,8 +49,8 @@ function createAnimatorImpl(
     adapter?: PxPlatformAdapter,
     callbacks?: PxAnimatorCallbacksConfig,
     containerElement?: string | Element,
-    config?: PxAnimatorConfigPatch,
-    resetDocDefaults?: boolean
+    patch?: PxAnimatorConfigPatch,
+    resetTimeline?: boolean
 ): PxAnimatorAPI {
 
     // Validate every `node.effects` bucket against `PxEffectsSchema` and warn
@@ -72,9 +73,9 @@ function createAnimatorImpl(
     // depends on the final values: `timeline.engine` picks the engine, `duration` drives loop
     // expansion and motion-path sampling in `materializeAllInTree`, and `generateNewIds`
     // rewrites `animateById` keys — a late patch would be read by none of them.
-    if (config !== undefined || resetDocDefaults) {
-        const patched = applyAnimatorConfig(doc, config ?? {}, { resetDefaults: !!resetDocDefaults });
-        for (const w of patched.warnings) diag.warn(PxDiagnosticKind.usage, 'config override: ' + w);
+    if (patch !== undefined || resetTimeline) {
+        const patched = applyAnimatorConfig(doc, patch ?? {}, { resetDefaults: !!resetTimeline });
+        for (const w of patched.warnings) diag.warn(PxDiagnosticKind.usage, 'timeline override: ' + w);
         doc = patched.doc;
     }
 
@@ -131,80 +132,57 @@ function createAnimatorImpl(
 
 // Re-exported so this module's public surface is unchanged; declared in
 // `PxAnimatorKeys` so entries can use it without importing this module. See there.
-export { PX_ANIMATOR_DATA_KEY } from '../shared/PxAnimatorKeys';
+export { PX_ANIMATOR_DOC_KEY } from '../shared/PxAnimatorKeys';
 
-export interface PxAnimatorOptions {
-    /** URL to fetch the animation document from. Provide either this or `data`, not both. */
+/**
+ * Everything `createAnimator` takes. The playback override (`timeline`, `resetTimeline` and the
+ * four shortcuts) and the callbacks are core's shared shapes — the SAME names, inline, as the
+ * React, Vue and React Native components take (review §9) — so only what is web-specific is
+ * declared here.
+ */
+export interface PxAnimatorOptions extends PxPlaybackOverrideProps, PxComponentCallbacks {
+    /** URL to fetch the animation document from. Provide either this or `doc`, not both. */
     src?: string;
-    /** Inline animation document object. Provide either this or `src`, not both. */
-    data?: PxAnimatedSvgDocument;
-    /** Platform adapter for frame-loop rendering. */
+    /** The animation document, inline (see SCHEMA.md). Provide either this or `src`, not both. */
+    doc?: PxAnimatedSvgDocument;
+    /** ○ A custom render target for the frame-loop engine (`PxPlatformAdapter`); omit for the DOM. */
     adapter?: PxPlatformAdapter;
-    /** Callback functions for animation lifecycle events. */
-    callbacks?: PxAnimatorCallbacksConfig;
     /** CSS selector or element to render the SVG into. */
     container?: string | Element;
-
-    /**
-     * Per-instance override of the document's `animator` config — the same shape as
-     * `animator` in SCHEMA.md, deep-merged over what the document says, so one file can play
-     * twice on a page with different timing. `null` at any slot DELETES that key, which is
-     * how you restore a default that absence means.
-     *
-     * Also accepts a JSON STRING of the same object. Strings are immune to property mangling,
-     * so that form survives a build that renames object keys (see docs/library/minification.md).
-     */
-    config?: PxAnimatorConfigPatch | string;
-
-    /**
-     * Ignore the document's own playback settings and start from the player's defaults, with
-     * `config` applied on top. The lookup tables (`definitions`, `animateById`) are kept
-     * either way — resetting those would leave the animation with nothing to animate.
-     */
-    resetDocDefaults?: boolean;
-
-    /** Shortcut for `config.timeline.duration` (ms). Wins over the same key inside `config`. */
-    duration?: number;
-    /** Shortcut for `config.timeline.delay` (ms). */
-    delay?: number;
-    /** Shortcut for `config.timeline.iterations`. */
-    iterations?: number | 'infinite';
-    /** Shortcut for `config.timeline.trigger.startOn`. Typed from the WIRE, so it includes
-     *  `'programmatic'` — the value that says "nothing starts this but a `play()` call". */
-    startOn?: PxTrigger['startOn'];
 }
 
 /**
- * The `createAnimator` spelling of the shared shortcut fold (core owns the logic so the three
+ * The `createAnimator` spelling of the shared timeline fold (core owns the logic so the three
  * component packages and the plain-JS entry cannot drift).
  */
-export function resolveAnimatorConfigOption(options: PxAnimatorOptions): PxAnimatorConfigPatch | undefined {
-    const { config, duration, delay, iterations, startOn } = options;
-    return foldAnimatorConfigShortcuts(config, { duration, delay, iterations, startOn });
+export function resolveTimelineOption(options: PxAnimatorOptions): PxAnimatorConfigPatch | undefined {
+    const { timeline, duration, delay, iterations, startOn } = options;
+    return foldTimelineOverride(timeline, { duration, delay, iterations, startOn });
 }
 
 /**
  * Creates an animator instance to control SVG animations.
  *
  * @param options.src URL to fetch the animation document from.
- * @param options.data Inline animation document object.
+ * @param options.doc The animation document, inline.
  * @param options.container CSS selector or element to render the SVG into.
  * @returns A PxAnimatorAPI instance to programmatically control the animation.
  */
 export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
 
-    const { src, data, adapter, callbacks, container, resetDocDefaults } = options;
-    const config = resolveAnimatorConfigOption(options);
+    const { src, doc, adapter, container, resetTimeline } = options;
+    const patch = resolveTimelineOption(options);
+    const callbacks = toEngineCallbacks(options);
 
-    if (data !== undefined && src !== undefined) {
-        throw new Error('createAnimator: provide either `src` or `data`, not both');
+    if (doc !== undefined && src !== undefined) {
+        throw new Error('createAnimator: provide either `src` or `doc`, not both');
     }
-    if (data === undefined && src === undefined) {
-        throw new Error('createAnimator: either `src` or `data` is required');
+    if (doc === undefined && src === undefined) {
+        throw new Error('createAnimator: either `src` or `doc` is required');
     }
 
-    if (data !== undefined) {
-        return createAnimatorImpl(data, adapter, callbacks, container, config, resetDocDefaults);
+    if (doc !== undefined) {
+        return createAnimatorImpl(doc, adapter, callbacks, container, patch, resetTimeline);
     }
 
     // URL provided - fetch and create animator
@@ -232,7 +210,7 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
     fetch(src!).then(res => res.json()).then(json => {
         if (destroyed) return; // destroy() was called before the document loaded
         if (isPxElementFileFormat(json)) {
-            animator = createAnimatorImpl(json, adapter, callbacks, container, config, resetDocDefaults);
+            animator = createAnimatorImpl(json, adapter, callbacks, container, patch, resetTimeline);
             const queued = pending;
             pending = null;
             queued?.forEach(call => call(animator!));
@@ -277,7 +255,7 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
  * Everything `createAnimator` takes except the three the tag supplies (`src`, `container`) or
  * forbids (`data`): callbacks, the diagnostics channel, a playback override and its shortcuts.
  */
-export type PxTagAnimatorOptions = Omit<PxAnimatorOptions, 'src' | 'data' | 'container'>;
+export type PxTagAnimatorOptions = Omit<PxAnimatorOptions, 'src' | 'doc' | 'container'>;
 
 /**
  * Scan the page for `<div data-px-animation-src="animation.json">` and create one player per

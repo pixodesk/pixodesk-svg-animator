@@ -24,7 +24,7 @@ describe('animateBackground', () => {
 
     it('Simple test', async () => {
 
-        createAnimator({ data: getTestJson(), container: '#svg-container' });
+        createAnimator({ doc: getTestJson(), container: '#svg-container' });
 
         const svg = document.querySelector('svg');
         expect(svg).not.toBeNull();
@@ -50,7 +50,7 @@ describe('animateBackground', () => {
         // Add loop:true to the translate property
         (json.animator!.animateById as any)['_px_2pp00tnc']['translate'].loop = true;
 
-        createAnimator({ data: json, container: '#svg-container' });
+        createAnimator({ doc: json, container: '#svg-container' });
 
         const ellipse = document.querySelector('ellipse');
         expect(ellipse).not.toBeNull();
@@ -87,7 +87,7 @@ describe('animateBackground', () => {
     it('Remove <script> tag', async () => {
 
         createAnimator({
-            data: {
+            doc: {
                 type: 'svg',
                 children: [
                     { type: 'ellipse', fill: '#0087ff' },
@@ -106,7 +106,7 @@ describe('animateBackground', () => {
     it('In-place property animation on element body (Mode A)', async () => {
 
         createAnimator({
-            data: {
+            doc: {
                 type: 'svg',
                 viewBox: '0 0 400 400',
                 animator: {
@@ -153,7 +153,7 @@ describe('animateBackground', () => {
     it('frames: play() after natural end rewinds to start (regression)', async () => {
 
         const api = createAnimator({
-            data: {
+            doc: {
                 type: 'svg',
                 viewBox: '0 0 400 400',
                 animator: {
@@ -205,7 +205,7 @@ describe('animateBackground', () => {
     it('Animated path `d` accepts both bare string and { path } (Mode A)', async () => {
 
         createAnimator({
-            data: {
+            doc: {
                 type: 'svg',
                 viewBox: '0 0 400 400',
                 animator: { timeline: { engine: 'js', duration: 100, fillMode: 'forwards', trigger: { startOn: 'load' } } },

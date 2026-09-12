@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createDiagnostics, getAnimatorConfig, isNativeForced, isScrollTimeline, mayUseNativeScrollTimeline, PxDiagnosticKind, PxTimelineEngineExtra, scrollTotalDurationMs, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { createDiagnostics, getAnimatorConfig, isNativeForced, isScrollTimeline, mayUseNativeScrollTimeline, PxDiagnosticKind, PxTimelineEngineExtra, scrollTotalDurationMs, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxComponentCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
@@ -151,23 +152,25 @@ export function bindWithEngineChoice(
     });
 }
 
-/** Options accepted by the pre-rendered entry points. A subset of `PxAnimatorOptions`: */
-export interface PxPrerenderedOptions {
+/**
+ * Options accepted by the pre-rendered entry points — a subset of `PxAnimatorOptions`: the
+ * document, an optional adapter, and the callbacks INLINE under the same names every surface
+ * uses (review §9).
+ */
+export interface PxPrerenderedOptions extends PxComponentCallbacks {
     /**
      * The animation document. For a pre-rendered SVG this carries `animator.definitions`
      * and `animator.animateById` only — no `children`, because the elements are already
      * in the DOM.
      */
-    data: PxAnimatedSvgDocument;
-    /** Callback functions for animation lifecycle events. */
-    callbacks?: PxAnimatorCallbacksConfig;
-    /** Platform adapter for frame-loop rendering. */
+    doc: PxAnimatedSvgDocument;
+    /** ○ A custom render target for the frame-loop engine; omit for the DOM. */
     adapter?: PxPlatformAdapter;
 }
 
-function requireData(options: PxPrerenderedOptions): PxAnimatedSvgDocument {
-    if (!options?.data) throw new Error('createAnimator: `data` is required');
-    return options.data;
+function requireDoc(options: PxPrerenderedOptions): PxAnimatedSvgDocument {
+    if (!options?.doc) throw new Error('createAnimator: `doc` is required');
+    return options.doc;
 }
 
 /**
@@ -178,7 +181,7 @@ function requireData(options: PxPrerenderedOptions): PxAnimatedSvgDocument {
  * no-ops for this document shape — and none of them reads `animator.animateById`.
  */
 export function createPrerenderedAnimator(options: PxPrerenderedOptions): PxAnimatorAPI {
-    return bindWithEngineChoice(requireData(options), options.adapter, options.callbacks, null);
+    return bindWithEngineChoice(requireDoc(options), options.adapter, toEngineCallbacks(options), null);
 }
 
 /**
@@ -187,8 +190,8 @@ export function createPrerenderedAnimator(options: PxPrerenderedOptions): PxAnim
  * forced; it only warns about unsupported attrs).
  */
 export function createPrerenderedWaapiAnimator(options: PxPrerenderedOptions): PxAnimatorAPI {
-    const doc = requireData(options);
+    const doc = requireDoc(options);
     const animatorConfig = getAnimatorConfig(doc) || {};
-    return finaliseAnimator(animatorConfig, options.callbacks,
+    return finaliseAnimator(animatorConfig, toEngineCallbacks(options),
         cb => createWebApiAnimator(doc, cb, null, true)!);
 }

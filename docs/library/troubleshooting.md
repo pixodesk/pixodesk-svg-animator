@@ -79,7 +79,7 @@ yourself.
 **It holds the last frame — I want it to reset.** Set `timeline.trigger.finishAction: "reset"`
 in the file, or `fillMode: 'none'` (see [Playback settings](./playback-and-triggers.md#timing)).
 For one mount only, pass the same thing as an override:
-`config={{ timeline: { trigger: { finishAction: 'reset' } } }}`.
+`timeline={{ trigger: { finishAction: 'reset' } }}`.
 
 **How do I play backwards?** `animator.setPlaybackRate(-1); animator.play();` — also as a
 trigger out action (`outAction: 'reverse'`).

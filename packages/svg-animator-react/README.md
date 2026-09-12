@@ -93,12 +93,12 @@ const [time, setTime] = useState(0);
 | `apiRef` | `RefObject<ReactAnimatorApi>` | Ref for imperative control |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
-| `config` | `object \| string` | Per-instance override of the document's `animator` block, deep-merged over it — same shape as the file (`{ timeline: { engine, frameRate, fillMode, direction, trigger: { outAction, … } } }`); `null` at a slot deletes that key. A JSON string is accepted too |
-| `resetDocDefaults` | `boolean` | Ignore the document's playback settings and start from the player's defaults, with `config` on top |
-| `duration` | `number` | Shortcut for `config.timeline.duration` (ms) |
-| `delay` | `number` | Shortcut for `config.timeline.delay` (ms) |
-| `iterations` | `number \| 'infinite'` | Shortcut for `config.timeline.iterations` |
-| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | Shortcut for `config.timeline.trigger.startOn` |
+| `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
+| `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
+| `duration` | `number` | Shortcut for `timeline.duration` (ms) |
+| `delay` | `number` | Shortcut for `timeline.delay` (ms) |
+| `iterations` | `number \| 'infinite'` | Shortcut for `timeline.iterations` |
+| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | Shortcut for `timeline.trigger.startOn` |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
 | `onFinish` | `() => void` | Called when the animation reaches its end — every iteration played, or `finish()` was called |

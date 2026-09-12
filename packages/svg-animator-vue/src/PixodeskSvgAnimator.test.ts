@@ -523,7 +523,7 @@ function getRectJson(): PxAnimatedSvgDocument {
     };
 }
 
-describe('PixodeskSvgAnimator (Vue) — config override', () => {
+describe('PixodeskSvgAnimator (Vue) — timeline override', () => {
 
     /** A WIRE-format document; the flat props this replaced were discarded on this shape. */
     const wireJson = (): any => ({
@@ -544,8 +544,8 @@ describe('PixodeskSvgAnimator (Vue) — config override', () => {
         expect(opacityIn(container)).toBeCloseTo(0.5, 1);
     });
 
-    it('config overrides duration ON A WIRE DOCUMENT (the flat props never did)', () => {
-        const { container } = render(PixodeskSvgAnimator, { props: { doc: wireJson(), progress: 0.5, config: { timeline: { duration: 4000 } } } });
+    it('timeline overrides duration ON A WIRE DOCUMENT (the flat props never did)', () => {
+        const { container } = render(PixodeskSvgAnimator, { props: { doc: wireJson(), progress: 0.5, timeline: { duration: 4000 } } });
         expect(opacityIn(container)).toBe(1);
     });
 
@@ -554,8 +554,8 @@ describe('PixodeskSvgAnimator (Vue) — config override', () => {
         expect(opacityIn(container)).toBe(1);
     });
 
-    it('accepts the JSON-string form of config', () => {
-        const { container } = render(PixodeskSvgAnimator, { props: { doc: wireJson(), progress: 0.5, config: '{"timeline":{"duration":4000}}' } });
+    it('accepts the JSON-string form of timeline', () => {
+        const { container } = render(PixodeskSvgAnimator, { props: { doc: wireJson(), progress: 0.5, timeline: '{"duration":4000}' } });
         expect(opacityIn(container)).toBe(1);
     });
 });

@@ -16,7 +16,7 @@
 // ============================================================================
 
 export { createPrerenderedWaapiAnimator as createAnimator } from './engines/PxAnimatorBind';
-export { PX_ANIMATOR_DATA_KEY } from './shared/PxAnimatorKeys';
+export { PX_ANIMATOR_DOC_KEY } from './shared/PxAnimatorKeys';
 
 export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 

@@ -54,7 +54,7 @@ import animation from './animation.json';
 
 Uses the trigger saved in the document (load / hover / click / scroll into view) and its out
 action. Override it for this one mount with the `startOn` prop, or with
-`:config="{ timeline: { trigger: { … } } }"` for the rest of the trigger — see
+`:timeline="{ trigger: { … } }"` for the rest of the trigger — see
 [Playback overrides](#playback-overrides).
 
 ### Controlled time (`progress` / `time`)
@@ -142,7 +142,7 @@ statically and the ref is your only control.
 
 ## Playback overrides
 
-The same document can play differently in each place you mount it. `config` takes an object
+The same document can play differently in each place you mount it. `timeline` takes an object
 shaped exactly like the file's own `animator` block and deep-merges it over what the file says
 — the document you passed is never modified.
 
@@ -151,18 +151,18 @@ shaped exactly like the file's own `animator` block and deep-merges it over what
   <!-- The file loops twice and starts on load; here it loops forever and waits for play(). -->
   <PixodeskSvgAnimator
     :doc="animation"
-    :config="{ timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } } }"
+    :timeline="{ iterations: 'infinite', trigger: { startOn: 'programmatic' } }"
     ref="anim"
   />
 </template>
 ```
 
 Objects merge key by key, values replace, and `null` **deletes** a key so the default its
-absence means comes back (`:config="{ timeline: { delay: null } }"`).
+absence means comes back (`:timeline="{ delay: null }"`).
 
 `duration`, `delay`, `iterations` and `startOn` are also plain props, because `:duration="2000"`
-reads better than a nested object; a prop wins over the same key inside `config`. To ignore the
-file's playback settings entirely and start from the player's defaults, add `resetDocDefaults`.
+reads better than a nested object; a prop wins over the same key inside `timeline`. To ignore the
+file's playback settings entirely and start from the player's defaults, add `resetTimeline`.
 
 Full merge rules — including what happens when the override changes the kind of timeline — are
 in [Playback & triggers → Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
@@ -181,11 +181,11 @@ component.
 | `pause` | `boolean` | pause the current playback; set it back to `false` to resume |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
-| `config` | `object \| string` | per-instance override of the document's `animator` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
-| `resetDocDefaults` | `boolean` | ignore the document's playback settings and start from the player's defaults, with `config` on top |
-| `duration` · `delay` | `number` | shortcuts for `config.timeline.duration` / `config.timeline.delay`: length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component |
-| `iterations` | `number \| 'infinite'` | shortcut for `config.timeline.iterations`; `'infinite'` never stops |
-| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | shortcut for `config.timeline.trigger.startOn`: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
+| `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
+| `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
+| `duration` · `delay` | `number` | shortcuts for `timeline.duration` / `timeline.delay`: length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component |
+| `iterations` | `number \| 'infinite'` | shortcut for `timeline.iterations`; `'infinite'` never stops |
+| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | shortcut for `timeline.trigger.startOn`: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
 | `onWarn` | `(diagnostic) => void` | something is off but the animation still plays — an unknown easing, a config key that could not be applied, two control props at once. Without this it goes to `console.warn` |
 | `onError` | `(diagnostic) => void` | the animation could not be produced at all — a document that failed to parse or render. Without this it goes to `console.error` |
 | `silent` | `boolean \| PxDiagnosticKind[]` | silences the console *fallback* above — everything, or just the kinds you list. `onWarn` / `onError` still fire if you gave them — it is not a mute button |

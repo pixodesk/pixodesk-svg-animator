@@ -14,7 +14,7 @@
 // unreachable and gets tree-shaken away. See PRERENDERED-PLAYER-BUILDS.md.
 //
 // `createPrerenderedAnimator` is exported AS `createAnimator` so the emitted
-// `<script>` — `PixodeskAnimator.createAnimator({"data": …})` — is byte-identical
+// `<script>` — `PixodeskAnimator.createAnimator({"doc": …})` — is byte-identical
 // regardless of which bundle the Editor inlines.
 //
 // Validation is deliberately absent: the Editor produced both the DOM and the
@@ -24,7 +24,7 @@
 // ============================================================================
 
 export { createPrerenderedAnimator as createAnimator } from './engines/PxAnimatorBind';
-export { PX_ANIMATOR_DATA_KEY } from './shared/PxAnimatorKeys';
+export { PX_ANIMATOR_DOC_KEY } from './shared/PxAnimatorKeys';
 
 // Trigger wiring — used internally; exposed so a page can re-arm triggers after
 // swapping document content.

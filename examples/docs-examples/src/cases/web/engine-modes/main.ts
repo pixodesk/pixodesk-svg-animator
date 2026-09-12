@@ -7,5 +7,5 @@ const withEngine = (engine: 'native' | 'js') => ({
   animator: { ...animation.animator, timeline: { ...animation.animator.timeline, engine, iterations: 'infinite' } },
 });
 
-createAnimator({ data: withEngine('native') as any, container: '#waapi' });
-createAnimator({ data: withEngine('js') as any, container: '#frames' });
+createAnimator({ doc: withEngine('native') as any, container: '#waapi' });
+createAnimator({ doc: withEngine('js') as any, container: '#frames' });

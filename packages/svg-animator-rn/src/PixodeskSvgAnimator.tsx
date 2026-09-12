@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { clampSeekMs, createDiagnostics, createRunClock, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PX_RATE_REJECTED, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxComponentCallbacks, type PxControlProps, type PxPlaybackOverrideProps, type PxDiagnostic, type PxDiagnostics,
-    reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxAnimatorConfigPatch, type PxNode, applyAnimatorConfig, foldAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
+    reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
 import Animated, {
@@ -50,13 +50,13 @@ export interface PixodeskSvgAnimatorProps
     doc: PxAnimatedSvgDocument;
 
     /**
-     * Per-instance override of the document's `animator` config — see `PxPlaybackOverrideProps`.
+     * Per-instance override of the document's `timeline` — see `PxPlaybackOverrideProps`.
      *
-     * `timeline.engine` is accepted but ignored here: React Native always uses the `native`
-     * (fully flattened) materialization, because react-native-svg has no `<use>` shadow-tree
+     * `engine` is accepted but ignored here: React Native always uses the `native` (fully
+     * flattened) materialization, because react-native-svg has no `<use>` shadow-tree
      * propagation.
      */
-    config?: PxAnimatorConfigPatch | string;
+    timeline?: PxTimelinePatch | string;
 
     // -- Imperative control ---------------------------------------------------
 
@@ -243,7 +243,7 @@ const EMPTY_TRACKS: PxCompiledTracks = {
  * whole thing sits behind one try/catch, and so it can be tested directly.
  */
 function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides, diag: PxDiagnostics): Compiled {
-    const { config, resetDocDefaults, duration, delay, iterations, startOn } = overrides;
+    const { timeline, resetTimeline, duration, delay, iterations, startOn } = overrides;
     const warnings = validateNodeEffects(doc as PxNode);
     for (const w of warnings) diag.warn(PxDiagnosticKind.document, 'effects shape: ' + w);
     // The whole-document boundary diagnostic — see the note in the web player's entry.
@@ -252,10 +252,10 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
     // The per-instance override, applied to the WIRE document BEFORE anything reads the
     // config — `materializeAllInTree` samples motion paths against `duration`, so a later
     // patch would be read by none of the pipeline. Same call, same rules, on every surface.
-    const patch = foldAnimatorConfigShortcuts(config, { duration, delay, iterations, startOn });
-    if (patch !== undefined || resetDocDefaults) {
-        const applied = applyAnimatorConfig(doc, patch ?? {}, { resetDefaults: !!resetDocDefaults });
-        for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, 'config override: ' + w);
+    const patch = foldTimelineOverride(timeline, { duration, delay, iterations, startOn });
+    if (patch !== undefined || resetTimeline) {
+        const applied = applyAnimatorConfig(doc, patch ?? {}, { resetDefaults: !!resetTimeline });
+        for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, 'timeline override: ' + w);
         doc = applied.doc;
     }
 
@@ -295,7 +295,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
  * indexing the precompiled tracks. No JS-thread frame loop.
  */
 export function PixodeskSvgAnimator({
-    doc, config, resetDocDefaults, duration, delay, iterations, startOn,
+    doc, timeline, resetTimeline, duration, delay, iterations, startOn,
     // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
     autoplay, play, pause, apiRef, progress: progressProp, time,
     onPlay, onStop, onPause, onCancel, onFinish, onRemove, onError, fallback, onWarn, silent,
@@ -303,10 +303,10 @@ export function PixodeskSvgAnimator({
 
     // -- Compile the document (once per doc/override change) ------------------
 
-    // `config` is an object prop: a fresh literal every render would otherwise recompile the
+    // `timeline` is an object prop: a fresh literal every render would otherwise recompile the
     // whole document (materialize + compile tracks), which is the expensive path. Key on its
     // CONTENT instead — the override is small, the document is not.
-    const configKey = typeof config === 'string' ? config : JSON.stringify(config ?? null);
+    const timelineKey = typeof timeline === 'string' ? timeline : JSON.stringify(timeline ?? null);
 
 
     /**
@@ -328,7 +328,7 @@ export function PixodeskSvgAnimator({
         try {
             return compileDocument(
                 doc,
-                { config, resetDocDefaults, duration, delay, iterations, startOn },
+                { timeline, resetTimeline, duration, delay, iterations, startOn },
                 makeDiag(),
             );
         } catch (e) {
@@ -337,9 +337,9 @@ export function PixodeskSvgAnimator({
             makeDiag().warn(PxDiagnosticKind.internal, 'could not compile the document: ' + error.message);
             return { doc: null, tracks: EMPTY_TRACKS, error };
         }
-        // `config` is an object prop, so a fresh literal each render would recompile the whole
+        // `timeline` is an object prop, so a fresh literal each render would recompile the whole
         // document. Key on its CONTENT — the override is small, unlike the document.
-    }, [doc, configKey, resetDocDefaults, duration, delay, iterations, startOn]);
+    }, [doc, timelineKey, resetTimeline, duration, delay, iterations, startOn]);
 
     const tracks: PxCompiledTracks = compiled.tracks;
     // The span `progress` 0–1 covers (ONE iteration when endless) — NOT the seek ceiling.
@@ -504,7 +504,7 @@ export function PixodeskSvgAnimator({
     // -- Declarative control --------------------------------------------------
 
     // The EFFECTIVE trigger, read back off the COMPILED document — so it already reflects the
-    // `config` override and the `startOn` shortcut, both merged in before compilation.
+    // `timeline` override and the `startOn` shortcut, both merged in before compilation.
     // Resolved through core's one table, so a document means the same here as on the web:
     // no `startOn` = 'load', no `outAction` = 'continue'.
     const trigger = resolveTrigger(compiled.doc ? getAnimatorConfig(compiled.doc)?.trigger : undefined);

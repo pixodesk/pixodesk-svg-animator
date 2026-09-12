@@ -9,7 +9,7 @@ export function createWebPlayer(
 ): PlayerHandle {
   const api = createAnimator({
     // Trigger handling (programmatic / from-file / custom) is shared across all players.
-    data: applyTriggerOverride(doc, opts),
+    doc: applyTriggerOverride(doc, opts),
     container,
     // The player overrides the document's iterations when this option is set;
     // leaving it `undefined` (auto) keeps the document's own value — the same

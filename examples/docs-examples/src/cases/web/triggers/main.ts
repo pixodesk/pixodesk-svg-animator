@@ -12,4 +12,4 @@ const doc = {
   },
 };
 
-createAnimator({ data: doc as any, container: '#box' });
+createAnimator({ doc: doc as any, container: '#box' });

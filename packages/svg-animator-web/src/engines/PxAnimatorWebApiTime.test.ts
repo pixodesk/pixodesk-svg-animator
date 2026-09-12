@@ -67,7 +67,7 @@ afterEach(() => {
 describe('WAAPI engine — the shared time contract', () => {
 
     it('clamps a seek past the end (WAAPI itself would accept it)', () => {
-        const api = createAnimator({ data: doc(), container: '#stage' });
+        const api = createAnimator({ doc: doc(), container: '#stage' });
 
         api.setCurrentTime(99_999);
         expect(api.getCurrentTime()).toBe(DUR);
@@ -76,21 +76,21 @@ describe('WAAPI engine — the shared time contract', () => {
     });
 
     it('floors a negative seek at 0', () => {
-        const api = createAnimator({ data: doc(), container: '#stage' });
+        const api = createAnimator({ doc: doc(), container: '#stage' });
 
         api.setCurrentTime(-500);
         expect(api.getCurrentTime()).toBe(0);
     });
 
     it('clamps to duration × iterations, not to one iteration', () => {
-        const api = createAnimator({ data: doc({ iterations: 3 }), container: '#stage' });
+        const api = createAnimator({ doc: doc({ iterations: 3 }), container: '#stage' });
 
         api.setCurrentTime(99_999);
         expect(api.getCurrentTime()).toBe(DUR * 3);
     });
 
     it('leaves an endless timeline unbounded — there is no end to clamp to', () => {
-        const api = createAnimator({ data: doc({ iterations: 'infinite' }), container: '#stage' });
+        const api = createAnimator({ doc: doc({ iterations: 'infinite' }), container: '#stage' });
 
         api.setCurrentTime(DUR * 10);
         expect(api.getCurrentTime()).toBe(DUR * 10);
@@ -98,7 +98,7 @@ describe('WAAPI engine — the shared time contract', () => {
 
     it('rejects a rate of 0 with a warning and leaves the rate alone', () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => { });
-        const api = createAnimator({ data: doc(), container: '#stage' });
+        const api = createAnimator({ doc: doc(), container: '#stage' });
 
         api.setPlaybackRate(0);
 
@@ -108,7 +108,7 @@ describe('WAAPI engine — the shared time contract', () => {
     });
 
     it('still accepts ordinary rates, forwards and backwards', () => {
-        const api = createAnimator({ data: doc(), container: '#stage' });
+        const api = createAnimator({ doc: doc(), container: '#stage' });
 
         api.setPlaybackRate(2);
         expect(created.every(a => a.playbackRate === 2)).toBe(true);
@@ -118,7 +118,7 @@ describe('WAAPI engine — the shared time contract', () => {
     });
 
     it('reports progress as 0–1 of the whole run', () => {
-        const api = createAnimator({ data: doc({ iterations: 2 }), container: '#stage' });
+        const api = createAnimator({ doc: doc({ iterations: 2 }), container: '#stage' });
 
         api.setCurrentTime(DUR);            // end of iteration 1 = half the run
         expect(api.getCurrentProgress()).toBeCloseTo(0.5, 5);

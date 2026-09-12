@@ -34,7 +34,7 @@ describe('createAnimator — a document with no children', () => {
     });
 
     it('still renders its root <svg>', () => {
-        const api = createAnimator({ data: emptyDoc(), container: '#c' });
+        const api = createAnimator({ doc: emptyDoc(), container: '#c' });
         const root = api.getRootElement();
 
         expect(root, 'an empty document renders an empty <svg>, not null').not.toBeNull();
@@ -44,13 +44,13 @@ describe('createAnimator — a document with no children', () => {
     });
 
     it('keeps the root attributes that make it a viewport', () => {
-        const api = createAnimator({ data: emptyDoc(), container: '#c' });
+        const api = createAnimator({ doc: emptyDoc(), container: '#c' });
         expect((api.getRootElement() as Element).getAttribute('viewBox')).toBe('0 0 200 200');
         api.destroy();
     });
 
     it('a document WITH children is unaffected', () => {
-        const api = createAnimator({ data: docWithChild(), container: '#c' });
+        const api = createAnimator({ doc: docWithChild(), container: '#c' });
         expect((api.getRootElement() as Element)?.tagName?.toLowerCase()).toBe('svg');
         expect(document.querySelector('#c rect'), 'children still render').not.toBeNull();
         api.destroy();

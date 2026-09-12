@@ -14,14 +14,14 @@
 
 // `createAnimatorImpl` is no longer exported (review §11): six positional parameters, marked
 // internal, and nothing outside this file ever called it — `createAnimator` is the door.
-export { createAnimator, generateNewIds, loadTagAnimators, PX_ANIMATOR_DATA_KEY } from './animator/PxAnimator';
+export { createAnimator, generateNewIds, loadTagAnimators, PX_ANIMATOR_DOC_KEY } from './animator/PxAnimator';
 export type { PxTagAnimatorOptions } from './animator/PxAnimator';
 
 export { px, schemaKeys, describeSchema } from '@pixodesk/svg-animator-core';
 export type { KeysMatch, PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, RemoveIndex } from '@pixodesk/svg-animator-core';
 
 export type { PxAnimatorOptions } from './animator/PxAnimator';
-export type { PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
+export type { PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxAnimatorConfigShortcuts, PxTimelinePatch } from '@pixodesk/svg-animator-core';
 export {
     PX_TRANSFORM_PART_KEYS,
     PxAnimatedSvgDocumentSchema,
@@ -227,7 +227,7 @@ export {
     validateDocument,
     validateNodeEffects,
     applyAnimatorConfig,
-    foldAnimatorConfigShortcuts,
+    foldTimelineOverride,
     mergeAnimatorConfig,
 } from '@pixodesk/svg-animator-core';
 export type {

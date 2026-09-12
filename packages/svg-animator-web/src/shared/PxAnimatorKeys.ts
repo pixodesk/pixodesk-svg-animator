@@ -17,11 +17,15 @@
  * keeping these here costs nothing and removes the trap for good.
  */
 
-/** Key under which `createAnimator` options carry an inline animation document. */
-export const PX_ANIMATOR_DATA_KEY = 'data';
+/**
+ * Key under which `createAnimator` options carry the inline animation document. The editor
+ * writes it into every exported SVG+JS — `createAnimator({"doc": …})` — so it is part of the
+ * export format, which is why it is a named constant and not a literal.
+ */
+export const PX_ANIMATOR_DOC_KEY = 'doc';
 
-/** Key under which `createAnimator` options carry a per-instance animator-config override. */
-export const PX_ANIMATOR_CONFIG_KEY = 'config';
+/** Key under which `createAnimator` options carry the per-instance `timeline` override. */
+export const PX_ANIMATOR_TIMELINE_KEY = 'timeline';
 
-/** Key that makes the override start from the player's defaults instead of the document's. */
-export const PX_ANIMATOR_RESET_KEY = 'resetDocDefaults';
+/** Key that makes the override start from the player's default timeline instead of the document's. */
+export const PX_ANIMATOR_RESET_KEY = 'resetTimeline';

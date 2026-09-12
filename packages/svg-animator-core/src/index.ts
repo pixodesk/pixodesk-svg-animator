@@ -157,10 +157,10 @@ export { PxCloneEffectSchema, PxEffectsSchema, PxFillGradientEffectSchema, PxGra
     PxScrollRangeSchema,
     PxScrollSchema, PxStrokeGradientEffectSchema, PxTextPathEffectSchema, PxTextEffectSchema, PxTransformByEffectSchema, PxStrokeTrimEffectSchema, validateDocument, validateNodeEffects } from './format/PxAnimatorTypes';
 export { kfTime, kfValue, kfEasing, kfTangentIn, kfTangentOut } from './format/PxAnimatorTypes';
-export { applyAnimatorConfig, foldAnimatorConfigShortcuts, mergeAnimatorConfig } from './playback/PxAnimatorConfigPatch';
+export { applyAnimatorConfig, foldTimelineOverride, mergeAnimatorConfig } from './playback/PxAnimatorConfigPatch';
 export { diagnoseDocument, reportDocumentDiagnostics } from './format/PxDocumentDiagnostic';
 export type { PxDocumentDiagnosis } from './format/PxDocumentDiagnostic';
-export type { PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxAnimatorConfigShortcuts } from './playback/PxAnimatorConfigPatch';
+export type { PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxAnimatorConfigShortcuts, PxTimelinePatch } from './playback/PxAnimatorConfigPatch';
 export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxUnits } from './format/PxAnimatorConstants';
 // The remaining wire enums (review §2.7). `PxFillMode` / `PxOutAction` / `PxPlaybackDirection` /
 // `PxStartOn` are exported above and must NOT be repeated here — one export per identifier.

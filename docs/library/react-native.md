@@ -73,7 +73,7 @@ Common variations. Each line is the `<PixodeskSvgAnimator>` element inside a com
 
 ```tsx
 // Play once when a screen opens, then hold the last frame
-<PixodeskSvgAnimator doc={doc} autoplay iterations={1} config={{ timeline: { fillMode: 'forwards' } }} />
+<PixodeskSvgAnimator doc={doc} autoplay iterations={1} timeline={{ fillMode: 'forwards' }} />
 
 // Loop forever regardless of what the document says
 <PixodeskSvgAnimator doc={doc} autoplay iterations="infinite" />
@@ -207,11 +207,11 @@ component.
 | `apiRef` | `RefObject<RnAnimatorApi>` | imperative control |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
-| `config` | `object \| string` | per-instance override of the document's `animator` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
-| `resetDocDefaults` | `boolean` | ignore the document's playback settings and start from the player's defaults, with `config` on top |
-| `duration` · `delay` | `number` | shortcuts for `config.timeline.duration` / `config.timeline.delay`: length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component |
-| `iterations` | `number \| 'infinite'` | shortcut for `config.timeline.iterations`; `'infinite'` never stops |
-| `startOn` | `'load' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | shortcut for `config.timeline.trigger.startOn`. `mouseOver` has no touch equivalent — see [Differences from the React package](#differences-from-the-react-package) |
+| `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
+| `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
+| `duration` · `delay` | `number` | shortcuts for `timeline.duration` / `timeline.delay`: length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component |
+| `iterations` | `number \| 'infinite'` | shortcut for `timeline.iterations`; `'infinite'` never stops |
+| `startOn` | `'load' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | shortcut for `timeline.trigger.startOn`. `mouseOver` has no touch equivalent — see [Differences from the React package](#differences-from-the-react-package) |
 | `onPlay` · `onPause` · `onFinish` · `onCancel` · `onStop` | `() => void` | called when the animation starts or resumes (`onPlay`), pauses (`onPause`), reaches its end (`onFinish`), or is stopped and reset to the start (`onCancel`) — same meanings as in the [React component](./react.md#props). `onStop` fires *in addition to* any of the others that halt playback — use it when you only care that the animation is no longer playing |
 | `onError` | `(error, componentStack?) => void` | the document could not be compiled or rendered. Keeps this richer signature — the error boundary hands it a component stack — while feeding the same channel as everything else. Without it, failures go to `console.error` |
 | `onWarn` | `(diagnostic) => void` | something is off but the animation still plays — an unknown easing, a config key that could not be applied, two control props at once. Without this it goes to `console.warn`. The same channel as the [React component](./react.md#props) |
@@ -223,7 +223,7 @@ statically.
 
 ### Playback overrides
 
-The same document can play differently on each screen. `config` takes an object shaped exactly
+The same document can play differently on each screen. `timeline` takes an object shaped exactly
 like the file's own `animator` block and deep-merges it over what the file says — the document
 you passed is never modified.
 
@@ -232,16 +232,16 @@ you passed is never modified.
 <PixodeskSvgAnimator
   doc={doc}
   autoplay
-  config={{ timeline: { iterations: 'infinite', fillMode: 'forwards' } }}
+  timeline={{ iterations: 'infinite', fillMode: 'forwards' }}
 />
 ```
 
 Objects merge key by key, values replace, and `null` **deletes** a key so the default its
 absence means comes back. `duration`, `delay`, `iterations` and `startOn` are also plain props,
-and win over the same key inside `config`. To ignore the file's playback settings entirely,
-add `resetDocDefaults`.
+and win over the same key inside `timeline`. To ignore the file's playback settings entirely,
+add `resetTimeline`.
 
-`config` is where the settings that used to be their own props now live —
+`timeline` is where the settings that used to be their own props now live —
 `{ timeline: { fillMode, direction, trigger: { outAction, finishAction } } }`. Full merge rules
 are in [Playback & triggers → Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
 
@@ -249,7 +249,7 @@ are in [Playback & triggers → Overriding from a player](./playback-and-trigger
 
 | Prop | Why it differs |
 |---|---|
-| `timeline.engine` | accepted inside `config` but ignored — there is no Web Animations API on React Native; playback is always native-driven |
+| `timeline.engine` | accepted inside `timeline` but ignored — there is no Web Animations API on React Native; playback is always native-driven |
 | `timeline.frameRate` | ignored — the screen's own refresh rate is used. On React Native the player does not compute values frame by frame; when the document loads it works out the animated values in advance, as a list of snapshots — 60 per second of animation — and while playing, each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, and that can only be changed when you call the lower-level `compileTracks({ sampleRate })` yourself instead of using the component |
 | `startOn: 'mouseOver'` | has no touch equivalent, so it is not honored. The other four values (`load`, `click`, `scrollIntoView`, `programmatic`) work as they do on the web, from the file or from the prop |
 | `className` / `style` | not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height` (see [Quick start](#quick-start)). Styling *inside* the document — `style` on an element in the JSON — is supported |
@@ -371,7 +371,7 @@ not supported.
 | Feature | Supported | Notes |
 |---|---|---|
 | `duration`, `delay`, `iterations` (incl. infinite) | ✅ | |
-| All four `direction` values, all `fillMode` values, `trigger.finishAction` | ✅ | through `config` — see [Playback overrides](#playback-overrides) |
+| All four `direction` values, all `fillMode` values, `trigger.finishAction` | ✅ | through `timeline` — see [Playback overrides](#playback-overrides) |
 | play / pause / cancel / finish | ✅ | |
 | Jumping to any time, also while playing | ✅ | |
 | Playback rate: faster, slower, reverse | ✅ | |

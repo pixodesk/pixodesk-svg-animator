@@ -3,8 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxAnimatorConfigPatch, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger } from '@pixodesk/svg-animator-web';
-import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, PxDiagnosticKind, progressToTimeMs, DEFAULT_DURATION_MS, type PxAnimatorHandle, type PxControlProps, type PxPlaybackOverrideProps, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
+import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
+import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, PxDiagnosticKind, progressToTimeMs, DEFAULT_DURATION_MS, type PxAnimatorHandle, type PxControlProps, type PxPlaybackOverrideProps, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
     watch,
@@ -87,8 +87,8 @@ function applyDocOverrides(
     // wire-format document — which is what every writer emits — `flattenAnimatorTimeline`
     // overwrote them from `timeline` immediately afterwards, so the overrides were silently
     // discarded. See PLAYBACK-OVERRIDE-PLAN.md §1.1.
-    const { config, resetDocDefaults, duration, delay, iterations, startOn } = props;
-    const patch = foldAnimatorConfigShortcuts(config, { duration, delay, iterations, startOn });
+    const { timeline, resetTimeline, duration, delay, iterations, startOn } = props;
+    const patch = foldTimelineOverride(timeline, { duration, delay, iterations, startOn });
     const fullPatch: any = controlModeTakesOverTrigger(compMode)
         ? {
             ...(patch ?? {}),
@@ -99,9 +99,9 @@ function applyDocOverrides(
         }
         : patch;
 
-    if (fullPatch !== undefined || resetDocDefaults) {
-        const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetDefaults: !!resetDocDefaults });
-        for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, 'config override: ' + w);
+    if (fullPatch !== undefined || resetTimeline) {
+        const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetDefaults: !!resetTimeline });
+        for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, 'timeline override: ' + w);
         doc = applied.doc;
     }
 
@@ -169,10 +169,10 @@ const PixodeskSvgAnimator = defineComponent({
         // -- Source
         doc: { type: Object as PropType<PxAnimatedSvgDocument>, required: true },
 
-        // -- Playback override: one object spelled exactly like `animator` in the file,
-        //    plus the four shortcuts people reach for most.
-        config: { type: [Object, String] as PropType<PxAnimatorConfigPatch | string> },
-        resetDocDefaults: { type: Boolean, default: undefined },
+        // -- Playback override: the document's `timeline` block as a patch (or a JSON string),
+        //    plus the four shortcuts people reach for most. The same names as React / RN.
+        timeline: { type: [Object, String] as PropType<PxTimelinePatch | string> },
+        resetTimeline: { type: Boolean, default: undefined },
         duration: { type: Number },
         delay: { type: Number },
         iterations: { type: [Number, String] as PropType<number | 'infinite'> },
@@ -275,21 +275,23 @@ const PixodeskSvgAnimator = defineComponent({
             const doc = resolvedDoc.value;
             if (!doc) return;
 
-            // Route animator lifecycle events to Vue component events.
-            // `stop` fires alongside any event that halts playback.
-            const callbacks = {
+            // Route animator lifecycle events to Vue component events, INLINE under the same
+            // names every surface uses (review §9). `stop` fires alongside any event that halts
+            // playback — that is the PLAYER's rule, so `onStop` is passed through, not re-derived.
+            apiRef.value = createAnimator({
+                doc,
+                adapter:  createVueAdapter(elementRefs, makeDiag()),
                 onPlay:   () => emit('play'),
-                onPause:  () => { emit('pause');  emit('stop'); },
-                onCancel: () => { emit('cancel'); emit('stop'); },
-                onFinish: () => { emit('finish'); emit('stop'); },
-                onRemove: () => { emit('remove'); emit('stop'); },
+                onPause:  () => emit('pause'),
+                onCancel: () => emit('cancel'),
+                onFinish: () => emit('finish'),
+                onRemove: () => emit('remove'),
+                onStop:   () => emit('stop'),
                 // The player's own diagnostics reach the same handlers as the component's.
-                onWarn: props.onWarn,
-                onError: props.onError,
-                silent: props.silent,
-            };
-
-            apiRef.value = createAnimator({ data: doc, adapter: createVueAdapter(elementRefs, makeDiag()), callbacks });
+                onWarn:   props.onWarn,
+                onError:  props.onError,
+                silent:   props.silent,
+            });
 
             // (Re)apply the declarative control state to the fresh animator —
             // covers both the initial mount (e.g. `:play="true"` from the

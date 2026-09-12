@@ -93,11 +93,11 @@ import animationDoc from './bouncing-ball.json';
 const animator = createAnimator({
   src: '/bouncing-ball.json',
   container: '#hero',
-  callbacks: { onFinish: () => console.log('done') },
+  onFinish: () => console.log('done'),
 });
 
 // or from a document object you already have — imported, fetched, or built in code
-const animator2 = createAnimator({ data: animationDoc, container: document.getElementById('hero') });
+const animator2 = createAnimator({ doc: animationDoc, container: document.getElementById('hero') });
 
 animator.play();
 ```
@@ -106,31 +106,31 @@ animator.play();
 
 | Option | Type | Description |
 |---|---|---|
-| `src` | `string` | URL of the JSON document. Provide **either** `src` **or** `data` |
-| `data` | `PxAnimatedSvgDocument` | the document object |
+| `src` | `string` | URL of the JSON document. Provide **either** `src` **or** `doc` |
+| `doc` | `PxAnimatedSvgDocument` | the document object |
 | `container` | `string \| Element` | CSS selector or element the SVG is rendered into |
-| `callbacks` | `PxAnimatorCallbacksConfig` | lifecycle callbacks, see [Callbacks](#callbacks) |
+| `onPlay` · `onPause` · `onCancel` · `onFinish` · `onRemove` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take; plus `onWarn`, `onError`, `silent` for diagnostics. See [Callbacks](#callbacks) |
 | `adapter` | `PxPlatformAdapter` | advanced — a custom attribute writer for the frame loop (this is how the React and Vue packages route updates through their own DOM refs) |
 | **Playback overrides** | | *(all optional — see below)* |
-| `config` | `object \| string` | per-instance override of the document's `animator` block, deep-merged over it. Same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too |
-| `resetDocDefaults` | `boolean` | ignore the document's playback settings and start from the player's defaults, with `config` on top |
-| `duration` | `number` | shortcut for `config.timeline.duration` — ms for one iteration |
-| `delay` | `number` | shortcut for `config.timeline.delay` |
-| `iterations` | `number \| 'infinite'` | shortcut for `config.timeline.iterations` |
-| `startOn` | `PxStartOn` | shortcut for `config.timeline.trigger.startOn` |
+| `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
+| `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
+| `duration` | `number` | shortcut for `timeline.duration` — ms for one iteration |
+| `delay` | `number` | shortcut for `timeline.delay` |
+| `iterations` | `number \| 'infinite'` | shortcut for `timeline.iterations` |
+| `startOn` | `PxStartOn` | shortcut for `timeline.trigger.startOn` |
 
 By default there is nothing to configure: the player takes duration, iterations, direction,
 what starts the animation and the engine from the `animator` block inside the JSON — the
 settings you chose in the editor. So a file plays the way it was designed.
 
-`config` is there for when one page needs it to play differently — the same file mounted twice
+`timeline` is there for when one page needs it to play differently — the same file mounted twice
 at two speeds, or a file that autostarts everywhere except inside your own transport UI:
 
 ```js
 const animator = createAnimator({
   src: '/bouncing-ball.json',
   container: '#box',
-  config: { timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } } },
+  timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } },
 });
 animator.play();
 ```
@@ -170,7 +170,7 @@ Every field and its meaning is in [Playback settings & triggers](./playback-and-
 import { createAnimator } from '@pixodesk/svg-animator-web';
 import doc from './bouncing-ball.json';
 
-const animator = createAnimator({ data: doc, container: '#hero' });
+const animator = createAnimator({ doc: doc, container: '#hero' });
 
 const slider = document.querySelector('#time-slider');
 slider.addEventListener('input', () => {
@@ -183,11 +183,11 @@ slider.addEventListener('input', () => {
 
 > **Example:** [`web/callbacks`](../../examples/docs-examples/src/cases/web/callbacks/) — `pnpm example:docs`, then open `#web/callbacks`.
 
-Pass `callbacks` to be told when the animation starts, pauses, resets, finishes or is
+Pass `onPlay`, `onFinish` and friends — inline, next to `doc` — to be told when the animation starts, pauses, resets, finishes or is
 destroyed — for example to reveal the next section of a page once an intro has finished. Every
 lifecycle callback is called with no arguments.
 
-The same object carries the player's diagnostics: `onWarn` for anything survivable, `onError`
+The same options carry the player's diagnostics: `onWarn` for anything survivable, `onError`
 for a document that could not be loaded, parsed or rendered, and `silent` to suppress the console
 fallback those two replace. Give a handler and the console stays out of it; give none and the
 console still speaks, so nothing is lost by default.
@@ -207,19 +207,17 @@ import { createAnimator } from '@pixodesk/svg-animator-web';
 import doc from './bouncing-ball.json';
 
 createAnimator({
-  data: doc,
+  doc: doc,
   container: '#box',
-  callbacks: {
-    onPlay:   () => {},   // started or resumed
-    onPause:  () => {},   // paused
-    onCancel: () => {},   // canceled (reset)
-    onFinish: () => {},   // finished naturally, or finish() was called
-    onRemove: () => {},   // destroyed
+  onPlay:   () => {},   // started or resumed
+  onPause:  () => {},   // paused
+  onCancel: () => {},   // canceled (reset)
+  onFinish: () => {},   // finished naturally, or finish() was called
+  onRemove: () => {},   // destroyed
 
-    onWarn:  (d) => {},   // d = { kind, message, detail? }; else console.warn
-    onError: (d) => {},   // d = { kind, message, error };   else console.error
-    silent:  false,       // true, or ['platform'] to quiet just that kind
-  },
+  onWarn:  (d) => {},   // d = { kind, message, detail? }; else console.warn
+  onError: (d) => {},   // d = { kind, message, error };   else console.error
+  silent:  false,       // true, or ['platform'] to quiet just that kind
 });
 ```
 

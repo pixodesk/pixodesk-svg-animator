@@ -28,7 +28,7 @@ export {
     createAnimator,
     generateNewIds,
     loadTagAnimators,
-    PX_ANIMATOR_DATA_KEY,
+    PX_ANIMATOR_DOC_KEY,
 } from './animator/PxAnimator';
 
 // Trigger wiring — `createAnimator` uses it internally; exposed so a page can

@@ -90,7 +90,7 @@ export function Intro() {
 
 Uses the trigger saved in the document — on load, on hover, on click, when scrolled into view
 — and its out action. Override it for this one mount with the `startOn` shortcut, or with
-`config={{ timeline: { trigger: { … } } }}` for the rest of the trigger — see
+`timeline={{ trigger: { … } }}` for the rest of the trigger — see
 [Playback overrides](#playback-overrides).
 
 ### Controlled time (`progress` / `time`)
@@ -153,7 +153,7 @@ first frame statically — `apiRef` on its own is such a case, so playback waits
 
 > **Example:** [`playback/override-react`](../../examples/docs-examples/src/cases/playback/override-react/) — `pnpm example:docs`, then open `#playback/override-react`.
 
-The same document can play differently in each place you mount it. `config` takes an object
+The same document can play differently in each place you mount it. `timeline` takes an object
 shaped exactly like the file's own `animator` block and deep-merges it over what the file says
 — the document you passed is never modified.
 
@@ -161,7 +161,7 @@ shaped exactly like the file's own `animator` block and deep-merges it over what
 // The file loops twice and starts on load; here it loops forever and waits for play().
 <PixodeskSvgAnimator
   doc={animation}
-  config={{ timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } } }}
+  timeline={{ iterations: 'infinite', trigger: { startOn: 'programmatic' } }}
   apiRef={apiRef}
 />
 ```
@@ -170,13 +170,13 @@ Objects merge key by key, values replace, and `null` **deletes** a key so the de
 absence means comes back:
 
 ```tsx
-<PixodeskSvgAnimator doc={animation} autoplay config={{ timeline: { delay: null } }} />
+<PixodeskSvgAnimator doc={animation} autoplay timeline={{ delay: null }} />
 ```
 
 `duration`, `delay`, `iterations` and `startOn` are also plain props, because
 `duration={2000}` reads better than a nested object; a prop wins over the same key inside
-`config`. To ignore the file's playback settings entirely and start from the player's defaults,
-add `resetDocDefaults`.
+`timeline`. To ignore the file's playback settings entirely and start from the player's defaults,
+add `resetTimeline`.
 
 Full merge rules — including what happens when the override changes the kind of timeline — are
 in [Playback & triggers → Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
@@ -196,12 +196,12 @@ in [Playback & triggers → Overriding from a player](./playback-and-triggers.md
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
 | **Playback overrides** | | *(see [Playback overrides](#playback-overrides))* |
-| `config` | `object \| string` | per-instance override of the document's `animator` block, deep-merged over it. Same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too |
-| `resetDocDefaults` | `boolean` | ignore the document's playback settings and start from the player's defaults, with `config` on top |
-| `duration` | `number` | shortcut for `config.timeline.duration` — ms for one iteration |
-| `delay` | `number` | shortcut for `config.timeline.delay`. A negative value skips ahead instead: `-500` starts right away from the frame at 0.5 s, as if the animation had already been running for half a second |
-| `iterations` | `number \| 'infinite'` | shortcut for `config.timeline.iterations`; `'infinite'` never stops |
-| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | shortcut for `config.timeline.trigger.startOn`: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
+| `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
+| `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
+| `duration` | `number` | shortcut for `timeline.duration` — ms for one iteration |
+| `delay` | `number` | shortcut for `timeline.delay`. A negative value skips ahead instead: `-500` starts right away from the frame at 0.5 s, as if the animation had already been running for half a second |
+| `iterations` | `number \| 'infinite'` | shortcut for `timeline.iterations`; `'infinite'` never stops |
+| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | shortcut for `timeline.trigger.startOn`: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
 | **Callbacks** | | |
 | `onPlay` | `() => void` | the animation started playing — for the first time, or resumed after a pause |
 | `onPause` | `() => void` | playback paused at the current frame — via the `pause` prop, the API's `pause()`, or a trigger's *out action* |

@@ -397,9 +397,9 @@ describe("PixodeskSvgAnimator (React)", () => {
         });
     });
 
-    // -- Playback override (`config` / shortcuts) -----------------------------
+    // -- Playback override (`timeline` / shortcuts) -----------------------------
 
-    describe("config override", () => {
+    describe("timeline override", () => {
 
         /** A WIRE-format document — nested `timeline`, the spelling every writer emits.
          *  The flat props this replaced were silently discarded on exactly this shape. */
@@ -431,8 +431,8 @@ describe("PixodeskSvgAnimator (React)", () => {
             expect(opacityNow()).toBeCloseTo(0.5, 1);
         });
 
-        it("config overrides duration ON A WIRE DOCUMENT (the flat props never did)", () => {
-            render(<PixodeskSvgAnimator doc={wireJson()} progress={0.5} config={{ timeline: { duration: 4000 } }} />);
+        it("timeline overrides duration ON A WIRE DOCUMENT (the flat props never did)", () => {
+            render(<PixodeskSvgAnimator doc={wireJson()} progress={0.5} timeline={{ duration: 4000 }} />);
             expect(opacityNow()).toBe(1);
         });
 
@@ -441,15 +441,15 @@ describe("PixodeskSvgAnimator (React)", () => {
             expect(opacityNow()).toBe(1);
         });
 
-        it("accepts the JSON-string form of config", () => {
-            render(<PixodeskSvgAnimator doc={wireJson()} progress={0.5} config={'{"timeline":{"duration":4000}}'} />);
+        it("accepts the JSON-string form of timeline", () => {
+            render(<PixodeskSvgAnimator doc={wireJson()} progress={0.5} timeline={'{"duration":4000}'} />);
             expect(opacityNow()).toBe(1);
         });
 
         it("does not mutate the document the caller passed", () => {
             const doc = wireJson();
             const before = JSON.stringify(doc);
-            render(<PixodeskSvgAnimator doc={doc} autoplay config={{ timeline: { duration: 9999 } }} />);
+            render(<PixodeskSvgAnimator doc={doc} autoplay timeline={{ duration: 9999 }} />);
             expect(JSON.stringify(doc)).toBe(before);
         });
     });

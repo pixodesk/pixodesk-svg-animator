@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import type { PxOutAction, PxAnimatedSvgDocument, PxAnimatorAPI, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger } from '@pixodesk/svg-animator-web';
-import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, PxDiagnosticKind, progressToTimeMs, DEFAULT_DURATION_MS, type PxAnimatorHandle, type PxComponentCallbacks, type PxControlProps, type PxPlaybackOverrideProps, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
+import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, PxDiagnosticKind, progressToTimeMs, DEFAULT_DURATION_MS, type PxAnimatorHandle, type PxComponentCallbacks, type PxControlProps, type PxPlaybackOverrideProps, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
 import { useDepsVersion } from './Utils';
@@ -192,26 +192,28 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
 
         // Route lifecycle events through `callbacksRef` so the latest callback
         // props are invoked even though this component never re-renders.
-        const cb = (name: keyof PixodeskSvgAnimatorCallbacks, alsoStop = false) => () => {
-            callbacksRef.current?.[name]?.();
-            if (alsoStop) callbacksRef.current?.onStop?.();
-        };
+        const cb = (name: keyof PixodeskSvgAnimatorCallbacks) => () => { callbacksRef.current?.[name]?.(); };
         // The player's own diagnostics reach the same handlers as the component's (§5). Spread
         // the CURRENT values rather than wrapping them: `(m, d) => diagRef.current?.onWarn?.(m, d)`
         // would always be a function, so the channel would never fall back to the console.
-        const callbacks = {
+        //
+        // The callbacks go INLINE, under the same names as the props (review §9). `onStop` is
+        // the PLAYER's to fire after pause / cancel / finish / remove — one rule, in the web
+        // package — so it is passed through rather than re-derived here.
+        const adapterDiag = createDiagnostics(diagRef.current ?? undefined, '[PixodeskSvgAnimator]');
+        let api: PxAnimatorAPI | undefined = createAnimator({
+            doc,
+            adapter:  createReactAdapter(elementRefs, adapterDiag),
             onPlay:   cb('onPlay'),
-            onPause:  cb('onPause', true),
-            onCancel: cb('onCancel', true),
-            onFinish: cb('onFinish', true),
-            onRemove: cb('onRemove', true),
+            onPause:  cb('onPause'),
+            onCancel: cb('onCancel'),
+            onFinish: cb('onFinish'),
+            onRemove: cb('onRemove'),
+            onStop:   cb('onStop'),
             onWarn:   diagRef.current?.onWarn,
             onError:  diagRef.current?.onError,
             silent:   diagRef.current?.silent,
-        };
-
-        const adapterDiag = createDiagnostics(diagRef.current ?? undefined, '[PixodeskSvgAnimator]');
-        let api: PxAnimatorAPI | undefined = createAnimator({ data: doc, adapter: createReactAdapter(elementRefs, adapterDiag), callbacks });
+        });
         apiHolderRef.current = api;
 
         return () => {
@@ -265,7 +267,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     doc, autoplay, play, pause, progress, time, apiRef,
 
     // Overrides
-    config, resetDocDefaults, duration, delay, iterations, startOn,
+    timeline, resetTimeline, duration, delay, iterations, startOn,
 
     onPlay, onStop, onPause, onCancel, onFinish, onRemove,
 
@@ -305,7 +307,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     // which is what every writer emits — `flattenAnimatorTimeline` overwrites those flat keys from
     // `timeline` immediately afterwards, so every one of those overrides was silently discarded.
     // See PLAYBACK-OVERRIDE-PLAN.md §1.1.
-    const patch = foldAnimatorConfigShortcuts(config, { duration, delay, iterations, startOn });
+    const patch = foldTimelineOverride(timeline, { duration, delay, iterations, startOn });
     const takeOverTrigger = controlModeTakesOverTrigger(compMode);
     const fullPatch: any = takeOverTrigger
         ? {
@@ -317,10 +319,10 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
         }
         : patch;
 
-    if (fullPatch !== undefined || resetDocDefaults) {
-        const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetDefaults: !!resetDocDefaults });
+    if (fullPatch !== undefined || resetTimeline) {
+        const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetDefaults: !!resetTimeline });
         const diag = makeDiag();
-        for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, 'config override: ' + w);
+        for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, 'timeline override: ' + w);
         doc = applied.doc;
     }
 

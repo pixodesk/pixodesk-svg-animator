@@ -4,14 +4,14 @@ import animation from '../../../fixtures/animation.json';
 
 // One object, spelled like the file's own `animator` block. `iterations` has a flat
 // shortcut because it is one of the four people reach for most; everything else goes
-// inside `config`.
+// inside `timeline`.
 createRoot(document.getElementById('root')!).render(
   <div className="stage">
     <PixodeskSvgAnimator
       doc={animation as any}
       autoplay
       iterations="infinite"
-      config={{ timeline: { engine: 'js', direction: 'alternate' } }}
+      timeline={{ engine: 'js', direction: 'alternate' }}
     />
   </div>
 );

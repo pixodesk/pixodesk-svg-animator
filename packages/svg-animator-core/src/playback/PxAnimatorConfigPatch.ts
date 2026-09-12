@@ -115,81 +115,87 @@ function mergeTimeline(base: unknown, patch: Record<string, any>, warn: (m: stri
     return merged;
 }
 
+/** A deep-partial of the WIRE `timeline` block; `null` at any slot deletes it. */
+export type PxTimelinePatch = Record<string, any> | null;
+
 /** The four flat shortcuts every surface offers for the keys people reach for most. */
 export interface PxAnimatorConfigShortcuts {
-    /** Shortcut for `config.timeline.duration` — one iteration, ms. Wins over the same key in `config`. */
+    /** Shortcut for `timeline.duration` — one iteration, ms. Wins over the same key in `timeline`. */
     duration?: number;
-    /** Shortcut for `config.timeline.delay` — the wait before the first iteration, ms. */
+    /** Shortcut for `timeline.delay` — the wait before the first iteration, ms. */
     delay?: number;
-    /** Shortcut for `config.timeline.iterations`; `'infinite'` never stops. */
+    /** Shortcut for `timeline.iterations`; `'infinite'` never stops. */
     iterations?: number | 'infinite';
     /**
-     * Shortcut for `config.timeline.trigger.startOn`. Typed from the WIRE, so it includes
-     * `'programmatic'` — "nothing starts this but a `play()` call". Was a bare `string`.
+     * Shortcut for `timeline.trigger.startOn`. Typed from the WIRE, so it includes
+     * `'programmatic'` — "nothing starts this but a `play()` call".
      */
     startOn?: PxStartOn;
 }
 
 /**
- * The playback-override props every framework component takes: the whole `animator` block as a
- * patch, the reset flag, and the four shortcuts above.
+ * The playback-override props every surface takes — `createAnimator` and the three components:
+ * the document's `timeline` as a patch, the reset flag, and the four shortcuts above.
  *
  * ONE definition (review §9): React and React Native extend it, Vue derives its internal shape
- * from it. Before this each spelled the same six members separately.
+ * from it, `createAnimator`'s options extend it.
  */
 export interface PxPlaybackOverrideProps extends PxAnimatorConfigShortcuts {
     /**
-     * Per-instance override of the document's `animator` config — the same shape as `animator`
-     * in SCHEMA.md, deep-merged over what the document says. `null` at any slot DELETES that key,
-     * restoring the default its absence means. Also accepts a JSON STRING, which survives a build
-     * that mangles object keys.
+     * Per-instance override of the document's `animator.timeline` — the same shape as `timeline`
+     * in SCHEMA.md, deep-merged over what the document says, so one file can play twice on a page
+     * with different timing. `null` at any slot DELETES that key, restoring the default its
+     * absence means. Also accepts a JSON STRING, which survives a build that mangles object keys.
+     *
+     * `timeline` is the whole useful override surface: the rest of the `animator` block is
+     * content (`definitions`, `animateById`), a version stamp and a debug handle — none of which
+     * a per-instance override should touch. That is why this is not a wrapper object.
      */
-    config?: PxAnimatorConfigPatch | string;
+    timeline?: PxTimelinePatch | string;
     /**
-     * Ignore the document's own playback settings and start from the player's defaults, with
-     * `config` on top. `definitions` and `animateById` are kept either way.
+     * Ignore the document's own timeline and start from the player's DEFAULT timeline, with
+     * `timeline` on top. `definitions` and `animateById` are content and are kept either way.
      */
-    resetDocDefaults?: boolean;
+    resetTimeline?: boolean;
 }
 
 /**
- * Folds the shortcuts into a config patch, and accepts the JSON-STRING form of the patch
- * (immune to property mangling — see docs/library/minification.md).
+ * Folds the four shortcuts into the `timeline` patch, accepts the JSON-STRING form of the patch
+ * (immune to property mangling — see docs/library/minification.md), and returns it in the shape
+ * `applyAnimatorConfig` takes: an animator-level patch `{ timeline: … }`.
  *
  * A shortcut WINS over the same key inside the object: more specific beats more general, the
  * way an inline style beats a stylesheet. One implementation so every surface agrees.
  */
-export function foldAnimatorConfigShortcuts(
-    config: PxAnimatorConfigPatch | string | undefined,
+export function foldTimelineOverride(
+    timeline: PxTimelinePatch | string | undefined,
     shortcuts: PxAnimatorConfigShortcuts,
 ): PxAnimatorConfigPatch | undefined {
-    let base: PxAnimatorConfigPatch | undefined;
-    if (typeof config === 'string') {
+    let base: PxTimelinePatch | undefined;
+    if (typeof timeline === 'string') {
         try {
-            base = JSON.parse(config);
+            base = JSON.parse(timeline);
         } catch (e) {
-            console.warn('animator config: not valid JSON — ignored', e);
+            console.warn('timeline override: not valid JSON — ignored', e);
             base = undefined;
         }
     } else {
-        base = config ?? undefined;
+        base = timeline ?? undefined;
     }
 
     const { duration, delay, iterations, startOn } = shortcuts;
     if (duration === undefined && delay === undefined && iterations === undefined && startOn === undefined) {
-        return base;
+        return base === undefined ? undefined : { timeline: base };
     }
 
     const out: Record<string, any> = isPlainObject(base) ? { ...base } : {};
-    const timeline: Record<string, any> = { ...(out.timeline as Record<string, any> | undefined) };
-    if (duration !== undefined) timeline.duration = duration;
-    if (delay !== undefined) timeline.delay = delay;
-    if (iterations !== undefined) timeline.iterations = iterations;
+    if (duration !== undefined) out.duration = duration;
+    if (delay !== undefined) out.delay = delay;
+    if (iterations !== undefined) out.iterations = iterations;
     if (startOn !== undefined) {
-        timeline.trigger = { ...(timeline.trigger as Record<string, any> | undefined), startOn };
+        out.trigger = { ...(out.trigger as Record<string, any> | undefined), startOn };
     }
-    out.timeline = timeline;
-    return out;
+    return { timeline: out };
 }
 
 /**

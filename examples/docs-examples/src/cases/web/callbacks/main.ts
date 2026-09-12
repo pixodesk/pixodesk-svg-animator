@@ -6,13 +6,11 @@ const say = (line: string) => { log.textContent += line + '\n'; };
 const animator = createAnimator({
   src: '../../../../animation.json',
   container: '#box',
-  callbacks: {
-    onPlay:   () => say('onPlay'),    // started or resumed
-    onPause:  () => say('onPause'),
-    onCancel: () => say('onCancel'),  // reset to the start
-    onFinish: () => say('onFinish'),  // natural end, or finish()
-    onRemove: () => say('onRemove'),  // destroyed
-  },
+  onPlay:   () => say('onPlay'),    // started or resumed
+  onPause:  () => say('onPause'),
+  onCancel: () => say('onCancel'),  // reset to the start
+  onFinish: () => say('onFinish'),  // natural end, or finish()
+  onRemove: () => say('onRemove'),  // destroyed
 });
 
 const $ = (id: string) => document.getElementById(id)!;
