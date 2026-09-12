@@ -13,6 +13,10 @@ import { getAnimatorConfig, INTERNAL_ATTRS, isPxElementFileFormat, PX_TRANSFORM_
     PxAlongPathMode, PxFillMode, PxFinishAction, PxOutAction, PxPinAlign, PxPlaybackDirection,
     PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxStartOn } from './PxAnimatorConstants';
 import type { PxTimelineEngine, PxTransformPartKey } from './PxAnimatorConstants';
+// Version stamps are parsed by the reader's own parser (review §2.10) so the validator and the
+// reader can never disagree on what counts as a stamp. `PxWireVersion` imports only
+// `PxSchemaVersion`, so this edge creates no cycle.
+import { parseWireVersion } from '../version/PxWireVersion';
 
 // ============================================================================
 // EASING
@@ -1753,6 +1757,59 @@ export function validateGlyphFontRefs(root: PxNode, fonts: { [face: string]: unk
 }
 
 /**
+ * Cross-checks named easing references against `definitions.easings` (review §2.9).
+ *
+ * A keyframe's `easing` is either a cubic-bezier array or the NAME of an entry in
+ * `definitions.easings` — CSS keywords are deliberately not built in (player weight), so
+ * `easing: "ease-in-out"` validates as a string, resolves to nothing, and plays LINEAR behind
+ * one `console.warn`. That makes it the likeliest silent mistake in a generated document, and
+ * the schema cannot catch it: it checks the shape of each side, never that the two agree.
+ *
+ * Only the wire spelling `easing` is read. The runtime view's `e` is an already-RESOLVED curve,
+ * never a name, so it has nothing to cross-check.
+ */
+export function validateEasingRefs(root: PxNode, easings: { [name: string]: unknown; } | undefined): Array<string> {
+    const problems: Array<string> = [];
+    const walk = (node: unknown, path: string): void => {
+        if (Array.isArray(node)) {
+            node.forEach((item, i) => walk(item, path + '[' + i + ']'));
+            return;
+        }
+        if (!node || typeof node !== 'object') return;
+
+        const easing = (node as { easing?: unknown }).easing;
+        if (typeof easing === 'string' && !(easings && Object.prototype.hasOwnProperty.call(easings, easing))) {
+            const problem = path + '.easing: "' + easing
+                + '" names no entry in animator.definitions.easings — it will play linear';
+            if (!problems.includes(problem)) problems.push(problem);
+        }
+        for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+            if (key === 'easing') continue;   // already handled; a string has nothing to walk
+            if (value && typeof value === 'object') walk(value, path + '.' + key);
+        }
+    };
+    walk(root, 'root');
+    return problems;
+}
+
+/**
+ * Checks the `animator.version` stamp parses (review §2.10).
+ *
+ * The slot is `px.string()`, so `"v1"` validates and is then read as UNSTAMPED — the document
+ * silently loses the one diagnostic that says which schema wrote it. Parsing is delegated to
+ * {@link parseWireVersion} so this can never disagree with the reader.
+ *
+ * An ABSENT stamp is legal and silent: only a present-but-unparseable one is reported.
+ */
+export function validateVersionStamp(doc: PxAnimatedSvgDocument): Array<string> {
+    const version = getAnimatorConfig(doc)?.version;
+    if (version === undefined) return [];
+    if (parseWireVersion(version) !== undefined) return [];
+    return ['root.animator.version: ' + JSON.stringify(version)
+        + ' is not a version stamp ("a.b" or "a.b.c") — it reads as unstamped'];
+}
+
+/**
  * Validates a WHOLE document against the wire schema — strictly, so undeclared keys are
  * reported too — plus every node's `effects` bucket and the glyph-font references. Returns
  * human-readable problems (`path: what is wrong`), empty when the document is sound; never
@@ -1766,8 +1823,14 @@ export function validateDocument(doc: unknown): Array<string> {
         for (const w of validateNodeEffects(doc as PxNode, { strict: true })) {
             if (!problems.includes(w)) problems.push(w);
         }
-        const fonts = getAnimatorConfig(doc as PxAnimatedSvgDocument)?.definitions?.fonts;
-        for (const w of validateGlyphFontRefs(doc as PxNode, fonts)) {
+        const defs = getAnimatorConfig(doc as PxAnimatedSvgDocument)?.definitions;
+        for (const w of validateGlyphFontRefs(doc as PxNode, defs?.fonts)) {
+            if (!problems.includes(w)) problems.push(w);
+        }
+        for (const w of validateEasingRefs(doc as PxNode, defs?.easings)) {
+            if (!problems.includes(w)) problems.push(w);
+        }
+        for (const w of validateVersionStamp(doc as PxAnimatedSvgDocument)) {
             if (!problems.includes(w)) problems.push(w);
         }
     }
