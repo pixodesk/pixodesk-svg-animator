@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createDiagnostics, getAnimatorConfig, isNativeForced, isScrollTimeline, mayUseNativeScrollTimeline, PxTimelineEngineExtra, scrollTotalDurationMs, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { createDiagnostics, getAnimatorConfig, isNativeForced, isScrollTimeline, mayUseNativeScrollTimeline, PxDiagnosticKind, PxTimelineEngineExtra, scrollTotalDurationMs, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
@@ -67,6 +67,8 @@ export function bindWithEngineChoice(
     rootElement?: Element | null
 ): PxAnimatorAPI {
     const animatorConfig = getAnimatorConfig(doc) || {};
+    // One channel for everything this binder and the scroll driver have to say (review §5).
+    const diag = createDiagnostics(callbacks, '[PxAnimator]');
 
     // Scroll-driven document: the playhead follows scroll position, never the wall
     // clock. One knob — `timeline.engine` — picks the row (scroll-timeline.design.md §4.0):
@@ -89,7 +91,7 @@ export function bindWithEngineChoice(
             // `auto` / `native`: try the browser's own timeline first.
             if (mayUseNativeScrollTimeline(animatorConfig.engine) && rootElement) {
                 unpin = applyScrollPin(rootElement, animatorConfig.scroll);
-                const native = createNativeScrollTimeline(rootElement, animatorConfig);
+                const native = createNativeScrollTimeline(rootElement, animatorConfig, diag);
                 if (native) {
                     const api = createWebApiAnimator(doc, cb, rootElement,
                         isNativeForced(animatorConfig.engine), native);
@@ -120,15 +122,14 @@ export function bindWithEngineChoice(
                 unpin = applyScrollPin(subject, animatorConfig.scroll);
                 const totalMs = scrollTotalDurationMs(animatorConfig);
                 const driver = createScrollDriver(subject, animatorConfig,
-                    progress => api.setCurrentTime(progress * totalMs));
+                    progress => api.setCurrentTime(progress * totalMs), diag);
                 if (driver) {
                     // Tie the driver's (and the pin's) lifetime to the animator's.
                     const destroy = api.destroy.bind(api);
                     api.destroy = () => { driver.destroy(); unpin(); destroy(); };
                 }
             } else {
-                createDiagnostics(callbacks, '[PxAnimator]')
-                    .warn('scroll timeline: no root element to observe — animation will stay at frame 0');
+                diag.warn(PxDiagnosticKind.host, 'scroll timeline: no root element to observe — animation will stay at frame 0');
             }
             return api;
         });

@@ -187,10 +187,16 @@ Pass `callbacks` to be told when the animation starts, pauses, resets, finishes 
 destroyed — for example to reveal the next section of a page once an intro has finished. Every
 lifecycle callback is called with no arguments.
 
-The same object carries the player's diagnostics: `onWarn(message, detail?)` for anything
-survivable, `onError(error)` for a document that could not be loaded, parsed or rendered, and
-`silent` to suppress the console fallback those two replace. Give a handler and the console
-stays out of it; give none and the console still speaks, so nothing is lost by default.
+The same object carries the player's diagnostics: `onWarn` for anything survivable, `onError`
+for a document that could not be loaded, parsed or rendered, and `silent` to suppress the console
+fallback those two replace. Give a handler and the console stays out of it; give none and the
+console still speaks, so nothing is lost by default.
+
+Each one is `{ kind, message, detail?, error? }`, where `kind` says **who can act on it**:
+`document` (repair the file) · `host` (fix the page) · `platform` (the browser could not do it;
+the player degraded) · `usage` (fix the options you passed) · `internal` (report it to us). So
+you can route rather than just log, and `silent: ['platform']` quiets one kind while the rest
+still speak.
 
 ```html
 <div id="box" style="width: 300px; height: 300px"></div>
@@ -210,9 +216,9 @@ createAnimator({
     onFinish: () => {},   // finished naturally, or finish() was called
     onRemove: () => {},   // destroyed
 
-    onWarn:  (message, detail) => {},   // survivable; else console.warn
-    onError: (error) => {},             // could not play at all; else console.error
-    silent:  false,                     // true suppresses the console fallback only
+    onWarn:  (d) => {},   // d = { kind, message, detail? }; else console.warn
+    onError: (d) => {},   // d = { kind, message, error };   else console.error
+    silent:  false,       // true, or ['platform'] to quiet just that kind
   },
 });
 ```

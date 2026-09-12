@@ -171,7 +171,10 @@ describe("PixodeskSvgAnimator (React)", () => {
             render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay onWarn={onWarn} />);
 
             expect(onWarn).toHaveBeenCalled();
-            expect(String(onWarn.mock.calls[0][0])).toContain("progress/time");
+            const d = onWarn.mock.calls[0][0];
+            expect(d.message).toContain("progress/time");
+            // A conflict between two control props is the CALLER's to fix, not the file's.
+            expect(d.kind).toBe("usage");
             // ...and the console said nothing, so nothing is reported twice.
             expect(warn).not.toHaveBeenCalled();
             warn.mockRestore();
@@ -192,6 +195,21 @@ describe("PixodeskSvgAnimator (React)", () => {
             render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay silent />);
 
             expect(warn).not.toHaveBeenCalled();
+            warn.mockRestore();
+        });
+
+        it("silent accepts a list of kinds, quieting only those", () => {
+            const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
+
+            // The control-mode conflict is a `usage` diagnostic, so listing it quiets this...
+            const { unmount } = render(
+                <PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay silent={["usage"]} />);
+            expect(warn).not.toHaveBeenCalled();
+            unmount();
+
+            // ...while silencing an unrelated kind leaves it audible.
+            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay silent={["platform"]} />);
+            expect(warn).toHaveBeenCalled();
             warn.mockRestore();
         });
 

@@ -4,12 +4,15 @@
  *---------------------------------------------------------------------------------------*/
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
+import { createDiagnostics, PxDiagnosticKind, type PxDiagnostics } from '@pixodesk/svg-animator-core';
 
 export interface PxRnErrorBoundaryProps {
     children: ReactNode;
     /** Rendered instead of the children once something has thrown. */
     fallback?: (error: Error) => ReactNode;
     onError?: (error: Error, info?: string) => void;
+    /** Where to report the failure (API review §5). Defaults to the console. */
+    diag?: PxDiagnostics;
 }
 
 interface State {
@@ -38,7 +41,8 @@ export class PxRnErrorBoundary extends Component<PxRnErrorBoundaryProps, State> 
 
     override componentDidCatch(error: Error, info: ErrorInfo): void {
         this.props.onError?.(error, info?.componentStack ?? undefined);
-        console.warn('[PixodeskSvgAnimator] render failed:', error?.message ?? error);
+        (this.props.diag ?? createDiagnostics(undefined, '[PixodeskSvgAnimator]'))
+            .warn(PxDiagnosticKind.internal, 'render failed: ' + (error?.message ?? String(error)));
     }
 
     override componentDidUpdate(prev: PxRnErrorBoundaryProps): void {

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { resolveTrigger, type PxTrigger } from '@pixodesk/svg-animator-core';
+import { createDiagnostics, PxDiagnosticKind, resolveTrigger, type PxDiagnostics, type PxTrigger } from '@pixodesk/svg-animator-core';
 import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
 
 
@@ -34,8 +34,11 @@ import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
  */
 export function setupAnimationTriggers(
     api: PxAnimatorAPI,
-    config: PxTrigger
+    config: PxTrigger,
+    diag?: PxDiagnostics
 ): PxAnimatorAPI {
+    // Public export, so the channel is optional and falls back to the console (review §5).
+    const report = diag ?? createDiagnostics(undefined, '[PxAnimator]');
     // The defaults come from core's one table, shared with every player (`PX_TRIGGER_DEFAULTS`):
     // no `startOn` = 'load', no `outAction` = 'continue', no threshold = 0 ("any pixel visible").
     // The threshold default must match the editor model's (TSvgSvgAnimationAttr
@@ -45,7 +48,7 @@ export function setupAnimationTriggers(
     const root = api.getRootElement();
 
     if (!root) {
-        console.warn('setupAnimationTriggers: No root element found for animation.');
+        report.warn(PxDiagnosticKind.host, 'setupAnimationTriggers: No root element found for animation.');
         return api;
     }
 

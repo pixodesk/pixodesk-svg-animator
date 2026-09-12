@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { clampSeekMs, createDiagnostics, createRunClock, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PX_RATE_REJECTED, seekCeilingMs, timeToProgress, type PxDiagnostics,
+import { clampSeekMs, createDiagnostics, createRunClock, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PX_RATE_REJECTED, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxDiagnostic, type PxDiagnostics,
     reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materialiseAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxAnimatorConfigPatch, type PxNode, type PxStartOn, applyAnimatorConfig, foldAnimatorConfigShortcuts } from '@pixodesk/svg-animator-core';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
@@ -154,10 +154,14 @@ export interface PixodeskSvgAnimatorProps {
      *
      * Without this, these go to `console.warn`.
      */
-    onWarn?: (message: string, detail?: unknown) => void;
+    onWarn?: (diagnostic: PxDiagnostic) => void;
 
-    /** Silence the console FALLBACK. `onWarn` / `onError` still fire if given. */
-    silent?: boolean;
+    /**
+     * Silence the console FALLBACK — `true` for everything, or just the kinds listed, so
+     * `platform` chatter can be quiet while `document` problems still speak.
+     * `onWarn` / `onError` still fire if given.
+     */
+    silent?: boolean | ReadonlyArray<PxDiagnosticKind>;
 }
 
 
@@ -327,7 +331,7 @@ const EMPTY_TRACKS: PxCompiledTracks = {
 function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides, diag: PxDiagnostics): Compiled {
     const { config, resetDocDefaults, duration, delay, iterations, startOn } = overrides;
     const warnings = validateNodeEffects(doc as PxNode);
-    for (const w of warnings) diag.warn('effects shape warning: ' + w);
+    for (const w of warnings) diag.warn(PxDiagnosticKind.document, 'effects shape: ' + w);
     // The whole-document boundary diagnostic — see the note in the web player's entry.
     reportDocumentDiagnostics(doc, '[PixodeskSvgAnimator]');
 
@@ -337,7 +341,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
     const patch = foldAnimatorConfigShortcuts(config, { duration, delay, iterations, startOn });
     if (patch !== undefined || resetDocDefaults) {
         const applied = applyAnimatorConfig(doc, patch ?? {}, { resetDefaults: !!resetDocDefaults });
-        for (const w of applied.warnings) diag.warn('config override: ' + w);
+        for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, 'config override: ' + w);
         doc = applied.doc;
     }
 
@@ -396,8 +400,14 @@ export function PixodeskSvgAnimator({
      * be a function, so the channel would believe a handler exists and the console fallback
      * would never fire for anyone who passed nothing.
      */
-    const makeDiag = (): PxDiagnostics =>
-        createDiagnostics({ onWarn, onError, silent }, '[PixodeskSvgAnimator]');
+    const makeDiag = (): PxDiagnostics => createDiagnostics({
+        onWarn,
+        // This component's public `onError` is richer — `(error, componentStack?)` — and the
+        // error boundary hands it a component stack. Adapt rather than narrow it; the ternary
+        // keeps "not given" as undefined, so the console fallback still fires.
+        onError: onError ? (d: PxDiagnostic) => onError(d.error ?? new Error(d.message)) : undefined,
+        silent,
+    }, '[PixodeskSvgAnimator]');
 
     const compiled = useMemo((): Compiled => {
         try {
@@ -409,7 +419,7 @@ export function PixodeskSvgAnimator({
         } catch (e) {
             // A malformed document must not take the host screen down with it.
             const error = e instanceof Error ? e : new Error(String(e));
-            makeDiag().warn('could not compile the document: ' + error.message);
+            makeDiag().warn(PxDiagnosticKind.internal, 'could not compile the document: ' + error.message);
             return { doc: null, tracks: EMPTY_TRACKS, error };
         }
         // `config` is an object prop, so a fresh literal each render would recompile the whole
@@ -534,7 +544,7 @@ export function PixodeskSvgAnimator({
         },
         setPlaybackRate: (rate: number) => {
             if (!isValidPlaybackRate(rate)) {
-                makeDiag().warn(PX_RATE_REJECTED);
+                makeDiag().warn(PxDiagnosticKind.usage, PX_RATE_REJECTED);
                 return;
             }
             rateRef.current = rate;
@@ -594,7 +604,7 @@ export function PixodeskSvgAnimator({
 
     useEffect(() => {
         const diag = makeDiag();
-        for (const w of modeWarnings) diag.warn(w);
+        for (const w of modeWarnings) diag.warn(PxDiagnosticKind.usage, w);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [modeWarnings.join('|')]);
 
@@ -729,7 +739,7 @@ export function PixodeskSvgAnimator({
             // rather than propagating and unmounting the host screen.
             const error = e instanceof Error ? e : new Error(String(e));
             renderErrorRef.current = error;
-            makeDiag().warn('could not render the document: ' + error.message);
+            makeDiag().warn(PxDiagnosticKind.internal, 'could not render the document: ' + error.message);
             return null;
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -737,7 +747,9 @@ export function PixodeskSvgAnimator({
 
     useEffect(() => {
         const diag = makeDiag();
-        for (const w of warningsRef.current) diag.warn(w);
+        // `platform`: these come from the react-native-svg prop mapper — shapes this renderer
+        // cannot express, rather than anything wrong with the file.
+        for (const w of warningsRef.current) diag.warn(PxDiagnosticKind.platform, w);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [root]);
 
@@ -782,7 +794,7 @@ export function PixodeskSvgAnimator({
     // and commit of the tree — react-native-svg internals, reanimated failing
     // to attach to a component that turns out not to be a host view, and so on.
     return (
-        <PxRnErrorBoundary onError={onError} fallback={fallback}>
+        <PxRnErrorBoundary onError={onError} fallback={fallback} diag={makeDiag()}>
             {content}
         </PxRnErrorBoundary>
     );

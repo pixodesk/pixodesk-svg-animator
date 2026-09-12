@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getDefs, getNormalizedProps, resolveStyle, sanitiseAttributeValue, camelCaseToKebabWordIfNeeded, CSS_ONLY_STYLE_PROPS, DISALLOWED_SVG_TAGS_LOWER, TEXT_CONTENT_ATTR, type PxAnimatedSvgDocument, type PxDefs, type PxNode } from '@pixodesk/svg-animator-core';
+import { createDiagnostics, getDefs, getNormalizedProps, resolveStyle, sanitiseAttributeValue, camelCaseToKebabWordIfNeeded, CSS_ONLY_STYLE_PROPS, DISALLOWED_SVG_TAGS_LOWER, PxDiagnosticKind, TEXT_CONTENT_ATTR, type PxAnimatedSvgDocument, type PxDefs, type PxDiagnostics, type PxNode } from '@pixodesk/svg-animator-core';
 
 // Re-export from the historical home so the package surface is unchanged.
 export { getNormalizedProps };
@@ -16,10 +16,13 @@ function createElement(
     normalisedProps: { [k: string]: string },
     style: Record<string, string | number> | undefined,
     children: Array<Element> | undefined,
-    textContent?: string
+    textContent?: string,
+    diag?: PxDiagnostics
 ): SVGElement | null {
     if (DISALLOWED_SVG_TAGS_LOWER.has(tagName.toLowerCase())) {
-        console.warn('SVG tag blocked (dangerous): ', tagName);
+        // `document`: a blocked tag is content the FILE asked for, so the file is what changes.
+        (diag ?? createDiagnostics(undefined, '[PxAnimator]'))
+            .warn(PxDiagnosticKind.document, 'SVG tag blocked (dangerous): ' + tagName);
         return null;
     }
 
@@ -68,7 +71,7 @@ function createElement(
 /**
  * Renders a PxNode tree to DOM elements.
  */
-export function renderNode(node: PxNode, defs?: PxDefs): Element | null {
+export function renderNode(node: PxNode, defs?: PxDefs, diag?: PxDiagnostics): Element | null {
     if (!node) return null;
 
     const { type, children, style, ...props } = node;
@@ -94,7 +97,7 @@ export function renderNode(node: PxNode, defs?: PxDefs): Element | null {
     let childElements: Array<Element> | undefined;
     if (children) {
         for (const ch of children) {
-            const child = renderNode(ch, nodeDefs);
+            const child = renderNode(ch, nodeDefs, diag);
             if (child) {
                 if (!childElements) childElements = [];
                 childElements.push(child);
@@ -107,7 +110,8 @@ export function renderNode(node: PxNode, defs?: PxDefs): Element | null {
         getNormalizedProps(props),
         resolvedStyle,
         childElements,
-        props[TEXT_CONTENT_ATTR]
+        props[TEXT_CONTENT_ATTR],
+        diag
     );
 
     // `type` is an INTERNAL_ATTR (reserved for the node tag), so the value relayed

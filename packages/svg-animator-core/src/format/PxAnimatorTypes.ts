@@ -17,6 +17,9 @@ import type { PxTimelineEngine, PxTransformPartKey } from './PxAnimatorConstants
 // reader can never disagree on what counts as a stamp. `PxWireVersion` imports only
 // `PxSchemaVersion`, so this edge creates no cycle.
 import { parseWireVersion } from '../version/PxWireVersion';
+// The diagnostics channel's payload, named by `PxAnimatorCallbacksConfig` below (review §5).
+// `PxDiagnostics` imports nothing, so this edge creates no cycle either.
+import type { PxDiagnostic, PxDiagnosticKind } from '../playback/PxDiagnostics';
 
 // ============================================================================
 // EASING
@@ -2015,9 +2018,10 @@ export interface PxAnimatorCallbacksConfig {
      * Something is off, but the animation still plays — an unknown easing, a config key that
      * could not be applied, an attribute the browser will not animate.
      *
-     * With no handler these go to `console.warn`.
+     * Each diagnostic says WHO can act on it via `kind` (`document` / `host` / `platform` /
+     * `usage` / `internal`). With no handler these go to `console.warn`.
      */
-    onWarn?: (message: string, detail?: unknown) => void;
+    onWarn?: (diagnostic: PxDiagnostic) => void;
 
     /**
      * The animation could not be produced at all: a document that failed to load or parse, or
@@ -2025,10 +2029,14 @@ export interface PxAnimatorCallbacksConfig {
      *
      * With no handler these go to `console.error`.
      */
-    onError?: (error: Error) => void;
+    onError?: (diagnostic: PxDiagnostic) => void;
 
-    /** Suppress the console FALLBACK above. Handlers still fire — this is not a mute button. */
-    silent?: boolean;
+    /**
+     * Suppress the console FALLBACK above — `true` for everything, or just the kinds listed,
+     * so `platform` chatter can be quiet while `document` problems still speak.
+     * Handlers still fire either way — this is not a mute button.
+     */
+    silent?: boolean | ReadonlyArray<PxDiagnosticKind>;
 }
 
 

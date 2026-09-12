@@ -186,9 +186,9 @@ component.
 | `duration` · `delay` | `number` | shortcuts for `config.timeline.duration` / `config.timeline.delay`: length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component |
 | `iterations` | `number \| 'infinite'` | shortcut for `config.timeline.iterations`; `'infinite'` never stops |
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | shortcut for `config.timeline.trigger.startOn`: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
-| `onWarn` | `(message, detail?) => void` | something is off but the animation still plays — an unknown easing, a config key that could not be applied, two control props at once. Without this it goes to `console.warn` |
-| `onError` | `(error) => void` | the animation could not be produced at all — a document that failed to parse or render. Without this it goes to `console.error` |
-| `silent` | `boolean` | silences the console *fallback* above. `onWarn` / `onError` still fire if you gave them — it is not a mute button |
+| `onWarn` | `(diagnostic) => void` | something is off but the animation still plays — an unknown easing, a config key that could not be applied, two control props at once. Without this it goes to `console.warn` |
+| `onError` | `(diagnostic) => void` | the animation could not be produced at all — a document that failed to parse or render. Without this it goes to `console.error` |
+| `silent` | `boolean \| PxDiagnosticKind[]` | silences the console *fallback* above — everything, or just the kinds you list. `onWarn` / `onError` still fire if you gave them — it is not a mute button |
 | `class` · `style` · any other attribute | | anything else you put on `<PixodeskSvgAnimator>` ends up on the `<svg>` element it renders (standard Vue attribute inheritance). So to set the animation's size, either put `style="width: 300px; height: 300px"` on the component itself, or give those dimensions to the element that contains it — the SVG keeps its proportions either way |
 
 ## Events
@@ -206,6 +206,12 @@ component.
 not you listen, so wiring them to `emit` would have silenced the console fallback for everyone
 who never subscribed. As props, leaving them out really does mean "not given" — and the console
 still speaks by default.
+
+Each diagnostic is `{ kind, message, detail?, error? }`, where `kind` says **who can act on it**:
+`document` (repair the file) · `host` (fix the page) · `platform` (the browser could not do it;
+the player degraded) · `usage` (fix the props you passed) · `internal` (report it to us). So you
+can route rather than just log — surface `document` problems in a build check, and quiet the
+rest with `:silent="['platform']"`.
 
 ```vue
 <script setup lang="ts">

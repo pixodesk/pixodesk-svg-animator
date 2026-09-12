@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { reportDocumentDiagnostics, applyAnimatorConfig, createDiagnostics, foldAnimatorConfigShortcuts, generateNewIds, getAnimatorConfig, isPxElementFileFormat, materialiseAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfigPatch, type PxPlatformAdapter, type PxTrigger } from '@pixodesk/svg-animator-core';
+import { reportDocumentDiagnostics, applyAnimatorConfig, createDiagnostics, foldAnimatorConfigShortcuts, generateNewIds, getAnimatorConfig, isPxElementFileFormat, materialiseAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfigPatch, type PxPlatformAdapter, type PxTrigger } from '@pixodesk/svg-animator-core';
 import { bindWithEngineChoice } from '../engines/PxAnimatorBind';
 import { renderNode } from '../dom/PxAnimatorDOM';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
@@ -61,7 +61,7 @@ export function createAnimatorImpl(
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
 
     const effectsWarnings = validateNodeEffects(doc as any);
-    for (const w of effectsWarnings) diag.warn('effects shape warning: ' + w);
+    for (const w of effectsWarnings) diag.warn(PxDiagnosticKind.document, 'effects shape: ' + w);
 
     // …and the WHOLE-document check beside it. This is the boundary diagnostic: if a consumer's
     // build mangled property names, the keys reaching us are unrecognisable and this says so,
@@ -74,7 +74,7 @@ export function createAnimatorImpl(
     // rewrites `animateById` keys — a late patch would be read by none of them.
     if (config !== undefined || resetDocDefaults) {
         const patched = applyAnimatorConfig(doc, config ?? {}, { resetDefaults: !!resetDocDefaults });
-        for (const w of patched.warnings) diag.warn('config override: ' + w);
+        for (const w of patched.warnings) diag.warn(PxDiagnosticKind.usage, 'config override: ' + w);
         doc = patched.doc;
     }
 
@@ -104,7 +104,7 @@ export function createAnimatorImpl(
             document.querySelector(containerElement) : containerElement;
 
         if (containerEl) {
-            rootElement = renderNode(doc);
+            rootElement = renderNode(doc, undefined, diag);
             if (rootElement) {
                 containerEl.replaceChildren(rootElement);
             }
@@ -237,11 +237,14 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
             pending = null;
             queued?.forEach(call => call(animator!));
         } else {
-            loadDiag.error('createAnimator: invalid animation document format at "' + src + '"');
+            loadDiag.error(PxDiagnosticKind.document,
+                'createAnimator: invalid animation document format at "' + src + '"');
         }
     }).catch(err => {
         pending = null;
-        loadDiag.error('createAnimator: failed to load "' + src + '" — ' + (err?.message ?? String(err)));
+        // `host`, not `document`: the file may be perfect — the page could not fetch it.
+        loadDiag.error(PxDiagnosticKind.host,
+            'createAnimator: failed to load "' + src + '" — ' + (err?.message ?? String(err)));
     });
 
     // Return a proxy that forwards calls once loaded

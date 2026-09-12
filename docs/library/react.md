@@ -209,9 +209,15 @@ in [Playback & triggers → Overriding from a player](./playback-and-triggers.md
 | `onFinish` | `() => void` | the animation reached its end — it played all its iterations, or `finish()` was called. Does not fire when playback is stopped early |
 | `onRemove` | `() => void` | the animator was thrown away: the component unmounted, or you passed a different `doc` and a new animator was built for it |
 | `onStop` | `() => void` | fires *in addition to* whichever of `onPause`, `onCancel`, `onFinish` or `onRemove` just fired. Use this one callback when you only care that the animation is no longer playing, whatever the reason |
-| `onWarn` | `(message, detail?) => void` | something is off but the animation still plays — an unknown easing, a config key that could not be applied, two control props at once. Without this it goes to `console.warn` |
-| `onError` | `(error) => void` | the animation could not be produced at all — a document that failed to parse or render. Without this it goes to `console.error` |
-| `silent` | `boolean` | silences the console *fallback* above. `onWarn` / `onError` still fire if you gave them — it is not a mute button |
+| `onWarn` | `(diagnostic) => void` | something is off but the animation still plays — an unknown easing, a config key that could not be applied, two control props at once. Without this it goes to `console.warn` |
+| `onError` | `(diagnostic) => void` | the animation could not be produced at all — a document that failed to parse or render. Without this it goes to `console.error` |
+| `silent` | `boolean \| PxDiagnosticKind[]` | silences the console *fallback* above — everything, or just the kinds you list. `onWarn` / `onError` still fire if you gave them — it is not a mute button |
+
+Each diagnostic is `{ kind, message, detail?, error? }`, where `kind` says **who can act on it**:
+`document` (repair the file) · `host` (fix the page) · `platform` (the browser could not do it;
+the player degraded) · `usage` (fix the props you passed) · `internal` (report it to us). So you
+can route rather than just log — surface `document` problems in a build check, and quiet the
+rest with `silent={['platform']}`.
 
 Passing a different `doc` (or changing `className` / `style` / the control mode) throws the
 old animator away and builds a new one; the old instance emits `onCancel`, `onRemove` and

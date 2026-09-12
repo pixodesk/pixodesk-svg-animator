@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { camelCaseToKebabWordIfNeeded, createBasicFrameLoopAnimator, createDiagnostics, getAnimatorConfig, isScrollTimeline, STYLE_ATTR_NAMES, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxDiagnostics, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { camelCaseToKebabWordIfNeeded, createBasicFrameLoopAnimator, createDiagnostics, getAnimatorConfig, isScrollTimeline, PxDiagnosticKind, STYLE_ATTR_NAMES, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxDiagnostics, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
 import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
 
@@ -49,9 +49,9 @@ export function createFrameLoopAnimator(
         if (doc.id) {
             const rootSelector = getSelector(doc.id);
             rootElement = document.querySelector(rootSelector);
-            if (!rootElement) diag.warn('createFrameLoopAnimator: No root element found for selector: ' + rootSelector);
+            if (!rootElement) diag.warn(PxDiagnosticKind.host, 'createFrameLoopAnimator: No root element found for selector: ' + rootSelector);
         } else {
-            diag.warn('createFrameLoopAnimator: No root element provided');
+            diag.warn(PxDiagnosticKind.host, 'createFrameLoopAnimator: No root element provided');
         }
     }
 
@@ -71,9 +71,9 @@ export function createFrameLoopAnimator(
     // anyway gets a warning, not behaviour.
     // Every time-driven document IS wired: no `trigger` means the defaults (`startOn` 'load').
     if (isScrollTimeline(config)) {
-        if (config.trigger) diag.warn('scroll timeline: `animator.trigger` is ignored (triggers do not apply to scroll-driven playback)');
+        if (config.trigger) diag.warn(PxDiagnosticKind.usage, 'scroll timeline: `animator.trigger` is ignored (triggers do not apply to scroll-driven playback)');
     } else {
-        setupAnimationTriggers(api, config.trigger ?? {});
+        setupAnimationTriggers(api, config.trigger ?? {}, diag);
     }
     return api;
 }
@@ -100,7 +100,7 @@ export function createDomAdapter(rootElement?: Element | null, diag?: PxDiagnost
 
             if (elements.length === 0 && !warnedSelectors.has(selector)) {
                 warnedSelectors.add(selector);
-                report.warn('setAttribute: No elements found for selector "' + selector + '"');
+                report.warn(PxDiagnosticKind.host, 'setAttribute: No elements found for selector "' + selector + '"');
             }
 
             for (let i = 0; i < elements.length; i++) {

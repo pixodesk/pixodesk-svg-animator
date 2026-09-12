@@ -129,8 +129,8 @@ export { clampSeekMs, createRunClock, isValidPlaybackRate, progressSpanMs, progr
 export type { PxRunClock } from './playback/PxPlaybackTime';
 
 // The ONE diagnostics channel every player reports through (review §5)
-export { createDiagnostics } from './playback/PxDiagnostics';
-export type { PxDiagnostics, PxDiagnosticsConfig } from './playback/PxDiagnostics';
+export { createDiagnostics, PxDiagnosticKind } from './playback/PxDiagnostics';
+export type { PxDiagnostic, PxDiagnostics, PxDiagnosticsConfig } from './playback/PxDiagnostics';
 
 // Element-creation factory + glyph-text materialiser
 export { jsonElementFactory } from './effects/text/elementFactory';

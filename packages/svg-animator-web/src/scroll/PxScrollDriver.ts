@@ -16,8 +16,8 @@
 // gate to park the listeners entirely while the subject is far outside its range.
 
 import {
-    isScrollTimeline, scrollOffsetProgress, scrollResolveAxis, scrollViewProgress,
-    type PxAnimatorConfig, type PxScroll,
+    createDiagnostics, isScrollTimeline, PxDiagnosticKind, scrollOffsetProgress, scrollResolveAxis, scrollViewProgress,
+    type PxAnimatorConfig, type PxDiagnostics, type PxScroll,
 } from '@pixodesk/svg-animator-core';
 
 
@@ -50,7 +50,10 @@ function nativeRangeOffset(point: { phase?: string; fraction?: number } | undefi
 export function createNativeScrollTimeline(
     subject: Element,
     config: PxAnimatorConfig | undefined,
+    diag?: PxDiagnostics,
 ): PxNativeScrollTimeline | null {
+    // Exported, so the channel is optional and falls back to the console (review §5).
+    const report = diag ?? createDiagnostics(undefined, '[PxAnimator]');
     if (!config || !isScrollTimeline(config)) return null;
     const scroll: PxScroll = config.scroll || {};
     const kind = scroll.kind ?? 'view';
@@ -59,7 +62,7 @@ export function createNativeScrollTimeline(
     // scroll→time mapping) cannot express. Honour the authored LOOK over the perf hint — D8
     // already makes `native` a preference rather than a requirement.
     if (scroll.smoothing) {
-        console.warn('scroll timeline: `smoothing` needs the built-in driver — using the built-in driver instead of the browser timeline');
+        report.warn(PxDiagnosticKind.platform, 'scroll timeline: `smoothing` needs the built-in driver — using the built-in driver instead of the browser timeline');
         return null;
     }
 
@@ -73,7 +76,7 @@ export function createNativeScrollTimeline(
     try {
         if (view) {
             // `scroll.subject` is the same indirection the platform's own ViewTimeline takes.
-            timeline = new Ctor({ subject: resolveScrollSubject(subject, scroll.subject), axis });
+            timeline = new Ctor({ subject: resolveScrollSubject(subject, scroll.subject, report), axis });
         } else {
             const source = scroll.source === 'root'
                 ? documentScroller()
@@ -81,7 +84,7 @@ export function createNativeScrollTimeline(
             timeline = new Ctor({ source, axis });
         }
     } catch (e) {
-        console.warn('scroll timeline: native timeline construction failed — falling back to the player measuring progress itself', e);
+        report.warn(PxDiagnosticKind.platform, 'scroll timeline: native timeline construction failed — falling back to the player measuring progress itself', e);
         return null;
     }
 
@@ -150,7 +153,8 @@ const SUBJECT_SCROLLER = 'scroller';
  * Never throws and never returns null: an unresolvable selector warns and falls back to the
  * `<svg>`, because a silent freeze is indistinguishable from a broken animation.
  */
-export function resolveScrollSubject(svgRoot: Element, subject: string | undefined): Element {
+export function resolveScrollSubject(svgRoot: Element, subject: string | undefined, diag?: PxDiagnostics): Element {
+    const report = diag ?? createDiagnostics(undefined, '[PxAnimator]');
     const spec = subject?.trim();
     if (!spec) return svgRoot;
 
@@ -172,11 +176,13 @@ export function resolveScrollSubject(svgRoot: Element, subject: string | undefin
     try {
         found = document.querySelector(spec);
     } catch {
-        console.warn('scroll timeline: subject "' + spec + '" is not a valid selector — measuring the SVG itself');
+        // `document`: the bad selector is a VALUE IN THE FILE, so the fix is to the document...
+        report.warn(PxDiagnosticKind.document, 'scroll timeline: subject "' + spec + '" is not a valid selector — measuring the SVG itself');
         return svgRoot;
     }
     if (!found) {
-        console.warn('scroll timeline: subject "' + spec + '" matched no element — measuring the SVG itself');
+        // ...whereas a valid selector that matches nothing is the page's business.
+        report.warn(PxDiagnosticKind.host, 'scroll timeline: subject "' + spec + '" matched no element — measuring the SVG itself');
         return svgRoot;
     }
     return found;
@@ -191,15 +197,17 @@ export function createScrollDriver(
     subject: Element,
     config: PxAnimatorConfig | undefined,
     onProgress: (progress: number) => void,
+    diag?: PxDiagnostics,
 ): PxScrollDriver | null {
     if (!config || !isScrollTimeline(config)) return null;
 
+    const report = diag ?? createDiagnostics(undefined, '[PxAnimator]');
     const scroll: PxScroll = config.scroll || {};
     const kind = scroll.kind ?? 'view';
 
     // WHAT is measured (`view` only): the SVG itself by default, or whatever `scroll.subject`
     // names — the pinned-section case measures the wrapper that actually scrolls past.
-    const measured = resolveScrollSubject(subject, scroll.subject);
+    const measured = resolveScrollSubject(subject, scroll.subject, report);
 
     // Scroller resolution (once, at attach): `view` always tracks the nearest scrollport;
     // `scroll` honours `source`. Axis resolves against the SCROLLER's writing mode.

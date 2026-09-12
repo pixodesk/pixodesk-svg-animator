@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import type { PxOutAction, PxAnimatedSvgDocument, PxAnimatorAPI, PxAnimatorConfigPatch, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger, PxStartOn } from '@pixodesk/svg-animator-web';
-import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
+import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, PxDiagnosticKind, type PxDiagnostic, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
 import { useDepsVersion } from './Utils';
@@ -191,7 +191,7 @@ export interface PixodeskSvgAnimatorProps {
      *
      * Without this, these go to `console.warn`.
      */
-    onWarn?: (message: string, detail?: unknown) => void;
+    onWarn?: (diagnostic: PxDiagnostic) => void;
 
     /**
      * Called when the animation could not be produced at all — a document that failed to
@@ -199,10 +199,14 @@ export interface PixodeskSvgAnimatorProps {
      *
      * Without this, these go to `console.error`.
      */
-    onError?: (error: Error) => void;
+    onError?: (diagnostic: PxDiagnostic) => void;
 
-    /** Silence the console FALLBACK above. `onWarn` / `onError` still fire if given. */
-    silent?: boolean;
+    /**
+     * Silence the console FALLBACK above — `true` for everything, or just the kinds listed,
+     * so `platform` chatter can be quiet while `document` problems still speak.
+     * `onWarn` / `onError` still fire if given.
+     */
+    silent?: boolean | ReadonlyArray<PxDiagnosticKind>;
 }
 
 
@@ -238,7 +242,7 @@ export function createReactAdapter(elementRefs: React.RefObject<Map<string, any>
                 warnedSelectors.add(selector);
                 // The element map rides along as the DETAIL rather than a second bare log, so a
                 // handler can inspect it and the console stays readable.
-                diag.warn('setAttribute: No elements found for selector "' + selector + '"', elementRefs.current);
+                diag.warn(PxDiagnosticKind.host, 'setAttribute: No elements found for selector "' + selector + '"', elementRefs.current);
             }
 
             if (element) {
@@ -409,7 +413,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     // state must not repeat the sentence. React Native guards it the same way.
     useEffect(() => {
         const diag = makeDiag();
-        for (const w of modeWarnings) diag.warn(w);
+        for (const w of modeWarnings) diag.warn(PxDiagnosticKind.usage, w);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [modeWarnings.join('|')]);
 
@@ -436,7 +440,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     if (fullPatch !== undefined || resetDocDefaults) {
         const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetDefaults: !!resetDocDefaults });
         const diag = makeDiag();
-        for (const w of applied.warnings) diag.warn('config override: ' + w);
+        for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, 'config override: ' + w);
         doc = applied.doc;
     }
 

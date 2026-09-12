@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxAnimatorConfigPatch, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger } from '@pixodesk/svg-animator-web';
-import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, type PxDiagnostics } from '@pixodesk/svg-animator-web';
+import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldAnimatorConfigShortcuts, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, PxDiagnosticKind, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
     watch,
@@ -76,7 +76,7 @@ function createVueAdapter(elementRefs: Map<string, Element>, diag: PxDiagnostics
 
             if (!element && !warnedSelectors.has(id)) {
                 warnedSelectors.add(id);
-                diag.warn('setAttribute: No elements found for id "' + id + '"');
+                diag.warn(PxDiagnosticKind.host, 'setAttribute: No elements found for id "' + id + '"');
             }
 
             if (element) {
@@ -138,7 +138,7 @@ function applyDocOverrides(
 
     if (fullPatch !== undefined || resetDocDefaults) {
         const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetDefaults: !!resetDocDefaults });
-        for (const w of applied.warnings) diag.warn('config override: ' + w);
+        for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, 'config override: ' + w);
         doc = applied.doc;
     }
 
@@ -226,9 +226,11 @@ const PixodeskSvgAnimator = defineComponent({
         //    these to `emit` would permanently suppress the console fallback for anyone who
         //    never listens. As props, "not given" really is undefined and the console still
         //    speaks by default — the same contract as React and React Native.
-        onWarn: { type: Function as PropType<(message: string, detail?: unknown) => void> },
-        onError: { type: Function as PropType<(error: Error) => void> },
-        silent: { type: Boolean, default: undefined },
+        onWarn: { type: Function as PropType<(diagnostic: PxDiagnostic) => void> },
+        onError: { type: Function as PropType<(diagnostic: PxDiagnostic) => void> },
+        //    `silent` takes `true` or just the kinds to quiet, so `platform` chatter can be
+        //    silenced while `document` problems still speak.
+        silent: { type: [Boolean, Array] as PropType<boolean | ReadonlyArray<PxDiagnosticKind>>, default: undefined },
     },
 
     emits: ['play', 'stop', 'pause', 'cancel', 'finish', 'remove'],
@@ -262,7 +264,7 @@ const PixodeskSvgAnimator = defineComponent({
         // every doc recompute and would repeat the same sentence.
         watch(resolvedMode, r => {
             const diag = makeDiag();
-            for (const w of r.warnings) diag.warn(w);
+            for (const w of r.warnings) diag.warn(PxDiagnosticKind.usage, w);
         }, { immediate: true });
 
         // -- Prepare the document with overrides --------------------------------

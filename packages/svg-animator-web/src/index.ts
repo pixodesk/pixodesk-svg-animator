@@ -92,8 +92,8 @@ export { PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from '
 export type { PxControlProps, PxResolvedControlMode } from '@pixodesk/svg-animator-core';
 
 // The ONE diagnostics channel every player reports through (review §5).
-export { createDiagnostics } from '@pixodesk/svg-animator-core';
-export type { PxDiagnostics, PxDiagnosticsConfig } from '@pixodesk/svg-animator-core';
+export { createDiagnostics, PxDiagnosticKind } from '@pixodesk/svg-animator-core';
+export type { PxDiagnostic, PxDiagnostics, PxDiagnosticsConfig } from '@pixodesk/svg-animator-core';
 export { camelCaseToKebabWordIfNeeded, COLOUR_ATTR_NAMES, STYLE_ATTR_NAMES, toRGBA, TRANSFORM_FN_NAMES } from '@pixodesk/svg-animator-core';
 
 
