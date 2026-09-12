@@ -754,12 +754,13 @@ export interface _PxScroll {
      * `pin` only: WHERE in the scrollport the canvas is held — the alignment the sticky
      * offset is computed from. `top` (default) holds it against the top edge; `center`
      * and `bottom` need the canvas's own height, so the player measures it and keeps the
-     * offset in sync on resize. `pinTop` is added on top of whichever alignment is chosen.
+     * offset in sync on resize. `pinOffset` is added on top of whichever alignment is chosen.
      */
     pinAlign?: 'top' | 'center' | 'bottom';
 
-    /** `pin` only: offset from the alignment position (see `pinAlign`), in px. Default 0. */
-    pinTop?: number;
+    /** `pin` only: offset from the alignment position (see `pinAlign`), in px. Default 0.
+     *  The runtime-view twin of the wire `timeline.pin.offset` (review §2.6). */
+    pinOffset?: number;
 
     /**
      * `pin` only: how much scroll travel the pin should last, in VIEWPORT HEIGHTS — the player
@@ -791,7 +792,7 @@ export const PxScrollSchema = implementsInterface<_PxScroll>()(px.object({
     smoothing: px.number().optional(),
     pin: px.boolean().optional(),
     pinAlign: px.enum(['top', 'center', 'bottom'] as const).optional(),
-    pinTop: px.number().optional(),
+    pinOffset: px.number().optional(),
     pinDistance: px.number().optional(),
     range: PxScrollRangeSchema.optional(),
 }));
@@ -812,13 +813,15 @@ const _ck_PxScroll: KeysMatch<PxScroll, _PxScroll> = true; // the key sets are i
 // out; readers accept BOTH spellings (see `flattenAnimatorTimeline`), writers emit only
 // this one.
 
-/** Pin parameters as one object — presence enables pinning (review §2.2; the flat legacy
- *  spelling is `scroll.pin/pinAlign/pinTop/pinDistance`). */
+/** Pin parameters as one object — presence enables pinning (review §2.2; the flat runtime-view
+ *  spelling is `scroll.pin/pinAlign/pinOffset/pinDistance`). */
 export interface _PxTimelinePin {
     /** Where the pinned canvas sits in the viewport. Default `'top'`. */
     align?: 'top' | 'center' | 'bottom';
-    /** Offset from the alignment position, in px. Default 0. */
-    top?: number;
+    /** Offset from the alignment position, in px. Default 0. Named `offset`, not `top`: it is a
+     *  delta from whichever edge `align` picked, so `{ align: 'bottom', top: 20 }` read as a
+     *  contradiction (review §2.6). */
+    offset?: number;
     /** How much scroll travel the pin lasts, in VIEWPORT HEIGHTS. Omit to pin inside
      *  whatever tall section the host page already provides. */
     distance?: number;
@@ -826,7 +829,7 @@ export interface _PxTimelinePin {
 
 export const PxTimelinePinSchema = implementsInterface<_PxTimelinePin>()(px.object({
     align: px.enum(['top', 'center', 'bottom'] as const).optional(),
-    top: px.number().optional(),
+    offset: px.number().optional(),
     distance: px.number().optional(),
 }));
 export type PxTimelinePin = PxInfer<typeof PxTimelinePinSchema>;

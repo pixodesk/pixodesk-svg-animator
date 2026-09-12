@@ -38,7 +38,7 @@
  "animator.timeline|scroll.pin",
  "animator.timeline|scroll.pin|1.align",
  "animator.timeline|scroll.pin|1.distance",
- "animator.timeline|scroll.pin|1.top",
+ "animator.timeline|scroll.pin|1.offset",
  "animator.timeline|scroll.range",
  "animator.timeline|scroll.range.end",
  "animator.timeline|scroll.range.start",

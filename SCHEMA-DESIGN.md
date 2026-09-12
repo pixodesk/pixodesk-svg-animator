@@ -334,7 +334,7 @@ the whole animation as the SVG crosses the viewport"*:
 | `source` | `nearest` (default) · `root` | `kind: 'scroll'` only — which scroller |
 | `subject` | `'parent'` · `'scroller'` · a CSS selector | `kind: 'view'` only — WHOSE journey is measured (unset = the `<svg>`); `parent` skips sticky/fixed ancestors, which is what makes a pinned section work |
 | `smoothing` | ms | catch-up lag (GSAP `scrub: seconds`); forces `driver: 'custom'` |
-| `pin` · `pinAlign` · `pinTop` · `pinDistance` | bool · `top`/`center`/`bottom` · px · viewport heights | hold the canvas with `position: sticky` while scrolling scrubs it; `pinDistance` injects a spacer wrapper |
+| `pin` · `pinAlign` · `pinOffset` · `pinDistance` | bool · `top`/`center`/`bottom` · px · viewport heights | hold the canvas with `position: sticky` while scrolling scrubs it; `pinDistance` injects a spacer wrapper |
 | `range.start` / `range.end` | `{phase?, fraction?}` | the timeline slice mapped to 0..1; `phase` (view only) ∈ `cover contain entry exit entry-crossing exit-crossing`, default `{cover,0}`→`{cover,1}` |
 
 Pure math in core `PxScrollMath` (`scrollViewProgress`, `scrollOffsetProgress`, …); the DOM half is

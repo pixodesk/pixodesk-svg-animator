@@ -344,13 +344,13 @@ export function applyScrollPin(svgRoot: Element, scroll: PxScroll | undefined): 
     const prevTop = style.top;
     style.position = 'sticky';
 
-    // WHERE it is held: `top` is the alignment position plus the `pinTop` fine-tune.
+    // WHERE it is held: `top` is the alignment position plus the `pinOffset` fine-tune.
     // `center`/`bottom` depend on the canvas's own height AND the scrollport height, neither
     // of which CSS can express for a sticky offset (a `top` percentage resolves against the
     // CONTAINING BLOCK, not the element), so they are measured and re-applied on resize.
     const alignFactor = scroll.pinAlign === 'center' ? 0.5 : scroll.pinAlign === 'bottom' ? 1 : 0;
     const applyTop = (): void => {
-        const extra = scroll.pinTop ?? 0;
+        const extra = scroll.pinOffset ?? 0;
         if (!alignFactor) {
             style.top = extra + 'px';
             return;

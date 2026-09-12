@@ -38,7 +38,7 @@ describe('animator.timeline spelling compat', () => {
         const flat = flattenAnimatorTimeline({
             timeline: {
                 type: 'view', duration: 4000, engine: 'js', axis: 'block', subject: 'parent',
-                smoothing: 120, pin: { align: 'center', top: 24, distance: 600 },
+                smoothing: 120, pin: { align: 'center', offset: 24, distance: 600 },
                 range: { start: { phase: 'entry', fraction: 0.1 } }
             }
         } as any) as any;
@@ -46,7 +46,7 @@ describe('animator.timeline spelling compat', () => {
         expect(flat.engine).toBe('js');
         expect(flat.scroll).toEqual({
             kind: 'view', axis: 'block', subject: 'parent', smoothing: 120,
-            pin: true, pinAlign: 'center', pinTop: 24, pinDistance: 600,
+            pin: true, pinAlign: 'center', pinOffset: 24, pinDistance: 600,
             range: { start: { phase: 'entry', fraction: 0.1 } }
         });
         expect(flattenAnimatorTimeline({ timeline: { type: 'scroll', pin: true } } as any))
@@ -129,12 +129,12 @@ describe('animator.timeline spelling compat', () => {
             trigger: { startOn: 'load' },       // dead under scroll (D3) — dropped by nesting
             engine: 'native',
             scroll: { kind: 'view', axis: 'block', smoothing: 120,
-                      pin: true, pinAlign: 'center', pinTop: 24 }
+                      pin: true, pinAlign: 'center', pinOffset: 24 }
         } as any) as any;
         expect(nested).toEqual({
             timeline: {
                 type: 'view', engine: 'native', duration: 4000, axis: 'block', smoothing: 120,
-                pin: { align: 'center', top: 24 }
+                pin: { align: 'center', offset: 24 }
             }
         });
     });

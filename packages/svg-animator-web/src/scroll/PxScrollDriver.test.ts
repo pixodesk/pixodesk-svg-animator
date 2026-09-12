@@ -283,7 +283,7 @@ describe('createScrollDriver', () => {
             svg.style.top = '3px';
             document.body.append(svg);
 
-            const unpin = applyScrollPin(svg, { pin: true, pinTop: 24 });
+            const unpin = applyScrollPin(svg, { pin: true, pinOffset: 24 });
             expect(svg.style.position).toBe('sticky');
             expect(svg.style.top).toBe('24px');
 

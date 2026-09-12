@@ -21,7 +21,7 @@ const scrollBase = {
     timeline: {
         type: 'view', duration: 4000, axis: 'block', subject: 'parent',
         range: { start: { phase: 'entry', fraction: 0 }, end: { phase: 'exit', fraction: 1 } },
-        pin: { align: 'center', top: 24 },
+        pin: { align: 'center', offset: 24 },
     },
 } as any;
 

@@ -460,7 +460,7 @@ export function flattenAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig
         else if (pin && typeof pin === 'object') {
             scroll.pin = true;
             if (pin.align !== undefined) scroll.pinAlign = pin.align;
-            if (pin.top !== undefined) scroll.pinTop = pin.top;
+            if (pin.offset !== undefined) scroll.pinOffset = pin.offset;
             if (pin.distance !== undefined) scroll.pinDistance = pin.distance;
         }
         flat.scroll = scroll;
@@ -518,11 +518,11 @@ export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
             if (scroll.subject !== undefined) timeline.subject = scroll.subject;
             if (scroll.smoothing !== undefined) timeline.smoothing = scroll.smoothing;
             if (scroll.range !== undefined) timeline.range = scroll.range;
-            const hasPinParams = scroll.pinAlign !== undefined || scroll.pinTop !== undefined || scroll.pinDistance !== undefined;
+            const hasPinParams = scroll.pinAlign !== undefined || scroll.pinOffset !== undefined || scroll.pinDistance !== undefined;
             if (hasPinParams) {
                 timeline.pin = {
                     ...(scroll.pinAlign !== undefined ? { align: scroll.pinAlign } : {}),
-                    ...(scroll.pinTop !== undefined ? { top: scroll.pinTop } : {}),
+                    ...(scroll.pinOffset !== undefined ? { offset: scroll.pinOffset } : {}),
                     ...(scroll.pinDistance !== undefined ? { distance: scroll.pinDistance } : {}),
                 };
             } else if (scroll.pin !== undefined) {
