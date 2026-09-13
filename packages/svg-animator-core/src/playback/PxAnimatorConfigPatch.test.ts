@@ -149,10 +149,10 @@ describe('mergeAnimatorConfig — records and content', () => {
         });
     });
 
-    it('animateById merges by element id', () => {
-        const base = { animateById: { a: ['anim1'], b: ['anim2'] } } as any;
-        const { config } = merge(base, { animateById: { a: ['anim9'] } });
-        expect((config as any).animateById).toEqual({ a: ['anim9'], b: ['anim2'] });
+    it('bindings is a list, so a patched list REPLACES the document\'s (arrays are values)', () => {
+        const base = { bindings: [{ target: '#a', animateWith: ['anim1'] }, { target: '#b', animateWith: ['anim2'] }] } as any;
+        const { config } = merge(base, { bindings: [{ target: '#a', animateWith: ['anim9'] }] });
+        expect((config as any).bindings).toEqual([{ target: '#a', animateWith: ['anim9'] }]);
     });
 });
 
@@ -213,7 +213,7 @@ describe('applyAnimatorConfig — document level', () => {
                 frameRate: 30,
                 timeline: { duration: 1000, iterations: 5, trigger: { startOn: 'click' } },
                 definitions: { fonts: { Inter: { unitsPerEm: 1000 } } },
-                animateById: { r1: ['a0'] },
+                bindings: [{ target: '#r1', animateWith: ['a0'] }],
             },
         } as any;
         const { doc: out } = applyAnimatorConfig(d, { timeline: { duration: 250 } }, { resetDefaults: true });
@@ -221,7 +221,7 @@ describe('applyAnimatorConfig — document level', () => {
         expect(cfg.timeline).toEqual({ duration: 250 });   // nothing of the document's timing survives
         expect(cfg.frameRate).toBeUndefined();
         expect(cfg.definitions.fonts.Inter.unitsPerEm).toBe(1000);   // content kept
-        expect(cfg.animateById).toEqual({ r1: ['a0'] });
+        expect(cfg.bindings).toEqual([{ target: '#r1', animateWith: ['a0'] }]);
     });
 
     it('resetDefaults with NO patch means "play it with vanilla settings"', () => {

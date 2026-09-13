@@ -13,7 +13,7 @@
     <!--
       Mirrors what the Editor's SVG+JS export produces: the SVG is ALREADY rendered
       (elements exist, ids assigned), and the inlined payload carries only
-      `animator.definitions` + `animator.animateById` — no `children`, no `effects`.
+      `animator.definitions` + `animator.bindings` — no `children`, no `effects`.
       `player.js` is whichever pre-rendered bundle the npm script copied in.
     -->
     <svg id="root" viewBox="0 0 200 200" width="200" height="200" xmlns="http://www.w3.org/2000/svg">
@@ -48,7 +48,7 @@
                             }
                         }
                     },
-                    "animateById": { "box": ["a0"] }
+                    "bindings": [{ "target": "#box", "animateWith": ["a0"] }]
                 }
             }
         });

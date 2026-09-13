@@ -157,18 +157,17 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
     collectIds(cloned);
     updateRefs(cloned);
 
-    // Update IDs in the animator.animateById map. Keys are `#id`-spelled
-    // (review §3.2) — strip for the lookup, keep the spelling on the way out.
-    const docAnimate = cloned.animator?.animateById;
-    if (docAnimate && typeof docAnimate === 'object') {
-        const updatedAnimate: Record<string, any> = {};
-        for (const [key, anim] of Object.entries(docAnimate)) {
-            const hashed = key.startsWith('#');
-            const id = hashed ? key.slice(1) : key;
+    // Re-point the bindings of a bind-by-id document. `target` is `#id`-spelled (review
+    // §3.2) — strip for the lookup, keep the spelling on the way out.
+    const docBindings = cloned.animator?.bindings;
+    if (Array.isArray(docBindings)) {
+        const updatedBindings = docBindings.map(binding => {
+            const hashed = binding.target.startsWith('#');
+            const id = hashed ? binding.target.slice(1) : binding.target;
             const newId = idMap.get(id) ?? id;
-            updatedAnimate[hashed ? '#' + newId : newId] = anim;
-        }
-        cloned.animator = { ...cloned.animator, animateById: updatedAnimate };
+            return { ...binding, target: hashed ? '#' + newId : newId };
+        });
+        cloned.animator = { ...cloned.animator, bindings: updatedBindings };
     }
 
     return cloned;

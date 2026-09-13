@@ -41,8 +41,8 @@ const FLAT_ONLY_KEYS = [
     'direction', 'fill', 'resetOnFinish', 'duration', 'mode', 'frameRate',
 ];
 
-/** The lookup tables. They are animation CONTENT, not playback, and are never reset. */
-const CONTENT_KEYS = ['definitions', 'animateById'];
+/** The lookup tables and the bindings. They are animation CONTENT, not playback, and are never reset. */
+const CONTENT_KEYS = ['definitions', 'bindings'];
 
 const isPlainObject = (v: unknown): v is Record<string, any> =>
     !!v && typeof v === 'object' && !Array.isArray(v);
@@ -55,8 +55,8 @@ const isScrollish = (type: string): boolean => type === 'scroll' || type === 'vi
 
 /**
  * RFC 7386 merge with no special cases. Used for every sub-object that has no rule of its own
- * (`trigger`, `range`, `definitions.fonts`, `animateById`, …), which is why patching one font
- * or one element's animation leaves its siblings alone.
+ * (`trigger`, `range`, `definitions.fonts`, …), which is why patching one font leaves its
+ * siblings alone. Arrays are values: a patched `bindings` list replaces the document's whole list.
  */
 function mergePlain(base: unknown, patch: Record<string, any>): Record<string, any> {
     const out: Record<string, any> = isPlainObject(base) ? { ...base } : {};
@@ -148,13 +148,13 @@ export interface PxPlaybackOverrideProps extends PxAnimatorConfigShortcuts {
      * absence means. Also accepts a JSON STRING, which survives a build that mangles object keys.
      *
      * `timeline` is the whole useful override surface: the rest of the `animator` block is
-     * content (`definitions`, `animateById`), a version stamp and a debug handle — none of which
+     * content (`definitions`, `bindings`), a version stamp and a debug handle — none of which
      * a per-instance override should touch. That is why this is not a wrapper object.
      */
     timeline?: PxTimelinePatch | string;
     /**
      * Ignore the document's own timeline and start from the player's DEFAULT timeline, with
-     * `timeline` on top. `definitions` and `animateById` are content and are kept either way.
+     * `timeline` on top. `definitions` and `bindings` are content and are kept either way.
      */
     resetTimeline?: boolean;
 }
@@ -244,7 +244,7 @@ export function mergeAnimatorConfig(
  *
  * `resetDefaults` starts from the player's own defaults instead of the document's playback
  * settings — "play this file as if it said nothing about timing". The lookup tables are kept
- * either way: resetting `definitions`/`animateById` would leave an animation with nothing to
+ * either way: resetting `definitions`/`bindings` would leave an animation with nothing to
  * animate, which is never what a caller means.
  */
 export function applyAnimatorConfig(

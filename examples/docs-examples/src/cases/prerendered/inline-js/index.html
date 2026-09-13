@@ -8,7 +8,7 @@
   </head>
   <body>
     <h1>Flavor 3 — SVG + JS animation</h1>
-    <p class="summary">The editor's <em>SVG + JS animation</em> export of the same ball, with the <em>Embed JS player</em> option off: the SVG is already rendered, and its own <code>&lt;script&gt;</code> hands the player a bindings-only payload — <code>animator.definitions</code> + <code>animateById</code>, no <code>children</code>. The page loads the player library first; with the option on, the editor inlines it into that script instead.</p>
+    <p class="summary">The editor's <em>SVG + JS animation</em> export of the same ball, with the <em>Embed JS player</em> option off: the SVG is already rendered, and its own <code>&lt;script&gt;</code> hands the player a bindings-only payload — <code>animator.definitions</code> + <code>bindings</code>, no <code>children</code>. The page loads the player library first; with the option on, the editor inlines it into that script instead.</p>
 
     <script src="../../../../js/pixodesk-svg-animator.umd.min.js"></script>
     <div class="stage">
@@ -18,7 +18,7 @@
       //<![CDATA[
       (function() {
       var a = PixodeskAnimator.createAnimator({"doc": 
-      {"id":"_px_1","type":"svg","animator":{"definitions":{"animations":{"a0":{"transform":{"keyframes":[{"time":0,"value":{"translate":[200,60]},"easing":[0.33,0,0.67,0.33]},{"time":1000,"value":{"translate":[200,340]}}]}}}},"animateById":{"ball":["a0"]},"timeline":{"mode":"auto","duration":1000,"iterations":"infinite","direction":"alternate","trigger":{"startOn":"load","outAction":"pause"}}}}
+      {"id":"_px_1","type":"svg","animator":{"definitions":{"animations":{"a0":{"transform":{"keyframes":[{"time":0,"value":{"translate":[200,60]},"easing":[0.33,0,0.67,0.33]},{"time":1000,"value":{"translate":[200,340]}}]}}}},"bindings":[{"target":"#ball","animateWith":["a0"]}],"timeline":{"mode":"auto","duration":1000,"iterations":"infinite","direction":"alternate","trigger":{"startOn":"load","outAction":"pause"}}}}
       });
       })();
       //]]>

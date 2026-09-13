@@ -72,7 +72,7 @@ function createAnimatorImpl(
     // The per-instance override, applied BEFORE anything reads the config. Everything below
     // depends on the final values: `timeline.engine` picks the engine, `duration` drives loop
     // expansion and motion-path sampling in `materializeAllInTree`, and `generateNewIds`
-    // rewrites `animateById` keys — a late patch would be read by none of them.
+    // rewrites binding targets — a late patch would be read by none of them.
     if (patch !== undefined || resetTimeline) {
         const patched = applyAnimatorConfig(doc, patch ?? {}, { resetDefaults: !!resetTimeline });
         for (const w of patched.warnings) diag.warn(PxDiagnosticKind.usage, 'timeline override: ' + w);

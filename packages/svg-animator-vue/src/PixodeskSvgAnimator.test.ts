@@ -322,16 +322,15 @@ function getTestJson(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            animateById: {
-                '_px_2pp00tnc': {
-                    translate: {
-                        keyframes: [
-                            { time: 0, value: [200, 100], easing: [0.167, 0.167, 0.833, 0.833] },
-                            { time: 128, value: [200, 200] }
-                        ]
-                    }
+            definitions: { animations: { a0: {
+                translate: {
+                    keyframes: [
+                        { time: 0, value: [200, 100], easing: [0.167, 0.167, 0.833, 0.833] },
+                        { time: 128, value: [200, 200] }
+                    ]
                 }
-            },
+            } } },
+            bindings: [{ target: '#_px_2pp00tnc', animateWith: ['a0'] }],
             timeline: {
                 engine: "js",
                 duration: 128,
@@ -364,16 +363,15 @@ function getTestJson1000(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            animateById: {
-                '_px_2pp00tnc': {
-                    translate: {
-                        keyframes: [
-                            { time: 0, value: [200, 100], easing: [0.167, 0.167, 0.833, 0.833] },
-                            { time: 1000, value: [200, 200] }
-                        ]
-                    }
+            definitions: { animations: { a0: {
+                translate: {
+                    keyframes: [
+                        { time: 0, value: [200, 100], easing: [0.167, 0.167, 0.833, 0.833] },
+                        { time: 1000, value: [200, 200] }
+                    ]
                 }
-            },
+            } } },
+            bindings: [{ target: '#_px_2pp00tnc', animateWith: ['a0'] }],
             timeline: {
                 engine: "js",
                 duration: 1000,
@@ -432,16 +430,15 @@ function getTreeJson(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            animateById: {
-                '_px_tree_ell': {
-                    translate: {
-                        keyframes: [
-                            { time: 0, value: [200, 100], easing: [0.167, 0.167, 0.833, 0.833] },
-                            { time: 128, value: [200, 200] }
-                        ]
-                    }
+            definitions: { animations: { a0: {
+                translate: {
+                    keyframes: [
+                        { time: 0, value: [200, 100], easing: [0.167, 0.167, 0.833, 0.833] },
+                        { time: 128, value: [200, 200] }
+                    ]
                 }
-            },
+            } } },
+            bindings: [{ target: '#_px_tree_ell', animateWith: ['a0'] }],
             timeline: {
                 engine: "js",
                 duration: 128,
@@ -489,16 +486,15 @@ function getRectJson(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            animateById: {
-                '_px_rect_b': {
-                    translate: {
-                        keyframes: [
-                            { time: 0, value: [0, 0], easing: [0.167, 0.167, 0.833, 0.833] },
-                            { time: 128, value: [100, 0] }
-                        ]
-                    }
+            definitions: { animations: { a0: {
+                translate: {
+                    keyframes: [
+                        { time: 0, value: [0, 0], easing: [0.167, 0.167, 0.833, 0.833] },
+                        { time: 128, value: [100, 0] }
+                    ]
                 }
-            },
+            } } },
+            bindings: [{ target: '#_px_rect_b', animateWith: ['a0'] }],
             timeline: {
                 engine: "js",
                 duration: 128,

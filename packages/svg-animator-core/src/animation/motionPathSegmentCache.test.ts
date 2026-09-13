@@ -34,7 +34,7 @@ const mkDoc = (): PxAnimatedSvgDocument => ({
             { time: 500, value: { translate: APEX }, tangentOut: [23.4667, -0.6531], tangentIn: [-23.4668, 0.6532] },
             { time: 750, value: { translate: END } },
         ] } } } },
-        animateById: { el1: ['a0'] },
+        bindings: [{ target: '#el1', animateWith: ['a0'] }],
         timeline: {
             engine: 'js',
             duration: 1000,

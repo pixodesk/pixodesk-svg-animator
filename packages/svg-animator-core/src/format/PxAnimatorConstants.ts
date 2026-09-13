@@ -765,13 +765,10 @@ export function getDefs(doc: PxAnimatedSvgDocument): PxDefs | undefined {
     return getAnimatorConfig(doc)?.definitions;
 }
 
+/** The bind-by-id document's `animator.bindings`, as written — `target` keeps its `#`. */
 export function getBindings(doc: PxAnimatedSvgDocument): PxBinding[] | undefined {
     if (!doc) return undefined;
-    const animateById = getAnimatorConfig(doc)?.animateById;
-    if (!animateById) return undefined;
-    // Keys are `#id`-spelled (review §3.2 — EVERY element reference carries the hash,
-    // record keys included); the binding id is the bare DOM id.
-    return Object.entries(animateById).map(([id, anim]) => ({ id: id.startsWith('#') ? id.slice(1) : id, animate: anim }));
+    return getAnimatorConfig(doc)?.bindings;
 }
 
 

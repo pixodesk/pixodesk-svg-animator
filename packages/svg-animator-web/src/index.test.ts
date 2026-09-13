@@ -47,8 +47,8 @@ describe('animateBackground', () => {
         // Through `timeline`, which is where the wire format keeps it: a flat `animator.duration`
         // sibling is silently overwritten by `timeline.duration` when the config is flattened.
         json.animator!.timeline!.duration = 256;
-        // Add loop:true to the translate property
-        (json.animator!.animateById as any)['_px_2pp00tnc']['translate'].loop = true;
+        // Add loop:true to the translate property (the ellipse's binding animates with `a0`)
+        (json.animator!.definitions!.animations as any)['a0']['translate'].loop = true;
 
         createAnimator({ doc: json, container: '#svg-container' });
 
@@ -449,17 +449,16 @@ describe('Loop expansion', () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg',
             animator: {
-                animateById: {
-                    'el1': {
-                        opacity: {
-                            keyframes: [
-                                { time: 0, value: 0 },
-                                { time: 100, value: 1 }
-                            ],
-                            loop: true
-                        }
+                definitions: { animations: { a0: {
+                    opacity: {
+                        keyframes: [
+                            { time: 0, value: 0 },
+                            { time: 100, value: 1 }
+                        ],
+                        loop: true
                     }
-                },
+                } } },
+                bindings: [{ target: '#el1', animateWith: ['a0'] }],
                 timeline: {
                     duration: 100,
                 },
@@ -485,17 +484,16 @@ describe('Loop expansion', () => {
         const doc: PxAnimatedSvgDocument = {
             type: 'svg',
             animator: {
-                animateById: {
-                    'el1': {
-                        transform: {
-                            keyframes: [
-                                { time: 150, value: { translate: [0, 0] } },
-                                { time: 250, value: { translate: [100, 0] } }
-                            ],
-                            loop: { repeatAt: 'start' }
-                        }
+                definitions: { animations: { a0: {
+                    transform: {
+                        keyframes: [
+                            { time: 150, value: { translate: [0, 0] } },
+                            { time: 250, value: { translate: [100, 0] } }
+                        ],
+                        loop: { repeatAt: 'start' }
                     }
-                },
+                } } },
+                bindings: [{ target: '#el1', animateWith: ['a0'] }],
                 timeline: {
                     duration: 250,
                 },
@@ -961,16 +959,15 @@ function getTestJson(): PxAnimatedSvgDocument {
         viewBox: '0 0 400 400',
 
         animator: {
-            animateById: {
-                '_px_2pp00tnc': {
-                    translate: {
-                        keyframes: [
-                            { time: 0, value: [200, 100], easing: [0.167, 0.167, 0.833, 0.833] },
-                            { time: 128, value: [200, 200] }
-                        ]
-                    }
+            definitions: { animations: { a0: {
+                translate: {
+                    keyframes: [
+                        { time: 0, value: [200, 100], easing: [0.167, 0.167, 0.833, 0.833] },
+                        { time: 128, value: [200, 200] }
+                    ]
                 }
-            },
+            } } },
+            bindings: [{ target: '#_px_2pp00tnc', animateWith: ['a0'] }],
             timeline: {
                 engine: 'js',
                 duration: 128,

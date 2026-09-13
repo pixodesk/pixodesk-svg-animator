@@ -259,7 +259,7 @@ properties actually change over time.
 |---|---|---|
 | `svg`, `g`, `defs` | ✅ | |
 | `rect`, `circle`, `ellipse`, `line`, `path`, `polygon`, `polyline` | ✅ | |
-| `text`, `tspan` | ✅ | content via the `text` attribute |
+| `text`, `tspan` | ✅ | content via `textContent` |
 | `textPath` | ✅ | see *Text along a path* below |
 | `image` | ✅ | `href` accepts `data:` URIs; remote URLs are blocked by the sanitizer |
 | `use`, `symbol` | ✅ | animated targets are **inlined into real clones** before render — `<use>` does not propagate animation natively in React Native |

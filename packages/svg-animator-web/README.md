@@ -156,7 +156,7 @@ same shape as the JSON export. It comes in two modes:
 
 - **Self-contained document** — has `children`: the player renders the SVG tree and animates it.
 - **Bind-by-id document** — no `children`: the player animates a pre-existing SVG DOM, mapping
-  element ids to animation specs via `animator.animateById`.
+  each `bindings` entry names an element (`target`, `#id`) and the named animations it plays (`animateWith`).
 
 Elements may also carry a `node.effects` bucket (structural effects such as
 `transformBy`, `repeater`, `maskedBy`, `strokeTrim`, `clone`, `fillGradient` /

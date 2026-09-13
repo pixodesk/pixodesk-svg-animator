@@ -4,7 +4,7 @@
 //<![CDATA[
 (function() {
 var a = PixodeskAnimator.createAnimator({"data": 
-{"id":"_px_1","type":"svg","animator":{"definitions":{"animations":{"a0":{"transform":{"keyframes":[{"time":0,"value":{"translate":[200,60]},"easing":[0.33,0,0.67,0.33]},{"time":1000,"value":{"translate":[200,340]}}]}}}},"animateById":{"ball":["a0"]},"timeline":{"mode":"auto","duration":1000,"iterations":"infinite","trigger":{"startOn":"load","outAction":"pause"},"direction":"alternate"}}}
+{"id":"_px_1","type":"svg","animator":{"definitions":{"animations":{"a0":{"transform":{"keyframes":[{"time":0,"value":{"translate":[200,60]},"easing":[0.33,0,0.67,0.33]},{"time":1000,"value":{"translate":[200,340]}}]}}}},"bindings":[{"target":"#ball","animateWith":["a0"]}],"timeline":{"mode":"auto","duration":1000,"iterations":"infinite","trigger":{"startOn":"load","outAction":"pause"},"direction":"alternate"}}}
 });
 })();
 //]]>

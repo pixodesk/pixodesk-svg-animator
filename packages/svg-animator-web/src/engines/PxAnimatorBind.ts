@@ -160,7 +160,7 @@ export function bindWithEngineChoice(
 export interface PxPrerenderedOptions extends PxComponentCallbacks {
     /**
      * The animation document. For a pre-rendered SVG this carries `animator.definitions`
-     * and `animator.animateById` only — no `children`, because the elements are already
+     * and `animator.bindings` only — no `children`, because the elements are already
      * in the DOM.
      */
     doc: PxAnimatedSvgDocument;
@@ -178,7 +178,7 @@ function requireDoc(options: PxPrerenderedOptions): PxAnimatedSvgDocument {
  *
  * Deliberately skips `validateNodeEffects`, `materializeAllInTree`, `generateNewIds` and
  * `renderNode`. Safe because the payload has no `children`, so all four are provably
- * no-ops for this document shape — and none of them reads `animator.animateById`.
+ * no-ops for this document shape — and none of them reads `animator.bindings`.
  */
 export function createPrerenderedAnimator(options: PxPrerenderedOptions): PxAnimatorAPI {
     return bindWithEngineChoice(requireDoc(options), options.adapter, toEngineCallbacks(options), null);

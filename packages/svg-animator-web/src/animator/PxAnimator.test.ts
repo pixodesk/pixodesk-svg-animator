@@ -211,11 +211,10 @@ describe('generateNewIds', () => {
             type: 'svg',
             id: 'root1',
             animator: {
-                animateById: {
-                    'rect1': {
-                        opacity: { keyframes: [{ time: 0, value: 0 }, { time: 100, value: 1 }] },
-                    },
-                },
+                definitions: { animations: { fade: {
+                    opacity: { keyframes: [{ time: 0, value: 0 }, { time: 100, value: 1 }] },
+                } } },
+                bindings: [{ target: '#rect1', animateWith: ['fade'] }],
                 timeline: {
                     duration: 100,
                 },
@@ -239,7 +238,7 @@ describe('generateNewIds', () => {
         // Original untouched.
         expect(doc.id).toBe('root1');
         expect(doc.children![1].id).toBe('rect1');
-        expect(Object.keys(doc.animator!.animateById!)).toEqual(['rect1']);
+        expect(doc.animator!.bindings![0].target).toBe('#rect1');
 
         // All ids regenerated with the _px_ prefix.
         const newRectId = out.children![1].id as string;
@@ -263,13 +262,13 @@ describe('generateNewIds', () => {
         expect(out.children![1].fill).toBe('url(#' + newGradId + ')');
     });
 
-    it('remaps animator.animateById keys to the new ids', () => {
+    it('re-points animator.bindings targets at the new ids', () => {
         const out = generateNewIds(makeRefDoc());
 
         const newRectId = out.children![1].id as string;
-        const animate = out.animator!.animateById!;
-        expect(Object.keys(animate)).toEqual([newRectId]);
-        expect(animate[newRectId]).toEqual({
+        expect(out.animator!.bindings).toEqual([{ target: '#' + newRectId, animateWith: ['fade'] }]);
+        // the named animation itself is untouched
+        expect(out.animator!.definitions!.animations!.fade).toEqual({
             opacity: { keyframes: [{ time: 0, value: 0 }, { time: 100, value: 1 }] },
         });
     });

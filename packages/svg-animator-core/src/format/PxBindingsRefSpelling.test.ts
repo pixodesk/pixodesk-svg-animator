@@ -3,33 +3,41 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// Reference spelling (review §3.2): EVERY element reference is `#id`-spelled —
-// record keys included. `animator.animateById` keys carry the hash on the wire;
-// consumers get bare DOM ids.
+// Reference spelling (review §3.2): EVERY element reference is `#id`-spelled. A binding's
+// `target` carries the hash on the wire; the engines get bare DOM ids (review 2.12).
 
 import { describe, expect, it } from 'vitest';
 import { getBindings } from './PxAnimatorConstants';
+import { getNormalizedBindings } from '../animation/PxDefinitions';
 import { generateNewIds } from '../util/PxIdUtil';
 
-describe('animateById — #id-spelled keys (review §3.2)', () => {
+const doc = () => ({
+    type: 'svg',
+    children: [{ type: 'rect', id: 'ball' }],
+    animator: {
+        definitions: { animations: { fadeIn: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } } } },
+        bindings: [{ target: '#ball', animateWith: ['fadeIn'] }],
+    },
+} as never);
 
-    it('getBindings strips the hash — binding ids are bare DOM ids', () => {
-        const bindings = getBindings({
-            type: 'svg',
-            animator: { animateById: { '#ball': 'fadeIn' } },
-        } as never);
-        expect(bindings).toEqual([{ id: 'ball', animate: 'fadeIn' }]);
+describe('bindings — #id-spelled targets (review §3.2, 2.12)', () => {
+
+    it('getBindings returns the list as written — the target keeps its hash', () => {
+        expect(getBindings(doc())).toEqual([{ target: '#ball', animateWith: ['fadeIn'] }]);
     });
 
-    it('generateNewIds rewrites a hashed key and keeps its spelling', () => {
-        const out: any = generateNewIds({
-            type: 'svg',
-            children: [{ type: 'rect', id: 'ball' }],
-            animator: { animateById: { '#ball': 'fadeIn' } },
-        } as never);
-        const keys = Object.keys(out.animator.animateById);
-        expect(keys).toHaveLength(1);
-        expect(keys[0].startsWith('#')).toBe(true);
-        expect(keys[0].slice(1)).toBe(out.children[0].id); // still points at the (renamed) element
+    it('getNormalizedBindings resolves the names and strips the hash — engines get bare DOM ids', () => {
+        const [binding] = getNormalizedBindings(doc());
+        expect(binding.id).toBe('ball');
+        expect(Object.keys(binding.animate)).toEqual(['opacity']);
+    });
+
+    it('generateNewIds rewrites a hashed target and keeps its spelling', () => {
+        const out: any = generateNewIds(doc());
+        expect(out.animator.bindings).toHaveLength(1);
+        const target: string = out.animator.bindings[0].target;
+        expect(target.startsWith('#')).toBe(true);
+        expect(target.slice(1)).toBe(out.children[0].id); // still points at the (renamed) element
+        expect(out.animator.bindings[0].animateWith).toEqual(['fadeIn']);
     });
 });

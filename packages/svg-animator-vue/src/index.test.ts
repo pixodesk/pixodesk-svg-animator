@@ -52,20 +52,17 @@ function getTestJson(): PxAnimatedSvgDocument {
         viewBox: "0 0 400 400",
 
         animator: {
-            // Animations bound to elements live under `animator.animateById` keyed
-            // by element id — `getBindings` consumes this shape. (The earlier
-            // top-level `bindings: [...]` form was removed in the file-format
-            // refactor; player ignored it silently → animation never started.)
-            animateById: {
-                '_px_2pp00tnc': {
-                    translate: {
-                        keyframes: [
-                            { time: 0, value: [200, 100], easing: [0.167, 0.167, 0.833, 0.833] },
-                            { time: 128, value: [200, 200] }
-                        ]
-                    }
+            // A bind-by-id document: the named animation lives in `definitions.animations`,
+            // `bindings` says which element plays it (review 2.12).
+            definitions: { animations: { a0: {
+                translate: {
+                    keyframes: [
+                        { time: 0, value: [200, 100], easing: [0.167, 0.167, 0.833, 0.833] },
+                        { time: 128, value: [200, 200] }
+                    ]
                 }
-            },
+            } } },
+            bindings: [{ target: '#_px_2pp00tnc', animateWith: ['a0'] }],
             timeline: {
                 engine: "js",
                 duration: 128,

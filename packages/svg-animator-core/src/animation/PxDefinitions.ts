@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxBezierPath, type PxBinding, type PxDefs, type PxElementAnimation, type PxKeyframe, type PxNormalizedKeyframe, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts, kfTime, kfValue, kfEasing, kfTangentIn, kfTangentOut } from '../format/PxAnimatorTypes';
+import { type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxBezierPath, type PxNormalizedBinding, type PxBinding, type PxDefs, type PxElementAnimation, type PxKeyframe, type PxNormalizedKeyframe, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts, kfTime, kfValue, kfEasing, kfTangentIn, kfTangentOut } from '../format/PxAnimatorTypes';
 import { getBindings, getDefs, TRANSFORM_ATTR } from '../format/PxAnimatorConstants';
 import { getAnimatorConfig, PxTimelineEngine, PxLoopDirection, PxLoopRepeatAt } from '../format/PxAnimatorConstants';
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, parseTransformParts, PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
@@ -1014,22 +1014,19 @@ function normalizeAnimationDefinition(
 export function getNormalizedBindings(
     doc: PxAnimatedSvgDocument,
     engine: PxTimelineEngine = PxTimelineEngine.native,
-): PxBinding[] {
+): PxNormalizedBinding[] {
     const animatorConfig = getAnimatorConfig(doc) || {};
     const defs = getDefs(doc);
     const duration = animatorConfig.duration || 1000; // FIXME - get rid of 1000 here
 
-    const bindings: PxBinding[] = [];
+    const bindings: PxNormalizedBinding[] = [];
 
-    // Helper to resolve and normalize animation for a binding
+    // Helper to merge and normalize the resolved animation definitions of one element
     const processAnimation = (
         id: string,
-        animate: PxElementAnimation | undefined,
+        animDefs: PxAnimationDefinition[],
         staticTransform?: unknown,
-    ): PxBinding | null => {
-        if (!animate) return null;
-
-        const animDefs = resolveElementAnimation(animate, defs);
+    ): PxNormalizedBinding | null => {
         if (animDefs.length === 0) return null;
 
         // CSS transform precedence (review §0.4/§1.6): the node's static transform
@@ -1046,11 +1043,16 @@ export function getNormalizedBindings(
         };
     };
 
-    // Process bindings (for pre-rendered DOM)
+    // Process bindings (for pre-rendered DOM): `target` is `#id`-spelled on the wire (every
+    // element reference carries the hash — review §3.2); the engines get the bare DOM id.
     const docBindings = getBindings(doc);
     if (docBindings) {
         for (const binding of docBindings) {
-            const normalized = processAnimation(binding.id, binding.animate);
+            const id = binding.target.startsWith('#') ? binding.target.slice(1) : binding.target;
+            const animDefs = binding.animateWith
+                .map(name => resolveAnimation(name, defs))
+                .filter((d): d is PxAnimationDefinition => !!d);
+            const normalized = processAnimation(id, animDefs);
             if (normalized) bindings.push(normalized);
         }
     }
@@ -1067,7 +1069,7 @@ export function getNormalizedBindings(
         if (inlineAnim && Object.keys(inlineAnim).length > 0) {
             const nodeId = node.id || generateElementId();
             node.id = nodeId; // Ensure the node has an ID
-            const normalized = processAnimation(nodeId, inlineAnim, node.transform);
+            const normalized = processAnimation(nodeId, resolveElementAnimation(inlineAnim, defs), node.transform);
             if (normalized) bindings.push(normalized);
         }
 

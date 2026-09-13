@@ -60,6 +60,7 @@ export type {
     PxAttrValue,
     PxBezierPath,
     PxBinding,
+    PxNormalizedBinding,
     PxDefs,
     PxElementAnimation,
     PxGlyph,

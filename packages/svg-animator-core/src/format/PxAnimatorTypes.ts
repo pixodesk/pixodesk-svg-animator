@@ -1018,17 +1018,14 @@ export interface _PxAnimatorConfig {
     definitions?: PxDefs;
 
     /**
-     * Animation map for pre-rendered SVG elements (bind-by-id documents, no `children`) — `node.animate` HOISTED
-     * to the root and keyed by element id, for when the SVG DOM already exists and the
-     * player only needs to bind to it.
+     * The bind-by-id document (a pre-rendered SVG + JS export, no `children`): the elements
+     * already exist as markup, so instead of carrying them again the document lists WHICH
+     * element plays WHICH named animations — see {@link _PxBinding}. Written by the editor's
+     * exporter only; a self-contained document keeps its keyframes on the nodes (`node.animate`).
      *
-     * The value type is identical to `node.animate` (`PxElementAnimation`); only the
-     * KEYSPACE differs — attr name there, element id here — which is what the `ById`
-     * suffix names (N2; same pattern as `transform` → `transformBy`).
-     *
-     * @example { "_px_abc": { opacity: { keyframes: [...] } }, "_px_def": ["fadeIn"] }
+     * @example [{ target: "#_px_3cnuvau3", animateWith: ["a0"] }]
      */
-    animateById?: Record<string, PxElementAnimation>;
+    bindings?: Array<PxBinding>;
 
     /**
      * RUNTIME VIEW ONLY (not wire) — what ADVANCES the animation. `'time'` (default)
@@ -1073,6 +1070,47 @@ export interface _PxAnimatorConfig {
     version?: string;
 }
 
+// ============================================================================
+// BINDINGS — the bind-by-id document (a pre-rendered SVG + JS export)
+// ============================================================================
+
+/**
+ * One binding: WHICH element (`target`, `#id`-spelled like every element reference) plays
+ * WHICH named animations (`animateWith` — names into `definitions.animations`, applied in
+ * order, always an array).
+ *
+ * `…With` is the format's naming convention for "by name, from `definitions`" (review 2.12):
+ * a bare key holds the thing itself (`node.animate` holds keyframes); `<key>With` holds an
+ * ARRAY of names of the same concept (`animateWith` → `definitions.animations`). Two kinds of
+ * reference, two spellings — `source` / `target` point at ELEMENTS (`#id`), `…With` points at
+ * DEFINITIONS. Nothing else uses the convention yet; it is written down here so the next
+ * key that refers to a definition by name spells it the same way.
+ */
+export interface _PxBinding {
+    /** The element to animate — `'#id'`. */
+    target: string;
+    /** Names into `definitions.animations`, applied in order. */
+    animateWith: Array<string>;
+}
+
+export const PxBindingSchema = implementsInterface<_PxBinding>()(px.object({
+    target: px.string(),
+    animateWith: px.array(px.string()),
+}));
+
+export type PxBinding = PxInfer<typeof PxBindingSchema>;
+const _ck_PxBinding: KeysMatch<PxBinding, _PxBinding> = true; // the key sets are identical
+
+/**
+ * RUNTIME VIEW ONLY (not wire) — a binding once `getNormalizedBindings` has resolved it: the
+ * bare DOM id and the merged, normalized animation. A self-contained document yields the same
+ * shape from every animated node, so the engines never see which kind of document they play.
+ */
+export interface PxNormalizedBinding {
+    id: string;
+    animate: PxAnimationDefinition;
+}
+
 // The WIRE format (review §2.1): playback dynamics live only inside `timeline` —
 // the flat spelling (`trigger`/`delay`/`iterations`/`fill`/`direction`/`resetOnFinish`/
 // `timelineSource`/`scroll`) is NOT part of the format. It exists only as the internal
@@ -1083,7 +1121,7 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
     // THE spelling of "what advances progress" — clock / scroll / view (review §2.1).
     timeline: PxTimelineSchema.optional(),
     definitions: PxDefsSchema.optional(),
-    animateById: px.record(PxElementAnimationSchema).optional(),
+    bindings: px.array(PxBindingSchema).optional(),
     debugGlobalName: px.string().optional(),
     // Declared HERE because this is a closed object: an undeclared key would be stripped by
     // `sanitize` and flagged by strict validation on our own files.
@@ -1100,36 +1138,6 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
  */
 export type PxAnimatorConfig = _PxAnimatorConfig;
 
-
-// ============================================================================
-// BINDING
-// ============================================================================
-
-/**
- * Binds animations to existing DOM elements by ID.
- * Used when the SVG tree is pre-rendered and animations are applied separately.
- */
-export interface _PxBinding {
-
-    /** ID targeting elements in the DOM (data-px-id="...") */
-    id: string;
-
-    /** Animation to apply to matched elements */
-    animate: PxElementAnimation;
-}
-
-// `{ id:string, animate:ElementAnimation }`
-export const PxBindingSchema = implementsInterface<_PxBinding>()(px.object({
-    id: px.string(),
-    animate: PxElementAnimationSchema,
-}));
-
-/**
- * Binds animations to existing DOM elements via CSS selectors.
- * Used when the SVG tree is pre-rendered and animations are applied separately.
- */
-export type PxBinding = PxInfer<typeof PxBindingSchema>;
-const _ck_PxBinding: KeysMatch<PxBinding, _PxBinding> = true; // the key sets are identical
 
 
 // ============================================================================
@@ -1217,7 +1225,7 @@ export interface _PxNode {
 
     /**
      * In-place property animations for this element. Same shape as the
-     * `animator.animateById` map values: string ref, array of refs, inline
+     * `node.animate` values: string ref, array of refs, inline
      * definition (`{propName: PxPropertyAnimation}`), or mixed array.
      * The static initial value of an animated property is still carried as a
      * plain attribute on the body.
@@ -1885,7 +1893,7 @@ export const PxNodeBase = px.openObject({
     effects: PxEffectsSchema.optional(),
     // `PxElementAnimation` (not just `PxAnimationDefinition`) — accepts
     // string ref / array of refs / inline definition / mixed array; mirrors
-    // `animator.animateById` map values and what `processNode` resolves at runtime.
+    // `node.animate` values and what `processNode` resolves at runtime.
     animate: PxElementAnimationSchema.optional(),
     style: px.union([px.string(), px.record(px.union([px.string(), px.number()]))]).optional(),
 }, PxAttrValueSchema);
