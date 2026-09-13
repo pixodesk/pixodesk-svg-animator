@@ -29,7 +29,7 @@
 import { bezier2D_arcAtT, bezier2D_arcLengthLUT, bezier2D_derivativeAt, bezier2D_pointAt, clamp, invertEasing, splitEasing } from '../util/PxAnimatorUtil';
 import type { ArcLengthLUT } from '../util/PxAnimatorUtil';
 import type { PxAnyKeyframe, PxKeyframe, PxNormalizedKeyframe, PxNode, PxPropertyAnimation, PxTransformParts } from '../format/PxAnimatorTypes';
-import { kfTime, kfValue, kfEasing, kfTangentIn, kfTangentOut } from '../format/PxAnimatorTypes';
+import { keyframeTime, keyframeValue, keyframeEasing, keyframeTangentIn, keyframeTangentOut } from '../format/PxAnimatorTypes';
 
 
 type Point2 = [number, number];
@@ -37,7 +37,7 @@ type Easing = [number, number, number, number];
 
 
 function getKfTranslate(kf: PxAnyKeyframe): Point2 | undefined {
-    const v = kfValue(kf);
+    const v = keyframeValue(kf);
     if (!v) return undefined;
     if (Array.isArray(v) && v.length >= 2 && typeof v[0] === 'number' && typeof v[1] === 'number') {
         // Composite per-part shape: `value: [x, y]` directly.
@@ -49,11 +49,11 @@ function getKfTranslate(kf: PxAnyKeyframe): Point2 | undefined {
 }
 
 function getKfTime(kf: PxAnyKeyframe): number {
-    return kfTime(kf) as number;
+    return keyframeTime(kf) as number;
 }
 
 function getKfEasing(kf: PxAnyKeyframe): Easing | undefined {
-    return kfEasing(kf) as Easing | undefined;
+    return keyframeEasing(kf) as Easing | undefined;
 }
 
 
@@ -69,7 +69,7 @@ export function propAnimIsMotionPath(anim: PxPropertyAnimation): boolean {
     if (!Array.isArray(kfs)) return false;
     if (anim.autoOrient) return true;
     for (const kf of kfs) {
-        if (kfTangentIn(kf) || kfTangentOut(kf)) return true;
+        if (keyframeTangentIn(kf) || keyframeTangentOut(kf)) return true;
     }
     return false;
 }
@@ -106,8 +106,8 @@ function getSegmentCache(
     let byNext = _segmentCache.get(prevKf);
     const existing = byNext?.get(nextKf);
     if (existing) return existing;
-    const to = kfTangentOut(prevKf);
-    const ti = kfTangentIn(nextKf);
+    const to = keyframeTangentOut(prevKf);
+    const ti = keyframeTangentIn(nextKf);
     const P1: Point2 = [prevPos[0] + (to ? to[0] : 0), prevPos[1] + (to ? to[1] : 0)];
     const P2: Point2 = [nextPos[0] + (ti ? ti[0] : 0), nextPos[1] + (ti ? ti[1] : 0)];
     const lut = bezier2D_arcLengthLUT(prevPos, P1, P2, nextPos);
@@ -131,7 +131,7 @@ export function _resetMotionPathSegmentCache(): void {
 // ─────────────────────────────────────────────────────────────────────────────
 //  Frames-mode kernel — preserved for any caller that still wants parametric
 //  evaluation. The binding pipeline no longer needs it (motion-path is
-//  materialized at `getNormalizedBindings` time), but it's a useful primitive
+//  materialized at `normalizeBindings` time), but it's a useful primitive
 //  on its own.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -315,7 +315,7 @@ export function materializeMotionPathInPropAnim(
 export function unwrapAutoOrientRotations(kfs: Array<PxAnyKeyframe>): void {
     let prev: number | undefined;
     for (const kf of kfs) {
-        const v = kfValue(kf) as { rotate?: number } | undefined;
+        const v = keyframeValue(kf) as { rotate?: number } | undefined;
         if (!v || typeof v.rotate !== 'number') continue;
         if (prev === undefined) { prev = v.rotate; continue; }
         let r = v.rotate;
@@ -334,12 +334,12 @@ function makeOutKf(time: number, value: PxTransformParts): PxNormalizedKeyframe 
 /** Reads the kf's value-as-parts (object form). Returns `undefined` if the kf
  *  has no value or it's an array form (single-part composite). */
 function getKfValueParts(kf: PxAnyKeyframe): PxTransformParts | undefined {
-    const v = kfValue(kf);
+    const v = keyframeValue(kf);
     if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
     return v as PxTransformParts;
 }
 
-/** Linearly interpolates one transform-part value (number / Vec2). Returns the
+/** Linearly interpolates one transform-part value (number / PxVec2). Returns the
  *  non-undefined input when only one side is present, falls back to `prev`
  *  for unsupported types. */
 function interpolatePart(prev: unknown, next: unknown, p: number): unknown {
@@ -454,7 +454,7 @@ function insertSharpCornerStepKfIfNeeded(
     rotationTol: number,
 ): void {
     const lastKf = out[out.length - 1];
-    const lastV = kfValue(lastKf) as { rotate?: number } | undefined;
+    const lastV = keyframeValue(lastKf) as { rotate?: number } | undefined;
     const prevExit = lastV?.rotate;
     if (typeof prevExit !== 'number') return;
 

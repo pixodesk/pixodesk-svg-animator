@@ -15,7 +15,7 @@ built over the rendered DOM.
   - `validateNodeEffects(doc)` — warn-only `PxEffectsSchema` check
   - resolve `engine` = `mode === 'frames' ? frames : waapi` *(auto/waapi/unset → waapi)*
   - **`materializeAllInTree(doc, engine)`** — `PxAnimatorMaterializeAll.ts` *(also exported for the Editor — one shared pipeline, no drift)*
-    - **1. `applyPlayerEffects(doc)`** — `effects/PlayerEffectsUtil.ts` · **both engines** · materializes `node.effects` into wrappers/defs/clones
+    - **1. `materializeNodeEffects(doc)`** — `effects/PlayerEffectsUtil.ts` · **both engines** · materializes `node.effects` into wrappers/defs/clones
       - `applyPlayerEffects_exceptRetime` — pass 1, per node (effects bucket deleted up-front, slices passed to each applier):
         - `applyFillGradientEffect` / `applyStrokeGradientEffect` — `effects/gradientEffect.ts` (generate `<linear/radialGradient>` def, host `fill`/`stroke` → `url(#…)`)
         - `applyStrokeTrimEffect` — `effects/strokeTrimEffect.ts` (offset/range → `stroke-dasharray`/`-dashoffset`; collapse vs `<g>`-split)
@@ -35,7 +35,7 @@ built over the rendered DOM.
     - else → `createWebApiAnimator` — `PxAnimatorWebApi.ts` · **||** `createFrameLoopAnimator` *(fallback when WAAPI returns `null` — i.e. some animated `(cssKey, cssValue)` fails `CSS.supports`)*
 
 ### Notes on the shape
-- **Retime is the last effect** (pass 2 inside `applyPlayerEffects`) but still **step 1** of the whole pipeline.
+- **Retime is the last effect** (pass 2 inside `materializeNodeEffects`) but still **step 1** of the whole pipeline.
 - **Steps 3-5 are waapi-only.** Frames keeps the parametric / `<use href>` forms and resolves them per frame.
 - **Engine is committed before effects** (`waapi` unless explicitly `frames`), but the *actual playback* engine can still fall back to `frames` at `createWebApiAnimator` time — that fallback does **not** re-materialize (slight over-materialization, no correctness issue).
 - **`ApplyContext.engine`** carries the resolved engine into the effect pass for effects that may later choose to inline animated clone content themselves (currently unconsumed; the inline is done by step 4).

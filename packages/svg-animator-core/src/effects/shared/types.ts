@@ -6,7 +6,7 @@
 
 /**
  * Applier-runtime types: `ApplyContext` (per-run mutable state) and `ApplyResult`
- * (return shape of `applyPlayerEffects`).
+ * (return shape of `materializeNodeEffects`).
  *
  * The wire-shape types (`PxNode`, `PxEffects`, individual effect shapes,
  * `PxAnimatable<T>`, etc.) live in `../PxAnimatorTypes` — the single source

@@ -3,11 +3,11 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
+import type { PxAnimatedSvgDocument, PxAnimatorApi, PxNode, PxPlatformAdapter, PxTimelineEngineSetting, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
-import { createAnimator, generateNewIds, getNormalizedProps, PxDiagnosticKind, type PxPlaybackOverrideProps, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
+import { createAnimator, generateNewIds, toDomProps, PxDiagnosticKind, type PxPlaybackOverride, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
-import { camelCaseToKebabWordIfNeeded, createDiagnostics, STYLE_ATTR_NAMES, DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
+import { camelCaseToKebabWordIfNeeded, createDiagnostics, PX_STYLE_ATTR_NAMES, PX_DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
     watch,
@@ -56,7 +56,7 @@ function createVueAdapter(elementRefs: Map<string, Element>, diag: PxDiagnostics
 
             if (element) {
                 element.setAttribute(attrName, value);
-                if (STYLE_ATTR_NAMES.has(attrName)) {
+                if (PX_STYLE_ATTR_NAMES.has(attrName)) {
                     (element as HTMLElement).style[attrName as any] = value;
                 }
             }
@@ -75,7 +75,7 @@ function createVueAdapter(elementRefs: Map<string, Element>, diag: PxDiagnostics
  * copy (review §9). The runtime `props: {…}` block below stays Vue's own, because Vue needs
  * runtime prop declarations; this is only the TypeScript view of the same members.
  */
-type DocOverrideProps = PxPlaybackOverrideProps & Pick<PxControlProps, 'progress' | 'time'>;
+type DocOverrideProps = PxPlaybackOverride & Pick<PxControlProps, 'progress' | 'time'>;
 
 function applyDocOverrides(
     doc: PxAnimatedSvgDocument,
@@ -104,7 +104,7 @@ function applyDocOverrides(
         : patch;
 
     if (fullPatch !== undefined || resetTimeline) {
-        const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetDefaults: !!resetTimeline });
+        const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetTimeline: !!resetTimeline });
         for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, 'timeline override: ' + w);
         doc = applied.doc;
     }
@@ -129,7 +129,7 @@ function calcSeekMs(doc: PxAnimatedSvgDocument, props: DocOverrideProps): number
         const iterationsValue = props.iterations ?? animator.iterations;
         const iterationsCount = iterationsValue === 'infinite' ? Infinity
             : (typeof iterationsValue === 'number' && iterationsValue >= 1 ? iterationsValue : 1);
-        const singleDuration = props.duration ?? animator.duration ?? DEFAULT_DURATION_MS;
+        const singleDuration = props.duration ?? animator.duration ?? PX_DEFAULT_DURATION_MS;
         seekMs = progressToTimeMs(props.progress, singleDuration, iterationsCount);
     }
     if (props.time !== undefined) seekMs = props.time;
@@ -209,7 +209,7 @@ const PixodeskSvgAnimator = defineComponent({
 
     setup(props, { expose, emit }) {
         const elementRefs = new Map<string, Element>();
-        const apiRef = shallowRef<PxAnimatorAPI | null>(null);
+        const apiRef = shallowRef<PxAnimatorApi | null>(null);
 
         /**
          * The diagnostics channel, built from the CURRENT props each time (API review §5).
@@ -252,7 +252,7 @@ const PixodeskSvgAnimator = defineComponent({
             if (!node) return null;
 
             const { type, animate, meta, children, ...attrs } = node;
-            const normProps = getNormalizedProps(attrs);
+            const normProps = toDomProps(attrs);
 
             // Capture a ref to each element with an id.
             if (node.id) {
@@ -269,7 +269,7 @@ const PixodeskSvgAnimator = defineComponent({
             const childVNodes = children?.map(child => renderNode(child)).filter(Boolean) as VNode[] | undefined;
             // Text content: a node's own `textContent` renders only when it has no child nodes — a
             // line <tspan> can carry both, and then its children are the styled spans (the React
-            // Native renderer's rule). `getNormalizedProps` strips `textContent` from the attributes.
+            // Native renderer's rule). `toDomProps` strips `textContent` from the attributes.
             const text = typeof node.textContent === 'string' ? node.textContent : undefined;
             return h(type, normProps, childVNodes?.length ? childVNodes : text);
         }

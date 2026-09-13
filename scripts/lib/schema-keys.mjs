@@ -57,7 +57,7 @@ export function collectSchemaKeys(coreCjsPath, caller) {
         }
     };
     for (const [name, value] of Object.entries(core)) {
-        if (/Schema$/.test(name) || name === 'PxNodeBase' || name === 'PxSvgNodeExtra') walk(value);
+        if (/Schema$/.test(name) || name === 'PxNodeBaseSchema' || name === 'PxSvgNodeRootSchema') walk(value);
     }
     return keys;
 }

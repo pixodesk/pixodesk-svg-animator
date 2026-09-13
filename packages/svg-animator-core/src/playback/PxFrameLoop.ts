@@ -3,10 +3,10 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxEngineCallbacks } from '../format/PxAnimatorTypes';
+import { type PxAnimatedSvgDocument, type PxAnimatorApi, type PxEngineCallbacks } from '../format/PxAnimatorTypes';
 import { getAnimatorConfig, PxTimelineEngine } from '../format/PxAnimatorConstants';
-import { camelCaseToKebabWordIfNeeded, clamp, DEFAULT_DURATION_MS, STYLE_ATTR_NAMES } from '../util/PxAnimatorUtil';
-import { calcAnimationValues, getNormalizedBindings } from '../animation/PxDefinitions';
+import { camelCaseToKebabWordIfNeeded, clamp, PX_DEFAULT_DURATION_MS, PX_STYLE_ATTR_NAMES } from '../util/PxAnimatorUtil';
+import { calcAnimationValues, normalizeBindings } from '../animation/PxDefinitions';
 import { clampSeekMs, isValidPlaybackRate, progressToTimeMs, PX_RATE_REJECTED, timeToProgress } from './PxPlaybackTime';
 
 
@@ -44,18 +44,18 @@ export interface PxPlatformAdapter {
  *
  * @param adapter Platform adapter for DOM/environment operations.
  * @param callbacks Optional lifecycle callbacks.
- * @returns A PxAnimatorAPI instance.
+ * @returns A PxAnimatorApi instance.
  * @public @advanced
  */
-export function createBasicFrameLoopAnimator(
+export function createAdapterAnimator(
     doc: PxAnimatedSvgDocument,
     adapter: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks
-): PxAnimatorAPI {
+): PxAnimatorApi {
 
     const config = getAnimatorConfig(doc) || {};
 
-    const bindings = getNormalizedBindings(doc, PxTimelineEngine.js);
+    const bindings = normalizeBindings(doc, PxTimelineEngine.js);
 
     // iterations: either number or Infinity
     const _iterations = config.iterations;
@@ -64,7 +64,7 @@ export function createBasicFrameLoopAnimator(
     if (_iterations === 'infinite') iterations = Infinity;
     if (iterations < 1) iterations = 1;
 
-    const duration = +(config.duration || DEFAULT_DURATION_MS); // per-iteration duration (ms), cannot be 0!
+    const duration = +(config.duration || PX_DEFAULT_DURATION_MS); // per-iteration duration (ms), cannot be 0!
     const totalDuration = duration && iterations ?
         duration * (iterations === Infinity ? Infinity : iterations) :
         (duration ? (iterations ?? 1) * duration : 0);
@@ -419,7 +419,7 @@ export function createBasicFrameLoopAnimator(
 
     ////////////////////////////////////////////////////////////////
 
-    const api: PxAnimatorAPI = {
+    const api: PxAnimatorApi = {
 
         "isReady": () => true,
 

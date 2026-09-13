@@ -29,7 +29,7 @@
  */
 
 import { type PxAnimatable, type PxGlyphFont, type PxNode, type PxTextEffect } from '../../format/PxAnimatorTypes';
-import { TEXT_CONTENT_ATTR, CLASS_ATTR } from '../../format/PxAnimatorConstants';
+import { PX_TEXT_CONTENT_ATTR, CLASS_ATTR } from '../../format/PxAnimatorConstants';
 import { jsonElementFactory, type PxCreateElement } from './elementFactory';
 import { transformPathData, type Affine } from './glyphPathBake';
 import { createPathSampler, type PathSampler } from './pathSampler';
@@ -46,13 +46,13 @@ const TEXT_ATTR_KEYS: ReadonlyArray<string> = [
     'letterSpacing', 'wordSpacing', 'textDecoration', 'textTransform',
     'whiteSpace', 'x', 'y', 'dx', 'dy', 'lengthAdjust',
     'fill', 'stroke', 'strokeWidth', 'effects',
-    TEXT_CONTENT_ATTR, 'xml:space',
+    PX_TEXT_CONTENT_ATTR, 'xml:space',
 ];
 
 /** Inputs for a glyph materialization, decoupled from the effects `ApplyContext`
  *  so the editor can call the materializer directly. * @internal
  */
-export interface GlyphMaterializeOpts<E = any> {
+export interface GlyphMaterializeOptions<E = any> {
     /** Embedded glyph fonts, keyed by `font-family`. */
     glyphs: Record<string, PxGlyphFont>;
     /** Element factory — defaults to plain wire nodes ({@link jsonElementFactory}). */
@@ -229,7 +229,7 @@ function missingGlyphBoxEm(advanceEm: number, ascentEm: number): string {
 // ── HORIZONTAL ──────────────────────────────────────────────────────────────
 
 /** @internal */
-export function materializeGlyphTextHorizontal<E = any>(node: PxNode, opts: GlyphMaterializeOpts<E>): E {
+export function materializeGlyphTextHorizontal<E = any>(node: PxNode, opts: GlyphMaterializeOptions<E>): E {
     const { glyphs, create = jsonElementFactory as PxCreateElement<E>, warnings } = opts;
     const soleFont = soleFontOf(glyphs);
 
@@ -272,7 +272,7 @@ export function materializeGlyphTextHorizontal<E = any>(node: PxNode, opts: Glyp
         if (y !== undefined) pen.y = y;
         pen.x += parseLen(el.dx) ?? 0;
         pen.y += parseLen(el.dy) ?? 0;
-        const content = str(el[TEXT_CONTENT_ATTR]);
+        const content = str(el[PX_TEXT_CONTENT_ATTR]);
         // Render a node's OWN text only when it has no element children. In the glyph
         // text model text lives on leaf spans; a container that ALSO carries folded
         // text — a single-span line collapsed onto its line-`<tspan>` — would
@@ -283,7 +283,7 @@ export function materializeGlyphTextHorizontal<E = any>(node: PxNode, opts: Glyp
 
     const rootStyle = rootStyleOf(node);
     if (node.children) for (const ch of node.children) walk(ch, rootStyle);
-    const rootContent = str(node[TEXT_CONTENT_ATTR]);
+    const rootContent = str(node[PX_TEXT_CONTENT_ATTR]);
     if (rootContent && !node.children?.length) renderChars(rootContent, rootStyle);
 
     // text-anchor: shift each line by its own advance width, then rebuild `m`.
@@ -303,7 +303,7 @@ export function materializeGlyphTextHorizontal<E = any>(node: PxNode, opts: Glyp
 /** Per-CHARACTER advance box (local, pre-transform coords). `x,y` = the char's baseline start,
  *  `width` = its advance, `ascent`/`fontSize` size its bbox. * @internal
  */
-export interface GlyphCharBox {
+export interface PxGlyphCharBox {
     x: number; y: number; width: number; ascent: number; fontSize: number;
     /** Along-path only: baseline END point (leading edge of the next char). Absent for
      *  horizontal, where the end is `x + width` on the same baseline. */
@@ -328,13 +328,13 @@ export interface GlyphCharBoxAlongPath { pathD?: string; startOffset?: PxAnimata
  *  an editor caret built from these lands on the rendered glyphs. Empty for a text with
  *  no glyph font / unparsable path. * @internal
  */
-export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterializeOpts, 'glyphs' | 'warnings'> & { alongPath?: GlyphCharBoxAlongPath }): Array<GlyphCharBox> {
+export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterializeOptions, 'glyphs' | 'warnings'> & { alongPath?: GlyphCharBoxAlongPath }): Array<PxGlyphCharBox> {
     if (opts.alongPath?.pathD) return layoutGlyphTextCharsAlongPath(node, opts.alongPath.pathD, opts);
     const { glyphs, warnings } = opts;
     const soleFont = soleFontOf(glyphs);
 
     const pen = { x: parseLen(node.x) ?? 0, y: parseLen(node.y) ?? 0 };
-    const boxes: Array<GlyphCharBox & { line: number }> = [];
+    const boxes: Array<PxGlyphCharBox & { line: number }> = [];
     const lines: Array<{ start: number; end: number }> = [{ start: pen.x, end: pen.x }];
     let line = 0;
 
@@ -361,7 +361,7 @@ export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterializeOp
         if (y !== undefined) pen.y = y;
         pen.x += parseLen(el.dx) ?? 0;
         pen.y += parseLen(el.dy) ?? 0;
-        const content = str(el[TEXT_CONTENT_ATTR]);
+        const content = str(el[PX_TEXT_CONTENT_ATTR]);
         if (content && !el.children?.length) renderChars(content, s);
         if (el.children) for (const ch of el.children) walk(ch, s);
     };
@@ -382,7 +382,7 @@ export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterializeOp
             boxes.push({ x: pen.x, y: pen.y, width: 0, ascent: (gf?.ascent ?? 0.9 * upm) * (s.fontSize / upm), fontSize: s.fontSize, line });
         }
     }
-    const rootContent = str(node[TEXT_CONTENT_ATTR]);
+    const rootContent = str(node[PX_TEXT_CONTENT_ATTR]);
     if (rootContent && !node.children?.length) renderChars(rootContent, rootStyle);
 
     // text-anchor: shift each line's chars by its own advance width (matches the placement shift).
@@ -401,7 +401,7 @@ export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterializeOp
  *  Mirrors `collectAlongPathCells` + `materializeGlyphTextAlongPath`, but records EVERY
  *  char (the materializer's cells skip glyph-less chars). `pStart`=char leading edge on
  *  the path, `end`=trailing edge, `rotation`=tangent at the char midpoint. */
-function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<GlyphMaterializeOpts, 'glyphs' | 'warnings'> & { alongPath?: GlyphCharBoxAlongPath }): Array<GlyphCharBox> {
+function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<GlyphMaterializeOptions, 'glyphs' | 'warnings'> & { alongPath?: GlyphCharBoxAlongPath }): Array<PxGlyphCharBox> {
     const { glyphs, warnings, alongPath } = opts;
     const sampler = createPathSampler(pathD);
     if (!sampler) { warnings?.push('textGlyphs: unparsable along-path geometry (caret)'); return []; }
@@ -414,7 +414,7 @@ function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<G
     let adv = 0;
     const walk = (el: PxNode, parentStyle: Style): void => {
         const s = resolveStyle(el, parentStyle);
-        const content = str(el[TEXT_CONTENT_ATTR]);
+        const content = str(el[PX_TEXT_CONTENT_ATTR]);
         if (content && !el.children?.length) {
             const gf = glyphFontFor(s, glyphs, soleFont, warnings);
             const upm = gf?.unitsPerEm || 1000;
@@ -487,7 +487,7 @@ function collectAlongPathCells(node: PxNode, glyphs: Record<string, PxGlyphFont>
     let adv = 0;
     const walk = (el: PxNode, parentStyle: Style): void => {
         const s = resolveStyle(el, parentStyle);
-        const content = str(el[TEXT_CONTENT_ATTR]);
+        const content = str(el[PX_TEXT_CONTENT_ATTR]);
         // Only leaf text (no children) — a single-span line folds its text onto the
         // line-`<tspan>` AND keeps the child span; rendering both would duplicate it.
         if (content && !el.children?.length) {
@@ -550,7 +550,7 @@ export function materializeGlyphTextAlongPath<E = any>(
     node: PxNode,
     pathD: string | undefined,
     startOffset: PxAnimatable<number> | undefined,
-    opts: GlyphMaterializeOpts<E>,
+    opts: GlyphMaterializeOptions<E>,
     textLength?: PxAnimatable<number>,
     pathOverflow?: string,
 ): E | null {
@@ -810,7 +810,7 @@ function toGroup<E>(node: PxNode, children: Array<E>, create: PxCreateElement<E>
  */
 export function materializeGlyphText<E = any>(
     node: PxNode,
-    opts: GlyphMaterializeOpts<E> & { alongPath?: { pathD?: string; startOffset?: PxAnimatable<number>; textLength?: PxAnimatable<number>; pathOverflow?: string } },
+    opts: GlyphMaterializeOptions<E> & { alongPath?: { pathD?: string; startOffset?: PxAnimatable<number>; textLength?: PxAnimatable<number>; pathOverflow?: string } },
 ): E | null {
     if (opts.alongPath) return materializeGlyphTextAlongPath(node, opts.alongPath.pathD, opts.alongPath.startOffset, opts, opts.alongPath.textLength, opts.alongPath.pathOverflow);
     return materializeGlyphTextHorizontal(node, opts);

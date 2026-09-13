@@ -5,6 +5,7 @@
   "scripts": {
     "build": "turbo run build && pnpm check:docs",
     "check:docs": "turbo run test --filter=@pixodesk/docs-check",
+    "report:audience": "pnpm --filter @pixodesk/docs-check report:audience",
     "dev": "turbo run dev",
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",

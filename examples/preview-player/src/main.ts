@@ -1,6 +1,6 @@
 import './style.css';
 import { type PxAnimatedSvgDocument, type PxTrigger } from '@pixodesk/svg-animator-web';
-import { getAnimatorConfig, isPxElementFileFormat } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, isPxDocument } from '@pixodesk/svg-animator-core';
 
 import { createWebPlayer } from './players/web';
 import { createReactPlayer } from './players/react';
@@ -370,7 +370,7 @@ function loadFile(file: File): void {
         showError(`"${file.name}" is not valid JSON.`);
         return;
       }
-      if (!isPxElementFileFormat(json)) {
+      if (!isPxDocument(json)) {
         showError(`"${file.name}" is not a Pixodesk SVG animation document.`);
         return;
       }

@@ -7,7 +7,7 @@
 //   node scripts/upgrade-document.mjs <in.json> --in-place
 //   node scripts/upgrade-document.mjs <in.json> --to 1.1        down-convert (refused unless every step can be undone)
 //
-// It runs the SAME engine the player runs on open (`convertPlayerDocument`) — so a file this
+// It runs the SAME engine the player runs on open (`convertWireDocument`) — so a file this
 // tool upgrades is exactly the file the player would have seen. A web page can call the same
 // exported functions; this is the command-line front for them.
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -31,12 +31,12 @@ let result;
 if (to) {
     const target = core.parseWireVersion(to);
     if (!target) { console.error('Unparseable --to version: ' + to); process.exit(2); }
-    result = core.downgradePlayerDocument(doc, target);
+    result = core.downgradeWireDocument(doc, target);
     if (!result.ok) { console.error('REFUSED: ' + result.reason); process.exit(1); }
 } else {
-    result = core.convertPlayerDocument(doc);
+    result = core.convertWireDocument(doc);
     const from = result.from ? core.formatWireVersion(result.from) : 'unstamped';
-    console.log('File schema: ' + from + ' — ' + result.relation + ' relative to this player (' + core.PX_PLAYER_SCHEMA_VERSION + ').');
+    console.log('File schema: ' + from + ' — ' + result.relation + ' relative to this player (' + core.PX_WIRE_SCHEMA_VERSION + ').');
     if (result.advice) console.log(result.advice);
 }
 for (const step of result.applied) console.log('  applied ' + step.from + ' → ' + step.to + ': ' + step.reason);

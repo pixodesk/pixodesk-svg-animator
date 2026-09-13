@@ -7,11 +7,11 @@
 // something useful when the gap cannot be closed. The editor extends this — it never re-implements it.
 
 import { describe, expect, it } from 'vitest';
-import { PX_PLAYER_SCHEMA_VERSION } from './PxSchemaVersion';
+import { PX_WIRE_SCHEMA_VERSION } from './PxSchemaVersion';
 import {
-    applyWireSteps, applyWireStepsDown, BASELINE_PLAYER_VERSION, downgradePlayerDocument, compareWireVersion, convertPlayerDocument, formatWireVersion,
-    parseWireVersion, PLAYER_WIRE_STEPS, PLAYER_WIRE_VERSION, readWireVersion, versionAdvice,
-    WireStepKind, WireVersionRelation, type WireVersionStep,
+    applyWireSteps, applyWireStepsDown, PX_WIRE_BASELINE_VERSION, downgradeWireDocument, compareWireVersion, convertWireDocument, formatWireVersion,
+    parseWireVersion, PX_WIRE_STEPS, PX_WIRE_VERSION, readWireVersion, wireVersionAdvice,
+    PxWireStepKind, PxWireVersionRelation, type PxWireVersionStep,
 } from './PxWireVersion';
 
 const doc = (version?: string) => ({
@@ -34,15 +34,15 @@ describe('wire version — parsing and comparison', () => {
     it('compares numerically, not lexically — 1.10 is NEWER than 1.9', () => {
         const nine = parseWireVersion('1.9')!;
         const ten = parseWireVersion('1.10')!;
-        expect(compareWireVersion(ten, nine, false)).toBe(WireVersionRelation.newer);
-        expect(compareWireVersion(nine, ten, false)).toBe(WireVersionRelation.older);
+        expect(compareWireVersion(ten, nine, false)).toBe(PxWireVersionRelation.newer);
+        expect(compareWireVersion(nine, ten, false)).toBe(PxWireVersionRelation.older);
     });
 
     it('the PLAYER is blind to `c`; the editor is not', () => {
         const mine = { a: 1, b: 1, c: 1 };
         const editorOnlyBump = { a: 1, b: 1, c: 7 };
-        expect(compareWireVersion(editorOnlyBump, mine, false)).toBe(WireVersionRelation.same);
-        expect(compareWireVersion(editorOnlyBump, mine, true)).toBe(WireVersionRelation.newer);
+        expect(compareWireVersion(editorOnlyBump, mine, false)).toBe(PxWireVersionRelation.same);
+        expect(compareWireVersion(editorOnlyBump, mine, true)).toBe(PxWireVersionRelation.newer);
     });
 
     it('reads the stamp from either carrier address', () => {
@@ -55,46 +55,46 @@ describe('wire version — parsing and comparison', () => {
     });
 
     it("the player's own version is its declared schema version", () => {
-        expect(`${PLAYER_WIRE_VERSION.a}.${PLAYER_WIRE_VERSION.b}`).toBe(PX_PLAYER_SCHEMA_VERSION);
+        expect(`${PX_WIRE_VERSION.a}.${PX_WIRE_VERSION.b}`).toBe(PX_WIRE_SCHEMA_VERSION);
     });
 });
 
 
-describe('convertPlayerDocument — the playerFixer half', () => {
+describe('convertWireDocument — the playerFixer half', () => {
 
     it('leaves an UNSTAMPED document exactly as it is — nothing is assumed', () => {
         const d = doc();
-        const r = convertPlayerDocument(d);
-        expect(r.relation).toBe(WireVersionRelation.unstamped);
+        const r = convertWireDocument(d);
+        expect(r.relation).toBe(PxWireVersionRelation.unstamped);
         expect(r.applied).toEqual([]);
         expect(r.advice).toBeUndefined();
         expect(r.doc).toBe(d);
     });
 
     it('leaves a same-version document alone and says nothing', () => {
-        const r = convertPlayerDocument(doc(`${PX_PLAYER_SCHEMA_VERSION}.1`));
-        expect(r.relation).toBe(WireVersionRelation.same);
+        const r = convertWireDocument(doc(`${PX_WIRE_SCHEMA_VERSION}.1`));
+        expect(r.relation).toBe(PxWireVersionRelation.same);
         expect(r.applied).toEqual([]);
         expect(r.advice).toBeUndefined();
     });
 
     it('a NEWER file is still returned, with advice naming the remedy — never refused', () => {
-        const r = convertPlayerDocument(doc('1.9.0'));
-        expect(r.relation).toBe(WireVersionRelation.newer);
+        const r = convertWireDocument(doc('1.9.0'));
+        expect(r.relation).toBe(PxWireVersionRelation.newer);
         expect(r.advice).toContain('Update the player');
         expect(r.doc).toBeDefined();          // the document survives; the player renders what it can
     });
 
     it('another GENERATION is returned too, naming both remedies', () => {
-        const r = convertPlayerDocument(doc('2.0.0'));
-        expect(r.relation).toBe(WireVersionRelation.otherGeneration);
+        const r = convertWireDocument(doc('2.0.0'));
+        expect(r.relation).toBe(PxWireVersionRelation.otherGeneration);
         expect(r.advice).toContain('no conversion bridges');
         expect(r.doc).toBeDefined();
     });
 
     it('never throws on rubbish input', () => {
         for (const bad of [undefined, null, 42, 'x', [], {}]) {
-            expect(() => convertPlayerDocument(bad)).not.toThrow();
+            expect(() => convertWireDocument(bad)).not.toThrow();
         }
     });
 });
@@ -103,14 +103,14 @@ describe('convertPlayerDocument — the playerFixer half', () => {
 describe('the step table', () => {
 
     it('runs unbroken from the baseline to this player version', () => {
-        const chain = [BASELINE_PLAYER_VERSION, ...PLAYER_WIRE_STEPS.map(s => s.to)];
-        PLAYER_WIRE_STEPS.forEach((step, i) => expect(step.from).toBe(chain[i]));
-        expect(playerPart(chain[chain.length - 1])).toBe(PX_PLAYER_SCHEMA_VERSION);
+        const chain = [PX_WIRE_BASELINE_VERSION, ...PX_WIRE_STEPS.map(s => s.to)];
+        PX_WIRE_STEPS.forEach((step, i) => expect(step.from).toBe(chain[i]));
+        expect(playerPart(chain[chain.length - 1])).toBe(PX_WIRE_SCHEMA_VERSION);
     });
 
     it('every step carries a converter or is DECLARED additive, and moves strictly forward', () => {
-        for (const step of PLAYER_WIRE_STEPS) {
-            if (step.kind === WireStepKind.converted) expect(step.up).toBeTypeOf('function');
+        for (const step of PX_WIRE_STEPS) {
+            if (step.kind === PxWireStepKind.converted) expect(step.up).toBeTypeOf('function');
             else expect(step.up).toBeUndefined();
             expect(step.reason.length).toBeGreaterThan(10);
             const from = parseWireVersion(step.from)!;
@@ -123,8 +123,8 @@ describe('the step table', () => {
     it('MUTATION SELF-TEST: a real step converts, re-stamps, and leaves `meta.*` untouched', () => {
         // Runs the actual machinery on a fabricated 1.1 → 1.2 step, because an empty table proves
         // only that nothing is needed yet, not that conversion works when it is.
-        const step: WireVersionStep = {
-            from: '1.1', to: '1.2', kind: WireStepKind.converted,
+        const step: PxWireVersionStep = {
+            from: '1.1', to: '1.2', kind: PxWireStepKind.converted,
             reason: 'self-test only — renames animator.timeline.duration to durationMs',
             up: (d) => {
                 const timeline = (d.animator as Record<string, unknown>).timeline as Record<string, unknown>;
@@ -137,7 +137,7 @@ describe('the step table', () => {
             animator: { timeline: { duration: 1000 }, version: '1.1.1' },
             meta: { editorOnly: 'must survive untouched' },
         };
-        // Apply it the way `convertPlayerDocument` does, then assert all three obligations.
+        // Apply it the way `convertWireDocument` does, then assert all three obligations.
         step.up!(d);
         const timeline = (d.animator as Record<string, unknown>).timeline as Record<string, unknown>;
         expect(timeline.durationMs).toBe(1000);
@@ -148,8 +148,8 @@ describe('the step table', () => {
     it('applies a real step to a COPY, re-stamps it, and leaves the caller\'s document untouched', () => {
         // The end-to-end path, driven through the exported entry point rather than by calling
         // `up` by hand — with a step temporarily spliced into the live table.
-        const step: WireVersionStep = {
-            from: '1.1', to: '1.2', kind: WireStepKind.converted,
+        const step: PxWireVersionStep = {
+            from: '1.1', to: '1.2', kind: PxWireStepKind.converted,
             reason: 'self-test only — renames timeline.duration to durationMs',
             up: (d) => {
                 const t = (d.animator as Record<string, unknown>).timeline as Record<string, unknown>;
@@ -176,8 +176,8 @@ describe('the step table', () => {
     });
 
     it('a step that THROWS degrades to "not converted" — never to a failed open', () => {
-        const boom: WireVersionStep = {
-            from: '1.1', to: '1.2', kind: WireStepKind.converted,
+        const boom: PxWireVersionStep = {
+            from: '1.1', to: '1.2', kind: PxWireStepKind.converted,
             reason: 'self-test only — always throws',
             up: () => { throw new Error('deliberate'); },
         };
@@ -196,25 +196,25 @@ describe('the step table', () => {
         // back intact rather than half-converted.
         const d = doc('1.0.0');
         const before = JSON.stringify(d);
-        convertPlayerDocument(d);
+        convertWireDocument(d);
         expect(JSON.stringify(d)).toBe(before);
     });
 });
 
 
-describe('versionAdvice', () => {
+describe('wireVersionAdvice', () => {
 
     it('says nothing for same or unstamped — a gap alone is never a story', () => {
         const mine = { a: 1, b: 1, c: 1 };
-        expect(versionAdvice(WireVersionRelation.same, mine, mine, true)).toBeUndefined();
-        expect(versionAdvice(WireVersionRelation.unstamped, undefined, mine, true)).toBeUndefined();
+        expect(wireVersionAdvice(PxWireVersionRelation.same, mine, mine, true)).toBeUndefined();
+        expect(wireVersionAdvice(PxWireVersionRelation.unstamped, undefined, mine, true)).toBeUndefined();
     });
 
     it('names the right target for each reader', () => {
         const mine = { a: 1, b: 1, c: 1 };
         const newer = { a: 1, b: 9, c: 0 };
-        expect(versionAdvice(WireVersionRelation.newer, newer, mine, true)).toContain('Update the player');
-        expect(versionAdvice(WireVersionRelation.newer, newer, mine, false)).toContain('Update the editor');
+        expect(wireVersionAdvice(PxWireVersionRelation.newer, newer, mine, true)).toContain('Update the player');
+        expect(wireVersionAdvice(PxWireVersionRelation.newer, newer, mine, false)).toContain('Update the editor');
     });
 
     it('formats back to the spelling it parsed', () => {
@@ -231,14 +231,14 @@ function playerPart(v: string): string {
 
 describe('down-conversion (task 6.7) — all or nothing', () => {
 
-    const undoable = (from: string, to: string): WireVersionStep => ({
-        from, to, kind: WireStepKind.converted,
+    const undoable = (from: string, to: string): PxWireVersionStep => ({
+        from, to, kind: PxWireStepKind.converted,
         reason: 'spec only — renames timeline.duration ⇄ durationMs',
         up: (d) => { const t = (d.animator as any).timeline; t.durationMs = t.duration; delete t.duration; },
         down: (d) => { const t = (d.animator as any).timeline; t.duration = t.durationMs; delete t.durationMs; },
     });
-    const oneWay = (from: string, to: string): WireVersionStep => ({
-        from, to, kind: WireStepKind.converted, reason: 'spec only — the shape rework: no way back',
+    const oneWay = (from: string, to: string): PxWireVersionStep => ({
+        from, to, kind: PxWireStepKind.converted, reason: 'spec only — the shape rework: no way back',
         up: () => { /* forward only */ },
     });
     const at12 = () => ({ type: 'svg', animator: { timeline: { durationMs: 1000 }, version: '1.2.0' } });
@@ -279,7 +279,7 @@ describe('down-conversion (task 6.7) — all or nothing', () => {
     });
 
     it('additive steps need no `down` — an older reader ignores what they added', () => {
-        const additive: WireVersionStep = { from: '1.1', to: '1.2', kind: WireStepKind.additive, reason: 'spec only — a new optional field' };
+        const additive: PxWireVersionStep = { from: '1.1', to: '1.2', kind: PxWireStepKind.additive, reason: 'spec only — a new optional field' };
         const r = applyWireStepsDown(at12(), { steps: [additive], target: { a: 1, b: 1, c: 0 }, readerReadsEditorPart: false });
         expect(r.ok).toBe(true);
     });
@@ -299,7 +299,7 @@ describe('down-conversion (task 6.7) — all or nothing', () => {
     });
 
     it('the live player table can always go down to where it is — nothing to undo at 1.1', () => {
-        const r = downgradePlayerDocument(doc(PX_PLAYER_SCHEMA_VERSION + '.0'), PLAYER_WIRE_VERSION);
+        const r = downgradeWireDocument(doc(PX_WIRE_SCHEMA_VERSION + '.0'), PX_WIRE_VERSION);
         expect(r.ok).toBe(true);
     });
 });
@@ -308,8 +308,8 @@ describe('down-conversion (task 6.7) — all or nothing', () => {
 describe('T3 — conversion is idempotent', () => {
 
     it('converting twice is converting once: the stamp stops a second pass', () => {
-        const step: WireVersionStep = {
-            from: '1.1', to: '1.2', kind: WireStepKind.converted,
+        const step: PxWireVersionStep = {
+            from: '1.1', to: '1.2', kind: PxWireStepKind.converted,
             reason: 'spec only — renames timeline.duration to durationMs',
             up: (d) => { const t = (d.animator as any).timeline; t.durationMs = t.duration; delete t.duration; },
         };

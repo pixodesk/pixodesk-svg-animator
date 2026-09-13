@@ -3,11 +3,11 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getDefs, getNormalizedProps, PxDiagnosticKind, type PxAnimatedSvgDocument, type PxDefs, type PxDiagnostics, type PxNode } from '@pixodesk/svg-animator-core';
-import { createDiagnostics, sanitizeAttributeValue, camelCaseToKebabWordIfNeeded, CSS_ONLY_STYLE_PROPS, DISALLOWED_SVG_TAGS_LOWER, TEXT_CONTENT_ATTR } from '@pixodesk/svg-animator-core/internal';
+import { getDefinitions, toDomProps, PxDiagnosticKind, type PxAnimatedSvgDocument, type PxDefinitions, type PxDiagnostics, type PxNode } from '@pixodesk/svg-animator-core';
+import { createDiagnostics, sanitizeAttributeValue, camelCaseToKebabWordIfNeeded, PX_CSS_ONLY_STYLE_PROPS, PX_DISALLOWED_SVG_TAGS_LOWER, PX_TEXT_CONTENT_ATTR } from '@pixodesk/svg-animator-core/internal';
 
 // Re-export from the historical home so the package surface is unchanged.
-export { getNormalizedProps };
+export { toDomProps };
 
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -20,7 +20,7 @@ function createElement(
     textContent?: string,
     diag?: PxDiagnostics
 ): SVGElement | null {
-    if (DISALLOWED_SVG_TAGS_LOWER.has(tagName.toLowerCase())) {
+    if (PX_DISALLOWED_SVG_TAGS_LOWER.has(tagName.toLowerCase())) {
         // `document`: a blocked tag is content the FILE asked for, so the file is what changes.
         (diag ?? createDiagnostics(undefined, '[PxAnimator]'))
             .warn(PxDiagnosticKind.document, 'SVG tag blocked (dangerous): ' + tagName);
@@ -39,7 +39,7 @@ function createElement(
         // CSS-only properties (mix-blend-mode, isolation) aren't SVG presentation
         // attributes — the browser ignores them via setAttribute, so route them
         // through `element.style` (camelCase key) instead.
-        if (CSS_ONLY_STYLE_PROPS.has(propName)) {
+        if (PX_CSS_ONLY_STYLE_PROPS.has(propName)) {
             (element as unknown as { style: Record<string, string> }).style[propName] = String(sanitized);
             continue;
         }
@@ -73,7 +73,7 @@ function createElement(
  * Renders a PxNode tree to DOM elements.
  * @public @advanced
  */
-export function renderNode(node: PxNode, defs?: PxDefs, diag?: PxDiagnostics): Element | null {
+export function renderNode(node: PxNode, defs?: PxDefinitions, diag?: PxDiagnostics): Element | null {
     if (!node) return null;
 
     const { type, children, style, ...props } = node;
@@ -83,14 +83,14 @@ export function renderNode(node: PxNode, defs?: PxDefs, diag?: PxDiagnostics): E
     // (matrix/saturate/…), `feTurbulence` (fractalNoise/turbulence), `feFunc*`
     // (identity/table/…). Written by the editor at one choke point
     // (`TDomElement.createJsonWithPlayerEffects`); `type` itself is an
-    // INTERNAL_ATTR that `getNormalizedProps` drops, so re-apply it here onto the
+    // INTERNAL_ATTR that `toDomProps` drops, so re-apply it here onto the
     // created element. Without this the primitive is lost and an EMPTY `<filter>`
     // paints its target transparent black.
     const domType = (props as { domType?: string }).domType;
     if (domType !== undefined) delete (props as { domType?: string }).domType;
 
     // Extract defs from root svg node
-    const nodeDefs = getDefs(node as PxAnimatedSvgDocument) || defs;
+    const nodeDefs = getDefinitions(node as PxAnimatedSvgDocument) || defs;
 
     // `node.style` is an inline record (attribute → value), applied below
     const resolvedStyle = style;
@@ -109,10 +109,10 @@ export function renderNode(node: PxNode, defs?: PxDefs, diag?: PxDiagnostics): E
 
     const element = createElement(
         type || 'g',
-        getNormalizedProps(props),
+        toDomProps(props),
         resolvedStyle,
         childElements,
-        props[TEXT_CONTENT_ATTR],
+        props[PX_TEXT_CONTENT_ATTR],
         diag
     );
 

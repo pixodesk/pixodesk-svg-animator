@@ -36,14 +36,14 @@ export {
 export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 
 // Config enums a caller needs to build `PxAnimatorOptions` by hand.
-export { PxTimelineEngine, PxTimelineEngineExtra, validateDocument } from '@pixodesk/svg-animator-core';
+export { PxTimelineEngine, PxTimelineEngineSetting, validateDocument } from '@pixodesk/svg-animator-core';
 
 // Attribute names used by the declarative bootstrap.
 export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 
 // Types are erased at build time — zero bytes, kept for editor tooling.
 export type { PxAnimatorOptions } from './animator/PxAnimator';
-export type { PxAnimatorAPI, PxBasicAnimatorAPI } from './shared/PxAnimatorWebTypes';
+export type { PxAnimatorApi, PxPlaybackApi } from './shared/PxAnimatorWebTypes';
 export type {
     PxAnimatedSvgDocument,
     PxEngineCallbacks,

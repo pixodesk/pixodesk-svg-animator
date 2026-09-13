@@ -107,9 +107,9 @@ const animator = createAnimator({
 animator.play();
 ```
 
-It returns a `PxAnimatorAPI`:
+It returns a `PxAnimatorApi`:
 
-<!-- px-check props PxAnimatorAPI pkg=web -->
+<!-- px-check props PxAnimatorApi pkg=web -->
 | Method                  | Description                                                       |
 | ----------------------- | ----------------------------------------------------------------- |
 | `play()`                | Start or resume playback                                          |
@@ -161,6 +161,12 @@ Elements may also carry a `node.effects` bucket (structural effects such as
 `transformBy`, `repeater`, `maskedBy`, `strokeTrim`, `clone`, `fillGradient` /
 `strokeGradient`, `textPath`). This player materializes and removes them at
 runtime before any other normalization.
+
+When you want the markup without a player — a static first frame, a thumbnail, a snapshot —
+`renderNode` is that one step on its own: hand it a node and it returns the DOM element for it, or
+`null` when the node renders to nothing. Give it the document's `animator.definitions` as the
+second argument so named fonts resolve, and a diagnostics channel as the third to hear about
+anything it skips. It renders; it does not animate.
 
 See the [JSON format reference](../../docs/format/README.md#json-format-reference) and
 [Player effects](../../docs/format/README.md#player-effects) for the full schema and

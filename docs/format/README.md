@@ -117,6 +117,25 @@ Three ideas cover 90 % of the format:
 The whole format as flattened TypeScript-style typings. A standalone, printable
 copy of this section (with examples) lives in [SCHEMA.md](../../SCHEMA.md).
 
+Every block below also has a name you can import from `@pixodesk/svg-animator-core`, for when you
+write or transform documents in TypeScript rather than by hand:
+
+<!-- px-check off the TypeScript spelling of the blocks below, prose -->
+| Import this | to type this part of the document |
+|---|---|
+| `PxAnimatedSvgDocument` | the whole file |
+| `PxNode` | any element in `children`; `PxSvgNode` is the root `<svg>`, which adds the document keys |
+| `PxAnimatorConfig` | the `animator` block as a whole |
+| `PxTimeline` | `animator.timeline` — what advances the playhead |
+| `PxTrigger` | `animator.trigger` — what starts it |
+| `PxElementAnimation` | one element's `animate` map; `PxKeyframe` is one entry of a property's `keyframes`, and `PxLoop` that property's `loop` |
+| `PxBinding` | one entry of `animator.bindings`, in a bind-by-id document |
+| `PxDefinitions` | `animator.definitions`; `PxAnimationDefinition` is one named animation in it, `PxGlyphFont` one embedded face and `PxGlyph` one letter outline in that face |
+| `PxEffects` | a node's `effects` bucket |
+| `PxTransformParts` | a transform written in parts; `PxTransformValue` is one such value and `PxVec2` an `[x, y]` pair |
+| `PxBezierPath` | a path outline as bezier segments |
+| `PxScroll` | a scroll-driven timeline; `PxScrollRangePoint` is one end of its range |
+
 <!-- px-check schema-block SVG_JSON=PxAnimatedSvgDocumentSchema NODE=PxNodeSchema ANIMATE=PxPropertyAnimationSchema EFFECTS=PxEffectsSchema GRADIENT=PxFillGradientEffectSchema -->
 ```typescript
 // PxAnimatedSvgDocument
@@ -582,7 +601,7 @@ every element that needs it:
 }
 ```
 
-<!-- px-check schema PxDefsSchema -->
+<!-- px-check schema PxDefinitionsSchema -->
 | Field | What it holds | How an element uses it |
 |---|---|---|
 | `easings` | named easing curves | a keyframe writes the name instead of the curve: `"easing": "smooth"` |
@@ -1064,14 +1083,14 @@ Validate a document before it reaches a player — in a build step, a test, or a
 accepts files from users:
 
 ```ts
-import { isPxElementFileFormat, isPxElementFileFormatDeep,
+import { isPxDocument, isValidPxDocument,
          PxAnimatedSvgDocumentSchema, type PxValidationContext } from '@pixodesk/svg-animator-core';
 import { readFile } from 'node:fs/promises';
 
 const json = JSON.parse(await readFile('animation.json', 'utf8'));   // Node — or fetch() in a browser
 
-isPxElementFileFormat(json);        // cheap shallow gate — is this a Pixodesk document at all?
-isPxElementFileFormatDeep(json);    // { valid, errors } — full schema
+isPxDocument(json);        // cheap shallow gate — is this a Pixodesk document at all?
+isValidPxDocument(json);    // { valid, errors } — full schema
 
 // per-field diagnostics
 const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
@@ -1104,13 +1123,13 @@ natively.
 
 ```ts
 import { materializeAllInTree, generateNewIds, calcAnimationValues,
-         getNormalizedBindings, PxTimelineEngine } from '@pixodesk/svg-animator-core';
+         normalizeBindings, PxTimelineEngine } from '@pixodesk/svg-animator-core';
 import doc from './bouncing-ball.json';
 
 const flat = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
 
 // values at any time, no renderer involved
-for (const binding of getNormalizedBindings(flat, PxTimelineEngine.js) ?? []) {
+for (const binding of normalizeBindings(flat, PxTimelineEngine.js) ?? []) {
   const values = calcAnimationValues(binding.animate, 500);   // t = 500 ms
   console.log(binding.id, values);   // → ball { transform: 'translate(200,129.65)' }   (the bouncing ball, half-way down)
 }
@@ -1121,12 +1140,12 @@ renders each tick.
 
 ### Writing your own player
 
-Implement `PxPlatformAdapter` and hand it to `createBasicFrameLoopAnimator`; the engine
+Implement `PxPlatformAdapter` and hand it to `createAdapterAnimator`; the engine
 handles timing, delay, direction, iterations, fill, playback rate and the lifecycle callbacks,
 then calls you with plain attribute writes:
 
 ```ts
-import { createBasicFrameLoopAnimator, materializeAllInTree, generateNewIds,
+import { createAdapterAnimator, materializeAllInTree, generateNewIds,
          PxTimelineEngine, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import doc from './bouncing-ball.json';
 
@@ -1137,7 +1156,7 @@ const adapter: PxPlatformAdapter = {
   setAttribute: (id, attrName, value) => { /* apply to your element */ },
 };
 
-const api = createBasicFrameLoopAnimator(flatDoc, adapter, { onFinish: () => console.log('done') });
+const api = createAdapterAnimator(flatDoc, adapter, { onFinish: () => console.log('done') });
 api.play();
 ```
 
@@ -1150,17 +1169,17 @@ the engine runs in browsers, React Native and test environments.
 | Area | Exports |
 |---|---|
 | **Schema & types** | `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxEffectsSchema`, `PxAnimatorConfigSchema`, `PxKeyframeSchema`, … plus every `Px*` TypeScript type and the `px` schema builder |
-| **Validation** | `validateDocument` (the whole document, strict), `isPxElementFileFormat`, `isPxElementFileFormatDeep`, `validateNodeEffects` |
-| **Materializers** | `materializeAllInTree`, `applyPlayerEffects` |
-| **Interpolation** | `calcAnimationValues`, `interpolateValue`, `getNormalizedBindings` |
+| **Validation** | `validateDocument` (the whole document, strict), `isPxDocument`, `isValidPxDocument`, `validateNodeEffects` |
+| **Materializers** | `materializeAllInTree`, `materializeNodeEffects` |
+| **Interpolation** | `calcAnimationValues`, `interpolateValue`, `normalizeBindings` |
 | **Sampling / geometry** | `createPathSampler`, Bézier helpers, `cubicBezier`, `splitEasing` |
 | **Text** | `materializeGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
-| **Node helpers** | `getNormalizedProps`, `sanitizeAttributeValue`, `generateNewIds`, `deepClone` |
-| **Document accessors** | `getAnimatorConfig`, `getDefs`, `getBindings`, `getChildren` |
+| **Node helpers** | `toDomProps`, `sanitizeAttributeValue`, `generateNewIds`, `deepClone` |
+| **Document accessors** | `getAnimatorConfig`, `getDefinitions`, `getBindings`, `getChildren` |
 | **Scroll timeline math** | `isScrollTimeline`, `scrollViewProgress`, `scrollOffsetProgress`, `scrollTotalDurationMs` |
-| **Playback engine** | `createBasicFrameLoopAnimator` + the `PxPlatformAdapter` interface |
-| **Wire enums** | `PxTimelineEngineExtra`, `PxTimelineEngine`, `PxStartOn`, `PxOutAction`, `PxFinishAction`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout`, `PxMaskType`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every wire selector ships as a named constant rather than a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxStartOn.click` and `startOn?: PxStartOn` come from one import |
-| **Schema versioning** | `PX_PLAYER_SCHEMA_VERSION`, `readWireVersion`, `parseWireVersion`, `formatWireVersion`, `compareWireVersion`, `versionAdvice`, `convertPlayerDocument`, `downgradePlayerDocument`, `WireVersionRelation` — see [Versioning](#versioning) |
+| **Playback engine** | `createAdapterAnimator` + the `PxPlatformAdapter` interface |
+| **Wire enums** | `PxTimelineEngineSetting`, `PxTimelineEngine`, `PxStartOn`, `PxOutAction`, `PxFinishAction`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout`, `PxMaskType`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every wire selector ships as a named constant rather than a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxStartOn.click` and `startOn?: PxStartOn` come from one import |
+| **Schema versioning** | `PX_WIRE_SCHEMA_VERSION`, `readWireVersion`, `parseWireVersion`, `formatWireVersion`, `compareWireVersion`, `wireVersionAdvice`, `convertWireDocument`, `downgradeWireDocument`, `PxWireVersionRelation` — see [Versioning](#versioning) |
 
 ### Versioning
 
@@ -1183,7 +1202,7 @@ A string `"a.b.c"`:
 | `b` | player schema revision. A player at `a.b` reads files of the same `a` and any `b` up to its own |
 | `c` | editor extension — covers `meta.*` only. The player ignores it |
 
-This release reads schema **`1.1`** (`PX_PLAYER_SCHEMA_VERSION`). The editor stamps every file it
+This release reads schema **`1.1`** (`PX_WIRE_SCHEMA_VERSION`). The editor stamps every file it
 saves (`"1.1.1"` today); the player never writes the stamp.
 
 - **Not a gate.** A version gap on its own never refuses a file or warns. The player does not
@@ -1201,19 +1220,19 @@ converts to itself. The converters exist so that an older file can be brought fo
 schema moves.
 
 ```ts
-import { convertPlayerDocument, downgradePlayerDocument, parseWireVersion } from '@pixodesk/svg-animator-core';
+import { convertWireDocument, downgradeWireDocument, parseWireVersion } from '@pixodesk/svg-animator-core';
 
 // Up to this player's schema. Never refuses, never throws, never mutates `json`.
-const { doc, from, relation, applied, advice } = convertPlayerDocument(json);
+const { doc, from, relation, applied, advice } = convertWireDocument(json);
 
 // Down to an older schema — all or nothing.
 const target = parseWireVersion('1.1');
-const down = target && downgradePlayerDocument(json, target);
+const down = target && downgradeWireDocument(json, target);
 if (down && !down.ok) console.warn(down.reason);
 ```
 
 - `relation` is one of `unstamped` · `same` · `older` · `newer` · `otherGeneration`
-  (`WireVersionRelation`).
+  (`PxWireVersionRelation`).
 - `advice` is set only when the version explains a gap, e.g. *"This file is written for schema
   1.5.0, this player reads 1.1.0. Update the player to open it fully."*
 - Up-conversion works on a copy. A step that fails returns the original document, never a

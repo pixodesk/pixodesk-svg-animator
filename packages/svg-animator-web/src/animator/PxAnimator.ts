@@ -3,13 +3,13 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxElementFileFormat, materializeAllInTree, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverrideProps, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, materializeAllInTree, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { reportDocumentDiagnostics, createDiagnostics, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { bindWithEngineChoice } from '../engines/PxAnimatorBind';
 import { renderNode } from '../dom/PxAnimatorDOM';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
-import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
+import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
 
 // Re-export so the package surface keeps `generateNewIds` at its historical home.
 export { generateNewIds };
@@ -28,7 +28,7 @@ function createAnimatorFromConfig(
     adapter?: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks,
     rootElement?: Element | null
-): PxAnimatorAPI {
+): PxAnimatorApi {
     return bindWithEngineChoice(doc, adapter, callbacks, rootElement);
 }
 
@@ -43,7 +43,7 @@ function createAnimatorFromConfig(
  * @param doc The animated SVG document.
  * @param callbacks Optional object with callback functions for animation lifecycle events (play, pause, finish, etc.).
  * @param containerElement Optional selector or element to render the SVG into.
- * @returns An PxAnimatorAPI instance to programmatically control the animation.
+ * @returns An PxAnimatorApi instance to programmatically control the animation.
  */
 function createAnimatorImpl(
     doc: PxAnimatedSvgDocument,
@@ -52,7 +52,7 @@ function createAnimatorImpl(
     containerElement?: string | Element,
     patch?: PxAnimatorConfigPatch,
     resetTimeline?: boolean
-): PxAnimatorAPI {
+): PxAnimatorApi {
 
     // Validate every `node.effects` bucket against `PxEffectsSchema` and warn
     // about any shape drift. Doesn't mutate or block — the materializer tries
@@ -75,7 +75,7 @@ function createAnimatorImpl(
     // expansion and motion-path sampling in `materializeAllInTree`, and `generateNewIds`
     // rewrites binding targets — a late patch would be read by none of them.
     if (patch !== undefined || resetTimeline) {
-        const patched = applyAnimatorConfig(doc, patch ?? {}, { resetDefaults: !!resetTimeline });
+        const patched = applyAnimatorConfig(doc, patch ?? {}, { resetTimeline: !!resetTimeline });
         for (const w of patched.warnings) diag.warn(PxDiagnosticKind.usage, 'timeline override: ' + w);
         doc = patched.doc;
     }
@@ -142,7 +142,7 @@ export { PX_ANIMATOR_DOC_KEY } from '../shared/PxAnimatorKeys';
  * declared here.
  * @public
  */
-export interface PxAnimatorOptions extends PxPlaybackOverrideProps, PxAnimatorCallbacks {
+export interface PxAnimatorOptions extends PxPlaybackOverride, PxAnimatorCallbacks {
     /** URL to fetch the animation document from. Provide either this or `doc`, not both. */
     src?: string;
     /** The animation document, inline (see SCHEMA.md). Provide either this or `src`, not both. */
@@ -186,10 +186,10 @@ export function resolveTimelineOption(options: PxAnimatorOptions): PxAnimatorCon
  * @param options.src URL to fetch the animation document from.
  * @param options.doc The animation document, inline.
  * @param options.container CSS selector or element to render the SVG into.
- * @returns A PxAnimatorAPI instance to programmatically control the animation.
+ * @returns A PxAnimatorApi instance to programmatically control the animation.
  * @public
  */
-export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
+export function createAnimator(options: PxAnimatorOptions): PxAnimatorApi {
 
     const { src, doc, container, resetTimeline } = options;
     const adapter = isInternalOptions(options) ? options.adapter : undefined;
@@ -206,16 +206,16 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
         throw new Error('createAnimator: either `src` or `doc` is required');
     }
 
-    let animator: PxAnimatorAPI | null = null;
+    let animator: PxAnimatorApi | null = null;
 
     // Control calls made before the player exists are queued and replayed (in order) once it
     // is ready, so e.g. `createAnimator({src}).play()` works as expected. Getters are not
     // queued — they return their "not ready yet" value until then. With `doc` the player is
     // ready before this returns; the same proxy then simply forwards.
-    let pending: Array<(api: PxAnimatorAPI) => void> | null = [];
+    let pending: Array<(api: PxAnimatorApi) => void> | null = [];
     let destroyed = false;
 
-    const enqueue = (call: (api: PxAnimatorAPI) => void) => {
+    const enqueue = (call: (api: PxAnimatorApi) => void) => {
         if (animator) {
             call(animator);
         } else if (pending) {
@@ -225,7 +225,7 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
 
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
 
-    const ready = (api: PxAnimatorAPI): void => {
+    const ready = (api: PxAnimatorApi): void => {
         animator = api;
         const queued = pending;
         pending = null;
@@ -252,7 +252,7 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
     } else {
         fetch(src!).then(res => res.json()).then(json => {
             if (destroyed) return; // destroy() was called before the document loaded
-            if (isPxElementFileFormat(json)) build(json);
+            if (isPxDocument(json)) build(json);
             else failed(PxDiagnosticKind.document, 'createAnimator: invalid animation document format at "' + src + '"');
         }).catch(err => {
             // `host`, not `document`: the file may be perfect — the page could not fetch it.

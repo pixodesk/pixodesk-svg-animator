@@ -98,7 +98,7 @@ document set to infinite iterations, keeps spinning during every iteration.
 
 `timeline.engine` says **how the animated attributes get updated** — the same three values on every timeline type:
 
-<!-- px-check values PxTimelineEngineExtra pkg=core -->
+<!-- px-check values PxTimelineEngineSetting pkg=core -->
 | Value | Time-driven timeline | Scroll / view timeline |
 |---|---|---|
 | `auto` (default) | the Web Animations API — played by the browser itself, so it stays smooth even while the page is busy — with an **automatic fallback** to the player's frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on a path, …) | the browser's own `ScrollTimeline` / `ViewTimeline` where supported; otherwise the player measures scroll progress itself and drives WAAPI (or the frame loop, if WAAPI declines the document) |
@@ -107,6 +107,12 @@ document set to infinite iterations, keeps spinning during every iteration.
 
 Leave it on `auto` unless you need a guarantee — for instance `js` for path morphing in
 Safari < 18.5. React Native ignores `engine` (playback is always native-driven).
+
+Core exports the three helpers the players decide this with, so a player of your own lands on the
+same answer rather than a similar one: `resolveTimelineEngine` turns the document's setting into
+the engine that will actually run, `isNativeForced` says whether `native` was asked for outright,
+and `mayUseNativeScrollTimeline` whether a scroll timeline may be handed to the browser's own
+`ScrollTimeline`.
 
 ## Triggers — what *starts* the animation
 
@@ -129,6 +135,9 @@ player honors it:
 
 A document with no `trigger`, or a `trigger` without `startOn`, starts on load — every player
 applies the same defaults. Use `programmatic` when your own code should start it.
+
+Those defaults are `PX_TRIGGER_DEFAULTS`, and `resolveTrigger` fills them into a trigger that
+leaves fields out — one resolution every player shares, instead of four that drift apart.
 
 `outAction` says what happens when the trigger condition ends (pointer leaves, scrolled out,
 second click):
@@ -196,12 +205,19 @@ a.play();
 | **`null` deletes** | `{ timeline: { delay: null } }` removes the file's delay, restoring what its *absence* means. This is the only way to get a default back, because there is no value that spells "unset" |
 | **Changing `timeline.type` starts over** | switching between a clock and a scroll timeline keeps only `duration`, `iterations`, `engine` and `frameRate` — the keys both kinds share. Clock-only keys (`trigger`, `delay`, `fillMode`, `direction`) have no meaning on a scroll timeline and are dropped, with a console warning |
 
+The merge itself is core's, not each player's re-implementation. `applyAnimatorConfig` applies a
+patch to a whole document; `mergeAnimatorConfig` does the same one level down, on the `animator`
+block alone, and reports what it could and could not do in a `PxAnimatorConfigMergeResult`. Every
+player calls `foldTimelineOverride` before either of them — it folds the four shortcuts below into
+the patch and parses the JSON-string form. A patch is a `PxAnimatorConfigPatch`, and the `timeline`
+part of one a `PxTimelinePatch`.
+
 ### The four shortcuts
 
 The keys people reach for most also exist as plain props / options, because
 `duration={2000}` reads better than a nested object:
 
-<!-- px-check props PxAnimatorConfigShortcuts pkg=core -->
+<!-- px-check props PxTimelineShortcuts pkg=core -->
 | Shortcut | Same as |
 | --- | --- |
 | `duration` | `timeline.duration` |
@@ -229,6 +245,12 @@ itself, not playback settings.
 The components switch the trigger to `programmatic` whenever you use `play` / `pause` /
 `progress` / `time`, so only `autoplay` mode uses the trigger saved in the file. `apiRef` is not
 a control prop — the handle is filled in every mode and never changes which one you are in.
+
+One shared rule decides that, so React, Vue and React Native cannot answer it three ways:
+`resolveControlMode` reads the control props — typed `PxControlProps` — and returns the
+`PxControlMode` that wins, together with a ready-made sentence for any conflict between two tiers.
+`controlModeTakesOverTrigger` then says whether that mode must take the document's own trigger
+over, which is true of every mode except `autoplay`.
 
 > **Mangled builds.** `timeline` also accepts a **JSON string** —
 > `timeline='{"duration":2000}'` — which survives a build that renames object keys.

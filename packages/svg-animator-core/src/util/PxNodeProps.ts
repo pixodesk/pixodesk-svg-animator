@@ -3,9 +3,9 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { type PxDefs } from '../format/PxAnimatorTypes';
+import { type PxDefinitions } from '../format/PxAnimatorTypes';
 import { INTERNAL_ATTRS, TRANSFORM_ATTR } from '../format/PxAnimatorConstants';
-import { COLOR_ATTR_NAMES, composeTransformParts, kebabToCamelCaseWord, toRGBA, TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
+import { PX_COLOR_ATTR_NAMES, composeTransformParts, kebabToCamelCaseWord, toRGBA, PX_TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 
 
 /**
@@ -20,7 +20,7 @@ import { COLOR_ATTR_NAMES, composeTransformParts, kebabToCamelCaseWord, toRGBA, 
  * refs on `href` / `src` / `mask` / `marker*`.
  * @internal
  */
-export const DISALLOWED_SVG_TAGS_LOWER = new Set([
+export const PX_DISALLOWED_SVG_TAGS_LOWER = new Set([
     'script',
     'foreignobject',
 ]);
@@ -67,7 +67,7 @@ const IMAGE_REF_ATTRS_LOWER = new Set(['href', 'xlink:href', 'src']);
  *  ignores them via `setAttribute`, so they must be applied through `element.style`.
  *  Keyed camelCase to match the normalized prop names (`element.style.mixBlendMode`). * @internal
  */
-export const CSS_ONLY_STYLE_PROPS = new Set<string>(['mixBlendMode', 'isolation']);
+export const PX_CSS_ONLY_STYLE_PROPS = new Set<string>(['mixBlendMode', 'isolation']);
 
 /** Matches `data:image/{png|jpeg|jpg|gif|webp|bmp};base64,<payload>`.
  *  Rejects any non-base64-encoded raster form. */
@@ -163,7 +163,7 @@ export function sanitizeAttributeValue(name: string, value: any): any | undefine
 }
 
 /** @public @advanced */
-export function getNormalizedProps(props: Record<string, any>) {
+export function toDomProps(props: Record<string, any>) {
     const propsCopy: Record<string, any> = {};
 
     // Process regular attributes
@@ -179,7 +179,7 @@ export function getNormalizedProps(props: Record<string, any>) {
 
         let value = props[rawKey];
 
-        if (COLOR_ATTR_NAMES.has(key) && Array.isArray(value)) {
+        if (PX_COLOR_ATTR_NAMES.has(key) && Array.isArray(value)) {
             propsCopy[key] = toRGBA(value);
         } else if (
             key === 'transform' && value !== null && typeof value === 'object' &&
@@ -190,7 +190,7 @@ export function getNormalizedProps(props: Record<string, any>) {
             // Compose into an SVG transform string (no units — SVG transform attribute).
             const parts = value.value && typeof value.value === 'object' ? value.value : value;
             propsCopy[TRANSFORM_ATTR] = composeTransformParts(parts, { withUnits: false });
-        } else if (TRANSFORM_FN_NAMES.has(key)) {
+        } else if (PX_TRANSFORM_FN_NAMES.has(key)) {
             if (Array.isArray(value)) {
                 if (key === 'translate') value = value.map((v: number) => v + 'px');
                 value = value.join(',');

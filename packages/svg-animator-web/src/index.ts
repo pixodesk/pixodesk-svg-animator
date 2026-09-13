@@ -18,7 +18,7 @@ export { createAnimator, generateNewIds, loadTagAnimators } from './animator/PxA
 export type { PxTagAnimatorOptions } from './animator/PxAnimator';
 // The options of the pre-rendered builds' `createAnimator` — a type only, so the main entry can
 // describe every `createAnimator` there is (API-SCHEMA.md checks the docs against this file).
-export type { PxPrerenderedOptions } from './engines/PxAnimatorBind';
+export type { PxPrerenderedAnimatorOptions } from './engines/PxAnimatorBind';
 
 export { px } from '@pixodesk/svg-animator-core';
 export type { PxInfer, PxSchema, PxValidationContext } from '@pixodesk/svg-animator-core';
@@ -29,10 +29,10 @@ export type { PxAnimatorOptions } from './animator/PxAnimator';
 export type { PxTimelinePatch } from '@pixodesk/svg-animator-core';
 export {
     PxAnimatorConfigSchema,
-    PxTimelineEngineExtra,
-    PxDefsSchema,
-    PxNodeBase,
-    PxSvgNodeExtra,
+    PxTimelineEngineSetting,
+    PxDefinitionsSchema,
+    PxNodeBaseSchema,
+    PxSvgNodeRootSchema,
     PxTriggerSchema,
 } from '@pixodesk/svg-animator-core';
 
@@ -44,7 +44,7 @@ export type {
     PxEngineCallbacks,
     PxAnimatorConfig,
     PxBinding,
-    PxDefs,
+    PxDefinitions,
     PxNode,
     PxSvgNode,
     PxTrigger,
@@ -52,7 +52,7 @@ export type {
 } from '@pixodesk/svg-animator-core';
 
 // DOM specializations — on the web `getRootElement()` returns a DOM Element.
-export type { PxAnimatorAPI, PxBasicAnimatorAPI } from './shared/PxAnimatorWebTypes';
+export type { PxAnimatorApi, PxPlaybackApi } from './shared/PxAnimatorWebTypes';
 
 // ONE control-mode rule for every component (API review §1, §7). React and Vue reach core
 // through this package, so the resolver is forwarded here; React Native imports core directly.
@@ -62,7 +62,7 @@ export { PxDiagnosticKind } from '@pixodesk/svg-animator-core';
 export type { PxDiagnostic, PxDiagnostics, PxDiagnosticsConfig } from '@pixodesk/svg-animator-core';
 
 // The shapes every framework component shares (review §9) — one definition, three aliases.
-export type { PxAnimatorCallbacks, PxPlaybackOverrideProps } from '@pixodesk/svg-animator-core';
+export type { PxAnimatorCallbacks, PxPlaybackOverride } from '@pixodesk/svg-animator-core';
 
 // The time contract (review §3) and the trigger defaults, so the components map `progress` and
 // thresholds with core's rule instead of re-deriving it.
@@ -82,7 +82,7 @@ export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 // into plain sampled `{ translate, rotate? }` kfs. Called automatically by the
 // player's binding pipeline; exposed so the Editor can produce a fully-flat
 // document for renderers without tangent support (e.g. react-native-svg).
-// Pair with `applyPlayerEffects` + `materializeInternalLoopsInTree` for the
+// Pair with `materializeNodeEffects` + `materializeInternalLoopsInTree` for the
 // full flatten pipeline (see motion-along-path-waapi-rework.md).
 
 // `<use>` instance materializer — replaces `<use href="#anim-target">` with
@@ -90,7 +90,7 @@ export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 // internal refs). Workaround for WAAPI / CSS animations not propagating
 // through SVG `<use>` shadow trees in Chrome and Safari.
 
-// Single-call materialization pipeline — runs `applyPlayerEffects` +
+// Single-call materialization pipeline — runs `materializeNodeEffects` +
 // `materializeInternalLoopsInTree` + (for waapi) `materializeMotionPathsInTree`
 // + `materializeAnimatedUseInstances` in the canonical order. The player calls
 // this internally from `createAnimatorImpl`; exported here so the Editor's
@@ -98,14 +98,14 @@ export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 // drift between in-player and out-of-player paths.
 
 // Low-level APIs (for advanced usage)
-export { getNormalizedProps, renderNode } from './dom/PxAnimatorDOM';
+export { toDomProps, renderNode } from './dom/PxAnimatorDOM';
 
 // Element-creation factory + glyph-text materializer. The materializer emits
 // via an injected factory so the SAME layout produces plain wire nodes (effects
 // pipeline), DOM, or the editor's React/px elements — the editor calls
 // `materializeGlyphText` with its own `createPxElement` for Step 3 (static SVG
 // with baked glyph outlines). See textGlyphsEffect / elementFactory.
-export { createBasicFrameLoopAnimator } from './engines/PxAnimatorFrameLoop';
+export { createAdapterAnimator } from './engines/PxAnimatorFrameLoop';
 export type { PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 
 // Player-effects materializer — turns `node.effects` (the lightweight design format
@@ -122,8 +122,3 @@ export {
     // PxPlaybackDirection, PxStartOn) must not be repeated here: same identifier, one export.
     validateDocument,
 } from '@pixodesk/svg-animator-core';
-
-// Internal to this repository: the editor and the sibling packages import these.
-// (A `/internal` entry point needs a published release first — see API-SURFACE-REVIEW.md §E.)
-export { PX_ANIMATOR_DOC_KEY } from './shared/PxAnimatorKeys';
-export type { PxInternalAnimatorOptions } from './animator/PxAnimator';

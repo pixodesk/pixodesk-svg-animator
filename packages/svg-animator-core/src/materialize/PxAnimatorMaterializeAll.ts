@@ -13,7 +13,7 @@
  * Editor's flat-export path is GUARANTEED to be byte-identical to what the
  * player sees internally — no parallel pipeline to drift.
  *
- *   1. `applyPlayerEffects` — `node.effects` (ref / transformation / repeater /
+ *   1. `materializeNodeEffects` — `node.effects` (ref / transformation / repeater /
  *      maskedBy / strokeTrim / retime) materialized into wrappers, defs, clones.
  *   2. `materializeInternalLoopsInTree` — every `propAnim.loop` expanded into
  *      repeated keyframes filling the duration.
@@ -30,8 +30,8 @@
  * gating or "nothing to do" early-outs) return the input by reference.
  */
 
-import { applyPlayerEffects } from '../effects/PlayerEffectsUtil';
-import { DEFAULT_DURATION_MS } from '../util/PxAnimatorUtil';
+import { materializeNodeEffects } from '../effects/PlayerEffectsUtil';
+import { PX_DEFAULT_DURATION_MS } from '../util/PxAnimatorUtil';
 import { materializeInternalLoopsInTree } from '../animation/PxDefinitions';
 import { materializeOffsetPathsInTree } from './PxOffsetPathMaterializer';
 import { materializeMotionPathsInTree } from './PxMotionPath';
@@ -44,7 +44,7 @@ import { materializeAnimatedUseInstances } from './PxAnimatorUseMaterializer';
 /** Options accepted by {@link materializeAllInTree}. Mostly forwarded to the
  *  per-stage materializers; ordering is fixed (see module doc). * @internal
  */
-export interface MaterializeAllOptions {
+export interface PxMaterializeAllOptions {
     /** Knobs forwarded to `materializeMotionPathsInTree`. Only consulted for
      *  `engine === waapi` — frames-mode skips that stage entirely. */
     motionPath?: MotionPathMaterializationOptions;
@@ -55,10 +55,10 @@ export interface MaterializeAllOptions {
 export function materializeAllInTree(
     doc: PxAnimatedSvgDocument,
     engine: PxTimelineEngine,
-    opts?: MaterializeAllOptions,
+    options?: PxMaterializeAllOptions,
 ): PxAnimatedSvgDocument {
     // 1. Effects → structural materialization. Always runs; returns a fresh root.
-    let root = applyPlayerEffects(doc).root as PxAnimatedSvgDocument;
+    let root = materializeNodeEffects(doc).root as PxAnimatedSvgDocument;
 
     // 1b. `alongPathMode: 'offsetPath'` transforms → CSS Motion Path (offset-path style
     //     + `offsetDistance` binding). Both engines: frames drives `offset-distance` per
@@ -69,14 +69,14 @@ export function materializeAllInTree(
     // 2. Loops → flat repeated keyframes. Always runs (both engines need flat
     //    kfs covering the duration; per-binding expansion in
     //    `normalizeKeyframes` becomes a no-op once the loop field is consumed).
-    const duration = getAnimatorConfig(root)?.duration ?? DEFAULT_DURATION_MS;
+    const duration = getAnimatorConfig(root)?.duration ?? PX_DEFAULT_DURATION_MS;
     root = materializeInternalLoopsInTree(root, duration);
 
     if (engine === PxTimelineEngine.native) {
         // 3. Motion-along-path → sampled `{translate, rotate}` kfs. WAAPI can't
         //    evaluate parametric tangents; frames-mode does that per frame so
         //    we skip this for frames.
-        root = materializeMotionPathsInTree(root, opts?.motionPath);
+        root = materializeMotionPathsInTree(root, options?.motionPath);
 
         // 4. <use> referencing animated subtrees → <g> wrapping a fresh clone.
         //    WAAPI / CSS animations don't reliably propagate through SVG <use>

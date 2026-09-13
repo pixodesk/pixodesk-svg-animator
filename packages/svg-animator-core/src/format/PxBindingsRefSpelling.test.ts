@@ -8,7 +8,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { getBindings } from './PxAnimatorConstants';
-import { getNormalizedBindings } from '../animation/PxDefinitions';
+import { normalizeBindings } from '../animation/PxDefinitions';
 import { generateNewIds } from '../util/PxIdUtil';
 
 const doc = () => ({
@@ -26,8 +26,8 @@ describe('bindings — #id-spelled targets (review §3.2, 2.12)', () => {
         expect(getBindings(doc())).toEqual([{ target: '#ball', animateWith: ['fadeIn'] }]);
     });
 
-    it('getNormalizedBindings resolves the names and strips the hash — engines get bare DOM ids', () => {
-        const [binding] = getNormalizedBindings(doc());
+    it('normalizeBindings resolves the names and strips the hash — engines get bare DOM ids', () => {
+        const [binding] = normalizeBindings(doc());
         expect(binding.id).toBe('ball');
         expect(Object.keys(binding.animate)).toEqual(['opacity']);
     });

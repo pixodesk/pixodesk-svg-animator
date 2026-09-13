@@ -73,7 +73,7 @@ describe('materializeAllInTree', () => {
                 // <use> referring to src — animated target, must materialize for waapi.
                 { type: 'use', id: 'inst', href: '#src' } as PxNode,
                 // A second element with an `effects.clone.retime` bucket, just to verify
-                // applyPlayerEffects ran.
+                // materializeNodeEffects ran.
                 {
                     type: 'use',
                     id: 'retimed',
@@ -87,7 +87,7 @@ describe('materializeAllInTree', () => {
 
     // ── Engine: waapi ────────────────────────────────────────────────────
 
-    it('waapi: applyPlayerEffects ran — no node.effects remains anywhere', () => {
+    it('waapi: materializeNodeEffects ran — no node.effects remains anywhere', () => {
         const out = materializeAllInTree(fixture(), PxTimelineEngine.native);
         expect(deepHasAnyEffects(out)).toBe(false);
     });
@@ -118,7 +118,7 @@ describe('materializeAllInTree', () => {
         // The `inst` <use> is the simple ref one. No <use href="#src"> should remain
         // in the output (all materialized).
         const remainingUses = deepCountByType(out, 'use');
-        // The retime effect's <use> is consumed by applyPlayerEffects, the plain
+        // The retime effect's <use> is consumed by materializeNodeEffects, the plain
         // `inst` <use> by materializeAnimatedUseInstances. Both gone.
         expect(remainingUses).toBe(0);
     });
@@ -126,7 +126,7 @@ describe('materializeAllInTree', () => {
 
     // ── Engine: frames ────────────────────────────────────────────────────
 
-    it('frames: applyPlayerEffects ran — no node.effects remains', () => {
+    it('frames: materializeNodeEffects ran — no node.effects remains', () => {
         const out = materializeAllInTree(fixture(), PxTimelineEngine.js);
         expect(deepHasAnyEffects(out)).toBe(false);
     });
@@ -151,7 +151,7 @@ describe('materializeAllInTree', () => {
     it('frames: <use> KEPT — animated-use materialization skipped', () => {
         const out = materializeAllInTree(fixture(), PxTimelineEngine.js);
         // The plain `inst` <use> survives; the retime effect's <use> is still
-        // consumed by applyPlayerEffects.
+        // consumed by materializeNodeEffects.
         const remainingUses = deepCountByType(out, 'use');
         expect(remainingUses).toBeGreaterThanOrEqual(1);
     });

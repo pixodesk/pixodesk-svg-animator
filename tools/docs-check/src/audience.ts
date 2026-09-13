@@ -15,6 +15,7 @@ import { resolve } from 'node:path';
 import ts from 'typescript';
 import { ALL_PKGS, DOC_FILES, PKG_NPM_NAME, REPO_ROOT, type Pkg } from './config';
 import { parseMarkdown } from './md';
+import { parseDocBlock } from './ts-facts';
 import type { Finding } from './checks';
 import type { TsFacts } from './ts-facts';
 
@@ -29,13 +30,13 @@ export type Audience = 'public' | 'advanced' | 'internal';
 const MARK: Record<Audience, string> = { public: '●', advanced: '○', internal: '▪' };
 const TAG: Record<Audience, string> = { public: '@public', advanced: '@public @advanced', internal: '@internal' };
 
-interface Allowlist { undocumented: Record<string, string> }
+interface Allowlist { undocumented: Record<string, string>; noSignature?: Record<string, string> }
 
 function allowlist(): Allowlist {
     const p = resolve(REPO_ROOT, ALLOWLIST_FILE);
     if (!existsSync(p)) return { undocumented: {} };
     const parsed = JSON.parse(readFileSync(p, 'utf8')) as Partial<Allowlist>;
-    return { undocumented: parsed.undocumented ?? {} };
+    return { undocumented: parsed.undocumented ?? {}, noSignature: parsed.noSignature ?? {} };
 }
 
 /** Every exported name, once, with the packages that expose it. Aliases are already resolved. */
@@ -123,7 +124,7 @@ export function markFindings(facts: TsFacts): Array<Finding> {
                     if (!pkg) continue;                                  // the exports check reports it
                     const { audience } = audienceOf(facts.symbol(pkg, name)!);
                     if (!audience) continue;                             // tagFindings reports it
-                    // a row may mark one of its names differently: `` `getNormalizedProps` (○) ``
+                    // a row may mark one of its names differently: `` `toDomProps` (○) ``
                     const own = new RegExp('`' + name + '[^`]*`\\s*\\(([●○▪])\\)').exec(cell)?.[1];
                     const expected = own ?? mark;
                     if (MARK[audience] !== expected) {
@@ -160,7 +161,7 @@ function guideMentions(): { described: Map<string, Array<string>>; shown: Map<st
         };
         for (const m of text.matchAll(/```[\s\S]*?```/g)) collect(m[0], code);
         for (const m of text.matchAll(/`([^`\n]+)`/g)) collect(m[1], all);
-        // A name a marker CHECKS — `props PxAnimatorConfigShortcuts`, `schema PxClipPathEffectSchema`
+        // A name a marker CHECKS — `props PxTimelineShortcuts`, `schema PxClipPathEffectSchema`
         // — is documented by the table under it, member by member, even when the prose never
         // spells the type. That is a stronger guarantee than a mention, so it counts as described.
         for (const m of text.matchAll(/<!--\s*px-check\s+([\s\S]*?)-->/g)) collect(m[1], all);
@@ -215,4 +216,67 @@ export function audienceReport(facts: TsFacts): string {
         rows.push(`| ${p} | ${pub.length} | ${count(pub)} | ${adv.length} | ${count(adv)} | ${int.length} |`);
     }
     return rows.join('\n');
+}
+
+
+// ---- 4. a public CALL shows its shape somewhere a reader can see it ---------------------------
+
+/** Names whose shape a checked block actually shows: a `signature` block's declarations, and the
+ *  target of a `props` / `values` / `emits` / `members` / `schema` marker or a `matrix` column. */
+function namesUnderACheckedBlock(): Set<string> {
+    const shown = new Set<string>();
+    for (const file of DOC_FILES) {
+        const doc = parseMarkdown(resolve(REPO_ROOT, file));
+        for (const m of doc.markers) {
+            if (m.kind === 'signature' && m.block?.kind === 'code') {
+                for (const d of parseDocBlock(m.block.text, m.block.line).decls) shown.add(d.name);
+            }
+            if (['props', 'values', 'emits', 'members', 'schema'].includes(m.kind) && m.target) shown.add(m.target);
+            if (m.kind === 'matrix' || m.kind === 'schema-block') {
+                for (const v of Object.values(m.opts)) {
+                    const name = v.includes(':') ? v.split(':')[1] : v;
+                    if (/^[A-Za-z_$][\w$]*$/.test(name)) shown.add(name);
+                }
+            }
+        }
+    }
+    return shown;
+}
+
+export function signatureFindings(facts: TsFacts): Array<Finding> {
+    const shown = namesUnderACheckedBlock();
+    const allow = new Set(Object.keys(allowlist().noSignature ?? {}));
+    const out: Array<Finding> = [];
+    const seen = new Set<string>();
+    for (const [name, { sym, pkgs }] of surface(facts)) {
+        if (seen.has(name)) continue;
+        seen.add(name);
+        const { audience } = audienceOf(sym);
+        if (audience !== 'public') continue;                       // advanced is document tooling; types are §8.3's job
+        const pkg = pkgs[0];
+        if (!facts.isValue(pkg, name)) continue;                   // a type's shape is covered by props/signature elsewhere
+        if (!facts.callSignatures(pkg, name).length) continue;     // a const object is not a call
+        if (shown.has(name) || allow.has(name)) continue;
+        out.push({ line: 0, message: `${name} is @public and callable, but no checked block shows its signature — put it under a px-check signature block, or add it to ${ALLOWLIST_FILE} under "noSignature" with a reason` });
+    }
+    return out;
+}
+
+// ---- 5. an internal name stays off the public door -------------------------------------------
+
+export function mainEntryFindings(facts: TsFacts): Array<Finding> {
+    const out: Array<Finding> = [];
+    for (const pkg of ALL_PKGS) {
+        const sf = facts.sourceFile(pkg);                          // the MAIN entry, not `/internal`
+        const mod = facts.checker.getSymbolAtLocation(sf)
+            ?? (sf as unknown as { symbol?: ts.Symbol }).symbol;
+        if (!mod) continue;
+        for (const s of facts.checker.getExportsOfModule(mod)) {
+            if (s.name === 'default') continue;
+            const r = s.flags & ts.SymbolFlags.Alias ? facts.checker.getAliasedSymbol(s) : s;
+            if (audienceOf(r).audience !== 'internal') continue;
+            out.push({ line: 0, message: `${PKG_NPM_NAME[pkg]} exports ${s.name} from its MAIN entry, but it is @internal — move it to the package's /internal entry` });
+        }
+    }
+    return out;
 }

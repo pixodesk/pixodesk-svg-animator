@@ -5,7 +5,7 @@
 // optional member, a `React.` qualifier. Aliases and interfaces are expanded textually from
 // a map the real types provide — again on BOTH sides — so a doc may inline
 // `'load' | 'click' | …` where the type says `PxStartOn`, or `{ motionPath?: … }` where it
-// says `MaterializeAllOptions`, or keep the name; either passes.
+// says `PxMaterializeAllOptions`, or keep the name; either passes.
 
 export type AliasMap = ReadonlyMap<string, string>;
 

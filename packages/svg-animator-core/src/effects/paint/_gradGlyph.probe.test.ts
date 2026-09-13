@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { applyPlayerEffects } from '../PlayerEffectsUtil';
+import { materializeNodeEffects } from '../PlayerEffectsUtil';
 import type { PxNode } from '../../format/PxAnimatorTypes';
 
 const glyphs = { F: { fontFamily: 'F', style: '', ascent: 800, unitsPerEm: 1000,
@@ -18,7 +18,7 @@ describe('probe', () => {
     ] as const) {
       const scene = { type: 'svg', viewBox: '0 0 200 100', animator: { definitions: { fonts: glyphs } },
         children: [{ type: 'text', id: 't', children: [JSON.parse(JSON.stringify(tspan))], effects: { text: { useGlyphs: true } } }] } as unknown as PxNode;
-      const { root } = applyPlayerEffects(scene);
+      const { root } = materializeNodeEffects(scene);
       const paths: Array<any> = [];
       const walk = (n: any) => { if (!n) return; if (n.type === 'path') paths.push(n); (n.children || []).forEach(walk); };
       walk(root);

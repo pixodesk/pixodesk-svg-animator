@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import type { PxEngineCallbacks, PxAnimatorCallbacks } from '@pixodesk/svg-animator-core';
-import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
+import type { PxAnimatorApi } from './PxAnimatorWebTypes';
 
 /**
  * The engines take ONE callbacks object; every public surface takes the callbacks INLINE —
@@ -35,7 +35,7 @@ export function toEngineCallbacks(inline: PxAnimatorCallbacks | undefined): PxEn
  * call is a no-op, every getter answers "not ready". Returned instead of throwing, after the
  * failure has been reported through `onError`.
  */
-export function createInertAnimator(): PxAnimatorAPI {
+export function createInertAnimator(): PxAnimatorApi {
     return {
         isReady: () => false,
         getRootElement: () => null,

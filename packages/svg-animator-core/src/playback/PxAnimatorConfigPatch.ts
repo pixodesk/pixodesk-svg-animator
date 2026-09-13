@@ -120,7 +120,7 @@ function mergeTimeline(base: unknown, patch: Record<string, any>, warn: (m: stri
 export type PxTimelinePatch = Record<string, any> | null;
 
 /** The four flat shortcuts every surface offers for the keys people reach for most. @public */
-export interface PxAnimatorConfigShortcuts {
+export interface PxTimelineShortcuts {
     /** Shortcut for `timeline.duration` — one iteration, ms. Wins over the same key in `timeline`. */
     duration?: number;
     /** Shortcut for `timeline.delay` — the wait before the first iteration, ms. */
@@ -142,7 +142,7 @@ export interface PxAnimatorConfigShortcuts {
  * from it, `createAnimator`'s options extend it.
  * @public
  */
-export interface PxPlaybackOverrideProps extends PxAnimatorConfigShortcuts {
+export interface PxPlaybackOverride extends PxTimelineShortcuts {
     /**
      * Per-instance override of the document's `animator.timeline` — the same shape as `timeline`
      * in SCHEMA.md, deep-merged over what the document says, so one file can play twice on a page
@@ -172,7 +172,7 @@ export interface PxPlaybackOverrideProps extends PxAnimatorConfigShortcuts {
  */
 export function foldTimelineOverride(
     timeline: PxTimelinePatch | string | undefined,
-    shortcuts: PxAnimatorConfigShortcuts,
+    shortcuts: PxTimelineShortcuts,
 ): PxAnimatorConfigPatch | undefined {
     let base: PxTimelinePatch | undefined;
     if (typeof timeline === 'string') {
@@ -246,7 +246,7 @@ export function mergeAnimatorConfig(
  * Document level: resolves the two canonical addresses of the animator config and returns a NEW
  * document that shares every untouched subtree by reference.
  *
- * `resetDefaults` starts from the player's own defaults instead of the document's playback
+ * `resetTimeline` starts from the player's own defaults instead of the document's playback
  * settings — "play this file as if it said nothing about timing". The lookup tables are kept
  * either way: resetting `definitions`/`bindings` would leave an animation with nothing to
  * animate, which is never what a caller means.
@@ -255,9 +255,9 @@ export function mergeAnimatorConfig(
 export function applyAnimatorConfig(
     doc: PxAnimatedSvgDocument,
     patch: PxAnimatorConfigPatch,
-    opts?: { resetDefaults?: boolean },
+    options?: { resetTimeline?: boolean },
 ): { doc: PxAnimatedSvgDocument; warnings: Array<string> } {
-    const reset = !!opts?.resetDefaults;
+    const reset = !!options?.resetTimeline;
     if (!doc || (patch === undefined || (!reset && (patch === null || !isPlainObject(patch) || !Object.keys(patch).length)))) {
         return { doc, warnings: [] };
     }

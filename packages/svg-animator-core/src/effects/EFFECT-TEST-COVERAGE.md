@@ -1,6 +1,6 @@
 # Player effect test coverage
 
-Per-effect pure-JSON in/out tests (`outJson = applyPlayerEffects(inJson)`), modelled
+Per-effect pure-JSON in/out tests (`outJson = materializeNodeEffects(inJson)`), modelled
 on `retimeEffect.test.ts`: a single effect bucket on an input node → run the real
 driver → assert (a) a full-tree inline **snapshot** (catches stray output) plus
 (b) **pinpoint guards** that encode the effect's contract independent of structure.
@@ -24,7 +24,7 @@ Schemas: `PxAnimatorTypes.ts` (`_PxEffects` + each `_Px*Effect`). Apply order:
 **All effects covered.** Shared helpers: `effectTestKit.ts`. Run: `npx vitest run src/effects`.
 
 ## Engine (WAAPI vs frames) coverage
-The effect pass (`applyPlayerEffects`, used by `materialize`) is **engine-agnostic** — same
+The effect pass (`materializeNodeEffects`, used by `materialize`) is **engine-agnostic** — same
 output for both. The WAAPI-vs-frames difference lives in the later `materializeAllInTree`
 stages (waapi-only): **motion-path flatten** + **animated-`<use>` inline**. Use the
 `materializeEngine(input, engine)` kit helper to exercise those.

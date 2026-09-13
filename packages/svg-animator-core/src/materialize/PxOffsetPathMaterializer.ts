@@ -23,13 +23,13 @@
 
 import { OFFSET_DISTANCE_ATTR, TRANSFORM_ATTR, TRANSFORM_PART } from '../format/PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxKeyframe, PxNode, PxPropertyAnimation } from '../format/PxAnimatorTypes';
-import { kfTime, kfValue, kfEasing, kfTangentIn, kfTangentOut } from '../format/PxAnimatorTypes';
+import { keyframeTime, keyframeValue, keyframeEasing, keyframeTangentIn, keyframeTangentOut } from '../format/PxAnimatorTypes';
 
-type Vec2 = [number, number];
+type PxVec2 = [number, number];
 
 
 /** Cubic-bezier point at parameter t. */
-function cubicAt(p0: Vec2, c1: Vec2, c2: Vec2, p1: Vec2, t: number): Vec2 {
+function cubicAt(p0: PxVec2, c1: PxVec2, c2: PxVec2, p1: PxVec2, t: number): PxVec2 {
     const u = 1 - t;
     const a = u * u * u, b = 3 * u * u * t, c = 3 * u * t * t, d = t * t * t;
     return [a * p0[0] + b * c1[0] + c * c2[0] + d * p1[0],
@@ -37,7 +37,7 @@ function cubicAt(p0: Vec2, c1: Vec2, c2: Vec2, p1: Vec2, t: number): Vec2 {
 }
 
 /** Approximate cubic segment length by dense polyline sampling. */
-function cubicLength(p0: Vec2, c1: Vec2, c2: Vec2, p1: Vec2, steps = 64): number {
+function cubicLength(p0: PxVec2, c1: PxVec2, c2: PxVec2, p1: PxVec2, steps = 64): number {
     let len = 0;
     let prev = p0;
     for (let i = 1; i <= steps; i++) {
@@ -59,7 +59,7 @@ const fmt = (n: number): string => {
  * express) — the caller then leaves the binding for the ordinary pipeline.
  */
 function buildOffsetPath(propAnim: PxPropertyAnimation): {
-    pathStr: string; distanceKfs: Array<PxKeyframe>; autoOrient: boolean; anchor: Vec2;
+    pathStr: string; distanceKfs: Array<PxKeyframe>; autoOrient: boolean; anchor: PxVec2;
 } | undefined {
     if ((propAnim as { alongPathMode?: string }).alongPathMode !== 'offsetPath') return undefined;
 
@@ -76,13 +76,13 @@ function buildOffsetPath(propAnim: PxPropertyAnimation): {
     // `offset-anchor` pins the element's own origin point (o, in its box) to the path.
     // Anchoring 0 0 on the raw translates put the element's CORNER on a corner-trajectory
     // and pivoted rotation about the corner — visibly off the path for centered origins.
-    const first = kfValue(kfs[0]) as { origin?: Vec2 } | undefined;
-    const anchor: Vec2 = first?.origin && first.origin.length >= 2
+    const first = keyframeValue(kfs[0]) as { origin?: PxVec2 } | undefined;
+    const anchor: PxVec2 = first?.origin && first.origin.length >= 2
         ? [first.origin[0], first.origin[1]] : [0, 0];
 
-    const points: Array<Vec2> = [];
+    const points: Array<PxVec2> = [];
     for (const kf of kfs) {
-        const v = kfValue(kf) as { translate?: Vec2; origin?: Vec2 } | undefined;
+        const v = keyframeValue(kf) as { translate?: PxVec2; origin?: PxVec2 } | undefined;
         const tr = v?.translate;
         if (!tr || tr.length < 2) return undefined;
         const parts = Object.keys(v as object);
@@ -95,17 +95,17 @@ function buildOffsetPath(propAnim: PxPropertyAnimation): {
     }
     // No tangent anywhere ⇒ straight lines ⇒ a plain translate animation renders this
     // everywhere with no support floor; the offset encoding buys nothing.
-    if (!kfs.some(kf => kfTangentIn(kf) || kfTangentOut(kf))) return undefined;
+    if (!kfs.some(kf => keyframeTangentIn(kf) || keyframeTangentOut(kf))) return undefined;
 
     // Path string + per-segment arc lengths, in one pass.
     let d = 'M' + fmt(points[0][0]) + ',' + fmt(points[0][1]);
     const segLens: Array<number> = [];
     for (let i = 0; i < points.length - 1; i++) {
         const p0 = points[i], p1 = points[i + 1];
-        const to = kfTangentOut(kfs[i]) ?? [0, 0];
-        const ti = kfTangentIn(kfs[i + 1]) ?? [0, 0];
-        const c1: Vec2 = [p0[0] + to[0], p0[1] + to[1]];
-        const c2: Vec2 = [p1[0] + ti[0], p1[1] + ti[1]];
+        const to = keyframeTangentOut(kfs[i]) ?? [0, 0];
+        const ti = keyframeTangentIn(kfs[i + 1]) ?? [0, 0];
+        const c1: PxVec2 = [p0[0] + to[0], p0[1] + to[1]];
+        const c2: PxVec2 = [p1[0] + ti[0], p1[1] + ti[1]];
         d += 'C' + fmt(c1[0]) + ',' + fmt(c1[1]) + ',' + fmt(c2[0]) + ',' + fmt(c2[1]) + ',' + fmt(p1[0]) + ',' + fmt(p1[1]);
         segLens.push(cubicLength(p0, c1, c2, p1));
     }
@@ -118,8 +118,8 @@ function buildOffsetPath(propAnim: PxPropertyAnimation): {
     let cum = 0;
     for (let i = 0; i < kfs.length; i++) {
         if (i > 0) cum += segLens[i - 1];
-        const out: PxKeyframe = { t: kfTime(kfs[i]), v: cum / total } as never;
-        const e = kfEasing(kfs[i]);
+        const out: PxKeyframe = { t: keyframeTime(kfs[i]), v: cum / total } as never;
+        const e = keyframeEasing(kfs[i]);
         if (e !== undefined) (out as { e?: unknown }).e = e;
         distanceKfs.push(out);
     }

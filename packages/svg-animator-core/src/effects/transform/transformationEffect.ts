@@ -5,7 +5,7 @@
 
 
 import { keyframeWith, partsRecord, ReadKind, readAnimatable, TransformPart } from '../shared/transformParts';
-import type { PxAnimatable, PxNode, PxTransformByEffect, Vec2 } from '../../format/PxAnimatorTypes';
+import type { PxAnimatable, PxNode, PxTransformByEffect, PxVec2 } from '../../format/PxAnimatorTypes';
 import type { ApplyContext } from '../shared/types';
 
 
@@ -72,9 +72,9 @@ export function applyTransformByEffect(node: PxNode, fx: PxTransformByEffect | u
 
 /** True when the translate animation carries motion-path tangent handles or
  *  `autoOrient` — the path-tangent rotation needs origin-sandwich to pivot. */
-function translateHasAutoOrient(translate: PxAnimatable<Vec2> | undefined): boolean {
+function translateHasAutoOrient(translate: PxAnimatable<PxVec2> | undefined): boolean {
     if (!translate || typeof translate !== 'object') return false;
-    const obj = translate as { autoOrient?: boolean; keyframes?: Array<{ tangentOut?: Vec2; tangentIn?: Vec2 }> };
+    const obj = translate as { autoOrient?: boolean; keyframes?: Array<{ tangentOut?: PxVec2; tangentIn?: PxVec2 }> };
     if (obj.autoOrient) return true;
     return Array.isArray(obj.keyframes) && obj.keyframes.some(kf => kf.tangentOut || kf.tangentIn);
 }
@@ -86,7 +86,7 @@ function translateHasAutoOrient(translate: PxAnimatable<Vec2> | undefined): bool
  * normalization is needed any more. Kept as a named identity so the call site
  * still documents the convention decision.
  */
-function normalizeScale(raw: PxAnimatable<Vec2> | undefined): PxAnimatable<Vec2> | undefined {
+function normalizeScale(raw: PxAnimatable<PxVec2> | undefined): PxAnimatable<PxVec2> | undefined {
     return raw;
 }
 
@@ -123,10 +123,10 @@ function wrapTransformPart(
  * the origin-sandwich rotation/scale around origin by stacking the wrappers,
  * NOT by reading `origin` off the rotate/scale wrapper's parts record.
  */
-function wrapOrigin(inner: PxNode, raw: PxAnimatable<Vec2> | undefined, invert: boolean): PxNode {
+function wrapOrigin(inner: PxNode, raw: PxAnimatable<PxVec2> | undefined, invert: boolean): PxNode {
     if (raw === undefined) return inner;
-    const v = readAnimatable<Vec2>(raw);
-    const sign = (value: Vec2): Vec2 => invert ? [-value[0], -value[1]] : value;
+    const v = readAnimatable<PxVec2>(raw);
+    const sign = (value: PxVec2): PxVec2 => invert ? [-value[0], -value[1]] : value;
 
     if (v.kind === ReadKind.Absent) return inner;
     if (v.kind === ReadKind.Static) {
@@ -134,7 +134,7 @@ function wrapOrigin(inner: PxNode, raw: PxAnimatable<Vec2> | undefined, invert: 
         return { type: 'g', transform: { value: { translate: sign(v.value) } }, children: [inner] };
     }
     if (v.kind === ReadKind.Animated) {
-        const animTr: any = { keyframes: v.keyframes.map(kf => keyframeWith(kf, { translate: sign(kf.value as Vec2) })) };
+        const animTr: any = { keyframes: v.keyframes.map(kf => keyframeWith(kf, { translate: sign(kf.value as PxVec2) })) };
         if (v.loop !== undefined) animTr.loop = v.loop;
         return {
             type: 'g',

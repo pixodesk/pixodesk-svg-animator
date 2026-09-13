@@ -11,7 +11,7 @@
 // geometry in the serialized output.
 
 import { describe, expect, it } from 'vitest';
-import { applyPlayerEffects } from '@pixodesk/svg-animator-core';
+import { materializeNodeEffects } from '@pixodesk/svg-animator-core';
 import type { PxNode } from '@pixodesk/svg-animator-core';
 import { renderNode } from './PxAnimatorDOM';
 
@@ -41,7 +41,7 @@ function scene(): PxNode {
 describe('glyph text — materialize → renderNode → serialize (static SVG)', () => {
 
     it('produces a font-free SVG with <path> geometry and no <text>', () => {
-        const { root } = applyPlayerEffects(scene());
+        const { root } = materializeNodeEffects(scene());
         const el = renderNode(root);
         expect(el).toBeTruthy();
         const svg = new XMLSerializer().serializeToString(el!);

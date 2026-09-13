@@ -405,11 +405,11 @@ export function parseColor(s: any): number[] | undefined {
 }
 
 /** @internal */
-export const COLOR_ATTR_NAMES = new Set(["color", "fill", "flood-color", "lighting-color", "stop-color", "stroke"]);
+export const PX_COLOR_ATTR_NAMES = new Set(["color", "fill", "flood-color", "lighting-color", "stop-color", "stroke"]);
 /** @internal */
-export const TRANSFORM_FN_NAMES = new Set(["translate", "rotate", "scale", "skew"]);
+export const PX_TRANSFORM_FN_NAMES = new Set(["translate", "rotate", "scale", "skew"]);
 /** @internal */
-export const PCT_BASED_ATTR_NAMES = new Set(["offset-distance", "offsetDistance"]);
+export const PX_PCT_BASED_ATTR_NAMES = new Set(["offset-distance", "offsetDistance"]);
 
 /**
  * Compose a `PxTransformParts` record into a single SVG/CSS transform string in
@@ -495,9 +495,9 @@ export function parseTransformParts(str: string | null | undefined): PxTransform
 }
 
 /** @internal */
-export const STYLE_ATTR_NAMES = new Set(["offset-distance", "offsetDistance"]); // Props that need to go to style
+export const PX_STYLE_ATTR_NAMES = new Set(["offset-distance", "offsetDistance"]); // Props that need to go to style
 /** @internal */
-export const DEFAULT_DURATION_MS = 1000;
+export const PX_DEFAULT_DURATION_MS = 1000;
 
 /**
  * Converts a kebab-case string to camelCase.

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { clampSeekMs, createRunClock, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PX_RATE_REJECTED, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverrideProps, type PxDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
+import { clampSeekMs, createRunClock, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PX_RATE_REJECTED, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, generateNewIds, getAnimatorConfig, getDefinitions, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
@@ -37,13 +37,13 @@ export type RnAnimatorApi = PxAnimatorHandle;
 
 /**
  * The component's props. The playback override, the control props and the callbacks are core's
- * shared shapes (review §9) — `PxPlaybackOverrideProps`, `PxControlProps` and
+ * shared shapes (review §9) — `PxPlaybackOverride`, `PxControlProps` and
  * `PxAnimatorCallbacks` — so React, Vue and React Native cannot drift apart. Only what differs
  * on this platform is declared here: `fallback`, which has no web counterpart.
  * @public
  */
 export interface PixodeskSvgAnimatorProps
-    extends PxPlaybackOverrideProps, PxControlProps, PxAnimatorCallbacks {
+    extends PxPlaybackOverride, PxControlProps, PxAnimatorCallbacks {
 
     // -- Source ---------------------------------------------------------------
 
@@ -51,7 +51,7 @@ export interface PixodeskSvgAnimatorProps
     doc: PxAnimatedSvgDocument;
 
     /**
-     * Per-instance override of the document's `timeline` — see `PxPlaybackOverrideProps`.
+     * Per-instance override of the document's `timeline` — see `PxPlaybackOverride`.
      *
      * `engine` is accepted but ignored here: React Native always uses the `native` (fully
      * flattened) materialization, because react-native-svg has no `<use>` shadow-tree
@@ -217,7 +217,7 @@ function SampledSubtree({
 
 /** Overrides that shadow the document's own `animator` config. */
 /** The override subset of the props — core's shared shape, not a local copy (review §9). */
-type ConfigOverrides = PxPlaybackOverrideProps;
+type ConfigOverrides = PxPlaybackOverride;
 
 interface Compiled {
     /** Materialized document, or null when compilation failed. */
@@ -249,7 +249,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
     // patch would be read by none of the pipeline. Same call, same rules, on every surface.
     const patch = foldTimelineOverride(timeline, { duration, delay, iterations, startOn });
     if (patch !== undefined || resetTimeline) {
-        const applied = applyAnimatorConfig(doc, patch ?? {}, { resetDefaults: !!resetTimeline });
+        const applied = applyAnimatorConfig(doc, patch ?? {}, { resetTimeline: !!resetTimeline });
         for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, 'timeline override: ' + w);
         doc = applied.doc;
     }
@@ -602,7 +602,7 @@ export function PixodeskSvgAnimator({
 
         const renderOpts: RenderRnNodeOptions = {
             warnings: warningsRef.current,
-            defs: getDefs(compiled.doc),
+            defs: getDefinitions(compiled.doc),
         };
         try {
             return renderRnNode(compiled.doc as PxNode, {

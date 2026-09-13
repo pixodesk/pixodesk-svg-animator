@@ -5,7 +5,7 @@
 
 import { PxDiagnosticKind, resolveTrigger, type PxDiagnostics, type PxTrigger } from '@pixodesk/svg-animator-core';
 import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
-import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
+import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
 
 
 /**
@@ -29,8 +29,8 @@ import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
  * - 'reset': Cancels the animation, resetting it to the start.
  * - 'reverse': Reverses the animation playback.
  *
- * @param {!PxAnimatorAPI} api The animator API instance to control.
- * @param {!PxTrigger} config The trigger configuration object. Only `startOn`, `outAction` and
+ * @param {!PxAnimatorApi} api The animator API instance to control.
+ * @param {!PxTrigger} trigger The trigger configuration object. Only `startOn`, `outAction` and
  *   `scrollIntoViewThreshold` are read here; `finishAction` belongs to the PLAYER (what happens
  *   after a natural end), not to the trigger wiring.
  * @returns A disposer that detaches every listener and observer this call attached (review §14).
@@ -39,8 +39,8 @@ import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
  * @public
  */
 export function setupAnimationTriggers(
-    api: PxAnimatorAPI,
-    config: PxTrigger,
+    api: PxAnimatorApi,
+    trigger: PxTrigger,
     diag?: PxDiagnostics
 ): () => void {
     // Public export, so the channel is optional and falls back to the console (review §5).
@@ -53,7 +53,7 @@ export function setupAnimationTriggers(
     // no `startOn` = 'load', no `outAction` = 'continue', no threshold = 0 ("any pixel visible").
     // The threshold default must match the editor model's (TSvgSvgAnimationAttr
     // .scrollIntoViewThreshold), which OMITS the value on the wire when it equals it.
-    const { startOn, outAction, scrollIntoViewThreshold } = resolveTrigger(config);
+    const { startOn, outAction, scrollIntoViewThreshold } = resolveTrigger(trigger);
 
     const root = api.getRootElement();
 

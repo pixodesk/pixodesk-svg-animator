@@ -3,14 +3,14 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createBasicFrameLoopAnimator, getAnimatorConfig, PxDiagnosticKind, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxDiagnostics, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
-import { camelCaseToKebabWordIfNeeded, createDiagnostics, isScrollTimeline, STYLE_ATTR_NAMES } from '@pixodesk/svg-animator-core/internal';
+import { createAdapterAnimator, getAnimatorConfig, PxDiagnosticKind, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxDiagnostics, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { camelCaseToKebabWordIfNeeded, createDiagnostics, isScrollTimeline, PX_STYLE_ATTR_NAMES } from '@pixodesk/svg-animator-core/internal';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
-import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
+import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
 
 // Re-export the platform-neutral pieces from their historical home so the
 // package surface is unchanged by the core extraction.
-export { createBasicFrameLoopAnimator };
+export { createAdapterAnimator };
 export type { PxPlatformAdapter };
 
 export function getSelector(id: string) {
@@ -31,7 +31,7 @@ export function getSelector(id: string) {
  *
  * @param {PxEngineCallbacks=} callbacks Optional lifecycle callbacks.
  * @param {Element=} rootElement Optional pre-rendered root element.
- * @returns {PxAnimatorAPI} A PxAnimatorAPI instance.
+ * @returns {PxAnimatorApi} A PxAnimatorApi instance.
  * @internal
  */
 export function createFrameLoopAnimator(
@@ -39,7 +39,7 @@ export function createFrameLoopAnimator(
     adapter?: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks,
     rootElement?: Element | null
-): PxAnimatorAPI {
+): PxAnimatorApi {
 
     const config = getAnimatorConfig(doc) || {};
 
@@ -57,14 +57,14 @@ export function createFrameLoopAnimator(
         }
     }
 
-    const basicApi = createBasicFrameLoopAnimator(
+    const basicApi = createAdapterAnimator(
         doc,
         adapter || createDomAdapter(rootElement, diag),
         callbacks
     );
 
     // Specialize the platform-neutral API to the DOM: the root is an Element.
-    const api: PxAnimatorAPI = {
+    const api: PxAnimatorApi = {
         ...basicApi,
         "getRootElement": () => rootElement || null
     };
@@ -118,7 +118,7 @@ export function createDomAdapter(rootElement?: Element | null, diag?: PxDiagnost
                     ? 'patternTransform'
                     : attrName;
                 element.setAttribute(effectiveAttrName, value);
-                if (STYLE_ATTR_NAMES.has(attrName)) {
+                if (PX_STYLE_ATTR_NAMES.has(attrName)) {
                     (element as HTMLElement).style[attrName as any] = value;
                 }
             }

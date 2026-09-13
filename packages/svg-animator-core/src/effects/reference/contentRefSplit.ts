@@ -44,7 +44,7 @@
  */
 
 import { applyTransformByEffect } from '../transform/transformationEffect';
-import type { PxAnimatable, PxAnimationDefinition, PxKeyframe, PxNode, PxTransformByEffect, Vec2 } from '../../format/PxAnimatorTypes';
+import type { PxAnimatable, PxAnimationDefinition, PxKeyframe, PxNode, PxTransformByEffect, PxVec2 } from '../../format/PxAnimatorTypes';
 import type { ApplyContext } from '../shared/types';
 import { stripHash } from '../shared/util';
 
@@ -147,7 +147,7 @@ function liftBodyTranslate(node: PxNode, transformBy: PxTransformByEffect | unde
         const kfs: Array<PxKeyframe<any>> = animTr.keyframes;
         const hasTranslate = kfs.some(kf => kf.value && (kf.value as any).translate);
         if (hasTranslate) {
-            const outerHasOrigin = needsOriginOnOuter(animTr as PxAnimatable<Vec2>);
+            const outerHasOrigin = needsOriginOnOuter(animTr as PxAnimatable<PxVec2>);
             const outerKfs = kfs.map(kf => {
                 const v = (kf.value || {}) as any;
                 const newValue: any = {};
@@ -422,9 +422,9 @@ function splitTransformByEffect(fx: PxTransformByEffect | undefined): {
 /** True when the translate animation produces rotation at the outer level
  *  (tangent handles or `autoOrient`) — meaning origin must sit on the outer
  *  with translate so the path-tangent rotation pivots around it. */
-function needsOriginOnOuter(translateAnim: PxAnimatable<Vec2> | undefined): boolean {
+function needsOriginOnOuter(translateAnim: PxAnimatable<PxVec2> | undefined): boolean {
     if (!translateAnim || typeof translateAnim !== 'object') return false;
-    const obj = translateAnim as { autoOrient?: boolean; keyframes?: Array<PxKeyframe<Vec2> & { tangentOut?: Vec2; tangentIn?: Vec2 }> };
+    const obj = translateAnim as { autoOrient?: boolean; keyframes?: Array<PxKeyframe<PxVec2> & { tangentOut?: PxVec2; tangentIn?: PxVec2 }> };
     if (obj.autoOrient) return true;
     if (Array.isArray(obj.keyframes)) {
         return obj.keyframes.some(kf => kf.tangentOut || kf.tangentIn);

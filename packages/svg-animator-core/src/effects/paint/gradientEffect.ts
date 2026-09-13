@@ -4,12 +4,12 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import type { PxAnimatable, PxFillGradientEffect, PxGradientStop, PxKeyframe, PxLoop, PxNode, PxStrokeGradientEffect, Vec2 } from '../../format/PxAnimatorTypes';
+import type { PxAnimatable, PxFillGradientEffect, PxGradientStop, PxKeyframe, PxLoop, PxNode, PxStrokeGradientEffect, PxVec2 } from '../../format/PxAnimatorTypes';
 import { PxGradientType } from '../../format/PxAnimatorConstants';
 import { ReadKind, readAnimatable, writeAnimatableChannel } from '../shared/transformParts';
 import type { ApplyContext } from '../shared/types';
 import { genId } from '../shared/util';
-import { kfTime, kfValue, kfEasing } from '../../format/PxAnimatorTypes';
+import { keyframeTime, keyframeValue, keyframeEasing } from '../../format/PxAnimatorTypes';
 
 
 /**
@@ -93,11 +93,11 @@ function synthesiseGradientDef(fx: PxFillGradientEffect, id: string, ctx: ApplyC
     return out;
 }
 
-/** Animatable Vec2 geometry slot → static `xAttr`/`yAttr` body attrs, or two
+/** Animatable PxVec2 geometry slot → static `xAttr`/`yAttr` body attrs, or two
  *  per-axis `animate` channels (times/easings preserved, `loop` carried) plus
  *  static baseline attrs from the base/first kf. */
-function applyGeomVec(out: PxNode, xAttr: string, yAttr: string, raw: PxAnimatable<Vec2> | undefined): void {
-    const read = readAnimatable<Vec2>(raw);
+function applyGeomVec(out: PxNode, xAttr: string, yAttr: string, raw: PxAnimatable<PxVec2> | undefined): void {
+    const read = readAnimatable<PxVec2>(raw);
     if (read.kind === ReadKind.Absent) return;
     if (read.kind === ReadKind.Static) {
         out[xAttr] = String(read.value[0]);
@@ -161,7 +161,7 @@ function buildStopChildren(stops: PxAnimatable<Array<PxGradientStop>> | undefine
     // count, but defensive — when missing, hold the last value).
     let stopCount = 0;
     for (const kf of kfs) {
-        const v = kfValue(kf) as Array<PxGradientStop> | undefined;
+        const v = keyframeValue(kf) as Array<PxGradientStop> | undefined;
         if (Array.isArray(v) && v.length > stopCount) stopCount = v.length;
     }
     if (!stopCount) return [];
@@ -169,7 +169,7 @@ function buildStopChildren(stops: PxAnimatable<Array<PxGradientStop>> | undefine
     // Baseline stop info from kf[0] — offsets stay fixed across kfs, only
     // colors animate; offset rarely animates but if it does we sample at
     // each kf.
-    const firstKfValue = kfValue(kfs[0]) as Array<PxGradientStop> | undefined;
+    const firstKfValue = keyframeValue(kfs[0]) as Array<PxGradientStop> | undefined;
     const baselineStops: Array<PxGradientStop> = [];
     for (let i = 0; i < stopCount; i++) {
         const s = firstKfValue?.[i] ?? prevDefinedStop(kfs, 0, i) ?? { offset: i / Math.max(1, stopCount - 1), color: '#000000' };
@@ -195,11 +195,11 @@ function animatedStopNode(baseline: PxGradientStop, kfs: Array<PxKeyframe>, stop
     // cheaper than a runtime binding that recomputes the same value.
     let offsetVaries = false;
     for (const kf of kfs) {
-        const t = kfTime(kf);
-        const arr = kfValue(kf) as Array<PxGradientStop> | undefined;
+        const t = keyframeTime(kf);
+        const arr = keyframeValue(kf) as Array<PxGradientStop> | undefined;
         const sliced = arr?.[stopIdx] ?? prevDefinedStop(kfs, kfs.indexOf(kf), stopIdx);
         if (!sliced) continue;
-        const easing = kfEasing(kf);
+        const easing = keyframeEasing(kf);
 
         const colorOut: PxKeyframe = { time: t, value: sliced.color };
         if (easing !== undefined) colorOut.easing = easing;
@@ -237,11 +237,11 @@ function animatedStopNode(baseline: PxGradientStop, kfs: Array<PxKeyframe>, stop
  *  but degrades gracefully). */
 function prevDefinedStop(kfs: Array<PxKeyframe>, fromIdx: number, stopIdx: number): PxGradientStop | undefined {
     for (let i = fromIdx; i >= 0; i--) {
-        const arr = kfValue(kfs[i]) as Array<PxGradientStop> | undefined;
+        const arr = keyframeValue(kfs[i]) as Array<PxGradientStop> | undefined;
         if (arr?.[stopIdx]) return arr[stopIdx];
     }
     for (let i = fromIdx + 1; i < kfs.length; i++) {
-        const arr = kfValue(kfs[i]) as Array<PxGradientStop> | undefined;
+        const arr = keyframeValue(kfs[i]) as Array<PxGradientStop> | undefined;
         if (arr?.[stopIdx]) return arr[stopIdx];
     }
     return undefined;

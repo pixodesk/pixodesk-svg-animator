@@ -16,6 +16,7 @@ say what the code says — see [Audience](#audience).
 ```bash
 pnpm check:docs                     # from the repo root; needs the packages built (pnpm build does both)
 DOCS_CHECK_DEBUG=1 pnpm check:docs  # type mismatches also print the normalized spellings
+pnpm report:audience                # print the coverage table: package × audience × described
 ```
 
 Every marker is one test named `<file>:<line> <kind> <target>`; every file also has a coverage test
@@ -86,19 +87,27 @@ that an IDE shows on hover and this check reads back out of the built `.d.ts`:
 | `@public @advanced` | ○ | supported document tooling — stable, rarely needed |
 | `@internal` | ▪ | exported so the editor and the sibling packages stay in lockstep. May change in any release, so no guide may teach it |
 
-Three checks run under the `audience` group, once for the whole repo rather than per file
+Five checks run under the `audience` group, once for the whole repo rather than per file
 ([`src/audience.ts`](./src/audience.ts)):
 
 1. **every export says who it is for** — exactly one tag, on the declaration (not the re-export, so
    core's tag is what web mirrors);
 2. **the reference marks agree with the declarations** — a row in an export index whose last cell
    carries a mark must match the tag of every name that row declares. A row that groups names by
-   topic can mark one of them differently in place: `` `getNormalizedProps` (○) `` in a ▪ row;
+   topic can mark one of them differently in place: `` `toDomProps` (○) `` in a ▪ row;
 3. **public is described, internal is taught nowhere** — a `@public` name is named in a guide (a
-   package README or `docs/library/*`), and an `@internal` name is named in none.
+   package README or `docs/library/*`), and an `@internal` name is named in none. A name is
+   "described" by prose or by a marker that checks it; "taught" means it appears in a guide's
+   fenced code block, which is what `@internal` must never do;
+4. **every public call shows its signature** — a `@public` value you can call must appear in a
+   `px-check signature` block, or as the target of a `props` / `values` / `members` marker. A type
+   is exempt: rule 3 covers it. `@public @advanced` is exempt too, being document tooling;
+5. **no internal name is on a main entry** — an `@internal` export must live behind the package's
+   `/internal` entry point, never on `.`.
 
 A public name with nothing written about it yet goes in
-[`audience-allowlist.json`](./audience-allowlist.json) with a reason. An entry that is no longer
+[`audience-allowlist.json`](./audience-allowlist.json) under `undocumented` with a reason, and one
+whose signature is deliberately not spelled out goes under `noSignature`. An entry that is no longer
 needed — the name got documented, or stopped being public — fails the check too, so the list can
 only shrink.
 
@@ -110,7 +119,7 @@ the order of union members or object-literal members, parameter names inside fun
 `| undefined` on an optional member, a `React.` qualifier, method vs property syntax. Type
 aliases and interfaces are expanded textually on both sides too, so a doc may inline
 `'load' | 'click' | …` where the type says `PxStartOn`, or `{ motionPath?: … }` where it says
-`MaterializeAllOptions`, or keep the name.
+`PxMaterializeAllOptions`, or keep the name.
 
 Union-typed values in `schema-block` (`"M…" | ANIMATE`, `boolean | { … }`) are matched to the
 schema union's object members by their discriminant literal when there is one, else by the member

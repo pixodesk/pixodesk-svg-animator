@@ -15,7 +15,7 @@
 // descriptions and comments can never make two identical schemas look different.
 // ============================================================================
 
-import { parseWireVersion, WireStepKind, type WireVersionStep } from './PxWireVersion';
+import { parseWireVersion, PxWireStepKind, type PxWireVersionStep } from './PxWireVersion';
 
 /** One entry of the release log — what shipped, when, and what it changed. @internal */
 export interface SchemaReleaseRecord {
@@ -46,7 +46,7 @@ export interface SchemaReleasePlan {
     /** Did any key appear or leave since the last release? */
     readonly changed: boolean;
     /** Which kind of step the change requires — a removal is never additive. */
-    readonly requiredKind?: WireStepKind;
+    readonly requiredKind?: PxWireStepKind;
     /** The version this release must carry. */
     readonly requiredVersion?: string;
     readonly refuse?: string;
@@ -60,11 +60,11 @@ export interface SchemaReleasePlan {
 export function planSchemaRelease(p: {
     readonly added: ReadonlyArray<string>;
     readonly removed: ReadonlyArray<string>;
-    /** `PX_PLAYER_SCHEMA_VERSION` — what the source says now. */
+    /** `PX_WIRE_SCHEMA_VERSION` — what the source says now. */
     readonly declared: string;
     /** The version of the last release record. */
     readonly lastReleased: string;
-    readonly steps: ReadonlyArray<WireVersionStep>;
+    readonly steps: ReadonlyArray<PxWireVersionStep>;
 }): SchemaReleasePlan {
     const changed = p.added.length > 0 || p.removed.length > 0;
     const last = parseWireVersion(p.lastReleased);
@@ -80,20 +80,20 @@ export function planSchemaRelease(p: {
             : { changed, refuse: 'The version moved to ' + p.declared + ' with no key change and no step explaining it.' };
     }
 
-    const requiredKind = p.removed.length ? WireStepKind.converted : WireStepKind.additive;
+    const requiredKind = p.removed.length ? PxWireStepKind.converted : PxWireStepKind.additive;
     const summary = p.added.length + ' key(s) added, ' + p.removed.length + ' removed';
     if (declared.a !== last.a || declared.b !== last.b + 1) {
         return {
             changed, requiredKind, requiredVersion,
-            refuse: 'The player schema changed (' + summary + ') but PX_PLAYER_SCHEMA_VERSION is '
-                + p.declared + '. Set it to ' + requiredVersion + ' and add the PLAYER_WIRE_STEPS entry.',
+            refuse: 'The player schema changed (' + summary + ') but PX_WIRE_SCHEMA_VERSION is '
+                + p.declared + '. Set it to ' + requiredVersion + ' and add the PX_WIRE_STEPS entry.',
         };
     }
     const step = p.steps.find(s => s.to === p.declared);
     if (!step) {
-        return { changed, requiredKind, requiredVersion, refuse: 'No PLAYER_WIRE_STEPS entry reaches ' + p.declared + '.' };
+        return { changed, requiredKind, requiredVersion, refuse: 'No PX_WIRE_STEPS entry reaches ' + p.declared + '.' };
     }
-    if (requiredKind === WireStepKind.converted && step.kind !== WireStepKind.converted) {
+    if (requiredKind === PxWireStepKind.converted && step.kind !== PxWireStepKind.converted) {
         return {
             changed, requiredKind, requiredVersion,
             refuse: 'Keys were REMOVED (' + p.removed.join(', ') + '), which is never additive — the '
@@ -110,7 +110,7 @@ export function planSchemaRelease(p: {
  * @internal
  */
 export function releaseLogProblems(
-    releases: ReadonlyArray<SchemaReleaseRecord>, steps: ReadonlyArray<WireVersionStep>,
+    releases: ReadonlyArray<SchemaReleaseRecord>, steps: ReadonlyArray<PxWireVersionStep>,
     declared: string, baseline: string,
 ): Array<string> {
     const problems: Array<string> = [];
@@ -126,14 +126,14 @@ export function releaseLogProblems(
         }
         if (releases[i].date < releases[i - 1].date) problems.push('Release ' + releases[i].version + ' is dated before its predecessor.');
         const step = steps.find(s => s.to === releases[i].version);
-        if (!step) problems.push('Release ' + releases[i].version + ' has no PLAYER_WIRE_STEPS entry.');
-        else if (releases[i].removed.length && step.kind !== WireStepKind.converted) {
+        if (!step) problems.push('Release ' + releases[i].version + ' has no PX_WIRE_STEPS entry.');
+        else if (releases[i].removed.length && step.kind !== PxWireStepKind.converted) {
             problems.push('Release ' + releases[i].version + ' removed keys, but its step is not `converted`.');
         }
     }
     const latest = releases[releases.length - 1].version;
     if (latest !== declared) {
-        problems.push('PX_PLAYER_SCHEMA_VERSION is ' + declared + ' but the last release record is ' + latest
+        problems.push('PX_WIRE_SCHEMA_VERSION is ' + declared + ' but the last release record is ' + latest
             + ' — a bump needs its changelog entry (run scripts/schema-release.mjs --apply).');
     }
     return problems;

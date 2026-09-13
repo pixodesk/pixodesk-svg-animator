@@ -29,7 +29,7 @@ import { applyAllRetimeEffects } from './reference/retimeEffect';
 import { applyTextPathEffect } from './text/textPathEffect';
 import { applyTextGlyphsAlongPath, applyTextGlyphsEffect } from './text/textGlyphsEffect';
 import { applyStrokeTrimEffect } from './stroke/strokeTrimEffect';
-import { getDefs } from '../format/PxAnimatorConstants';
+import { getDefinitions } from '../format/PxAnimatorConstants';
 import { resolveTimelineEngine, getAnimatorConfig } from '../format/PxAnimatorConstants';
 import type { PxNode } from '../format/PxAnimatorTypes';
 import type { ApplyContext, ApplyResult } from './shared/types';
@@ -55,7 +55,7 @@ export type { ApplyResult } from './shared/types';
  * can target the inner layer.
  * @public @advanced
  */
-export function applyPlayerEffects(root: PxNode): ApplyResult {
+export function materializeNodeEffects(root: PxNode): ApplyResult {
     const ctx: ApplyContext = {
         defs: [], warnings: [], errors: [],
         idMap: new Map(), nextId: 0,
@@ -64,7 +64,7 @@ export function applyPlayerEffects(root: PxNode): ApplyResult {
         // Resolved engine: `frames` ONLY when explicitly set; auto/waapi/unset →
         // waapi (we're not 100% sure it's frames, and CSS/WAAPI need the inline form).
         engine: resolveTimelineEngine(getAnimatorConfig(root)?.engine),
-        glyphs: getDefs(root)?.fonts,
+        glyphs: getDefinitions(root)?.fonts,
     };
 
     const working = clone(root);

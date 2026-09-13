@@ -39,7 +39,7 @@ checked against the others. A cell is **✓** when that surface takes the name a
 spelling when it differs, and is **—** when the surface does not have it. Update this table with
 every prop or option change.
 
-<!-- px-check matrix web=web:PxAnimatorOptions tag=~ prerendered=web:PxPrerenderedOptions react=react:PixodeskSvgAnimatorProps vue=vue:PixodeskSvgAnimator rn=rn:PixodeskSvgAnimatorProps -->
+<!-- px-check matrix web=web:PxAnimatorOptions tag=~ prerendered=web:PxPrerenderedAnimatorOptions react=react:PixodeskSvgAnimatorProps vue=vue:PixodeskSvgAnimator rn=rn:PixodeskSvgAnimatorProps -->
 | Name | Web `createAnimator` | HTML tag (`loadTagAnimators`) | Pre-rendered `createAnimator` | React | Vue | React Native | Notes |
 |---|---|---|---|---|---|---|---|
 | **Document** | | | | | | | |
@@ -61,7 +61,7 @@ every prop or option change.
 | `progress` | — | — | — | ✓ | ✓ | ✓ | show the frame at 0–1 of the whole run — of ONE iteration when `iterations` is `'infinite'` |
 | `time` | — | — | — | ✓ | ✓ | ✓ | show the frame at this ms from the start of the whole run |
 | **Imperative control** — you call it | | | | | | | |
-| `apiRef` | the returned `PxAnimatorAPI` | `element._px_animator` | the returned `PxAnimatorAPI` | ✓ — mode unchanged | template ref (`VueAnimatorApi`) | ✓ — mode unchanged | the imperative handle; never picks a mode on any surface | <!-- px web=~ tag=~ prerendered=~ vue=~ -->
+| `apiRef` | the returned `PxAnimatorApi` | `element._px_animator` | the returned `PxAnimatorApi` | ✓ — mode unchanged | template ref (`VueAnimatorApi`) | ✓ — mode unchanged | the imperative handle; never picks a mode on any surface | <!-- px web=~ tag=~ prerendered=~ vue=~ -->
 | **Callbacks** | | | | | | | |
 | `onPlay` | ✓ | — | ✓ | ✓ | `@play` | ✓ | |
 | `onPause` | ✓ | — | ✓ | ✓ | `@pause` | ✓ | |
@@ -111,7 +111,7 @@ The two pre-rendered SVG + CSS wrappers, which toggle class names instead of cre
 //   in order, so `createAnimator({ src }).play()` works as written. A failed fetch or an
 //   invalid document reaches `onError` — and `console.error` when no handler is
 //   given (review §5); `isReady()` stays false either way.
-function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI;
+function createAnimator(options: PxAnimatorOptions): PxAnimatorApi;
 
 interface PxAnimatorOptions {
     src?: string;                          // URL to fetch the JSON document from
@@ -127,7 +127,7 @@ interface PxAnimatorOptions {
     onError?: (d: PxDiagnostic) => void;
     muteWarn?: boolean;  muteError?: boolean;
 
-    // -- Per-instance playback override: `PxPlaybackOverrideProps`; the document is never modified
+    // -- Per-instance playback override: `PxPlaybackOverride`; the document is never modified
     timeline?: PxTimelinePatch | string;   // deep-merged over the document's `timeline`
                                            //   block — same shape as the file. `null` at a
                                            //   slot DELETES that key. A JSON string is also
@@ -141,8 +141,8 @@ interface PxAnimatorOptions {
                                            //   a shortcut wins over the same key in `timeline`
 }
 
-// ● Playback control returned by `createAnimator` — core's `PxAnimatorAPI<Element>`.
-interface PxAnimatorAPI extends PxBasicAnimatorAPI {
+// ● Playback control returned by `createAnimator` — core's `PxAnimatorApi<Element>`.
+interface PxAnimatorApi extends PxPlaybackApi {
     finish(): void;                        // jump to the end and hold the final state; fires onFinish
     setPlaybackRate(rate: number): void;   // 1 normal, 2 double, negative plays backwards
                                            //   every engine rejects 0 and non-finite rates with a
@@ -155,7 +155,7 @@ interface PxAnimatorAPI extends PxBasicAnimatorAPI {
 }
 
 // ● The platform-neutral base from core; the web fixes the root type to `Element`.
-interface PxBasicAnimatorAPI {
+interface PxPlaybackApi {
     isReady(): boolean;                    // false until a fetched document has loaded
     getRootElement(): Element | null;      // the rendered <svg>
     isPlaying(): boolean;
@@ -168,7 +168,7 @@ interface PxBasicAnimatorAPI {
 //   `createAnimator` takes these inline, the components as props (Vue: events). One chain,
 //   three levels, each extending the one above (API-SURFACE-REVIEW.md §26.1): `PxDiagnosticsConfig` (the four
 //   diagnostics fields — what `createDiagnostics` reads) → `PxEngineCallbacks` (+ the lifecycle;
-//   what an engine such as `createBasicFrameLoopAnimator` takes) → `PxAnimatorCallbacks`
+//   what an engine such as `createAdapterAnimator` takes) → `PxAnimatorCallbacks`
 //   (+ `onStop`; what every public surface takes).
 interface PxAnimatorCallbacks {
     onPlay?: () => void;    // started or resumed
@@ -225,7 +225,7 @@ function loadTagAnimators(options?: PxTagAnimatorOptions): void;
 //   element you wired by hand, or the old listeners stay live next to the new ones.
 //   Reads `startOn` / `outAction` / `scrollIntoViewThreshold`; `finishAction` is the
 //   player's, not the trigger wiring's.
-function setupAnimationTriggers(api: PxAnimatorAPI, config: PxTrigger,
+function setupAnimationTriggers(api: PxAnimatorApi, trigger: PxTrigger,
                                 diag?: PxDiagnostics): () => void;
 //   `diag` is optional: omit it and anything this has to say goes to the console.
 
@@ -245,11 +245,11 @@ page. Three `<script>` builds put a narrower surface on one global, `window.Pixo
 <!-- px-check off the UMD file list, prose -->
 | File | For | On `PixodeskAnimator` |
 |---|---|---|
-| / `.umd.min.js` | a page playing JSON documents | `createAnimator`, `loadTagAnimators`, `setupAnimationTriggers`, `validateDocument`, `generateNewIds`, `PxTimelineEngineExtra`, `PxTimelineEngine`, `PX_ANIMATOR_DOC_KEY`, `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME` |
-| / `.umd.min.js` | a pre-rendered SVG + JS export (engine `auto` / `js`) | `createAnimator(options: PxPrerenderedOptions)`, `setupAnimationTriggers`, `PX_ANIMATOR_DOC_KEY` |
+| / `.umd.min.js` | a page playing JSON documents | `createAnimator`, `loadTagAnimators`, `setupAnimationTriggers`, `validateDocument`, `generateNewIds`, `PxTimelineEngineSetting`, `PxTimelineEngine`, `PX_ANIMATOR_DOC_KEY`, `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME` |
+| / `.umd.min.js` | a pre-rendered SVG + JS export (engine `auto` / `js`) | `createAnimator(options: PxPrerenderedAnimatorOptions)`, `setupAnimationTriggers`, `PX_ANIMATOR_DOC_KEY` |
 | / `.umd.min.js` | the same with engine `native` — the smallest build | the same three |
 
-`PxPrerenderedOptions` is `{ doc: PxAnimatedSvgDocument }` plus the inline callbacks. Its `doc`
+`PxPrerenderedAnimatorOptions` is `{ doc: PxAnimatedSvgDocument }` plus the inline callbacks. Its `doc`
 carries only `animator.definitions` and `animator.bindings` — the SVG is already in the page —
 and it is not validated. There is no `src` form.
 
@@ -268,17 +268,17 @@ Separately, a document with
 <!-- px-check exports @pixodesk/svg-animator-web -->
 | Symbol | |
 |---|---|
-| `createBasicFrameLoopAnimator(doc, adapter, callbacks?)` | ○ the frame-loop engine against a custom `PxPlatformAdapter` — see **core** |
+| `createAdapterAnimator(doc, adapter, callbacks?)` | ○ the frame-loop engine against a custom `PxPlatformAdapter` — see **core** |
 | `PxInternalAnimatorOptions` | ▪ `PxAnimatorOptions` plus `adapter` — the frame loop's custom render target (`PxPlatformAdapter`: `isConnected()` + `setAttribute(id, name, value)`). What the React and Vue components build the player with, so writes go to the elements they rendered; not an option of the public API, because a page has a DOM to write to (review §25.14) |
-| `renderNode(node, defs?, diag?)` → `getNormalizedProps(props)` | ○ render one wire node to a DOM element / resolve a node's attributes. `diag` is optional — without it a blocked tag is reported on the console |
+| `renderNode(node, defs?, diag?)` → `toDomProps(props)` | ○ render one wire node to a DOM element / resolve a node's attributes. `diag` is optional — without it a blocked tag is reported on the console |
 | `validateDocument(doc)` | ● the whole-document check — see **core** |
 | `generateNewIds` | ○ document tooling — see **core** |
 | `PX_ANIMATOR_DOC_KEY` | ▪ attribute and property names the player writes |
-| `px`, ; `PxNodeBase`, `PxSvgNodeExtra`, `PxAnimatorConfigSchema`, `PxTriggerSchema`, `PxScrollSchema`, `PxDefsSchema`, ; `PxSchema`, `PxInfer`, `PxValidationContext` | ○ the schema toolkit, re-exported from core — every schema value (the timeline / pin / scroll ones since review §17) and the types to build on them |
+| `px`, ; `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTriggerSchema`, `PxScrollSchema`, `PxDefinitionsSchema`, ; `PxSchema`, `PxInfer`, `PxValidationContext` | ○ the schema toolkit, re-exported from core — every schema value (the timeline / pin / scroll ones since review §17) and the types to build on them |
 | `PxDiagnosticsConfig` | ● the shared component contract — the control-mode rule, and the diagnostics fields every surface accepts — re-exported for the React and Vue components |
-| `PxTimelineEngineExtra`, `PxFillMode`, `PxPlaybackDirection`, `PxStartOn` | ● named wire values — one const per wire enum, with the string type derived from it under the same name. `PxTimelineEngineExtra` is what `timeline.engine` accepts (`auto` · `native` · `js`); `PxTimelineEngine` is the resolved engine (`native` · `js`), the argument of `materializeAllInTree`, never an option. `PxUnits` covers `gradientUnits` and the mask units alike |
-| `PxAnimatedSvgDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTrigger`, `PxBinding`, `PxDefs` | ● wire types — the shapes in [SCHEMA.md](./SCHEMA.md) |
-| `PxAnimatorOptions`, `PxTagAnimatorOptions`, `PxAnimatorAPI`, `PxBasicAnimatorAPI`, `PxAnimatorCallbacks`, `PxEngineCallbacks`, `PxPlaybackOverrideProps`, `PxTimelinePatch`, `PxPlatformAdapter` | ● / ○ companion types of the calls above |
+| `PxTimelineEngineSetting`, `PxFillMode`, `PxPlaybackDirection`, `PxStartOn` | ● named wire values — one const per wire enum, with the string type derived from it under the same name. `PxTimelineEngineSetting` is what `timeline.engine` accepts (`auto` · `native` · `js`); `PxTimelineEngine` is the resolved engine (`native` · `js`), the argument of `materializeAllInTree`, never an option. `PxUnits` covers `gradientUnits` and the mask units alike |
+| `PxAnimatedSvgDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTrigger`, `PxBinding`, `PxDefinitions` | ● wire types — the shapes in [SCHEMA.md](./SCHEMA.md) |
+| `PxAnimatorOptions`, `PxTagAnimatorOptions`, `PxAnimatorApi`, `PxPlaybackApi`, `PxAnimatorCallbacks`, `PxEngineCallbacks`, `PxPlaybackOverride`, `PxTimelinePatch`, `PxPlatformAdapter` | ● / ○ companion types of the calls above |
 
 **Core only**: `flattenAnimatorTimeline` / `nestAnimatorTimeline`, the engine rules
 (`resolveTimelineEngine`, …) and the scroll maths.
@@ -510,18 +510,18 @@ package already bundles it. Nothing here renders anything.
 function materializeAllInTree(
     doc: PxAnimatedSvgDocument,
     engine: 'native' | 'js',
-    opts?: { motionPath?: MotionPathMaterializationOptions },
+    options?: { motionPath?: MotionPathMaterializationOptions },
 ): PxAnimatedSvgDocument;
 
 // ○ One stage of it: `node.effects` → plain renderable nodes (+ generated defs).
-function applyPlayerEffects(root: PxNode): ApplyResult;
+function materializeNodeEffects(root: PxNode): ApplyResult;
 
 // ● The whole-document check: the strict wire schema (undeclared keys included)
 //   plus every `effects` bucket. Returns human-readable problems (`path: what is
 //   wrong`), empty when the document is sound; never throws. Every player runs the
 //   same check on load and prints the problems as one console warning — call this
 //   before shipping a document instead of relying on the console.
-function validateDocument(doc: unknown, opts?: { strict?: boolean }): Array<string>;
+function validateDocument(doc: unknown, options?: { strict?: boolean }): Array<string>;
 //   `strict` (default true) rejects keys the schema does not declare — right before you ship.
 //   `{ strict: false }` tolerates them, which is what a READER wants: an unknown key usually
 //   means a newer writer — worth a warning, never a refusal.
@@ -529,7 +529,7 @@ function validateDocument(doc: unknown, opts?: { strict?: boolean }): Array<stri
 // ○ Check every `node.effects` bucket against the schema, depth-first. Returns
 //   human-readable warnings (each prefixed with the node's path) and never
 //   throws; the players run this on load and log whatever comes back.
-function validateNodeEffects(root: PxNode, opts?: { strict?: boolean }): Array<string>;
+function validateNodeEffects(root: PxNode, options?: { strict?: boolean }): Array<string>;
 
 // ● Per-instance playback override, shared by every player. `patch` is a
 //   deep-partial of the document's `animator` block; objects merge key by key,
@@ -540,7 +540,7 @@ function validateNodeEffects(root: PxNode, opts?: { strict?: boolean }): Array<s
 function applyAnimatorConfig(
     doc: PxAnimatedSvgDocument,
     patch: PxAnimatorConfigPatch,
-    opts?: { resetDefaults?: boolean },   // start from the player's defaults; keeps
+    options?: { resetTimeline?: boolean },   // start from the player's defaults; keeps
 ): { doc: PxAnimatedSvgDocument; warnings: Array<string> };   // definitions/bindings
 
 // ○ The same merge one level down, on the config object itself.
@@ -554,30 +554,42 @@ function mergeAnimatorConfig(
 //   This is what every player calls before `applyAnimatorConfig`.
 function foldTimelineOverride(
     timeline: PxTimelinePatch | string | undefined,
-    shortcuts: PxAnimatorConfigShortcuts,
+    shortcuts: PxTimelineShortcuts,
 ): PxAnimatorConfigPatch | undefined;
 
 // ○ The schema version — see docs/format/README.md#versioning.
-const PX_PLAYER_SCHEMA_VERSION: '1.1';                                    // the schema this build reads
-function readWireVersion(doc: unknown): WireVersion | undefined;          // animator.version (or meta.animator.version)
-function convertPlayerDocument(doc: unknown): PlayerConversionResult;     // up to this schema; never refuses, never mutates
-function downgradePlayerDocument(doc: unknown, target: WireVersion): WireDowngradeResult;   // all or nothing
+const PX_WIRE_SCHEMA_VERSION: '1.1';                                    // the schema this build reads
+function readWireVersion(doc: unknown): PxWireVersion | undefined;          // animator.version (or meta.animator.version)
+function convertWireDocument(doc: unknown): PxWireConversionResult;     // up to this schema; never refuses, never mutates
+function downgradeWireDocument(doc: unknown, target: PxWireVersion): PxWireDowngradeResult;   // all or nothing
 
 // ○ Deep-clone a document with fresh ids and internal references rewritten —
 //   what you need before putting the same animation on a page twice.
 function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocument;
 
 // ○ Playback on a non-DOM target: implement the adapter, get the frame-loop engine.
-function createBasicFrameLoopAnimator(
+function createAdapterAnimator(
     doc: PxAnimatedSvgDocument,
     adapter: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks,
-): PxAnimatorAPI;
+): PxAnimatorApi;
 
 interface PxPlatformAdapter {
     isConnected(): boolean;                                     // is the target still mounted
     setAttribute(id: string, attrName: string, value: string): void;
 }
+
+// ● The one rule that turns a component's control props into a decision, so React,
+//   Vue and React Native cannot answer it three ways. Most specific first:
+//   `progress` / `time` → `play` / `pause` → `autoplay` → `static`. Props from two
+//   tiers set together come back as ready-made warning sentences; `apiRef` never
+//   changes the mode, being a handle rather than an instruction.
+function resolveControlMode(props: PxControlProps): PxResolvedControlMode;
+
+// ● True when that mode has to take the document's own trigger over — every mode
+//   except `autoplay`, INCLUDING `static`: a component given no control props at
+//   all renders the first frame and waits, so it forces `startOn: 'programmatic'`.
+function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 ```
 
 **Everything else this package exports**
@@ -585,32 +597,32 @@ interface PxPlatformAdapter {
 <!-- px-check exports @pixodesk/svg-animator-core -->
 | Group | Symbols | |
 |---|---|---|
-| Wire types | `PxAnimatedSvgDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTimeline`, `PxTrigger`, `PxElementAnimation`, `PxPropertyAnimation`, `PxKeyframe`, `PxLoop`, `PxBinding`, `PxDefs`, `PxEffects`, `PxTransformParts`, `PxBezierPath`, `PxGlyph`, `PxGlyphFont`, `PxAnimationDefinition`, `PxScroll`, `PxScrollRangePoint`, `Vec2`, `PxTransformValue` | ● the shapes in [SCHEMA.md](./SCHEMA.md) |
-| Player API types | `PxAnimatorAPI<TRoot>`, `PxBasicAnimatorAPI<TRoot>`, `PxEngineCallbacks`, `PxPlatformAdapter` | ● platform-neutral; the web fixes `TRoot` to `Element`. `PxEngineCallbacks` is what an engine takes — the lifecycle on top of `PxDiagnosticsConfig` |
+| Wire types | `PxAnimatedSvgDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTimeline`, `PxTrigger`, `PxElementAnimation`, `PxPropertyAnimation`, `PxKeyframe`, `PxLoop`, `PxBinding`, `PxDefinitions`, `PxEffects`, `PxTransformParts`, `PxBezierPath`, `PxGlyph`, `PxGlyphFont`, `PxAnimationDefinition`, `PxScroll`, `PxScrollRangePoint`, `PxVec2`, `PxTransformValue` | ● the shapes in [SCHEMA.md](./SCHEMA.md) |
+| Player API types | `PxAnimatorApi<TRoot>`, `PxPlaybackApi<TRoot>`, `PxEngineCallbacks`, `PxPlatformAdapter` | ● platform-neutral; the web fixes `TRoot` to `Element`. `PxEngineCallbacks` is what an engine takes — the lifecycle on top of `PxDiagnosticsConfig` |
 | Component contract | `PxAnimatorHandle`, `PxAnimatorCallbacks`, `PxControlProps`, `PxControlMode`, `resolveControlMode(props)`, `controlModeTakesOverTrigger(mode)` | ● what the React / Vue / React Native components share (review §1, §7, §9): the imperative handle, the callback set, the props that pick a mode and the one rule that picks it |
 | Engine rules | `resolveTimelineEngine(engine)`, `isNativeForced(engine)`, `mayUseNativeScrollTimeline(engine)` | ○ how a `timeline.engine` resolves to an engine / to the browser's ScrollTimeline — the players' own decision helpers |
 | Trigger defaults | `PX_TRIGGER_DEFAULTS`, `resolveTrigger(trigger)`| ○ what a missing trigger field means (`startOn` 'load', `outAction` 'continue', threshold 0) — the one resolution every player uses |
-| Time contract | `seekCeilingMs`, `progressSpanMs`, `clampSeekMs`, `timeToProgress`, `progressToTimeMs`, `isValidPlaybackRate`, `PX_RATE_REJECTED`, `createRunClock` + | ○ the one meaning of time, seeking and rate that every engine implements — see `PxAnimatorAPI` |
+| Time contract | `seekCeilingMs`, `progressSpanMs`, `clampSeekMs`, `timeToProgress`, `progressToTimeMs`, `isValidPlaybackRate`, `PX_RATE_REJECTED`, `createRunClock` + | ○ the one meaning of time, seeking and rate that every engine implements — see `PxAnimatorApi` |
 | Diagnostics | `createDiagnostics(config?, prefix?)` (▪) → `PxDiagnostics`, `PxDiagnosticKind` + `PxDiagnostic`, `PxDiagnosticsConfig` | ● the one channel every player reports through: `onWarn` / `onError` with a `kind` saying who can act, falling back to the console — see `PxEngineCallbacks` |
-| Enum values | `PxTimelineEngineExtra`, `PxTimelineEngine`, `PxGradientType`, `PxUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout` (`clone.without` → `'translate'`), `PxMaskType`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing`, `PxFillMode`, `PxPlaybackDirection`, `PxStartOn`, `PxOutAction`, `PxFinishAction`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings — each is a const namespace AND the type derived from it, so `PxStartOn.click` and `startOn?: PxStartOn` come from one import |
-| Schema version | `PX_PLAYER_SCHEMA_VERSION`, `PLAYER_WIRE_VERSION`, `BASELINE_PLAYER_VERSION`, `PLAYER_WIRE_STEPS`, `WIRE_VERSION_KEY`, `WireVersionRelation`, `parseWireVersion`, `formatWireVersion`, `readWireVersion`, `compareWireVersion`, `versionAdvice`, `convertPlayerDocument`, `downgradePlayerDocument`, `applyWireSteps`, + `WireVersion`, `WireVersionStep`, `PlayerConversionResult`, `WireStepKind`, `WireConversionConfig` | ○ read, compare and convert a document's `animator.version` — [docs](./docs/format/README.md#versioning) |
+| Enum values | `PxTimelineEngineSetting`, `PxTimelineEngine`, `PxGradientType`, `PxUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout` (`clone.without` → `'translate'`), `PxMaskType`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing`, `PxFillMode`, `PxPlaybackDirection`, `PxStartOn`, `PxOutAction`, `PxFinishAction`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings — each is a const namespace AND the type derived from it, so `PxStartOn.click` and `startOn?: PxStartOn` come from one import |
+| Schema version | `PX_WIRE_SCHEMA_VERSION`, `PX_WIRE_VERSION`, `PX_WIRE_BASELINE_VERSION`, `PX_WIRE_STEPS`, `PX_WIRE_VERSION_KEY`, `PxWireVersionRelation`, `parseWireVersion`, `formatWireVersion`, `readWireVersion`, `compareWireVersion`, `wireVersionAdvice`, `convertWireDocument`, `downgradeWireDocument`, `applyWireSteps`, + `PxWireVersion`, `PxWireVersionStep`, `PxWireConversionResult`, `PxWireStepKind`, `PxWireConversionOptions` | ○ read, compare and convert a document's `animator.version` — [docs](./docs/format/README.md#versioning) |
 | Schema release | `schemaFieldUniverse`, `diffFieldUniverse`, `planSchemaRelease`, `releaseLogProblems` | ▪ the field inventory and bump rule behind `scripts/schema-release.mjs` |
 | Diagnostics | `diagnoseDocument(doc)` (○) → (`{ problems }`), `reportDocumentDiagnostics(doc, where)`, `PX_UNKNOWN_KEY_ERROR` | ▪ the load-time check every player runs; call `validateDocument` instead |
-| Validation | `isPxElementFileFormat`, `isPxElementFileFormatDeep`| ○ a cheap "is this a Pixodesk document" gate / the pass-fail form of `validateDocument`, NON-strict, with every message it can name (review §10 — it used to answer only "failed schema validation") |
-| Document accessors | `getAnimatorConfig`, `getChildren`, `getBindings`, `getDefs` | ○ read a document without knowing its internals |
+| Validation | `isPxDocument`, `isValidPxDocument`| ○ a cheap "is this a Pixodesk document" gate / the pass-fail form of `validateDocument`, NON-strict, with every message it can name (review §10 — it used to answer only "failed schema validation") |
+| Document accessors | `getAnimatorConfig`, `getChildren`, `getBindings`, `getDefinitions` | ○ read a document without knowing its internals |
 | Timeline shape | `flattenAnimatorTimeline`, `nestAnimatorTimeline` | ○ nested `timeline` object ⇄ the flat runtime view |
-| Playback override | `PxTimelinePatch`, `PxPlaybackOverrideProps`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult`, `PxAnimatorConfigShortcuts` | ● the `timeline` override as every player takes it, and the companion types of the three merge functions above |
-| Keyframe forms | `kfValue`, `kfEasing`, `PxNormalizedKeyframe`, `PxNormalizedPropertyAnimation`, `PxAnyKeyframe` | ▪ read a keyframe in either its wire or its runtime (`t` / `v` / `e`) form; is what `getNormalizedBindings` hands the engines — bare id + merged animation, from a binding or a node alike |
-| Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxNodeBase`, `PxSvgNodeExtra`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTriggerSchema`, `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxLoopSchema`, `PxDefsSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxTransformValueSchema` | ○ the validator the format is written in |
-| Pipeline stages | `getNormalizedBindings` (○), `calcAnimationValues` (○), `interpolateValue`, `materializeMotionPathInPropAnim`, `mergeStaticTransformIntoAnimDef` | ▪ stages of `materializeAllInTree`; call the pipeline instead |
+| Playback override | `PxTimelinePatch`, `PxPlaybackOverride`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult`, `PxTimelineShortcuts` | ● the `timeline` override as every player takes it, and the companion types of the three merge functions above |
+| Keyframe forms | `keyframeValue`, `keyframeEasing`, `PxNormalizedKeyframe`, `PxNormalizedPropertyAnimation`, `PxAnyKeyframe` | ▪ read a keyframe in either its wire or its runtime (`t` / `v` / `e`) form; is what `normalizeBindings` hands the engines — bare id + merged animation, from a binding or a node alike |
+| Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTriggerSchema`, `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxLoopSchema`, `PxDefinitionsSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxTransformValueSchema` | ○ the validator the format is written in |
+| Pipeline stages | `normalizeBindings` (○), `calcAnimationValues` (○), `interpolateValue`, `materializeMotionPathInPropAnim`, `mergeStaticTransformIntoAnimDef` | ▪ stages of `materializeAllInTree`; call the pipeline instead |
 | Effect harness | `diffInEffect` | ▪ the editor's "equal in effect" comparison |
 | Text & paths | `materializeGlyphText`, `layoutGlyphTextChars`, `createPathSampler`, `extendedPathForBrowser`, `materializeGlyphTextAlongPath` | ▪ glyph-text and text-on-path materialization |
-| Node props | `getNormalizedProps` (○), `sanitizeAttributeValue`, `CSS_ONLY_STYLE_PROPS`, `DISALLOWED_SVG_TAGS_LOWER` | ▪ shared normalization and sanitization rules |
+| Node props | `toDomProps` (○), `sanitizeAttributeValue`, `PX_CSS_ONLY_STYLE_PROPS`, `PX_DISALLOWED_SVG_TAGS_LOWER` | ▪ shared normalization and sanitization rules |
 | Scroll math | `isScrollTimeline`, `scrollViewProgress`, `scrollOffsetProgress`, `scrollPhaseInterval`, `scrollResolveAxis`, `scrollTotalDurationMs` | ▪ scroll-driven playback internals |
-| Maths & strings | `cubicBezier`, `subdivideCubicBezier`, `bezierToSvgPath`, `splitEasing`, `reverseEasing`, `clamp`, `toRGBA`, `composeTransformParts`, `camelCaseToKebabWordIfNeeded`, `kebabToCamelCaseWord`, `COLOR_ATTR_NAMES`, `STYLE_ATTR_NAMES`, `PCT_BASED_ATTR_NAMES`, `TRANSFORM_FN_NAMES`, `deepClone`, `generateUniqueId`, `DEFAULT_DURATION_MS`, `LOOP_JUMP_SHIFT_MS` | ▪ helpers shared with the editor |
-| Schema toolkit types | `PxSchema`, `PxSchemaDesc`, `PxInfer`, `PxValidationContext`, `RemoveIndex` | ○ the types you build a schema with — see the toolkit above |
-| Companion types | `MaterializeAllOptions`, `PxCreateElement`, `GlyphCharBox`, `PxAnimatable` | ▪ argument and result shapes of the functions above |
-| Attribute names | `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME`, `TEXT_CONTENT_ATTR` | ▪ reserved keys — see [SCHEMA.md](./SCHEMA.md#reserved-keys) |
+| Maths & strings | `cubicBezier`, `subdivideCubicBezier`, `bezierToSvgPath`, `splitEasing`, `reverseEasing`, `clamp`, `toRGBA`, `composeTransformParts`, `camelCaseToKebabWordIfNeeded`, `kebabToCamelCaseWord`, `PX_COLOR_ATTR_NAMES`, `PX_STYLE_ATTR_NAMES`, `PX_PCT_BASED_ATTR_NAMES`, `PX_TRANSFORM_FN_NAMES`, `deepClone`, `generateUniqueId`, `PX_DEFAULT_DURATION_MS`, `PX_LOOP_JUMP_SHIFT_MS` | ▪ helpers shared with the editor |
+| Schema toolkit types | `PxSchema`, `PxSchemaDesc`, `PxInfer`, `PxValidationContext`, `PxRemoveIndex` | ○ the types you build a schema with — see the toolkit above |
+| Companion types | `PxMaterializeAllOptions`, `PxCreateElement`, `PxGlyphCharBox`, `PxAnimatable` | ▪ argument and result shapes of the functions above |
+| Attribute names | `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME`, `PX_TEXT_CONTENT_ATTR` | ▪ reserved keys — see [SCHEMA.md](./SCHEMA.md#reserved-keys) |
 
 ## Examples
 

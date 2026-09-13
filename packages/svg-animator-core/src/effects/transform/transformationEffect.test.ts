@@ -95,7 +95,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
     });
 
     // Skew is a SCALAR (skewX degrees) since the parts-record slot landed — the old
-    // Vec2 `skewX()skewY()` string form never matched what the editor writes and is gone
+    // PxVec2 `skewX()skewY()` string form never matched what the editor writes and is gone
     // (see skew-support.plan.md; user-approved order/semantics unification).
     it('case 3 — static skew → standard parts-record wrapper (scalar skewX)', () => {
         const out = materialize(wrap({ skew: 10 }));

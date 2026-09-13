@@ -5,7 +5,7 @@
 
 
 import { applyTransformByEffect } from './transformationEffect';
-import type { PxAnimatable, PxAnimationDefinition, PxKeyframe, PxLoop, PxNode, PxRepeaterEffect, PxTransformByEffect, Vec2 } from '../../format/PxAnimatorTypes';
+import type { PxAnimatable, PxAnimationDefinition, PxKeyframe, PxLoop, PxNode, PxRepeaterEffect, PxTransformByEffect, PxVec2 } from '../../format/PxAnimatorTypes';
 import { ReadKind, readAnimatable } from '../shared/transformParts';
 import type { ApplyContext } from '../shared/types';
 import { clone } from '../shared/util';
@@ -92,7 +92,7 @@ function synthesisePerCopyFx(fx: PxRepeaterEffect, i: number): PxTransformByEffe
     const out: PxTransformByEffect = {};
 
     if (fx.translate !== undefined) {
-        out.translate = mapAnimatable<Vec2>(fx.translate, v => [v[0] * i, v[1] * i]);
+        out.translate = mapAnimatable<PxVec2>(fx.translate, v => [v[0] * i, v[1] * i]);
     }
     if (fx.rotate !== undefined) {
         out.rotate = mapAnimatable<number>(fx.rotate, v => v * i);
@@ -114,7 +114,7 @@ function synthesisePerCopyFx(fx: PxRepeaterEffect, i: number): PxTransformByEffe
 
 /**
  * Applies `fn` to every value of an animatable (base + all keyframes) via the
- * shared `readAnimatable` — one mapper for number and Vec2 parts alike (the old
+ * shared `readAnimatable` — one mapper for number and PxVec2 parts alike (the old
  * per-type copies missed the `kfs` alias, so an alias-authored part silently
  * skipped its ×i scaling). Re-emits the normalized unified form:
  * raw static in → raw static out (or `{value}` when `wrapStatic`); animated in →
@@ -147,7 +147,7 @@ function mapAnimatable<T>(raw: PxAnimatable<T>, fn: (v: T) => T, wrapStatic = fa
  * emitted as `{value:…}` / keyframes in the same 1.0-units, so it also bypasses
  * `applyTransformByEffect.normalizeScale` untouched.
  */
-function synthesiseScale(raw: PxAnimatable<Vec2>, i: number): PxAnimatable<Vec2> {
-    const scalePower = (v: Vec2): Vec2 => [Math.pow(v[0], i), Math.pow(v[1], i)];
-    return mapAnimatable<Vec2>(raw, scalePower, true);
+function synthesiseScale(raw: PxAnimatable<PxVec2>, i: number): PxAnimatable<PxVec2> {
+    const scalePower = (v: PxVec2): PxVec2 => [Math.pow(v[0], i), Math.pow(v[1], i)];
+    return mapAnimatable<PxVec2>(raw, scalePower, true);
 }

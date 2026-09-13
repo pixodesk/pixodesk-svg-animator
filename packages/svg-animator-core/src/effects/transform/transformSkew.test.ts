@@ -8,7 +8,7 @@
 //    (Lottie-compatible order), pivoting at `origin`;
 //  - transform-record interpolation lerps it;
 //  - the composite transformation effect routes skew through the STANDARD
-//    partsRecord wrapper — static AND animated (the old Vec2 special case rejected
+//    partsRecord wrapper — static AND animated (the old PxVec2 special case rejected
 //    animation and broke on the editor's scalar wire value).
 
 import { describe, expect, it } from 'vitest';

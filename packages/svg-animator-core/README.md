@@ -53,19 +53,19 @@ runtime crash on a non-browser platform.
 | Area | Exports |
 |---|---|
 | **Schema & types** | `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxEffectsSchema`, … plus every `Px*` TypeScript type and the `px` schema builder |
-| **Validation** | `validateDocument` (the whole document, strict), `isPxElementFileFormat`, `isPxElementFileFormatDeep`, `validateNodeEffects` |
-| **Materializers** | `materializeAllInTree`, `applyPlayerEffects` |
-| **Interpolation** | `calcAnimationValues`, `interpolateValue`, `getNormalizedBindings` |
+| **Validation** | `validateDocument` (the whole document, strict), `isPxDocument`, `isValidPxDocument`, `validateNodeEffects` |
+| **Materializers** | `materializeAllInTree`, `materializeNodeEffects` |
+| **Interpolation** | `calcAnimationValues`, `interpolateValue`, `normalizeBindings` |
 | **Sampling / geometry** | `createPathSampler`, bezier helpers, `cubicBezier`, `splitEasing` |
 | **Text** | `materializeGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
-| **Node helpers** | `getNormalizedProps`, `sanitizeAttributeValue`, `generateNewIds` |
-| **Playback engine** | `createBasicFrameLoopAnimator` + the `PxPlatformAdapter` interface |
-| **Wire enums** | `PxTimelineEngine` / `PxTimelineEngineExtra`, `PxStartOn`, `PxOutAction`, `PxFinishAction`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneWithout`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxStartOn.click` and `startOn?: PxStartOn` come from one import |
+| **Node helpers** | `toDomProps`, `sanitizeAttributeValue`, `generateNewIds` |
+| **Playback engine** | `createAdapterAnimator` + the `PxPlatformAdapter` interface |
+| **Wire enums** | `PxTimelineEngine` / `PxTimelineEngineSetting`, `PxStartOn`, `PxOutAction`, `PxFinishAction`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneWithout`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxStartOn.click` and `startOn?: PxStartOn` come from one import |
 
 ### Validating a document
 
-`isPxElementFileFormat(json)` is the cheap shallow gate (is this a Px document at all?);
-`isPxElementFileFormatDeep(json)` runs the full schema. For per-field diagnostics, call a schema's
+`isPxDocument(json)` is the cheap shallow gate (is this a Px document at all?);
+`isValidPxDocument(json)` runs the full schema. For per-field diagnostics, call a schema's
 `isValid` with a context:
 
 ```ts
@@ -90,6 +90,34 @@ per-branch errors are not reported unless every branch fails), and it **ignores 
 `undefined`** — those cannot survive `JSON.stringify`, so strict judges the document rather than the
 in-memory object that produced it.
 
+### The schema the format is written in
+
+Nothing above is validated by hand. Every block of the format has a runtime schema built with the
+`px` schema builder, and `validateDocument` walks those. You can walk them too: `describeSchema`
+turns any schema into a plain description — keys, types, and whether each is optional — which is
+how this repo generates its published `SCHEMA.json`, and `schemaKeys` lists just the keys.
+
+There is one schema value per block, named after it: `PxTriggerSchema`, `PxElementAnimationSchema`,
+`PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformValueSchema`, `PxBezierPathSchema`,
+`PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxRetimeEffectSchema` and
+`PxGradientStopSchema` among them. Two hold a node's shared halves rather than a block of their
+own — `PxNodeBaseSchema` is what every node has, `PxSvgNodeRootSchema` what only the root `<svg>` adds.
+
+To type a schema, or build one of your own: `PxSchema` is the schema type itself, `PxSchemaDesc`
+what `describeSchema` hands back, `PxInfer` the document type a schema describes, and `PxRemoveIndex`
+strips the index signature that SVG pass-through keys bring with them.
+
+### Reading and reshaping a document
+
+`diagnoseDocument` is the load-time check every player runs before it builds anything: it hands
+back the problems it found instead of throwing, and `validateDocument` above is the fuller form of
+the same question.
+
+A document's timeline has two shapes — the nested object the file stores, and the flat view the
+engines read. `flattenAnimatorTimeline` and `nestAnimatorTimeline` convert between them, so an
+editor can hold one and a player the other with neither having to guess.
+`PX_TRANSFORM_PART_KEYS` lists the parts a transform is written in, in the order they compose.
+
 ## The materialization pipeline
 
 `materializeAllInTree(doc, engine)` is the single entry point that turns a
@@ -109,14 +137,14 @@ without live `<use>` propagation** — that includes `react-native-svg` — and
 ```ts
 import {
     materializeAllInTree, generateNewIds, calcAnimationValues,
-    getNormalizedBindings, PxTimelineEngine,
+    normalizeBindings, PxTimelineEngine,
 } from '@pixodesk/svg-animator-core';
 
 // Flatten once …
 const flat = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
 
 // … then ask for values at any time, with no renderer involved.
-for (const binding of getNormalizedBindings(flat, PxTimelineEngine.js) ?? []) {
+for (const binding of normalizeBindings(flat, PxTimelineEngine.js) ?? []) {
     const values = calcAnimationValues(binding.animate, 500); // t = 500 ms
     console.log(binding.id, values);   // → { opacity: '0.5', transform: 'translate(…)' }
 }
@@ -128,19 +156,19 @@ numbers.
 
 ## Writing your own player
 
-Implement `PxPlatformAdapter` and hand it to `createBasicFrameLoopAnimator`; the
+Implement `PxPlatformAdapter` and hand it to `createAdapterAnimator`; the
 engine handles timing, delay, direction, iterations, fill, playback rate and the
 lifecycle callbacks, then calls you with plain attribute writes.
 
 ```ts
-import { createBasicFrameLoopAnimator, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { createAdapterAnimator, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 
 const adapter: PxPlatformAdapter = {
     isConnected: () => true,
     setAttribute: (id, attrName, value) => { /* apply to your element */ },
 };
 
-const api = createBasicFrameLoopAnimator(flatDoc, adapter, {
+const api = createAdapterAnimator(flatDoc, adapter, {
     onFinish: () => console.log('done'),
 });
 api.play();
@@ -150,10 +178,27 @@ Frame scheduling resolves `requestAnimationFrame` from `globalThis` at call time
 and falls back to `setTimeout`, so the engine works in browsers, React Native and
 test environments with faked timers.
 
+Every player agrees on one meaning of time, and the helpers that define it are exported so a player
+of your own cannot drift from it. `seekCeilingMs` is the highest time you can seek to and
+`progressSpanMs` the span a `0`–`1` progress maps onto; `clampSeekMs` holds a seek inside that span,
+and `timeToProgress` / `progressToTimeMs` convert between the two. `isValidPlaybackRate` says
+whether a rate can be used, and `PX_RATE_REJECTED` is what a setter reports when it cannot.
+`createRunClock` is the clock the frame loop itself runs on. The callbacks that engine accepts are
+`PxEngineCallbacks` — the playback lifecycle plus the diagnostics channel, and the shape each
+player's own callback type is built on.
+
 ## Versioning
 
 Every package in this repo is released in lockstep. A player depends on the
 matching core version (`^x.y.z`), so upgrading a player upgrades the core with it.
+
+A **document** carries its own version, which moves independently of the package's: `animator.version`,
+stored under the key `PX_WIRE_VERSION_KEY` and parsed into a `PxWireVersion`. `PX_WIRE_VERSION` is
+the version this build writes and `PX_WIRE_BASELINE_VERSION` the oldest it still reads;
+`PX_WIRE_STEPS` is the ordered list of conversions between them, each a `PxWireVersionStep` of
+some `PxWireStepKind`. `convertWireDocument` brings a document up to this build and reports what it
+did in a `PxWireConversionResult`. `applyWireSteps` runs a chosen subset of those steps instead,
+taking a `PxWireConversionOptions` — which is what the release tooling uses.
 
 ## License
 

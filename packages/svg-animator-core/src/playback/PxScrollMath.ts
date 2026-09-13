@@ -9,7 +9,7 @@
 // here; the editor's design doc (`app/src/svgeditor/animation/scroll-timeline.design.md`
 // §4) documents the same formulas — keep them in sync.
 
-import { clamp, DEFAULT_DURATION_MS } from '../util/PxAnimatorUtil';
+import { clamp, PX_DEFAULT_DURATION_MS } from '../util/PxAnimatorUtil';
 import type { PxAnimatorConfig, PxScroll, PxScrollPhase, PxScrollRangePoint } from '../format/PxAnimatorTypes';
 
 
@@ -26,7 +26,7 @@ export function isScrollTimeline(config: PxAnimatorConfig | undefined): boolean 
  */
 export function scrollTotalDurationMs(config: PxAnimatorConfig | undefined): number {
     const duration = (typeof config?.duration === 'number' && config.duration > 0)
-        ? config.duration : DEFAULT_DURATION_MS;
+        ? config.duration : PX_DEFAULT_DURATION_MS;
     const iterations = (typeof config?.iterations === 'number' && config.iterations > 0)
         ? config.iterations : 1;
     return duration * iterations;

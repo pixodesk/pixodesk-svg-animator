@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import type { PxAnimatable, PxMaskedByEffect, PxNode, PxTransformByEffect, Vec2 } from '../../format/PxAnimatorTypes';
+import type { PxAnimatable, PxMaskedByEffect, PxNode, PxTransformByEffect, PxVec2 } from '../../format/PxAnimatorTypes';
 import { keyframeWith, partsRecord, ReadKind, readAnimatable, readStaticOrigin, TransformPart } from '../shared/transformParts';
 import type { ApplyContext, MaskAncestorTransform } from '../shared/types';
 import { genId, stripHash } from '../shared/util';
@@ -99,7 +99,7 @@ function wrapInverseTransform(inner: PxNode, fx: PxTransformByEffect | undefined
 
 function wrapInversePart(
     inner: PxNode, part: TransformPart,
-    raw: PxAnimatable<any> | undefined, origin: Vec2 | undefined, ctx: ApplyContext
+    raw: PxAnimatable<any> | undefined, origin: PxVec2 | undefined, ctx: ApplyContext
 ): PxNode {
     if (raw === undefined) return inner;
     // `fx.scale` in BARE-ARRAY form is PERCENT (150 = 1.5×), matching
@@ -289,7 +289,7 @@ function readTransformationFromBody(node: PxNode): PxTransformByEffect | undefin
  *  (`translate(o) … translate(-o)`) is recovered as `origin: o`; the leading
  *  translate (if any) becomes `translate: t`. Returns `undefined` when no
  *  recognized ops are found. */
-function parseTransformStringToParts(s: string): { translate?: Vec2; rotate?: number; scale?: Vec2; origin?: Vec2 } | undefined {
+function parseTransformStringToParts(s: string): { translate?: PxVec2; rotate?: number; scale?: PxVec2; origin?: PxVec2 } | undefined {
     interface Op { name: string; args: Array<number>; }
     const re = /([a-zA-Z]+)\s*\(([^)]*)\)/g;
     let m: RegExpExecArray | null;
@@ -314,7 +314,7 @@ function parseTransformStringToParts(s: string): { translate?: Vec2; rotate?: nu
             if (lx !== -ox || ly !== -oy) continue;
             // `cand` = +origin, `last` = −origin. Anything BEFORE `cand` may
             // be a body translate; anything BETWEEN them is rotate / scale.
-            const out: { translate?: Vec2; rotate?: number; scale?: Vec2; origin?: Vec2 } = {};
+            const out: { translate?: PxVec2; rotate?: number; scale?: PxVec2; origin?: PxVec2 } = {};
             out.origin = [ox, oy];
             for (let k = 0; k < j; k++) {
                 if (ops[k].name === 'translate') {
@@ -339,9 +339,9 @@ function parseTransformStringToParts(s: string): { translate?: Vec2; rotate?: nu
     // No sandwich — flat sequence. `translate`s sum, `rotate`s sum, `scale`s
     // multiply. Order isn't preserved but it works for the cases emitted without
     // origin (translates commute; only one rotate or scale).
-    let translate: Vec2 | undefined;
+    let translate: PxVec2 | undefined;
     let rotate: number | undefined;
-    let scale: Vec2 | undefined;
+    let scale: PxVec2 | undefined;
     for (const op of ops) {
         if (op.name === 'translate') {
             const dx = op.args[0] ?? 0;
@@ -355,7 +355,7 @@ function parseTransformStringToParts(s: string): { translate?: Vec2; rotate?: nu
             scale = scale ? [scale[0] * sx, scale[1] * sy] : [sx, sy];
         }
     }
-    const out: { translate?: Vec2; rotate?: number; scale?: Vec2 } = {};
+    const out: { translate?: PxVec2; rotate?: number; scale?: PxVec2 } = {};
     if (translate) out.translate = translate;
     if (rotate !== undefined) out.rotate = rotate;
     if (scale) out.scale = scale;

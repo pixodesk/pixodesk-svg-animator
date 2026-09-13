@@ -7,7 +7,7 @@
 //
 // WHEN THIS FAILS — do not just regenerate. Read which key moved:
 //   · removed / renamed → some file still says the old name: add the conversion step to
-//     `PLAYER_WIRE_STEPS` (and bump `PX_PLAYER_SCHEMA_VERSION`), or — pre-release — migrate the
+//     `PX_WIRE_STEPS` (and bump `PX_WIRE_SCHEMA_VERSION`), or — pre-release — migrate the
 //     repo fixtures; THEN regenerate.
 //   · added → the safe half. Regenerate with `PX_REGEN_FIELD_UNIVERSE=1 npx vitest run
 //     src/version/PxSchemaFieldUniverse.test.ts` and commit the diff: it is the reviewable record.

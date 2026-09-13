@@ -20,7 +20,7 @@
 // are fine — they are erased at build time and cannot create a runtime edge.
 // ============================================================================
 
-import type { PxAnimatedSvgDocument, PxAnimatorConfig, PxBinding, PxDefs, PxNode, PxScroll, PxTrigger } from './PxAnimatorTypes';
+import type { PxAnimatedSvgDocument, PxAnimatorConfig, PxBinding, PxDefinitions, PxNode, PxScroll, PxTrigger } from './PxAnimatorTypes';
 
 // ── WIRE ENUMS (review §2.7) ────────────────────────────────────────────────
 // ONE shape for every enumerated wire value: an exported `Px*` const namespace plus the
@@ -30,7 +30,7 @@ import type { PxAnimatedSvgDocument, PxAnimatorConfig, PxBinding, PxDefs, PxNode
 // NOT a TypeScript `enum`: these are WIRE values, and a document is authored as plain
 // JSON — `{ fill: 'forwards' }`. A string `enum` is nominal, so that literal would not
 // typecheck without importing the enum; the derived union accepts both spellings. It is
-// also the only form that composes (`PxTimelineEngineExtra` spreads `PxTimelineEngine`)
+// also the only form that composes (`PxTimelineEngineSetting` spreads `PxTimelineEngine`)
 // and that survives erasable-syntax / type-stripping builds.
 
 /** WAAPI `fill` — which values apply outside the active period. @public */
@@ -153,7 +153,7 @@ export type PxAlongPathMode = typeof PxAlongPathMode[keyof typeof PxAlongPathMod
  *  cannot express; `native` DEMANDS that API (WAAPI — and, for scroll/view timelines,
  *  the browser's ScrollTimeline) with no fallback; `js` pins the player's own frame loop
  *  and its own progress measurement. Const-namespace + matching string type so call
- *  sites use named members (`PxTimelineEngineExtra.js`), not bare literals.
+ *  sites use named members (`PxTimelineEngineSetting.js`), not bare literals.
  *
  *  NAMED `engine`, not `mode`: it selects HOW the animated attributes get updated, not
  *  WHAT you see — an implementation preference. (`native` is the one value that can also
@@ -183,7 +183,7 @@ export const PX_FLAT_RUNTIME_VIEW_KEYS: ReadonlyArray<string> = [
  * platform's animation API (`native`), or write it from the player's own frame loop (`js`).
  *
  * This is the CORE set. Code that always knows which engine is running takes this (e.g.
- * `getNormalizedBindings`'s `engine` arg gates motion-along-path materialization).
+ * `normalizeBindings`'s `engine` arg gates motion-along-path materialization).
  * @public
  */
 export const PxTimelineEngine = {
@@ -202,33 +202,33 @@ export type PxTimelineEngine = typeof PxTimelineEngine[keyof typeof PxTimelineEn
  * drift: every engine is automatically an accepted value, and `auto` is visibly the one extra.
  * @public
  */
-export const PxTimelineEngineExtra = {
+export const PxTimelineEngineSetting = {
     ...PxTimelineEngine,
     auto: 'auto',
 } as const;
 
-export type PxTimelineEngineExtra = typeof PxTimelineEngineExtra[keyof typeof PxTimelineEngineExtra];
+export type PxTimelineEngineSetting = typeof PxTimelineEngineSetting[keyof typeof PxTimelineEngineSetting];
 
 /** What a requested engine resolves to BEFORE the runtime probes support: `js` pins the frame
  *  loop, anything else starts at `native`. NOTE this is only the STARTING point — `auto` still
  *  falls back to `js` per document when the platform API declines an attribute, which happens at
  *  bind time (see `PxAnimatorBind`), not here. * @public @advanced
  */
-export function resolveTimelineEngine(engine: PxTimelineEngineExtra | undefined): PxTimelineEngine {
-    return engine === PxTimelineEngineExtra.js ? PxTimelineEngine.js : PxTimelineEngine.native;
+export function resolveTimelineEngine(engine: PxTimelineEngineSetting | undefined): PxTimelineEngine {
+    return engine === PxTimelineEngineSetting.js ? PxTimelineEngine.js : PxTimelineEngine.native;
 }
 
 /** `native` is a demand, not a preference: no JS fallback when the platform API declines an attribute. @public @advanced */
-export function isNativeForced(engine: PxTimelineEngineExtra | undefined): boolean {
-    return engine === PxTimelineEngineExtra.native;
+export function isNativeForced(engine: PxTimelineEngineSetting | undefined): boolean {
+    return engine === PxTimelineEngineSetting.native;
 }
 
 /** May the browser's ScrollTimeline/ViewTimeline drive a scroll/view timeline?
  *  `auto` tries it first (falling back to the player's own measurement), `native`
  *  asks for it, `js` never uses it. * @public @advanced
  */
-export function mayUseNativeScrollTimeline(engine: PxTimelineEngineExtra | undefined): boolean {
-    return engine !== PxTimelineEngineExtra.js;
+export function mayUseNativeScrollTimeline(engine: PxTimelineEngineSetting | undefined): boolean {
+    return engine !== PxTimelineEngineSetting.js;
 }
 
 /**
@@ -487,7 +487,7 @@ export type PxStrokeTrimSubPaths = typeof PxStrokeTrimSubPaths[keyof typeof PxSt
 // key: it was triply overloaded (the `text` tag, the `effects.text` group, and a content alias)
 // and no reader accepts it.
 /** @internal */
-export const TEXT_CONTENT_ATTR = 'textContent';
+export const PX_TEXT_CONTENT_ATTR = 'textContent';
 
 /** The DOM `class` attribute. A name we EMIT but do not own, so it is written through this
  *  constant rather than as an identifier — every other emitted attribute name reaches the
@@ -505,7 +505,7 @@ export const OFFSET_DISTANCE_ATTR = 'offsetDistance';
 
 // Wire keys that are NEVER DOM attributes (internal use only).
 //
-// `effects` is here for safety rather than necessity: `applyPlayerEffects` deletes it at
+// `effects` is here for safety rather than necessity: `materializeNodeEffects` deletes it at
 // load, so today nothing reaches the renderer with it still attached. That is a property
 // of the pipeline, though, not of the contract — an effect path that returns early, or a
 // document carrying an effect key the pipeline does not recognize, would otherwise leave
@@ -513,7 +513,7 @@ export const OFFSET_DISTANCE_ATTR = 'offsetDistance';
 // anywhere. Listing it makes the invariant structural (J4).
 /** @internal */
 export const INTERNAL_ATTRS = new Set([
-    'type', 'children', 'animator', 'meta', 'animate', 'effects', TEXT_CONTENT_ATTR
+    'type', 'children', 'animator', 'meta', 'animate', 'effects', PX_TEXT_CONTENT_ATTR
 ]);
 
 // ============================================================================
@@ -589,11 +589,11 @@ export type PxGradientType = typeof PxGradientType[keyof typeof PxGradientType];
 // ============================================================================
 
 /** @public @advanced */
-export function isPxElementFileFormat(fileJson: any): fileJson is PxAnimatedSvgDocument {
+export function isPxDocument(doc: any): doc is PxAnimatedSvgDocument {
     if (!(
-        fileJson &&
-        typeof fileJson === 'object' &&
-        !Array.isArray(fileJson)
+        doc &&
+        typeof doc === 'object' &&
+        !Array.isArray(doc)
     )) {
         return false;
     }
@@ -601,8 +601,8 @@ export function isPxElementFileFormat(fileJson: any): fileJson is PxAnimatedSvgD
     // `type` is the tag, and the ONLY discriminator — it is what the schema requires
     // (`px.literal('svg')`). A `tagName` alternative was accepted here until 2026-08,
     // which meant a tagName-only document passed this gate and then failed
-    // `isPxElementFileFormatDeep`; nothing ever wrote it.
-    return fileJson.type === 'svg';
+    // `isValidPxDocument`; nothing ever wrote it.
+    return doc.type === 'svg';
 }
 
 /**
@@ -790,7 +790,7 @@ export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
 
 
 /** @public @advanced */
-export function getDefs(doc: PxAnimatedSvgDocument): PxDefs | undefined {
+export function getDefinitions(doc: PxAnimatedSvgDocument): PxDefinitions | undefined {
     if (!doc) return undefined;
     return getAnimatorConfig(doc)?.definitions;
 }

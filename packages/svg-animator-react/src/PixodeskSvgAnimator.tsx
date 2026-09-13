@@ -3,12 +3,12 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger } from '@pixodesk/svg-animator-web';
+import type { PxAnimatedSvgDocument, PxAnimatorApi, PxNode, PxPlatformAdapter, PxTimelineEngineSetting, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
 import type { PxOutAction } from '@pixodesk/svg-animator-core';
-import { createAnimator, generateNewIds, getNormalizedProps, PxDiagnosticKind, type PxAnimatorCallbacks, type PxPlaybackOverrideProps, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
+import { createAnimator, generateNewIds, toDomProps, PxDiagnosticKind, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
-import { camelCaseToKebabWordIfNeeded, createDiagnostics, STYLE_ATTR_NAMES, DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
+import { camelCaseToKebabWordIfNeeded, createDiagnostics, PX_STYLE_ATTR_NAMES, PX_DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
 import { useDepsVersion } from './Utils';
@@ -36,7 +36,7 @@ export interface PixodeskSvgAnimatorImplProps {
     compMode: PxControlMode;
 
     /** Imperative API handle populated by the inner component. */
-    apiHolderRef: React.RefObject<PxAnimatorAPI | null>;
+    apiHolderRef: React.RefObject<PxAnimatorApi | null>;
 
     /**
      * Latest lifecycle callbacks, read at invocation time so the memoised
@@ -64,12 +64,12 @@ export type PixodeskSvgAnimatorCallbacks =
 
 /**
  * The component's props. The playback override, the control props and every callback are
- * core's shared shapes (review §9) — `PxPlaybackOverrideProps`, `PxControlProps` and
+ * core's shared shapes (review §9) — `PxPlaybackOverride`, `PxControlProps` and
  * `PxAnimatorCallbacks` — so React, Vue and React Native cannot drift apart. Only what is
  * React-specific is declared here.
  * @public
  */
-export interface PixodeskSvgAnimatorProps extends PxPlaybackOverrideProps, PxControlProps, PxAnimatorCallbacks {
+export interface PixodeskSvgAnimatorProps extends PxPlaybackOverride, PxControlProps, PxAnimatorCallbacks {
 
     /** Added to the root `<svg>`. */
     className?: string;
@@ -132,7 +132,7 @@ export function createReactAdapter(elementRefs: React.RefObject<Map<string, any>
 
             if (element) {
                 element.setAttribute(attrName, value);
-                if (STYLE_ATTR_NAMES.has(attrName)) {
+                if (PX_STYLE_ATTR_NAMES.has(attrName)) {
                     (element as HTMLElement).style[attrName as any] = value;
                 }
             }
@@ -163,7 +163,7 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
 
         const { type, animate, meta, children, ...props } = node;
 
-        const normProps = getNormalizedProps(props);
+        const normProps = toDomProps(props);
         if (key !== undefined) normProps[REACT_PROP.key] = key;
 
         normProps[REACT_PROP.ref] = (domEl: any) => {
@@ -183,7 +183,7 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
 
         // Text content: a node's own `textContent` renders only when it has no child nodes — a line
         // <tspan> can carry both, and then its children are the styled spans (the React Native
-        // renderer's rule). `getNormalizedProps` strips `textContent` from the attributes.
+        // renderer's rule). `toDomProps` strips `textContent` from the attributes.
         const content = children?.length
             ? children.map((child, i) => renderNode(child, false, child.id ?? i))
             : (typeof node.textContent === 'string' ? node.textContent : undefined);
@@ -222,7 +222,7 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
             muteWarn:  diagRef.current?.muteWarn,
             muteError: diagRef.current?.muteError,
         };
-        let api: PxAnimatorAPI | undefined = createAnimator(options);
+        let api: PxAnimatorApi | undefined = createAnimator(options);
         apiHolderRef.current = api;
 
         return () => {
@@ -330,7 +330,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
         : patch;
 
     if (fullPatch !== undefined || resetTimeline) {
-        const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetDefaults: !!resetTimeline });
+        const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetTimeline: !!resetTimeline });
         const diag = makeDiag();
         for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, 'timeline override: ' + w);
         doc = applied.doc;
@@ -352,13 +352,13 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
             const iterationsValue = iterations ?? animator.iterations;
             const iterationsCount = iterationsValue === 'infinite' ? Infinity
                 : (typeof iterationsValue === 'number' && iterationsValue >= 1 ? iterationsValue : 1);
-            const singleDuration = duration ?? animator.duration ?? DEFAULT_DURATION_MS;
+            const singleDuration = duration ?? animator.duration ?? PX_DEFAULT_DURATION_MS;
             seekMs = progressToTimeMs(progress, singleDuration, iterationsCount);
         }
         if (time !== undefined) seekMs = time;
     }
 
-    const apiHolderRef = useRef<PxAnimatorAPI | null>(null);
+    const apiHolderRef = useRef<PxAnimatorApi | null>(null);
 
     // Keep the latest callback props readable by the memoised inner component.
     const callbacksRef = useRef<PixodeskSvgAnimatorCallbacks>({});

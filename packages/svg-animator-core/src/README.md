@@ -8,7 +8,7 @@ Everything public is re-exported from `index.ts`; the folders are internal organ
 | `index.ts` | the public API — the only entry point the build and every consumer use |
 | `schema/` | the `px` schema toolkit: `px.object`, unions, strict validation, `describeSchema`. Knows nothing about our format |
 | `format/` | **the document format** — types + runtime schemas (`PxAnimatorTypes`), wire constants and schema-free helpers (`PxAnimatorConstants`), the entry diagnostic, and the tests that guard wire spelling |
-| `version/` | **schema versioning** — `PX_PLAYER_SCHEMA_VERSION` (alone in `PxSchemaVersion.ts`), the step table and conversion engine (`PxWireVersion`), the field inventory and its snapshot, the release rule and its log. See `dev-docs/versioning.md` |
+| `version/` | **schema versioning** — `PX_WIRE_SCHEMA_VERSION` (alone in `PxSchemaVersion.ts`), the step table and conversion engine (`PxWireVersion`), the field inventory and its snapshot, the release rule and its log. See `dev-docs/versioning.md` |
 | `animation/` | the per-frame value engine (`PxDefinitions`): binding normalization, keyframe interpolation, internal loops |
 | `playback/` | runtime timing: the frame loop, scroll-timeline progress math, per-instance config overrides |
 | `materialize/` | tree rewrites before rendering: `<use>` instances, motion along a path, CSS offset-path, and the all-in-one pipeline |

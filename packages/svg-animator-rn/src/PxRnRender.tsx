@@ -3,8 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getNormalizedProps, type PxDefs, type PxNode } from '@pixodesk/svg-animator-core';
-import { sanitizeAttributeValue, DISALLOWED_SVG_TAGS_LOWER, TEXT_CONTENT_ATTR } from '@pixodesk/svg-animator-core/internal';
+import { toDomProps, type PxDefinitions, type PxNode } from '@pixodesk/svg-animator-core';
+import { sanitizeAttributeValue, PX_DISALLOWED_SVG_TAGS_LOWER, PX_TEXT_CONTENT_ATTR } from '@pixodesk/svg-animator-core/internal';
 import { createElement, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { RN_SVG_COMPONENTS } from './PxRnTypeMap';
 import { toRnPropName, toRnPropValue } from './PxRnPropNames';
@@ -14,7 +14,7 @@ export interface RenderRnNodeOptions {
     /** Collects non-fatal issues (unsupported tags, dropped attrs). */
     warnings?: Array<string>;
     /** `definitions` from the document, used to resolve named `style` presets. */
-    defs?: PxDefs;
+    defs?: PxDefinitions;
     /**
      * Wraps the created element for animated nodes: receives the resolved
      * component + static props and returns the element to mount (the animator
@@ -41,7 +41,7 @@ export interface RenderRnNodeOptions {
  * @internal
  */
 export function toRnProps(props: Record<string, any>, warnings?: Array<string>, tag?: string): Record<string, any> {
-    const normalized = getNormalizedProps(props);
+    const normalized = toDomProps(props);
     const out: Record<string, any> = {};
     for (const key of Object.keys(normalized)) {
         const sanitized = sanitizeAttributeValue(key, normalized[key]);
@@ -72,7 +72,7 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
     const domType: string | undefined = props.domType;
     if (domType !== undefined) delete props.domType;
 
-    if (DISALLOWED_SVG_TAGS_LOWER.has(tag.toLowerCase())) {
+    if (PX_DISALLOWED_SVG_TAGS_LOWER.has(tag.toLowerCase())) {
         opts.warnings?.push('tag blocked (dangerous): ' + tag);
         return null;
     }
@@ -102,7 +102,7 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
     }
 
     // Text content: wire nodes carry it in `textContent` — the one key.
-    const textContent: string | undefined = props[TEXT_CONTENT_ATTR];
+    const textContent: string | undefined = props[PX_TEXT_CONTENT_ATTR];
 
     let childElements: ReactNode = undefined;
     if (Array.isArray(children) && children.length > 0) {

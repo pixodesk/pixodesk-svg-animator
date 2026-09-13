@@ -11,7 +11,7 @@
 // same code a user runs. The RULE lives in `PxSchemaRelease.ts`; this file only does I/O.
 //
 // The LIBRARY version and the SCHEMA version are independent numbers — the library ships far
-// more often than the format changes. --lib-version never touches PX_PLAYER_SCHEMA_VERSION.
+// more often than the format changes. --lib-version never touches PX_WIRE_SCHEMA_VERSION.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
@@ -36,8 +36,8 @@ const snapshot = JSON.parse(readFileSync(SNAPSHOT, 'utf8'));
 const releases = JSON.parse(readFileSync(RELEASES, 'utf8'));
 const last = releases[releases.length - 1];
 const { added, removed } = coreInternal.diffFieldUniverse(snapshot, live);
-const declared = core.PX_PLAYER_SCHEMA_VERSION;
-const plan = coreInternal.planSchemaRelease({ added, removed, declared, lastReleased: last.version, steps: core.PLAYER_WIRE_STEPS });
+const declared = core.PX_WIRE_SCHEMA_VERSION;
+const plan = coreInternal.planSchemaRelease({ added, removed, declared, lastReleased: last.version, steps: core.PX_WIRE_STEPS });
 
 console.log('Player schema: declared ' + declared + ', last released ' + last.version + ' (' + last.date + ').');
 if (added.length) console.log('  added:   ' + added.join(', '));
@@ -48,7 +48,7 @@ if (plan.refuse) {
     process.exit(1);
 }
 
-const logProblems = coreInternal.releaseLogProblems(releases, core.PLAYER_WIRE_STEPS, plan.changed ? last.version : declared, core.BASELINE_PLAYER_VERSION);
+const logProblems = coreInternal.releaseLogProblems(releases, core.PX_WIRE_STEPS, plan.changed ? last.version : declared, core.PX_WIRE_BASELINE_VERSION);
 if (!plan.changed && declared === last.version) {
     console.log('No player schema change since ' + last.version + ' — no schema bump.');
 } else {
@@ -63,7 +63,7 @@ if (!apply) {
 }
 
 if (plan.changed || declared !== last.version) {
-    const step = core.PLAYER_WIRE_STEPS.find(s => s.to === declared);
+    const step = core.PX_WIRE_STEPS.find(s => s.to === declared);
     releases.push({
         version: declared, date: new Date().toISOString().slice(0, 10),
         added, removed, note: step ? step.reason : undefined,

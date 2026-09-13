@@ -51,7 +51,7 @@ const r3 = (n: number): number => Math.round(n * 1000) / 1000;
  *  size the end extension (caller-measured; the player estimates it from the node,
  *  the editor from its text model — browser fonts have no glyph metrics available). * @internal
  */
-export interface ExtendPathOpts {
+export interface ExtendPathOptions {
     pathOverflow?: string;
     startOffset?: PxAnimatable<number>;
     textLength?: PxAnimatable<number>;
@@ -94,7 +94,7 @@ export function shiftAnimatable(v: PxAnimatable<number> | undefined, by: number)
  *  applier and the editor's live/heavy `<textPath>` def generate (single source of truth).
  *  Returns the extended `d` AND `startShift` — see {@link ExtendedPath}. * @internal
  */
-export function extendedPathForBrowser(pathD: string, opts: ExtendPathOpts): ExtendedPath {
+export function extendedPathForBrowser(pathD: string, opts: ExtendPathOptions): ExtendedPath {
     if (opts.pathOverflow === 'clip') return { d: pathD, startShift: 0 };
     const sampler = createPathSampler(pathD);
     if (!sampler || sampler.closed || sampler.totalLength <= 0) return { d: pathD, startShift: 0 };

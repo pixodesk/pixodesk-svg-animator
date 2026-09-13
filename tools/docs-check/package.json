@@ -6,6 +6,7 @@
   "description": "Keeps the public markdown docs in sync with the packages' types and runtime schemas — see README.md",
   "scripts": {
     "test": "vitest run",
+    "report:audience": "DOCS_CHECK_AUDIENCE_REPORT=1 vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {

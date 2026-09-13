@@ -4,19 +4,19 @@ import { expect, test } from "@playwright/test";
 // class fields in PxSchema.ts). The format check is inlined instead.
 import type { PxAnimatedSvgDocument } from "../src/index";
 
-function isPxElementFileFormat(json: any): json is PxAnimatedSvgDocument {
+function isPxDocument(json: any): json is PxAnimatedSvgDocument {
     return !!json && typeof json === "object" && !Array.isArray(json) &&
         (json["type"] === "svg" || json["tagName"] === "svg");
 }
 import _animationJson from "./falling-ball-svga.json" with { type: "json" };
 
 
-if (!isPxElementFileFormat(_animationJson)) {
+if (!isPxDocument(_animationJson)) {
     throw new Error("Animation does not match PxAnimatedSvgDocument format");
 }
 const animationJson: PxAnimatedSvgDocument = _animationJson;
 
-if (!isPxElementFileFormat(_animationJson)) {
+if (!isPxDocument(_animationJson)) {
     throw new Error("Animation does not match PxAnimatedSvgDocument format");
 }
 

@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 // Pure-JSON in/out tests for the RETIME player effect (`retimeEffect.ts`), driven
-// through the real `applyPlayerEffects` pipeline (so content-ref split + retime
+// through the real `materializeNodeEffects` pipeline (so content-ref split + retime
 // run exactly as in production).
 //
 // Retime time-shifts a `<use>`'s referenced animation by `start` (+ scales by
@@ -18,7 +18,7 @@
 //   nested +250 over +250   → composes to +500 → [500 .. 1500].
 
 import { describe, expect, it } from 'vitest';
-import { applyPlayerEffects } from '../PlayerEffectsUtil';
+import { materializeNodeEffects } from '../PlayerEffectsUtil';
 import { collectByType, materializeEngine, normalizeGeneratedIds, PxTimelineEngine } from '../effectTestKit';
 import { PxCloneEffectSchema, type PxNode } from '../../format/PxAnimatorTypes';
 import type { PxValidationContext } from '../../schema/PxSchema';
@@ -77,8 +77,8 @@ function danglingRetimeCount(root: PxNode): number {
 }
 
 function materialize(input: PxNode): PxNode {
-    const { root, errors } = applyPlayerEffects(input);
-    if (errors.length) throw new Error('applyPlayerEffects errors:\n' + errors.join('\n'));
+    const { root, errors } = materializeNodeEffects(input);
+    if (errors.length) throw new Error('materializeNodeEffects errors:\n' + errors.join('\n'));
     return root;
 }
 
@@ -685,7 +685,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                 { type: 'use', href: '#tpl1', effects: { clone: { without: 'translate', source: 'tpl1', retime: { start: 250 } } } },
             ],
         } as unknown as PxNode;
-        const { root } = applyPlayerEffects(wire);
+        const { root } = materializeNodeEffects(wire);
         const times = transformKfTimes(root).map(t => t.join(','));
         expect(times, 'the outer chain composes: +250 (template render) AND +500 (retimed chain)')
             .toContain('500,1500');

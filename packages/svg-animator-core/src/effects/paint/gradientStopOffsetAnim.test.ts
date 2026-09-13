@@ -12,7 +12,7 @@
 // stops stayed put on the canvas while colors animated.
 
 import { describe, expect, it } from 'vitest';
-import { applyPlayerEffects } from '../PlayerEffectsUtil';
+import { materializeNodeEffects } from '../PlayerEffectsUtil';
 import type { PxNode } from '../../format/PxAnimatorTypes';
 
 
@@ -62,7 +62,7 @@ function findStops(root: PxNode): Array<PxNode> {
 describe('animated gradient stop offset', () => {
 
     it('each stop whose offset changes across keyframes gets an animate.offset timeline', () => {
-        const { root, errors } = applyPlayerEffects(buildStrokeGradientNode());
+        const { root, errors } = materializeNodeEffects(buildStrokeGradientNode());
         expect(errors).toEqual([]);
 
         const stops = findStops(root);

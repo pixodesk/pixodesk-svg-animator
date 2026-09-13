@@ -4,7 +4,7 @@ import { expect, Page, test } from "@playwright/test";
 // class fields in PxSchema.ts). The format check is inlined instead.
 import type { PxAnimatedSvgDocument } from "../src/index";
 
-function isPxElementFileFormat(json: any): json is PxAnimatedSvgDocument {
+function isPxDocument(json: any): json is PxAnimatedSvgDocument {
     return !!json && typeof json === "object" && !Array.isArray(json) &&
         (json["type"] === "svg" || json["tagName"] === "svg");
 }
@@ -12,12 +12,12 @@ import _bouncingBallJson from "./bouncing-ball-svga.json" with { type: "json" };
 import _animatedAttributeJson from "./03-animated-attribute.json" with { type: "json" };
 
 
-if (!isPxElementFileFormat(_bouncingBallJson)) {
+if (!isPxDocument(_bouncingBallJson)) {
     throw new Error("Animation does not match PxAnimatedSvgDocument format");
 }
 const bouncingBallJson: PxAnimatedSvgDocument = _bouncingBallJson;
 
-if (!isPxElementFileFormat(_animatedAttributeJson)) {
+if (!isPxDocument(_animatedAttributeJson)) {
     throw new Error("Animation does not match PxAnimatedSvgDocument format");
 }
 const animatedAttributeJson: PxAnimatedSvgDocument = _animatedAttributeJson;

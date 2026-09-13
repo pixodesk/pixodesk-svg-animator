@@ -19,7 +19,7 @@
  */
 
 import { describe, expect, it } from 'vitest';
-import { calcAnimationValues, getNormalizedBindings } from '../animation/PxDefinitions';
+import { calcAnimationValues, normalizeBindings } from '../animation/PxDefinitions';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxKeyframe, PxNode } from '../format/PxAnimatorTypes';
 
@@ -93,7 +93,7 @@ function parseTransformString(s: string): Mat {
 
 
 function evaluateAt(doc: PxAnimatedSvgDocument, engine: PxTimelineEngine, time: number): Record<string, string> | undefined {
-    const bindings = getNormalizedBindings(doc, engine);
+    const bindings = normalizeBindings(doc, engine);
     if (bindings.length === 0) return undefined;
     // Find the binding whose id matches the animated rect/ellipse in the fixture.
     const animatedBinding = bindings.find(b => b.animate && Object.keys(b.animate).length > 0);

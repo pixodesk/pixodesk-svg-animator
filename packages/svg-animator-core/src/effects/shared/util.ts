@@ -7,7 +7,7 @@
 /** Generic, effect-agnostic helpers for the player-effects applier. */
 
 import { deepClonePxNode, regenerateIdsAndRewriteRefs } from '../../util/PxNodeCloneUtil';
-import type { PxNode, Vec2 } from '../../format/PxAnimatorTypes';
+import type { PxNode, PxVec2 } from '../../format/PxAnimatorTypes';
 import type { ApplyContext } from './types';
 
 /** Generates a deterministic id for a generated node (`<mask>`, retimed `<symbol>`, …). */
@@ -20,7 +20,7 @@ export function stripHash(href: any): string | undefined {
 }
 
 /** Reads the leading `translate(x,y)` from an SVG transform string. */
-export function readTranslateFromTransform(transform: any): Vec2 | undefined {
+export function readTranslateFromTransform(transform: any): PxVec2 | undefined {
     if (typeof transform !== 'string') return undefined;
     const m = transform.match(/translate\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/);
     return m ? [Number(m[1]), Number(m[2])] : undefined;

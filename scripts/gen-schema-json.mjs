@@ -20,7 +20,7 @@ const NAMED = new Map([
   [core.PxAnimatorConfigSchema, 'AnimatorConfig'],
   [core.PxTimelineSchema, 'Timeline'],
   [core.PxTriggerSchema, 'Trigger'],
-  [core.PxDefsSchema, 'Definitions'],
+  [core.PxDefinitionsSchema, 'Definitions'],
   [core.PxElementAnimationSchema, 'ElementAnimation'],
   [core.PxPropertyAnimationSchema, 'PropertyAnimation'],
   [core.PxKeyframeSchema, 'Keyframe'],

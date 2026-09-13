@@ -6,8 +6,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAnimator } from './index';
 import type { PxAnimatedSvgDocument, PxAnimationDefinition } from '@pixodesk/svg-animator-core';
-import { LOOP_JUMP_SHIFT_MS, cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from '@pixodesk/svg-animator-core/internal';
-import { calcAnimationValues, getNormalizedBindings } from '@pixodesk/svg-animator-core';
+import { PX_LOOP_JUMP_SHIFT_MS, cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from '@pixodesk/svg-animator-core/internal';
+import { calcAnimationValues, normalizeBindings } from '@pixodesk/svg-animator-core';
 import { materializeAllInTree } from '@pixodesk/svg-animator-core';
 import { PxTimelineEngine } from '@pixodesk/svg-animator-core';
 
@@ -64,14 +64,14 @@ describe('animateBackground', () => {
         vi.advanceTimersByTime(64); // t=128
         expect(ellipse?.getAttribute('transform')).toMatch('translate(200,200)');
 
-        // Second half: the repeat runs (128 + LOOP_JUMP_SHIFT_MS)→256ms, NOT 128→256. A
+        // Second half: the repeat runs (128 + PX_LOOP_JUMP_SHIFT_MS)→256ms, NOT 128→256. A
         // cycle snaps back instantly, so its first keyframe would land on the same time as
         // the previous cycle's last one; the expander separates them by
-        // LOOP_JUMP_SHIFT_MS so both sides materialize identical keyframes (B7).
+        // PX_LOOP_JUMP_SHIFT_MS so both sides materialize identical keyframes (B7).
         //
         // DERIVED, not hard-coded: the gap is a tuning value (10ms read as a visible jump,
         // so it is now 1ms). This asserts the interpolation MATHS, not a magic number.
-        const repeatStart = 128 + LOOP_JUMP_SHIFT_MS;
+        const repeatStart = 128 + PX_LOOP_JUMP_SHIFT_MS;
         const progressAt192 = (192 - repeatStart) / (256 - repeatStart);
         // Compared numerically with a tolerance: the frame loop lands near, not exactly on,
         // t=192, so an exact string match would encode the quantisation error too.
@@ -244,14 +244,14 @@ describe('animateBackground', () => {
 
 
 // ============================================================================
-// Loop expansion tests (via getNormalizedBindings + calcAnimationValues)
+// Loop expansion tests (via normalizeBindings + calcAnimationValues)
 // ============================================================================
 
 describe('Loop expansion', () => {
 
     /** Helper: get normalized binding's animate definition for translate */
     function getTranslateAnim(doc: PxAnimatedSvgDocument): PxAnimationDefinition {
-        const bindings = getNormalizedBindings(doc);
+        const bindings = normalizeBindings(doc);
         expect(bindings.length).toBeGreaterThan(0);
         return bindings[0].animate! as PxAnimationDefinition;
     }
@@ -720,7 +720,7 @@ describe('Color attribute normalization (frames-mode parity)', () => {
     }
 
     function getBindings(doc: PxAnimatedSvgDocument): PxAnimationDefinition {
-        const bindings = getNormalizedBindings(doc);
+        const bindings = normalizeBindings(doc);
         expect(bindings.length).toBeGreaterThan(0);
         return bindings[0].animate! as PxAnimationDefinition;
     }

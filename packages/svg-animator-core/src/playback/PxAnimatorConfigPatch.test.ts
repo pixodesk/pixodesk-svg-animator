@@ -206,7 +206,7 @@ describe('applyAnimatorConfig — document level', () => {
         expect(applyAnimatorConfig(d, {}).doc).toBe(d);
     });
 
-    it('resetDefaults ignores the document playback but KEEPS the content tables', () => {
+    it('resetTimeline ignores the document playback but KEEPS the content tables', () => {
         const d = {
             type: 'svg',
             animator: {
@@ -216,7 +216,7 @@ describe('applyAnimatorConfig — document level', () => {
                 bindings: [{ target: '#r1', animateWith: ['a0'] }],
             },
         } as any;
-        const { doc: out } = applyAnimatorConfig(d, { timeline: { duration: 250 } }, { resetDefaults: true });
+        const { doc: out } = applyAnimatorConfig(d, { timeline: { duration: 250 } }, { resetTimeline: true });
         const cfg = (out as any).animator;
         expect(cfg.timeline).toEqual({ duration: 250 });   // nothing of the document's timing survives
         expect(cfg.frameRate).toBeUndefined();
@@ -224,9 +224,9 @@ describe('applyAnimatorConfig — document level', () => {
         expect(cfg.bindings).toEqual([{ target: '#r1', animateWith: ['a0'] }]);
     });
 
-    it('resetDefaults with NO patch means "play it with vanilla settings"', () => {
+    it('resetTimeline with NO patch means "play it with vanilla settings"', () => {
         const d = { type: 'svg', animator: { timeline: { duration: 1000, iterations: 4 } } } as any;
-        const { doc: out } = applyAnimatorConfig(d, {}, { resetDefaults: true });
+        const { doc: out } = applyAnimatorConfig(d, {}, { resetTimeline: true });
         expect((out as any).animator.timeline).toBeUndefined();
     });
 });

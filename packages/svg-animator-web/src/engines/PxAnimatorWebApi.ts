@@ -3,11 +3,11 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, getNormalizedBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxEngineCallbacks, type PxAnimatorConfig, type PxBezierPath, clampSeekMs, isValidPlaybackRate, progressToTimeMs, PX_RATE_REJECTED, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
-import { PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateValue, kebabToCamelCaseWord, splitEasing, toRGBA, TRANSFORM_FN_NAMES, type PxAnyKeyframe, type PxNormalizedKeyframe, kfEasing, kfValue, createDiagnostics } from '@pixodesk/svg-animator-core/internal';
+import { getAnimatorConfig, normalizeBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxEngineCallbacks, type PxAnimatorConfig, type PxBezierPath, clampSeekMs, isValidPlaybackRate, progressToTimeMs, PX_RATE_REJECTED, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
+import { PX_PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, PX_COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateValue, kebabToCamelCaseWord, splitEasing, toRGBA, PX_TRANSFORM_FN_NAMES, type PxAnyKeyframe, type PxNormalizedKeyframe, keyframeEasing, keyframeValue, createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
-import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
+import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
 
 
 /**
@@ -24,10 +24,10 @@ import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
  * frame-loop animator.
  */
 function createCssKf(kf: PxAnyKeyframe, t: number, propName: string, unsupportedSet: Set<string>) {
-    let value = kfValue(kf);
+    let value = keyframeValue(kf);
     // The easing is on the SOURCE keyframe: it applies from this kf to the next, matching the
     // WAAPI convention. Resolved already when the keyframe came through `normalizeKeyframes`.
-    const e = kfEasing(kf);
+    const e = keyframeEasing(kf);
 
     const cssKf: Keyframe = {
         offset: t,
@@ -37,14 +37,14 @@ function createCssKf(kf: PxAnyKeyframe, t: number, propName: string, unsupported
     let cssValue: any;
     let cssKey = propName;
 
-    if (COLOR_ATTR_NAMES.has(propName) && Array.isArray(value)) {
+    if (PX_COLOR_ATTR_NAMES.has(propName) && Array.isArray(value)) {
         cssValue = toRGBA(value);
     } else if (propName === 'transform' && value !== null && typeof value === 'object' && !Array.isArray(value)) {
         // Unified transform: keyframe value is a parts record (PxTransformParts).
         // Compose all present parts into one CSS transform string.
         cssValue = composeTransformParts(value, { withUnits: true });
         cssKey = 'transform';
-    } else if (TRANSFORM_FN_NAMES.has(propName)) {
+    } else if (PX_TRANSFORM_FN_NAMES.has(propName)) {
         if (Array.isArray(value)) {
             if (propName === 'translate') value = value.map(v => v + 'px');
             value = value.join(',');
@@ -64,7 +64,7 @@ function createCssKf(kf: PxAnyKeyframe, t: number, propName: string, unsupported
         // sequences — uniform all-`C` output keeps every keyframe structurally equal
         // (mixed L/C, e.g. round-corner radius 0 vs >0, would go DISCRETE → 50% flip).
         cssValue = 'path("' + paths.map(bz => bezierToSvgPath(bz, true)).join('') + '")';
-    } else if (PCT_BASED_ATTR_NAMES.has(propName) && typeof value === 'number') {
+    } else if (PX_PCT_BASED_ATTR_NAMES.has(propName) && typeof value === 'number') {
         // Percent-based CSS properties (offset-distance): the wire carries 0..1 numbers,
         // but the property needs a <length-percentage>. The frames engine already converts
         // (`calcPropertyValue`); without this twin branch WAAPI got a bare "0.25", which
@@ -203,7 +203,7 @@ export function convertToWebApiKeyframes(
  * @param callbacks Optional lifecycle callbacks.
  * @param rootElement Root element.
  * @param forceEvenIfHasUnsupportedAttrs If true, an animator will be created even if some CSS properties are not supported.
- * @returns An PxAnimatorAPI instance, or null if unsupported features are used and not forced.
+ * @returns An PxAnimatorApi instance, or null if unsupported features are used and not forced.
  */
 /** Native scroll-timeline payload (`timeline.engine: 'native'` / `auto`; see PxScrollDriver.createNativeScrollTimeline): the
  *  browser-native timeline every Animation attaches to, plus optional range offsets. */
@@ -220,7 +220,7 @@ export function createWebApiAnimator(
     rootElement?: Element | null,
     forceEvenIfHasUnsupportedAttrs?: boolean,
     scrollTimeline?: PxWebApiScrollTimeline
-): PxAnimatorAPI | null {
+): PxAnimatorApi | null {
 
     const config = getAnimatorConfig(doc) || {};
 
@@ -242,7 +242,7 @@ export function createWebApiAnimator(
     // rotate }` transform kfs inside `normalizeAnimationDefinition` (gated on
     // `engine === 'waapi'`). The WAAPI keyframe builder then sees a vanilla
     // unified-transform animation — no DOM-style mutation, no offset-path.
-    const bindings = getNormalizedBindings(doc, PxTimelineEngine.native);
+    const bindings = normalizeBindings(doc, PxTimelineEngine.native);
 
     const animations: Array<Animation> = [];
 
@@ -370,7 +370,7 @@ export function createWebApiAnimator(
 
     ////////////////////////////////////////////////////////////////
 
-    const api: PxAnimatorAPI = {
+    const api: PxAnimatorApi = {
 
         "isReady": () => true,
 

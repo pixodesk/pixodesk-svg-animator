@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import { type PxAnimatable, type PxBezierPath, type PxKeyframe, type PxLoop, type PxNode, type Vec2, type _PxStrokeTrimEffect, kfTime, kfValue, kfEasing } from '../../format/PxAnimatorTypes';
+import { type PxAnimatable, type PxBezierPath, type PxKeyframe, type PxLoop, type PxNode, type PxVec2, type _PxStrokeTrimEffect, keyframeTime, keyframeValue, keyframeEasing } from '../../format/PxAnimatorTypes';
 import { PxStrokeTrimSubPaths } from '../../format/PxAnimatorConstants';
 import { bezier2D_arcLengthLUT, bezierToSvgPath, clamp } from '../../util/PxAnimatorUtil';
 import { parseSvgPathToBezier } from '../../animation/PxDefinitions';
@@ -99,7 +99,7 @@ export function applyStrokeTrimEffect(
         ? { kind: ReadKind.Static, value: 0 }
         : offsetReadRaw;
     const rangeReadRaw = readRangeWithCrossings(strokeTrim.range);
-    const rangeRead: ReadPart<Vec2> = rangeReadRaw.kind === ReadKind.Absent
+    const rangeRead: ReadPart<PxVec2> = rangeReadRaw.kind === ReadKind.Absent
         ? { kind: ReadKind.Static, value: [0, 1] }
         : rangeReadRaw;
 
@@ -179,7 +179,7 @@ function buildSubpathNodes(
     startOffsetPct: number,
     minMaxOffset: [number, number],
     offsetRead: ReadPart<number>,
-    rangeRead: ReadPart<Vec2>,
+    rangeRead: ReadPart<PxVec2>,
     ctx: ApplyContext,
 ): Array<PxNode> {
     const offsetToDashOffset = makeOffsetToDashOffset(startOffsetPct, pathLengthPx, minMaxOffset);
@@ -211,7 +211,7 @@ function collapseLeafWithTrim(
     startOffsetPct: number,
     minMaxOffset: [number, number],
     offsetRead: ReadPart<number>,
-    rangeRead: ReadPart<Vec2>,
+    rangeRead: ReadPart<PxVec2>,
 ): PxNode {
     const offsetToDashOffset = makeOffsetToDashOffset(startOffsetPct, pathLengthPx, minMaxOffset);
     const rangeToDasharray = makeRangeToDasharray(pathLengthPx, minMaxOffset);
@@ -253,10 +253,10 @@ function makeOffsetToDashOffset(
 function makeRangeToDasharray(
     pathLengthPx: number,
     minMaxOffset: [number, number],
-): (rangeVal: Vec2) => Array<number> {
+): (rangeVal: PxVec2) => Array<number> {
     const [minIdx, maxIdx] = getOffsetIndexRange(minMaxOffset);
     const repeats = maxIdx - minIdx + 1;
-    return (rangeVal: Vec2) => {
+    return (rangeVal: PxVec2) => {
         const a = clamp(rangeVal[0], 0, 1);
         const b = clamp(rangeVal[1], 0, 1);
         const minR = Math.min(a, b);
@@ -296,7 +296,7 @@ function readScalarValues(r: ReadPart<number>): Array<number> {
     if (r.kind === ReadKind.Static) return [r.value];
     const out: Array<number> = [];
     for (const kf of r.keyframes) {
-        const v = kfValue(kf);
+        const v = keyframeValue(kf);
         if (typeof v === 'number') out.push(v);
     }
     return out;
@@ -308,9 +308,9 @@ function computeAnimAttr<TIn, TOut>(read: ReadPart<TIn>, map: (v: TIn) => TOut):
     return {
         kind: ReadKind.Animated,
         keyframes: read.keyframes.map(kf => ({
-            time: kfTime(kf),
-            value: map(kfValue(kf) as TIn),
-            easing: kfEasing(kf),
+            time: keyframeTime(kf),
+            value: map(keyframeValue(kf) as TIn),
+            easing: keyframeEasing(kf),
         })),
         loop: read.loop,
     };
@@ -333,8 +333,8 @@ const OPACITY_STEP_MS = 10;
  *  Animated: step-jump kfs at each hide↔show transition (~one SVGA frame
  *  wide so the renderer doesn't briefly show the stroke between an empty
  *  range and the first non-empty kf at wall-clock t≈0). */
-function computeOpacityFromRange(rangeRead: ReadPart<Vec2>): AnimAttrResult<number> {
-    const hide = (v: Vec2): boolean => v[0] === v[1];
+function computeOpacityFromRange(rangeRead: ReadPart<PxVec2>): AnimAttrResult<number> {
+    const hide = (v: PxVec2): boolean => v[0] === v[1];
 
     if (rangeRead.kind === ReadKind.Absent) return undefined;
     if (rangeRead.kind === ReadKind.Static) return hide(rangeRead.value) ? { kind: ReadKind.Static, value: 0 } : undefined;
@@ -343,7 +343,7 @@ function computeOpacityFromRange(rangeRead: ReadPart<Vec2>): AnimAttrResult<numb
     let anyHide = false;
     let allHide = true;
     for (const kf of kfs) {
-        if (hide(kfValue(kf) as Vec2)) anyHide = true;
+        if (hide(keyframeValue(kf) as PxVec2)) anyHide = true;
         else allHide = false;
     }
     if (!anyHide) return undefined;
@@ -356,10 +356,10 @@ function computeOpacityFromRange(rangeRead: ReadPart<Vec2>): AnimAttrResult<numb
         const kf = kfs[i];
         const prevKf = i > 0 ? kfs[i - 1] : undefined;
         const nextKf = i < kfs.length - 1 ? kfs[i + 1] : undefined;
-        const t = kfTime(kf);
-        const thisHide = hide(kfValue(kf) as Vec2);
-        const prevHide = prevKf ? thisHide && hide(kfValue(prevKf) as Vec2) : thisHide;
-        const nextHide = nextKf ? thisHide && hide(kfValue(nextKf) as Vec2) : thisHide;
+        const t = keyframeTime(kf);
+        const thisHide = hide(keyframeValue(kf) as PxVec2);
+        const prevHide = prevKf ? thisHide && hide(keyframeValue(prevKf) as PxVec2) : thisHide;
+        const nextHide = nextKf ? thisHide && hide(keyframeValue(nextKf) as PxVec2) : thisHide;
 
         if (prevHide && !nextHide) {
             out.push({ time: t, value: 0 });
@@ -378,19 +378,19 @@ function computeOpacityFromRange(rangeRead: ReadPart<Vec2>): AnimAttrResult<numb
 // Range cross-over
 // ============================================================================
 
-interface SimpleKf { time: number; value: Vec2; easing?: any; }
+interface SimpleKf { time: number; value: PxVec2; easing?: any; }
 
 /** Reads `range` and, when the kf sequence has `value[0] > value[1]` anywhere,
  *  inserts crossing-point keyframes (bisection-located) and swaps any
  *  remaining reversed kfs so every emitted range satisfies `range[0] ≤ range[1]`. */
-function readRangeWithCrossings(raw: PxAnimatable<Vec2> | undefined): ReadPart<Vec2> {
-    const r = readAnimatable<Vec2>(raw);
+function readRangeWithCrossings(raw: PxAnimatable<PxVec2> | undefined): ReadPart<PxVec2> {
+    const r = readAnimatable<PxVec2>(raw);
     if (r.kind !== ReadKind.Animated) return r;
 
     const kfs: Array<SimpleKf> = r.keyframes.map(kf => ({
-        time: kfTime(kf),
-        value: kfValue(kf) as Vec2,
-        easing: kfEasing(kf),
+        time: keyframeTime(kf),
+        value: keyframeValue(kf) as PxVec2,
+        easing: keyframeEasing(kf),
     }));
 
     const hasReverse = kfs.some(kf => kf.value[0] > kf.value[1]);
@@ -425,7 +425,7 @@ function readRangeWithCrossings(raw: PxAnimatable<Vec2> | undefined): ReadPart<V
             const m = (v[0] + v[1]) / 2;
             out.push({ time: t, value: [m, m] });
         }
-        const v: Vec2 = kf.value[0] > kf.value[1] ? [kf.value[1], kf.value[0]] : kf.value;
+        const v: PxVec2 = kf.value[0] > kf.value[1] ? [kf.value[1], kf.value[0]] : kf.value;
         out.push({ time: kf.time, value: v, easing: kf.easing });
     }
     while (j < uniqueTs.length) {
@@ -461,7 +461,7 @@ function bisectionForRangeCrossing(prev: SimpleKf, cur: SimpleKf): number | null
     return (lo + hi) / 2;
 }
 
-function interpolateRangeAt(kfs: Array<SimpleKf>, t: number): Vec2 {
+function interpolateRangeAt(kfs: Array<SimpleKf>, t: number): PxVec2 {
     if (t <= kfs[0].time) return kfs[0].value;
     if (t >= kfs[kfs.length - 1].time) return kfs[kfs.length - 1].value;
     for (let i = 1; i < kfs.length; i++) {

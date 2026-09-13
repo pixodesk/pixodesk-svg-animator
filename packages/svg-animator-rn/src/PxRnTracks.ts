@@ -3,8 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { calcAnimationValues, getAnimatorConfig, getNormalizedBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxAnimationDefinition } from '@pixodesk/svg-animator-core';
-import { DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
+import { calcAnimationValues, getAnimatorConfig, normalizeBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxAnimationDefinition } from '@pixodesk/svg-animator-core';
+import { PX_DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
 import { toRnPropName, toRnPropValue } from './PxRnPropNames';
 
 /**
@@ -73,7 +73,7 @@ export interface CompileTracksOptions {
 export function compileTracks(doc: PxAnimatedSvgDocument, opts?: CompileTracksOptions): PxCompiledTracks {
     const config = getAnimatorConfig(doc) || {};
 
-    const duration = +(config.duration || DEFAULT_DURATION_MS);
+    const duration = +(config.duration || PX_DEFAULT_DURATION_MS);
     const _iterations = config.iterations;
     let iterations = 1;
     if (typeof _iterations === 'number') iterations = _iterations || 1;
@@ -96,7 +96,7 @@ export function compileTracks(doc: PxAnimatedSvgDocument, opts?: CompileTracksOp
     };
     indexTags(doc);
 
-    const bindings = getNormalizedBindings(doc, PxTimelineEngine.js) || [];
+    const bindings = normalizeBindings(doc, PxTimelineEngine.js) || [];
 
     const elements: Array<PxElementTracks> = [];
     for (const binding of bindings) {

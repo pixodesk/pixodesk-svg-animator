@@ -5,7 +5,7 @@ Two unrelated numbers. Never derive one from the other.
 | number | current | lives in | bumped by | when |
 |---|---|---|---|---|
 | **Library** (npm) | `1.0.35` | `version` in all five `packages/*/package.json` | you, by hand | every publish |
-| **Player schema** `a.b` | `1.1` | `PX_PLAYER_SCHEMA_VERSION` — `packages/svg-animator-core/src/version/PxSchemaVersion.ts` | you, by hand, **with a step** | the player wire format changes |
+| **Player schema** `a.b` | `1.1` | `PX_WIRE_SCHEMA_VERSION` — `packages/svg-animator-core/src/version/PxSchemaVersion.ts` | you, by hand, **with a step** | the player wire format changes |
 | **Editor extension** `c` | `1` | `EDITOR_EXTENSION_REVISION` — app repo `src/svgeditor/model/serialization/schema/version/PxWireVersion.ts` | you, by hand, **with a step** | anything under `meta.*` changes shape |
 
 Documents carry `animator.version: "a.b.c"` (today `"1.1.1"`), written by the editor on every save.
@@ -36,7 +36,7 @@ a . b . c
 | | code |
 |---|---|
 | stamp written (both carriers) | app `TSvgSvgAnimationAttr.writeDesignPxAttr` (+ JSON finaliser in `SvgaJsonSerializationUtil`) |
-| player conversion | lib `convertPlayerDocument(doc)` over `PLAYER_WIRE_STEPS` — never touches `meta.*` |
+| player conversion | lib `convertWireDocument(doc)` over `PX_WIRE_STEPS` — never touches `meta.*` |
 | editor conversion | app `convertEditorDocument(doc)` = player conversion, then `EDITOR_WIRE_STEPS` (`meta.*` only) |
 | order on open | **migrate → strict schema validation → build model** (`readFileJson` / `deserialize`) |
 
@@ -75,12 +75,12 @@ Rules:
 ### A · Player schema change (post-release) — `1.1 → 1.2`
 
 1. Change the schema — `packages/svg-animator-core/src/format/PxAnimatorTypes.ts`.
-2. Set `PX_PLAYER_SCHEMA_VERSION = '1.2'` — `src/version/PxSchemaVersion.ts`.
-3. Add the step — `PLAYER_WIRE_STEPS` in `packages/svg-animator-core/src/version/PxWireVersion.ts`:
+2. Set `PX_WIRE_SCHEMA_VERSION = '1.2'` — `src/version/PxSchemaVersion.ts`.
+3. Add the step — `PX_WIRE_STEPS` in `packages/svg-animator-core/src/version/PxWireVersion.ts`:
    ```ts
    {
        from: '1.1', to: '1.2',
-       kind: WireStepKind.converted,              // additive for a new optional key
+       kind: PxWireStepKind.converted,              // additive for a new optional key
        reason: 'textPath.path renamed to textPath.pathData',
        up: (doc) => { /* mutate the copy; never touch meta.* */ },
        down: (doc) => { /* optional — only if exactly invertible */ },
@@ -110,7 +110,7 @@ Rules:
 2. Set `EDITOR_EXTENSION_REVISION = 2` — `src/svgeditor/model/serialization/schema/version/PxWireVersion.ts`.
 3. Add the step to `EDITOR_WIRE_STEPS` — full `a.b.c` versions, `meta.*` only:
    ```ts
-   { from: '1.1.1', to: '1.1.2', kind: WireStepKind.converted, reason: '…', up: (doc) => { /* meta.* */ } },
+   { from: '1.1.1', to: '1.1.2', kind: PxWireStepKind.converted, reason: '…', up: (doc) => { /* meta.* */ } },
    ```
 4. Regenerate the editor snapshot (§4) and run the suite. The SVG-carrier tripwire in step A.6
    applies here too.
@@ -153,7 +153,7 @@ decision is a converted step, not a regeneration.
 
 | failure | means | do |
 |---|---|---|
-| lib `PxWireVersion.test.ts` — *runs unbroken from the baseline…* | player version moved without a step | add the `PLAYER_WIRE_STEPS` entry |
+| lib `PxWireVersion.test.ts` — *runs unbroken from the baseline…* | player version moved without a step | add the `PX_WIRE_STEPS` entry |
 | lib `PxSchemaFieldUniverse.test.ts` — *no key LEFT…* | a player key was renamed/removed | `converted` step + `b` bump, then regenerate |
 | lib `PxSchemaFieldUniverse.test.ts` — *…lists every key…* | a player key was added | `additive` step + `b` bump (pre-release: just regenerate) |
 | lib `PxSchemaRelease.test.ts` — *…last release record is…* | bumped without a changelog entry | `node scripts/schema-release.mjs --apply` |
@@ -170,11 +170,11 @@ decision is a converted step, not a regeneration.
 
 | | |
 |---|---|
-| `PX_PLAYER_SCHEMA_VERSION`, `PLAYER_WIRE_VERSION`, `BASELINE_PLAYER_VERSION`, `PLAYER_WIRE_STEPS` | the player's number, parsed form, first release, step table |
+| `PX_WIRE_SCHEMA_VERSION`, `PX_WIRE_VERSION`, `PX_WIRE_BASELINE_VERSION`, `PX_WIRE_STEPS` | the player's number, parsed form, first release, step table |
 | `parseWireVersion`, `formatWireVersion`, `readWireVersion(doc)` | parse `"a.b[.c]"` (compare parsed, never strings); read the stamp from either carrier |
 | `compareWireVersion(file, mine, readerReadsEditorPart)` | `unstamped` · `same` · `older` · `newer` · `otherGeneration` — the player passes `false` (blind to `c`) |
-| `versionAdvice(relation, file, mine, isPlayer)` | the sentence to show — `undefined` when the version explains nothing |
-| `convertPlayerDocument(doc)` / `downgradePlayerDocument(doc, target)` | up (never refuses) / down (all-or-nothing, may refuse) |
+| `wireVersionAdvice(relation, file, mine, isPlayer)` | the sentence to show — `undefined` when the version explains nothing |
+| `convertWireDocument(doc)` / `downgradeWireDocument(doc, target)` | up (never refuses) / down (all-or-nothing, may refuse) |
 | `applyWireSteps` / `applyWireStepsDown` | the engine both tables run on |
 | `schemaFieldUniverse`, `diffFieldUniverse`, `planSchemaRelease`, `releaseLogProblems` | the inventory and the bump rule — shared by the CLI and the tests |
 
@@ -191,8 +191,8 @@ Everything versioning-related is in `src/version/`.
 
 | library | |
 |---|---|
-| `src/version/PxSchemaVersion.ts` | `PX_PLAYER_SCHEMA_VERSION` — alone in its file |
-| `src/version/PxWireVersion.ts` | parse/compare/advice, `PLAYER_WIRE_STEPS`, conversion engine, down-conversion |
+| `src/version/PxSchemaVersion.ts` | `PX_WIRE_SCHEMA_VERSION` — alone in its file |
+| `src/version/PxWireVersion.ts` | parse/compare/advice, `PX_WIRE_STEPS`, conversion engine, down-conversion |
 | `src/version/PxSchemaFieldUniverse.ts` · `src/version/schema-field-universe.player.json` | canonical field inventory · committed snapshot |
 | `src/version/PxSchemaRelease.ts` · `src/version/schema-releases.player.json` | bump rule · dated release log (written by the CLI) |
 | `scripts/schema-release.mjs` · `scripts/upgrade-document.mjs` · `scripts/gen-schema-json.mjs` | release CLI · upgrader · `SCHEMA.json` generator |

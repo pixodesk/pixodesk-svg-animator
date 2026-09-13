@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { INTERNAL_ATTRS } from '../format/PxAnimatorConstants';
-import { getNormalizedProps } from './PxNodeProps';
+import { toDomProps } from './PxNodeProps';
 
 /**
  * J4 — wire keys that carry STRUCTURE must never be written to the DOM as attributes.
  *
- * `getNormalizedProps` is the one gate: whatever it returns becomes element attributes.
- * `effects` was missing from the list and safe only because `applyPlayerEffects` deletes
+ * `toDomProps` is the one gate: whatever it returns becomes element attributes.
+ * `effects` was missing from the list and safe only because `materializeNodeEffects` deletes
  * it at load — a property of the pipeline, not of the contract. A path that returned
  * early, or an unrecognized effect key, would have produced `effects="[object Object]"`
  * on the element with no error anywhere.
@@ -24,7 +24,7 @@ describe('INTERNAL_ATTRS — structural keys never become DOM attributes (J4)', 
     });
 
     it('strips them from rendered props, and keeps real SVG attributes', () => {
-        const props = getNormalizedProps({
+        const props = toDomProps({
             // structural — must all be dropped
             type: 'rect',
             children: [{ type: 'circle' }],
@@ -50,7 +50,7 @@ describe('INTERNAL_ATTRS — structural keys never become DOM attributes (J4)', 
         // The regression this guards: a document reaching the renderer with `effects` still
         // attached (unrecognized key, or an applier that returned early) used to stringify
         // onto the element.
-        const props = getNormalizedProps({ type: 'g', effects: { someFutureEffect: { a: 1 } } });
+        const props = toDomProps({ type: 'g', effects: { someFutureEffect: { a: 1 } } });
         expect('effects' in props).toBe(false);
         expect(JSON.stringify(props)).not.toContain('someFutureEffect');
     });

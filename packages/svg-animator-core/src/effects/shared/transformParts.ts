@@ -10,7 +10,7 @@
  * masked-by effects (the latter builds INVERSE parts).
  */
 
-import type { PxAnimatable, PxKeyframe, PxLoop, PxNode, Vec2 } from '../../format/PxAnimatorTypes';
+import type { PxAnimatable, PxKeyframe, PxLoop, PxNode, PxVec2 } from '../../format/PxAnimatorTypes';
 import type { ApplyContext } from './types';
 
 
@@ -37,8 +37,8 @@ export enum ReadKind {
 
 
 /** Builds a player `PxTransformParts` record for one part (+ optional origin). */
-export function partsRecord(part: TransformPart, value: any, origin: Vec2 | undefined) {
-    const rec: { translate?: Vec2; rotate?: number; skew?: number; scale?: Vec2; origin?: Vec2 } = {};
+export function partsRecord(part: TransformPart, value: any, origin: PxVec2 | undefined) {
+    const rec: { translate?: PxVec2; rotate?: number; skew?: number; scale?: PxVec2; origin?: PxVec2 } = {};
     if (part === TransformPart.Translate) rec.translate = value;
     else if (part === TransformPart.Rotate) rec.rotate = value;
     else if (part === TransformPart.Skew) rec.skew = value;
@@ -122,7 +122,7 @@ export function writeAnimatableChannel(
  *  `tangentIn ?? ti` precedence. */
 function normalizeKeyframe<T>(kf: PxKeyframe<T>): PxKeyframe<T> {
     if (!kf || typeof kf !== 'object') return kf;
-    const k = kf as PxKeyframe<T> & { t?: number; v?: T; e?: unknown; to?: Vec2; ti?: Vec2 };
+    const k = kf as PxKeyframe<T> & { t?: number; v?: T; e?: unknown; to?: PxVec2; ti?: PxVec2 };
     if (k.t === undefined && k.v === undefined && k.e === undefined && k.to === undefined && k.ti === undefined) {
         return kf; // already long-form — keep the same object
     }
@@ -136,8 +136,8 @@ function normalizeKeyframe<T>(kf: PxKeyframe<T>): PxKeyframe<T> {
 }
 
 /** Origin used inside rotate/scale records. Animated origin falls back to frame 0. */
-export function readStaticOrigin(raw: PxAnimatable<Vec2> | undefined, ctx: ApplyContext): Vec2 | undefined {
-    const o = readAnimatable<Vec2>(raw);
+export function readStaticOrigin(raw: PxAnimatable<PxVec2> | undefined, ctx: ApplyContext): PxVec2 | undefined {
+    const o = readAnimatable<PxVec2>(raw);
     if (o.kind === ReadKind.Absent) return undefined;
     if (o.kind === ReadKind.Static) return o.value;
     ctx.warnings.push('transformBy.origin: animated origin approximated by its first keyframe');

@@ -17,7 +17,7 @@ const DROPPED_ATTRS = new Set(['class', 'className', 'style', 'xmlns', 'xmlns:xl
 
 /**
  * Converts one normalized wire attribute name (camelCase after core's
- * `getNormalizedProps`, or kebab-case raw) to a react-native-svg prop name.
+ * `toDomProps`, or kebab-case raw) to a react-native-svg prop name.
  * Returns undefined for props that must be dropped.
  *
  * Pure (no react-native-svg import) so the track compiler and its tests

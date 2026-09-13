@@ -128,6 +128,6 @@ describe('config helpers', () => {
         expect(scrollTotalDurationMs({ duration: 2000 })).toBe(2000);
         expect(scrollTotalDurationMs({ duration: 2000, iterations: 3 })).toBe(6000);
         expect(scrollTotalDurationMs({ duration: 2000, iterations: 'infinite' })).toBe(2000);
-        expect(scrollTotalDurationMs({})).toBe(1000);   // DEFAULT_DURATION_MS
+        expect(scrollTotalDurationMs({})).toBe(1000);   // PX_DEFAULT_DURATION_MS
     });
 });

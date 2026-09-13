@@ -93,12 +93,12 @@ export type PxInfer<S> = S extends PxSchema<infer T, any> ? T : never;
  * Useful for strict property-access checking on types that have an open `[key: string]: any`.
  *
  * @example
- * type Strict = RemoveIndex<PxAnimatedSvgDocument>;
+ * type Strict = PxRemoveIndex<PxAnimatedSvgDocument>;
  * Strict['animator']   // PxAnimatorConfig | undefined  ✓
  * Strict['anything']   // compile error  ✓
  * @public @advanced
  */
-export type RemoveIndex<T> = {
+export type PxRemoveIndex<T> = {
     [K in keyof T as string extends K ? never : number extends K ? never : K]: T[K]
 };
 
@@ -925,7 +925,7 @@ export const px = {
      * The base can be the result of px.object() or px.openObject() — anything with a _shape property.
      *
      * @example
-     * const PxSvgNodeSchema = px.extendedObject(PxNodeBase, { width: px.number().optional() });
+     * const PxSvgNodeSchema = px.extendedObject(PxNodeBaseSchema, { width: px.number().optional() });
      */
     extendedObject: <B extends AnyShape, E extends AnyShape>(
         base: { readonly _shape: B },

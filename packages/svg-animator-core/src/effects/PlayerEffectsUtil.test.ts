@@ -3,13 +3,13 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// Self-contained tests for `applyPlayerEffects` — each case carries its INPUT
+// Self-contained tests for `materializeNodeEffects` — each case carries its INPUT
 // (`node.effects` bucket emitted by the Editor's lightweight writer) and the
 // EXPECTED materialized tree as a full JSON etalon. Deep-equality is checked
 // after normalizing auto-allocated `_lw_*` ids → stable `__GEN_N__` slugs.
 
 import { describe, expect, it } from 'vitest';
-import { applyPlayerEffects } from './PlayerEffectsUtil';
+import { materializeNodeEffects } from './PlayerEffectsUtil';
 import type { PxNode } from '../format/PxAnimatorTypes';
 
 /**
@@ -62,13 +62,13 @@ function normalizeGeneratedIds(tree: PxNode): PxNode {
 
 /** Materialize + normalize ids — convenience for test assertions. */
 function materialize(input: PxNode): PxNode {
-    const { root, errors } = applyPlayerEffects(input);
-    if (errors.length) throw new Error('applyPlayerEffects errors:\n' + errors.join('\n'));
+    const { root, errors } = materializeNodeEffects(input);
+    if (errors.length) throw new Error('materializeNodeEffects errors:\n' + errors.join('\n'));
     return normalizeGeneratedIds(root);
 }
 
 
-describe('applyPlayerEffects — materialization etalons', () => {
+describe('materializeNodeEffects — materialization etalons', () => {
 
     it('case 1: no effects → unchanged tree', () => {
         const input: PxNode = {

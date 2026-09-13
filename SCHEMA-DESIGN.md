@@ -359,7 +359,7 @@ Kept as-is: a rename would break the wire to fix a word.
 
 ### R5 · Effects (player): declarative generators
 `node.effects.{effect}` describes structure the player expands into R1–R3 content at load
-(`applyPlayerEffects`; the runtime never sees a non-empty `effects` after entry).
+(`materializeNodeEffects`; the runtime never sees a non-empty `effects` after entry).
 
 **The attribute-vs-effect law**: an *attribute* is a value the browser consumes as-is on that element —
 animating it is one channel, zero structure. An *effect* is anything whose realization requires
@@ -500,7 +500,7 @@ Consequence: editor output and player output cannot be diffed node-for-node.
 | kind | example | used by |
 |---|---|---|
 | number | `0.5`, `45` | opacity, rotate, r, offsets |
-| Vec2 `[x,y]` | `[96.8, 46.8]` | translate, scale, origin, ranges, gradient pts |
+| PxVec2 `[x,y]` | `[96.8, 46.8]` | translate, scale, origin, ranges, gradient pts |
 | number array | `[16,16]` | dasharray (canonical static AND kf form; legacy `"5,5"` read-only), RGBA |
 | string | `"#33b366"`, `"none"`, `"0 0 200 200"` | colors, enums, viewBox, transform-as-string |
 | transform parts record | `{translate:[x,y], rotate:deg, scale:[sx,sy], skew:deg, origin:[x,y]}` | unified `transform` |
@@ -1083,7 +1083,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
   count is config, read once at expansion, never sampled; the `✚` marks in R5's effects table carry
   the config-vs-channel split for every effect. The remaining half of V2 (a machine-readable
   convention in the schema SOURCE, e.g. a `channel()` wrapper) stays open.
-- **N5 closed — accepted, not an issue** (2026-08, user decision): a Vec2 on the wire is just a
+- **N5 closed — accepted, not an issue** (2026-08, user decision): a PxVec2 on the wire is just a
   number pair; `translate` (point), `scale` (axis pair), `range` (start/end window) share that one
   shape and take their meaning from the SLOT NAME — no per-semantic type aliases needed. The skew
   half was already void: skew is a SCALAR in all three carriers (body transform, `transformation`,
@@ -1207,9 +1207,9 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
     passes 2/2 and the value round-trips.
 - **J4 closed — `effects` added to `INTERNAL_ATTRS`** (2026-08). One word, no decision. The set lists
   the wire keys that carry STRUCTURE and must never reach the DOM as attributes; `effects` was absent
-  and safe only because `applyPlayerEffects` deletes it at load — a property of the pipeline, not of
+  and safe only because `materializeNodeEffects` deletes it at load — a property of the pipeline, not of
   the contract. An applier returning early, or a document carrying an effect key the pipeline does not
-  recognize, would have left the object attached and `getNormalizedProps` (the single gate) would have
+  recognize, would have left the object attached and `toDomProps` (the single gate) would have
   written `effects="[object Object]"` on the element, silently. Pinned by `PxInternalAttrs.test.ts`,
   which also covers an UNCONSUMED bucket — the case the invariant exists for.
 - **C3 closed — the zero-coverage slots got fixtures, and two of them were broken** (2026-08). Five
@@ -1265,11 +1265,11 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
     the model-side clamp). The `no union member matched` errors are gone from the Lottie suites.
 - **S4 closed — four config spellings and two doc discriminators reduced to the truth** (2026-08).
   `getAnimatorConfig` was `doc.animator || doc.meta.animator || doc.animation || doc.meta.animation`
-  (with a standing `FIXME`); `isPxElementFileFormat` accepted `type === 'svg'` OR `tagName === 'svg'`.
+  (with a standing `FIXME`); `isPxDocument` accepted `type === 'svg'` OR `tagName === 'svg'`.
   Audited: `animator` and `meta.animator` are both genuinely written (the two addresses above);
   `animation`, `meta.animation` and `tagName` had NO writer anywhere and were never in the schema —
   and `tagName` was worse than redundant, since a tagName-only document passed the shallow gate and
-  then failed `isPxElementFileFormatDeep`. All three deleted, no compat shim.
+  then failed `isValidPxDocument`. All three deleted, no compat shim.
   - *Blocker cleared first:* four shipped assets still used the dead spelling and would have silently
     stopped animating — `app/src/kf/export/progress-animation.json` (the export-dialog spinner,
     rendered by the React player) and the three `svg-animator-web/e2e/0*.json` fixtures. All migrated
@@ -1283,7 +1283,7 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
   (2026-08). The player emitted BOTH keyframes at the boundary (`0:20 500:160 500:20 1000:160`), so
   the value at that instant fell out of `findBracketingKeyframes`' first-match-wins tie-break and
   disagreed with every other output form. It now mirrors `TLoop.toKeyframes`: separate the pair by
-  `LOOP_JUMP_SHIFT_MS` (10ms = one editor frame), and DROP the duplicate outright when the two values
+  `PX_LOOP_JUMP_SHIFT_MS` (10ms = one editor frame), and DROP the duplicate outright when the two values
   are equal (a pingpong turn says nothing). Both sides now materialize identical keyframes —
   `0:20 500:160 510:20 1000:160` for a cycle and `0:20 500:160 1000:20` for a pingpong, byte-for-byte
   the editor's CSS export (`0% / 50% / 51% / 100%` and `0% / 50% / 100%`).

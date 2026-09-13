@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LOOP_JUMP_SHIFT_MS, calcAnimationValues, materializeInternalLoopsInPropAnim } from './PxDefinitions';
+import { PX_LOOP_JUMP_SHIFT_MS, calcAnimationValues, materializeInternalLoopsInPropAnim } from './PxDefinitions';
 import type { PxPropertyAnimation } from '../format/PxAnimatorTypes';
 
 /**
@@ -31,11 +31,11 @@ describe('cycle-loop boundary (B7)', () => {
     const times = (a: PxPropertyAnimation) => kfsOf(a).map(k => k.t ?? k.time);
     const xs = (a: PxPropertyAnimation) => kfsOf(a).map(k => (k.v ?? k.value)?.translate?.[0]);
 
-    it('a cycle separates the snap-back by LOOP_JUMP_SHIFT_MS — matching the editor', () => {
+    it('a cycle separates the snap-back by PX_LOOP_JUMP_SHIFT_MS — matching the editor', () => {
         const out = expand(true);
         // Derived, not hard-coded: the gap is a tuning value (10ms read as a visible jump,
         // so it is now 1ms) and this test asserts the SHAPE, not the number.
-        expect(times(out)).toEqual([0, 500, 500 + LOOP_JUMP_SHIFT_MS, 1000]);
+        expect(times(out)).toEqual([0, 500, 500 + PX_LOOP_JUMP_SHIFT_MS, 1000]);
         expect(xs(out)).toEqual([20, 160, 20, 160]);
     });
 
@@ -53,9 +53,9 @@ describe('cycle-loop boundary (B7)', () => {
         };
         // No two keyframes share a time, so no tie-break decides these.
         expect(at(500)).toBeCloseTo(160, 5);                        // end of cycle 1
-        expect(at(500 + LOOP_JUMP_SHIFT_MS)).toBeCloseTo(20, 5);    // start of cycle 2
+        expect(at(500 + PX_LOOP_JUMP_SHIFT_MS)).toBeCloseTo(20, 5);    // start of cycle 2
         expect(at(499)).toBeGreaterThan(159);                       // still finishing cycle 1
-        expect(at(500 + LOOP_JUMP_SHIFT_MS / 2)).toBeGreaterThan(20); // mid-snap, between the two
+        expect(at(500 + PX_LOOP_JUMP_SHIFT_MS / 2)).toBeGreaterThan(20); // mid-snap, between the two
     });
 
     it('the repeat is compressed by the shift, not delayed past the duration', () => {

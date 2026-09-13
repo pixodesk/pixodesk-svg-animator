@@ -143,9 +143,9 @@ Every field and its meaning is in [Playback settings & triggers](./playback-and-
 
 ## The playback API
 
-`createAnimator` returns a `PxAnimatorAPI`:
+`createAnimator` returns a `PxAnimatorApi`:
 
-<!-- px-check props PxAnimatorAPI pkg=web -->
+<!-- px-check props PxAnimatorApi pkg=web -->
 | Method | Description |
 |---|---|
 | `play()` | start, or resume from the current time. On a finished animation, rewinds and plays again |
@@ -245,7 +245,7 @@ with the old elements, and you need to attach them to the new ones.
 
 `animator.timeline.engine` in the document selects how the animated attributes get updated:
 
-<!-- px-check values PxTimelineEngineExtra pkg=web -->
+<!-- px-check values PxTimelineEngineSetting pkg=web -->
 | Value | Behavior |
 |---|---|
 | `'auto'` (default) | Web Animations API, with an automatic fallback to the player's frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on path…). For scroll-driven documents: the browser's `ScrollTimeline` where supported, else the player measures progress itself |

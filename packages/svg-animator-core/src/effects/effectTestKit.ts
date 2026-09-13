@@ -4,12 +4,12 @@
  *---------------------------------------------------------------------------------------*/
 
 // Shared helpers for the per-effect pure-JSON in/out tests (`*.test.ts` next to
-// each effect). Each effect is a transformer `outJson = applyPlayerEffects(inJson)`
+// each effect). Each effect is a transformer `outJson = materializeNodeEffects(inJson)`
 // — we put a single effect bucket on an input node, run the real driver, then
 // assert the materialized tree. NOT a test file (no `.test` suffix) so vitest
 // skips it and tsup never bundles it (entry is index.ts only).
 
-import { applyPlayerEffects } from './PlayerEffectsUtil';
+import { materializeNodeEffects } from './PlayerEffectsUtil';
 import { materializeAllInTree } from '../materialize/PxAnimatorMaterializeAll';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxNode } from '../format/PxAnimatorTypes';
@@ -18,8 +18,8 @@ export { PxTimelineEngine };
 
 /** Run the real player-effect pipeline; throw on any materialization error. */
 export function materialize(input: PxNode): PxNode {
-    const { root, errors } = applyPlayerEffects(input);
-    if (errors.length) throw new Error('applyPlayerEffects errors:\n' + errors.join('\n'));
+    const { root, errors } = materializeNodeEffects(input);
+    if (errors.length) throw new Error('materializeNodeEffects errors:\n' + errors.join('\n'));
     return root;
 }
 
@@ -34,8 +34,8 @@ export function materializeEngine(input: PxNode, engine: PxTimelineEngine): PxNo
 }
 
 /** Same as {@link materialize} but returns warnings/errors too (for negative tests). */
-export function materializeRaw(input: PxNode): ReturnType<typeof applyPlayerEffects> {
-    return applyPlayerEffects(input);
+export function materializeRaw(input: PxNode): ReturnType<typeof materializeNodeEffects> {
+    return materializeNodeEffects(input);
 }
 
 /**

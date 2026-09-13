@@ -1,4 +1,4 @@
-import { type PxAnyKeyframe, kfValue, kfTime as kfTimeOf } from '../format/PxAnimatorTypes';
+import { type PxAnyKeyframe, keyframeValue, keyframeTime as kfTimeOf } from '../format/PxAnimatorTypes';
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -176,16 +176,16 @@ function getKfs(anim: PxPropertyAnimation): Array<PxKeyframe> {
 }
 
 function kfTranslate(kf: PxAnyKeyframe): [number, number] {
-    const v = kfValue(kf) as { translate?: [number, number] };
+    const v = keyframeValue(kf) as { translate?: [number, number] };
     return v.translate as [number, number];
 }
 
-function kfTime(kf: PxAnyKeyframe): number {
+function keyframeTime(kf: PxAnyKeyframe): number {
     return kfTimeOf(kf);
 }
 
 function kfRotate(kf: PxAnyKeyframe): number | undefined {
-    const v = kfValue(kf) as { rotate?: number };
+    const v = keyframeValue(kf) as { rotate?: number };
     return v.rotate;
 }
 
@@ -321,7 +321,7 @@ describe('materializeMotionPathInPropAnim', () => {
         const materialized = materializeMotionPathInPropAnim({ keyframes: squareLoopKfs() } as PxPropertyAnimation);
         const kfs = getKfs(materialized);
         for (let i = 1; i < kfs.length; i++) {
-            expect(kfTime(kfs[i])).toBeGreaterThanOrEqual(kfTime(kfs[i - 1]));
+            expect(keyframeTime(kfs[i])).toBeGreaterThanOrEqual(keyframeTime(kfs[i - 1]));
         }
     });
 
@@ -345,7 +345,7 @@ describe('materializeMotionPathInPropAnim', () => {
         const kfs = getKfs(materialized);
         // Confine to the first segment by time (input[0].time .. input[1].time = 0..250).
         const firstSegKfs = kfs.filter(kf => {
-            const t = kfTime(kf);
+            const t = keyframeTime(kf);
             return t >= 0 && t <= 250 + 1e-6;
         });
         // The x-extreme should appear as an output kf with x close to the

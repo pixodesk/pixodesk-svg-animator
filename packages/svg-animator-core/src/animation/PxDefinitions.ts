@@ -3,10 +3,10 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxBezierPath, type PxNormalizedBinding, type PxBinding, type PxDefs, type PxElementAnimation, type PxKeyframe, type PxNormalizedKeyframe, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts, kfTime, kfValue, kfEasing, kfTangentIn, kfTangentOut } from '../format/PxAnimatorTypes';
-import { getBindings, getDefs, TRANSFORM_ATTR } from '../format/PxAnimatorConstants';
+import { type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxBezierPath, type PxNormalizedBinding, type PxBinding, type PxDefinitions, type PxElementAnimation, type PxKeyframe, type PxNormalizedKeyframe, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts, keyframeTime, keyframeValue, keyframeEasing, keyframeTangentIn, keyframeTangentOut } from '../format/PxAnimatorTypes';
+import { getBindings, getDefinitions, TRANSFORM_ATTR } from '../format/PxAnimatorConstants';
 import { getAnimatorConfig, PxTimelineEngine, PxLoopDirection, PxLoopRepeatAt } from '../format/PxAnimatorConstants';
-import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, parseTransformParts, PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
+import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, PX_COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, parseTransformParts, PX_PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, PX_TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
 import { evaluateMotionPathSegment, materializeMotionPathInPropAnim, propAnimIsMotionPath } from '../materialize/PxMotionPath';
 
 /**
@@ -14,7 +14,7 @@ import { evaluateMotionPathSegment, materializeMotionPathInPropAnim, propAnimIsM
  * end, in ms.
  *
  * SINGLE SOURCE OF TRUTH — the editor imports this and converts to its own frame unit
- * (`TLoop.smallFrameShift = LOOP_JUMP_SHIFT_MS / FRAME_DURATION_MS`), so the two sides
+ * (`TLoop.smallFrameShift = PX_LOOP_JUMP_SHIFT_MS / FRAME_DURATION_MS`), so the two sides
  * cannot drift apart and materialize different keyframes (B7).
  *
  * 1ms, not one 10ms editor frame: a 10ms snap-back is long enough to read as a visible
@@ -26,7 +26,7 @@ import { evaluateMotionPathSegment, materializeMotionPathInPropAnim, propAnimIsM
  * editor side keeps the fractional value and must not be re-clamped to a whole frame.
  * @internal
  */
-export const LOOP_JUMP_SHIFT_MS = 1;
+export const PX_LOOP_JUMP_SHIFT_MS = 1;
 
 /** Structural equality for keyframe values (numbers, arrays, transform-part records). */
 function deepEqualValue(a: unknown, b: unknown): boolean {
@@ -246,7 +246,7 @@ function normalizePathValue(value: any): { paths: Array<PxBezierPath> } | any {
  */
 function resolveEasing(
     easing: string | [number, number, number, number] | undefined,
-    defs?: PxDefs
+    defs?: PxDefinitions
 ): [number, number, number, number] | undefined {
     if (!easing) return undefined;
 
@@ -272,7 +272,7 @@ function resolveEasing(
  */
 function resolveAnimation(
     animRef: string | PxAnimationDefinition,
-    defs?: PxDefs
+    defs?: PxDefinitions
 ): PxAnimationDefinition | undefined {
     if (typeof animRef === 'string') {
         // Look up named animation in defs
@@ -295,7 +295,7 @@ function resolveAnimation(
  */
 function resolveElementAnimation(
     animate: PxElementAnimation | undefined,
-    defs?: PxDefs
+    defs?: PxDefinitions
 ): PxAnimationDefinition[] {
     if (!animate) return [];
 
@@ -337,7 +337,7 @@ export function interpolateValue(propName: string, a: any, b: any, t: number): a
         const bPaths = b?.paths ?? (Array.isArray(b) ? b : []);
         return { paths: interpolateBeziers(aPaths, bPaths, t) };
     }
-    if (COLOR_ATTR_NAMES.has(propName)) {
+    if (PX_COLOR_ATTR_NAMES.has(propName)) {
         return interpolateColor(a || [0, 0, 0, 1], b || [0, 0, 0, 1], t);
     }
     // Unified-transform record (`{translate, rotate, scale, origin}`) — the
@@ -351,13 +351,13 @@ export function interpolateValue(propName: string, a: any, b: any, t: number): a
         return interpolateTransformParts(a as PxTransformParts, b as PxTransformParts, t);
     }
     // Standalone `rotate` as a propAnim — value is a NUMBER, not a vector.
-    // The general TRANSFORM_FN_NAMES branch below would route it through
+    // The general PX_TRANSFORM_FN_NAMES branch below would route it through
     // `interpolateVec`, which on a scalar returns `[]` (length NaN → no loop)
     // — wrong CSS output.
     if (propName === 'rotate' && typeof a === 'number' && typeof b === 'number') {
         return interpolateNum(a, b, t);
     }
-    if (TRANSFORM_FN_NAMES.has(propName) || propName === 'stroke-dasharray' || propName === 'strokeDasharray') {
+    if (PX_TRANSFORM_FN_NAMES.has(propName) || propName === 'stroke-dasharray' || propName === 'strokeDasharray') {
         return interpolateVec(a || [], b || [], t);
     }
     return interpolateNum(+(a || 0), +(b || 0), t);
@@ -442,8 +442,8 @@ function expandLoopKeyframes(
         relT: (kf.t! - segStartT) / segDuration,
         v: kf.v,
         e: kf.e as [number, number, number, number] | undefined,
-        tangentIn: kfTangentIn(kf) as [number, number] | undefined,
-        tangentOut: kfTangentOut(kf) as [number, number] | undefined
+        tangentIn: keyframeTangentIn(kf) as [number, number] | undefined,
+        tangentOut: keyframeTangentOut(kf) as [number, number] | undefined
     }));
 
     const fullReps = Math.floor(fillDuration / segDuration);
@@ -457,7 +457,7 @@ function expandLoopKeyframes(
     // the sampler's tie-break, and left the player disagreeing with the editor (B7).
     // Mirror `TLoop.toKeyframes` exactly:
     //   - values EQUAL (pingpong turn, closed loop) → the duplicate says nothing, skip it;
-    //   - values DIFFER (a real cycle snap)         → separate them by LOOP_JUMP_SHIFT_MS.
+    //   - values DIFFER (a real cycle snap)         → separate them by PX_LOOP_JUMP_SHIFT_MS.
     // The editor's shift is one 10ms frame (`smallFrameShift`), so the two sides
     // materialize identical keyframes. Anything smaller is blocked editor-side: a
     // fractional-frame shift was tried there and reverted (TKeyframeGroup mishandles it).
@@ -555,7 +555,7 @@ function expandLoopKeyframes(
             }
 
             const pushed: PxNormalizedKeyframe = {
-                t: repStart + entry.relT * segDuration + (isBoundary ? LOOP_JUMP_SHIFT_MS : 0),
+                t: repStart + entry.relT * segDuration + (isBoundary ? PX_LOOP_JUMP_SHIFT_MS : 0),
                 v: entry.v,
                 e: i < entries.length - 1 ? entry.e : undefined
             };
@@ -688,16 +688,16 @@ function normalizeKeyframes(
     propName: string,
     propAnim: PxPropertyAnimation,
     duration: number,
-    defs?: PxDefs
+    defs?: PxDefinitions
 ): PxNormalizedKeyframe[] {
     const keyframes = propAnim.keyframes || [];
 
     const normalized: PxNormalizedKeyframe[] = [];
 
     for (const kf of keyframes) {
-        const timePct = kfTime(kf);
-        let value = kfValue(kf);
-        const easing = kfEasing(kf);
+        const timePct = keyframeTime(kf);
+        let value = keyframeValue(kf);
+        const easing = keyframeEasing(kf);
 
         // Normalize path values for 'd' attribute
         if (propName === 'd') {
@@ -705,13 +705,13 @@ function normalizeKeyframes(
         }
 
         // Normalize color values (hex/rgb/rgba strings to [0-1] vectors).
-        // `COLOR_ATTR_NAMES` is keyed in kebab-case (`stop-color`, `flood-color`,
+        // `PX_COLOR_ATTR_NAMES` is keyed in kebab-case (`stop-color`, `flood-color`,
         // `lighting-color`); the wire format uses both kebab AND camelCase
         // (`stopColor`) for these props. Without converting, frames-mode would
         // call `interpolateColor` on the raw strings and produce `NaN` channels
         // — the visible "rgba(NaN,NaN,NaN,…)" bug on stop-color animations.
         const propNameKebab = isCamelCaseWord(propName) ? camelCaseToKebabWordIfNeeded(propName) : propName;
-        if (COLOR_ATTR_NAMES.has(propNameKebab)) {
+        if (PX_COLOR_ATTR_NAMES.has(propNameKebab)) {
             value = parseColor(value) ?? value;
         }
 
@@ -724,8 +724,8 @@ function normalizeKeyframes(
         // `materializeMotionPathInPropAnim` (called in `normalizeAnimationDefinition`) can
         // sample them into transform kfs. Short aliases `ti` / `to` collapse
         // into their canonical names.
-        const tIn = kfTangentIn(kf);
-        const tOut = kfTangentOut(kf);
+        const tIn = keyframeTangentIn(kf);
+        const tOut = keyframeTangentOut(kf);
         if (tIn) normKf.tangentIn = tIn;
         if (tOut) normKf.tangentOut = tOut;
 
@@ -769,7 +769,7 @@ function mergeAnimationDefinitions(
 //  Used internally by `normalizeKeyframes` (where `expandLoopKeyframes` is
 //  already called at the tail of normalization). Exposed here at the propAnim
 //  and tree levels so the Editor (or any external caller) can compose:
-//      root = applyPlayerEffects(root).root;
+//      root = materializeNodeEffects(root).root;
 //      root = materializeInternalLoopsInTree(root, duration);
 //      root = materializeMotionPathsInTree(root);
 //  to produce a fully-flat document with no `loop`, no `effects`, no tangents.
@@ -803,16 +803,16 @@ export function materializeInternalLoopsInPropAnim(
     // ends up `[NaN,NaN,NaN,NaN]` and the bug stays visible until the
     // animation cycle restarts.
     const propNameKebab = isCamelCaseWord(propName) ? camelCaseToKebabWordIfNeeded(propName) : propName;
-    const isColor = COLOR_ATTR_NAMES.has(propNameKebab);
+    const isColor = PX_COLOR_ATTR_NAMES.has(propNameKebab);
     const kfs: PxNormalizedKeyframe[] = rawKfs.map(kf => {
-        const t = kfTime(kf);
-        let v: unknown = kfValue(kf);
+        const t = keyframeTime(kf);
+        let v: unknown = keyframeValue(kf);
         if (propName === 'd') v = normalizePathValue(v);
         if (isColor) v = parseColor(v) ?? v;
-        const e = kfEasing(kf);
+        const e = keyframeEasing(kf);
         const out: PxNormalizedKeyframe = { t, v, e };
-        const tIn = kfTangentIn(kf);
-        const tOut = kfTangentOut(kf);
+        const tIn = keyframeTangentIn(kf);
+        const tOut = keyframeTangentOut(kf);
         if (tIn) out.tangentIn = tIn;
         if (tOut) out.tangentOut = tOut;
         return out;
@@ -935,7 +935,7 @@ export function mergeStaticTransformIntoAnimDef(
         return animDef;
     }
 
-    const channels = Object.keys(animDef).filter(k => TRANSFORM_FN_NAMES.has(k));
+    const channels = Object.keys(animDef).filter(k => PX_TRANSFORM_FN_NAMES.has(k));
     if (channels.length !== 1) return animDef; // several channels: unchanged (documented)
     const ch = channels[0];
     const chAnim = animDef[ch] as PxPropertyAnimation;
@@ -958,7 +958,7 @@ export function mergeStaticTransformIntoAnimDef(
 function normalizeAnimationDefinition(
     animDef: PxAnimationDefinition,
     duration: number,
-    defs?: PxDefs,
+    defs?: PxDefinitions,
     engine: PxTimelineEngine = PxTimelineEngine.native,
 ): PxAnimationDefinition {
     const normalized: PxAnimationDefinition = {};
@@ -1017,12 +1017,12 @@ function normalizeAnimationDefinition(
  * handling — see {@link PxTimelineEngine}.
  * @public @advanced
  */
-export function getNormalizedBindings(
+export function normalizeBindings(
     doc: PxAnimatedSvgDocument,
     engine: PxTimelineEngine = PxTimelineEngine.native,
 ): PxNormalizedBinding[] {
     const animatorConfig = getAnimatorConfig(doc) || {};
-    const defs = getDefs(doc);
+    const defs = getDefinitions(doc);
     const duration = animatorConfig.duration || 1000; // FIXME - get rid of 1000 here
 
     const bindings: PxNormalizedBinding[] = [];
@@ -1149,7 +1149,7 @@ function calcPropertyValue(
     // remap to local 0..1 within prevKf..nextKf
     let localProgress = (prevKf === nextKf) ? 0 : remap(progress, prevKf.t ?? 0, nextKf.t ?? 0, 0, 1);
     localProgress = clamp(localProgress, 0, 1);
-    const easing = kfEasing(prevKf); // e is on the source keyframe: applied from this KF to the next
+    const easing = keyframeEasing(prevKf); // e is on the source keyframe: applied from this KF to the next
     if (easing && Array.isArray(easing)) {
         try {
             localProgress = cubicBezier(easing as [number, number, number, number])(localProgress);
@@ -1173,7 +1173,7 @@ function calcPropertyValue(
             nextPaths,
             localProgress
         ).map(bz => bezierToSvgPath(bz)).join('');
-    } else if (COLOR_ATTR_NAMES.has(cssAttrName)) {
+    } else if (PX_COLOR_ATTR_NAMES.has(cssAttrName)) {
         cssValue = toRGBA(interpolateColor(
             prevV || [0, 0, 0, 1],
             nextV || [0, 0, 0, 1],
@@ -1268,7 +1268,7 @@ function calcPropertyValue(
         cssValue = num;
     }
 
-    if (PCT_BASED_ATTR_NAMES.has(cssAttrName) && typeof cssValue === 'number') {
+    if (PX_PCT_BASED_ATTR_NAMES.has(cssAttrName) && typeof cssValue === 'number') {
         cssValue = (cssValue * 100) + '%';
     }
 

@@ -69,7 +69,7 @@ const PxAnimatorConfigSchema = px.object({
 });
 
 // Named easings are 4-element number tuples — approximated as number[].
-const PxDefsSchema = px.object({
+const PxDefinitionsSchema = px.object({
     easings:    px.record(px.array(px.number())).optional(),
     animations: px.record(PxAnimationDefinitionSchema).optional(),
     styles:     px.record(px.record(px.union([px.string(), px.number()]))).optional(),
@@ -106,7 +106,7 @@ const PxAnimatedSvgDocumentSchema = px.object({
     height:   px.number().optional(),
     viewBox:  px.string().optional(),
     animator: PxAnimatorConfigSchema.optional(),
-    definitions:     PxDefsSchema.optional(),
+    definitions:     PxDefinitionsSchema.optional(),
     bindings: px.array(PxBindingSchema).optional(),
     children: px.array(PxNodeSchema as any).optional(),
 });

@@ -5,14 +5,14 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
-import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
+import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
 
 
-/** Mock PxAnimatorAPI backed by a real jsdom element as the root. */
-function createMockApi(overrides: Partial<PxAnimatorAPI> = {}) {
+/** Mock PxAnimatorApi backed by a real jsdom element as the root. */
+function createMockApi(overrides: Partial<PxAnimatorApi> = {}) {
     const root = document.createElement('div');
     document.body.appendChild(root);
-    const api: PxAnimatorAPI = {
+    const api: PxAnimatorApi = {
         isReady: vi.fn(() => true),
         getRootElement: vi.fn(() => root),
         isPlaying: vi.fn(() => false),
