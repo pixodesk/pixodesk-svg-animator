@@ -30,7 +30,6 @@
  "animator.definitions.fonts{*}.glyphs{*}.pathData",
  "animator.definitions.fonts{*}.glyphs{*}.width",
  "animator.definitions.fonts{*}.unitsPerEm",
- "animator.definitions.styles",
  "animator.timeline",
  "animator.timeline|scroll.axis",
  "animator.timeline|scroll.duration",

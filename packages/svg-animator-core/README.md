@@ -58,7 +58,7 @@ runtime crash on a non-browser platform.
 | **Interpolation** | `calcAnimationValues`, `interpolateValue`, `getNormalizedBindings` |
 | **Sampling / geometry** | `createPathSampler`, `evaluateMotionPathSegment`, bezier helpers, `cubicBezier`, `splitEasing` |
 | **Text** | `materializeGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
-| **Node helpers** | `getNormalizedProps`, `sanitizeAttributeValue`, `resolveStyle`, `generateNewIds` |
+| **Node helpers** | `getNormalizedProps`, `sanitizeAttributeValue`, `generateNewIds` |
 | **Playback engine** | `createBasicFrameLoopAnimator` + the `PxPlatformAdapter` interface |
 | **Wire enums** | `PxTimelineEngine` / `PxTimelineEngineExtra`, `PxStartOn`, `PxOutAction`, `PxFinishAction`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneWithout`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxStartOn.click` and `startOn?: PxStartOn` come from one import |
 

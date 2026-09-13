@@ -632,8 +632,9 @@ export type PxGlyphFont = PxInfer<typeof PxGlyphFontSchema>;
 const _ck_PxGlyphFont: KeysMatch<PxGlyphFont, _PxGlyphFont> = true; // the key sets are identical
 
 /**
- * Reusable definitions library for easings, animations, and styles.
- * Defined once here, referenced by name on elements.
+ * Reusable definitions library for easings, animations and fonts.
+ * Defined once here, referenced by name on elements (or, for animations, from bindings).
+ * (`styles` — named style presets — was removed on 2026-09-13, review 2.13: nothing wrote it.)
  */
 export interface _PxDefs {
 
@@ -643,26 +644,19 @@ export interface _PxDefs {
     /** Named animation definitions that can be referenced by elements */
     animations?: { [name: string]: PxAnimationDefinition; };
 
-    /** Named style presets. A node's `style` may reference one by name;
-     *  resolved and applied at render time (see `resolveStyle` in PxAnimatorDOM). */
-    styles?: { [name: string]: Record<string, string | number>; };
-
     /** Embedded fonts — per-font glyph outlines, keyed by the text's `font-family`.
      *  Lets glyph-mode `<text>` render without an external font. */
     fonts?: { [fontName: string]: PxGlyphFont; };
 }
 
-// `{ easings?:Record<name,[x1,y1,x2,y2]>, animations?:Record<name,AnimationDefinition>, styles?:Record<name,Record<attr,string|number>>, fonts?:Record<fontName,PxGlyphFont> }`
+// `{ easings?:Record<name,[x1,y1,x2,y2]>, animations?:Record<name,AnimationDefinition>, fonts?:Record<fontName,PxGlyphFont> }`
 export const PxDefsSchema = implementsInterface<_PxDefs>()(px.object({
     easings: px.record(px.tuple([px.number(), px.number(), px.number(), px.number()] as const)).optional(),
     animations: px.record(PxAnimationDefinitionSchema).optional(),
-    // Review §2.6: the schema now matches the declared type — a style preset is a flat
-    // record of string|number attribute values, nothing nested.
-    styles: px.record(px.record(px.union([px.string(), px.number()]))).optional(),
     fonts: px.record(PxGlyphFontSchema).optional(),
 }));
 
-/** Reusable definitions library for easings, animations, and styles. */
+/** Reusable definitions library for easings, animations and fonts. */
 export type PxDefs = PxInfer<typeof PxDefsSchema>;
 const _ck_PxDefs: KeysMatch<PxDefs, _PxDefs> = true; // the key sets are identical
 
@@ -1014,7 +1008,7 @@ export interface _PxAnimatorConfig {
     /** Trigger configuration for when animation should start */
     trigger?: PxTrigger;
 
-    /** Named easings, animations, and styles — referenced by elements */
+    /** Named easings, animations and embedded fonts — referenced by elements and bindings */
     definitions?: PxDefs;
 
     /**
@@ -1233,17 +1227,22 @@ export interface _PxNode {
     animate?: PxElementAnimation;
 
     /**
-     * FIXME - do we need it?
-     * Style applied to this element (named reference or inline object)
+     * Inline style declarations for this element — camelCase CSS property names, exactly like
+     * React's `style` prop (`whiteSpace`, `pointerEvents`, `mixBlendMode`) → value. The web
+     * player writes them to `element.style`, React Native applies them as props; an explicit
+     * attribute on the node wins. An OBJECT only: no CSS text, no preset names
+     * (`definitions.styles` was removed — review 2.13).
      */
-    style?: string | Record<string, string | number>;
+    style?: Record<string, string | number>;
 
     /**
-     * All other SVG attributes (cx, cy, r, fill, stroke, etc.).
-     * A value is either a primitive (static) or a PxPropertyAnimation (in-place
-     * animation `{keyframes: [...]}`).
+     * Every other key is an SVG attribute under its camelCase DOM name — the spelling React
+     * uses (`strokeWidth`, `fontSize`, `viewBox`, `clipPath`), which is what the editor writes.
+     * The player renders it to the standard attribute (`stroke-width`) and accepts that kebab
+     * spelling on the way in. A value is either a primitive (static) or a PxPropertyAnimation
+     * (in-place animation `{ keyframes: [...] }`).
      */
-    [key: string]: any;
+    [camelCaseDomKey: string]: any;
 }
 
 // ============================================================================
@@ -1895,7 +1894,7 @@ export const PxNodeBase = px.openObject({
     // string ref / array of refs / inline definition / mixed array; mirrors
     // `node.animate` values and what `processNode` resolves at runtime.
     animate: PxElementAnimationSchema.optional(),
-    style: px.union([px.string(), px.record(px.union([px.string(), px.number()]))]).optional(),
+    style: px.record(px.union([px.string(), px.number()])).optional(),
 }, PxAttrValueSchema);
 
 // `let` so the lazy closure can capture the variable reference after assignment.
@@ -1910,12 +1909,13 @@ export { PxNodeSchema };
 /**
  * Base interface for all SVG elements.
  * Extends schema-derived typed fields; adds recursive children and the open
- * index signature for arbitrary SVG attributes (cx, cy, r, fill, etc.).
+ * index signature for arbitrary SVG attributes under their camelCase DOM names
+ * (cx, cy, r, fill, strokeWidth, …) — see `_PxNodeBase`.
  * Named properties take precedence over the index signature when accessed.
  */
 export interface PxNode extends PxInfer<typeof PxNodeBase> {
     children?: PxNode[];
-    [key: string]: any;
+    [camelCaseDomKey: string]: any;
 }
 
 

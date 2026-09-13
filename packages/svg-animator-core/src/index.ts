@@ -89,7 +89,6 @@ export {
     CSS_ONLY_STYLE_PROPS,
     DISALLOWED_SVG_TAGS_LOWER,
     getNormalizedProps,
-    resolveStyle,
     sanitizeAttributeValue
 } from './util/PxNodeProps';
 

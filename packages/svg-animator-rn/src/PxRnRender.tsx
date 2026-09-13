@@ -5,7 +5,6 @@
 
 import {
     getNormalizedProps,
-    resolveStyle,
     sanitizeAttributeValue,
     DISALLOWED_SVG_TAGS_LOWER,
     TEXT_CONTENT_ATTR,
@@ -91,11 +90,10 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
     const rnProps = toRnProps(props, opts.warnings, tag);
     if (domType !== undefined) rnProps.type = domType;
 
-    // `node.style` — a named preset from `definitions.styles`, or an inline
-    // record. react-native-svg has no CSS, so the resolved declarations are
-    // applied as ordinary props (the same names, e.g. `fill`, `strokeWidth`).
+    // `node.style` — an inline record of declarations. react-native-svg has no CSS, so
+    // they are applied as ordinary props (the same names, e.g. `fill`, `strokeWidth`).
     // Explicit attributes on the node win over the style block.
-    const resolved = resolveStyle(style, opts.defs);
+    const resolved = style;
     if (resolved) {
         for (const [k, v] of Object.entries(resolved)) {
             const rnKey = toRnPropName(k);

@@ -333,15 +333,15 @@ not supported.
 <!-- px-check off support matrix, prose -->
 | Attribute | Supported | Notes |
 |---|---|---|
-| `opacity`, `fill-opacity`, `stroke-opacity` | ✅ | |
-| `fill`, `stroke`, `stop-color` | ✅ | colors blend through RGBA |
-| `stroke-width`, `stroke-dashoffset` | ✅ | |
-| `stroke-dasharray` | ⚠️ | animates; the native value bridge not yet checked on a device |
+| `opacity`, `fillOpacity`, `strokeOpacity` | ✅ | |
+| `fill`, `stroke`, `stopColor` | ✅ | colors blend through RGBA |
+| `strokeWidth`, `strokeDashoffset` | ✅ | |
+| `strokeDasharray` | ⚠️ | animates; the native value bridge not yet checked on a device |
 | `x`, `y`, `width`, `height`, `cx`, `cy`, `r`, `rx`, `ry` | ✅ | |
 | `d` (path morphing) | ✅ | keyframes must share the same command structure |
 | `transform` (an object holding all the parts: translate, rotate, scale, …) and per-key `translate` / `rotate` / `scale` | ✅ | |
-| gradient stop `offset`, `stop-color` | ✅ | |
-| `font-size` and any other numeric attribute | ✅ | |
+| gradient stop `offset`, `stopColor` | ✅ | |
+| `fontSize` and any other numeric attribute | ✅ | |
 | filter primitive attributes | ⚠️ | compiles; on-device rendering not yet checked |
 
 ### Effects
@@ -370,8 +370,8 @@ not supported.
 | Text on a *closed* path with a non-zero `startOffset` | ⚠️ | worked around, not fixed: `react-native-svg`'s own text-on-path layout crashes on this (iOS), so the player gives such text its own *open* copy of the path; text that would wrap past the end of the loop is cut off instead. The web player is unaffected |
 | Per-property `loop`, incl. ping-pong | ✅ | |
 | Cubic-bezier and named easings | ✅ | |
-| `definitions.animations` / `easings` / `styles` / `fonts` | ✅ | |
-| `node.style` | ✅ | |
+| `definitions.animations` / `easings` / `fonts` | ✅ | |
+| `node.style` (inline record) | ✅ | |
 
 ### Playback and triggers
 

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createDiagnostics, getDefs, getNormalizedProps, resolveStyle, sanitizeAttributeValue, camelCaseToKebabWordIfNeeded, CSS_ONLY_STYLE_PROPS, DISALLOWED_SVG_TAGS_LOWER, PxDiagnosticKind, TEXT_CONTENT_ATTR, type PxAnimatedSvgDocument, type PxDefs, type PxDiagnostics, type PxNode } from '@pixodesk/svg-animator-core';
+import { createDiagnostics, getDefs, getNormalizedProps, sanitizeAttributeValue, camelCaseToKebabWordIfNeeded, CSS_ONLY_STYLE_PROPS, DISALLOWED_SVG_TAGS_LOWER, PxDiagnosticKind, TEXT_CONTENT_ATTR, type PxAnimatedSvgDocument, type PxDefs, type PxDiagnostics, type PxNode } from '@pixodesk/svg-animator-core';
 
 // Re-export from the historical home so the package surface is unchanged.
 export { getNormalizedProps };
@@ -90,8 +90,8 @@ export function renderNode(node: PxNode, defs?: PxDefs, diag?: PxDiagnostics): E
     // Extract defs from root svg node
     const nodeDefs = getDefs(node as PxAnimatedSvgDocument) || defs;
 
-    // Resolve style reference
-    const resolvedStyle = resolveStyle(style, nodeDefs);
+    // `node.style` is an inline record (attribute → value), applied below
+    const resolvedStyle = style;
 
     // Process children
     let childElements: Array<Element> | undefined;

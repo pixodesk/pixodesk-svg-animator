@@ -553,6 +553,13 @@ function checkSchemaBlock(doc: MdDoc, m: Marker, ctx: Ctx): Array<Finding> {
 
     const walkType = (t: ts.TypeNode, schema: Parameters<SchemaFacts['shape']>[0], path: string): void => {
         if (ts.isParenthesizedTypeNode(t)) return walkType(t.type, schema, path);
+        // `{ [camelCaseCssProperty: string]: string | number }` — an index signature alone spells a
+        // record, like `Record<string, …>`: follow its value type, there are no keys to compare
+        if (ts.isTypeLiteralNode(t) && t.members.length && t.members.every(ts.isIndexSignatureDeclaration)) {
+            const idx = t.members[0] as ts.IndexSignatureDeclaration;
+            if (idx.type) walkType(idx.type, ctx.schemas.element(schema), path);
+            return;
+        }
         if (ts.isTypeLiteralNode(t)) return walkObject(t.members, schema, path, lineOf(t));
         if (ts.isArrayTypeNode(t)) return walkType(t.elementType, ctx.schemas.element(schema), path);
         if (ts.isTypeReferenceNode(t)) {

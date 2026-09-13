@@ -159,24 +159,6 @@ export function sanitizeAttributeValue(name: string, value: any): any | undefine
     return value;
 }
 
-/** FIXME - do we need this?
- * Resolves a style reference to an actual style object.
- */
-export function resolveStyle(
-    style: string | Record<string, string | number> | undefined,
-    defs?: PxDefs
-): Record<string, string | number> | undefined {
-    if (!style) return undefined;
-
-    if (typeof style === 'string') {
-        // Look up named style in defs
-        return defs?.styles?.[style];
-    }
-
-    return style;
-}
-
-
 export function getNormalizedProps(props: Record<string, any>) {
     const propsCopy: Record<string, any> = {};
 

@@ -275,16 +275,16 @@ properties actually change over time.
 <!-- px-check off support matrix, prose -->
 | Attribute | Animates | Notes |
 |---|---|---|
-| `opacity`, `fill-opacity`, `stroke-opacity` | ✅ | |
-| `fill`, `stroke`, `stop-color` | ✅ | interpolated as RGBA |
-| `stroke-width`, `stroke-dasharray`, `stroke-dashoffset` | ✅ | dash arrays are converted to the numeric form React Native expects |
+| `opacity`, `fillOpacity`, `strokeOpacity` | ✅ | |
+| `fill`, `stroke`, `stopColor` | ✅ | interpolated as RGBA |
+| `strokeWidth`, `strokeDasharray`, `strokeDashoffset` | ✅ | dash arrays are converted to the numeric form React Native expects |
 | `x`, `y`, `width`, `height`, `cx`, `cy`, `r`, `rx`, `ry` | ✅ | |
 | `d` (**path morphing**) | ✅ | keyframes must share command structure |
 | `transform` (unified parts record) | ✅ | `translate`, `rotate`, `skew`, `scale`, `origin` |
 | `translate` / `rotate` / `scale` (legacy per-key form) | ✅ | |
-| `offset` and `stop-color` on gradient stops | ✅ | |
+| `offset` and `stopColor` on gradient stops | ✅ | |
 | filter primitive attrs (e.g. `stdDeviation`) | ✅ | compiles correctly; on-device rendering unverified |
-| `font-size` | ✅ | |
+| `fontSize` | ✅ | |
 | Any other numeric SVG attribute | ✅ | interpolated numerically and written straight through |
 
 ### Effects (`node.effects`)
@@ -314,8 +314,8 @@ player sees plain nodes. **All are supported:**
 | **Text along a path** | ✅ two ways | native `textPath` (incl. animated `startOffset`), or **per-letter motion paths** for smooth results — the example app uses the latter, since animating native `startOffset` is janky in `react-native-svg` |
 | Per-property `loop` (incl. `alternate` pingpong) | ✅ | expanded before playback |
 | Easing (cubic-bezier and named refs) | ✅ | baked into the sampled tracks |
-| `definitions.animations` / `easings` / `styles` / `fonts` | ✅ | named refs resolved; `style` presets applied as props |
-| `node.style` (inline or named) | ✅ | resolved to props — React Native has no CSS, so explicit attributes win |
+| `definitions.animations` / `easings` / `fonts` | ✅ | named refs resolved |
+| `node.style` (inline record) | ✅ | applied as props — React Native has no CSS, so explicit attributes win |
 
 ### Playback and triggers
 
