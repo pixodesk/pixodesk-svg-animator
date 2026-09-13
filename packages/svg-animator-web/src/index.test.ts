@@ -6,7 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAnimator } from './index';
 import type { PxAnimatedSvgDocument, PxAnimationDefinition } from '@pixodesk/svg-animator-core';
-import { LOOP_JUMP_SHIFT_MS, cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from '@pixodesk/svg-animator-core';
+import { LOOP_JUMP_SHIFT_MS, cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from '@pixodesk/svg-animator-core/internal';
 import { calcAnimationValues, getNormalizedBindings } from '@pixodesk/svg-animator-core';
 import { materializeAllInTree } from '@pixodesk/svg-animator-core';
 import { PxTimelineEngine } from '@pixodesk/svg-animator-core';

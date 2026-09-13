@@ -4,10 +4,10 @@
  *---------------------------------------------------------------------------------------*/
 
 import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
-import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web';
+import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
 import { createAnimator, generateNewIds, getNormalizedProps, PxDiagnosticKind, type PxPlaybackOverrideProps, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
-import { camelCaseToKebabWordIfNeeded, createDiagnostics, STYLE_ATTR_NAMES, DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core';
+import { camelCaseToKebabWordIfNeeded, createDiagnostics, STYLE_ATTR_NAMES, DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
     watch,

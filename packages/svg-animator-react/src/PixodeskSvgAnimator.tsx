@@ -4,11 +4,11 @@
  *---------------------------------------------------------------------------------------*/
 
 import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger } from '@pixodesk/svg-animator-web';
-import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web';
+import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
 import type { PxOutAction } from '@pixodesk/svg-animator-core';
 import { createAnimator, generateNewIds, getNormalizedProps, PxDiagnosticKind, type PxAnimatorCallbacks, type PxPlaybackOverrideProps, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
-import { camelCaseToKebabWordIfNeeded, createDiagnostics, STYLE_ATTR_NAMES, DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core';
+import { camelCaseToKebabWordIfNeeded, createDiagnostics, STYLE_ATTR_NAMES, DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
 import { useDepsVersion } from './Utils';

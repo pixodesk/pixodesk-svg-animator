@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAnimator, generateNewIds, loadTagAnimators } from './PxAnimator';
-import { PX_ANIM_ATTR_NAME } from '@pixodesk/svg-animator-core';
+import { PX_ANIM_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
 
 

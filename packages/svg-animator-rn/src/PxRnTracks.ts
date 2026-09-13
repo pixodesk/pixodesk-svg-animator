@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { calcAnimationValues, getAnimatorConfig, getNormalizedBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxAnimationDefinition } from '@pixodesk/svg-animator-core';
-import { DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core';
+import { DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
 import { toRnPropName, toRnPropValue } from './PxRnPropNames';
 
 /**

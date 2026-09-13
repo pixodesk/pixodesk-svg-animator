@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { deepClone, generateUniqueId, type PxNode } from '@pixodesk/svg-animator-core';
+import { type PxNode } from '@pixodesk/svg-animator-core';
+import { deepClone, generateUniqueId } from '@pixodesk/svg-animator-core/internal';
 
 /**
  * Workarounds for defects in react-native-svg's NATIVE renderer that would

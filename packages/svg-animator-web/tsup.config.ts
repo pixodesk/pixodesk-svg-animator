@@ -22,8 +22,15 @@ const GLOBAL_NAME = 'PixodeskAnimator';
 // compile target. Applied to the iife builds only: esm/cjs stay on the published
 // dist so npm consumers get exactly the core build that was published.
 const CORE_SRC = path.resolve('../svg-animator-core/src/index.ts');
+// The alias is on the BARE specifier, so `…-core/internal` would otherwise be rewritten to
+// `<CORE_SRC>/internal`. Map the subpath explicitly, and before the bare one.
+const CORE_INTERNAL_SRC = path.resolve('../svg-animator-core/src/internal.ts');
 const umdAlias = (o: { alias?: Record<string, string> }) => {
-    o.alias = { ...(o.alias || {}), '@pixodesk/svg-animator-core': CORE_SRC };
+    o.alias = {
+        ...(o.alias || {}),
+        '@pixodesk/svg-animator-core/internal': CORE_INTERNAL_SRC,
+        '@pixodesk/svg-animator-core': CORE_SRC,
+    };
 };
 
 // --- lever 4: mangle the property names that are provably ours and internal.
@@ -90,7 +97,7 @@ const prerenderedBuild = (name: string, minified: boolean) => ({
 export default defineConfig((opts) => [
     // ---- esm + cjs, non-minified (with source maps + the package's .d.ts) ----
     {
-        entry: ['src/index.ts'],
+        entry: ['src/index.ts', 'src/internal.ts'],
         format: ['esm', 'cjs'],
         noExternal: NO_EXTERNAL,
         dts: true,
@@ -118,7 +125,7 @@ export default defineConfig((opts) => [
     },
     // ---- esm + cjs, minified ----
     {
-        entry: ['src/index.ts'],
+        entry: ['src/index.ts', 'src/internal.ts'],
         format: ['esm', 'cjs'],
         noExternal: NO_EXTERNAL,
         dts: false,

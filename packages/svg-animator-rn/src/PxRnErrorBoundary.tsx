@@ -4,7 +4,8 @@
  *---------------------------------------------------------------------------------------*/
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { createDiagnostics, PxDiagnosticKind, type PxDiagnostics } from '@pixodesk/svg-animator-core';
+import { PxDiagnosticKind, type PxDiagnostics } from '@pixodesk/svg-animator-core';
+import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 
 /** @public @advanced */
 export interface PxRnErrorBoundaryProps {

@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { getNormalizedProps, type PxDefs, type PxNode } from '@pixodesk/svg-animator-core';
-import { sanitizeAttributeValue, DISALLOWED_SVG_TAGS_LOWER, TEXT_CONTENT_ATTR } from '@pixodesk/svg-animator-core';
+import { sanitizeAttributeValue, DISALLOWED_SVG_TAGS_LOWER, TEXT_CONTENT_ATTR } from '@pixodesk/svg-animator-core/internal';
 import { createElement, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { RN_SVG_COMPONENTS } from './PxRnTypeMap';
 import { toRnPropName, toRnPropValue } from './PxRnPropNames';

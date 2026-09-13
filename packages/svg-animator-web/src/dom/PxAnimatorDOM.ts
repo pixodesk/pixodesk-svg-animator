@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createDiagnostics, getDefs, getNormalizedProps, sanitizeAttributeValue, camelCaseToKebabWordIfNeeded, CSS_ONLY_STYLE_PROPS, DISALLOWED_SVG_TAGS_LOWER, PxDiagnosticKind, TEXT_CONTENT_ATTR, type PxAnimatedSvgDocument, type PxDefs, type PxDiagnostics, type PxNode } from '@pixodesk/svg-animator-core';
+import { getDefs, getNormalizedProps, PxDiagnosticKind, type PxAnimatedSvgDocument, type PxDefs, type PxDiagnostics, type PxNode } from '@pixodesk/svg-animator-core';
+import { createDiagnostics, sanitizeAttributeValue, camelCaseToKebabWordIfNeeded, CSS_ONLY_STYLE_PROPS, DISALLOWED_SVG_TAGS_LOWER, TEXT_CONTENT_ATTR } from '@pixodesk/svg-animator-core/internal';
 
 // Re-export from the historical home so the package surface is unchanged.
 export { getNormalizedProps };

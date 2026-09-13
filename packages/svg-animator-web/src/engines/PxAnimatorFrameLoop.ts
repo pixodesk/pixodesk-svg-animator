@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { camelCaseToKebabWordIfNeeded, createBasicFrameLoopAnimator, createDiagnostics, getAnimatorConfig, isScrollTimeline, PxDiagnosticKind, STYLE_ATTR_NAMES, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxDiagnostics, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { createBasicFrameLoopAnimator, getAnimatorConfig, PxDiagnosticKind, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxDiagnostics, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { camelCaseToKebabWordIfNeeded, createDiagnostics, isScrollTimeline, STYLE_ATTR_NAMES } from '@pixodesk/svg-animator-core/internal';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
 import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
 

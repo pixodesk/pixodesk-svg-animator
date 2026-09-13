@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createDiagnostics, PxDiagnosticKind, resolveTrigger, type PxDiagnostics, type PxTrigger } from '@pixodesk/svg-animator-core';
+import { PxDiagnosticKind, resolveTrigger, type PxDiagnostics, type PxTrigger } from '@pixodesk/svg-animator-core';
+import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
 
 

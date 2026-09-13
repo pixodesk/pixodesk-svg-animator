@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { kebabToCamelCaseWord } from '@pixodesk/svg-animator-core';
+import { kebabToCamelCaseWord } from '@pixodesk/svg-animator-core/internal';
 import { svgTransformToMatrix } from './PxRnMatrix';
 
 /** Attribute names with a react-native-svg prop equivalent under a

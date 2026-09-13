@@ -16,7 +16,7 @@
 // gate to park the listeners entirely while the subject is far outside its range.
 
 import { PxDiagnosticKind, type PxAnimatorConfig, type PxDiagnostics, type PxScroll } from '@pixodesk/svg-animator-core';
-import { createDiagnostics, isScrollTimeline, scrollOffsetProgress, scrollResolveAxis, scrollViewProgress } from '@pixodesk/svg-animator-core';
+import { createDiagnostics, isScrollTimeline, scrollOffsetProgress, scrollResolveAxis, scrollViewProgress } from '@pixodesk/svg-animator-core/internal';
 
 
 // ── Native timeline support (`timeline.engine: 'native'`, tried first by `auto`) ────────────────────────────────────────

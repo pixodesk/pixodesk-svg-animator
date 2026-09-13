@@ -27,12 +27,13 @@ const FMT = ts.TypeFormatFlags.NoTruncation
 export class TsFacts {
     readonly program: ts.Program;
     readonly checker: ts.TypeChecker;
-    private readonly files = new Map<Pkg, ts.SourceFile>();
+    private readonly files = new Map<Pkg, ts.SourceFile>();          // the MAIN entry, for type text
+    private readonly entries = new Map<Pkg, Array<ts.SourceFile>>();  // every entry the package ships
     private readonly exportsCache = new Map<Pkg, Map<string, ts.Symbol>>();
     private aliasMap?: AliasMap;
 
     constructor() {
-        this.program = ts.createProgram(ALL_PKGS.map(p => PKG_DTS[p]), {
+        this.program = ts.createProgram(ALL_PKGS.flatMap(p => [...PKG_DTS[p]]), {
             target: ts.ScriptTarget.ES2022,
             module: ts.ModuleKind.ESNext,
             moduleResolution: ts.ModuleResolutionKind.Bundler,
@@ -45,9 +46,13 @@ export class TsFacts {
         });
         this.checker = this.program.getTypeChecker();
         for (const p of ALL_PKGS) {
-            const sf = this.program.getSourceFile(PKG_DTS[p]);
-            if (!sf) throw new Error(`docs-check: ${PKG_DTS[p]} is missing — run pnpm build first`);
-            this.files.set(p, sf);
+            const sfs = PKG_DTS[p].map(file => {
+                const sf = this.program.getSourceFile(file);
+                if (!sf) throw new Error(`docs-check: ${file} is missing — run pnpm build first`);
+                return sf;
+            });
+            this.files.set(p, sfs[0]);
+            this.entries.set(p, sfs);
         }
     }
 
@@ -58,12 +63,13 @@ export class TsFacts {
         let m = this.exportsCache.get(pkg);
         if (m) return m;
         m = new Map();
-        const sf = this.sourceFile(pkg);
-        const moduleSym = this.checker.getSymbolAtLocation(sf) ?? (sf as unknown as { symbol?: ts.Symbol }).symbol;
-        if (moduleSym) {
+        // every entry the package ships — the main one and, where there is one, `/internal`
+        for (const sf of this.entries.get(pkg)!) {
+            const moduleSym = this.checker.getSymbolAtLocation(sf) ?? (sf as unknown as { symbol?: ts.Symbol }).symbol;
+            if (!moduleSym) continue;
             for (const s of this.checker.getExportsOfModule(moduleSym)) {
                 const resolved = s.flags & ts.SymbolFlags.Alias ? this.checker.getAliasedSymbol(s) : s;
-                m.set(s.name, resolved);
+                if (!m.has(s.name)) m.set(s.name, resolved);
             }
         }
         this.exportsCache.set(pkg, m);

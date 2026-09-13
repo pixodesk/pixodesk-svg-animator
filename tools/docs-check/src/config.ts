@@ -16,20 +16,31 @@ export const PKG_NPM_NAME: Record<Pkg, string> = {
     rn: '@pixodesk/svg-animator-rn',
 };
 
-/** The bundled declaration file each package ships — the source of truth for the API docs. */
-export const PKG_DTS: Record<Pkg, string> = {
-    core: resolve(REPO_ROOT, 'packages/svg-animator-core/dist/index.d.ts'),
-    web: resolve(REPO_ROOT, 'packages/svg-animator-web/dist/index.d.ts'),
-    react: resolve(REPO_ROOT, 'packages/svg-animator-react/dist/index.d.ts'),
-    vue: resolve(REPO_ROOT, 'packages/svg-animator-vue/dist/index.d.ts'),
-    rn: resolve(REPO_ROOT, 'packages/svg-animator-rn/dist/index.d.ts'),
+/**
+ * The declaration files each package ships — the source of truth for the API docs.
+ *
+ * The MAIN entry comes first: type text is printed against it. A package may ship further entry
+ * points — `@pixodesk/svg-animator-core/internal`, which carries the `@internal` names the editor
+ * and the sibling packages need (API-SURFACE-REVIEW.md §4) — and the exports of ALL of them are
+ * what the package exports, so the reference may still document an internal name and the audience
+ * checks still see its tag.
+ */
+const dts = (pkg: string, entry: string): string =>
+    resolve(REPO_ROOT, `packages/svg-animator-${pkg}/dist/${entry}.d.ts`);
+
+export const PKG_DTS: Record<Pkg, ReadonlyArray<string>> = {
+    core: [dts('core', 'index'), dts('core', 'internal')],
+    web: [dts('web', 'index'), dts('web', 'internal')],
+    react: [dts('react', 'index')],
+    vue: [dts('vue', 'index')],
+    rn: [dts('rn', 'index')],
 };
 
 /** The public markdown files, relative to the repo root. Internal notes (reviews, plans, dev-docs) are not listed. */
 export const DOC_FILES: ReadonlyArray<string> = [
     'README.md',
-    'API-SCHEMA.md',
-    'SCHEMA.md',
+    // 'API-SCHEMA.md',
+    // 'SCHEMA.md',
     'docs/format/README.md',
     'docs/library/README.md',
     'docs/library/installation.md',

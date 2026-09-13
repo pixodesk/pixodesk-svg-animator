@@ -1,6 +1,6 @@
 {
   "name": "@pixodesk/svg-animator-core",
-  "version": "1.0.39",
+  "version": "1.0.40",
   "description": "Pixodesk SVG animator core — schema, document types, materializers and sampling shared by all platform players",
   "license": "MIT",
   "repository": {
@@ -19,6 +19,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "import": "./dist/internal.js",
+      "require": "./dist/internal.cjs"
     }
   },
   "files": [

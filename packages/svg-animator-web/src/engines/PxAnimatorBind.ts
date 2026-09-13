@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createDiagnostics, getAnimatorConfig, isNativeForced, isScrollTimeline, mayUseNativeScrollTimeline, PxDiagnosticKind, PxTimelineEngineExtra, scrollTotalDurationMs, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticKind, PxTimelineEngineExtra, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';

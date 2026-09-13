@@ -17,6 +17,8 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as core from '../packages/svg-animator-core/dist/index.js';
+// the field inventory and the bump rule are @internal — see API-SURFACE-REVIEW.md §4
+import * as coreInternal from '../packages/svg-animator-core/dist/internal.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CORE = resolve(ROOT, 'packages/svg-animator-core');
@@ -29,13 +31,13 @@ const apply = args.includes('--apply');
 const libAt = args.indexOf('--lib-version');
 const libVersion = libAt >= 0 ? args[libAt + 1] : undefined;
 
-const live = core.schemaFieldUniverse(core.PxAnimatedSvgDocumentSchema);
+const live = coreInternal.schemaFieldUniverse(core.PxAnimatedSvgDocumentSchema);
 const snapshot = JSON.parse(readFileSync(SNAPSHOT, 'utf8'));
 const releases = JSON.parse(readFileSync(RELEASES, 'utf8'));
 const last = releases[releases.length - 1];
-const { added, removed } = core.diffFieldUniverse(snapshot, live);
+const { added, removed } = coreInternal.diffFieldUniverse(snapshot, live);
 const declared = core.PX_PLAYER_SCHEMA_VERSION;
-const plan = core.planSchemaRelease({ added, removed, declared, lastReleased: last.version, steps: core.PLAYER_WIRE_STEPS });
+const plan = coreInternal.planSchemaRelease({ added, removed, declared, lastReleased: last.version, steps: core.PLAYER_WIRE_STEPS });
 
 console.log('Player schema: declared ' + declared + ', last released ' + last.version + ' (' + last.date + ').');
 if (added.length) console.log('  added:   ' + added.join(', '));
@@ -46,7 +48,7 @@ if (plan.refuse) {
     process.exit(1);
 }
 
-const logProblems = core.releaseLogProblems(releases, core.PLAYER_WIRE_STEPS, plan.changed ? last.version : declared, core.BASELINE_PLAYER_VERSION);
+const logProblems = coreInternal.releaseLogProblems(releases, core.PLAYER_WIRE_STEPS, plan.changed ? last.version : declared, core.BASELINE_PLAYER_VERSION);
 if (!plan.changed && declared === last.version) {
     console.log('No player schema change since ' + last.version + ' — no schema bump.');
 } else {
