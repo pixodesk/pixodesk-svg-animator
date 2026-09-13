@@ -223,7 +223,7 @@ renderer never reaches JavaScript and cannot be caught — see
 | Prop | Why it differs |
 |---|---|
 | `timeline.engine` | Accepted inside `timeline` but ignored. There is no Web Animations API on React Native; playback is always native-driven. |
-| `timeline.frameRate` | Ignored. The screen's own refresh rate is used. The player does not compute values frame by frame: when the document loads it works out the animated values in advance, as a list of snapshots (60 per second of animation), and each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared — `compileTracks({ sampleRate })`, only available when you use the lower-level API instead of the component. |
+| `timeline.frameRate` | Ignored. The screen's own refresh rate is used. The player does not compute values frame by frame: when the document loads it works out the animated values in advance, as a list of snapshots (60 per second of animation), and each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, which the player fixes at 60. |
 | `startOn: 'mouseOver'` | Has no touch equivalent, so it is not honored. The other four values (`load`, `click`, `scrollIntoView`, `programmatic`) work as they do on the web, from the file or from the `startOn` prop. |
 | `className` / `style` | Not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height`. Styling *inside* the document (`style` on an element in the JSON) is supported. |
 | `onRemove` | Never called. On the web it tells you the animator was thrown away; here there is nothing to tell — when the component leaves the screen, React removes it and everything it created. To run code at that moment, use a `useEffect` cleanup function in your own component. |
@@ -334,7 +334,7 @@ player sees plain nodes. **All are supported:**
 | Trigger `click` | ✅ | wrapped in a `Pressable`; a second tap applies `outAction` |
 | Trigger `scrollIntoView` | ✅ | visibility sampled by measuring against the window (React Native has no `IntersectionObserver`); honors `scrollIntoViewThreshold` and `outAction` |
 | Trigger `mouseOver` | ❌ | no touch equivalent — use `click`, or drive `play` yourself |
-| `timeline.frameRate` | n/a | reanimated runs at the display refresh rate; use `compileTracks({sampleRate})` to trade memory for temporal precision |
+| `timeline.frameRate` | n/a | reanimated runs at the display refresh rate; the player prepares 60 snapshots per second of animation |
 | `timeline.engine` (`auto` / `native` / `js`) | n/a | there is no Web Animations API on React Native — playback is always native-driven |
 
 ### Known limitations
@@ -353,7 +353,7 @@ player sees plain nodes. **All are supported:**
   glyph placement by `startOffset … startOffset + pathLength` instead of
   `0 … pathLength`, so glyphs past the end of the path reach a lookup that
   returns `NSNotFound`. On native the player gives such a `<textPath>` its own
-  open copy of the path (`openClosedTextPathTargets`), which restores the
+  open copy of the path, which restores the
   correct bounds. Text that would have wrapped around past the end of the loop
   is clipped instead. Web is unaffected and left untouched.
 
@@ -391,25 +391,6 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
 
 A complete config is in
 [`examples/react-native-preview-player/metro.config.js`](../../examples/react-native-preview-player/metro.config.js).
-
-## Advanced exports
-
-For custom rendering or diagnostics:
-
-- `renderRnNode(node, opts)` — render a `PxNode` tree to `react-native-svg`
-  elements, with a `decorate` hook for wrapping animated elements.
-- `compileTracks(doc, { sampleRate, maxSamples, native })` — build the sampled
-  tracks yourself; `sampleRate` trades memory for temporal precision
-  (default 60/s). `native` selects the value form: the default is the SVG/DOM
-  one, `true` gives what the native views want (a `transform` becomes a
-  6-number matrix).
-- `sampleProps(tracks, tMs, stepMs, sampleCount, native)` — the worklet-safe
-  lookup. `native` renames `transform` to the native views' `matrix`; pass it
-  only for values going through reanimated's animated-props path on a device.
-- `openClosedTextPathTargets(doc, warnings?)` — the closed-path `<textPath>`
-  workaround described under [Known limitations](#known-limitations).
-- `PxRnErrorBoundary` — the boundary the component wraps itself in.
-- `RN_SVG_COMPONENTS`, `toRnPropName` — the tag and attribute maps.
 
 ## Example app
 

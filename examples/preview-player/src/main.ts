@@ -1,10 +1,6 @@
 import './style.css';
-import {
-  getAnimatorConfig,
-  isPxElementFileFormat,
-  type PxAnimatedSvgDocument,
-  type PxTrigger,
-} from '@pixodesk/svg-animator-web';
+import { type PxAnimatedSvgDocument, type PxTrigger } from '@pixodesk/svg-animator-web';
+import { getAnimatorConfig, isPxElementFileFormat } from '@pixodesk/svg-animator-core';
 
 import { createWebPlayer } from './players/web';
 import { createReactPlayer } from './players/react';

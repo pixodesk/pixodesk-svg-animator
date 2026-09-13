@@ -1,7 +1,7 @@
 {
   "name": "@pixodesk/svg-animator-core",
   "version": "1.0.39",
-  "description": "Pixodesk SVG animator core \u2014 schema, document types, materializers and sampling shared by all platform players",
+  "description": "Pixodesk SVG animator core — schema, document types, materializers and sampling shared by all platform players",
   "license": "MIT",
   "repository": {
     "type": "git",

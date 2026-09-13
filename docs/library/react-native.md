@@ -254,7 +254,7 @@ are in [Playback & triggers → Overriding from a player](./playback-and-trigger
 | Prop | Why it differs |
 |---|---|
 | `timeline.engine` | accepted inside `timeline` but ignored — there is no Web Animations API on React Native; playback is always native-driven |
-| `timeline.frameRate` | ignored — the screen's own refresh rate is used. On React Native the player does not compute values frame by frame; when the document loads it works out the animated values in advance, as a list of snapshots — 60 per second of animation — and while playing, each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, and that can only be changed when you call the lower-level `compileTracks({ sampleRate })` yourself instead of using the component |
+| `timeline.frameRate` | ignored — the screen's own refresh rate is used. On React Native the player does not compute values frame by frame; when the document loads it works out the animated values in advance, as a list of snapshots — 60 per second of animation — and while playing, each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, which the player fixes at 60 |
 | `startOn: 'mouseOver'` | has no touch equivalent, so it is not honored. The other four values (`load`, `click`, `scrollIntoView`, `programmatic`) work as they do on the web, from the file or from the prop |
 | `className` / `style` | not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height` (see [Quick start](#quick-start)). Styling *inside* the document — `style` on an element in the JSON — is supported |
 
@@ -421,20 +421,6 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
 
 A complete config is in
 [`examples/react-native-preview-player/metro.config.js`](../../examples/react-native-preview-player/metro.config.js).
-
-## Advanced exports
-
-For custom rendering or diagnostics:
-
-<!-- px-check exports @pixodesk/svg-animator-rn partial -->
-| Export | Purpose |
-|---|---|
-| `renderRnNode(node, opts)` | render a document tree to `react-native-svg` elements, with a `decorate` hook for wrapping animated elements |
-| `compileTracks(doc, { sampleRate, maxSamples, native })` | build the sampled tracks yourself; `sampleRate` is how many snapshots per second of animation are prepared — more make fast movement smoother but take more memory (default 60/s); `native: true` yields the value form native views want (a `transform` becomes a 6-number matrix) |
-| `sampleProps(tracks, tMs, stepMs, sampleCount, native)` | the worklet-safe track lookup |
-| `openClosedTextPathTargets(doc, warnings?)` | the closed-path `<textPath>` workaround |
-| `PxRnErrorBoundary` | the boundary the component wraps itself in |
-| `RN_SVG_COMPONENTS`, `toRnPropName` | the tag and attribute maps |
 
 ## Example apps
 

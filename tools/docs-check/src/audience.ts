@@ -160,6 +160,10 @@ function guideMentions(): { described: Map<string, Array<string>>; shown: Map<st
         };
         for (const m of text.matchAll(/```[\s\S]*?```/g)) collect(m[0], code);
         for (const m of text.matchAll(/`([^`\n]+)`/g)) collect(m[1], all);
+        // A name a marker CHECKS — `props PxAnimatorConfigShortcuts`, `schema PxClipPathEffectSchema`
+        // — is documented by the table under it, member by member, even when the prose never
+        // spells the type. That is a stronger guarantee than a mention, so it counts as described.
+        for (const m of text.matchAll(/<!--\s*px-check\s+([\s\S]*?)-->/g)) collect(m[1], all);
         add(described, all, file);
         add(shown, code, file);
     }

@@ -1,4 +1,4 @@
-import { applyAnimatorConfig } from '@pixodesk/svg-animator-web';
+import { applyAnimatorConfig } from '@pixodesk/svg-animator-core';
 import type { PxAnimatedSvgDocument, PxTrigger } from '@pixodesk/svg-animator-web';
 
 /**

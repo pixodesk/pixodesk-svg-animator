@@ -3,14 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import {
-    getNormalizedProps,
-    sanitizeAttributeValue,
-    DISALLOWED_SVG_TAGS_LOWER,
-    TEXT_CONTENT_ATTR,
-    type PxDefs,
-    type PxNode,
-} from '@pixodesk/svg-animator-core';
+import { getNormalizedProps, type PxDefs, type PxNode } from '@pixodesk/svg-animator-core';
+import { sanitizeAttributeValue, DISALLOWED_SVG_TAGS_LOWER, TEXT_CONTENT_ATTR } from '@pixodesk/svg-animator-core';
 import { createElement, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { RN_SVG_COMPONENTS } from './PxRnTypeMap';
 import { toRnPropName, toRnPropValue } from './PxRnPropNames';

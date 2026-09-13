@@ -1151,9 +1151,9 @@ the engine runs in browsers, React Native and test environments.
 |---|---|
 | **Schema & types** | `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxEffectsSchema`, `PxAnimatorConfigSchema`, `PxKeyframeSchema`, … plus every `Px*` TypeScript type and the `px` schema builder |
 | **Validation** | `validateDocument` (the whole document, strict), `isPxElementFileFormat`, `isPxElementFileFormatDeep`, `validateNodeEffects` |
-| **Materializers** | `materializeAllInTree`, `applyPlayerEffects`, `materializeInternalLoopsInTree`, `materializeMotionPathsInTree`, `materializeAnimatedUseInstances` |
+| **Materializers** | `materializeAllInTree`, `applyPlayerEffects` |
 | **Interpolation** | `calcAnimationValues`, `interpolateValue`, `getNormalizedBindings` |
-| **Sampling / geometry** | `createPathSampler`, `evaluateMotionPathSegment`, Bézier helpers, `cubicBezier`, `splitEasing` |
+| **Sampling / geometry** | `createPathSampler`, Bézier helpers, `cubicBezier`, `splitEasing` |
 | **Text** | `materializeGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
 | **Node helpers** | `getNormalizedProps`, `sanitizeAttributeValue`, `generateNewIds`, `deepClone` |
 | **Document accessors** | `getAnimatorConfig`, `getDefs`, `getBindings`, `getChildren` |

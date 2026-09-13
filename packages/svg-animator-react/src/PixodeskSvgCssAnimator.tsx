@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PX_TRIGGER_DEFAULTS, PxOutAction, PxStartOn } from "@pixodesk/svg-animator-web";
+import { PX_TRIGGER_DEFAULTS, PxOutAction, PxStartOn } from '@pixodesk/svg-animator-core';
 import { CSSProperties, FC, ReactNode, useEffect, useRef, useState } from "react";
 
 

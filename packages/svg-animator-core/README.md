@@ -54,9 +54,9 @@ runtime crash on a non-browser platform.
 |---|---|
 | **Schema & types** | `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxEffectsSchema`, … plus every `Px*` TypeScript type and the `px` schema builder |
 | **Validation** | `validateDocument` (the whole document, strict), `isPxElementFileFormat`, `isPxElementFileFormatDeep`, `validateNodeEffects` |
-| **Materializers** | `materializeAllInTree`, `applyPlayerEffects`, `materializeInternalLoopsInTree`, `materializeMotionPathsInTree`, `materializeAnimatedUseInstances` |
+| **Materializers** | `materializeAllInTree`, `applyPlayerEffects` |
 | **Interpolation** | `calcAnimationValues`, `interpolateValue`, `getNormalizedBindings` |
-| **Sampling / geometry** | `createPathSampler`, `evaluateMotionPathSegment`, bezier helpers, `cubicBezier`, `splitEasing` |
+| **Sampling / geometry** | `createPathSampler`, bezier helpers, `cubicBezier`, `splitEasing` |
 | **Text** | `materializeGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
 | **Node helpers** | `getNormalizedProps`, `sanitizeAttributeValue`, `generateNewIds` |
 | **Playback engine** | `createBasicFrameLoopAnimator` + the `PxPlatformAdapter` interface |

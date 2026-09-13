@@ -42,6 +42,7 @@
     "wip-test:e2e:update": "npx playwright test --grep @wip --update-snapshots"
   },
   "dependencies": {
+    "@pixodesk/svg-animator-core": "workspace:^",
     "@pixodesk/svg-animator-web": "workspace:^"
   },
   "peerDependencies": {

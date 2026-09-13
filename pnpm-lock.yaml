@@ -63,6 +63,9 @@ importers:
 
   examples/preview-player:
     dependencies:
+      '@pixodesk/svg-animator-core':
+        specifier: workspace:^
+        version: link:../../packages/svg-animator-core
       '@pixodesk/svg-animator-react':
         specifier: workspace:*
         version: link:../../packages/svg-animator-react
@@ -265,6 +268,9 @@ importers:
 
   packages/svg-animator-react:
     dependencies:
+      '@pixodesk/svg-animator-core':
+        specifier: workspace:^
+        version: link:../svg-animator-core
       '@pixodesk/svg-animator-web':
         specifier: workspace:^
         version: link:../svg-animator-web
@@ -363,6 +369,9 @@ importers:
 
   packages/svg-animator-vue:
     dependencies:
+      '@pixodesk/svg-animator-core':
+        specifier: workspace:^
+        version: link:../svg-animator-core
       '@pixodesk/svg-animator-web':
         specifier: workspace:^
         version: link:../svg-animator-web

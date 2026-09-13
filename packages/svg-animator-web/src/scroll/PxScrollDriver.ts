@@ -15,10 +15,8 @@
 // without a scroll. TODO (optimization, deliberate v1 omission): an IntersectionObserver
 // gate to park the listeners entirely while the subject is far outside its range.
 
-import {
-    createDiagnostics, isScrollTimeline, PxDiagnosticKind, scrollOffsetProgress, scrollResolveAxis, scrollViewProgress,
-    type PxAnimatorConfig, type PxDiagnostics, type PxScroll,
-} from '@pixodesk/svg-animator-core';
+import { PxDiagnosticKind, type PxAnimatorConfig, type PxDiagnostics, type PxScroll } from '@pixodesk/svg-animator-core';
+import { createDiagnostics, isScrollTimeline, scrollOffsetProgress, scrollResolveAxis, scrollViewProgress } from '@pixodesk/svg-animator-core';
 
 
 // ── Native timeline support (`timeline.engine: 'native'`, tried first by `auto`) ────────────────────────────────────────
