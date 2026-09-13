@@ -53,6 +53,7 @@ export type { ApplyResult } from './shared/types';
  * `ref:{type:'content'}` and allocates a fresh "inner" id for it; pass 1 then
  * splits those sources into outer-translate + inner-content layers so the use
  * can target the inner layer.
+ * @public @advanced
  */
 export function applyPlayerEffects(root: PxNode): ApplyResult {
     const ctx: ApplyContext = {

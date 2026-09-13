@@ -29,13 +29,13 @@
 
 import { PX_PLAYER_SCHEMA_VERSION } from './PxSchemaVersion';
 
-/** The wire key, under the animator config block. */
+/** The wire key, under the animator config block. @public @advanced */
 export const WIRE_VERSION_KEY = 'version';
 
 const ANIMATOR_KEY = 'animator';
 const META_KEY = 'meta';
 
-/** Parsed form. Compare these, NEVER the strings: `"1.10" < "1.9"` lexically. */
+/** Parsed form. Compare these, NEVER the strings: `"1.10" < "1.9"` lexically. @public @advanced */
 export interface WireVersion {
     /** Generation. A change no conversion can bridge. */
     readonly a: number;
@@ -45,7 +45,7 @@ export interface WireVersion {
     readonly c: number;
 }
 
-/** How a file's version relates to a reader's. */
+/** How a file's version relates to a reader's. @public @advanced */
 export enum WireVersionRelation {
     /** No stamp — unknown provenance. Assume nothing, migrate nothing. */
     unstamped = 'unstamped',
@@ -61,7 +61,8 @@ export enum WireVersionRelation {
 const VERSION_RE = /^(\d+)\.(\d+)(?:\.(\d+))?$/;
 
 /** `"1.2.3"` → `{a:1,b:2,c:3}`; a missing `c` is baseline 0. `undefined` when unparseable —
- *  treated exactly like an absent stamp, never as an error. */
+ *  treated exactly like an absent stamp, never as an error. * @public @advanced
+ */
 export function parseWireVersion(raw: unknown): WireVersion | undefined {
     if (typeof raw !== 'string') return undefined;
     const m = VERSION_RE.exec(raw.trim());
@@ -69,11 +70,12 @@ export function parseWireVersion(raw: unknown): WireVersion | undefined {
     return { a: Number(m[1]), b: Number(m[2]), c: m[3] === undefined ? 0 : Number(m[3]) };
 }
 
+/** @public @advanced */
 export function formatWireVersion(v: WireVersion): string {
     return v.a + '.' + v.b + '.' + v.c;
 }
 
-/** The version this PLAYER implements, parsed. `c` is 0: the player has no editor extension. */
+/** The version this PLAYER implements, parsed. `c` is 0: the player has no editor extension. @public @advanced */
 export const PLAYER_WIRE_VERSION: WireVersion =
     parseWireVersion(PX_PLAYER_SCHEMA_VERSION) ?? { a: 1, b: 1, c: 0 };
 
@@ -94,7 +96,7 @@ function readObjectProp(obj: object, key: string): { [key: string]: unknown } | 
         : undefined;
 }
 
-/** The version stamped on a document, or `undefined` when it carries none. */
+/** The version stamped on a document, or `undefined` when it carries none. @public @advanced */
 export function readWireVersion(doc: unknown): WireVersion | undefined {
     const animator = getAnimatorBlock(doc);
     return animator ? parseWireVersion(animator[WIRE_VERSION_KEY]) : undefined;
@@ -103,6 +105,7 @@ export function readWireVersion(doc: unknown): WireVersion | undefined {
 /**
  * How `file` relates to `mine`. `readerReadsEditorPart` separates the two readers: the EDITOR
  * compares all three parts, the PLAYER compares only `a.b` and is blind to `c`.
+ * @public @advanced
  */
 export function compareWireVersion(
     file: WireVersion | undefined, mine: WireVersion, readerReadsEditorPart: boolean,
@@ -121,6 +124,7 @@ export function compareWireVersion(
  * Every gap has one of exactly two remedies: upgrade the file, or upgrade the reader. Neither is
  * a refusal — the reader has already dropped what it could not understand and the rest renders,
  * so the worst case is a document missing a feature plus a sentence saying how to close the gap.
+ * @public @advanced
  */
 export function versionAdvice(
     relation: WireVersionRelation, file: WireVersion | undefined, mine: WireVersion, isPlayer: boolean,
@@ -154,7 +158,7 @@ export function versionAdvice(
 // THE STEP TABLE
 // ═══════════════════════════════════════════════════════════
 
-/** What a step DOES to documents — and therefore whether it needs conversion code. */
+/** What a step DOES to documents — and therefore whether it needs conversion code. @public @advanced */
 export enum WireStepKind {
     /**
      * Only OPTIONAL fields were added. An older reader ignores them; a newer reader finds them
@@ -166,7 +170,7 @@ export enum WireStepKind {
     converted = 'converted',
 }
 
-/** One `b` step of the player schema. */
+/** One `b` step of the player schema. @public @advanced */
 export interface WireVersionStep {
     /** The version this step converts FROM, e.g. `'1.1'`. */
     readonly from: string;
@@ -184,7 +188,7 @@ export interface WireVersionStep {
     readonly down?: (doc: Record<string, unknown>) => void;
 }
 
-/** Where the chain starts: the first RELEASED player schema. Everything older is pre-release. */
+/** Where the chain starts: the first RELEASED player schema. Everything older is pre-release. @public @advanced */
 export const BASELINE_PLAYER_VERSION = '1.1';
 
 /**
@@ -194,11 +198,12 @@ export const BASELINE_PLAYER_VERSION = '1.1';
  * the guard spec keys off it — bump `PX_PLAYER_SCHEMA_VERSION` without adding the matching step
  * and the suite fails naming the gap. That is the whole point: the last three renames shipped
  * because nothing forced anyone to say they had happened.
+ * @public @advanced
  */
 export const PLAYER_WIRE_STEPS: ReadonlyArray<WireVersionStep> = [];
 
 
-/** What a conversion pass did, so a caller can report it. */
+/** What a conversion pass did, so a caller can report it. @public @advanced */
 export interface PlayerConversionResult {
     /**
      * The document to read. A converted COPY when steps applied, otherwise the input itself,
@@ -215,7 +220,7 @@ export interface PlayerConversionResult {
     readonly advice?: string;
 }
 
-/** Which table to run, and what to bring the document up TO. */
+/** Which table to run, and what to bring the document up TO. @public @advanced */
 export interface WireConversionConfig {
     /** The step table — the player's, or the editor's `meta.*` one. */
     readonly steps: ReadonlyArray<WireVersionStep>;
@@ -239,6 +244,7 @@ export interface WireConversionConfig {
  *   · older       → the due steps run on a COPY. A step with no `up` is skipped; a step that
  *                  throws stops the chain, and the ORIGINAL comes back rather than a half-
  *                  converted one.
+ * @public @advanced
  */
 export function applyWireSteps(doc: unknown, cfg: WireConversionConfig): PlayerConversionResult {
     const from = readWireVersion(doc);
@@ -285,6 +291,7 @@ export function applyWireSteps(doc: unknown, cfg: WireConversionConfig): PlayerC
 /**
  * BRING A DOCUMENT UP TO THIS PLAYER'S SCHEMA — the `playerFixer` half of the pair.
  * Runs {@link applyWireSteps} over {@link PLAYER_WIRE_STEPS}, touching nothing under `meta.*`.
+ * @public @advanced
  */
 export function convertPlayerDocument(doc: unknown): PlayerConversionResult {
     return applyWireSteps(doc, {
@@ -325,12 +332,13 @@ function stampVersion(doc: Record<string, unknown>, target: WireVersion, readerR
  * What an EXPLICIT down-conversion did. Unlike reading, this may refuse — it is an output the
  * user asked for ("save for an older player"), and handing back a file that silently lacks what
  * the older schema cannot say would be worse than saying no.
+ * @public @advanced
  */
 export type WireDowngradeResult =
     | { readonly ok: true; readonly doc: unknown; readonly applied: ReadonlyArray<WireVersionStep> }
     | { readonly ok: false; readonly reason: string; readonly blocking: ReadonlyArray<WireVersionStep> };
 
-/** Which table to walk BACK through, from the version the document is at to the one wanted. */
+/** Which table to walk BACK through, from the version the document is at to the one wanted. @public @advanced */
 export interface WireDowngradeConfig {
     readonly steps: ReadonlyArray<WireVersionStep>;
     /** The version the document must end up at. */
@@ -346,6 +354,7 @@ export interface WireDowngradeConfig {
  * its old shell had one clock and cannot express per-parameter animation), the whole request is
  * refused and the reason names those steps. A partial downgrade is never produced, and the
  * caller's document is never mutated — the work happens on a copy.
+ * @public @advanced
  */
 export function applyWireStepsDown(doc: unknown, cfg: WireDowngradeConfig): WireDowngradeResult {
     const from = readWireVersion(doc);
@@ -404,7 +413,7 @@ export function applyWireStepsDown(doc: unknown, cfg: WireDowngradeConfig): Wire
     return { ok: true, doc: target, applied };
 }
 
-/** Down-convert through the PLAYER table only — `meta.*` is untouched, as on the way up. */
+/** Down-convert through the PLAYER table only — `meta.*` is untouched, as on the way up. @public @advanced */
 export function downgradePlayerDocument(doc: unknown, target: WireVersion): WireDowngradeResult {
     return applyWireStepsDown(doc, { steps: PLAYER_WIRE_STEPS, target, readerReadsEditorPart: false });
 }

@@ -32,6 +32,7 @@ import type { PxDiagnosticKind, PxDiagnosticsConfig } from '../playback/PxDiagno
  * @example "ease-in" | [0.68, -0.55, 0.265, 1.55]
  *
  * `string | [x1, y1, x2, y2]`
+ * @public @advanced
  */
 export const PxEasingOrRefSchema = px.union([
     px.string(),
@@ -131,6 +132,7 @@ export type _PxKeyframeValue =
 //
 // `PxTransformPartsSchema` is declared later in this file — `px.lazy` defers the lookup
 // until validation time so the declarations stay in narrative order without a TDZ at load.
+/** @public @advanced */
 export const PxKeyframeValueSchema = implementsInterface<_PxKeyframeValue>()(px.union([
     px.string(), // e.g. for colors
     px.number(),
@@ -161,6 +163,7 @@ export type PxKeyframeValue = PxInfer<typeof PxKeyframeValueSchema>;
 // LONG SPELLINGS ONLY (review §1.2/§6.1): the short aliases (`t`/`v`/`e`/`to`/`ti`)
 // were removed from the wire outright — one clear spelling, no mixing ambiguity.
 // They survive only as the internal normalized runtime view (see `_PxKeyframe`).
+/** @public @advanced */
 export const PxKeyframeSchema = implementsInterface<_PxKeyframe>()(px.object({
     time: px.number().optional(),
     value: PxKeyframeValueSchema.optional(),
@@ -196,25 +199,27 @@ export interface _PxNormalizedKeyframe {
     tangentOut?: [number, number];
 }
 
+/** @internal */
 export type PxNormalizedKeyframe = _PxNormalizedKeyframe;
 
 /**
  * Either spelling. For the handful of helpers that genuinely run on BOTH sides of
  * normalization — read them through the `kf*` accessors below rather than branching inline.
+ * @internal
  */
 export type PxAnyKeyframe = _PxKeyframe | _PxNormalizedKeyframe;
 
 const anyKf = (kf: PxAnyKeyframe) => kf as _PxKeyframe & _PxNormalizedKeyframe;
 
-/** Time in ms, whichever spelling the keyframe is in. */
+/** Time in ms, whichever spelling the keyframe is in. @internal */
 export const kfTime = (kf: PxAnyKeyframe): number => anyKf(kf).time ?? anyKf(kf).t ?? 0;
-/** Value, whichever spelling. */
+/** Value, whichever spelling. @internal */
 export const kfValue = (kf: PxAnyKeyframe): any => anyKf(kf).value ?? anyKf(kf).v;
-/** Easing — resolved on a normalized keyframe, possibly a NAME on a wire one. */
+/** Easing — resolved on a normalized keyframe, possibly a NAME on a wire one. @internal */
 export const kfEasing = (kf: PxAnyKeyframe): PxEasingOrRef | undefined => anyKf(kf).easing ?? anyKf(kf).e;
-/** Incoming spatial tangent, whichever spelling. */
+/** Incoming spatial tangent, whichever spelling. @internal */
 export const kfTangentIn = (kf: PxAnyKeyframe): [number, number] | undefined => anyKf(kf).tangentIn;
-/** Outgoing spatial tangent, whichever spelling. */
+/** Outgoing spatial tangent, whichever spelling. @internal */
 export const kfTangentOut = (kf: PxAnyKeyframe): [number, number] | undefined => anyKf(kf).tangentOut;
 
 /**
@@ -223,6 +228,7 @@ export const kfTangentOut = (kf: PxAnyKeyframe): [number, number] | undefined =>
  * Generic over the keyframe `value` type for callers that know the per-property
  * value shape (e.g. `PxKeyframe<Vec2>` in the effect appliers). Defaults to
  * `any`, matching the schema (`value` is stored as `px.any()` on the wire).
+ * @public
  */
 // The WIRE type, generic over the value type. The engines use `PxNormalizedKeyframe`.
 export type PxKeyframe<T = any> = Omit<_PxKeyframe, 'value'> & { value?: T };
@@ -238,6 +244,7 @@ export type PxNormalizedKeyframeOf<T = any> = Omit<_PxNormalizedKeyframe, 'v'> &
  * What `normalizeKeyframes` produces, what the engines consume — and what the EDITOR's in-memory
  * model is: its keyframe objects carry the short field names and serialize to the long wire ones
  * through `@serializable`, so the model implements this rather than the wire shape.
+ * @internal
  */
 export type PxNormalizedPropertyAnimation =
     Omit<_PxPropertyAnimation, 'keyframes'> & { keyframes?: Array<_PxNormalizedKeyframe> };
@@ -300,6 +307,7 @@ export interface _PxLoop {
 }
 
 // `{ segmentCount?:number, repeatAt?:'start'|'end', direction?:'normal'|'alternate' }`
+/** @public @advanced */
 export const PxLoopSchema = implementsInterface<_PxLoop>()(px.object({
     segmentCount: px.number().optional(),
     repeatAt: px.enum([PxLoopRepeatAt.start, PxLoopRepeatAt.end] as const).optional(),
@@ -309,6 +317,7 @@ export const PxLoopSchema = implementsInterface<_PxLoop>()(px.object({
 /**
  * Defines how a property's keyframe animation is extended beyond its defined keyframe range
  * by continuously repeating a chosen segment of the sequence.
+ * @public
  */
 export type PxLoop = PxInfer<typeof PxLoopSchema>;
 const _ck_PxLoop: KeysMatch<PxLoop, _PxLoop> = true; // the key sets are identical
@@ -373,6 +382,7 @@ export interface _PxPropertyAnimation {
 
 // `{ value?:KeyframeValue, keyframes?:Keyframe[], loop?:Loop|boolean, autoOrient?:bool, alongPathMode?:'sampled'|'offsetPath' }`
 // (the `kfs` alias was removed outright — review §1.2/§6.1: one spelling only)
+/** @public @advanced */
 export const PxPropertyAnimationSchema = implementsInterface<_PxPropertyAnimation>()(px.object({
     value: PxKeyframeValueSchema.optional(),
     keyframes: px.array(PxKeyframeSchema).optional(),
@@ -381,7 +391,7 @@ export const PxPropertyAnimationSchema = implementsInterface<_PxPropertyAnimatio
     alongPathMode: px.enum([PxAlongPathMode.sampled, PxAlongPathMode.offsetPath] as const).optional(),
 }));
 
-/** Animation definition for a single CSS/SVG property. */
+/** Animation definition for a single CSS/SVG property. @public */
 // The runtime-VIEW type: its `keyframes` items are runtime-view PxKeyframes (they may
 // carry the internal normalized short fields), which the schema-inferred type cannot.
 export type PxPropertyAnimation = _PxPropertyAnimation;
@@ -424,6 +434,7 @@ export interface _PxTransformParts {
 }
 
 // `{ translate?:[x,y], rotate?:deg, skew?:deg, scale?:[sx,sy], origin?:[x,y] }`
+/** @public @advanced */
 export const PxTransformPartsSchema = implementsInterface<_PxTransformParts>()(px.object({
     translate: px.tuple([px.number(), px.number()] as const).optional(),
     rotate: px.number().optional(),
@@ -432,7 +443,7 @@ export const PxTransformPartsSchema = implementsInterface<_PxTransformParts>()(p
     origin: px.tuple([px.number(), px.number()] as const).optional(),
 }));
 
-/** Record of transform parts forming a single transform `value`. */
+/** Record of transform parts forming a single transform `value`. @public */
 export type PxTransformParts = PxInfer<typeof PxTransformPartsSchema>;
 const _ck_PxTransformParts: KeysMatch<PxTransformParts, _PxTransformParts> = true; // the key sets are identical
 
@@ -456,6 +467,7 @@ const _ck_PxTransformParts: KeysMatch<PxTransformParts, _PxTransformParts> = tru
  * Replaces the earlier convention of putting each animated transform part
  * under its own top-level attribute name (`translate`, `rotate`, `scale`,
  * `origin`).
+ * @public @advanced
  */
 export const PxTransformValueSchema = px.union([
     px.string(),
@@ -464,7 +476,7 @@ export const PxTransformValueSchema = px.union([
     PxPropertyAnimationSchema,
 ]);
 
-/** Unified `transform` slot value: string | structured static | animated. */
+/** Unified `transform` slot value: string | structured static | animated. @public */
 export type PxTransformValue = PxInfer<typeof PxTransformValueSchema>;
 
 
@@ -484,6 +496,7 @@ export interface _PxAnimationDefinition {
 }
 
 // `Record<propName, PropertyAnimation>`
+/** @public @advanced */
 export const PxAnimationDefinitionSchema = implementsInterface<_PxAnimationDefinition>()(
     px.record(PxPropertyAnimationSchema)
 );
@@ -491,6 +504,7 @@ export const PxAnimationDefinitionSchema = implementsInterface<_PxAnimationDefin
 /**
  * Complete animation definition containing one or more property animations.
  * Each key is a CSS/SVG property name (e.g., "opacity", "scale", "rotate").
+ * @public
  */
 export type PxAnimationDefinition = PxInfer<typeof PxAnimationDefinitionSchema>;
 
@@ -519,6 +533,7 @@ export type _PxElementAnimation =
     | (string | PxAnimationDefinition)[];
 
 // `string | Array<string|AnimationDefinition> | AnimationDefinition`
+/** @public @advanced */
 export const PxElementAnimationSchema = implementsInterface<_PxElementAnimation>()(px.union([
     px.string(),
     px.array(px.union([px.string(), PxAnimationDefinitionSchema])),
@@ -528,6 +543,7 @@ export const PxElementAnimationSchema = implementsInterface<_PxElementAnimation>
 /**
  * Element animation specification.
  * Can be a string reference, array of references, inline definition, or a mixed array.
+ * @public
  */
 export type PxElementAnimation = PxInfer<typeof PxElementAnimationSchema>;
 
@@ -562,6 +578,7 @@ export interface _PxTrigger {
 
 // `{ startOn?:'load'|'mouseOver'|'click'|'scrollIntoView'|'programmatic', outAction?:..., scrollIntoViewThreshold?:number }`
 // An absent field means its PX_TRIGGER_DEFAULTS entry — the table every player resolves through.
+/** @public @advanced */
 export const PxTriggerSchema = implementsInterface<_PxTrigger>()(px.object({
     startOn: px.enum([PxStartOn.load, PxStartOn.mouseOver, PxStartOn.click, PxStartOn.scrollIntoView, PxStartOn.programmatic] as const, PX_TRIGGER_DEFAULTS.startOn).optional(),
     outAction: px.enum([PxOutAction.continue, PxOutAction.pause, PxOutAction.reset, PxOutAction.reverse] as const, PX_TRIGGER_DEFAULTS.outAction).optional(),
@@ -572,7 +589,7 @@ export const PxTriggerSchema = implementsInterface<_PxTrigger>()(px.object({
     scrollIntoViewThreshold: px.number().optional(),
 }));
 
-/** Defines when and how an animation should be triggered. */
+/** Defines when and how an animation should be triggered. @public */
 export type PxTrigger = PxInfer<typeof PxTriggerSchema>;
 const _ck_PxTrigger: KeysMatch<PxTrigger, _PxTrigger> = true; // the key sets are identical
 
@@ -600,6 +617,7 @@ export const PxGlyphSchema = implementsInterface<_PxGlyph>()(px.object({
     pathData: px.string(),
 }));
 
+/** @public */
 export type PxGlyph = PxInfer<typeof PxGlyphSchema>;
 const _ck_PxGlyph: KeysMatch<PxGlyph, _PxGlyph> = true; // the key sets are identical
 
@@ -628,6 +646,7 @@ export const PxGlyphFontSchema = implementsInterface<_PxGlyphFont>()(px.object({
     glyphs: px.record(PxGlyphSchema),
 }));
 
+/** @public */
 export type PxGlyphFont = PxInfer<typeof PxGlyphFontSchema>;
 const _ck_PxGlyphFont: KeysMatch<PxGlyphFont, _PxGlyphFont> = true; // the key sets are identical
 
@@ -650,13 +669,14 @@ export interface _PxDefs {
 }
 
 // `{ easings?:Record<name,[x1,y1,x2,y2]>, animations?:Record<name,AnimationDefinition>, fonts?:Record<fontName,PxGlyphFont> }`
+/** @public @advanced */
 export const PxDefsSchema = implementsInterface<_PxDefs>()(px.object({
     easings: px.record(px.tuple([px.number(), px.number(), px.number(), px.number()] as const)).optional(),
     animations: px.record(PxAnimationDefinitionSchema).optional(),
     fonts: px.record(PxGlyphFontSchema).optional(),
 }));
 
-/** Reusable definitions library for easings, animations and fonts. */
+/** Reusable definitions library for easings, animations and fonts. @public */
 export type PxDefs = PxInfer<typeof PxDefsSchema>;
 const _ck_PxDefs: KeysMatch<PxDefs, _PxDefs> = true; // the key sets are identical
 
@@ -683,11 +703,13 @@ export interface _PxScrollRangePoint {
     fraction?: number;
 }
 
+/** @public @advanced */
 export const PxScrollRangePointSchema = implementsInterface<_PxScrollRangePoint>()(px.object({
     phase: px.enum([PxScrollPhase.cover, PxScrollPhase.contain, PxScrollPhase.entry,
                     PxScrollPhase.exit, PxScrollPhase.entryCrossing, PxScrollPhase.exitCrossing] as const).optional(),
     fraction: px.number().optional(),
 }));
+/** @public */
 export type PxScrollRangePoint = PxInfer<typeof PxScrollRangePointSchema>;
 const _ck_PxScrollRangePoint: KeysMatch<PxScrollRangePoint, _PxScrollRangePoint> = true; // the key sets are identical
 
@@ -774,12 +796,13 @@ export interface _PxScroll {
     };
 }
 
-/** The `range` sub-object — named so consumers can derive its keys. */
+/** The `range` sub-object — named so consumers can derive its keys. @public @advanced */
 export const PxScrollRangeSchema = px.object({
     start: PxScrollRangePointSchema.optional(),
     end: PxScrollRangePointSchema.optional(),
 });
 
+/** @public @advanced */
 export const PxScrollSchema = implementsInterface<_PxScroll>()(px.object({
     kind: px.enum([PxScrollKind.view, PxScrollKind.scroll] as const).optional(),
     axis: px.enum([PxScrollAxis.block, PxScrollAxis.inline, PxScrollAxis.x, PxScrollAxis.y] as const).optional(),
@@ -793,6 +816,7 @@ export const PxScrollSchema = implementsInterface<_PxScroll>()(px.object({
     pinDistance: px.number().optional(),
     range: PxScrollRangeSchema.optional(),
 }));
+/** @public */
 export type PxScroll = PxInfer<typeof PxScrollSchema>;
 const _ck_PxScroll: KeysMatch<PxScroll, _PxScroll> = true; // the key sets are identical
 
@@ -824,11 +848,13 @@ export interface _PxTimelinePin {
     distance?: number;
 }
 
+/** @public @advanced */
 export const PxTimelinePinSchema = implementsInterface<_PxTimelinePin>()(px.object({
     align: px.enum([PxPinAlign.top, PxPinAlign.center, PxPinAlign.bottom] as const).optional(),
     offset: px.number().optional(),
     distance: px.number().optional(),
 }));
+/** @public */
 export type PxTimelinePin = PxInfer<typeof PxTimelinePinSchema>;
 const _ck_PxTimelinePin: KeysMatch<PxTimelinePin, _PxTimelinePin> = true; // the key sets are identical
 
@@ -942,11 +968,13 @@ const PxViewTimelineSchema = implementsInterface<_PxViewTimeline>()(
 const _ck_PxScrollTimeline: KeysMatch<PxInfer<typeof PxScrollTimelineSchema>, _PxScrollTimeline> = true;
 const _ck_PxViewTimeline: KeysMatch<PxInfer<typeof PxViewTimelineSchema>, _PxViewTimeline> = true;
 
+/** @public @advanced */
 export const PxTimelineSchema = px.discriminatedUnion('type', [
     PxTimeTimelineSchema,   // first = the member an absent `type` selects
     PxScrollTimelineSchema,
     PxViewTimelineSchema,
 ]);
+/** @public */
 export type PxTimeline = PxInfer<typeof PxTimelineSchema>;
 
 
@@ -1087,11 +1115,13 @@ export interface _PxBinding {
     animateWith: Array<string>;
 }
 
+/** @public @advanced */
 export const PxBindingSchema = implementsInterface<_PxBinding>()(px.object({
     target: px.string(),
     animateWith: px.array(px.string()),
 }));
 
+/** @public */
 export type PxBinding = PxInfer<typeof PxBindingSchema>;
 const _ck_PxBinding: KeysMatch<PxBinding, _PxBinding> = true; // the key sets are identical
 
@@ -1099,6 +1129,7 @@ const _ck_PxBinding: KeysMatch<PxBinding, _PxBinding> = true; // the key sets ar
  * RUNTIME VIEW ONLY (not wire) — a binding once `getNormalizedBindings` has resolved it: the
  * bare DOM id and the merged, normalized animation. A self-contained document yields the same
  * shape from every animated node, so the engines never see which kind of document they play.
+ * @internal
  */
 export interface PxNormalizedBinding {
     id: string;
@@ -1109,6 +1140,7 @@ export interface PxNormalizedBinding {
 // the flat spelling (`trigger`/`delay`/`iterations`/`fill`/`direction`/`resetOnFinish`/
 // `timelineSource`/`scroll`) is NOT part of the format. It exists only as the internal
 // runtime VIEW (`_PxAnimatorConfig`) that `flattenAnimatorTimeline` produces for the engines.
+/** @public @advanced */
 export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(px.object({
     // (`mode`, `duration` and `frameRate` live INSIDE `timeline` on the wire — §2.8; they exist
     // at this level only on the runtime view, like the rest of the playback dynamics.)
@@ -1129,6 +1161,7 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
  * This is the runtime VIEW type: the wire carries the playback dynamics nested in
  * `timeline` (see `PxAnimatorConfigSchema`), and `flattenAnimatorTimeline` folds them
  * into the flat fields the engines consume — so the type is a superset of the wire.
+ * @public
  */
 export type PxAnimatorConfig = _PxAnimatorConfig;
 
@@ -1165,6 +1198,7 @@ export type PxAnimatorConfig = _PxAnimatorConfig;
  * though nothing writes it and nothing reads it; worse, being an all-optional object
  * schema it was ALSO what (accidentally) validated the transform parts record. The
  * parts record is now declared explicitly, so the two are no longer conflated.
+ * @public @advanced
  */
 export const PxAttrValueSchema = px.union([
     px.string(),
@@ -1178,7 +1212,8 @@ export const PxAttrValueSchema = px.union([
 ]);
 
 /** Per-attribute value: primitive/number-array for static, `{value}` for structured
- *  static, or a bare transform parts record. NEVER an animation — see `animate` (R2). */
+ *  static, or a bare transform parts record. NEVER an animation — see `animate` (R2). * @public
+ */
 export type PxAttrValue = string | number | Array<number> | { value: any } | PxTransformParts;
 
 
@@ -1264,7 +1299,7 @@ export interface _PxNode {
 // `effects/types.ts` re-exports these types so the applier internals
 // (`effects/*.ts`) can still `import from './types'` unchanged.
 
-/** Fixed-length 2-number tuple. `[x, y]` for positions, `[sx, sy]` for scale, …. */
+/** Fixed-length 2-number tuple. `[x, y]` for positions, `[sx, sy]` for scale, …. @public */
 export type Vec2 = [number, number];
 
 /**
@@ -1284,6 +1319,7 @@ export type Vec2 = [number, number];
  * static / `{value}` forms. The animated form uses the lib's non-generic
  * `PxKeyframe` (whose `value` is `any`) — kf values are read with care in the
  * applier (the visualModel walker / `interpParts` know per-property shapes).
+ * @internal
  */
 export type PxAnimatable<T> = T | { value: T } | _PxPropertyAnimation;
 
@@ -1336,6 +1372,7 @@ export interface _PxTransformByEffect {
     skew?: PxAnimatable<number>;
     origin?: PxAnimatable<Vec2>;
 }
+/** @public @advanced */
 export const PxTransformByEffectSchema = implementsInterface<_PxTransformByEffect>()(px.object({
     translate: PxAnimatableVec2Schema.optional(),
     rotate: PxAnimatableNumberSchema.optional(),
@@ -1343,6 +1380,7 @@ export const PxTransformByEffectSchema = implementsInterface<_PxTransformByEffec
     skew: PxAnimatableNumberSchema.optional(),
     origin: PxAnimatableVec2Schema.optional(),
 }));
+/** @public */
 export type PxTransformByEffect = PxInfer<typeof PxTransformByEffectSchema>;
 const _ck_PxTransformByEffect: KeysMatch<PxTransformByEffect, _PxTransformByEffect> = true;
 
@@ -1371,6 +1409,7 @@ export interface _PxRepeaterEffect {
     scale?: PxAnimatable<Vec2>;       // per-copy FACTOR (0.85 = 85% per copy), like every other scale
     origin?: PxAnimatable<Vec2>;
 }
+/** @public @advanced */
 export const PxRepeaterEffectSchema = implementsInterface<_PxRepeaterEffect>()(px.object({
     // STATIC config, not a channel (V2/SCHEMA-DESIGN R5): the copy COUNT is read
     // once at expansion time and never sampled — plain number, no `keyframes`.
@@ -1381,6 +1420,7 @@ export const PxRepeaterEffectSchema = implementsInterface<_PxRepeaterEffect>()(p
     scale: PxAnimatableVec2Schema.optional(),
     origin: PxAnimatableVec2Schema.optional(),
 }));
+/** @public */
 export type PxRepeaterEffect = PxInfer<typeof PxRepeaterEffectSchema>;
 const _ck_PxRepeaterEffect: KeysMatch<PxRepeaterEffect, _PxRepeaterEffect> = true;
 
@@ -1405,6 +1445,7 @@ export interface _PxMaskedByEffect {
     width?: number;
     height?: number;
 }
+/** @public @advanced */
 export const PxMaskedByEffectSchema = implementsInterface<_PxMaskedByEffect>()(px.object({
     source: px.string().optional(),
     maskType: px.enum([PxMaskType.luminance, PxMaskType.alpha] as const).optional(),
@@ -1415,6 +1456,7 @@ export const PxMaskedByEffectSchema = implementsInterface<_PxMaskedByEffect>()(p
     width: px.number().optional(),
     height: px.number().optional(),
 }));
+/** @public */
 export type PxMaskedByEffect = PxInfer<typeof PxMaskedByEffectSchema>;
 const _ck_PxMaskedByEffect: KeysMatch<PxMaskedByEffect, _PxMaskedByEffect> = true;
 
@@ -1436,6 +1478,7 @@ const _ck_PxMaskedByEffect: KeysMatch<PxMaskedByEffect, _PxMaskedByEffect> = tru
 export interface _PxClipPathEffect {
     pathData?: PxAnimatable<string>;
 }
+/** @public @advanced */
 export const PxClipPathEffectSchema = implementsInterface<_PxClipPathEffect>()(px.object({
     pathData: PxAnimatableStringSchema.optional(),
 }));
@@ -1463,11 +1506,13 @@ export interface _PxStrokeTrimEffect {
     range?: PxAnimatable<Vec2>;
     subPaths?: PxStrokeTrimSubPaths;
 }
+/** @public @advanced */
 export const PxStrokeTrimEffectSchema = implementsInterface<_PxStrokeTrimEffect>()(px.object({
     offset: PxAnimatableNumberSchema.optional(),
     range: PxAnimatableVec2Schema.optional(),
     subPaths: px.enum([PxStrokeTrimSubPaths.separate, PxStrokeTrimSubPaths.combined] as const).optional(),
 }));
+/** @public */
 export type PxStrokeTrimEffect = PxInfer<typeof PxStrokeTrimEffectSchema>;
 const _ck_PxStrokeTrimEffect: KeysMatch<PxStrokeTrimEffect, _PxStrokeTrimEffect> = true;
 
@@ -1486,11 +1531,13 @@ export interface _PxRetimeEffect {
     stretch?: number;
     timeCrop?: [number, number];
 }
+/** @public @advanced */
 export const PxRetimeEffectSchema = implementsInterface<_PxRetimeEffect>()(px.object({
     start: px.number().optional(),
     stretch: px.number().optional(),
     timeCrop: px.tuple([px.number(), px.number()] as const).optional(),
 }));
+/** @public */
 export type PxRetimeEffect = PxInfer<typeof PxRetimeEffectSchema>;
 const _ck_PxRetimeEffect: KeysMatch<PxRetimeEffect, _PxRetimeEffect> = true;
 
@@ -1512,6 +1559,7 @@ export interface _PxCloneEffect {
     source?: string;
     retime?: _PxRetimeEffect;
 }
+/** @public @advanced */
 export const PxCloneEffectSchema = implementsInterface<_PxCloneEffect>()(px.object({
     // Subtractive on purpose: the `<use>` can only point at one wrapper layer of the
     // source, so the choices form a ladder — 'translate' now, maybe 'transform' later.
@@ -1519,6 +1567,7 @@ export const PxCloneEffectSchema = implementsInterface<_PxCloneEffect>()(px.obje
     source: px.string().optional(),
     retime: PxRetimeEffectSchema.optional(),
 }));
+/** @public */
 export type PxCloneEffect = PxInfer<typeof PxCloneEffectSchema>;
 const _ck_PxCloneEffect: KeysMatch<PxCloneEffect, _PxCloneEffect> = true;
 
@@ -1529,10 +1578,12 @@ export interface _PxGradientStop {
     offset: number;
     color: string;
 }
+/** @public @advanced */
 export const PxGradientStopSchema = implementsInterface<_PxGradientStop>()(px.object({
     offset: px.number(),
     color:  px.string(),
 }));
+/** @public */
 export type PxGradientStop = PxInfer<typeof PxGradientStopSchema>;
 const _ck_PxGradientStop: KeysMatch<PxGradientStop, _PxGradientStop> = true;
 
@@ -1569,6 +1620,7 @@ export interface _PxFillGradientEffect {
     spreadMethod?:   string;                              // PxGradientSpreadMethod values
     gradientTransform?: string;                           // static only in v1
 }
+/** @public @advanced */
 export const PxFillGradientEffectSchema = implementsInterface<_PxFillGradientEffect>()(px.object({
     // Contextual kind — the `type` convention, see `PxNodeBase.type`.
     type: px.enum([PxGradientType.linear, PxGradientType.radial] as const),
@@ -1582,13 +1634,16 @@ export const PxFillGradientEffectSchema = implementsInterface<_PxFillGradientEff
     spreadMethod:      px.enum([PxGradientSpreadMethod.pad, PxGradientSpreadMethod.reflect, PxGradientSpreadMethod.repeat] as const).optional(),
     gradientTransform: px.string().optional(),
 }));
+/** @public */
 export type PxFillGradientEffect = PxInfer<typeof PxFillGradientEffectSchema>;
 const _ck_PxFillGradientEffect: KeysMatch<PxFillGradientEffect, _PxFillGradientEffect> = true;
 
 /** Stroke gradient is the same shape as fill gradient; the difference is
  *  only which host attribute (`fill` vs `stroke`) the applier rewrites. */
 export type _PxStrokeGradientEffect = _PxFillGradientEffect;
+/** @public @advanced */
 export const PxStrokeGradientEffectSchema = PxFillGradientEffectSchema;
+/** @public */
 export type PxStrokeGradientEffect = PxFillGradientEffect;
 
 /** Text-path effect on a `<text>` host. The path geometry is carried INLINE as
@@ -1611,6 +1666,7 @@ export interface _PxTextPathEffect {
     startOffset?: PxAnimatable<number>;
     textLength?: PxAnimatable<number>;
 }
+/** @public @advanced */
 export const PxTextPathEffectSchema = implementsInterface<_PxTextPathEffect>()(px.object({
     pathData: px.string(),
     pathOverflow: px.enum([PxPathOverflow.clip, PxPathOverflow.extend] as const).optional(),
@@ -1620,6 +1676,7 @@ export const PxTextPathEffectSchema = implementsInterface<_PxTextPathEffect>()(p
     startOffset: PxAnimatableNumberSchema.optional(),
     textLength: PxAnimatableNumberSchema.optional(),
 }));
+/** @public */
 export type PxTextPathEffect = PxInfer<typeof PxTextPathEffectSchema>;
 const _ck_PxTextPathEffect: KeysMatch<PxTextPathEffect, _PxTextPathEffect> = true;
 
@@ -1634,6 +1691,7 @@ const _ck_PxTextPathEffect: KeysMatch<PxTextPathEffect, _PxTextPathEffect> = tru
 export interface _PxTextEffect {
     useGlyphs?: boolean;
 }
+/** @public @advanced */
 export const PxTextEffectSchema = implementsInterface<_PxTextEffect>()(px.object({
     useGlyphs: px.boolean().optional(),
 }));
@@ -1680,6 +1738,7 @@ export interface _PxEffects {
     textPath?: _PxTextPathEffect;
     text?: _PxTextEffect;
 }
+/** @public @advanced */
 export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
     transformBy: PxTransformByEffectSchema.optional(),
     repeater: PxRepeaterEffectSchema.optional(),
@@ -1692,6 +1751,7 @@ export const PxEffectsSchema = implementsInterface<_PxEffects>()(px.object({
     textPath: PxTextPathEffectSchema.optional(),
     text: PxTextEffectSchema.optional(),
 }));
+/** @public */
 export type PxEffects = PxInfer<typeof PxEffectsSchema>;
 const _ck_PxEffects: KeysMatch<PxEffects, _PxEffects> = true;
 
@@ -1701,6 +1761,7 @@ const _ck_PxEffects: KeysMatch<PxEffects, _PxEffects> = true;
  * Doesn't mutate the tree. Called by `createAnimatorImpl` before applying effects.
  *
  * Pass `strict: true` to also flag undeclared keys (useful in dev / tests).
+ * @public @advanced
  */
 export function validateNodeEffects(root: PxNode, opts?: { strict?: boolean }): Array<string> {
     const warnings: Array<string> = [];
@@ -1825,6 +1886,7 @@ export function validateVersionStamp(doc: PxAnimatedSvgDocument): Array<string> 
  * human-readable problems (`path: what is wrong`), empty when the document is sound; never
  * throws. The player itself only warns and skips what it cannot read; this is the one call
  * for tooling, CI and agents that want a yes/no answer before shipping a document.
+ * @public
  */
 export function validateDocument(doc: unknown, opts?: { strict?: boolean }): Array<string> {
     // Strict (the default) rejects keys the schema does not declare — the right answer for a
@@ -1863,6 +1925,7 @@ export function validateDocument(doc: unknown, opts?: { strict?: boolean }): Arr
  * Non-recursive — excludes `children` (circular reference). Used for type extraction via PxInfer.
  *
  * `{ type:string, style?:…, [key:string]: string|number|PxPropertyAnimation }`
+ * @public @advanced
  */
 export const PxNodeBase = px.openObject({
     // CONVENTION (SCHEMA-DESIGN R1 / issues N4): `type` is the ONE word for "what
@@ -1900,6 +1963,7 @@ export const PxNodeBase = px.openObject({
 // `let` so the lazy closure can capture the variable reference after assignment.
 // By the time the lazy resolves (first isValid/sanitize call), PxNodeSchema is assigned.
 // `PxNodeBase & { children?:PxNode[] }`
+/** @public @advanced */
 let PxNodeSchema: PxSchema<any> = px.openObject({
     ...PxNodeBase._shape,
     children: px.lazy(() => px.array(PxNodeSchema), []).optional(),
@@ -1912,6 +1976,7 @@ export { PxNodeSchema };
  * index signature for arbitrary SVG attributes under their camelCase DOM names
  * (cx, cy, r, fill, strokeWidth, …) — see `_PxNodeBase`.
  * Named properties take precedence over the index signature when accessed.
+ * @public
  */
 export interface PxNode extends PxInfer<typeof PxNodeBase> {
     children?: PxNode[];
@@ -1948,6 +2013,7 @@ export interface _PxSvgNode extends PxNode {
  * Used for type extraction via PxInfer.
  *
  * `{ width?:number, height?:number, viewBox?:string, animator?:AnimatorConfig }`
+ * @public @advanced
  */
 export const PxSvgNodeExtra = px.object({
     // `"100%"` and other SVG length strings are legal here — a number-only slot rejected
@@ -1962,6 +2028,7 @@ export const PxSvgNodeExtra = px.object({
  * Root SVG element containing the entire animated graphic.
  * Extends PxNode (inheriting the open index signature) plus schema-derived
  * SVG-root fields.
+ * @public
  */
 export interface PxSvgNode extends PxNode, Omit<PxInfer<typeof PxSvgNodeExtra>, 'animator'> {
     /** The RUNTIME-VIEW type, not the wire shape: in-memory documents may carry the
@@ -1983,6 +2050,7 @@ export interface PxSvgNode extends PxNode, Omit<PxInfer<typeof PxSvgNodeExtra>, 
  * `{ type:'svg', style?:…, width?:number, height?:number,
  *    viewBox?:string, animator?:AnimatorConfig, children?:PxNode[],
  *    [svgAttr]: string|number|PxPropertyAnimation }`
+ * @public @advanced
  */
 export const PxAnimatedSvgDocumentSchema = px.openObject({
     ...PxNodeBase._shape,
@@ -1994,6 +2062,7 @@ export const PxAnimatedSvgDocumentSchema = px.openObject({
 /**
  * The complete animated SVG document.
  * This is the root type for the entire file format.
+ * @public
  */
 export interface PxAnimatedSvgDocument extends PxSvgNode {
 }
@@ -2003,7 +2072,7 @@ export interface PxAnimatedSvgDocument extends PxSvgNode {
 // API INTERFACES
 // ============================================================================
 
-// -- Callbacks: one chain, three levels (API review §9, §5, §26.1) ----------------------------
+// -- Callbacks: one chain, three levels (API review §9, §5; API-SURFACE-REVIEW.md §26.1) ----------------------------
 //
 //   PxDiagnosticsConfig   onWarn / onError / muteWarn / muteError   — what `createDiagnostics` reads
 //   PxEngineCallbacks     + onPlay / onPause / onCancel / onFinish / onRemove — what an ENGINE takes
@@ -2016,6 +2085,7 @@ export interface PxAnimatedSvgDocument extends PxSvgNode {
 /**
  * The callbacks an ENGINE takes — the frame loop, WAAPI, React Native's sampler: the playback
  * lifecycle plus the diagnostics channel. Public surfaces take `PxAnimatorCallbacks`.
+ * @public
  */
 export interface PxEngineCallbacks extends PxDiagnosticsConfig {
 
@@ -2047,6 +2117,7 @@ export interface PxEngineCallbacks extends PxDiagnosticsConfig {
  *
  * ONE definition: the components derive their props from it instead of each spelling the same
  * names, which is how their comments had already started to drift.
+ * @public
  */
 export interface PxAnimatorCallbacks extends PxEngineCallbacks {
     onStop?: () => void;
@@ -2077,6 +2148,7 @@ export interface _PxBezierPath {
 }
 
 // `{ v:number[][], i?:number[][], o?:number[][], c?:boolean }`
+/** @public @advanced */
 export const PxBezierPathSchema = implementsInterface<_PxBezierPath>()(px.object({
     v: px.array(px.array(px.number())),
     i: px.array(px.array(px.number())).optional(),
@@ -2084,7 +2156,7 @@ export const PxBezierPathSchema = implementsInterface<_PxBezierPath>()(px.object
     c: px.boolean().optional(),
 }));
 
-/** Represents a vector path for SVG shape animations. */
+/** Represents a vector path for SVG shape animations. @public */
 export type PxBezierPath = PxInfer<typeof PxBezierPathSchema>;
 const _ck_PxBezierPath: KeysMatch<PxBezierPath, _PxBezierPath> = true; // the key sets are identical
 
@@ -2099,6 +2171,7 @@ const _ck_PxBezierPath: KeysMatch<PxBezierPath, _PxBezierPath> = true; // the ke
  * Generic over the platform's root-element type (`TRoot`) so this package stays
  * platform-neutral: the web player specializes it to the DOM `Element`, a
  * React Native player to its own view handle. Defaults to `unknown`.
+ * @public
  */
 export interface PxBasicAnimatorAPI<TRoot = unknown> {
 
@@ -2137,6 +2210,7 @@ export interface PxBasicAnimatorAPI<TRoot = unknown> {
  *
  * The maths behind it lives in `playback/PxPlaybackTime.ts`, so there is one implementation
  * rather than one per engine.
+ * @public
  */
 export interface PxAnimatorAPI<TRoot = unknown> extends PxBasicAnimatorAPI<TRoot> {
 
@@ -2178,6 +2252,7 @@ export interface PxAnimatorAPI<TRoot = unknown> extends PxBasicAnimatorAPI<TRoot
  * ONE definition (review §9). `ReactAnimatorApi`, `VueAnimatorApi` and `RnAnimatorApi` are
  * aliases of this, so the three can no longer drift — they had: React Native's
  * `setPlaybackRate` comment had already lost "negative plays backwards".
+ * @public
  */
 export type PxAnimatorHandle = Omit<PxAnimatorAPI, 'isReady' | 'getRootElement' | 'destroy'>;
 
@@ -2186,6 +2261,7 @@ export type PxAnimatorHandle = Omit<PxAnimatorAPI, 'isReady' | 'getRootElement' 
 // DEEP VALIDATION
 // ============================================================================
 
+/** @public @advanced */
 export interface PxValidationResult {
     valid: boolean;
     errors: Array<string>;
@@ -2199,6 +2275,7 @@ export interface PxValidationResult {
  * `'Document failed schema validation'` without ever saying what failed; now every problem
  * `validateDocument` can name comes back with its path. Non-strict on purpose: the editor calls
  * this on OPEN, where a key from a newer version is worth a warning, never a refusal.
+ * @public @advanced
  */
 export function isPxElementFileFormatDeep(fileJson: unknown): PxValidationResult {
     const errors = validateDocument(fileJson, { strict: false });

@@ -42,7 +42,8 @@ import { materializeAnimatedUseInstances } from './PxAnimatorUseMaterializer';
 
 
 /** Options accepted by {@link materializeAllInTree}. Mostly forwarded to the
- *  per-stage materializers; ordering is fixed (see module doc). */
+ *  per-stage materializers; ordering is fixed (see module doc). * @internal
+ */
 export interface MaterializeAllOptions {
     /** Knobs forwarded to `materializeMotionPathsInTree`. Only consulted for
      *  `engine === waapi` — frames-mode skips that stage entirely. */
@@ -50,6 +51,7 @@ export interface MaterializeAllOptions {
 }
 
 
+/** @public @advanced */
 export function materializeAllInTree(
     doc: PxAnimatedSvgDocument,
     engine: PxTimelineEngine,

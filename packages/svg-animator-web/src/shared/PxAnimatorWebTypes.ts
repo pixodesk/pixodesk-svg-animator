@@ -12,6 +12,8 @@ import type {
  * DOM specializations of the platform-neutral animator API types.
  * `getRootElement()` returns a DOM `Element` on the web — these aliases keep
  * the historical (pre-core-extraction) signatures for web consumers.
+ * @public
  */
 export type PxBasicAnimatorAPI = PxBasicAnimatorAPICore<Element>;
+/** @public */
 export type PxAnimatorAPI = PxAnimatorAPICore<Element>;

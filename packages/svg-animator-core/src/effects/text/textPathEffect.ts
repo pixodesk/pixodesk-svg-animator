@@ -49,7 +49,8 @@ const r3 = (n: number): number => Math.round(n * 1000) / 1000;
 
 /** Inputs for {@link extendedPathForBrowser}. `advance` = the text run-width used to
  *  size the end extension (caller-measured; the player estimates it from the node,
- *  the editor from its text model — browser fonts have no glyph metrics available). */
+ *  the editor from its text model — browser fonts have no glyph metrics available). * @internal
+ */
 export interface ExtendPathOpts {
     pathOverflow?: string;
     startOffset?: PxAnimatable<number>;
@@ -61,7 +62,8 @@ export interface ExtendPathOpts {
  *  `startShift` — the length of the prepended START lead-in. Because that lead-in
  *  moves the `<textPath>` origin back by `startShift`, EVERY `startOffset` (all
  *  keyframes) MUST be shifted by `+startShift` so the text lands where it would on
- *  the un-extended path (`extend` only adds a tail, it must never move the text). */
+ *  the un-extended path (`extend` only adds a tail, it must never move the text). * @internal
+ */
 export interface ExtendedPath {
     d: string;
     startShift: number;
@@ -69,7 +71,8 @@ export interface ExtendedPath {
 
 /** Shift a `PxAnimatable<number>` by a constant (base + all keyframes). No-op for `0`.
  *  Reads via the shared `readAnimatable` (kfs/loop aliases handled), emits the
- *  normalized long form. */
+ *  normalized long form. * @internal
+ */
 export function shiftAnimatable(v: PxAnimatable<number> | undefined, by: number): PxAnimatable<number> | undefined {
     if (!by || v === undefined || v === null) return v;
     const read = readAnimatable<number>(v);
@@ -89,7 +92,8 @@ export function shiftAnimatable(v: PxAnimatable<number> | undefined, by: number)
  *  glyph-mode's tangent behavior) instead of dropping them. `'clip'`/closed paths are
  *  returned unchanged (browser clips natively). Shared by the player's browser-font
  *  applier and the editor's live/heavy `<textPath>` def generate (single source of truth).
- *  Returns the extended `d` AND `startShift` — see {@link ExtendedPath}. */
+ *  Returns the extended `d` AND `startShift` — see {@link ExtendedPath}. * @internal
+ */
 export function extendedPathForBrowser(pathD: string, opts: ExtendPathOpts): ExtendedPath {
     if (opts.pathOverflow === 'clip') return { d: pathD, startShift: 0 };
     const sampler = createPathSampler(pathD);

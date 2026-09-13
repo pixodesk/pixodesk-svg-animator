@@ -19,5 +19,6 @@
  * NOT the library's npm version, and never derived from it: the library ships far more often
  * than the format changes, so tying the two would make every release look like a format change
  * and every format change invisible between releases.
+ * @public @advanced
  */
 export const PX_PLAYER_SCHEMA_VERSION = '1.1';

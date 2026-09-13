@@ -6,6 +6,7 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react';
 import { createDiagnostics, PxDiagnosticKind, type PxDiagnostics } from '@pixodesk/svg-animator-core';
 
+/** @public @advanced */
 export interface PxRnErrorBoundaryProps {
     children: ReactNode;
     /** Rendered instead of the children once something has thrown. */
@@ -34,6 +35,7 @@ interface State {
  * native renderer (see `openClosedTextPathTargets` for a real example) never
  * reaches JavaScript and cannot be caught here — those have to be avoided
  * rather than handled.
+ * @public @advanced
  */
 export class PxRnErrorBoundary extends Component<PxRnErrorBoundaryProps, State> {
     override state: State = { error: null };

@@ -35,6 +35,7 @@ import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
  * @returns A disposer that detaches every listener and observer this call attached (review §14).
  *   `createAnimator` ties it to `destroy()`. Call it yourself before re-arming an element you
  *   wired by hand — otherwise the old listeners stay live next to the new ones.
+ * @public
  */
 export function setupAnimationTriggers(
     api: PxAnimatorAPI,

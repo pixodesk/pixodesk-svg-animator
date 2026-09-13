@@ -29,13 +29,14 @@ const MAX_REPORTED = 6;
  * own: those keys are no longer read (`getAnimatorConfig` drops them), so a document still
  * carrying them is reported like any other unrecognized key — silence would hide a file that
  * plays with its playback settings ignored.
+ * @public @advanced
  */
 export interface PxDocumentDiagnosis {
     /** Findings worth showing — unrecognized keys and shape violations. */
     problems: Array<string>;
 }
 
-/** Pure: collect a document's schema findings. Never throws. */
+/** Pure: collect a document's schema findings. Never throws. @public @advanced */
 export function diagnoseDocument(doc: unknown): PxDocumentDiagnosis {
     try {
         return { problems: validateDocument(doc) };
@@ -49,6 +50,7 @@ export function diagnoseDocument(doc: unknown): PxDocumentDiagnosis {
  * — a bare "unexpected extra key" leaves the reader no wiser, which is the whole point.
  *
  * `where` names the entry the document came in through, so the message says which call to look at.
+ * @internal
  */
 export function reportDocumentDiagnostics(doc: unknown, where: string): void {
     const { problems } = diagnoseDocument(doc);

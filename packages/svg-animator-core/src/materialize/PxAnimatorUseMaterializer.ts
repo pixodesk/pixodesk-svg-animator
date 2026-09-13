@@ -36,6 +36,7 @@ import type { PxNode } from '../format/PxAnimatorTypes';
  *
  * Recursive: if the materialized clone itself contains a `<use>` that needs
  * materialization, that's handled in the same pass.
+ * @internal
  */
 export function materializeAnimatedUseInstances(root: PxNode): PxNode {
     const idMap = buildIdMap(root);

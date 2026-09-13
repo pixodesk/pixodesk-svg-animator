@@ -24,6 +24,7 @@ import { evaluateMotionPathSegment, materializeMotionPathInPropAnim, propAnimIsM
  * ⚠️ The editor works in FRAMES (`FRAME_DURATION_MS = 10`), so this is a sub-frame shift
  * there. `TKeyframeGroup` rounds keyframe times to integer frames in some paths; the
  * editor side keeps the fractional value and must not be re-clamped to a whole frame.
+ * @internal
  */
 export const LOOP_JUMP_SHIFT_MS = 1;
 
@@ -328,6 +329,7 @@ function resolveElementAnimation(
  * BEFORE the standalone-`rotate` branch, otherwise a `transform`-named
  * animation whose kfs are number-typed (rare but valid) would be routed
  * through the vec path.
+ * @internal
  */
 export function interpolateValue(propName: string, a: any, b: any, t: number): any {
     if (propName === 'd') {
@@ -778,6 +780,7 @@ function mergeAnimationDefinitions(
  * Replaces `propAnim.loop` with explicit repeated keyframes via
  * `expandLoopKeyframes`. Returns the input by reference when no loop is
  * configured (no-op). Output drops the `loop` field (consumed).
+ * @internal
  */
 export function materializeInternalLoopsInPropAnim(
     propName: string,
@@ -827,6 +830,7 @@ export function materializeInternalLoopsInPropAnim(
  * `materializeInternalLoopsInPropAnim`. Immutable — returns the input by
  * reference when no loop was found anywhere; otherwise clones along the path
  * to each affected node, sharing untouched sub-trees.
+ * @internal
  */
 export function materializeInternalLoopsInTree(
     root: PxNode,
@@ -901,6 +905,7 @@ export function resetElementIdCounter(): void {
  * NOT merged (documented limitations): several individual channels animated at once
  * (they still last-write-wins against each other), and an individual channel next to an
  * animated `transform` (the `transform` channel wins, as before).
+ * @internal
  */
 export function mergeStaticTransformIntoAnimDef(
     animDef: PxAnimationDefinition,
@@ -1010,6 +1015,7 @@ function normalizeAnimationDefinition(
  * This is the main entry point for converting the new API format to internal format.
  * Resolves animation/easing references. `engine` controls motion-along-path
  * handling — see {@link PxTimelineEngine}.
+ * @public @advanced
  */
 export function getNormalizedBindings(
     doc: PxAnimatedSvgDocument,
@@ -1274,6 +1280,7 @@ function calcPropertyValue(
  * @param animDef The animation definition (with resolved refs and normalized times)
  * @param progress The current animation progress (0-1)
  * @returns Object with computed attribute name/value pairs
+ * @public @advanced
  */
 export function calcAnimationValues(
     animDef: PxAnimationDefinition,

@@ -70,6 +70,7 @@ function createElement(
 
 /**
  * Renders a PxNode tree to DOM elements.
+ * @public @advanced
  */
 export function renderNode(node: PxNode, defs?: PxDefs, diag?: PxDiagnostics): Element | null {
     if (!node) return null;

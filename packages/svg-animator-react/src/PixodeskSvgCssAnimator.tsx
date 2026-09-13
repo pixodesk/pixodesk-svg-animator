@@ -51,6 +51,7 @@ type AnimState = 'idle' | 'paused' | 'playing';
  *   wire default (`0`, any pixel) — the same as the JSON player, not a private `0.1`.
  * @param className - Additional CSS class names to apply to the wrapper div.
  * @param style     - Inline styles for the wrapper div (e.g. `{ width: 400, height: 400 }`).
+ * @public
  */
 const PixodeskSvgCssAnimator: FC<{
     className?: string;

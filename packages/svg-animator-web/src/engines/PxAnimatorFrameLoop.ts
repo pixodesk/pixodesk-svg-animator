@@ -31,6 +31,7 @@ export function getSelector(id: string) {
  * @param {PxEngineCallbacks=} callbacks Optional lifecycle callbacks.
  * @param {Element=} rootElement Optional pre-rendered root element.
  * @returns {PxAnimatorAPI} A PxAnimatorAPI instance.
+ * @internal
  */
 export function createFrameLoopAnimator(
     doc: PxAnimatedSvgDocument,

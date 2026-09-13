@@ -20,7 +20,7 @@
 //   - a seek clamps to [0, seekCeilingMs];
 //   - a rate of 0 is rejected everywhere, with this one message.
 
-/** The one message every engine prints for a rejected rate. */
+/** The one message every engine prints for a rejected rate. @public @advanced */
 export const PX_RATE_REJECTED = 'setPlaybackRate: rate must be finite and non-zero';
 
 /**
@@ -29,6 +29,7 @@ export const PX_RATE_REJECTED = 'setPlaybackRate: rate must be finite and non-ze
  * 0 is rejected rather than accepted: it freezes the animation in a state indistinguishable
  * from a stuck player, and `pause()` already says that properly. Two of the three engines
  * rejected it already — this makes the third agree.
+ * @public @advanced
  */
 export function isValidPlaybackRate(rate: number): boolean {
     return Number.isFinite(rate) && rate !== 0;
@@ -40,6 +41,7 @@ export function isValidPlaybackRate(rate: number): boolean {
  * `Infinity` for an endless timeline, so callers must test `Number.isFinite` before using it
  * as an upper bound. This is the SEEK ceiling, which is deliberately not the same thing as the
  * span `progress` covers — see `progressSpanMs`.
+ * @public @advanced
  */
 export function seekCeilingMs(durationMs: number, iterations: number): number {
     if (!(durationMs > 0)) return 0;
@@ -53,6 +55,7 @@ export function seekCeilingMs(durationMs: number, iterations: number): number {
  * An endless timeline maps progress onto ONE iteration — the rule the components already
  * document for the `progress` prop ("0–1 of duration × iterations, one iteration when
  * iterations is 'infinite'"). Always finite, so it is safe as a divisor.
+ * @public @advanced
  */
 export function progressSpanMs(durationMs: number, iterations: number): number {
     if (!(durationMs > 0)) return 0;
@@ -66,6 +69,7 @@ export function progressSpanMs(durationMs: number, iterations: number): number {
  * `NaN` and anything below 0 land on 0. `Infinity` means "the end", so it clamps to the ceiling
  * like any other overshoot — except on an endless timeline, where there is no end to land on and
  * a non-finite playhead would poison every later read, so that reads as 0.
+ * @public @advanced
  */
 export function clampSeekMs(timeMs: number, ceilingMs: number): number {
     if (Number.isNaN(timeMs) || timeMs < 0) return 0;
@@ -79,6 +83,7 @@ export function clampSeekMs(timeMs: number, ceilingMs: number): number {
  * A finite timeline clamps at both ends. An endless one wraps within the current iteration,
  * so the value stays meaningful however long it has been running. A zero-length span reads as
  * 0 rather than NaN.
+ * @public @advanced
  */
 export function timeToProgress(timeMs: number, durationMs: number, iterations: number): number {
     const span = progressSpanMs(durationMs, iterations);
@@ -88,7 +93,7 @@ export function timeToProgress(timeMs: number, durationMs: number, iterations: n
     return timeMs >= span ? 1 : timeMs / span;
 }
 
-/** 0–1 → whole-run ms, clamped into the span. A non-finite progress reads as 0. */
+/** 0–1 → whole-run ms, clamped into the span. A non-finite progress reads as 0. @public @advanced */
 export function progressToTimeMs(progress: number, durationMs: number, iterations: number): number {
     const span = progressSpanMs(durationMs, iterations);
     if (!(span > 0) || !Number.isFinite(progress)) return 0;
@@ -96,7 +101,7 @@ export function progressToTimeMs(progress: number, durationMs: number, iteration
     return progress >= 1 ? span : progress * span;
 }
 
-/** A playhead that keeps whole-run time across iterations. See `createRunClock`. */
+/** A playhead that keeps whole-run time across iterations. See `createRunClock`. @public @advanced */
 export interface PxRunClock {
     /** Whole-run position right now, ms, clamped to the ceiling. */
     now(): number;
@@ -120,6 +125,7 @@ export interface PxRunClock {
  * time is kept on a clock of its own — the same thing the frame-loop engine does inline.
  *
  * `nowFn` is injectable so this is testable without real time passing.
+ * @public @advanced
  */
 export function createRunClock(ceilingMs: number, nowFn: () => number = Date.now): PxRunClock {
     let baseMs = 0;        // whole-run ms as of the last start/seek/stop

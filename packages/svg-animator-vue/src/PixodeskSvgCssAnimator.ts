@@ -53,6 +53,7 @@ type AnimState = 'idle' | 'paused' | 'playing';
  * @prop scrollIntoViewThreshold - For `'scrollIntoView'`: how much of the element must be
  *   visible (0–1) before it starts, and below which the out action applies. Defaults to the
  *   wire default (`0`, any pixel) — the same as the JSON player, not a private `0.1`.
+ * @public
  */
 const PixodeskSvgCssAnimator = defineComponent({
     name: 'PixodeskSvgCssAnimator',

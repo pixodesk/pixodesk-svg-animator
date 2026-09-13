@@ -7,8 +7,9 @@ TypeScript compiler API, the wire schemas through core's `describeSchema`, and f
 its source disagree: a member missing or misspelled, an optional flag wrong, a type inlined
 differently, an export nobody documents, a name that is no longer exported.
 
-The docs stay hand-written — prose, ordering, notes columns, the ●/○/▪ audience marks are yours.
-The check only proves that what they *say* about names, shapes and exports is still true.
+The docs stay hand-written — prose, ordering and notes columns are yours. The check only proves
+that what they *say* about names, shapes and exports is still true, and that the ●/○/▪ marks still
+say what the code says — see [Audience](#audience).
 
 ## Running it
 
@@ -73,6 +74,33 @@ A row can carry its own comment at the end:
 | `extra` | documented on purpose, but not a member of the type (it must not be one) |
 | `loose` | compare the name only, never the type |
 | `<column>=~` | in a `matrix` table, leave that cell unchecked |
+
+## Audience
+
+Who an export is for lives on its **declaration**, as a TSDoc release tag — one source of truth
+that an IDE shows on hover and this check reads back out of the built `.d.ts`:
+
+| Tag | Mark in API-SCHEMA.md | Means |
+|---|---|---|
+| `@public` | ● | supported. A guide must describe it, not merely the reference index |
+| `@public @advanced` | ○ | supported document tooling — stable, rarely needed |
+| `@internal` | ▪ | exported so the editor and the sibling packages stay in lockstep. May change in any release, so no guide may teach it |
+
+Three checks run under the `audience` group, once for the whole repo rather than per file
+([`src/audience.ts`](./src/audience.ts)):
+
+1. **every export says who it is for** — exactly one tag, on the declaration (not the re-export, so
+   core's tag is what web mirrors);
+2. **the reference marks agree with the declarations** — a row in an export index whose last cell
+   carries a mark must match the tag of every name that row declares. A row that groups names by
+   topic can mark one of them differently in place: `` `getNormalizedProps` (○) `` in a ▪ row;
+3. **public is described, internal is taught nowhere** — a `@public` name is named in a guide (a
+   package README or `docs/library/*`), and an `@internal` name is named in none.
+
+A public name with nothing written about it yet goes in
+[`audience-allowlist.json`](./audience-allowlist.json) with a reason. An entry that is no longer
+needed — the name got documented, or stopped being public — fails the check too, so the list can
+only shrink.
 
 ## How types are compared
 

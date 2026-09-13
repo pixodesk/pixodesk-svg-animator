@@ -23,7 +23,7 @@
 
 import { describeSchema, type PxSchema } from '../schema/PxSchema';
 
-/** Every field identity `root` can carry, as canonical paths, sorted. */
+/** Every field identity `root` can carry, as canonical paths, sorted. @internal */
 export function schemaFieldUniverse(root: PxSchema<any, any>): Array<string> {
     const fields = new Set<string>();
     const enumerated = new Set<unknown>();

@@ -22,6 +22,7 @@ import { toRnPropName, toRnPropValue } from './PxRnPropNames';
  * with — so RN playback is value-identical to the web player. Easing, loops,
  * transform composition, color interpolation and path morphing are all baked
  * into the samples at compile time; the UI-thread worklet only indexes arrays.
+ * @internal
  */
 export interface PxElementTracks {
     /** Element id (after id regeneration). */
@@ -30,6 +31,7 @@ export interface PxElementTracks {
     props: Record<string, Array<string | number | Array<number>>>;
 }
 
+/** @internal */
 export interface PxCompiledTracks {
     /** Per-iteration duration, ms. */
     duration: number;
@@ -51,6 +53,7 @@ export interface PxCompiledTracks {
     elements: Array<PxElementTracks>;
 }
 
+/** @internal */
 export interface CompileTracksOptions {
     /** Target sample rate, samples/second. Default 60 (one per frame). */
     sampleRate?: number;
@@ -72,6 +75,7 @@ export interface CompileTracksOptions {
 /**
  * Compiles a MATERIALIZED document (run `materializeAllInTree(doc, 'frames')`
  * + `generateNewIds` first) into densely sampled per-element tracks.
+ * @internal
  */
 export function compileTracks(doc: PxAnimatedSvgDocument, opts?: CompileTracksOptions): PxCompiledTracks {
     const config = getAnimatorConfig(doc) || {};
@@ -173,6 +177,7 @@ export const NATIVE_PROP_NAME: Record<string, string> = {
  * reanimated animated-props path of a real device. Props that are applied by
  * re-rendering through React (and therefore still pass through react-native-svg's
  * JS layer), and every value on the web, must keep the wire name.
+ * @internal
  */
 export function sampleProps(
     tracks: PxElementTracks,

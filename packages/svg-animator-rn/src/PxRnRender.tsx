@@ -15,6 +15,7 @@ import { createElement, type ComponentType, type ReactElement, type ReactNode } 
 import { RN_SVG_COMPONENTS } from './PxRnTypeMap';
 import { toRnPropName, toRnPropValue } from './PxRnPropNames';
 
+/** @internal */
 export interface RenderRnNodeOptions {
     /** Collects non-fatal issues (unsupported tags, dropped attrs). */
     warnings?: Array<string>;
@@ -43,6 +44,7 @@ export interface RenderRnNodeOptions {
  * Converts core-normalized wire props into react-native-svg props: RN prop
  * naming, sanitization (same security rules as the web renderer), numeric
  * coercion where possible.
+ * @internal
  */
 export function toRnProps(props: Record<string, any>, warnings?: Array<string>, tag?: string): Record<string, any> {
     const normalized = getNormalizedProps(props);
@@ -61,6 +63,7 @@ export function toRnProps(props: Record<string, any>, warnings?: Array<string>, 
  * Renders a (materialized) PxNode tree to react-native-svg elements.
  * Mirrors the web `renderNode` contract: unsupported/dangerous tags are
  * skipped with a warning, never a crash.
+ * @internal
  */
 export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?: string | number): ReactElement | null {
     if (!node) return null;

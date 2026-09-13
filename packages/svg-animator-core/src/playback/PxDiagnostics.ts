@@ -37,6 +37,7 @@
  *
  * A const object rather than a TypeScript `enum`: consumers compare against these values, so
  * they must accept plain string literals too (the same pattern as `PxControlMode`).
+ * @public
  */
 export const PxDiagnosticKind = {
     /** The document is wrong — regenerate or repair the file. */
@@ -52,7 +53,7 @@ export const PxDiagnosticKind = {
 } as const;
 export type PxDiagnosticKind = typeof PxDiagnosticKind[keyof typeof PxDiagnosticKind];
 
-/** One thing a player has to say. */
+/** One thing a player has to say. @public */
 export interface PxDiagnostic {
     /** Who can act on it — see {@link PxDiagnosticKind}. */
     readonly kind: PxDiagnosticKind;
@@ -70,9 +71,10 @@ export interface PxDiagnostic {
 /**
  * Where a player sends what it wants to say. Every field is optional.
  *
- * The SHARED base of every callbacks object (review §26.1): `createDiagnostics` reads it directly,
+ * The SHARED base of every callbacks object (API-SURFACE-REVIEW.md §26.1): `createDiagnostics` reads it directly,
  * `PxEngineCallbacks` extends it with the playback lifecycle, `PxAnimatorCallbacks` adds `onStop`
  * on top — so the four diagnostics fields are spelled once, here.
+ * @public
  */
 export interface PxDiagnosticsConfig {
 
@@ -105,7 +107,7 @@ export interface PxDiagnosticsConfig {
     muteError?: boolean;
 }
 
-/** The reporting channel a player writes to. */
+/** The reporting channel a player writes to. @public */
 export interface PxDiagnostics {
     /** Report something survivable — it plays. */
     warn(kind: PxDiagnosticKind, message: string, detail?: unknown): void;
@@ -124,6 +126,7 @@ function asError(error: Error | string): Error {
  * `prefix` labels the console fallback (e.g. `'[PixodeskSvgAnimator]'`) and is NOT added to the
  * diagnostic handed to a handler — a caller that wants to prefix its own log can, and one
  * feeding a UI should not have to strip ours.
+ * @internal
  */
 export function createDiagnostics(config?: PxDiagnosticsConfig, prefix?: string): PxDiagnostics {
     const tag = prefix ? prefix + ' ' : '';

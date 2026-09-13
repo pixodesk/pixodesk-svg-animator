@@ -31,6 +31,7 @@ import { openClosedTextPathTargets } from './PxRnSafety';
  * The imperative handle `apiRef` is filled with — core's `PxAnimatorHandle` under this package's
  * name (review §9). It no longer "mirrors" the React one by hand: the local copy had already
  * drifted (its `setPlaybackRate` comment lost "negative plays backwards"). One definition.
+ * @public
  */
 export type RnAnimatorApi = PxAnimatorHandle;
 
@@ -39,6 +40,7 @@ export type RnAnimatorApi = PxAnimatorHandle;
  * shared shapes (review §9) — `PxPlaybackOverrideProps`, `PxControlProps` and
  * `PxAnimatorCallbacks` — so React, Vue and React Native cannot drift apart. Only what differs
  * on this platform is declared here: `fallback`, which has no web counterpart.
+ * @public
  */
 export interface PixodeskSvgAnimatorProps
     extends PxPlaybackOverrideProps, PxControlProps, PxAnimatorCallbacks {
@@ -286,6 +288,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
  * played back natively: a single reanimated progress value driven by
  * `withTiming`/`withRepeat` on the UI thread, with per-element worklets
  * indexing the precompiled tracks. No JS-thread frame loop.
+ * @public
  */
 export function PixodeskSvgAnimator({
     doc, timeline, resetTimeline, duration, delay, iterations, startOn,

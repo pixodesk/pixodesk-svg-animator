@@ -18,6 +18,7 @@ import { COLOR_ATTR_NAMES, composeTransformParts, kebabToCamelCaseWord, toRGBA, 
  * `feImage`, SMIL `<animate>` family, `<a>` hyperlinks, …) is allowed. URL
  * sanitization in `sanitizeAttributeValue` blocks `javascript:` / external
  * refs on `href` / `src` / `mask` / `marker*`.
+ * @internal
  */
 export const DISALLOWED_SVG_TAGS_LOWER = new Set([
     'script',
@@ -64,7 +65,8 @@ const IMAGE_REF_ATTRS_LOWER = new Set(['href', 'xlink:href', 'src']);
 
 /** CSS-only properties that are NOT SVG presentation attributes — the browser
  *  ignores them via `setAttribute`, so they must be applied through `element.style`.
- *  Keyed camelCase to match the normalized prop names (`element.style.mixBlendMode`). */
+ *  Keyed camelCase to match the normalized prop names (`element.style.mixBlendMode`). * @internal
+ */
 export const CSS_ONLY_STYLE_PROPS = new Set<string>(['mixBlendMode', 'isolation']);
 
 /** Matches `data:image/{png|jpeg|jpg|gif|webp|bmp};base64,<payload>`.
@@ -126,6 +128,7 @@ function isDangerousAttrName(nameLower: string): boolean {
  *      `image/svg+xml` (sandboxed by the browser when used as an image
  *      source). Blocks `javascript:` and external URLs.
  * Everything else passes through.
+ * @internal
  */
 export function sanitizeAttributeValue(name: string, value: any): any | undefined {
     const nameLower = name.toLowerCase();
@@ -159,6 +162,7 @@ export function sanitizeAttributeValue(name: string, value: any): any | undefine
     return value;
 }
 
+/** @public @advanced */
 export function getNormalizedProps(props: Record<string, any>) {
     const propsCopy: Record<string, any> = {};
 

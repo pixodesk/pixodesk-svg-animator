@@ -139,6 +139,7 @@ export { PX_ANIMATOR_DOC_KEY } from '../shared/PxAnimatorKeys';
  * four shortcuts) and the callbacks are core's shared shapes — the SAME names, inline, as the
  * React, Vue and React Native components take (review §9) — so only what is web-specific is
  * declared here.
+ * @public
  */
 export interface PxAnimatorOptions extends PxPlaybackOverrideProps, PxAnimatorCallbacks {
     /** URL to fetch the animation document from. Provide either this or `doc`, not both. */
@@ -157,6 +158,7 @@ export interface PxAnimatorOptions extends PxPlaybackOverrideProps, PxAnimatorCa
  * `createAnimator`'s signature says `PxAnimatorOptions` on purpose — a page has a DOM to write
  * to, so for anyone else the option would only be a way to hold the player wrong. Exported as a
  * type so those packages can name it; never documented as an option.
+ * @internal
  */
 export interface PxInternalAnimatorOptions extends PxAnimatorOptions {
     /** A custom render target for the frame-loop engine (`PxPlatformAdapter`). */
@@ -184,6 +186,7 @@ export function resolveTimelineOption(options: PxAnimatorOptions): PxAnimatorCon
  * @param options.doc The animation document, inline.
  * @param options.container CSS selector or element to render the SVG into.
  * @returns A PxAnimatorAPI instance to programmatically control the animation.
+ * @public
  */
 export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
 
@@ -285,6 +288,7 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
 /**
  * Everything `createAnimator` takes except the three the tag supplies (`src`, `container`) or
  * forbids (`data`): callbacks, the diagnostics channel, a playback override and its shortcuts.
+ * @public
  */
 export type PxTagAnimatorOptions = Omit<PxAnimatorOptions, 'src' | 'doc' | 'container'>;
 
@@ -295,6 +299,7 @@ export type PxTagAnimatorOptions = Omit<PxAnimatorOptions, 'src' | 'doc' | 'cont
  *
  * `options` applies to EVERY player this call creates (review §15) — the same callbacks, the
  * same override. Omit it for the zero-config path.
+ * @public
  */
 export function loadTagAnimators(options?: PxTagAnimatorOptions) {
     const elements = document.querySelectorAll('[' + PX_ANIM_SRC_ATTR_NAME + ']');

@@ -220,7 +220,7 @@ function flatten(node: VmNode, parent: Mat, t: number, idMap: Map<string, VmNode
 //  PUBLIC: sample times + visual model + comparison
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Every keyframe `time` found anywhere in the tree, plus 0. */
+/** Every keyframe `time` found anywhere in the tree, plus 0. @internal */
 export function collectSampleTimes(node: VmNode, into: Set<number>): void {
     into.add(0);
     const scanAnim = (anim: any) => {
@@ -237,7 +237,7 @@ export function collectSampleTimes(node: VmNode, into: Set<number>): void {
     node.children?.forEach(c => collectSampleTimes(c, into));
 }
 
-/** Sorted, painted-primitive multiset for the tree at time `t`. */
+/** Sorted, painted-primitive multiset for the tree at time `t`. @internal */
 export function visualModelAt(root: VmNode, t: number): Array<string> {
     const idMap = new Map<string, VmNode>();
     buildIdMap(root, idMap);
@@ -255,6 +255,7 @@ export interface EffectDiff {
 /**
  * Compares two trees "in effect" across all keyframe instants found in either.
  * Returns one entry per time where the painted-primitive multisets differ.
+ * @internal
  */
 export function diffInEffect(a: VmNode, b: VmNode): Array<EffectDiff> {
     const times = new Set<number>();

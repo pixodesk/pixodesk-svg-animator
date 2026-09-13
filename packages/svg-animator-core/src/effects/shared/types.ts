@@ -18,7 +18,7 @@ import type { PxGlyphFont, PxNode } from '../../format/PxAnimatorTypes';
 import type { PxTimelineEngine } from '../../format/PxAnimatorConstants';
 
 
-/** Collected diagnostics + new <defs> nodes accumulated during a run. */
+/** Collected diagnostics + new <defs> nodes accumulated during a run. @internal */
 export interface ApplyResult {
     root: PxNode;
     defs: Array<PxNode>;

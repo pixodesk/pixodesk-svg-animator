@@ -212,6 +212,7 @@ export interface PxWebApiScrollTimeline {
     rangeEnd?: Record<string, unknown>;
 }
 
+/** @internal */
 export function createWebApiAnimator(
     doc: PxAnimatedSvgDocument,
     callbacks?: PxEngineCallbacks,

@@ -22,8 +22,10 @@ type Pt = [number, number];
 
 interface Cubic { P0: Pt; P1: Pt; P2: Pt; P3: Pt; lut: ArcLengthLUT; len: number; }
 
+/** @internal */
 export interface PathPoint { x: number; y: number; angle: number; }
 
+/** @internal */
 export interface PathSampler {
     totalLength: number;
     /** True when the path loops back on itself (explicit `Z` or coincident ends) —
@@ -141,6 +143,7 @@ function clamp(v: number, lo: number, hi: number): number {
     return v < lo ? lo : v > hi ? hi : v;
 }
 
+/** @internal */
 export function createPathSampler(d: string): PathSampler | null {
     const segs = parseCubics(d);
     if (!segs) return null;

@@ -22,6 +22,7 @@ const DROPPED_ATTRS = new Set(['class', 'className', 'style', 'xmlns', 'xmlns:xl
  *
  * Pure (no react-native-svg import) so the track compiler and its tests
  * don't need a React Native environment.
+ * @internal
  */
 export function toRnPropName(attrName: string): string | undefined {
     if (DROPPED_ATTRS.has(attrName)) return undefined;

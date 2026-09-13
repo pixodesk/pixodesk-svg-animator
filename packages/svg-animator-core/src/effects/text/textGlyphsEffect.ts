@@ -50,7 +50,8 @@ const TEXT_ATTR_KEYS: ReadonlyArray<string> = [
 ];
 
 /** Inputs for a glyph materialization, decoupled from the effects `ApplyContext`
- *  so the editor can call the materializer directly. */
+ *  so the editor can call the materializer directly. * @internal
+ */
 export interface GlyphMaterializeOpts<E = any> {
     /** Embedded glyph fonts, keyed by `font-family`. */
     glyphs: Record<string, PxGlyphFont>;
@@ -199,6 +200,7 @@ const MISSING_GLYPH_ADVANCE_EM = 0.6;
  * own. The editor uses it to fade them in with a delay: a freshly typed character is
  * missing for a few frames until its glyph is fetched asynchronously, and a □ that flashes
  * for that long reads as a rendering glitch.
+ * @internal
  */
 export const MISSING_GLYPH_CLASS_NAME = 'px-missing-glyph';
 
@@ -226,6 +228,7 @@ function missingGlyphBoxEm(advanceEm: number, ascentEm: number): string {
 
 // ── HORIZONTAL ──────────────────────────────────────────────────────────────
 
+/** @internal */
 export function materializeGlyphTextHorizontal<E = any>(node: PxNode, opts: GlyphMaterializeOpts<E>): E {
     const { glyphs, create = jsonElementFactory as PxCreateElement<E>, warnings } = opts;
     const soleFont = soleFontOf(glyphs);
@@ -298,7 +301,8 @@ export function materializeGlyphTextHorizontal<E = any>(node: PxNode, opts: Glyp
 
 
 /** Per-CHARACTER advance box (local, pre-transform coords). `x,y` = the char's baseline start,
- *  `width` = its advance, `ascent`/`fontSize` size its bbox. */
+ *  `width` = its advance, `ascent`/`fontSize` size its bbox. * @internal
+ */
 export interface GlyphCharBox {
     x: number; y: number; width: number; ascent: number; fontSize: number;
     /** Along-path only: baseline END point (leading edge of the next char). Absent for
@@ -310,7 +314,8 @@ export interface GlyphCharBox {
 
 /** Optional along-path geometry for {@link layoutGlyphTextChars}: when given, chars are
  *  placed + rotated along `pathD` (mirrors {@link materializeGlyphTextAlongPath}) at the
- *  STATIC / frame-0 startOffset, so the editor caret follows the path. */
+ *  STATIC / frame-0 startOffset, so the editor caret follows the path. * @internal
+ */
 export interface GlyphCharBoxAlongPath { pathD?: string; startOffset?: PxAnimatable<number>; textLength?: PxAnimatable<number>; pathOverflow?: string; }
 
 /** Per-character layout boxes for a glyph text, in reading/DOM order INCLUDING spaces
@@ -321,7 +326,8 @@ export interface GlyphCharBoxAlongPath { pathD?: string; startOffset?: PxAnimata
  *  (same x/y/dx/dy, spacing and text-anchor). When `opts.alongPath` is given, mirrors
  *  `materializeGlyphTextAlongPath` (each char placed + rotated to the path tangent). So
  *  an editor caret built from these lands on the rendered glyphs. Empty for a text with
- *  no glyph font / unparsable path. */
+ *  no glyph font / unparsable path. * @internal
+ */
 export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterializeOpts, 'glyphs' | 'warnings'> & { alongPath?: GlyphCharBoxAlongPath }): Array<GlyphCharBox> {
     if (opts.alongPath?.pathD) return layoutGlyphTextCharsAlongPath(node, opts.alongPath.pathD, opts);
     const { glyphs, warnings } = opts;
@@ -539,6 +545,7 @@ function alongPathNodeOffsets(node: PxNode): { along: number; perp: number } {
     };
 }
 
+/** @internal */
 export function materializeGlyphTextAlongPath<E = any>(
     node: PxNode,
     pathD: string | undefined,
@@ -799,7 +806,8 @@ function toGroup<E>(node: PxNode, children: Array<E>, create: PxCreateElement<E>
 // ── editor-facing convenience + pipeline adapters ──────────────────────────────
 
 /** Single entry the EDITOR calls: materializes a glyph `<text>` node into the
- *  factory's element type, choosing along-path when `alongPath` is given. */
+ *  factory's element type, choosing along-path when `alongPath` is given. * @internal
+ */
 export function materializeGlyphText<E = any>(
     node: PxNode,
     opts: GlyphMaterializeOpts<E> & { alongPath?: { pathD?: string; startOffset?: PxAnimatable<number>; textLength?: PxAnimatable<number>; pathOverflow?: string } },

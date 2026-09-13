@@ -33,7 +33,7 @@ import type { PxAnimatedSvgDocument, PxAnimatorConfig, PxBinding, PxDefs, PxNode
 // also the only form that composes (`PxTimelineEngineExtra` spreads `PxTimelineEngine`)
 // and that survives erasable-syntax / type-stripping builds.
 
-/** WAAPI `fill` — which values apply outside the active period. */
+/** WAAPI `fill` — which values apply outside the active period. @public */
 export const PxFillMode = {
     forwards:  'forwards',
     backwards: 'backwards',
@@ -43,7 +43,7 @@ export const PxFillMode = {
 
 export type PxFillMode = typeof PxFillMode[keyof typeof PxFillMode];
 
-/** WAAPI `direction` — which way each iteration runs. */
+/** WAAPI `direction` — which way each iteration runs. @public */
 export const PxPlaybackDirection = {
     normal:            'normal',
     reverse:           'reverse',
@@ -54,11 +54,13 @@ export const PxPlaybackDirection = {
 export type PxPlaybackDirection = typeof PxPlaybackDirection[keyof typeof PxPlaybackDirection];
 
 
+/** @internal */
 export const PX_ANIM_SRC_ATTR_NAME = 'data-px-animation-src';
 
+/** @internal */
 export const PX_ANIM_ATTR_NAME = '_px_animator';
 
-/** `trigger.startOn` — what starts the animation. `programmatic` waits for `play()`. */
+/** `trigger.startOn` — what starts the animation. `programmatic` waits for `play()`. @public */
 export const PxStartOn = {
     load:           'load',
     mouseOver:      'mouseOver',
@@ -69,7 +71,7 @@ export const PxStartOn = {
 
 export type PxStartOn = typeof PxStartOn[keyof typeof PxStartOn];
 
-/** `trigger.outAction` — what happens when the trigger condition stops holding. */
+/** `trigger.outAction` — what happens when the trigger condition stops holding. @public */
 export const PxOutAction = {
     continue: 'continue',
     pause:    'pause',
@@ -79,7 +81,7 @@ export const PxOutAction = {
 
 export type PxOutAction = typeof PxOutAction[keyof typeof PxOutAction];
 
-/** `trigger.finishAction` — what happens after a NATURAL finish. */
+/** `trigger.finishAction` — what happens after a NATURAL finish. @public */
 export const PxFinishAction = {
     hold:  'hold',
     reset: 'reset',
@@ -88,7 +90,8 @@ export const PxFinishAction = {
 export type PxFinishAction = typeof PxFinishAction[keyof typeof PxFinishAction];
 
 /** `scroll.kind` — which scroll-driven timeline member this is: the subject's journey
- *  through the scrollport (`view`), or the scroll container's own offset (`scroll`). */
+ *  through the scrollport (`view`), or the scroll container's own offset (`scroll`). * @public
+ */
 export const PxScrollKind = {
     view:   'view',
     scroll: 'scroll',
@@ -96,7 +99,7 @@ export const PxScrollKind = {
 
 export type PxScrollKind = typeof PxScrollKind[keyof typeof PxScrollKind];
 
-/** `timeline.axis` — which axis of the scroll container drives progress. */
+/** `timeline.axis` — which axis of the scroll container drives progress. @public */
 export const PxScrollAxis = {
     block:  'block',
     inline: 'inline',
@@ -106,7 +109,7 @@ export const PxScrollAxis = {
 
 export type PxScrollAxis = typeof PxScrollAxis[keyof typeof PxScrollAxis];
 
-/** `timeline.source` (`scroll` kind) — which scroll container is measured. */
+/** `timeline.source` (`scroll` kind) — which scroll container is measured. @public */
 export const PxScrollSource = {
     nearest: 'nearest',
     root:    'root',
@@ -114,7 +117,7 @@ export const PxScrollSource = {
 
 export type PxScrollSource = typeof PxScrollSource[keyof typeof PxScrollSource];
 
-/** `timeline.pin.align` — where the pinned canvas is held in the scrollport. */
+/** `timeline.pin.align` — where the pinned canvas is held in the scrollport. @public */
 export const PxPinAlign = {
     top:    'top',
     center: 'center',
@@ -124,7 +127,8 @@ export const PxPinAlign = {
 export type PxPinAlign = typeof PxPinAlign[keyof typeof PxPinAlign];
 
 /** The subject's journey phases across the scrollport (see scroll-timeline.design.md §4
- *  for the exact `u`-space intervals each phase maps to). */
+ *  for the exact `u`-space intervals each phase maps to). * @public
+ */
 export const PxScrollPhase = {
     cover:         'cover',
     contain:       'contain',
@@ -136,7 +140,7 @@ export const PxScrollPhase = {
 
 export type PxScrollPhase = typeof PxScrollPhase[keyof typeof PxScrollPhase];
 
-/** `alongPathMode` — how a value is sampled along a motion path. */
+/** `alongPathMode` — how a value is sampled along a motion path. @public */
 export const PxAlongPathMode = {
     sampled:    'sampled',
     offsetPath: 'offsetPath',
@@ -180,6 +184,7 @@ export const PX_FLAT_RUNTIME_VIEW_KEYS: ReadonlyArray<string> = [
  *
  * This is the CORE set. Code that always knows which engine is running takes this (e.g.
  * `getNormalizedBindings`'s `engine` arg gates motion-along-path materialization).
+ * @public
  */
 export const PxTimelineEngine = {
     native: 'native',
@@ -195,6 +200,7 @@ export type PxTimelineEngine = typeof PxTimelineEngine[keyof typeof PxTimelineEn
  *
  * Built by ADDING to the core set rather than subtracting from a wider one, so the two cannot
  * drift: every engine is automatically an accepted value, and `auto` is visibly the one extra.
+ * @public
  */
 export const PxTimelineEngineExtra = {
     ...PxTimelineEngine,
@@ -206,19 +212,21 @@ export type PxTimelineEngineExtra = typeof PxTimelineEngineExtra[keyof typeof Px
 /** What a requested engine resolves to BEFORE the runtime probes support: `js` pins the frame
  *  loop, anything else starts at `native`. NOTE this is only the STARTING point — `auto` still
  *  falls back to `js` per document when the platform API declines an attribute, which happens at
- *  bind time (see `PxAnimatorBind`), not here. */
+ *  bind time (see `PxAnimatorBind`), not here. * @public @advanced
+ */
 export function resolveTimelineEngine(engine: PxTimelineEngineExtra | undefined): PxTimelineEngine {
     return engine === PxTimelineEngineExtra.js ? PxTimelineEngine.js : PxTimelineEngine.native;
 }
 
-/** `native` is a demand, not a preference: no JS fallback when the platform API declines an attribute. */
+/** `native` is a demand, not a preference: no JS fallback when the platform API declines an attribute. @public @advanced */
 export function isNativeForced(engine: PxTimelineEngineExtra | undefined): boolean {
     return engine === PxTimelineEngineExtra.native;
 }
 
 /** May the browser's ScrollTimeline/ViewTimeline drive a scroll/view timeline?
  *  `auto` tries it first (falling back to the player's own measurement), `native`
- *  asks for it, `js` never uses it. */
+ *  asks for it, `js` never uses it. * @public @advanced
+ */
 export function mayUseNativeScrollTimeline(engine: PxTimelineEngineExtra | undefined): boolean {
     return engine !== PxTimelineEngineExtra.js;
 }
@@ -230,6 +238,7 @@ export function mayUseNativeScrollTimeline(engine: PxTimelineEngineExtra | undef
  *   - `startOn` 'load' — a document is designed to play
  *   - `outAction` 'continue' — leaving the trigger does not interrupt playback
  *   - `scrollIntoViewThreshold` 0 — any visible pixel counts
+ * @public @advanced
  */
 export const PX_TRIGGER_DEFAULTS = {
     startOn: 'load',
@@ -237,7 +246,7 @@ export const PX_TRIGGER_DEFAULTS = {
     scrollIntoViewThreshold: 0,
 } as const;
 
-/** A trigger with every default filled in. */
+/** A trigger with every default filled in. @public @advanced */
 export interface PxResolvedTrigger {
     readonly startOn: NonNullable<PxTrigger['startOn']>;
     readonly outAction: NonNullable<PxTrigger['outAction']>;
@@ -254,7 +263,8 @@ export interface PxResolvedTrigger {
 // WARNING TEXT only; each component keeps its own `console.warn` wiring.
 
 /** Which props drive playback. `apiRef` is deliberately NOT a mode: the handle is filled in
- *  every mode, so passing it alone leaves the document's own trigger in charge. */
+ *  every mode, so passing it alone leaves the document's own trigger in charge. * @public
+ */
 export const PxControlMode = {
     /** No control props — the document's trigger decides, and nothing is taken over. */
     static:    'static',
@@ -272,6 +282,7 @@ export type PxControlMode = typeof PxControlMode[keyof typeof PxControlMode];
  * The control props every framework component takes. `resolveControlMode` reads only WHICH
  * are set; the components read the values. ONE definition (review §9) — React and React
  * Native extend it, so the hover text below is what their users see.
+ * @public
  */
 export interface PxControlProps {
     /**
@@ -291,7 +302,8 @@ export interface PxControlProps {
 }
 
 /** The chosen mode plus any conflict warnings — ready-made sentences, so three components
- *  cannot word the same conflict three ways. */
+ *  cannot word the same conflict three ways. * @public
+ */
 export interface PxResolvedControlMode {
     readonly mode: PxControlMode;
     readonly warnings: ReadonlyArray<string>;
@@ -311,6 +323,7 @@ export interface PxResolvedControlMode {
  *
  * A warning is produced only when props from two different tiers are set together — the
  * lower tier is then ignored, and silence about that is what made this hard to debug.
+ * @public
  */
 export function resolveControlMode(props: PxControlProps): PxResolvedControlMode {
     const hasFixedTime = props.progress !== undefined || props.time !== undefined;
@@ -341,13 +354,15 @@ export function resolveControlMode(props: PxControlProps): PxResolvedControlMode
  * Every mode except `autoplay` — INCLUDING `static`. A component given no control props at all
  * must not start on its own: `<PixodeskSvgAnimator doc={…} />` renders the first frame and waits.
  * `autoplay` is the one mode that says "let the document's trigger decide".
+ * @public
  */
 export function controlModeTakesOverTrigger(mode: PxControlMode): boolean {
     return mode !== PxControlMode.autoplay;
 }
 
 /** A document's trigger with the defaults filled in. (`finishAction` is not a start/stop decision:
- *  it reaches the engines as the runtime view's `resetOnFinish`.) */
+ *  it reaches the engines as the runtime view's `resetOnFinish`.) * @public @advanced
+ */
 export function resolveTrigger(trigger: PxTrigger | undefined): PxResolvedTrigger {
     return {
         startOn: trigger?.startOn ?? PX_TRIGGER_DEFAULTS.startOn,
@@ -363,7 +378,8 @@ export function resolveTrigger(trigger: PxTrigger | undefined): PxResolvedTrigge
 
 /** `loop.repeatAt` — WHICH END of the keyframe sequence the repeated segment is taken
  *  from, and therefore which side of the timeline the repetition fills. A named
- *  two-way selector (not a boolean) so a third value stays possible. */
+ *  two-way selector (not a boolean) so a third value stays possible. * @public
+ */
 export const PxLoopRepeatAt = {
     /** Segment from the START; the repetition runs BEFORE the first keyframe
      *  (intro loops that play until the main timeline begins). */
@@ -376,7 +392,8 @@ export const PxLoopRepeatAt = {
 export type PxLoopRepeatAt = typeof PxLoopRepeatAt[keyof typeof PxLoopRepeatAt];
 
 /** `loop.direction` — how successive repetitions play, spelled like the timeline's
- *  own `direction` so the two read as one idea. */
+ *  own `direction` so the two read as one idea. * @public
+ */
 export const PxLoopDirection = {
     /** DEFAULT — cycle: every repetition replays the segment the same way round. */
     normal: 'normal',
@@ -386,7 +403,7 @@ export const PxLoopDirection = {
 
 export type PxLoopDirection = typeof PxLoopDirection[keyof typeof PxLoopDirection];
 
-/** SVG `mask-type` — how the mask source's pixels become alpha. */
+/** SVG `mask-type` — how the mask source's pixels become alpha. @public */
 export const PxMaskType = {
     luminance: 'luminance',
     alpha:     'alpha',
@@ -394,7 +411,7 @@ export const PxMaskType = {
 
 export type PxMaskType = typeof PxMaskType[keyof typeof PxMaskType];
 
-/** SVG coordinate system for `maskUnits` / `maskContentUnits` (and the gradient twin below). */
+/** SVG coordinate system for `maskUnits` / `maskContentUnits` (and the gradient twin below). @public */
 export const PxUnits = {
     userSpaceOnUse:    'userSpaceOnUse',
     objectBoundingBox: 'objectBoundingBox',
@@ -410,7 +427,8 @@ export type PxUnits = typeof PxUnits[keyof typeof PxUnits];
  *  (Was `clone.type: 'content'`; the wire is subtractive because the mechanism is a
  *  ladder — the `<use>` can only point at one wrapper layer of the source.)
  *  Old doc line:
- *  `content` excludes the target's own translate (see `contentRefSplit`). */
+ *  `content` excludes the target's own translate (see `contentRefSplit`). * @public
+ */
 export const PxCloneWithout = {
     translate: 'translate',
     // transform: 'transform',   // future: drop rotate/scale too (content only)
@@ -419,7 +437,8 @@ export const PxCloneWithout = {
 export type PxCloneWithout = typeof PxCloneWithout[keyof typeof PxCloneWithout];
 
 /** `textPath.pathOverflow` — glyphs past the path end: hide them, or keep laying
- *  them along the tangent extension. */
+ *  them along the tangent extension. * @public
+ */
 export const PxPathOverflow = {
     clip:   'clip',
     extend: 'extend',
@@ -427,7 +446,7 @@ export const PxPathOverflow = {
 
 export type PxPathOverflow = typeof PxPathOverflow[keyof typeof PxPathOverflow];
 
-/** SVG `lengthAdjust` — what `textLength` stretches. */
+/** SVG `lengthAdjust` — what `textLength` stretches. @public */
 export const PxLengthAdjust = {
     spacing:          'spacing',
     spacingAndGlyphs: 'spacingAndGlyphs',
@@ -435,7 +454,7 @@ export const PxLengthAdjust = {
 
 export type PxLengthAdjust = typeof PxLengthAdjust[keyof typeof PxLengthAdjust];
 
-/** SVG `<textPath method>` — how glyphs follow curvature. */
+/** SVG `<textPath method>` — how glyphs follow curvature. @public */
 export const PxTextPathMethod = {
     align:   'align',
     stretch: 'stretch',
@@ -443,7 +462,7 @@ export const PxTextPathMethod = {
 
 export type PxTextPathMethod = typeof PxTextPathMethod[keyof typeof PxTextPathMethod];
 
-/** SVG `<textPath spacing>` — whether the renderer may adjust spacing. */
+/** SVG `<textPath spacing>` — whether the renderer may adjust spacing. @public */
 export const PxTextPathSpacing = {
     auto:  'auto',
     exact: 'exact',
@@ -454,7 +473,8 @@ export type PxTextPathSpacing = typeof PxTextPathSpacing[keyof typeof PxTextPath
 /** `strokeTrim.subPaths` — what the 0..1 `range`/`offset` window is measured over.
  *  `separate` (default): each sub-path against its OWN length, all trimmed alike.
  *  `combined`: every descendant sub-path chained end-to-end into one virtual path,
- *  so the window slides across siblings (AE "Trim All As One"). */
+ *  so the window slides across siblings (AE "Trim All As One"). * @public
+ */
 export const PxStrokeTrimSubPaths = {
     separate: 'separate',
     combined: 'combined',
@@ -466,6 +486,7 @@ export type PxStrokeTrimSubPaths = typeof PxStrokeTrimSubPaths[keyof typeof PxSt
 // S8: `textContent` is the ONE text-content key (the DOM property name). `text` is not a wire
 // key: it was triply overloaded (the `text` tag, the `effects.text` group, and a content alias)
 // and no reader accepts it.
+/** @internal */
 export const TEXT_CONTENT_ATTR = 'textContent';
 
 /** The DOM `class` attribute. A name we EMIT but do not own, so it is written through this
@@ -490,6 +511,7 @@ export const OFFSET_DISTANCE_ATTR = 'offsetDistance';
 // document carrying an effect key the pipeline does not recognize, would otherwise leave
 // the object behind and the renderer would write `effects="[object Object]"` with no error
 // anywhere. Listing it makes the invariant structural (J4).
+/** @internal */
 export const INTERNAL_ATTRS = new Set([
     'type', 'children', 'animator', 'meta', 'animate', 'effects', TEXT_CONTENT_ATTR
 ]);
@@ -513,11 +535,12 @@ export const TRANSFORM_PART = {
     origin: 'origin',
 } as const;
 
+/** @public */
 export const PX_TRANSFORM_PART_KEYS = [
     TRANSFORM_PART.translate, TRANSFORM_PART.rotate, TRANSFORM_PART.scale, TRANSFORM_PART.origin,
 ] as const;
 
-/** One of the transform-part key strings. */
+/** One of the transform-part key strings. @public */
 export type PxTransformPartKey = typeof PX_TRANSFORM_PART_KEYS[number];
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -543,7 +566,8 @@ export type PxTransformPartKey = typeof PX_TRANSFORM_PART_KEYS[number];
  *  collected here so call sites use named constants instead of bare literals.
  *
  *  `gradientUnits` has NO enum of its own: it takes the same two values as every other
- *  units slot, so it reuses {@link PxUnits} (review §2.7 — one name per value set). */
+ *  units slot, so it reuses {@link PxUnits} (review §2.7 — one name per value set). * @public
+ */
 export const PxGradientSpreadMethod = {
     pad:     'pad',
     reflect: 'reflect',
@@ -552,6 +576,7 @@ export const PxGradientSpreadMethod = {
 
 export type PxGradientSpreadMethod = typeof PxGradientSpreadMethod[keyof typeof PxGradientSpreadMethod];
 
+/** @public */
 export const PxGradientType = {
     linear: 'linear',
     radial: 'radial',
@@ -563,6 +588,7 @@ export type PxGradientType = typeof PxGradientType[keyof typeof PxGradientType];
 // HELPER FUNCTIONS
 // ============================================================================
 
+/** @public @advanced */
 export function isPxElementFileFormat(fileJson: any): fileJson is PxAnimatedSvgDocument {
     if (!(
         fileJson &&
@@ -589,6 +615,7 @@ export function isPxElementFileFormat(fileJson: any): fileJson is PxAnimatedSvgD
  *
  * The `animation` / `meta.animation` spellings were removed 2026-08: nothing wrote
  * them and they were never in the schema.
+ * @public @advanced
  */
 export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorConfig | undefined {
     const cfg = doc?.animator || doc?.meta?.animator;
@@ -636,6 +663,7 @@ const flattenMemo = new WeakMap<object, PxAnimatorConfig>();
 /**
  * Folds `cfg.timeline` (the wire spelling) into the flat runtime-view fields the engines
  * consume. Returns `cfg` unchanged when there is nothing to fold. Never mutates input.
+ * @public @advanced
  */
 export function flattenAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
     const timeline: any = (cfg as any).timeline;
@@ -705,6 +733,7 @@ function scrollKindOrDefault(kind: unknown): 'view' | 'scroll' {
  * one discriminated `timeline` object; the legacy flat keys are removed from the output.
  * Returns a new object (input untouched); a config already carrying `timeline` passes
  * through unchanged; a pure-shared config (duration/mode/… only) gets no `timeline` at all.
+ * @public @advanced
  */
 export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
     if (!cfg || (cfg as any).timeline !== undefined) return cfg;
@@ -760,18 +789,20 @@ export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
 }
 
 
+/** @public @advanced */
 export function getDefs(doc: PxAnimatedSvgDocument): PxDefs | undefined {
     if (!doc) return undefined;
     return getAnimatorConfig(doc)?.definitions;
 }
 
-/** The bind-by-id document's `animator.bindings`, as written — `target` keeps its `#`. */
+/** The bind-by-id document's `animator.bindings`, as written — `target` keeps its `#`. @public @advanced */
 export function getBindings(doc: PxAnimatedSvgDocument): PxBinding[] | undefined {
     if (!doc) return undefined;
     return getAnimatorConfig(doc)?.bindings;
 }
 
 
+/** @public @advanced */
 export function getChildren(doc: PxAnimatedSvgDocument): PxNode[] | undefined {
     return doc?.children;
 }

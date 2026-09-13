@@ -17,7 +17,7 @@
 
 import { parseWireVersion, WireStepKind, type WireVersionStep } from './PxWireVersion';
 
-/** One entry of the release log — what shipped, when, and what it changed. */
+/** One entry of the release log — what shipped, when, and what it changed. @internal */
 export interface SchemaReleaseRecord {
     readonly version: string;
     /** ISO date, `YYYY-MM-DD`. */
@@ -29,7 +29,7 @@ export interface SchemaReleaseRecord {
     readonly note?: string;
 }
 
-/** Keys that appeared and keys that left between two inventories, each sorted. */
+/** Keys that appeared and keys that left between two inventories, each sorted. @internal */
 export function diffFieldUniverse(
     previous: ReadonlyArray<string>, current: ReadonlyArray<string>,
 ): { added: Array<string>; removed: Array<string> } {
@@ -41,7 +41,7 @@ export function diffFieldUniverse(
     };
 }
 
-/** What a release must do about the version. `refuse` set means: do not release as-is. */
+/** What a release must do about the version. `refuse` set means: do not release as-is. @internal */
 export interface SchemaReleasePlan {
     /** Did any key appear or leave since the last release? */
     readonly changed: boolean;
@@ -55,6 +55,7 @@ export interface SchemaReleasePlan {
 /**
  * THE BUMP RULE. A key change requires `b + 1` and a step that explains it; no key change
  * requires nothing. The rule never picks the number by taste — the inventory diff does.
+ * @internal
  */
 export function planSchemaRelease(p: {
     readonly added: ReadonlyArray<string>;
@@ -106,6 +107,7 @@ export function planSchemaRelease(p: {
  * Everything wrong with the release log, as sentences — empty when it is consistent. The log
  * must start at the baseline, move strictly forward, END at the version the source declares,
  * and every release after the baseline must have the step that explains it.
+ * @internal
  */
 export function releaseLogProblems(
     releases: ReadonlyArray<SchemaReleaseRecord>, steps: ReadonlyArray<WireVersionStep>,

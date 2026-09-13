@@ -19,6 +19,7 @@ import type { PxBezierPath, PxTransformParts } from '../format/PxAnimatorTypes';
  *   IDENTICAL command sequences, so an opportunistic `L` in one keyframe vs a `C` in the
  *   next (e.g. a round-corner radius animating from 0) turns the whole animation
  *   DISCRETE — it flips at 50% instead of morphing.
+ * @internal
  */
 export function bezierToSvgPath(path: PxBezierPath, forceCurves = false): string {
     const v = path.v;
@@ -114,6 +115,7 @@ export function interpolateColor(a: Array<number>, b: Array<number>, t: number):
  * @param paths1 The starting array of paths.
  * @param paths2 The ending array of paths.
  * @param progress The interpolation progress from 0.0 to 1.0.
+ * @internal
  */
 export function interpolateBeziers(
     paths1: Array<PxBezierPath>,
@@ -237,6 +239,7 @@ export function solveCubicBezierX(p1x: number, p2x: number, x: number): number {
  * Creates a cubic-bezier easing function.
  * @param easing An array of four numbers [x1, y1, x2, y2] defining the bezier curve.
  * @returns A function that takes a progress value (0-1) and returns an eased value.
+ * @internal
  */
 export function cubicBezier(easing: [number, number, number, number]) {
     const [p1x, p1y, p2x, p2y] = easing;
@@ -261,6 +264,7 @@ function lerp2(a: Point2, b: Point2, t: number): Point2 {
 /**
  * Splits a cubic bezier curve at parameter t using De Casteljau's algorithm.
  * Returns the left and right sub-curves as 4-point tuples.
+ * @internal
  */
 export function subdivideCubicBezier(
     p0: Point2, p1: Point2, p2: Point2, p3: Point2, t: number
@@ -283,6 +287,7 @@ type Easing = [number, number, number, number];
  * Splits a CSS cubic-bezier easing [x1,y1,x2,y2] at a given x-axis fraction.
  * Each half is re-normalized to map [0,0]→[1,1].
  * Returns undefined for either half if the input is undefined (linear) or the split is degenerate.
+ * @internal
  */
 export function splitEasing(
     easing: Easing | undefined,
@@ -330,6 +335,7 @@ export function splitEasing(
 /**
  * Reverses a cubic-bezier easing for backward playback.
  * [x1,y1,x2,y2] → [1-x2, 1-y2, 1-x1, 1-y1].
+ * @internal
  */
 export function reverseEasing(easing: Easing | undefined): Easing | undefined {
     if (!easing) return undefined;
@@ -339,6 +345,7 @@ export function reverseEasing(easing: Easing | undefined): Easing | undefined {
 /**
  * Converts a color from a [r, g, b, a] array (where values are 0-1) to an rgba() or rgb() CSS string.
  * @param color The color array.
+ * @internal
  */
 export function toRGBA(color: Array<number>): string {
     const r = Math.round(color[0] * 255);
@@ -397,8 +404,11 @@ export function parseColor(s: any): number[] | undefined {
     return undefined;
 }
 
+/** @internal */
 export const COLOR_ATTR_NAMES = new Set(["color", "fill", "flood-color", "lighting-color", "stop-color", "stroke"]);
+/** @internal */
 export const TRANSFORM_FN_NAMES = new Set(["translate", "rotate", "scale", "skew"]);
+/** @internal */
 export const PCT_BASED_ATTR_NAMES = new Set(["offset-distance", "offsetDistance"]);
 
 /**
@@ -415,6 +425,7 @@ export const PCT_BASED_ATTR_NAMES = new Set(["offset-distance", "offsetDistance"
  * @param opts.withUnits  when true (default), translates use `px` and rotate
  *   uses `deg` — required for CSS / WebAnimations keyframes. When false, no
  *   units are emitted — required for the SVG `transform` attribute.
+ * @internal
  */
 export function composeTransformParts(
     parts: PxTransformParts | null | undefined,
@@ -448,6 +459,7 @@ export function composeTransformParts(
  * sequence with at most one `translate`, `rotate`, `skewX`, `scale` in the canonical
  * order. Anything else — `matrix(…)`, repeated functions, the ±origin translate
  * sandwich, three-arg `rotate(a cx cy)` — returns `undefined` (caller skips the merge).
+ * @internal
  */
 export function parseTransformParts(str: string | null | undefined): PxTransformParts | undefined {
     if (!str || typeof str !== 'string') return undefined;
@@ -482,12 +494,15 @@ export function parseTransformParts(str: string | null | undefined): PxTransform
     return Object.keys(out).length ? out : undefined;
 }
 
+/** @internal */
 export const STYLE_ATTR_NAMES = new Set(["offset-distance", "offsetDistance"]); // Props that need to go to style
+/** @internal */
 export const DEFAULT_DURATION_MS = 1000;
 
 /**
  * Converts a kebab-case string to camelCase.
  * @param kebab The kebab-case string.
+ * @internal
  */
 export function kebabToCamelCaseWord(kebab: string): string {
     return kebab.includes('-') ? kebab.replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()) : kebab;
@@ -565,6 +580,7 @@ const SVG_CAMEL_CASE_ATTRS = new Set([
 /**
  * Converts a camelCase string to kebab-case.
  * @param camel The camelCase string.
+ * @internal
  */
 export function camelCaseToKebabWordIfNeeded(camel: string): string { // FIXME - docs, rename function?
     return SVG_CAMEL_CASE_ATTRS.has(camel) ?
@@ -593,6 +609,7 @@ export function hasStyleProp(
  * @param value The number to clamp.
  * @param min The minimum value.
  * @param max The maximum value.
+ * @internal
  */
 export function clamp(value: number, min: number, max: number): number {
     return Math.max(min, Math.min(value, max));

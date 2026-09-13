@@ -25,9 +25,10 @@ import { PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS } from '../format/P
 import type { PxStartOn } from '../format/PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxAnimatorConfig } from '../format/PxAnimatorTypes';
 
-/** A deep-partial of the WIRE animator config; `null` at any slot deletes it. */
+/** A deep-partial of the WIRE animator config; `null` at any slot deletes it. @public */
 export type PxAnimatorConfigPatch = Record<string, any> | null;
 
+/** @public */
 export interface PxAnimatorConfigMergeResult {
     /** The merged WIRE config, or `undefined` when there is nothing left of it. */
     config: PxAnimatorConfig | undefined;
@@ -115,10 +116,10 @@ function mergeTimeline(base: unknown, patch: Record<string, any>, warn: (m: stri
     return merged;
 }
 
-/** A deep-partial of the WIRE `timeline` block; `null` at any slot deletes it. */
+/** A deep-partial of the WIRE `timeline` block; `null` at any slot deletes it. @public */
 export type PxTimelinePatch = Record<string, any> | null;
 
-/** The four flat shortcuts every surface offers for the keys people reach for most. */
+/** The four flat shortcuts every surface offers for the keys people reach for most. @public */
 export interface PxAnimatorConfigShortcuts {
     /** Shortcut for `timeline.duration` — one iteration, ms. Wins over the same key in `timeline`. */
     duration?: number;
@@ -139,6 +140,7 @@ export interface PxAnimatorConfigShortcuts {
  *
  * ONE definition (review §9): React and React Native extend it, Vue derives its internal shape
  * from it, `createAnimator`'s options extend it.
+ * @public
  */
 export interface PxPlaybackOverrideProps extends PxAnimatorConfigShortcuts {
     /**
@@ -166,6 +168,7 @@ export interface PxPlaybackOverrideProps extends PxAnimatorConfigShortcuts {
  *
  * A shortcut WINS over the same key inside the object: more specific beats more general, the
  * way an inline style beats a stylesheet. One implementation so every surface agrees.
+ * @public
  */
 export function foldTimelineOverride(
     timeline: PxTimelinePatch | string | undefined,
@@ -202,6 +205,7 @@ export function foldTimelineOverride(
  * Merge a patch over an animator config. PURE — neither argument is mutated, and the result is
  * always a NEW object, which also matters because `flattenAnimatorTimeline` memoises on config
  * identity: mutating in place would hand every later reader the pre-merge view.
+ * @public
  */
 export function mergeAnimatorConfig(
     base: PxAnimatorConfig | undefined,
@@ -246,6 +250,7 @@ export function mergeAnimatorConfig(
  * settings — "play this file as if it said nothing about timing". The lookup tables are kept
  * either way: resetting `definitions`/`bindings` would leave an animation with nothing to
  * animate, which is never what a caller means.
+ * @public
  */
 export function applyAnimatorConfig(
     doc: PxAnimatedSvgDocument,

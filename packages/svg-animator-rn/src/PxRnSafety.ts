@@ -57,6 +57,7 @@ function forEachNode(node: PxNode | undefined, visit: (n: PxNode, parent?: PxNod
  * has zero length and nothing changes visually at all.
  *
  * Returns the document unchanged — the same object — when nothing matches.
+ * @internal
  */
 export function openClosedTextPathTargets(doc: PxNode, warnings?: Array<string>): PxNode {
     // Cheap pre-check: the overwhelming majority of documents have no textPath.

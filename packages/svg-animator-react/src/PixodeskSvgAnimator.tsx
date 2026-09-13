@@ -21,6 +21,7 @@ const REACT_PROP = { key: 'key', ref: 'ref', className: 'className', style: 'sty
  * The imperative handle `apiRef` is filled with — core's `PxAnimatorHandle` under this package's
  * name (review §9). One definition for React, Vue and React Native: the three used to declare
  * the same methods separately, and their comments had already begun to drift.
+ * @public
  */
 export type ReactAnimatorApi = PxAnimatorHandle;
 
@@ -52,6 +53,7 @@ export interface PixodeskSvgAnimatorImplProps {
  * The six lifecycle callbacks — a subset of {@link PixodeskSvgAnimatorProps}, derived from core's
  * `PxAnimatorCallbacks` (review §9). Kept under its own name because the inner component indexes
  * it with `keyof` and invokes every member, which the diagnostics members would not allow.
+ * @public
  */
 export type PixodeskSvgAnimatorCallbacks =
     Pick<PxAnimatorCallbacks, 'onPlay' | 'onStop' | 'onPause' | 'onCancel' | 'onFinish' | 'onRemove'>;
@@ -61,6 +63,7 @@ export type PixodeskSvgAnimatorCallbacks =
  * core's shared shapes (review §9) — `PxPlaybackOverrideProps`, `PxControlProps` and
  * `PxAnimatorCallbacks` — so React, Vue and React Native cannot drift apart. Only what is
  * React-specific is declared here.
+ * @public
  */
 export interface PixodeskSvgAnimatorProps extends PxPlaybackOverrideProps, PxControlProps, PxAnimatorCallbacks {
 
@@ -263,6 +266,7 @@ const PixodeskSvgAnimatorImplOnce = React.memo(
  *    <PixodeskSvgAnimator doc={animation} progress={0.5} />
  *    <PixodeskSvgAnimator doc={animation} time={500} />
  *    ```
+ * @public
  */
 const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     className, style,

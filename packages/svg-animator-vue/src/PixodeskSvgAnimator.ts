@@ -19,6 +19,7 @@ const VUE_PROP = { ref: 'ref' } as const;
 /**
  * The imperative handle the template ref exposes — core's `PxAnimatorHandle` under this
  * package's name (review §9). One definition for React, Vue and React Native.
+ * @public
  */
 export type VueAnimatorApi = PxAnimatorHandle;
 
@@ -161,6 +162,7 @@ function calcSeekMs(doc: PxAnimatedSvgDocument, props: DocOverrideProps): number
  *    <PixodeskSvgAnimator :doc="animation" :progress="0.5" />
  *    <PixodeskSvgAnimator :doc="animation" :time="500" />
  *    ```
+ * @public
  */
 const PixodeskSvgAnimator = defineComponent({
     name: 'PixodeskSvgAnimator',

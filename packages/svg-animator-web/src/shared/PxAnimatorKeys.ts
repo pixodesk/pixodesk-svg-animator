@@ -21,6 +21,7 @@
  * Key under which `createAnimator` options carry the inline animation document. The editor
  * writes it into every exported SVG+JS — `createAnimator({"doc": …})` — so it is part of the
  * export format, which is why it is a named constant and not a literal.
+ * @internal
  */
 export const PX_ANIMATOR_DOC_KEY = 'doc';
 

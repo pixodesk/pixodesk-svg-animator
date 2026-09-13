@@ -13,7 +13,7 @@ import { clamp, DEFAULT_DURATION_MS } from '../util/PxAnimatorUtil';
 import type { PxAnimatorConfig, PxScroll, PxScrollPhase, PxScrollRangePoint } from '../format/PxAnimatorTypes';
 
 
-/** Is this document scroll-driven? (`animator.timelineSource === 'scroll'`) */
+/** Is this document scroll-driven? (`animator.timelineSource === 'scroll'`) @internal */
 export function isScrollTimeline(config: PxAnimatorConfig | undefined): boolean {
     return config?.timelineSource === 'scroll';
 }
@@ -22,6 +22,7 @@ export function isScrollTimeline(config: PxAnimatorConfig | undefined): boolean 
  * The seek-space length (ms) a scroll progress of 1 maps to: duration × finite
  * iterations. `'infinite'` is meaningless on a finite progress timeline (see design doc
  * D4) — treated as 1 with the read-side warning left to the consumer.
+ * @internal
  */
 export function scrollTotalDurationMs(config: PxAnimatorConfig | undefined): number {
     const duration = (typeof config?.duration === 'number' && config.duration > 0)
@@ -40,6 +41,7 @@ export function scrollTotalDurationMs(config: PxAnimatorConfig | undefined): num
  * The `min`/`max` pairs make every formula valid BOTH for a subject smaller than the
  * scrollport and one larger than it (where "fully visible" flips to "covers the
  * scrollport") — the same case split CSS specifies for its named timeline ranges.
+ * @internal
  */
 export function scrollPhaseInterval(
     phase: PxScrollPhase, subjectSize: number, scrollportSize: number
@@ -78,6 +80,7 @@ function resolveRangePointU(
  *
  * A degenerate/inverted range (uStart ≥ uEnd — e.g. zero-size subject with an `entry`
  * range) reports 1 once the point is passed, 0 before — never NaN.
+ * @internal
  */
 export function scrollViewProgress(
     subjectStart: number, subjectSize: number, scrollportSize: number,
@@ -96,6 +99,7 @@ export function scrollViewProgress(
  *
  * `maxOffset === 0` (nothing to scroll) reports 1, matching the CSS spec's rule that a
  * zero-length timeline is at 100%.
+ * @internal
  */
 export function scrollOffsetProgress(
     offset: number, maxOffset: number,
@@ -112,6 +116,7 @@ export function scrollOffsetProgress(
  * Resolve a logical axis to a physical one. `block`/`inline` are writing-mode relative:
  * in horizontal writing (`horizontal-tb`, the default) block flows vertically; in
  * vertical writing modes it flows horizontally.
+ * @internal
  */
 export function scrollResolveAxis(
     axis: PxScroll['axis'] | undefined, writingMode: string | undefined

@@ -63,6 +63,7 @@ import type { ComponentType } from 'react';
  *
  * Keys are the wire-format `node.type` values, which follow SVG's own casing
  * (`clipPath`, `feGaussianBlur`, `linearGradient`, …).
+ * @internal
  */
 export const RN_SVG_COMPONENTS: Record<string, ComponentType<any>> = {
     // Root & containers

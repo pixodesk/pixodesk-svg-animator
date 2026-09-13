@@ -42,10 +42,11 @@
  * a key this build does not declare is a key some other build wrote, which is the signal a
  * reader turns into "written for a newer schema — update your player/editor". Callers match on
  * this constant rather than on a copy of the sentence.
+ * @internal
  */
 export const PX_UNKNOWN_KEY_ERROR = 'unexpected extra key';
 
-/** Collects structured validation feedback. Pass to isValid() as the second argument. */
+/** Collects structured validation feedback. Pass to isValid() as the second argument. @public @advanced */
 export interface PxValidationContext {
     /** Per-field errors — each entry is "<dot.path>: <reason>". */
     errors: Array<string>;
@@ -65,6 +66,7 @@ export interface PxValidationContext {
     strict?: boolean;
 }
 
+/** @public @advanced */
 export interface PxSchema<T, IsOptional extends boolean = false> {
     /** Phantom discriminator — `false` for required schemas, `true` for optional. Used by InferShape. */
     readonly _optional: IsOptional;
@@ -83,7 +85,7 @@ export interface PxSchema<T, IsOptional extends boolean = false> {
     optional(): PxSchema<T | undefined, true>;
 }
 
-/** Extract the TypeScript type from a schema. */
+/** Extract the TypeScript type from a schema. @public @advanced */
 export type PxInfer<S> = S extends PxSchema<infer T, any> ? T : never;
 
 /**
@@ -94,6 +96,7 @@ export type PxInfer<S> = S extends PxSchema<infer T, any> ? T : never;
  * type Strict = RemoveIndex<PxAnimatedSvgDocument>;
  * Strict['animator']   // PxAnimatorConfig | undefined  ✓
  * Strict['anything']   // compile error  ✓
+ * @public @advanced
  */
 export type RemoveIndex<T> = {
     [K in keyof T as string extends K ? never : number extends K ? never : K]: T[K]
@@ -784,6 +787,7 @@ export function implementsInterface<T>() {
  * ```ts
  * const _ck: KeysMatch<PxFoo, _PxFoo> = true;
  * ```
+ * @public @advanced
  */
 export type KeysMatch<A, B> =
     [Exclude<keyof A, keyof B>] extends [never]
@@ -795,6 +799,7 @@ export type KeysMatch<A, B> =
  * Each value is typed as the literal key name, so `schemaKeys(PxFooSchema).bar`
  * is typed as `'bar'` — use in @serializable calls to get a compile-time error
  * if the field is renamed in the schema.
+ * @public @advanced
  */
 export function schemaKeys<S extends { readonly _shape: Record<string, any> }>(schema: S) {
     return Object.fromEntries(
@@ -822,6 +827,7 @@ export function schemaKeys<S extends { readonly _shape: Record<string, any> }>(s
  * - `record`            — `px.record`; `value` is the schema every entry's value must match
  * - `tuple`             — `px.tuple`; `items` are the positional element schemas
  * - `leaf`              — primitive, literal, enum, any — no traversable children
+ * @public @advanced
  */
 export type PxSchemaDesc =
     | { kind: 'shape';    shape: Record<string, PxSchema<any, any>>; openValue?: PxSchema<any, any> }
@@ -834,6 +840,7 @@ export type PxSchemaDesc =
     | { kind: 'tuple';    items: ReadonlyArray<PxSchema<any, any>> }
     | { kind: 'leaf' };
 
+/** @public @advanced */
 export function describeSchema(schema: PxSchema<any, any>): PxSchemaDesc {
     const s = schema as any;
     // `_kind` is set only by the classes that are otherwise indistinguishable by
@@ -858,6 +865,7 @@ export function describeSchema(schema: PxSchema<any, any>): PxSchemaDesc {
 // Public factory
 // ─────────────────────────────────────────────────────────────────────────────
 
+/** @public @advanced */
 export const px = {
     /** Matches a string. Default: '' or provided value. */
     string:  (defaultVal = ''): PxSchema<string>     => new Str(defaultVal),

@@ -12,6 +12,7 @@
  * The signature intentionally mirrors the editor's `createPxElement(type,
  * props, children, fixReactKeysIfNeeded?)` so the editor's own factory drops in
  * unchanged.
+ * @internal
  */
 export type PxCreateElement<E = any> = (
     type: string,
@@ -25,6 +26,7 @@ export type PxCreateElement<E = any> = (
  * Default factory → a plain wire node `{ type, ...props, children? }`.
  * Drops `undefined` props and empty `children` so output matches the shape the
  * effects pipeline (and `JSON.stringify`) expects.
+ * @internal
  */
 export const jsonElementFactory: PxCreateElement<any> = (type, props, children) => {
     const node: { [k: string]: any } = { type };

@@ -27,6 +27,7 @@ function cancelFrame(handle: number): void {
 
 /**
  * Platform adapter interface for abstracting platform-specific operations.
+ * @public
  */
 export interface PxPlatformAdapter {
 
@@ -44,6 +45,7 @@ export interface PxPlatformAdapter {
  * @param adapter Platform adapter for DOM/environment operations.
  * @param callbacks Optional lifecycle callbacks.
  * @returns A PxAnimatorAPI instance.
+ * @public @advanced
  */
 export function createBasicFrameLoopAnimator(
     doc: PxAnimatedSvgDocument,

@@ -11,6 +11,7 @@ import type { PxAnimatedSvgDocument } from '../format/PxAnimatorTypes';
  * Format: _px_{random base36 string}
  */
 let _idCounter = 0;
+/** @internal */
 export function generateUniqueId(): string {
     const timestamp = Date.now().toString(36);
     const counter = (++_idCounter).toString(36);
@@ -21,6 +22,7 @@ export function generateUniqueId(): string {
 /**
  * Deep clones a JSON-like value (objects, arrays, primitives).
  * Does not handle special types like Date, Map, Set, functions, etc.
+ * @internal
  */
 export function deepClone<T>(value: T): T {
     if (value === null || typeof value !== 'object') return value;
@@ -48,6 +50,7 @@ export function deepClone<T>(value: T): T {
  *
  * @param doc - The animated SVG document to process
  * @returns A new document with regenerated IDs
+ * @public @advanced
  */
 export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocument {
     // Deep clone the document

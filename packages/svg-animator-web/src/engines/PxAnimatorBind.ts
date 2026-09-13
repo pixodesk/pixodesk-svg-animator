@@ -156,6 +156,7 @@ export function bindWithEngineChoice(
  * Options accepted by the pre-rendered entry points — a subset of `PxAnimatorOptions`: the
  * document and the callbacks INLINE under the same names every surface uses (review §9). No
  * `adapter`: a pre-rendered SVG is by definition already in the DOM (review §25.14).
+ * @public
  */
 export interface PxPrerenderedOptions extends PxAnimatorCallbacks {
     /**
@@ -194,6 +195,7 @@ function buildOrReport(options: PxPrerenderedOptions, build: () => PxAnimatorAPI
  * Deliberately skips `validateNodeEffects`, `materializeAllInTree`, `generateNewIds` and
  * `renderNode`. Safe because the payload has no `children`, so all four are provably
  * no-ops for this document shape — and none of them reads `animator.bindings`.
+ * @public
  */
 export function createPrerenderedAnimator(options: PxPrerenderedOptions): PxAnimatorAPI {
     const doc = requireDoc(options);
@@ -204,6 +206,7 @@ export function createPrerenderedAnimator(options: PxPrerenderedOptions): PxAnim
  * Pre-rendered entry, WAAPI only — the smallest build. Forces waapi so there is no
  * frames fallback to link against (`createWebApiAnimator` never returns null when
  * forced; it only warns about unsupported attrs).
+ * @public
  */
 export function createPrerenderedWaapiAnimator(options: PxPrerenderedOptions): PxAnimatorAPI {
     const doc = requireDoc(options);

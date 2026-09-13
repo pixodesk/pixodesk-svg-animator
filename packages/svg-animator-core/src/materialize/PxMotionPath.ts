@@ -62,6 +62,7 @@ function getKfEasing(kf: PxAnyKeyframe): Easing | undefined {
  * carries spatial tangents (`tangentIn` / `tangentOut`) and/or the animation
  * has `autoOrient` set. Animation-level helper; works for either the body
  * `transform` slot or a composite per-part `translate` slot.
+ * @internal
  */
 export function propAnimIsMotionPath(anim: PxPropertyAnimation): boolean {
     const kfs: Array<PxAnyKeyframe> | undefined = anim.keyframes;
@@ -135,6 +136,7 @@ export function _resetMotionPathSegmentCache(): void {
 // ─────────────────────────────────────────────────────────────────────────────
 
 
+/** @internal */
 export interface MotionPathSample {
     /** Translate at the current time (motion-path arc-length-parametrised). */
     readonly translate: Point2;
@@ -148,6 +150,7 @@ export interface MotionPathSample {
  * `[0, 1]` and eased. Builds (or reuses cached) Bezier control points
  * `P1 = P0 + tangentOut`, `P2 = P3 + tangentIn`, maps `localProgress` to arc
  * length, then to curve parameter `t` via the arc-length LUT.
+ * @internal
  */
 export function evaluateMotionPathSegment(
     prevKf: PxKeyframe,
@@ -194,7 +197,7 @@ function tFromArcFraction(lut: ArcLengthLUT, arcFrac: number): number {
 // ─────────────────────────────────────────────────────────────────────────────
 
 
-/** Sampling configuration shared by `materializeMotionPathInPropAnim` + `materializeMotionPathsInTree`. */
+/** Sampling configuration shared by `materializeMotionPathInPropAnim` + `materializeMotionPathsInTree`. @internal */
 export interface MotionPathMaterializationOptions {
     /** Max chord-to-curve deviation per sub-interval, in user units (default 0.5). */
     flatnessTolerance?: number;
@@ -223,6 +226,7 @@ const DEFAULT_MAX_SAMPLES  = 32;
  *
  * Returns the input unchanged (by reference) when it's not a motion-path
  * animation — callers can blindly run it through every propAnim.
+ * @internal
  */
 export function materializeMotionPathInPropAnim(
     anim: PxPropertyAnimation,
@@ -689,6 +693,7 @@ function perpDist(q: Point2, pA: Point2, pB: Point2): number {
 // ─────────────────────────────────────────────────────────────────────────────
 
 
+/** @internal */
 export function materializeMotionPathsInTree(
     root: PxNode,
     opts?: MotionPathMaterializationOptions,
