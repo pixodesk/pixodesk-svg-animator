@@ -209,35 +209,29 @@ describe("PixodeskSvgAnimator (React)", () => {
             warn.mockRestore();
         });
 
-        it("silent suppresses the console fallback", () => {
+        it("muteWarn switches the console fallback off", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
-            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay silent />);
+            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay muteWarn />);
 
             expect(warn).not.toHaveBeenCalled();
             warn.mockRestore();
         });
 
-        it("silent accepts a list of kinds, quieting only those", () => {
+        it("muteError does not touch warnings — the two switches are independent", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
-            // The control-mode conflict is a `usage` diagnostic, so listing it quiets this...
-            const { unmount } = render(
-                <PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay silent={["usage"]} />);
-            expect(warn).not.toHaveBeenCalled();
-            unmount();
-
-            // ...while silencing an unrelated kind leaves it audible.
-            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay silent={["platform"]} />);
+            // The control-mode conflict is a WARNING; muting errors leaves it audible.
+            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay muteError />);
             expect(warn).toHaveBeenCalled();
             warn.mockRestore();
         });
 
-        it("silent is not a mute button — onWarn still fires", () => {
+        it("muteWarn is about the console, not about you — onWarn still fires", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
             const onWarn = vi.fn();
 
-            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay silent onWarn={onWarn} />);
+            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay muteWarn onWarn={onWarn} />);
 
             expect(onWarn).toHaveBeenCalled();
             expect(warn).not.toHaveBeenCalled();

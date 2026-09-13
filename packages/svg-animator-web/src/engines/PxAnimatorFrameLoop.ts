@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { camelCaseToKebabWordIfNeeded, createBasicFrameLoopAnimator, createDiagnostics, getAnimatorConfig, isScrollTimeline, PxDiagnosticKind, STYLE_ATTR_NAMES, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxDiagnostics, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { camelCaseToKebabWordIfNeeded, createBasicFrameLoopAnimator, createDiagnostics, getAnimatorConfig, isScrollTimeline, PxDiagnosticKind, STYLE_ATTR_NAMES, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxDiagnostics, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
 import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
 
@@ -28,14 +28,14 @@ export function getSelector(id: string) {
  * Creates an animator instance that uses a requestAnimationFrame loop for animations.
  * This is the browser DOM-specific version.
  *
- * @param {PxAnimatorCallbacksConfig=} callbacks Optional lifecycle callbacks.
+ * @param {PxEngineCallbacks=} callbacks Optional lifecycle callbacks.
  * @param {Element=} rootElement Optional pre-rendered root element.
  * @returns {PxAnimatorAPI} A PxAnimatorAPI instance.
  */
 export function createFrameLoopAnimator(
     doc: PxAnimatedSvgDocument,
     adapter?: PxPlatformAdapter,
-    callbacks?: PxAnimatorCallbacksConfig,
+    callbacks?: PxEngineCallbacks,
     rootElement?: Element | null
 ): PxAnimatorAPI {
 

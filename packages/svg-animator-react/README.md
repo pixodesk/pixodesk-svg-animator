@@ -107,9 +107,10 @@ const [time, setTime] = useState(0);
 | `onCancel` | `() => void` | Called on cancel |
 | `onRemove` | `() => void` | Called when the animation is destroyed (e.g. unmount) |
 | `onStop` | `() => void` | Called whenever playback halts (pause / cancel / finish / remove) |
-| `onWarn` | `(diagnostic) => void` | something is off but the animation still plays; without it → `console.warn` |
-| `onError` | `(diagnostic) => void` | the animation could not be produced at all; without it → `console.error` |
-| `silent` | `boolean \| PxDiagnosticKind[]` | silences the console fallback — everything, or just the kinds listed; `onWarn` / `onError` still fire |
+| `onWarn` | `(diagnostic) => void` | it plays, but something was ignored, degraded or misspelled; without it → `console.warn` |
+| `onError` | `(diagnostic) => void` | this instance will not play — failed to load, parse or build, or the render threw; without it → `console.error` |
+| `muteWarn` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarn`, if you gave it, still fires: mute is about the console, not about you |
+| `muteError` | `boolean` | the same switch for `console.error` |
 | `className` | `string` | CSS class applied to the rendered root `<svg>` |
 | `style` | `CSSProperties` | Inline styles applied to the rendered root `<svg>` |
 

@@ -110,8 +110,7 @@ animator.play();
 | `src` | `string` | URL of the JSON document. Provide **either** `src` **or** `doc` |
 | `doc` | `PxAnimatedSvgDocument` | the document object |
 | `container` | `string \| Element` | CSS selector or element the SVG is rendered into |
-| `onPlay` · `onPause` · `onCancel` · `onFinish` · `onRemove` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take; plus `onWarn`, `onError`, `silent` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onPlay,onPause,onCancel,onFinish,onRemove,onStop,onWarn,onError,silent -->
-| `adapter` | `PxPlatformAdapter` | advanced — a custom attribute writer for the frame loop (this is how the React and Vue packages route updates through their own DOM refs) |
+| `onPlay` · `onPause` · `onCancel` · `onFinish` · `onRemove` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take; plus `onWarn`, `onError`, `muteWarn`, `muteError` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onPlay,onPause,onCancel,onFinish,onRemove,onStop,onWarn,onError,muteWarn,muteError -->
 | **Playback overrides** | | *(all optional — see below)* |
 | `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
 | `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
@@ -189,16 +188,19 @@ Pass `onPlay`, `onFinish` and friends — inline, next to `doc` — to be told w
 destroyed — for example to reveal the next section of a page once an intro has finished. Every
 lifecycle callback is called with no arguments.
 
-The same options carry the player's diagnostics: `onWarn` for anything survivable, `onError`
-for a document that could not be loaded, parsed or rendered, and `silent` to suppress the console
-fallback those two replace. Give a handler and the console stays out of it; give none and the
-console still speaks, so nothing is lost by default.
+The same options carry the player's diagnostics, two severities with one meaning each: `onWarn`
+— **it plays**, but something was ignored, degraded or misspelled; `onError` — **this instance
+will not play**: the document failed to load, parse or build, or the render threw, and
+`isReady()` stays false. Neither ever throws at you. Give a handler and the console stays out of
+it; give none and the console still speaks, so nothing is lost by default. `muteWarn` /
+`muteError` switch that console fallback off — for when you know the player has something to
+say about this document and are prepared to tolerate it (a handler you passed still fires).
 
 Each one is `{ kind, message, detail?, error? }`, where `kind` says **who can act on it**:
 `document` (repair the file) · `host` (fix the page) · `platform` (the browser could not do it;
 the player degraded) · `usage` (fix the options you passed) · `internal` (report it to us). So
-you can route rather than just log, and `silent: ['platform']` quiets one kind while the rest
-still speak.
+you can route rather than just log — a handler that ignores `platform` and logs the rest is one
+line.
 
 ```html
 <div id="box" style="width: 300px; height: 300px"></div>
@@ -219,7 +221,8 @@ createAnimator({
 
   onWarn:  (d) => {},   // d = { kind, message, detail? }; else console.warn
   onError: (d) => {},   // d = { kind, message, error };   else console.error
-  silent:  false,       // true, or ['platform'] to quiet just that kind
+  muteWarn: false,      // true: no console.warn — you know about the warnings and tolerate them
+  muteError: false,     // true: no console.error
 });
 ```
 

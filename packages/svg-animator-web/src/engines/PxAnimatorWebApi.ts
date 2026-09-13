@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, getAnimatorConfig, getNormalizedBindings, interpolateValue, kebabToCamelCaseWord, PxTimelineEngine, splitEasing, toRGBA, TRANSFORM_FN_NAMES, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAnimatorCallbacksConfig, type PxAnimatorConfig, type PxAnyKeyframe, type PxBezierPath, type PxNormalizedKeyframe, kfEasing, kfValue, clampSeekMs, createDiagnostics, isValidPlaybackRate, progressToTimeMs, PX_RATE_REJECTED, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
+import { PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, getAnimatorConfig, getNormalizedBindings, interpolateValue, kebabToCamelCaseWord, PxTimelineEngine, splitEasing, toRGBA, TRANSFORM_FN_NAMES, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxEngineCallbacks, type PxAnimatorConfig, type PxAnyKeyframe, type PxBezierPath, type PxNormalizedKeyframe, kfEasing, kfValue, clampSeekMs, createDiagnostics, isValidPlaybackRate, progressToTimeMs, PX_RATE_REJECTED, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
 import type { PxAnimatorAPI } from '../shared/PxAnimatorWebTypes';
@@ -214,7 +214,7 @@ export interface PxWebApiScrollTimeline {
 
 export function createWebApiAnimator(
     doc: PxAnimatedSvgDocument,
-    callbacks?: PxAnimatorCallbacksConfig,
+    callbacks?: PxEngineCallbacks,
     rootElement?: Element | null,
     forceEvenIfHasUnsupportedAttrs?: boolean,
     scrollTimeline?: PxWebApiScrollTimeline

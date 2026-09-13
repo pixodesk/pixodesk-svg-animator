@@ -211,15 +211,16 @@ in [Playback & triggers → Overriding from a player](./playback-and-triggers.md
 | `onFinish` | `() => void` | the animation reached its end — it played all its iterations, or `finish()` was called. Does not fire when playback is stopped early |
 | `onRemove` | `() => void` | the animator was thrown away: the component unmounted, or you passed a different `doc` and a new animator was built for it |
 | `onStop` | `() => void` | fires *in addition to* whichever of `onPause`, `onCancel`, `onFinish` or `onRemove` just fired. Use this one callback when you only care that the animation is no longer playing, whatever the reason |
-| `onWarn` | `(diagnostic) => void` | something is off but the animation still plays — an unknown easing, a config key that could not be applied, two control props at once. Without this it goes to `console.warn` |
-| `onError` | `(diagnostic) => void` | the animation could not be produced at all — a document that failed to parse or render. Without this it goes to `console.error` |
-| `silent` | `boolean \| PxDiagnosticKind[]` | silences the console *fallback* above — everything, or just the kinds you list. `onWarn` / `onError` still fire if you gave them — it is not a mute button |
+| `onWarn` | `(diagnostic) => void` | **it plays**, but something was ignored, degraded or misspelled — an unknown easing, an override that could not apply, two control props at once. Without this it goes to `console.warn` |
+| `onError` | `(diagnostic) => void` | **this instance will not play** — the document failed to parse or build, or the render threw: nothing is rendered, `apiRef` stays empty. `diagnostic.error` is the Error. Without this it goes to `console.error` |
+| `muteWarn` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarn`, if you gave it, still fires: mute is about the console, not about you |
+| `muteError` | `boolean` | the same switch for `console.error` |
 
 Each diagnostic is `{ kind, message, detail?, error? }`, where `kind` says **who can act on it**:
 `document` (repair the file) · `host` (fix the page) · `platform` (the browser could not do it;
 the player degraded) · `usage` (fix the props you passed) · `internal` (report it to us). So you
-can route rather than just log — surface `document` problems in a build check, and quiet the
-rest with `silent={['platform']}`.
+can route rather than just log — surface `document` problems in a build check, for instance. Once
+you know what a document has to say and tolerate it, `muteWarn` keeps it out of the console.
 
 Passing a different `doc` (or changing `className` / `style` / the control mode) throws the
 old animator away and builds a new one; the old instance emits `onCancel`, `onRemove` and

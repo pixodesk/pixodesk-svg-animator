@@ -33,4 +33,4 @@ export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 // Types are erased at build time — zero bytes.
 export type { PxPrerenderedOptions } from './engines/PxAnimatorBind';
 export type { PxAnimatorAPI, PxBasicAnimatorAPI } from './shared/PxAnimatorWebTypes';
-export type { PxAnimatedSvgDocument, PxAnimatorCallbacksConfig } from '@pixodesk/svg-animator-core';
+export type { PxAnimatedSvgDocument, PxEngineCallbacks } from '@pixodesk/svg-animator-core';

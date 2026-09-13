@@ -95,9 +95,10 @@ Render a single frame — by time in milliseconds, or by fraction of the whole t
 | `delay` | `number` | Shortcut for `timeline.delay` (ms) |
 | `iterations` | `number \| 'infinite'` | Shortcut for `timeline.iterations` |
 | `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | Shortcut for `timeline.trigger.startOn` |
-| `onWarn` | `(diagnostic) => void` | something is off but the animation still plays; without it → `console.warn` (a prop, not an event — see below) |
-| `onError` | `(diagnostic) => void` | the animation could not be produced at all; without it → `console.error` |
-| `silent` | `boolean \| PxDiagnosticKind[]` | silences the console fallback — everything, or just the kinds listed |
+| `onWarn` | `(diagnostic) => void` | it plays, but something was ignored, degraded or misspelled; without it → `console.warn` (a prop, not an event — see below) |
+| `onError` | `(diagnostic) => void` | this instance will not play — failed to load, parse or build, or the render threw; without it → `console.error` |
+| `muteWarn` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarn`, if you gave it, still fires: mute is about the console, not about you |
+| `muteError` | `boolean` | the same switch for `console.error` |
 
 With none of `autoplay` / `play` / `pause` / `progress` / `time` set, the component renders the animation statically (initial state, no playback); use the template ref for imperative control.
 

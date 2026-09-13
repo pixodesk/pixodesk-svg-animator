@@ -103,7 +103,7 @@ const CaseRow = memo(function CaseRow({
                     apiRef={api}
                     // A case that fails is reported in place — the surrounding
                     // list, and the other 117 cases, keep working.
-                    onError={(e: Error) => { setError(e); onError(item.id, e); }}
+                    onError={d => { const e = d.error ?? new Error(d.message); setError(e); onError(item.id, e); }}
                     fallback={() => null}
                 />}
             </View>

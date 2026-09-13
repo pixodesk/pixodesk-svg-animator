@@ -3,9 +3,10 @@
 Every symbol the five packages export, marked by audience — with full signatures
 for the ones you actually use to put an animation in a product. For the file
 format see [SCHEMA.md](./SCHEMA.md); for prose and guides see
-[README.md](./README.md#documentation). Checked against the source on 2026-09-10
+[README.md](./README.md#documentation). Checked against the source on 2026-09-12
 (player schema `1.1`).
 
+<!-- px-check off the ●/○/▪ legend -->
 | | Meaning |
 |---|---|
 | **●** | **User-facing** — the API for playing an animation in your page or app. Documented in full below. |
@@ -16,6 +17,7 @@ Which package: **web** for plain HTML/JS · **react** / **vue** for those
 frameworks · **rn** for React Native 🧪 · **core** only to inspect or transform
 documents yourself. A pre-rendered `.svg` file needs no package at all.
 
+<!-- px-check off quick-start jobs, prose -->
 | Job | Call |
 |---|---|
 | Play a JSON file in a page | `createAnimator({ src, container })` (web) |
@@ -23,7 +25,7 @@ documents yourself. A pre-rendered `.svg` file needs no package at all.
 | Play it in React Native | `<PixodeskSvgAnimator doc={…} />` (rn) |
 | Check a generated document before shipping it | `validateDocument(doc)` |
 | Put one animation on a page twice | `generateNewIds(doc)` for the second copy |
-| Feed a renderer of your own | `materialiseAllInTree(doc, 'native')` (core) |
+| Feed a renderer of your own | `materializeAllInTree(doc, 'native')` (core) |
 
 ## Props and options across players
 
@@ -32,93 +34,118 @@ checked against the others. A cell is **✓** when that surface takes the name a
 spelling when it differs, and is **—** when the surface does not have it. Update this table with
 every prop or option change.
 
+<!-- px-check matrix web=web:PxAnimatorOptions tag=~ prerendered=web:PxPrerenderedOptions react=react:PixodeskSvgAnimatorProps vue=vue:PixodeskSvgAnimator rn=rn:PixodeskSvgAnimatorProps -->
 | Name | Web `createAnimator` | HTML tag (`loadTagAnimators`) | Pre-rendered `createAnimator` | React | Vue | React Native | Notes |
 |---|---|---|---|---|---|---|---|
 | **Document** | | | | | | | |
-| `src` | ✓ URL | `data-px-animation-src` | — | — | — | — | the components take the document itself |
-| `data` | ✓ | — | ✓ required¹ | — | — | — | |
-| `doc` | — | — | — | ✓ required | ✓ required | ✓ required | the same thing as `data` |
+| `src` | ✓ URL | `data-px-animation-src` | — | — | — | — | a URL to fetch the document from; the components take the document itself |
+| `doc` | ✓ | — | ✓ required¹ | ✓ required | ✓ required | ✓ required | the document, inline — one name on every surface. On the web it also crosses the mangling boundary as a string key: the editor writes `createAnimator({"doc": …})` into every exported SVG+JS (`PX_ANIMATOR_DOC_KEY`), so the key is part of the export format |
 | `container` | ✓ selector or `Element` | the tagged element | — | — | — | — | omitted: animate an SVG already in the page |
-| `adapter` | ✓ ○ | — | ✓ ○ | — | — | — | |
 | **Playback override** | | | | | | | |
-| `config` | ✓ object or JSON string | — | — | ✓ | ✓ | ✓ | React Native ignores `timeline.engine` |
-| `resetDocDefaults` | ✓ | — | — | ✓ | ✓ | ✓ | |
+| `timeline` | ✓ object or JSON string | — | — | ✓ | ✓ | ✓ | React Native ignores `timeline.engine` |
+| `resetTimeline` | ✓ | — | — | ✓ | ✓ | ✓ | |
 | `duration` | ✓ | — | — | ✓ | ✓ | ✓ | |
 | `delay` | ✓ | — | — | ✓ | ✓ | ✓ | |
 | `iterations` | ✓ | — | — | ✓ | ✓ | ✓ | |
-| `startOn` | ✓ 5 values | — | — | ✓ 4 values | ✓ 5 values | ✓ 4 values | `'programmatic'` on web and Vue only; React Native ignores `'mouseOver'` |
-| **Control** | | | | | | | |
-| `autoplay` | — | — | — | ✓ | ✓ | ✓ | web and the HTML tag always follow the document's trigger |
-| `play` | — | — | — | ✓ | ✓ | ✓ | `false` jumps to the end |
-| `pause` | — | — | — | ✓ | ✓ | ✓ | |
-| `progress` | — | — | — | ✓ | ✓ | ✓ | |
-| `time` | — | — | — | ✓ | ✓ | ✓ | |
-| `apiRef` | the returned `PxAnimatorAPI` | `element._px_animator` | the returned `PxAnimatorAPI` | ✓ — picks the imperative mode | template ref (`VueAnimatorApi`) | ✓ — mode unchanged | the imperative handle |
+| `startOn` | ✓ 5 values | — | — | ✓ 5 values | ✓ 5 values | ✓ 5 values | every player surface takes `PxStartOn` (all 5); React Native ignores `'mouseOver'` |
+| **Autoplay control** — the document's own trigger | | | | | | | |
+| `autoplay` | — | — | — | ✓ | ✓ | ✓ | the web player and the HTML tag are always in this mode: they follow the document's trigger |
+| **Declarative control** — your state drives it | | | | | | | |
+| `play` | — | — | — | ✓ | ✓ | ✓ | `false` holds where it is (it used to jump to the end — review §8) |
+| `pause` | — | — | — | ✓ | ✓ | ✓ | hold the current frame; `false` again resumes |
+| `progress` | — | — | — | ✓ | ✓ | ✓ | show the frame at 0–1 of the whole run — of ONE iteration when `iterations` is `'infinite'` |
+| `time` | — | — | — | ✓ | ✓ | ✓ | show the frame at this ms from the start of the whole run |
+| **Imperative control** — you call it | | | | | | | |
+| `apiRef` | the returned `PxAnimatorAPI` | `element._px_animator` | the returned `PxAnimatorAPI` | ✓ — mode unchanged | template ref (`VueAnimatorApi`) | ✓ — mode unchanged | the imperative handle; never picks a mode on any surface | <!-- px web=~ tag=~ prerendered=~ vue=~ -->
 | **Callbacks** | | | | | | | |
-| `callbacks` | ✓ object | — | ✓ object | — | — | — | holds the web forms of the rows below |
-| `onPlay` | `callbacks.onPlay` | — | `callbacks.onPlay` | ✓ | `@play` | ✓ | |
-| `onPause` | `callbacks.onPause` | — | `callbacks.onPause` | ✓ | `@pause` | ✓ | |
-| `onCancel` | `callbacks.onCancel` | — | `callbacks.onCancel` | ✓ | `@cancel` | ✓ | |
-| `onFinish` | `callbacks.onFinish` | — | `callbacks.onFinish` | ✓ | `@finish` | ✓ | |
-| `onRemove` | `callbacks.onRemove` | — | `callbacks.onRemove` | ✓ | `@remove` | — | |
-| `onStop` | — | — | — | ✓ | `@stop` | ✓ | after any of pause / cancel / finish / remove |
-| `onError` | — | — | — | — | — | ✓ | web reports failures with `console.error` only |
-| `fallback` | — | — | — | — | — | ✓ | |
+| `onPlay` | ✓ | — | ✓ | ✓ | `@play` | ✓ | |
+| `onPause` | ✓ | — | ✓ | ✓ | `@pause` | ✓ | |
+| `onCancel` | ✓ | — | ✓ | ✓ | `@cancel` | ✓ | |
+| `onFinish` | ✓ | — | ✓ | ✓ | `@finish` | ✓ | |
+| `onRemove` | ✓ | — | ✓ | ✓ | `@remove` | ✓ | the animator was thrown away: `destroy()`, unmount, or a new `doc` |
+| `onStop` | ✓ | — | ✓ | ✓ | `@stop` | ✓ | after any of pause / cancel / finish / remove |
+| `onError` | ✓ | — | ✓ | ✓ | ✓ | ✓ | THIS INSTANCE WILL NOT PLAY — the document failed to load, parse or build, or the render threw: nothing rendered, `isReady()` false, `fallback` shown. Falls back to `console.error` |
+| `onWarn` | ✓ | — | ✓ | ✓ | ✓ | ✓ | IT PLAYS, but something was ignored, degraded or misspelled. Falls back to `console.warn` |
+| `muteWarn` | ✓ | — | ✓ | ✓ | ✓ | ✓ | switch the `console.warn` fallback off — for a host that knows the player has something to say about this document and tolerates it. A handler you passed still fires: mute is about the console, not about you |
+| `muteError` | ✓ | — | ✓ | ✓ | ✓ | ✓ | the same switch for the `console.error` fallback |
+| `fallback` | — | — | — | — | — | ✓ | renders in place of the animation after a failure |
 | **Styling** | | | | | | | |
-| `className` | — | — | — | ✓ on the root `<svg>` | `class`, falls through to the root `<svg>` | — | web: style the container |
-| `style` | — | — | — | ✓ on the root `<svg>` | `style`, falls through to the root `<svg>` | — | |
+| `className` | — | — | — | ✓ on the root `<svg>` | `class`, falls through to the root `<svg>` | — | web: style the container | <!-- px vue=~ -->
+| `style` | — | — | — | ✓ on the root `<svg>` | `style`, falls through to the root `<svg>` | — | | <!-- px vue=~ -->
 
-¹ Only `animator.definitions` and `animator.animateById` — the SVG is already in the page.
+¹ Only `animator.definitions` and `animator.bindings` — the SVG is already in the page.
+
+On the components the three control groups are ONE choice: the highest-priority group that is set
+wins — `progress` / `time` → `play` / `pause` → `autoplay` — and a losing group warns (review
+§7). `apiRef` stands outside that choice: filled in every mode, never picking one.
+
+Callbacks are ONE shape everywhere — the names above, inline: `createAnimator({ onFinish })` on the
+web, props on React and React Native. Vue takes the lifecycle ones as events (`@play`) and the
+diagnostics ones (`onWarn` / `onError` / `muteWarn` / `muteError`) as props — props rather than events because an
+event handler always exists, which would have silenced the console fallback for anyone who never
+subscribed. `PxAnimatorCallbacks` in core is that one shape.
 
 The two pre-rendered SVG + CSS wrappers, which toggle class names instead of creating a player:
 
+<!-- px-check matrix react=react:PixodeskSvgCssAnimator vue=vue:PixodeskSvgCssAnimator -->
 | Name | React `PixodeskSvgCssAnimator` | Vue `PixodeskSvgCssAnimator` |
 |---|---|---|
-| the SVG | `children` | default slot |
-| `startOn` | ✓ 4 values, default `'load'` | ✓ 4 values, default `'load'` |
+| the SVG | `children` | default slot | <!-- px name=children vue=~ -->
+| `startOn` | `PxStartOn`, default `'load'` — implements 4; `'programmatic'` does nothing (no `play()` here) | ✓ same |
 | `outAction` | ✓ default `'continue'`; `'reverse'` acts as `'continue'` | ✓ same |
-| `className` | ✓ on the wrapper div | `class`, on the wrapper div |
-| `style` | ✓ on the wrapper div | ✓ on the wrapper div |
+| `scrollIntoViewThreshold` | ✓ 0–1 of the SVG that must be visible before `'scrollIntoView'` starts; default 0, the wire default (review §13) | ✓ same |
+| `className` | ✓ on the wrapper div | `class`, on the wrapper div | <!-- px vue=~ -->
+| `style` | ✓ on the wrapper div | ✓ on the wrapper div | <!-- px vue=~ -->
 
 ## @pixodesk/svg-animator-web — the browser player
 
+<!-- px-check signature pkg=web -->
 ```typescript
-// ● Create a player. Provide exactly one of `src` / `data` — both, or neither, throws.
+// ● Create a player. Provide exactly one of `src` / `doc` — both, or neither, throws.
 //   With `src`, control calls made before the fetch resolves are queued and replayed
-//   in order, so `createAnimator({ src }).play()` works as written. A failed fetch or
-//   an invalid document is reported with `console.error` only; `isReady()` stays false.
+//   in order, so `createAnimator({ src }).play()` works as written. A failed fetch or an
+//   invalid document reaches `onError` — and `console.error` when no handler is
+//   given (review §5); `isReady()` stays false either way.
 function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI;
 
 interface PxAnimatorOptions {
     src?: string;                          // URL to fetch the JSON document from
-    data?: PxAnimatedSvgDocument;          // …or the document inline (see SCHEMA.md)
+    doc?: PxAnimatedSvgDocument;           // …or the document inline (see SCHEMA.md)
     container?: string | Element;          // CSS selector or element to render into (its content is
                                            //   replaced). Omit it to animate an SVG already in the
                                            //   page, found by the document's `id`
-    callbacks?: PxAnimatorCallbacksConfig; // lifecycle callbacks
-    adapter?: PxPlatformAdapter;           // ○ custom render target; omit for the DOM
 
-    // -- Per-instance playback override; the document is never modified -------
-    config?: PxAnimatorConfigPatch | string; // deep-merged over the document's `animator`
+    // -- Callbacks, inline: `PxAnimatorCallbacks`, the names every component takes ---
+    onPlay?: () => void;    onPause?: () => void;    onCancel?: () => void;
+    onFinish?: () => void;  onRemove?: () => void;   onStop?: () => void;   // detailed below
+    onWarn?: (d: PxDiagnostic) => void;    // diagnostics — see the interface below
+    onError?: (d: PxDiagnostic) => void;
+    muteWarn?: boolean;  muteError?: boolean;
+
+    // -- Per-instance playback override: `PxPlaybackOverrideProps`; the document is never modified
+    timeline?: PxTimelinePatch | string;   // deep-merged over the document's `timeline`
                                            //   block — same shape as the file. `null` at a
                                            //   slot DELETES that key. A JSON string is also
                                            //   accepted (survives property mangling).
-    resetDocDefaults?: boolean;            // start from the player's defaults, `config` on top
-    duration?: number;                     // ▸ config.timeline.duration (ms)
-    delay?: number;                        // ▸ config.timeline.delay (ms)
-    iterations?: number | 'infinite';      // ▸ config.timeline.iterations
+    resetTimeline?: boolean;               // start from the player's defaults, `timeline` on top
+    duration?: number;                     // ▸ timeline.duration (ms)
+    delay?: number;                        // ▸ timeline.delay (ms)
+    iterations?: number | 'infinite';      // ▸ timeline.iterations
     startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
-                                           // ▸ config.timeline.trigger.startOn
-                                           //   a shortcut wins over the same key in `config`
+                                           // ▸ timeline.trigger.startOn
+                                           //   a shortcut wins over the same key in `timeline`
 }
 
 // ● Playback control returned by `createAnimator` — core's `PxAnimatorAPI<Element>`.
 interface PxAnimatorAPI extends PxBasicAnimatorAPI {
     finish(): void;                        // jump to the end and hold the final state; fires onFinish
     setPlaybackRate(rate: number): void;   // 1 normal, 2 double, negative plays backwards
-                                           //   (the frame-loop engine ignores 0 and non-finite rates)
+                                           //   every engine rejects 0 and non-finite rates with a
+                                           //   warning — use pause()
     getCurrentTime(): number | null;       // ms from the start of the whole run; null before ready
-    setCurrentTime(time: number): void;    // seek, ms
+    setCurrentTime(time: number): void;    // seek, ms; clamped to [0, duration × iterations]
+    getCurrentProgress(): number | null;   // 0–1 of the whole run; null before ready
+    setCurrentProgress(p: number): void;   // seek, 0–1 of the whole run (clamped)
     destroy(): void;                       // stop, remove the SVG it rendered, fire onRemove
 }
 
@@ -132,32 +159,74 @@ interface PxBasicAnimatorAPI {
     cancel(): void;                        // stop and reset to the first frame
 }
 
-// ● Every callback is optional and takes no arguments.
-interface PxAnimatorCallbacksConfig {
+// ● Every lifecycle callback is optional and takes no arguments. ONE shape on every surface:
+//   `createAnimator` takes these inline, the components as props (Vue: events). One chain,
+//   three levels, each extending the one above (review §26.1): `PxDiagnosticsConfig` (the four
+//   diagnostics fields — what `createDiagnostics` reads) → `PxEngineCallbacks` (+ the lifecycle;
+//   what an engine such as `createBasicFrameLoopAnimator` takes) → `PxAnimatorCallbacks`
+//   (+ `onStop`; what every public surface takes).
+interface PxAnimatorCallbacks {
     onPlay?: () => void;    // started or resumed
     onPause?: () => void;
     onCancel?: () => void;
     onFinish?: () => void;  // reached the end, or finish() was called
     onRemove?: () => void;  // destroy() was called
+    onStop?: () => void;    // after any of pause / cancel / finish / remove
+
+    // Diagnostics — two severities, one meaning each, on every player (review §25.1). Neither
+    // ever throws at the caller. Give a handler and it takes over from the console; give none
+    // and the console is the fallback, so nothing is lost by default.
+    onWarn?: (d: PxDiagnostic) => void;  // IT PLAYS, but something was ignored, degraded or
+                                         //   misspelled; else console.warn
+    onError?: (d: PxDiagnostic) => void; // THIS INSTANCE WILL NOT PLAY: failed to load, parse or
+                                         //   build, or the render threw — nothing rendered,
+                                         //   isReady() false, a component shows its fallback;
+                                         //   d.error is the Error; else console.error
+    muteWarn?: boolean;                  // switch the console.warn fallback off — for a host that
+                                         //   knows the player has something to say about this
+                                         //   document and tolerates it. A handler you passed
+                                         //   still fires: mute is about the console, not you
+    muteError?: boolean;                 // the same switch for console.error
 }
+
+// ● Every diagnostic says WHO can act on it, so a host can route rather than just log.
+interface PxDiagnostic {
+    kind: PxDiagnosticKind;   // 'document' | 'host' | 'platform' | 'usage' | 'internal'
+    message: string;          // never carries the console prefix
+    detail?: unknown;         // the offending binding, the element map, the raw error
+    error?: Error;            // errors only
+}
+
+const PxDiagnosticKind = {
+    document: 'document',   // the file is wrong — regenerate or repair it
+    host:     'host',       // the page/app cannot provide what the file asks — fix the mount
+    platform: 'platform',   // the browser/renderer cannot do it; the player degraded
+    usage:    'usage',      // the options or props you passed are wrong or conflicting
+    internal: 'internal',   // the player failed where it did not expect to — report it
+};
 
 // ● Scan the page for `<div data-px-animation-src="animation.json">` and create one
 //   player per match, rendered into that element and stored on it. Safe to call
-//   repeatedly: elements that already carry a player are skipped. Zero-config — no
-//   callbacks, no override — and nothing calls it for you.
-function loadTagAnimators(): void;
+//   repeatedly: elements that already carry a player are skipped. Nothing calls it for
+//   you. `options` — everything `createAnimator` takes except `src` / `doc` /
+//   `container` — applies to EVERY player this call creates; omit it for zero-config.
+function loadTagAnimators(options?: PxTagAnimatorOptions): void;
 
 // ● Wire a player to a DOM trigger. `createAnimator` already does this from the
-//   document's own `animator.timeline.trigger`. It only ADDS listeners — nothing is
-//   detached — so calling it on an element the player already wired leaves BOTH sets
-//   live. Use it after you have replaced the rendered SVG yourself (the player's
-//   listeners went with the old elements). To change the trigger, use `config`.
-//   Returns the same api, for chaining.
-function setupAnimationTriggers(api: PxAnimatorAPI, config: PxTrigger): PxAnimatorAPI;
+//   document's own `animator.timeline.trigger`, and ties the disposer to `destroy()`.
+//   Use it after you have replaced the rendered SVG yourself (the player's listeners went
+//   with the old elements). To change the trigger, use `timeline`. Returns a DISPOSER that
+//   detaches everything this call attached (review §14) — call it before re-arming an
+//   element you wired by hand, or the old listeners stay live next to the new ones.
+//   Reads `startOn` / `outAction` / `scrollIntoViewThreshold`; `finishAction` is the
+//   player's, not the trigger wiring's.
+function setupAnimationTriggers(api: PxAnimatorAPI, config: PxTrigger,
+                                diag?: PxDiagnostics): () => void;
+//   `diag` is optional: omit it and anything this has to say goes to the console.
 
 interface PxTrigger {                                  // ● also a wire type — see SCHEMA.md
     startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
-                                                       // absent: nothing starts until play()
+                                                       // default 'load'; 'programmatic' waits for play()
     outAction?: 'continue' | 'pause' | 'reset' | 'reverse'; // when the trigger ends; default 'continue'
     finishAction?: 'hold' | 'reset';                   // after a natural finish; default 'hold'
                                                        //   (the player reads it; setupAnimationTriggers does not)
@@ -168,54 +237,61 @@ interface PxTrigger {                                  // ● also a wire type �
 **Builds.** The ESM and CJS entries (`dist/index.js`, `dist/index.cjs`) carry everything on this
 page. Three `<script>` builds put a narrower surface on one global, `window.PixodeskAnimator`:
 
+<!-- px-check off the UMD file list, prose -->
 | File | For | On `PixodeskAnimator` |
 |---|---|---|
-| `pixodesk-svg-animator.umd.js` / `.umd.min.js` | a page playing JSON documents | `createAnimator`, `createAnimatorImpl`, `loadTagAnimators`, `setupAnimationTriggers`, `validateDocument`, `generateNewIds`, `PxTimelineEngineExtra`, `PxTimelineEngine`, `PX_ANIMATOR_DATA_KEY`, `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME` |
-| `index.prerendered.umd.js` / `.umd.min.js` | a pre-rendered SVG + JS export (engine `auto` / `js`) | `createAnimator(options: PxPrerenderedOptions)`, `setupAnimationTriggers`, `PX_ANIMATOR_DATA_KEY` |
+| `pixodesk-svg-animator.umd.js` / `.umd.min.js` | a page playing JSON documents | `createAnimator`, `loadTagAnimators`, `setupAnimationTriggers`, `validateDocument`, `generateNewIds`, `PxTimelineEngineExtra`, `PxTimelineEngine`, `PX_ANIMATOR_DOC_KEY`, `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME` |
+| `index.prerendered.umd.js` / `.umd.min.js` | a pre-rendered SVG + JS export (engine `auto` / `js`) | `createAnimator(options: PxPrerenderedOptions)`, `setupAnimationTriggers`, `PX_ANIMATOR_DOC_KEY` |
 | `index.prerendered-waapi.umd.js` / `.umd.min.js` | the same with engine `native` — the smallest build | the same three |
 
-`PxPrerenderedOptions` is `{ data: PxAnimatedSvgDocument; callbacks?; adapter? }`. Its `data`
-carries only `animator.definitions` and `animator.animateById` — the SVG is already in the page —
+`PxPrerenderedOptions` is `{ doc: PxAnimatedSvgDocument }` plus the inline callbacks. Its `doc`
+carries only `animator.definitions` and `animator.bindings` — the SVG is already in the page —
 and it is not validated. There is no `src` form.
 
-**Globals.** Loading the full player — the ESM/CJS entry or the main UMD — also assigns
-`window.createAnimator`, `window.loadTagAnimators` and `window.setupAnimationTriggers` whenever
-`window` exists. The pre-rendered builds do not. Separately, a document with
+**Globals.** Importing the player writes nothing to `window`. `<script>` pages reach the playback
+surface through `PixodeskAnimator.*` on the UMD build; ESM and CJS consumers import what they
+need. (Until 2026-09-12 the module also assigned bare `window.createAnimator`,
+`window.loadTagAnimators` and `window.setupAnimationTriggers` on load — that could overwrite a
+page's own `createAnimator`, and the side effect stopped the module being tree-shaken.)
+Separately, a document with
 `animator.debugGlobalName: "heroBanner"` makes the player assign its API object to
 `window.heroBanner`, so a live instance can be driven from the console — opt-in per document; see
 [Playback & triggers → Debug handle](./docs/library/playback-and-triggers.md#debug-handle--debugglobalname).
 
 **Everything else this package exports**
 
+<!-- px-check exports @pixodesk/svg-animator-web -->
 | Symbol | |
 |---|---|
-| `createAnimatorImpl(doc, adapter?, callbacks?, container?, config?, resetDocDefaults?)` | ▪ the non-fetching core of `createAnimator`; `config` takes the object form only |
 | `createWebApiAnimator(doc, callbacks?, rootElement?, forceEvenIfHasUnsupportedAttrs?, scrollTimeline?)` → `PxAnimatorAPI \| null`, `createFrameLoopAnimator(doc, adapter?, callbacks?, rootElement?)` | ▪ the two engines; `createAnimator` picks one from `timeline.engine` |
 | `createBasicFrameLoopAnimator(doc, adapter, callbacks?)` | ○ the frame-loop engine against a custom `PxPlatformAdapter` — see **core** |
-| `renderNode(node, defs?)` → `Element \| null`, `getNormalizedProps(props)` | ○ render one wire node to a DOM element / resolve a node's attributes |
+| `PxInternalAnimatorOptions` | ▪ `PxAnimatorOptions` plus `adapter` — the frame loop's custom render target (`PxPlatformAdapter`: `isConnected()` + `setAttribute(id, name, value)`). What the React and Vue components build the player with, so writes go to the elements they rendered; not an option of the public API, because a page has a DOM to write to (review §25.14) |
+| `renderNode(node, defs?, diag?)` → `Element \| null`, `getNormalizedProps(props)` | ○ render one wire node to a DOM element / resolve a node's attributes. `diag` is optional — without it a blocked tag is reported on the console |
 | `validateDocument(doc)` | ● the whole-document check — see **core** |
-| `applyAnimatorConfig`, `mergeAnimatorConfig`, `foldAnimatorConfigShortcuts` | ● the playback-override merge behind `config` — see **core** |
-| `materialiseAllInTree`, `applyPlayerEffects`, `validateNodeEffects`, `generateNewIds` | ○ document tooling — see **core** |
+| `applyAnimatorConfig`, `mergeAnimatorConfig`, `foldTimelineOverride` | ● the playback-override merge behind `timeline` — see **core** |
+| `materializeAllInTree`, `applyPlayerEffects`, `validateNodeEffects`, `generateNewIds` | ○ document tooling — see **core** |
 | `getAnimatorConfig`, `getBindings`, `getChildren`, `getDefs`, `isPxElementFileFormat`, `isPxElementFileFormatDeep` | ○ document accessors — see **core** |
-| `normalizeDocument` (= core `getNormalisedBindings`), `calcAnimationValues`, `materialiseInternalLoopsInTree`, `materialiseInternalLoopsInPropAnim`, `materialiseMotionPathsInTree`, `materialiseMotionPathInPropAnim`, `evaluateMotionPathSegment`, `propAnimIsMotionPath`, `materialiseAnimatedUseInstances`, `collectSampleTimes`, `diffInEffect`, `visualModelAt` | ▪ pipeline stages and the editor's comparison harness, re-exported from core |
-| `jsonElementFactory`, `materialiseGlyphText`, `materialiseGlyphTextAlongPath`, `materialiseGlyphTextHorizontal`, `layoutGlyphTextChars`, `MISSING_GLYPH_CLASS_NAME`, `createPathSampler`, `extendedPathForBrowser`, `shiftAnimatable` | ▪ glyph text and text-on-path, re-exported from core |
-| `camelCaseToKebabWordIfNeeded`, `COLOUR_ATTR_NAMES`, `STYLE_ATTR_NAMES`, `TRANSFORM_FN_NAMES`, `toRGBA` | ▪ string and colour helpers |
-| `PX_ANIMATOR_DATA_KEY`, `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME` | ▪ attribute and property names the player writes |
-| `px`, `schemaKeys`, `describeSchema`; `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxNodeBase`, `PxSvgNodeExtra`, `PxAnimatorConfigSchema`, `PxTriggerSchema`, `PxAnimationDefinitionSchema`, `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxEasingOrRefSchema`, `PxLoopSchema`, `PxBindingSchema`, `PxDefsSchema` and the twelve effect schemas | ○ re-exported from core. Not re-exported: `PxTimelineSchema`, `PxTimelinePinSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema` |
-| `PxTimelineEngineExtra`, `PxTimelineEngine`, `PxCloneWithout`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod`, `PX_TRANSFORM_PART_KEYS` | ● named wire values. `PxTimelineEngineExtra` is what `timeline.engine` accepts (`auto` · `native` · `js`); `PxTimelineEngine` is the resolved engine (`native` · `js`), the argument of `materialiseAllInTree`, never an option |
-| `FillMode`, `PlaybackDirection`, `StartOn`, `OutAction`, `PxTransformPartKey` | ● string-union **types** — no runtime value. `StartOn` omits `'programmatic'` |
-| `PxAnimatedSvgDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTrigger`, `PxKeyframe`, `PxPropertyAnimation`, `PxLoop`, `PxDefs`, `PxEffects` + one type per effect, … | ● wire types — the shapes in [SCHEMA.md](./SCHEMA.md) |
-| `PxNormalisedKeyframe`, `PxAnyKeyframe` | ▪ the runtime keyframe (`t` / `v` / `e`) and the either-form union |
-| `PxAnimatorOptions`, `PxAnimatorAPI`, `PxBasicAnimatorAPI`, `PxAnimatorCallbacksConfig`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult`, `PxAnimatorConfigShortcuts`, `PxPlatformAdapter` | ● / ○ companion types of the calls above |
+| `normalizeDocument` (core's getNormalizedBindings), `calcAnimationValues`, `materializeInternalLoopsInTree`, `materializeInternalLoopsInPropAnim`, `materializeMotionPathsInTree`, `materializeMotionPathInPropAnim`, `evaluateMotionPathSegment`, `propAnimIsMotionPath`, `materializeAnimatedUseInstances`, `collectSampleTimes`, `diffInEffect`, `visualModelAt` | ▪ pipeline stages and the editor's comparison harness, re-exported from core |
+| `jsonElementFactory`, `materializeGlyphText`, `materializeGlyphTextAlongPath`, `materializeGlyphTextHorizontal`, `layoutGlyphTextChars`, `MISSING_GLYPH_CLASS_NAME`, `createPathSampler`, `extendedPathForBrowser`, `shiftAnimatable` | ▪ glyph text and text-on-path, re-exported from core |
+| `camelCaseToKebabWordIfNeeded`, `COLOR_ATTR_NAMES`, `STYLE_ATTR_NAMES`, `TRANSFORM_FN_NAMES`, `toRGBA` | ▪ string and color helpers |
+| `PX_ANIMATOR_DOC_KEY`, `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME` | ▪ attribute and property names the player writes |
+| `px`, `schemaKeys`, `describeSchema`; `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxNodeBase`, `PxSvgNodeExtra`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTimelinePinSchema`, `PxTriggerSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxAnimationDefinitionSchema`, `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxEasingOrRefSchema`, `PxLoopSchema`, `PxBindingSchema`, `PxDefsSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxStrokeGradientEffectSchema`, `PxGradientStopSchema`; `PxSchema`, `PxSchemaDesc`, `PxInfer`, `PxValidationContext`, `KeysMatch`, `RemoveIndex` | ○ the schema toolkit, re-exported from core — every schema value (the timeline / pin / scroll ones since review §17) and the types to build on them |
+| `PX_PLAYER_SCHEMA_VERSION`, `PLAYER_WIRE_VERSION`, `BASELINE_PLAYER_VERSION`, `PLAYER_WIRE_STEPS`, `WIRE_VERSION_KEY`, `parseWireVersion`, `formatWireVersion`, `readWireVersion`, `compareWireVersion`, `versionAdvice`, `convertPlayerDocument`, `downgradePlayerDocument`, `diagnoseDocument`; `WireVersion`, `WireVersionStep`, `WireVersionRelation`, `WireStepKind`, `PlayerConversionResult`, `WireConversionConfig`, `WireDowngradeResult`, `WireDowngradeConfig`, `PxDocumentDiagnosis` | ○ the schema-version API and the load-time diagnosis, re-exported since review §17 so a web-only install needs no core beside it — see **core** |
+| `resolveControlMode`, `controlModeTakesOverTrigger`, `PxControlMode`, `PxResolvedControlMode`, `PxControlProps`, `PX_TRIGGER_DEFAULTS`, `resolveTrigger`, `timeToProgress`, `progressToTimeMs`, `createDiagnostics`, `PxDiagnosticsConfig` | ▪ the shared component contract — the control-mode rule, trigger defaults, the time contract and the diagnostics channel — re-exported for the React and Vue components |
+| `MaterializeAllOptions`, `ApplyResult`, `MotionPathMaterializationOptions`, `MotionPathSample`, `PathPoint`, `PathSampler`, `PxCreateElement`, `GlyphCharBox`, `GlyphCharBoxAlongPath`, `GlyphMaterializeOpts`, `ExtendPathOpts`, `ExtendedPath`, `PxAnimatable`, `DEFAULT_DURATION_MS` | ▪ argument and result shapes of the tooling above, re-exported from core |
+| `PxTimelineEngineExtra`, `PxTimelineEngine`, `PxCloneWithout`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxGradientType`, `PxUnits`, `PxMaskType`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing`, `PxGradientSpreadMethod`, `PxFillMode`, `PxPlaybackDirection`, `PxStartOn`, `PxOutAction`, `PxFinishAction`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PX_TRANSFORM_PART_KEYS` | ● named wire values — one const per wire enum, with the string type derived from it under the same name. `PxTimelineEngineExtra` is what `timeline.engine` accepts (`auto` · `native` · `js`); `PxTimelineEngine` is the resolved engine (`native` · `js`), the argument of `materializeAllInTree`, never an option. `PxUnits` covers `gradientUnits` and the mask units alike |
+| `PxTransformPartKey` | ● string-union **type** — no runtime value |
+| `PxAnimatedSvgDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTrigger`, `PxKeyframe`, `PxPropertyAnimation`, `PxElementAnimation`, `PxAnimationDefinition`, `PxBinding`, `PxLoop`, `PxDefs`, `PxGlyph`, `PxGlyphFont`, `PxAttrValue`, `PxTransformValue`, `PxTransformParts`, `PxBezierPath`, `Vec2`, `PxEffects`, `PxCloneEffect`, `PxRepeaterEffect`, `PxRetimeEffect`, `PxMaskedByEffect`, `PxTransformByEffect`, `PxTextPathEffect`, `PxStrokeTrimEffect`, `PxFillGradientEffect`, `PxStrokeGradientEffect`, `PxGradientStop` | ● wire types — the shapes in [SCHEMA.md](./SCHEMA.md) |
+| `PxNormalizedKeyframe`, `PxAnyKeyframe`, `PxNormalizedBinding` | ▪ the runtime keyframe (`t` / `v` / `e`), the either-form union, and the engines' view of one animated element |
+| `PxAnimatorOptions`, `PxTagAnimatorOptions`, `PxAnimatorAPI`, `PxBasicAnimatorAPI`, `PxAnimatorHandle`, `PxAnimatorCallbacks`, `PxEngineCallbacks`, `PxPlaybackOverrideProps`, `PxTimelinePatch`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult`, `PxAnimatorConfigShortcuts`, `PxPlatformAdapter` | ● / ○ companion types of the calls above |
 | `PxValidationResult` | ○ the result of `isPxElementFileFormatDeep` |
 
-**Core only** — install `@pixodesk/svg-animator-core` for: the schema-version API
-(`PX_PLAYER_SCHEMA_VERSION`, `convertPlayerDocument`, …), `diagnoseDocument`,
-`flattenAnimatorTimeline` / `nestAnimatorTimeline`, the engine rules (`resolveTimelineEngine`, …)
-and the scroll maths.
+**Core only**: `flattenAnimatorTimeline` / `nestAnimatorTimeline`, the engine rules
+(`resolveTimelineEngine`, …) and the scroll maths.
 
 ## @pixodesk/svg-animator-react
 
+<!-- px-check signature pkg=react -->
 ```typescript
 // ● The component. `doc` is the only required prop; everything else overrides what
 //   the document already says. React renders the SVG; the player drives its attributes.
@@ -226,26 +302,26 @@ interface PixodeskSvgAnimatorProps {
     className?: string;                   // added to the root <svg>
     style?: CSSProperties;                // set on the root <svg>
 
-    // Playback override — one object, shaped exactly like the file's `animator` block,
+    // Playback override — one object, shaped exactly like the file's `timeline` block,
     // deep-merged over it. `null` at a slot DELETES that key:
-    //   config={{ timeline: { engine, frameRate, fillMode, direction,
-    //                           trigger: { outAction, finishAction, scrollIntoViewThreshold } } }}
-    config?: PxAnimatorConfigPatch | string;  // a JSON string is accepted too
-    resetDocDefaults?: boolean;           // start from the player's defaults, `config` on top
+    //   timeline={{ engine, frameRate, fillMode, direction,
+    //              trigger: { outAction, finishAction, scrollIntoViewThreshold } }}
+    timeline?: PxTimelinePatch | string;    // a JSON string is accepted too
+    resetTimeline?: boolean;              // start from the player's defaults, `timeline` on top
 
-    // Shortcuts — a shortcut wins over the same key inside `config`
-    duration?: number;                    // ▸ config.timeline.duration (one iteration, ms)
-    delay?: number;                       // ▸ config.timeline.delay (ms)
-    iterations?: number | 'infinite';     // ▸ config.timeline.iterations
-    startOn?: StartOn;                    // ▸ config.timeline.trigger.startOn ('programmatic' not accepted)
+    // Shortcuts — a shortcut wins over the same key inside `timeline`
+    duration?: number;                    // ▸ timeline.duration (one iteration, ms)
+    delay?: number;                       // ▸ timeline.delay (ms)
+    iterations?: number | 'infinite';     // ▸ timeline.iterations
+    startOn?: PxStartOn;                  // ▸ timeline.trigger.startOn
 
-    // Control — the FIRST of these that is set picks the mode (table below)
-    apiRef?: React.RefObject<ReactAnimatorApi | null>;
+    // Control — the HIGHEST-priority one that is set picks the mode (table below)
+    apiRef?: React.RefObject<ReactAnimatorApi | null>;   // never a mode: filled in every mode
     autoplay?: boolean;                   // obey the document's own trigger
     progress?: number;                    // controlled: 0–1 of duration × iterations
                                           //   (one iteration when iterations is 'infinite')
     time?: number;                        // controlled: ms
-    play?: boolean;                       // true: play regardless of the trigger; false: jump to the end
+    play?: boolean;                       // true: play regardless of the trigger; false: hold where it is
     pause?: boolean;                      // hold
 
     // Lifecycle
@@ -255,28 +331,43 @@ interface PixodeskSvgAnimatorProps {
     onFinish?: () => void;   // reached the end, or finish() was called
     onRemove?: () => void;   // the player was destroyed — unmount, or a change that re-creates it
     onStop?: () => void;     // after any of onPause / onCancel / onFinish / onRemove
+
+    // Diagnostics — the shared channel, as on the web (`PxAnimatorCallbacks`)
+    onWarn?: (d: PxDiagnostic) => void;
+    onError?: (d: PxDiagnostic) => void;
+    muteWarn?: boolean; muteError?: boolean;
 }
 ```
 
-| Mode | Chosen when | The document's trigger |
-|---|---|---|
-| imperative | `apiRef` is passed — **even together with `autoplay`** | switched off (`startOn` forced to `'programmatic'`); only the ref starts playback |
-| autoplay | `autoplay` | used, after the override |
-| controlled time | `progress` or `time` | switched off; the player seeks and holds |
-| play / pause | `play` or `pause` | switched off; `play` plays, `pause` holds, `play={false}` jumps to the end |
-| static | none of the above | switched off; nothing plays |
+<!-- px-check off the mode-priority rule, prose -->
+| Priority | Mode | Chosen when | The document's trigger |
+|---|---|---|---|
+| 1 | controlled time | `progress` or `time` | switched off; the player seeks and holds |
+| 2 | play / pause | `play` or `pause` | switched off; `play` plays, `pause` holds, `play={false}` holds too (it used to jump to the end — review §8) |
+| 3 | autoplay | `autoplay` | used, after the override |
+| 4 | static | none of the above | switched off; nothing plays |
+
+`apiRef` is not in the table — the handle is filled in **every** mode and never changes it, so
+`<PixodeskSvgAnimator doc={doc} autoplay apiRef={api} />` autoplays and gives you the handle.
+Setting two tiers at once keeps the higher one and warns, naming both and the winner. Vue and
+React Native resolve the mode with the same shared rule.
 
 Changing `doc`, `className`, `style` or the mode re-creates the player.
 
+<!-- px-check signature pkg=react -->
 ```typescript
 // ● What `apiRef.current` gives you — the web API minus `destroy` / `getRootElement` /
-//   `isReady` (the component owns the element's lifetime).
+//   `isReady` (the component owns the element's lifetime). This is core's
+//   `PxAnimatorHandle` under this package's name (review §9); `VueAnimatorApi` and
+//   `RnAnimatorApi` are the same type, so the three cannot drift.
 interface ReactAnimatorApi {
     isPlaying(): boolean;
     play(): void; pause(): void; cancel(): void; finish(): void;
     setPlaybackRate(rate: number): void;
-    getCurrentTime(): number | null;
+    getCurrentTime(): number | null;       // ms from the start of the whole run
     setCurrentTime(time: number): void;
+    getCurrentProgress(): number | null;   // 0–1 of the whole run
+    setCurrentProgress(p: number): void;
 }
 
 // ● For a PRE-RENDERED SVG + CSS file (no JSON, no player): wraps the SVG in a
@@ -285,15 +376,18 @@ interface ReactAnimatorApi {
 //   it as children.
 const PixodeskSvgCssAnimator: FC<{
     children: ReactNode;                  // the SVGR-imported SVG component
-    startOn?: StartOn;                    // 'load' (default) | 'mouseOver' | 'click' | 'scrollIntoView'
-                                          //   — scrollIntoView starts at 10 % visible, fixed
-    outAction?: OutAction;                // 'continue' (default) | 'pause' | 'reset'
+    startOn?: PxStartOn;                  // 'load' (default) | 'mouseOver' | 'click' | 'scrollIntoView'
+                                          //   — 'programmatic' does nothing here (no play())
+    outAction?: PxOutAction;              // 'continue' (default) | 'pause' | 'reset'
                                           //   — 'reverse' is accepted but acts as 'continue'
+    scrollIntoViewThreshold?: number;     // 0–1 of the SVG visible before 'scrollIntoView' starts;
+                                          //   default 0, the wire default (review §13)
     className?: string;
     style?: CSSProperties;
 }>;
 ```
 
+<!-- px-check exports @pixodesk/svg-animator-react -->
 Also exported: **●** `PixodeskSvgAnimatorProps`, `ReactAnimatorApi`,
 `PixodeskSvgAnimatorCallbacks` (the six `on*` props as a standalone type).
 
@@ -301,18 +395,22 @@ Also exported: **●** `PixodeskSvgAnimatorProps`, `ReactAnimatorApi`,
 
 Same two components, same semantics as React; the differences are Vue-shaped.
 
+<!-- px-check signature pkg=vue -->
 ```typescript
 // ● Props: the React set, minus apiRef / className / style (a template ref and
 //   Vue's attribute inheritance cover those).
 const PixodeskSvgAnimator: DefineComponent<{
     doc: PxAnimatedSvgDocument;           // required
-    config?: PxAnimatorConfigPatch | string;   // the whole `animator` block, deep-merged
-    resetDocDefaults?: boolean;
+    timeline?: PxTimelinePatch | string;    // the document's `timeline` block, deep-merged
+    resetTimeline?: boolean;
     duration?: number; delay?: number;    // shortcuts, as in React
     iterations?: number | 'infinite';
     startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
     autoplay?: boolean; play?: boolean; pause?: boolean;
     progress?: number; time?: number;
+    onWarn?: (d: PxDiagnostic) => void;   // diagnostics stay PROPS, not events: an event
+    onError?: (d: PxDiagnostic) => void;  //   handler always exists, which would silence the
+    muteWarn?: boolean; muteError?: boolean;              //   console fallback
 }>;
 
 // ● Events instead of callback props: @play @pause @cancel @finish @remove, and
@@ -323,70 +421,84 @@ interface VueAnimatorApi {
     isPlaying(): boolean;
     play(): void; pause(): void; cancel(): void; finish(): void;
     setPlaybackRate(rate: number): void;
-    getCurrentTime(): number | null;
+    getCurrentTime(): number | null;       // ms from the start of the whole run
     setCurrentTime(time: number): void;
+    getCurrentProgress(): number | null;   // 0–1 of the whole run
+    setCurrentProgress(p: number): void;
 }
 
 // ● Pre-rendered SVG + CSS wrapper; the SVG goes in the default slot, and every
 //   other attribute (class, style, …) lands on the wrapper div.
 const PixodeskSvgCssAnimator: DefineComponent<{
-    startOn?: StartOn;     // default 'load'
-    outAction?: OutAction; // default 'continue'
+    startOn?: PxStartOn;                  // default 'load'
+    outAction?: PxOutAction;              // default 'continue'
+    scrollIntoViewThreshold?: number;     // default 0, as in React
 }>;
 ```
 
-Modes, first match wins: `autoplay` → `progress` / `time` → `play` / `pause` → static. Any change
-to `doc` or to an override prop re-creates the player.
+<!-- px-check exports @pixodesk/svg-animator-vue -->
+Modes, highest priority wins: `progress` / `time` → `play` / `pause` → `autoplay` → static — the
+same shared rule as React and React Native, conflicts warned the same way. Any change to `doc` or
+to an override prop re-creates the player.
 
 ## @pixodesk/svg-animator-rn 🧪 experimental
 
-Mirrors the React component on `react-native-svg` + `reanimated`: the document is materialised
-once, sampled into per-element tracks, and played on the UI thread. No CSS-flavour component, no
-`className` / `style`, no `onRemove`, and a failure path instead of a DOM.
+Mirrors the React component on `react-native-svg` + `reanimated`: the document is materialized
+once, sampled into per-element tracks, and played on the UI thread. No CSS-flavor component, no
+`className` / `style`, and a `fallback` element instead of a DOM. (`onRemove` fires on unmount or a
+`doc` swap, as on the web — review §18.)
 
+<!-- px-check signature pkg=rn -->
 ```typescript
-const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps>;   // ● also the default export
+// ● The component (a plain function, also the default export).
+function PixodeskSvgAnimator(props: PixodeskSvgAnimatorProps): ReactElement | null;
 
 interface PixodeskSvgAnimatorProps {
     doc: PxAnimatedSvgDocument;           // required
 
     // Playback override — the same object as React. `timeline.engine` is accepted
-    // but ignored: React Native always uses the `native` materialisation.
-    config?: PxAnimatorConfigPatch | string;
-    resetDocDefaults?: boolean;
+    // but ignored: React Native always uses the `native` materialization.
+    timeline?: PxTimelinePatch | string;
+    resetTimeline?: boolean;
 
     duration?: number; delay?: number;    // shortcuts, ms
     iterations?: number | 'infinite';
-    startOn?: StartOn;                    // 'mouseOver' has no touch equivalent and is ignored;
+    startOn?: PxStartOn;                  // 'mouseOver' has no touch equivalent and is ignored;
                                           //   'click' = tap (a second tap applies outAction);
                                           //   'scrollIntoView' = measured every 200 ms
 
-    autoplay?: boolean;                   // honour the document trigger. A document with no
-                                          //   trigger plays on mount; a missing outAction acts
-                                          //   as 'pause' (the web: nothing starts; 'continue')
-    play?: boolean; pause?: boolean;      // unconditional control; play={false} jumps to the end
+    autoplay?: boolean;                   // honor the document trigger — the same defaults as
+                                          //   the web: startOn 'load', outAction 'continue'
+    play?: boolean; pause?: boolean;      // unconditional control; play={false} holds where it is
     progress?: number;                    // 0–1 of duration × iterations
     time?: number;                        // ms
 
-    apiRef?: React.RefObject<RnAnimatorApi | null>;   // same methods as ReactAnimatorApi, but
-                                          //   getCurrentTime() is ms within the CURRENT iteration,
-                                          //   and setPlaybackRate ignores 0 and non-finite rates
+    apiRef?: React.RefObject<RnAnimatorApi | null>;   // the same methods as ReactAnimatorApi —
+                                          //   and, since review §3, the same meanings: whole-run
+                                          //   time, clamped seeks, rate 0 rejected
 
     onPlay?: () => void; onStop?: () => void; onPause?: () => void;
     onCancel?: () => void; onFinish?: () => void;
+    onRemove?: () => void;                // unmount, or a `doc` swap (review §18)
 
-    // Failure handling — a broken document renders `fallback` instead of throwing.
-    // Only JavaScript failures reach this; a crash inside the native renderer does not.
-    onError?: (error: Error, componentStack?: string) => void;
+    // Diagnostics — the shared channel, exactly as on the web (review §25.1): `onError` means
+    // THIS INSTANCE WILL NOT PLAY — the compile or the render threw; `d.error` is the Error,
+    // `d.detail.componentStack` is set when the error boundary caught it — and `fallback` is
+    // what shows instead. Only JavaScript failures reach it; a crash inside the native
+    // renderer does not.
+    onWarn?: (d: PxDiagnostic) => void;
+    onError?: (d: PxDiagnostic) => void;
+    muteWarn?: boolean; muteError?: boolean;
     fallback?: (error: Error) => ReactElement | null;
 }
 ```
 
-Modes, first match wins: `progress` / `time` → `play` / `pause` → `autoplay`. `apiRef` never
-changes the mode.
+Modes, highest priority wins: `progress` / `time` → `play` / `pause` → `autoplay` → static — the
+same shared rule as React and Vue, conflicts warned the same way. `apiRef` never changes the mode.
 
 **Everything else this package exports**
 
+<!-- px-check exports @pixodesk/svg-animator-rn -->
 | Symbol | |
 |---|---|
 | `PxRnErrorBoundary` (+ `PxRnErrorBoundaryProps`) | ○ the boundary the component uses; usable on its own |
@@ -401,16 +513,17 @@ changes the mode.
 You depend on this **directly** only to inspect or transform documents; a player
 package already bundles it. Nothing here renders anything.
 
+<!-- px-check signature pkg=core -->
 ```typescript
-// ○ Run the whole materialisation pipeline: effects → loops → motion paths →
+// ○ Run the whole materialization pipeline: effects → loops → motion paths →
 //   <use> instances, in the canonical order. This is exactly what the player
 //   runs internally, so a document flattened here plays identically — the way
 //   to feed a renderer that has no effects support. `resolveTimelineEngine`
 //   turns a document's `timeline.engine` into this argument.
-function materialiseAllInTree(
+function materializeAllInTree(
     doc: PxAnimatedSvgDocument,
     engine: 'native' | 'js',
-    opts?: { motionPath?: MotionPathMaterialisationOptions },
+    opts?: { motionPath?: MotionPathMaterializationOptions },
 ): PxAnimatedSvgDocument;
 
 // ○ One stage of it: `node.effects` → plain renderable nodes (+ generated defs).
@@ -421,7 +534,10 @@ function applyPlayerEffects(root: PxNode): ApplyResult;
 //   wrong`), empty when the document is sound; never throws. Every player runs the
 //   same check on load and prints the problems as one console warning — call this
 //   before shipping a document instead of relying on the console.
-function validateDocument(doc: unknown): Array<string>;
+function validateDocument(doc: unknown, opts?: { strict?: boolean }): Array<string>;
+//   `strict` (default true) rejects keys the schema does not declare — right before you ship.
+//   `{ strict: false }` tolerates them, which is what a READER wants: an unknown key usually
+//   means a newer writer — worth a warning, never a refusal.
 
 // ○ Check every `node.effects` bucket against the schema, depth-first. Returns
 //   human-readable warnings (each prefixed with the node's path) and never
@@ -438,7 +554,7 @@ function applyAnimatorConfig(
     doc: PxAnimatedSvgDocument,
     patch: PxAnimatorConfigPatch,
     opts?: { resetDefaults?: boolean },   // start from the player's defaults; keeps
-): { doc: PxAnimatedSvgDocument; warnings: Array<string> };   // definitions/animateById
+): { doc: PxAnimatedSvgDocument; warnings: Array<string> };   // definitions/bindings
 
 // ○ The same merge one level down, on the config object itself.
 function mergeAnimatorConfig(
@@ -447,15 +563,15 @@ function mergeAnimatorConfig(
 ): PxAnimatorConfigMergeResult;
 
 // ○ Folds the four shortcuts (duration/delay/iterations/startOn) into a patch and
-//   parses the JSON-string form. A shortcut wins over the same key in `config`.
+//   parses the JSON-string form. A shortcut wins over the same key in `timeline`.
 //   This is what every player calls before `applyAnimatorConfig`.
-function foldAnimatorConfigShortcuts(
-    config: PxAnimatorConfigPatch | string | undefined,
+function foldTimelineOverride(
+    timeline: PxTimelinePatch | string | undefined,
     shortcuts: PxAnimatorConfigShortcuts,
 ): PxAnimatorConfigPatch | undefined;
 
 // ○ The schema version — see docs/format/README.md#versioning.
-const PX_PLAYER_SCHEMA_VERSION: string;                                   // the schema this build reads: '1.1'
+const PX_PLAYER_SCHEMA_VERSION: '1.1';                                    // the schema this build reads
 function readWireVersion(doc: unknown): WireVersion | undefined;          // animator.version (or meta.animator.version)
 function convertPlayerDocument(doc: unknown): PlayerConversionResult;     // up to this schema; never refuses, never mutates
 function downgradePlayerDocument(doc: unknown, target: WireVersion): WireDowngradeResult;   // all or nothing
@@ -468,7 +584,7 @@ function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocument;
 function createBasicFrameLoopAnimator(
     doc: PxAnimatedSvgDocument,
     adapter: PxPlatformAdapter,
-    callbacks?: PxAnimatorCallbacksConfig,
+    callbacks?: PxEngineCallbacks,
 ): PxAnimatorAPI;
 
 interface PxPlatformAdapter {
@@ -479,30 +595,35 @@ interface PxPlatformAdapter {
 
 **Everything else this package exports**
 
+<!-- px-check exports @pixodesk/svg-animator-core -->
 | Group | Symbols | |
 |---|---|---|
-| Wire types | `PxAnimatedSvgDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTimeline`, `PxTrigger`, `PxElementAnimation`, `PxPropertyAnimation`, `PxKeyframe`, `PxLoop`, `PxBinding`, `PxDefs`, `PxEffects` + one type per effect (`PxCloneEffect`, `PxRepeaterEffect`, `PxRetimeEffect`, `PxMaskedByEffect`, `PxTransformByEffect`, `PxTextPathEffect`, `PxStrokeTrimEffect`, `PxFillGradientEffect`, `PxStrokeGradientEffect`, `PxGradientStop`), `PxAttrValue`, `PxTransformValue`, `PxTransformParts`, `PxBezierPath`, `PxGlyph`, `PxGlyphFont`, `PxAnimationDefinition`, `PxTimelinePin`, `PxScroll`, `PxScrollPhase`, `PxScrollRangePoint`, `Vec2` | ● the shapes in [SCHEMA.md](./SCHEMA.md) |
-| Player API types | `PxAnimatorAPI<TRoot>`, `PxBasicAnimatorAPI<TRoot>`, `PxAnimatorCallbacksConfig`, `PxPlatformAdapter` | ● platform-neutral; the web fixes `TRoot` to `Element` |
+| Wire types | `PxAnimatedSvgDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTimeline`, `PxTrigger`, `PxElementAnimation`, `PxPropertyAnimation`, `PxKeyframe`, `PxLoop`, `PxBinding`, `PxDefs`, `PxEffects` + one type per effect (`PxCloneEffect`, `PxRepeaterEffect`, `PxRetimeEffect`, `PxMaskedByEffect`, `PxTransformByEffect`, `PxTextPathEffect`, `PxStrokeTrimEffect`, `PxFillGradientEffect`, `PxStrokeGradientEffect`, `PxGradientStop`), `PxAttrValue`, `PxTransformValue`, `PxTransformParts`, `PxBezierPath`, `PxGlyph`, `PxGlyphFont`, `PxAnimationDefinition`, `PxTimelinePin`, `PxScroll`, `PxScrollRangePoint`, `Vec2` | ● the shapes in [SCHEMA.md](./SCHEMA.md) |
+| Player API types | `PxAnimatorAPI<TRoot>`, `PxBasicAnimatorAPI<TRoot>`, `PxEngineCallbacks`, `PxPlatformAdapter` | ● platform-neutral; the web fixes `TRoot` to `Element`. `PxEngineCallbacks` is what an engine takes — the lifecycle on top of `PxDiagnosticsConfig` |
+| Component contract | `PxAnimatorHandle`, `PxAnimatorCallbacks`, `PxControlProps`, `PxControlMode`, `PxResolvedControlMode`, `resolveControlMode(props)`, `controlModeTakesOverTrigger(mode)` | ● what the React / Vue / React Native components share (review §1, §7, §9): the imperative handle, the callback set, the props that pick a mode and the one rule that picks it |
 | Engine rules | `resolveTimelineEngine(engine)`, `isNativeForced(engine)`, `mayUseNativeScrollTimeline(engine)` | ○ how a `timeline.engine` resolves to an engine / to the browser's ScrollTimeline — the players' own decision helpers |
-| Enum values | `PxTimelineEngineExtra`, `PxTimelineEngine`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout` (`clone.without`: `translate`), `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings |
-| Enum types | `FillMode`, `PlaybackDirection`, `StartOn`, `OutAction`, `PxTransformPartKey` | ● string-union types, no runtime value; `StartOn` omits `'programmatic'` |
+| Trigger defaults | `PX_TRIGGER_DEFAULTS`, `resolveTrigger(trigger)` → `PxResolvedTrigger` | ○ what a missing trigger field means (`startOn` 'load', `outAction` 'continue', threshold 0) — the one resolution every player uses |
+| Time contract | `seekCeilingMs`, `progressSpanMs`, `clampSeekMs`, `timeToProgress`, `progressToTimeMs`, `isValidPlaybackRate`, `PX_RATE_REJECTED`, `createRunClock` + `PxRunClock` | ○ the one meaning of time, seeking and rate that every engine implements — see `PxAnimatorAPI` |
+| Diagnostics | `createDiagnostics(config?, prefix?)` → `PxDiagnostics`, `PxDiagnosticKind` + `PxDiagnostic`, `PxDiagnosticsConfig` | ● the one channel every player reports through: `onWarn` / `onError` with a `kind` saying who can act, falling back to the console — see `PxEngineCallbacks` |
+| Enum values | `PxTimelineEngineExtra`, `PxTimelineEngine`, `PxGradientType`, `PxUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout` (`clone.without` → `'translate'`), `PxMaskType`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing`, `PxFillMode`, `PxPlaybackDirection`, `PxStartOn`, `PxOutAction`, `PxFinishAction`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings — each is a const namespace AND the type derived from it, so `PxStartOn.click` and `startOn?: PxStartOn` come from one import |
+| Enum types | `PxTransformPartKey` | ● string-union type, no runtime value |
 | Schema version | `PX_PLAYER_SCHEMA_VERSION`, `PLAYER_WIRE_VERSION`, `BASELINE_PLAYER_VERSION`, `PLAYER_WIRE_STEPS`, `WIRE_VERSION_KEY`, `WireVersionRelation`, `WireStepKind`, `parseWireVersion`, `formatWireVersion`, `readWireVersion`, `compareWireVersion`, `versionAdvice`, `convertPlayerDocument`, `downgradePlayerDocument`, `applyWireSteps`, `applyWireStepsDown` + `WireVersion`, `WireVersionStep`, `PlayerConversionResult`, `WireConversionConfig`, `WireDowngradeResult`, `WireDowngradeConfig` | ○ read, compare and convert a document's `animator.version` — [docs](./docs/format/README.md#versioning) |
 | Schema release | `schemaFieldUniverse`, `diffFieldUniverse`, `planSchemaRelease`, `releaseLogProblems`, `SchemaReleasePlan`, `SchemaReleaseRecord` | ▪ the field inventory and bump rule behind `scripts/schema-release.mjs` |
-| Diagnostics | `diagnoseDocument(doc)` → `PxDocumentDiagnosis` (`{ problems, legacy }`), `reportDocumentDiagnostics(doc, where)`, `PX_UNKNOWN_KEY_ERROR` | ▪ the load-time check every player runs; call `validateDocument` instead |
-| Validation | `isPxElementFileFormat`, `isPxElementFileFormatDeep` → `PxValidationResult` | ○ a cheap "is this a Pixodesk document" gate / a pass-fail schema check without messages |
+| Diagnostics | `diagnoseDocument(doc)` → `PxDocumentDiagnosis` (`{ problems }`), `reportDocumentDiagnostics(doc, where)`, `PX_UNKNOWN_KEY_ERROR` | ▪ the load-time check every player runs; call `validateDocument` instead |
+| Validation | `isPxElementFileFormat`, `isPxElementFileFormatDeep` → `PxValidationResult` | ○ a cheap "is this a Pixodesk document" gate / the pass-fail form of `validateDocument`, NON-strict, with every message it can name (review §10 — it used to answer only "failed schema validation") |
 | Document accessors | `getAnimatorConfig`, `getChildren`, `getBindings`, `getDefs` | ○ read a document without knowing its internals |
 | Timeline shape | `flattenAnimatorTimeline`, `nestAnimatorTimeline` | ○ nested `timeline` object ⇄ the flat runtime view |
-| Playback override | `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult`, `PxAnimatorConfigShortcuts` | ● companion types of the three merge functions above |
-| Keyframe forms | `kfTime`, `kfValue`, `kfEasing`, `kfTangentIn`, `kfTangentOut`, `PxNormalisedKeyframe`, `PxNormalisedPropertyAnimation`, `PxAnyKeyframe` | ▪ read a keyframe in either its wire or its runtime (`t` / `v` / `e`) form |
-| Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxNodeBase`, `PxSvgNodeExtra`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTimelinePinSchema`, `PxTriggerSchema`, `PxAnimationDefinitionSchema`, `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxEasingOrRefSchema`, `PxLoopSchema`, `PxBindingSchema`, `PxDefsSchema`, `PxEffectsSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxStrokeGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema` | ○ the validator the format is written in |
-| Pipeline stages | `getNormalisedBindings`, `calcAnimationValues`, `interpolateValue`, `materialiseInternalLoopsInTree`, `materialiseInternalLoopsInPropAnim`, `materialiseMotionPathsInTree`, `materialiseMotionPathInPropAnim`, `materialiseAnimatedUseInstances`, `evaluateMotionPathSegment`, `propAnimIsMotionPath`, `mergeStaticTransformIntoAnimDef` | ▪ stages of `materialiseAllInTree`; call the pipeline instead |
+| Playback override | `PxTimelinePatch`, `PxPlaybackOverrideProps`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult`, `PxAnimatorConfigShortcuts` | ● the `timeline` override as every player takes it, and the companion types of the three merge functions above |
+| Keyframe forms | `kfTime`, `kfValue`, `kfEasing`, `kfTangentIn`, `kfTangentOut`, `PxNormalizedKeyframe`, `PxNormalizedPropertyAnimation`, `PxAnyKeyframe`, `PxNormalizedBinding` | ▪ read a keyframe in either its wire or its runtime (`t` / `v` / `e`) form; `PxNormalizedBinding` is what `getNormalizedBindings` hands the engines — bare id + merged animation, from a binding or a node alike |
+| Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxNodeBase`, `PxSvgNodeExtra`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTimelinePinSchema`, `PxTriggerSchema`, `PxAnimationDefinitionSchema`, `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxEasingOrRefSchema`, `PxLoopSchema`, `PxBindingSchema`, `PxDefsSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxStrokeGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema` | ○ the validator the format is written in |
+| Pipeline stages | `getNormalizedBindings`, `calcAnimationValues`, `interpolateValue`, `materializeInternalLoopsInTree`, `materializeInternalLoopsInPropAnim`, `materializeMotionPathsInTree`, `materializeMotionPathInPropAnim`, `materializeAnimatedUseInstances`, `evaluateMotionPathSegment`, `propAnimIsMotionPath`, `mergeStaticTransformIntoAnimDef` | ▪ stages of `materializeAllInTree`; call the pipeline instead |
 | Effect harness | `collectSampleTimes`, `diffInEffect`, `visualModelAt` | ▪ the editor's "equal in effect" comparison |
-| Text & paths | `materialiseGlyphText`, `materialiseGlyphTextAlongPath`, `materialiseGlyphTextHorizontal`, `layoutGlyphTextChars`, `MISSING_GLYPH_CLASS_NAME`, `createPathSampler`, `extendedPathForBrowser`, `shiftAnimatable`, `jsonElementFactory` | ▪ glyph-text and text-on-path materialisation |
-| Node props | `getNormalizedProps` (○), `resolveStyle`, `sanitiseAttributeValue`, `CSS_ONLY_STYLE_PROPS`, `DISALLOWED_SVG_TAGS_LOWER` | ▪ shared normalisation and sanitisation rules |
+| Text & paths | `materializeGlyphText`, `materializeGlyphTextAlongPath`, `materializeGlyphTextHorizontal`, `layoutGlyphTextChars`, `MISSING_GLYPH_CLASS_NAME`, `createPathSampler`, `extendedPathForBrowser`, `shiftAnimatable`, `jsonElementFactory` | ▪ glyph-text and text-on-path materialization |
+| Node props | `getNormalizedProps` (○), `sanitizeAttributeValue`, `CSS_ONLY_STYLE_PROPS`, `DISALLOWED_SVG_TAGS_LOWER` | ▪ shared normalization and sanitization rules |
 | Scroll math | `isScrollTimeline`, `scrollViewProgress`, `scrollOffsetProgress`, `scrollPhaseInterval`, `scrollResolveAxis`, `scrollTotalDurationMs` | ▪ scroll-driven playback internals |
-| Maths & strings | `cubicBezier`, `subdivideCubicBezier`, `interpolateBeziers`, `bezierToSvgPath`, `splitEasing`, `reverseEasing`, `clamp`, `toRGBA`, `composeTransformParts`, `parseTransformParts`, `camelCaseToKebabWordIfNeeded`, `kebabToCamelCaseWord`, `COLOUR_ATTR_NAMES`, `STYLE_ATTR_NAMES`, `PCT_BASED_ATTR_NAMES`, `TRANSFORM_FN_NAMES`, `deepClone`, `generateUniqueId`, `DEFAULT_DURATION_MS`, `LOOP_JUMP_SHIFT_MS` | ▪ helpers shared with the editor |
-| Companion types | `PxSchema`, `PxSchemaDesc`, `PxInfer`, `PxValidationContext`, `KeysMatch`, `RemoveIndex`, `MaterialiseAllOptions`, `ApplyResult`, `MotionPathMaterialisationOptions`, `MotionPathSample`, `PathPoint`, `PathSampler`, `PxCreateElement`, `GlyphCharBox`, `GlyphCharBoxAlongPath`, `GlyphMaterialiseOpts`, `ExtendPathOpts`, `ExtendedPath`, `PxAnimatable` | ▪ argument and result shapes of the functions above |
-| Attribute names | `INTERNAL_ATTRS`, `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME`, `TEXT_ATTR`, `TEXT_CONTENT_ATTR` | ▪ reserved keys — see [SCHEMA.md](./SCHEMA.md#reserved-keys) |
+| Maths & strings | `cubicBezier`, `subdivideCubicBezier`, `interpolateBeziers`, `bezierToSvgPath`, `splitEasing`, `reverseEasing`, `clamp`, `toRGBA`, `composeTransformParts`, `parseTransformParts`, `camelCaseToKebabWordIfNeeded`, `kebabToCamelCaseWord`, `COLOR_ATTR_NAMES`, `STYLE_ATTR_NAMES`, `PCT_BASED_ATTR_NAMES`, `TRANSFORM_FN_NAMES`, `deepClone`, `generateUniqueId`, `DEFAULT_DURATION_MS`, `LOOP_JUMP_SHIFT_MS` | ▪ helpers shared with the editor |
+| Companion types | `PxSchema`, `PxSchemaDesc`, `PxInfer`, `PxValidationContext`, `KeysMatch`, `RemoveIndex`, `MaterializeAllOptions`, `ApplyResult`, `MotionPathMaterializationOptions`, `MotionPathSample`, `PathPoint`, `PathSampler`, `PxCreateElement`, `GlyphCharBox`, `GlyphCharBoxAlongPath`, `GlyphMaterializeOpts`, `ExtendPathOpts`, `ExtendedPath`, `PxAnimatable` | ▪ argument and result shapes of the functions above |
+| Attribute names | `INTERNAL_ATTRS`, `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME`, `TEXT_CONTENT_ATTR` | ▪ reserved keys — see [SCHEMA.md](./SCHEMA.md#reserved-keys) |
 
 ## Examples
 
@@ -534,10 +655,10 @@ import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-react';
 import doc from './bouncing-ball.json';
 
 <PixodeskSvgAnimator doc={doc} autoplay startOn="mouseOver"
-  config={{ timeline: { trigger: { outAction: 'pause' } } }} />
+  timeline={{ trigger: { outAction: 'pause' } }} />
 
-// React — imperative: the ref alone starts playback (the document's trigger is switched
-// off, and `autoplay` next to `apiRef` would be ignored)
+// React — imperative: with no control prop the document's trigger is switched off and the
+// ref alone starts playback (add `autoplay` and you get both — the ref is never a mode)
 const api = useRef(null);
 <PixodeskSvgAnimator doc={doc} apiRef={api} />
 <button onClick={() => api.current?.play()}>Play</button>
@@ -560,6 +681,6 @@ if (problems.length) throw new Error(problems.join('\n'));
 // Two copies of one animation on a page (ids must stay unique)
 import { createAnimator, generateNewIds } from '@pixodesk/svg-animator-web';
 
-createAnimator({ data: doc, container: '#first' });
-createAnimator({ data: generateNewIds(doc), container: '#second' });
+createAnimator({ doc: doc, container: '#first' });
+createAnimator({ doc: generateNewIds(doc), container: '#second' });
 ```

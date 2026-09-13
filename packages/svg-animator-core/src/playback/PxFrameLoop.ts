@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxAnimatorCallbacksConfig } from '../format/PxAnimatorTypes';
+import { type PxAnimatedSvgDocument, type PxAnimatorAPI, type PxEngineCallbacks } from '../format/PxAnimatorTypes';
 import { getAnimatorConfig, PxTimelineEngine } from '../format/PxAnimatorConstants';
 import { camelCaseToKebabWordIfNeeded, clamp, DEFAULT_DURATION_MS, STYLE_ATTR_NAMES } from '../util/PxAnimatorUtil';
 import { calcAnimationValues, getNormalizedBindings } from '../animation/PxDefinitions';
@@ -48,7 +48,7 @@ export interface PxPlatformAdapter {
 export function createBasicFrameLoopAnimator(
     doc: PxAnimatedSvgDocument,
     adapter: PxPlatformAdapter,
-    callbacks?: PxAnimatorCallbacksConfig
+    callbacks?: PxEngineCallbacks
 ): PxAnimatorAPI {
 
     const config = getAnimatorConfig(doc) || {};

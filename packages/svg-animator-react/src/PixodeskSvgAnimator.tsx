@@ -3,8 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxOutAction, PxAnimatedSvgDocument, PxAnimatorAPI, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger } from '@pixodesk/svg-animator-web';
-import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, PxDiagnosticKind, progressToTimeMs, DEFAULT_DURATION_MS, type PxAnimatorHandle, type PxComponentCallbacks, type PxControlProps, type PxPlaybackOverrideProps, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
+import type { PxOutAction, PxAnimatedSvgDocument, PxAnimatorAPI, PxInternalAnimatorOptions, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTrigger } from '@pixodesk/svg-animator-web';
+import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, PxDiagnosticKind, progressToTimeMs, DEFAULT_DURATION_MS, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverrideProps, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
 import { useDepsVersion } from './Utils';
@@ -43,26 +43,26 @@ export interface PixodeskSvgAnimatorImplProps {
     /**
      * Latest diagnostics props (API review §5). Kept OUT of
      * {@link PixodeskSvgAnimatorCallbacks} on purpose: that type is indexed with `keyof` and
-     * every member invoked as a function, so a `silent: boolean` in there would not type.
+     * every member invoked as a function, so a `muteWarn: boolean` in there would not type.
      */
     diagRef: React.RefObject<PxDiagnosticsConfig>;
 }
 
 /**
  * The six lifecycle callbacks — a subset of {@link PixodeskSvgAnimatorProps}, derived from core's
- * `PxComponentCallbacks` (review §9). Kept under its own name because the inner component indexes
+ * `PxAnimatorCallbacks` (review §9). Kept under its own name because the inner component indexes
  * it with `keyof` and invokes every member, which the diagnostics members would not allow.
  */
 export type PixodeskSvgAnimatorCallbacks =
-    Pick<PxComponentCallbacks, 'onPlay' | 'onStop' | 'onPause' | 'onCancel' | 'onFinish' | 'onRemove'>;
+    Pick<PxAnimatorCallbacks, 'onPlay' | 'onStop' | 'onPause' | 'onCancel' | 'onFinish' | 'onRemove'>;
 
 /**
  * The component's props. The playback override, the control props and every callback are
  * core's shared shapes (review §9) — `PxPlaybackOverrideProps`, `PxControlProps` and
- * `PxComponentCallbacks` — so React, Vue and React Native cannot drift apart. Only what is
+ * `PxAnimatorCallbacks` — so React, Vue and React Native cannot drift apart. Only what is
  * React-specific is declared here.
  */
-export interface PixodeskSvgAnimatorProps extends PxPlaybackOverrideProps, PxControlProps, PxComponentCallbacks {
+export interface PixodeskSvgAnimatorProps extends PxPlaybackOverrideProps, PxControlProps, PxAnimatorCallbacks {
 
     /** Added to the root `<svg>`. */
     className?: string;
@@ -199,7 +199,9 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
         // the PLAYER's to fire after pause / cancel / finish / remove — one rule, in the web
         // package — so it is passed through rather than re-derived here.
         const adapterDiag = createDiagnostics(diagRef.current ?? undefined, '[PixodeskSvgAnimator]');
-        let api: PxAnimatorAPI | undefined = createAnimator({
+        // `adapter` is the components' extension of the public options (`PxInternalAnimatorOptions`,
+        // review §25.14): the frame loop writes to the elements React rendered, not to a container.
+        const options: PxInternalAnimatorOptions = {
             doc,
             adapter:  createReactAdapter(elementRefs, adapterDiag),
             onPlay:   cb('onPlay'),
@@ -210,8 +212,10 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
             onStop:   cb('onStop'),
             onWarn:   diagRef.current?.onWarn,
             onError:  diagRef.current?.onError,
-            silent:   diagRef.current?.silent,
-        });
+            muteWarn:  diagRef.current?.muteWarn,
+            muteError: diagRef.current?.muteError,
+        };
+        let api: PxAnimatorAPI | undefined = createAnimator(options);
         apiHolderRef.current = api;
 
         return () => {
@@ -270,7 +274,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     onPlay, onStop, onPause, onCancel, onFinish, onRemove,
 
     // Diagnostics (API review §5)
-    onWarn, onError, silent
+    onWarn, onError, muteWarn, muteError
 }) => {
 
     // ONE control-mode rule, decided in core and shared with Vue and React Native
@@ -287,7 +291,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
      * would never fire for anyone who passed nothing.
      */
     const makeDiag = (): PxDiagnostics =>
-        createDiagnostics({ onWarn, onError, silent }, '[PixodeskSvgAnimator]');
+        createDiagnostics({ onWarn, onError, muteWarn, muteError }, '[PixodeskSvgAnimator]');
 
     // Warn once per distinct conflict, not once per render — a parent re-rendering on unrelated
     // state must not repeat the sentence. React Native guards it the same way.
@@ -355,7 +359,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     // Same idea for the diagnostics props, so the player and the adapter report where the
     // component does (§5).
     const diagRef = useRef<PxDiagnosticsConfig>({});
-    diagRef.current = { onWarn, onError, silent };
+    diagRef.current = { onWarn, onError, muteWarn, muteError };
 
     // Expose the imperative API via the consumer-provided ref.
     useImperativeHandle(apiRef, () => {

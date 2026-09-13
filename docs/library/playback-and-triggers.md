@@ -56,6 +56,7 @@ now two seconds per bounce and waiting until half of it has scrolled into view.
 API timeline. Its `type` picks one of three, mirroring WAAPI's `DocumentTimeline` /
 `ScrollTimeline` / `ViewTimeline`:
 
+<!-- px-check schema PxTimelineSchema values=type -->
 | `timeline.type` | The playhead follows… |
 |---|---|
 | `time` (default — may be omitted) | wall time — something *starts* it (the `trigger`), and it has the playback dynamics below |
@@ -70,8 +71,9 @@ means a time-driven timeline with every default.
 
 Timing, the playback dynamics, how the animated attributes get updated and at what rate ALL live in the
 timeline. `animator` itself keeps only what is not playback: the lookup tables
-(`definitions`, `animateById`) and the `debugGlobalName` handle.
+(`definitions`, `bindings`) and the `debugGlobalName` handle.
 
+<!-- px-check schema PxAnimatorConfigSchema partial -->
 | Field | Values | Default | Meaning |
 |---|---|---|---|
 | `timeline.duration` | ms | `1000` | length of **one** pass of the timeline. Keyframe times are absolute offsets within it |
@@ -96,11 +98,12 @@ document set to infinite iterations, keeps spinning during every iteration.
 
 `timeline.engine` says **how the animated attributes get updated** — the same three values on every timeline type:
 
+<!-- px-check values PxTimelineEngineExtra pkg=core -->
 | Value | Time-driven timeline | Scroll / view timeline |
 |---|---|---|
 | `auto` (default) | the Web Animations API — played by the browser itself, so it stays smooth even while the page is busy — with an **automatic fallback** to the player's frame loop when the document animates something WAAPI cannot express (path morphing, gradient geometry, filters, text on a path, …) | the browser's own `ScrollTimeline` / `ViewTimeline` where supported; otherwise the player measures scroll progress itself and drives WAAPI (or the frame loop, if WAAPI declines the document) |
 | `native` | Web Animations API only | the browser's `ScrollTimeline` / `ViewTimeline` driving WAAPI (where unsupported, the player measures progress instead — WAAPI stays) |
-| `js` | a `requestAnimationFrame` loop that writes attributes every frame; honours `frameRate`; universal browser support | the player measures scroll progress *and* applies values through its frame loop — identical everywhere |
+| `js` | a `requestAnimationFrame` loop that writes attributes every frame; honors `frameRate`; universal browser support | the player measures scroll progress *and* applies values through its frame loop — identical everywhere |
 
 Leave it on `auto` unless you need a guarantee — for instance `js` for path morphing in
 Safari < 18.5. React Native ignores `engine` (playback is always native-driven).
@@ -109,26 +112,28 @@ Safari < 18.5. React Native ignores `engine` (playback is always native-driven).
 
 The `trigger` block — inside the clock timeline — says what starts the animation and what
 happens when that condition ends. The editor writes it from its **Start** setting; every
-player honours it:
+player honors it:
 
 ```json
 "timeline": { "trigger": { "startOn": "mouseOver", "outAction": "reset" } }
 ```
 
+<!-- px-check values PxStartOn pkg=core -->
 | `startOn` | Starts when… | Editor label |
 |---|---|---|
-| `load` | the animation is displayed | *On load* (the editor's default) |
+| `load` (default) | the animation is displayed | *On load* |
 | `scrollIntoView` | the element becomes visible; `scrollIntoViewThreshold` says how much of it must be on screen first: `0` (default) any part, `0.5` half of it, `1` all of it | *When visible* |
 | `mouseOver` | the pointer enters the element | *On mouse over* |
 | `click` | the element is clicked (a second click applies `outAction`) | *On click* |
 | `programmatic` | never by itself — you call `play()` | *Manually from JS* |
 
-A document with no `trigger`, or a `trigger` without `startOn`, behaves like `programmatic`:
-nothing starts it until you call `play()`.
+A document with no `trigger`, or a `trigger` without `startOn`, starts on load — every player
+applies the same defaults. Use `programmatic` when your own code should start it.
 
 `outAction` says what happens when the trigger condition ends (pointer leaves, scrolled out,
 second click):
 
+<!-- px-check values PxOutAction pkg=core -->
 | `outAction` | Effect |
 |---|---|
 | `continue` (default) | keep playing |
@@ -144,7 +149,7 @@ Where triggers work:
   writes a few lines of script into the file for this; no library is involved.
 - **Pre-rendered SVG + CSS animation** (no script at all) supports `load`, and `mouseOver`
   through CSS `:hover`. `click` and `scrollIntoView` cannot be done in pure CSS, so in this
-  flavour they behave like `load` — the animation starts as soon as it is shown. See
+  flavor they behave like `load` — the animation starts as soon as it is shown. See
   [Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#flavour-1--svg--css-animation).
 
 ## Overriding from a player
@@ -154,7 +159,7 @@ Where triggers work:
 
 One document can play differently in each place you mount it — twice on the same page at two
 speeds, or a file that autostarts everywhere except inside your own transport UI. Every player
-takes the **same** override: a `config` object shaped exactly like the document's `animator`
+takes the **same** override: a `timeline` object shaped exactly like the document's `animator`
 block, deep-merged over what the file says. The file on disk is never modified.
 
 **Web player**
@@ -169,7 +174,7 @@ import { createAnimator } from '@pixodesk/svg-animator-web';
 const a = createAnimator({
   src: '/bouncing-ball.json',
   container: '#box',
-  config: { timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } } },
+  timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } },
 });
 a.play();
 ```
@@ -178,14 +183,15 @@ a.play();
 
 ```jsx
 <PixodeskSvgAnimator doc={doc} autoplay
-  config={{ timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } } }} />
+  timeline={{ iterations: 'infinite', trigger: { startOn: 'programmatic' } }} />
 ```
 
 ### How the merge works
 
+<!-- px-check off the merge rules, prose -->
 | | |
 | --- | --- |
-| **Objects merge, key by key** | `config: { timeline: { duration: 2000 } }` changes the duration and leaves `iterations`, `trigger` and everything else as the file has them |
+| **Objects merge, key by key** | `timeline: { duration: 2000 }` changes the duration and leaves `iterations`, `trigger` and everything else as the file has them |
 | **Values replace** | numbers, strings and arrays are taken as given, never combined |
 | **`null` deletes** | `{ timeline: { delay: null } }` removes the file's delay, restoring what its *absence* means. This is the only way to get a default back, because there is no value that spells "unset" |
 | **Changing `timeline.type` starts over** | switching between a clock and a scroll timeline keeps only `duration`, `iterations`, `engine` and `frameRate` — the keys both kinds share. Clock-only keys (`trigger`, `delay`, `fillMode`, `direction`) have no meaning on a scroll timeline and are dropped, with a console warning |
@@ -195,35 +201,37 @@ a.play();
 The keys people reach for most also exist as plain props / options, because
 `duration={2000}` reads better than a nested object:
 
+<!-- px-check props PxAnimatorConfigShortcuts pkg=core -->
 | Shortcut | Same as |
 | --- | --- |
-| `duration` | `config.timeline.duration` |
-| `delay` | `config.timeline.delay` |
-| `iterations` | `config.timeline.iterations` |
-| `startOn` | `config.timeline.trigger.startOn` |
+| `duration` | `timeline.duration` |
+| `delay` | `timeline.delay` |
+| `iterations` | `timeline.iterations` |
+| `startOn` | `timeline.trigger.startOn` |
 
-A shortcut wins over the same key inside `config`, the way an inline style beats a stylesheet.
+A shortcut wins over the same key inside `timeline`, the way an inline style beats a stylesheet.
 
 ### Starting from the defaults instead
 
-`config` edits what the file says. To *ignore* the file's playback settings and start from the
-player's own defaults, add `resetDocDefaults`:
+`timeline` edits what the file says. To *ignore* the file's playback settings and start from the
+player's own defaults, add `resetTimeline`:
 
 ```jsx
-<PixodeskSvgAnimator doc={doc} resetDocDefaults config={{ timeline: { duration: 3000 } }} />
+<PixodeskSvgAnimator doc={doc} resetTimeline timeline={{ duration: 3000 }} />
 ```
 
 That plays for 3 s with default timing whatever the file declares. Fonts and the per-element
-animation tables (`definitions`, `animateById`) are always kept — they are the animation
+animation tables (`definitions`, `bindings`) are always kept — they are the animation
 itself, not playback settings.
 
 ### A note on the components' control props
 
 The components switch the trigger to `programmatic` whenever you use `play` / `pause` /
-`apiRef` / `time`, so only `autoplay` mode uses the trigger saved in the file.
+`progress` / `time`, so only `autoplay` mode uses the trigger saved in the file. `apiRef` is not
+a control prop — the handle is filled in every mode and never changes which one you are in.
 
-> **Mangled builds.** `config` also accepts a **JSON string** —
-> `config='{"timeline":{"duration":2000}}'` — which survives a build that renames object keys.
+> **Mangled builds.** `timeline` also accepts a **JSON string** —
+> `timeline='{"duration":2000}'` — which survives a build that renames object keys.
 > See [Minification](./minification.md).
 
 ## Debug handle — `debugGlobalName`
@@ -259,6 +267,7 @@ is on screen"*; `type: "scroll"` follows the scroll container's offset instead. 
 fields (`trigger`, `delay`, `"infinite"`) have no slot in these timelines. The rest of the
 object tunes it:
 
+<!-- px-check schema PxTimelineSchema variant=scroll omit=duration,frameRate -->
 | `timeline.` | Values | Meaning |
 |---|---|---|
 | `type` | `view` · `scroll` | progress = the SVG's journey across the scrollport, or the scroll container's offset ratio |
@@ -268,7 +277,7 @@ object tunes it:
 | `range.start` / `range.end` | `{ phase, fraction }` | the slice of the journey mapped to 0–100 %; `phase` ∈ `cover` (default) · `contain` · `entry` · `exit` · `entry-crossing` · `exit-crossing`; `fraction` is a position within that phase, `0` = its start, `1` = its end |
 | `iterations` | number | the animation repeats this many times across the range (finite only — `"infinite"` cannot map onto a range) |
 | `smoothing` | ms | catch-up lag — the playhead eases toward the scroll position instead of snapping (smoother under momentum scrolling) |
-| `pin` | `true` · `{ align, top, distance }` | hold the canvas still on screen while scrolling moves the animation forward and back (`position: sticky`); `align` ∈ `top`/`center`/`bottom`, `top` in px, `distance` in viewport heights creates the scroll travel |
+| `pin` | `true` · `{ align, offset, distance }` | hold the canvas still on screen while scrolling moves the animation forward and back (`position: sticky`); `align` ∈ `top`/`center`/`bottom`, `offset` in px from the aligned position, `distance` in viewport heights creates the scroll travel |
 | `engine` | `auto` (default) · `native` · `js` | who computes progress and applies values — see [Engine](#engine): `auto`/`native` use the browser's `ScrollTimeline` where supported, `js` measures itself |
 
 Support: the **web player** (both engines, and therefore React and Vue), and the *SVG + JS

@@ -46,7 +46,7 @@ export type { PxAnimatorOptions } from './animator/PxAnimator';
 export type { PxAnimatorAPI, PxBasicAnimatorAPI } from './shared/PxAnimatorWebTypes';
 export type {
     PxAnimatedSvgDocument,
-    PxAnimatorCallbacksConfig,
+    PxEngineCallbacks,
     PxAnimatorConfig,
     PxNode,
 } from '@pixodesk/svg-animator-core';

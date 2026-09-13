@@ -3,8 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { reportDocumentDiagnostics, applyAnimatorConfig, createDiagnostics, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxElementFileFormat, materializeAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxAnimatorCallbacksConfig, type PxAnimatorConfigPatch, type PxComponentCallbacks, type PxPlaybackOverrideProps, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
-import { toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
+import { reportDocumentDiagnostics, applyAnimatorConfig, createDiagnostics, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxElementFileFormat, materializeAllInTree, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverrideProps, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { asThrownError, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { bindWithEngineChoice } from '../engines/PxAnimatorBind';
 import { renderNode } from '../dom/PxAnimatorDOM';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
@@ -25,7 +25,7 @@ export { generateNewIds };
 function createAnimatorFromConfig(
     doc: PxAnimatedSvgDocument,
     adapter?: PxPlatformAdapter,
-    callbacks?: PxAnimatorCallbacksConfig,
+    callbacks?: PxEngineCallbacks,
     rootElement?: Element | null
 ): PxAnimatorAPI {
     return bindWithEngineChoice(doc, adapter, callbacks, rootElement);
@@ -47,7 +47,7 @@ function createAnimatorFromConfig(
 function createAnimatorImpl(
     doc: PxAnimatedSvgDocument,
     adapter?: PxPlatformAdapter,
-    callbacks?: PxAnimatorCallbacksConfig,
+    callbacks?: PxEngineCallbacks,
     containerElement?: string | Element,
     patch?: PxAnimatorConfigPatch,
     resetTimeline?: boolean
@@ -58,7 +58,7 @@ function createAnimatorImpl(
     // its best even when shapes are off, but a warning helps spot wire-format
     // regressions early.
     // Everything this player has to say goes through one channel (API review §5): the caller's
-    // `onWarn` / `onError` if given, the console otherwise, and neither when `silent`.
+    // `onWarn` / `onError` if given, the console otherwise — unless `muteWarn` / `muteError` switch it off.
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
 
     const effectsWarnings = validateNodeEffects(doc as any);
@@ -140,15 +140,32 @@ export { PX_ANIMATOR_DOC_KEY } from '../shared/PxAnimatorKeys';
  * React, Vue and React Native components take (review §9) — so only what is web-specific is
  * declared here.
  */
-export interface PxAnimatorOptions extends PxPlaybackOverrideProps, PxComponentCallbacks {
+export interface PxAnimatorOptions extends PxPlaybackOverrideProps, PxAnimatorCallbacks {
     /** URL to fetch the animation document from. Provide either this or `doc`, not both. */
     src?: string;
     /** The animation document, inline (see SCHEMA.md). Provide either this or `src`, not both. */
     doc?: PxAnimatedSvgDocument;
-    /** ○ A custom render target for the frame-loop engine (`PxPlatformAdapter`); omit for the DOM. */
-    adapter?: PxPlatformAdapter;
     /** CSS selector or element to render the SVG into. */
     container?: string | Element;
+}
+
+/**
+ * What the framework COMPONENTS build the player with: the public options plus the `adapter`
+ * that routes the frame loop's attribute writes to the elements they rendered themselves.
+ *
+ * NOT part of the public API (review §25.14). The React and Vue packages are its only callers;
+ * `createAnimator`'s signature says `PxAnimatorOptions` on purpose — a page has a DOM to write
+ * to, so for anyone else the option would only be a way to hold the player wrong. Exported as a
+ * type so those packages can name it; never documented as an option.
+ */
+export interface PxInternalAnimatorOptions extends PxAnimatorOptions {
+    /** A custom render target for the frame-loop engine (`PxPlatformAdapter`). */
+    adapter?: PxPlatformAdapter;
+}
+
+/** The one place `createAnimator` reads past its public signature — see `PxInternalAnimatorOptions`. */
+function isInternalOptions(options: PxAnimatorOptions): options is PxInternalAnimatorOptions {
+    return 'adapter' in options;
 }
 
 /**
@@ -170,10 +187,14 @@ export function resolveTimelineOption(options: PxAnimatorOptions): PxAnimatorCon
  */
 export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
 
-    const { src, doc, adapter, container, resetTimeline } = options;
+    const { src, doc, container, resetTimeline } = options;
+    const adapter = isInternalOptions(options) ? options.adapter : undefined;
     const patch = resolveTimelineOption(options);
     const callbacks = toEngineCallbacks(options);
 
+    // A wrong CALL throws — a bug at the call site, found the moment the line runs. A document
+    // or environment that cannot play is reported through `onError` instead (the rule in core's
+    // `PxDiagnostics`, review §25.1): the returned API stays inert and `isReady()` false.
     if (doc !== undefined && src !== undefined) {
         throw new Error('createAnimator: provide either `src` or `doc`, not both');
     }
@@ -181,17 +202,12 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
         throw new Error('createAnimator: either `src` or `doc` is required');
     }
 
-    if (doc !== undefined) {
-        return createAnimatorImpl(doc, adapter, callbacks, container, patch, resetTimeline);
-    }
-
-    // URL provided - fetch and create animator
     let animator: PxAnimatorAPI | null = null;
 
-    // Control calls made before the fetch resolves are queued and replayed (in
-    // order) once the animator is ready, so e.g. `createAnimator({src}).play()`
-    // works as expected. Getters are not queued — they return their "not ready
-    // yet" value until the document loads.
+    // Control calls made before the player exists are queued and replayed (in order) once it
+    // is ready, so e.g. `createAnimator({src}).play()` works as expected. Getters are not
+    // queued — they return their "not ready yet" value until then. With `doc` the player is
+    // ready before this returns; the same proxy then simply forwards.
     let pending: Array<(api: PxAnimatorAPI) => void> | null = [];
     let destroyed = false;
 
@@ -203,29 +219,44 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorAPI {
         }
     };
 
-    // A failed load is the one thing the web player could never tell anyone about: it went to
-    // `console.error` and the proxy then answered `isReady() === false` for ever (API review §5).
-    const loadDiag = createDiagnostics(callbacks, '[PxAnimator]');
+    const diag = createDiagnostics(callbacks, '[PxAnimator]');
 
-    fetch(src!).then(res => res.json()).then(json => {
-        if (destroyed) return; // destroy() was called before the document loaded
-        if (isPxElementFileFormat(json)) {
-            animator = createAnimatorImpl(json, adapter, callbacks, container, patch, resetTimeline);
-            const queued = pending;
-            pending = null;
-            queued?.forEach(call => call(animator!));
-        } else {
-            loadDiag.error(PxDiagnosticKind.document,
-                'createAnimator: invalid animation document format at "' + src + '"');
-        }
-    }).catch(err => {
+    const ready = (api: PxAnimatorAPI): void => {
+        animator = api;
+        const queued = pending;
         pending = null;
-        // `host`, not `document`: the file may be perfect — the page could not fetch it.
-        loadDiag.error(PxDiagnosticKind.host,
-            'createAnimator: failed to load "' + src + '" — ' + (err?.message ?? String(err)));
-    });
+        queued?.forEach(call => call(api));
+    };
+    // The instance will not play: report once, drop the queue, stay inert.
+    const failed = (kind: PxDiagnosticKind, message: string, detail?: unknown): void => {
+        pending = null;
+        diag.error(kind, message, detail);
+    };
+    // Building the player threw: a broken document past validation, or a player bug — never a
+    // throw at the caller, which would land inside a fetch callback where no one can catch it.
+    const build = (document: PxAnimatedSvgDocument): void => {
+        try {
+            ready(createAnimatorImpl(document, adapter, callbacks, container, patch, resetTimeline));
+        } catch (e) {
+            const err = asThrownError(e);
+            failed(PxDiagnosticKind.internal, 'createAnimator: could not build the player — ' + err.message, err);
+        }
+    };
 
-    // Return a proxy that forwards calls once loaded
+    if (doc !== undefined) {
+        build(doc);
+    } else {
+        fetch(src!).then(res => res.json()).then(json => {
+            if (destroyed) return; // destroy() was called before the document loaded
+            if (isPxElementFileFormat(json)) build(json);
+            else failed(PxDiagnosticKind.document, 'createAnimator: invalid animation document format at "' + src + '"');
+        }).catch(err => {
+            // `host`, not `document`: the file may be perfect — the page could not fetch it.
+            failed(PxDiagnosticKind.host, 'createAnimator: failed to load "' + src + '" — ' + (err?.message ?? String(err)));
+        });
+    }
+
+    // The proxy: forwards once the player exists, queues control calls until then
     return {
         "isReady": () => !!animator,
         "getRootElement": () => animator ? animator.getRootElement() : null,

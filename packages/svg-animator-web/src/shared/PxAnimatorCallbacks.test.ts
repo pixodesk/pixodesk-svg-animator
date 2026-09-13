@@ -56,10 +56,11 @@ describe('toEngineCallbacks', () => {
 
     it('passes the diagnostics fields through untouched', () => {
         const onWarn = vi.fn(), onError = vi.fn();
-        const out = toEngineCallbacks({ onWarn, onError, silent: ['platform'] });
+        const out = toEngineCallbacks({ onWarn, onError, muteWarn: true, muteError: false });
 
         expect(out.onWarn).toBe(onWarn);
         expect(out.onError).toBe(onError);
-        expect(out.silent).toEqual(['platform']);
+        expect(out.muteWarn).toBe(true);
+        expect(out.muteError).toBe(false);
     });
 });

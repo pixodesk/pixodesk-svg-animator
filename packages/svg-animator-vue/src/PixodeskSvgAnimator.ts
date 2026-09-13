@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
+import type { PxAnimatedSvgDocument, PxAnimatorAPI, PxInternalAnimatorOptions, PxNode, PxPlatformAdapter, PxTimelineEngineExtra, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
 import { camelCaseToKebabWordIfNeeded, createAnimator, createDiagnostics, generateNewIds, getNormalizedProps, STYLE_ATTR_NAMES, applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, PxDiagnosticKind, progressToTimeMs, DEFAULT_DURATION_MS, type PxAnimatorHandle, type PxControlProps, type PxPlaybackOverrideProps, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
@@ -194,9 +194,10 @@ const PixodeskSvgAnimator = defineComponent({
         //    speaks by default — the same contract as React and React Native.
         onWarn: { type: Function as PropType<(diagnostic: PxDiagnostic) => void> },
         onError: { type: Function as PropType<(diagnostic: PxDiagnostic) => void> },
-        //    `silent` takes `true` or just the kinds to quiet, so `platform` chatter can be
-        //    silenced while `document` problems still speak.
-        silent: { type: [Boolean, Array] as PropType<boolean | ReadonlyArray<PxDiagnosticKind>>, default: undefined },
+        //    `muteWarn` / `muteError` switch the console fallback off — for a host that knows
+        //    about the warnings and tolerates them; a handler you passed still fires.
+        muteWarn: { type: Boolean, default: undefined },
+        muteError: { type: Boolean, default: undefined },
     },
 
     emits: ['play', 'stop', 'pause', 'cancel', 'finish', 'remove'],
@@ -212,7 +213,7 @@ const PixodeskSvgAnimator = defineComponent({
          * would never fire for anyone who passed nothing.
          */
         const makeDiag = (): PxDiagnostics => createDiagnostics(
-            { onWarn: props.onWarn, onError: props.onError, silent: props.silent },
+            { onWarn: props.onWarn, onError: props.onError, muteWarn: props.muteWarn, muteError: props.muteError },
             '[PixodeskSvgAnimator]',
         );
 
@@ -278,7 +279,9 @@ const PixodeskSvgAnimator = defineComponent({
             // Route animator lifecycle events to Vue component events, INLINE under the same
             // names every surface uses (review §9). `stop` fires alongside any event that halts
             // playback — that is the PLAYER's rule, so `onStop` is passed through, not re-derived.
-            apiRef.value = createAnimator({
+            // `adapter` is the components' extension of the public options (`PxInternalAnimatorOptions`,
+            // review §25.14): the frame loop writes to the elements Vue rendered, not to a container.
+            const options: PxInternalAnimatorOptions = {
                 doc,
                 adapter:  createVueAdapter(elementRefs, makeDiag()),
                 onPlay:   () => emit('play'),
@@ -290,8 +293,10 @@ const PixodeskSvgAnimator = defineComponent({
                 // The player's own diagnostics reach the same handlers as the component's.
                 onWarn:   props.onWarn,
                 onError:  props.onError,
-                silent:   props.silent,
-            });
+                muteWarn:  props.muteWarn,
+                muteError: props.muteError,
+            };
+            apiRef.value = createAnimator(options);
 
             // (Re)apply the declarative control state to the fresh animator —
             // covers both the initial mount (e.g. `:play="true"` from the

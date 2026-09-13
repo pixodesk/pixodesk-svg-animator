@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createBasicFrameLoopAnimator, type PxPlatformAdapter } from './PxAnimatorFrameLoop';
-import type { PxAnimatedSvgDocument, PxAnimatorCallbacksConfig } from '@pixodesk/svg-animator-core';
+import type { PxAnimatedSvgDocument, PxEngineCallbacks } from '@pixodesk/svg-animator-core';
 
 
 // Under vi.useFakeTimers() the faked requestAnimationFrame fires every 16ms and
@@ -62,7 +62,7 @@ function createMockAdapter() {
     return { adapter, calls, opacity };
 }
 
-function setup(timeline: Record<string, any> = {}, callbacks?: PxAnimatorCallbacksConfig) {
+function setup(timeline: Record<string, any> = {}, callbacks?: PxEngineCallbacks) {
     const mock = createMockAdapter();
     const api = createBasicFrameLoopAnimator(makeDoc(timeline), mock.adapter, callbacks);
     return { api, ...mock };

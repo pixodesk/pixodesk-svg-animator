@@ -22,4 +22,4 @@ export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 
 export type { PxPrerenderedOptions } from './engines/PxAnimatorBind';
 export type { PxAnimatorAPI, PxBasicAnimatorAPI } from './shared/PxAnimatorWebTypes';
-export type { PxAnimatedSvgDocument, PxAnimatorCallbacksConfig } from '@pixodesk/svg-animator-core';
+export type { PxAnimatedSvgDocument, PxEngineCallbacks } from '@pixodesk/svg-animator-core';

@@ -10,8 +10,11 @@ export interface PxRnErrorBoundaryProps {
     children: ReactNode;
     /** Rendered instead of the children once something has thrown. */
     fallback?: (error: Error) => ReactNode;
-    onError?: (error: Error, info?: string) => void;
-    /** Where to report the failure (API review §5). Defaults to the console. */
+    /**
+     * Where the failure is reported (API review §5, §25.1): `error(internal, …)` with
+     * `{ componentStack }` as the detail — so it reaches `onError` like every other failure.
+     * Defaults to the console.
+     */
     diag?: PxDiagnostics;
 }
 
@@ -25,7 +28,7 @@ interface State {
  * A throw anywhere in the rendered SVG tree — an unsupported prop shape, a
  * react-native-svg internal, a reanimated attachment failure — otherwise
  * unmounts the whole React tree above it. Here it is contained to this one
- * animation, reported through `onError`, and replaced by `fallback`.
+ * animation, reported through the diagnostics channel, and replaced by `fallback`.
  *
  * NOTE the limit: this catches JavaScript errors only. A crash INSIDE the
  * native renderer (see `openClosedTextPathTargets` for a real example) never
@@ -40,9 +43,8 @@ export class PxRnErrorBoundary extends Component<PxRnErrorBoundaryProps, State> 
     }
 
     override componentDidCatch(error: Error, info: ErrorInfo): void {
-        this.props.onError?.(error, info?.componentStack ?? undefined);
         (this.props.diag ?? createDiagnostics(undefined, '[PixodeskSvgAnimator]'))
-            .warn(PxDiagnosticKind.internal, 'render failed: ' + (error?.message ?? String(error)));
+            .error(PxDiagnosticKind.internal, error, { componentStack: info?.componentStack ?? undefined });
     }
 
     override componentDidUpdate(prev: PxRnErrorBoundaryProps): void {

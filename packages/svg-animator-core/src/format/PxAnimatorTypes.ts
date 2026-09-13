@@ -17,9 +17,9 @@ import type { PxTimelineEngine, PxTransformPartKey } from './PxAnimatorConstants
 // reader can never disagree on what counts as a stamp. `PxWireVersion` imports only
 // `PxSchemaVersion`, so this edge creates no cycle.
 import { parseWireVersion } from '../version/PxWireVersion';
-// The diagnostics channel's payload, named by `PxAnimatorCallbacksConfig` below (review §5).
+// The diagnostics channel's payload, named by `PxEngineCallbacks` below (review §5).
 // `PxDiagnostics` imports nothing, so this edge creates no cycle either.
-import type { PxDiagnostic, PxDiagnosticKind } from '../playback/PxDiagnostics';
+import type { PxDiagnosticKind, PxDiagnosticsConfig } from '../playback/PxDiagnostics';
 
 // ============================================================================
 // EASING
@@ -555,7 +555,7 @@ export interface _PxTrigger {
 
     /** After a NATURAL finish: `'hold'` (default — keep the end state per `fill`) or `'reset'`
    *  (snap back to the start). Named to pair with its sibling `outAction`, and NOT `onFinish`,
-   *  which is the CALLBACK on `PxAnimatorCallbacksConfig` — a value key and a function key with
+   *  which is the CALLBACK on `PxEngineCallbacks` — a value key and a function key with
    *  one name read badly side by side in a document literal or in JSX. */
     finishAction?: PxFinishAction;
 }
@@ -2003,8 +2003,21 @@ export interface PxAnimatedSvgDocument extends PxSvgNode {
 // API INTERFACES
 // ============================================================================
 
-/** A configuration object for animation lifecycle callbacks. */
-export interface PxAnimatorCallbacksConfig {
+// -- Callbacks: one chain, three levels (API review §9, §5, §26.1) ----------------------------
+//
+//   PxDiagnosticsConfig   onWarn / onError / muteWarn / muteError   — what `createDiagnostics` reads
+//   PxEngineCallbacks     + onPlay / onPause / onCancel / onFinish / onRemove — what an ENGINE takes
+//   PxAnimatorCallbacks   + onStop                                  — what every PUBLIC surface takes
+//
+// Each level extends the one above, so a field is spelled once and the surfaces cannot drift.
+// The diagnostics rule (`onError` = this instance will not play; `onWarn` = it plays, but
+// something was ignored, degraded or misspelled) is written on `PxDiagnosticsConfig`.
+
+/**
+ * The callbacks an ENGINE takes — the frame loop, WAAPI, React Native's sampler: the playback
+ * lifecycle plus the diagnostics channel. Public surfaces take `PxAnimatorCallbacks`.
+ */
+export interface PxEngineCallbacks extends PxDiagnosticsConfig {
 
     /** Callback executed when the animation starts or resumes. */
     onPlay?: () => void;
@@ -2023,46 +2036,19 @@ export interface PxAnimatorCallbacksConfig {
 
     /** Callback executed when the animation is removed. */
     onRemove?: () => void;
-
-    // -- Diagnostics (API review §5) -----------------------------------------
-    // One channel for every player. A player WARNS and carries on; it does not throw at the
-    // caller. Give a handler and it takes over from the console; give none and the console is
-    // the fallback, so nothing is lost by default. See `createDiagnostics`.
-
-    /**
-     * Something is off, but the animation still plays — an unknown easing, a config key that
-     * could not be applied, an attribute the browser will not animate.
-     *
-     * Each diagnostic says WHO can act on it via `kind` (`document` / `host` / `platform` /
-     * `usage` / `internal`). With no handler these go to `console.warn`.
-     */
-    onWarn?: (diagnostic: PxDiagnostic) => void;
-
-    /**
-     * The animation could not be produced at all: a document that failed to load or parse, or
-     * a render that threw. The player stays inert rather than throwing at the caller.
-     *
-     * With no handler these go to `console.error`.
-     */
-    onError?: (diagnostic: PxDiagnostic) => void;
-
-    /**
-     * Suppress the console FALLBACK above — `true` for everything, or just the kinds listed,
-     * so `platform` chatter can be quiet while `document` problems still speak.
-     * Handlers still fire either way — this is not a mute button.
-     */
-    silent?: boolean | ReadonlyArray<PxDiagnosticKind>;
 }
 
 /**
- * The callbacks a framework COMPONENT takes: the player's, plus `onStop`, which fires after any
- * of `onPause` / `onCancel` / `onFinish` / `onRemove` — for callers who only care that playback
- * is no longer running, whatever the reason.
+ * What every PUBLIC surface takes, inline and under the same names — `createAnimator({ onFinish })`,
+ * `loadTagAnimators`, the pre-rendered entries, and `<PixodeskSvgAnimator onFinish />` on React,
+ * Vue and React Native (review §9, §24): the engine's callbacks plus `onStop`, which fires after
+ * any of `onPause` / `onCancel` / `onFinish` / `onRemove` — for callers who only care that
+ * playback is no longer running, whatever the reason.
  *
- * ONE definition (review §9): React, Vue and React Native derive their props from it instead of
- * each spelling the same six names, which is how their comments had already started to drift.
+ * ONE definition: the components derive their props from it instead of each spelling the same
+ * names, which is how their comments had already started to drift.
  */
-export interface PxComponentCallbacks extends PxAnimatorCallbacksConfig {
+export interface PxAnimatorCallbacks extends PxEngineCallbacks {
     onStop?: () => void;
 }
 

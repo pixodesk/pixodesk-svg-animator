@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxAnimatorCallbacksConfig, PxComponentCallbacks } from '@pixodesk/svg-animator-core';
+import type { PxEngineCallbacks, PxAnimatorCallbacks } from '@pixodesk/svg-animator-core';
+import type { PxAnimatorAPI } from './PxAnimatorWebTypes';
 
 /**
  * The engines take ONE callbacks object; every public surface takes the callbacks INLINE —
@@ -15,8 +16,8 @@ import type { PxAnimatorCallbacksConfig, PxComponentCallbacks } from '@pixodesk/
  * A wrapper is only made when there is something to call — an engine tests
  * `callbacks?.onFinish` for presence, so an always-present function would change its behaviour.
  */
-export function toEngineCallbacks(inline: PxComponentCallbacks | undefined): PxAnimatorCallbacksConfig {
-    const { onPlay, onPause, onCancel, onFinish, onRemove, onStop, onWarn, onError, silent } = inline ?? {};
+export function toEngineCallbacks(inline: PxAnimatorCallbacks | undefined): PxEngineCallbacks {
+    const { onPlay, onPause, onCancel, onFinish, onRemove, onStop, onWarn, onError, muteWarn, muteError } = inline ?? {};
     const withStop = (own: (() => void) | undefined): (() => void) | undefined =>
         own || onStop ? () => { own?.(); onStop?.(); } : undefined;
     return {
@@ -25,6 +26,34 @@ export function toEngineCallbacks(inline: PxComponentCallbacks | undefined): PxA
         onCancel: withStop(onCancel),
         onFinish: withStop(onFinish),
         onRemove: withStop(onRemove),
-        onWarn, onError, silent,
+        onWarn, onError, muteWarn, muteError,
     };
+}
+
+/**
+ * The API of a player that could not be built (the rule in core's `PxDiagnostics`): every
+ * call is a no-op, every getter answers "not ready". Returned instead of throwing, after the
+ * failure has been reported through `onError`.
+ */
+export function createInertAnimator(): PxAnimatorAPI {
+    return {
+        isReady: () => false,
+        getRootElement: () => null,
+        isPlaying: () => false,
+        play: () => {},
+        pause: () => {},
+        cancel: () => {},
+        finish: () => {},
+        setPlaybackRate: () => {},
+        getCurrentTime: () => null,
+        setCurrentTime: () => {},
+        getCurrentProgress: () => null,
+        setCurrentProgress: () => {},
+        destroy: () => {},
+    };
+}
+
+/** Anything thrown becomes an Error, so a diagnostic always carries one shape. */
+export function asThrownError(e: unknown): Error {
+    return e instanceof Error ? e : new Error(String(e));
 }

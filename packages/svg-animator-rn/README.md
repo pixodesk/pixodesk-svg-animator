@@ -188,9 +188,10 @@ const [time, setTime] = useState(0);
 | `onCancel` | `() => void` | Called on cancel |
 | `onRemove` | `() => void` | Called when the animator is thrown away — the component unmounted, or a new `doc` replaced it |
 | `onStop` | `() => void` | Called whenever playback halts (pause / cancel / finish / remove) |
-| `onError` | `(error, componentStack?) => void` | Called when a document cannot be compiled or rendered |
-| `onWarn` | `(diagnostic) => void` | something is off but the animation still plays; without it → `console.warn` |
-| `silent` | `boolean \| PxDiagnosticKind[]` | silences the console fallback — everything, or just the kinds listed |
+| `onError` | `(diagnostic) => void` | this instance will not play — the document could not be compiled or rendered; `fallback` shows instead. `diagnostic.error` is the Error, `diagnostic.detail.componentStack` when the error boundary caught it |
+| `onWarn` | `(diagnostic) => void` | it plays, but something was ignored, degraded or misspelled; without it → `console.warn` |
+| `muteWarn` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarn`, if you gave it, still fires: mute is about the console, not about you |
+| `muteError` | `boolean` | the same switch for `console.error` |
 | `fallback` | `(error) => ReactElement \| null` | Rendered in place of a failed animation (default: nothing) |
 
 With none of `autoplay` / `play` / `pause` / `progress` / `time` set, the component
@@ -200,14 +201,14 @@ renders the animation statically (initial state, no playback).
 
 The component never throws for a bad document. Compilation and rendering both
 run inside `try`/`catch`, and the rendered tree sits behind an error boundary,
-so a failure is reported through `onError` and shows `fallback` while the
-surrounding screen keeps working.
+so a failure is reported through `onError` — the shared diagnostic (`diagnostic.error` is the
+Error), exactly as on the web — and shows `fallback` while the surrounding screen keeps working.
 
 ```tsx
 <PixodeskSvgAnimator
     doc={doc}
     autoplay
-    onError={e => console.warn('animation failed:', e.message)}
+    onError={d => console.warn('animation failed:', d.message)}
     fallback={() => <Text>could not play this animation</Text>}
 />
 ```

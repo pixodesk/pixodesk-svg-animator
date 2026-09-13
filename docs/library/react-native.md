@@ -215,9 +215,10 @@ component.
 | `startOn` | `'load' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | shortcut for `timeline.trigger.startOn`. `mouseOver` has no touch equivalent — see [Differences from the React package](#differences-from-the-react-package) |
 | `onPlay` · `onPause` · `onFinish` · `onCancel` · `onStop` | `() => void` | called when the animation starts or resumes (`onPlay`), pauses (`onPause`), reaches its end (`onFinish`), or is stopped and reset to the start (`onCancel`) — same meanings as in the [React component](./react.md#props). `onStop` fires *in addition to* any of the others that halt playback — use it when you only care that the animation is no longer playing | <!-- px names=onPlay,onPause,onFinish,onCancel,onStop -->
 | `onRemove` | `() => void` | the animator was thrown away: the component unmounted, or a new `doc` replaced it (review §18) |
-| `onError` | `(error, componentStack?) => void` | the document could not be compiled or rendered. Keeps this richer signature — the error boundary hands it a component stack — while feeding the same channel as everything else. Without it, failures go to `console.error` |
-| `onWarn` | `(diagnostic) => void` | something is off but the animation still plays — an unknown easing, a config key that could not be applied, two control props at once. Without this it goes to `console.warn`. The same channel as the [React component](./react.md#props) |
-| `silent` | `boolean \| PxDiagnosticKind[]` | silences the console *fallback* above — everything, or just the kinds you list. `onWarn` / `onError` still fire if you gave them |
+| `onError` | `(diagnostic) => void` | **this instance will not play** — the document could not be compiled or rendered: `fallback` shows instead. The same shape as every other player; `diagnostic.error` is the Error, `diagnostic.detail.componentStack` is set when the error boundary caught it. Without this it goes to `console.error` |
+| `onWarn` | `(diagnostic) => void` | **it plays**, but something was ignored, degraded or misspelled — an unknown easing, an override that could not apply, two control props at once. Without this it goes to `console.warn`. The same channel as the [React component](./react.md#props) |
+| `muteWarn` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarn`, if you gave it, still fires: mute is about the console, not about you |
+| `muteError` | `boolean` | the same switch for `console.error` |
 | `fallback` | `(error) => ReactElement \| null` | rendered in place of a failed animation (default: renders nothing) |
 
 With none of `autoplay` / `play` / `pause` / `progress` / `time` set, the first frame renders
@@ -260,8 +261,9 @@ are in [Playback & triggers → Overriding from a player](./playback-and-trigger
 ### Failure handling
 
 The component never throws errors for a bad document: compilation and rendering run in `try/catch`
-and behind an error boundary, so a failure reaches `onError` and shows `fallback` while the
-rest of the screen keeps working.
+and behind an error boundary, so a failure reaches `onError` — the shared diagnostic, exactly as
+on the web: **this instance will not play** — and shows `fallback` while the rest of the screen
+keeps working. It is reported once, as an error; nothing else is logged for it.
 
 ```tsx
 import { Text } from 'react-native';
@@ -273,7 +275,7 @@ export function Safe() {
     <PixodeskSvgAnimator
       doc={doc}
       autoplay
-      onError={e => console.warn('animation failed:', e.message)}
+      onError={d => console.warn('animation failed:', d.message)}
       fallback={() => <Text>could not play this animation</Text>}
     />
   );

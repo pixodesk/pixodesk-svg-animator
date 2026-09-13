@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { clampSeekMs, createDiagnostics, createRunClock, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PX_RATE_REJECTED, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxComponentCallbacks, type PxControlProps, type PxPlaybackOverrideProps, type PxDiagnostic, type PxDiagnostics,
+import { clampSeekMs, createDiagnostics, createRunClock, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PX_RATE_REJECTED, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverrideProps, type PxDiagnostics,
     reportDocumentDiagnostics, generateNewIds, getAnimatorConfig, getDefs, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
@@ -37,12 +37,11 @@ export type RnAnimatorApi = PxAnimatorHandle;
 /**
  * The component's props. The playback override, the control props and the callbacks are core's
  * shared shapes (review §9) — `PxPlaybackOverrideProps`, `PxControlProps` and
- * `PxComponentCallbacks` — so React, Vue and React Native cannot drift apart. Only what differs
- * on this platform is declared here: `onError` keeps its richer signature (the error boundary
- * hands it a component stack), and `fallback` has no web counterpart.
+ * `PxAnimatorCallbacks` — so React, Vue and React Native cannot drift apart. Only what differs
+ * on this platform is declared here: `fallback`, which has no web counterpart.
  */
 export interface PixodeskSvgAnimatorProps
-    extends PxPlaybackOverrideProps, PxControlProps, Omit<PxComponentCallbacks, 'onError'> {
+    extends PxPlaybackOverrideProps, PxControlProps, PxAnimatorCallbacks {
 
     // -- Source ---------------------------------------------------------------
 
@@ -67,18 +66,12 @@ export interface PixodeskSvgAnimatorProps
     apiRef?: React.RefObject<RnAnimatorApi | null>;
 
     // -- Failure handling -----------------------------------------------------
-
-    /**
-     * Called when a document cannot be compiled or rendered. The component
-     * renders {@link fallback} instead of throwing, so a single broken
-     * animation never takes down the screen around it.
-     *
-     * Only JavaScript failures reach this — a crash inside react-native-svg's
-     * native renderer bypasses JavaScript entirely. Richer than the web's
-     * `onError(diagnostic)` because the error boundary hands it a component stack; it is
-     * adapted into the shared diagnostics channel rather than narrowed to match it.
-     */
-    onError?: (error: Error, componentStack?: string) => void;
+    // A document that cannot be compiled or rendered is reported through `onError` — the same
+    // `(diagnostic) => void` as every other player (review §25.1), with `diagnostic.error` the
+    // thrown Error and, when the error boundary caught it, `diagnostic.detail.componentStack`.
+    // The component renders `fallback` instead of throwing, so one broken animation never
+    // takes down the screen around it. Only JavaScript failures reach this — a crash inside
+    // react-native-svg's native renderer bypasses JavaScript entirely.
 
     /** Rendered in place of the animation after a failure. Default: nothing. */
     fallback?: (error: Error) => ReactElement | null;
@@ -298,7 +291,7 @@ export function PixodeskSvgAnimator({
     doc, timeline, resetTimeline, duration, delay, iterations, startOn,
     // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
     autoplay, play, pause, apiRef, progress: progressProp, time,
-    onPlay, onStop, onPause, onCancel, onFinish, onRemove, onError, fallback, onWarn, silent,
+    onPlay, onStop, onPause, onCancel, onFinish, onRemove, onError, fallback, onWarn, muteWarn, muteError,
 }: PixodeskSvgAnimatorProps): ReactElement | null {
 
     // -- Compile the document (once per doc/override change) ------------------
@@ -315,14 +308,8 @@ export function PixodeskSvgAnimator({
      * be a function, so the channel would believe a handler exists and the console fallback
      * would never fire for anyone who passed nothing.
      */
-    const makeDiag = (): PxDiagnostics => createDiagnostics({
-        onWarn,
-        // This component's public `onError` is richer — `(error, componentStack?)` — and the
-        // error boundary hands it a component stack. Adapt rather than narrow it; the ternary
-        // keeps "not given" as undefined, so the console fallback still fires.
-        onError: onError ? (d: PxDiagnostic) => onError(d.error ?? new Error(d.message)) : undefined,
-        silent,
-    }, '[PixodeskSvgAnimator]');
+    const makeDiag = (): PxDiagnostics => createDiagnostics(
+        { onWarn, onError, muteWarn, muteError }, '[PixodeskSvgAnimator]');
 
     const compiled = useMemo((): Compiled => {
         try {
@@ -332,9 +319,10 @@ export function PixodeskSvgAnimator({
                 makeDiag(),
             );
         } catch (e) {
-            // A malformed document must not take the host screen down with it.
+            // A malformed document must not take the host screen down with it. This instance
+            // will not play — an ERROR, reported once, here (review §25.1).
             const error = e instanceof Error ? e : new Error(String(e));
-            makeDiag().warn(PxDiagnosticKind.internal, 'could not compile the document: ' + error.message);
+            makeDiag().error(PxDiagnosticKind.internal, error, { phase: 'compile' });
             return { doc: null, tracks: EMPTY_TRACKS, error };
         }
         // `timeline` is an object prop, so a fresh literal each render would recompile the whole
@@ -653,11 +641,11 @@ export function PixodeskSvgAnimator({
                 },
             });
         } catch (e) {
-            // Building the element tree threw — report it and render nothing
-            // rather than propagating and unmounting the host screen.
+            // Building the element tree threw — this instance will not play: report it once
+            // (an ERROR, review §25.1) and render nothing rather than unmount the host screen.
             const error = e instanceof Error ? e : new Error(String(e));
             renderErrorRef.current = error;
-            makeDiag().warn(PxDiagnosticKind.internal, 'could not render the document: ' + error.message);
+            makeDiag().error(PxDiagnosticKind.internal, error, { phase: 'render' });
             return null;
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -671,13 +659,9 @@ export function PixodeskSvgAnimator({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [root]);
 
-    // Surface compile/render failures to the host exactly once per occurrence.
+    // A compile/render failure was reported where it was caught (once, as an error); here it
+    // only decides what to show.
     const failure = compiled.error ?? renderErrorRef.current;
-    useEffect(() => {
-        if (failure) onError?.(failure);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [failure]);
-
     if (failure) return fallback ? fallback(failure) : null;
 
     // `startOn: 'click'` — the touch analogue of the web player's click trigger:
@@ -712,7 +696,7 @@ export function PixodeskSvgAnimator({
     // and commit of the tree — react-native-svg internals, reanimated failing
     // to attach to a component that turns out not to be a host view, and so on.
     return (
-        <PxRnErrorBoundary onError={onError} fallback={fallback} diag={makeDiag()}>
+        <PxRnErrorBoundary fallback={fallback} diag={makeDiag()}>
             {content}
         </PxRnErrorBoundary>
     );

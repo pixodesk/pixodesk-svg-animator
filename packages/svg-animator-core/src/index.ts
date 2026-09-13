@@ -46,7 +46,7 @@ export type { PxControlProps, PxResolvedControlMode } from './format/PxAnimatorC
 export { PX_PLAYER_SCHEMA_VERSION } from './version/PxSchemaVersion';
 
 // Document / model types
-export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorAPI, PxAnimatorCallbacksConfig, PxAnimatorConfig, PxAttrValue, PxBasicAnimatorAPI, PxBezierPath, PxBinding, PxNormalizedBinding, PxDefs, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxNormalizedKeyframe, PxNormalizedPropertyAnimation, PxAnyKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTimelinePin, PxTransformParts, PxTransformValue, PxTrigger, PxValidationResult } from './format/PxAnimatorTypes';
+export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorAPI, PxEngineCallbacks, PxAnimatorConfig, PxAttrValue, PxBasicAnimatorAPI, PxBezierPath, PxBinding, PxNormalizedBinding, PxDefs, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxNormalizedKeyframe, PxNormalizedPropertyAnimation, PxAnyKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTimelinePin, PxTransformParts, PxTransformValue, PxTrigger, PxValidationResult } from './format/PxAnimatorTypes';
 export type { PxResolvedTrigger, PxTransformPartKey } from './format/PxAnimatorConstants';
 // VALUE exports, not `export type`: each wire enum is a const namespace AND the string type
 // derived from it under the same name (review §2.7), so a consumer gets both `PxStartOn.click`
@@ -132,7 +132,7 @@ export { createDiagnostics, PxDiagnosticKind } from './playback/PxDiagnostics';
 export type { PxDiagnostic, PxDiagnostics, PxDiagnosticsConfig } from './playback/PxDiagnostics';
 
 // The shapes every framework component shares (review §9) — one definition, three aliases.
-export type { PxAnimatorHandle, PxComponentCallbacks } from './format/PxAnimatorTypes';
+export type { PxAnimatorHandle, PxAnimatorCallbacks } from './format/PxAnimatorTypes';
 export type { PxPlaybackOverrideProps } from './playback/PxAnimatorConfigPatch';
 
 // Element-creation factory + glyph-text materializer

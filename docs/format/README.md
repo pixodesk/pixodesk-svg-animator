@@ -22,7 +22,7 @@ are simply curious *why* the format looks the way it does.
 
 Start from what already exists: **SVG**, the standard format for vector graphics on the web —
 every browser draws it. What SVG does not give us is a good way to describe *animation*: how
-those shapes move, change colour, morph over time. The Pixodesk format does not replace SVG
+those shapes move, change color, morph over time. The Pixodesk format does not replace SVG
 to get there. It **keeps SVG as its base and adds what is missing on top, one addition at a
 time** — first typed values, then animation, then effects, then the editor's own data. Each
 addition is called a **layer**: plain SVG is layer zero (L0), and every layer above it adds
@@ -48,6 +48,7 @@ some point, converted into the simpler layers below it. This happens at three mo
 Whichever of these three conversions runs, its output is always written in the simple layers
 only.
 
+<!-- px-check off the layer model, prose -->
 | Layer | Where its data lives | What it adds | Who reads it |
 |---|---|---|---|
 | **L0 — plain SVG** | the element object itself: `{type, ...attributes, children}` | the drawing — elements and their SVG attributes, exactly as in any SVG; values are plain strings | the browser |
@@ -55,7 +56,7 @@ only.
 | **L2 — animated attributes** | `node.animate`, one entry per animated attribute name | keyframes for any attribute; the element itself and its place in the tree are untouched — delete every `animate` key and a valid static SVG remains | the player |
 | **L3 — player effects** | `node.effects` | effects — short descriptions of masks, gradients, copies and other effects ([see more](#player-effects)), which the player expands into plain elements and attributes when the file loads | the player |
 | **L4 — editor meta** | `node.meta` | everything only the editor needs — labels, shape presets, the sources of applied effects; the player ignores this key entirely — [Editor meta and applied effects](#editor-meta-and-applied-effects) | the editor |
-| **L5 — pre-rendered SVG** | unlike the layers above, this one is not a part of the JSON document — it is a separate `.svg` file the editor produces on export | the same document, converted into an ordinary SVG file: the animation travels as CSS or a script inside it, and the editor data as `data-px-meta` attributes — [Meta in pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg/data-px-meta) | depends on the flavour: a CSS-animation file is played by the browser alone; a JS-animation file is played by the player embedded in it |
+| **L5 — pre-rendered SVG** | unlike the layers above, this one is not a part of the JSON document — it is a separate `.svg` file the editor produces on export | the same document, converted into an ordinary SVG file: the animation travels as CSS or a script inside it, and the editor data as `data-px-meta` attributes — [Meta in pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg/data-px-meta) | depends on the flavor: a CSS-animation file is played by the browser alone; a JS-animation file is played by the player embedded in it |
 
 ## JSON format reference
 
@@ -116,17 +117,19 @@ Three ideas cover 90 % of the format:
 The whole format as flattened TypeScript-style typings. A standalone, printable
 copy of this section (with examples) lives in [SCHEMA.md](../../SCHEMA.md).
 
+<!-- px-check schema-block SVG_JSON=PxAnimatedSvgDocumentSchema NODE=PxNodeSchema ANIMATE=PxPropertyAnimationSchema EFFECTS=PxEffectsSchema GRADIENT=PxFillGradientEffectSchema -->
 ```typescript
 // PxAnimatedSvgDocument
 // Self-contained document: has children — player renders SVG tree and animates it
-// Bind-by-id document: no children — player animates a pre-existing SVG DOM via animator.animateById
-interface SVG_JSON {
+// Bind-by-id document: no children — player animates a pre-existing SVG DOM via animator.bindings
+// The root <svg> is a NODE too (every node key applies), plus:
+interface SVG_JSON extends NODE {
     type: 'svg';        // document root marker
     id?: string;        // DOM id; in a bind-by-id document it locates the pre-rendered element
     viewBox?: string;   // internal coordinate space, e.g. "0 0 700 380"
     width?: number | string;   // rendered size; a string may carry CSS units, e.g. "100%"
     height?: number | string;
-    [key: string]: any; // any SVG/CSS presentation attribute; pass-through to DOM
+    [camelCaseDomKey: string]: any; // any SVG attribute under its camelCase DOM name (viewBox, strokeWidth, …), as React spells it; pass-through to DOM
 
     animator?: {
         // WHAT ADVANCES THE PLAYHEAD — a discriminated object mirroring WAAPI's
@@ -147,7 +150,7 @@ interface SVG_JSON {
                 fillMode?: 'forwards' | 'backwards' | 'both' | 'none';                  // CSS animation-fill-mode; default 'forwards' holds final state
                 direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';  // default 'normal'
                 trigger?: {
-                    startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
+                    startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic'; // default 'load'; 'programmatic' waits for play()
                     outAction?: 'continue' | 'pause' | 'reset' | 'reverse'; // when the trigger condition ends; default 'continue'
                     finishAction?: 'hold' | 'reset';  // after a NATURAL finish; default 'hold' (keep end state per `fillMode`)
                     scrollIntoViewThreshold?: number; // how much must be on screen to start: 0 = any part (default), 1 = all of it; scrollIntoView only
@@ -167,7 +170,7 @@ interface SVG_JSON {
                 smoothing?: number;                // ms catch-up lag toward the scroll position
                 pin?: boolean | {                  // hold the canvas on screen while the scroll drives it
                     align?: 'top' | 'center' | 'bottom';  // default 'top'
-                    top?: number;                  // px offset from the aligned position (default 0)
+                    offset?: number;               // px offset from the aligned position (default 0)
                     distance?: number;             // scroll travel the pin lasts, in viewport heights
                 };
                 range?: {                          // the slice mapped onto progress 0..1;
@@ -178,19 +181,18 @@ interface SVG_JSON {
               };
 
         // named reusable easings and animations; resolved at runtime
-        // materialise (inline) all refs before handing to a dumb player
+        // materialize (inline) all refs before handing to a dumb player
         definitions?: {
             easings?: Record<string, [number, number, number, number]>; // name → [x1,y1,x2,y2]
             animations?: Record<string, Record<string, ANIMATE>>;       // name → { propName: ANIMATE }
-            styles?: Record<string, Record<string, string | number>>;   // name → style preset, string|number values only (node.style may reference by name)
-            // font-family → embedded glyph outlines, for glyph-mode text
+            // fontFamily → embedded glyph outlines, for glyph-mode text
             // (effects.text.useGlyphs) — renders without shipping a font
-            fonts?: Record<string, {   // embedded fonts, keyed by font-family
+            fonts?: Record<string, {   // embedded fonts; the key is the FACE name = the node's fontFamily
                 fontFamily: string;   // e.g. "Roboto"
                 fontStyle: string;    // "" | "italic" | …
                 ascent: number;       // in unitsPerEm
                 unitsPerEm: number;   // e.g. 1000
-                glyphs: Record<string, { width: number; d: string }>;  // keyed by the character
+                glyphs: Record<string, { width: number; pathData: string }>;  // keyed by the character
             }>;
         };
 
@@ -199,56 +201,72 @@ interface SVG_JSON {
         version?: string;          // "a.b.c" — the schema the file was written for (see Versioning); written
                                    // by the editor on save, never by the player; absent = unknown
 
-        // bind-by-id documents — maps '#elementId' → animation spec. Same value type as
-        // `node.animate`; only the KEYSPACE differs (an element reference here, an attr
-        // name there). Reference spelling is uniform: every element reference in the
-        // format is '#id'-spelled — record keys included.
-        animateById?: Record<string,
-            | string
-            | Array<string>
-            | Record<string, ANIMATE>
-            | Array<string | Record<string, ANIMATE>>
-        >;
+        // bind-by-id documents (a pre-rendered SVG + JS export): the elements already exist as
+        // markup, so the document lists WHICH element plays WHICH named animations.
+        // `…With` is the format's spelling for "by name, from `definitions`": the bare key
+        // holds the thing itself (`node.animate` holds keyframes), `<key>With` an array of
+        // names of the same concept (`animateWith` → `definitions.animations`).
+        bindings?: Array<{
+            target: string;             // the element, '#id'-spelled like every element reference
+            animateWith: Array<string>; // names into definitions.animations, applied in order
+        }>;
     };
 
     // self-contained documents — SVG element tree; its absence makes the document bind-by-id
-    children?: Array<{
-        type: string;       // SVG element tag: "rect", "g", "path", "ellipse", "use", …
-        id?: string;        // DOM id; required for href="#id" refs or animator.animateById targeting
-        [key: string]: any; // SVG/CSS attrs (cx, cy, r, fill, stroke, transform, …); pass-through
-        textContent?: string; // text content for <text>/<tspan> (`text` is read too)
-        style?: string | Record<string, string | number>;
-        // named ref / array of refs / inline definition / mixed array
-        animate?: string | Array<string> | Record<string, ANIMATE> | Array<string | Record<string, ANIMATE>>;
-        // Player-materialised structural effects (transformBy/repeater/maskedBy/
-        // strokeTrim/clone/gradient/textPath/text). JSON-only — the
-        // Pre-rendered SVG export materialises these in the Editor. See "Player
-        // effects" section below.
-        effects?: {
-            // each part is animatable: raw value | {value} | {keyframes}
-            transformBy?:     { translate?: [x,y], rotate?: deg, skew?: deg, scale?: [x,y], origin?: [x,y] };
-            repeater?:        { copies?: number, translate?: [x,y], rotate?: deg, scale?: [sx,sy] /*per-copy multiplier, compounds v^i*/, origin?: [x,y] };
-            maskedBy?:        { source?: '#id', maskType?: 'alpha' | 'luminance',
-                                maskUnits?, maskContentUnits?: 'userSpaceOnUse' | 'objectBoundingBox',
-                                x?, y?, width?, height?: number };   // mask viewport, user units
-            clipPath?:        { d?: "M…" | { value } | { keyframes } };   // ONE animatable slot, like every other effect
-            strokeTrim?:        { offset?: number, range?: [a,b], subPaths?: 'separate' | 'combined' };  // offset/range animatable
-            clone?:           { without?: 'translate', source?: '#id',   // absent = whole element; 'translate' = the source's placement is left out ('transform' may follow)
-                                retime?: { start?, stretch?: number, timeCrop?: [inMs, outMs] } };  // retime is PURE timing — the ref lives once, on the clone
-            // Geometry slots animate like any other slot ({value} | {keyframes});
-            // gradient geometry animation runs on the player's frame loop ('auto' switches to it).
-            fillGradient?:    { type: 'linear'|'radial', start?, end? (linear) , center?, radius?, focal? (radial),
-                                stops?, gradientUnits?, spreadMethod?, gradientTransform? };
-            strokeGradient?:  { /* same shape as fillGradient */ };
-            textPath?:        { pathData: string, pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? };
-            text?:            { useGlyphs?: boolean };  // render text from embedded glyph outlines (definitions.fonts)
-        };
-        meta?: any;         // editor-only (label, shape, …); not rendered, ignored by player
-        children?: Array<any>; // recursive; <g>, <defs>, <symbol>, <text>, <use>, …
-    }>;
+    children?: Array<NODE>;
+}
+
+// One SVG element
+interface NODE {
+    type: string;       // SVG element tag: "rect", "g", "path", "ellipse", "use", …
+    id?: string;        // DOM id; required for href="#id" refs or as a binding's target
+    [camelCaseDomKey: string]: any; // SVG attrs by camelCase DOM name — cx, cy, r, fill, strokeWidth, fontSize, transform, … (kebab-case is accepted too); pass-through
+    domType?: string;   // the `type` ATTRIBUTE of the few elements that have one (feTurbulence, …):
+                        // `type` is taken by the tag name, so the attribute travels here
+    textContent?: string; // text content for <text>/<tspan>
+    style?: { [camelCaseCssProperty: string]: string | number };   // inline declarations, camelCase like React's style prop (whiteSpace, pointerEvents); an object only
+    // the normal form is the inline record { propName: ANIMATE }; the string forms
+    // reference definitions.animations by name (rarely used), and can be mixed in an array
+    animate?: Record<string, ANIMATE> | string | Array<string | Record<string, ANIMATE>>;
+    effects?: EFFECTS;  // see "Player effects" below; JSON-only — the pre-rendered SVG export materializes these
+    meta?: any;         // editor-only (label, shape, …); not rendered, ignored by the player
+    children?: Array<NODE>; // recursive; <g>, <defs>, <symbol>, <text>, <use>, …
+}
+
+// Player effects — expanded into plain elements when the document loads
+interface EFFECTS {
+    // each part is animatable: raw value | {value} | {keyframes}
+    transformBy?:     { translate?: [x,y], rotate?: deg, skew?: deg, scale?: [x,y], origin?: [x,y] };
+    repeater?:        { copies?: number, translate?: [x,y], rotate?: deg, skew?: deg, scale?: [sx,sy] /*per-copy multiplier, compounds v^i*/, origin?: [x,y] };
+    maskedBy?:        { source?: '#id',                       // the element that becomes the mask
+                        maskType?: 'alpha' | 'luminance',
+                        maskUnits?: 'userSpaceOnUse' | 'objectBoundingBox',
+                        maskContentUnits?: 'userSpaceOnUse' | 'objectBoundingBox',
+                        x?: number, y?: number, width?: number, height?: number };   // mask viewport, in maskUnits
+    clipPath?:        { pathData?: "M…" | ANIMATE };            // ONE animatable slot: a path string, or ANIMATE ({ value } static, { keyframes } animated)
+    strokeTrim?:      { offset?: number, range?: [a,b], subPaths?: 'separate' | 'combined' };  // offset/range animatable
+    clone?:           { without?: 'translate',                // which part of the SOURCE's own transform is left out: absent = whole element (moves with the source);
+                                                              // 'translate' = stays where the <use> put it, still rotates/scales with the source ('transform' may follow)
+                        source?: '#id',                       // what it clones
+                        retime?: { start?, stretch?: number, timeCrop?: [inMs, outMs] } };  // retime is PURE timing
+    fillGradient?:    GRADIENT;               // paints the fill …
+    strokeGradient?:  GRADIENT;               // … or the stroke; same settings
+    textPath?:        { pathData: string /*inline SVG d*/, pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? };
+    text?:            { useGlyphs?: boolean };  // render text from embedded glyph outlines (definitions.fonts)
+}
+
+// Geometry slots animate like any other slot ({value} | {keyframes});
+// gradient geometry animation runs on the player's frame loop ('auto' switches to it).
+interface GRADIENT {
+    type: 'linear' | 'radial';
+    start?; end?;                             // linear: the line the gradient runs along
+    center?; radius?; focal?;                 // radial
+    stops?;                                   // [{ offset, color }, …] — animated: every keyframe carries the whole list
+    gradientUnits?; spreadMethod?; gradientTransform?;   // gradientTransform is static
 }
 ```
 
+<!-- px-check schema-block -->
 ```typescript
 // PxPropertyAnimation — single-property animation
 interface ANIMATE {
@@ -259,6 +277,7 @@ interface ANIMATE {
         tangentOut?: [number, number];        // motion-path delta tangent at this kf
         tangentIn?:  [number, number];        // motion-path delta tangent at this kf
     }>;
+    value?: any;                              // optional static baseline (rarely needed — the node's own attribute is the baseline)
     autoOrient?: boolean;                     // translate-only: rotate element to face the path tangent
     alongPathMode?: 'sampled' | 'offsetPath'; // transform-only: how a motion path is rendered — pre-sampled keyframes (default) or CSS offset-path
     // pre-processes keyframes to fill the timeline duration by repeating a segment
@@ -275,15 +294,17 @@ interface ANIMATE {
 
 ### The document root
 
+<!-- px-check schema PxAnimatedSvgDocumentSchema -->
 | Field | Type | Meaning |
 |---|---|---|
 | `type` | always the string `"svg"` | required — marks the root element of the document |
 | `id` | string | the element's identifier — it becomes the DOM id, and other elements and effects reference the element by it ([documents without `children`](#animating-a-pre-rendered-svg) rely on these references) |
 | `viewBox` | string | the drawing's coordinate space, exactly as in SVG — e.g. `"0 0 700 380"` means "the drawing spans 700 × 380 units" |
-| `width` · `height` | number or string | how big the drawing appears on the page — the same `width` / `height` you would put on an `<svg>` tag. Write a plain number (`400`) for pixels, or a string for anything with a unit: `"32px"`, `"100%"` |
+| `width` · `height` | number or string | how big the drawing appears on the page — the same `width` / `height` you would put on an `<svg>` tag. Write a plain number (`400`) for pixels, or a string for anything with a unit: `"32px"`, `"100%"` | <!-- px names=width,height -->
 | `animator` | object | the playback settings — duration, loops, trigger, etc — see [Playback settings](../library/playback-and-triggers.md) and [Definitions](#definitions--animatordefinitions) |
 | `children` | array of element objects | the nested SVG children tree |
-| any SVG attribute | string or number | any other key is passed through to the rendered `<svg>` as an SVG attribute (`fill`, `style`, …) |
+| `animate` · `effects` · `style` · `meta` · `textContent` · `domType` | as on any node | the root `<svg>` is a node too — every [node key](#nodes) applies to it | <!-- px names=animate,effects,style,meta,textContent,domType -->
+| any SVG attribute | string or number | any other key is passed through to the rendered `<svg>` as an SVG attribute (`fill`, `style`, …) | <!-- px skip -->
 
 ### Nodes
 
@@ -299,21 +320,25 @@ child elements), `animate` (its animation) and `effects` (its effects):
   "animate": { "opacity": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 500, "value": 1 } ] } } }
 ```
 
+<!-- px-check schema PxNodeSchema -->
 | Field | Meaning |
 |---|---|
 | `type` | the SVG tag: `rect`, `circle`, `ellipse`, `line`, `path`, `g`, `text`, `tspan`, `use`, `symbol`, `defs`, `image`, `mask`, `clipPath`, `linearGradient`, `radialGradient`, `stop`, `pattern`, `marker`, `filter` and the `fe*` primitives, … |
-| `id` | DOM id — required when something references the element (`href="#id"`, `maskedBy`, `animateById` — references are always `#id`-spelled, record keys included). When the player creates the DOM elements, it replaces every id with a fresh one (that is how several copies of one file coexist on a page), so ids need only be unique within the file |
+| `id` | DOM id — required when something references the element (`href="#id"`, `maskedBy`, a binding's `target` — references are always `#id`-spelled, record keys included). When the player creates the DOM elements, it replaces every id with a fresh one (that is how several copies of one file coexist on a page), so ids need only be unique within the file |
 | `children` | nested nodes |
 | `animate` | this node's animations — [below](#animating--the-animate-channel) |
 | `effects` | this node's effects — [Player effects](#player-effects) |
-| `style` | inline style: a string or an object, or the **name** of a preset in `definitions.styles` |
+| `style` | inline style declarations — an object of camelCase CSS property → value, like React's `style` prop (`whiteSpace`, `pointerEvents`); an explicit attribute on the node wins |
 | `textContent` | text content of `<text>` / `<tspan>` |
+| `domType` | the `type` **attribute** of the few elements that have one (`feTurbulence`, `feColorMatrix`, …) — `type` itself is taken by the tag name; the player writes it back as `type` |
 | `meta` | editor-only data (labels, shape presets, applied effects). Players ignore it, so if the file will only ever be played — never edited in the editor again — this key can be removed — [Editor meta and applied effects](#editor-meta-and-applied-effects) |
-| any other key | an SVG attribute |
+| any other key | an SVG attribute | <!-- px skip -->
 
-**Attribute names** may be written as in SVG (`stroke-width`, `font-size`) or camelCase
-(`strokeWidth`, `fontSize`); both render to the standard kebab-case attribute. The editor
-writes camelCase.
+**Attribute names are the camelCase DOM names** — the spelling React uses for SVG
+(`strokeWidth`, `fontSize`, `viewBox`, `clipPath`): that is what the editor writes and what every
+example here uses. The player renders them to the standard SVG attribute (`stroke-width`), and
+accepts that kebab spelling on the way in as well. `style` keys follow the same rule — camelCase CSS
+property names, as in React's `style` prop (`whiteSpace`, `pointerEvents`, `mixBlendMode`).
 
 **Static values** are typed: numbers (`opacity: 0.5`), number lists (`strokeDasharray: [16,
 16]`), strings (`fill: "#33b366"`, `viewBox`), a transform written as an **object with one key per part** (`transform:
@@ -387,34 +412,38 @@ three shorthand forms, all built on **named animations** — animations defined 
 
 ##### Property animation
 
+<!-- px-check schema PxPropertyAnimationSchema -->
 | Field | Type | Meaning |
 |---|---|---|
 | `keyframes` | array | the timeline |
 | `value` | same as a keyframe's `value` ([Keyframe values](#keyframe-values)) | optional static baseline (rarely needed — the static attribute on the node is the baseline) |
 | `loop` | `true` or object | this one property repeats on its own, independent of the whole document's `iterations` — [Per-property loops](#per-property-loops) |
 | `autoOrient` | boolean | translate animations with tangents: rotate the element to face the path — [Motion along a path](#motion-along-a-path) |
+| `alongPathMode` | `sampled` (default) · `offsetPath` | transform only: how a motion path is rendered — as pre-sampled keyframes, or as CSS `offset-path` |
 
 ##### Keyframes
 
+<!-- px-check schema PxKeyframeSchema -->
 | Field | Type | Meaning |
 |---|---|---|
 | `time` | ms | offset from the start of the document timeline |
 | `value` | depends on the property — [Keyframe values](#keyframe-values) | the property's value at this time |
 | `easing` | `[x1, y1, x2, y2]` or a name | how the value moves **from this keyframe to the next one**: a cubic-bezier curve, or the name of a curve defined in `definitions.easings` |
-| `tangentOut` · `tangentIn` | `[dx, dy]` | spatial tangents for motion along a path (translate only), relative to this keyframe's position |
+| `tangentOut` · `tangentIn` | `[dx, dy]` | spatial tangents for motion along a path (translate only), relative to this keyframe's position | <!-- px names=tangentOut,tangentIn -->
 
 Every key has exactly one spelling — there are no short aliases.
 
 ##### Keyframe values
 
+<!-- px-check off keyframe value shapes, prose -->
 | Property kind | `value` | Example |
 |---|---|---|
 | a single number (`opacity`, `r`, `strokeWidth`, `rotate`, …) | number | `0.5` |
 | a list of numbers (`strokeDasharray`, `scale`, `translate`) | number array | `[80, 40]` |
-| colour (`fill`, `stroke`, `stopColor`, …) | CSS colour string (or an RGBA number array) | `"#ec4899"` |
+| color (`fill`, `stroke`, `stopColor`, …) | CSS color string (or an RGBA number array) | `"#ec4899"` |
 | unified `transform` | an object with one key per transform part — `translate`, `rotate`, `scale`, `skew`, `origin` | `{ "translate": [8, 4], "rotate": 90, "scale": [2, 2] }` |
-| path `d` | `{ "path": "M…" }` (a bare `"M…"` string is also accepted) | `{ "path": "M0,0 L50,0 L50,50 Z" }` |
-| gradient `stops` (inside gradient effects) | array of `{ offset, color }` — each keyframe's value is the complete stop list, every stop with its position and colour at that moment | `[{ "offset": 0, "color": "#3b82f6" }, { "offset": 1, "color": "#ec4899" }]` |
+| path `d` | `{ "pathData": "M…" }` (a bare `"M…"` string is also accepted) | `{ "pathData": "M0,0 L50,0 L50,50 Z" }` |
+| gradient `stops` (inside gradient effects) | array of `{ offset, color }` — each keyframe's value is the complete stop list, every stop with its position and color at that moment | `[{ "offset": 0, "color": "#3b82f6" }, { "offset": 1, "color": "#ec4899" }]` |
 
 ##### Easing
 
@@ -455,6 +484,7 @@ the document's `iterations`:
             "loop": { "segmentCount": 1, "repeatAt": "end", "direction": "alternate" } }
 ```
 
+<!-- px-check schema PxLoopSchema -->
 | Field | Meaning |
 |---|---|
 | `segmentCount` | how big the repeated piece is, counted in **intervals** — an interval is the stretch between two neighbouring keyframes. By default the whole sequence repeats; `"segmentCount": 1` repeats only one interval — the last one with `repeatAt: "end"`, the first one with `repeatAt: "start"`. In the example above, `scale` has three keyframes (two intervals), and only its second half — the shrink back from 1.2 to 1 — keeps repeating |
@@ -476,6 +506,7 @@ object holding all the parts — `translate`, `rotate`, `scale` — side by side
 ] } }
 ```
 
+<!-- px-check schema PxTransformPartsSchema -->
 | Part | Type | Notes |
 |---|---|---|
 | `translate` | `[x, y]` | how far to move along x and y — plain numbers in the drawing's coordinates (the `viewBox` space) |
@@ -529,8 +560,8 @@ editor get this right automatically:
 { "type": "path", "fill": "#f59e0b", "d": "M-50,0 L0,-50 L50,0 L0,50 Z",
   // The diamond morphs into a square — both shapes have four points
   "animate": { "d": { "keyframes": [
-    { "time": 0,    "value": { "path": "M-50,0 L0,-50 L50,0 L0,50 Z" } },
-    { "time": 2000, "value": { "path": "M-50,-50 L50,-50 L50,50 L-50,50 Z" } }
+    { "time": 0,    "value": { "pathData": "M-50,0 L0,-50 L50,0 L0,50 Z" } },
+    { "time": 2000, "value": { "pathData": "M-50,-50 L50,-50 L50,50 L-50,50 Z" } }
   ] } } }
 ```
 
@@ -546,18 +577,17 @@ every element that needs it:
 "definitions": {
   "easings":    { "smooth": [0.42, 0, 0.58, 1] },
   "animations": { "fadeIn": { "opacity": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 2000, "value": 1 } ] } } },
-  "styles":     { "label": { "fontFamily": "Inter", "fontSize": 12 } },
   "fonts":      { "Roboto": { "fontFamily": "Roboto", "fontStyle": "", "ascent": 928, "unitsPerEm": 1000,
-                              "glyphs": { "H": { "width": 722, "d": "M100 0V722H190V400H532V722H622V0H532V320H190V0Z" } } } }
+                              "glyphs": { "H": { "width": 722, "pathData": "M100 0V722H190V400H532V722H622V0H532V320H190V0Z" } } } }
 }
 ```
 
+<!-- px-check schema PxDefsSchema -->
 | Field | What it holds | How an element uses it |
 |---|---|---|
 | `easings` | named easing curves | a keyframe writes the name instead of the curve: `"easing": "smooth"` |
-| `animations` | named animations | a node writes the name instead of the keyframes: `"animate": "fadeIn"` (documents without `children` use the same names in `animateById`) |
-| `styles` | named sets of style attributes | a node writes the name instead of the attributes: `"style": "label"` |
-| `fonts` | embedded fonts: for each font, the outline of every letter used, stored under that font's name (`"Roboto": …` in the example above). Each entry's own `glyphs` map holds the outlines | a `<text>` node with `effects.text.useGlyphs: true` is drawn from these outlines — the node's `font-family` says which font's outlines to use. No font file is needed on the viewer's machine |
+| `animations` | named animations | a node writes the name instead of the keyframes: `"animate": "fadeIn"` (a bind-by-id document names them in its `bindings`) |
+| `fonts` | embedded fonts: for each FACE, the outline of every letter used, stored under that face's name (`"Roboto-Light"` — the same string the node's `fontFamily` carries). Each entry's own `glyphs` map holds the outlines | a `<text>` node with `effects.text.useGlyphs: true` is drawn from these outlines — its `fontFamily` names the face to use. `fontWeight` / `fontStyle` are styling on top of that face, not a way to select another one. No font file is needed on the viewer's machine |
 
 ### Animating a pre-rendered SVG
 
@@ -570,31 +600,36 @@ that one `.svg` file:
 
 This section is about that shortened JSON document. It looks like a normal document, with one
 difference: it has no `children` — the elements already exist as markup, so instead of
-carrying them again, it lists its animations in `animator.animateById`, keyed by the
-`#id` of the element each one animates. You will normally never write such a document
-yourself; the editor generates it.
+carrying them again it carries its animations by name in `definitions.animations` and a list
+of **bindings**, each saying which element (`target`, by `#id`) plays which of those animations
+(`animateWith`). You will normally never write such a document yourself; the editor generates it.
 
 ```js
 import { createAnimator } from '@pixodesk/svg-animator-web';
 
-createAnimator({ container: '#box', data: {   // an empty <div id="box"> on the page
+createAnimator({ container: '#box', doc: {   // an empty <div id="box"> on the page
   type: 'svg', id: '_px_root',
   animator: {
     timeline: { duration: 2000 },
-    definitions: { animations: { fadeIn: { opacity: { keyframes: [ { time: 0, value: 0 }, { time: 2000, value: 1 } ] } } } },
-    animateById: {
-      '#_px_rect':    'fadeIn',                                  // one named animation
-      '#_px_ellipse': ['fadeIn', { fill: { keyframes: [ { time: 0, value: '#0087ff' }, { time: 2000, value: '#ff3b30' } ] } }],  // several, mixed
-    },
+    definitions: { animations: {
+      fadeIn: { opacity: { keyframes: [ { time: 0, value: 0 }, { time: 2000, value: 1 } ] } },
+      warm:   { fill:    { keyframes: [ { time: 0, value: '#0087ff' }, { time: 2000, value: '#ff3b30' } ] } },
+    } },
+    bindings: [
+      { target: '#_px_rect',    animateWith: ['fadeIn'] },          // one named animation
+      { target: '#_px_ellipse', animateWith: ['fadeIn', 'warm'] },  // several, applied in order
+    ],
   },
 } });
 ```
 
-`animateById` values have exactly the same shape as a node's `animate`; only the key differs
-(element reference here, attribute name there).
+A binding carries names only — the keyframes live in `definitions.animations`, once, however
+many elements play them. `animateWith` is the format's spelling for "by name, from
+`definitions`": a bare key holds the thing itself (`node.animate` holds keyframes), `<key>With`
+holds an array of names of the same concept.
 
 **Reference spelling — one rule, everywhere:** every element reference is `#id`-spelled —
-`href`, `partOf`, every `source`, and record keys like `animateById`'s alike.
+`href`, `partOf`, every `source`, and a binding's `target` alike.
 
 ### Units of the values in a document
 
@@ -602,6 +637,7 @@ Every number in a document — a keyframe's `time`, a `duration`, a coordinate, 
 written as a plain number, never with a unit after it (no `"500ms"`, no `"45deg"`). Instead,
 each property has one fixed unit that is always understood:
 
+<!-- px-check off units, prose -->
 | Value | Unit |
 |---|---|
 | time (`time`, `timeline.duration`, `timeline.delay`, `retime.start`) | milliseconds |
@@ -644,11 +680,12 @@ union, e.g. `number | Animated<number>` — the attribute accepts either form:
 When an element has several effects, the player applies them in a fixed order — the
 **Applied** column below. How you order the keys inside `effects` makes no difference:
 
+<!-- px-check schema PxEffectsSchema col=2 -->
 | Applied | Effect | What it does |
 |---|---|---|
 | 1 | [`text`](#1--text) | glyph-outline text rendering |
 | 2 | [`textPath`](#2--textpath) | text along a path |
-| 3 | [`fillGradient` / `strokeGradient`](#3--fillgradient--strokegradient) | gradient paint with animatable stops and geometry |
+| 3 | [`fillGradient` / `strokeGradient`](#3--fillgradient--strokegradient) | gradient paint with animatable stops and geometry | <!-- px names=fillGradient,strokeGradient -->
 | 4 | [`strokeTrim`](#4--stroketrim) | reveal or hide a stroke progressively along its path |
 | 5 | [`repeater`](#5--repeater) | N copies, each stepped by a delta |
 | 6 | [`maskedBy`](#6--maskedby) | mask by another element |
@@ -667,6 +704,7 @@ Draws a `<text>` element from letter outlines stored in the document itself
 (`definitions.fonts`) instead of using a font: the text looks identical on every machine,
 and no font file needs to be installed or loaded.
 
+<!-- px-check schema PxTextEffectSchema -->
 | Field | Type | Meaning |
 |---|---|---|
 | `useGlyphs` | boolean | render the text from the glyph outlines in `definitions.fonts` — self-contained, identical on every machine, no font loading |
@@ -682,8 +720,8 @@ and no font file needs to be installed or loaded.
       // (paths shortened here; the editor writes the real ones)
       "glyphs": {
         "Roboto": { "fontFamily": "Roboto", "fontStyle": "", "ascent": 928, "unitsPerEm": 1000,
-                    "glyphs": { "H": { "width": 722, "d": "M…" }, "e": { "width": 556, "d": "M…" },
-                                "l": { "width": 222, "d": "M…" }, "o": { "width": 556, "d": "M…" } } }
+                    "glyphs": { "H": { "width": 722, "pathData": "M…" }, "e": { "width": 556, "pathData": "M…" },
+                                "l": { "width": 222, "pathData": "M…" }, "o": { "width": 556, "pathData": "M…" } } }
       }
     }
   },
@@ -708,6 +746,7 @@ a font), or as **glyph text** (from embedded outlines, when the element also has
 `effects.text.useGlyphs: true`). Not every field applies to both; the **Applies to** column
 says which:
 
+<!-- px-check schema PxTextPathEffectSchema -->
 | Field | Type | Meaning | Applies to |
 |---|---|---|---|
 | `pathData` | path string | the path geometry (inline — no separate element needed) | browser text, glyphs |
@@ -730,24 +769,25 @@ says which:
 
 ### 3 — `fillGradient` / `strokeGradient`
 
-Paints the element's fill (or its stroke) with a colour gradient, and lets the gradient's
-colours and geometry animate. Under the hood it generates a `<linearGradient>` /
+Paints the element's fill (or its stroke) with a color gradient, and lets the gradient's
+colors and geometry animate. Under the hood it generates a `<linearGradient>` /
 `<radialGradient>` element and points the `fill` (or `stroke`) at it. Both effects have the
 same settings; the only difference is which of the two attributes is painted.
 
+<!-- px-check schema PxFillGradientEffectSchema -->
 | Field | Type | Meaning |
 |---|---|---|
 | `type` | `linear` · `radial` | a gradient along a line from `start` to `end`, or one spreading out from a `center` |
-| `start` · `end` | `[x, y]` \| `Animated<[x, y]>` | the line the linear gradient runs along — SVG's `x1`/`y1`/`x2`/`y2` ([SVG `<linearGradient>` spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/linearGradient)) |
-| `center` · `radius` · `focal` | `[x, y]` \| `Animated<[x, y]>` · number \| `Animated<number>` · `[x, y]` \| `Animated<[x, y]>` | the radial gradient's centre, radius and focal point — SVG's `cx`/`cy`, `r`, `fx`/`fy` ([SVG `<radialGradient>` spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/radialGradient)) |
-| `stops` | array of `{ offset, color }` \| `Animated<array of { offset, color }>` | the gradient's colour stops — each becomes an SVG [`<stop>` element](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/stop). When animated, each keyframe's value is the complete stop list — every stop with its position and colour at that moment — and every keyframe must have the same number of stops |
+| `start` · `end` | `[x, y]` \| `Animated<[x, y]>` | the line the linear gradient runs along — SVG's `x1`/`y1`/`x2`/`y2` ([SVG `<linearGradient>` spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/linearGradient)) | <!-- px names=start,end -->
+| `center` · `radius` · `focal` | `[x, y]` \| `Animated<[x, y]>` · number \| `Animated<number>` · `[x, y]` \| `Animated<[x, y]>` | the radial gradient's center, radius and focal point — SVG's `cx`/`cy`, `r`, `fx`/`fy` ([SVG `<radialGradient>` spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/radialGradient)) | <!-- px names=center,radius,focal -->
+| `stops` | array of `{ offset, color }` \| `Animated<array of { offset, color }>` | the gradient's color stops — each becomes an SVG [`<stop>` element](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/stop). When animated, each keyframe's value is the complete stop list — every stop with its position and color at that moment — and every keyframe must have the same number of stops |
 | `gradientUnits` | `objectBoundingBox` · `userSpaceOnUse` | which coordinates `start`, `end`, `center`, `radius`, `focal` are in: positions across the element's own box (`0` = its left / top edge, `1` = its right / bottom edge), or the drawing's own coordinates ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/gradientUnits)) |
-| `spreadMethod` | `pad` · `reflect` · `repeat` | what to paint beyond the last stop: extend the end colour, mirror the gradient back, or start it over ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/spreadMethod)) |
+| `spreadMethod` | `pad` · `reflect` · `repeat` | what to paint beyond the last stop: extend the end color, mirror the gradient back, or start it over ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/spreadMethod)) |
 | `gradientTransform` | string | static only ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/gradientTransform)) |
 
 ```js
 { "type": "rect", "x": 0, "y": 0, "width": 200, "height": 120,
-  // A horizontal gradient; its two colours cross-fade to new ones over one second
+  // A horizontal gradient; its two colors cross-fade to new ones over one second
   "effects": { "fillGradient": {
     "type": "linear", "start": [0, 0], "end": [200, 0],
     "stops": { "keyframes": [
@@ -757,8 +797,8 @@ same settings; the only difference is which of the two attributes is painted.
   } } }
 ```
 
-Animated stop **colours** work everywhere; animated stop *offsets* and geometry need the frame
-loop (`engine: 'auto'` switches for you). CSS exports can animate stop colours only.
+Animated stop **colors** work everywhere; animated stop *offsets* and geometry need the frame
+loop (`engine: 'auto'` switches for you). CSS exports can animate stop colors only.
 
 ### 4 — `strokeTrim`
 
@@ -766,6 +806,7 @@ Shows only a part of the **stroke** along the path — a line that draws itself,
 by generating `stroke-dasharray` / `stroke-dashoffset`; the path geometry and fill are
 untouched (unlike Lottie's *trim paths*, which cut the shape itself).
 
+<!-- px-check schema PxStrokeTrimEffectSchema -->
 | Field | Type | Meaning |
 |---|---|---|
 | `range` | `[start, end]` \| `Animated<[start, end]>` | which part of the stroke is visible, as two positions along the path: `0` is the start of the path, `1` its end — `[0, 0.5]` shows the first half |
@@ -791,6 +832,7 @@ Repeats the element: the player creates `copies` real copies, each one shifted, 
 scaled a step further than the one before — like rubber-stamping a shape across the page.
 If the element is animated, every copy carries the same animation.
 
+<!-- px-check schema PxRepeaterEffectSchema -->
 | Field | Type | Meaning |
 |---|---|---|
 | `copies` | number | static — the count cannot animate |
@@ -812,12 +854,13 @@ If the element is animated, every copy carries the same animation.
 Shows this element only where another element is: that other element becomes the mask.
 Under the hood the player builds a `<mask>` from it and applies it to this element.
 
+<!-- px-check schema PxMaskedByEffectSchema -->
 | Field | Type | Meaning |
 |---|---|---|
 | `source` | `"#id"` | the element that becomes the mask |
 | `maskType` | `alpha` · `luminance` | how the source's pixels become mask values ([CSS spec](https://developer.mozilla.org/en-US/docs/Web/CSS/Reference/Properties/mask-type)) |
-| `maskUnits` · `maskContentUnits` | `userSpaceOnUse` · `objectBoundingBox` | SVG's mask coordinate systems ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/maskUnits), [maskContentUnits](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/maskContentUnits)) |
-| `x` · `y` · `width` · `height` | numbers | the area the mask covers, in user units; leave all four out for SVG's default (`-10%,-10%,120%,120%` — [SVG `<mask>` spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/mask)). A `0` is a real value, not "absent" |
+| `maskUnits` · `maskContentUnits` | `userSpaceOnUse` · `objectBoundingBox` | SVG's mask coordinate systems ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/maskUnits), [maskContentUnits](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/maskContentUnits)) | <!-- px names=maskUnits,maskContentUnits -->
+| `x` · `y` · `width` · `height` | numbers | the area the mask covers, in user units; leave all four out for SVG's default (`-10%,-10%,120%,120%` — [SVG `<mask>` spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/mask)). A `0` is a real value, not "absent" | <!-- px names=x,y,width,height -->
 
 ```js
 // The element that will become the mask — a growing circle
@@ -835,15 +878,16 @@ Clips the element by the given path — which can be animated. It simply creates
 [`<clipPath>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Element/clipPath)
 for this element and links the two.
 
+<!-- px-check schema PxClipPathEffectSchema -->
 | Field | Type | Meaning |
 |---|---|---|
-| `d` | path string \| `Animated<path string>` | static `"M…"`, or `{ "keyframes": [ { "time", "value": { "path": "M…" } } ] }` |
+| `pathData` | path string \| `Animated<path string>` | static `"M…"`, or `{ "keyframes": [ { "time", "value": { "pathData": "M…" } } ] }` |
 
 ```js
 // The visible area widens from a narrow strip to the full 200 × 200 square
-"effects": { "clipPath": { "d": { "keyframes": [
-  { "time": 0,    "value": { "path": "M0,0 L20,0 L20,200 L0,200 Z" } },
-  { "time": 1000, "value": { "path": "M0,0 L200,0 L200,200 L0,200 Z" } }
+"effects": { "clipPath": { "pathData": { "keyframes": [
+  { "time": 0,    "value": { "pathData": "M0,0 L20,0 L20,200 L0,200 Z" } },
+  { "time": 1000, "value": { "pathData": "M0,0 L200,0 L200,200 L0,200 Z" } }
 ] } } }
 ```
 
@@ -854,6 +898,7 @@ schedule**, with its own keyframe times and easing. A plain `transform` animatio
 that: all its parts share one set of keyframes. Under the hood, the effect wraps the element
 in one group per part, and each group animates independently.
 
+<!-- px-check schema PxTransformByEffectSchema -->
 | Field | Type | Meaning |
 |---|---|---|
 | `translate` | `[x, y]` \| `Animated<[x, y]>` | how far to move along x and y — plain numbers in the drawing's coordinates |
@@ -878,20 +923,21 @@ ordinary SVG [`<use>`](https://developer.mozilla.org/en-US/docs/Web/SVG/Referenc
 elements; the effect on each `<use>` says what it copies (`source`) and, optionally,
 re-times that copy's animation (`retime` — start later, play slower, show only for a while).
 It is an effect, rather than a plain `<use>`, because those things need real copies: the
-player materialises each clone into its own elements with its own timing.
+player materializes each clone into its own elements with its own timing.
 
+<!-- px-check schema PxCloneEffectSchema -->
 | Field | Type | Meaning |
 |---|---|---|
 | `source` | `"#id"` | the source element / symbol (the `<use>` also keeps its normal `href`) |
 | `without` | `translate` (optional) | leave the field out for a direct copy of the whole element; `translate` copies the source's content WITHOUT its own outer position |
 | `retime.start` | ms | shift the source's internal timeline |
 | `retime.stretch` | a multiplier of duration | `2` = twice as long (half speed), `0.5` = half as long (double speed) |
-| `retime.timeCrop` | `[inMs, outMs]` | show the instance only between these two times of the document timeline (materialised as a wrapping `<g>` with an opacity gate) |
+| `retime.timeCrop` | `[inMs, outMs]` | show the instance only between these two times of the document timeline (materialized as a wrapping `<g>` with an opacity gate) |
 
 ```js
 // The source: a spinning-wheel symbol with its own one-second animation
 { "type": "defs", "children": [ { "type": "symbol", "id": "wheel", "viewBox": "0 0 100 100", "children": [
-    { "type": "circle", "cx": 50, "cy": 50, "r": 40, "fill": "none", "stroke": "#0087ff", "stroke-width": 8, "stroke-dasharray": "40 20",
+    { "type": "circle", "cx": 50, "cy": 50, "r": 40, "fill": "none", "stroke": "#0087ff", "strokeWidth": 8, "strokeDasharray": "40 20",
       "animate": { "rotate": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 1000, "value": 360 } ] } } }
 ] } ] },
 // An exact copy of the wheel
@@ -929,21 +975,22 @@ in a pre-rendered SVG the same object is written into a per-element `data-px-met
 
 ### The fields
 
+<!-- px-check off editor meta — not a player schema -->
 | Field | Which elements carry it | What it holds |
 |---|---|---|
 | `label` | any element | the display name shown in the editor's element tree |
 | `appliedEffects` | a plain node | this node's own effects, **already applied** — [Applied effects](#applied-effects) |
 | `effectsHost` | the host of expanded parts, **pre-rendered SVG only** | some effects turn one drawn element into several written elements (a repeater becomes its copies) — its "expanded parts". This field sits on the expansion's outermost element (its **host**) and holds `{ coreId?, appliedEffects }`: all the effects the drawn element had, so the editor can fold the parts back into that one element — [Expanded parts](https://pixodesk.com/docs/svga/prerendered-svg/data-px-meta#applied-effects-that-create-derived-elements-host--core--part) |
 | `partOf` | every element derived by that expansion, **pre-rendered SVG only** | the counterpart of `effectsHost`: each element the expansion produced carries `"#hostId"` pointing back at the host element that holds the `effectsHost` field, so the whole unit can be found from any of its parts |
-| `runtime` | root `<svg>` only | how the animation code was generated: `{ useCssAnimation, useJsTriggers, externalJs, unoptimisedJs }` — the export-format choices, not the animation |
+| `runtime` | root `<svg>` only | how the animation code was generated: `{ useCssAnimation, useJsTriggers, externalJs, unoptimizedJs }` — the export-format choices, not the animation |
 | `animator` | root `<svg>`, **pre-rendered SVG only** | the playback settings; in JSON they are the top-level `animator` instead ([read more](https://pixodesk.com/docs/svga/prerendered-svg/data-px-meta#the-animator-config-lives-in-two-different-places)) |
 | `timeline` | `<symbol>` only | `{ duration }` — the symbol's own animation length, ms |
-| `lineSpacing` | text line `<tspan>`s from the second line on | the *Auto* line-height multiplier the materialised `y` was computed from |
+| `lineSpacing` | text line `<tspan>`s from the second line on | the *Auto* line-height multiplier the materialized `y` was computed from |
 | `animate` | any element, **pre-rendered SVG only** | the node's keyframes, so a CSS export can be re-opened; in JSON this is the node's own `animate` |
 
 ### Applied effects
 
-Sometimes the editor **materialises** an effect: it writes the effect's finished result
+Sometimes the editor **materializes** an effect: it writes the effect's finished result
 straight into the node's ordinary attributes — a star preset becomes path data, rounded
 corners become the rounded path. The drawing still looks right, but the effect itself is no
 longer in it. To keep the file editable, the editor saves the effect's settings in
@@ -952,16 +999,17 @@ longer in it. To keep the file editable, the editor saves the effect's settings 
 As a result, an effect description can sit in one of two places, and the place says what it
 means:
 
+<!-- px-check off where effects live, prose -->
 | | Meaning | Which effects can appear |
 |---|---|---|
 | `node.effects` | **apply these.** The player reads this when the document loads and applies the effects — [Player effects](#player-effects) | the player effects: `text`, `textPath`, `fillGradient`, `strokeGradient`, `strokeTrim`, `repeater`, `maskedBy`, `clipPath`, `transformBy`, `clone` |
-| `node.meta.appliedEffects` | **these were already applied.** The result is in the node's ordinary attributes; the settings are kept for the editor, so that when it opens the file it can read the effect back as an effect — not just its materialised result | the same names, plus keys only the editor knows: `shape`, `combinedPath`, and widened `text` / `clone` — listed below |
+| `node.meta.appliedEffects` | **these were already applied.** The result is in the node's ordinary attributes; the settings are kept for the editor, so that when it opens the file it can read the effect back as an effect — not just its materialized result | the same names, plus keys only the editor knows: `shape`, `combinedPath`, and widened `text` / `clone` — listed below |
 
 The player never reads `appliedEffects`, and the editor never re-applies it. Editing a value
-in `appliedEffects` by hand changes nothing on screen — the materialised result is what plays.
+in `appliedEffects` by hand changes nothing on screen — the materialized result is what plays.
 
 Where `appliedEffects` matters is when the editor opens the file again: it reads each entry
-and collapses the materialised result back into the editable effect it came from — a star
+and collapses the materialized result back into the editable effect it came from — a star
 preset becomes a star with a radius handle again, not a frozen path. The entries use the same
 names as the effects in `node.effects`, plus a few keys only the editor knows:
 
@@ -975,7 +1023,7 @@ names as the effects in `node.effects`, plus a few keys only the editor knows:
   - `path` — the original path, when a modifier (rounded `corners`) was applied to it.
 - **`text`** — widened with `fontSource` and `content`, the payload that lets glyph-rendered
   text be edited as text again.
-- **`clone`** — widened with the `width` / `height` of a materialised `<use>`.
+- **`clone`** — widened with the `width` / `height` of a materialized `<use>`.
 - **`combinedPath: true`** — an *identity* effect the writer adds beside `strokeTrim` when it
   had to split a multi-sub-path shape into a `<g>` of one `<path>` each; it tells the reader to
   join them back into one shape.
@@ -995,7 +1043,7 @@ Some effects expand one drawn element into SEVERAL written elements — that exp
 
 Use the core when you need to validate, transform or sample a document **without rendering
 it** — in a build step, a test, a server, or a tool of your own. It is the platform-neutral
-heart of every player: the document schema, the effect materialisers, the interpolation engine
+heart of every player: the document schema, the effect materializers, the interpolation engine
 and the path sampler, with **no DOM dependency**. It is also what makes the web player and the
 React Native player produce identical values from the same document.
 
@@ -1031,6 +1079,7 @@ if (!PxAnimatedSvgDocumentSchema.isValid(json, ctx, [])) console.error(ctx.error
 // → ["children[0].effects.strokeTrim.range: no union member matched for value 5"]
 ```
 
+<!-- px-check off validation modes, prose -->
 | Mode | Question it answers | Unknown keys |
 |---|---|---|
 | default | *is this document usable?* — what the players accept | ignored (forward-compatible) |
@@ -1041,7 +1090,7 @@ Use the default in production readers and `strict` in tests and tooling.
 
 ### Flattening a document
 
-`materialiseAllInTree(doc, engine)` turns a document into a flat tree any renderer can walk:
+`materializeAllInTree(doc, engine)` turns a document into a flat tree any renderer can walk:
 
 1. **Effects** — every `node.effects` becomes real nodes, wrappers and defs.
 2. **Loops** — each property's `loop` is expanded into explicit keyframes.
@@ -1054,14 +1103,14 @@ propagation** (including `react-native-svg`); `js` only for the DOM, which resol
 natively.
 
 ```ts
-import { materialiseAllInTree, generateNewIds, calcAnimationValues,
-         getNormalisedBindings, PxTimelineEngine } from '@pixodesk/svg-animator-core';
+import { materializeAllInTree, generateNewIds, calcAnimationValues,
+         getNormalizedBindings, PxTimelineEngine } from '@pixodesk/svg-animator-core';
 import doc from './bouncing-ball.json';
 
-const flat = generateNewIds(materialiseAllInTree(doc, PxTimelineEngine.native));
+const flat = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
 
 // values at any time, no renderer involved
-for (const binding of getNormalisedBindings(flat, PxTimelineEngine.js) ?? []) {
+for (const binding of getNormalizedBindings(flat, PxTimelineEngine.js) ?? []) {
   const values = calcAnimationValues(binding.animate, 500);   // t = 500 ms
   console.log(binding.id, values);   // → ball { transform: 'translate(200,129.65)' }   (the bouncing ball, half-way down)
 }
@@ -1077,11 +1126,11 @@ handles timing, delay, direction, iterations, fill, playback rate and the lifecy
 then calls you with plain attribute writes:
 
 ```ts
-import { createBasicFrameLoopAnimator, materialiseAllInTree, generateNewIds,
+import { createBasicFrameLoopAnimator, materializeAllInTree, generateNewIds,
          PxTimelineEngine, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import doc from './bouncing-ball.json';
 
-const flatDoc = generateNewIds(materialiseAllInTree(doc, PxTimelineEngine.js));
+const flatDoc = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.js));
 
 const adapter: PxPlatformAdapter = {
   isConnected: () => true,
@@ -1097,25 +1146,27 @@ the engine runs in browsers, React Native and test environments.
 
 ### Exports
 
+<!-- px-check exports @pixodesk/svg-animator-core partial -->
 | Area | Exports |
 |---|---|
 | **Schema & types** | `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxEffectsSchema`, `PxAnimatorConfigSchema`, `PxKeyframeSchema`, … plus every `Px*` TypeScript type and the `px` schema builder |
 | **Validation** | `validateDocument` (the whole document, strict), `isPxElementFileFormat`, `isPxElementFileFormatDeep`, `validateNodeEffects` |
-| **Materialisers** | `materialiseAllInTree`, `applyPlayerEffects`, `materialiseInternalLoopsInTree`, `materialiseMotionPathsInTree`, `materialiseAnimatedUseInstances` |
-| **Interpolation** | `calcAnimationValues`, `interpolateValue`, `getNormalisedBindings` |
+| **Materializers** | `materializeAllInTree`, `applyPlayerEffects`, `materializeInternalLoopsInTree`, `materializeMotionPathsInTree`, `materializeAnimatedUseInstances` |
+| **Interpolation** | `calcAnimationValues`, `interpolateValue`, `getNormalizedBindings` |
 | **Sampling / geometry** | `createPathSampler`, `evaluateMotionPathSegment`, Bézier helpers, `cubicBezier`, `splitEasing` |
-| **Text** | `materialiseGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
-| **Node helpers** | `getNormalizedProps`, `sanitiseAttributeValue`, `resolveStyle`, `generateNewIds`, `deepClone` |
+| **Text** | `materializeGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
+| **Node helpers** | `getNormalizedProps`, `sanitizeAttributeValue`, `generateNewIds`, `deepClone` |
 | **Document accessors** | `getAnimatorConfig`, `getDefs`, `getBindings`, `getChildren` |
 | **Scroll timeline math** | `isScrollTimeline`, `scrollViewProgress`, `scrollOffsetProgress`, `scrollTotalDurationMs` |
 | **Playback engine** | `createBasicFrameLoopAnimator` + the `PxPlatformAdapter` interface |
-| **Wire enums** | `PxTimelineEngineExtra`, `PxTimelineEngine`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout`, `PxGradientType`, `PxGradientUnits`, `PxGradientSpreadMethod` — the wire selectors that ship as named constants rather than bare strings |
+| **Wire enums** | `PxTimelineEngineExtra`, `PxTimelineEngine`, `PxStartOn`, `PxOutAction`, `PxFinishAction`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout`, `PxMaskType`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every wire selector ships as a named constant rather than a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxStartOn.click` and `startOn?: PxStartOn` come from one import |
 | **Schema versioning** | `PX_PLAYER_SCHEMA_VERSION`, `readWireVersion`, `parseWireVersion`, `formatWireVersion`, `compareWireVersion`, `versionAdvice`, `convertPlayerDocument`, `downgradePlayerDocument`, `WireVersionRelation` — see [Versioning](#versioning) |
 
 ### Versioning
 
 Two numbers, unrelated to each other:
 
+<!-- px-check off the two version numbers, prose -->
 | Number | Lives in | Moves when |
 |---|---|---|
 | **Package version** | every `@pixodesk/svg-animator-*` package | every release. All packages are released in lockstep; a player depends on the matching core version, so upgrading a player upgrades the core with it |
@@ -1125,6 +1176,7 @@ Two numbers, unrelated to each other:
 
 A string `"a.b.c"`:
 
+<!-- px-check off version parts, prose -->
 | Part | Meaning |
 |---|---|
 | `a` | format generation. Nothing converts across a change of `a` |

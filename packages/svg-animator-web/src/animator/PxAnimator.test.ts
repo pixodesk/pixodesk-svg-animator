@@ -201,6 +201,35 @@ describe('createAnimator', () => {
         expect(api.isReady()).toBe(false);
         expect(container().querySelector('svg')).toBeNull();
     });
+
+    // The rule (review §25.1): a player that cannot be built is an ERROR — reported once through
+    // the channel, and the returned API stays inert. Never a throw at the caller.
+    it('doc path: a player that cannot be built reports onError and stays inert — it never throws', () => {
+        const onError = vi.fn();
+        // A container whose `replaceChildren` throws stands in for anything breaking mid-construction.
+        const broken = { replaceChildren: () => { throw new Error('boom'); } } as unknown as Element;
+
+        const api = createAnimator({ doc: makeDoc(), container: broken, onError });
+
+        expect(onError).toHaveBeenCalledTimes(1);
+        const d = onError.mock.calls[0][0];
+        expect(d.kind).toBe('internal');
+        expect(d.message).toContain('boom');
+        expect(d.error).toBeInstanceOf(Error);
+        expect(api.isReady()).toBe(false);
+        expect(() => api.play()).not.toThrow();   // inert, not broken
+    });
+
+    it('muteError switches the console fallback off for such a failure', () => {
+        const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => { /* silence */ });
+        const broken = { replaceChildren: () => { throw new Error('boom'); } } as unknown as Element;
+
+        createAnimator({ doc: makeDoc(), container: broken });
+        expect(errorSpy).toHaveBeenCalledTimes(1);             // the console is the fallback…
+
+        createAnimator({ doc: makeDoc(), container: broken, muteError: true });
+        expect(errorSpy).toHaveBeenCalledTimes(1);             // …unless muted
+    });
 });
 
 

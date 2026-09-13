@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// The ONE diagnostics channel every player reports through (API review §5).
+// The ONE diagnostics channel every player reports through (API review §5, §25.1).
 
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createDiagnostics, PxDiagnosticKind, type PxDiagnostic } from './PxDiagnostics';
@@ -57,20 +57,32 @@ describe('createDiagnostics — warnings', () => {
         expect(d.kind).toBe(PxDiagnosticKind.host);
     });
 
-    it('silent: true suppresses the console fallback', () => {
+    it('muteWarn switches the console fallback off — for a host that tolerates the chatter', () => {
         const warn = warnSpy();
-        createDiagnostics({ silent: true }).warn(PxDiagnosticKind.platform, 'quiet please');
+        createDiagnostics({ muteWarn: true }).warn(PxDiagnosticKind.platform, 'quiet please');
 
         expect(warn).not.toHaveBeenCalled();
     });
 
-    it('silent is not a mute button — handlers still fire', () => {
+    it('muteWarn is about the console, not about you — a handler you passed still fires', () => {
         const warn = warnSpy();
         const onWarn = vi.fn();
-        createDiagnostics({ onWarn, silent: true }).warn(PxDiagnosticKind.platform, 'still reported');
+        createDiagnostics({ onWarn, muteWarn: true }).warn(PxDiagnosticKind.platform, 'still reported');
 
         expect(onWarn).toHaveBeenCalledTimes(1);
         expect(warn).not.toHaveBeenCalled();
+    });
+
+    it('muteWarn leaves errors audible — the two switches are independent', () => {
+        const warn = warnSpy();
+        const error = errorSpy();
+        const diag = createDiagnostics({ muteWarn: true });
+
+        diag.warn(PxDiagnosticKind.platform, 'muted');
+        diag.error(PxDiagnosticKind.internal, new Error('still heard'));
+
+        expect(warn).not.toHaveBeenCalled();
+        expect(error).toHaveBeenCalledTimes(1);
     });
 });
 
@@ -87,37 +99,6 @@ describe('createDiagnostics — kinds', () => {
         diag.warn(PxDiagnosticKind.internal, 'e');
 
         expect(seen).toEqual(['document', 'host', 'platform', 'usage', 'internal']);
-    });
-
-    it('silences ONLY the listed kinds — the point of the whole field', () => {
-        const warn = warnSpy();
-        // Quiet the platform chatter, keep hearing about the document.
-        const diag = createDiagnostics({ silent: [PxDiagnosticKind.platform] });
-
-        diag.warn(PxDiagnosticKind.platform, 'unsupported CSS attr');
-        expect(warn).not.toHaveBeenCalled();
-
-        diag.warn(PxDiagnosticKind.document, 'effects shape is wrong');
-        expect(warn).toHaveBeenCalledTimes(1);
-        expect(String(warn.mock.calls[0][0])).toContain('effects shape is wrong');
-    });
-
-    it('an empty silence list quiets nothing', () => {
-        const warn = warnSpy();
-        createDiagnostics({ silent: [] }).warn(PxDiagnosticKind.platform, 'still heard');
-
-        expect(warn).toHaveBeenCalledTimes(1);
-    });
-
-    it('per-kind silencing applies to errors too', () => {
-        const error = errorSpy();
-        const diag = createDiagnostics({ silent: [PxDiagnosticKind.host] });
-
-        diag.error(PxDiagnosticKind.host, new Error('network down'));
-        expect(error).not.toHaveBeenCalled();
-
-        diag.error(PxDiagnosticKind.document, new Error('not a document'));
-        expect(error).toHaveBeenCalledTimes(1);
     });
 });
 
@@ -152,14 +133,36 @@ describe('createDiagnostics — errors', () => {
         expect(d.error!.message).toBe('plain string failure');
     });
 
-    it('silent suppresses the console fallback but not the handler', () => {
+    it('carries a detail beside the Error — where React Native puts the component stack', () => {
+        const onError = vi.fn();
+        const thrown = new Error('render failed');
+        createDiagnostics({ onError }).error(PxDiagnosticKind.internal, thrown, { componentStack: '  in Rect' });
+
+        const d = onError.mock.calls[0][0] as PxDiagnostic;
+        expect(d.error).toBe(thrown);                       // the real Error, stack included
+        expect(d.detail).toEqual({ componentStack: '  in Rect' });
+    });
+
+    it('muteError switches the console fallback off but not the handler', () => {
         const error = errorSpy();
         const onError = vi.fn();
-        createDiagnostics({ onError, silent: true }).error(PxDiagnosticKind.internal, 'boom');
-        createDiagnostics({ silent: true }).error(PxDiagnosticKind.internal, 'unheard');
+        createDiagnostics({ onError, muteError: true }).error(PxDiagnosticKind.internal, 'boom');
+        createDiagnostics({ muteError: true }).error(PxDiagnosticKind.internal, 'unheard');
 
         expect(onError).toHaveBeenCalledTimes(1);
         expect(error).not.toHaveBeenCalled();
+    });
+
+    it('muteError leaves warnings audible — the two switches are independent', () => {
+        const warn = warnSpy();
+        const error = errorSpy();
+        const diag = createDiagnostics({ muteError: true });
+
+        diag.error(PxDiagnosticKind.internal, new Error('muted'));
+        diag.warn(PxDiagnosticKind.usage, 'still heard');
+
+        expect(error).not.toHaveBeenCalled();
+        expect(warn).toHaveBeenCalledTimes(1);
     });
 
     it('warnings and errors are independent channels', () => {
