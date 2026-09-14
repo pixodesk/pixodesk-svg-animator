@@ -14,7 +14,7 @@
 //
 // That is exactly what happened: `PxDefinitions` imported `PxLoopExtend` (one small const)
 // and the pre-rendered player builds ended up carrying 14 KB of validation code they never
-// call. See PRERENDERED-PLAYER-BUILDS.md.
+// call. See dev-docs/plans/prerendered-player-builds.md.
 //
 // RULE: nothing in this file may import a VALUE from `PxAnimatorTypes`. Type-only imports
 // are fine — they are erased at build time and cannot create a runtime edge.
@@ -492,7 +492,7 @@ export const PX_TEXT_CONTENT_ATTR = 'textContent';
 /** The DOM `class` attribute. A name we EMIT but do not own, so it is written through this
  *  constant rather than as an identifier — every other emitted attribute name reaches the
  *  DOM as a string, and `class` was the one exception, which is why the minifier renamed it
- *  to `ct` in the shipped bundles (MINIFICATION-BOUNDARY-PLAN.md §1.1). */
+ *  to `ct` in the shipped bundles (dev-docs/plans/minification-boundary.md §1.1). */
 export const CLASS_ATTR = 'class';
 
 /** The DOM `transform` attribute, and the key the animation record uses for it. Both are

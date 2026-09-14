@@ -316,7 +316,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     // (`animator.duration`, `animator.trigger`). On a wire-format document — `animator.timeline.…`,
     // which is what every writer emits — `flattenAnimatorTimeline` overwrites those flat keys from
     // `timeline` immediately afterwards, so every one of those overrides was silently discarded.
-    // See PLAYBACK-OVERRIDE-PLAN.md §1.1.
+    // See dev-docs/plans/playback-override.md §1.1.
     const patch = foldTimelineOverride(timeline, { duration, delay, iterations, startOn });
     const takeOverTrigger = controlModeTakesOverTrigger(compMode);
     const fullPatch: any = takeOverTrigger

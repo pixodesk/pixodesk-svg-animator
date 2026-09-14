@@ -11,7 +11,7 @@
 // `js`. The exported SVG already contains every element: the payload is only
 // `animator.definitions` + `animator.bindings`, so the whole construction half of
 // the player (effects, materializers, DOM rendering, schema validation) is
-// unreachable and gets tree-shaken away. See PRERENDERED-PLAYER-BUILDS.md.
+// unreachable and gets tree-shaken away. See dev-docs/plans/prerendered-player-builds.md.
 //
 // `createPrerenderedAnimator` is exported AS `createAnimator` so the emitted
 // `<script>` — `PixodeskAnimator.createAnimator({"doc": …})` — is byte-identical

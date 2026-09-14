@@ -13,7 +13,7 @@
  * It is a DIAGNOSTIC, not a gate. Nothing is rejected — the player still does its best with
  * whatever it can read, exactly as before.
  *
- * What it can and cannot see (MINIFICATION-BOUNDARY-PLAN §3):
+ * What it can and cannot see (dev-docs/plans/minification-boundary.md §3):
  *   - keyframes, the animator block and every effect are strict `px.object`, so an unexpected
  *     key there IS detectable;
  *   - nodes are `px.openObject`, so an unknown attribute on a node is indistinguishable from a

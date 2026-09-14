@@ -2,7 +2,7 @@ import { defineConfig } from 'tsup';
 import path from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
 
-// Two entries, on purpose (see BUNDLE-SIZE-PLAN.md §1):
+// Two entries, on purpose (see dev-docs/plans/bundle-size.md §1):
 //   src/index.ts        -> esm + cjs. Full ~96-name surface; consumers tree-shake.
 //   src/index.player.ts -> iife/UMD. Playback surface only, because iife CANNOT
 //                          tree-shake at the consumer, so every exported name
@@ -76,7 +76,7 @@ const terserFor = (mangleProps: boolean) => {
     };
 };
 
-// --- pre-rendered UMD builds (PRERENDERED-PLAYER-BUILDS.md).
+// --- pre-rendered UMD builds (dev-docs/plans/prerendered-player-builds.md).
 // Inlined by the Editor into SVG+JS exports instead of the full player. Same iife shape
 // and same global name, so the emitted <script> is unchanged; only the code behind
 // `createAnimator` is narrower.

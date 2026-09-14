@@ -17,7 +17,7 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as core from '../packages/svg-animator-core/dist/index.js';
-// the field inventory and the bump rule are @internal — see API-SURFACE-REVIEW.md §4
+// the field inventory and the bump rule are @internal — see dev-docs/reviews/api-surface-review.md §4
 import * as coreInternal from '../packages/svg-animator-core/dist/internal.js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');

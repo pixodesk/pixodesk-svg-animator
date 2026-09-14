@@ -25,9 +25,9 @@ wrong`, and usually what to write.
 
 ## The files it covers
 
-Listed in [`src/config.ts`](./src/config.ts) (`DOC_FILES`): the root `README.md`, `API-SCHEMA.md`,
-`SCHEMA.md`, `docs/**`, and each package's `README.md`. Internal notes (reviews, plans, `dev-docs/`)
-are not covered. Add a new public page to that list.
+`DOC_FILES` in [`src/config.ts`](./src/config.ts): the root `README.md`, **every `.md` under
+`docs/`** (found by walking the directory, so a new page is covered the day it is added), and each
+package's `README.md`. Internal notes live in `dev-docs/` and are not covered.
 
 ## Markers
 
@@ -81,9 +81,9 @@ A row can carry its own comment at the end:
 Who an export is for lives on its **declaration**, as a TSDoc release tag — one source of truth
 that an IDE shows on hover and this check reads back out of the built `.d.ts`:
 
-| Tag | Mark in API-SCHEMA.md | Means |
+| Tag | Mark in an export index | Means |
 |---|---|---|
-| `@public` | ● | supported. A guide must describe it, not merely the reference index |
+| `@public` | ● | supported. A page must describe it, not merely list it in an export index |
 | `@public @advanced` | ○ | supported document tooling — stable, rarely needed |
 | `@internal` | ▪ | exported so the editor and the sibling packages stay in lockstep. May change in any release, so no guide may teach it |
 
@@ -95,10 +95,11 @@ Five checks run under the `audience` group, once for the whole repo rather than 
 2. **the reference marks agree with the declarations** — a row in an export index whose last cell
    carries a mark must match the tag of every name that row declares. A row that groups names by
    topic can mark one of them differently in place: `` `toDomProps` (○) `` in a ▪ row;
-3. **public is described, internal is taught nowhere** — a `@public` name is named in a guide (a
-   package README or `docs/library/*`), and an `@internal` name is named in none. A name is
-   "described" by prose or by a marker that checks it; "taught" means it appears in a guide's
-   fenced code block, which is what `@internal` must never do;
+3. **public is described, internal is taught nowhere** — a `@public` name is named on some page
+   outside an export index (a table under `px-check exports`, which lists every name by design),
+   and an `@internal` name is named in none. A name is "described" by prose, a signature block or
+   a marker that checks it; "taught" means it appears in a fenced code block, which is what
+   `@internal` must never do;
 4. **every public call shows its signature** — a `@public` value you can call must appear in a
    `px-check signature` block, or as the target of a `props` / `values` / `members` marker. A type
    is exempt: rule 3 covers it. `@public @advanced` is exempt too, being document tooling;
@@ -129,8 +130,8 @@ sharing most keys.
 
 - A new table or reference block: give it a marker, or `off` with a reason — the coverage test
   will remind you.
-- A new export: mention it in the package's section of `API-SCHEMA.md` — the `exports` check will
-  remind you.
+- A new export: mention it in the package's API reference — the `## API reference` section of its
+  guide (core's is on the format page) — the `exports` check will remind you.
 - A new prop, member or schema key: add the row — the `props` / `signature` / `schema` check will
   remind you, and name what is missing.
 - A new marker kind or option: [`src/checks.ts`](./src/checks.ts), one function per kind; the type
@@ -138,5 +139,4 @@ sharing most keys.
   [`src/schema-facts.ts`](./src/schema-facts.ts), the normalizer in
   [`src/type-text.ts`](./src/type-text.ts).
 
-The HTML comments never reach a reader: GitHub hides them, and `scripts/gen-schema-html.mjs`
-strips them.
+The HTML comments never reach a reader: GitHub hides them, and the website's sync strips them.

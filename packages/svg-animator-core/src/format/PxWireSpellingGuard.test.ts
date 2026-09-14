@@ -127,7 +127,7 @@ describe('wire spelling — our own fixtures use `animator.timeline`', () => {
             }
         }
         // Named in the message so a failure says WHERE, not just that the count changed.
-        expect(offenders, 'move these keys inside `animator.timeline` — see SCHEMA.md').toEqual([]);
+        expect(offenders, 'move these keys inside `animator.timeline` — see docs/format/README.md').toEqual([]);
     });
 
     it('text content travels only as `textContent` — no node carries a `text` key', () => {
@@ -149,7 +149,7 @@ describe('wire spelling — our own fixtures use `animator.timeline`', () => {
                 }
             }
         }
-        expect(offenders, 'rename these node keys to `textContent` — see SCHEMA.md').toEqual([]);
+        expect(offenders, 'rename these node keys to `textContent` — see docs/format/README.md').toEqual([]);
     });
 
     it('path data is spelled `pathData` — no `path` / `paths` keys in a document', () => {
@@ -168,7 +168,7 @@ describe('wire spelling — our own fixtures use `animator.timeline`', () => {
                 }
             }
         }
-        expect(offenders, 'rename these keys to `pathData` — see SCHEMA.md').toEqual([]);
+        expect(offenders, 'rename these keys to `pathData` — see docs/format/README.md').toEqual([]);
     });
 
     it('scans a meaningful number of files (the guard itself is not silently empty)', () => {

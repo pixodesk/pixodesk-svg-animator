@@ -90,7 +90,7 @@ function applyDocOverrides(
     // This replaces three hand-rolled spread blocks that wrote the FLAT runtime keys. On a
     // wire-format document — which is what every writer emits — `flattenAnimatorTimeline`
     // overwrote them from `timeline` immediately afterwards, so the overrides were silently
-    // discarded. See PLAYBACK-OVERRIDE-PLAN.md §1.1.
+    // discarded. See dev-docs/plans/playback-override.md §1.1.
     const { timeline, resetTimeline, duration, delay, iterations, startOn } = props;
     const patch = foldTimelineOverride(timeline, { duration, delay, iterations, startOn });
     const fullPatch: any = controlModeTakesOverTrigger(compMode)

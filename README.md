@@ -27,13 +27,13 @@ icon animations, loaders.
 - ⚛️ [Use in React / Next.js](./docs/library/react.md) · 💚 [Vue / Nuxt](./docs/library/vue.md) · 🌐 [Plain HTML / vanilla JS](./docs/library/web-player.md)
 - 📱 [React Native](./docs/library/react-native.md) 🧪 *(experimental)*
 - 🤔 [Which format do I need?](https://pixodesk.com/docs/svga/editor/choosing-a-format) — JSON vs pre-rendered SVG, what each can animate
-- 📄 [The JSON format](./docs/format/README.md) — the full reference · [SCHEMA.md](./SCHEMA.md) — the compact printable schema
+- 📄 [The JSON format](./docs/format/README.md) — the full reference, the schema at a glance, the core library
 
 ## Documentation
 
-- **[Library documentation](./docs/library/README.md)** — every player: web, React, Vue, React Native; installation, APIs, playback settings & triggers
-- **[Format documentation](./docs/format/README.md)** — the JSON document: reference, effects, editor meta, the core library · [SCHEMA.md](./SCHEMA.md) — the compact printable schema
-- **[API reference](./API-SCHEMA.md)** — every export of the five packages, with full signatures for the ones you use. The reference pages are checked against the packages' types and schemas on every build — [tools/docs-check](./tools/docs-check/README.md)
+- **[Library documentation](./docs/library/README.md)** — [the API at a glance](./docs/library/README.md#the-api-at-a-glance), then every player: web, React, Vue, React Native; installation, playback settings & triggers
+- **[Format documentation](./docs/format/README.md)** — the JSON document: reference, [the schema at a glance](./docs/format/README.md#schema-at-a-glance), effects, editor meta, [the core library](./docs/format/README.md#core-library--pixodesksvg-animator-core)
+- **API reference** — every export of the five packages, marked by audience, in signature form: what every player shares in [the API at a glance](./docs/library/README.md#the-api-at-a-glance), each player's own under its guide's *API reference*, document tooling under [the core library](./docs/format/README.md#core-library--pixodesksvg-animator-core). The docs are checked against the packages' types and schemas on every build — [tools/docs-check](./tools/docs-check/README.md)
 - **[Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg)** — the self-contained `.svg` flavors: embedding, static sites & CMS, `data-px-meta`
 - **[Editor manual](https://pixodesk.com/docs/svga)** — the full Pixodesk SVG Animator editor documentation, including [choosing a format](https://pixodesk.com/docs/svga/editor/choosing-a-format) and [default playback settings & triggers](https://pixodesk.com/docs/svga/editor/playback-settings)
 - **[Troubleshooting & FAQ](./docs/library/troubleshooting.md)**

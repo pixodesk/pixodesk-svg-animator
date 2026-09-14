@@ -28,7 +28,7 @@
 //                                    can never rename what we read off them. Reserving only the
 //                                    declaration name (above) is not enough: that is how
 //                                    `callbacks`, `adapter` and every `on*` callback came to be
-//                                    renamed in the shipped bundles (MINIFICATION-BOUNDARY-PLAN.md).
+//                                    renamed in the shipped bundles (dev-docs/plans/minification-boundary.md).
 //   MANGLE   the rest              — internal plumbing, reachable only as `x.name` in code
 //                                    we compile together.
 
@@ -50,7 +50,7 @@ const SRC_DIRS = [
 // Kept as a CROSS-CHECK only: the authority is now the runtime schema walk below, because
 // pattern-matching source only recognizes an object literal passed directly to a px.object
 // call — a schema built any other way is invisible, which is how `domType` came to be a
-// documented wire key that no reserve rule knew about (MINIFICATION-BOUNDARY-PLAN.md §2).
+// documented wire key that no reserve rule knew about (dev-docs/plans/minification-boundary.md §2).
 const SCHEMA_FACTORIES = new Set([
     'object', 'openObject', 'extendedObject', 'record', 'discriminatedUnion',
 ]);

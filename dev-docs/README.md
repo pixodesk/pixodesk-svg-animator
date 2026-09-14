@@ -3,8 +3,9 @@
 Everything written for people working **on** the library, rather than with it. User guides live in
 [`docs/`](#user-facing-guides) and sync to the website.
 
-Plans, reviews and audits are point-in-time records: each one states its date and status at the
-top. When a plan and the code disagree, the code (and its tests) win.
+Plans and reviews are point-in-time records: each states its date and status at the top, and code
+comments cite them by section (`review §5`, `§26.2`), which is why they are kept once done rather
+than folded away. When a record and the code disagree, the code (and its tests) win.
 
 ## Start here
 
@@ -12,15 +13,23 @@ top. When a plan and the code disagree, the code (and its tests) win.
 |---|---|
 | [README](../README.md) | project overview, packages, how to build and test |
 | [versioning.md](versioning.md) | library vs schema versions — when and how to bump each, the release CLI, the guards |
+| [backlog.md](backlog.md) | deferred items, collected when finished plans and reports were retired |
+| [tools/docs-check](../tools/docs-check/README.md) | how the public docs are checked against the code on every build — the markers, the audience tags |
 
 ## Format and schema
 
 | doc | what it is |
 |---|---|
-| [SCHEMA-DESIGN.md](../SCHEMA-DESIGN.md) | **the design record of the wire format** — layers, generative rules, value taxonomy (player + editor) |
-| [SCHEMA.md](../SCHEMA.md) | the whole wire format as compact typings with comments. [SCHEMA.json](../SCHEMA.json) is the JSON Schema generated from the runtime schemas (`node scripts/gen-schema-json.mjs`) |
-| [API-SCHEMA.md](../API-SCHEMA.md) | every symbol the five packages export, by audience, with signatures |
-| [SCHEMA-NAMING-REVIEW.md](../SCHEMA-NAMING-REVIEW.md) | naming and ergonomics review (2026-09-07) with its decisions and implementation status |
+| [schema-design.md](schema-design.md) | **the design record of the wire format** — layers, generative rules, value taxonomy (player + editor), the normalization history, open items |
+| [reviews/schema-naming-review.md](reviews/schema-naming-review.md) | naming and ergonomics review of the schema (2026-09-07 → 2026-09-13); Part 1 records the decisions that stand |
+| [SCHEMA.json](../SCHEMA.json) | the JSON Schema generated from the runtime schemas (`node scripts/gen-schema-json.mjs`); the readable form is [Schema at a glance](../docs/format/README.md#schema-at-a-glance) |
+
+## Player API
+
+| doc | what it is |
+|---|---|
+| [reviews/api-schema-review.md](reviews/api-schema-review.md) | the player API review (2026-09-08 → 2026-09-13), 25 items, all closed: one control-mode rule, one diagnostics channel, one meaning of time, `doc` / `timeline` / inline callbacks |
+| [reviews/api-surface-review.md](reviews/api-surface-review.md) | the export surface (2026-09-13), all closed: audience tags on every export, who consumes what, the `/internal` entries, the renames (§26 and §6), the checks that keep "public" meaning "documented" |
 
 ## Code layout and architecture
 
@@ -36,26 +45,16 @@ top. When a plan and the code disagree, the code (and its tests) win.
 
 | doc | what it is |
 |---|---|
-| [MINIFICATION-BOUNDARY-PLAN.md](../MINIFICATION-BOUNDARY-PLAN.md) | why wire keys must never be mangled, and how `mangle-reserved.json` enforces it — implemented 2026-09-09 |
-| [BUNDLE-SIZE-PLAN.md](../BUNDLE-SIZE-PLAN.md) | shrinking the minified UMD build — measured by raw bytes on disk |
-| [PRERENDERED-PLAYER-BUILDS.md](../PRERENDERED-PLAYER-BUILDS.md) | the research and size estimates behind the dedicated pre-rendered-SVG player builds |
-| [PRERENDERED-PROGRESS.md](../PRERENDERED-PROGRESS.md) | implementation log for those builds |
+| [plans/minification-boundary.md](plans/minification-boundary.md) | why wire keys must never be mangled, and how `mangle-reserved.json` enforces it — implemented 2026-09-09 |
+| [plans/bundle-size.md](plans/bundle-size.md) | shrinking the minified UMD build — measured by raw bytes on disk; the analysis scripts under §6 |
+| [plans/prerendered-player-builds.md](plans/prerendered-player-builds.md) | the research and size estimates behind the dedicated pre-rendered-SVG player builds, since built; what is left is in the backlog |
 
 ## Plans
 
 | doc | what it is |
 |---|---|
-| [PLAYBACK-OVERRIDE-PLAN.md](../PLAYBACK-OVERRIDE-PLAN.md) | per-instance playback override and two prop renames — implemented 2026-09-09, except steps 7–8 |
-| [RN-CORE-PLAN.md](../RN-CORE-PLAN.md) | extracting the platform-neutral `svg-animator-core` and building `svg-animator-rn` on it |
-| [RELEASE-PREP.md](../RELEASE-PREP.md) | the release-readiness working document |
-
-## Reviews and audits
-
-| doc | what it is |
-|---|---|
-| [API-SCHEMA-REVIEW.md](../API-SCHEMA-REVIEW.md) | `API-SCHEMA.md` read cold, as a new user (2026-09-08) |
-| [docs-audit.md](../docs-audit.md) | audit of the README, `docs/` and package READMEs (2026-08-29) |
-| [DOCS-UPDATE-2026-08.md](../DOCS-UPDATE-2026-08.md) | report on the documentation pass that followed the schema work |
+| [plans/playback-override.md](plans/playback-override.md) | per-instance playback override and two prop renames — implemented 2026-09-09; steps 7–8 dropped by decision D6 |
+| [plans/rn-core.md](plans/rn-core.md) | the split that produced today's layout: the platform-neutral `svg-animator-core`, and `svg-animator-rn` built on it |
 
 ## Examples
 
@@ -68,9 +67,13 @@ top. When a plan and the code disagree, the code (and its tests) win.
 
 ## User-facing guides
 
-Published documentation, not dev docs — listed so there is one place to find everything.
+Published documentation, not dev docs — listed so there is one place to find everything. Every
+`.md` under `docs/` is checked against the code by [docs-check](../tools/docs-check/README.md).
 
 | doc | what it is |
 |---|---|
-| [docs/library](../docs/library/README.md) | using the players: installation, web, React, Vue, React Native, playback and triggers, minification, troubleshooting |
-| [docs/format](../docs/format/README.md) | the document format for authors and tool-builders |
+| [docs/library](../docs/library/README.md) | the API at a glance — what every player shares — then installation, web, React, Vue, React Native, playback and triggers, minification, troubleshooting; each player's guide ends with its API reference |
+| [docs/format](../docs/format/README.md) | the document format for authors and tool-builders: the schema at a glance, effects, editor meta, and the core library's reference |
+
+`node scripts/gen-schema-html.mjs` renders a printable `.html` twin next to each review and the
+schema design (gitignored) — handy for reading a long record in a browser.

@@ -90,7 +90,7 @@ describe('propAnimIsMotionPath', () => {
     });
 
     // The short tangent aliases `to`/`ti` were removed with the rest of the keyframe aliases
-    // (MINIFICATION-BOUNDARY-PLAN §6.2) — `validateDocument` rejects them, and the reader
+    // (dev-docs/plans/minification-boundary.md §6.2) — `validateDocument` rejects them, and the reader
     // tolerance that outlived them went with this refactor. Long names only, both spellings
     // of the keyframe: a WIRE keyframe carries `tangentOut`, and so does a normalized one.
     it('detects a curved segment from `tangentOut`', () => {

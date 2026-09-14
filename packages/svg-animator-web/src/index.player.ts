@@ -6,7 +6,7 @@
 // ============================================================================
 // UMD / iife entry — the PLAYBACK surface only.
 //
-// Why this file exists (see BUNDLE-SIZE-PLAN.md §1):
+// Why this file exists (see dev-docs/plans/bundle-size.md §1):
 //   `index.ts` exports ~96 names, most of them editor-facing (schema objects,
 //   validators, materializers, the visual-diff harness). esm/cjs consumers
 //   tree-shake those away, but **iife cannot tree-shake at the consumer** — so

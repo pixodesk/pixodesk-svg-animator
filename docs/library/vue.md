@@ -129,13 +129,23 @@ const animator = ref<VueAnimatorApi | null>(null);
 </template>
 ```
 
-`VueAnimatorApi`: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`,
-`setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`,
-`getCurrentProgress()`, `setCurrentProgress(p)`.
+The ref holds core's `PxAnimatorHandle` under this package's name — the same type as
+`ReactAnimatorApi` and `RnAnimatorApi`, so the three cannot drift:
 
-Time is ms from the start of the whole run, seeks are clamped to it, and a rate of `0` is
-rejected with a warning — the same on every player. `getCurrentProgress()` is the same position
-as 0–1, the read twin of the `progress` prop.
+<!-- px-check signature pkg=vue -->
+```typescript
+interface VueAnimatorApi {
+    isPlaying(): boolean;
+    play(): void; pause(): void; cancel(): void; finish(): void;
+    setPlaybackRate(rate: number): void;   // 1 normal, 2 double, negative = reverse; 0 is rejected
+                                           //   with a warning — use pause()
+    getCurrentTime(): number | null;       // ms from the start of the whole run, every iteration included
+    setCurrentTime(time: number): void;    // seek, ms; clamped to the run
+    getCurrentProgress(): number | null;   // the same position as 0–1 of the whole run — the read
+                                           //   twin of the `progress` prop
+    setCurrentProgress(p: number): void;   // seek, 0–1 of the whole run
+}
+```
 
 With none of `autoplay` / `progress` / `time` / `play` / `pause` set, the first frame renders
 statically and the ref is your only control.
@@ -173,25 +183,39 @@ Only `doc` is required. The file already carries the timing and the trigger you 
 editor; every other prop is optional and, when passed, replaces the file's value for this one
 component.
 
-<!-- px-check props PixodeskSvgAnimator pkg=vue -->
-| Prop | Type | Description |
-|---|---|---|
-| `doc` | `PxAnimatedSvgDocument` | **required** — the animation, as saved by the editor |
-| `autoplay` | `boolean` | start the way the file says — the *Start* trigger you chose in the editor: at once, on hover, on click, or when scrolled into view |
-| `play` | `boolean` | play now, whatever the file's trigger says |
-| `pause` | `boolean` | pause the current playback; set it back to `false` to resume |
-| `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
-| `time` | `number` | show the frame at that time, in milliseconds from the start |
-| `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
-| `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
-| `duration` · `delay` | `number` | shortcuts for `timeline.duration` / `timeline.delay`: length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component | <!-- px names=duration,delay -->
-| `iterations` | `number \| 'infinite'` | shortcut for `timeline.iterations`; `'infinite'` never stops |
-| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | shortcut for `timeline.trigger.startOn`: at once, on hover, on click, when scrolled into view, or only a `play()` call from code |
-| `onWarn` | `(diagnostic) => void` | **it plays**, but something was ignored, degraded or misspelled — an unknown easing, an override that could not apply, two control props at once. Without this it goes to `console.warn` |
-| `onError` | `(diagnostic) => void` | **this instance will not play** — the document failed to parse or build, or the render threw: nothing is rendered, `apiRef` stays empty. `diagnostic.error` is the Error. Without this it goes to `console.error` |
-| `muteWarn` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarn`, if you gave it, still fires: mute is about the console, not about you |
-| `muteError` | `boolean` | the same switch for `console.error` |
-| `class` · `style` · any other attribute | | anything else you put on `<PixodeskSvgAnimator>` ends up on the `<svg>` element it renders (standard Vue attribute inheritance). So to set the animation's size, either put `style="width: 300px; height: 300px"` on the component itself, or give those dimensions to the element that contains it — the SVG keeps its proportions either way | <!-- px skip -->
+The React set, minus `apiRef` / `className` / `style` — a template ref and Vue's attribute
+inheritance cover those:
+
+<!-- px-check signature pkg=vue -->
+```typescript
+const PixodeskSvgAnimator: DefineComponent<{
+    doc: PxAnimatedSvgDocument;           // required — the animation, as saved by the editor
+
+    // Playback override — the document's `timeline` block, deep-merged (Playback overrides above)
+    timeline?: PxTimelinePatch | string;  // a JSON string is accepted too
+    resetTimeline?: boolean;              // start from the player's defaults, `timeline` on top
+    duration?: number; delay?: number;    // shortcuts, ms: one iteration, and the wait before it
+    iterations?: number | 'infinite';     // 'infinite' never stops
+    startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
+
+    // Control — the highest-priority one that is set picks the mode (Control modes above)
+    autoplay?: boolean;                   // start the way the file says — the editor's Start setting
+    play?: boolean; pause?: boolean;      // play now, whatever the trigger says / hold; false resumes
+    progress?: number; time?: number;     // a frame at 0–1 of the whole run / at this ms
+
+    // Diagnostics stay PROPS, not events: an event handler always exists, which would silence
+    // the console fallback. onWarn = it plays, but something was ignored, degraded or misspelled;
+    // onError = this instance will not play (the API at a glance)
+    onWarn?: (d: PxDiagnostic) => void;
+    onError?: (d: PxDiagnostic) => void;
+    muteWarn?: boolean; muteError?: boolean;
+}>;
+```
+
+Anything else you put on `<PixodeskSvgAnimator>` — `class`, `style`, any attribute — ends up on
+the `<svg>` element it renders (standard Vue attribute inheritance). So to set the animation's
+size, either put `style="width: 300px; height: 300px"` on the component itself, or give those
+dimensions to the element that contains it — the SVG keeps its proportions either way.
 
 ## Events
 
@@ -255,13 +279,17 @@ import AnimationSvg from './animation.svg';   // vite-svg-loader
 </template>
 ```
 
-<!-- px-check props PixodeskSvgCssAnimator pkg=vue -->
-| Prop | Type | Default |
-|---|---|---|
-| `startOn` | `'load' \| 'mouseOver' \| 'click' \| 'scrollIntoView'` | `'load'` |
-| `outAction` | `'continue' \| 'pause' \| 'reset'` | `'continue'` |
-| `scrollIntoViewThreshold` | `number` | `0` — how much of the SVG must be visible (0–1) before `'scrollIntoView'` starts |
-| other attrs (`class`, `style`, …) | forwarded to the wrapper `<div>` | — | <!-- px skip -->
+<!-- px-check signature pkg=vue -->
+```typescript
+// The SVG goes in the default slot; every other attribute (class, style, …) lands on the wrapper div.
+const PixodeskSvgCssAnimator: DefineComponent<{
+    startOn?: PxStartOn;                  // 'load' (default) | 'mouseOver' | 'click' | 'scrollIntoView'
+                                          //   — 'programmatic' does nothing here (no play())
+    outAction?: PxOutAction;              // 'continue' (default) | 'pause' | 'reset' — 'reverse' is
+                                          //   accepted but acts as 'continue'
+    scrollIntoViewThreshold?: number;     // 0–1 of the SVG visible before 'scrollIntoView' starts; default 0
+}>;
+```
 
 > ⚠️ **Don't put the same SVG file on a page twice.** You can have as many
 > `<PixodeskSvgCssAnimator>` on a page as you like, each with a *different* file. What does not
@@ -278,6 +306,19 @@ scripts should be inlined as raw HTML, or use JSON.
 The component is SSR-safe: the SVG is rendered on the server, the animator is created on
 mount. Nothing special is required beyond importing the component; for a CSS-flavor SVG add
 `vite-svg-loader` to your Nuxt/Vite config.
+
+## API reference
+
+Everything is spelled out above: `PixodeskSvgAnimator` under [Props](#props) and [Events](#events),
+the handle under [Imperative API](#imperative-api-template-ref), `PixodeskSvgCssAnimator` under
+[CSS-flavor SVGs](#css-flavor-svgs--pixodesksvgcssanimator). Modes, highest priority wins:
+`progress` / `time` → `play` / `pause` → `autoplay` → static — the same rule as React and React
+Native, conflicts warned the same way; any change to `doc` or to an override prop re-creates the
+player. The callbacks and diagnostics are the shape every player shares —
+[the API at a glance](./README.md#the-api-at-a-glance).
+
+<!-- px-check exports @pixodesk/svg-animator-vue -->
+The package exports the two components and the handle type, `VueAnimatorApi`; nothing else.
 
 ## Example
 

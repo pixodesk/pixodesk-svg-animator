@@ -11,7 +11,7 @@
  * `loadTagAnimators` as globals. A module-level side effect cannot be tree-shaken, so
  * importing ANY symbol from `PxAnimator.ts` pulled the entire full player in with it —
  * which silently made the pre-rendered builds the same size as the full one until this
- * constant was moved out. See PRERENDERED-PLAYER-BUILDS.md.
+ * constant was moved out. See dev-docs/plans/prerendered-player-builds.md.
  *
  * That block is gone (API review §4) and the package now declares `"sideEffects": false`, but
  * keeping these here costs nothing and removes the trap for good.

@@ -8,7 +8,7 @@
  *
  * Why this exists: every other test in the repo runs against `src/`, so nothing ever
  * exercised property-mangled code — which is how twelve public names came to be renamed
- * in the shipped bundles without a single failure (MINIFICATION-BOUNDARY-PLAN.md §1).
+ * in the shipped bundles without a single failure (dev-docs/plans/minification-boundary.md §1).
  * These tests run the real artefacts and compare minified against unminified.
  */
 import { readFileSync } from 'node:fs';

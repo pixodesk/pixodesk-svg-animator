@@ -154,3 +154,6 @@ web-build/
 # generated per-build by scripts/collect-identifiers.mjs (property-mangle allowlist)
 scripts/.identifiers.json
 scripts/.mangle-props.json
+
+# rendered twins of the dev-docs records (node scripts/gen-schema-html.mjs)
+dev-docs/**/*.html

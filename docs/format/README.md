@@ -3,8 +3,7 @@
 The **JSON** animation document, in one page: the principles behind the format, the full
 reference, the player effects, the editor's `meta`, and the core library that validates and
 transforms documents. (The other shape an animation takes — a finished `.svg` file — has its
-own documentation: [Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg). A compact, printable
-schema-only version: [SCHEMA.md](../../SCHEMA.md).)
+own documentation: [Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg).)
 
 **On this page:**
 [Format principles](#format-principles) ·
@@ -114,8 +113,22 @@ Three ideas cover 90 % of the format:
 
 ### Schema at a glance
 
-The whole format as flattened TypeScript-style typings. A standalone, printable
-copy of this section (with examples) lives in [SCHEMA.md](../../SCHEMA.md).
+The whole format as flattened TypeScript-style typings, with comments. First, the smallest
+document that animates — everything not written in it is a default:
+
+```json
+{
+  "type": "svg", "viewBox": "0 0 100 100",
+  "children": [
+    { "type": "circle", "cx": 50, "cy": 50, "r": 20, "fill": "#3b82f6",
+      "animate": { "opacity": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 1000, "value": 1 } ] } } }
+  ]
+}
+```
+
+No `animator` block at all means: a time-driven timeline (no `type` needed), one iteration of
+1000 ms, **starting on load** and holding the final state. To have your own code start it
+instead, say `"animator": { "timeline": { "trigger": { "startOn": "programmatic" } } }`.
 
 Every block below also has a name you can import from `@pixodesk/svg-animator-core`, for when you
 write or transform documents in TypeScript rather than by hand:
@@ -135,6 +148,11 @@ write or transform documents in TypeScript rather than by hand:
 | `PxTransformParts` | a transform written in parts; `PxTransformValue` is one such value and `PxVec2` an `[x, y]` pair |
 | `PxBezierPath` | a path outline as bezier segments |
 | `PxScroll` | a scroll-driven timeline; `PxScrollRangePoint` is one end of its range |
+| `PxTimelineEngineSetting` · `PxTimelineEngine` · `PxFillMode` · `PxPlaybackDirection` | the timeline's `engine` (as written: `auto` · `native` · `js`; as resolved: `native` · `js`), `fillMode` and `direction`. Every two-or-more-way wire selector is a named constant like these — a const namespace AND the string type of the same name, so `PxStartOn.click` and `startOn?: PxStartOn` come from one import |
+| `PxStartOn` · `PxOutAction` · `PxFinishAction` | the trigger's `startOn`, `outAction` and `finishAction` |
+| `PxScrollKind` · `PxScrollAxis` · `PxScrollSource` · `PxScrollPhase` · `PxPinAlign` | a scroll timeline's `type`, `axis`, `source`, a range point's `phase`, and `pin.align` |
+| `PxAlongPathMode` · `PxLoopRepeatAt` · `PxLoopDirection` | a property animation's `alongPathMode`, and its `loop.repeatAt` / `loop.direction` |
+| `PxStrokeTrimSubPaths` · `PxCloneWithout` · `PxMaskType` · `PxUnits` · `PxGradientType` · `PxGradientSpreadMethod` · `PxPathOverflow` · `PxLengthAdjust` · `PxTextPathMethod` · `PxTextPathSpacing` | the effects' selectors: `strokeTrim.subPaths`, `clone.without`, `maskedBy.maskType`, the mask and gradient units, a gradient's `type` and `spreadMethod`, and `textPath`'s `pathOverflow` / `lengthAdjust` / `method` / `spacing` |
 
 <!-- px-check schema-block SVG_JSON=PxAnimatedSvgDocumentSchema NODE=PxNodeSchema ANIMATE=PxPropertyAnimationSchema EFFECTS=PxEffectsSchema GRADIENT=PxFillGradientEffectSchema -->
 ```typescript
@@ -154,7 +172,8 @@ interface SVG_JSON extends NODE {
         // WHAT ADVANCES THE PLAYHEAD — a discriminated object mirroring WAAPI's
         // DocumentTimeline / ScrollTimeline / ViewTimeline. Timing and the playback
         // dynamics live INSIDE it; each type carries only the fields that mean
-        // something for it. Omitting `timeline` entirely means a plain clock.
+        // something for it. `type` is optional: absent = 'time' (the wall clock), so the
+        // common case declares nothing. Omitting `timeline` entirely = all defaults.
         timeline?:
             | {
                 type?: 'time';                     // wall time — something STARTS it (the trigger). OPTIONAL: absent = 'time'
@@ -171,7 +190,8 @@ interface SVG_JSON extends NODE {
                 trigger?: {
                     startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic'; // default 'load'; 'programmatic' waits for play()
                     outAction?: 'continue' | 'pause' | 'reset' | 'reverse'; // when the trigger condition ends; default 'continue'
-                    finishAction?: 'hold' | 'reset';  // after a NATURAL finish; default 'hold' (keep end state per `fillMode`)
+                    finishAction?: 'hold' | 'reset';  // after a NATURAL finish; default 'hold' (keep end state per `fillMode`).
+                                                      // Named to pair with `outAction`, and to stay clear of the onFinish CALLBACK
                     scrollIntoViewThreshold?: number; // how much must be on screen to start: 0 = any part (default), 1 = all of it; scrollIntoView only
                 };
               }
@@ -199,16 +219,19 @@ interface SVG_JSON extends NODE {
                 };  // PHASE = 'cover' | 'contain' | 'entry' | 'exit' | 'entry-crossing' | 'exit-crossing'
               };
 
-        // named reusable easings and animations; resolved at runtime
-        // materialize (inline) all refs before handing to a dumb player
+        // reusable definitions, resolved at runtime — materialize (inline) every ref before
+        // handing the document to a player without them. `fonts` is the one in everyday use;
+        // easings / animations are supported but rarely used.
         definitions?: {
-            easings?: Record<string, [number, number, number, number]>; // name → [x1,y1,x2,y2]
-            animations?: Record<string, Record<string, ANIMATE>>;       // name → { propName: ANIMATE }
-            // fontFamily → embedded glyph outlines, for glyph-mode text
-            // (effects.text.useGlyphs) — renders without shipping a font
-            fonts?: Record<string, {   // embedded fonts; the key is the FACE name = the node's fontFamily
-                fontFamily: string;   // e.g. "Roboto"
-                fontStyle: string;    // "" | "italic" | …
+            easings?: Record<string, [number, number, number, number]>; // name → [x1,y1,x2,y2]   (rarely used)
+            animations?: Record<string, Record<string, ANIMATE>>;       // name → { propName: ANIMATE }   (rarely used)
+            // embedded fonts for glyph-mode text (effects.text.useGlyphs) — renders without
+            // shipping a font file. The KEY is the FACE name, i.e. exactly the node's
+            // `fontFamily` ("Roboto-Light"): outlines belong to one face, and `fontWeight` /
+            // `fontStyle` are attributes on top of it — they never pick a different face.
+            fonts?: Record<string, {
+                fontFamily: string;   // the real family, e.g. "Roboto"
+                fontStyle: string;    // the face, e.g. "" | "Regular" | "Bold" | "Bold Italic"
                 ascent: number;       // in unitsPerEm
                 unitsPerEm: number;   // e.g. 1000
                 glyphs: Record<string, { width: number; pathData: string }>;  // keyed by the character
@@ -217,8 +240,10 @@ interface SVG_JSON extends NODE {
 
         debugGlobalName?: string;  // debug helper: exposes the animator as window[debugGlobalName]
 
-        version?: string;          // "a.b.c" — the schema the file was written for (see Versioning); written
-                                   // by the editor on save, never by the player; absent = unknown
+        version?: string;          // "a.b.c" — the schema the file was written for: a = generation,
+                                   // b = player schema (this release reads 1.1), c = editor extension
+                                   // (meta.*, ignored by the player) — see Versioning. Written by the
+                                   // editor on save, never by the player; absent = unknown
 
         // bind-by-id documents (a pre-rendered SVG + JS export): the elements already exist as
         // markup, so the document lists WHICH element plays WHICH named animations.
@@ -365,7 +390,7 @@ property names, as in React's `style` prop (`whiteSpace`, `pointerEvents`, `mixB
 attribute value is written exactly the same way as a keyframe's `value` for that attribute —
 learn one way of writing values and you know both.
 
-**Reserved keys** — `type`, `children`, `animator`, `animate`, `effects`, `meta`, `text`,
+**Reserved keys** — `type`, `children`, `animator`, `animate`, `effects`, `meta` and
 `textContent` never reach the DOM as attributes: they are instructions for the player, which
 turns them into other things — the element itself, its child elements, its text, its
 animation.
@@ -667,6 +692,137 @@ each property has one fixed unit that is always understood:
 | `retime.stretch` | a multiplier of duration: `2` = twice as long (half speed), `0.5` = half as long (double speed) |
 | `frameRate` | frames per second |
 | easing | cubic-bezier `[x1, y1, x2, y2]` |
+
+### What the player does with an invalid document
+
+The player is lenient: it renders what it can, never throws on a shape problem and never refuses
+a document.
+
+- **On load, every player checks the whole document** against the schema and prints one
+  `console.warn` listing the problems (the first six, then a count), e.g.
+  `root.animator.timeline.duratoin: unexpected extra key`. The strict parts — the `animator`
+  block, every `ANIMATE`, every effect — report any unknown key, so a `keyframe` where
+  `keyframes` was meant is caught.
+- **Effects** are also checked one by one (`validateNodeEffects`); each problem is a
+  `console.warn` prefixed with the node's path, and materialization still does its best.
+- **Unknown attributes on a node** pass through to the DOM — that is how any SVG/CSS
+  presentation attribute works. So a misspelled attribute with a plain value (`"fil": "red"`)
+  is not an error and is not reported; one whose value is an object is.
+
+To check a generated document before it ships, call `validateDocument(doc)` — see
+[Validating a document](#validating-a-document). It returns the same problem strings, `[]` when
+the document is sound. [SCHEMA.json](../../SCHEMA.json) is a JSON Schema generated from the same
+runtime schemas (`node scripts/gen-schema-json.mjs`), for tools that validate JSON themselves.
+
+### Examples
+
+Five complete documents, one idea each.
+
+**Self-contained, clock timeline:**
+
+```json
+{
+  "type": "svg",
+  "viewBox": "0 0 400 400",
+  "animator": {
+    "timeline": { "duration": 1000, "iterations": "infinite",
+                  "trigger": { "startOn": "load" } }
+  },
+  "children": [
+    { "type": "ellipse", "fill": "#007fff85", "rx": 64, "ry": 64,
+      "animate": { "translate": { "keyframes": [
+        { "time": 0,    "value": [139, 163] },
+        { "time": 1000, "value": [139, 310] }
+      ] } } }
+  ]
+}
+```
+
+**Named definitions + unified transform:**
+
+```json
+{
+  "type": "svg",
+  "viewBox": "0 0 600 400",
+  "animator": {
+    "timeline": { "duration": 2000, "direction": "alternate", "iterations": "infinite" },
+    "definitions": {
+      "easings": { "smooth": [0.42, 0, 0.58, 1] },
+      "animations": { "fadeIn": { "opacity": { "keyframes": [
+        { "time": 0, "value": 0 }, { "time": 2000, "value": 1 } ] } } }
+    }
+  },
+  "children": [
+    { "type": "rect", "x": 40, "y": 40, "width": 120, "height": 90, "fill": "#6366f1",
+      "animate": "fadeIn" },
+    { "type": "path", "id": "star", "d": "M300,60L340,140L260,140z", "fill": "#f59e0b",
+      "animate": { "transform": { "keyframes": [
+        { "time": 0,    "value": { "translate": [0, 0],   "rotate": 0,  "scale": [1, 1] } },
+        { "time": 2000, "value": { "translate": [80, 40], "rotate": 90, "scale": [1.5, 1.5] }, "easing": "smooth" }
+      ] } } }
+  ]
+}
+```
+
+**Bind-by-id** (no `children` — animates a pre-existing SVG DOM; each binding names its element
+by `#id` and the animations it plays by name — [above](#animating-a-pre-rendered-svg)):
+
+```json
+{
+  "type": "svg",
+  "id": "heroSvg",
+  "animator": {
+    "timeline": { "duration": 3000, "iterations": "infinite" },
+    "definitions": { "animations": {
+      "spin":     { "rotate": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 3000, "value": 360 } ] } },
+      "spinBack": { "rotate": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 3000, "value": -360 } ] } }
+    } },
+    "bindings": [
+      { "target": "#gear-big",   "animateWith": ["spin"] },
+      { "target": "#gear-small", "animateWith": ["spinBack"] }
+    ]
+  }
+}
+```
+
+**Effects** (repeater + animated stroke trim + gradient):
+
+```json
+{
+  "type": "svg",
+  "viewBox": "0 0 400 200",
+  "animator": { "timeline": { "duration": 1000 } },
+  "children": [
+    { "type": "path", "d": "M20,100C60,20,140,20,180,100", "stroke": "#000000", "fill": "none",
+      "effects": {
+        "repeater":    { "copies": 3, "translate": [90, 0] },
+        "strokeTrim":  { "offset": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 1000, "value": 1 } ] },
+                         "range": [0, 0.6] },
+        "fillGradient": { "type": "linear", "start": [0, 0], "end": [100, 0],
+                          "stops": [ { "offset": 0, "color": "#ff0000" }, { "offset": 1, "color": "#0000ff" } ] }
+      } }
+  ]
+}
+```
+
+**Scroll-driven** (scrubbed by the SVG's journey through the viewport):
+
+```json
+{
+  "type": "svg",
+  "viewBox": "0 0 400 400",
+  "animator": {
+    "timeline": { "type": "view", "duration": 3000,
+                  "range": { "start": { "phase": "entry", "fraction": 0 },
+                             "end":   { "phase": "exit",  "fraction": 1 } } }
+  },
+  "children": [
+    { "type": "rect", "width": 80, "height": 80, "fill": "#10b981",
+      "animate": { "translate": { "keyframes": [
+        { "time": 0, "value": [0, 0] }, { "time": 3000, "value": [320, 0] } ] } } }
+  ]
+}
+```
 
 ## Player effects
 
@@ -1107,6 +1263,20 @@ if (!PxAnimatedSvgDocumentSchema.isValid(json, ctx, [])) console.error(ctx.error
 Use the default in production readers and `strict` in tests and tooling.
 `validateDocument(doc)` checks the whole document strictly and returns problem strings (`path: what is wrong`), empty when sound; `validateNodeEffects(doc)` checks just the `effects` buckets and returns warning strings.
 
+```ts
+// Check a generated document before it ships
+import { validateDocument } from '@pixodesk/svg-animator-core';   // also exported by the web player
+
+const problems = validateDocument(doc);   // [] when the document is sound
+if (problems.length) throw new Error(problems.join('\n'));
+```
+
+### Reading a document
+
+`getAnimatorConfig(doc)`, `getChildren(doc)`, `getBindings(doc)` and `getDefinitions(doc)` read
+the `animator` block, the element tree, the bindings and the definitions of a document without
+knowing where they sit — reach for them over `doc.animator?.…` in a tool of your own.
+
 ### Flattening a document
 
 `materializeAllInTree(doc, engine)` turns a document into a flat tree any renderer can walk:
@@ -1163,23 +1333,135 @@ api.play();
 Frame scheduling uses `requestAnimationFrame` when it exists and falls back to `setTimeout`, so
 the engine runs in browsers, React Native and test environments.
 
-### Exports
+### Reference
 
-<!-- px-check exports @pixodesk/svg-animator-core partial -->
-| Area | Exports |
-|---|---|
-| **Schema & types** | `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxEffectsSchema`, `PxAnimatorConfigSchema`, `PxKeyframeSchema`, … plus every `Px*` TypeScript type and the `px` schema builder |
-| **Validation** | `validateDocument` (the whole document, strict), `isPxDocument`, `isValidPxDocument`, `validateNodeEffects` |
-| **Materializers** | `materializeAllInTree`, `materializeNodeEffects` |
-| **Interpolation** | `calcAnimationValues`, `interpolateValue`, `normalizeBindings` |
-| **Sampling / geometry** | `createPathSampler`, Bézier helpers, `cubicBezier`, `splitEasing` |
-| **Text** | `materializeGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
-| **Node helpers** | `toDomProps`, `sanitizeAttributeValue`, `generateNewIds`, `deepClone` |
-| **Document accessors** | `getAnimatorConfig`, `getDefinitions`, `getBindings`, `getChildren` |
-| **Scroll timeline math** | `isScrollTimeline`, `scrollViewProgress`, `scrollOffsetProgress`, `scrollTotalDurationMs` |
-| **Playback engine** | `createAdapterAnimator` + the `PxPlatformAdapter` interface |
-| **Wire enums** | `PxTimelineEngineSetting`, `PxTimelineEngine`, `PxStartOn`, `PxOutAction`, `PxFinishAction`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout`, `PxMaskType`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every wire selector ships as a named constant rather than a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxStartOn.click` and `startOn?: PxStartOn` come from one import |
-| **Schema versioning** | `PX_WIRE_SCHEMA_VERSION`, `readWireVersion`, `parseWireVersion`, `formatWireVersion`, `compareWireVersion`, `wireVersionAdvice`, `convertWireDocument`, `downgradeWireDocument`, `PxWireVersionRelation` — see [Versioning](#versioning) |
+The calls above, and the rest of what you would call directly, in signature form. Marks:
+● user-facing · ○ advanced document tooling · ▪ internal — see
+[the API at a glance](../library/README.md#the-api-at-a-glance).
+
+<!-- px-check signature pkg=core -->
+```typescript
+// ○ Run the whole materialization pipeline: effects → loops → motion paths →
+//   <use> instances, in the canonical order. This is exactly what the player
+//   runs internally, so a document flattened here plays identically — the way
+//   to feed a renderer that has no effects support. `resolveTimelineEngine`
+//   turns a document's `timeline.engine` into this argument.
+function materializeAllInTree(
+    doc: PxAnimatedSvgDocument,
+    engine: 'native' | 'js',
+    options?: { motionPath?: MotionPathMaterializationOptions },
+): PxAnimatedSvgDocument;
+
+// ○ One stage of it: `node.effects` → plain renderable nodes (+ generated defs).
+function materializeNodeEffects(root: PxNode): ApplyResult;
+
+// ● The whole-document check: the strict wire schema (undeclared keys included)
+//   plus every `effects` bucket. Returns human-readable problems (`path: what is
+//   wrong`), empty when the document is sound; never throws. Every player runs the
+//   same check on load and prints the problems as one console warning — call this
+//   before shipping a document instead of relying on the console.
+function validateDocument(doc: unknown, options?: { strict?: boolean }): Array<string>;
+//   `strict` (default true) rejects keys the schema does not declare — right before you ship.
+//   `{ strict: false }` tolerates them, which is what a READER wants: an unknown key usually
+//   means a newer writer — worth a warning, never a refusal.
+
+// ○ Check every `node.effects` bucket against the schema, depth-first. Returns
+//   human-readable warnings (each prefixed with the node's path) and never
+//   throws; the players run this on load and log whatever comes back.
+function validateNodeEffects(root: PxNode, options?: { strict?: boolean }): Array<string>;
+
+// ● Per-instance playback override, shared by every player. `patch` is a
+//   deep-partial of the document's `animator` block; objects merge key by key,
+//   values replace, and `null` DELETES a key (restoring the default its absence
+//   means). Pure — the document is not modified; the result shares every
+//   untouched subtree by reference. Warnings say what could not be applied
+//   (e.g. clock-only keys aimed at a scroll timeline).
+function applyAnimatorConfig(
+    doc: PxAnimatedSvgDocument,
+    patch: PxAnimatorConfigPatch,
+    options?: { resetTimeline?: boolean },   // start from the player's defaults; keeps
+): { doc: PxAnimatedSvgDocument; warnings: Array<string> };   // definitions/bindings
+
+// ○ The same merge one level down, on the config object itself.
+function mergeAnimatorConfig(
+    base: PxAnimatorConfig | undefined,
+    patch: PxAnimatorConfigPatch,
+): PxAnimatorConfigMergeResult;
+
+// ○ Folds the four shortcuts (duration/delay/iterations/startOn) into a patch and
+//   parses the JSON-string form. A shortcut wins over the same key in `timeline`.
+//   This is what every player calls before `applyAnimatorConfig`.
+function foldTimelineOverride(
+    timeline: PxTimelinePatch | string | undefined,
+    shortcuts: PxTimelineShortcuts,
+): PxAnimatorConfigPatch | undefined;
+
+// ○ The schema version — see Versioning, below.
+const PX_WIRE_SCHEMA_VERSION: '1.1';                                    // the schema this build reads
+function readWireVersion(doc: unknown): PxWireVersion | undefined;          // animator.version (or meta.animator.version)
+function convertWireDocument(doc: unknown): PxWireConversionResult;     // up to this schema; never refuses, never mutates
+function downgradeWireDocument(doc: unknown, target: PxWireVersion): PxWireDowngradeResult;   // all or nothing
+
+// ○ Deep-clone a document with fresh ids and internal references rewritten —
+//   what you need before putting the same animation on a page twice.
+function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocument;
+
+// ○ Playback on a non-DOM target: implement the adapter, get the frame-loop engine.
+function createAdapterAnimator(
+    doc: PxAnimatedSvgDocument,
+    adapter: PxPlatformAdapter,
+    callbacks?: PxEngineCallbacks,
+): PxAnimatorApi;
+
+interface PxPlatformAdapter {
+    isConnected(): boolean;                                     // is the target still mounted
+    setAttribute(id: string, attrName: string, value: string): void;
+}
+
+// ● The one rule that turns a component's control props into a decision, so React,
+//   Vue and React Native cannot answer it three ways. Most specific first:
+//   `progress` / `time` → `play` / `pause` → `autoplay` → `static`. Props from two
+//   tiers set together come back as ready-made warning sentences; `apiRef` never
+//   changes the mode, being a handle rather than an instruction.
+function resolveControlMode(props: PxControlProps): PxResolvedControlMode;
+
+// ● True when that mode has to take the document's own trigger over — every mode
+//   except `autoplay`, INCLUDING `static`: a component given no control props at
+//   all renders the first frame and waits, so it forces `startOn: 'programmatic'`.
+function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
+```
+
+### Everything else this package exports
+
+<!-- px-check exports @pixodesk/svg-animator-core -->
+| Group | Symbols | |
+|---|---|---|
+| Wire types | `PxAnimatedSvgDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTimeline`, `PxTrigger`, `PxElementAnimation`, `PxPropertyAnimation`, `PxKeyframe`, `PxLoop`, `PxBinding`, `PxDefinitions`, `PxEffects`, `PxTransformParts`, `PxBezierPath`, `PxGlyph`, `PxGlyphFont`, `PxAnimationDefinition`, `PxScroll`, `PxScrollRangePoint`, `PxVec2`, `PxTransformValue` | ● the shapes in [Schema at a glance](#schema-at-a-glance) |
+| Player API types | `PxAnimatorApi<TRoot>`, `PxPlaybackApi<TRoot>`, `PxEngineCallbacks`, `PxPlatformAdapter` | ● platform-neutral; the web fixes `TRoot` to `Element`. `PxEngineCallbacks` is what an engine takes — the lifecycle on top of `PxDiagnosticsConfig` |
+| Component contract | `PxAnimatorHandle`, `PxAnimatorCallbacks`, `PxControlProps`, `PxControlMode`, `resolveControlMode(props)`, `controlModeTakesOverTrigger(mode)` | ● what the React / Vue / React Native components share: the imperative handle, the callback set, the props that pick a mode and the one rule that picks it — [the API at a glance](../library/README.md#the-api-at-a-glance) |
+| Engine rules | `resolveTimelineEngine(engine)`, `isNativeForced(engine)`, `mayUseNativeScrollTimeline(engine)` | ○ how a `timeline.engine` resolves to an engine / to the browser's ScrollTimeline — the players' own decision helpers |
+| Trigger defaults | `PX_TRIGGER_DEFAULTS`, `resolveTrigger(trigger)`| ○ what a missing trigger field means (`startOn` 'load', `outAction` 'continue', threshold 0) — the one resolution every player uses |
+| Time contract | `seekCeilingMs`, `progressSpanMs`, `clampSeekMs`, `timeToProgress`, `progressToTimeMs`, `isValidPlaybackRate`, `PX_RATE_REJECTED`, `createRunClock` + | ○ the one meaning of time, seeking and rate that every engine implements — see `PxAnimatorApi` |
+| Diagnostics | `createDiagnostics(config?, prefix?)` (▪) → `PxDiagnostics`, `PxDiagnosticKind` + `PxDiagnostic`, `PxDiagnosticsConfig` | ● the one channel every player reports through: `onWarn` / `onError` with a `kind` saying who can act, falling back to the console — see `PxEngineCallbacks` |
+| Enum values | `PxTimelineEngineSetting`, `PxTimelineEngine`, `PxGradientType`, `PxUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout` (`clone.without` → `'translate'`), `PxMaskType`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing`, `PxFillMode`, `PxPlaybackDirection`, `PxStartOn`, `PxOutAction`, `PxFinishAction`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings — each is a const namespace AND the type derived from it, so `PxStartOn.click` and `startOn?: PxStartOn` come from one import |
+| Schema version | `PX_WIRE_SCHEMA_VERSION`, `PX_WIRE_VERSION`, `PX_WIRE_BASELINE_VERSION`, `PX_WIRE_STEPS`, `PX_WIRE_VERSION_KEY`, `PxWireVersionRelation`, `parseWireVersion`, `formatWireVersion`, `readWireVersion`, `compareWireVersion`, `wireVersionAdvice`, `convertWireDocument`, `downgradeWireDocument`, `applyWireSteps`, + `PxWireVersion`, `PxWireVersionStep`, `PxWireConversionResult`, `PxWireStepKind`, `PxWireConversionOptions` | ○ read, compare and convert a document's `animator.version` — [Versioning](#versioning) |
+| Schema release | `schemaFieldUniverse`, `diffFieldUniverse`, `planSchemaRelease`, `releaseLogProblems` | ▪ the field inventory and bump rule behind `scripts/schema-release.mjs` |
+| Diagnostics | `diagnoseDocument(doc)` (○) → (`{ problems }`), `reportDocumentDiagnostics(doc, where)`, `PX_UNKNOWN_KEY_ERROR` | ▪ the load-time check every player runs; call `validateDocument` instead |
+| Validation | `isPxDocument`, `isValidPxDocument`| ○ a cheap "is this a Pixodesk document" gate / the pass-fail form of `validateDocument`, NON-strict, with every message it can name |
+| Document accessors | `getAnimatorConfig`, `getChildren`, `getBindings`, `getDefinitions` | ○ read a document without knowing its internals |
+| Timeline shape | `flattenAnimatorTimeline`, `nestAnimatorTimeline` | ○ nested `timeline` object ⇄ the flat runtime view |
+| Playback override | `PxTimelinePatch`, `PxPlaybackOverride`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult`, `PxTimelineShortcuts` | ● the `timeline` override as every player takes it, and the companion types of the three merge functions above |
+| Keyframe forms | `keyframeValue`, `keyframeEasing`, `PxNormalizedKeyframe`, `PxNormalizedPropertyAnimation`, `PxAnyKeyframe` | ▪ read a keyframe in either its wire or its runtime (`t` / `v` / `e`) form; is what `normalizeBindings` hands the engines — bare id + merged animation, from a binding or a node alike |
+| Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTriggerSchema`, `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxLoopSchema`, `PxDefinitionsSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxTransformValueSchema` | ○ the validator the format is written in |
+| Pipeline stages | `normalizeBindings` (○), `calcAnimationValues` (○), `interpolateValue`, `materializeMotionPathInPropAnim`, `mergeStaticTransformIntoAnimDef` | ▪ stages of `materializeAllInTree`; call the pipeline instead |
+| Effect harness | `diffInEffect` | ▪ the editor's "equal in effect" comparison |
+| Text & paths | `materializeGlyphText`, `layoutGlyphTextChars`, `createPathSampler`, `extendedPathForBrowser`, `materializeGlyphTextAlongPath` | ▪ glyph-text and text-on-path materialization |
+| Node props | `toDomProps` (○), `sanitizeAttributeValue`, `PX_CSS_ONLY_STYLE_PROPS`, `PX_DISALLOWED_SVG_TAGS_LOWER` | ▪ shared normalization and sanitization rules |
+| Scroll math | `isScrollTimeline`, `scrollViewProgress`, `scrollOffsetProgress`, `scrollPhaseInterval`, `scrollResolveAxis`, `scrollTotalDurationMs` | ▪ scroll-driven playback internals |
+| Maths & strings | `cubicBezier`, `subdivideCubicBezier`, `bezierToSvgPath`, `splitEasing`, `reverseEasing`, `clamp`, `toRGBA`, `composeTransformParts`, `camelCaseToKebabWordIfNeeded`, `kebabToCamelCaseWord`, `PX_COLOR_ATTR_NAMES`, `PX_STYLE_ATTR_NAMES`, `PX_PCT_BASED_ATTR_NAMES`, `PX_TRANSFORM_FN_NAMES`, `deepClone`, `generateUniqueId`, `PX_DEFAULT_DURATION_MS`, `PX_LOOP_JUMP_SHIFT_MS` | ▪ helpers shared with the editor |
+| Schema toolkit types | `PxSchema`, `PxSchemaDesc`, `PxInfer`, `PxValidationContext`, `PxRemoveIndex` | ○ the types you build a schema with — see the toolkit above |
+| Companion types | `PxMaterializeAllOptions`, `PxCreateElement`, `PxGlyphCharBox`, `PxAnimatable` | ▪ argument and result shapes of the functions above |
+| Attribute names | `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME`, `PX_TEXT_CONTENT_ATTR` | ▪ reserved keys — see [Nodes](#nodes) |
 
 ### Versioning
 
@@ -1211,7 +1493,9 @@ saves (`"1.1.1"` today); the player never writes the stamp.
   on a guess.
 
 `readWireVersion(doc)` reads the stamp from `animator.version`, or from `meta.animator.version`
-where the animator block is carried under `meta`.
+where the animator block is carried under `meta`. `parseWireVersion` and `formatWireVersion`
+convert between the `"a.b.c"` string and its parts, `compareWireVersion` compares two stamps, and
+`wireVersionAdvice` words a gap the way `advice` below does.
 
 #### Converting a document
 

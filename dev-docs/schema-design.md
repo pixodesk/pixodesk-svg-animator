@@ -555,7 +555,7 @@ wrapper rule exists but rarely fires.
 ### Naming & ids
 - Wire attr names are **camelCase JSX-style** (`strokeDasharray`) → kebab-case on rendered SVG.
 - Short kf aliases (`t`/`v`/`e`/`kfs`/`ti`/`to`) are **gone** — deleted 2026-09 and now rejected by
-  the schema; long forms are the only spelling (see MINIFICATION-BOUNDARY-PLAN §6.2).
+  the schema; long forms are the only spelling (see plans/minification-boundary.md §6.2).
 - Auto-ids `_px_<base36>`, regenerated per write — only reference structure is meaningful.
 
 **The three `animate` keyspaces (N2, settled 2026-08).** One word was doing two jobs; the

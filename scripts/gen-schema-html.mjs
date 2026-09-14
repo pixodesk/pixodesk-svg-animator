@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-// Renders the reference .md files at the repo root to .html — self-contained, compact,
+// Renders the dev-docs records (reviews, the schema design) to .html next to the .md — self-contained, compact,
 // print-oriented pages (no JS, no external resources, highlighting pre-rendered here).
 //
-//   node scripts/gen-schema-html.mjs                  all four reference docs
-//   node scripts/gen-schema-html.mjs API-SCHEMA.md    only the ones named
+//   node scripts/gen-schema-html.mjs                                   every doc in DOCS below
+//   node scripts/gen-schema-html.mjs dev-docs/reviews/api-surface-review.md   only the ones named
 //
 // The .html differs from its .md in LAYOUT ONLY. Every render is checked before it is written:
 // the page's text must equal the .md's text word for word, with the markup removed on both
@@ -13,7 +13,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const DOCS = ['SCHEMA.md', 'SCHEMA-NAMING-REVIEW.md', 'API-SCHEMA.md', 'API-SCHEMA-REVIEW.md', 'API-SURFACE-REVIEW.md'];
+const DOCS = ['dev-docs/schema-design.md', 'dev-docs/reviews/api-schema-review.md', 'dev-docs/reviews/api-surface-review.md', 'dev-docs/reviews/schema-naming-review.md'];
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
@@ -33,7 +33,7 @@ const CONTINUATION = /^\s{2,}\S/;
 /** A doc's link to another rendered doc points at its .html twin. */
 function rewriteHref(href) {
   const m = /^(\.\/)?([^/#]+)\.md(#.*)?$/.exec(href);
-  return m && DOCS.includes(m[2] + '.md') ? m[2] + '.html' + (m[3] ?? '') : href;
+  return m && DOCS.some((d) => d.endsWith('/' + m[2] + '.md')) ? m[2] + '.html' + (m[3] ?? '') : href;
 }
 
 // ── inline markdown: code, bold, italics, links ─────────────────────────────

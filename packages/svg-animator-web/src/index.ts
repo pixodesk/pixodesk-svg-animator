@@ -17,7 +17,7 @@
 export { createAnimator, generateNewIds, loadTagAnimators } from './animator/PxAnimator';
 export type { PxTagAnimatorOptions } from './animator/PxAnimator';
 // The options of the pre-rendered builds' `createAnimator` — a type only, so the main entry can
-// describe every `createAnimator` there is (API-SCHEMA.md checks the docs against this file).
+// describe every `createAnimator` there is (docs-check reads the docs against this file).
 export type { PxPrerenderedAnimatorOptions } from './engines/PxAnimatorBind';
 
 export { px } from '@pixodesk/svg-animator-core';

@@ -17,7 +17,7 @@ import { applyScrollPin, createNativeScrollTimeline, createScrollDriver } from '
  * Everything here operates on a document that is ALREADY in its final shape — no
  * validation, no materialization, no rendering. `createAnimatorImpl` calls in after it
  * has done those stages; the pre-rendered entries call in directly, because the Editor
- * did them at export time. See PRERENDERED-PLAYER-BUILDS.md.
+ * did them at export time. See dev-docs/plans/prerendered-player-builds.md.
  */
 
 /**

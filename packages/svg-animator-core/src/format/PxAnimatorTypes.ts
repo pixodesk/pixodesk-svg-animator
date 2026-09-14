@@ -1517,7 +1517,7 @@ export type PxStrokeTrimEffect = PxInfer<typeof PxStrokeTrimEffectSchema>;
 const _ck_PxStrokeTrimEffect: KeysMatch<PxStrokeTrimEffect, _PxStrokeTrimEffect> = true;
 
 
-/** Ref-attr naming rule (see editor SCHEMA-DESIGN.md): `source` = ref to an EXTERNAL element
+/** Ref-attr naming rule (see editor dev-docs/schema-design.md): `source` = ref to an EXTERNAL element
  *  (clone/maskedBy/retime); `coreId` = a unit's own survivor; `partOf` = a derived node's host.
  *
  *  `<use>` retime: pure timing — the source ref lives ONCE, on the parent `clone.source`
@@ -1942,7 +1942,7 @@ export const PxNodeBaseSchema = px.openObject({
     // `type` is taken by the tag name, so the attribute travels here and the renderer puts
     // it back (`PxAnimatorDOM.renderNode`, `PxRnRender`). Declared here — not merely
     // documented — because a wire key that is not in a schema is invisible to the
-    // minifier's reserve list and gets renamed (MINIFICATION-BOUNDARY-PLAN.md §1.1).
+    // minifier's reserve list and gets renamed (dev-docs/plans/minification-boundary.md §1.1).
     domType: px.string().optional(),
     // Text content of a `<text>` / `<tspan>`. Declared, so a non-string value is a schema error
     // and the minifier reserves the key; `text` is NOT an alias for it and is not read anywhere.
@@ -2072,7 +2072,7 @@ export interface PxAnimatedSvgDocument extends PxSvgNode {
 // API INTERFACES
 // ============================================================================
 
-// -- Callbacks: one chain, three levels (API review §9, §5; API-SURFACE-REVIEW.md §26.1) ----------------------------
+// -- Callbacks: one chain, three levels (API review §9, §5; dev-docs/reviews/api-surface-review.md §26.1) ----------------------------
 //
 //   PxDiagnosticsConfig   onWarn / onError / muteWarn / muteError   — what `createDiagnostics` reads
 //   PxEngineCallbacks     + onPlay / onPause / onCancel / onFinish / onRemove — what an ENGINE takes

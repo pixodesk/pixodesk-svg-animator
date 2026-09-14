@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -21,7 +22,7 @@ export const PKG_NPM_NAME: Record<Pkg, string> = {
  *
  * The MAIN entry comes first: type text is printed against it. A package may ship further entry
  * points — `@pixodesk/svg-animator-core/internal`, which carries the `@internal` names the editor
- * and the sibling packages need (API-SURFACE-REVIEW.md §4) — and the exports of ALL of them are
+ * and the sibling packages need (dev-docs/reviews/api-surface-review.md §4) — and the exports of ALL of them are
  * what the package exports, so the reference may still document an internal name and the audience
  * checks still see its tag.
  */
@@ -36,26 +37,28 @@ export const PKG_DTS: Record<Pkg, ReadonlyArray<string>> = {
     rn: [dts('rn', 'index')],
 };
 
-/** The public markdown files, relative to the repo root. Internal notes (reviews, plans, dev-docs) are not listed. */
+/** Every `.md` under a directory, as repo-relative paths, sorted — so a new page is covered the day it is added. */
+function markdownUnder(dir: string): Array<string> {
+    const out: Array<string> = [];
+    const walk = (rel: string): void => {
+        for (const e of readdirSync(resolve(REPO_ROOT, rel), { withFileTypes: true })) {
+            const p = `${rel}/${e.name}`;
+            if (e.isDirectory()) walk(p);
+            else if (e.isFile() && e.name.endsWith('.md')) out.push(p);
+        }
+    };
+    walk(dir);
+    return out.sort();
+}
+
+/**
+ * The public markdown files, relative to the repo root: the root README, everything under
+ * `docs/`, and each package's README. Internal notes live in `dev-docs/` and are not covered.
+ */
 export const DOC_FILES: ReadonlyArray<string> = [
     'README.md',
-    'API-SCHEMA.md',
-    'SCHEMA.md',
-    'docs/format/README.md',
-    'docs/library/README.md',
-    'docs/library/installation.md',
-    'docs/library/minification.md',
-    'docs/library/playback-and-triggers.md',
-    'docs/library/react-native.md',
-    'docs/library/react.md',
-    'docs/library/troubleshooting.md',
-    'docs/library/vue.md',
-    'docs/library/web-player.md',
-    'packages/svg-animator-core/README.md',
-    'packages/svg-animator-web/README.md',
-    'packages/svg-animator-react/README.md',
-    'packages/svg-animator-vue/README.md',
-    'packages/svg-animator-rn/README.md',
+    ...markdownUnder('docs'),
+    ...ALL_PKGS.map(p => `packages/svg-animator-${p}/README.md`),
 ];
 
 export function pkgFromText(text: string): Pkg | undefined {

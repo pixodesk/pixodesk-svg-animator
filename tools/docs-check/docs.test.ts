@@ -22,7 +22,7 @@ describe('audience', () => {
         expect(formatFindings('audience', tagFindings(ctx.facts))).toBe('');
     });
     it('the reference marks agree with the declarations', () => {
-        expect(formatFindings('API-SCHEMA.md', markFindings(ctx.facts))).toBe('');
+        expect(formatFindings('audience', markFindings(ctx.facts))).toBe('');
     });
     it('public is described in a guide; internal is taught nowhere', () => {
         expect(formatFindings('audience', guideFindings(ctx.facts))).toBe('');

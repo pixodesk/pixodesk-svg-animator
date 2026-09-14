@@ -1,5 +1,5 @@
 // Who each export is for — the audience tag in the SOURCE, checked against the docs.
-// (API-SURFACE-REVIEW.md §8; the tags themselves are stage A of its plan.)
+// (dev-docs/reviews/api-surface-review.md §8; the tags themselves are stage A of its plan.)
 //
 // One release tag on every exported declaration is the single source of truth:
 //
@@ -8,21 +8,22 @@
 //   @internal           exported so the editor and the sibling packages stay in lockstep.
 //                       May change in any release, so no guide may teach it
 //
-// The ●/○/▪ marks in API-SCHEMA.md stay hand-written, and are checked against the tags rather
-// than generated from them — the same bargain as every other check here.
+// The ●/○/▪ marks in the export indexes (the tables under `px-check exports`) stay hand-written,
+// and are checked against the tags rather than generated from them — the same bargain as every
+// other check here.
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import ts from 'typescript';
 import { ALL_PKGS, DOC_FILES, PKG_NPM_NAME, REPO_ROOT, type Pkg } from './config';
-import { parseMarkdown } from './md';
+import { parseMarkdown, type MdTable } from './md';
 import { parseDocBlock } from './ts-facts';
 import type { Finding } from './checks';
 import type { TsFacts } from './ts-facts';
 
-/** Pages that INDEX every name. Appearing here is not being described. */
-export const REFERENCE_DOCS: ReadonlyArray<string> = ['API-SCHEMA.md', 'SCHEMA.md'];
-/** Pages a reader is sent to: the READMEs and the guides. Appearing here IS being described. */
-export const GUIDE_FILES: ReadonlyArray<string> = DOC_FILES.filter(f => !REFERENCE_DOCS.includes(f));
+/** The export indexes of a page: every table under a `px-check exports` marker. Being listed there is not being described. */
+function exportIndexes(doc: ReturnType<typeof parseMarkdown>): Array<MdTable> {
+    return doc.markers.filter(m => m.kind === 'exports' && m.block?.kind === 'table').map(m => m.block as MdTable);
+}
 
 const ALLOWLIST_FILE = 'tools/docs-check/audience-allowlist.json';
 
@@ -110,25 +111,26 @@ export function declaredNames(cell: string): Array<string> {
 }
 
 export function markFindings(facts: TsFacts): Array<Finding> {
-    const doc = parseMarkdown(resolve(REPO_ROOT, 'API-SCHEMA.md'));
     const out: Array<Finding> = [];
-    for (const m of doc.markers) {
-        if (m.kind !== 'exports' || m.block?.kind !== 'table') continue;
-        for (const row of m.block.rows) {
-            const cells = row.cells;
-            const mark = /[●○▪]/.exec(cells[cells.length - 1] ?? '')?.[0];
-            if (!mark) continue;
-            for (const cell of cells.slice(0, -1)) {
-                for (const name of declaredNames(cell)) {
-                    const pkg = facts.locate(name);
-                    if (!pkg) continue;                                  // the exports check reports it
-                    const { audience } = audienceOf(facts.symbol(pkg, name)!);
-                    if (!audience) continue;                             // tagFindings reports it
-                    // a row may mark one of its names differently: `` `toDomProps` (○) ``
-                    const own = new RegExp('`' + name + '[^`]*`\\s*\\(([●○▪])\\)').exec(cell)?.[1];
-                    const expected = own ?? mark;
-                    if (MARK[audience] !== expected) {
-                        out.push({ line: row.line, message: `${name}: this row is marked ${expected}, the declaration says ${TAG[audience]} (${MARK[audience]}) — fix whichever is wrong` });
+    for (const file of DOC_FILES) {
+        const doc = parseMarkdown(resolve(REPO_ROOT, file));
+        for (const table of exportIndexes(doc)) {
+            for (const row of table.rows) {
+                const cells = row.cells;
+                const mark = /[●○▪]/.exec(cells[cells.length - 1] ?? '')?.[0];
+                if (!mark) continue;
+                for (const cell of cells.slice(0, -1)) {
+                    for (const name of declaredNames(cell)) {
+                        const pkg = facts.locate(name);
+                        if (!pkg) continue;                                  // the exports check reports it
+                        const { audience } = audienceOf(facts.symbol(pkg, name)!);
+                        if (!audience) continue;                             // tagFindings reports it
+                        // a row may mark one of its names differently: `` `toDomProps` (○) ``
+                        const own = new RegExp('`' + name + '[^`]*`\\s*\\(([●○▪])\\)').exec(cell)?.[1];
+                        const expected = own ?? mark;
+                        if (MARK[audience] !== expected) {
+                            out.push({ line: 0, message: `${file}:${row.line} — ${name}: this row is marked ${expected}, the declaration says ${TAG[audience]} (${MARK[audience]}) — fix whichever is wrong` });
+                        }
                     }
                 }
             }
@@ -140,11 +142,13 @@ export function markFindings(facts: TsFacts): Array<Finding> {
 // ---- 3. public is described, internal is not taught ------------------------------------------
 
 /**
- * Identifier → the guides that name it, in two strengths:
+ * Identifier → the pages that name it, in two strengths:
  *
- *   `described` — anywhere in a guide, prose backticks included. Writing about a name IS
- *                 documenting it, which is what `@public` owes the reader.
- *   `shown`     — inside a fenced code block: the guide hands the reader a line to run. That is
+ *   `described` — anywhere on a page, prose backticks included, EXCEPT inside an export index
+ *                 (a table under `px-check exports`), which lists every name by design. Writing
+ *                 about a name IS documenting it, which is what `@public` owes the reader; being
+ *                 one row of an index is not.
+ *   `shown`     — inside a fenced code block: the page hands the reader a line to run. That is
  *                 what `@internal` must never be, and a passing mention in prose is not it.
  */
 function guideMentions(): { described: Map<string, Array<string>>; shown: Map<string, Array<string>> } {
@@ -153,8 +157,11 @@ function guideMentions(): { described: Map<string, Array<string>>; shown: Map<st
     const add = (m: Map<string, Array<string>>, ids: Set<string>, file: string): void => {
         for (const id of ids) m.set(id, [...(m.get(id) ?? []), file]);
     };
-    for (const file of GUIDE_FILES) {
-        const text = readFileSync(resolve(REPO_ROOT, file), 'utf8');
+    for (const file of DOC_FILES) {
+        const doc = parseMarkdown(resolve(REPO_ROOT, file));
+        const indexes = exportIndexes(doc);
+        const inAnIndex = (line: number): boolean => indexes.some(t => line >= t.line && line <= t.endLine);
+        const text = doc.lines.map((l, i) => (inAnIndex(i + 1) ? '' : l)).join('\n');
         const all = new Set<string>(), code = new Set<string>();
         const collect = (s: string, into: Set<string>): void => {
             for (const id of s.match(/[A-Za-z_$][\w$]*/g) ?? []) { into.add(id); all.add(id); }

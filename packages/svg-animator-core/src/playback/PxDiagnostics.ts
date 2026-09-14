@@ -71,7 +71,7 @@ export interface PxDiagnostic {
 /**
  * Where a player sends what it wants to say. Every field is optional.
  *
- * The SHARED base of every callbacks object (API-SURFACE-REVIEW.md §26.1): `createDiagnostics` reads it directly,
+ * The SHARED base of every callbacks object (dev-docs/reviews/api-surface-review.md §26.1): `createDiagnostics` reads it directly,
  * `PxEngineCallbacks` extends it with the playback lifecycle, `PxAnimatorCallbacks` adds `onStop`
  * on top — so the four diagnostics fields are spelled once, here.
  * @public

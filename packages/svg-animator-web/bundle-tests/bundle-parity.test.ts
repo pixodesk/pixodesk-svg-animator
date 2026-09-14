@@ -20,7 +20,7 @@ import { BUNDLE_PAIRS, bundleText, framesDoc, loadBundle } from './bundleHarness
 
 /**
  * Names that MUST survive minification, with what breaks when they do not.
- * See MINIFICATION-BOUNDARY-PLAN.md §1.1 — all twelve were verified broken on 2026-09-08.
+ * See dev-docs/plans/minification-boundary.md §1.1 — all twelve were verified broken on 2026-09-08.
  */
 const BOUNDARY_NAMES: Array<{ name: string; why: string }> = [
     { name: 'callbacks',      why: 'createAnimator option — the whole callbacks bag is dropped' },

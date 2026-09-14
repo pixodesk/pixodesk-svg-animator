@@ -95,7 +95,7 @@ const out = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   $id: 'https://pixodesk.com/schema/svg-animator-document.json',
   title: 'Pixodesk SVG Animator document',
-  description: 'The JSON animation document played by @pixodesk/svg-animator-*. Generated from the runtime schemas — see SCHEMA.md for the readable version.',
+  description: 'The JSON animation document played by @pixodesk/svg-animator-*. Generated from the runtime schemas — see docs/format/README.md for the readable version.',
   ...root,
   $defs: defs,
 };

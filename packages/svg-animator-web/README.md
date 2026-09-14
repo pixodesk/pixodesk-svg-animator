@@ -166,10 +166,12 @@ When you want the markup without a player — a static first frame, a thumbnail,
 `renderNode` is that one step on its own: hand it a node and it returns the DOM element for it, or
 `null` when the node renders to nothing. Give it the document's `animator.definitions` as the
 second argument so named fonts resolve, and a diagnostics channel as the third to hear about
-anything it skips. It renders; it does not animate.
+anything it skips. It renders; it does not animate. `toDomProps(props)` is the attribute half of
+that step on its own: a node's attributes, resolved to what the DOM receives.
 
 See the [JSON format reference](../../docs/format/README.md#json-format-reference) and
 [Player effects](../../docs/format/README.md#player-effects) for the full schema and
-examples (compact printable schema: [SCHEMA.md](../../SCHEMA.md)). The wire
-types live in [`PxAnimatorTypes.ts`](../svg-animator-core/src/format/PxAnimatorTypes.ts).
+examples, and [Schema at a glance](../../docs/format/README.md#schema-at-a-glance) for the whole
+format as typings. The wire types live in
+[`PxAnimatorTypes.ts`](../svg-animator-core/src/format/PxAnimatorTypes.ts).
 

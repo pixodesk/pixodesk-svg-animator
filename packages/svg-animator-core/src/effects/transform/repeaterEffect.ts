@@ -143,7 +143,7 @@ function mapAnimatable<T>(raw: PxAnimatable<T>, fn: (v: T) => T, wrapStatic = fa
  *
  * The wire carries repeater.scale as a FACTOR (0.85 = 85%) in EVERY form — bare
  * static, `{value:…}` and `{keyframes:…}` alike (one convention, see
- * SCHEMA-DESIGN.md I-3; the old bare-static PERCENT form is gone). Output is
+ * dev-docs/schema-design.md I-3; the old bare-static PERCENT form is gone). Output is
  * emitted as `{value:…}` / keyframes in the same 1.0-units, so it also bypasses
  * `applyTransformByEffect.normalizeScale` untouched.
  */

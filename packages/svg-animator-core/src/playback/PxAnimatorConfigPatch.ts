@@ -145,7 +145,7 @@ export interface PxTimelineShortcuts {
 export interface PxPlaybackOverride extends PxTimelineShortcuts {
     /**
      * Per-instance override of the document's `animator.timeline` — the same shape as `timeline`
-     * in SCHEMA.md, deep-merged over what the document says, so one file can play twice on a page
+     * in docs/format/README.md, deep-merged over what the document says, so one file can play twice on a page
      * with different timing. `null` at any slot DELETES that key, restoring the default its
      * absence means. Also accepts a JSON STRING, which survives a build that mangles object keys.
      *

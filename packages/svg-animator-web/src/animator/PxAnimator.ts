@@ -21,7 +21,7 @@ export { generateNewIds };
  *
  * The engine choice plus the `resetOnFinish` / `debugGlobalName` handling live in
  * `PxAnimatorBind` so the pre-rendered builds share them verbatim — one code path, no
- * parallel pipeline. See PRERENDERED-PLAYER-BUILDS.md.
+ * parallel pipeline. See dev-docs/plans/prerendered-player-builds.md.
  */
 function createAnimatorFromConfig(
     doc: PxAnimatedSvgDocument,
@@ -67,7 +67,7 @@ function createAnimatorImpl(
 
     // …and the WHOLE-document check beside it. This is the boundary diagnostic: if a consumer's
     // build mangled property names, the keys reaching us are unrecognizable and this says so,
-    // instead of the animation silently rendering nothing (MINIFICATION-BOUNDARY-PLAN §3).
+    // instead of the animation silently rendering nothing (dev-docs/plans/minification-boundary.md §3).
     reportDocumentDiagnostics(doc, '[PxAnimator] createAnimator');
 
     // The per-instance override, applied BEFORE anything reads the config. Everything below
@@ -145,7 +145,7 @@ export { PX_ANIMATOR_DOC_KEY } from '../shared/PxAnimatorKeys';
 export interface PxAnimatorOptions extends PxPlaybackOverride, PxAnimatorCallbacks {
     /** URL to fetch the animation document from. Provide either this or `doc`, not both. */
     src?: string;
-    /** The animation document, inline (see SCHEMA.md). Provide either this or `src`, not both. */
+    /** The animation document, inline (see docs/format/README.md). Provide either this or `src`, not both. */
     doc?: PxAnimatedSvgDocument;
     /** CSS selector or element to render the SVG into. */
     container?: string | Element;

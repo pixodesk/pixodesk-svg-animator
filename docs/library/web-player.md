@@ -104,20 +104,45 @@ animator.play();
 
 #### Options
 
-<!-- px-check props PxAnimatorOptions pkg=web -->
-| Option | Type | Description |
-|---|---|---|
-| `src` | `string` | URL of the JSON document. Provide **either** `src` **or** `doc` |
-| `doc` | `PxAnimatedSvgDocument` | the document object |
-| `container` | `string \| Element` | CSS selector or element the SVG is rendered into |
-| `onPlay` · `onPause` · `onCancel` · `onFinish` · `onRemove` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take; plus `onWarn`, `onError`, `muteWarn`, `muteError` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onPlay,onPause,onCancel,onFinish,onRemove,onStop,onWarn,onError,muteWarn,muteError -->
-| **Playback overrides** | | *(all optional — see below)* |
-| `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
-| `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
-| `duration` | `number` | shortcut for `timeline.duration` — ms for one iteration |
-| `delay` | `number` | shortcut for `timeline.delay` |
-| `iterations` | `number \| 'infinite'` | shortcut for `timeline.iterations` |
-| `startOn` | `PxStartOn` | shortcut for `timeline.trigger.startOn` |
+<!-- px-check signature pkg=web -->
+```typescript
+// Create a player. Provide exactly one of `src` / `doc` — both, or neither, throws.
+// With `src`, control calls made before the fetch resolves are queued and replayed in
+// order, so `createAnimator({ src }).play()` works as written. A failed fetch or an
+// invalid document reaches `onError` — and `console.error` when no handler is given;
+// `isReady()` stays false either way.
+function createAnimator(options: PxAnimatorOptions): PxAnimatorApi;
+
+interface PxAnimatorOptions {
+    src?: string;                          // URL to fetch the JSON document from
+    doc?: PxAnimatedSvgDocument;           // …or the document inline (the JSON format page)
+    container?: string | Element;          // CSS selector or element to render into (its content is
+                                           //   replaced). Omit it to animate an SVG already in the
+                                           //   page, found by the document's `id`
+
+    // Callbacks, inline: `PxAnimatorCallbacks`, the one shape every player takes — see
+    // Callbacks below; the shape itself is spelled out once, in the library overview
+    onPlay?: () => void;    onPause?: () => void;    onCancel?: () => void;
+    onFinish?: () => void;  onRemove?: () => void;   onStop?: () => void;
+    onWarn?: (d: PxDiagnostic) => void;
+    onError?: (d: PxDiagnostic) => void;
+    muteWarn?: boolean;  muteError?: boolean;
+
+    // Per-instance playback override: `PxPlaybackOverride`; the document is never modified.
+    // The merge rules: Playback settings & triggers → Overriding from a player
+    timeline?: PxTimelinePatch | string;   // deep-merged over the document's `timeline` block —
+                                           //   same shape as the file. `null` at a slot DELETES
+                                           //   that key. A JSON string is accepted too (survives
+                                           //   property mangling)
+    resetTimeline?: boolean;               // start from the player's defaults, `timeline` on top
+    duration?: number;                     // ▸ timeline.duration — one iteration, ms
+    delay?: number;                        // ▸ timeline.delay, ms; negative skips ahead
+    iterations?: number | 'infinite';      // ▸ timeline.iterations
+    startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
+                                           // ▸ timeline.trigger.startOn — a shortcut wins over
+                                           //   the same key in `timeline`
+}
+```
 
 By default there is nothing to configure: the player takes duration, iterations, direction,
 what starts the animation and the engine from the `animator` block inside the JSON — the
@@ -143,24 +168,38 @@ Every field and its meaning is in [Playback settings & triggers](./playback-and-
 
 ## The playback API
 
-`createAnimator` returns a `PxAnimatorApi`:
+`createAnimator` returns a `PxAnimatorApi`. Time is ms from the start of the whole run, every
+iteration included; a seek is clamped to it; a rate of `0` is rejected — the same contract on
+every player.
 
-<!-- px-check props PxAnimatorApi pkg=web -->
-| Method | Description |
-|---|---|
-| `play()` | start, or resume from the current time. On a finished animation, rewinds and plays again |
-| `pause()` | pause at the current time |
-| `cancel()` | stop and reset to the start state |
-| `finish()` | jump to the end and hold the final state |
-| `setPlaybackRate(rate)` | speed: `1` normal, `2` double, `0.5` half, **negative value plays in reverse**. `0` is rejected with a warning — use `pause()` |
-| `getCurrentTime()` | current time in ms from the start of the whole run, every iteration included (`null` before a `src` document has loaded) |
-| `setCurrentTime(ms)` | jump to a point in the animation, given in milliseconds from its start; clamped to the run. While paused, the animation shows that frame and stays there — that is how a slider steps through it frame by frame; while playing, it continues from the new point |
-| `getCurrentProgress()` | the same position as `0`–`1` of the whole run (`null` before ready) |
-| `setCurrentProgress(p)` | jump to `0`–`1` of the whole run |
-| `isPlaying()` | `true` while running |
-| `isReady()` | `true` once a `src` document has loaded and rendered |
-| `getRootElement()` | the rendered `<svg>` element (`null` before ready) |
-| `destroy()` | stop, remove the SVG from the container, release everything |
+<!-- px-check signature pkg=web -->
+```typescript
+// Playback control returned by `createAnimator` — core's `PxAnimatorApi<Element>`.
+interface PxAnimatorApi extends PxPlaybackApi {
+    finish(): void;                        // jump to the end and hold the final state; fires onFinish
+    setPlaybackRate(rate: number): void;   // 1 normal, 2 double, 0.5 half, negative plays backwards;
+                                           //   0 and non-finite are rejected with a warning — use pause()
+    getCurrentTime(): number | null;       // ms from the start of the whole run; null before a
+                                           //   `src` document has loaded
+    setCurrentTime(time: number): void;    // seek, ms; clamped to [0, duration × iterations]. Paused,
+                                           //   the animation shows that frame and stays — a slider
+                                           //   steps through it this way; playing, it continues from there
+    getCurrentProgress(): number | null;   // the same position as 0–1 of the whole run; null before ready
+    setCurrentProgress(p: number): void;   // seek, 0–1 of the whole run (clamped)
+    destroy(): void;                       // stop, remove the SVG it rendered, release everything; fires onRemove
+}
+
+// The platform-neutral base from core; the web fixes the root type to `Element`.
+interface PxPlaybackApi {
+    isReady(): boolean;                    // true once a `src` document has loaded and rendered
+    getRootElement(): Element | null;      // the rendered <svg>; null before ready
+    isPlaying(): boolean;                  // true while running
+    play(): void;                          // start, or resume from the current time; on a finished
+                                           //   animation, rewinds and plays again
+    pause(): void;                         // hold the current frame
+    cancel(): void;                        // stop and reset to the start state
+}
+```
 
 ```html
 <div id="hero" style="width: 300px; height: 300px"></div>
@@ -279,7 +318,15 @@ loadTagAnimators();
 ```
 
 Each instance regenerates the document's element ids, so many copies of the same file coexist
-on one page without id conflicts.
+on one page without id conflicts. From code, give the second copy fresh ids yourself:
+
+```js
+// Two copies of one animation on a page (ids must stay unique)
+import { createAnimator, generateNewIds } from '@pixodesk/svg-animator-web';
+
+createAnimator({ doc: doc, container: '#first' });
+createAnimator({ doc: generateNewIds(doc), container: '#second' });
+```
 
 ## Cleaning up
 
@@ -288,6 +335,87 @@ on one page without id conflicts.
 Call `destroy()` when the container goes away (route change, modal close). `onRemove` fires
 once. Frameworks: the React and Vue components do this on unmount.
 
+
+## API reference
+
+The calls above are spelled out where they are used: `createAnimator` and its options under
+[Programmatic](#programmatic--createanimatoroptions), the returned `PxAnimatorApi` under
+[The playback API](#the-playback-api). The callbacks and diagnostics are one shape on every
+player, written out once in [the API at a glance](./README.md#the-api-at-a-glance). The rest:
+
+<!-- px-check signature pkg=web -->
+```typescript
+// Scan the page for `<div data-px-animation-src="animation.json">` and create one
+// player per match, rendered into that element and stored on it. Safe to call
+// repeatedly: elements that already carry a player are skipped. Nothing calls it for
+// you. `options` — everything `createAnimator` takes except `src` / `doc` /
+// `container` — applies to EVERY player this call creates; omit it for zero-config.
+function loadTagAnimators(options?: PxTagAnimatorOptions): void;
+
+// Wire a player to a DOM trigger. `createAnimator` already does this from the
+// document's own `animator.timeline.trigger`, and ties the disposer to `destroy()`.
+// Use it after you have replaced the rendered SVG yourself (the player's listeners went
+// with the old elements). To change the trigger, use `timeline`. Returns a DISPOSER that
+// detaches everything this call attached — call it before re-arming an element you
+// wired by hand, or the old listeners stay live next to the new ones. Reads `startOn` /
+// `outAction` / `scrollIntoViewThreshold`; `finishAction` is the player's, not the
+// trigger wiring's. `diag` is optional: omit it and anything this has to say goes to
+// the console.
+function setupAnimationTriggers(api: PxAnimatorApi, trigger: PxTrigger,
+                                diag?: PxDiagnostics): () => void;
+
+interface PxTrigger {                                  // also a wire type — the JSON format page
+    startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
+                                                       // default 'load'; 'programmatic' waits for play()
+    outAction?: 'continue' | 'pause' | 'reset' | 'reverse'; // when the trigger ends; default 'continue'
+    finishAction?: 'hold' | 'reset';                   // after a natural finish; default 'hold'
+                                                       //   (the player reads it; setupAnimationTriggers does not)
+    scrollIntoViewThreshold?: number;                  // 0–1 visible ratio; default 0
+}
+```
+
+**Builds.** The ESM and CJS entries (`dist/index.js`, `dist/index.cjs`) carry everything on this
+page. Three `<script>` builds put a narrower surface on one global, `window.PixodeskAnimator`
+(the files themselves: [Installing the players](./installation.md#the-three-builds--esm-cjs-and-umd)):
+
+<!-- px-check off the UMD file list, prose -->
+| File | For | On `PixodeskAnimator` |
+|---|---|---|
+| `pixodesk-svg-animator.umd.min.js` | a page playing JSON documents | `createAnimator`, `loadTagAnimators`, `setupAnimationTriggers`, `validateDocument`, `generateNewIds`, `PxTimelineEngineSetting`, `PxTimelineEngine`, `PX_ANIMATOR_DOC_KEY`, `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME` |
+| `index.prerendered.umd.min.js` | a pre-rendered SVG + JS export (engine `auto` / `js`) | `createAnimator(options: PxPrerenderedAnimatorOptions)`, `setupAnimationTriggers`, `PX_ANIMATOR_DOC_KEY` |
+| `index.prerendered-waapi.umd.min.js` | the same with engine `native` — the smallest build | the same three |
+
+`PxPrerenderedAnimatorOptions` is `{ doc: PxAnimatedSvgDocument }` plus the inline callbacks. Its `doc`
+carries only `animator.definitions` and `animator.bindings` — the SVG is already in the page —
+and it is not validated. There is no `src` form.
+
+**Globals.** Importing the player writes nothing to `window`. `<script>` pages reach the playback
+surface through `PixodeskAnimator.*` on the UMD build; ESM and CJS consumers import what they
+need. Separately, a document with `animator.debugGlobalName: "heroBanner"` makes the player
+assign its API object to `window.heroBanner`, so a live instance can be driven from the console —
+opt-in per document; see [Playback & triggers → Debug handle](./playback-and-triggers.md#debug-handle--debugglobalname).
+
+**Everything else this package exports** — ● user-facing · ○ advanced · ▪ internal, as in
+[the API at a glance](./README.md#the-api-at-a-glance):
+
+<!-- px-check exports @pixodesk/svg-animator-web -->
+| Symbol | |
+|---|---|
+| `createAnimator(options)`, `loadTagAnimators(options?)`, `setupAnimationTriggers(api, trigger, diag?)` | ● the player — above |
+| `createAdapterAnimator(doc, adapter, callbacks?)` | ○ the frame-loop engine against a custom `PxPlatformAdapter` — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
+| `PxInternalAnimatorOptions` | ▪ `PxAnimatorOptions` plus `adapter` — the frame loop's custom render target (`PxPlatformAdapter`: `isConnected()` + `setAttribute(id, name, value)`). What the React and Vue components build the player with, so writes go to the elements they rendered; not an option of the public API, because a page has a DOM to write to |
+| `renderNode(node, defs?, diag?)` → `toDomProps(props)` | ○ render one wire node to a DOM element / resolve a node's attributes. `diag` is optional — without it a blocked tag is reported on the console |
+| `validateDocument(doc)` | ● the whole-document check — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
+| `generateNewIds` | ○ document tooling — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
+| `PX_ANIMATOR_DOC_KEY` | ▪ attribute and property names the player writes |
+| `px`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTriggerSchema`, `PxScrollSchema`, `PxDefinitionsSchema`, `PxSchema`, `PxInfer`, `PxValidationContext` | ○ the schema toolkit, re-exported from core — the schema values and the types to build on them |
+| `PxDiagnosticsConfig`, `PxDiagnostic`, `PxDiagnosticKind` | ● the diagnostics channel every surface shares — re-exported for the React and Vue components; spelled out in [the API at a glance](./README.md#the-api-at-a-glance) |
+| `PxTimelineEngineSetting`, `PxFillMode`, `PxPlaybackDirection`, `PxStartOn` | ● named wire values — one const per wire enum, with the string type derived from it under the same name. `PxTimelineEngineSetting` is what `timeline.engine` accepts (`auto` · `native` · `js`); `PxTimelineEngine` is the resolved engine (`native` · `js`), the argument of `materializeAllInTree`, never an option. `PxUnits` covers `gradientUnits` and the mask units alike |
+| `PxAnimatedSvgDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTrigger`, `PxBinding`, `PxDefinitions` | ● wire types — the shapes in [the JSON format](../format/README.md#schema-at-a-glance) |
+| `PxAnimatorOptions`, `PxTagAnimatorOptions`, `PxAnimatorApi`, `PxPlaybackApi`, `PxAnimatorCallbacks`, `PxEngineCallbacks`, `PxPlaybackOverride`, `PxTimelinePatch`, `PxPlatformAdapter` | ● / ○ companion types of the calls above |
+
+**Core only**: `flattenAnimatorTimeline` / `nestAnimatorTimeline`, the engine rules
+(`resolveTimelineEngine`, …) and the scroll maths.
 
 ## Related
 

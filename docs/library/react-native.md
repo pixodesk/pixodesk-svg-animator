@@ -198,28 +198,57 @@ Only `doc` is required. The file already carries the timing and the trigger you 
 editor; every other prop is optional and, when passed, replaces the file's value for this one
 component.
 
-<!-- px-check props PixodeskSvgAnimatorProps pkg=rn -->
-| Prop | Type | Description |
-|---|---|---|
-| `doc` | `PxAnimatedSvgDocument` | **required** — the animation, as saved by the editor |
-| `autoplay` | `boolean` | start the way the file says — the *Start* trigger you chose in the editor: at once, on tap, or when scrolled into view |
-| `play` | `boolean` | play now, whatever the file's trigger says |
-| `pause` | `boolean` | pause the current playback; set it back to `false` to resume |
-| `apiRef` | `RefObject<RnAnimatorApi>` | imperative control |
-| `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
-| `time` | `number` | show the frame at that time, in milliseconds from the start |
-| `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
-| `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
-| `duration` · `delay` | `number` | shortcuts for `timeline.duration` / `timeline.delay`: length of one iteration, and the wait before it starts, both in ms. The file already carries the values you set in the editor — pass these only to change them for this one component | <!-- px names=duration,delay -->
-| `iterations` | `number \| 'infinite'` | shortcut for `timeline.iterations`; `'infinite'` never stops |
-| `startOn` | `'load' \| 'click' \| 'scrollIntoView' \| 'programmatic'` | shortcut for `timeline.trigger.startOn`. `mouseOver` has no touch equivalent — see [Differences from the React package](#differences-from-the-react-package) |
-| `onPlay` · `onPause` · `onFinish` · `onCancel` · `onStop` | `() => void` | called when the animation starts or resumes (`onPlay`), pauses (`onPause`), reaches its end (`onFinish`), or is stopped and reset to the start (`onCancel`) — same meanings as in the [React component](./react.md#props). `onStop` fires *in addition to* any of the others that halt playback — use it when you only care that the animation is no longer playing | <!-- px names=onPlay,onPause,onFinish,onCancel,onStop -->
-| `onRemove` | `() => void` | the animator was thrown away: the component unmounted, or a new `doc` replaced it (review §18) |
-| `onError` | `(diagnostic) => void` | **this instance will not play** — the document could not be compiled or rendered: `fallback` shows instead. The same shape as every other player; `diagnostic.error` is the Error, `diagnostic.detail.componentStack` is set when the error boundary caught it. Without this it goes to `console.error` |
-| `onWarn` | `(diagnostic) => void` | **it plays**, but something was ignored, degraded or misspelled — an unknown easing, an override that could not apply, two control props at once. Without this it goes to `console.warn`. The same channel as the [React component](./react.md#props) |
-| `muteWarn` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarn`, if you gave it, still fires: mute is about the console, not about you |
-| `muteError` | `boolean` | the same switch for `console.error` |
-| `fallback` | `(error) => ReactElement \| null` | rendered in place of a failed animation (default: renders nothing) |
+Mirrors the React component on `react-native-svg` + `reanimated`: the document is materialized
+once, sampled into per-element tracks, and played on the UI thread. No CSS-flavor component, no
+`className` / `style`, and a `fallback` element instead of a DOM.
+
+<!-- px-check signature pkg=rn -->
+```typescript
+// The component — a plain function, also the default export.
+function PixodeskSvgAnimator(props: PixodeskSvgAnimatorProps): ReactElement | null;
+
+interface PixodeskSvgAnimatorProps {
+    doc: PxAnimatedSvgDocument;           // required — the animation, as saved by the editor
+
+    // Playback override — the same object as React (Playback overrides below). `timeline.engine`
+    // is accepted but ignored: React Native always uses the `native` materialization.
+    timeline?: PxTimelinePatch | string;
+    resetTimeline?: boolean;              // start from the player's defaults, `timeline` on top
+
+    duration?: number; delay?: number;    // shortcuts, ms: one iteration, and the wait before it
+    iterations?: number | 'infinite';     // 'infinite' never stops
+    startOn?: PxStartOn;                  // 'mouseOver' has no touch equivalent and is ignored;
+                                          //   'click' = tap (a second tap applies outAction);
+                                          //   'scrollIntoView' = measured every 200 ms
+
+    // Control — the highest-priority one that is set picks the mode (Control modes above)
+    autoplay?: boolean;                   // honor the document trigger — the same defaults as the
+                                          //   web: startOn 'load', outAction 'continue'
+    play?: boolean; pause?: boolean;      // unconditional control; play={false} holds where it is
+    progress?: number;                    // 0–1 of duration × iterations (one iteration when 'infinite')
+    time?: number;                        // ms from the start
+
+    apiRef?: React.RefObject<RnAnimatorApi | null>;   // the same methods as ReactAnimatorApi, and the
+                                          //   same meanings: whole-run time, clamped seeks, rate 0 rejected
+
+    // Lifecycle — no arguments; the same meanings as on the web
+    onPlay?: () => void; onStop?: () => void; onPause?: () => void;
+    onCancel?: () => void; onFinish?: () => void;
+    onRemove?: () => void;                // unmount, or a `doc` swap
+
+    // Diagnostics — the shared channel (the API at a glance): onError means THIS INSTANCE WILL NOT
+    // PLAY — the compile or the render threw; d.error is the Error, d.detail.componentStack is set
+    // when the error boundary caught it — and `fallback` is what shows instead. Only JavaScript
+    // failures reach it; a crash inside the native renderer does not.
+    onWarn?: (d: PxDiagnostic) => void;
+    onError?: (d: PxDiagnostic) => void;
+    muteWarn?: boolean; muteError?: boolean;
+    fallback?: (error: Error) => ReactElement | null;   // rendered in place of a failed animation
+}
+```
+
+The package exports the component, its props (`PixodeskSvgAnimatorProps`) and its handle
+(`RnAnimatorApi`); nothing else.
 
 With none of `autoplay` / `play` / `pause` / `progress` / `time` set, the first frame renders
 statically.

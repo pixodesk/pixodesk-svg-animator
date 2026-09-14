@@ -12,7 +12,7 @@
 // never returns null when forced — it only warns about unsupported attrs).
 //
 // Exported AS `createAnimator` so the emitted `<script>` is identical across bundles.
-// See PRERENDERED-PLAYER-BUILDS.md.
+// See dev-docs/plans/prerendered-player-builds.md.
 // ============================================================================
 
 export { createPrerenderedWaapiAnimator as createAnimator } from './engines/PxAnimatorBind';
