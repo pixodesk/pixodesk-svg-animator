@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { clampSeekMs, createRunClock, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PX_RATE_REJECTED, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, generateNewIds, getAnimatorConfig, getDefinitions, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
+import { clampSeekMs, createRunClock, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, generateNewIds, getAnimatorConfig, getDefinitions, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
@@ -70,7 +70,7 @@ export interface PixodeskSvgAnimatorProps
     // -- Failure handling -----------------------------------------------------
     // A document that cannot be compiled or rendered is reported through `onError` — the same
     // `(diagnostic) => void` as every other player (review §25.1), with `diagnostic.error` the
-    // thrown Error and, when the error boundary caught it, `diagnostic.detail.componentStack`.
+    // thrown Error and, when the error boundary caught it, the component stack in `diagnostic.data`.
     // The component renders `fallback` instead of throwing, so one broken animation never
     // takes down the screen around it. Only JavaScript failures reach this — a crash inside
     // react-native-svg's native renderer bypasses JavaScript entirely.
@@ -240,7 +240,7 @@ const EMPTY_TRACKS: PxCompiledTracks = {
 function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides, diag: PxDiagnostics): Compiled {
     const { timeline, resetTimeline, duration, delay, iterations, startOn } = overrides;
     const warnings = validateNodeEffects(doc as PxNode);
-    for (const w of warnings) diag.warn(PxDiagnosticKind.document, 'effects shape: ' + w);
+    for (const w of warnings) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.effectsShape, w);
     // The whole-document boundary diagnostic — see the note in the web player's entry.
     reportDocumentDiagnostics(doc, '[PixodeskSvgAnimator]');
 
@@ -250,7 +250,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
     const patch = foldTimelineOverride(timeline, { duration, delay, iterations, startOn });
     if (patch !== undefined || resetTimeline) {
         const applied = applyAnimatorConfig(doc, patch ?? {}, { resetTimeline: !!resetTimeline });
-        for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, 'timeline override: ' + w);
+        for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
         doc = applied.doc;
     }
 
@@ -325,7 +325,7 @@ export function PixodeskSvgAnimator({
             // A malformed document must not take the host screen down with it. This instance
             // will not play — an ERROR, reported once, here (review §25.1).
             const error = e instanceof Error ? e : new Error(String(e));
-            makeDiag().error(PxDiagnosticKind.internal, error, { phase: 'compile' });
+            makeDiag().error(PxDiagnosticKind.internal, PxDiagnosticCode.rnCompileFailed, error);
             return { doc: null, tracks: EMPTY_TRACKS, error };
         }
         // `timeline` is an object prop, so a fresh literal each render would recompile the whole
@@ -450,7 +450,7 @@ export function PixodeskSvgAnimator({
         },
         setPlaybackRate: (rate: number) => {
             if (!isValidPlaybackRate(rate)) {
-                makeDiag().warn(PxDiagnosticKind.usage, PX_RATE_REJECTED);
+                makeDiag().warn(PxDiagnosticKind.usage, PxDiagnosticCode.rateRejected);
                 return;
             }
             rateRef.current = rate;
@@ -510,7 +510,7 @@ export function PixodeskSvgAnimator({
 
     useEffect(() => {
         const diag = makeDiag();
-        for (const w of modeWarnings) diag.warn(PxDiagnosticKind.usage, w);
+        for (const w of modeWarnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.controlPropsConflict, w);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [modeWarnings.join('|')]);
 
@@ -648,7 +648,7 @@ export function PixodeskSvgAnimator({
             // (an ERROR, review §25.1) and render nothing rather than unmount the host screen.
             const error = e instanceof Error ? e : new Error(String(e));
             renderErrorRef.current = error;
-            makeDiag().error(PxDiagnosticKind.internal, error, { phase: 'render' });
+            makeDiag().error(PxDiagnosticKind.internal, PxDiagnosticCode.rnRenderFailed, error);
             return null;
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -658,7 +658,7 @@ export function PixodeskSvgAnimator({
         const diag = makeDiag();
         // `platform`: these come from the react-native-svg prop mapper — shapes this renderer
         // cannot express, rather than anything wrong with the file.
-        for (const w of warningsRef.current) diag.warn(PxDiagnosticKind.platform, w);
+        for (const w of warningsRef.current) diag.warn(PxDiagnosticKind.platform, PxDiagnosticCode.rnUnsupported, w);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [root]);
 

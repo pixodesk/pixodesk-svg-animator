@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticKind, PxTimelineEngineSetting, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
@@ -131,7 +131,7 @@ export function bindWithEngineChoice(
                     api.destroy = () => { driver.destroy(); unpin(); destroy(); };
                 }
             } else {
-                diag.warn(PxDiagnosticKind.host, 'scroll timeline: no root element to observe — animation will stay at frame 0');
+                diag.warn(PxDiagnosticKind.host, PxDiagnosticCode.scrollNoRootToObserve);
             }
             return api;
         });
@@ -185,7 +185,7 @@ function buildOrReport(options: PxPrerenderedAnimatorOptions, build: () => PxAni
     } catch (e) {
         const err = asThrownError(e);
         createDiagnostics(options, '[PxAnimator]')
-            .error(PxDiagnosticKind.internal, 'createAnimator: could not build the player — ' + err.message, err);
+            .error(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, err);
         return createInertAnimator();
     }
 }

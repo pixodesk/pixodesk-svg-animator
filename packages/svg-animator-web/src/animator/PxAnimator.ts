@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, materializeAllInTree, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, materializeAllInTree, PxDiagnosticCode, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { reportDocumentDiagnostics, createDiagnostics, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { bindWithEngineChoice } from '../engines/PxAnimatorBind';
@@ -63,7 +63,7 @@ function createAnimatorImpl(
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
 
     const effectsWarnings = validateNodeEffects(doc as any);
-    for (const w of effectsWarnings) diag.warn(PxDiagnosticKind.document, 'effects shape: ' + w);
+    for (const w of effectsWarnings) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.effectsShape, w);
 
     // …and the WHOLE-document check beside it. This is the boundary diagnostic: if a consumer's
     // build mangled property names, the keys reaching us are unrecognizable and this says so,
@@ -76,7 +76,7 @@ function createAnimatorImpl(
     // rewrites binding targets — a late patch would be read by none of them.
     if (patch !== undefined || resetTimeline) {
         const patched = applyAnimatorConfig(doc, patch ?? {}, { resetTimeline: !!resetTimeline });
-        for (const w of patched.warnings) diag.warn(PxDiagnosticKind.usage, 'timeline override: ' + w);
+        for (const w of patched.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
         doc = patched.doc;
     }
 
@@ -232,9 +232,9 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorApi {
         queued?.forEach(call => call(api));
     };
     // The instance will not play: report once, drop the queue, stay inert.
-    const failed = (kind: PxDiagnosticKind, message: string, detail?: unknown): void => {
+    const failed = (kind: PxDiagnosticKind, code: PxDiagnosticCode, ...data: Array<unknown>): void => {
         pending = null;
-        diag.error(kind, message, detail);
+        diag.error(kind, code, ...data);
     };
     // Building the player threw: a broken document past validation, or a player bug — never a
     // throw at the caller, which would land inside a fetch callback where no one can catch it.
@@ -243,7 +243,7 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorApi {
             ready(createAnimatorImpl(document, adapter, callbacks, container, patch, resetTimeline));
         } catch (e) {
             const err = asThrownError(e);
-            failed(PxDiagnosticKind.internal, 'createAnimator: could not build the player — ' + err.message, err);
+            failed(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, err);
         }
     };
 
@@ -253,10 +253,10 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorApi {
         fetch(src!).then(res => res.json()).then(json => {
             if (destroyed) return; // destroy() was called before the document loaded
             if (isPxDocument(json)) build(json);
-            else failed(PxDiagnosticKind.document, 'createAnimator: invalid animation document format at "' + src + '"');
+            else failed(PxDiagnosticKind.document, PxDiagnosticCode.invalidDocumentAtSrc, src);
         }).catch(err => {
             // `host`, not `document`: the file may be perfect — the page could not fetch it.
-            failed(PxDiagnosticKind.host, 'createAnimator: failed to load "' + src + '" — ' + (err?.message ?? String(err)));
+            failed(PxDiagnosticKind.host, PxDiagnosticCode.loadFailed, src, err?.message ?? String(err));
         });
     }
 

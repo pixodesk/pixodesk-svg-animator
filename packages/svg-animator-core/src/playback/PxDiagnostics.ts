@@ -27,10 +27,17 @@
 //   - `muteWarn` / `muteError` switch that console fallback off — for a host that knows
 //     about the warnings and is prepared to tolerate them. A handler you passed still fires.
 //
-// Severity (warn vs error) and SOURCE (`kind`) are separate axes on purpose: `invalid animation
-// document format` is a document problem AND fatal, while an effects-shape warning is a document
-// problem that still plays. Splitting the callbacks by source would have produced four handlers
-// and forced anyone who just wants everything to wire all of them.
+// Severity (warn vs error) and SOURCE (`kind`) are separate axes on purpose: an invalid document
+// is a document problem AND fatal, while an effects-shape warning is a document problem that
+// still plays. Splitting the callbacks by source would have produced four handlers and forced
+// anyone who just wants everything to wire all of them.
+//
+// THE TEXT IS NOT SHIPPED. A diagnostic carries a NUMBER (`PxDiagnosticCode`) and the values the
+// site had (`data`); the words live in docs/diagnostics.md, generated from the enum's comments,
+// and every diagnostic links to it. See PxDiagnosticCode.ts for why, and for the rules on
+// adding one.
+
+import type { PxDiagnosticCode } from './PxDiagnosticCode';
 
 /**
  * Who can do something about a diagnostic.
@@ -53,18 +60,37 @@ export const PxDiagnosticKind = {
 } as const;
 export type PxDiagnosticKind = typeof PxDiagnosticKind[keyof typeof PxDiagnosticKind];
 
-/** One thing a player has to say. @public */
+/** Where the words behind a code live. One string, shared by every diagnostic. */
+const DOCS_URL = 'https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/diagnostics.md';
+
+/** `PX1204 https://…/diagnostics.md#px1204` — the code, and where to read what it means. */
+function codeLine(code: PxDiagnosticCode): string {
+    return 'PX' + code + ' ' + DOCS_URL + '#px' + code;
+}
+
+/**
+ * One thing a player has to say.
+ *
+ * The TEXT is not here, and is not in the bundle: `code` identifies the diagnostic and
+ * {@link https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/diagnostics.md the
+ * codes page} carries the description. That is the trade this library makes — a smaller
+ * download, and a stable number you can switch on instead of matching a sentence that may be
+ * reworded. The specifics are in `data`.
+ * @public
+ */
 export interface PxDiagnostic {
+    /** WHICH diagnostic this is — a permanent number; look it up on the codes page. */
+    readonly code: PxDiagnosticCode;
     /** Who can act on it — see {@link PxDiagnosticKind}. */
     readonly kind: PxDiagnosticKind;
-    /** Human-readable, and never carries the console prefix. */
-    readonly message: string;
     /**
-     * Whatever the site had to hand: the offending binding, the element map, the raw error —
-     * or, for a React Native render failure, `{ componentStack }`.
+     * What the site had to hand, in the order the code's `@data` lists: a selector, a URL, the
+     * offending binding, an inner problem. Everything a sentence would have interpolated.
      */
-    readonly detail?: unknown;
-    /** Present on errors: the Error that stopped the player. Its message is `message`. */
+    readonly data?: ReadonlyArray<unknown>;
+    /** The code and a link to its description — NOT the description itself, which is not shipped. */
+    readonly message: string;
+    /** Present on errors: the Error that stopped the player. */
     readonly error?: Error;
 }
 
@@ -81,8 +107,9 @@ export interface PxDiagnosticsConfig {
     /**
      * IT PLAYS, but something was ignored, degraded or misspelled — an unknown easing, an
      * override that could not apply, an attribute the platform will not animate. Each
-     * diagnostic says WHO can act on it via `kind` (`document` / `host` / `platform` / `usage` /
-     * `internal`). Without this: `console.warn`.
+     * diagnostic says WHAT happened via `code` (a number — look it up on the codes page) and
+     * WHO can act on it via `kind` (`document` / `host` / `platform` / `usage` / `internal`);
+     * `data` carries the values the site had. Without this: `console.warn`.
      */
     onWarn?: (diagnostic: PxDiagnostic) => void;
 
@@ -90,7 +117,7 @@ export interface PxDiagnosticsConfig {
      * THIS INSTANCE WILL NOT PLAY — the document failed to load, parse or build, or the render
      * threw: nothing rendered, `isReady()` false, the component's `fallback` shown. The player
      * stays inert rather than throwing at the caller. `diagnostic.error` is the Error; on React
-     * Native `diagnostic.detail` carries `{ componentStack }` when the error boundary caught it.
+     * Native `diagnostic.data` carries the component stack when the error boundary caught it.
      * Without this: `console.error`.
      */
     onError?: (diagnostic: PxDiagnostic) => void;
@@ -109,15 +136,18 @@ export interface PxDiagnosticsConfig {
 
 /** The reporting channel a player writes to. @public */
 export interface PxDiagnostics {
-    /** Report something survivable — it plays. */
-    warn(kind: PxDiagnosticKind, message: string, detail?: unknown): void;
-    /** Report a failure that stopped this instance — it will not play. */
-    error(kind: PxDiagnosticKind, error: Error | string, detail?: unknown): void;
+    /** Report something survivable — it plays. `data` is whatever the code's `@data` names. */
+    warn(kind: PxDiagnosticKind, code: PxDiagnosticCode, ...data: Array<unknown>): void;
+    /**
+     * Report a failure that stopped this instance — it will not play. An `Error` anywhere in
+     * `data` becomes the diagnostic's `error`, so a site can pass it wherever it reads best.
+     */
+    error(kind: PxDiagnosticKind, code: PxDiagnosticCode, ...data: Array<unknown>): void;
 }
 
-/** Anything not already an Error becomes one, so handlers get a single shape. */
-function asError(error: Error | string): Error {
-    return typeof error === 'string' ? new Error(error) : error;
+/** The Error a site passed, if it passed one — handlers get it on `error` as well as in `data`. */
+function errorIn(data: ReadonlyArray<unknown>): Error | undefined {
+    return data.find((d): d is Error => d instanceof Error);
 }
 
 /**
@@ -131,20 +161,18 @@ function asError(error: Error | string): Error {
 export function createDiagnostics(config?: PxDiagnosticsConfig, prefix?: string): PxDiagnostics {
     const tag = prefix ? prefix + ' ' : '';
     return {
-        warn: (kind: PxDiagnosticKind, message: string, detail?: unknown): void => {
-            if (config?.onWarn) { config.onWarn({ kind, message, detail }); return; }
+        warn: (kind: PxDiagnosticKind, code: PxDiagnosticCode, ...data: Array<unknown>): void => {
+            const message = codeLine(code);
+            if (config?.onWarn) { config.onWarn({ code, kind, data, message }); return; }
             if (config?.muteWarn) return;
-            const line = tag + kind + ': ' + message;
-            if (detail === undefined) console.warn(line);
-            else console.warn(line, detail);
+            console.warn(tag + kind + ' ' + message, ...data);
         },
-        error: (kind: PxDiagnosticKind, error: Error | string, detail?: unknown): void => {
-            const err = asError(error);
-            if (config?.onError) { config.onError({ kind, message: err.message, error: err, detail }); return; }
+        error: (kind: PxDiagnosticKind, code: PxDiagnosticCode, ...data: Array<unknown>): void => {
+            const message = codeLine(code);
+            const error = errorIn(data);
+            if (config?.onError) { config.onError({ code, kind, data, message, error }); return; }
             if (config?.muteError) return;
-            const line = tag + kind + ': ' + err.message;
-            if (detail === undefined) console.error(line);
-            else console.error(line, detail);
+            console.error(tag + kind + ' ' + message, ...data);
         },
     };
 }

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createAdapterAnimator, getAnimatorConfig, PxDiagnosticKind, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxDiagnostics, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { createAdapterAnimator, getAnimatorConfig, PxDiagnosticCode, PxDiagnosticKind, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxDiagnostics, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { camelCaseToKebabWordIfNeeded, createDiagnostics, isScrollTimeline, PX_STYLE_ATTR_NAMES } from '@pixodesk/svg-animator-core/internal';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
 import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
@@ -51,9 +51,9 @@ export function createFrameLoopAnimator(
         if (doc.id) {
             const rootSelector = getSelector(doc.id);
             rootElement = document.querySelector(rootSelector);
-            if (!rootElement) diag.warn(PxDiagnosticKind.host, 'createFrameLoopAnimator: No root element found for selector: ' + rootSelector);
+            if (!rootElement) diag.warn(PxDiagnosticKind.host, PxDiagnosticCode.noRootForSelector, rootSelector);
         } else {
-            diag.warn(PxDiagnosticKind.host, 'createFrameLoopAnimator: No root element provided');
+            diag.warn(PxDiagnosticKind.host, PxDiagnosticCode.noRootElement);
         }
     }
 
@@ -73,7 +73,7 @@ export function createFrameLoopAnimator(
     // anyway gets a warning, not behavior.
     // Every time-driven document IS wired: no `trigger` means the defaults (`startOn` 'load').
     if (isScrollTimeline(config)) {
-        if (config.trigger) diag.warn(PxDiagnosticKind.usage, 'scroll timeline: `animator.trigger` is ignored (triggers do not apply to scroll-driven playback)');
+        if (config.trigger) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);
     } else {
         // The disposer rides on destroy(), so the listeners go when the animator does (§14).
         const detachTriggers = setupAnimationTriggers(api, config.trigger ?? {}, diag);
@@ -105,7 +105,7 @@ export function createDomAdapter(rootElement?: Element | null, diag?: PxDiagnost
 
             if (elements.length === 0 && !warnedSelectors.has(selector)) {
                 warnedSelectors.add(selector);
-                report.warn(PxDiagnosticKind.host, 'setAttribute: No elements found for selector "' + selector + '"');
+                report.warn(PxDiagnosticKind.host, PxDiagnosticCode.setAttributeNoElement, selector);
             }
 
             for (let i = 0; i < elements.length; i++) {

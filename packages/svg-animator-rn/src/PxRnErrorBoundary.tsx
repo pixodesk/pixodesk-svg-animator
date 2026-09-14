@@ -14,7 +14,7 @@ export interface PxRnErrorBoundaryProps {
     fallback?: (error: Error) => ReactNode;
     /**
      * Where the failure is reported (API review §5, §25.1): `error(internal, …)` with
-     * `{ componentStack }` as the detail — so it reaches `onError` like every other failure.
+     * the component stack passed as data — so it reaches `onError` like every other failure.
      * Defaults to the console.
      */
     diag?: PxDiagnostics;
@@ -47,7 +47,7 @@ export class PxRnErrorBoundary extends Component<PxRnErrorBoundaryProps, State> 
 
     override componentDidCatch(error: Error, info: ErrorInfo): void {
         (this.props.diag ?? createDiagnostics(undefined, '[PixodeskSvgAnimator]'))
-            .error(PxDiagnosticKind.internal, error, { componentStack: info?.componentStack ?? undefined });
+            .error(PxDiagnosticKind.internal, PxDiagnosticCode.rnBoundaryCaught, error, info?.componentStack ?? undefined);
     }
 
     override componentDidUpdate(prev: PxRnErrorBoundaryProps): void {

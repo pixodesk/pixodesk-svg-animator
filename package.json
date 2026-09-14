@@ -3,7 +3,7 @@
   "private": true,
   "packageManager": "pnpm@10.29.3+sha512.498e1fb4cca5aa06c1dcf2611e6fafc50972ffe7189998c409e90de74566444298ffe43e6cd2acdc775ba1aa7cc5e092a8b7054c811ba8c5770f84693d33d2dc",
   "scripts": {
-    "build": "turbo run build && pnpm check:docs",
+    "build": "turbo run build && pnpm gen:diagnostics && pnpm check:docs",
     "check:docs": "turbo run test --filter=@pixodesk/docs-check",
     "report:audience": "pnpm --filter @pixodesk/docs-check report:audience",
     "dev": "turbo run dev",
@@ -21,7 +21,9 @@
     "example:rn:explorer:tunnel": "pnpm --filter @pixodesk/example-react-native-feature-explorer start:tunnel",
     "example:rn:ios": "pnpm --filter @pixodesk/example-react-native-preview-player ios",
     "example:rn:android": "pnpm --filter @pixodesk/example-react-native-preview-player android",
-    "example:rn:web": "pnpm --filter @pixodesk/example-react-native-preview-player web"
+    "example:rn:web": "pnpm --filter @pixodesk/example-react-native-preview-player web",
+    "gen:diagnostics": "node scripts/gen-diagnostics-md.mjs",
+    "check:diagnostics": "node scripts/gen-diagnostics-md.mjs --check"
   },
   "devDependencies": {
     "turbo": "^2"

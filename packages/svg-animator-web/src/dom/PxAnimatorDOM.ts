@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getDefinitions, toDomProps, PxDiagnosticKind, type PxAnimatedSvgDocument, type PxDefinitions, type PxDiagnostics, type PxNode } from '@pixodesk/svg-animator-core';
+import { getDefinitions, toDomProps, PxDiagnosticCode, PxDiagnosticKind, type PxAnimatedSvgDocument, type PxDefinitions, type PxDiagnostics, type PxNode } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, sanitizeAttributeValue, camelCaseToKebabWordIfNeeded, PX_CSS_ONLY_STYLE_PROPS, PX_DISALLOWED_SVG_TAGS_LOWER, PX_TEXT_CONTENT_ATTR } from '@pixodesk/svg-animator-core/internal';
 
 // Re-export from the historical home so the package surface is unchanged.
@@ -23,7 +23,7 @@ function createElement(
     if (PX_DISALLOWED_SVG_TAGS_LOWER.has(tagName.toLowerCase())) {
         // `document`: a blocked tag is content the FILE asked for, so the file is what changes.
         (diag ?? createDiagnostics(undefined, '[PxAnimator]'))
-            .warn(PxDiagnosticKind.document, 'SVG tag blocked (dangerous): ' + tagName);
+            .warn(PxDiagnosticKind.document, PxDiagnosticCode.blockedTag, tagName);
         return null;
     }
 

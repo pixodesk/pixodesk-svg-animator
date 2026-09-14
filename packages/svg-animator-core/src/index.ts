@@ -98,6 +98,7 @@ export {
 } from './playback/PxPlaybackTime';
 
 // The ONE diagnostics channel every player reports through (review §5)
+export { PxDiagnosticCode } from './playback/PxDiagnosticCode';
 export { PxDiagnosticKind } from './playback/PxDiagnostics';
 export type { PxDiagnostic, PxDiagnostics, PxDiagnosticsConfig } from './playback/PxDiagnostics';
 

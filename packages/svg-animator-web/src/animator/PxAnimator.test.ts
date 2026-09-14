@@ -6,7 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAnimator, generateNewIds, loadTagAnimators } from './PxAnimator';
 import { PX_ANIM_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import { PxDiagnosticCode, type PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
 
 
 const DUR = 320; // multiple of the 16ms fake-timer rAF step
@@ -180,12 +180,12 @@ describe('createAnimator', () => {
 
         await flushMicrotasks();
 
-        // One message, not (message, Error): failures go through the shared diagnostics channel
-        // now, which hands a handler a single Error and prints a single line (API review §5).
-        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('failed to load'));
-        // The cause still has to be reported — it rides inside the message instead of as a
-        // second argument, so this keeps what `expect.any(Error)` used to cover.
-        expect(String(errorSpy.mock.calls[0][0])).toContain('network down');
+        // The line carries the CODE and a link, not prose — the text is not in the bundle.
+        expect(String(errorSpy.mock.calls[0][0])).toContain('PX' + PxDiagnosticCode.loadFailed);
+        expect(String(errorSpy.mock.calls[0][0])).toContain('diagnostics.md');
+        // The cause still has to be reported — it rides in the DATA now, printed after the code,
+        // so this keeps what `expect.any(Error)` used to cover.
+        expect(errorSpy.mock.calls[0].slice(1)).toContain('network down');
         expect(api.isReady()).toBe(false);
         expect(() => api.play()).not.toThrow(); // late calls are no-ops, not errors
     });
@@ -197,7 +197,9 @@ describe('createAnimator', () => {
         const api = createAnimator({ src: 'weird.json', container: '#svg-container' });
         await flushMicrotasks();
 
-        expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('invalid animation document format'));
+        expect(String(errorSpy.mock.calls[0][0])).toContain('PX' + PxDiagnosticCode.invalidDocumentAtSrc);
+        // Which file it was is DATA, where a sentence used to interpolate it.
+        expect(errorSpy.mock.calls[0].slice(1)).toContain('weird.json');
         expect(api.isReady()).toBe(false);
         expect(container().querySelector('svg')).toBeNull();
     });
@@ -214,8 +216,10 @@ describe('createAnimator', () => {
         expect(onError).toHaveBeenCalledTimes(1);
         const d = onError.mock.calls[0][0];
         expect(d.kind).toBe('internal');
-        expect(d.message).toContain('boom');
+        expect(d.code).toBe(PxDiagnosticCode.buildFailed);
+        // The thrown Error is what carries 'boom' — the diagnostic itself carries a number.
         expect(d.error).toBeInstanceOf(Error);
+        expect(d.error.message).toContain('boom');
         expect(api.isReady()).toBe(false);
         expect(() => api.play()).not.toThrow();   // inert, not broken
     });

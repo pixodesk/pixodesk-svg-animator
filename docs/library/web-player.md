@@ -235,7 +235,7 @@ it; give none and the console still speaks, so nothing is lost by default. `mute
 `muteError` switch that console fallback off — for when you know the player has something to
 say about this document and are prepared to tolerate it (a handler you passed still fires).
 
-Each one is `{ kind, message, detail?, error? }`, where `kind` says **who can act on it**:
+Each one is `{ code, kind, data?, message, error? }`. `code` is a number you can switch on — its description is on the [codes page](../diagnostics.md), which `message` links to; `data` carries the specifics. `kind` says **who can act on it**:
 `document` (repair the file) · `host` (fix the page) · `platform` (the browser could not do it;
 the player degraded) · `usage` (fix the options you passed) · `internal` (report it to us). So
 you can route rather than just log — a handler that ignores `platform` and logs the rest is one
@@ -258,8 +258,8 @@ createAnimator({
   onFinish: () => {},   // finished naturally, or finish() was called
   onRemove: () => {},   // destroyed
 
-  onWarn:  (d) => {},   // d = { kind, message, detail? }; else console.warn
-  onError: (d) => {},   // d = { kind, message, error };   else console.error
+  onWarn:  (d) => {},   // d = { code, kind, data? }; else console.warn
+  onError: (d) => {},   // d = { code, kind, data?, error }; else console.error
   muteWarn: false,      // true: no console.warn — you know about the warnings and tolerate them
   muteError: false,     // true: no console.error
 });

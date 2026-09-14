@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxDiagnosticKind, resolveTrigger, type PxDiagnostics, type PxTrigger } from '@pixodesk/svg-animator-core';
+import { PxDiagnosticCode, PxDiagnosticKind, resolveTrigger, type PxDiagnostics, type PxTrigger } from '@pixodesk/svg-animator-core';
 import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
 
@@ -58,7 +58,7 @@ export function setupAnimationTriggers(
     const root = api.getRootElement();
 
     if (!root) {
-        report.warn(PxDiagnosticKind.host, 'setupAnimationTriggers: No root element found for animation.');
+        report.warn(PxDiagnosticKind.host, PxDiagnosticCode.triggersNoRoot);
         return dispose;
     }
 

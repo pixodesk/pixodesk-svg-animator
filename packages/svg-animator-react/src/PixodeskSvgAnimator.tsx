@@ -7,7 +7,7 @@ import type { PxAnimatedSvgDocument, PxAnimatorApi, PxNode, PxPlatformAdapter, P
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
 import type { PxOutAction } from '@pixodesk/svg-animator-core';
 import { createAnimator, generateNewIds, toDomProps, PxDiagnosticKind, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxDiagnosticCode, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
 import { camelCaseToKebabWordIfNeeded, createDiagnostics, PX_STYLE_ATTR_NAMES, PX_DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
@@ -127,7 +127,7 @@ export function createReactAdapter(elementRefs: React.RefObject<Map<string, any>
                 warnedSelectors.add(selector);
                 // The element map rides along as the DETAIL rather than a second bare log, so a
                 // handler can inspect it and the console stays readable.
-                diag.warn(PxDiagnosticKind.host, 'setAttribute: No elements found for selector "' + selector + '"', elementRefs.current);
+                diag.warn(PxDiagnosticKind.host, PxDiagnosticCode.setAttributeNoElement, selector, elementRefs.current);
             }
 
             if (element) {
@@ -305,7 +305,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     // state must not repeat the sentence. React Native guards it the same way.
     useEffect(() => {
         const diag = makeDiag();
-        for (const w of modeWarnings) diag.warn(PxDiagnosticKind.usage, w);
+        for (const w of modeWarnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.controlPropsConflict, w);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [modeWarnings.join('|')]);
 
@@ -332,7 +332,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     if (fullPatch !== undefined || resetTimeline) {
         const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetTimeline: !!resetTimeline });
         const diag = makeDiag();
-        for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, 'timeline override: ' + w);
+        for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
         doc = applied.doc;
     }
 

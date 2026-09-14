@@ -245,7 +245,7 @@ interface PixodeskSvgAnimatorProps {
 }
 ```
 
-Each diagnostic is `{ kind, message, detail?, error? }`, where `kind` says **who can act on it**:
+Each diagnostic is `{ code, kind, data?, message, error? }`. `code` is a number you can switch on — its description is on the [codes page](../diagnostics.md), which `message` links to; `data` carries the specifics. `kind` says **who can act on it**:
 `document` (repair the file) · `host` (fix the page) · `platform` (the browser could not do it;
 the player degraded) · `usage` (fix the props you passed) · `internal` (report it to us). So you
 can route rather than just log — surface `document` problems in a build check, for instance. Once

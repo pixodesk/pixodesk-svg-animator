@@ -237,9 +237,9 @@ interface PixodeskSvgAnimatorProps {
     onRemove?: () => void;                // unmount, or a `doc` swap
 
     // Diagnostics — the shared channel (the API at a glance): onError means THIS INSTANCE WILL NOT
-    // PLAY — the compile or the render threw; d.error is the Error, d.detail.componentStack is set
-    // when the error boundary caught it — and `fallback` is what shows instead. Only JavaScript
-    // failures reach it; a crash inside the native renderer does not.
+    // PLAY — the compile or the render threw; d.error is the Error, and d.data carries the
+    // component stack when the error boundary caught it — and `fallback` is what shows instead.
+    // Only JavaScript failures reach it; a crash inside the native renderer does not.
     onWarn?: (d: PxDiagnostic) => void;
     onError?: (d: PxDiagnostic) => void;
     muteWarn?: boolean; muteError?: boolean;

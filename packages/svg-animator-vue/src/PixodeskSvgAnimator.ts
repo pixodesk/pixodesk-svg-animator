@@ -6,7 +6,7 @@
 import type { PxAnimatedSvgDocument, PxAnimatorApi, PxNode, PxPlatformAdapter, PxTimelineEngineSetting, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
 import { createAnimator, generateNewIds, toDomProps, PxDiagnosticKind, type PxPlaybackOverride, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxDiagnosticCode, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
 import { camelCaseToKebabWordIfNeeded, createDiagnostics, PX_STYLE_ATTR_NAMES, PX_DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
@@ -51,7 +51,7 @@ function createVueAdapter(elementRefs: Map<string, Element>, diag: PxDiagnostics
 
             if (!element && !warnedSelectors.has(id)) {
                 warnedSelectors.add(id);
-                diag.warn(PxDiagnosticKind.host, 'setAttribute: No elements found for id "' + id + '"');
+                diag.warn(PxDiagnosticKind.host, PxDiagnosticCode.setAttributeNoElement, id);
             }
 
             if (element) {
@@ -105,7 +105,7 @@ function applyDocOverrides(
 
     if (fullPatch !== undefined || resetTimeline) {
         const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetTimeline: !!resetTimeline });
-        for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, 'timeline override: ' + w);
+        for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
         doc = applied.doc;
     }
 
@@ -236,7 +236,7 @@ const PixodeskSvgAnimator = defineComponent({
         // every doc recompute and would repeat the same sentence.
         watch(resolvedMode, r => {
             const diag = makeDiag();
-            for (const w of r.warnings) diag.warn(PxDiagnosticKind.usage, w);
+            for (const w of r.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.controlPropsConflict, w);
         }, { immediate: true });
 
         // -- Prepare the document with overrides --------------------------------

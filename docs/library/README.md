@@ -165,11 +165,16 @@ interface PxAnimatorCallbacks {
     muteError?: boolean;                 // the same switch for console.error
 }
 
-// Every diagnostic says WHO can act on it, so a host can route rather than just log.
+// Every diagnostic says WHAT happened as a NUMBER and WHO can act on it, so a host can switch
+// on the code and route it rather than just log a sentence. The words are not in the build: each
+// code's description lives on the codes page, generated from the enum the players report through.
 interface PxDiagnostic {
+    code: PxDiagnosticCode;   // e.g. 1304 — look it up on the codes page (docs/diagnostics.md)
     kind: PxDiagnosticKind;   // 'document' | 'host' | 'platform' | 'usage' | 'internal'
-    message: string;          // never carries the console prefix
-    detail?: unknown;         // the offending binding, the element map, the raw error
+    data?: ReadonlyArray<unknown>;   // the values this one had: the offending binding, the
+                                     //   selector that matched nothing, the raw error
+    message: string;          // 'PX1304 <link to that code on the codes page>' — the code and
+                              //   where to read it, never prose and never the console prefix
     error?: Error;            // errors only
 }
 ```

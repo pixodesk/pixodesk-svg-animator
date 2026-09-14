@@ -15,7 +15,7 @@
 // without a scroll. TODO (optimization, deliberate v1 omission): an IntersectionObserver
 // gate to park the listeners entirely while the subject is far outside its range.
 
-import { PxDiagnosticKind, type PxAnimatorConfig, type PxDiagnostics, type PxScroll } from '@pixodesk/svg-animator-core';
+import { PxDiagnosticCode, PxDiagnosticKind, type PxAnimatorConfig, type PxDiagnostics, type PxScroll } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, isScrollTimeline, scrollOffsetProgress, scrollResolveAxis, scrollViewProgress } from '@pixodesk/svg-animator-core/internal';
 
 
@@ -60,7 +60,7 @@ export function createNativeScrollTimeline(
     // scroll→time mapping) cannot express. Honor the authored LOOK over the perf hint — D8
     // already makes `native` a preference rather than a requirement.
     if (scroll.smoothing) {
-        report.warn(PxDiagnosticKind.platform, 'scroll timeline: `smoothing` needs the built-in driver — using the built-in driver instead of the browser timeline');
+        report.warn(PxDiagnosticKind.platform, PxDiagnosticCode.scrollSmoothingNeedsOwnDriver);
         return null;
     }
 
@@ -82,7 +82,7 @@ export function createNativeScrollTimeline(
             timeline = new Ctor({ source, axis });
         }
     } catch (e) {
-        report.warn(PxDiagnosticKind.platform, 'scroll timeline: native timeline construction failed — falling back to the player measuring progress itself', e);
+        report.warn(PxDiagnosticKind.platform, PxDiagnosticCode.scrollNativeUnavailable, e);
         return null;
     }
 
@@ -175,12 +175,12 @@ export function resolveScrollSubject(svgRoot: Element, subject: string | undefin
         found = document.querySelector(spec);
     } catch {
         // `document`: the bad selector is a VALUE IN THE FILE, so the fix is to the document...
-        report.warn(PxDiagnosticKind.document, 'scroll timeline: subject "' + spec + '" is not a valid selector — measuring the SVG itself');
+        report.warn(PxDiagnosticKind.document, PxDiagnosticCode.scrollSubjectInvalid, spec);
         return svgRoot;
     }
     if (!found) {
         // ...whereas a valid selector that matches nothing is the page's business.
-        report.warn(PxDiagnosticKind.host, 'scroll timeline: subject "' + spec + '" matched no element — measuring the SVG itself');
+        report.warn(PxDiagnosticKind.host, PxDiagnosticCode.scrollSubjectNoMatch, spec);
         return svgRoot;
     }
     return found;
