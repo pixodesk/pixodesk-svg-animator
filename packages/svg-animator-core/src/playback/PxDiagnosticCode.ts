@@ -10,15 +10,20 @@
 // prose. The descriptions are compiled into docs/diagnostics.md by
 // `node scripts/gen-diagnostics-md.mjs`, which `pnpm build` runs, and every diagnostic links there.
 //
-// A PLAIN `enum`, deliberately, and it costs nothing: the bundler inlines every member access and
-// then drops the object, because core's entry re-exports this as a TYPE only. Measured through
-// this repo's own esbuild — a plain enum and a `const enum` produce byte-identical output
-// (`o(1301),o(1302)…`). A `const enum` would additionally force `isolatedModules: false` on every
-// package that imports it and would land in the published `.d.ts`, where it breaks consumers who
-// have `isolatedModules` on. So: plain enum, type-only on the public door.
+// A PLAIN `enum`, deliberately, and it costs almost nothing. Measured through this repo's own
+// esbuild, a plain enum and a `const enum` emit byte-identical output (`o(1301),o(1302)…`): in
+// bundle mode every member access is inlined to its number, and the object is then tree-shaken
+// out of any bundle that does not re-export it. A `const enum` would additionally force
+// `isolatedModules: false` on every package that imports it and would land in the published
+// `.d.ts`, where it breaks consumers who have `isolatedModules` on.
 //
-// Exporting it as a VALUE would undo this — the object could no longer be dropped, and ~27 member
-// names would ship. Hosts compare against the number and look it up on the page, as React's do.
+// Core's entry exports it as a VALUE — the players read members at runtime, and a host needs the
+// enum to switch on a code it was handed. What that costs, measured on the shipped build:
+//
+//   - core's own ESM/CJS dist carries the object (that is what a host imports);
+//   - the web UMD carries NONE of it — the inlined numbers and one link to the page, and not a
+//     single member name — because web's entry deliberately does not re-export it. Re-exporting
+//     it there would pin the object into the UMD, so don't.
 //
 // RULES FOR EDITING THIS FILE
 //
@@ -31,8 +36,14 @@
 //     handler as `diagnostic.data` and are printed after the code on the console. Put the
 //     specifics there (a selector, a URL, an inner message) — never in prose, which does not exist.
 //   - Ranges group by area, so a reader can tell roughly where a code came from without the page.
-//
-// @public
+
+/**
+ * Every diagnostic a player can report, as a number a host can switch on.
+ *
+ * The words are not in the build: each code's description lives in the comment on its member and
+ * is compiled into `docs/diagnostics.md`, which every diagnostic's `message` links to.
+ * @public
+ */
 export enum PxDiagnosticCode {
 
     // ── 1000 · building a player ─────────────────────────────────────────────────────────────

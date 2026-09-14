@@ -104,7 +104,7 @@ function render(codes) {
         rows.push('|---|---|---|');
         for (const c of list) {
             const desc = (c.deprecated ? '**Retired.** ' : '') + c.description;
-            rows.push(`| **${c.value}** | ${desc} | ${c.data || '—'} |`);
+            rows.push(`| <a id="px${c.value}"></a>**${c.value}** | ${desc} | ${c.data || '—'} |`);
         }
         rows.push('');
     }

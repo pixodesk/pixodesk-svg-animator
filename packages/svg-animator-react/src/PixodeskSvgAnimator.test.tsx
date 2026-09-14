@@ -4,6 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
+import { PxDiagnosticCode } from '@pixodesk/svg-animator-core';
 import { cleanup, render } from "@testing-library/react";
 import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -145,7 +146,8 @@ describe("PixodeskSvgAnimator (React)", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
             render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay />);
 
-            const said = warn.mock.calls.map(c => String(c[0])).join("\n");
+            const said = warn.mock.calls.map(c => c.map(String).join(" ")).join("\n");
+            expect(said).toContain("PX" + PxDiagnosticCode.controlPropsConflict);
             expect(said).toContain("progress/time");
             expect(said).toContain("autoplay");
             expect(said).toContain("ignored");
@@ -192,7 +194,8 @@ describe("PixodeskSvgAnimator (React)", () => {
 
             expect(onWarn).toHaveBeenCalled();
             const d = onWarn.mock.calls[0][0];
-            expect(d.message).toContain("progress/time");
+            expect(d.code).toBe(PxDiagnosticCode.controlPropsConflict);
+            expect(String(d.data)).toContain("progress/time");
             // A conflict between two control props is the CALLER's to fix, not the file's.
             expect(d.kind).toBe("usage");
             // ...and the console said nothing, so nothing is reported twice.

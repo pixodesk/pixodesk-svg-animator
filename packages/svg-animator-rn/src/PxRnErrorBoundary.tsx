@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { Component, type ErrorInfo, type ReactNode } from 'react';
-import { PxDiagnosticKind, type PxDiagnostics } from '@pixodesk/svg-animator-core';
+import { PxDiagnosticCode, PxDiagnosticKind, type PxDiagnostics } from '@pixodesk/svg-animator-core';
 import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 
 /** @public @advanced */
