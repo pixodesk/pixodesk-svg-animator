@@ -1,0 +1,2107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pixodesk.com/schema/svg-animator-document.json",
+  "title": "Pixodesk SVG Animator document",
+  "description": "The JSON animation document played by @pixodesk/svg-animator-*. Generated from the runtime schemas — see docs/format/README.md for the readable version.",
+  "type": "object",
+  "properties": {
+    "type": {
+      "const": "svg"
+    },
+    "domType": {
+      "type": "string"
+    },
+    "textContent": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    },
+    "meta": {},
+    "effects": {
+      "$ref": "#/$defs/Effects"
+    },
+    "animate": {
+      "$ref": "#/$defs/ElementAnimation"
+    },
+    "style": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          }
+        ]
+      }
+    },
+    "width": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "height": {
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "viewBox": {
+      "type": "string"
+    },
+    "animator": {
+      "$ref": "#/$defs/AnimatorConfig"
+    },
+    "children": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Node"
+      }
+    }
+  },
+  "required": [
+    "type"
+  ],
+  "additionalProperties": {
+    "anyOf": [
+      {
+        "type": "string"
+      },
+      {
+        "type": "number"
+      },
+      {
+        "type": "array",
+        "items": {
+          "type": "number"
+        }
+      },
+      {
+        "type": "object",
+        "properties": {
+          "value": {}
+        },
+        "required": [
+          "value"
+        ],
+        "additionalProperties": false
+      },
+      {
+        "$ref": "#/$defs/TransformParts"
+      }
+    ]
+  },
+  "$defs": {
+    "TransformParts": {
+      "type": "object",
+      "properties": {
+        "translate": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "rotate": {
+          "type": "number"
+        },
+        "skew": {
+          "type": "number"
+        },
+        "scale": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "origin": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    "Keyframe": {
+      "type": "object",
+      "properties": {
+        "time": {
+          "type": "number"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "object",
+              "properties": {
+                "pathData": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "pathData"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "offset": {
+                    "type": "number"
+                  },
+                  "color": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "offset",
+                  "color"
+                ],
+                "additionalProperties": false
+              }
+            },
+            {
+              "$ref": "#/$defs/TransformParts"
+            }
+          ]
+        },
+        "easing": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "array",
+              "prefixItems": [
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                },
+                {
+                  "type": "number"
+                }
+              ],
+              "minItems": 4,
+              "maxItems": 4
+            }
+          ]
+        },
+        "tangentOut": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        },
+        "tangentIn": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "number"
+            }
+          ],
+          "minItems": 2,
+          "maxItems": 2
+        }
+      },
+      "additionalProperties": false
+    },
+    "Loop": {
+      "type": "object",
+      "properties": {
+        "segmentCount": {
+          "type": "number"
+        },
+        "repeatAt": {
+          "enum": [
+            "start",
+            "end"
+          ]
+        },
+        "direction": {
+          "enum": [
+            "normal",
+            "alternate"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "PropertyAnimation": {
+      "type": "object",
+      "properties": {
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "number"
+              }
+            },
+            {
+              "type": "object",
+              "properties": {
+                "pathData": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "pathData"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "offset": {
+                    "type": "number"
+                  },
+                  "color": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "offset",
+                  "color"
+                ],
+                "additionalProperties": false
+              }
+            },
+            {
+              "$ref": "#/$defs/TransformParts"
+            }
+          ]
+        },
+        "keyframes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Keyframe"
+          }
+        },
+        "loop": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Loop"
+            },
+            {
+              "type": "boolean"
+            }
+          ]
+        },
+        "autoOrient": {
+          "type": "boolean"
+        },
+        "alongPathMode": {
+          "enum": [
+            "sampled",
+            "offsetPath"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "Effects": {
+      "type": "object",
+      "properties": {
+        "transformBy": {
+          "type": "object",
+          "properties": {
+            "translate": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "rotate": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "scale": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "skew": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "repeater": {
+          "type": "object",
+          "properties": {
+            "copies": {
+              "type": "number"
+            },
+            "translate": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "rotate": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "skew": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "scale": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "origin": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "maskedBy": {
+          "type": "object",
+          "properties": {
+            "source": {
+              "type": "string"
+            },
+            "maskType": {
+              "enum": [
+                "luminance",
+                "alpha"
+              ]
+            },
+            "maskUnits": {
+              "enum": [
+                "userSpaceOnUse",
+                "objectBoundingBox"
+              ]
+            },
+            "maskContentUnits": {
+              "enum": [
+                "userSpaceOnUse",
+                "objectBoundingBox"
+              ]
+            },
+            "x": {
+              "type": "number"
+            },
+            "y": {
+              "type": "number"
+            },
+            "width": {
+              "type": "number"
+            },
+            "height": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "clipPath": {
+          "type": "object",
+          "properties": {
+            "pathData": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "strokeTrim": {
+          "type": "object",
+          "properties": {
+            "offset": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "range": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "subPaths": {
+              "enum": [
+                "separate",
+                "combined"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "clone": {
+          "type": "object",
+          "properties": {
+            "without": {
+              "enum": [
+                "translate"
+              ]
+            },
+            "source": {
+              "type": "string"
+            },
+            "retime": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "number"
+                },
+                "stretch": {
+                  "type": "number"
+                },
+                "timeCrop": {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "fillGradient": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "enum": [
+                "linear",
+                "radial"
+              ]
+            },
+            "start": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "end": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "center": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "radius": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "focal": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "stops": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "offset": {
+                        "type": "number"
+                      },
+                      "color": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "offset",
+                      "color"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "offset": {
+                            "type": "number"
+                          },
+                          "color": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "offset",
+                          "color"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                }
+              ]
+            },
+            "gradientUnits": {
+              "enum": [
+                "userSpaceOnUse",
+                "objectBoundingBox"
+              ]
+            },
+            "spreadMethod": {
+              "enum": [
+                "pad",
+                "reflect",
+                "repeat"
+              ]
+            },
+            "gradientTransform": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        "strokeGradient": {
+          "type": "object",
+          "properties": {
+            "type": {
+              "enum": [
+                "linear",
+                "radial"
+              ]
+            },
+            "start": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "end": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "center": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "radius": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "focal": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "prefixItems": [
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "number"
+                    }
+                  ],
+                  "minItems": 2,
+                  "maxItems": 2
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number"
+                        },
+                        {
+                          "type": "number"
+                        }
+                      ],
+                      "minItems": 2,
+                      "maxItems": 2
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "stops": {
+              "anyOf": [
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "offset": {
+                        "type": "number"
+                      },
+                      "color": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "offset",
+                      "color"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "offset": {
+                            "type": "number"
+                          },
+                          "color": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "offset",
+                          "color"
+                        ],
+                        "additionalProperties": false
+                      }
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                }
+              ]
+            },
+            "gradientUnits": {
+              "enum": [
+                "userSpaceOnUse",
+                "objectBoundingBox"
+              ]
+            },
+            "spreadMethod": {
+              "enum": [
+                "pad",
+                "reflect",
+                "repeat"
+              ]
+            },
+            "gradientTransform": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        "textPath": {
+          "type": "object",
+          "properties": {
+            "pathData": {
+              "type": "string"
+            },
+            "pathOverflow": {
+              "enum": [
+                "clip",
+                "extend"
+              ]
+            },
+            "lengthAdjust": {
+              "enum": [
+                "spacing",
+                "spacingAndGlyphs"
+              ]
+            },
+            "method": {
+              "enum": [
+                "align",
+                "stretch"
+              ]
+            },
+            "spacing": {
+              "enum": [
+                "auto",
+                "exact"
+              ]
+            },
+            "startOffset": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "textLength": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
+            }
+          },
+          "required": [
+            "pathData"
+          ],
+          "additionalProperties": false
+        },
+        "text": {
+          "type": "object",
+          "properties": {
+            "useGlyphs": {
+              "type": "boolean"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "ElementAnimation": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "array",
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "object",
+                "additionalProperties": {
+                  "$ref": "#/$defs/PropertyAnimation"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/PropertyAnimation"
+          }
+        }
+      ]
+    },
+    "Trigger": {
+      "type": "object",
+      "properties": {
+        "startOn": {
+          "enum": [
+            "load",
+            "mouseOver",
+            "click",
+            "scrollIntoView",
+            "programmatic"
+          ]
+        },
+        "outAction": {
+          "enum": [
+            "continue",
+            "pause",
+            "reset",
+            "reverse"
+          ]
+        },
+        "finishAction": {
+          "enum": [
+            "hold",
+            "reset"
+          ]
+        },
+        "scrollIntoViewThreshold": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Timeline": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "time"
+            },
+            "engine": {
+              "enum": [
+                "auto",
+                "native",
+                "js"
+              ]
+            },
+            "frameRate": {
+              "type": "number"
+            },
+            "duration": {
+              "type": "number"
+            },
+            "trigger": {
+              "$ref": "#/$defs/Trigger"
+            },
+            "delay": {
+              "type": "number"
+            },
+            "iterations": {
+              "anyOf": [
+                {
+                  "type": "number"
+                },
+                {
+                  "const": "infinite"
+                }
+              ]
+            },
+            "fillMode": {
+              "enum": [
+                "forwards",
+                "backwards",
+                "both",
+                "none"
+              ]
+            },
+            "direction": {
+              "enum": [
+                "normal",
+                "reverse",
+                "alternate",
+                "alternate-reverse"
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "scroll"
+            },
+            "duration": {
+              "type": "number"
+            },
+            "iterations": {
+              "type": "number"
+            },
+            "engine": {
+              "enum": [
+                "auto",
+                "native",
+                "js"
+              ]
+            },
+            "frameRate": {
+              "type": "number"
+            },
+            "axis": {
+              "enum": [
+                "block",
+                "inline",
+                "x",
+                "y"
+              ]
+            },
+            "source": {
+              "enum": [
+                "nearest",
+                "root"
+              ]
+            },
+            "subject": {
+              "type": "string"
+            },
+            "smoothing": {
+              "type": "number"
+            },
+            "pin": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "align": {
+                      "enum": [
+                        "top",
+                        "center",
+                        "bottom"
+                      ]
+                    },
+                    "offset": {
+                      "type": "number"
+                    },
+                    "distance": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "range": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "object",
+                  "properties": {
+                    "phase": {
+                      "enum": [
+                        "cover",
+                        "contain",
+                        "entry",
+                        "exit",
+                        "entry-crossing",
+                        "exit-crossing"
+                      ]
+                    },
+                    "fraction": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "end": {
+                  "type": "object",
+                  "properties": {
+                    "phase": {
+                      "enum": [
+                        "cover",
+                        "contain",
+                        "entry",
+                        "exit",
+                        "entry-crossing",
+                        "exit-crossing"
+                      ]
+                    },
+                    "fraction": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "view"
+            },
+            "duration": {
+              "type": "number"
+            },
+            "iterations": {
+              "type": "number"
+            },
+            "engine": {
+              "enum": [
+                "auto",
+                "native",
+                "js"
+              ]
+            },
+            "frameRate": {
+              "type": "number"
+            },
+            "axis": {
+              "enum": [
+                "block",
+                "inline",
+                "x",
+                "y"
+              ]
+            },
+            "source": {
+              "enum": [
+                "nearest",
+                "root"
+              ]
+            },
+            "subject": {
+              "type": "string"
+            },
+            "smoothing": {
+              "type": "number"
+            },
+            "pin": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "align": {
+                      "enum": [
+                        "top",
+                        "center",
+                        "bottom"
+                      ]
+                    },
+                    "offset": {
+                      "type": "number"
+                    },
+                    "distance": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              ]
+            },
+            "range": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "object",
+                  "properties": {
+                    "phase": {
+                      "enum": [
+                        "cover",
+                        "contain",
+                        "entry",
+                        "exit",
+                        "entry-crossing",
+                        "exit-crossing"
+                      ]
+                    },
+                    "fraction": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "end": {
+                  "type": "object",
+                  "properties": {
+                    "phase": {
+                      "enum": [
+                        "cover",
+                        "contain",
+                        "entry",
+                        "exit",
+                        "entry-crossing",
+                        "exit-crossing"
+                      ]
+                    },
+                    "fraction": {
+                      "type": "number"
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "type"
+          ],
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Definitions": {
+      "type": "object",
+      "properties": {
+        "easings": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "array",
+            "prefixItems": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "number"
+              }
+            ],
+            "minItems": 4,
+            "maxItems": 4
+          }
+        },
+        "animations": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/$defs/PropertyAnimation"
+            }
+          }
+        },
+        "fonts": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "properties": {
+              "fontFamily": {
+                "type": "string"
+              },
+              "fontStyle": {
+                "type": "string"
+              },
+              "ascent": {
+                "type": "number"
+              },
+              "unitsPerEm": {
+                "type": "number"
+              },
+              "glyphs": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "object",
+                  "properties": {
+                    "width": {
+                      "type": "number"
+                    },
+                    "pathData": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "width",
+                    "pathData"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            },
+            "required": [
+              "fontFamily",
+              "fontStyle",
+              "ascent",
+              "unitsPerEm",
+              "glyphs"
+            ],
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "AnimatorConfig": {
+      "type": "object",
+      "properties": {
+        "timeline": {
+          "$ref": "#/$defs/Timeline"
+        },
+        "definitions": {
+          "$ref": "#/$defs/Definitions"
+        },
+        "bindings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "target": {
+                "type": "string"
+              },
+              "animateWith": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": [
+              "target",
+              "animateWith"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "debugGlobalName": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "Node": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string"
+        },
+        "domType": {
+          "type": "string"
+        },
+        "textContent": {
+          "type": "string"
+        },
+        "id": {
+          "type": "string"
+        },
+        "meta": {},
+        "effects": {
+          "$ref": "#/$defs/Effects"
+        },
+        "animate": {
+          "$ref": "#/$defs/ElementAnimation"
+        },
+        "style": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              }
+            ]
+          }
+        },
+        "children": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Node"
+          }
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "additionalProperties": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "number"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "value": {}
+            },
+            "required": [
+              "value"
+            ],
+            "additionalProperties": false
+          },
+          {
+            "$ref": "#/$defs/TransformParts"
+          }
+        ]
+      }
+    }
+  }
+}
