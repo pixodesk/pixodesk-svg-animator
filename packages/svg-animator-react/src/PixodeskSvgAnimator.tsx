@@ -21,6 +21,15 @@ import { useDepsVersion } from './Utils';
  *  name that crosses out of this bundle. */
 const REACT_PROP = { key: 'key', ref: 'ref', className: 'className', style: 'style' } as const;
 
+/** `node.style` (camelCase declarations) as an element style object — values stringified, exactly
+ *  as the web player writes them (`element.style[prop] = String(value)`). */
+function toInlineStyle(style: PxNode['style']): Record<string, string> | undefined {
+    if (!style) return undefined;
+    const inline: Record<string, string> = {};
+    for (const [prop, value] of Object.entries(style)) inline[prop] = String(value);
+    return inline;
+}
+
 /**
  * The imperative handle `apiRef` is filled with — core's `PxAnimatorHandle` under this package's
  * name (review §9). One definition for React, Vue and React Native: the three used to declare
@@ -161,10 +170,14 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
     const renderNode = (node: PxNode | undefined, isRoot = false, key?: React.Key): ReactElement | null => {
         if (!node) return null;
 
-        const { type, animate, meta, children, ...props } = node;
+        const { type, animate, meta, children, style: nodeStyle, ...props } = node;
 
         const normProps = toDomProps(props);
         if (key !== undefined) normProps[REACT_PROP.key] = key;
+
+        // `node.style` is not an attribute (`toDomProps` drops it) — it is the element's style.
+        const inlineStyle = toInlineStyle(nodeStyle);
+        if (inlineStyle) normProps[REACT_PROP.style] = inlineStyle;
 
         normProps[REACT_PROP.ref] = (domEl: any) => {
             if (node.id) elementRefs.current.set(node.id, domEl);
@@ -178,7 +191,8 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
                     ? normProps[REACT_PROP.className] + ' ' + className
                     : className;
             }
-            if (style) normProps[REACT_PROP.style] = style;
+            // The component's `style` prop wins over the document root's own declarations.
+            if (style) normProps[REACT_PROP.style] = { ...inlineStyle, ...style };
         }
 
         // Text content: a node's own `textContent` renders only when it has no child nodes — a line

@@ -106,6 +106,21 @@ describe("PixodeskSvgAnimator (Vue)", () => {
             expect(renderedEllipseId).not.toBe((doc.children![0] as any).id);
         });
 
+        it("applies a node's inline `style` — `display: none` hides the element, like the web player", () => {
+            const doc: PxAnimatedSvgDocument = {
+                type: 'svg', viewBox: '0 0 2880 1800',
+                children: [
+                    { type: 'ellipse', fill: '#ff0000', rx: 197.5, ry: 206.5 },
+                    { type: 'ellipse', fill: '#007fff', rx: 200, ry: 202.5, style: { display: 'none' } },
+                ],
+            };
+            const { container } = render(PixodeskSvgAnimator, { props: { doc } });
+
+            const [visible, hidden] = Array.from(container.querySelectorAll("ellipse")) as Array<SVGElement>;
+            expect(visible.style.display).toBe("");
+            expect(hidden.style.display).toBe("none");
+        });
+
         it("is static without control props (does not auto-play or auto-finish)", () => {
             const onPlay = vi.fn();
             const onFinish = vi.fn();

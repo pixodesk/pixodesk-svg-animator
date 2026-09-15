@@ -17,7 +17,16 @@ import {
 // -- Public types -----------------------------------------------------------
 
 /** Vue's own prop names on the vnode — not wire keys. See the React twin. */
-const VUE_PROP = { ref: 'ref' } as const;
+const VUE_PROP = { ref: 'ref', style: 'style' } as const;
+
+/** `node.style` (camelCase declarations) as an element style object — values stringified, exactly
+ *  as the web player writes them (`element.style[prop] = String(value)`). */
+function toInlineStyle(style: PxNode['style']): Record<string, string> | undefined {
+    if (!style) return undefined;
+    const inline: Record<string, string> = {};
+    for (const [prop, value] of Object.entries(style)) inline[prop] = String(value);
+    return inline;
+}
 
 /**
  * The imperative handle the template ref exposes — core's `PxAnimatorHandle` under this
@@ -251,8 +260,12 @@ const PixodeskSvgAnimator = defineComponent({
         function renderNode(node: PxNode | undefined): VNode | null {
             if (!node) return null;
 
-            const { type, animate, meta, children, ...attrs } = node;
+            const { type, animate, meta, children, style, ...attrs } = node;
             const normProps = toDomProps(attrs);
+
+            // `node.style` is not an attribute (`toDomProps` drops it) — it is the element's style.
+            const inlineStyle = toInlineStyle(style);
+            if (inlineStyle) normProps[VUE_PROP.style] = inlineStyle;
 
             // Capture a ref to each element with an id.
             if (node.id) {
