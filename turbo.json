@@ -7,8 +7,7 @@
         "test"
       ],
       "outputs": [
-        "dist/**",
-        "dist-runtime/**"
+        "dist/**"
       ]
     },
     "dev": {

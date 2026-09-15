@@ -27,10 +27,9 @@ import { PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS } from './PxAnimato
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 
-/** Roots that hold OUR fixtures. `dist` and `node_modules` are other people's output — so is
- *  `dist-runtime` (the React / Vue packages' bundled framework runtimes for <script> pages). */
+/** Roots that hold OUR fixtures. `dist` and `node_modules` are other people's output. */
 const ROOTS = ['packages', 'examples'];
-const SKIP_DIRS = new Set(['node_modules', 'dist', 'dist-runtime', 'build', '.expo', 'coverage', 'test-results']);
+const SKIP_DIRS = new Set(['node_modules', 'dist', 'build', '.expo', 'coverage', 'test-results']);
 const EXTS = /\.(tsx?|jsx?|mjs|json|vue)$/;
 
 /** Files whose `animator` is NOT our wire format, with the reason. */
