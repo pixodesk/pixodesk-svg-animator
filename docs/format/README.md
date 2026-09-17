@@ -72,7 +72,7 @@ Everything the format is, in one small document — a ball that drops with an ea
 The comments mark the two things **added on top of plain SVG** (JSON itself does not allow
 comments, so a real file has none):
 
-```js
+```js px-player
 {
   // The root <svg> element — plain SVG, written as JSON
   "type": "svg",
@@ -116,7 +116,7 @@ Three ideas cover 90 % of the format:
 The whole format as flattened TypeScript-style typings, with comments. First, the smallest
 document that animates — everything not written in it is a default:
 
-```json
+```json px-player
 {
   "type": "svg", "viewBox": "0 0 100 100",
   "children": [
@@ -720,7 +720,7 @@ Five complete documents, one idea each.
 
 **Self-contained, clock timeline:**
 
-```json
+```json px-player
 {
   "type": "svg",
   "viewBox": "0 0 400 400",
@@ -740,7 +740,7 @@ Five complete documents, one idea each.
 
 **Named definitions + unified transform:**
 
-```json
+```json px-player
 {
   "type": "svg",
   "viewBox": "0 0 600 400",
@@ -787,7 +787,7 @@ by `#id` and the animations it plays by name — [above](#animating-a-pre-render
 
 **Effects** (repeater + animated stroke trim + gradient):
 
-```json
+```json px-player
 {
   "type": "svg",
   "viewBox": "0 0 400 200",
@@ -884,7 +884,7 @@ and no font file needs to be installed or loaded.
 |---|---|---|
 | `useGlyphs` | boolean | render the text from the glyph outlines in `definitions.fonts` — self-contained, identical on every machine, no font loading |
 
-```js
+```js px-player
 {
   "type": "svg",
   "viewBox": "0 0 400 100",

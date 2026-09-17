@@ -76,6 +76,11 @@ export {
 // Triggers
 export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 
+// The page-wide registry — every live animator in the window, whoever made it, plus its
+// play / pause / cancel / finish announcements (also `globalThis.__pixodeskAnimators`).
+export { getAllAnimators, onAnimatorsChange } from './registry/PxAnimatorRegistry';
+export type { PxAnimatorRegistry, PxAnimatorsEvent, PxAnimatorsListener } from './registry/PxAnimatorRegistry';
+
 // Normalization utilities
 
 // Motion-along-path materializer — desugars tangented `transform` kfs + `autoOrient`

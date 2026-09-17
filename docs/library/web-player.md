@@ -32,7 +32,7 @@ script is the UMD build, copied from the npm package into your site — see
 `bouncing-ball.json` is the whole document — a ball on an eased, alternating bounce. (The
 comments are explanatory; JSON does not allow comments, so the real file has none.)
 
-```js
+```js px-player
 {
   // The root <svg> element — plain SVG, written as JSON
   "type": "svg",
@@ -328,6 +328,64 @@ createAnimator({ doc: doc, container: '#first' });
 createAnimator({ doc: generateNewIds(doc), container: '#second' });
 ```
 
+## Every animator on the page (experimental)
+
+> **Experimental.** The registry is new (2026-09) and not settled: the event names, what
+> `getAll()` includes (the pre-rendered builds, an animator whose `src` is still loading) and
+> the `__pixodeskAnimators` global may change without a major version change. Use it for dev
+> tooling and tests; expect to adjust your code as new versions come out.
+
+The players keep a page-wide registry — the same idea as lottie-web's
+`getRegisteredAnimations()`. Every animator built by this package (`createAnimator`,
+`loadTagAnimators`, the pre-rendered builds, the React and Vue components) is listed from the
+moment it exists until its `destroy()`, and announces its playback changes. One registry per
+window, whatever the bundling: an ESM import in one script and the UMD build in another see
+the same list.
+
+<!-- px-check signature pkg=web -->
+```typescript
+function getAllAnimators(): ReadonlyArray<PxAnimatorApi>;
+function onAnimatorsChange(listener: PxAnimatorsListener): () => void;
+
+type PxAnimatorsEvent = 'add' | 'remove' | 'play' | 'pause' | 'cancel' | 'finish';
+type PxAnimatorsListener = (event: PxAnimatorsEvent, animator: PxAnimatorApi) => void;
+
+interface PxAnimatorRegistry {
+    getAll(): ReadonlyArray<PxAnimatorApi>;
+    subscribe(listener: PxAnimatorsListener): () => void;
+}
+```
+
+`getAllAnimators()` returns the live animators in creation order. `onAnimatorsChange` hears
+every animator appear (`add`), start (`play`), pause, cancel, finish and go (`remove`); an
+animator's own `onPlay` / `onPause` / … callbacks run first. It returns the unsubscribe.
+
+```js
+import { getAllAnimators, onAnimatorsChange } from '@pixodesk/svg-animator-web';
+
+// Pause everything while the tab is hidden, resume what was playing when it is back.
+let paused = [];
+document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+        paused = getAllAnimators().filter(a => a.isPlaying());
+        paused.forEach(a => a.pause());
+    } else {
+        paused.forEach(a => a.play());
+        paused = [];
+    }
+});
+
+// A dev panel: how many are playing right now?
+onAnimatorsChange(() => {
+    console.log(getAllAnimators().filter(a => a.isPlaying()).length, 'playing');
+});
+```
+
+The same store is reachable **by name** as `globalThis.__pixodeskAnimators` — a
+`PxAnimatorRegistry` with `getAll()` and `subscribe()` — for tooling that reads a page it did
+not build (a devtools panel, a test harness) without importing the library. Web only: the
+React Native player keeps no registry.
+
 ## Cleaning up
 
 > **Example:** [`web/cleanup`](../../examples/docs-examples/src/cases/web/cleanup/) — `pnpm example:docs`, then open `#web/cleanup`.
@@ -402,6 +460,7 @@ opt-in per document; see [Playback & triggers → Debug handle](./playback-and-t
 | Symbol | |
 |---|---|
 | `createAnimator(options)`, `loadTagAnimators(options?)`, `setupAnimationTriggers(api, trigger, diag?)` | ● the player — above |
+| `getAllAnimators()`, `onAnimatorsChange(listener)`, `PxAnimatorRegistry`, `PxAnimatorsEvent`, `PxAnimatorsListener` | ● **experimental** — [every animator on the page](#every-animator-on-the-page-experimental): the window-wide registry, also `globalThis.__pixodeskAnimators`; not settled, may change without a major version |
 | `createAdapterAnimator(doc, adapter, callbacks?)` | ○ the frame-loop engine against a custom `PxPlatformAdapter` — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
 | `PxInternalAnimatorOptions` | ▪ `PxAnimatorOptions` plus `adapter` — the frame loop's custom render target (`PxPlatformAdapter`: `isConnected()` + `setAttribute(id, name, value)`). What the React and Vue components build the player with, so writes go to the elements they rendered; not an option of the public API, because a page has a DOM to write to |
 | `renderNode(node, defs?, diag?)` → `toDomProps(props)` | ○ render one wire node to a DOM element / resolve a node's attributes. `diag` is optional — without it a blocked tag is reported on the console |

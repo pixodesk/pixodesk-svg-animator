@@ -36,6 +36,7 @@ file needs no package at all.
 | Check a generated document before shipping it | `validateDocument(doc)` |
 | Put one animation on a page twice | `generateNewIds(doc)` for the second copy |
 | Feed a renderer of your own | `materializeAllInTree(doc, 'native')` (core) |
+| See or drive every animator on the page — 🧪 experimental | [`getAllAnimators()` / `onAnimatorsChange()`](./web-player.md#every-animator-on-the-page-experimental) (web) |
 
 Every export is marked by audience, in the guides and in the code itself — the mark mirrors the
 release tag on the declaration, which is what your IDE shows on hover, and the build fails when

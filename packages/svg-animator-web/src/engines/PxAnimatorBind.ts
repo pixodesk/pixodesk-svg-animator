@@ -6,6 +6,7 @@
 import { getAnimatorConfig, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
+import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
@@ -200,7 +201,19 @@ function buildOrReport(options: PxPrerenderedAnimatorOptions, build: () => PxAni
  */
 export function createPrerenderedAnimator(options: PxPrerenderedAnimatorOptions): PxAnimatorApi {
     const doc = requireDoc(options);
-    return buildOrReport(options, () => bindWithEngineChoice(doc, undefined, toEngineCallbacks(options), null));
+    return registered(options, callbacks => buildOrReport(options, () => bindWithEngineChoice(doc, undefined, callbacks, null)));
+}
+
+/**
+ * The page-wide registry (`getAllAnimators()`) for the pre-rendered builds: the returned
+ * API is enrolled — a build that failed (the inert API, `isReady()` false) is not — and hears
+ * play / pause / cancel / finish through the callbacks the engine is given.
+ */
+function registered(options: PxPrerenderedAnimatorOptions, build: (callbacks: PxEngineCallbacks) => PxAnimatorApi): PxAnimatorApi {
+    let apiRef: PxAnimatorApi | undefined;
+    const api = build(withRegistryEvents(toEngineCallbacks(options), () => apiRef));
+    if (api.isReady()) { apiRef = api; registerAnimator(api); }
+    return api;
 }
 
 /**
@@ -211,9 +224,8 @@ export function createPrerenderedAnimator(options: PxPrerenderedAnimatorOptions)
  */
 export function createPrerenderedWaapiAnimator(options: PxPrerenderedAnimatorOptions): PxAnimatorApi {
     const doc = requireDoc(options);
-    return buildOrReport(options, () => {
+    return registered(options, callbacks => buildOrReport(options, () => {
         const animatorConfig = getAnimatorConfig(doc) || {};
-        return finaliseAnimator(animatorConfig, toEngineCallbacks(options),
-            cb => createWebApiAnimator(doc, cb, null, true)!);
-    });
+        return finaliseAnimator(animatorConfig, callbacks, cb => createWebApiAnimator(doc, cb, null, true)!);
+    }));
 }

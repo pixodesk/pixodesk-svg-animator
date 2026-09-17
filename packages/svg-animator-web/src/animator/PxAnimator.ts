@@ -6,6 +6,7 @@
 import { applyAnimatorConfig, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, materializeAllInTree, PxDiagnosticCode, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { reportDocumentDiagnostics, createDiagnostics, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
+import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
 import { bindWithEngineChoice } from '../engines/PxAnimatorBind';
 import { renderNode } from '../dom/PxAnimatorDOM';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
@@ -194,7 +195,10 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorApi {
     const { src, doc, container, resetTimeline } = options;
     const adapter = isInternalOptions(options) ? options.adapter : undefined;
     const patch = resolveTimelineOption(options);
-    const callbacks = toEngineCallbacks(options);
+    // The registry hears play / pause / … through the engine callbacks, and names the PROXY
+    // below — the object the caller holds — never the engine API behind it.
+    let proxy: PxAnimatorApi | undefined;
+    const callbacks = withRegistryEvents(toEngineCallbacks(options), () => proxy);
 
     // A wrong CALL throws — a bug at the call site, found the moment the line runs. A document
     // or environment that cannot play is reported through `onError` instead (the rule in core's
@@ -247,21 +251,10 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorApi {
         }
     };
 
-    if (doc !== undefined) {
-        build(doc);
-    } else {
-        fetch(src!).then(res => res.json()).then(json => {
-            if (destroyed) return; // destroy() was called before the document loaded
-            if (isPxDocument(json)) build(json);
-            else failed(PxDiagnosticKind.document, PxDiagnosticCode.invalidDocumentAtSrc, src);
-        }).catch(err => {
-            // `host`, not `document`: the file may be perfect — the page could not fetch it.
-            failed(PxDiagnosticKind.host, PxDiagnosticCode.loadFailed, src, err?.message ?? String(err));
-        });
-    }
-
-    // The proxy: forwards once the player exists, queues control calls until then
-    return {
+    // The proxy: forwards once the player exists, queues control calls until then. Built and
+    // listed BEFORE the build, so a `load` trigger's first `play` during construction is
+    // announced for it like every later one.
+    proxy = {
         "isReady": () => !!animator,
         "getRootElement": () => animator ? animator.getRootElement() : null,
         "isPlaying": () => animator?.isPlaying() || false,
@@ -280,6 +273,23 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorApi {
             animator?.destroy();
         }
     };
+    // Listed from this moment (`add`) until `destroy()` — a `src` still loading included.
+    registerAnimator(proxy);
+
+    if (doc !== undefined) {
+        build(doc);
+    } else {
+        fetch(src!).then(res => res.json()).then(json => {
+            if (destroyed) return; // destroy() was called before the document loaded
+            if (isPxDocument(json)) build(json);
+            else failed(PxDiagnosticKind.document, PxDiagnosticCode.invalidDocumentAtSrc, src);
+        }).catch(err => {
+            // `host`, not `document`: the file may be perfect — the page could not fetch it.
+            failed(PxDiagnosticKind.host, PxDiagnosticCode.loadFailed, src, err?.message ?? String(err));
+        });
+    }
+
+    return proxy;
 }
 
 /**

@@ -15,7 +15,7 @@ defaults there, see
 A document with its `animator` block. (The comments are explanatory; JSON does not allow
 comments, so a real file has none.)
 
-```js
+```js px-player
 {
   "type": "svg",
   "viewBox": "0 0 400 400",

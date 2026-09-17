@@ -34,6 +34,8 @@ export {
 // Trigger wiring — `createAnimator` uses it internally; exposed so a page can
 // re-arm triggers after swapping document content.
 export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
+export { getAllAnimators, onAnimatorsChange } from './registry/PxAnimatorRegistry';
+export type { PxAnimatorRegistry, PxAnimatorsEvent, PxAnimatorsListener } from './registry/PxAnimatorRegistry';
 
 // Config enums a caller needs to build `PxAnimatorOptions` by hand.
 export { PxTimelineEngine, PxTimelineEngineSetting, validateDocument } from '@pixodesk/svg-animator-core';
