@@ -26,7 +26,7 @@ comments, so a real file has none.)
       "duration": 2000,
       "iterations": "infinite",
       "direction": "alternate",
-      "trigger": { "startOn": "scrollIntoView", "outAction": "pause", "scrollIntoViewThreshold": 0.5 }
+      "trigger": { "start": "scrollIntoView", "mouseOut": "pause", "visibilityThreshold": 0.5 }
     }
   },
   "children": [
@@ -83,7 +83,7 @@ timeline. `animator` itself keeps only what is not playback: the lookup tables
 | `timeline.iterations` | number · `"infinite"` | `1` | how many times the whole document timeline repeats |
 | `timeline.direction` | `normal` · `reverse` · `alternate` · `alternate-reverse` | `normal` | `alternate` ping-pongs on every other iteration |
 | `timeline.fillMode` | `forwards` · `backwards` · `both` · `none` | `forwards` | what is shown *outside* the active time: `forwards` holds the last frame after the end; `backwards` shows the first frame during the delay; `none` reverts to the static SVG |
-| `timeline.trigger.finishAction` | `hold` · `reset` | `hold` | after a natural finish: keep the end state (per `timeline.fillMode`), or snap back to the start |
+| `timeline.trigger.finish` | `hold` · `reset` | `hold` | after a natural finish: keep the end state (per `timeline.fillMode`), or snap back to the start |
 
 **Per-property loops vs `iterations`.** There are two kinds of repetition, and they work at
 different levels. `iterations` repeats the **whole document** — every element, from the first
@@ -114,39 +114,68 @@ the engine that will actually run, `isNativeForced` says whether `native` was as
 and `mayUseNativeScrollTimeline` whether a scroll timeline may be handed to the browser's own
 `ScrollTimeline`.
 
-## Triggers — what *starts* the animation
+## Triggers — what *starts* it, and whether it may *run*
 
-The `trigger` block — inside the clock timeline — says what starts the animation and what
-happens when that condition ends. The editor writes it from its **Start** setting; every
-player honors it:
+The `trigger` block — inside the clock timeline — answers two independent questions, and every
+player honors both:
+
+- **What STARTS it** — `start`.
+- **Whether it may RUN** — `offScreen` and the two `visibility*` values. An animation nobody can
+  see does not play, whatever started it.
+
+They are separate on purpose, so every combination is sayable: start on click *and* pause when
+scrolled away. The editor writes the block from its **Start** setting.
 
 ```json
-"timeline": { "trigger": { "startOn": "mouseOver", "outAction": "reset" } }
+"timeline": { "trigger": { "start": "mouseOver", "mouseOut": "reset" } }
 ```
 
-<!-- px-check values PxStartOn pkg=core -->
-| `startOn` | Starts when… | Editor label |
+<!-- px-check values PxTriggerStart pkg=core -->
+| `start` | Starts when… | Editor label |
 |---|---|---|
-| `load` (default) | the animation is displayed | *On load* |
-| `scrollIntoView` | the element becomes visible; `scrollIntoViewThreshold` says how much of it must be on screen first: `0` (default) any part, `0.5` half of it, `1` all of it | *When visible* |
+| `load` (default) | the animation is displayed *and* visible enough — see `visibilityThreshold` | *On load* |
 | `mouseOver` | the pointer enters the element | *On mouse over* |
-| `click` | the element is clicked (a second click applies `outAction`) | *On click* |
-| `programmatic` | never by itself — you call `play()` | *Manually from JS* |
+| `click` | the element is clicked; a second click pauses | *On click* |
+| `none` | never by itself — you call `play()` | *Manually from JS* |
 
-A document with no `trigger`, or a `trigger` without `startOn`, starts on load — every player
-applies the same defaults. Use `programmatic` when your own code should start it.
+A document with no `trigger`, or a `trigger` without `start`, starts on load. Use `none` when
+your own code should start it.
+
+There is no `scrollIntoView` here, because visibility is not a trigger. `start: 'load'` behind the
+default gate below *is* scroll-into-view: it holds at the first frame until enough is on screen,
+plays, pauses when it leaves, and resumes when it comes back.
 
 Those defaults are `PX_TRIGGER_DEFAULTS`, and `resolveTrigger` fills them into a trigger that
 leaves fields out — one resolution every player shares, instead of four that drift apart.
 
-`outAction` says what happens when the trigger condition ends (pointer leaves, scrolled out,
-second click):
+### Whether it may run
 
-<!-- px-check values PxOutAction pkg=core -->
-| `outAction` | Effect |
+<!-- px-check values PxOffScreenAction pkg=core -->
+| `offScreen` | Effect while none of it is on screen |
+|---|---|
+| `pause` (default) | pause where it is; it resumes when the element comes back |
+| `continue` | keep playing — and start without waiting to be seen at all |
+| `reset` | jump back to the start, so the next entry replays it from the beginning |
+
+<!-- px-check off two plain numbers, not a closed value list — the schema block in the format guide carries their types -->
+| Field | Default | Meaning |
+|---|---|---|
+| `visibilityThreshold` | `0.5` | how much of the element must be on screen before it may run: `0` any part, `0.5` half of it, `1` all of it. Playback stops only at **zero** visibility, so an element resting on the boundary cannot flicker |
+| `visibilityDebounce` | `150` | and for how long, in ms. Scrolling straight past an animation therefore starts nothing; `0` starts the moment the threshold is met |
+
+A hidden browser tab counts as off screen. Where nothing can measure visibility — a server render,
+a test environment without `IntersectionObserver` — the animation plays as if fully visible,
+rather than silently never playing.
+
+### When the pointer leaves
+
+`mouseOut` is read only for `start: 'mouseOver'`:
+
+<!-- px-check values PxMouseOutAction pkg=core -->
+| `mouseOut` | Effect |
 |---|---|
 | `continue` (default) | keep playing |
-| `pause` | pause where it is; the next trigger resumes |
+| `pause` | pause where it is; re-entering resumes |
 | `reset` | jump back to the start |
 | `reverse` | play backwards to the start |
 
@@ -157,8 +186,8 @@ Where triggers work:
 - **Pre-rendered SVG + CSS animation + JS triggers** supports all of them too. The editor
   writes a few lines of script into the file for this; no library is involved.
 - **Pre-rendered SVG + CSS animation** (no script at all) supports `load`, and `mouseOver`
-  through CSS `:hover`. `click` and `scrollIntoView` cannot be done in pure CSS, so in this
-  flavor they behave like `load` — the animation starts as soon as it is shown. See
+  through CSS `:hover`. `click` and the visibility gate cannot be done in pure CSS, so in that
+  flavor the animation starts as soon as it is shown. See
   [Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#flavour-1--svg--css-animation).
 
 ## Overriding from a player
@@ -183,7 +212,7 @@ import { createAnimator } from '@pixodesk/svg-animator-web';
 const a = createAnimator({
   src: '/bouncing-ball.json',
   container: '#box',
-  timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } },
+  timeline: { iterations: 'infinite', trigger: { start: 'none' } },
 });
 a.play();
 ```
@@ -192,7 +221,7 @@ a.play();
 
 ```jsx
 <PixodeskSvgAnimator doc={doc} autoplay
-  timeline={{ iterations: 'infinite', trigger: { startOn: 'programmatic' } }} />
+  timeline={{ iterations: 'infinite', trigger: { start: 'none' } }} />
 ```
 
 ### How the merge works
@@ -223,7 +252,7 @@ The keys people reach for most also exist as plain props / options, because
 | `duration` | `timeline.duration` |
 | `delay` | `timeline.delay` |
 | `iterations` | `timeline.iterations` |
-| `startOn` | `timeline.trigger.startOn` |
+| `start` | `timeline.trigger.start` |
 
 A shortcut wins over the same key inside `timeline`, the way an inline style beats a stylesheet.
 

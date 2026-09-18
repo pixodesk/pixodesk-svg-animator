@@ -5,8 +5,8 @@
     "timeline": {
       "duration": 1000,
       "trigger": {
-        "startOn": "load",
-        "outAction": "pause"
+        "start": "load",
+        "offScreen": "continue"
       },
       "direction": "normal"
     }
@@ -271,7 +271,7 @@
         {
           "type": "image",
           "transform": "translate(31.3047,236.1735)",
-          "href": "data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2080%2080%27%20text-rendering%3D%27geometricPrecision%27%20shape-rendering%3D%27geometricPrecision%27%20id%3D%27_px_2rppr8uu%27%20data-px-meta%3D%27animation%3A%7Bduration%3A1000%3Bdirection%3Anormal%3Btype%3AjavaScript%3Bmode%3Aauto%3Btimeline%3Atime%3Btrigger%3A%7BstartOn%3Aload%3BoutAction%3Apause%7D%7D%27%3E%3Cellipse%20fill%3D%27%23ff0000%27%20transform%3D%27translate%2820%2C20%29%27%20cx%3D%2720%27%20cy%3D%2720%27%20rx%3D%2740%27%20ry%3D%2740%27/%3E%3C/svg%3E",
+          "href": "data:image/svg+xml;utf8,%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%2080%2080%27%20text-rendering%3D%27geometricPrecision%27%20shape-rendering%3D%27geometricPrecision%27%20id%3D%27_px_2rppr8uu%27%20data-px-meta%3D%27animation%3A%7Bduration%3A1000%3Bdirection%3Anormal%3Btype%3AjavaScript%3Bmode%3Aauto%3Btimeline%3Atime%3Btrigger%3A%7Bstart%3Aload%3BoffScreen%3Acontinue%7D%7D%27%3E%3Cellipse%20fill%3D%27%23ff0000%27%20transform%3D%27translate%2820%2C20%29%27%20cx%3D%2720%27%20cy%3D%2720%27%20rx%3D%2740%27%20ry%3D%2740%27/%3E%3C/svg%3E",
           "width": 80,
           "height": 80
         },

@@ -5,6 +5,7 @@
 
 import { cleanup, fireEvent, render } from "@testing-library/vue";
 import { afterEach, describe, expect, it } from "vitest";
+import { nextTick } from "vue";
 import PixodeskSvgCssAnimator from './PixodeskSvgCssAnimator';
 
 
@@ -22,27 +23,32 @@ describe("PixodeskSvgCssAnimator (Vue)", () => {
         expect(div.querySelector("svg.inner-svg")).not.toBeNull();
     });
 
-    it("plays immediately with the default startOn='load'", () => {
+    it("plays with the default start='load' once the gate has measured", async () => {
         const { container } = render(PixodeskSvgCssAnimator, {
             slots: { default: '<svg></svg>' },
         });
+        // The visibility gate decides after mount — it has to measure before it can allow
+        // playback — so the playing class lands on the next tick rather than the first render.
+        await nextTick();
         const div = container.firstElementChild as HTMLElement;
         expect(div.className).toBe("px-anim-enabled px-anim-playing");
     });
 
-    it("joins a fallthrough class correctly ('foo px-anim-enabled px-anim-playing')", () => {
+    it("joins a fallthrough class correctly ('foo px-anim-enabled px-anim-playing')", async () => {
         const { container } = render(PixodeskSvgCssAnimator, {
             attrs: { class: 'foo' },
             slots: { default: '<svg></svg>' },
         });
+        await nextTick();
         const div = container.firstElementChild as HTMLElement;
         expect(div.className).toBe("foo px-anim-enabled px-anim-playing");
     });
 
-    it("has no 'undefined' prefix when no class is passed", () => {
+    it("has no 'undefined' prefix when no class is passed", async () => {
         const { container } = render(PixodeskSvgCssAnimator, {
             slots: { default: '<svg></svg>' },
         });
+        await nextTick();
         const div = container.firstElementChild as HTMLElement;
         expect(div.className).not.toContain("undefined");
         expect(div.className).toBe("px-anim-enabled px-anim-playing");
@@ -57,9 +63,9 @@ describe("PixodeskSvgCssAnimator (Vue)", () => {
         expect(div.style.width).toBe("123px");
     });
 
-    it("toggles classes for startOn='mouseOver' + outAction='pause'", async () => {
+    it("toggles classes for start='mouseOver' + mouseOut='pause'", async () => {
         const { container } = render(PixodeskSvgCssAnimator, {
-            props: { startOn: 'mouseOver', outAction: 'pause' },
+            props: { start: 'mouseOver', mouseOut: 'pause' },
             slots: { default: '<svg></svg>' },
         });
         const div = container.firstElementChild as HTMLElement;
@@ -76,9 +82,9 @@ describe("PixodeskSvgCssAnimator (Vue)", () => {
         expect(div.className).toBe("px-anim-enabled");
     });
 
-    it("resets to idle on mouse-out when outAction='reset'", async () => {
+    it("resets to idle on mouse-out when mouseOut='reset'", async () => {
         const { container } = render(PixodeskSvgCssAnimator, {
-            props: { startOn: 'mouseOver', outAction: 'reset' },
+            props: { start: 'mouseOver', mouseOut: 'reset' },
             slots: { default: '<svg></svg>' },
         });
         const div = container.firstElementChild as HTMLElement;

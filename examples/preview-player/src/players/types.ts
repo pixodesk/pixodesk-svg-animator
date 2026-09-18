@@ -72,7 +72,7 @@ export function applyTriggerOverride(
   if (t === 'file') return doc;                       // leave the document's own trigger alone
   // Through the shared merge, so this reaches the WIRE spelling (`animator.timeline.trigger`).
   // Writing `animator.trigger` directly used to be discarded on any modern document.
-  const trigger = t && typeof t === 'object' ? t : { startOn: 'programmatic' };
+  const trigger = t && typeof t === 'object' ? t : { start: 'none' };
   return applyAnimatorConfig(doc, { timeline: { trigger } }).doc;
 }
 

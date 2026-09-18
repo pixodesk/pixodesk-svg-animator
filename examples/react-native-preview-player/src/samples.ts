@@ -27,7 +27,7 @@ const bouncingBall: PxAnimatedSvgDocument = {
     animator: {
         timeline: {
             duration: 1400, iterations: 'infinite',
-            trigger: { startOn: 'load' },
+            trigger: { start: 'load', offScreen: 'continue' },
         },
     },
     children: [
@@ -169,7 +169,7 @@ const textAlongPath: PxAnimatedSvgDocument = {
     animator: {
         timeline: {
             duration: TEXT_DURATION, iterations: 'infinite',
-            trigger: { startOn: 'load' },
+            trigger: { start: 'load', offScreen: 'continue' },
         },
     },
     children: [
@@ -198,7 +198,7 @@ const strokeTrim: PxAnimatedSvgDocument = {
     animator: {
         timeline: {
             duration: 2600, iterations: 'infinite',
-            trigger: { startOn: 'load' },
+            trigger: { start: 'load', offScreen: 'continue' },
         },
     },
     children: [
@@ -249,7 +249,7 @@ const repeater: PxAnimatedSvgDocument = {
     animator: {
         timeline: {
             duration: 2000, iterations: 'infinite', direction: 'alternate',
-            trigger: { startOn: 'load' },
+            trigger: { start: 'load', offScreen: 'continue' },
         },
     },
     children: [
@@ -294,7 +294,7 @@ const gradient: PxAnimatedSvgDocument = {
     animator: {
         timeline: {
             duration: 3000, iterations: 'infinite', direction: 'alternate',
-            trigger: { startOn: 'load' },
+            trigger: { start: 'load', offScreen: 'continue' },
         },
     },
     children: [
@@ -336,7 +336,7 @@ const morph: PxAnimatedSvgDocument = {
     animator: {
         timeline: {
             duration: 2400, iterations: 'infinite', direction: 'alternate',
-            trigger: { startOn: 'load' },
+            trigger: { start: 'load', offScreen: 'continue' },
         },
     },
     children: [

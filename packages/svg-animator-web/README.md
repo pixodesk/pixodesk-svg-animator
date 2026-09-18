@@ -92,7 +92,7 @@ animator.destroy();             // cleanup
 | `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
 | `duration` · `delay` | `number`        | Shortcuts for `timeline.duration` / `.delay` (ms) | <!-- px names=duration,delay -->
 | `iterations` | `number \| 'infinite'`   | Shortcut for `timeline.iterations` |
-| `startOn`   | `PxStartOn`               | Shortcut for `timeline.trigger.startOn` |
+| `start`     | `PxTriggerStart`          | Shortcut for `timeline.trigger.start` |
 
 The document plays the way it was designed with no configuration at all; `timeline` is for when
 one page needs it to play differently — the same file mounted twice at two speeds, or a file
@@ -102,7 +102,7 @@ that autostarts everywhere except inside your own transport UI:
 const animator = createAnimator({
   src: '/animation.json',
   container: '#box',
-  timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } },
+  timeline: { iterations: 'infinite', trigger: { start: 'none' } },
 });
 animator.play();
 ```

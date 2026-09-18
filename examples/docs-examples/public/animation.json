@@ -8,7 +8,8 @@
     "timeline": {
       "duration": 1000,
       "trigger": {
-        "startOn": "load"
+        "start": "load",
+        "offScreen": "continue"
       },
       "iterations": 2,
       "direction": "normal"

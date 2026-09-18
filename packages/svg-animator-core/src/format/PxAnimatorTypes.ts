@@ -10,8 +10,8 @@ import { implementsInterface, px } from '../schema/PxSchema';
 export * from './PxAnimatorConstants';
 import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_TRANSFORM_PART_KEYS, PX_TRIGGER_DEFAULTS, PxTimelineEngineSetting, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits,
     // Wire enums named in review §2.7 — used as VALUES by the schemas below.
-    PxAlongPathMode, PxFillMode, PxFinishAction, PxOutAction, PxPinAlign, PxPlaybackDirection,
-    PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxStartOn } from './PxAnimatorConstants';
+    PxAlongPathMode, PxFillMode, PxFinishAction, PxMouseOutAction, PxOffScreenAction, PxPinAlign, PxPlaybackDirection,
+    PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxTriggerStart } from './PxAnimatorConstants';
 import type { PxTimelineEngine, PxTransformPartKey } from './PxAnimatorConstants';
 // Version stamps are parsed by the reader's own parser (review §2.10) so the validator and the
 // reader can never disagree on what counts as a stamp. `PxWireVersion` imports only
@@ -557,36 +557,52 @@ export type PxElementAnimation = PxInfer<typeof PxElementAnimationSchema>;
  */
 export interface _PxTrigger {
 
-    /** Event that starts the animation. Default `'load'` — a document is designed to play;
-     *  `'programmatic'` waits for `play()`. */
-    startOn?: PxStartOn;
+    /** What starts the animation. Default `'load'` — a document is designed to play;
+     *  `'none'` waits for `play()`. Starting is one axis; whether it may RUN is the other
+     *  (`offScreen` below), so every combination is sayable. */
+    start?: PxTriggerStart;
 
-    /** Action to take when the trigger condition is no longer met (e.g., mouse leaves).
+    /** What happens while none of the graphic is on screen, whatever started it.
+     *  Default `'pause'` — an animation nobody can see does not run. */
+    offScreen?: PxOffScreenAction;
+
+    /** What happens when the pointer leaves. Read only when `start` is `'mouseOver'`.
      *  Default `'continue'`. */
-    outAction?: PxOutAction;
+    mouseOut?: PxMouseOutAction;
 
-    /** Percentage of element visibility required to trigger (0–1, default 0 = any pixel).
-     *  Only applies to scrollIntoView. */
-    scrollIntoViewThreshold?: number;
+    /** How much of the graphic must be on screen before it may run, as a fraction of its own
+     *  area (0–1, default 0.5). The gate OPENS here and closes only at zero visibility, so one
+     *  value serves two edges and a graphic resting on the boundary cannot flap. */
+    visibilityThreshold?: number;
+
+    /** How long, in ms, `visibilityThreshold` must hold before playback actually starts
+     *  (default 150). Scrolling straight past a graphic therefore starts nothing. `0` starts
+     *  the moment the threshold is met. */
+    visibilityDebounce?: number;
 
     /** After a NATURAL finish: `'hold'` (default — keep the end state per `fill`) or `'reset'`
-   *  (snap back to the start). Named to pair with its sibling `outAction`, and NOT `onFinish`,
+   *  (snap back to the start). Named for its occasion like its siblings, and NOT `onFinish`,
    *  which is the CALLBACK on `PxEngineCallbacks` — a value key and a function key with
    *  one name read badly side by side in a document literal or in JSX. */
-    finishAction?: PxFinishAction;
+    finish?: PxFinishAction;
 }
 
-// `{ startOn?:'load'|'mouseOver'|'click'|'scrollIntoView'|'programmatic', outAction?:..., scrollIntoViewThreshold?:number }`
+// `{ start?:'load'|'mouseOver'|'click'|'none', offScreen?:…, mouseOut?:…, visibilityThreshold?:number,
+//    visibilityDebounce?:number, finish?:'hold'|'reset' }`
 // An absent field means its PX_TRIGGER_DEFAULTS entry — the table every player resolves through.
+// Keys are bare because the parent says `trigger`; the two that name a measured QUANTITY rather
+// than an occasion keep their subject word (plan: trigger-model.md D6).
 /** @public @advanced */
 export const PxTriggerSchema = implementsInterface<_PxTrigger>()(px.object({
-    startOn: px.enum([PxStartOn.load, PxStartOn.mouseOver, PxStartOn.click, PxStartOn.scrollIntoView, PxStartOn.programmatic] as const, PX_TRIGGER_DEFAULTS.startOn).optional(),
-    outAction: px.enum([PxOutAction.continue, PxOutAction.pause, PxOutAction.reset, PxOutAction.reverse] as const, PX_TRIGGER_DEFAULTS.outAction).optional(),
+    start: px.enum([PxTriggerStart.load, PxTriggerStart.mouseOver, PxTriggerStart.click, PxTriggerStart.none] as const, PX_TRIGGER_DEFAULTS.start).optional(),
+    offScreen: px.enum([PxOffScreenAction.pause, PxOffScreenAction.continue, PxOffScreenAction.reset] as const, PX_TRIGGER_DEFAULTS.offScreen).optional(),
+    mouseOut: px.enum([PxMouseOutAction.continue, PxMouseOutAction.pause, PxMouseOutAction.reset, PxMouseOutAction.reverse] as const, PX_TRIGGER_DEFAULTS.mouseOut).optional(),
     // What happens after a NATURAL finish — `'hold'` (default: keep the end state per
-    // `fill`) or `'reset'` (snap back to the start state). Pairs with `outAction` ("what
-    // happens when the trigger condition ends"); both end-of-life knobs now read alike.
-    finishAction: px.enum([PxFinishAction.hold, PxFinishAction.reset] as const).optional(),
-    scrollIntoViewThreshold: px.number().optional(),
+    // `fill`) or `'reset'` (snap back to the start state). One of four occasion keys
+    // (`start`, `offScreen`, `mouseOut`, `finish`), all named the same way.
+    finish: px.enum([PxFinishAction.hold, PxFinishAction.reset] as const).optional(),
+    visibilityThreshold: px.number().optional(),
+    visibilityDebounce: px.number().optional(),
 }));
 
 /** Defines when and how an animation should be triggered. @public */
@@ -861,7 +877,7 @@ const _ck_PxTimelinePin: KeysMatch<PxTimelinePin, _PxTimelinePin> = true; // the
 // Time-driven — wall-clock playback: something STARTS it (trigger) and it has the
 // WAAPI playback dynamics. `type` is OPTIONAL: an absent `type` (or an absent
 // `timeline` altogether) means this one — the common case declares nothing.
-// `resetOnFinish` has no slot here: its successor is `trigger.finishAction: 'reset'`.
+// `resetOnFinish` has no slot here: its successor is `trigger.finish: 'reset'`.
 /** `timeline.engine` — HOW the animated attributes get updated (every timeline type;
  *  default `auto`). Not `mode`: an implementation preference, not a behavior switch. */
 const PxTimelineEngineSchema = px.enum([PxTimelineEngineSetting.auto, PxTimelineEngineSetting.native, PxTimelineEngineSetting.js] as const).optional();
@@ -1056,7 +1072,7 @@ export interface _PxAnimatorConfig {
      *
      * The wire spells this as `timeline.type` ('time' — or absent — vs 'scroll'/'view');
      * `flattenAnimatorTimeline` folds it into this field for the engines.
-     * Distinct from `trigger.startOn`, which says what STARTS the animation: one
+     * Distinct from `trigger.start`, which says what STARTS the animation: one
      * names the beginning, this one names what moves the playhead afterwards.
      * Design: app `svgeditor/animation/scroll-timeline.design.md`.
      */

@@ -217,13 +217,13 @@ interface PixodeskSvgAnimatorProps {
 
     duration?: number; delay?: number;    // shortcuts, ms: one iteration, and the wait before it
     iterations?: number | 'infinite';     // 'infinite' never stops
-    startOn?: PxStartOn;                  // 'mouseOver' has no touch equivalent and is ignored;
-                                          //   'click' = tap (a second tap applies outAction);
+    start?: PxTriggerStart;                  // 'mouseOver' has no touch equivalent and is ignored;
+                                          //   'click' = tap (a second tap applies mouseOut);
                                           //   'scrollIntoView' = measured every 200 ms
 
     // Control — the highest-priority one that is set picks the mode (Control modes above)
     autoplay?: boolean;                   // honor the document trigger — the same defaults as the
-                                          //   web: startOn 'load', outAction 'continue'
+                                          //   web: start 'load', mouseOut 'continue'
     play?: boolean; pause?: boolean;      // unconditional control; play={false} holds where it is
     progress?: number;                    // 0–1 of duration × iterations (one iteration when 'infinite')
     time?: number;                        // ms from the start
@@ -269,12 +269,12 @@ you passed is never modified.
 ```
 
 Objects merge key by key, values replace, and `null` **deletes** a key so the default its
-absence means comes back. `duration`, `delay`, `iterations` and `startOn` are also plain props,
+absence means comes back. `duration`, `delay`, `iterations` and `start` are also plain props,
 and win over the same key inside `timeline`. To ignore the file's playback settings entirely,
 add `resetTimeline`.
 
 `timeline` is where the settings that used to be their own props now live —
-`{ timeline: { fillMode, direction, trigger: { outAction, finishAction } } }`. Full merge rules
+`{ timeline: { fillMode, direction, trigger: { mouseOut, finish } } }`. Full merge rules
 are in [Playback & triggers → Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
 
 ### Differences from the React package
@@ -284,7 +284,7 @@ are in [Playback & triggers → Overriding from a player](./playback-and-trigger
 |---|---|
 | `timeline.engine` | accepted inside `timeline` but ignored — there is no Web Animations API on React Native; playback is always native-driven |
 | `timeline.frameRate` | ignored — the screen's own refresh rate is used. On React Native the player does not compute values frame by frame; when the document loads it works out the animated values in advance, as a list of snapshots — 60 per second of animation — and while playing, each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, which the player fixes at 60 |
-| `startOn: 'mouseOver'` | has no touch equivalent, so it is not honored. The other four values (`load`, `click`, `scrollIntoView`, `programmatic`) work as they do on the web, from the file or from the prop |
+| `start: 'mouseOver'` | has no touch equivalent, so it is not honored. The other four values (`load`, `click`, `scrollIntoView`, `programmatic`) work as they do on the web, from the file or from the prop |
 | `className` / `style` | not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height` (see [Quick start](#quick-start)). Styling *inside* the document — `style` on an element in the JSON — is supported |
 
 ### Failure handling
@@ -410,11 +410,11 @@ not supported.
 | Feature | Supported | Notes |
 |---|---|---|
 | `duration`, `delay`, `iterations` (incl. infinite) | ✅ | |
-| All four `direction` values, all `fillMode` values, `trigger.finishAction` | ✅ | through `timeline` — see [Playback overrides](#playback-overrides) |
+| All four `direction` values, all `fillMode` values, `trigger.finish` | ✅ | through `timeline` — see [Playback overrides](#playback-overrides) |
 | play / pause / cancel / finish | ✅ | |
 | Jumping to any time, also while playing | ✅ | |
 | Playback rate: faster, slower, reverse | ✅ | |
-| Triggers `load`, `programmatic`, `click`, `scrollIntoView` | ✅ | incl. `scrollIntoViewThreshold` and `outAction` |
+| Triggers `load`, `programmatic`, `click`, `scrollIntoView` | ✅ | incl. `visibilityThreshold` and `mouseOut` |
 | Trigger `mouseOver` | ❌ | no touch equivalent; will not be added |
 | `timeline.frameRate`, `timeline.engine` | ❌ | see [Differences from the React package](#differences-from-the-react-package) |
 | Scroll-driven playback (`timeline.type: 'scroll' / 'view'`) | ❌ | |

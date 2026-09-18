@@ -12,7 +12,7 @@ is not here, go to [Still stuck?](#still-stuck) at the end.
 
 ## Nothing plays
 
-**The trigger is not "on load".** Check `animator.timeline.trigger.startOn` in the file (or the *Start*
+**The trigger is not "on load".** Check `animator.timeline.trigger.start` in the file (or the *Start*
 setting in the editor). `click` / `mouseOver` / `scrollIntoView` wait for the user;
 `programmatic` waits for you to call `play()`. In React/Vue/React Native, remember that
 `autoplay` is the only mode that uses the document's trigger — with `play`, `pause`, `progress`
@@ -33,7 +33,7 @@ creates animators for elements that do not have an animator yet.
 not lost — a network or CORS error is the usual cause.
 
 **Scroll trigger never fires.** The element may already be fully in view at load (then it
-starts immediately), or `scrollIntoViewThreshold` may be higher than the element can ever
+starts immediately), or `visibilityThreshold` may be higher than the element can ever
 reach on a small viewport. Inside an `<iframe>`, visibility is measured relative to the iframe.
 
 ## React
@@ -76,13 +76,13 @@ yourself.
 
 ## Playback behavior
 
-**It holds the last frame — I want it to reset.** Set `timeline.trigger.finishAction: "reset"`
+**It holds the last frame — I want it to reset.** Set `timeline.trigger.finish: "reset"`
 in the file, or `fillMode: 'none'` (see [Playback settings](./playback-and-triggers.md#timing)).
 For one mount only, pass the same thing as an override:
-`timeline={{ trigger: { finishAction: 'reset' } }}`.
+`timeline={{ trigger: { finish: 'reset' } }}`.
 
 **How do I play backwards?** `animator.setPlaybackRate(-1); animator.play();` — also as a
-trigger out action (`outAction: 'reverse'`).
+trigger out action (`mouseOut: 'reverse'`).
 
 **Jumping to a time while playing.** `setCurrentTime(ms)` works while playing (the animation
 continues from the new point) and while paused (it shows that frame and stays there).

@@ -60,28 +60,42 @@ export const PX_ANIM_SRC_ATTR_NAME = 'data-px-animation-src';
 /** @internal */
 export const PX_ANIM_ATTR_NAME = '_px_animator';
 
-/** `trigger.startOn` — what starts the animation. `programmatic` waits for `play()`. @public */
-export const PxStartOn = {
-    load:           'load',
-    mouseOver:      'mouseOver',
-    click:          'click',
-    scrollIntoView: 'scrollIntoView',
-    programmatic:   'programmatic',
+/** `trigger.start` — what starts the animation. `none` waits for `play()`.
+ *
+ *  There is no `scrollIntoView` member: visibility is not a trigger but a permission, and it is
+ *  governed by `offScreen` + `visibilityThreshold` whatever starts the animation. `start: 'load'`
+ *  behind the default gate is what `startOn: 'scrollIntoView'` used to mean. @public */
+export const PxTriggerStart = {
+    load:      'load',
+    mouseOver: 'mouseOver',
+    click:     'click',
+    none:      'none',
 } as const;
 
-export type PxStartOn = typeof PxStartOn[keyof typeof PxStartOn];
+export type PxTriggerStart = typeof PxTriggerStart[keyof typeof PxTriggerStart];
 
-/** `trigger.outAction` — what happens when the trigger condition stops holding. @public */
-export const PxOutAction = {
+/** `trigger.offScreen` — what happens while none of the graphic is on screen. No `reverse`:
+ *  nobody can watch an animation play backwards off screen. @public */
+export const PxOffScreenAction = {
+    pause:    'pause',
+    continue: 'continue',
+    reset:    'reset',
+} as const;
+
+export type PxOffScreenAction = typeof PxOffScreenAction[keyof typeof PxOffScreenAction];
+
+/** `trigger.mouseOut` — what happens when the pointer leaves. Read only when
+ *  `start` is `mouseOver`. @public */
+export const PxMouseOutAction = {
     continue: 'continue',
     pause:    'pause',
     reset:    'reset',
     reverse:  'reverse',
 } as const;
 
-export type PxOutAction = typeof PxOutAction[keyof typeof PxOutAction];
+export type PxMouseOutAction = typeof PxMouseOutAction[keyof typeof PxMouseOutAction];
 
-/** `trigger.finishAction` — what happens after a NATURAL finish. @public */
+/** `trigger.finish` — what happens after a NATURAL finish. @public */
 export const PxFinishAction = {
     hold:  'hold',
     reset: 'reset',
@@ -235,29 +249,35 @@ export function mayUseNativeScrollTimeline(engine: PxTimelineEngineSetting | und
  * THE TRIGGER DEFAULTS — what a missing `trigger` field means. One table, declared by
  * `PxTriggerSchema` and applied by {@link resolveTrigger}, which every player calls (the web's
  * `setupAnimationTriggers`, the React Native component) — so a file behaves the same everywhere:
- *   - `startOn` 'load' — a document is designed to play
- *   - `outAction` 'continue' — leaving the trigger does not interrupt playback
- *   - `scrollIntoViewThreshold` 0 — any visible pixel counts
+ *   - `start` 'load' — a document is designed to play
+ *   - `offScreen` 'pause' — an animation nobody can see does not run
+ *   - `mouseOut` 'continue' — leaving the element does not interrupt playback
+ *   - `visibilityThreshold` 0.5 — half of it must be on screen before it may run
+ *   - `visibilityDebounce` 150 — and stay that way this long, so a fast scroll past starts nothing
  * @public @advanced
  */
 export const PX_TRIGGER_DEFAULTS = {
-    startOn: 'load',
-    outAction: 'continue',
-    scrollIntoViewThreshold: 0,
+    start: 'load',
+    offScreen: 'pause',
+    mouseOut: 'continue',
+    visibilityThreshold: 0.5,
+    visibilityDebounce: 150,
 } as const;
 
 /** A trigger with every default filled in. @public @advanced */
 export interface PxResolvedTrigger {
-    readonly startOn: NonNullable<PxTrigger['startOn']>;
-    readonly outAction: NonNullable<PxTrigger['outAction']>;
-    readonly scrollIntoViewThreshold: number;
+    readonly start: NonNullable<PxTrigger['start']>;
+    readonly offScreen: NonNullable<PxTrigger['offScreen']>;
+    readonly mouseOut: NonNullable<PxTrigger['mouseOut']>;
+    readonly visibilityThreshold: number;
+    readonly visibilityDebounce: number;
 }
 
 // ── CONTROL MODE (API review §1 / §7) ────────────────────────────────────────
 // Which set of props drives playback. Every component picked its own order, so
 // `autoplay` + `progress={0.5}` played on React and Vue but seeked on React Native, and
 // React let a REF choose the mode — `<PixodeskSvgAnimator autoplay apiRef={api} />` never
-// started, because the imperative branch forced `startOn: 'programmatic'`.
+// started, because the imperative branch forced `start: 'none'`.
 //
 // One order, decided once, used by react / vue / rn. This module owns the LOGIC and the
 // WARNING TEXT only; each component keeps its own `console.warn` wiring.
@@ -297,7 +317,7 @@ export interface PxControlProps {
     play?: boolean;
     /** Hold the current frame; set it back to `false` to resume. */
     pause?: boolean;
-    /** Start the way the document says — its own `startOn` / `outAction` trigger. */
+    /** Start the way the document says — its own `trigger` block. */
     autoplay?: boolean;
 }
 
@@ -349,7 +369,7 @@ export function resolveControlMode(props: PxControlProps): PxResolvedControlMode
 
 /**
  * True when the component must take the document's trigger over, by forcing
- * `startOn: 'programmatic'` into its config patch.
+ * `start: 'none'` into its config patch.
  *
  * Every mode except `autoplay` — INCLUDING `static`. A component given no control props at all
  * must not start on its own: `<PixodeskSvgAnimator doc={…} />` renders the first frame and waits.
@@ -360,14 +380,16 @@ export function controlModeTakesOverTrigger(mode: PxControlMode): boolean {
     return mode !== PxControlMode.autoplay;
 }
 
-/** A document's trigger with the defaults filled in. (`finishAction` is not a start/stop decision:
+/** A document's trigger with the defaults filled in. (`finish` is not a start/stop decision:
  *  it reaches the engines as the runtime view's `resetOnFinish`.) * @public @advanced
  */
 export function resolveTrigger(trigger: PxTrigger | undefined): PxResolvedTrigger {
     return {
-        startOn: trigger?.startOn ?? PX_TRIGGER_DEFAULTS.startOn,
-        outAction: trigger?.outAction ?? PX_TRIGGER_DEFAULTS.outAction,
-        scrollIntoViewThreshold: trigger?.scrollIntoViewThreshold ?? PX_TRIGGER_DEFAULTS.scrollIntoViewThreshold,
+        start: trigger?.start ?? PX_TRIGGER_DEFAULTS.start,
+        offScreen: trigger?.offScreen ?? PX_TRIGGER_DEFAULTS.offScreen,
+        mouseOut: trigger?.mouseOut ?? PX_TRIGGER_DEFAULTS.mouseOut,
+        visibilityThreshold: trigger?.visibilityThreshold ?? PX_TRIGGER_DEFAULTS.visibilityThreshold,
+        visibilityDebounce: trigger?.visibilityDebounce ?? PX_TRIGGER_DEFAULTS.visibilityDebounce,
     };
 }
 
@@ -702,9 +724,9 @@ export function flattenAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig
     } else { // 'time', absent, or unknown — the time-driven timeline is the default
         if (timeline.duration !== undefined) flat.duration = timeline.duration;   // §2.8
         if (timeline.trigger !== undefined) {
-            const { finishAction, ...restTrigger } = timeline.trigger;
+            const { finish, ...restTrigger } = timeline.trigger;
             if (Object.keys(restTrigger).length) flat.trigger = restTrigger;
-            if (finishAction !== undefined) flat.resetOnFinish = finishAction === 'reset';
+            if (finish !== undefined) flat.resetOnFinish = finish === 'reset';
         }
         if (timeline.delay !== undefined) flat.delay = timeline.delay;
         if (timeline.iterations !== undefined) flat.iterations = timeline.iterations;
@@ -776,7 +798,7 @@ export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
     if (duration !== undefined) timeline.duration = duration;   // §2.8
     if (trigger !== undefined || resetOnFinish) {
         const t: any = { ...(trigger || {}) };
-        if (resetOnFinish) t.finishAction = 'reset';
+        if (resetOnFinish) t.finish = 'reset';
         timeline.trigger = t;
     }
     if (delay !== undefined) timeline.delay = delay;

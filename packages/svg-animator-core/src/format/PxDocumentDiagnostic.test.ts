@@ -16,7 +16,7 @@ import { diagnoseDocument, reportDocumentDiagnostics } from './PxDocumentDiagnos
 /** The current wire spelling — nothing to report. */
 const sound = {
     type: 'svg',
-    animator: { timeline: { duration: 1000, frameRate: 30, trigger: { startOn: 'load' } } },
+    animator: { timeline: { duration: 1000, frameRate: 30, trigger: { start: 'load' } } },
     children: [{ type: 'rect', id: 'r', width: 10, height: 10 }],
 };
 
@@ -30,7 +30,7 @@ const mangled = {
 /** The pre-2026-09 flat spelling — no longer read, so it MUST be reported. */
 const flatSpelling = {
     type: 'svg',
-    animator: { duration: 1000, trigger: { startOn: 'load' }, fill: 'both', resetOnFinish: true },
+    animator: { duration: 1000, trigger: { start: 'load' }, fill: 'both', resetOnFinish: true },
     children: [{ type: 'rect', id: 'r' }],
 };
 

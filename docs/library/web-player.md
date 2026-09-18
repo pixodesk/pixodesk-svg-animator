@@ -44,7 +44,7 @@ comments are explanatory; JSON does not allow comments, so the real file has non
       "duration": 1000,
       "iterations": "infinite",
       "direction": "alternate",
-      "trigger": { "startOn": "load" }
+      "trigger": { "start": "load" }
     }
   },
   "children": [
@@ -138,8 +138,8 @@ interface PxAnimatorOptions {
     duration?: number;                     // ▸ timeline.duration — one iteration, ms
     delay?: number;                        // ▸ timeline.delay, ms; negative skips ahead
     iterations?: number | 'infinite';      // ▸ timeline.iterations
-    startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
-                                           // ▸ timeline.trigger.startOn — a shortcut wins over
+    start?: 'load' | 'mouseOver' | 'click' | 'none';
+                                           // ▸ timeline.trigger.start — a shortcut wins over
                                            //   the same key in `timeline`
 }
 ```
@@ -155,7 +155,7 @@ at two speeds, or a file that autostarts everywhere except inside your own trans
 const animator = createAnimator({
   src: '/bouncing-ball.json',
   container: '#box',
-  timeline: { iterations: 'infinite', trigger: { startOn: 'programmatic' } },
+  timeline: { iterations: 'infinite', trigger: { start: 'none' } },
 });
 animator.play();
 ```
@@ -269,10 +269,10 @@ createAnimator({
 
 > **Example:** [`web/triggers`](../../examples/docs-examples/src/cases/web/triggers/) — `pnpm example:docs`, then open `#web/triggers`.
 
-If the document says `trigger.startOn: 'click'` (or `mouseOver`, `scrollIntoView`), the player
-wires the event on the rendered SVG for you; `outAction` (continue / pause / reset / reverse)
-and `scrollIntoViewThreshold` are honored. With `'load'` it starts immediately; with
-`'programmatic'` nothing happens until you call `play()`.
+If the document says `trigger.start: 'click'` (or `mouseOver`, `scrollIntoView`), the player
+wires the event on the rendered SVG for you; `mouseOut` (continue / pause / reset / reverse)
+and `visibilityThreshold` are honored. With `'load'` it starts immediately; with
+`'none'` nothing happens until you call `play()`.
 
 `setupAnimationTriggers(api, triggerConfig)` is exported for one rare case: you have replaced
 the rendered SVG yourself, so the click / hover / scroll listeners the player attached are gone
@@ -415,20 +415,22 @@ function loadTagAnimators(options?: PxTagAnimatorOptions): void;
 // Use it after you have replaced the rendered SVG yourself (the player's listeners went
 // with the old elements). To change the trigger, use `timeline`. Returns a DISPOSER that
 // detaches everything this call attached — call it before re-arming an element you
-// wired by hand, or the old listeners stay live next to the new ones. Reads `startOn` /
-// `outAction` / `scrollIntoViewThreshold`; `finishAction` is the player's, not the
+// wired by hand, or the old listeners stay live next to the new ones. Reads `start` /
+// `mouseOut` / `visibilityThreshold`; `finish` is the player's, not the
 // trigger wiring's. `diag` is optional: omit it and anything this has to say goes to
 // the console.
 function setupAnimationTriggers(api: PxAnimatorApi, trigger: PxTrigger,
                                 diag?: PxDiagnostics): () => void;
 
 interface PxTrigger {                                  // also a wire type — the JSON format page
-    startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
-                                                       // default 'load'; 'programmatic' waits for play()
-    outAction?: 'continue' | 'pause' | 'reset' | 'reverse'; // when the trigger ends; default 'continue'
-    finishAction?: 'hold' | 'reset';                   // after a natural finish; default 'hold'
+    start?: 'load' | 'mouseOver' | 'click' | 'none';   // what STARTS it; default 'load';
+                                                       //   'none' waits for play()
+    offScreen?: 'pause' | 'continue' | 'reset';        // while nobody can see it; default 'pause'
+    mouseOut?: 'continue' | 'pause' | 'reset' | 'reverse'; // pointer leaves; default 'continue'
+    finish?: 'hold' | 'reset';                         // after a natural finish; default 'hold'
                                                        //   (the player reads it; setupAnimationTriggers does not)
-    scrollIntoViewThreshold?: number;                  // 0–1 visible ratio; default 0
+    visibilityThreshold?: number;                      // 0–1 visible ratio; default 0.5
+    visibilityDebounce?: number;                       // ms it must hold first; default 150
 }
 ```
 
@@ -467,9 +469,10 @@ opt-in per document; see [Playback & triggers → Debug handle](./playback-and-t
 | `validateDocument(doc)` | ● the whole-document check — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
 | `generateNewIds` | ○ document tooling — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
 | `PX_ANIMATOR_DOC_KEY` | ▪ attribute and property names the player writes |
+| `createVisibilityGate(root, trigger, host)`, `PLAY_WHEN_VISIBLE_DEFAULTS`, `PxVisibilityGate`, `PxGateHost`, `PxGateTrigger` | ▪ the gate `setupAnimationTriggers` wires for every document — it opens at `visibilityThreshold`, closes only at zero visibility, waits out `visibilityDebounce` and treats a hidden tab as off screen. Exported so the CSS-only React and Vue wrappers gate on the same rules rather than each growing their own observer |
 | `px`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTriggerSchema`, `PxScrollSchema`, `PxDefinitionsSchema`, `PxSchema`, `PxInfer`, `PxValidationContext` | ○ the schema toolkit, re-exported from core — the schema values and the types to build on them |
 | `PxDiagnosticsConfig`, `PxDiagnostic`, `PxDiagnosticKind` | ● the diagnostics channel every surface shares — re-exported for the React and Vue components; spelled out in [the API at a glance](./README.md#the-api-at-a-glance) |
-| `PxTimelineEngineSetting`, `PxFillMode`, `PxPlaybackDirection`, `PxStartOn` | ● named wire values — one const per wire enum, with the string type derived from it under the same name. `PxTimelineEngineSetting` is what `timeline.engine` accepts (`auto` · `native` · `js`); `PxTimelineEngine` is the resolved engine (`native` · `js`), the argument of `materializeAllInTree`, never an option. `PxUnits` covers `gradientUnits` and the mask units alike |
+| `PxTimelineEngineSetting`, `PxFillMode`, `PxPlaybackDirection`, `PxTriggerStart` | ● named wire values — one const per wire enum, with the string type derived from it under the same name. `PxTimelineEngineSetting` is what `timeline.engine` accepts (`auto` · `native` · `js`); `PxTimelineEngine` is the resolved engine (`native` · `js`), the argument of `materializeAllInTree`, never an option. `PxUnits` covers `gradientUnits` and the mask units alike |
 | `PxAnimatedSvgDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTrigger`, `PxBinding`, `PxDefinitions` | ● wire types — the shapes in [the JSON format](../format/README.md#schema-at-a-glance) |
 | `PxAnimatorOptions`, `PxTagAnimatorOptions`, `PxAnimatorApi`, `PxPlaybackApi`, `PxAnimatorCallbacks`, `PxEngineCallbacks`, `PxPlaybackOverride`, `PxTimelinePatch`, `PxPlatformAdapter` | ● / ○ companion types of the calls above |
 

@@ -68,7 +68,7 @@ spelling when it differs, and is **—** when the surface does not have it.
 | `duration` | ✓ | — | — | ✓ | ✓ | ✓ | |
 | `delay` | ✓ | — | — | ✓ | ✓ | ✓ | |
 | `iterations` | ✓ | — | — | ✓ | ✓ | ✓ | |
-| `startOn` | ✓ 5 values | — | — | ✓ 5 values | ✓ 5 values | ✓ 5 values | every player surface takes `PxStartOn` (all 5); React Native ignores `'mouseOver'` |
+| `start` | ✓ 4 values | — | — | ✓ 4 values | ✓ 4 values | ✓ 4 values | every player surface takes `PxTriggerStart` (all 4); React Native ignores `'mouseOver'` |
 | **Autoplay control** — the document's own trigger | | | | | | | |
 | `autoplay` | — | — | — | ✓ | ✓ | ✓ | the web player and the HTML tag are always in this mode: they follow the document's trigger |
 | **Declarative control** — your state drives it | | | | | | | |
@@ -102,9 +102,11 @@ The two pre-rendered SVG + CSS wrappers, which toggle class names instead of cre
 | Name | React `PixodeskSvgCssAnimator` | Vue `PixodeskSvgCssAnimator` |
 |---|---|---|
 | the SVG | `children` | default slot | <!-- px name=children vue=~ -->
-| `startOn` | `PxStartOn`, default `'load'` — implements 4; `'programmatic'` does nothing (no `play()` here) | ✓ same |
-| `outAction` | ✓ default `'continue'`; `'reverse'` acts as `'continue'` | ✓ same |
-| `scrollIntoViewThreshold` | ✓ 0–1 of the SVG that must be visible before `'scrollIntoView'` starts; default 0, the wire default | ✓ same |
+| `start` | `PxTriggerStart`, default `'load'` — implements 4; `'none'` does nothing (no `play()` here) | ✓ same |
+| `offScreen` | ✓ default `'pause'` — an animation nobody can see does not run, whatever started it | ✓ same |
+| `mouseOut` | ✓ default `'continue'`; `'reverse'` acts as `'continue'` | ✓ same |
+| `visibilityThreshold` | ✓ 0–1 of the SVG that must be on screen before it may run; default 0.5, the wire default | ✓ same |
+| `visibilityDebounce` | ✓ ms it must stay that way first; default 150, so scrolling straight past starts nothing | ✓ same |
 | `className` | ✓ on the wrapper div | `class`, on the wrapper div | <!-- px vue=~ -->
 | `style` | ✓ on the wrapper div | ✓ on the wrapper div | <!-- px vue=~ -->
 

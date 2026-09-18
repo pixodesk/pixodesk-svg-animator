@@ -10,8 +10,8 @@
       "mode": "player",
       "duration": 1000,
       "trigger": {
-        "startOn": "click",
-        "outAction": "pause"
+        "start": "click",
+        "offScreen": "continue"
       },
       "iterations": 1,
       "direction": "normal"

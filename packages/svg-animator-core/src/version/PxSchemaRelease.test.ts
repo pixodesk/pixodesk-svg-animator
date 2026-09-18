@@ -15,8 +15,10 @@ import { PX_WIRE_BASELINE_VERSION, PX_WIRE_STEPS, PxWireStepKind, type PxWireVer
 
 const releases: Array<SchemaReleaseRecord> = JSON.parse(readFileSync(resolve(__dirname, 'schema-releases.player.json'), 'utf8'));
 
-const step = (to: string, kind: PxWireStepKind): PxWireVersionStep => ({
-    from: '1.1', to, kind, reason: 'spec only — a fabricated step',
+const LATEST_RELEASED = releases[releases.length - 1].version;
+
+const step = (to: string, kind: PxWireStepKind, from: string = LATEST_RELEASED): PxWireVersionStep => ({
+    from, to, kind, reason: 'spec only — a fabricated step',
     ...(kind === PxWireStepKind.converted ? { up: () => { /* spec */ } } : {}),
 });
 
@@ -27,15 +29,16 @@ describe('the release log (5.4)', () => {
     });
 
     it('MUTATION SELF-TEST: a bump with no changelog entry is named', () => {
-        const problems = releaseLogProblems(releases, [step('1.2', PxWireStepKind.additive)], '1.2', PX_WIRE_BASELINE_VERSION);
-        expect(problems.join(' ')).toContain('last release record is 1.1');
+        // One version PAST the log, whatever the log ends at today.
+        const problems = releaseLogProblems(releases, [step('1.3', PxWireStepKind.additive)], '1.3', PX_WIRE_BASELINE_VERSION);
+        expect(problems.join(' ')).toContain('last release record is ' + LATEST_RELEASED);
     });
 
     it('a release with no step, or a removal logged under an additive step, is named', () => {
         const log: Array<SchemaReleaseRecord> = [...releases,
-            { version: '1.2', date: '2026-10-01', added: [], removed: ['effects.x'] }];
-        expect(releaseLogProblems(log, [], '1.2', PX_WIRE_BASELINE_VERSION).join(' ')).toContain('no PX_WIRE_STEPS entry');
-        expect(releaseLogProblems(log, [step('1.2', PxWireStepKind.additive)], '1.2', PX_WIRE_BASELINE_VERSION).join(' '))
+            { version: '1.3', date: '2026-10-01', added: [], removed: ['effects.x'] }];
+        expect(releaseLogProblems(log, [], '1.3', PX_WIRE_BASELINE_VERSION).join(' ')).toContain('no PX_WIRE_STEPS entry');
+        expect(releaseLogProblems(log, [step('1.3', PxWireStepKind.additive)], '1.3', PX_WIRE_BASELINE_VERSION).join(' '))
             .toContain('not `converted`');
     });
 });

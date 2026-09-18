@@ -5,7 +5,8 @@
     "timeline": {
       "duration": 1000,
       "trigger": {
-        "startOn": "load"
+        "start": "load",
+        "offScreen": "continue"
       },
       "iterations": "infinite",
       "direction": "alternate"

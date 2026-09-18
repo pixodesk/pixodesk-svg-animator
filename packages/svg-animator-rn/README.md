@@ -114,7 +114,7 @@ Four ways to drive playback. Pick one — they are mutually exclusive.
 
 ### Autoplay
 
-Uses the trigger defined in the animation document (`startOn: 'load'` plays on mount):
+Uses the trigger defined in the animation document (`start: 'load'` plays once it is on screen):
 
 ```tsx
 <PixodeskSvgAnimator doc={doc} autoplay />
@@ -181,7 +181,7 @@ const [time, setTime] = useState(0);
 | `duration` | `number` | Shortcut for `timeline.duration` (ms) |
 | `delay` | `number` | Shortcut for `timeline.delay` (ms) |
 | `iterations` | `number \| 'infinite'` | Shortcut for `timeline.iterations` |
-| `startOn` | `PxStartOn` | Shortcut for `timeline.trigger.startOn`. `mouseOver` has no touch equivalent and is ignored |
+| `start` | `PxTriggerStart` | Shortcut for `timeline.trigger.start`. `mouseOver` has no touch equivalent and is ignored |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
 | `onFinish` | `() => void` | Called when the animation reaches its end — every iteration played, or `finish()` was called |
@@ -224,7 +224,7 @@ renderer never reaches JavaScript and cannot be caught — see
 |---|---|
 | `timeline.engine` | Accepted inside `timeline` but ignored. There is no Web Animations API on React Native; playback is always native-driven. |
 | `timeline.frameRate` | Ignored. The screen's own refresh rate is used. The player does not compute values frame by frame: when the document loads it works out the animated values in advance, as a list of snapshots (60 per second of animation), and each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, which the player fixes at 60. |
-| `startOn: 'mouseOver'` | Has no touch equivalent, so it is not honored. The other four values (`load`, `click`, `scrollIntoView`, `programmatic`) work as they do on the web, from the file or from the `startOn` prop. |
+| `start: 'mouseOver'` | Has no touch equivalent, so it is not honored. The other three values (`load`, `click`, `none`) work as they do on the web, from the file or from the `start` prop. |
 | `className` / `style` | Not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height`. Styling *inside* the document (`style` on an element in the JSON) is supported. |
 | `onRemove` | Never called. On the web it tells you the animator was thrown away; here there is nothing to tell — when the component leaves the screen, React removes it and everything it created. To run code at that moment, use a `useEffect` cleanup function in your own component. |
 
@@ -326,13 +326,13 @@ player sees plain nodes. **All are supported:**
 | `duration`, `delay`, `iterations` (incl. `'infinite'`) | ✅ | |
 | `direction` — all four values | ✅ | |
 | `fillMode` — `forwards` / `backwards` / `both` / `none` | ✅ | |
-| `trigger.finishAction: 'reset'` | ✅ | |
+| `trigger.finish: 'reset'` | ✅ | |
 | `play` / `pause` / `cancel` / `finish` | ✅ | |
 | `setCurrentTime` — jump to a time, including **while playing** | ✅ | playback continues from the new point |
 | `setPlaybackRate` — faster, slower and **reverse** (negative) | ✅ | composes with `direction` |
 | Trigger `load` / `programmatic` | ✅ | |
-| Trigger `click` | ✅ | wrapped in a `Pressable`; a second tap applies `outAction` |
-| Trigger `scrollIntoView` | ✅ | visibility sampled by measuring against the window (React Native has no `IntersectionObserver`); honors `scrollIntoViewThreshold` and `outAction` |
+| Trigger `click` | ✅ | wrapped in a `Pressable`; a second tap pauses |
+| Visibility gate | ✅ | visibility sampled by measuring against the window (React Native has no `IntersectionObserver`); honors `visibilityThreshold` and `offScreen` |
 | Trigger `mouseOver` | ❌ | no touch equivalent — use `click`, or drive `play` yourself |
 | `timeline.frameRate` | n/a | reanimated runs at the display refresh rate; the player prepares 60 snapshots per second of animation |
 | `timeline.engine` (`auto` / `native` / `js`) | n/a | there is no Web Animations API on React Native — playback is always native-driven |

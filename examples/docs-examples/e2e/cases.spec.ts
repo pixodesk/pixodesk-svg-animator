@@ -93,10 +93,10 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
   },
 
   'web/triggers': async page => {
-    await expectFrozen(page);                       // startOn: 'click' — nothing until clicked
+    await expectFrozen(page);                       // start: 'click' — nothing until clicked
     await page.click('#box svg');
     await expectAnimating(page);
-    await page.click('#box svg');                   // outAction: 'pause'
+    await page.click('#box svg');                   // mouseOut: 'pause'
     await expectFrozen(page);
   },
 
@@ -145,7 +145,7 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
   'vue/declarative': async page => CHECKS['react/declarative'](page),
 
   'react/css-svgr': async page => {
-    await expectFrozen(page);                       // startOn: 'click'
+    await expectFrozen(page);                       // start: 'click'
     await page.click('svg');
     await expectAnimating(page);
   },

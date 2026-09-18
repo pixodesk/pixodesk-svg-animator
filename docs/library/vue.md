@@ -53,7 +53,7 @@ import animation from './animation.json';
 ```
 
 Uses the trigger saved in the document (load / hover / click / scroll into view) and its out
-action. Override it for this one mount with the `startOn` prop, or with
+action. Override it for this one mount with the `start` prop, or with
 `:timeline="{ trigger: { … } }"` for the rest of the trigger — see
 [Playback overrides](#playback-overrides).
 
@@ -161,7 +161,7 @@ shaped exactly like the file's own `animator` block and deep-merges it over what
   <!-- The file loops twice and starts on load; here it loops forever and waits for play(). -->
   <PixodeskSvgAnimator
     :doc="animation"
-    :timeline="{ iterations: 'infinite', trigger: { startOn: 'programmatic' } }"
+    :timeline="{ iterations: 'infinite', trigger: { start: 'none' } }"
     ref="anim"
   />
 </template>
@@ -170,7 +170,7 @@ shaped exactly like the file's own `animator` block and deep-merges it over what
 Objects merge key by key, values replace, and `null` **deletes** a key so the default its
 absence means comes back (`:timeline="{ delay: null }"`).
 
-`duration`, `delay`, `iterations` and `startOn` are also plain props, because `:duration="2000"`
+`duration`, `delay`, `iterations` and `start` are also plain props, because `:duration="2000"`
 reads better than a nested object; a prop wins over the same key inside `timeline`. To ignore the
 file's playback settings entirely and start from the player's defaults, add `resetTimeline`.
 
@@ -196,7 +196,7 @@ const PixodeskSvgAnimator: DefineComponent<{
     resetTimeline?: boolean;              // start from the player's defaults, `timeline` on top
     duration?: number; delay?: number;    // shortcuts, ms: one iteration, and the wait before it
     iterations?: number | 'infinite';     // 'infinite' never stops
-    startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic';
+    start?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'none';
 
     // Control — the highest-priority one that is set picks the mode (Control modes above)
     autoplay?: boolean;                   // start the way the file says — the editor's Start setting
@@ -273,7 +273,7 @@ import AnimationSvg from './animation.svg';   // vite-svg-loader
 </script>
 
 <template>
-  <PixodeskSvgCssAnimator startOn="mouseOver" outAction="pause" style="width: 400px; height: 400px">
+  <PixodeskSvgCssAnimator start="mouseOver" mouseOut="pause" style="width: 400px; height: 400px">
     <AnimationSvg />
   </PixodeskSvgCssAnimator>
 </template>
@@ -283,11 +283,14 @@ import AnimationSvg from './animation.svg';   // vite-svg-loader
 ```typescript
 // The SVG goes in the default slot; every other attribute (class, style, …) lands on the wrapper div.
 const PixodeskSvgCssAnimator: DefineComponent<{
-    startOn?: PxStartOn;                  // 'load' (default) | 'mouseOver' | 'click' | 'scrollIntoView'
-                                          //   — 'programmatic' does nothing here (no play())
-    outAction?: PxOutAction;              // 'continue' (default) | 'pause' | 'reset' — 'reverse' is
+    start?: PxTriggerStart;               // 'load' (default) | 'mouseOver' | 'click'
+                                          //   — 'none' does nothing here (no play())
+    offScreen?: PxOffScreenAction;        // 'pause' (default) | 'continue' | 'reset' — what happens
+                                          //   while nobody can see it, whatever started it
+    mouseOut?: PxMouseOutAction;          // 'continue' (default) | 'pause' | 'reset' — 'reverse' is
                                           //   accepted but acts as 'continue'
-    scrollIntoViewThreshold?: number;     // 0–1 of the SVG visible before 'scrollIntoView' starts; default 0
+    visibilityThreshold?: number;         // 0–1 of the SVG on screen before it may run; default 0.5
+    visibilityDebounce?: number;          // ms it must hold first; default 150
 }>;
 ```
 

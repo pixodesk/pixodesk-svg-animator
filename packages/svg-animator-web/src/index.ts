@@ -48,7 +48,7 @@ export type {
     PxNode,
     PxSvgNode,
     PxTrigger,
-    PxStartOn,
+    PxTriggerStart,
 } from '@pixodesk/svg-animator-core';
 
 // DOM specializations — on the web `getRootElement()` returns a DOM Element.
@@ -123,7 +123,7 @@ export type { PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 // explicitly (Editor's test harnesses do).
 export {
     // One `Px*` const per wire enum (review §2.7) — forwarded so React/Vue can name values.
-    // The four that are also re-exported as TYPES above (PxFillMode, PxOutAction,
-    // PxPlaybackDirection, PxStartOn) must not be repeated here: same identifier, one export.
+    // The four that are also re-exported as TYPES above (PxFillMode, PxOffScreenAction,
+    // PxPlaybackDirection, PxTriggerStart) must not be repeated here: same identifier, one export.
     validateDocument,
 } from '@pixodesk/svg-animator-core';

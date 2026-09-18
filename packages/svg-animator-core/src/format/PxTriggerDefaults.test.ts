@@ -13,27 +13,44 @@ import { PxTriggerSchema } from './PxAnimatorTypes';
 
 describe('trigger defaults', () => {
 
-    it('a missing trigger starts on load, continues when the trigger ends, and needs any pixel visible', () => {
-        const expected = { startOn: 'load', outAction: 'continue', scrollIntoViewThreshold: 0 };
+    it('a missing trigger starts on load and does NOT run while nobody can see it', () => {
+        const expected = {
+            start: 'load', offScreen: 'pause', mouseOut: 'continue',
+            visibilityThreshold: 0.5, visibilityDebounce: 150,
+        };
         expect(resolveTrigger(undefined)).toEqual(expected);
         expect(resolveTrigger({})).toEqual(expected);
     });
 
     it('fills only what is missing', () => {
-        expect(resolveTrigger({ outAction: 'reset' }))
-            .toEqual({ startOn: 'load', outAction: 'reset', scrollIntoViewThreshold: 0 });
+        expect(resolveTrigger({ offScreen: 'reset' }))
+            .toEqual({
+                start: 'load', offScreen: 'reset', mouseOut: 'continue',
+                visibilityThreshold: 0.5, visibilityDebounce: 150,
+            });
     });
 
-    it('keeps every value the document states, programmatic included', () => {
-        const stated = { startOn: 'programmatic', outAction: 'reverse', scrollIntoViewThreshold: 0.5 } as const;
+    it("keeps every value the document states, 'none' included", () => {
+        const stated = {
+            start: 'none', offScreen: 'continue', mouseOut: 'reverse',
+            visibilityThreshold: 0.8, visibilityDebounce: 0,
+        } as const;
         expect(resolveTrigger(stated)).toEqual(stated);
     });
 
-    it('the schema declares the same startOn default the players apply', () => {
+    it('the schema declares the same start default the players apply', () => {
         const trigger = describeSchema(PxTriggerSchema);
         if (trigger.kind !== 'shape') throw new Error('PxTriggerSchema is not an object schema');
-        const startOn = describeSchema(trigger.shape.startOn);
-        if (startOn.kind !== 'optional') throw new Error('trigger.startOn is not optional');
-        expect(startOn.inner._default).toBe(PX_TRIGGER_DEFAULTS.startOn);
+        const start = describeSchema(trigger.shape.start);
+        if (start.kind !== 'optional') throw new Error('trigger.start is not optional');
+        expect(start.inner._default).toBe(PX_TRIGGER_DEFAULTS.start);
+    });
+
+    it('the schema declares the same offScreen default — the one that makes `load` safe', () => {
+        const trigger = describeSchema(PxTriggerSchema);
+        if (trigger.kind !== 'shape') throw new Error('PxTriggerSchema is not an object schema');
+        const offScreen = describeSchema(trigger.shape.offScreen);
+        if (offScreen.kind !== 'optional') throw new Error('trigger.offScreen is not optional');
+        expect(offScreen.inner._default).toBe(PX_TRIGGER_DEFAULTS.offScreen);
     });
 });

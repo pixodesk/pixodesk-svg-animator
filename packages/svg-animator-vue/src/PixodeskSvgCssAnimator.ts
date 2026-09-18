@@ -3,126 +3,138 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PX_TRIGGER_DEFAULTS, PxOutAction, PxStartOn } from '@pixodesk/svg-animator-core';
-import { computed, defineComponent, h, onMounted, onUnmounted, ref, useAttrs, type PropType } from 'vue';
+import { PX_TRIGGER_DEFAULTS, PxMouseOutAction, PxOffScreenAction, PxTriggerStart } from '@pixodesk/svg-animator-core';
+import { createVisibilityGate, type PxVisibilityGate } from '@pixodesk/svg-animator-web/internal';
+import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch, type PropType } from 'vue';
 
 
 type AnimState = 'idle' | 'paused' | 'playing';
 
-
 /**
- * Controls playback of a SVG+CSS animated file by toggling class names on a wrapper div.
+ * Controls playback of SVG+CSS animated files by toggling class names on a wrapper div.
  *
  * Intended for use with SVG files exported from the Pixodesk editor using the
- * **CSS Keyframes** flavor (no `<script>` tag). Import the SVG as a Vue component
- * via `vite-svg-loader` and pass it as the default slot:
+ * **CSS Keyframes** (no `<script>` tag). Import the SVG as a Vue component
+ * (`vite-svg-loader`) and pass it in the default slot:
  *
  * ```vue
  * <script setup>
- * import AnimationSvg from './animation.svg'; // vite-svg-loader
+ * import AnimationSvg from './animation.svg?component';
  * </script>
  *
  * <template>
- *   <PixodeskSvgCssAnimator startOn="mouseOver" outAction="pause">
+ *   <PixodeskSvgCssAnimator start="mouseOver" mouseOut="pause">
  *     <AnimationSvg />
  *   </PixodeskSvgCssAnimator>
  * </template>
  * ```
  *
  * The wrapper div carries one of three animation states via CSS class names:
- * - *(no class)*                       — idle, animation not started
- * - `px-anim-enabled`                  — started but paused
- * - `px-anim-enabled px-anim-playing`  — actively playing
+ * - *(no class)*           — idle, animation not started
+ * - `px-anim-enabled`      — started but paused
+ * - `px-anim-enabled px-anim-playing` — actively playing
  *
- * @prop startOn   - What triggers the animation to start:
- *   - `'load'`           — plays immediately on mount (default)
- *   - `'mouseOver'`      — plays on hover
- *   - `'click'`          — plays on click, toggles on second click
- *   - `'scrollIntoView'` — plays when the element enters the viewport
- *   - `'programmatic'`   — **not supported here.** This wrapper exposes no `play()`, so there is
- *                          nothing to wait for and the animation never starts. The prop keeps the
- *                          shared `PxStartOn` type (one enum per wire key), so the value type-checks
- *                          — it simply has no effect. Use `PixodeskSvgAnimator` (the JSON player)
- *                          when you need to start an animation from code.
- * @prop outAction - What happens when the trigger ends (hover/scroll out, second click):
+ * TWO AXES, the same two the JSON player has: `start` says what STARTS it, `offScreen` says
+ * whether it may RUN. The gate itself is the player's (`createVisibilityGate`), so the threshold,
+ * the dwell, the hysteresis and the hidden-tab rule cannot drift between the two.
+ *
+ * @prop start     - What starts the animation:
+ *   - `'load'`      — plays as soon as it is visible enough (default)
+ *   - `'mouseOver'` — plays on hover
+ *   - `'click'`     — plays on click, toggles on second click
+ *   - `'none'`      — **not supported here.** This wrapper exposes no `play()`, so there is
+ *                     nothing to wait for and the animation never starts. The prop keeps the
+ *                     shared `PxTriggerStart` type (one enum per wire key), so the value
+ *                     type-checks — it simply has no effect. Use `PixodeskSvgAnimator` (the JSON
+ *                     player) when you need to start an animation from code.
+ * @prop offScreen - What happens while none of it is on screen:
+ *   - `'pause'`    — pauses at the current frame (default); resumes when it comes back
+ *   - `'continue'` — keeps playing, and starts without waiting to be seen
+ *   - `'reset'`    — back to the beginning, so it replays on the next entry
+ * @prop mouseOut  - What happens when the pointer leaves, for `start: 'mouseOver'`:
  *   - `'continue'` — keeps playing (default)
  *   - `'pause'`    — pauses at the current frame
  *   - `'reset'`    — resets to the beginning
  *   - `'reverse'`  — **acts as `'continue'` here.** A CSS class toggle cannot run keyframes
- *                    backwards. Accepted so the prop keeps the shared `PxOutAction` type.
- * @prop scrollIntoViewThreshold - For `'scrollIntoView'`: how much of the element must be
- *   visible (0–1) before it starts, and below which the out action applies. Defaults to the
- *   wire default (`0`, any pixel) — the same as the JSON player, not a private `0.1`.
+ *                    backwards. Accepted so the prop keeps the shared `PxMouseOutAction` type.
+ * @prop visibilityThreshold - How much of the element must be on screen (0–1) before it may run.
+ *   Defaults to the wire default (`0.5`), the same as the JSON player.
+ * @prop visibilityDebounce  - How long that must hold, in ms, before it starts. Defaults to the
+ *   wire default (`150`).
  * @public
  */
 const PixodeskSvgCssAnimator = defineComponent({
     name: 'PixodeskSvgCssAnimator',
-
+    // The wrapper spreads `attrs` itself and merges `class` by hand, so Vue must not ALSO
+    // apply them — otherwise a host class lands on the div twice.
     inheritAttrs: false,
-
     props: {
-        startOn:   { type: String as PropType<PxStartOn>,   default: 'load' },
-        outAction: { type: String as PropType<PxOutAction>, default: 'continue' },
-        scrollIntoViewThreshold: { type: Number, default: PX_TRIGGER_DEFAULTS.scrollIntoViewThreshold },
+        start:     { type: String as PropType<PxTriggerStart>,    default: PX_TRIGGER_DEFAULTS.start },
+        offScreen: { type: String as PropType<PxOffScreenAction>, default: PX_TRIGGER_DEFAULTS.offScreen },
+        mouseOut:  { type: String as PropType<PxMouseOutAction>,  default: PX_TRIGGER_DEFAULTS.mouseOut },
+        visibilityThreshold: { type: Number, default: PX_TRIGGER_DEFAULTS.visibilityThreshold },
+        visibilityDebounce:  { type: Number, default: PX_TRIGGER_DEFAULTS.visibilityDebounce },
     },
+    setup(props, { slots, attrs }) {
+        const state = ref<AnimState>('idle');
+        const el = ref<HTMLDivElement | null>(null);
+        let gate: PxVisibilityGate | null = null;
 
-    setup(props, { slots }) {
-        const attrs = useAttrs();
-        const state = ref<AnimState>(props.startOn === 'load' ? 'playing' : 'idle');
-        const divRef = ref<HTMLDivElement | null>(null);
-
-        const goOut = () => {
+        const goOut = (): void => {
             state.value =
-                props.outAction === 'reset' ? 'idle' :
-                props.outAction === 'pause' ? 'paused' : 'playing';
+                props.mouseOut === PxMouseOutAction.reset ? 'idle' :
+                props.mouseOut === PxMouseOutAction.pause ? 'paused' : 'playing';
         };
 
-        let observerCleanup: (() => void) | undefined;
+        const attach = (): void => {
+            gate?.dispose();
+            gate = null;
+            const node = el.value;
+            if (!node) return;
+            gate = createVisibilityGate(node, {
+                start: props.start,
+                offScreen: props.offScreen,
+                mouseOut: props.mouseOut,
+                visibilityThreshold: props.visibilityThreshold,
+                visibilityDebounce: props.visibilityDebounce,
+            }, {
+                isPlaying: () => state.value === 'playing',
+                play: () => { state.value = 'playing'; },
+                pause: () => { state.value = 'paused'; },
+                cancel: () => { state.value = 'idle'; },
+            });
+            // Only `load` is held by the gate; a hover or a click is aimed at something seen.
+            if (props.start === PxTriggerStart.load) gate.requestStart(false);
+        };
 
-        onMounted(() => {
-            if (props.startOn !== 'scrollIntoView') return;
-            const el = divRef.value;
-            if (!el) return;
-            const outState: AnimState =
-                props.outAction === 'reset' ? 'idle' :
-                props.outAction === 'pause' ? 'paused' : 'playing';
-            // `isIntersecting` is true at ONE visible pixel, so with a threshold above 0 it could
-            // never report "out" — read the ratio against the threshold instead (review §13).
-            const threshold = props.scrollIntoViewThreshold;
-            const visible = (entry: IntersectionObserverEntry): boolean =>
-                threshold > 0 ? entry.intersectionRatio >= threshold : entry.isIntersecting;
-            const observer = new IntersectionObserver(
-                ([entry]) => { state.value = visible(entry) ? 'playing' : outState; },
-                { threshold }
-            );
-            observer.observe(el);
-            observerCleanup = () => observer.disconnect();
-        });
+        onMounted(attach);
+        watch(() => [props.start, props.offScreen, props.mouseOut, props.visibilityThreshold, props.visibilityDebounce], attach);
+        onBeforeUnmount(() => { gate?.dispose(); gate = null; });
 
-        onUnmounted(() => observerCleanup?.());
+        const requestStart = (): void => {
+            if (gate) gate.requestStart(true);
+            else state.value = 'playing';
+        };
 
-        const animClass = computed(() =>
+        const cssClass = computed(() =>
             state.value === 'playing' ? 'px-anim-enabled px-anim-playing' :
-            state.value === 'paused'  ? 'px-anim-enabled' : ''
+            state.value === 'paused' ? 'px-anim-enabled' : ''
         );
 
         const handlers = computed(() =>
-            props.startOn === 'mouseOver' ? {
-                onMouseenter: () => { state.value = 'playing'; },
-                onMouseleave: goOut,
-            } :
-            props.startOn === 'click' ? {
-                onClick: () => state.value === 'playing' ? goOut() : (state.value = 'playing'),
-            } : {}
+            props.start === PxTriggerStart.mouseOver
+                ? { onMouseenter: requestStart, onMouseleave: goOut }
+                : props.start === PxTriggerStart.click
+                    ? { onClick: () => { if (state.value === 'playing') state.value = 'paused'; else requestStart(); } }
+                    : {}
         );
 
         return () => h('div', {
-            ref: divRef,
+            ref: el,
             ...attrs,
-            class: [attrs.class, animClass.value],
+            class: [attrs.class, cssClass.value],
             ...handlers.value,
         }, slots.default?.());
     },
 });
-
 export default PixodeskSvgCssAnimator;

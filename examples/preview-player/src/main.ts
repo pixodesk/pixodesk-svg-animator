@@ -55,9 +55,12 @@ const triggerConfigEl = $('trigger-config');
 const chkFileConfig = $<HTMLInputElement>('chk-file-config');
 const selStartOn = $<HTMLSelectElement>('sel-start-on');
 const selOutAction = $<HTMLSelectElement>('sel-out-action');
+const selOffScreen = $<HTMLSelectElement>('sel-off-screen');
 const inpThreshold = $<HTMLInputElement>('inp-threshold');
-const outActionField = $('out-action-field');
+const inpDebounce = $<HTMLInputElement>('inp-debounce');
+const mouseOutField = $('out-action-field');
 const thresholdField = $('threshold-field');
+const debounceField = $('debounce-field');
 
 const transportButtons = [btnPlay, btnPause, btnStop, btnRestart, btnFinish];
 
@@ -181,10 +184,15 @@ function setControlsEnabled(enabled: boolean): void {
 function currentTriggerOption(): PlayerOptions['trigger'] {
   if (!useTrigger) return undefined;
   if (useFileConfig) return 'file';
-  const startOn = selStartOn.value as PxTrigger['startOn'];
-  const trigger: PxTrigger = { startOn };
-  if (startOn !== 'load') trigger.outAction = selOutAction.value as PxTrigger['outAction'];
-  if (startOn === 'scrollIntoView') trigger.scrollIntoViewThreshold = Number(inpThreshold.value);
+  // TWO AXES: what STARTS it, and whether it may RUN.
+  const start = selStartOn.value as PxTrigger['start'];
+  const offScreen = selOffScreen.value as PxTrigger['offScreen'];
+  const trigger: PxTrigger = { start, offScreen };
+  if (start === 'mouseOver') trigger.mouseOut = selOutAction.value as PxTrigger['mouseOut'];
+  if (offScreen !== 'continue') {
+    trigger.visibilityThreshold = Number(inpThreshold.value);
+    trigger.visibilityDebounce = Number(inpDebounce.value);
+  }
   return trigger;
 }
 
@@ -199,18 +207,26 @@ function syncTriggerUi(): void {
     // Show the file's config, read-only.
     const fileTrigger = currentDoc ? getAnimatorConfig(currentDoc)?.trigger : undefined;
     selStartOn.value =
-      fileTrigger?.startOn && fileTrigger.startOn !== 'programmatic' ? fileTrigger.startOn : 'load';
-    selOutAction.value = fileTrigger?.outAction ?? 'pause';
-    if (fileTrigger?.scrollIntoViewThreshold != null) {
-      inpThreshold.value = String(fileTrigger.scrollIntoViewThreshold);
+      fileTrigger?.start && fileTrigger.start !== 'none' ? fileTrigger.start : 'load';
+    selOffScreen.value = fileTrigger?.offScreen ?? 'pause';
+    selOutAction.value = fileTrigger?.mouseOut ?? 'continue';
+    if (fileTrigger?.visibilityThreshold != null) {
+      inpThreshold.value = String(fileTrigger.visibilityThreshold);
+    }
+    if (fileTrigger?.visibilityDebounce != null) {
+      inpDebounce.value = String(fileTrigger.visibilityDebounce);
     }
   }
   // "From file" → fields are read-only; custom → editable.
-  for (const el of [selStartOn, selOutAction, inpThreshold]) el.disabled = useFileConfig;
+  for (const el of [selStartOn, selOffScreen, selOutAction, inpThreshold, inpDebounce]) {
+    el.disabled = useFileConfig;
+  }
 
-  // outAction is meaningless for `load`; threshold only for `scrollIntoView`.
-  outActionField.hidden = selStartOn.value === 'load';
-  thresholdField.hidden = selStartOn.value !== 'scrollIntoView';
+  // `mouseOut` is read only for a hover start; the visibility pair only while there IS a gate.
+  mouseOutField.hidden = selStartOn.value !== 'mouseOver';
+  const gated = selOffScreen.value !== 'continue';
+  thresholdField.hidden = !gated;
+  debounceField.hidden = !gated;
 }
 
 // -- Mount / remount ---------------------------------------------------------
@@ -273,11 +289,11 @@ function remount(): void {
 function loadDocument(doc: PxAnimatedSvgDocument, sourceLabel: string): void {
   currentDoc = doc;
   filenameEl.textContent = sourceLabel;
-  // Auto-detect the trigger mode from the loaded file: a REAL (non-`programmatic`) trigger
-  // turns "Use trigger" ON and reads its config from the file; `programmatic`/none leaves it
-  // OFF so the transport buttons drive playback.
-  const fileStartOn = getAnimatorConfig(doc)?.trigger?.startOn;
-  useTrigger = !!fileStartOn && fileStartOn !== 'programmatic';
+  // Auto-detect the trigger mode from the loaded file: a REAL trigger turns "Use trigger" ON
+  // and reads its config from the file; `none` (or no trigger at all) leaves it OFF so the
+  // transport buttons drive playback.
+  const fileStart = getAnimatorConfig(doc)?.trigger?.start;
+  useTrigger = !!fileStart && fileStart !== 'none';
   useFileConfig = true;
   remount();
 }

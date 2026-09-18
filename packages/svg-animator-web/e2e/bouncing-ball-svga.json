@@ -10,8 +10,8 @@
       "mode": "player",
       "duration": 1000,
       "trigger": {
-        "startOn": "load",
-        "outAction": "pause"
+        "start": "load",
+        "offScreen": "continue"
       },
       "iterations": "infinite",
       "direction": "normal"

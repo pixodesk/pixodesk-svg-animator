@@ -45,7 +45,7 @@ A marker is a line of its own directly above the block it checks:
 | `signature` | — (every declaration in the block) | a `typescript` block of `interface` / `type` / `function` / `const` declarations, each compared with the export of the same name: members (names, `?`, types), parameters and return type, alias text, const keys. `omit=Type.member` leaves a real member unshown on purpose; `loose=Type.member` compares the name only; `extra=Type.member` allows a doc-only member; `skip=Name` a doc-only declaration |
 | `exports <package>` | `@pixodesk/svg-animator-web` … | the enclosing `##` section mentions every export of the package (in code blocks or backticks); a `Symbol(s)` column lists each name once and never a non-export. `except=a,b` for exports deliberately unlisted. With `partial`, only the marked table's names are checked to be exports |
 | `matrix col=pkg:Type …` | one `pkg:Type` (or `~` = unchecked) per column after the name column | a props-across-players table: a cell is `—` exactly when that surface lacks the member; `` `@event` `` cells are checked against a Vue component's emits; every member of every column has a row |
-| `values <Const>` | a const object (`PxStartOn`) | a table whose rows are the const's keys or values, all of them |
+| `values <Const>` | a const object (`PxTriggerStart`) | a table whose rows are the const's keys or values, all of them |
 | `emits <Component>` | a Vue component | a table of its events, all of them |
 | `members <Type>` | an interface | a paragraph or list naming the members in backticks (`play()`, `pause()` …), all of them |
 | `schema <PxXSchema>` | a runtime schema from core | a field table: every row a key of the schema (dotted paths like `retime.start` allowed), every key a row. `at=path` descends first; `variant=scroll` picks a discriminated-union member; `values=type` lists a union's discriminant values instead; `partial` skips the completeness check |
@@ -119,7 +119,7 @@ compared, so none of these differences fail a check: whitespace and quotes, `T[]
 the order of union members or object-literal members, parameter names inside function *types*,
 `| undefined` on an optional member, a `React.` qualifier, method vs property syntax. Type
 aliases and interfaces are expanded textually on both sides too, so a doc may inline
-`'load' | 'click' | …` where the type says `PxStartOn`, or `{ motionPath?: … }` where it says
+`'load' | 'click' | …` where the type says `PxTriggerStart`, or `{ motionPath?: … }` where it says
 `PxMaterializeAllOptions`, or keep the name.
 
 Union-typed values in `schema-block` (`"M…" | ANIMATE`, `boolean | { … }`) are matched to the

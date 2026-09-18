@@ -76,7 +76,7 @@ describe('apiRef is NOT a mode (§1)', () => {
 
     it('the resolver takes no ref at all — a handle is not an instruction', () => {
         // The whole bug was React treating `apiRef` as a mode, which forced
-        // `startOn: 'programmatic'` and stopped `autoplay` ever starting.
+        // `start: 'none'` and stopped `autoplay` ever starting.
         expect(resolveControlMode({ autoplay: true }).mode).toBe(PxControlMode.autoplay);
         expect(controlModeTakesOverTrigger(PxControlMode.autoplay)).toBe(false);
     });

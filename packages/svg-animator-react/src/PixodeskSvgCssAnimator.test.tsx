@@ -24,7 +24,7 @@ describe("PixodeskSvgCssAnimator (React)", () => {
         expect(div.querySelector("svg[data-testid='inner-svg']")).not.toBeNull();
     });
 
-    it("plays immediately with the default startOn='load'", () => {
+    it("plays immediately with the default start='load'", () => {
         const { container } = render(
             <PixodeskSvgCssAnimator>
                 <svg />
@@ -65,9 +65,9 @@ describe("PixodeskSvgCssAnimator (React)", () => {
         expect(div.style.width).toBe("123px");
     });
 
-    it("toggles classes for startOn='mouseOver' + outAction='pause'", () => {
+    it("toggles classes for start='mouseOver' + mouseOut='pause'", () => {
         const { container } = render(
-            <PixodeskSvgCssAnimator startOn="mouseOver" outAction="pause">
+            <PixodeskSvgCssAnimator start="mouseOver" mouseOut="pause">
                 <svg />
             </PixodeskSvgCssAnimator>
         );
@@ -85,9 +85,9 @@ describe("PixodeskSvgCssAnimator (React)", () => {
         expect(div.className).toBe("px-anim-enabled");
     });
 
-    it("resets to idle on mouse-out when outAction='reset'", () => {
+    it("resets to idle on mouse-out when mouseOut='reset'", () => {
         const { container } = render(
-            <PixodeskSvgCssAnimator startOn="mouseOver" outAction="reset">
+            <PixodeskSvgCssAnimator start="mouseOver" mouseOut="reset">
                 <svg />
             </PixodeskSvgCssAnimator>
         );

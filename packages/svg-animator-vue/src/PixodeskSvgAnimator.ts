@@ -100,14 +100,14 @@ function applyDocOverrides(
     // wire-format document — which is what every writer emits — `flattenAnimatorTimeline`
     // overwrote them from `timeline` immediately afterwards, so the overrides were silently
     // discarded. See dev-docs/plans/playback-override.md §1.1.
-    const { timeline, resetTimeline, duration, delay, iterations, startOn } = props;
-    const patch = foldTimelineOverride(timeline, { duration, delay, iterations, startOn });
+    const { timeline, resetTimeline, duration, delay, iterations, start } = props;
+    const patch = foldTimelineOverride(timeline, { duration, delay, iterations, start });
     const fullPatch: any = controlModeTakesOverTrigger(compMode)
         ? {
             ...(patch ?? {}),
             timeline: {
                 ...((patch as any)?.timeline ?? {}),
-                trigger: { ...((patch as any)?.timeline?.trigger ?? {}), startOn: 'programmatic' },
+                trigger: { ...((patch as any)?.timeline?.trigger ?? {}), start: 'none' },
             },
         }
         : patch;
@@ -190,7 +190,7 @@ const PixodeskSvgAnimator = defineComponent({
         duration: { type: Number },
         delay: { type: Number },
         iterations: { type: [Number, String] as PropType<number | 'infinite'> },
-        startOn: { type: String as PropType<'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic'> },
+        start: { type: String as PropType<'load' | 'mouseOver' | 'click' | 'none'> },
 
         // -- Declarative control
         autoplay: { type: Boolean, default: undefined },

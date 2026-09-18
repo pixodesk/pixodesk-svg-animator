@@ -3,39 +3,36 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxDiagnosticCode, PxDiagnosticKind, resolveTrigger, type PxDiagnostics, type PxTrigger } from '@pixodesk/svg-animator-core';
+import { PxDiagnosticCode, PxDiagnosticKind, PxMouseOutAction, PxTriggerStart, resolveTrigger,
+    type PxDiagnostics, type PxTrigger } from '@pixodesk/svg-animator-core';
 import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
+import { createVisibilityGate } from './PxVisibilityGate';
 
 
 /**
- * Sets up event-based triggers for an animation.
+ * Wires a document's trigger block to its root element.
  *
- * This function attaches event listeners to the animation's root element based on the
- * provided configuration, allowing animations to be started by user interactions
- * or visibility changes.
+ * TWO INDEPENDENT AXES, which is why there is no `scrollIntoView` here:
+ *  - `start` — what STARTS the animation: 'load' (default), 'mouseOver', 'click', or 'none'
+ *    (nothing but the API does).
+ *  - `offScreen` + `visibilityThreshold` + `visibilityDebounce` — whether it may RUN, whatever
+ *    started it. Owned by {@link createVisibilityGate}, wired for every document.
  *
- * ### Trigger Options (startOn):
- * - 'load' (default): Starts after the page loads.
- * - 'mouseOver': Starts on mouse enter.
- * - 'click': Toggles play/end action on click.
- * - 'scrollIntoView': Starts when the element scrolls into the viewport.
- * - 'programmatic': No automatic start. Must be controlled via the API.
+ * `start: 'load'` behind the default gate is what `startOn: 'scrollIntoView'` used to mean: hold
+ * at frame 0 until enough is on screen, play, pause when it leaves, resume when it returns. The
+ * difference is that the same gate now also applies to a document started by a click or a hover.
  *
- * ### End Action Options (outAction):
- * Defines behavior when the trigger condition ends (e.g., mouse leave).
- * - 'continue' (default): Animation continues playing.
- * - 'pause': Pauses the animation.
- * - 'reset': Cancels the animation, resetting it to the start.
- * - 'reverse': Reverses the animation playback.
+ * `mouseOut` is what happens when the pointer LEAVES ('continue' by default, or pause / reset /
+ * reverse); it is read only for `start: 'mouseOver'`. A `click` document is a plain play/pause
+ * toggle with nothing to configure.
  *
- * @param {!PxAnimatorApi} api The animator API instance to control.
- * @param {!PxTrigger} trigger The trigger configuration object. Only `startOn`, `outAction` and
- *   `scrollIntoViewThreshold` are read here; `finishAction` belongs to the PLAYER (what happens
- *   after a natural end), not to the trigger wiring.
- * @returns A disposer that detaches every listener and observer this call attached (review §14).
- *   `createAnimator` ties it to `destroy()`. Call it yourself before re-arming an element you
- *   wired by hand — otherwise the old listeners stay live next to the new ones.
+ * @param api The animator API instance to control.
+ * @param trigger The trigger configuration. `finish` belongs to the PLAYER (what happens after a
+ *   natural end), not to the trigger wiring, and is not read here.
+ * @returns A disposer that detaches every listener, observer and timer this call attached
+ *   (review §14). `createAnimator` ties it to `destroy()`. Call it yourself before re-arming an
+ *   element you wired by hand — otherwise the old listeners stay live next to the new ones.
  * @public
  */
 export function setupAnimationTriggers(
@@ -50,10 +47,10 @@ export function setupAnimationTriggers(
     const cleanups: Array<() => void> = [];
     const dispose = (): void => { for (const undo of cleanups.splice(0)) undo(); };
     // The defaults come from core's one table, shared with every player (`PX_TRIGGER_DEFAULTS`):
-    // no `startOn` = 'load', no `outAction` = 'continue', no threshold = 0 ("any pixel visible").
-    // The threshold default must match the editor model's (TSvgSvgAnimationAttr
-    // .scrollIntoViewThreshold), which OMITS the value on the wire when it equals it.
-    const { startOn, outAction, scrollIntoViewThreshold } = resolveTrigger(trigger);
+    // no `start` = 'load', no `offScreen` = 'pause', no `mouseOut` = 'continue', no threshold
+    // = 0.5, no debounce = 150ms. The threshold default must match the editor model's
+    // (TSvgSvgAnimationAttr.visibilityThreshold), which OMITS the value on the wire when it equals it.
+    const resolved = resolveTrigger(trigger);
 
     const root = api.getRootElement();
 
@@ -62,13 +59,12 @@ export function setupAnimationTriggers(
         return dispose;
     }
 
-    // Tracks whether the LAST out-action put the animation into reverse, so the
-    // next trigger start can restore forward playback without clobbering a
-    // custom playback rate the user may have set through the API.
+    // Tracks whether the LAST mouse-out action put the animation into reverse, so the next start
+    // can restore forward playback without clobbering a custom playback rate set through the API.
     let reversed = false;
 
     /** Ensures forward playback and starts or resumes the animation. */
-    const start = () => {
+    const start = (): void => {
         if (reversed) {
             reversed = false;
             api.setPlaybackRate(1);
@@ -76,32 +72,44 @@ export function setupAnimationTriggers(
         api.play();
     };
 
-    /** Handles what to do when the element leaves the active trigger condition. */
-    const handleEndAction = () => {
-        switch (outAction) {
-            case 'pause':
+    // Permission to run, for every document and whatever starts it.
+    const gate = createVisibilityGate(root, resolved, {
+        isPlaying: () => api.isPlaying(),
+        play: start,
+        pause: () => api.pause(),
+        cancel: () => api.cancel(),
+    });
+    cleanups.push(() => gate.dispose());
+
+    /** What to do when the pointer leaves — `start: 'mouseOver'` only. */
+    const handleMouseOut = (): void => {
+        switch (resolved.mouseOut) {
+            case PxMouseOutAction.pause:
                 api.pause();
                 break;
-            case 'reset':
+            case PxMouseOutAction.reset:
                 api.cancel();
                 break;
-            case 'reverse':
+            case PxMouseOutAction.reverse:
                 // Play the animation backwards from its current position.
                 reversed = true;
                 api.setPlaybackRate(-1);
                 api.play();
                 break;
-            case 'continue':
+            case PxMouseOutAction.continue:
             default:
                 // Do nothing
                 break;
         }
     };
 
-    // ---- Setup event-based start logic ----
-    switch (startOn) {
-        case 'load': {
-            const startHandler = () => start();
+    // ---- What starts it ----
+    switch (resolved.start) {
+        case PxTriggerStart.load: {
+            // The only start that the gate may hold: nobody interacted, so there is nothing to
+            // honour immediately. `requestStart(false)` plays now if enough is already on screen
+            // (after the debounce), and otherwise waits for it to be.
+            const startHandler = () => gate.requestStart(false);
             if (document.readyState === 'complete') {
                 startHandler();
             } else {
@@ -111,15 +119,14 @@ export function setupAnimationTriggers(
             break;
         }
 
-        case 'mouseOver': {
+        case PxTriggerStart.mouseOver: {
             // An OUT may only follow an IN. A `mouseleave` with no preceding `mouseenter` happens
             // when the pointer is already over the element at load and then moves away — and for
-            // `outAction: 'reverse'` the out action PLAYS (`setPlaybackRate(-1); play()`), so an
-            // untriggered leave would start the animation running backwards. Same class of bug as
-            // the scrollIntoView initial-intersection case handled below.
+            // `mouseOut: 'reverse'` the out action PLAYS (`setPlaybackRate(-1); play()`), so an
+            // untriggered leave would start the animation running backwards.
             let enteredOnce = false;
-            const mouseOverHandler = () => { enteredOnce = true; start(); };
-            const mouseOutHandler = () => { if (enteredOnce) handleEndAction(); };
+            const mouseOverHandler = () => { enteredOnce = true; gate.requestStart(true); };
+            const mouseOutHandler = () => { if (enteredOnce) handleMouseOut(); };
 
             root.addEventListener('mouseenter', mouseOverHandler);
             root.addEventListener('mouseleave', mouseOutHandler);
@@ -130,73 +137,20 @@ export function setupAnimationTriggers(
             break;
         }
 
-        case 'click': {
+        case PxTriggerStart.click: {
+            // A plain toggle. The reader is pointing at it, so a start never waits for the gate.
             const clickHandler = () => {
-                if (api.isPlaying()) {
-                    handleEndAction();
-                } else {
-                    start();
-                }
+                if (api.isPlaying()) api.pause();
+                else gate.requestStart(true);
             };
             root.addEventListener('click', clickHandler);
             cleanups.push(() => root.removeEventListener('click', clickHandler));
             break;
         }
 
-        case 'scrollIntoView': {
-            // `observe()` delivers an INITIAL entry describing the CURRENT state, which is how an
-            // element that is already on screen starts without any scrolling. But that same initial
-            // entry also reports "not intersecting" for an element merely below the fold — and
-            // treating that as an out-action ran it before anything had ever played. For `reverse`
-            // that meant `setPlaybackRate(-1)` + `play()`, i.e. the animation started running
-            // BACKWARDS on page load. An OUT is only meaningful after an IN, so require one.
-            // A target TALLER than the viewport can never reach a high ratio (ratio is measured
-            // against the TARGET's own size), so a 0.5/0.9 threshold would be unsatisfiable and the
-            // animation would never play. Normalize by what could possibly be visible, and register
-            // a granular threshold list — registering the raw threshold would mean the callback
-            // never fires at all for such a target.
-            const effectiveRatio = (entry: IntersectionObserverEntry): number => {
-                const target = entry.boundingClientRect;
-                const visible = entry.intersectionRect;
-                // Simplified entries (tests, older engines) may omit the rects — fall back to the
-                // browser's own ratio rather than inventing one.
-                if (!target?.height || !visible) return entry.intersectionRatio;
-                // Use the SMALLER of `rootBounds` and the live viewport. `rootBounds` can be null
-                // (implicit root in some embeddings) and can also report a box LARGER than the
-                // actual viewport — trusting it then reinstates the very cap this normalization
-                // exists to remove. `intersectionRect` is already clipped to the real viewport, so
-                // the denominator must be too.
-                const live = typeof window !== 'undefined' && window.innerHeight ? window.innerHeight : Infinity;
-                const declared = entry.rootBounds?.height ?? Infinity;
-                const viewport = Math.min(live, declared);
-                const denom = Math.min(target.height, Number.isFinite(viewport) ? viewport : target.height);
-                return denom > 0 ? visible.height / denom : entry.intersectionRatio;
-            };
-            const thresholdSteps = Array.from({ length: 21 }, (_, i) => i / 20);
-            let wasIntersecting = false;
-            const observer = new IntersectionObserver(
-                entries => {
-                    entries.forEach(entry => {
-                        // If the element is at least partially visible
-                        if (entry.isIntersecting && effectiveRatio(entry) >= scrollIntoViewThreshold) {
-                            wasIntersecting = true;
-                            start();
-                        } else if (wasIntersecting) {
-                            // Element scrolled OFF screen after having been on it -> out action
-                            wasIntersecting = false;
-                            handleEndAction();
-                        }
-                    });
-                },
-                { threshold: thresholdSteps }
-            );
-            observer.observe(root);
-            cleanups.push(() => observer.disconnect());
-            break;
-        }
-
-        case 'programmatic':
-            // No auto-start; external code must call play()
+        case PxTriggerStart.none:
+            // No auto-start; external code must call play(). The gate still applies afterwards,
+            // so an API-started animation pauses when it scrolls out of view.
             break;
     }
 

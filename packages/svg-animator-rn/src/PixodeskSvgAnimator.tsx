@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { clampSeekMs, createRunClock, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, generateNewIds, getAnimatorConfig, getDefinitions, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
+import { clampSeekMs, createRunClock, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, generateNewIds, getAnimatorConfig, getDefinitions, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
@@ -238,7 +238,7 @@ const EMPTY_TRACKS: PxCompiledTracks = {
  * whole thing sits behind one try/catch, and so it can be tested directly.
  */
 function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides, diag: PxDiagnostics): Compiled {
-    const { timeline, resetTimeline, duration, delay, iterations, startOn } = overrides;
+    const { timeline, resetTimeline, duration, delay, iterations, start } = overrides;
     const warnings = validateNodeEffects(doc as PxNode);
     for (const w of warnings) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.effectsShape, w);
     // The whole-document boundary diagnostic — see the note in the web player's entry.
@@ -247,7 +247,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
     // The per-instance override, applied to the WIRE document BEFORE anything reads the
     // config — `materializeAllInTree` samples motion paths against `duration`, so a later
     // patch would be read by none of the pipeline. Same call, same rules, on every surface.
-    const patch = foldTimelineOverride(timeline, { duration, delay, iterations, startOn });
+    const patch = foldTimelineOverride(timeline, { duration, delay, iterations, start });
     if (patch !== undefined || resetTimeline) {
         const applied = applyAnimatorConfig(doc, patch ?? {}, { resetTimeline: !!resetTimeline });
         for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
@@ -291,7 +291,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
  * @public
  */
 export function PixodeskSvgAnimator({
-    doc, timeline, resetTimeline, duration, delay, iterations, startOn,
+    doc, timeline, resetTimeline, duration, delay, iterations, start,
     // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
     autoplay, play, pause, apiRef, progress: progressProp, time,
     onPlay, onStop, onPause, onCancel, onFinish, onRemove, onError, fallback, onWarn, muteWarn, muteError,
@@ -318,7 +318,7 @@ export function PixodeskSvgAnimator({
         try {
             return compileDocument(
                 doc,
-                { timeline, resetTimeline, duration, delay, iterations, startOn },
+                { timeline, resetTimeline, duration, delay, iterations, start },
                 makeDiag(),
             );
         } catch (e) {
@@ -330,7 +330,7 @@ export function PixodeskSvgAnimator({
         }
         // `timeline` is an object prop, so a fresh literal each render would recompile the whole
         // document. Key on its CONTENT — the override is small, unlike the document.
-    }, [doc, timelineKey, resetTimeline, duration, delay, iterations, startOn]);
+    }, [doc, timelineKey, resetTimeline, duration, delay, iterations, start]);
 
     const tracks: PxCompiledTracks = compiled.tracks;
     // The span `progress` 0–1 covers (ONE iteration when endless) — NOT the seek ceiling.
@@ -495,12 +495,14 @@ export function PixodeskSvgAnimator({
     // -- Declarative control --------------------------------------------------
 
     // The EFFECTIVE trigger, read back off the COMPILED document — so it already reflects the
-    // `timeline` override and the `startOn` shortcut, both merged in before compilation.
+    // `timeline` override and the `start` shortcut, both merged in before compilation.
     // Resolved through core's one table, so a document means the same here as on the web:
-    // no `startOn` = 'load', no `outAction` = 'continue'.
+    // no `start` = 'load', no `offScreen` = 'pause'.
     const trigger = resolveTrigger(compiled.doc ? getAnimatorConfig(compiled.doc)?.trigger : undefined);
-    const effectiveStartOn = trigger.startOn;
-    const effectiveOutAction = trigger.outAction;
+    const effectiveStart = trigger.start;
+    const effectiveOffScreen = trigger.offScreen;
+    /** Whether visibility governs this document. `continue` means "run wherever it is". */
+    const gated = effectiveOffScreen !== 'continue';
 
     // ONE control-mode rule, decided in core and shared with React and Vue (API review §1/§7).
     // This component always had the right ORDER but no name for it, and never told anyone when
@@ -529,22 +531,23 @@ export function PixodeskSvgAnimator({
             else api.play();
             return;
         }
-        // 'click' and 'scrollIntoView' start from their own handlers below.
-        if (compMode === PxControlMode.autoplay && effectiveStartOn === 'load') {
+        // 'click' starts from its own handler below, and a GATED document starts from the
+        // visibility poll — calling play() here as well would defeat the gate.
+        if (compMode === PxControlMode.autoplay && effectiveStart === 'load' && !gated) {
             api.play();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [compiled, compMode, autoplay, play, pause, progressProp, time]);
 
-    // `startOn: 'scrollIntoView'` — react-native has no IntersectionObserver, so
-    // visibility is sampled by measuring the view against the window box. The
-    // poll is cheap (a native measure every 200ms) and only runs while this
-    // trigger is active; `outAction` decides what leaving the viewport does.
+    // THE VISIBILITY GATE — permission to run, whatever started the animation, exactly as on the
+    // web (`PxVisibilityGate`). React Native has no IntersectionObserver, so visibility is sampled
+    // by measuring the view against the window box. The poll is cheap (a native measure every
+    // 200ms) and only runs while the gate is active, which `offScreen: 'continue'` turns off.
     const scrollRef = useRef<View | null>(null);
     const inViewRef = useRef(false);
     useEffect(() => {
-        if (!autoplay || effectiveStartOn !== 'scrollIntoView') return;
-        const threshold = trigger.scrollIntoViewThreshold;
+        if (!autoplay || !gated) return;
+        const threshold = trigger.visibilityThreshold;
         inViewRef.current = false;
 
         const check = () => {
@@ -561,9 +564,8 @@ export function PixodeskSvgAnimator({
                 if (isIn) {
                     if (rateRef.current < 0) api.setPlaybackRate(Math.abs(rateRef.current));
                     api.play();
-                } else if (effectiveOutAction === 'reset') api.cancel();
-                else if (effectiveOutAction === 'reverse') { api.setPlaybackRate(-Math.abs(rateRef.current || 1)); api.play(); }
-                else if (effectiveOutAction !== 'continue') api.pause();
+                } else if (effectiveOffScreen === 'reset') api.cancel();
+                else api.pause();   // 'continue' never reaches here — the poll does not run
             });
         };
 
@@ -571,7 +573,7 @@ export function PixodeskSvgAnimator({
         const id = setInterval(check, 200);
         return () => clearInterval(id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compiled, autoplay, effectiveStartOn, effectiveOutAction]);
+    }, [compiled, autoplay, gated, effectiveOffScreen]);
 
     // Stop cleanly on unmount / doc swap — and say so, the way the web's destroy() does (§18):
     // both are "the animator was thrown away", so `onRemove` fires, and `onStop` with it.
@@ -667,23 +669,17 @@ export function PixodeskSvgAnimator({
     const failure = compiled.error ?? renderErrorRef.current;
     if (failure) return fallback ? fallback(failure) : null;
 
-    // `startOn: 'click'` — the touch analogue of the web player's click trigger:
-    // tap to start, tap again to apply `outAction`. Hover (`mouseOver`) has no
-    // touch equivalent and `scrollIntoView` needs the surrounding scroll view,
-    // so both are left to the host app.
+    // `start: 'click'` — the touch analogue of the web player's click trigger: a plain toggle,
+    // tap to play and tap again to pause. Hover (`mouseOver`) has no touch equivalent, so it is
+    // left to the host app.
     let content: ReactElement | null = root;
 
-    if (autoplay && effectiveStartOn === 'scrollIntoView' && root) {
-        // `collapsable={false}` keeps the view in the native tree so it can be measured.
-        content = <View ref={scrollRef} collapsable={false}>{root}</View>;
-    } else if (autoplay && effectiveStartOn === 'click' && root) {
+    if (autoplay && effectiveStart === 'click' && root) {
         content = (
             <Pressable
                 onPress={() => {
                     if (playingRef.current) {
-                        if (effectiveOutAction === 'reset') api.cancel();
-                        else if (effectiveOutAction === 'reverse') { api.setPlaybackRate(-Math.abs(rateRef.current || 1)); api.play(); }
-                        else if (effectiveOutAction !== 'continue') api.pause();
+                        api.pause();
                     } else {
                         if (rateRef.current < 0) api.setPlaybackRate(Math.abs(rateRef.current));
                         api.play();
@@ -693,6 +689,12 @@ export function PixodeskSvgAnimator({
                 {root}
             </Pressable>
         );
+    }
+
+    // The gate measures the view, so it must survive in the native tree:
+    // `collapsable={false}` keeps it there.
+    if (autoplay && gated && content) {
+        content = <View ref={scrollRef} collapsable={false}>{content}</View>;
     }
 
     // Catches what the try/catch above cannot: throws during React's own render

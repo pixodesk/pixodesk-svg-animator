@@ -332,7 +332,7 @@ describe('createAdapterAnimator', () => {
 
     it('onFinish fires on every replay of a hover/reverse trigger cycle (finish re-arms on play)', () => {
         // Mirrors what setupAnimationTriggers produces for
-        // startOn:'mouseOver' + outAction:'reverse':
+        // start:'mouseOver' + mouseOut:'reverse':
         // hover → play to end, leave → reverse to 0, hover → forward to end.
         const onFinish = vi.fn();
         const { api } = setup({}, { onFinish });

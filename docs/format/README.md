@@ -79,7 +79,7 @@ comments, so a real file has none):
   "viewBox": "0 0 400 400",
 
   // ADDED: the playback settings — how long, how many times, what starts it
-  "animator": { "timeline": { "duration": 1000, "iterations": "infinite", "trigger": { "startOn": "load" } } },
+  "animator": { "timeline": { "duration": 1000, "iterations": "infinite", "trigger": { "start": "load" } } },
 
   "children": [
     {
@@ -128,7 +128,7 @@ document that animates — everything not written in it is a default:
 
 No `animator` block at all means: a time-driven timeline (no `type` needed), one iteration of
 1000 ms, **starting on load** and holding the final state. To have your own code start it
-instead, say `"animator": { "timeline": { "trigger": { "startOn": "programmatic" } } }`.
+instead, say `"animator": { "timeline": { "trigger": { "start": "none" } } }`.
 
 Every block below also has a name you can import from `@pixodesk/svg-animator-core`, for when you
 write or transform documents in TypeScript rather than by hand:
@@ -148,8 +148,8 @@ write or transform documents in TypeScript rather than by hand:
 | `PxTransformParts` | a transform written in parts; `PxTransformValue` is one such value and `PxVec2` an `[x, y]` pair |
 | `PxBezierPath` | a path outline as bezier segments |
 | `PxScroll` | a scroll-driven timeline; `PxScrollRangePoint` is one end of its range |
-| `PxTimelineEngineSetting` · `PxTimelineEngine` · `PxFillMode` · `PxPlaybackDirection` | the timeline's `engine` (as written: `auto` · `native` · `js`; as resolved: `native` · `js`), `fillMode` and `direction`. Every two-or-more-way wire selector is a named constant like these — a const namespace AND the string type of the same name, so `PxStartOn.click` and `startOn?: PxStartOn` come from one import |
-| `PxStartOn` · `PxOutAction` · `PxFinishAction` | the trigger's `startOn`, `outAction` and `finishAction` |
+| `PxTimelineEngineSetting` · `PxTimelineEngine` · `PxFillMode` · `PxPlaybackDirection` | the timeline's `engine` (as written: `auto` · `native` · `js`; as resolved: `native` · `js`), `fillMode` and `direction`. Every two-or-more-way wire selector is a named constant like these — a const namespace AND the string type of the same name, so `PxTriggerStart.click` and `start?: PxTriggerStart` come from one import |
+| `PxTriggerStart` · `PxMouseOutAction` · `PxFinishAction` | the trigger's `start`, `mouseOut` and `finish` |
 | `PxScrollKind` · `PxScrollAxis` · `PxScrollSource` · `PxScrollPhase` · `PxPinAlign` | a scroll timeline's `type`, `axis`, `source`, a range point's `phase`, and `pin.align` |
 | `PxAlongPathMode` · `PxLoopRepeatAt` · `PxLoopDirection` | a property animation's `alongPathMode`, and its `loop.repeatAt` / `loop.direction` |
 | `PxStrokeTrimSubPaths` · `PxCloneWithout` · `PxMaskType` · `PxUnits` · `PxGradientType` · `PxGradientSpreadMethod` · `PxPathOverflow` · `PxLengthAdjust` · `PxTextPathMethod` · `PxTextPathSpacing` | the effects' selectors: `strokeTrim.subPaths`, `clone.without`, `maskedBy.maskType`, the mask and gradient units, a gradient's `type` and `spreadMethod`, and `textPath`'s `pathOverflow` / `lengthAdjust` / `method` / `spacing` |
@@ -188,11 +188,13 @@ interface SVG_JSON extends NODE {
                 fillMode?: 'forwards' | 'backwards' | 'both' | 'none';                  // CSS animation-fill-mode; default 'forwards' holds final state
                 direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';  // default 'normal'
                 trigger?: {
-                    startOn?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'programmatic'; // default 'load'; 'programmatic' waits for play()
-                    outAction?: 'continue' | 'pause' | 'reset' | 'reverse'; // when the trigger condition ends; default 'continue'
-                    finishAction?: 'hold' | 'reset';  // after a NATURAL finish; default 'hold' (keep end state per `fillMode`).
-                                                      // Named to pair with `outAction`, and to stay clear of the onFinish CALLBACK
-                    scrollIntoViewThreshold?: number; // how much must be on screen to start: 0 = any part (default), 1 = all of it; scrollIntoView only
+                    start?: 'load' | 'mouseOver' | 'click' | 'none';       // what STARTS it; default 'load'; 'none' waits for play()
+                    offScreen?: 'pause' | 'continue' | 'reset';            // while nobody can see it; default 'pause'
+                    mouseOut?: 'continue' | 'pause' | 'reset' | 'reverse'; // when the pointer leaves; default 'continue'; read for start 'mouseOver'
+                    finish?: 'hold' | 'reset';        // after a NATURAL finish; default 'hold' (keep end state per `fillMode`).
+                                                      // Named for its occasion like its siblings, and to stay clear of the onFinish CALLBACK
+                    visibilityThreshold?: number;     // how much must be on screen before it may run: 0 = any part, 1 = all of it; default 0.5
+                    visibilityDebounce?: number;      // and for how long, ms; default 150, so scrolling straight past starts nothing
                 };
               }
             | {
@@ -241,7 +243,7 @@ interface SVG_JSON extends NODE {
         debugGlobalName?: string;  // debug helper: exposes the animator as window[debugGlobalName]
 
         version?: string;          // "a.b.c" — the schema the file was written for: a = generation,
-                                   // b = player schema (this release reads 1.1), c = editor extension
+                                   // b = player schema (this release reads 1.2), c = editor extension
                                    // (meta.*, ignored by the player) — see Versioning. Written by the
                                    // editor on save, never by the player; absent = unknown
 
@@ -687,7 +689,7 @@ each property has one fixed unit that is always understood:
 | time (`time`, `timeline.duration`, `timeline.delay`, `retime.start`) | milliseconds |
 | lengths, coordinates, `fontSize` in px | plain numbers in the drawing's coordinates (the `viewBox` space) — no unit is written |
 | `rotate`, `skew`, angles | degrees |
-| `opacity`, trim `range` / `offset`, stop `offset`, `scrollIntoViewThreshold` | a share of the whole, from `0` (none) to `1` (all) |
+| `opacity`, trim `range` / `offset`, stop `offset`, `visibilityThreshold` | a share of the whole, from `0` (none) to `1` (all) |
 | every `scale` | a multiplier: `1` = unchanged, `2` = double, `0.5` = half |
 | `retime.stretch` | a multiplier of duration: `2` = twice as long (half speed), `0.5` = half as long (double speed) |
 | `frameRate` | frames per second |
@@ -726,7 +728,7 @@ Five complete documents, one idea each.
   "viewBox": "0 0 400 400",
   "animator": {
     "timeline": { "duration": 1000, "iterations": "infinite",
-                  "trigger": { "startOn": "load" } }
+                  "trigger": { "start": "load" } }
   },
   "children": [
     { "type": "ellipse", "fill": "#007fff85", "rx": 64, "ry": 64,
@@ -1388,7 +1390,7 @@ function mergeAnimatorConfig(
     patch: PxAnimatorConfigPatch,
 ): PxAnimatorConfigMergeResult;
 
-// ○ Folds the four shortcuts (duration/delay/iterations/startOn) into a patch and
+// ○ Folds the four shortcuts (duration/delay/iterations/start) into a patch and
 //   parses the JSON-string form. A shortcut wins over the same key in `timeline`.
 //   This is what every player calls before `applyAnimatorConfig`.
 function foldTimelineOverride(
@@ -1397,7 +1399,7 @@ function foldTimelineOverride(
 ): PxAnimatorConfigPatch | undefined;
 
 // ○ The schema version — see Versioning, below.
-const PX_WIRE_SCHEMA_VERSION: '1.1';                                    // the schema this build reads
+const PX_WIRE_SCHEMA_VERSION: '1.2';                                    // the schema this build reads
 function readWireVersion(doc: unknown): PxWireVersion | undefined;          // animator.version (or meta.animator.version)
 function convertWireDocument(doc: unknown): PxWireConversionResult;     // up to this schema; never refuses, never mutates
 function downgradeWireDocument(doc: unknown, target: PxWireVersion): PxWireDowngradeResult;   // all or nothing
@@ -1427,7 +1429,7 @@ function resolveControlMode(props: PxControlProps): PxResolvedControlMode;
 
 // ● True when that mode has to take the document's own trigger over — every mode
 //   except `autoplay`, INCLUDING `static`: a component given no control props at
-//   all renders the first frame and waits, so it forces `startOn: 'programmatic'`.
+//   all renders the first frame and waits, so it forces `start: 'none'`.
 function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 ```
 
@@ -1440,10 +1442,10 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 | Player API types | `PxAnimatorApi<TRoot>`, `PxPlaybackApi<TRoot>`, `PxEngineCallbacks`, `PxPlatformAdapter` | ● platform-neutral; the web fixes `TRoot` to `Element`. `PxEngineCallbacks` is what an engine takes — the lifecycle on top of `PxDiagnosticsConfig` |
 | Component contract | `PxAnimatorHandle`, `PxAnimatorCallbacks`, `PxControlProps`, `PxControlMode`, `resolveControlMode(props)`, `controlModeTakesOverTrigger(mode)` | ● what the React / Vue / React Native components share: the imperative handle, the callback set, the props that pick a mode and the one rule that picks it — [the API at a glance](../library/README.md#the-api-at-a-glance) |
 | Engine rules | `resolveTimelineEngine(engine)`, `isNativeForced(engine)`, `mayUseNativeScrollTimeline(engine)` | ○ how a `timeline.engine` resolves to an engine / to the browser's ScrollTimeline — the players' own decision helpers |
-| Trigger defaults | `PX_TRIGGER_DEFAULTS`, `resolveTrigger(trigger)`| ○ what a missing trigger field means (`startOn` 'load', `outAction` 'continue', threshold 0) — the one resolution every player uses |
+| Trigger defaults | `PX_TRIGGER_DEFAULTS`, `resolveTrigger(trigger)`| ○ what a missing trigger field means (`start` 'load', `offScreen` 'pause', `mouseOut` 'continue', threshold 0.5, debounce 150 ms) — the one resolution every player uses |
 | Time contract | `seekCeilingMs`, `progressSpanMs`, `clampSeekMs`, `timeToProgress`, `progressToTimeMs`, `isValidPlaybackRate`, `PX_RATE_REJECTED`, `createRunClock` + | ○ the one meaning of time, seeking and rate that every engine implements — see `PxAnimatorApi` |
 | Diagnostics | `createDiagnostics(config?, prefix?)` (▪) → `PxDiagnostics`, `PxDiagnosticCode`, `PxDiagnosticKind` + `PxDiagnostic`, `PxDiagnosticsConfig` | ● the one channel every player reports through: `onWarn` / `onError` with a `code` saying what happened and a `kind` saying who can act, falling back to the console — see `PxEngineCallbacks`. The text is not shipped: `PxDiagnosticCode` is a number, described on the [codes page](../diagnostics.md) |
-| Enum values | `PxTimelineEngineSetting`, `PxTimelineEngine`, `PxGradientType`, `PxUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout` (`clone.without` → `'translate'`), `PxMaskType`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing`, `PxFillMode`, `PxPlaybackDirection`, `PxStartOn`, `PxOutAction`, `PxFinishAction`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings — each is a const namespace AND the type derived from it, so `PxStartOn.click` and `startOn?: PxStartOn` come from one import |
+| Enum values | `PxTimelineEngineSetting`, `PxTimelineEngine`, `PxGradientType`, `PxUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout` (`clone.without` → `'translate'`), `PxMaskType`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing`, `PxFillMode`, `PxPlaybackDirection`, `PxTriggerStart`, `PxOffScreenAction`, `PxMouseOutAction`, `PxFinishAction`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings — each is a const namespace AND the type derived from it, so `PxTriggerStart.click` and `start?: PxTriggerStart` come from one import |
 | Schema version | `PX_WIRE_SCHEMA_VERSION`, `PX_WIRE_VERSION`, `PX_WIRE_BASELINE_VERSION`, `PX_WIRE_STEPS`, `PX_WIRE_VERSION_KEY`, `PxWireVersionRelation`, `parseWireVersion`, `formatWireVersion`, `readWireVersion`, `compareWireVersion`, `wireVersionAdvice`, `convertWireDocument`, `downgradeWireDocument`, `applyWireSteps`, + `PxWireVersion`, `PxWireVersionStep`, `PxWireConversionResult`, `PxWireStepKind`, `PxWireConversionOptions` | ○ read, compare and convert a document's `animator.version` — [Versioning](#versioning) |
 | Schema release | `schemaFieldUniverse`, `diffFieldUniverse`, `planSchemaRelease`, `releaseLogProblems` | ▪ the field inventory and bump rule behind `scripts/schema-release.mjs` |
 | Diagnostics | `diagnoseDocument(doc)` (○) → (`{ problems }`), `reportDocumentDiagnostics(doc, where)`, `PX_UNKNOWN_KEY_ERROR` | ▪ the load-time check every player runs; call `validateDocument` instead |
@@ -1484,8 +1486,8 @@ A string `"a.b.c"`:
 | `b` | player schema revision. A player at `a.b` reads files of the same `a` and any `b` up to its own |
 | `c` | editor extension — covers `meta.*` only. The player ignores it |
 
-This release reads schema **`1.1`** (`PX_WIRE_SCHEMA_VERSION`). The editor stamps every file it
-saves (`"1.1.1"` today); the player never writes the stamp.
+This release reads schema **`1.2`** (`PX_WIRE_SCHEMA_VERSION`). The editor stamps every file it
+saves (`"1.2.1"` today); the player never writes the stamp.
 
 - **Not a gate.** A version gap on its own never refuses a file or warns. The player does not
   read the stamp when it plays a file — it checks the document against the schema it ships.
@@ -1499,9 +1501,10 @@ convert between the `"a.b.c"` string and its parts, `compareWireVersion` compare
 
 #### Converting a document
 
-Schema `1.1` is the first release, so there are no conversion steps yet: every current file
-converts to itself. The converters exist so that an older file can be brought forward once the
-schema moves.
+One step exists so far, `1.1` → `1.2`: the trigger block became two axes, so a `1.1` file is
+brought forward when it is read — `startOn` becomes `start`, `outAction` splits into `offScreen`
+and `mouseOut`, and `scrollIntoView` becomes the default visibility gate. It is one-way: `1.2` can
+say things `1.1` could not, such as "start on click **and** pause when scrolled away".
 
 ```ts
 import { convertWireDocument, downgradeWireDocument, parseWireVersion } from '@pixodesk/svg-animator-core';
@@ -1510,7 +1513,7 @@ import { convertWireDocument, downgradeWireDocument, parseWireVersion } from '@p
 const { doc, from, relation, applied, advice } = convertWireDocument(json);
 
 // Down to an older schema — all or nothing.
-const target = parseWireVersion('1.1');
+const target = parseWireVersion('1.1');   // refused here: the 1.2 step is one-way
 const down = target && downgradeWireDocument(json, target);
 if (down && !down.ok) console.warn(down.reason);
 ```

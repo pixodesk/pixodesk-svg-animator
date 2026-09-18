@@ -6,5 +6,24 @@
   "added": [],
   "removed": [],
   "note": "The first stamped player schema. Nothing precedes it: every older document was pre-release and was migrated by hand."
+ },
+ {
+  "version": "1.2",
+  "date": "2026-09-17",
+  "added": [
+   "animator.timeline|time.trigger.finish",
+   "animator.timeline|time.trigger.mouseOut",
+   "animator.timeline|time.trigger.offScreen",
+   "animator.timeline|time.trigger.start",
+   "animator.timeline|time.trigger.visibilityDebounce",
+   "animator.timeline|time.trigger.visibilityThreshold"
+  ],
+  "removed": [
+   "animator.timeline|time.trigger.finishAction",
+   "animator.timeline|time.trigger.outAction",
+   "animator.timeline|time.trigger.scrollIntoViewThreshold",
+   "animator.timeline|time.trigger.startOn"
+  ],
+  "note": "The trigger block became two axes: `start` says what STARTS an animation, `offScreen` + `visibilityThreshold` + `visibilityDebounce` say whether it may RUN. `scrollIntoView` is no longer a start value — it is what `start: 'load'` behind the default gate already means — and `outAction` split into `offScreen` (scroll) and `mouseOut` (hover), because one field meant three things."
  }
 ]

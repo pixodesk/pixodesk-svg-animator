@@ -53,6 +53,7 @@ than folded away. When a record and the code disagree, the code (and its tests) 
 
 | doc | what it is |
 |---|---|
+| [plans/trigger-model.md](plans/trigger-model.md) | **implemented 2026-09-18** — the `timeline.trigger` block rewritten: bare keys (`start`, `offScreen`, `mouseOut`, `finish`, plus `visibilityThreshold` and `visibilityDebounce`), `scrollIntoView` retired as a trigger, defaults that do not play off screen, schema 1.1 → 1.2 with a conversion step. One open defect in §11 |
 | [plans/playback-override.md](plans/playback-override.md) | per-instance playback override and two prop renames — implemented 2026-09-09; steps 7–8 dropped by decision D6 |
 | [plans/rn-core.md](plans/rn-core.md) | the split that produced today's layout: the platform-neutral `svg-animator-core`, and `svg-animator-rn` built on it |
 

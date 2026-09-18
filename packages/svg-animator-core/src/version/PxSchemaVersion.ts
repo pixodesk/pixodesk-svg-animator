@@ -21,4 +21,4 @@
  * and every format change invisible between releases.
  * @public @advanced
  */
-export const PX_WIRE_SCHEMA_VERSION = '1.1';
+export const PX_WIRE_SCHEMA_VERSION = '1.2';

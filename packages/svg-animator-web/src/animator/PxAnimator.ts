@@ -177,8 +177,8 @@ function isInternalOptions(options: PxAnimatorOptions): options is PxInternalAni
  * component packages and the plain-JS entry cannot drift).
  */
 export function resolveTimelineOption(options: PxAnimatorOptions): PxAnimatorConfigPatch | undefined {
-    const { timeline, duration, delay, iterations, startOn } = options;
-    return foldTimelineOverride(timeline, { duration, delay, iterations, startOn });
+    const { timeline, duration, delay, iterations, start } = options;
+    return foldTimelineOverride(timeline, { duration, delay, iterations, start });
 }
 
 /**

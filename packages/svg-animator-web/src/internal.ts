@@ -21,3 +21,9 @@ export { PX_ANIMATOR_DOC_KEY } from './shared/PxAnimatorKeys';
 
 // The public options plus `adapter` — what the React and Vue components build the player with.
 export type { PxInternalAnimatorOptions } from './animator/PxAnimator';
+
+// The visibility gate the JSON player wires for every document, so the CSS-only React and Vue
+// wrappers gate on exactly the same rules (threshold, dwell, hysteresis, hidden tab) instead of
+// each growing its own IntersectionObserver with its own edge cases.
+export { createVisibilityGate, PLAY_WHEN_VISIBLE_DEFAULTS } from './triggers/PxVisibilityGate';
+export type { PxGateHost, PxGateTrigger, PxVisibilityGate } from './triggers/PxVisibilityGate';

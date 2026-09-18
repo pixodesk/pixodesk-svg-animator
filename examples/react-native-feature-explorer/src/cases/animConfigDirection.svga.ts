@@ -14,8 +14,8 @@ export const animConfigDirection: SvgaCaseJson = {
             "mode": "auto",
             "duration": 1000,
             "trigger": {
-                "startOn": "load",
-                "outAction": "pause"
+                "start": "load",
+                "offScreen": "continue"
             },
             "direction": "alternate"
         }

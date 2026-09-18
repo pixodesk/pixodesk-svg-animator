@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 // The WAAPI engine wires the trigger for every time-driven document, so a document with no
-// trigger starts on load (`startOn` defaults to 'load' — SCHEMA-NAMING-REVIEW §2.1). jsdom has no
+// trigger starts on load (`start` defaults to 'load' — SCHEMA-NAMING-REVIEW §2.1). jsdom has no
 // Web Animations API, so the two classes the engine constructs are stubbed with the bare minimum.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAnimator } from '../animator/PxAnimator';
@@ -29,7 +29,7 @@ class StubAnimation {
     finish(): void { this.playState = 'finished'; }
 }
 
-function doc(trigger?: { startOn: 'programmatic' }): PxAnimatedSvgDocument {
+function doc(trigger?: { start: 'none' }): PxAnimatedSvgDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
@@ -60,7 +60,7 @@ describe('WAAPI engine — trigger wiring', () => {
     });
 
     it('an explicit programmatic trigger still waits for play()', () => {
-        const api = createAnimator({ doc: doc({ startOn: 'programmatic' }), container: '#stage' });
+        const api = createAnimator({ doc: doc({ start: 'none' }), container: '#stage' });
         expect(api.isPlaying()).toBe(false);
         api.play();
         expect(api.isPlaying()).toBe(true);

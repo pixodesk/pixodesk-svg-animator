@@ -22,7 +22,7 @@
  * on the nested form is the only place those values mean what they say.
  */
 import { PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS } from '../format/PxAnimatorConstants';
-import type { PxStartOn } from '../format/PxAnimatorConstants';
+import type { PxTriggerStart } from '../format/PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxAnimatorConfig } from '../format/PxAnimatorTypes';
 
 /** A deep-partial of the WIRE animator config; `null` at any slot deletes it. @public */
@@ -128,10 +128,10 @@ export interface PxTimelineShortcuts {
     /** Shortcut for `timeline.iterations`; `'infinite'` never stops. */
     iterations?: number | 'infinite';
     /**
-     * Shortcut for `timeline.trigger.startOn`. Typed from the WIRE, so it includes
-     * `'programmatic'` — "nothing starts this but a `play()` call".
+     * Shortcut for `timeline.trigger.start`. Typed from the WIRE, so it includes
+     * `'none'` — "nothing starts this but a `play()` call".
      */
-    startOn?: PxStartOn;
+    start?: PxTriggerStart;
 }
 
 /**
@@ -186,8 +186,8 @@ export function foldTimelineOverride(
         base = timeline ?? undefined;
     }
 
-    const { duration, delay, iterations, startOn } = shortcuts;
-    if (duration === undefined && delay === undefined && iterations === undefined && startOn === undefined) {
+    const { duration, delay, iterations, start } = shortcuts;
+    if (duration === undefined && delay === undefined && iterations === undefined && start === undefined) {
         return base === undefined ? undefined : { timeline: base };
     }
 
@@ -195,8 +195,8 @@ export function foldTimelineOverride(
     if (duration !== undefined) out.duration = duration;
     if (delay !== undefined) out.delay = delay;
     if (iterations !== undefined) out.iterations = iterations;
-    if (startOn !== undefined) {
-        out.trigger = { ...(out.trigger as Record<string, any> | undefined), startOn };
+    if (start !== undefined) {
+        out.trigger = { ...(out.trigger as Record<string, any> | undefined), start };
     }
     return { timeline: out };
 }

@@ -1581,16 +1581,22 @@
     "Trigger": {
       "type": "object",
       "properties": {
-        "startOn": {
+        "start": {
           "enum": [
             "load",
             "mouseOver",
             "click",
-            "scrollIntoView",
-            "programmatic"
+            "none"
           ]
         },
-        "outAction": {
+        "offScreen": {
+          "enum": [
+            "pause",
+            "continue",
+            "reset"
+          ]
+        },
+        "mouseOut": {
           "enum": [
             "continue",
             "pause",
@@ -1598,13 +1604,16 @@
             "reverse"
           ]
         },
-        "finishAction": {
+        "finish": {
           "enum": [
             "hold",
             "reset"
           ]
         },
-        "scrollIntoViewThreshold": {
+        "visibilityThreshold": {
+          "type": "number"
+        },
+        "visibilityDebounce": {
           "type": "number"
         }
       },

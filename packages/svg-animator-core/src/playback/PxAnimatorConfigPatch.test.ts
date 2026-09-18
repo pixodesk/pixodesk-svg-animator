@@ -13,7 +13,7 @@ const timeBase = {
         iterations: 2,
         fillMode: 'both',
         direction: 'normal',
-        trigger: { startOn: 'load', outAction: 'pause' },
+        trigger: { start: 'load', offScreen: 'pause' },
     },
 } as any;
 
@@ -36,8 +36,8 @@ describe('mergeAnimatorConfig — RFC 7386 base semantics', () => {
     });
 
     it('merges nested objects rather than replacing them', () => {
-        const { config } = merge(timeBase, { timeline: { trigger: { startOn: 'click' } } });
-        expect((config as any).timeline.trigger).toEqual({ startOn: 'click', outAction: 'pause' });
+        const { config } = merge(timeBase, { timeline: { trigger: { start: 'click' } } });
+        expect((config as any).timeline.trigger).toEqual({ start: 'click', offScreen: 'pause' });
     });
 
     it('replaces primitives and arrays wholesale', () => {
@@ -57,7 +57,7 @@ describe('mergeAnimatorConfig — RFC 7386 base semantics', () => {
 
     it('never mutates either argument', () => {
         const base = JSON.parse(JSON.stringify(timeBase));
-        const patch = { timeline: { duration: 7000, trigger: { startOn: 'click' } } };
+        const patch = { timeline: { duration: 7000, trigger: { start: 'click' } } };
         const snapshotBase = JSON.stringify(base);
         const snapshotPatch = JSON.stringify(patch);
         merge(base, patch);
@@ -81,7 +81,7 @@ describe('mergeAnimatorConfig — the timeline union', () => {
     it('RULE 2: an explicit `time` against an ABSENT type is a match, not a type change', () => {
         // The trap: `timelineTypeOf` must normalize absent -> 'time', or this replaces.
         const { config } = merge(timeBase, { timeline: { type: 'time', duration: 3000 } });
-        expect((config as any).timeline.trigger).toEqual({ startOn: 'load', outAction: 'pause' });
+        expect((config as any).timeline.trigger).toEqual({ start: 'load', offScreen: 'pause' });
     });
 
     it('RULE 2: a patch that does not mention `type` never changes it', () => {
@@ -99,15 +99,15 @@ describe('mergeAnimatorConfig — the timeline union', () => {
     });
 
     it('RULE 1: going back to a time timeline drops the scroll-only keys', () => {
-        const { config } = merge(scrollBase, { timeline: { type: 'time', trigger: { startOn: 'click' } } });
+        const { config } = merge(scrollBase, { timeline: { type: 'time', trigger: { start: 'click' } } });
         const tl = (config as any).timeline;
-        expect(tl).toEqual({ duration: 4000, type: 'time', trigger: { startOn: 'click' } });
+        expect(tl).toEqual({ duration: 4000, type: 'time', trigger: { start: 'click' } });
         expect('range' in tl).toBe(false);
         expect('pin' in tl).toBe(false);
     });
 
     it('RULE 3: time-only keys aimed at a scroll timeline are dropped, with a warning', () => {
-        const { config, warnings } = merge(scrollBase, { timeline: { delay: 500, trigger: { startOn: 'click' } } });
+        const { config, warnings } = merge(scrollBase, { timeline: { delay: 500, trigger: { start: 'click' } } });
         expect('delay' in (config as any).timeline).toBe(false);
         expect('trigger' in (config as any).timeline).toBe(false);
         expect(warnings.join(' ')).toContain('no slot on a');
@@ -159,7 +159,7 @@ describe('mergeAnimatorConfig — records and content', () => {
 describe('mergeAnimatorConfig — guards', () => {
 
     it('RULE 5: warns when the BASE uses the flat runtime spelling', () => {
-        const { warnings } = merge({ duration: 1000, trigger: { startOn: 'load' } } as any, { timeline: { duration: 2000 } });
+        const { warnings } = merge({ duration: 1000, trigger: { start: 'load' } } as any, { timeline: { duration: 2000 } });
         expect(warnings.join(' ')).toContain('flat runtime spelling');
     });
 
@@ -211,7 +211,7 @@ describe('applyAnimatorConfig — document level', () => {
             type: 'svg',
             animator: {
                 frameRate: 30,
-                timeline: { duration: 1000, iterations: 5, trigger: { startOn: 'click' } },
+                timeline: { duration: 1000, iterations: 5, trigger: { start: 'click' } },
                 definitions: { fonts: { Inter: { unitsPerEm: 1000 } } },
                 bindings: [{ target: '#r1', animateWith: ['a0'] }],
             },

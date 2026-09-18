@@ -150,7 +150,7 @@ describe("PixodeskSvgAnimator (React)", () => {
 
     describe("control-mode precedence", () => {
         it("autoplay still starts when an apiRef is passed — a handle is not a mode", () => {
-            // The §1 bug: passing `apiRef` forced startOn:'programmatic', so this
+            // The §1 bug: passing `apiRef` forced start:'none', so this
             // never moved on its own and `autoplay` was silently dead.
             const apiRef = createRef<ReactAnimatorApi>();
             render(<PixodeskSvgAnimator doc={getTestJson()} autoplay apiRef={apiRef} />);
@@ -428,7 +428,7 @@ describe("PixodeskSvgAnimator (React)", () => {
             return {
                 type: "svg", id: "_px_wire", viewBox: "0 0 100 100",
                 animator: {
-                    timeline: { engine: "js", duration: 1000, trigger: { startOn: "load" } },
+                    timeline: { engine: "js", duration: 1000, trigger: { start: "load" } },
                 },
                 children: [{
                     type: "rect", id: "r1", opacity: 0,
@@ -503,7 +503,7 @@ function getTestJson(): PxAnimatedSvgDocument {
                 duration: 128,
                 fillMode: "forwards",
                 direction: "normal",
-                trigger: { startOn: "load" },
+                trigger: { start: "load" },
             },
         },
 
@@ -544,7 +544,7 @@ function getTestJson1000(): PxAnimatedSvgDocument {
                 duration: 1000,
                 fillMode: "forwards",
                 direction: "normal",
-                trigger: { startOn: "load" },
+                trigger: { start: "load" },
             },
         },
 
@@ -611,7 +611,7 @@ function getTreeJson(): PxAnimatedSvgDocument {
                 duration: 128,
                 fillMode: "forwards",
                 direction: "normal",
-                trigger: { startOn: "load" },
+                trigger: { start: "load" },
             },
         },
 
@@ -667,7 +667,7 @@ function getRectJson(): PxAnimatedSvgDocument {
                 duration: 128,
                 fillMode: "forwards",
                 direction: "normal",
-                trigger: { startOn: "load" },
+                trigger: { start: "load" },
             },
         },
 

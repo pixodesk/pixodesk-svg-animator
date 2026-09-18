@@ -8,7 +8,7 @@ const doc = {
   ...animation,
   animator: {
     ...animation.animator,
-    timeline: { ...animation.animator.timeline, trigger: { startOn: 'click', outAction: 'pause' } },
+    timeline: { ...animation.animator.timeline, trigger: { start: 'click', offScreen: 'continue' } },
   },
 };
 

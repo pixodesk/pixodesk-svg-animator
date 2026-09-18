@@ -14,8 +14,8 @@ export const effectTrimPathRoundCorner: SvgaCaseJson = {
             "mode": "auto",
             "duration": 1000,
             "trigger": {
-                "startOn": "load",
-                "outAction": "pause"
+                "start": "load",
+                "offScreen": "continue"
             },
             "direction": "normal"
         }

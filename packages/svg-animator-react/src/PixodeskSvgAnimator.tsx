@@ -5,7 +5,7 @@
 
 import type { PxAnimatedSvgDocument, PxAnimatorApi, PxNode, PxPlatformAdapter, PxTimelineEngineSetting, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
-import type { PxOutAction } from '@pixodesk/svg-animator-core';
+import type { PxMouseOutAction } from '@pixodesk/svg-animator-core';
 import { createAnimator, generateNewIds, toDomProps, PxDiagnosticKind, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxDiagnosticCode, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
 import { camelCaseToKebabWordIfNeeded, createDiagnostics, PX_STYLE_ATTR_NAMES, PX_DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
@@ -291,7 +291,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     doc, autoplay, play, pause, progress, time, apiRef,
 
     // Overrides
-    timeline, resetTimeline, duration, delay, iterations, startOn,
+    timeline, resetTimeline, duration, delay, iterations, start,
 
     onPlay, onStop, onPause, onCancel, onFinish, onRemove,
 
@@ -302,7 +302,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     // ONE control-mode rule, decided in core and shared with Vue and React Native
     // (API review §1/§7). `apiRef` is deliberately NOT an input: the handle is populated in
     // every mode, so `<PixodeskSvgAnimator autoplay apiRef={api} />` now autostarts AND gives
-    // you the handle, instead of the ref silently forcing `startOn: 'programmatic'`.
+    // you the handle, instead of the ref silently forcing `start: 'none'`.
     const { mode: compMode, warnings: modeWarnings } =
         resolveControlMode({ progress, time, play, pause, autoplay });
 
@@ -331,14 +331,14 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     // which is what every writer emits — `flattenAnimatorTimeline` overwrites those flat keys from
     // `timeline` immediately afterwards, so every one of those overrides was silently discarded.
     // See dev-docs/plans/playback-override.md §1.1.
-    const patch = foldTimelineOverride(timeline, { duration, delay, iterations, startOn });
+    const patch = foldTimelineOverride(timeline, { duration, delay, iterations, start });
     const takeOverTrigger = controlModeTakesOverTrigger(compMode);
     const fullPatch: any = takeOverTrigger
         ? {
             ...(patch ?? {}),
             timeline: {
                 ...((patch as any)?.timeline ?? {}),
-                trigger: { ...((patch as any)?.timeline?.trigger ?? {}), startOn: 'programmatic' },
+                trigger: { ...((patch as any)?.timeline?.trigger ?? {}), start: 'none' },
             },
         }
         : patch;

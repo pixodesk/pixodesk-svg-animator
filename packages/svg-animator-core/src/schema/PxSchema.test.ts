@@ -51,9 +51,10 @@ const PxElementAnimationSchema: PxSchema<string | Array<string> | Record<string,
 ]);
 
 const PxTriggerSchema = px.object({
-    startOn:                  px.enum(['load', 'mouseOver', 'click', 'scrollIntoView', 'programmatic'] as const).optional(),
-    outAction:                px.enum(['continue', 'pause', 'reset', 'reverse'] as const).optional(),
-    scrollIntoViewThreshold:  px.number().optional(),
+    start:                px.enum(['load', 'mouseOver', 'click', 'none'] as const).optional(),
+    offScreen:            px.enum(['pause', 'continue', 'reset'] as const).optional(),
+    mouseOut:             px.enum(['continue', 'pause', 'reset', 'reverse'] as const).optional(),
+    visibilityThreshold:  px.number().optional(),
 });
 
 const PxAnimatorConfigSchema = px.object({
@@ -341,7 +342,7 @@ describe('PxAnimatorConfigSchema', () => {
             timeline: { mode: 'native' },
             duration: 1000,
             fill: 'forwards',
-            trigger: { startOn: 'load' },
+            trigger: { start: 'load' },
         })).toBe(true);
     });
 
@@ -359,19 +360,19 @@ describe('PxAnimatorConfigSchema', () => {
 
     it('sanitizes: nested trigger repaired, unknown trigger keys stripped', () => {
         expect(PxAnimatorConfigSchema.sanitize({
-            trigger: { startOn: 'scrollIntoView', scrollIntoViewThreshold: 0.5, garbage: true },
+            trigger: { offScreen: 'pause', visibilityThreshold: 0.5, garbage: true },
         })).toStrictEqual({
             ...EMPTY_CONFIG,
             trigger: {
-                startOn: 'scrollIntoView',
-                scrollIntoViewThreshold: 0.5,
+                offScreen: 'pause',
+                visibilityThreshold: 0.5,
                 // garbage stripped
             },
         });
     });
 
-    it('sanitizes: unknown trigger startOn dropped', () => {
-        expect(PxAnimatorConfigSchema.sanitize({ trigger: { startOn: 'hover' } })).toStrictEqual({
+    it('sanitizes: unknown trigger start dropped', () => {
+        expect(PxAnimatorConfigSchema.sanitize({ trigger: { start: 'hover' } })).toStrictEqual({
             ...EMPTY_CONFIG,
             trigger: EMPTY_TRIGGER,
         });

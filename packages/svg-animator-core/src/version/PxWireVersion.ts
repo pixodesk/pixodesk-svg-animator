@@ -194,13 +194,76 @@ export const PX_WIRE_BASELINE_VERSION = '1.1';
 /**
  * Every `b` step from {@link PX_WIRE_BASELINE_VERSION} to {@link PX_WIRE_SCHEMA_VERSION}.
  *
- * EMPTY IS CORRECT TODAY: 1.1 is the baseline and nothing has moved since. It exists now because
- * the guard spec keys off it — bump `PX_WIRE_SCHEMA_VERSION` without adding the matching step
- * and the suite fails naming the gap. That is the whole point: the last three renames shipped
- * because nothing forced anyone to say they had happened.
+ * One step so far: the 1.2 trigger block. The guard spec keys off this table — bump
+ * `PX_WIRE_SCHEMA_VERSION` without adding the matching step and the suite fails naming the gap.
+ * That is the whole point: the last three renames shipped because nothing forced anyone to say
+ * they had happened.
  * @public @advanced
  */
-export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [];
+export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
+    {
+        from: '1.1',
+        to: '1.2',
+        reason: 'The trigger block became two axes: `start` says what STARTS an animation, '
+            + '`offScreen` + `visibilityThreshold` + `visibilityDebounce` say whether it may RUN. '
+            + '`scrollIntoView` is no longer a start value — it is what `start: \'load\'` behind '
+            + 'the default gate already means — and `outAction` split into `offScreen` (scroll) '
+            + 'and `mouseOut` (hover), because one field meant three things.',
+        kind: PxWireStepKind.converted,
+        up: upTriggerTwoAxes,
+        // No `down`: 1.2 can express combinations 1.1 could not ("start on click AND pause when
+        // scrolled away"), so the mapping is not invertible.
+    },
+];
+
+/**
+ * 1.1 → 1.2. `outAction` meant three different things depending on `startOn`, so it can only be
+ * moved by reading both together.
+ *
+ * | 1.1 | 1.2 |
+ * |---|---|
+ * | `startOn: 'scrollIntoView'` + `outAction: X` | `offScreen: X`, and NO `start` — its default already means this |
+ * | `startOn: 'mouseOver'` + `outAction: X` | `start: 'mouseOver'`, `mouseOut: X` |
+ * | `startOn: 'click'` / `'load'` + `outAction` | the action is dropped; it was never read for those |
+ * | `startOn: 'programmatic'` | `start: 'none'` |
+ * | `scrollIntoViewThreshold: T` | `visibilityThreshold: T` — including an explicit `0`, which is no longer the default |
+ * | `finishAction: X` | `finish: X` |
+ */
+function upTriggerTwoAxes(doc: Record<string, unknown>): void {
+    const animator = doc['animator'];
+    if (!animator || typeof animator !== 'object') return;
+    const timeline = (animator as Record<string, unknown>)['timeline'];
+    const holder = (timeline && typeof timeline === 'object' ? timeline : animator) as Record<string, unknown>;
+    const trigger = holder['trigger'];
+    if (!trigger || typeof trigger !== 'object') return;
+    const t = trigger as Record<string, unknown>;
+
+    const startOn = t['startOn'];
+    const outAction = t['outAction'];
+    delete t['startOn'];
+    delete t['outAction'];
+
+    if (startOn === 'scrollIntoView') {
+        // The gate IS the default now, so the document says nothing about what starts it.
+        if (outAction !== undefined) t['offScreen'] = outAction;
+    } else {
+        if (startOn === 'programmatic') t['start'] = 'none';
+        else if (startOn !== undefined) t['start'] = startOn;
+        // A hover document keeps its out action; a click or load document never read one.
+        if (startOn === 'mouseOver' && outAction !== undefined) t['mouseOut'] = outAction;
+        // Nothing said visibility should stop it, so 1.1 behaviour is kept explicitly.
+        if (t['offScreen'] === undefined) t['offScreen'] = 'continue';
+    }
+
+    if (t['scrollIntoViewThreshold'] !== undefined) {
+        t['visibilityThreshold'] = t['scrollIntoViewThreshold'];
+        delete t['scrollIntoViewThreshold'];
+    }
+    if (t['finishAction'] !== undefined) {
+        t['finish'] = t['finishAction'];
+        delete t['finishAction'];
+    }
+}
 
 
 /** What a conversion pass did, so a caller can report it. @public @advanced */

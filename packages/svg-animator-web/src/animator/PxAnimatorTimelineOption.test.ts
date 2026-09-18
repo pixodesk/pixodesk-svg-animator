@@ -23,7 +23,7 @@ function wireDoc(): PxAnimatedSvgDocument {
         animator: {
             timeline: {
                 engine: 'js', duration: 1000, iterations: 2,
-                trigger: { startOn: 'load' },
+                trigger: { start: 'load' },
             },
         },
         children: [{
@@ -42,8 +42,8 @@ const stage = () => {
 describe('resolveTimelineOption — shortcuts and the string form', () => {
 
     it('folds the four shortcuts into the timeline patch', () => {
-        const out = resolveTimelineOption({ duration: 500, delay: 20, iterations: 'infinite', startOn: 'click' } as any);
-        expect(out).toEqual({ timeline: { duration: 500, delay: 20, iterations: 'infinite', trigger: { startOn: 'click' } } });
+        const out = resolveTimelineOption({ duration: 500, delay: 20, iterations: 'infinite', start: 'click' } as any);
+        expect(out).toEqual({ timeline: { duration: 500, delay: 20, iterations: 'infinite', trigger: { start: 'click' } } });
     });
 
     it('a shortcut WINS over the same key inside timeline', () => {
@@ -56,9 +56,9 @@ describe('resolveTimelineOption — shortcuts and the string form', () => {
         expect((out as any).timeline).toEqual({ fillMode: 'both', duration: 42 });
     });
 
-    it('startOn merges into an existing trigger', () => {
-        const out = resolveTimelineOption({ timeline: { trigger: { outAction: 'pause' } }, startOn: 'click' } as any);
-        expect((out as any).timeline.trigger).toEqual({ outAction: 'pause', startOn: 'click' });
+    it('start merges into an existing trigger', () => {
+        const out = resolveTimelineOption({ timeline: { trigger: { mouseOut: 'pause' } }, start: 'click' } as any);
+        expect((out as any).timeline.trigger).toEqual({ mouseOut: 'pause', start: 'click' });
     });
 
     it('accepts the JSON STRING form — the mangling-proof spelling', () => {
@@ -80,7 +80,7 @@ describe('resolveTimelineOption — shortcuts and the string form', () => {
 
 describe('createAnimator — the override reaches the running animation', () => {
 
-    // The observable: the document's `startOn: 'load'` makes it autoplay. If the override
+    // The observable: the document's `start: 'load'` makes it autoplay. If the override
     // reaches the engine, the animation is NOT playing. Chosen because it is unambiguous —
     // keyframe times are absolute, so a duration override changes when playback ENDS, not the
     // value at a given instant, which makes opacity a poor witness.
@@ -94,7 +94,7 @@ describe('createAnimator — the override reaches the running animation', () => 
     it('timeline (object) overrides the trigger on a WIRE document — the case flat props silently lost', () => {
         const api = createAnimator({
             doc: wireDoc(), container: stage(),
-            timeline: { trigger: { startOn: 'programmatic' } },
+            timeline: { trigger: { start: 'none' } },
         });
         expect(api.isPlaying()).toBe(false);
         api.destroy();
@@ -103,24 +103,24 @@ describe('createAnimator — the override reaches the running animation', () => 
     it('timeline as a JSON STRING works identically', () => {
         const api = createAnimator({
             doc: wireDoc(), container: stage(),
-            timeline: '{"trigger":{"startOn":"programmatic"}}',
+            timeline: '{"trigger":{"start":"none"}}',
         });
         expect(api.isPlaying()).toBe(false);
         api.destroy();
     });
 
-    it('the startOn SHORTCUT does the same thing', () => {
-        const api = createAnimator({ doc: wireDoc(), container: stage(), startOn: 'programmatic' });
+    it('the start SHORTCUT does the same thing', () => {
+        const api = createAnimator({ doc: wireDoc(), container: stage(), start: 'none' });
         expect(api.isPlaying()).toBe(false);
         api.destroy();
     });
 
-    it("resetTimeline drops the document trigger, so the default startOn:'load' applies", () => {
+    it("resetTimeline drops the document trigger, so the default start:'load' applies", () => {
         // `mode` is part of the reset too, so it is restated — otherwise the engine choice
         // falls back to `auto`, which probes WAAPI and is unavailable under jsdom.
-        // Since review §2.1 a MISSING trigger resolves to `startOn: 'load'`, so dropping the
+        // Since review §2.1 a MISSING trigger resolves to `start: 'load'`, so dropping the
         // document's trigger no longer means "nothing starts" — it means the default applies.
-        // To get "nothing autostarts", ask for it: see the `startOn: 'programmatic'` test above.
+        // To get "nothing autostarts", ask for it: see the `start: 'none'` test above.
         const api = createAnimator({
             doc: wireDoc(), container: stage(),
             resetTimeline: true, timeline: { engine: 'js', duration: 4000 },

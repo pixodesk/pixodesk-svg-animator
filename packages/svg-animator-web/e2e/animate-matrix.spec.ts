@@ -40,7 +40,7 @@ async function advanceTimeIncrementally(
  *
  * Frames docs start on load and are driven by the mocked page clock.
  * WAAPI runs on the compositor timeline, which `page.clock` does NOT control —
- * so waapi docs use `startOn: 'programmatic'` and the test drives them
+ * so waapi docs use `start: 'none'` and the test drives them
  * deterministically by seeking via the animator API instead. */
 function animator(mode: 'auto' | 'native' | 'player') {
     const programmatic = mode === 'native';
@@ -49,8 +49,8 @@ function animator(mode: 'auto' | 'native' | 'player') {
         mode,
         fill: 'forwards' as const,
         trigger: {
-            startOn: (programmatic ? 'programmatic' : 'load') as 'programmatic' | 'load',
-            outAction: 'pause' as const,
+            start: (programmatic ? 'none' : 'load') as 'none' | 'load',
+            offScreen: 'continue' as const,
         },
     };
 }

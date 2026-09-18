@@ -97,7 +97,7 @@ export function Intro() {
 ```
 
 Uses the trigger saved in the document — on load, on hover, on click, when scrolled into view
-— and its out action. Override it for this one mount with the `startOn` shortcut, or with
+— and its out action. Override it for this one mount with the `start` shortcut, or with
 `timeline={{ trigger: { … } }}` for the rest of the trigger — see
 [Playback overrides](#playback-overrides).
 
@@ -169,7 +169,7 @@ shaped exactly like the file's own `animator` block and deep-merges it over what
 // The file loops twice and starts on load; here it loops forever and waits for play().
 <PixodeskSvgAnimator
   doc={animation}
-  timeline={{ iterations: 'infinite', trigger: { startOn: 'programmatic' } }}
+  timeline={{ iterations: 'infinite', trigger: { start: 'none' } }}
   apiRef={apiRef}
 />
 ```
@@ -181,7 +181,7 @@ absence means comes back:
 <PixodeskSvgAnimator doc={animation} autoplay timeline={{ delay: null }} />
 ```
 
-`duration`, `delay`, `iterations` and `startOn` are also plain props, because
+`duration`, `delay`, `iterations` and `start` are also plain props, because
 `duration={2000}` reads better than a nested object; a prop wins over the same key inside
 `timeline`. To ignore the file's playback settings entirely and start from the player's defaults,
 add `resetTimeline`.
@@ -206,7 +206,7 @@ interface PixodeskSvgAnimatorProps {
     // Playback override — one object, shaped exactly like the file's `timeline` block,
     // deep-merged over it. `null` at a slot DELETES that key — see Playback overrides above:
     //   timeline={{ engine, frameRate, fillMode, direction,
-    //              trigger: { outAction, finishAction, scrollIntoViewThreshold } }}
+    //              trigger: { mouseOut, finish, visibilityThreshold } }}
     timeline?: PxTimelinePatch | string;  // a JSON string is accepted too
     resetTimeline?: boolean;              // start from the player's defaults, `timeline` on top
 
@@ -215,8 +215,8 @@ interface PixodeskSvgAnimatorProps {
     delay?: number;                       // ▸ timeline.delay (ms). Negative skips ahead: -500 starts
                                           //   at once from the frame at 0.5 s
     iterations?: number | 'infinite';     // ▸ timeline.iterations; 'infinite' never stops
-    startOn?: PxStartOn;                  // ▸ timeline.trigger.startOn: 'load' | 'mouseOver' | 'click' |
-                                          //   'scrollIntoView' | 'programmatic' (only a play() from code)
+    start?: PxTriggerStart;                  // ▸ timeline.trigger.start: 'load' | 'mouseOver' | 'click' |
+                                          //   'scrollIntoView' | 'none' (only a play() from code)
 
     // Control — the HIGHEST-priority one that is set picks the mode (Control modes, above)
     apiRef?: React.RefObject<ReactAnimatorApi | null>;   // never a mode: filled in every mode
@@ -271,7 +271,7 @@ import AnimationSvg from './animation.svg?react';   // vite-plugin-svgr
 
 export function HoverLogo() {
   return (
-    <PixodeskSvgCssAnimator startOn="mouseOver" outAction="pause" style={{ width: 400, height: 400 }}>
+    <PixodeskSvgCssAnimator start="mouseOver" mouseOut="pause" style={{ width: 400, height: 400 }}>
       <AnimationSvg />
     </PixodeskSvgCssAnimator>
   );
@@ -284,13 +284,15 @@ export function HoverLogo() {
 // started, plus `px-anim-playing` while running.
 const PixodeskSvgCssAnimator: FC<{
     children: ReactNode;                  // the SVGR-imported SVG component
-    startOn?: PxStartOn;                  // 'load' (default) | 'mouseOver' | 'click' | 'scrollIntoView'
-                                          //   — 'programmatic' does nothing here (no play())
-    outAction?: PxOutAction;              // 'continue' (default) | 'pause' | 'reset'
+    start?: PxTriggerStart;               // 'load' (default) | 'mouseOver' | 'click'
+                                          //   — 'none' does nothing here (no play())
+    offScreen?: PxOffScreenAction;        // 'pause' (default) | 'continue' | 'reset' — what happens
+                                          //   while nobody can see it, whatever started it
+    mouseOut?: PxMouseOutAction;          // 'continue' (default) | 'pause' | 'reset'
                                           //   — 'reverse' is accepted but acts as 'continue': a class
                                           //   toggle cannot run CSS keyframes backwards
-    scrollIntoViewThreshold?: number;     // 0–1 of the SVG visible before 'scrollIntoView' starts;
-                                          //   default 0, the wire default
+    visibilityThreshold?: number;         // 0–1 of the SVG on screen before it may run; default 0.5
+    visibilityDebounce?: number;          // ms it must hold first; default 150
     className?: string;                   // on the wrapper div
     style?: CSSProperties;                // on the wrapper div
 }>;

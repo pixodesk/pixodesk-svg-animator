@@ -351,7 +351,7 @@ function getTestJson(): PxAnimatedSvgDocument {
                 duration: 128,
                 fillMode: "forwards",
                 direction: "normal",
-                trigger: { startOn: "load" },
+                trigger: { start: "load" },
             },
         },
 
@@ -392,7 +392,7 @@ function getTestJson1000(): PxAnimatedSvgDocument {
                 duration: 1000,
                 fillMode: "forwards",
                 direction: "normal",
-                trigger: { startOn: "load" },
+                trigger: { start: "load" },
             },
         },
 
@@ -459,7 +459,7 @@ function getTreeJson(): PxAnimatedSvgDocument {
                 duration: 128,
                 fillMode: "forwards",
                 direction: "normal",
-                trigger: { startOn: "load" },
+                trigger: { start: "load" },
             },
         },
 
@@ -515,7 +515,7 @@ function getRectJson(): PxAnimatedSvgDocument {
                 duration: 128,
                 fillMode: "forwards",
                 direction: "normal",
-                trigger: { startOn: "load" },
+                trigger: { start: "load" },
             },
         },
 
@@ -539,7 +539,7 @@ describe('PixodeskSvgAnimator (Vue) — timeline override', () => {
     /** A WIRE-format document; the flat props this replaced were discarded on this shape. */
     const wireJson = (): any => ({
         type: 'svg', id: '_px_wire', viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'js', duration: 1000, trigger: { startOn: 'load' } } },
+        animator: { timeline: { engine: 'js', duration: 1000, trigger: { start: 'load' } } },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },

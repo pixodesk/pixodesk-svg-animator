@@ -68,7 +68,7 @@ describe('animator.resetOnFinish', () => {
     });
 
     it('WITH the flag the document snaps back to frame 0 on natural finish', () => {
-        const api = createAnimator({ doc: makeDoc({ trigger: { finishAction: 'reset' } }), container: '#svg-container' });
+        const api = createAnimator({ doc: makeDoc({ trigger: { finish: 'reset' } }), container: '#svg-container' });
         api.play();
         vi.advanceTimersByTime(DUR / 2);
         expect(parseFloat(renderedOpacity() ?? 'NaN')).toBeGreaterThan(0);   // mid-flight
@@ -79,7 +79,7 @@ describe('animator.resetOnFinish', () => {
 
     it('the caller’s own onFinish still fires (before the reset)', () => {
         const onFinish = vi.fn();
-        const api = createAnimator({ doc: makeDoc({ trigger: { finishAction: 'reset' } }), container: '#svg-container', onFinish });
+        const api = createAnimator({ doc: makeDoc({ trigger: { finish: 'reset' } }), container: '#svg-container', onFinish });
         api.play();
         vi.advanceTimersByTime(DUR + 32);
         expect(onFinish).toHaveBeenCalledTimes(1);
@@ -88,7 +88,7 @@ describe('animator.resetOnFinish', () => {
     });
 
     it('reset re-arms the animation — play() after finish runs again from the start', () => {
-        const api = createAnimator({ doc: makeDoc({ trigger: { finishAction: 'reset' } }), container: '#svg-container' });
+        const api = createAnimator({ doc: makeDoc({ trigger: { finish: 'reset' } }), container: '#svg-container' });
         api.play();
         vi.advanceTimersByTime(DUR + 32);
         expect(renderedOpacity()).toBe('0');

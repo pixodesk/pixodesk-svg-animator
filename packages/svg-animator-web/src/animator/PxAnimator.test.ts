@@ -94,7 +94,7 @@ describe('createAnimator', () => {
     it('takes the callbacks INLINE, and fires onStop after pause / finish (the same names as the components)', () => {
         const onPlay = vi.fn(), onPause = vi.fn(), onFinish = vi.fn(), onStop = vi.fn();
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', duration: DUR, trigger: { startOn: 'programmatic' } } };
+        doc.animator = { timeline: { engine: 'js', duration: DUR, trigger: { start: 'none' } } };
         const api = createAnimator({ doc, container: '#svg-container', onPlay, onPause, onFinish, onStop });
 
         api.play();
@@ -110,14 +110,14 @@ describe('createAnimator', () => {
         expect(onStop).toHaveBeenCalledTimes(2);   // ...and after finish
     });
 
-    it('a document with no trigger starts on load — startOn defaults to load', () => {
+    it('a document with no trigger starts on load — start defaults to load', () => {
         const api = createAnimator({ doc: makeDoc(), container: '#svg-container' });
         expect(api.isPlaying()).toBe(true);
     });
 
     it('an explicit programmatic trigger still waits for play()', () => {
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', duration: DUR, trigger: { startOn: 'programmatic' } } };
+        doc.animator = { timeline: { engine: 'js', duration: DUR, trigger: { start: 'none' } } };
         const api = createAnimator({ doc: doc, container: '#svg-container' });
         expect(api.isPlaying()).toBe(false);
     });
@@ -127,7 +127,7 @@ describe('createAnimator', () => {
         // load, which would fire `onPlay` a second time and hide this test's subject — that a
         // control call made before the fetch resolves is queued and replayed exactly once.
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', duration: DUR, trigger: { startOn: 'programmatic' } } };
+        doc.animator = { timeline: { engine: 'js', duration: DUR, trigger: { start: 'none' } } };
         const fetchMock = stubFetch(doc);
         const onPlay = vi.fn();
 
@@ -353,7 +353,7 @@ describe('loadTagAnimators', () => {
 
         // A timeline override that cancels the autoplay, plus an inline callback — both must reach
         // both players. The zero-config path (no argument at all) is unchanged.
-        loadTagAnimators({ timeline: { trigger: { startOn: 'programmatic' } }, onPlay });
+        loadTagAnimators({ timeline: { trigger: { start: 'none' } }, onPlay });
         await flushMicrotasks();
 
         const instances = Array.from(document.querySelectorAll('[data-px-animation-src]'))

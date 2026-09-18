@@ -14,8 +14,8 @@ export const complexFirework: SvgaCaseJson = {
             "mode": "auto",
             "duration": 6250,
             "trigger": {
-                "startOn": "load",
-                "outAction": "pause"
+                "start": "load",
+                "offScreen": "continue"
             },
             "direction": "normal"
         }

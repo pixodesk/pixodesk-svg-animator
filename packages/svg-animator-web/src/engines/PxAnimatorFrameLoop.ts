@@ -71,7 +71,8 @@ export function createFrameLoopAnimator(
     // D3 (scroll-timeline.design.md): triggers are meaningless when the playhead is
     // scroll-driven — writers must not emit them, and a document that carries them
     // anyway gets a warning, not behavior.
-    // Every time-driven document IS wired: no `trigger` means the defaults (`startOn` 'load').
+    // Every time-driven document IS wired: no `trigger` means the defaults (`start` 'load',
+    // `offScreen` 'pause' — so an unseen animation does not run).
     if (isScrollTimeline(config)) {
         if (config.trigger) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);
     } else {

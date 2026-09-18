@@ -14,8 +14,8 @@ export const complexTrimLoader: SvgaCaseJson = {
             "mode": "auto",
             "duration": 3750,
             "trigger": {
-                "startOn": "load",
-                "outAction": "pause"
+                "start": "load",
+                "offScreen": "continue"
             },
             "direction": "normal"
         }

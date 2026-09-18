@@ -68,7 +68,7 @@ function getTestJson(): PxAnimatedSvgDocument {
                 duration: 128,
                 fillMode: "forwards",
                 direction: "normal",
-                trigger: { startOn: "load" },
+                trigger: { start: "load" },
             },
         },
 

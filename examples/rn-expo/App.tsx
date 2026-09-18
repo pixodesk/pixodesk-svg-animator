@@ -29,7 +29,7 @@ const staticDoc: PxAnimatedSvgDocument = {
 const animatedDoc: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
-        timeline: { duration: 2000, iterations: 'infinite', direction: 'alternate', trigger: { startOn: 'load' } },
+        timeline: { duration: 2000, iterations: 'infinite', direction: 'alternate', trigger: { start: 'load', offScreen: 'continue' } },
     },
     children: [
         {
@@ -65,7 +65,7 @@ const animatedDoc: PxAnimatedSvgDocument = {
 /** Motion along a curved path with auto-orient — materialized by core sampling. */
 const motionPathDoc: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 200',
-    animator: { timeline: { duration: 3000, iterations: 'infinite', trigger: { startOn: 'load' } } },
+    animator: { timeline: { duration: 3000, iterations: 'infinite', trigger: { start: 'load', offScreen: 'continue' } } },
     children: [
         { type: 'path', d: 'M 30 150 C 100 30 200 30 270 150', stroke: '#0087ff44', 'stroke-width': 2, fill: 'none' },
         {

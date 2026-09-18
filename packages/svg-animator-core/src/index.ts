@@ -49,9 +49,9 @@ export { PX_WIRE_SCHEMA_VERSION } from './version/PxSchemaVersion';
 // Document / model types
 export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorApi, PxEngineCallbacks, PxAnimatorConfig, PxPlaybackApi, PxBezierPath, PxBinding, PxDefinitions, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTransformParts, PxTrigger, PxTransformValue } from './format/PxAnimatorTypes';
 // VALUE exports, not `export type`: each wire enum is a const namespace AND the string type
-// derived from it under the same name (review §2.7), so a consumer gets both `PxStartOn.click`
-// and `startOn?: PxStartOn` from one import.
-export { PxFillMode, PxOutAction, PxPlaybackDirection, PxStartOn } from './format/PxAnimatorConstants';
+// derived from it under the same name (review §2.7), so a consumer gets both `PxTriggerStart.click`
+// and `start?: PxTriggerStart` from one import.
+export { PxFillMode, PxMouseOutAction, PxOffScreenAction, PxPlaybackDirection, PxTriggerStart } from './format/PxAnimatorConstants';
 
 export { isValidPxDocument } from './format/PxAnimatorTypes';
 export { getBindings, getChildren, getDefinitions } from './format/PxAnimatorConstants';
@@ -135,8 +135,9 @@ export { applyAnimatorConfig, foldTimelineOverride, mergeAnimatorConfig } from '
 export { diagnoseDocument } from './format/PxDocumentDiagnostic';
 export type { PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxTimelineShortcuts, PxTimelinePatch } from './playback/PxAnimatorConfigPatch';
 export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxUnits, PxMaskType, PxPathOverflow, PxLengthAdjust, PxTextPathMethod, PxTextPathSpacing } from './format/PxAnimatorConstants';
-// The remaining wire enums (review §2.7). `PxFillMode` / `PxOutAction` / `PxPlaybackDirection` /
-// `PxStartOn` are exported above and must NOT be repeated here — one export per identifier.
+// The remaining wire enums (review §2.7). `PxFillMode` / `PxOffScreenAction` / `PxMouseOutAction` /
+// `PxPlaybackDirection` / `PxTriggerStart` are exported above and must NOT be repeated here —
+// one export per identifier.
 export {
     PxAlongPathMode,
     PxFinishAction,

@@ -17,11 +17,11 @@ describe('animator.timeline spelling compat', () => {
 
     // ── flatten: nested → the flat view every engine consumes ────────────────
 
-    it('flattens a time timeline to the flat runtime keys (trigger.finishAction → resetOnFinish, fillMode → fill)', () => {
+    it('flattens a time timeline to the flat runtime keys (trigger.finish → resetOnFinish, fillMode → fill)', () => {
         const flat = flattenAnimatorTimeline({
             timeline: {
                 type: 'time', duration: 4000,
-                trigger: { startOn: 'click', outAction: 'pause', finishAction: 'reset' },
+                trigger: { start: 'click', mouseOut: 'pause', finish: 'reset' },
                 delay: 250, iterations: 'infinite', direction: 'alternate', fillMode: 'both'
             }
         } as any) as any;
@@ -29,9 +29,9 @@ describe('animator.timeline spelling compat', () => {
         expect(flat).toMatchObject({
             duration: 4000, delay: 250, iterations: 'infinite', direction: 'alternate',
             fill: 'both', resetOnFinish: true,
-            trigger: { startOn: 'click', outAction: 'pause' }
+            trigger: { start: 'click', mouseOut: 'pause' }
         });
-        expect(flat.trigger.finishAction).toBeUndefined(); // folded into resetOnFinish
+        expect(flat.trigger.finish).toBeUndefined(); // folded into resetOnFinish
     });
 
     it("flattens 'view' and 'scroll' timelines to timelineSource:'scroll' + scroll.kind, pin object → pin flags; engine is shared", () => {
@@ -65,7 +65,7 @@ describe('animator.timeline spelling compat', () => {
     });
 
     it('is identity for a flat runtime-view config and memoised for a nested one', () => {
-        const flat = { duration: 1000, trigger: { startOn: 'load' } } as any;
+        const flat = { duration: 1000, trigger: { start: 'load' } } as any;
         expect(flattenAnimatorTimeline(flat)).toBe(flat);            // nothing to fold → same object
         const nested = { timeline: { delay: 5 } } as any;   // no `type` = time-driven
         expect(flattenAnimatorTimeline(nested)).toBe(flattenAnimatorTimeline(nested)); // memoised
@@ -84,7 +84,7 @@ describe('animator.timeline spelling compat', () => {
     it('getAnimatorConfig DROPS flat playback keys found on a document — the wire states playback only inside `timeline`', () => {
         const cfg = getAnimatorConfig({
             type: 'svg',
-            animator: { duration: 1000, trigger: { startOn: 'load' }, fill: 'both', resetOnFinish: true },
+            animator: { duration: 1000, trigger: { start: 'load' }, fill: 'both', resetOnFinish: true },
         } as any) as any;
 
         expect(cfg.duration).toBeUndefined();
@@ -107,17 +107,17 @@ describe('animator.timeline spelling compat', () => {
 
     // ── nest: flat → the written spelling; engine-dead keys structurally gone ──
 
-    it('nests flat time keys under a type-less timeline (absent type = time), fill → fillMode, resetOnFinish → trigger.finishAction', () => {
+    it('nests flat time keys under a type-less timeline (absent type = time), fill → fillMode, resetOnFinish → trigger.finish', () => {
         const nested = nestAnimatorTimeline({
             duration: 4000, engine: 'auto',
-            trigger: { startOn: 'click' }, delay: 250, iterations: 3,
+            trigger: { start: 'click' }, delay: 250, iterations: 3,
             direction: 'reverse', fill: 'none', resetOnFinish: true
         } as any) as any;
         expect(nested).toEqual({
             timeline: {
                 engine: 'auto',
                 duration: 4000,
-                trigger: { startOn: 'click', finishAction: 'reset' },
+                trigger: { start: 'click', finish: 'reset' },
                 delay: 250, iterations: 3, direction: 'reverse', fillMode: 'none'
             }
         });
@@ -126,7 +126,7 @@ describe('animator.timeline spelling compat', () => {
     it("nests flat scroll config under timeline{type:'view'|'scroll'}; the dead clock keys (trigger, …) do not survive", () => {
         const nested = nestAnimatorTimeline({
             duration: 4000, timelineSource: 'scroll',
-            trigger: { startOn: 'load' },       // dead under scroll (D3) — dropped by nesting
+            trigger: { start: 'load' },       // dead under scroll (D3) — dropped by nesting
             engine: 'native',
             scroll: { kind: 'view', axis: 'block', smoothing: 120,
                       pin: true, pinAlign: 'center', pinOffset: 24 }
@@ -176,7 +176,7 @@ describe('animator.timeline spelling compat', () => {
     it('round-trips: flatten(nest(flat)) reproduces the flat form', () => {
         const flat = {
             duration: 4000, frameRate: 60, engine: 'auto',
-            trigger: { startOn: 'click', outAction: 'pause' }, delay: 250,
+            trigger: { start: 'click', mouseOut: 'pause' }, delay: 250,
             iterations: 'infinite', direction: 'alternate', fill: 'both', resetOnFinish: true
         } as any;
         expect(flattenAnimatorTimeline(nestAnimatorTimeline(flat))).toEqual(flat);
@@ -193,7 +193,7 @@ describe('animator.timeline spelling compat', () => {
 
         const bad: PxValidationContext = { errors: [], warnings: [], strict: true };
         expect(PxAnimatorConfigSchema.isValid({
-            timeline: { type: 'view', trigger: { startOn: 'click' } }   // dead key — no slot
+            timeline: { type: 'view', trigger: { start: 'click' } }   // dead key — no slot
         }, bad)).toBe(false);
         expect(bad.errors.length).toBeGreaterThan(0);
     });
@@ -215,7 +215,7 @@ describe('animator.timeline spelling compat', () => {
     it('the flat spelling is NOT wire format — flat playback keys are schema errors', () => {
         const clockCtx: PxValidationContext = { errors: [], warnings: [], strict: true };
         expect(PxAnimatorConfigSchema.isValid({
-            duration: 1000, trigger: { startOn: 'load' }, iterations: 3, direction: 'normal'
+            duration: 1000, trigger: { start: 'load' }, iterations: 3, direction: 'normal'
         }, clockCtx)).toBe(false);   // §2.8: flat duration is not wire either
         expect(clockCtx.errors.length).toBeGreaterThan(0);
 
