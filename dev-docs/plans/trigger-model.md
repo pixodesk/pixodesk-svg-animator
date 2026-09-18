@@ -315,6 +315,52 @@ neither the test run nor any typecheck that CI gates. A green suite said nothing
 **The lesson for the next rename: grep the whole repository for the old identifiers and drive the
 count to zero, rather than trusting the suites to find what they never look at.**
 
+A second sweep afterwards, on exactly that principle, found more:
+
+| Stale thing | Why it mattered |
+| --- | --- |
+| `kf/app/tools/migrate-px-current.mjs` still EMITTED `startOn` / `outAction` / `scrollIntoViewThreshold` / `finishAction` | the pass-C migrator would have quietly re-written any file it touched back to 1.1, undoing the rename. It now converts to the two-axis spelling itself, with the same table as `migrate-trigger-two-axes.mjs` |
+| The atest format helpers (`_a.ts`, `_b.js`, `_meta.ts`, `meta-element-effect.ts`, `file-format.md`) | they DOCUMENT the wire format for the file-format suite, so they taught the old names |
+| `PxSchema.test.ts` and `PxAnimatorConfigPatch.test.ts` | sample schemas and untyped merges — green throughout, checked against nothing |
+| `examples/` (~130 files) | in no test run and no gated typecheck |
+
+A THIRD sweep, hunting stale *concepts* rather than identifiers, found the rest:
+
+| Stale thing | Fix |
+| --- | --- |
+| The player's e2e fixture bundles and the docs-examples UMD copy | stale BUILDS; regenerated with `npm run e2e:fixtures` / `npm run copy-umd` |
+| `2da--(exportSvga(SVG_CssAnim_JsTrigger)-verify).2da.js` | clicked `…start.startOn` and asserted `startOn:'mouseOver'` in the exported meta — the model attribute is `start` now, so both moved |
+| `2da--(exportSvga(pixodeskJSON)-verify).2da.js` | its `ignore` list named `scrollIntoViewThreshold` |
+| `kf/unified-preview-player/public/samples/prerendered-js-external.svg` | a sample document; migrated, and the player republished so the website copy followed |
+| `DevTriggerExplorer.tsx` | a row label still read `finishAction: reset` |
+
+What legitimately still says the old names: the 1.1 → 1.2 conversion step and its tests, the
+release changelog, four "what it used to mean" comments, and the dated design records under
+`dev-docs/` and the editor's own `*.md` plans — those are point-in-time records, not instructions.
+
+**Those four SVG+JS assets were RE-SAVED through the editor** rather than hand-edited. Each one
+carried an old inlined runtime plus its own baked `{"startOn":"scrollIntoView","outAction":"pause"}`
+config, which no meta migration can reach. `pxFileResave.claudePlayground.spec.ts` (new) opens a
+folder through the real open path and writes it straight back — no forced CSS, unlike the existing
+round-trip dump — with `VITE_PX_RESAVE_INLINE_JS=<player dist>` filling the same statics the app
+fills on boot, so the current pre-rendered player is inlined and the file still plays standalone.
+
+Two shipped, two did not, and the two that did not are worth knowing about:
+
+| File | Outcome |
+| --- | --- |
+| `boat-404-sea` | ✅ re-saved; **0 pixels** changed against the original first frame |
+| `px-astronaut` | ✅ re-saved; 3 pixels changed (anti-aliasing) |
+| `vector-text-anim` | ⬜ left alone — the re-save LOSES the per-letter spacing on the text path (the known `dx` gap), a visible 2.27% pixel difference |
+| `all-platforms-girl-on-bike` | ⬜ left alone — the writer throws `Maximum call stack size exceeded`, the pre-existing `SvgClonedSubtreeIdGenerator` recursion recorded in `kf/app/tools/migration.plan.md` §8 |
+
+**The re-save exposed a real player bug, now fixed.** `getSelector(id)` returned `'#' + id`, which
+is not valid CSS when an id starts with a digit — and editor ids often do (`2kjrlj4l`), because SVG
+and HTML allow what CSS does not. `querySelector` then THREW rather than returning null, so the
+animation never started and nothing in the document explained why. It now escapes via `CSS.escape`,
+with a fallback for engines without it, and `PxAnimatorSelector.test.ts` covers a leading digit and
+punctuation. Every website page was re-verified in Chromium afterwards.
+
 **The mapping is not one-to-one,** because `outAction` meant three different things:
 
 | Old | New |

@@ -13,9 +13,28 @@ import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
 export { createAdapterAnimator };
 export type { PxPlatformAdapter };
 
+/**
+ * An id as a CSS id-selector, ESCAPED.
+ *
+ * `'#' + id` is not valid CSS whenever the id starts with a digit — and editor ids often do
+ * (`2kjrlj4l`), because SVG and HTML both allow it where CSS does not. `querySelector` then
+ * THROWS a SyntaxError rather than returning null, so the animation never starts and the
+ * document looks broken for a reason nothing in it explains. Punctuation has the same problem.
+ */
 export function getSelector(id: string) {
     // return `[data-px-id="${id}"]`; FIXME
-    return '#' + id;
+    return '#' + escapeCssId(id);
+}
+
+/** `CSS.escape` where the engine has it; otherwise the two rules that actually bite. */
+function escapeCssId(id: string): string {
+    const css = (globalThis as { CSS?: { escape?: (value: string) => string } }).CSS;
+    if (typeof css?.escape === 'function') return css.escape(id);
+    return id
+        // A leading digit is spelled as its hex code point plus a separating space.
+        .replace(/^([0-9])/, (_all, digit: string) => '\\3' + digit + ' ')
+        // Anything outside the CSS identifier set is backslash-escaped.
+        .replace(/([^\w\-\\ ])/g, '\\$1');
 }
 
 
