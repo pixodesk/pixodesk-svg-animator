@@ -3,12 +3,12 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxAnimatedSvgDocument, PxAnimatorApi, PxNode, PxPlatformAdapter, PxTimelineEngineSetting, PxTrigger } from '@pixodesk/svg-animator-web';
+import type { PxAnimatedSvgDocument, PxAnimatorApi, PxTimelineEngineSetting, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
 import type { PxMouseOutAction } from '@pixodesk/svg-animator-core';
-import { createAnimator, generateNewIds, toDomProps, PxDiagnosticKind, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
+import { createAnimator, PxDiagnosticKind, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxDiagnosticCode, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
-import { camelCaseToKebabWordIfNeeded, createDiagnostics, PX_STYLE_ATTR_NAMES, PX_DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
+import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
 import { useDepsVersion } from './Utils';
@@ -21,13 +21,42 @@ import { useDepsVersion } from './Utils';
  *  name that crosses out of this bundle. */
 const REACT_PROP = { key: 'key', ref: 'ref', className: 'className', style: 'style' } as const;
 
-/** `node.style` (camelCase declarations) as an element style object — values stringified, exactly
- *  as the web player writes them (`element.style[prop] = String(value)`). */
-function toInlineStyle(style: PxNode['style']): Record<string, string> | undefined {
-    if (!style) return undefined;
-    const inline: Record<string, string> = {};
-    for (const [prop, value] of Object.entries(style)) inline[prop] = String(value);
-    return inline;
+/**
+ * The SVG attribute names React maps from camelCase (`stroke-width` ← `strokeWidth`): the SVG 2
+ * presentation attributes it knows, plus the namespaced ones. Given the kebab form of one of
+ * these, React still writes it — but warns "did you mean strokeWidth" for every attribute.
+ *
+ * Deliberately an ALLOWLIST. A name that is not here is handed to React verbatim, and React
+ * writes an attribute it does not know untouched — so an unlisted or future name is CORRECT by
+ * construction. The other default fails silently: camelCase a name React does not know and it
+ * writes the camelCase form, which SVG ignores — `maskType="alpha"` quietly became luminance
+ * masking, `offsetDistance` did nothing.
+ *
+ * Every entry is checked against the real DOM by the spec "attribute names", which renders each
+ * one through React and through the web player and compares what arrives.
+ * @internal
+ */
+export const REACT_CAMEL_CASED_SVG_ATTRS: ReadonlySet<string> = new Set([
+    'alignment-baseline', 'baseline-shift', 'clip-path', 'clip-rule', 'color-interpolation',
+    'color-interpolation-filters', 'color-rendering', 'dominant-baseline', 'fill-opacity', 'fill-rule',
+    'flood-color', 'flood-opacity', 'font-family', 'font-size', 'font-size-adjust', 'font-stretch',
+    'font-style', 'font-variant', 'font-weight', 'image-rendering', 'letter-spacing', 'lighting-color',
+    'marker-end', 'marker-mid', 'marker-start', 'paint-order', 'pointer-events', 'shape-rendering',
+    'stop-color', 'stop-opacity', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-linecap',
+    'stroke-linejoin', 'stroke-miterlimit', 'stroke-opacity', 'stroke-width', 'text-anchor',
+    'text-decoration', 'text-rendering', 'transform-origin', 'unicode-bidi', 'vector-effect',
+    'word-spacing', 'writing-mode',
+    'xlink:actuate', 'xlink:arcrole', 'xlink:href', 'xlink:role', 'xlink:show', 'xlink:title', 'xlink:type',
+    'xml:base', 'xml:lang', 'xml:space',
+]);
+
+const SVG_CLASS_ATTR = 'class';
+
+/** SVG attribute name (as the shared renderer hands it over) → the prop name React wants. */
+function toReactPropName(attr: string): string {
+    if (attr === SVG_CLASS_ATTR) return REACT_PROP.className;
+    if (!REACT_CAMEL_CASED_SVG_ATTRS.has(attr)) return attr;
+    return attr.replace(/[-:]([a-z])/g, (_all, c: string) => c.toUpperCase());
 }
 
 /**
@@ -111,49 +140,6 @@ export interface PixodeskSvgAnimatorProps extends PxPlaybackOverride, PxControlP
 // REF pick a mode and so silently disabled `autoplay`.
 
 
-// -- React ↔ Animator bridge ------------------------------------------------
-
-/**
- * Creates a platform adapter that routes animator attribute updates
- * to the corresponding React-managed DOM refs.
- */
-export function createReactAdapter(elementRefs: React.RefObject<Map<string, any>>, diag: PxDiagnostics) {
-    const warnedSelectors = new Set<string>();
-
-    const adapter: PxPlatformAdapter = {
-        isConnected: () => {
-            return true;
-        },
-        setAttribute: (id, attrName, value) => {
-
-            attrName = camelCaseToKebabWordIfNeeded(attrName);
-
-            const selector = getSelector(id);
-
-            const element = elementRefs.current.get(id);
-
-            if (!element && !warnedSelectors.has(selector)) {
-                warnedSelectors.add(selector);
-                // The element map rides along as the DETAIL rather than a second bare log, so a
-                // handler can inspect it and the console stays readable.
-                diag.warn(PxDiagnosticKind.host, PxDiagnosticCode.setAttributeNoElement, selector, elementRefs.current);
-            }
-
-            if (element) {
-                element.setAttribute(attrName, value);
-                if (PX_STYLE_ATTR_NAMES.has(attrName)) {
-                    (element as HTMLElement).style[attrName as any] = value;
-                }
-            }
-        },
-    };
-    return adapter;
-}
-
-export function getSelector(id: string) {
-    return '#' + id;
-}
-
 // FIXME: add model validation (e.g. isElementFileJson check)
 
 
@@ -163,48 +149,37 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
     className, style, doc, compMode, apiHolderRef, callbacksRef, diagRef
 }) => {
 
-    doc = generateNewIds(doc);
+    // Render what the web player renders: materialized, then fresh ids. Rendering the raw
+    // document dropped every `effects` bucket — no gradient, mask or wrapper defs — so a
+    // document painted by `effects` alone came out as an empty canvas.
+    doc = prepareDocumentForRender(doc);
 
-    const elementRefs = useRef(new Map<string, any>());
+    // The `<svg>` this component rendered — handed to the player, which attaches its triggers
+    // to it and writes animated values to the elements under it.
+    const rootRef = useRef<Element | null>(null);
 
-    const renderNode = (node: PxNode | undefined, isRoot = false, key?: React.Key): ReactElement | null => {
-        if (!node) return null;
+    // The ONLY React-specific part of rendering: how to create an element. Every decision about
+    // the document — tags, attribute names and values, sanitization, styles, text — is made by
+    // core's `renderPxTree`, the same code the web player renders with.
+    const createReactElement: PxElementFactory<ReactElement> = ({ tag, attrs, style: nodeStyle, children, text, node, isRoot, index }) => {
+        const props: Record<string, unknown> = {};
+        for (const name of Object.keys(attrs)) props[toReactPropName(name)] = attrs[name];
 
-        const { type, animate, meta, children, style: nodeStyle, ...props } = node;
+        props[REACT_PROP.key] = node.id ?? index;
+        if (nodeStyle) props[REACT_PROP.style] = nodeStyle;
 
-        const normProps = toDomProps(props);
-        if (key !== undefined) normProps[REACT_PROP.key] = key;
-
-        // `node.style` is not an attribute (`toDomProps` drops it) — it is the element's style.
-        const inlineStyle = toInlineStyle(nodeStyle);
-        if (inlineStyle) normProps[REACT_PROP.style] = inlineStyle;
-
-        normProps[REACT_PROP.ref] = (domEl: any) => {
-            if (node.id) elementRefs.current.set(node.id, domEl);
-            // return () => {};
-        };
-
-        // Apply the component's className/style props to the root SVG element.
+        // The component's own `className` / `style` props land on the root `<svg>`; its `style`
+        // wins over the document root's own declarations.
         if (isRoot) {
-            if (className) {
-                normProps[REACT_PROP.className] = normProps[REACT_PROP.className]
-                    ? normProps[REACT_PROP.className] + ' ' + className
-                    : className;
-            }
-            // The component's `style` prop wins over the document root's own declarations.
-            if (style) normProps[REACT_PROP.style] = { ...inlineStyle, ...style };
+            props[REACT_PROP.ref] = (domEl: Element | null) => { rootRef.current = domEl; };
+            if (className) props[REACT_PROP.className] = props[REACT_PROP.className] ? props[REACT_PROP.className] + ' ' + className : className;
+            if (style) props[REACT_PROP.style] = { ...nodeStyle, ...style };
         }
 
-        // Text content: a node's own `textContent` renders only when it has no child nodes — a line
-        // <tspan> can carry both, and then its children are the styled spans (the React Native
-        // renderer's rule). `toDomProps` strips `textContent` from the attributes.
-        const content = children?.length
-            ? children.map((child, i) => renderNode(child, false, child.id ?? i))
-            : (typeof node.textContent === 'string' ? node.textContent : undefined);
-        return createElement(type, normProps, content);
+        return createElement(tag, props, children.length ? children : text);
     };
 
-    const root = doc ? renderNode(doc, true) : null;
+    const root = renderPxTree(doc, createReactElement, createDiagnostics(diagRef.current ?? undefined, '[PixodeskSvgAnimator]'));
 
     // Create the animator once per document and tear it down on unmount.
     useEffect(() => {
@@ -219,12 +194,12 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
         // The callbacks go INLINE, under the same names as the props (review §9). `onStop` is
         // the PLAYER's to fire after pause / cancel / finish / remove — one rule, in the web
         // package — so it is passed through rather than re-derived here.
-        const adapterDiag = createDiagnostics(diagRef.current ?? undefined, '[PixodeskSvgAnimator]');
-        // `adapter` is the components' extension of the public options (`PxInternalAnimatorOptions`,
-        // review §25.14): the frame loop writes to the elements React rendered, not to a container.
+        // No `adapter`: the web player's OWN writer drives the elements React rendered, found by
+        // id under the root. A second writer here was a second place for rules to go missing.
         const options: PxInternalAnimatorOptions = {
             doc,
-            adapter:  createReactAdapter(elementRefs, adapterDiag),
+            // Refs are attached during commit, before this effect runs, so the root exists here.
+            rootElement: rootRef.current ?? undefined,
             onPlay:   cb('onPlay'),
             onPause:  cb('onPause'),
             onCancel: cb('onCancel'),

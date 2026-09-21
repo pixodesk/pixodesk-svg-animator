@@ -13,7 +13,8 @@
 
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../../format/PxAnimatorTypes';
-import { collectByType, materializeRaw } from '../effectTestKit';
+import { PxTimelineEngine } from '../../format/PxAnimatorConstants';
+import { collectByType, engineFirstFrame, materializeEngine, materializeRaw, staticAttr } from '../effectTestKit';
 import { layoutGlyphTextChars, materializeGlyphText } from './textGlyphsEffect';
 
 const glyphs = {
@@ -278,6 +279,38 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
         const last = kfs[kfs.length - 1];
         expect(last.time).toBe(1000);
         expect(last.value.translate[0]).toBeCloseTo(135, 2);   // mid at dist 100+35
+    });
+
+    it('at REST every glyph sits where the engine starts it — not stacked on the origin', () => {
+        // REGRESSION: the glyphs carry `animate.transform` only. Until a player applied a frame
+        // they all sat at the group's origin — every letter stacked on one spot — and under a
+        // `mouseOver` / `none` trigger that is what the user looks at. The pipeline's last stage
+        // gives them their first-frame pose; the startOffset track starts BEFORE 0 here, as
+        // converted documents' do, so "the first keyframe" would be the wrong answer.
+        const scene = animScene('M0 0L1000 0', [{ time: -500, value: 0 }, { time: 1000, value: 300 }], 'Hi');
+        (scene.animator as { timeline?: unknown }).timeline = { duration: 1000, engine: 'js' };
+        const out = materializeEngine(scene, PxTimelineEngine.js);
+        const engine = engineFirstFrame(out);
+
+        const p = glyphPaths(out);
+        expect(p).toHaveLength(2);
+        for (const glyph of p) {
+            expect(glyph.transform, 'glyph has a rest pose').toBeDefined();
+            expect(staticAttr(glyph, 'transform')).toBe(engine.get(String(glyph.id))?.get('transform'));
+        }
+        // Two glyphs, two different places — not stacked.
+        expect(staticAttr(p[0], 'transform')).not.toBe(staticAttr(p[1], 'transform'));
+    });
+
+    it('a clip-mode glyph that starts OFF the path rests hidden, not flashed at full opacity', () => {
+        // `pathOverflow: 'clip'` on an open 100-long path; the glyph starts at 500 — far off it.
+        const scene = animScene('M0 0L100 0', [{ time: 0, value: 500 }, { time: 1000, value: 0 }], 'H');
+        ((scene.children?.[0].effects as any).textPath).pathOverflow = 'clip';
+        (scene.animator as { timeline?: unknown }).timeline = { duration: 1000, engine: 'js' };
+        const p = glyphPaths(materializeEngine(scene, PxTimelineEngine.js));
+
+        expect((p[0].animate as any).opacity, 'the scene must actually produce a visibility track').toBeDefined();
+        expect(Number(p[0].opacity)).toBe(0);
     });
 
     it('gives each glyph its own animated path (no merge)', () => {

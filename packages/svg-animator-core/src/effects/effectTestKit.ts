@@ -9,6 +9,8 @@
 // assert the materialized tree. NOT a test file (no `.test` suffix) so vitest
 // skips it and tsup never bundles it (entry is index.ts only).
 
+import { createAdapterAnimator } from '../playback/PxFrameLoop';
+import { toDomProps } from '../util/PxNodeProps';
 import { materializeNodeEffects } from './PlayerEffectsUtil';
 import { materializeAllInTree } from '../materialize/PxAnimatorMaterializeAll';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
@@ -135,4 +137,29 @@ export function danglingEffectCount(root: PxNode, key: string): number {
 /** True if every effect bucket was consumed (no node has a non-empty `effects`). */
 export function noEffectsRemain(root: PxNode): boolean {
     return countNodes(root, n => !!n.effects && Object.keys(n.effects).length > 0) === 0;
+}
+
+
+/**
+ * What the ENGINE writes at its first frame — element `id` → attribute → value. The reference a
+ * rest pose is checked against: at rest both engines show the static document, so every
+ * animated node's static attribute has to equal this (see `materialize/PxRestPose`).
+ */
+export function engineFirstFrame(materialized: PxNode): Map<string, Map<string, string>> {
+    const written = new Map<string, Map<string, string>>();
+    const api = createAdapterAnimator(materialized as PxAnimatedSvgDocument, {
+        isConnected: () => true,
+        setAttribute: (id, attr, value) => {
+            const attrs = written.get(id) ?? new Map<string, string>();
+            attrs.set(attr, String(value));
+            written.set(id, attrs);
+        },
+    });
+    api.setCurrentTime(0);
+    return written;
+}
+
+/** The static attribute a player renders for `node[key]`. */
+export function staticAttr(node: PxNode, key: string): string | undefined {
+    return toDomProps({ [key]: node[key] })[key];
 }

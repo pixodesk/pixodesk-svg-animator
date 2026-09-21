@@ -25,6 +25,10 @@
  *      subtree replaced with a `<g>` carrying a deep clone (fresh ids).
  *      Only for `engine === waapi` — frames-mode updates source attrs
  *      per frame, which propagate through `<use>` shadow trees natively.
+ *   5. `materializeRestPosesInTree` — every animated property with no static value gets
+ *      its FIRST-FRAME value as a plain attribute, so the static document — what both
+ *      engines show at rest — is the first frame. Last, so generated nodes and clones
+ *      are covered. Never changes the animation. See `PxRestPose`.
  *
  * Immutable: input doc is never mutated. Steps that didn't apply (the engine
  * gating or "nothing to do" early-outs) return the input by reference.
@@ -36,9 +40,11 @@ import { materializeInternalLoopsInTree } from '../animation/PxDefinitions';
 import { materializeOffsetPathsInTree } from './PxOffsetPathMaterializer';
 import { materializeMotionPathsInTree } from './PxMotionPath';
 import type { MotionPathMaterializationOptions } from './PxMotionPath';
-import { getAnimatorConfig, PxTimelineEngine } from '../format/PxAnimatorConstants';
+import { getAnimatorConfig, PxTimelineEngine, resolveTimelineEngine } from '../format/PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxNode } from '../format/PxAnimatorTypes';
 import { materializeAnimatedUseInstances } from './PxAnimatorUseMaterializer';
+import { generateNewIds } from '../util/PxIdUtil';
+import { materializeRestPosesInTree } from './PxRestPose';
 
 
 /** Options accepted by {@link materializeAllInTree}. Mostly forwarded to the
@@ -91,7 +97,38 @@ export function materializeAllInTree(
         root = pruneUnreferencedDefs(root);
     }
 
+    // 6. Rest poses — LAST, so every node the stages above generated is covered, clones
+    //    included. Both engines show the STATIC document at rest (unplayed, or cancelled), and
+    //    a generated animated wrapper has no static transform of its own. See `PxRestPose`.
+    root = materializeRestPosesInTree(root, engine);
+
     return root;
+}
+
+
+/**
+ * The document exactly as the web player RENDERS it: materialized for the engine the document
+ * resolves to, then with fresh ids.
+ *
+ * For adapters that build the DOM themselves (React, Vue). They must render THIS rather than
+ * the raw document — `effects` only become the `<radialGradient>`/`<mask>`/wrapper nodes the
+ * shapes point at during materialization. Rendering the raw document drops all of it, and a
+ * document whose paint comes from `effects` alone renders as an empty canvas.
+ *
+ * - **Order matters.** Ids are regenerated AFTER materializing, because materialization mints
+ *   its def ids from a counter that starts at zero on every call — two instances on one page
+ *   would otherwise share them, and `url(#…)` resolves document-wide to the first match.
+ * - **Safe to hand on to `createAnimator`.** Materialization consumes `node.effects` and
+ *   flattens loops, so the player's own pass over the result changes nothing, and the ids it
+ *   binds to are the ids that were rendered.
+ *
+ * The web player's container path does the same two steps inline (it only regenerates ids
+ * when it owns the render); this is that sequence, named, so the adapters cannot drift from it.
+ * @internal
+ */
+export function prepareDocumentForRender(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocument {
+    const engine = resolveTimelineEngine(getAnimatorConfig(doc)?.engine);
+    return generateNewIds(materializeAllInTree(doc, engine));
 }
 
 

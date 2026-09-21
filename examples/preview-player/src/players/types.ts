@@ -58,6 +58,19 @@ export interface PlayerOptions {
 }
 
 /**
+ * Whether a component player must be told to `autoplay`.
+ *
+ * The components take the document's trigger OVER unless `autoplay` is set — with no control
+ * props, `<PixodeskSvgAnimator doc />` renders the first frame and waits (core's
+ * `controlModeTakesOverTrigger`). So "Use trigger" has to pass `autoplay`, or the trigger that
+ * `applyTriggerOverride` just wrote into the document is replaced by `start: 'none'` and the
+ * React / Vue players sit still while the web player — which has no such rule — runs.
+ */
+export function shouldAutoplayForTrigger(opts?: PlayerOptions): boolean {
+  return opts?.trigger !== undefined;
+}
+
+/**
  * Applies the {@link PlayerOptions.trigger} choice to a copy of `doc`. Shared by all
  * three player adapters so "Use trigger" behaves identically everywhere:
  *  - default (no `trigger`)  → force `programmatic` so the transport buttons own start;

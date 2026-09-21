@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
+import { createAnimator, PxAnimatedSvgDocument, type PxNode } from '@pixodesk/svg-animator-web';
+import { PxDiagnosticCode } from '@pixodesk/svg-animator-core';
 import { cleanup, render } from "@testing-library/vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, ref } from "vue";
@@ -326,6 +327,193 @@ describe("PixodeskSvgAnimator (Vue)", () => {
 });
 
 
+// A document whose paint comes ONLY from `effects`: the root is `fill: none`, both shapes take
+// their fill from `effects.fillGradient`, and the ellipse is `effects.maskedBy` the rect. The web
+// player plays it. Vue rendered an EMPTY canvas, because it built its vnodes from the raw
+// document — `effects` never became <radialGradient>/<mask> defs, so every shape inherited
+// `fill: none`. `createAnimator` did materialize, but only its own copy, after Vue had rendered.
+describe("PixodeskSvgAnimator (Vue) — effects", () => {
+    afterEach(() => cleanup());
+
+    it("renders the gradients and the mask that `effects` describe", () => {
+        const svg = renderSvg(getEffectsOnlyJson());
+
+        expect(svg.querySelectorAll("radialGradient")).toHaveLength(2);
+        expect(svg.querySelector("mask")).not.toBeNull();
+        expect(svg.querySelector("[effects]")).toBeNull();
+    });
+
+    it("every url(#id) reference resolves to an element in the same svg", () => {
+        const svg = renderSvg(getEffectsOnlyJson());
+
+        const refs = collectUrlRefs(svg);
+        // Nothing BUT references (fill x2, mask) — an empty list means the effects were dropped.
+        expect(refs.length).toBeGreaterThanOrEqual(3);
+        const ownIds = new Set(Array.from(svg.querySelectorAll("[id]")).map(el => el.id));
+        for (const id of refs) expect(ownIds.has(id), 'url(#' + id + ') resolves').toBe(true);
+    });
+
+    it("renders the same element structure as the web player", () => {
+        // The web player is the reference: it plays this document.
+        const host = document.createElement("div");
+        document.body.appendChild(host);
+        const web = createAnimator({ doc: getEffectsOnlyJson(), container: host });
+        const webSvg = host.querySelector("svg");
+        expect(webSvg).not.toBeNull();
+
+        const svg = renderSvg(getEffectsOnlyJson());
+
+        expect(tagCensus(svg)).toEqual(tagCensus(webSvg));
+        web.destroy();
+        host.remove();
+    });
+
+    it("two instances on one page do not share def ids", () => {
+        // Materialization numbers its defs from zero; ids must be regenerated AFTER it, as the
+        // web player does, or two instances mint the same `url(#…)` targets.
+        const a = render(PixodeskSvgAnimator, { props: { doc: getEffectsOnlyJson() } });
+        const b = render(PixodeskSvgAnimator, { props: { doc: getEffectsOnlyJson() } });
+
+        const ids = [a.container, b.container].flatMap(c =>
+            Array.from(c.querySelectorAll("radialGradient, mask")).map(el => el.id));
+        expect(ids).toHaveLength(6);
+        expect(new Set(ids).size).toBe(ids.length);
+    });
+});
+
+
+// Both engines find the root as `#` + the document's root id, so a document whose root `<svg>`
+// has no id had NO root here, and `setupAnimationTriggers` returned before wiring anything
+// (PX1201): a `load` trigger never fired. The component now hands over the `<svg>` it rendered.
+describe("PixodeskSvgAnimator (Vue) — root element", () => {
+    beforeEach(() => { vi.useFakeTimers(); });
+    afterEach(() => {
+        vi.advanceTimersByTime(32); // drain a pending rAF before real timers come back
+        cleanup();
+        vi.useRealTimers();
+    });
+
+    it("a `load` trigger plays when the document's root has no id", () => {
+        const onWarn = vi.fn();
+        const { container } = render(PixodeskSvgAnimator, {
+            props: { doc: getMaskedLoadJson(), autoplay: true, onWarn, timeline: { engine: "js" } },
+        });
+
+        const moving = container.querySelector("mask ellipse");
+        expect(moving).not.toBeNull();
+        const before = moving?.getAttribute("transform");
+
+        vi.advanceTimersByTime(200);
+
+        expect(moving?.getAttribute("transform")).not.toBe(before);
+        const noRoot = onWarn.mock.calls.filter(([d]) =>
+            d.code === PxDiagnosticCode.triggersNoRoot || d.code === PxDiagnosticCode.noRootElement);
+        expect(noRoot).toEqual([]);
+    });
+});
+
+// Vue has no camelCase-to-attribute mapping at all, so it wrote EVERY camelCase name verbatim —
+// `stopColor`, `strokeWidth`, `fillOpacity`, `maskType` — and SVG ignores that form: gradients
+// lost their colours, strokes their widths, masks their `alpha` mode.
+describe("PixodeskSvgAnimator (Vue) — attribute names", () => {
+    afterEach(() => cleanup());
+
+    it("`maskType` reaches the DOM as `mask-type`", () => {
+        const mask = renderSvg(getMaskedLoadJson()).querySelector("mask");
+        expect(mask?.getAttribute("mask-type")).toBe("alpha");
+        expect(Array.from(mask?.attributes ?? []).map(a => a.name)).not.toContain("maskType");
+    });
+
+    it("gradient stops keep their colour", () => {
+        // The effects document: its paint IS these stops.
+        const stop = renderSvg(getEffectsOnlyJson()).querySelector("stop");
+        expect(stop?.getAttribute("stop-color")).toBeTruthy();
+        expect(Array.from(stop?.attributes ?? []).map(a => a.name)).not.toContain("stopColor");
+    });
+
+    it("every SVG presentation attribute reaches the DOM under the name the web player uses", () => {
+        // `PxNode` carries an index signature for DOM attributes, so the loop below is typed.
+        const rect: PxNode = { type: "rect", id: "r", width: 5, height: 5 };
+        for (const kebab of SVG_PRESENTATION_ATTRIBUTES) {
+            // Reference attributes need a real local reference, or the web writer drops them as
+            // unsafe and the two renders differ for a reason that is not the name.
+            rect[kebabToCamel(kebab)] = REFERENCE_ATTRIBUTES.has(kebab) ? "url(#r)" : "1";
+        }
+        const doc: PxAnimatedSvgDocument = { type: "svg", viewBox: "0 0 10 10", animator: { timeline: { duration: 100, engine: "js" } }, children: [rect] };
+
+        const host = document.createElement("div");
+        document.body.appendChild(host);
+        const web = createAnimator({ doc, container: host });
+        const webNames = attributeNames(host.querySelector("rect"));
+
+        expect(attributeNames(renderSvg(doc).querySelector("rect"))).toEqual(webNames);
+        web.destroy();
+        host.remove();
+    });
+
+    it("genuinely camelCase SVG attributes stay camelCase", () => {
+        // The other half of the writer rule: `viewBox`, `gradientUnits` must NOT become kebab.
+        const svg = renderSvg(getEffectsOnlyJson());
+        expect(svg.getAttribute("viewBox")).toBe("0 0 500 500");
+        expect(svg.querySelector("radialGradient")?.getAttribute("gradientUnits")).toBe("userSpaceOnUse");
+    });
+});
+
+
+/** SVG 2 presentation attributes — the spec's list, kebab-case as SVG reads them. */
+const SVG_PRESENTATION_ATTRIBUTES: ReadonlyArray<string> = ("alignment-baseline baseline-shift clip clip-path clip-rule "
+    + "color color-interpolation color-interpolation-filters color-rendering cursor direction display "
+    + "dominant-baseline fill fill-opacity fill-rule filter flood-color flood-opacity font-family font-size "
+    + "font-size-adjust font-stretch font-style font-variant font-weight image-rendering letter-spacing "
+    + "lighting-color marker-end marker-mid marker-start mask mask-type opacity overflow paint-order "
+    + "pointer-events shape-rendering stop-color stop-opacity stroke stroke-dasharray stroke-dashoffset "
+    + "stroke-linecap stroke-linejoin stroke-miterlimit stroke-opacity stroke-width text-anchor "
+    + "text-decoration text-rendering transform-origin unicode-bidi vector-effect visibility word-spacing "
+    + "writing-mode").split(" ");
+
+/** The presentation attributes whose value is a `url(#…)` reference. */
+const REFERENCE_ATTRIBUTES = new Set(["clip-path", "filter", "marker-end", "marker-mid", "marker-start", "mask"]);
+
+/** `stroke-width` -> `strokeWidth` — the wire's spelling. */
+function kebabToCamel(kebab: string): string {
+    return kebab.replace(/-([a-z])/g, (_all, c: string) => c.toUpperCase());
+}
+
+/** Attribute names on one element, sorted, so two renders compare as a set. */
+function attributeNames(el: Element | null): Array<string> {
+    return el ? Array.from(el.attributes).map(a => a.name).sort() : [];
+}
+
+/** Renders and returns the root `<svg>`, failing the test if there is none. */
+function renderSvg(doc: PxAnimatedSvgDocument): SVGSVGElement {
+    const svg = render(PixodeskSvgAnimator, { props: { doc } }).container.querySelector("svg");
+    if (!svg) throw new Error("no <svg> rendered");
+    return svg;
+}
+
+/** Every id referenced as `url(#id)` from any attribute inside `root`. */
+function collectUrlRefs(root: Element): Array<string> {
+    const ids: Array<string> = [];
+    for (const el of Array.from(root.querySelectorAll("*"))) {
+        for (const attr of Array.from(el.attributes)) {
+            for (const m of attr.value.matchAll(/url\(#([^)]+)\)/g)) ids.push(m[1]);
+        }
+    }
+    return ids;
+}
+
+/** Tag name -> count, so two renders can be compared without depending on generated ids. */
+function tagCensus(root: Element | null): Record<string, number> {
+    const census: Record<string, number> = {};
+    if (!root) return census;
+    for (const el of [root, ...Array.from(root.querySelectorAll("*"))]) {
+        const tag = el.tagName.toLowerCase();
+        census[tag] = (census[tag] ?? 0) + 1;
+    }
+    return census;
+}
+
+
 ////////////////////////////////////////////////////////////////
 
 /** Frames-mode doc: single ellipse, translate 100 → 200 over 128ms. */
@@ -570,3 +758,120 @@ describe('PixodeskSvgAnimator (Vue) — timeline override', () => {
         expect(opacityIn(container)).toBe(1);
     });
 });
+
+
+/**
+ * Paint from `effects` ONLY — reported as an empty canvas in React and Vue while the web player
+ * played it. Root `fill: none`; both shapes filled by `effects.fillGradient` (radial); the
+ * ellipse `effects.maskedBy` the rect (alpha); a mouse-over trigger with a looping transform.
+ * Same document as the React spec's fixture of the same name.
+ */
+function getEffectsOnlyJson(): PxAnimatedSvgDocument {
+    return {
+        type: "svg", fill: "none", preserveAspectRatio: "xMaxYMax ", viewBox: "0 0 500 500",
+        animator: {
+            timeline: {
+                duration: 1000,
+                trigger: { start: "mouseOver", offScreen: "pause", mouseOut: "pause", visibilityThreshold: 0.5, visibilityDebounce: 150 },
+                iterations: "infinite", direction: "normal",
+            },
+            version: "1.2.1",
+        },
+        children: [
+            {
+                type: "rect", id: "_px_3dcddatp", height: 20.3448, width: 20.3448, stroke: "none",
+                transform: {
+                    translate: [301.23767450628105, 301.23767450628105],
+                    scale: [10.142570505804876, 10.142570505804876],
+                    origin: [10.17242035308442, 10.17242035308442],
+                },
+                effects: {
+                    fillGradient: {
+                        type: "radial",
+                        center: [13.029971325206432, 7.091795735321082], focal: [13.029971325206432, 7.091795735321082],
+                        radius: 10.17242035308442,
+                        stops: [{ offset: 0, color: "#ffffff" }, { offset: 1, color: "#007fff" }],
+                        gradientUnits: "userSpaceOnUse",
+                    },
+                },
+            },
+            {
+                type: "ellipse", rx: 12.1094, ry: 12.1094, stroke: "none",
+                transform: { translate: [208.2356, 208.2356], scale: [10.1426, 10.1426] },
+                animate: {
+                    transform: {
+                        keyframes: [
+                            { time: 0,   value: { translate: [208.2356, 208.2356], scale: [10.1426, 10.1426] } },
+                            { time: 200, value: { translate: [414.5846, 208.2356], scale: [10.1426, 10.1426] } },
+                            { time: 400, value: { translate: [414.5846, 414.5846], scale: [10.1426, 10.1426] }, easing: [0.1818, 0.1818, 0.5648, 0.5648] },
+                            { time: 468, value: { translate: [344.4277, 414.5846], scale: [10.1426, 10.1426] }, easing: [0.3814, 0.3814, 0.8406, 0.8406] },
+                            { time: 600, value: { translate: [208.2356, 414.5846], scale: [10.1426, 10.1426] } },
+                            { time: 800, value: { translate: [208.2356, 208.2356], scale: [10.1426, 10.1426] } },
+                        ],
+                    },
+                },
+                effects: {
+                    fillGradient: {
+                        type: "radial", center: [0, 0], focal: [0, 0], radius: 12.109375,
+                        stops: [{ offset: 0, color: "#00f76c" }, { offset: 1, color: "#ff00ff" }],
+                        gradientUnits: "userSpaceOnUse",
+                    },
+                    maskedBy: { source: "#_px_3dcddatp", maskType: "alpha" },
+                },
+            },
+        ],
+    };
+}
+
+
+/**
+ * A MASK document with a `load` trigger — reported as a static dark quarter-circle in React and
+ * Vue. The root has no id, so the trigger never fired (static); `maskType: "alpha"` reached the
+ * DOM as camelCase, so the mask fell back to luminance and let ~28% of the blue rect through
+ * (dark). Same document as the React spec's fixture of the same name.
+ */
+function getMaskedLoadJson(): PxAnimatedSvgDocument {
+    return {
+        type: "svg", fill: "none", preserveAspectRatio: "xMaxYMax ", viewBox: "0 0 500 500",
+        animator: {
+            timeline: {
+                duration: 1000,
+                trigger: { start: "load", offScreen: "pause", visibilityThreshold: 0.5, visibilityDebounce: 150 },
+                iterations: "infinite", direction: "normal",
+            },
+            version: "1.2.1",
+        },
+        children: [
+            {
+                type: "defs",
+                children: [{
+                    type: "mask", id: "_px_3dcb6iqr", maskType: "alpha",
+                    children: [{
+                        type: "ellipse", fill: "#ff00ff", rx: 12.1094, ry: 12.1094, stroke: "none",
+                        transform: { translate: [0, 0] },
+                        animate: {
+                            transform: {
+                                keyframes: [
+                                    { time: 0,   value: { translate: [0, 0] } },
+                                    { time: 200, value: { translate: [20.3448, 0] } },
+                                    { time: 400, value: { translate: [20.3448, 20.3448] }, easing: [0.1818, 0.1818, 0.5648, 0.5648] },
+                                    { time: 468, value: { translate: [13.4278, 20.3448] }, easing: [0.3814, 0.3814, 0.8406, 0.8406] },
+                                    { time: 600, value: { translate: [0, 20.3448] } },
+                                    { time: 800, value: { translate: [0, 0] } },
+                                ],
+                            },
+                        },
+                    }],
+                }],
+            },
+            {
+                type: "rect", fill: "#007fff", height: 20.3448, width: 20.3448, mask: "url(#_px_3dcb6iqr)", stroke: "none",
+                transform: {
+                    translate: [301.23767450628105, 301.23767450628105],
+                    scale: [10.142570505804876, 10.142570505804876],
+                    origin: [10.17242035308442, 10.17242035308442],
+                },
+            },
+        ],
+    };
+}

@@ -10,8 +10,9 @@
 // `node.mask = url(#maskId)`. `maskType`/`maskUnits`/`maskContentUnits` pass through.
 
 import { describe, expect, it } from 'vitest';
+import { PxTimelineEngine } from '../../format/PxAnimatorConstants';
 import type { PxNode } from '../../format/PxAnimatorTypes';
-import { collectByType, countNodes, materialize, materializeRaw, normalizeGeneratedIds } from '../effectTestKit';
+import { collectByType, countNodes, engineFirstFrame, materialize, materializeEngine, materializeRaw, normalizeGeneratedIds, staticAttr } from '../effectTestKit';
 
 /** A mask SOURCE shape + a TARGET rect masked by it. `extraEffects` merge
  *  alongside `maskedBy` on the target (e.g. add a `transformBy`). */
@@ -211,6 +212,43 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
             .map(g => (g as any).transform).filter(t => t && typeof t === 'object').map(t => t.value);
         // `-0 === 0` so this tolerates the negated-zero y the inverter produces.
         expect(inverseParts.some(p => p.translate && p.translate[0] === -60 && p.translate[1] === 0)).toBe(true);
+    });
+
+    it('case 3b — an ANIMATED masked element: at REST every inverse wrapper sits where the engine starts it', () => {
+        // REGRESSION: the wrappers that undo the masked element's animated transform carry
+        // `animate.transform` only. Until a player applied a frame they were identity, so the
+        // mask source sat in the wrong place and the masked element was simply not visible —
+        // which, under a `mouseOver` / `none` trigger, is the frame the user is looking at.
+        // The keyframes start BEFORE 0, as converted documents' do.
+        const scene: PxNode = {
+            type: 'svg',
+            animator: { timeline: { duration: 1000, engine: 'js' } },
+            children: [
+                { type: 'rect', id: 'src', width: 20, height: 20, fill: '#fff' },
+                {
+                    type: 'ellipse', id: 'target', rx: 5, ry: 5, fill: '#f00',
+                    transform: { translate: [10, 10], scale: [2, 2] },
+                    animate: { transform: { keyframes: [
+                        { time: -250, value: { translate: [10, 10], scale: [2, 2] } },
+                        { time: 500, value: { translate: [60, 10], scale: [4, 4] } },
+                    ] } },
+                    effects: { maskedBy: { source: '#src' } },
+                },
+            ],
+        } as unknown as PxNode;
+
+        const out = materializeEngine(scene, PxTimelineEngine.js);
+        const engine = engineFirstFrame(out);
+        const mask = collectByType(out, 'mask')[0];
+        expect(mask).toBeDefined();
+
+        const animatedWrappers = collectByType(mask, 'g').filter(g => (g.animate as any)?.transform?.keyframes?.length);
+        // The scene must actually produce animated wrappers, or the loop below checks nothing.
+        expect(animatedWrappers.length).toBeGreaterThan(0);
+        for (const g of animatedWrappers) {
+            expect(g.transform, 'wrapper has a rest pose').toBeDefined();
+            expect(staticAttr(g, 'transform'), 'rest pose of a mask wrapper').toBe(engine.get(String(g.id))?.get('transform'));
+        }
     });
 
     it('case 4 — missing source is rejected with an error (no mask generated)', () => {

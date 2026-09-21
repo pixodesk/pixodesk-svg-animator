@@ -2,7 +2,7 @@ import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { PixodeskSvgAnimator, type ReactAnimatorApi } from '@pixodesk/svg-animator-react';
 import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
-import { applyTriggerOverride, type PlayerHandle, type PlayerOptions } from './types';
+import { applyTriggerOverride, shouldAutoplayForTrigger, type PlayerHandle, type PlayerOptions } from './types';
 
 /** Mounts the React `<PixodeskSvgAnimator/>` component into `container`. */
 export function createReactPlayer(
@@ -23,6 +23,7 @@ export function createReactPlayer(
       // The component overrides the document's iterations when this prop is set;
       // leaving it `undefined` (auto) keeps the document's own value.
       iterations: opts?.iterations,
+      autoplay: shouldAutoplayForTrigger(opts),
       style: { width: '100%', height: '100%' },
     }),
   );

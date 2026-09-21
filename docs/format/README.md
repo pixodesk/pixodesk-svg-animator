@@ -1288,6 +1288,13 @@ knowing where they sit — reach for them over `doc.animator?.…` in a tool of 
 3. **Motion paths** — tangented `transform` keyframes and `autoOrient` are sampled into plain
    `{ translate, rotate }` keyframes.
 4. **Animated `<use>`** — replaced by a `<g>` with a deep clone and fresh ids.
+5. **Rest poses** — an animated property with no static value gets the value of its **first
+   frame** as a plain attribute. At rest — not yet played, or cancelled — a player shows the
+   static document, and a node an effect generated (a `transformBy` wrapper, a mask's inverse
+   chain, a glyph on a path) has no static value of its own: without this step it sits at the
+   identity until something plays. The value is what the engine itself writes at the first frame,
+   never "the first keyframe" (keyframes may begin before time 0). An authored static value is
+   left alone, and the step never changes the animation — only the frame shown at rest.
 
 Steps 3–4 run when `engine` is `native`. Pass `native` for **any renderer without live `<use>`
 propagation** (including `react-native-svg`); `js` only for the DOM, which resolves `<use>`
@@ -1344,7 +1351,7 @@ The calls above, and the rest of what you would call directly, in signature form
 <!-- px-check signature pkg=core -->
 ```typescript
 // ○ Run the whole materialization pipeline: effects → loops → motion paths →
-//   <use> instances, in the canonical order. This is exactly what the player
+//   <use> instances → rest poses, in the canonical order. This is exactly what the player
 //   runs internally, so a document flattened here plays identically — the way
 //   to feed a renderer that has no effects support. `resolveTimelineEngine`
 //   turns a document's `timeline.engine` into this argument.
@@ -1440,7 +1447,7 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 |---|---|---|
 | Wire types | `PxAnimatedSvgDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTimeline`, `PxTrigger`, `PxElementAnimation`, `PxPropertyAnimation`, `PxKeyframe`, `PxLoop`, `PxBinding`, `PxDefinitions`, `PxEffects`, `PxTransformParts`, `PxBezierPath`, `PxGlyph`, `PxGlyphFont`, `PxAnimationDefinition`, `PxScroll`, `PxScrollRangePoint`, `PxVec2`, `PxTransformValue` | ● the shapes in [Schema at a glance](#schema-at-a-glance) |
 | Player API types | `PxAnimatorApi<TRoot>`, `PxPlaybackApi<TRoot>`, `PxEngineCallbacks`, `PxPlatformAdapter` | ● platform-neutral; the web fixes `TRoot` to `Element`. `PxEngineCallbacks` is what an engine takes — the lifecycle on top of `PxDiagnosticsConfig` |
-| Component contract | `PxAnimatorHandle`, `PxAnimatorCallbacks`, `PxControlProps`, `PxControlMode`, `resolveControlMode(props)`, `controlModeTakesOverTrigger(mode)` | ● what the React / Vue / React Native components share: the imperative handle, the callback set, the props that pick a mode and the one rule that picks it — [the API at a glance](../library/README.md#the-api-at-a-glance) |
+| Component contract | `PxAnimatorHandle`, `PxAnimatorCallbacks`, `PxControlProps`, `PxControlMode`, `resolveControlMode(props)`, `controlModeTakesOverTrigger(mode)`, `prepareDocumentForRender(doc)` (▪), `renderPxTree(node, factory)` (▪), `PxElementFactory` (▪), `PxElementSpec` (▪) | ● what the React / Vue / React Native components share: the imperative handle, the callback set, the props that pick a mode and the one rule that picks it — [the API at a glance](../library/README.md#the-api-at-a-glance). `renderPxTree` is THE renderer of every DOM player: it makes each decision about a document — tags, attribute names and values, sanitization, styles, text — and a player supplies only a `PxElementFactory`, "create an element from this finished `PxElementSpec`" (a DOM node, a React element, a Vue vnode). `prepareDocumentForRender` is the document it is given: materialized, then fresh ids |
 | Engine rules | `resolveTimelineEngine(engine)`, `isNativeForced(engine)`, `mayUseNativeScrollTimeline(engine)` | ○ how a `timeline.engine` resolves to an engine / to the browser's ScrollTimeline — the players' own decision helpers |
 | Trigger defaults | `PX_TRIGGER_DEFAULTS`, `resolveTrigger(trigger)`| ○ what a missing trigger field means (`start` 'load', `offScreen` 'pause', `mouseOut` 'continue', threshold 0.5, debounce 150 ms) — the one resolution every player uses |
 | Time contract | `seekCeilingMs`, `progressSpanMs`, `clampSeekMs`, `timeToProgress`, `progressToTimeMs`, `isValidPlaybackRate`, `PX_RATE_REJECTED`, `createRunClock` + | ○ the one meaning of time, seeking and rate that every engine implements — see `PxAnimatorApi` |

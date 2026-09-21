@@ -1,7 +1,7 @@
 import { createApp, h, onMounted, ref } from 'vue';
 import { PixodeskSvgAnimator, type VueAnimatorApi } from '@pixodesk/svg-animator-vue';
 import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
-import { applyTriggerOverride, type PlayerHandle, type PlayerOptions } from './types';
+import { applyTriggerOverride, shouldAutoplayForTrigger, type PlayerHandle, type PlayerOptions } from './types';
 
 /** Mounts the Vue `<PixodeskSvgAnimator/>` component into `container`. */
 export function createVuePlayer(
@@ -26,6 +26,7 @@ export function createVuePlayer(
           // The component overrides the document's iterations when this prop is
           // set; leaving it `undefined` (auto) keeps the document's own value.
           iterations: opts?.iterations,
+          autoplay: shouldAutoplayForTrigger(opts),
           style: { width: '100%', height: '100%' },
         });
     },

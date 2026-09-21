@@ -3,11 +3,11 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxAnimatedSvgDocument, PxAnimatorApi, PxNode, PxPlatformAdapter, PxTimelineEngineSetting, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
+import type { PxAnimatedSvgDocument, PxAnimatorApi, PxTimelineEngineSetting, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
-import { createAnimator, generateNewIds, toDomProps, PxDiagnosticKind, type PxPlaybackOverride, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
+import { createAnimator, PxDiagnosticKind, type PxPlaybackOverride, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxDiagnosticCode, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
-import { camelCaseToKebabWordIfNeeded, createDiagnostics, PX_STYLE_ATTR_NAMES, PX_DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
+import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
     watch,
@@ -18,15 +18,6 @@ import {
 
 /** Vue's own prop names on the vnode — not wire keys. See the React twin. */
 const VUE_PROP = { ref: 'ref', style: 'style' } as const;
-
-/** `node.style` (camelCase declarations) as an element style object — values stringified, exactly
- *  as the web player writes them (`element.style[prop] = String(value)`). */
-function toInlineStyle(style: PxNode['style']): Record<string, string> | undefined {
-    if (!style) return undefined;
-    const inline: Record<string, string> = {};
-    for (const [prop, value] of Object.entries(style)) inline[prop] = String(value);
-    return inline;
-}
 
 /**
  * The imperative handle the template ref exposes — core's `PxAnimatorHandle` under this
@@ -41,38 +32,6 @@ export type VueAnimatorApi = PxAnimatorHandle;
 // The control mode is core's `PxControlMode`, shared with React and React Native
 // (API review §1/§7) — one precedence rule, one set of conflict warnings.
 
-
-// -- Vue ↔ Animator bridge --------------------------------------------------
-
-/**
- * Creates a platform adapter that routes animator attribute updates
- * to the corresponding Vue-managed DOM element refs.
- */
-function createVueAdapter(elementRefs: Map<string, Element>, diag: PxDiagnostics) {
-    const warnedSelectors = new Set<string>();
-
-    const adapter: PxPlatformAdapter = {
-        isConnected: () => true,
-        setAttribute: (id, attrName, value) => {
-            attrName = camelCaseToKebabWordIfNeeded(attrName);
-
-            const element = elementRefs.get(id);
-
-            if (!element && !warnedSelectors.has(id)) {
-                warnedSelectors.add(id);
-                diag.warn(PxDiagnosticKind.host, PxDiagnosticCode.setAttributeNoElement, id);
-            }
-
-            if (element) {
-                element.setAttribute(attrName, value);
-                if (PX_STYLE_ATTR_NAMES.has(attrName)) {
-                    (element as HTMLElement).style[attrName as any] = value;
-                }
-            }
-        },
-    };
-    return adapter;
-}
 
 // FIXME: add model validation (e.g. isElementFileJson check)
 
@@ -217,7 +176,9 @@ const PixodeskSvgAnimator = defineComponent({
     emits: ['play', 'stop', 'pause', 'cancel', 'finish', 'remove'],
 
     setup(props, { expose, emit }) {
-        const elementRefs = new Map<string, Element>();
+        // The `<svg>` this component rendered — handed to the player, which attaches its
+        // triggers to it and writes animated values to the elements under it.
+        let rootElement: Element | null = null;
         const apiRef = shallowRef<PxAnimatorApi | null>(null);
 
         /**
@@ -251,41 +212,27 @@ const PixodeskSvgAnimator = defineComponent({
         // -- Prepare the document with overrides --------------------------------
 
         const resolvedDoc = computed(() => {
-            let doc = generateNewIds(props.doc);
-            return applyDocOverrides(doc, props, compMode.value, makeDiag());
+            // Overrides FIRST: they can change `timeline.engine` and `duration`, and
+            // materialization reads both (the engine picks the stages, the duration sizes loop
+            // expansion). Then render what the web player renders — materialized, fresh ids.
+            // Rendering the raw document dropped every `effects` bucket, so a document painted
+            // by `effects` alone came out as an empty canvas.
+            const doc = applyDocOverrides(props.doc, props, compMode.value, makeDiag());
+            return prepareDocumentForRender(doc);
         });
 
         // -- Render the SVG node tree -------------------------------------------
 
-        function renderNode(node: PxNode | undefined): VNode | null {
-            if (!node) return null;
-
-            const { type, animate, meta, children, style, ...attrs } = node;
-            const normProps = toDomProps(attrs);
-
-            // `node.style` is not an attribute (`toDomProps` drops it) — it is the element's style.
-            const inlineStyle = toInlineStyle(style);
-            if (inlineStyle) normProps[VUE_PROP.style] = inlineStyle;
-
-            // Capture a ref to each element with an id.
-            if (node.id) {
-                const nodeId = node.id;
-                normProps[VUE_PROP.ref] = (el: Element | null) => {
-                    if (el) {
-                        elementRefs.set(nodeId, el);
-                    } else {
-                        elementRefs.delete(nodeId);
-                    }
-                };
-            }
-
-            const childVNodes = children?.map(child => renderNode(child)).filter(Boolean) as VNode[] | undefined;
-            // Text content: a node's own `textContent` renders only when it has no child nodes — a
-            // line <tspan> can carry both, and then its children are the styled spans (the React
-            // Native renderer's rule). `toDomProps` strips `textContent` from the attributes.
-            const text = typeof node.textContent === 'string' ? node.textContent : undefined;
-            return h(type, normProps, childVNodes?.length ? childVNodes : text);
-        }
+        // The ONLY Vue-specific part of rendering: how to create a vnode. Every decision about the
+        // document — tags, attribute names and values, sanitization, styles, text — is made by
+        // core's `renderPxTree`, the same code the web player renders with. Vue writes an SVG
+        // attribute name verbatim, so the names it is handed are used as they are.
+        const createVNode: PxElementFactory<VNode> = ({ tag, attrs, style, children, text, node, isRoot, index }) => {
+            const vnodeProps: Record<string, unknown> = { ...attrs, key: node.id ?? index };
+            if (style) vnodeProps[VUE_PROP.style] = style;
+            if (isRoot) vnodeProps[VUE_PROP.ref] = (el: Element | null) => { rootElement = el; };
+            return h(tag, vnodeProps, children.length ? children : text);
+        };
 
         // -- Animator lifecycle -------------------------------------------------
 
@@ -297,11 +244,12 @@ const PixodeskSvgAnimator = defineComponent({
             // Route animator lifecycle events to Vue component events, INLINE under the same
             // names every surface uses (review §9). `stop` fires alongside any event that halts
             // playback — that is the PLAYER's rule, so `onStop` is passed through, not re-derived.
-            // `adapter` is the components' extension of the public options (`PxInternalAnimatorOptions`,
-            // review §25.14): the frame loop writes to the elements Vue rendered, not to a container.
+            // No `adapter`: the web player's OWN writer drives the elements Vue rendered, found by
+            // id under the root. A second writer here was a second place for rules to go missing.
             const options: PxInternalAnimatorOptions = {
                 doc,
-                adapter:  createVueAdapter(elementRefs, makeDiag()),
+                // Mounted (or `flush: 'post'`) by the time this runs, so the root exists.
+                rootElement: rootElement ?? undefined,
                 onPlay:   () => emit('play'),
                 onPause:  () => emit('pause'),
                 onCancel: () => emit('cancel'),
@@ -397,7 +345,7 @@ const PixodeskSvgAnimator = defineComponent({
 
         return () => {
             const doc = resolvedDoc.value;
-            return doc ? renderNode(doc) : null;
+            return renderPxTree(doc, createVNode, makeDiag());
         };
     },
 });

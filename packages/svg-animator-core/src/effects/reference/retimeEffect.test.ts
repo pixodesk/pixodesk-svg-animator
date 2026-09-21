@@ -454,6 +454,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                             "id": "__GEN_1__",
                             "rx": "16",
                             "ry": "16",
+                            "transform": "translate(0,0)",
                             "type": "ellipse"
                           }
                         ]
@@ -484,6 +485,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                             "id": "__GEN_4__",
                             "rx": "16",
                             "ry": "16",
+                            "transform": "translate(0,0)",
                             "type": "ellipse"
                           }
                         ]
@@ -531,6 +533,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                             "id": "ball",
                             "rx": "16",
                             "ry": "16",
+                            "transform": "translate(0,0)",
                             "type": "ellipse"
                           }
                         ]
@@ -579,6 +582,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                                     "id": "__GEN_2__",
                                     "rx": "16",
                                     "ry": "16",
+                                    "transform": "translate(0,0)",
                                     "type": "ellipse"
                                   }
                                 ]
@@ -616,6 +620,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                                     "id": "__GEN_5__",
                                     "rx": "16",
                                     "ry": "16",
+                                    "transform": "translate(0,0)",
                                     "type": "ellipse"
                                   }
                                 ]
@@ -645,6 +650,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                             "id": "ball",
                             "rx": "16",
                             "ry": "16",
+                            "transform": "translate(0,0)",
                             "type": "ellipse"
                           }
                         ]
@@ -794,7 +800,9 @@ describe('retime.timeCrop — visibility window', () => {
     it('an authored opacity on the <use> survives — the crop rides on the wrapper', () => {
         const out = materializeEngine(cropDoc([100, 200], { opacity: 0.25 }), PxTimelineEngine.js);
         const g = cropWrapper(out);
-        expect(g.opacity, 'wrapper carries only the crop').toBeUndefined();
+        // The wrapper's only opacity is the CROP's own — its rest pose, the first frame: hidden,
+        // since the window opens at 100ms. The authored 0.25 must never land on it.
+        expect(Number(g.opacity), 'wrapper carries only the crop (hidden until its window opens)').toBe(0);
         expect(g.children[0].opacity, 'the instance keeps its own opacity').toBe(0.25);
     });
 

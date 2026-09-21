@@ -44,6 +44,7 @@ function createAnimatorFromConfig(
  * @param doc The animated SVG document.
  * @param callbacks Optional object with callback functions for animation lifecycle events (play, pause, finish, etc.).
  * @param containerElement Optional selector or element to render the SVG into.
+ * @param providedRoot The root `<svg>` a caller rendered itself — used when there is no container.
  * @returns An PxAnimatorApi instance to programmatically control the animation.
  */
 function createAnimatorImpl(
@@ -52,7 +53,8 @@ function createAnimatorImpl(
     callbacks?: PxEngineCallbacks,
     containerElement?: string | Element,
     patch?: PxAnimatorConfigPatch,
-    resetTimeline?: boolean
+    resetTimeline?: boolean,
+    providedRoot?: Element
 ): PxAnimatorApi {
 
     // Validate every `node.effects` bucket against `PxEffectsSchema` and warn
@@ -90,6 +92,7 @@ function createAnimatorImpl(
 
     // Run the full document materialization pipeline:
     //   effects → loops → motion-path (native engine only) → animated-use (native engine only)
+    //   → rest poses (so the frame shown BEFORE anything plays is the first frame)
     // The exact same function is exported for the Editor — no parallel pipeline.
     doc = materializeAllInTree(doc, engine);
 
@@ -113,6 +116,10 @@ function createAnimatorImpl(
             }
         }
     }
+
+    // A caller that rendered the document itself hands over the root it rendered — see
+    // `PxInternalAnimatorOptions.rootElement`. A container render above always wins.
+    if (!rootElement && providedRoot) rootElement = providedRoot;
 
     const api = createAnimatorFromConfig(doc, adapter, callbacks, rootElement);
 
@@ -165,11 +172,24 @@ export interface PxAnimatorOptions extends PxPlaybackOverride, PxAnimatorCallbac
 export interface PxInternalAnimatorOptions extends PxAnimatorOptions {
     /** A custom render target for the frame-loop engine (`PxPlatformAdapter`). */
     adapter?: PxPlatformAdapter;
+
+    /**
+     * The root `<svg>` the CALLER rendered, when it renders the document itself (the React and
+     * Vue components). Triggers attach to it — pointer listeners, the visibility gate — and
+     * without one they are not wired at all, so even a `load` trigger never fires.
+     *
+     * Otherwise the engines look the root up as `#` + the document's root id, which finds
+     * nothing for the common document whose root `<svg>` has no id. The component already holds
+     * the element, so it hands it over rather than have it guessed.
+     */
+    rootElement?: Element;
 }
 
 /** The one place `createAnimator` reads past its public signature — see `PxInternalAnimatorOptions`. */
 function isInternalOptions(options: PxAnimatorOptions): options is PxInternalAnimatorOptions {
-    return 'adapter' in options;
+    // EITHER internal key. Testing `adapter` alone meant a caller passing only `rootElement` —
+    // what the React and Vue components do — had it silently ignored.
+    return 'adapter' in options || 'rootElement' in options;
 }
 
 /**
@@ -194,6 +214,7 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorApi {
 
     const { src, doc, container, resetTimeline } = options;
     const adapter = isInternalOptions(options) ? options.adapter : undefined;
+    const providedRoot = isInternalOptions(options) ? options.rootElement : undefined;
     const patch = resolveTimelineOption(options);
     // The registry hears play / pause / … through the engine callbacks, and names the PROXY
     // below — the object the caller holds — never the engine API behind it.
@@ -244,7 +265,7 @@ export function createAnimator(options: PxAnimatorOptions): PxAnimatorApi {
     // throw at the caller, which would land inside a fetch callback where no one can catch it.
     const build = (document: PxAnimatedSvgDocument): void => {
         try {
-            ready(createAnimatorImpl(document, adapter, callbacks, container, patch, resetTimeline));
+            ready(createAnimatorImpl(document, adapter, callbacks, container, patch, resetTimeline, providedRoot));
         } catch (e) {
             const err = asThrownError(e);
             failed(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, err);
