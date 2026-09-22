@@ -97,6 +97,18 @@ Nothing above is validated by hand. Every block of the format has a runtime sche
 turns any schema into a plain description — keys, types, and whether each is optional — which is
 how this repo generates its published `SCHEMA.json`, and `schemaKeys` lists just the keys.
 
+The schema also says **what a field means when a document leaves it out**. Every optional choice
+states its default there (`px.enum([...], x)`, `px.number(x)`) and every object schema offers the
+stated ones as a typed `defaults` property: `PxTriggerSchema.defaults.mouseOut` is `continue`,
+`PxTextPathEffectSchema.defaults.pathOverflow` is `extend`, `PxTimeTimelineSchema.defaults.duration`
+is 1000 ms. Only stated fields are keys of it, so asking for a field whose absence simply means
+"unset" (such as `clone.without`), or for a key the schema has renamed, does not compile. Every
+reader takes the value from there rather than restating it: the player normalises an absent field
+to it, and the Pixodesk editor defaults its model to it, so the two can never disagree about a
+field neither of them was given. `PxTimelineSchema` is a union of the three timeline kinds;
+`PxTimeTimelineSchema` is the time-driven member an absent `type` selects, exported so its own
+defaults can be read the same way.
+
 There is one schema value per block, named after it: `PxTriggerSchema`, `PxElementAnimationSchema`,
 `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformValueSchema`, `PxBezierPathSchema`,
 `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxRetimeEffectSchema` and

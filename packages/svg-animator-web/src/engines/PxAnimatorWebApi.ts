@@ -4,6 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { getAnimatorConfig, normalizeBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxEngineCallbacks, type PxAnimatorConfig, type PxBezierPath, clampSeekMs, isValidPlaybackRate, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
+import { PX_DEFAULT_ITERATIONS } from '@pixodesk/svg-animator-core/internal';
 import { PX_PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, PX_COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateValue, kebabToCamelCaseWord, splitEasing, toRGBA, PX_TRANSFORM_FN_NAMES, type PxAnyKeyframe, type PxNormalizedKeyframe, keyframeEasing, keyframeValue, createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
@@ -301,7 +302,7 @@ export function createWebApiAnimator(
             const rawSeek = -config.delay;
             seekPosition = iterations === Infinity
                 ? rawSeek % config.duration
-                : Math.min(rawSeek, config.duration * (iterations ?? 1));
+                : Math.min(rawSeek, config.duration * (iterations ?? PX_DEFAULT_ITERATIONS));
         }
 
         const effectOptions: KeyframeEffectOptions = {
@@ -428,7 +429,7 @@ export function createWebApiAnimator(
             // Clamp like every other engine (review §3). A duration is not always declared,
             // and a ceiling of 0 would pin every seek to the first frame — so clamp only when
             // the timeline length is actually known, and otherwise just floor at 0.
-            const ceiling = seekCeilingMs(config.duration ?? 0, iterations ?? 1);
+            const ceiling = seekCeilingMs(config.duration ?? 0, iterations ?? PX_DEFAULT_ITERATIONS);
             const seek = ceiling > 0 ? clampSeekMs(time, ceiling) : Math.max(0, time);
             finishNotified = false; // re-arm finish notification
             animations.forEach(a => {
@@ -438,11 +439,11 @@ export function createWebApiAnimator(
 
         "getCurrentProgress": (): number | null => {
             const t = api.getCurrentTime();
-            return t === null ? null : timeToProgress(t, config.duration ?? 0, iterations ?? 1);
+            return t === null ? null : timeToProgress(t, config.duration ?? 0, iterations ?? PX_DEFAULT_ITERATIONS);
         },
 
         "setCurrentProgress": (progress: number) => {
-            api.setCurrentTime(progressToTimeMs(progress, config.duration ?? 0, iterations ?? 1));
+            api.setCurrentTime(progressToTimeMs(progress, config.duration ?? 0, iterations ?? PX_DEFAULT_ITERATIONS));
         },
 
         "destroy": () => {

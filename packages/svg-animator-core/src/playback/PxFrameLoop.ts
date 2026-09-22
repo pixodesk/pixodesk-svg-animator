@@ -4,7 +4,8 @@
  *---------------------------------------------------------------------------------------*/
 
 import { type PxAnimatedSvgDocument, type PxAnimatorApi, type PxEngineCallbacks } from '../format/PxAnimatorTypes';
-import { getAnimatorConfig, PxTimelineEngine } from '../format/PxAnimatorConstants';
+import { getAnimatorConfig, PX_DEFAULT_ITERATIONS, PxTimelineEngine } from '../format/PxAnimatorConstants';
+import { PxTimeTimelineSchema } from '../format/PxAnimatorTypes';
 import { camelCaseToKebabWordIfNeeded, clamp, PX_DEFAULT_DURATION_MS, PX_STYLE_ATTR_NAMES } from '../util/PxAnimatorUtil';
 import { calcAnimationValues, normalizeBindings } from '../animation/PxDefinitions';
 import { clampSeekMs, isValidPlaybackRate, progressToTimeMs, PX_RATE_REJECTED, timeToProgress } from './PxPlaybackTime';
@@ -60,22 +61,23 @@ export function createAdapterAnimator(
     // iterations: either number or Infinity
     const _iterations = config.iterations;
     let iterations: number = 1;
-    if (typeof _iterations === 'number') iterations = _iterations || 1;
+    if (typeof _iterations === 'number') iterations = _iterations || PX_DEFAULT_ITERATIONS;
     if (_iterations === 'infinite') iterations = Infinity;
     if (iterations < 1) iterations = 1;
 
     const duration = +(config.duration || PX_DEFAULT_DURATION_MS); // per-iteration duration (ms), cannot be 0!
     const totalDuration = duration && iterations ?
         duration * (iterations === Infinity ? Infinity : iterations) :
-        (duration ? (iterations ?? 1) * duration : 0);
+        (duration ? (iterations ?? PX_DEFAULT_ITERATIONS) * duration : 0);
 
     // direction handling
-    const direction = config.direction || 'normal'; // 'normal' | 'reverse' | 'alternate' | 'alternate-reverse'
+    // What an omitted field means is the SCHEMA's statement — read, not restated here.
+    const direction = config.direction || PxTimeTimelineSchema.defaults.direction; // 'normal' | 'reverse' | 'alternate' | 'alternate-reverse'
 
     // fill handling — mirrors the Web Animations API `fill` semantics as closely
     // as a frame-writer can. Default 'forwards' (hold final state) matches the
     // waapi engine and the config doc.
-    const fill = config.fill ?? 'forwards';
+    const fill = config.fill ?? PxTimeTimelineSchema.defaults.fillMode;
     const fillsForwards = fill === 'forwards' || fill === 'both';
     const fillsBackwards = fill === 'backwards' || fill === 'both';
 

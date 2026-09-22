@@ -22,7 +22,7 @@ export { createPathSampler } from './effects/text/pathSampler';
 export { layoutGlyphTextChars, materializeGlyphText, materializeGlyphTextAlongPath } from './effects/text/textGlyphsEffect';
 export type { PxGlyphCharBox } from './effects/text/textGlyphsEffect';
 export { extendedPathForBrowser } from './effects/text/textPathEffect';
-export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PX_TEXT_CONTENT_ATTR } from './format/PxAnimatorConstants';
+export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PX_TEXT_CONTENT_ATTR, PX_DEFAULT_ITERATIONS } from './format/PxAnimatorConstants';
 export { keyframeEasing, keyframeValue } from './format/PxAnimatorTypes';
 export type { PxAnimatable, PxAnyKeyframe, PxNormalizedKeyframe, PxNormalizedPropertyAnimation } from './format/PxAnimatorTypes';
 export { reportDocumentDiagnostics } from './format/PxDocumentDiagnostic';

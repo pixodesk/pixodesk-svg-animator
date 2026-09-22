@@ -497,7 +497,8 @@ export function parseTransformParts(str: string | null | undefined): PxTransform
 /** @internal */
 export const PX_STYLE_ATTR_NAMES = new Set(["offset-distance", "offsetDistance"]); // Props that need to go to style
 /** @internal */
-export const PX_DEFAULT_DURATION_MS = 1000;
+// Stated with the schema (PxAnimatorConstants) — re-exported so existing readers keep working.
+export { PX_DEFAULT_DURATION_MS } from '../format/PxAnimatorConstants';
 
 /**
  * Converts a kebab-case string to camelCase.

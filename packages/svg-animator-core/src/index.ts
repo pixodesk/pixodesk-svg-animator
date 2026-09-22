@@ -39,7 +39,7 @@ export type {
 export type { PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, PxRemoveIndex } from './schema/PxSchema';
 
 // Wire-format schemas
-export { PxAnimatedSvgDocumentSchema, PxAnimatorConfigSchema, PxAttrValueSchema, PxBezierPathSchema, PxDefinitionsSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBaseSchema, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeRootSchema, PxTransformPartsSchema, PxTriggerSchema, PxTimelineSchema, PxTransformValueSchema } from './format/PxAnimatorTypes';
+export { PxAnimatedSvgDocumentSchema, PxAnimatorConfigSchema, PxAttrValueSchema, PxBezierPathSchema, PxDefinitionsSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBaseSchema, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeRootSchema, PxTransformPartsSchema, PxTriggerSchema, PxTimelineSchema, PxTimeTimelineSchema, PxTransformValueSchema } from './format/PxAnimatorTypes';
 export { resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline, PxTimelineEngine, PxCloneWithout, PxTimelineEngineSetting, PX_TRIGGER_DEFAULTS, resolveTrigger, PX_TRANSFORM_PART_KEYS } from './format/PxAnimatorConstants';
 // ONE control-mode rule for react / vue / rn (API review §1, §7) — logic + warning text.
 export { PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from './format/PxAnimatorConstants';

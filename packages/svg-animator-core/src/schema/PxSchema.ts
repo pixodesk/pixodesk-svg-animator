@@ -67,7 +67,7 @@ export interface PxValidationContext {
 }
 
 /** @public @advanced */
-export interface PxSchema<T, IsOptional extends boolean = false> {
+export interface PxSchema<T, IsOptional extends boolean = false, StatesDefault extends boolean = boolean> {
     /** Phantom discriminator — `false` for required schemas, `true` for optional. Used by InferShape. */
     readonly _optional: IsOptional;
     sanitize(raw: unknown): T;
@@ -81,8 +81,19 @@ export interface PxSchema<T, IsOptional extends boolean = false> {
     /** True if raw has the right structure to attempt sanitization (may still need repair). */
     _canSanitize(raw: unknown): boolean;
     readonly _default: T;
+    /** Whether `_default` was STATED (`px.enum([...], x)`, `px.number(x)`) rather than implied by
+     *  position or type — carried in the type, so an object schema can offer its stated ones as
+     *  `defaults`. Only a stated default is what an ABSENT optional field means. */
+    readonly _statesDefault: StatesDefault;
+    /**
+     * What the field means when a document LEAVES IT OUT — the value every reader must fall back
+     * to (the player normalises to it, the Editor's model defaults to it). `undefined` when the
+     * schema states none: absent then simply means unset. Readers ask the OBJECT schema instead:
+     * `PxTriggerSchema.defaults.mouseOut` is typed, and only stated fields are keys of it.
+     */
+    absentDefault(): T | undefined;
     /** Returns a new schema that marks this field as optional (?: in object shapes). */
-    optional(): PxSchema<T | undefined, true>;
+    optional(): PxSchema<T | undefined, true, StatesDefault>;
 }
 
 /** Extract the TypeScript type from a schema. @public @advanced */
@@ -126,16 +137,21 @@ function pathStr(path: Array<string>): string {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Shared base; overrides _canSanitize only when the structural check must differ from isValid. */
-abstract class Base<T, IsOptional extends boolean = false> implements PxSchema<T, IsOptional> {
+abstract class Base<T, IsOptional extends boolean = false, D extends boolean = false> implements PxSchema<T, IsOptional, D> {
     // `declare` emits no runtime code; purely satisfies the interface's phantom _optional property.
     declare readonly _optional: IsOptional;
     abstract sanitize(raw: unknown): T;
     abstract isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean;
     abstract readonly _default: T;
+    /** Structural schemas (objects, arrays, unions of objects…) pass `false`: they state no scalar default. */
+    constructor(readonly _statesDefault: D) {}
 
     _canSanitize(raw: unknown): boolean { return this.isValid(raw); }
 
-    optional(): PxSchema<T | undefined, true> { return new Optional(this); }
+    /** A REQUIRED field is never absent; its default is the repair value. */
+    absentDefault(): T | undefined { return this._default; }
+
+    optional(): PxSchema<T | undefined, true, D> { return new Optional(this); }
 }
 
 
@@ -149,9 +165,11 @@ abstract class Base<T, IsOptional extends boolean = false> implements PxSchema<T
  * Wraps any schema to make its value optional.
  * sanitize uses _canSanitize (not isValid) so partially-valid objects are repaired, not dropped.
  */
-class Optional<T> extends Base<T | undefined, true> {
+class Optional<T, D extends boolean> extends Base<T | undefined, true, D> {
     readonly _default = undefined as T | undefined;
-    constructor(private readonly inner: PxSchema<T, any>) { super(); }
+    constructor(private readonly inner: PxSchema<T, any, D>) { super(inner._statesDefault); }
+    /** Absent means the inner schema's STATED default — or nothing at all when it states none. */
+    override absentDefault(): T | undefined { return this.inner._statesDefault ? this.inner._default : undefined; }
 
     sanitize(raw: unknown): T | undefined {
         if (raw === undefined || raw === null) return undefined;
@@ -174,8 +192,8 @@ class Optional<T> extends Base<T | undefined, true> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** String schema; wrong type is unrecoverable so _canSanitize = isValid (inherited default). */
-class Str extends Base<string> {
-    constructor(readonly _default: string = '') { super(); }
+class Str<D extends boolean> extends Base<string, false, D> {
+    constructor(readonly _default: string, statesDefault: D) { super(statesDefault); }
     sanitize(raw: unknown): string { return typeof raw === 'string' ? raw : this._default; }
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (typeof raw === 'string') return true;
@@ -185,8 +203,8 @@ class Str extends Base<string> {
 }
 
 /** Finite-number schema; rejects NaN and ±Infinity as unrecoverable. */
-class Num extends Base<number> {
-    constructor(readonly _default: number = 0) { super(); }
+class Num<D extends boolean> extends Base<number, false, D> {
+    constructor(readonly _default: number, statesDefault: D) { super(statesDefault); }
     sanitize(raw: unknown): number {
         return typeof raw === 'number' && isFinite(raw) ? raw : this._default;
     }
@@ -198,8 +216,8 @@ class Num extends Base<number> {
 }
 
 /** Boolean schema. */
-class Bool extends Base<boolean> {
-    constructor(readonly _default: boolean = false) { super(); }
+class Bool<D extends boolean> extends Base<boolean, false, D> {
+    constructor(readonly _default: boolean, statesDefault: D) { super(statesDefault); }
     sanitize(raw: unknown): boolean { return typeof raw === 'boolean' ? raw : this._default; }
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (typeof raw === 'boolean') return true;
@@ -214,9 +232,10 @@ class Bool extends Base<boolean> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Matches one exact primitive value; its _default is the value itself. */
-class Literal<T extends string | number | boolean> extends Base<T> {
+class Literal<T extends string | number | boolean> extends Base<T, false, true> {
     readonly _default: T;
-    constructor(private readonly value: T) { super(); this._default = value; }
+    /** A literal IS its own value: absent means it. */
+    constructor(private readonly value: T) { super(true); this._default = value; }
     sanitize(raw: unknown): T { return raw === this.value ? this.value : this._default; }
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (raw === this.value) return true;
@@ -231,10 +250,10 @@ class Literal<T extends string | number | boolean> extends Base<T> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Union of string/number literals; _default is the first value unless overridden. */
-class Enum<T extends string | number> extends Base<T> {
+class Enum<T extends string | number, D extends boolean> extends Base<T, false, D> {
     readonly _default: T;
-    constructor(private readonly values: readonly T[], defaultVal?: T) {
-        super();
+    constructor(private readonly values: readonly T[], defaultVal: T | undefined, statesDefault: D) {
+        super(statesDefault);
         this._default = defaultVal ?? values[0];
     }
     sanitize(raw: unknown): T { return this.values.includes(raw as T) ? (raw as T) : this._default; }
@@ -256,12 +275,12 @@ class Enum<T extends string | number> extends Base<T> {
 const UNION_MEMBER_ERROR_LIMIT = 4;
 
 /** Tries member schemas in order; first whose isValid passes wins. sanitize returns _default when none match. */
-class Union<T> extends Base<T> {
+class Union<T, D extends boolean> extends Base<T, false, D> {
     /** Structural tag read by {@link describeSchema} — `schemas` alone cannot tell Union from Tuple. */
     readonly _kind = 'union' as const;
     readonly _default: T;
-    constructor(private readonly schemas: ReadonlyArray<PxSchema<T>>, defaultVal?: T) {
-        super();
+    constructor(private readonly schemas: ReadonlyArray<PxSchema<T>>, defaultVal: T | undefined, statesDefault: D) {
+        super(statesDefault);
         this._default = defaultVal ?? schemas[0]._default;
     }
     sanitize(raw: unknown): T {
@@ -376,7 +395,7 @@ class DiscriminatedUnion<T> extends Base<T> {
         private readonly _schemas: ReadonlyArray<PxSchema<T> & { readonly _shape: AnyDiscriminantShape<string> }>,
         defaultVal?: T
     ) {
-        super();
+        super(false);
         this._default = defaultVal ?? _schemas[0]._default;
         this._map = new Map();
         for (const s of _schemas) {
@@ -428,6 +447,27 @@ class DiscriminatedUnion<T> extends Base<T> {
 
 type AnyShape = Record<string, PxSchema<any, any>>;
 
+/** The keys of a shape whose schema STATES what absent means. */
+type StatedKeys<S extends AnyShape> = { [K in keyof S]: S[K] extends PxSchema<any, any, true> ? K : never }[keyof S];
+
+/**
+ * WHAT EACH FIELD MEANS WHEN A DOCUMENT LEAVES IT OUT — one entry per field whose schema states it
+ * (`px.enum([...], x)`, `px.number(x)`, a literal), typed without `undefined`. A field that states
+ * none (absent = unset, e.g. `clone.without`) is not a key, so asking for it does not compile — and
+ * neither does a key the schema has since renamed. The ONE source every reader shares: the player
+ * normalises an absent field to it, the Editor's model defaults to it.
+ */
+type InferDefaults<S extends AnyShape> = { readonly [K in StatedKeys<S>]: Exclude<PxInfer<S[K]>, undefined> };
+
+/** A closed or open object schema, with its shape and its stated {@link InferDefaults}. */
+type ObjectSchema<T, S extends AnyShape> = PxSchema<T> & { readonly _shape: S; readonly defaults: InferDefaults<S> };
+
+function statedDefaults<S extends AnyShape>(shape: S): InferDefaults<S> {
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(shape)) if (shape[key]._statesDefault) out[key] = shape[key].absentDefault();
+    return Object.freeze(out) as InferDefaults<S>;
+}
+
 // Required keys: IsOptional=false → plain property.
 // Optional keys: IsOptional=true  → ?:, with Exclude<T,undefined> (?: already adds undefined).
 type InferShape<S extends AnyShape> =
@@ -440,12 +480,15 @@ type InferShape<S extends AnyShape> =
  */
 class Obj<S extends AnyShape> extends Base<InferShape<S>> {
     readonly _default: InferShape<S>;
+    /** What each field means when a document leaves it out — see {@link InferDefaults}. */
+    readonly defaults: InferDefaults<S>;
 
     constructor(readonly _shape: S) {
-        super();
+        super(false);
         const d: any = {};
         for (const key of Object.keys(_shape)) d[key] = _shape[key]._default;
         this._default = d;
+        this.defaults = statedDefaults(_shape);
     }
 
     sanitize(raw: unknown): InferShape<S> {
@@ -526,12 +569,15 @@ type InferOpenShape<S extends AnyShape, _V = any> = InferShape<S> & { [key: stri
  */
 class OpenObj<S extends AnyShape, V = any> extends Base<InferOpenShape<S, V>> {
     readonly _default: InferOpenShape<S, V>;
+    /** What each declared field means when a document leaves it out — see {@link InferDefaults}. */
+    readonly defaults: InferDefaults<S>;
 
     constructor(readonly _shape: S, private readonly _openSchema?: PxSchema<V>) {
-        super();
+        super(false);
         const d: any = {};
         for (const key of Object.keys(_shape)) d[key] = _shape[key]._default;
         this._default = d;
+        this.defaults = statedDefaults(_shape);
     }
 
     sanitize(raw: unknown): InferOpenShape<S, V> {
@@ -589,7 +635,7 @@ class OpenObj<S extends AnyShape, V = any> extends Base<InferOpenShape<S, V>> {
 /** Array schema; items failing _canSanitize are filtered out rather than blocking the whole array. */
 class Arr<T> extends Base<Array<T>> {
     readonly _default: Array<T> = [];
-    constructor(private readonly item: PxSchema<T>) { super(); }
+    constructor(private readonly item: PxSchema<T>) { super(false); }
 
     sanitize(raw: unknown): Array<T> {
         if (!Array.isArray(raw)) return [];
@@ -628,7 +674,7 @@ class Rec<T> extends Base<Record<string, T>> {
     /** Structural tag read by {@link describeSchema}. */
     readonly _kind = 'record' as const;
     readonly _default: Record<string, T> = {};
-    constructor(private readonly value: PxSchema<T>) { super(); }
+    constructor(private readonly value: PxSchema<T>) { super(false); }
 
     sanitize(raw: unknown): Record<string, T> {
         if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
@@ -667,6 +713,7 @@ class Rec<T> extends Base<Record<string, T>> {
 /** Passes any value through unchanged; always valid. Useful for opaque blobs with no schema. */
 class Any extends Base<any> {
     readonly _default: any = undefined;
+    constructor() { super(false); }
     sanitize(raw: unknown): any { return raw; }
     isValid(_raw: unknown, _ctx?: PxValidationContext, _path?: Array<string>): boolean { return true; }
     override _canSanitize(_raw: unknown): boolean { return true; }
@@ -683,6 +730,7 @@ class Any extends Base<any> {
  */
 class Defined extends Base<any> {
     readonly _default: any = undefined;
+    constructor() { super(false); }
     sanitize(raw: unknown): any { return raw; }
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (raw !== undefined) return true;
@@ -700,7 +748,7 @@ class Defined extends Base<any> {
 /** Defers schema resolution to first use; required to break circular references in recursive types. */
 class Lazy<T> extends Base<T> {
     private resolved: PxSchema<T> | null = null;
-    constructor(private readonly fn: () => PxSchema<T>, readonly _default: T) { super(); }
+    constructor(private readonly fn: () => PxSchema<T>, readonly _default: T) { super(false); }
 
     private get schema(): PxSchema<T> {
         return this.resolved ?? (this.resolved = this.fn());
@@ -728,7 +776,7 @@ class Tuple<T extends ReadonlyArray<PxSchema<any, any>>> extends Base<TupleItems
     readonly _default: TupleItems<T>;
 
     constructor(private readonly schemas: T) {
-        super();
+        super(false);
         this._default = schemas.map(s => s._default) as unknown as TupleItems<T>;
     }
 
@@ -865,34 +913,62 @@ export function describeSchema(schema: PxSchema<any, any>): PxSchemaDesc {
 // Public factory
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Scalar factories are overloaded so that STATING a default (`px.number(1)`) is a fact of the
+// schema's TYPE, not just of its value — that is what lets an object schema type its `defaults`.
+
+/** Matches a string. Absent means the stated value; without one, '' is only the repair value. */
+function string(): PxSchema<string, false, false>;
+function string(defaultVal: string): PxSchema<string, false, true>;
+function string(defaultVal?: string): PxSchema<string, false, boolean> {
+    return defaultVal === undefined ? new Str('', false) : new Str(defaultVal, true);
+}
+
+/** Matches a finite number. Absent means the stated value; without one, 0 is only the repair value. */
+function number(): PxSchema<number, false, false>;
+function number(defaultVal: number): PxSchema<number, false, true>;
+function number(defaultVal?: number): PxSchema<number, false, boolean> {
+    return defaultVal === undefined ? new Num(0, false) : new Num(defaultVal, true);
+}
+
+/** Matches a boolean. Absent means the stated value; without one, false is only the repair value. */
+function boolean(): PxSchema<boolean, false, false>;
+function boolean(defaultVal: boolean): PxSchema<boolean, false, true>;
+function boolean(defaultVal?: boolean): PxSchema<boolean, false, boolean> {
+    return defaultVal === undefined ? new Bool(false, false) : new Bool(defaultVal, true);
+}
+
+/** Matches one of a fixed set of string/number values. Absent means the stated value; without one,
+ *  the first value is only the repair value. */
+function oneOf<T extends string | number>(values: readonly T[]): PxSchema<T, false, false>;
+function oneOf<T extends string | number>(values: readonly T[], defaultVal: T): PxSchema<T, false, true>;
+function oneOf<T extends string | number>(values: readonly T[], defaultVal?: T): PxSchema<T, false, boolean> {
+    return defaultVal === undefined ? new Enum(values, undefined, false) : new Enum(values, defaultVal, true);
+}
+
+/**
+ * Returns the first schema whose isValid passes; TypeScript infers the union of all member types.
+ * Absent means the stated value; without one, the first member's default is only the repair value.
+ */
+function unionOf<const T extends ReadonlyArray<PxSchema<any, any>>>(schemas: T): PxSchema<UnionMembers<T>, false, false>;
+function unionOf<const T extends ReadonlyArray<PxSchema<any, any>>>(schemas: T, defaultVal: UnionMembers<T>): PxSchema<UnionMembers<T>, false, true>;
+function unionOf<const T extends ReadonlyArray<PxSchema<any, any>>>(schemas: T, defaultVal?: UnionMembers<T>): PxSchema<UnionMembers<T>, false, boolean> {
+    return defaultVal === undefined
+        ? new Union<UnionMembers<T>, false>(schemas, undefined, false)
+        : new Union<UnionMembers<T>, true>(schemas, defaultVal, true);
+}
+
 /** @public @advanced */
 export const px = {
-    /** Matches a string. Default: '' or provided value. */
-    string:  (defaultVal = ''): PxSchema<string>     => new Str(defaultVal),
+    string,
+    number,
+    boolean,
 
-    /** Matches a finite number. Default: 0 or provided value. */
-    number:  (defaultVal = 0): PxSchema<number>      => new Num(defaultVal),
-
-    /** Matches a boolean. Default: false or provided value. */
-    boolean: (defaultVal = false): PxSchema<boolean> => new Bool(defaultVal),
-
-    /** Matches one exact primitive value; its default is the value itself. */
-    literal: <T extends string | number | boolean>(value: T): PxSchema<T> =>
+    /** Matches one exact primitive value; absent means the value itself. */
+    literal: <T extends string | number | boolean>(value: T): PxSchema<T, false, true> =>
         new Literal(value),
 
-    /** Matches one of a fixed set of string/number values. Default: first value. */
-    enum: <T extends string | number>(values: readonly T[], defaultVal?: T): PxSchema<T> =>
-        new Enum(values, defaultVal),
-
-    /**
-     * Returns the first schema whose isValid passes.
-     * TypeScript infers the union of all member types automatically.
-     */
-    union: <const T extends ReadonlyArray<PxSchema<any, any>>>(
-        schemas: T,
-        defaultVal?: UnionMembers<T>
-    ): PxSchema<UnionMembers<T>> =>
-        new Union(schemas as any, defaultVal) as any,
+    enum: oneOf,
+    union: unionOf,
 
     /**
      * Discriminated union — reads `raw[key]`, finds the member schema whose
@@ -906,8 +982,9 @@ export const px = {
     >(key: K, schemas: T): PxSchema<UnionMembers<T>> =>
         new DiscriminatedUnion(key, schemas as any) as any,
 
-    /** Typed object — unknown keys are stripped. Required fields fall back to their default. */
-    object: <S extends AnyShape>(shape: S): PxSchema<InferShape<S>> & { readonly _shape: S } =>
+    /** Typed object — unknown keys are stripped. Required fields fall back to their default.
+     *  Its `defaults` say what each stated field means when a document leaves it out. */
+    object: <S extends AnyShape>(shape: S): ObjectSchema<InferShape<S>, S> =>
         new Obj(shape),
 
     /**
@@ -917,7 +994,7 @@ export const px = {
     openObject: <S extends AnyShape, V = any>(
         shape: S,
         openSchema?: PxSchema<V>
-    ): PxSchema<InferOpenShape<S, V>> & { readonly _shape: S } =>
+    ): ObjectSchema<InferOpenShape<S, V>, S> =>
         new OpenObj(shape, openSchema) as any,
 
     /**
@@ -930,7 +1007,7 @@ export const px = {
     extendedObject: <B extends AnyShape, E extends AnyShape>(
         base: { readonly _shape: B },
         extra: E
-    ): PxSchema<InferShape<B & E>> & { readonly _shape: B & E } =>
+    ): ObjectSchema<InferShape<B & E>, B & E> =>
         new Obj({ ...base._shape, ...extra } as B & E),
 
     /** Array whose unrecoverable items are filtered out. Default: []. */

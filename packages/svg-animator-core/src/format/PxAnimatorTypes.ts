@@ -8,7 +8,7 @@ import { implementsInterface, px } from '../schema/PxSchema';
 // Constants live in their own module so importing one does not pull the schema engine
 // in; re-exported here so this module's public surface is unchanged. See there.
 export * from './PxAnimatorConstants';
-import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_TRANSFORM_PART_KEYS, PX_TRIGGER_DEFAULTS, PxTimelineEngineSetting, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits,
+import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_TRANSFORM_PART_KEYS, PX_TRIGGER_DEFAULTS, PxTimelineEngineSetting, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits,
     // Wire enums named in review §2.7 — used as VALUES by the schemas below.
     PxAlongPathMode, PxFillMode, PxFinishAction, PxMouseOutAction, PxOffScreenAction, PxPinAlign, PxPlaybackDirection,
     PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxTriggerStart } from './PxAnimatorConstants';
@@ -310,8 +310,8 @@ export interface _PxLoop {
 /** @public @advanced */
 export const PxLoopSchema = implementsInterface<_PxLoop>()(px.object({
     segmentCount: px.number().optional(),
-    repeatAt: px.enum([PxLoopRepeatAt.start, PxLoopRepeatAt.end] as const).optional(),
-    direction: px.enum([PxLoopDirection.normal, PxLoopDirection.alternate] as const).optional(),
+    repeatAt: px.enum([PxLoopRepeatAt.start, PxLoopRepeatAt.end] as const, PxLoopRepeatAt.end).optional(),
+    direction: px.enum([PxLoopDirection.normal, PxLoopDirection.alternate] as const, PxLoopDirection.normal).optional(),
 }));
 
 /**
@@ -388,7 +388,7 @@ export const PxPropertyAnimationSchema = implementsInterface<_PxPropertyAnimatio
     keyframes: px.array(PxKeyframeSchema).optional(),
     loop: px.union([PxLoopSchema, px.boolean()]).optional(),
     autoOrient: px.boolean().optional(),
-    alongPathMode: px.enum([PxAlongPathMode.sampled, PxAlongPathMode.offsetPath] as const).optional(),
+    alongPathMode: px.enum([PxAlongPathMode.sampled, PxAlongPathMode.offsetPath] as const, PxAlongPathMode.sampled).optional(),
 }));
 
 /** Animation definition for a single CSS/SVG property. @public */
@@ -600,9 +600,9 @@ export const PxTriggerSchema = implementsInterface<_PxTrigger>()(px.object({
     // What happens after a NATURAL finish — `'hold'` (default: keep the end state per
     // `fill`) or `'reset'` (snap back to the start state). One of four occasion keys
     // (`start`, `offScreen`, `mouseOut`, `finish`), all named the same way.
-    finish: px.enum([PxFinishAction.hold, PxFinishAction.reset] as const).optional(),
-    visibilityThreshold: px.number().optional(),
-    visibilityDebounce: px.number().optional(),
+    finish: px.enum([PxFinishAction.hold, PxFinishAction.reset] as const, PX_TRIGGER_DEFAULTS.finish).optional(),
+    visibilityThreshold: px.number(PX_TRIGGER_DEFAULTS.visibilityThreshold).optional(),
+    visibilityDebounce: px.number(PX_TRIGGER_DEFAULTS.visibilityDebounce).optional(),
 }));
 
 /** Defines when and how an animation should be triggered. @public */
@@ -722,7 +722,7 @@ export interface _PxScrollRangePoint {
 /** @public @advanced */
 export const PxScrollRangePointSchema = implementsInterface<_PxScrollRangePoint>()(px.object({
     phase: px.enum([PxScrollPhase.cover, PxScrollPhase.contain, PxScrollPhase.entry,
-                    PxScrollPhase.exit, PxScrollPhase.entryCrossing, PxScrollPhase.exitCrossing] as const).optional(),
+                    PxScrollPhase.exit, PxScrollPhase.entryCrossing, PxScrollPhase.exitCrossing] as const, PxScrollPhase.cover).optional(),
     fraction: px.number().optional(),
 }));
 /** @public */
@@ -820,14 +820,14 @@ export const PxScrollRangeSchema = px.object({
 
 /** @public @advanced */
 export const PxScrollSchema = implementsInterface<_PxScroll>()(px.object({
-    kind: px.enum([PxScrollKind.view, PxScrollKind.scroll] as const).optional(),
-    axis: px.enum([PxScrollAxis.block, PxScrollAxis.inline, PxScrollAxis.x, PxScrollAxis.y] as const).optional(),
-    source: px.enum([PxScrollSource.nearest, PxScrollSource.root] as const).optional(),
+    kind: px.enum([PxScrollKind.view, PxScrollKind.scroll] as const, PxScrollKind.view).optional(),
+    axis: px.enum([PxScrollAxis.block, PxScrollAxis.inline, PxScrollAxis.x, PxScrollAxis.y] as const, PxScrollAxis.block).optional(),
+    source: px.enum([PxScrollSource.nearest, PxScrollSource.root] as const, PxScrollSource.nearest).optional(),
     // Free-form: the two keywords `parent`/`scroller` plus any CSS selector.
     subject: px.string().optional(),
     smoothing: px.number().optional(),
-    pin: px.boolean().optional(),
-    pinAlign: px.enum([PxPinAlign.top, PxPinAlign.center, PxPinAlign.bottom] as const).optional(),
+    pin: px.boolean(false).optional(),
+    pinAlign: px.enum([PxPinAlign.top, PxPinAlign.center, PxPinAlign.bottom] as const, PxPinAlign.top).optional(),
     pinOffset: px.number().optional(),
     pinDistance: px.number().optional(),
     range: PxScrollRangeSchema.optional(),
@@ -866,7 +866,7 @@ export interface _PxTimelinePin {
 
 /** @public @advanced */
 export const PxTimelinePinSchema = implementsInterface<_PxTimelinePin>()(px.object({
-    align: px.enum([PxPinAlign.top, PxPinAlign.center, PxPinAlign.bottom] as const).optional(),
+    align: px.enum([PxPinAlign.top, PxPinAlign.center, PxPinAlign.bottom] as const, PxPinAlign.top).optional(),
     offset: px.number().optional(),
     distance: px.number().optional(),
 }));
@@ -880,7 +880,7 @@ const _ck_PxTimelinePin: KeysMatch<PxTimelinePin, _PxTimelinePin> = true; // the
 // `resetOnFinish` has no slot here: its successor is `trigger.finish: 'reset'`.
 /** `timeline.engine` — HOW the animated attributes get updated (every timeline type;
  *  default `auto`). Not `mode`: an implementation preference, not a behavior switch. */
-const PxTimelineEngineSchema = px.enum([PxTimelineEngineSetting.auto, PxTimelineEngineSetting.native, PxTimelineEngineSetting.js] as const).optional();
+const PxTimelineEngineSchema = px.enum([PxTimelineEngineSetting.auto, PxTimelineEngineSetting.native, PxTimelineEngineSetting.js] as const, PxTimelineEngineSetting.auto).optional();
 
 /**
  * The time-driven timeline. Declared as an interface so a rename inside the schema below is a
@@ -910,19 +910,22 @@ export interface _PxTimeTimeline {
     direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';
 }
 
-const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.object({
+/** The time-driven member of {@link PxTimelineSchema} — what an absent `type` selects. Exported
+ *  so a reader can ask it what an omitted field means (`PxTimeTimelineSchema.defaults.duration`).
+ *  @public @advanced */
+export const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.object({
     type: px.literal('time').optional(),
     engine: PxTimelineEngineSchema,
     frameRate: px.number().optional(),
     // §2.8: duration is a property of the TIMELINE — how long one pass takes.
-    duration: px.number().optional(),
+    duration: px.number(PX_DEFAULT_DURATION_MS).optional(),
     trigger: PxTriggerSchema.optional(),
-    delay: px.number().optional(),
-    iterations: px.union([px.number(), px.literal('infinite')]).optional(),
+    delay: px.number(0).optional(),
+    iterations: px.union([px.number(PX_DEFAULT_ITERATIONS), px.literal('infinite')], PX_DEFAULT_ITERATIONS).optional(),
     // `fillMode` on the wire (CSS `animation-fill-mode`; the runtime view calls it `fill`)
     // — never `fill`, which is paint everywhere else in the format.
-    fillMode: px.enum([PxFillMode.forwards, PxFillMode.backwards, PxFillMode.both, PxFillMode.none] as const).optional(),
-    direction: px.enum([PxPlaybackDirection.normal, PxPlaybackDirection.reverse, PxPlaybackDirection.alternate, PxPlaybackDirection.alternateReverse] as const).optional(),
+    fillMode: px.enum([PxFillMode.forwards, PxFillMode.backwards, PxFillMode.both, PxFillMode.none] as const, PxFillMode.forwards).optional(),
+    direction: px.enum([PxPlaybackDirection.normal, PxPlaybackDirection.reverse, PxPlaybackDirection.alternate, PxPlaybackDirection.alternateReverse] as const, PxPlaybackDirection.normal).optional(),
 }));
 const _ck_PxTimeTimeline: KeysMatch<PxInfer<typeof PxTimeTimelineSchema>, _PxTimeTimeline> = true;
 
@@ -941,8 +944,8 @@ const scrollishTimelineShape = {
     iterations: px.number().optional(),
     engine: PxTimelineEngineSchema,
     frameRate: px.number().optional(),
-    axis: px.enum([PxScrollAxis.block, PxScrollAxis.inline, PxScrollAxis.x, PxScrollAxis.y] as const).optional(),
-    source: px.enum([PxScrollSource.nearest, PxScrollSource.root] as const).optional(),
+    axis: px.enum([PxScrollAxis.block, PxScrollAxis.inline, PxScrollAxis.x, PxScrollAxis.y] as const, PxScrollAxis.block).optional(),
+    source: px.enum([PxScrollSource.nearest, PxScrollSource.root] as const, PxScrollSource.nearest).optional(),
     subject: px.string().optional(),   // 'parent' | 'scroller' | any CSS selector
     smoothing: px.number().optional(), // ms
     pin: px.union([px.boolean(), PxTimelinePinSchema]).optional(),
@@ -1464,9 +1467,10 @@ export interface _PxMaskedByEffect {
 /** @public @advanced */
 export const PxMaskedByEffectSchema = implementsInterface<_PxMaskedByEffect>()(px.object({
     source: px.string().optional(),
-    maskType: px.enum([PxMaskType.luminance, PxMaskType.alpha] as const).optional(),
-    maskUnits: px.enum([PxUnits.userSpaceOnUse, PxUnits.objectBoundingBox] as const).optional(),
-    maskContentUnits: px.enum([PxUnits.userSpaceOnUse, PxUnits.objectBoundingBox] as const).optional(),
+    // SVG's own initial values — what a <mask> does when the attribute is not there.
+    maskType: px.enum([PxMaskType.luminance, PxMaskType.alpha] as const, PxMaskType.luminance).optional(),
+    maskUnits: px.enum([PxUnits.userSpaceOnUse, PxUnits.objectBoundingBox] as const, PxUnits.objectBoundingBox).optional(),
+    maskContentUnits: px.enum([PxUnits.userSpaceOnUse, PxUnits.objectBoundingBox] as const, PxUnits.userSpaceOnUse).optional(),
     x: px.number().optional(),
     y: px.number().optional(),
     width: px.number().optional(),
@@ -1526,7 +1530,7 @@ export interface _PxStrokeTrimEffect {
 export const PxStrokeTrimEffectSchema = implementsInterface<_PxStrokeTrimEffect>()(px.object({
     offset: PxAnimatableNumberSchema.optional(),
     range: PxAnimatableVec2Schema.optional(),
-    subPaths: px.enum([PxStrokeTrimSubPaths.separate, PxStrokeTrimSubPaths.combined] as const).optional(),
+    subPaths: px.enum([PxStrokeTrimSubPaths.separate, PxStrokeTrimSubPaths.combined] as const, PxStrokeTrimSubPaths.separate).optional(),
 }));
 /** @public */
 export type PxStrokeTrimEffect = PxInfer<typeof PxStrokeTrimEffectSchema>;
@@ -1646,8 +1650,9 @@ export const PxFillGradientEffectSchema = implementsInterface<_PxFillGradientEff
     radius: PxAnimatableNumberSchema.optional(),
     focal:  PxAnimatableVec2Schema.optional(),
     stops: PxAnimatableGradientStopsSchema.optional(),
-    gradientUnits:     px.enum([PxUnits.userSpaceOnUse, PxUnits.objectBoundingBox] as const).optional(),
-    spreadMethod:      px.enum([PxGradientSpreadMethod.pad, PxGradientSpreadMethod.reflect, PxGradientSpreadMethod.repeat] as const).optional(),
+    // SVG's own initial values — what a gradient does when the attribute is not there.
+    gradientUnits:     px.enum([PxUnits.userSpaceOnUse, PxUnits.objectBoundingBox] as const, PxUnits.objectBoundingBox).optional(),
+    spreadMethod:      px.enum([PxGradientSpreadMethod.pad, PxGradientSpreadMethod.reflect, PxGradientSpreadMethod.repeat] as const, PxGradientSpreadMethod.pad).optional(),
     gradientTransform: px.string().optional(),
 }));
 /** @public */
@@ -1685,10 +1690,12 @@ export interface _PxTextPathEffect {
 /** @public @advanced */
 export const PxTextPathEffectSchema = implementsInterface<_PxTextPathEffect>()(px.object({
     pathData: px.string(),
-    pathOverflow: px.enum([PxPathOverflow.clip, PxPathOverflow.extend] as const).optional(),
-    lengthAdjust: px.enum([PxLengthAdjust.spacing, PxLengthAdjust.spacingAndGlyphs] as const).optional(),
-    method: px.enum([PxTextPathMethod.align, PxTextPathMethod.stretch] as const).optional(),
-    spacing: px.enum([PxTextPathSpacing.auto, PxTextPathSpacing.exact] as const).optional(),
+    // `extend` is what an omitted pathOverflow means (glyphs continue along the tangent); the
+    // other three are SVG's own initial values for the native <textPath> attributes.
+    pathOverflow: px.enum([PxPathOverflow.clip, PxPathOverflow.extend] as const, PxPathOverflow.extend).optional(),
+    lengthAdjust: px.enum([PxLengthAdjust.spacing, PxLengthAdjust.spacingAndGlyphs] as const, PxLengthAdjust.spacing).optional(),
+    method: px.enum([PxTextPathMethod.align, PxTextPathMethod.stretch] as const, PxTextPathMethod.align).optional(),
+    spacing: px.enum([PxTextPathSpacing.auto, PxTextPathSpacing.exact] as const, PxTextPathSpacing.exact).optional(),
     startOffset: PxAnimatableNumberSchema.optional(),
     textLength: PxAnimatableNumberSchema.optional(),
 }));

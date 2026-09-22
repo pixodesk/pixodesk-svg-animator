@@ -262,7 +262,15 @@ export const PX_TRIGGER_DEFAULTS = {
     mouseOut: 'continue',
     visibilityThreshold: 0.5,
     visibilityDebounce: 150,
+    finish: 'hold',
 } as const;
+
+/**
+ * What an absent `timeline.duration` means — the number the SCHEMA states (`PxTimeTimelineSchema.defaults.duration`), kept here as a constant for the runtime's arithmetic. @internal
+ */
+export const PX_DEFAULT_DURATION_MS = 1000;
+/** What an absent `timeline.iterations` means — see `PX_DEFAULT_DURATION_MS`. @internal */
+export const PX_DEFAULT_ITERATIONS = 1;
 
 /** A trigger with every default filled in. @public @advanced */
 export interface PxResolvedTrigger {
