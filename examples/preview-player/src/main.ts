@@ -1,6 +1,6 @@
 import './style.css';
 import { type PxAnimatedSvgDocument, type PxTrigger } from '@pixodesk/svg-animator-web';
-import { getAnimatorConfig, isPxDocument } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, isPxDocument, PxOffScreenAction, PxTriggerStart } from '@pixodesk/svg-animator-core';
 
 import { createWebPlayer } from './players/web';
 import { createReactPlayer } from './players/react';
@@ -36,6 +36,7 @@ const canvas = $('canvas');
 const mount = $('mount');
 const canvasSizeEl = $('canvas-size');
 const errorEl = $('error');
+const hintEl = $('hint');
 const seek = $<HTMLInputElement>('seek');
 const timeEl = $('time');
 const filenameEl = $('filename');
@@ -229,6 +230,55 @@ function syncTriggerUi(): void {
   debounceField.hidden = !gated;
 }
 
+// -- The cue over a still stage ----------------------------------------------
+
+/**
+ * What the viewer has to do before the animation moves, when the document's trigger — not the
+ * transport — is what starts it. `start: 'load'` behind the default visibility gate IS
+ * "scroll into view" (see docs/library/playback-and-triggers.md); `undefined` means it starts by
+ * itself as soon as it is shown.
+ */
+const USER_ACTION_HINTS = {
+  hover: 'Hover over the animation to play it',
+  click: 'Click the animation to play it',
+  scrollIntoView: 'Scroll the animation into view to play it',
+  play: 'Press Play to start',
+} as const;
+
+type UserAction = keyof typeof USER_ACTION_HINTS;
+
+function userActionForTrigger(trigger: PxTrigger | undefined): UserAction | undefined {
+  switch (trigger?.start ?? PxTriggerStart.load) {
+    case PxTriggerStart.mouseOver: return 'hover';
+    case PxTriggerStart.click: return 'click';
+    case PxTriggerStart.none: return 'play';
+    case PxTriggerStart.load: return trigger?.offScreen === PxOffScreenAction.continue ? undefined : 'scrollIntoView';
+  }
+}
+
+/** The trigger actually driving the mounted player — the file's, or the custom config. */
+function effectiveTrigger(): PxTrigger | undefined {
+  const option = currentTriggerOption();
+  if (option === 'file') return currentDoc ? getAnimatorConfig(currentDoc)?.trigger : undefined;
+  return option;
+}
+
+/** Shown while a trigger-driven animation sits still — not over a running one, and not after a
+ *  play-once run has ended. With the transport in charge there is nothing to say. */
+function syncHint(): void {
+  const action = useTrigger && handle ? userActionForTrigger(effectiveTrigger()) : undefined;
+  const t = handle?.getCurrentTime() ?? 0;
+  const finished = currentLoop === 'no-loop' || (currentLoop === 'auto' && !documentLoops()) ? t >= duration : false;
+  const show = !!action && !!handle && !handle.isPlaying() && !finished;
+  hintEl.hidden = !show;
+  hintEl.textContent = show && action ? USER_ACTION_HINTS[action] : '';
+}
+
+function documentLoops(): boolean {
+  const iterations = currentDoc ? getAnimatorConfig(currentDoc)?.iterations : undefined;
+  return iterations === 'infinite' || (typeof iterations === 'number' && iterations > 1);
+}
+
 // -- Mount / remount ---------------------------------------------------------
 
 function remount(): void {
@@ -251,6 +301,7 @@ function remount(): void {
     duration = 0;
     seek.value = '0';
     timeEl.textContent = '0 / 0 ms';
+    hintEl.hidden = true;
     return;
   }
 
@@ -427,6 +478,7 @@ function tick(): void {
       btnPlay.disabled = playing;
       btnPause.disabled = !playing;
     }
+    syncHint();
 
     if (!scrubbing) {
       const t = handle.getCurrentTime();

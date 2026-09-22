@@ -215,6 +215,40 @@ body {
   display: flex;
 }
 
+/*
+ * The cue over a still animation: with "Use trigger" on, the document's own trigger starts it
+ * (hover / click / scroll into view), so nothing moves until the viewer does that — and the
+ * transport is disabled, so without a word the stage just looks broken. Fades in late enough
+ * that a document starting on load never flashes it while the player warms up.
+ */
+.hint {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100% - 24px);
+  padding: 4px 12px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--overlay);
+  color: var(--text);
+  font-size: 13px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  animation: hint-in 200ms ease-out 400ms both;
+}
+
+.hint[hidden] {
+  display: none;
+}
+
+@keyframes hint-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
 .dropzone code {
   background: var(--control);
   padding: 1px 6px;

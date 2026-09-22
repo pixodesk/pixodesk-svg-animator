@@ -14,6 +14,8 @@ A single-page preview player that demonstrates all three runtime packages side b
 - **Transport controls:** Play, Pause, Stop (reset to start), Restart, Finish (jump to end).
 - **Time slider:** shows the current playback time and lets you scrub.
 - **Playback rate:** speed control (Web player only).
+- **Trigger cue:** with *Use trigger* on, the document's own trigger starts the animation, so
+  while it sits still the stage says what to do — hover, click, or scroll it into view.
 
 The stage starts empty; use **Load demo** to load the built-in sample animation
 (handled exactly as if its file were dropped onto the page).
