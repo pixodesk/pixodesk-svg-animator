@@ -9,6 +9,7 @@ import { PxTimelineEngine } from '../format/PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxNode } from '../format/PxAnimatorTypes';
 import { createAdapterAnimator } from '../playback/PxFrameLoop';
 import { toDomProps } from '../util/PxNodeProps';
+import { PX_TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
 import { materializeAllInTree } from './PxAnimatorMaterializeAll';
 import { materializeRestPosesInTree } from './PxRestPose';
 
@@ -109,14 +110,58 @@ describe('materializeRestPosesInTree — the static document IS the first frame'
         expect(first(out).transform).toEqual({ rotate: 5 });
     });
 
-    it('skips the individual transform channels (translate / rotate / scale / skew)', () => {
-        // As CSS properties they COMPOSE with `transform` rather than replace it, so a static
-        // pose written as a transform attribute would be applied twice once the animation runs.
+    it('an individual channel rests through the transform slot, never as a static channel of its own', () => {
+        // Both engines write an individual channel to the ONE `transform` slot (frame loop: the
+        // attribute; WAAPI: the property), and either REPLACES what is there — so the pose goes
+        // into `transform` as the canonical parts record, and NOT into a static `rotate`, which
+        // the renderer would fold into the same attribute a second time.
         const out = materializeRestPosesInTree(docOf([
-            { type: 'g', animate: { rotate: { keyframes: [kf(0, 30), kf(500, 60)] } } },
+            { type: 'g', id: 'r', animate: { rotate: { keyframes: [kf(0, 30), kf(500, 60)] } } },
         ]), JS);
         expect(first(out).rotate).toBeUndefined();
-        expect(first(out).transform).toBeUndefined();
+        expect(first(out).transform).toEqual({ rotate: 30 });
+        expect(staticAttr(first(out), 'transform')).toBe('rotate(30)');
+    });
+
+    // A HAND-WRITTEN document (the docs' own examples are): an authored node animating ONE
+    // individual channel and stating no static value. The editor never writes this shape — it
+    // folds the channel into `animate.transform` and writes `transform: {translate: first}`
+    // beside it — so only hand-written files ever hit it: they sat at the identity until played.
+    it('an authored node animating one individual channel rests where the engine starts it', () => {
+        const out = materializeRestPosesInTree(docOf([
+            { type: 'ellipse', id: 'e', rx: 64, ry: 64,
+              animate: { translate: { keyframes: [kf(0, [139, 163]), kf(1000, [139, 310])] } } },
+        ], { trigger: { start: 'none' } }), JS);
+        // The pose is the canonical static form the editor writes, rendered like it.
+        expect(first(out).transform).toEqual({ translate: [139, 163] });
+        expect(staticAttr(first(out), 'transform')).toBe('translate(139,163)');
+    });
+
+    it('every kind of animated attribute rests on its first frame when no static value is authored', () => {
+        // One node per attribute kind: scalar, colour, number list, unified transform, and each
+        // individual transform channel. Whatever the engine writes at frame 0 must be what the
+        // static document renders — for ALL of them, not only the ones a wrapper happens to use.
+        const cases: Array<[string, PxNode]> = [
+            ['opacity',         { type: 'rect', id: 'a', animate: { opacity:         { keyframes: [kf(0, 0.25), kf(1000, 1)] } } }],
+            ['r',               { type: 'circle', id: 'b', animate: { r:             { keyframes: [kf(0, 7), kf(1000, 30)] } } }],
+            ['fill',            { type: 'rect', id: 'c', animate: { fill:            { keyframes: [kf(0, '#ff0000'), kf(1000, '#0000ff')] } } }],
+            ['strokeDasharray', { type: 'path', id: 'd', animate: { strokeDasharray: { keyframes: [kf(0, [4, 2]), kf(1000, [8, 8])] } } }],
+            ['transform',       { type: 'g', id: 'e', animate: { transform:          { keyframes: [kf(0, { rotate: 15 }), kf(1000, { rotate: 90 })] } } }],
+            ['translate',       { type: 'g', id: 'f', animate: { translate:          { keyframes: [kf(0, [10, 20]), kf(1000, [50, 60])] } } }],
+            ['rotate',          { type: 'g', id: 'g', animate: { rotate:             { keyframes: [kf(0, 30), kf(1000, 60)] } } }],
+            ['scale',           { type: 'g', id: 'h', animate: { scale:              { keyframes: [kf(0, [2, 2]), kf(1000, [1, 1])] } } }],
+        ];
+        // Lists render "4 2" statically and "4,2" from the engine — same numbers, one comparison.
+        const numbers = (text: string | undefined): string | undefined => text?.replace(/[\s,]+/g, ' ').trim();
+        for (const [label, node] of cases) {
+            const out = materializeRestPosesInTree(docOf([node]), JS);
+            const engine = engineFirstFrame(out).get(String(node.id));
+            // The engine writes individual channels and the unified transform to ONE attribute.
+            const attr = PX_TRANSFORM_FN_NAMES.has(label) ? 'transform' : label;
+            const rendered = staticAttr(first(out), attr);
+            expect(rendered, `${label}: has a rest pose at all`).toBeDefined();
+            expect(numbers(rendered), `${label}: static document vs engine's first frame`).toBe(numbers(engine?.get(attr)));
+        }
     });
 
     it('skips a transform when the node already carries a static individual channel', () => {

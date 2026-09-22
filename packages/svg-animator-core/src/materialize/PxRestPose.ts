@@ -33,14 +33,24 @@
 //
 //  2. IT NEVER CHANGES THE ANIMATION — only the frame shown at rest. A static transform composes
 //     UNDER the animated one (`mergeStaticTransformIntoAnimDef`), so a pose could in principle
-//     leak into keyframes. Rather than reason about when, the stage VERIFIES: the engine's
-//     bindings are computed again with the poses in place, and any node whose binding differs
-//     has its poses taken back out.
+//     leak into keyframes. Rather than reason about when, the stage VERIFIES: the engine is run
+//     again with the poses in place, and any node it now WRITES differently — at the first
+//     frame or anywhere along the iteration — has its poses taken back out. What is compared is
+//     the engine's output, not the binding's shape: a static transform makes the normalizer fold
+//     a lone `translate` channel into a unified `transform` channel, which is a different
+//     binding that writes the identical frames — the editor's own form, in fact.
+//
+// THE TRANSFORM FAMILY is one attribute. An individual channel (`translate`, `rotate`, `scale`,
+// `skew`) is written by both engines to the ONE `transform` slot — the frame loop sets the
+// `transform` attribute, WAAPI drives the `transform` property — so its rest pose goes there
+// too, as the canonical static parts record the editor writes (`transform: {translate: [x, y]}`).
+// A hand-written document animating one channel with no static value (the format's own
+// examples do exactly this) otherwise sat at the identity until played.
 
 import { calcAnimationValues, normalizeBindings } from '../animation/PxDefinitions';
 import { getAnimatorConfig, type PxTimelineEngine } from '../format/PxAnimatorConstants';
-import type { PxAnimatedSvgDocument, PxAnimationDefinition, PxNode } from '../format/PxAnimatorTypes';
-import { PX_DEFAULT_DURATION_MS, PX_TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
+import type { PxAnimatedSvgDocument, PxAnimationDefinition, PxNode, PxTransformParts } from '../format/PxAnimatorTypes';
+import { parseTransformParts, PX_DEFAULT_DURATION_MS, PX_TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
 import { deepClone } from '../util/PxIdUtil';
 
 
@@ -48,6 +58,9 @@ const TRANSFORM_CHANNEL = 'transform';
 
 /** Timeline directions whose FIRST frame is the END of an iteration. */
 const REVERSED_DIRECTIONS: ReadonlySet<string> = new Set(['reverse', 'alternate-reverse']);
+
+/** Where along an iteration rule 2 samples the engine's writes — the ends and three points between. */
+const VERIFY_SAMPLE_FRACTIONS: ReadonlyArray<number> = [0, 0.25, 0.5, 0.75, 1];
 
 /** Marks the scratch copies' animated nodes so they can be matched back to the output tree. */
 const SCRATCH_ID_PREFIX = '__px_rest_';
@@ -76,12 +89,23 @@ export function materializeRestPosesInTree(root: PxAnimatedSvgDocument, engine: 
     for (const [key, animate] of before) {
         const node = nodes.get(key);
         if (!node) continue;
-        for (const channel of Object.keys(animate)) {
+        const channels = Object.keys(animate);
+        for (const channel of channels) {
+            if (PX_TRANSFORM_FN_NAMES.has(channel)) continue;   // the family is handled once, below
             if (!mayCarryRestPose(node, channel)) continue;
             const value = firstFrameValue(animate, channel, firstFrameTime);
             if (value === undefined) continue;
             node[channel] = value;
             added.set(key, [...(added.get(key) ?? []), channel]);
+        }
+        // The individual channels: what the engine writes to `transform` at the first frame,
+        // stored as the canonical static parts record.
+        if (channels.some(channel => PX_TRANSFORM_FN_NAMES.has(channel)) && mayCarryTransformRestPose(node)) {
+            const parts = firstFrameTransformParts(animate, firstFrameTime);
+            if (parts) {
+                node[TRANSFORM_CHANNEL] = parts;
+                added.set(key, [...(added.get(key) ?? []), TRANSFORM_CHANNEL]);
+            }
         }
     }
 
@@ -89,7 +113,7 @@ export function materializeRestPosesInTree(root: PxAnimatedSvgDocument, engine: 
     if (added.size) {
         const after = bindingsOf(out, engine);
         for (const [key, channels] of added) {
-            if (JSON.stringify(after.get(key)) === JSON.stringify(before.get(key))) continue;
+            if (writesTheSameFrames(before.get(key), after.get(key), duration)) continue;
             const node = nodes.get(key);
             if (node) for (const channel of channels) delete node[channel];
         }
@@ -102,15 +126,15 @@ function mayCarryRestPose(node: PxNode, channel: string): boolean {
     // the engines mirror depend on it.
     if (node[channel] !== undefined) return false;
 
-    // The individual transform channels are CSS properties that COMPOSE with `transform` instead
-    // of replacing it: a static pose written out as a transform attribute would be applied twice
-    // once the animation runs.
-    if (PX_TRANSFORM_FN_NAMES.has(channel)) return false;
-
     // A static individual channel is written to the same `transform` attribute — two writers.
-    if (channel === TRANSFORM_CHANNEL) {
-        for (const part of PX_TRANSFORM_FN_NAMES) if (node[part] !== undefined) return false;
-    }
+    if (channel === TRANSFORM_CHANNEL) return mayCarryTransformRestPose(node);
+    return true;
+}
+
+/** The `transform` slot is free only when nothing static already writes to it. */
+function mayCarryTransformRestPose(node: PxNode): boolean {
+    if (node[TRANSFORM_CHANNEL] !== undefined) return false;
+    for (const part of PX_TRANSFORM_FN_NAMES) if (node[part] !== undefined) return false;
     return true;
 }
 
@@ -118,6 +142,34 @@ function mayCarryRestPose(node: PxNode, channel: string): boolean {
 function firstFrameValue(animate: PxAnimationDefinition, channel: string, timeMs: number): string | undefined {
     const values = Object.values(calcAnimationValues({ [channel]: animate[channel] }, timeMs));
     return values.length === 1 && values[0] !== '' ? values[0] : undefined;
+}
+
+/**
+ * Rule 1 for the individual channels: the ONE `transform` string the engine writes for them at
+ * the first frame (several channels at once compose exactly as the engine composes them), read
+ * back into a parts record. The engine's string carries CSS units (`translate(139px,163px)`,
+ * `rotate(30deg)`); the static record has none. Unparseable → no pose, never a guess.
+ */
+function firstFrameTransformParts(animate: PxAnimationDefinition, timeMs: number): PxTransformParts | undefined {
+    const family: PxAnimationDefinition = {};
+    for (const channel of Object.keys(animate)) if (PX_TRANSFORM_FN_NAMES.has(channel)) family[channel] = animate[channel];
+    const written = calcAnimationValues(family, timeMs)[TRANSFORM_CHANNEL];
+    if (!written) return undefined;
+    const parts = parseTransformParts(written.replace(/(px|deg)\b/g, ''));
+    return parts && Object.keys(parts).length ? parts : undefined;
+}
+
+/**
+ * Rule 2's test: two bindings are the same animation when the engine writes the same
+ * attributes with the same values at every sampled time of an iteration. Compared by what is
+ * written, not by structure — see the header. Whitespace is ignored: `translate(1px, 2px)` and
+ * `translate(1px,2px)` are one value.
+ */
+function writesTheSameFrames(a: PxAnimationDefinition | undefined, b: PxAnimationDefinition | undefined, durationMs: number): boolean {
+    if (!a || !b) return a === b;
+    const frame = (animate: PxAnimationDefinition, t: number): string =>
+        JSON.stringify(calcAnimationValues(animate, t)).replace(/\s+/g, '');
+    return VERIFY_SAMPLE_FRACTIONS.every(fraction => frame(a, fraction * durationMs) === frame(b, fraction * durationMs));
 }
 
 

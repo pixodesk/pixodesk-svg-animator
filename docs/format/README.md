@@ -433,6 +433,19 @@ attribute's keyframes:
 }
 ```
 
+**Before it plays, and after a reset, an element shows its static attributes.** An animated
+attribute that has no static value beside it rests on its **first frame** — the player fills
+that value in as if you had written it. So the ellipse below sits at `139, 163` before anyone
+presses play, not at the origin, even though it states no `transform` of its own; and the
+editor always writes the static value out explicitly (`"transform": { "translate": [139, 163] }`
+next to the keyframes), so its files carry it either way. To rest somewhere *other* than the
+first frame, write the static attribute yourself — an authored value is always left alone.
+
+```js
+{ "type": "ellipse", "rx": 64, "ry": 64,
+  "animate": { "translate": { "keyframes": [ { "time": 0, "value": [139, 163] }, { "time": 1000, "value": [139, 310] } ] } } }
+```
+
 That is the usual form: an object with one entry per animated attribute. There are also
 three shorthand forms, all built on **named animations** — animations defined once in
 `definitions.animations` ([below](#definitions--animatordefinitions)) and reused by name:
@@ -1292,9 +1305,14 @@ knowing where they sit — reach for them over `doc.animator?.…` in a tool of 
    frame** as a plain attribute. At rest — not yet played, or cancelled — a player shows the
    static document, and a node an effect generated (a `transformBy` wrapper, a mask's inverse
    chain, a glyph on a path) has no static value of its own: without this step it sits at the
-   identity until something plays. The value is what the engine itself writes at the first frame,
-   never "the first keyframe" (keyframes may begin before time 0). An authored static value is
-   left alone, and the step never changes the animation — only the frame shown at rest.
+   identity until something plays. So does a hand-written node animating one individual channel
+   (`translate`, `rotate`, `scale`, `skew`) — the form these very examples use: its pose goes
+   into `transform`, as the parts record the editor writes, because that is the one slot both
+   engines write such a channel to. The value is what the engine itself writes at the first
+   frame, never "the first keyframe" (keyframes may begin before time 0). An authored static
+   value is left alone, and the step never changes the animation — only the frame shown at
+   rest: the engine is run again with the poses in place, and a pose that changes anything it
+   writes, at any point of the iteration, is taken back.
 
 Steps 3–4 run when `engine` is `native`. Pass `native` for **any renderer without live `<use>`
 propagation** (including `react-native-svg`); `js` only for the DOM, which resolves `<use>`

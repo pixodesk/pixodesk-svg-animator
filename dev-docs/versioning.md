@@ -4,7 +4,7 @@ Two unrelated numbers. Never derive one from the other.
 
 | number | current | lives in | bumped by | when |
 |---|---|---|---|---|
-| **Library** (npm) | `1.0.45` | `version` in all five `packages/*/package.json` | you, by hand | every publish |
+| **Library** (npm) | `1.0.46` | `version` in all five `packages/*/package.json` | you, by hand | every publish |
 | **Player schema** `a.b` | `1.1` | `PX_WIRE_SCHEMA_VERSION` — `packages/svg-animator-core/src/version/PxSchemaVersion.ts` | you, by hand, **with a step** | the player wire format changes |
 | **Editor extension** `c` | `1` | `EDITOR_EXTENSION_REVISION` — app repo `src/svgeditor/model/serialization/schema/version/PxWireVersion.ts` | you, by hand, **with a step** | anything under `meta.*` changes shape |
 
