@@ -79,6 +79,46 @@ describe('offset-path materializer (lightweight JSON → player)', () => {
         }
     });
 
+    it('a first-frame static `rotate` overridden by `rotate: 0` on every keyframe: still a candidate, and the static is dropped', () => {
+        // How the Editor writes an auto-orient motion path: the static transform carries the
+        // tangent at the first frame (so the REST picture matches frame 0), and every keyframe
+        // carries `rotate: 0` so that pose never leaks into the animation. Under offset-path
+        // the tangent comes from `offset-rotate: auto` — a surviving static rotate would ADD.
+        const out = materializeOffsetPathsInTree(doc({
+            type: 'rect',
+            transform: { translate: [20, 120], rotate: -59.7436 },
+            animate: { transform: {
+                alongPathMode: 'offsetPath', autoOrient: true,
+                keyframes: [
+                    { time: 0, value: { translate: [20, 120], rotate: 0 }, tangentOut: [28, -48] },
+                    { time: 1000, value: { translate: [80, 120], rotate: 0 } },
+                ],
+            } } as never,
+        } as never));
+        const n = out.children![0] as never as { style: Record<string, string>; animate: Record<string, unknown>; transform?: unknown };
+        expect(n.style.offsetRotate).toBe('auto');
+        expect(n.animate.transform).toBeUndefined();
+        expect(n.animate.offsetDistance).toBeDefined();
+        expect(n.transform).toBeUndefined();
+
+        // A static rotate the keyframes do NOT override is a real design rotation — it survives.
+        const kept = materializeOffsetPathsInTree(doc({
+            type: 'rect',
+            transform: { translate: [20, 120], rotate: 30 },
+            animate: { transform: curvedTransform() },
+        } as never));
+        expect((kept.children![0] as never as { transform?: unknown }).transform).toEqual({ rotate: 30 });
+
+        // A NON-zero rotate in a keyframe is an animated part — not a candidate.
+        const turning = materializeOffsetPathsInTree(doc({
+            type: 'rect',
+            animate: { transform: { alongPathMode: 'offsetPath', keyframes: [
+                { time: 0, value: { translate: [0, 0], rotate: 0 }, tangentOut: [5, 5] },
+                { time: 1000, value: { translate: [10, 10], rotate: 10 } }] } } as never,
+        } as never));
+        expect((turning.children![0] as never as { animate: Record<string, unknown> }).animate.transform).toBeDefined();
+    });
+
     it('carries loop and easing onto the offsetDistance binding', () => {
         const out = materializeOffsetPathsInTree(doc({
             type: 'rect',

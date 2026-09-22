@@ -30,6 +30,7 @@ import { bezier2D_arcAtT, bezier2D_arcLengthLUT, bezier2D_derivativeAt, bezier2D
 import type { ArcLengthLUT } from '../util/PxAnimatorUtil';
 import type { PxAnyKeyframe, PxKeyframe, PxNormalizedKeyframe, PxNode, PxPropertyAnimation, PxTransformParts } from '../format/PxAnimatorTypes';
 import { keyframeTime, keyframeValue, keyframeEasing, keyframeTangentIn, keyframeTangentOut } from '../format/PxAnimatorTypes';
+import { mergeStaticTransformIntoAnimDef } from '../animation/PxStaticTransformMerge';
 
 
 type Point2 = [number, number];
@@ -718,7 +719,13 @@ function walkAndMaterialize(node: PxNode, opts?: MotionPathMaterializationOption
     let newAnimate: Record<string, PxPropertyAnimation> | undefined;
     const animBucket = node.animate;
     if (animBucket && typeof animBucket === 'object' && !Array.isArray(animBucket)) {
-        const animDef = animBucket as Record<string, PxPropertyAnimation>;
+        // The node's STATIC transform composes under the animated one — merged in FIRST, so the
+        // flattener sees complete keyframe values. Flattening bakes `rotate` into every sample
+        // (tangent + the keyframe's own), so a static `rotate` the keyframes do not repeat had to
+        // be in those values by now: merged afterwards, as it used to be, it was overridden by the
+        // baked samples and lost — the native engine played 30° off from the js engine, which
+        // merges before it evaluates. The later merge in `normalizeBindings` is then a no-op.
+        const animDef = mergeStaticTransformIntoAnimDef(animBucket, node.transform) as Record<string, PxPropertyAnimation>;
         const transformAnim = animDef.transform;
         if (transformAnim && typeof transformAnim === 'object' && propAnimIsMotionPath(transformAnim)) {
             const materialized = materializeMotionPathInPropAnim(transformAnim, opts);

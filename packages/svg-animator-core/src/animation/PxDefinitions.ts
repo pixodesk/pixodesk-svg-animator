@@ -8,6 +8,11 @@ import { getBindings, getDefinitions, TRANSFORM_ATTR } from '../format/PxAnimato
 import { getAnimatorConfig, PxTimelineEngine, PxLoopDirection, PxLoopRepeatAt } from '../format/PxAnimatorConstants';
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, PX_COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, parseTransformParts, PX_PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, PX_TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
 import { evaluateMotionPathSegment, materializeMotionPathInPropAnim, propAnimIsMotionPath } from '../materialize/PxMotionPath';
+import { mergeStaticTransformIntoAnimDef } from './PxStaticTransformMerge';
+
+// Declared in its own leaf module so the motion-path flattener can use it too, without importing
+// this one back (it is imported here). Re-exported so this module's surface is unchanged.
+export { mergeStaticTransformIntoAnimDef };
 
 /**
  * Time separation between a cycle's snap-back keyframe and the previous repetition's
@@ -888,69 +893,6 @@ export function resetElementIdCounter(): void {
 }
 
 /**
- * TRANSFORM PRECEDENCE (review §0.4/§1.6) — CSS's own composition rule, applied at READ:
- * a static `transform` on the element composes UNDER the animated transform, instead of
- * being silently clobbered by it. Implemented as a keyframe-value MERGE during
- * normalization, so both engines (and every consumer downstream) see complete parts:
- *
- *   1. `animate.transform` with PARTIAL parts records — every keyframe value (and the
- *      base `value`) inherits the static parts it does not set:
- *      static `{rotate: 45}` + kf `{translate: [80, 0]}` → kf `{rotate: 45, translate: [80, 0]}`.
- *   2. ONE individual channel (`translate` / `rotate` / `scale` / `skew`) and no
- *      `transform` channel — the channel is REWRITTEN as a unified `transform` channel
- *      whose values carry the static parts: the rect stays rotated 45° AND slides.
- *
- * The static transform may be a parts record or an attribute string (parsed by the
- * conservative {@link parseTransformParts} — unparseable strings skip the merge).
- * NOT merged (documented limitations): several individual channels animated at once
- * (they still last-write-wins against each other), and an individual channel next to an
- * animated `transform` (the `transform` channel wins, as before).
- * @internal
- */
-export function mergeStaticTransformIntoAnimDef(
-    animDef: PxAnimationDefinition,
-    staticTransform: unknown,
-): PxAnimationDefinition {
-    if (!animDef) return animDef;
-    const staticParts: PxTransformParts | undefined =
-        staticTransform && typeof staticTransform === 'object' && !Array.isArray(staticTransform)
-            ? staticTransform as PxTransformParts
-            : parseTransformParts(staticTransform as string);
-    if (!staticParts || !Object.keys(staticParts).length) return animDef;
-
-    const mergeKfValue = (v: unknown): unknown =>
-        v && typeof v === 'object' && !Array.isArray(v) ? { ...staticParts, ...(v as PxTransformParts) } : v;
-
-    const transformAnim = animDef[TRANSFORM_ATTR];
-    if (transformAnim && typeof transformAnim === 'object') {
-        const anim = transformAnim as PxPropertyAnimation;
-        if (Array.isArray(anim.keyframes)) {
-            const out: PxPropertyAnimation = {
-                ...anim,
-                keyframes: anim.keyframes.map(kf => ({ ...kf, value: mergeKfValue(kf.value) })),
-            };
-            if (out.value !== undefined) out.value = mergeKfValue(out.value) as PxPropertyAnimation['value'];
-            return { ...animDef, transform: out };
-        }
-        return animDef;
-    }
-
-    const channels = Object.keys(animDef).filter(k => PX_TRANSFORM_FN_NAMES.has(k));
-    if (channels.length !== 1) return animDef; // several channels: unchanged (documented)
-    const ch = channels[0];
-    const chAnim = animDef[ch] as PxPropertyAnimation;
-    if (!chAnim || typeof chAnim !== 'object' || !Array.isArray(chAnim.keyframes)) return animDef;
-    const lifted: PxPropertyAnimation = {
-        ...chAnim,
-        keyframes: chAnim.keyframes.map(kf => ({ ...kf, value: { ...staticParts, [ch]: kf.value } })),
-    };
-    if (lifted.value !== undefined) lifted.value = { ...staticParts, [ch]: lifted.value };
-    const rest: PxAnimationDefinition = { ...animDef };
-    delete rest[ch];
-    return { ...rest, transform: lifted };
-}
-
-/**
  * Normalizes an animation definition by resolving easing references and normalizing keyframe times.
  * Keeps the key/value mapping structure. `engine` controls motion-along-path
  * handling — see {@link PxTimelineEngine}.
@@ -1229,7 +1171,12 @@ function calcPropertyValue(
                     !!propAnim.autoOrient,
                 );
                 partsResult.translate = [sample.translate[0], sample.translate[1]];
-                if (sample.rotateDeg !== undefined) partsResult.rotate = sample.rotateDeg;
+                // ADD the tangent angle to the element's own rotation, already interpolated into
+                // `partsResult.rotate` above — never replace it. The native engine's flattener
+                // sums the two (`buildOutKfValue` in PxMotionPath), as do the editor and Lottie;
+                // overwriting here silently dropped a base rotation, so one document turned by a
+                // different amount depending on which engine played it.
+                if (sample.rotateDeg !== undefined) partsResult.rotate = sample.rotateDeg + (partsResult.rotate ?? 0);
             }
         }
         cssValue = composeTransformParts(partsResult, { withUnits: false });

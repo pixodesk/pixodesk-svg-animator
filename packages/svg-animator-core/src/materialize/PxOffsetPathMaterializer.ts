@@ -59,7 +59,7 @@ const fmt = (n: number): string => {
  * express) — the caller then leaves the binding for the ordinary pipeline.
  */
 function buildOffsetPath(propAnim: PxPropertyAnimation): {
-    pathStr: string; distanceKfs: Array<PxKeyframe>; autoOrient: boolean; anchor: PxVec2;
+    pathStr: string; distanceKfs: Array<PxKeyframe>; autoOrient: boolean; anchor: PxVec2; keyframesCarryRotate: boolean;
 } | undefined {
     if ((propAnim as { alongPathMode?: string }).alongPathMode !== 'offsetPath') return undefined;
 
@@ -68,8 +68,10 @@ function buildOffsetPath(propAnim: PxPropertyAnimation): {
 
     // Every keyframe must supply a translate; other ANIMATED parts (rotate/scale
     // varying per keyframe) cannot ride the offset encoding — bail to the ordinary
-    // pipeline rather than render them wrong. Static `origin` is tolerated: alone (no
-    // rotate/scale around it) it composes to identity.
+    // pipeline rather than render them wrong. Tolerated, because they compose to identity:
+    //   - a static `origin` — alone (no rotate/scale around it);
+    //   - `rotate: 0` on every keyframe — how a writer keeps a first-frame static `rotate`
+    //     (the auto-orient tangent) out of the animation.
     // GEOMETRY: the model composes translate(t)·translate(o)·rotate·translate(-o), so the
     // point that RIDES the path — and the pivot `autoOrient` rotates about — is the ORIGIN
     // point of the element, located at t+o. Encode exactly that: the path traces t_i+o and
@@ -81,12 +83,17 @@ function buildOffsetPath(propAnim: PxPropertyAnimation): {
         ? [first.origin[0], first.origin[1]] : [0, 0];
 
     const points: Array<PxVec2> = [];
+    let keyframesCarryRotate = false;
     for (const kf of kfs) {
-        const v = keyframeValue(kf) as { translate?: PxVec2; origin?: PxVec2 } | undefined;
+        const v = keyframeValue(kf) as { translate?: PxVec2; origin?: PxVec2; rotate?: unknown } | undefined;
         const tr = v?.translate;
         if (!tr || tr.length < 2) return undefined;
         const parts = Object.keys(v as object);
-        if (parts.some(p => p !== 'translate' && p !== 'origin')) return undefined;
+        if (parts.some(p => p !== TRANSFORM_PART.translate && p !== TRANSFORM_PART.origin && p !== TRANSFORM_PART.rotate)) return undefined;
+        if (v?.rotate !== undefined) {
+            if (v.rotate !== 0) return undefined;
+            keyframesCarryRotate = true;
+        }
         // An origin ANIMATED across keyframes shifts the pivot mid-flight — inexpressible
         // as a single offset-anchor; bail to the sampled pipeline.
         const o = v?.origin ?? [0, 0];
@@ -124,7 +131,7 @@ function buildOffsetPath(propAnim: PxPropertyAnimation): {
         distanceKfs.push(out);
     }
 
-    return { pathStr: d, distanceKfs, autoOrient: !!propAnim.autoOrient, anchor };
+    return { pathStr: d, distanceKfs, autoOrient: !!propAnim.autoOrient, anchor, keyframesCarryRotate };
 }
 
 /**
@@ -147,15 +154,17 @@ export function materializeOffsetPathsInTree(root: PxAnimatedSvgDocument): PxAni
                 newAnimate[OFFSET_DISTANCE_ATTR] = distance;
 
                 // The element's position now comes from the path — a remaining static
-                // `translate` (the design base value) would ADD to it. Other static parts
-                // (rotate/scale/origin) survive; the candidate check above guarantees the
-                // animation itself carried none.
+                // `translate` (the design base value) would ADD to it. A static `rotate` the
+                // keyframes override (the first-frame pose) would ADD to `offset-rotate` the
+                // same way. Other static parts survive; the candidate check above guarantees
+                // the animation itself carried none.
                 const staticTr = node.transform as Record<string, unknown> | string | undefined;
                 let newTransform = staticTr;
                 if (staticTr && typeof staticTr === 'object') {
                     const t = { ...staticTr };
                     delete t[TRANSFORM_PART.translate];
                     delete t[TRANSFORM_PART.origin];   // pivot is offset-anchor now; alone it is identity
+                    if (built.keyframesCarryRotate) delete t[TRANSFORM_PART.rotate];
                     newTransform = Object.keys(t).length ? t : undefined;
                 }
 
