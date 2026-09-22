@@ -290,6 +290,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
               {
                 "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"value\\":{\\"translate\\":[0,0]},\\"time\\":0,\\"tangentOut\\":[60,0]},{\\"value\\":{\\"translate\\":[120,120]},\\"time\\":1000,\\"tangentIn\\":[0,-60]}],\\"autoOrient\\":true}}",
                 "id": "r",
+                "transform": "translate(0,0)rotate(0)",
                 "type": "g",
                 "children": [
                   {
