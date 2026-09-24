@@ -235,6 +235,8 @@ interface SVG_JSON extends NODE {
                 fontFamily: string;   // the real family, e.g. "Roboto"
                 fontStyle: string;    // the face, e.g. "" | "Regular" | "Bold" | "Bold Italic"
                 ascent: number;       // in unitsPerEm
+                descent?: number;     // in unitsPerEm, positive below the baseline; absent → 0.2 em
+                xHeight?: number;     // in unitsPerEm; absent → 0.5 em
                 unitsPerEm: number;   // e.g. 1000
                 glyphs: Record<string, { width: number; pathData: string }>;  // keyed by the character
             }>;
@@ -926,6 +928,23 @@ and no font file needs to be installed or loaded.
 The editor embeds the used glyphs when you switch a text to glyph mode. Combined with
 `textPath`, the glyphs are laid along the path directly.
 
+Glyph text follows the same layout attributes as browser text: `x` / `y`, `dx` / `dy`,
+`textAnchor` and `dominantBaseline`. The baseline shift uses the font's metrics:
+
+<!-- px-check off rows group SVG keywords; every value is pinned by the dominantBaselineShift unit test -->
+| `dominantBaseline` | the text's `y` lands on |
+|---|---|
+| `auto`, `alphabetic` | the alphabetic baseline |
+| `middle` | half the `xHeight` above it |
+| `central` | halfway between `ascent` and `descent` |
+| `mathematical` | half the `ascent` |
+| `hanging` | 80% of the `ascent` |
+| `text-top`, `text-before-edge` | the `ascent` |
+| `text-bottom`, `text-after-edge`, `ideographic` | the `descent` |
+
+Each run moves by its own font size, so mixed sizes still line up on the same `y`. On a
+path the shift is perpendicular, like `dy`.
+
 ### 2 — `textPath`
 
 Put this on a `<text>` element to lay its text along a curved path — and, if you want, to
@@ -1482,7 +1501,7 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 | Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTimeTimelineSchema`, `PxTriggerSchema`, `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxLoopSchema`, `PxDefinitionsSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxTransformValueSchema` | ○ the validator the format is written in |
 | Pipeline stages | `normalizeBindings` (○), `calcAnimationValues` (○), `interpolateValue`, `materializeMotionPathInPropAnim`, `mergeStaticTransformIntoAnimDef` | ▪ stages of `materializeAllInTree`; call the pipeline instead |
 | Effect harness | `diffInEffect` | ▪ the editor's "equal in effect" comparison |
-| Text & paths | `materializeGlyphText`, `layoutGlyphTextChars`, `createPathSampler`, `extendedPathForBrowser`, `materializeGlyphTextAlongPath` | ▪ glyph-text and text-on-path materialization |
+| Text & paths | `materializeGlyphText`, `layoutGlyphTextChars`, `createPathSampler`, `extendedPathForBrowser`, `materializeGlyphTextAlongPath`, `PxDominantBaseline`, `dominantBaselineShift` | ▪ glyph-text and text-on-path materialization; the glyph baseline table |
 | Node props | `toDomProps` (○), `sanitizeAttributeValue`, `PX_CSS_ONLY_STYLE_PROPS`, `PX_DISALLOWED_SVG_TAGS_LOWER` | ▪ shared normalization and sanitization rules |
 | Scroll math | `isScrollTimeline`, `scrollViewProgress`, `scrollOffsetProgress`, `scrollPhaseInterval`, `scrollResolveAxis`, `scrollTotalDurationMs` | ▪ scroll-driven playback internals |
 | Maths & strings | `cubicBezier`, `subdivideCubicBezier`, `bezierToSvgPath`, `splitEasing`, `reverseEasing`, `clamp`, `toRGBA`, `composeTransformParts`, `camelCaseToKebabWordIfNeeded`, `kebabToCamelCaseWord`, `PX_COLOR_ATTR_NAMES`, `PX_STYLE_ATTR_NAMES`, `PX_PCT_BASED_ATTR_NAMES`, `PX_TRANSFORM_FN_NAMES`, `deepClone`, `generateUniqueId`, `PX_DEFAULT_DURATION_MS`, `PX_DEFAULT_ITERATIONS`, `PX_LOOP_JUMP_SHIFT_MS` | ▪ helpers shared with the editor |

@@ -16,6 +16,7 @@ import type { PxNode } from '../../format/PxAnimatorTypes';
 import { PxTimelineEngine } from '../../format/PxAnimatorConstants';
 import { collectByType, engineFirstFrame, materializeEngine, materializeRaw, staticAttr } from '../effectTestKit';
 import { layoutGlyphTextChars, materializeGlyphText } from './textGlyphsEffect';
+import { PxDominantBaseline, dominantBaselineShift } from './dominantBaseline';
 
 const glyphs = {
     F: {
@@ -632,5 +633,134 @@ describe('textGlyphsEffect — the face name IS the lookup key', () => {
         // …and a contradicting weight never overrides the picked face either.
         expect(paths(materializeRaw(faceScene({ fontFamily: 'F-Bold', fontWeight: '300' })).root)[0].d)
             .toBe('M0 0L20 0L20-70Z');
+    });
+});
+
+
+describe('textGlyphsEffect — dominant-baseline shifts the glyphs, in local space', () => {
+
+    // Font `M` = font `F` plus the metrics dominant-baseline needs: descent 250, xHeight 520.
+    // fontSize 100 → scale 0.1, so `middle` moves the run down by 520 / 2 × 0.1 = 26.
+    const metricFonts = { M: { ...glyphs.F, fontFamily: 'M', descent: 250, xHeight: 520 } };
+    const HI_AT_ORIGIN = 'M0 0L10 0L10-70ZM70 0L75 0L75-50Z';
+
+    function baselineScene(textAttrs: any, tspans?: Array<any>, effects: any = { text: { useGlyphs: true } }): PxNode {
+        return {
+            type: 'svg',
+            animator: { definitions: { fonts: metricFonts } },
+            children: [{
+                type: 'text', id: 't', ...textAttrs,
+                children: tspans ?? [{ type: 'tspan', textContent: 'Hi', fontFamily: 'M', fontSize: '100px' }],
+                effects,
+            }],
+        } as unknown as PxNode;
+    }
+    const group = (root: PxNode) => collectByType(root, 'g').find(n => n.id === 't')!;
+
+    it('shift table follows the WebKit/Blink SVG baseline metrics', () => {
+        const font = metricFonts.M; // ascent 800, descent 250, xHeight 520
+        const expected: Array<[string, number]> = [
+            [PxDominantBaseline.auto, 0],
+            [PxDominantBaseline.alphabetic, 0],
+            [PxDominantBaseline.middle, 260],
+            [PxDominantBaseline.central, 275],
+            [PxDominantBaseline.mathematical, 400],
+            [PxDominantBaseline.hanging, 640],
+            [PxDominantBaseline.textTop, 800],
+            [PxDominantBaseline.textBeforeEdge, 800],
+            [PxDominantBaseline.textBottom, -250],
+            [PxDominantBaseline.textAfterEdge, -250],
+            [PxDominantBaseline.ideographic, -250],
+            ['no-such-baseline', 0],
+        ];
+        for (const [baseline, shift] of expected) expect(dominantBaselineShift(baseline, font), baseline).toBe(shift);
+    });
+
+    it('a font written without descent / xHeight falls back to 0.2em / 0.5em', () => {
+        // font `F`: ascent 800 only.
+        expect(dominantBaselineShift(PxDominantBaseline.middle, glyphs.F)).toBe(250);
+        expect(dominantBaselineShift(PxDominantBaseline.central, glyphs.F)).toBe(300);
+        expect(dominantBaselineShift(PxDominantBaseline.textBottom, glyphs.F)).toBe(-200);
+    });
+
+    it('auto leaves the bake exactly as without the attribute', () => {
+        const { root } = materializeRaw(baselineScene({ dominantBaseline: PxDominantBaseline.auto }));
+        expect(paths(root)[0].d).toBe(HI_AT_ORIGIN);
+    });
+
+    it('middle moves the run down by half the x-height', () => {
+        const { root } = materializeRaw(baselineScene({ dominantBaseline: PxDominantBaseline.middle }));
+        expect(paths(root)[0].d).toBe('M0 26L10 26L10-44ZM70 26L75 26L75-24Z');
+    });
+
+    it('text-bottom moves the run UP by the descent', () => {
+        const { root } = materializeRaw(baselineScene({ dominantBaseline: PxDominantBaseline.textBottom }));
+        expect(paths(root)[0].d).toBe('M0-25L10-25L10-95ZM70-25L75-25L75-75Z');
+    });
+
+    it('x / y, text-anchor and the transform all still apply', () => {
+        // pen (5, 7); anchor middle −50; middle baseline +26 → H at (−45, 33), i at (25, 33).
+        const { root } = materializeRaw(baselineScene({
+            x: 5, y: 7, textAnchor: 'middle', dominantBaseline: PxDominantBaseline.middle, transform: 'translate(3,4)',
+        }));
+        expect(paths(root)[0].d).toBe('M-45 33L-35 33L-35-37ZM25 33L30 33L30-17Z');
+        const g = group(root);
+        expect(staticAttr(g, 'transform')).toBe('translate(3,4)');   // the text's transform rides the <g>
+        expect(g.dominantBaseline).toBeUndefined();                  // consumed — not left on the <g>
+    });
+
+    it('per-line y and dy still apply on top of the shift', () => {
+        const { root } = materializeRaw(baselineScene({ dominantBaseline: PxDominantBaseline.middle }, [
+            { type: 'tspan', x: 0, y: 0, textContent: 'H', fontFamily: 'M', fontSize: '100px' },
+            { type: 'tspan', x: 0, y: 120, dy: 10, textContent: 'H', fontFamily: 'M', fontSize: '100px' },
+        ]));
+        expect(paths(root)[0].d).toBe('M0 26L10 26L10-44ZM0 156L10 156L10 86Z');
+    });
+
+    it('each span shifts by its OWN font size (every run centres on the same line)', () => {
+        const { root } = materializeRaw(baselineScene({ dominantBaseline: PxDominantBaseline.middle }, [
+            { type: 'tspan', textContent: 'H', fontFamily: 'M', fontSize: '100px' },
+            { type: 'tspan', textContent: 'H', fontFamily: 'M', fontSize: '200px' },
+        ]));
+        // 100px: +26; 200px (scale 0.2): +52, pen continues at x 70.
+        expect(paths(root)[0].d).toBe('M0 26L10 26L10-44ZM70 52L90 52L90-88Z');
+    });
+
+    it('along a path the shift is PERPENDICULAR, like dy', () => {
+        const { root } = materializeRaw(baselineScene({ dominantBaseline: PxDominantBaseline.middle },
+            [{ type: 'tspan', textContent: 'H', fontFamily: 'M', fontSize: '100px' }],
+            { text: { useGlyphs: true }, textPath: { pathData: 'M0 0L1000 0' } }));
+        const nums = (String(paths(root)[0].d).match(/-?\d*\.?\d+/g) ?? []).map(Number);
+        [0, 26, 10, 26, 10, -44].forEach((v, i) => expect(nums[i]).toBeCloseTo(v, 1));
+    });
+
+    it('along a path with an ANIMATED startOffset the sampled translate carries the shift', () => {
+        const { root } = materializeRaw(baselineScene({ dominantBaseline: PxDominantBaseline.middle },
+            [{ type: 'tspan', textContent: 'H', fontFamily: 'M', fontSize: '100px' }],
+            { text: { useGlyphs: true }, textPath: { pathData: 'M0 0L1000 0', startOffset: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 100 }] } } }));
+        const kfs = (paths(root)[0].animate as any).transform.keyframes;
+        for (const kf of kfs) expect(kf.value.translate[1]).toBeCloseTo(26, 3);
+    });
+
+    it('caret / hit boxes move with the glyphs, empty-line filler included', () => {
+        const node = {
+            type: 'text', id: 't', dominantBaseline: PxDominantBaseline.middle,
+            children: [
+                { type: 'tspan', x: 0, y: 0, textContent: 'H', fontFamily: 'M', fontSize: '100px' },
+                { type: 'tspan', x: 0, y: 120, fontFamily: 'M', fontSize: '100px' },
+            ],
+        } as unknown as PxNode;
+        const boxes = layoutGlyphTextChars(node, { glyphs: metricFonts });
+        expect(boxes.map(b => b.y)).toEqual([26, 146]);
+    });
+
+    it('along-path caret boxes shift perpendicular too', () => {
+        const node = {
+            type: 'text', id: 't', dominantBaseline: PxDominantBaseline.middle,
+            children: [{ type: 'tspan', textContent: 'H', fontFamily: 'M', fontSize: '100px' }],
+        } as unknown as PxNode;
+        const [box] = layoutGlyphTextChars(node, { glyphs: metricFonts, alongPath: { pathD: 'M0 0L1000 0' } });
+        expect(box.y).toBeCloseTo(26, 3);
+        expect(box.endY).toBeCloseTo(26, 3);
     });
 });

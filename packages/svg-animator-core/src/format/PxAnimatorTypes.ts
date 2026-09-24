@@ -648,6 +648,12 @@ export interface _PxGlyphFont {
     fontStyle: string;
     /** Ascent, in `unitsPerEm` units (baseline placement). */
     ascent: number;
+    /** Descent below the baseline, in `unitsPerEm` units, POSITIVE. Absent → 0.2 em.
+     *  Places `dominantBaseline` central / text-bottom / ideographic. */
+    descent?: number;
+    /** x-height, in `unitsPerEm` units. Absent → 0.5 em (the CSS fallback).
+     *  Places `dominantBaseline: middle`. */
+    xHeight?: number;
     /** Units per em the glyph `width`/`pathData` are expressed in, e.g. 1000. */
     unitsPerEm: number;
     /** Outlines of the used characters, keyed by the character itself. */
@@ -658,6 +664,8 @@ export const PxGlyphFontSchema = implementsInterface<_PxGlyphFont>()(px.object({
     fontFamily: px.string(),
     fontStyle: px.string(),
     ascent: px.number(),
+    descent: px.number().optional(),
+    xHeight: px.number().optional(),
     unitsPerEm: px.number(),
     glyphs: px.record(PxGlyphSchema),
 }));
