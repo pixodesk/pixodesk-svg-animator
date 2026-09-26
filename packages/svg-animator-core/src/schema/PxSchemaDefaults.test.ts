@@ -98,14 +98,14 @@ describe('schema.defaults — what an absent field means', () => {
         expect(PxTimeTimelineSchema.defaults.delay).toBe(0);
     });
 
-    it('the reported document: an omitted mouseOut means `continue`, on hover', () => {
+    it('the reported document: an omitted mouseOut means `pause`, on hover', () => {
         const doc = {
             type: 'svg', viewBox: '0 0 400 400',
             animator: { timeline: { duration: 1000, iterations: 1, trigger: { start: 'mouseOver' } } },
             children: [],
         } as unknown as PxAnimatedSvgDocument;
         expect(resolveTrigger(getAnimatorConfig(doc)?.trigger).mouseOut).toBe(PxTriggerSchema.defaults.mouseOut);
-        expect(PxTriggerSchema.defaults.mouseOut).toBe('continue');
+        expect(PxTriggerSchema.defaults.mouseOut).toBe('pause');
     });
 
     it('the document and config roots state no scalar defaults of their own (nothing to drift)', () => {

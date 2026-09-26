@@ -9,15 +9,18 @@ share. (Playing a **pre-rendered SVG** needs no library — see
 
 1. [Installing the players](./installation.md) — npm packages, the UMD build for pages without a bundler, TypeScript
 2. [Web player (`@pixodesk/svg-animator-web`)](./web-player.md) — `createAnimator`, the playback API, callbacks, triggers, the API reference
-3. [React (`@pixodesk/svg-animator-react`)](./react.md) — the player component, its props, control modes, Next.js
-4. [Vue (`@pixodesk/svg-animator-vue`)](./vue.md) — the player component, props, events, Nuxt
-5. [React Native (`@pixodesk/svg-animator-rn`)](./react-native.md) 🧪 — *in development*; install, props, feature support, limitations
-6. [Playback settings & triggers](./playback-and-triggers.md) — the `animator` configuration, and overriding it from props or the player API
-7. [Minification & property mangling](./minification.md) — safe by default; what to do if your build renames object keys
-8. [Troubleshooting & FAQ](./troubleshooting.md) — nothing plays, React/TypeScript/React Native gotchas, playback behavior
+3. [React (`@pixodesk/svg-animator-react`)](./react.md) — the player component, its props, control modes
+4. [Next.js](./nextjs.md) — the React component in a Next.js app
+5. [Vue (`@pixodesk/svg-animator-vue`)](./vue.md) — the player component, props, events
+6. [Nuxt](./nuxt.md) — the Vue component in a Nuxt app
+7. [React Native (`@pixodesk/svg-animator-rn`)](./react-native.md) 🧪 — *in development*; install, props, feature support, limitations
+8. [Playback settings & triggers](./playback-and-triggers.md) — the `animator` configuration, and overriding it from props or the player API
+9. [Minification & property mangling](./minification.md) — safe by default; what to do if your build renames object keys
+10. [Troubleshooting & FAQ](./troubleshooting.md) — nothing plays, React/TypeScript/React Native gotchas, playback behavior
 
-Below, what every player shares — the same props under the same names, one callback shape, one
-control-mode rule, one meaning of time — so a prop learned on one surface is known on all of them.
+Below is what every player has in common — the same props under the same names, the same
+callbacks, the same rule for who controls playback, the same meaning of time — so what you learn
+on one player works on all of them.
 Each guide then spells out its own package in signature form under **API reference**; the core
 library's is on [the format page](../format/README.md#core-library--pixodesksvg-animator-core).
 
@@ -34,7 +37,7 @@ file needs no package at all.
 | Play it in React / Vue | `<PixodeskSvgAnimator :doc … />` |
 | Play it in React Native | `<PixodeskSvgAnimator doc={…} />` (rn) |
 | Check a generated document before shipping it | `validateDocument(doc)` |
-| Put one animation on a page twice | `generateNewIds(doc)` for the second copy |
+| Show the same JSON animation twice on one page | `generateNewIds(doc)` for the second copy |
 | Feed a renderer of your own | `materializeAllInTree(doc, 'native')` (core) |
 | See or drive every animator on the page — 🧪 experimental | [`getAllAnimators()` / `onAnimatorsChange()`](./web-player.md#every-animator-on-the-page-experimental) (web) |
 
@@ -47,75 +50,127 @@ the two disagree:
 |---|---|
 | **●** | **User-facing** — the API for playing an animation in your page or app. Documented in full. |
 | **○** | **Advanced** — document tooling: inspect, transform or validate a document outside a player. Stable, rarely needed. |
-| **▪** | **Internal** — exported so the Pixodesk editor (and the sibling packages) stay in lockstep with the player. Not part of the supported surface; may change without notice. |
+| **▪** | **Internal** — exported so the Pixodesk editor and the other player packages can share the player's own code. Not meant for your code; may change without notice. |
 
 ### Props and options across players
 
-Every way to create a player, side by side — so a prop added or renamed in one place can be
-checked against the others. A cell is **✓** when that surface takes the name as is, shows the
-spelling when it differs, and is **—** when the surface does not have it.
+Every way to create a player, side by side, so a prop added or renamed in one place can be
+checked against the others. The columns are the web player's `createAnimator` (**Web**), the
+HTML tag read by `loadTagAnimators` (**Tag**), the pre-rendered player's `createAnimator`
+(**Pre**), **React**, **Vue** and React Native (**RN**).
+
+A cell is **✓** when that player takes the name as it is, **—** when it does not have it, and
+a number when it differs — the note with that number, under the table, says how.
 
 <!-- px-check matrix web=web:PxAnimatorOptions tag=~ prerendered=web:PxPrerenderedAnimatorOptions react=react:PixodeskSvgAnimatorProps vue=vue:PixodeskSvgAnimator rn=rn:PixodeskSvgAnimatorProps -->
-| Name | Web `createAnimator` | HTML tag (`loadTagAnimators`) | Pre-rendered `createAnimator` | React | Vue | React Native | Notes |
-|---|---|---|---|---|---|---|---|
-| **Document** | | | | | | | |
-| `src` | ✓ URL | `data-px-animation-src` | — | — | — | — | a URL to fetch the document from. The components take the document itself, on purpose: in a component tree the document is data the app already owns — imported, or fetched with the app's own loader — and fetching inside the component would mean a second data layer, with its own loading and error states |
-| `doc` | ✓ | — | ✓ required¹ | ✓ required | ✓ required | ✓ required | the document, inline — one name on every surface. On the web it also crosses the mangling boundary as a string key: the editor writes `createAnimator({"doc": …})` into every exported SVG+JS (`PX_ANIMATOR_DOC_KEY`), so the key is part of the export format |
-| `container` | ✓ selector or `Element` | the tagged element | — | — | — | — | omitted: animate an SVG already in the page |
-| **Playback override** | | | | | | | |
-| `timeline` | ✓ object or JSON string | — | — | ✓ | ✓ | ✓ | React Native ignores `timeline.engine` |
-| `resetTimeline` | ✓ | — | — | ✓ | ✓ | ✓ | |
-| `duration` | ✓ | — | — | ✓ | ✓ | ✓ | |
-| `delay` | ✓ | — | — | ✓ | ✓ | ✓ | |
-| `iterations` | ✓ | — | — | ✓ | ✓ | ✓ | |
-| `start` | ✓ 4 values | — | — | ✓ 4 values | ✓ 4 values | ✓ 4 values | every player surface takes `PxTriggerStart` (all 4); React Native ignores `'mouseOver'` |
-| **Autoplay control** — the document's own trigger | | | | | | | |
-| `autoplay` | — | — | — | ✓ | ✓ | ✓ | the web player and the HTML tag are always in this mode: they follow the document's trigger |
-| **Declarative control** — your state drives it | | | | | | | |
-| `play` | — | — | — | ✓ | ✓ | ✓ | `false` holds where it is |
-| `pause` | — | — | — | ✓ | ✓ | ✓ | hold the current frame; `false` again resumes |
-| `progress` | — | — | — | ✓ | ✓ | ✓ | show the frame at 0–1 of the whole run — of ONE iteration when `iterations` is `'infinite'` |
-| `time` | — | — | — | ✓ | ✓ | ✓ | show the frame at this ms from the start of the whole run |
-| **Imperative control** — you call it | | | | | | | |
-| `apiRef` | the returned `PxAnimatorApi` | `element._px_animator` | the returned `PxAnimatorApi` | ✓ — mode unchanged | template ref (`VueAnimatorApi`) | ✓ — mode unchanged | the imperative handle; never picks a mode on any surface | <!-- px web=~ tag=~ prerendered=~ vue=~ -->
-| **Callbacks** | | | | | | | |
-| `onPlay` | ✓ | — | ✓ | ✓ | `@play` | ✓ | |
-| `onPause` | ✓ | — | ✓ | ✓ | `@pause` | ✓ | |
-| `onCancel` | ✓ | — | ✓ | ✓ | `@cancel` | ✓ | |
-| `onFinish` | ✓ | — | ✓ | ✓ | `@finish` | ✓ | |
-| `onRemove` | ✓ | — | ✓ | ✓ | `@remove` | ✓ | the animator was thrown away: `destroy()`, unmount, or a new `doc` |
-| `onStop` | ✓ | — | ✓ | ✓ | `@stop` | ✓ | after any of pause / cancel / finish / remove |
-| `onError` | ✓ | — | ✓ | ✓ | ✓ | ✓ | THIS INSTANCE WILL NOT PLAY — the document failed to load, parse or build, or the render threw: nothing rendered, `isReady()` false, `fallback` shown. Falls back to `console.error` |
-| `onWarn` | ✓ | — | ✓ | ✓ | ✓ | ✓ | IT PLAYS, but something was ignored, degraded or misspelled. Falls back to `console.warn` |
-| `muteWarn` | ✓ | — | ✓ | ✓ | ✓ | ✓ | switch the `console.warn` fallback off — for a host that knows the player has something to say about this document and tolerates it. A handler you passed still fires: mute is about the console, not about you |
-| `muteError` | ✓ | — | ✓ | ✓ | ✓ | ✓ | the same switch for the `console.error` fallback |
-| `fallback` | — | — | — | — | — | ✓ | renders in place of the animation after a failure |
-| **Styling** | | | | | | | |
-| `className` | — | — | — | ✓ on the root `<svg>` | `class`, falls through to the root `<svg>` | — | web: style the container | <!-- px vue=~ -->
-| `style` | — | — | — | ✓ on the root `<svg>` | `style`, falls through to the root `<svg>` | — | | <!-- px vue=~ -->
+| Name | Web | Tag | Pre | React | Vue | RN |
+|---|---|---|---|---|---|---|
+| **Document** | | | | | | |
+| `src` | ✓ | 1 | — | — | — | — |
+| `doc` | ✓ | — | 2 | ✓ | ✓ | ✓ |
+| `container` | ✓ | 3 | — | — | — | — |
+| **Playback override** | | | | | | |
+| `timeline` | ✓ | — | — | ✓ | ✓ | 4 |
+| `resetTimeline` | ✓ | — | — | ✓ | ✓ | ✓ |
+| `duration` | ✓ | — | — | ✓ | ✓ | ✓ |
+| `delay` | ✓ | — | — | ✓ | ✓ | ✓ |
+| `iterations` | ✓ | — | — | ✓ | ✓ | ✓ |
+| `start` | ✓ | — | — | ✓ | ✓ | 5 |
+| **Autoplay control** | | | | | | |
+| `autoplay` | — | — | — | ✓ | ✓ | ✓ |
+| **Declarative control** | | | | | | |
+| `play` | — | — | — | ✓ | ✓ | ✓ |
+| `pause` | — | — | — | ✓ | ✓ | ✓ |
+| `progress` | — | — | — | ✓ | ✓ | ✓ |
+| `time` | — | — | — | ✓ | ✓ | ✓ |
+| **Imperative control** | | | | | | |
+| `apiRef` | 6 | 7 | 6 | ✓ | 8 | ✓ | <!-- px web=~ tag=~ prerendered=~ vue=~ -->
+| **Callbacks** | | | | | | |
+| `onPlay` | ✓ | — | ✓ | ✓ | `@play` | ✓ |
+| `onPause` | ✓ | — | ✓ | ✓ | `@pause` | ✓ |
+| `onCancel` | ✓ | — | ✓ | ✓ | `@cancel` | ✓ |
+| `onFinish` | ✓ | — | ✓ | ✓ | `@finish` | ✓ |
+| `onRemove` | ✓ | — | ✓ | ✓ | `@remove` | ✓ |
+| `onStop` | ✓ | — | ✓ | ✓ | `@stop` | ✓ |
+| `onError` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
+| `onWarn` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
+| `muteWarn` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
+| `muteError` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
+| `fallback` | — | — | — | — | — | ✓ |
+| **Styling** | | | | | | |
+| `className` | — | — | — | ✓ | 9 | — | <!-- px vue=~ -->
+| `style` | — | — | — | ✓ | ✓ | — | <!-- px vue=~ -->
 
-¹ Only `animator.definitions` and `animator.bindings` — the SVG is already in the page.
+**Notes**
 
-The two pre-rendered SVG + CSS wrappers, which toggle class names instead of creating a player:
+1. The tag takes the URL as the `data-px-animation-src` attribute.
+2. Required. Only `animator.definitions` and `animator.bindings` are needed: the SVG itself is
+   already in the page.
+3. The tag is the container: the player renders into the element that carries the attribute.
+4. React Native ignores `timeline.engine`.
+5. Every player takes every `PxTriggerStart` value; React Native ignores `'mouseOver'`, which
+   has no touch equivalent.
+6. The handle is what `createAnimator` returns, a `PxAnimatorApi`.
+7. The handle is on the element, as `element._px_animator`.
+8. The handle is the component's template ref, a `VueAnimatorApi`.
+9. Written `class`; like `style`, it falls through to the root `<svg>`.
+
+What some of the names mean:
+
+- **`src`** is a URL to fetch the document from. The components take the document itself on
+  purpose: in a component tree the document is data your app already has (imported, or fetched
+  with your own loader), and fetching inside the component would add a second loading and error
+  state to manage.
+- **`doc`** is the document itself, under the same name on every player. On the web the name
+  is also part of the export format: every SVG + JS file the editor exports calls
+  `createAnimator({"doc": …})` (`PX_ANIMATOR_DOC_KEY`), so it is never renamed by a minifier.
+- **`container`** left out means: animate an SVG that is already in the page.
+- **`autoplay`** means "play the way the document says". The web player and the tag always work
+  this way.
+- **`play`** set to `false` holds the current frame; **`pause`** holds it too, and setting it
+  back to `false` resumes.
+- **`progress`** shows the frame at a point between 0 and 1 of the whole run (of one iteration
+  when `iterations` is `'infinite'`); **`time`** shows the frame at that many ms from the start.
+- **`apiRef`** is the handle for calling `play()`, `pause()` and the rest from your code. Having
+  it never changes how the component is controlled.
+- **`onRemove`** fires when the player is thrown away: `destroy()`, an unmount, or a new `doc`.
+  **`onStop`** fires after any of pause, cancel, finish or remove.
+- **`onError`** means this player will not play: the document failed to load, parse or build,
+  or drawing it threw. Nothing is rendered, `isReady()` is `false`, and React Native shows
+  `fallback` instead. Without a handler the message goes to `console.error`.
+- **`onWarn`** means it plays, but something was ignored, simplified or misspelled. Without a
+  handler the message goes to `console.warn`.
+- **`muteWarn`** / **`muteError`** turn off those console messages, for an app that already
+  knows about them. A handler you passed still gets called.
+- **`className`** and **`style`** style the root `<svg>`. On the web, style the container instead.
+
+The pre-rendered SVG + CSS wrappers toggle class names instead of creating a player:
 
 <!-- px-check matrix react=react:PixodeskSvgCssAnimator vue=vue:PixodeskSvgCssAnimator -->
 | Name | React `PixodeskSvgCssAnimator` | Vue `PixodeskSvgCssAnimator` |
 |---|---|---|
 | the SVG | `children` | default slot | <!-- px name=children vue=~ -->
-| `start` | `PxTriggerStart`, default `'load'` — implements 4; `'none'` does nothing (no `play()` here) | ✓ same |
-| `offScreen` | ✓ default `'pause'` — an animation nobody can see does not run, whatever started it | ✓ same |
-| `mouseOut` | ✓ default `'continue'`; `'reverse'` acts as `'continue'` | ✓ same |
-| `visibilityThreshold` | ✓ 0–1 of the SVG that must be on screen before it may run; default 0.5, the wire default | ✓ same |
-| `visibilityDebounce` | ✓ ms it must stay that way first; default 150, so scrolling straight past starts nothing | ✓ same |
+| `start` | ✓ default `'load'` | ✓ same |
+| `offScreen` | ✓ default `'pause'` | ✓ same |
+| `mouseOut` | ✓ default `'pause'` | ✓ same |
+| `visibilityThreshold` | ✓ default `0.5` | ✓ same |
+| `visibilityDebounce` | ✓ default `150` ms | ✓ same |
 | `className` | ✓ on the wrapper div | `class`, on the wrapper div | <!-- px vue=~ -->
 | `style` | ✓ on the wrapper div | ✓ on the wrapper div | <!-- px vue=~ -->
 
+- `start: 'none'` does nothing here: a wrapper has no `play()` to call.
+- `offScreen: 'pause'` means an animation nobody can see does not run, whatever started it.
+- `mouseOut: 'reverse'` acts like `'continue'`: a class toggle cannot run keyframes backwards.
+- `visibilityThreshold` is how much of the SVG (0 to 1) must be on screen before it may run;
+  `visibilityDebounce` is how long it must stay that way first, so scrolling straight past starts
+  nothing. The defaults are the same as the JSON player's.
+
 ### Control modes — one rule
 
-On the components the three control groups are ONE choice: the highest-priority group that is set
-wins, a losing group warns once — naming both props and the winner — and React, Vue and React
-Native resolve it from the same rule in core (`resolveControlMode`), so they cannot answer it
-three ways:
+A component can be controlled in several ways, and only one of them can be in charge. If you set
+props from more than one group, the group highest in this table wins, and the player warns you
+once, naming the props and the winner. React, Vue and React Native all use the same rule from
+core (`resolveControlMode`), so they always pick the same winner:
 
 <!-- px-check off the mode-priority rule, prose -->
 | Priority | Mode | Chosen when | The document's trigger |
@@ -132,18 +187,18 @@ The web player and the HTML tag are always in autoplay mode — the document's o
 
 ### Callbacks and diagnostics — one shape
 
-Callbacks are ONE shape everywhere — the names in the table, inline: `createAnimator({ onFinish })`
-on the web, props on React and React Native. Vue takes the lifecycle ones as events (`@play`) and
-the diagnostics ones as props — props rather than events because an event handler always exists,
-which would have silenced the console fallback for anyone who never subscribed. `PxAnimatorCallbacks`
-in core is that one shape:
+The callbacks have the same names on every player: you pass them as options on the web
+(`createAnimator({ onFinish })`) and as props in React and React Native. Vue takes the playback
+ones as events (`@play`) but `onWarn` and `onError` as props — with an event, Vue would always
+count the message as handled, and nobody would see it in the console. All of them are defined
+once in core, as `PxAnimatorCallbacks`:
 
 <!-- px-check signature pkg=core -->
 ```typescript
-// Every lifecycle callback is optional and takes no arguments. One chain, three levels, each
-// extending the one above: `PxDiagnosticsConfig` (the four diagnostics fields) → `PxEngineCallbacks`
-// (+ the lifecycle; what an engine such as `createAdapterAnimator` takes) → `PxAnimatorCallbacks`
-// (+ `onStop`; what every public surface takes).
+// Every lifecycle callback is optional and takes no arguments. The types build on each other:
+// `PxDiagnosticsConfig` (the diagnostics fields) → `PxEngineCallbacks` (+ the lifecycle; what an
+// engine such as `createAdapterAnimator` takes) → `PxAnimatorCallbacks` (+ `onStop`; what every
+// player takes).
 interface PxAnimatorCallbacks {
     onPlay?: () => void;    // started or resumed
     onPause?: () => void;
@@ -182,9 +237,10 @@ interface PxDiagnostic {
 }
 ```
 
-Severity and source are different axes — an invalid document is a `document` problem *and* fatal,
-an effects-shape warning a `document` problem that still plays — so one channel with a `kind`
-replaces four handlers a host would have to wire to hear everything:
+Every message comes with a `kind` that says **who can fix it**. That is a separate question from
+how serious it is: a broken document is fatal, a slightly odd one still plays, but both are the
+document's fault and both are fixed the same way, by fixing the file. So you get one handler per
+severity (`onError`, `onWarn`) and read `kind` inside it to decide what to do:
 
 <!-- px-check values PxDiagnosticKind pkg=core -->
 | `kind` | who fixes it | examples |
@@ -192,11 +248,12 @@ replaces four handlers a host would have to wire to hear everything:
 | `document` | regenerate or repair the file | effects shape, unknown keys, an invalid document, no or unresolved bindings, a `scroll.subject` that is not a valid selector, a blocked SVG tag |
 | `host` | fix the page or app | no root element, a selector that matched nothing, `setAttribute` finding no element, a failed fetch |
 | `platform` | nothing — the player degraded | unsupported CSS attrs, `smoothing` needing the built-in driver, native scroll-timeline construction failing, `react-native-svg` prop limits |
-| `usage` | fix the options or props you passed | two control tiers at once, an override that could not apply, a rate of 0, `trigger` on a scroll timeline |
+| `usage` | fix the options or props you passed | props from more than one control mode at once, an override that could not apply, a rate of 0, `trigger` on a scroll timeline |
 | `internal` | report it to us | could not build, compile or render the document; a render that threw |
 
-So surface `document` in a CI check, quiet `platform`, alert on `internal`. A handler that filters
-on `kind` is one line, which is why there is no per-kind mute.
+For example: fail a CI check on `document`, ignore `platform`, and send `internal` to your error
+tracker. Filtering on `kind` is one line in your handler, which is why there is no separate mute
+per kind.
 
 ### Time — one contract
 

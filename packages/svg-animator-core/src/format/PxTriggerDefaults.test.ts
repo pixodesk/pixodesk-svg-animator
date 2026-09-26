@@ -15,7 +15,7 @@ describe('trigger defaults', () => {
 
     it('a missing trigger starts on load and does NOT run while nobody can see it', () => {
         const expected = {
-            start: 'load', offScreen: 'pause', mouseOut: 'continue',
+            start: 'load', offScreen: 'pause', mouseOut: 'pause',
             visibilityThreshold: 0.5, visibilityDebounce: 150,
         };
         expect(resolveTrigger(undefined)).toEqual(expected);
@@ -25,7 +25,7 @@ describe('trigger defaults', () => {
     it('fills only what is missing', () => {
         expect(resolveTrigger({ offScreen: 'reset' }))
             .toEqual({
-                start: 'load', offScreen: 'reset', mouseOut: 'continue',
+                start: 'load', offScreen: 'reset', mouseOut: 'pause',
                 visibilityThreshold: 0.5, visibilityDebounce: 150,
             });
     });

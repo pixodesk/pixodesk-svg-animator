@@ -78,7 +78,7 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 <!-- px-check off generated from the PxDiagnosticCode enum -->
 | Code | What it means | Data |
 |---|---|---|
-| <a id="px1501"></a>**1501** | Two control tiers were set at once. The higher one wins and the lower is ignored — see the control-mode rule. | which props conflicted, and which won |
+| <a id="px1501"></a>**1501** | Props from more than one control mode were set at once. The higher-priority mode wins and the other props are ignored — see the control-mode rule. | which props conflicted, and which won |
 
 ## React Native
 

@@ -344,7 +344,7 @@ player sees plain nodes. **All are supported:**
   through `react-native-web`; the native reanimated ↔ `react-native-svg` prop
   bridge (notably filters and `strokeDasharray`) still needs checking on real
   iOS/Android.
-- **animated `gradientTransform`** is unimplemented (`retime.timeCrop` now works — implemented 2026-08)
+- **animated `gradientTransform`** is unimplemented
   in the core, so they are unavailable here too.
 - **`mouseOver`** has no touch analogue and will not be implemented.
 - **Text on a closed path is worked around, not fixed.** react-native-svg's

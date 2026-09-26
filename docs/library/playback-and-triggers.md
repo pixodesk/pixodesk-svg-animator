@@ -26,7 +26,8 @@ comments, so a real file has none.)
       "duration": 2000,
       "iterations": "infinite",
       "direction": "alternate",
-      "trigger": { "start": "scrollIntoView", "mouseOut": "pause", "visibilityThreshold": 0.5 }
+      // Starts once half of it is on screen; pauses when it scrolls away
+      "trigger": { "start": "load", "offScreen": "pause", "visibilityThreshold": 0.5 }
     }
   },
   "children": [
@@ -53,7 +54,7 @@ now two seconds per bounce and waiting until half of it has scrolled into view.
 ## The `timeline` — what advances the playhead
 
 `animator.timeline` says what *drives* the animation's progress, exactly like a Web Animations
-API timeline. Its `type` picks one of three, mirroring WAAPI's `DocumentTimeline` /
+API timeline. Its `type` picks the kind, mirroring WAAPI's `DocumentTimeline` /
 `ScrollTimeline` / `ViewTimeline`:
 
 <!-- px-check schema PxTimelineSchema values=type -->
@@ -96,7 +97,7 @@ document set to infinite iterations, keeps spinning during every iteration.
 
 ## Engine
 
-`timeline.engine` says **how the animated attributes get updated** — the same three values on every timeline type:
+`timeline.engine` says **how the animated attributes get updated** — the same values on every timeline type:
 
 <!-- px-check values PxTimelineEngineSetting pkg=core -->
 | Value | Time-driven timeline | Scroll / view timeline |
@@ -108,8 +109,8 @@ document set to infinite iterations, keeps spinning during every iteration.
 Leave it on `auto` unless you need a guarantee — for instance `js` for path morphing in
 Safari < 18.5. React Native ignores `engine` (playback is always native-driven).
 
-Core exports the three helpers the players decide this with, so a player of your own lands on the
-same answer rather than a similar one: `resolveTimelineEngine` turns the document's setting into
+Core exports the helpers the players decide this with, so a player you write yourself gets the
+same answer: `resolveTimelineEngine` turns the document's setting into
 the engine that will actually run, `isNativeForced` says whether `native` was asked for outright,
 and `mayUseNativeScrollTimeline` whether a scroll timeline may be handed to the browser's own
 `ScrollTimeline`.
@@ -120,10 +121,10 @@ The `trigger` block — inside the clock timeline — answers two independent qu
 player honors both:
 
 - **What STARTS it** — `start`.
-- **Whether it may RUN** — `offScreen` and the two `visibility*` values. An animation nobody can
-  see does not play, whatever started it.
+- **Whether it may RUN** — `offScreen`, `visibilityThreshold` and `visibilityDebounce`. An
+  animation nobody can see does not play, whatever started it.
 
-They are separate on purpose, so every combination is sayable: start on click *and* pause when
+They are kept separate so that every combination is possible: start on click *and* pause when
 scrolled away. The editor writes the block from its **Start** setting.
 
 ```json
@@ -141,12 +142,22 @@ scrolled away. The editor writes the block from its **Start** setting.
 A document with no `trigger`, or a `trigger` without `start`, starts on load. Use `none` when
 your own code should start it.
 
-There is no `scrollIntoView` here, because visibility is not a trigger. `start: 'load'` behind the
-default gate below *is* scroll-into-view: it holds at the first frame until enough is on screen,
-plays, pauses when it leaves, and resumes when it comes back.
+**To start an animation when it scrolls into view**, use `start: 'load'` with
+`offScreen: 'pause'`. Both are the defaults, so a document with no `trigger` at all already
+behaves this way:
 
-Those defaults are `PX_TRIGGER_DEFAULTS`, and `resolveTrigger` fills them into a trigger that
-leaves fields out — one resolution every player shares, instead of four that drift apart.
+1. The animation waits on its first frame until enough of it is on screen
+   (`visibilityThreshold`, half by default).
+2. Then it plays.
+3. When it scrolls out of view, it pauses.
+4. When it comes back, it carries on from where it paused.
+
+`start: 'load'` only says "nobody has to click or hover". Whether it may actually run is decided
+by `offScreen`, described next.
+
+The defaults are the `PX_TRIGGER_DEFAULTS` constant, and `resolveTrigger` fills them into a
+trigger that leaves fields out. Every player uses this same function, so they all read a
+missing field the same way.
 
 ### Whether it may run
 
@@ -163,9 +174,10 @@ leaves fields out — one resolution every player shares, instead of four that d
 | `visibilityThreshold` | `0.5` | how much of the element must be on screen before it may run: `0` any part, `0.5` half of it, `1` all of it. Playback stops only at **zero** visibility, so an element resting on the boundary cannot flicker |
 | `visibilityDebounce` | `150` | and for how long, in ms. Scrolling straight past an animation therefore starts nothing; `0` starts the moment the threshold is met |
 
-A hidden browser tab counts as off screen. Where nothing can measure visibility — a server render,
-a test environment without `IntersectionObserver` — the animation plays as if fully visible,
-rather than silently never playing.
+A hidden browser tab counts as off screen. An element taller than the screen counts as fully
+visible once it fills the screen, so a threshold of `0.5` or `1` can always be met. Where nothing
+can measure visibility — a server render, a test environment without `IntersectionObserver` —
+the animation plays as if fully visible, rather than silently never playing.
 
 ### When the pointer leaves
 
@@ -174,8 +186,8 @@ rather than silently never playing.
 <!-- px-check values PxMouseOutAction pkg=core -->
 | `mouseOut` | Effect |
 |---|---|
-| `continue` (default) | keep playing |
-| `pause` | pause where it is; re-entering resumes |
+| `pause` (default) | pause where it is; re-entering resumes |
+| `continue` | keep playing |
 | `reset` | jump back to the start |
 | `reverse` | play backwards to the start |
 
@@ -195,8 +207,8 @@ Where triggers work:
 > **Example:** [`playback/override-web`](../../examples/docs-examples/src/cases/playback/override-web/) — `pnpm example:docs`, then open `#playback/override-web`.
 > **Example:** [`playback/override-react`](../../examples/docs-examples/src/cases/playback/override-react/) — `pnpm example:docs`, then open `#playback/override-react`.
 
-One document can play differently in each place you mount it — twice on the same page at two
-speeds, or a file that autostarts everywhere except inside your own transport UI. Every player
+One document can play differently in each place you use it — the same file shown twice at two
+speeds, or a file that starts by itself everywhere except inside your own play/pause UI. Every player
 takes the **same** override: a `timeline` object shaped exactly like the document's `animator`
 block, deep-merged over what the file says. The file on disk is never modified.
 
@@ -234,14 +246,14 @@ a.play();
 | **`null` deletes** | `{ timeline: { delay: null } }` removes the file's delay, restoring what its *absence* means. This is the only way to get a default back, because there is no value that spells "unset" |
 | **Changing `timeline.type` starts over** | switching between a clock and a scroll timeline keeps only `duration`, `iterations`, `engine` and `frameRate` — the keys both kinds share. Clock-only keys (`trigger`, `delay`, `fillMode`, `direction`) have no meaning on a scroll timeline and are dropped, with a console warning |
 
-The merge itself is core's, not each player's re-implementation. `applyAnimatorConfig` applies a
+Every player uses the same merge code from core. `applyAnimatorConfig` applies a
 patch to a whole document; `mergeAnimatorConfig` does the same one level down, on the `animator`
 block alone, and reports what it could and could not do in a `PxAnimatorConfigMergeResult`. Every
-player calls `foldTimelineOverride` before either of them — it folds the four shortcuts below into
+player calls `foldTimelineOverride` before either of them — it folds the shortcuts below into
 the patch and parses the JSON-string form. A patch is a `PxAnimatorConfigPatch`, and the `timeline`
 part of one a `PxTimelinePatch`.
 
-### The four shortcuts
+### Shortcuts
 
 The keys people reach for most also exist as plain props / options, because
 `duration={2000}` reads better than a nested object:
@@ -271,15 +283,16 @@ itself, not playback settings.
 
 ### A note on the components' control props
 
-The components switch the trigger to `programmatic` whenever you use `play` / `pause` /
-`progress` / `time`, so only `autoplay` mode uses the trigger saved in the file. `apiRef` is not
-a control prop — the handle is filled in every mode and never changes which one you are in.
+When you control a component with `play`, `pause`, `progress` or `time`, the component ignores
+the trigger saved in the file (it acts as if `start` were `'none'`). Only `autoplay` mode follows
+the file's trigger. `apiRef` is not a control prop: the handle is filled in every mode and never
+changes which one you are in.
 
-One shared rule decides that, so React, Vue and React Native cannot answer it three ways:
-`resolveControlMode` reads the control props — typed `PxControlProps` — and returns the
-`PxControlMode` that wins, together with a ready-made sentence for any conflict between two tiers.
-`controlModeTakesOverTrigger` then says whether that mode must take the document's own trigger
-over, which is true of every mode except `autoplay`.
+React, Vue and React Native decide this with the same core function, so they always agree.
+`resolveControlMode` looks at the control props you passed (`PxControlProps`) and returns the
+mode that wins (`PxControlMode`), plus a ready-made warning if you passed props from more than
+one mode. `controlModeTakesOverTrigger` then says whether that mode ignores the file's trigger —
+true for every mode except `autoplay`.
 
 > **Mangled builds.** `timeline` also accepts a **JSON string** —
 > `timeline='{"duration":2000}'` — which survives a build that renames object keys.

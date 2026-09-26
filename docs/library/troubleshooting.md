@@ -5,7 +5,7 @@
 
 Player-library troubleshooting — find your symptom below; each entry says what to check and
 what to change. For pre-rendered SVG issues (a flavor that shows a static frame, `<script>`
-stripped on import, two inlined copies interfering) see
+stripped on import, the same file inlined twice on one page) see
 [Pre-rendered SVG on the web](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web); for what each engine can and
 cannot animate per browser, see [Choosing a format](https://pixodesk.com/docs/svga/editor/choosing-a-format). If yours
 is not here, go to [Still stuck?](#still-stuck) at the end.
@@ -13,10 +13,11 @@ is not here, go to [Still stuck?](#still-stuck) at the end.
 ## Nothing plays
 
 **The trigger is not "on load".** Check `animator.timeline.trigger.start` in the file (or the *Start*
-setting in the editor). `click` / `mouseOver` / `scrollIntoView` wait for the user;
-`programmatic` waits for you to call `play()`. In React/Vue/React Native, remember that
+setting in the editor). `click` and `mouseOver` wait for the user; `none` waits for you to call
+`play()`. Even `load` waits until enough of the animation is on screen, and pauses while it is
+scrolled out of view (`offScreen: 'pause'`, the default). In React/Vue/React Native, remember that
 `autoplay` is the only mode that uses the document's trigger — with `play`, `pause`, `progress`
-or `time` the trigger is switched to programmatic. Passing `apiRef` does **not** change the mode.
+or `time` the trigger is ignored. Passing `apiRef` does **not** change the mode.
 
 **React / Vue component with no control prop.** With none of `autoplay` / `play` / `pause` /
 `progress` / `time` set, the component deliberately renders the first frame and does

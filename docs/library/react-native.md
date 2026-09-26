@@ -1,6 +1,6 @@
 # React Native — `@pixodesk/svg-animator-rn` 🧪 (in development)
 
-[← Vue](./vue.md) · [Contents](../../README.md#documentation) · Next: [Playback settings & triggers →](./playback-and-triggers.md)
+[← Nuxt](./nuxt.md) · [Contents](../../README.md#documentation) · Next: [Playback settings & triggers →](./playback-and-triggers.md)
 
 > **In development.** This player is not finished yet. The API may change without a major
 > version change, and some things are unimplemented or not yet verified on real devices — see
@@ -16,7 +16,7 @@ a React website works in the React Native app with little change — and the oth
 
 ## Install
 
-One package, plus the two native libraries it renders and animates with:
+One package, plus the native libraries it renders and animates with:
 
 ```bash
 npm install @pixodesk/svg-animator-rn
@@ -104,14 +104,14 @@ const doc = animation as PxAnimatedSvgDocument;
 
 ## Control modes
 
-Three control modes, plus a handle that is not one. Set more than one control prop and the
+Several control modes, plus a handle that is not one. Set more than one control prop and the
 highest-priority one wins — `progress` / `time` → `play` / `pause` → `autoplay` — and the
 component warns, naming both props and the winner; set none of them and the first frame renders
 statically. `apiRef` is filled in every mode and never changes which one you are in. React, Vue
 and React Native all resolve this the same way, from one rule in core.
 
-**Autoplay** — honors the document's trigger (`load` plays on mount; `click` wraps the
-animation in a `Pressable`; `scrollIntoView` measures visibility against the window):
+**Autoplay** — honors the document's trigger (`load` plays once enough of it is visible in the
+window; `click` wraps the animation in a `Pressable`):
 
 ```tsx
 import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-rn';
@@ -169,8 +169,8 @@ export function Imperative() {
 jumping to a time while playing continues from there.
 
 `getCurrentTime()` is ms from the start of the whole run, every iteration included — the same
-as the web players. It used to be ms within the *current* iteration here, so a slider built on
-it jumped back to zero each time the animation repeated.
+as the web players, so a slider built on it does not jump back to zero each time the animation
+repeats.
 
 **Controlled time:**
 
@@ -198,8 +198,9 @@ Only `doc` is required. The file already carries the timing and the trigger you 
 editor; every other prop is optional and, when passed, replaces the file's value for this one
 component.
 
-Mirrors the React component on `react-native-svg` + `reanimated`: the document is materialized
-once, sampled into per-element tracks, and played on the UI thread. No CSS-flavor component, no
+Works like the React component, drawn with `react-native-svg` and animated with `reanimated`:
+the document's effects are expanded once, its animated values are worked out in advance for
+every element, and playback runs on the UI thread. No CSS-flavor component, no
 `className` / `style`, and a `fallback` element instead of a DOM.
 
 <!-- px-check signature pkg=rn -->
@@ -219,11 +220,11 @@ interface PixodeskSvgAnimatorProps {
     iterations?: number | 'infinite';     // 'infinite' never stops
     start?: PxTriggerStart;                  // 'mouseOver' has no touch equivalent and is ignored;
                                           //   'click' = tap (a second tap applies mouseOut);
-                                          //   'scrollIntoView' = measured every 200 ms
+                                          //   visibility is measured every 200 ms
 
     // Control — the highest-priority one that is set picks the mode (Control modes above)
     autoplay?: boolean;                   // honor the document trigger — the same defaults as the
-                                          //   web: start 'load', mouseOut 'continue'
+                                          //   web: start 'load', offScreen 'pause'
     play?: boolean; pause?: boolean;      // unconditional control; play={false} holds where it is
     progress?: number;                    // 0–1 of duration × iterations (one iteration when 'infinite')
     time?: number;                        // ms from the start
@@ -273,7 +274,7 @@ absence means comes back. `duration`, `delay`, `iterations` and `start` are also
 and win over the same key inside `timeline`. To ignore the file's playback settings entirely,
 add `resetTimeline`.
 
-`timeline` is where the settings that used to be their own props now live —
+Other playback settings go inside `timeline` —
 `{ timeline: { fillMode, direction, trigger: { mouseOut, finish } } }`. Full merge rules
 are in [Playback & triggers → Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
 
@@ -284,7 +285,7 @@ are in [Playback & triggers → Overriding from a player](./playback-and-trigger
 |---|---|
 | `timeline.engine` | accepted inside `timeline` but ignored — there is no Web Animations API on React Native; playback is always native-driven |
 | `timeline.frameRate` | ignored — the screen's own refresh rate is used. On React Native the player does not compute values frame by frame; when the document loads it works out the animated values in advance, as a list of snapshots — 60 per second of animation — and while playing, each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, which the player fixes at 60 |
-| `start: 'mouseOver'` | has no touch equivalent, so it is not honored. The other four values (`load`, `click`, `scrollIntoView`, `programmatic`) work as they do on the web, from the file or from the prop |
+| `start: 'mouseOver'` | has no touch equivalent, so it is not honored. The other values (`load`, `click`, `none`) work as they do on the web, from the file or from the prop |
 | `className` / `style` | not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height` (see [Quick start](#quick-start)). Styling *inside* the document — `style` on an element in the JSON — is supported |
 
 ### Failure handling
@@ -414,7 +415,7 @@ not supported.
 | play / pause / cancel / finish | ✅ | |
 | Jumping to any time, also while playing | ✅ | |
 | Playback rate: faster, slower, reverse | ✅ | |
-| Triggers `load`, `programmatic`, `click`, `scrollIntoView` | ✅ | incl. `visibilityThreshold` and `mouseOut` |
+| Triggers `load`, `click`, `none` | ✅ | incl. `offScreen`, `visibilityThreshold` and `mouseOut` |
 | Trigger `mouseOver` | ❌ | no touch equivalent; will not be added |
 | `timeline.frameRate`, `timeline.engine` | ❌ | see [Differences from the React package](#differences-from-the-react-package) |
 | Scroll-driven playback (`timeline.type: 'scroll' / 'view'`) | ❌ | |
@@ -464,4 +465,4 @@ pnpm example:rn:explorer   # feature explorer
 
 See [`examples/react-native-preview-player`](../../examples/react-native-preview-player).
 
-[← Vue](./vue.md) · [Contents](../../README.md#documentation) · Next: [Playback settings & triggers →](./playback-and-triggers.md)
+[← Nuxt](./nuxt.md) · [Contents](../../README.md#documentation) · Next: [Playback settings & triggers →](./playback-and-triggers.md)

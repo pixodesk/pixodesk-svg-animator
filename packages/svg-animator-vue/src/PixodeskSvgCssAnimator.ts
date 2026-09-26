@@ -52,8 +52,8 @@ type AnimState = 'idle' | 'paused' | 'playing';
  *   - `'continue'` — keeps playing, and starts without waiting to be seen
  *   - `'reset'`    — back to the beginning, so it replays on the next entry
  * @prop mouseOut  - What happens when the pointer leaves, for `start: 'mouseOver'`:
- *   - `'continue'` — keeps playing (default)
- *   - `'pause'`    — pauses at the current frame
+ *   - `'pause'`    — pauses at the current frame (default)
+ *   - `'continue'` — keeps playing
  *   - `'reset'`    — resets to the beginning
  *   - `'reverse'`  — **acts as `'continue'` here.** A CSS class toggle cannot run keyframes
  *                    backwards. Accepted so the prop keeps the shared `PxMouseOutAction` type.

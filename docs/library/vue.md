@@ -1,6 +1,6 @@
 # Vue — `@pixodesk/svg-animator-vue`
 
-[← React](./react.md) · [Contents](../../README.md#documentation) · Next: [React Native →](./react-native.md)
+[← Next.js](./nextjs.md) · [Contents](../../README.md#documentation) · Next: [Nuxt →](./nuxt.md)
 
 Use this in a Vue 3 or Nuxt app: drop in the component, pass it the JSON, and it renders the
 animation and controls its playback. It wraps the [web player](./web-player.md) and
@@ -28,7 +28,7 @@ component itself — see the props table); the SVG keeps its proportions.
 
 ## Control modes
 
-Three control modes, plus a template ref that is not one. Set more than one control prop and the
+Several control modes, plus a template ref that is not one. Set more than one control prop and the
 highest-priority one wins — `progress` / `time` → `play` / `pause` → `autoplay` — and the
 component warns, naming both props and the winner. The ref is available in every mode and never
 changes which one you are in. React, Vue and React Native all resolve this the same way, from one
@@ -105,7 +105,7 @@ const paused = ref(false);
 </template>
 ```
 
-`play && !pause` plays; `pause` pauses; `play === false` holds where it is (it used to jump to the end).
+`play && !pause` plays; `pause` pauses; `play === false` holds where it is.
 
 ### Imperative API (template ref)
 
@@ -130,7 +130,7 @@ const animator = ref<VueAnimatorApi | null>(null);
 ```
 
 The ref holds core's `PxAnimatorHandle` under this package's name — the same type as
-`ReactAnimatorApi` and `RnAnimatorApi`, so the three cannot drift:
+`ReactAnimatorApi` and `RnAnimatorApi`, so they cannot drift apart:
 
 <!-- px-check signature pkg=vue -->
 ```typescript
@@ -196,7 +196,7 @@ const PixodeskSvgAnimator: DefineComponent<{
     resetTimeline?: boolean;              // start from the player's defaults, `timeline` on top
     duration?: number; delay?: number;    // shortcuts, ms: one iteration, and the wait before it
     iterations?: number | 'infinite';     // 'infinite' never stops
-    start?: 'load' | 'mouseOver' | 'click' | 'scrollIntoView' | 'none';
+    start?: 'load' | 'mouseOver' | 'click' | 'none';
 
     // Control — the highest-priority one that is set picks the mode (Control modes above)
     autoplay?: boolean;                   // start the way the file says — the editor's Start setting
@@ -229,10 +229,9 @@ dimensions to the element that contains it — the SVG keeps its proportions eit
 | `remove` | the animator was thrown away: the component unmounted, or you passed a different `doc` and a new animator was built for it |
 | `stop` | fires *in addition to* whichever of `pause`, `cancel`, `finish` or `remove` just fired. Listen to this one event when you only care that the animation is no longer playing, whatever the reason |
 
-`onWarn` and `onError` are **props**, not events, on purpose. An event handler exists whether or
-not you listen, so wiring them to `emit` would have silenced the console fallback for everyone
-who never subscribed. As props, leaving them out really does mean "not given" — and the console
-still speaks by default.
+`onWarn` and `onError` are **props**, not events. With an event, Vue would treat the message as
+handled even when nobody listens, so it would never reach the console. As props, leaving them
+out means exactly that — and the message goes to the console as usual.
 
 Each diagnostic is `{ code, kind, data?, message, error? }`. `code` is a number you can switch on — its description is on the [codes page](../diagnostics.md), which `message` links to; `data` carries the specifics. `kind` says **who can act on it**:
 `document` (repair the file) · `host` (fix the page) · `platform` (the browser could not do it;
@@ -294,21 +293,15 @@ const PixodeskSvgCssAnimator: DefineComponent<{
 }>;
 ```
 
-> ⚠️ **Don't put the same SVG file on a page twice.** You can have as many
+> ⚠️ **Don't put the SAME SVG file on a page twice.** You can have as many
 > `<PixodeskSvgCssAnimator>` on a page as you like, each with a *different* file. What does not
 > work is the *same* file twice: the imported component is the file's markup, element ids
 > included, so two copies share the same ids and their masks and gradients cross over. To show
 > one animation several times, use the JSON component instead — the player gives every copy
-> its own ids ([read more](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#one-copy-of-a-file-per-page)).
+> its own ids ([read more](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#the-same-file-twice-on-one-page)).
 
 Only the pure CSS flavor works this way (loaders strip or refuse `<script>`); flavors with
 scripts should be inlined as raw HTML, or use JSON.
-
-## Nuxt
-
-The component is SSR-safe: the SVG is rendered on the server, the animator is created on
-mount. Nothing special is required beyond importing the component; for a CSS-flavor SVG add
-`vite-svg-loader` to your Nuxt/Vite config.
 
 ## API reference
 
@@ -321,7 +314,7 @@ player. The callbacks and diagnostics are the shape every player shares —
 [the API at a glance](./README.md#the-api-at-a-glance).
 
 <!-- px-check exports @pixodesk/svg-animator-vue -->
-The package exports the two components and the handle type, `VueAnimatorApi`; nothing else.
+The package exports the components and the handle type, `VueAnimatorApi`; nothing else.
 
 ## Example
 
@@ -332,4 +325,4 @@ selected one running next to it. Run `pnpm example:docs` from the repository roo
 then pick an example from the list — or jump straight to one by its address in the URL, like
 `#vue/autoplay`. Each example has a test that runs on every build.
 
-[← React](./react.md) · [Contents](../../README.md#documentation) · Next: [React Native →](./react-native.md)
+[← Next.js](./nextjs.md) · [Contents](../../README.md#documentation) · Next: [Nuxt →](./nuxt.md)

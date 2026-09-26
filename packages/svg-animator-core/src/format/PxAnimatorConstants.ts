@@ -251,7 +251,7 @@ export function mayUseNativeScrollTimeline(engine: PxTimelineEngineSetting | und
  * `setupAnimationTriggers`, the React Native component) — so a file behaves the same everywhere:
  *   - `start` 'load' — a document is designed to play
  *   - `offScreen` 'pause' — an animation nobody can see does not run
- *   - `mouseOut` 'continue' — leaving the element does not interrupt playback
+ *   - `mouseOut` 'pause' — leaving the element pauses what hovering started
  *   - `visibilityThreshold` 0.5 — half of it must be on screen before it may run
  *   - `visibilityDebounce` 150 — and stay that way this long, so a fast scroll past starts nothing
  * @public @advanced
@@ -259,7 +259,7 @@ export function mayUseNativeScrollTimeline(engine: PxTimelineEngineSetting | und
 export const PX_TRIGGER_DEFAULTS = {
     start: 'load',
     offScreen: 'pause',
-    mouseOut: 'continue',
+    mouseOut: 'pause',
     visibilityThreshold: 0.5,
     visibilityDebounce: 150,
     finish: 'hold',

@@ -1,6 +1,6 @@
 # React — `@pixodesk/svg-animator-react`
 
-[← Web player](./web-player.md) · [Contents](../../README.md#documentation) · Next: [Vue →](./vue.md)
+[← Web player](./web-player.md) · [Contents](../../README.md#documentation) · Next: [Next.js →](./nextjs.md)
 
 Use this in a React or Next.js app: drop in the component, pass it the JSON, and it renders
 the animation and controls its playback. It wraps the [web player](./web-player.md)
@@ -25,7 +25,7 @@ by sizing the parent (the SVG keeps its `viewBox`).
 
 ## Control modes
 
-Three control modes, plus a handle that is not one. Set more than one control prop and the
+Several control modes, plus a handle that is not one. Set more than one control prop and the
 highest-priority one wins — `progress` / `time` → `play` / `pause` → `autoplay` — and the
 component warns, naming both props and the winner. `apiRef` is filled in **every** mode and never
 changes which one you are in, so you can always call `play()` / `pause()` yourself; `apiRef` with
@@ -59,7 +59,7 @@ export function Player() {
 
 What `apiRef.current` gives you — the web API minus `destroy` / `getRootElement` / `isReady`,
 because the component owns the element's lifetime. It is core's `PxAnimatorHandle` under this
-package's name; `VueAnimatorApi` and `RnAnimatorApi` are the same type, so the three cannot drift:
+package's name; `VueAnimatorApi` and `RnAnimatorApi` are the same type, so they cannot drift apart:
 
 <!-- px-check signature pkg=react -->
 ```typescript
@@ -151,7 +151,7 @@ export function Controlled() {
 }
 ```
 
-`play && !pause` plays; `pause` pauses; `play === false` holds where it is (it used to jump to the end); a pause that is
+`play && !pause` plays; `pause` pauses; `play === false` holds where it is; a pause that is
 switched back off resumes.
 
 With none of `autoplay` / `progress` / `time` / `play` / `pause` set, the component renders the
@@ -216,7 +216,7 @@ interface PixodeskSvgAnimatorProps {
                                           //   at once from the frame at 0.5 s
     iterations?: number | 'infinite';     // ▸ timeline.iterations; 'infinite' never stops
     start?: PxTriggerStart;                  // ▸ timeline.trigger.start: 'load' | 'mouseOver' | 'click' |
-                                          //   'scrollIntoView' | 'none' (only a play() from code)
+                                          //   'none' (only a play() from code)
 
     // Control — the HIGHEST-priority one that is set picks the mode (Control modes, above)
     apiRef?: React.RefObject<ReactAnimatorApi | null>;   // never a mode: filled in every mode
@@ -298,32 +298,15 @@ const PixodeskSvgCssAnimator: FC<{
 }>;
 ```
 
-> ⚠️ **Don't put the same SVG file on a page twice.** You can have as many
+> ⚠️ **Don't put the SAME SVG file on a page twice.** You can have as many
 > `<PixodeskSvgCssAnimator>` on a page as you like, each with a *different* file. What does not
 > work is the *same* file twice: the imported component is the file's markup, element ids
 > included, so two copies share the same ids and their masks and gradients cross over. To show
 > one animation several times, use the JSON component instead — the player gives every copy
-> its own ids ([read more](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#one-copy-of-a-file-per-page)).
+> its own ids ([read more](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#the-same-file-twice-on-one-page)).
 
 SVGR strips `<script>` tags, so only the pure CSS flavor works this way. Files with scripts
 (JS triggers / JS animation) should be inlined as raw HTML, or switched to JSON.
-
-## Next.js
-
-The component renders real SVG markup on the server and starts the animator in an effect on
-the client, so it works in the App Router — mark the file that uses it as a client component:
-
-```tsx
-'use client';
-import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-react';
-import animation from './animation.json';
-
-export default function Hero() {
-  return <PixodeskSvgAnimator doc={animation} autoplay />;
-}
-```
-
-JSON imports work out of the box in Next.js; for a CSS-flavor SVG use `@svgr/webpack`.
 
 ## API reference
 
@@ -334,6 +317,6 @@ the shape every player shares — [the API at a glance](./README.md#the-api-at-a
 
 <!-- px-check exports @pixodesk/svg-animator-react -->
 Also exported: **●** `PixodeskSvgAnimatorProps`, `ReactAnimatorApi`,
-`PixodeskSvgAnimatorCallbacks` (the six `on*` props as a standalone type).
+`PixodeskSvgAnimatorCallbacks` (the `on*` props as a standalone type).
 
-[← Web player](./web-player.md) · [Contents](../../README.md#documentation) · Next: [Vue →](./vue.md)
+[← Web player](./web-player.md) · [Contents](../../README.md#documentation) · Next: [Next.js →](./nextjs.md)

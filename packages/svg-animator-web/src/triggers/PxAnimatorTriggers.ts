@@ -23,7 +23,7 @@ import { createVisibilityGate } from './PxVisibilityGate';
  * at frame 0 until enough is on screen, play, pause when it leaves, resume when it returns. The
  * difference is that the same gate now also applies to a document started by a click or a hover.
  *
- * `mouseOut` is what happens when the pointer LEAVES ('continue' by default, or pause / reset /
+ * `mouseOut` is what happens when the pointer LEAVES ('pause' by default, or continue / reset /
  * reverse); it is read only for `start: 'mouseOver'`. A `click` document is a plain play/pause
  * toggle with nothing to configure.
  *
@@ -47,7 +47,7 @@ export function setupAnimationTriggers(
     const cleanups: Array<() => void> = [];
     const dispose = (): void => { for (const undo of cleanups.splice(0)) undo(); };
     // The defaults come from core's one table, shared with every player (`PX_TRIGGER_DEFAULTS`):
-    // no `start` = 'load', no `offScreen` = 'pause', no `mouseOut` = 'continue', no threshold
+    // no `start` = 'load', no `offScreen` = 'pause', no `mouseOut` = 'pause', no threshold
     // = 0.5, no debounce = 150ms. The threshold default must match the editor model's
     // (TSvgSvgAnimationAttr.visibilityThreshold), which OMITS the value on the wire when it equals it.
     const resolved = resolveTrigger(trigger);

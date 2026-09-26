@@ -27,7 +27,7 @@ time** — first typed values, then animation, then effects, then the editor's o
 addition is called a **layer**: plain SVG is layer zero (L0), and every layer above it adds
 exactly **one idea** and uses only the layers beneath it.
 
-Two rules hold the stack together.
+These rules hold the stack together.
 
 **Rule 1 — the layers don't mix.** Each layer keeps its data in its own place: animation
 always under `animate`, effects under `effects`, editor data under `meta`. So a program
@@ -35,7 +35,7 @@ reading the file can take the parts it understands and simply skip the rest.
 
 **Rule 2 — higher layers get translated down into simpler ones, never the other way.** In
 the end, a browser can only draw plain SVG. So everything a higher layer describes is, at
-some point, converted into the simpler layers below it. This happens at three moments:
+some point, converted into the simpler layers below it. This happens when:
 
 - when the **editor saves** a file, it converts its editor-only constructs (L4 — for example
   a star shape preset) into the plain layers below (a path, and its animation);
@@ -44,7 +44,7 @@ some point, converted into the simpler layers below it. This happens at three mo
 - when the **editor exports a pre-rendered SVG**, it converts everything into plain SVG plus
   CSS (L0).
 
-Whichever of these three conversions runs, its output is always written in the simple layers
+Whichever of these conversions runs, its output is always written in the simple layers
 only.
 
 <!-- px-check off the layer model, prose -->
@@ -69,7 +69,7 @@ format is shaped this way: [Format principles](#format-principles).
 ### A complete small document
 
 Everything the format is, in one small document — a ball that drops with an ease-in-out.
-The comments mark the two things **added on top of plain SVG** (JSON itself does not allow
+The comments mark what is **added on top of plain SVG** (JSON itself does not allow
 comments, so a real file has none):
 
 ```js px-player
@@ -100,7 +100,7 @@ comments, so a real file has none):
 }
 ```
 
-Three ideas cover 90 % of the format:
+A few ideas cover most of the format:
 
 1. **Every element is a JSON object** — `type` holds the SVG tag name, every other key is an
    SVG attribute, and `children` is an array of the element's child elements, nested the same
@@ -449,7 +449,7 @@ first frame, write the static attribute yourself — an authored value is always
 ```
 
 That is the usual form: an object with one entry per animated attribute. There are also
-three shorthand forms, all built on **named animations** — animations defined once in
+shorthand forms, all built on **named animations** — animations defined once in
 `definitions.animations` ([below](#definitions--animatordefinitions)) and reused by name:
 
 ```js
@@ -463,7 +463,7 @@ three shorthand forms, all built on **named animations** — animations defined 
 "animate": ["fadeIn", { "scale": { "keyframes": [ { "time": 0, "value": [1, 1] }, { "time": 1000, "value": [1.5, 1.5] } ] } }]
 ```
 
-**Any attribute takes one of three forms**, consistently across the format:
+**Any attribute takes one of these forms**, consistently across the format:
 
 ```js
 { fill: '#3b82f6' }                              // 1. primitive — static
@@ -652,7 +652,7 @@ every element that needs it:
 
 ### Animating a pre-rendered SVG
 
-When the editor saves a **pre-rendered *SVG + JS animation*** file, it puts two things into
+When the editor saves a **pre-rendered *SVG + JS animation*** file, it puts these into
 that one `.svg` file:
 
 - the **markup** — the elements, as ordinary SVG, each with an id;
@@ -716,7 +716,7 @@ The player is lenient: it renders what it can, never throws on a shape problem a
 a document.
 
 - **On load, every player checks the whole document** against the schema and prints one
-  `console.warn` listing the problems (the first six, then a count), e.g.
+  `console.warn` listing the problems (the first few, then a count), e.g.
   `root.animator.timeline.duratoin: unexpected extra key`. The strict parts — the `animator`
   block, every `ANIMATE`, every effect — report any unknown key, so a `keyframe` where
   `keyframes` was meant is caught.
@@ -733,7 +733,7 @@ runtime schemas (`node scripts/gen-schema-json.mjs`), for tools that validate JS
 
 ### Examples
 
-Five complete documents, one idea each.
+Complete documents, one idea each.
 
 **Self-contained, clock timeline:**
 
@@ -950,7 +950,7 @@ path the shift is perpendicular, like `dy`.
 Put this on a `<text>` element to lay its text along a curved path — and, if you want, to
 move the text along that path over time.
 
-The text is rendered one of two ways — as **browser text** (a native SVG `<textPath>`, using
+The text is rendered either as **browser text** (a native SVG `<textPath>`, using
 a font), or as **glyph text** (from embedded outlines, when the element also has
 `effects.text.useGlyphs: true`). Not every field applies to both; the **Applies to** column
 says which:
@@ -1205,8 +1205,8 @@ corners become the rounded path. The drawing still looks right, but the effect i
 longer in it. To keep the file editable, the editor saves the effect's settings in
 `meta.appliedEffects`: a record of what was applied.
 
-As a result, an effect description can sit in one of two places, and the place says what it
-means:
+As a result, an effect description can sit in either of these places, and the place says what
+it means:
 
 <!-- px-check off where effects live, prose -->
 | | Meaning | Which effects can appear |
@@ -1388,7 +1388,7 @@ The calls above, and the rest of what you would call directly, in signature form
 <!-- px-check signature pkg=core -->
 ```typescript
 // ○ Run the whole materialization pipeline: effects → loops → motion paths →
-//   <use> instances → rest poses, in the canonical order. This is exactly what the player
+//   <use> instances → rest poses, always in this order. This is exactly what the player
 //   runs internally, so a document flattened here plays identically — the way
 //   to feed a renderer that has no effects support. `resolveTimelineEngine`
 //   turns a document's `timeline.engine` into this argument.
@@ -1434,7 +1434,7 @@ function mergeAnimatorConfig(
     patch: PxAnimatorConfigPatch,
 ): PxAnimatorConfigMergeResult;
 
-// ○ Folds the four shortcuts (duration/delay/iterations/start) into a patch and
+// ○ Folds the shortcuts (duration/delay/iterations/start) into a patch and
 //   parses the JSON-string form. A shortcut wins over the same key in `timeline`.
 //   This is what every player calls before `applyAnimatorConfig`.
 function foldTimelineOverride(
@@ -1464,11 +1464,16 @@ interface PxPlatformAdapter {
     setAttribute(id: string, attrName: string, value: string): void;
 }
 
-// ● The one rule that turns a component's control props into a decision, so React,
-//   Vue and React Native cannot answer it three ways. Most specific first:
-//   `progress` / `time` → `play` / `pause` → `autoplay` → `static`. Props from two
-//   tiers set together come back as ready-made warning sentences; `apiRef` never
-//   changes the mode, being a handle rather than an instruction.
+// ● Decides who controls a component, from the props you gave it. React, Vue and
+//   React Native all call this, so they always decide the same way. The first match
+//   wins:
+//     1. `progress` or `time` set  → you control the position
+//     2. `play` or `pause` set     → you control playing and pausing
+//     3. `autoplay` set            → the document's own trigger
+//     4. nothing set               → static: the first frame, nothing plays
+//   If you set props from more than one line, the result includes a ready-made
+//   warning to show. `apiRef` never changes the result: it is a handle for calling
+//   methods, not an instruction.
 function resolveControlMode(props: PxControlProps): PxResolvedControlMode;
 
 // ● True when that mode has to take the document's own trigger over — every mode
@@ -1480,13 +1485,13 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 ### Everything else this package exports
 
 <!-- px-check exports @pixodesk/svg-animator-core -->
-| Group | Symbols | |
+| Group | Identifiers | Audience · what it is for |
 |---|---|---|
 | Wire types | `PxAnimatedSvgDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTimeline`, `PxTrigger`, `PxElementAnimation`, `PxPropertyAnimation`, `PxKeyframe`, `PxLoop`, `PxBinding`, `PxDefinitions`, `PxEffects`, `PxTransformParts`, `PxBezierPath`, `PxGlyph`, `PxGlyphFont`, `PxAnimationDefinition`, `PxScroll`, `PxScrollRangePoint`, `PxVec2`, `PxTransformValue` | ● the shapes in [Schema at a glance](#schema-at-a-glance) |
 | Player API types | `PxAnimatorApi<TRoot>`, `PxPlaybackApi<TRoot>`, `PxEngineCallbacks`, `PxPlatformAdapter` | ● platform-neutral; the web fixes `TRoot` to `Element`. `PxEngineCallbacks` is what an engine takes — the lifecycle on top of `PxDiagnosticsConfig` |
 | Component contract | `PxAnimatorHandle`, `PxAnimatorCallbacks`, `PxControlProps`, `PxControlMode`, `resolveControlMode(props)`, `controlModeTakesOverTrigger(mode)`, `prepareDocumentForRender(doc)` (▪), `renderPxTree(node, factory)` (▪), `PxElementFactory` (▪), `PxElementSpec` (▪) | ● what the React / Vue / React Native components share: the imperative handle, the callback set, the props that pick a mode and the one rule that picks it — [the API at a glance](../library/README.md#the-api-at-a-glance). `renderPxTree` is THE renderer of every DOM player: it makes each decision about a document — tags, attribute names and values, sanitization, styles, text — and a player supplies only a `PxElementFactory`, "create an element from this finished `PxElementSpec`" (a DOM node, a React element, a Vue vnode). `prepareDocumentForRender` is the document it is given: materialized, then fresh ids |
 | Engine rules | `resolveTimelineEngine(engine)`, `isNativeForced(engine)`, `mayUseNativeScrollTimeline(engine)` | ○ how a `timeline.engine` resolves to an engine / to the browser's ScrollTimeline — the players' own decision helpers |
-| Trigger defaults | `PX_TRIGGER_DEFAULTS`, `resolveTrigger(trigger)`| ○ what a missing trigger field means (`start` 'load', `offScreen` 'pause', `mouseOut` 'continue', threshold 0.5, debounce 150 ms) — the one resolution every player uses |
+| Trigger defaults | `PX_TRIGGER_DEFAULTS`, `resolveTrigger(trigger)`| ○ what a missing trigger field means (`start` 'load', `offScreen` 'pause', `mouseOut` 'pause', threshold 0.5, debounce 150 ms) — the one resolution every player uses |
 | Time contract | `seekCeilingMs`, `progressSpanMs`, `clampSeekMs`, `timeToProgress`, `progressToTimeMs`, `isValidPlaybackRate`, `PX_RATE_REJECTED`, `createRunClock` + | ○ the one meaning of time, seeking and rate that every engine implements — see `PxAnimatorApi` |
 | Diagnostics | `createDiagnostics(config?, prefix?)` (▪) → `PxDiagnostics`, `PxDiagnosticCode`, `PxDiagnosticKind` + `PxDiagnostic`, `PxDiagnosticsConfig` | ● the one channel every player reports through: `onWarn` / `onError` with a `code` saying what happened and a `kind` saying who can act, falling back to the console — see `PxEngineCallbacks`. The text is not shipped: `PxDiagnosticCode` is a number, described on the [codes page](../diagnostics.md) |
 | Enum values | `PxTimelineEngineSetting`, `PxTimelineEngine`, `PxGradientType`, `PxUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout` (`clone.without` → `'translate'`), `PxMaskType`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing`, `PxFillMode`, `PxPlaybackDirection`, `PxTriggerStart`, `PxOffScreenAction`, `PxMouseOutAction`, `PxFinishAction`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings — each is a const namespace AND the type derived from it, so `PxTriggerStart.click` and `start?: PxTriggerStart` come from one import |
@@ -1545,10 +1550,9 @@ convert between the `"a.b.c"` string and its parts, `compareWireVersion` compare
 
 #### Converting a document
 
-One step exists so far, `1.1` → `1.2`: the trigger block became two axes, so a `1.1` file is
-brought forward when it is read — `startOn` becomes `start`, `outAction` splits into `offScreen`
-and `mouseOut`, and `scrollIntoView` becomes the default visibility gate. It is one-way: `1.2` can
-say things `1.1` could not, such as "start on click **and** pause when scrolled away".
+A file stamped with an older version is brought up to date when it is read, one step at a
+time (`PX_WIRE_STEPS` lists them). Converting is one-way: a newer version can say things an older
+one could not.
 
 ```ts
 import { convertWireDocument, downgradeWireDocument, parseWireVersion } from '@pixodesk/svg-animator-core';

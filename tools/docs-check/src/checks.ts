@@ -238,8 +238,8 @@ function checkExports(doc: MdDoc, m: Marker, ctx: Ctx): Array<Finding> {
         if (m.block?.kind !== 'table') return [need(m, 'a table (with partial)')];
         const exp = ctx.facts.exportNames(pkg);
         const out: Array<Finding> = [];
-        // the column headed "Exports" / "Symbols" when there is one, else the first
-        const col = Math.max(0, m.block.header.findIndex(h => /export|symbol/i.test(h)));
+        // the column headed "Exports" / "Identifiers" when there is one, else the first
+        const col = Math.max(0, m.block.header.findIndex(h => /export|identifier|symbol/i.test(h)));
         for (const row of m.block.rows) {
             if (row.flags.skip || row.flags.extra) continue;
             for (const span of backtickSpans(row.cells[col] ?? '')) {
@@ -261,7 +261,7 @@ function checkExports(doc: MdDoc, m: Marker, ctx: Ctx): Array<Finding> {
             for (const d of parseDocBlock(b.text, b.line).decls) mentioned.add(d.name);
             for (const id of b.text.match(/[A-Za-z_$][\w$]*/g) ?? []) mentioned.add(id);
         } else if (b.kind === 'table') {
-            const symCols = b.header.map((h, i) => (/symbol/i.test(h) ? i : -1)).filter(i => i >= 0);
+            const symCols = b.header.map((h, i) => (/identifier|symbol/i.test(h) ? i : -1)).filter(i => i >= 0);
             for (const row of b.rows) {
                 row.cells.forEach((cell, ci) => {
                     for (const span of backtickSpans(cell)) {

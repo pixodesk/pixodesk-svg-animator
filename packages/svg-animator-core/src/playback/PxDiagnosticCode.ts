@@ -169,8 +169,8 @@ export enum PxDiagnosticCode {
     // ── 1500 · the props a component was given ───────────────────────────────────────────────
 
     /**
-     * Two control tiers were set at once. The higher one wins and the lower is ignored — see the
-     * control-mode rule.
+     * Props from more than one control mode were set at once. The higher-priority mode wins and the
+     * other props are ignored — see the control-mode rule.
      * @data which props conflicted, and which won
      */
     controlPropsConflict = 1501,

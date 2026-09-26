@@ -4,8 +4,9 @@
 
 Install a package only if you use the **JSON** format. A pre-rendered SVG needs nothing —
 the CSS flavor is plain SVG, and the JS flavor carries its own copy of the player — so if
-that is your route, skip this page. (One limit to know before you commit to it: a pre-rendered
-file can be inlined **once per page** — [read more](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#one-copy-of-a-file-per-page).)
+that is your route, skip this page. (One limit to know before you commit to it: the **same**
+pre-rendered file cannot be inlined twice on one page — different files are fine —
+[read more](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#the-same-file-twice-on-one-page).)
 
 ## Packages
 
@@ -22,9 +23,9 @@ file can be inlined **once per page** — [read more](https://pixodesk.com/docs/
 The React and Vue packages depend on the web package; the web package depends on the core, so a
 browser consumer stays self-contained.
 
-## The three builds — ESM, CJS and UMD
+## Builds — ESM, CJS and UMD
 
-The web player ships in three builds, and your tooling picks the right one by itself:
+The web player ships in several builds, and your tooling picks the right one by itself:
 
 - **ESM** — for a bundler (Vite, webpack, Rollup, esbuild) or any modern setup:
   `import { createAnimator } from '@pixodesk/svg-animator-web'`. Nothing to configure after
@@ -101,11 +102,13 @@ Importing a `.json` file at all requires `"resolveJsonModule": true` in your `ts
 under `compilerOptions`. The same `PxAnimatedSvgDocument` type is exported by the core and React
 Native packages.
 
-The other types worth knowing by name sit on a player's own surface. Creating one:
-`PxTagAnimatorOptions` is what `loadTagAnimators` takes, and `PxPrerenderedAnimatorOptions` what
-the pre-rendered builds take. Driving one: `PxAnimatorHandle` is the handle the components hand
-back through `apiRef`, and `PxPlaybackApi` the smaller surface a pre-rendered player offers.
-Retuning one: `PxPlaybackOverride` is the override block every surface accepts.
+Other types you may want by name:
+
+- `PxTagAnimatorOptions` — the options `loadTagAnimators` takes.
+- `PxPrerenderedAnimatorOptions` — the options the pre-rendered builds take.
+- `PxAnimatorHandle` — the handle the components give you through `apiRef`.
+- `PxPlaybackApi` — the smaller set of methods a pre-rendered player offers.
+- `PxPlaybackOverride` — the playback override every player accepts.
 
 Hearing back from it: `PxAnimatorCallbacks` is the single callback shape — the playback lifecycle
 plus `onWarn` / `onError` — and `PxDiagnosticsConfig` is the diagnostics half of it on its own. A
