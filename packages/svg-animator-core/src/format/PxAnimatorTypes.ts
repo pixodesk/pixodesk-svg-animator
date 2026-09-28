@@ -8,7 +8,7 @@ import { implementsInterface, px } from '../schema/PxSchema';
 // Constants live in their own module so importing one does not pull the schema engine
 // in; re-exported here so this module's public surface is unchanged. See there.
 export * from './PxAnimatorConstants';
-import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_TRANSFORM_PART_KEYS, PX_TRIGGER_DEFAULTS, PxTimelineEngineSetting, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits,
+import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_TRANSFORM_PART_KEYS, PX_TRIGGER_DEFAULTS, PxTimelineEngineSetting, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits,
     // Wire enums named in review §2.7 — used as VALUES by the schemas below.
     PxAlongPathMode, PxFillMode, PxFinishAction, PxMouseOutAction, PxOffScreenAction, PxPinAlign, PxPlaybackDirection,
     PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxTriggerStart } from './PxAnimatorConstants';
@@ -648,14 +648,8 @@ export interface _PxGlyphFont {
     fontStyle: string;
     /** Ascent, in `unitsPerEm` units (baseline placement). */
     ascent: number;
-    /** Descent below the baseline, in `unitsPerEm` units, POSITIVE. Absent → 0.2 em.
-     *  Places `dominantBaseline` central / text-bottom / ideographic. */
-    descent?: number;
-    /** x-height, in `unitsPerEm` units. Absent → 0.5 em (the CSS fallback).
-     *  Places `dominantBaseline: middle`. */
-    xHeight?: number;
-    /** Units per em the glyph `width`/`pathData` are expressed in, e.g. 1000. */
-    unitsPerEm: number;
+    /** Units per em the glyph `width`/`pathData` are expressed in. Default 1000. */
+    unitsPerEm?: number;
     /** Outlines of the used characters, keyed by the character itself. */
     glyphs: { [char: string]: PxGlyph; };
 }
@@ -664,9 +658,7 @@ export const PxGlyphFontSchema = implementsInterface<_PxGlyphFont>()(px.object({
     fontFamily: px.string(),
     fontStyle: px.string(),
     ascent: px.number(),
-    descent: px.number().optional(),
-    xHeight: px.number().optional(),
-    unitsPerEm: px.number(),
+    unitsPerEm: px.number(PX_DEFAULT_UNITS_PER_EM).optional(),
     glyphs: px.record(PxGlyphSchema),
 }));
 

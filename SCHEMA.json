@@ -1988,7 +1988,6 @@
               "fontFamily",
               "fontStyle",
               "ascent",
-              "unitsPerEm",
               "glyphs"
             ],
             "additionalProperties": false

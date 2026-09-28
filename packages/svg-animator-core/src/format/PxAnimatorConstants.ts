@@ -271,6 +271,8 @@ export const PX_TRIGGER_DEFAULTS = {
 export const PX_DEFAULT_DURATION_MS = 1000;
 /** What an absent `timeline.iterations` means — see `PX_DEFAULT_DURATION_MS`. @internal */
 export const PX_DEFAULT_ITERATIONS = 1;
+/** What an absent `unitsPerEm` of a glyph font means — see `PX_DEFAULT_DURATION_MS`. @internal */
+export const PX_DEFAULT_UNITS_PER_EM = 1000;
 
 /** A trigger with every default filled in. @public @advanced */
 export interface PxResolvedTrigger {

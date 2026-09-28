@@ -52,7 +52,6 @@
   "definitions",
   "defs",
   "delay",
-  "descent",
   "destroy",
   "direction",
   "dispose",
@@ -254,7 +253,6 @@
   "width",
   "without",
   "x",
-  "xHeight",
   "y"
  ]
 }

@@ -10,9 +10,9 @@
 // `pause` to the Editor), (3) that the runtime's own fallbacks are the schema's.
 
 import { describe, expect, it } from 'vitest';
-import { flattenAnimatorTimeline, getAnimatorConfig, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_TRIGGER_DEFAULTS, PxFinishAction, PxTriggerStart, resolveTrigger } from '../format/PxAnimatorConstants';
+import { flattenAnimatorTimeline, getAnimatorConfig, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_TRIGGER_DEFAULTS, PxFinishAction, PxTriggerStart, resolveTrigger } from '../format/PxAnimatorConstants';
 import {
-    PxAnimatedSvgDocumentSchema, PxAnimatorConfigSchema, PxCloneEffectSchema, PxFillGradientEffectSchema, PxLoopSchema, PxMaskedByEffectSchema,
+    PxAnimatedSvgDocumentSchema, PxAnimatorConfigSchema, PxCloneEffectSchema, PxFillGradientEffectSchema, PxGlyphFontSchema, PxLoopSchema, PxMaskedByEffectSchema,
     PxPropertyAnimationSchema, PxScrollRangePointSchema, PxScrollSchema, PxStrokeTrimEffectSchema, PxTextPathEffectSchema, PxTimelineSchema,
     PxTimeTimelineSchema, PxTriggerSchema, type PxAnimatedSvgDocument,
 } from '../format/PxAnimatorTypes';
@@ -96,6 +96,13 @@ describe('schema.defaults — what an absent field means', () => {
         expect(PxTimeTimelineSchema.defaults.duration).toBe(PX_DEFAULT_DURATION_MS);
         expect(PxTimeTimelineSchema.defaults.iterations).toBe(PX_DEFAULT_ITERATIONS);
         expect(PxTimeTimelineSchema.defaults.delay).toBe(0);
+    });
+
+    it('the glyph font units the layout falls back to are the schema\'s', () => {
+        expect(PxGlyphFontSchema.defaults.unitsPerEm).toBe(PX_DEFAULT_UNITS_PER_EM);
+        const font = { fontFamily: 'F', fontStyle: '', ascent: 800, glyphs: {} };
+        expect(PxGlyphFontSchema.isValid(font)).toBe(true);
+        expect(PxGlyphFontSchema.isValid({ ...font, unitsPerEm: 2048 })).toBe(true);
     });
 
     it('the reported document: an omitted mouseOut means `pause`, on hover', () => {

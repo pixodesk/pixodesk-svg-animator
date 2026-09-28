@@ -9,19 +9,15 @@
  * outlines from `definitions.fonts`, so the text renders with no external font.
  *
  *  - HORIZONTAL ({@link materializeGlyphTextHorizontal}) — left-to-right by
- *    advance width; honors font-size, text-anchor, dominant-baseline,
- *    letter/word-spacing, per-tspan x/y/dx/dy, fill/stroke, nested tspans.
+ *    advance width; honors font-size, text-anchor, letter/word-spacing,
+ *    per-tspan x/y/dx/dy, fill/stroke, nested tspans.
  *  - ALONG-PATH ({@link materializeGlyphTextAlongPath}) — each glyph placed and
  *    rotated to the referenced path's tangent. Static `startOffset` → glyphs
  *    bake+merge; animated `startOffset` → per-glyph `<path>` with sampled
  *    `animate.transform`. Text-level `x`/`dx` add distance ALONG the path (≈
  *    startOffset) and `dy` shifts PERPENDICULAR — matching native `<textPath>`
  *    (see {@link alongPathNodeOffsets}); `y` and per-tspan positioning are ignored
- *    (a single run). `dominant-baseline` shifts perpendicular too.
- *
- * `dominant-baseline` ({@link dominantBaselineShift}) moves each glyph run by its OWN
- * font's metric, in the text's local space: `x`/`y`, `dx`/`dy`, text-anchor and the
- * text's transform all apply unchanged on top.
+ *    (a single run).
  *
  * Element creation goes through an injected {@link PxCreateElement} factory, so
  * the SAME layout produces plain wire nodes here (the effects pipeline) or the
@@ -33,13 +29,12 @@
  */
 
 import { type PxAnimatable, type PxGlyphFont, type PxNode, type PxTextEffect } from '../../format/PxAnimatorTypes';
-import { PX_TEXT_CONTENT_ATTR, CLASS_ATTR } from '../../format/PxAnimatorConstants';
+import { PX_TEXT_CONTENT_ATTR, CLASS_ATTR, PX_DEFAULT_UNITS_PER_EM } from '../../format/PxAnimatorConstants';
 import { jsonElementFactory, type PxCreateElement } from './elementFactory';
 import { transformPathData, type Affine } from './glyphPathBake';
 import { createPathSampler, type PathSampler } from './pathSampler';
 import { unwrapAutoOrientRotations } from '../../materialize/PxMotionPath';
 import { ReadKind, readAnimatable, TransformPart } from '../shared/transformParts';
-import { dominantBaselineShift } from './dominantBaseline';
 import type { ApplyContext } from '../shared/types';
 
 
@@ -47,7 +42,7 @@ const DEFAULT_FONT_SIZE = 16;
 
 /** Text/tspan attribute keys that don't belong on the materialized `<g>`. */
 const TEXT_ATTR_KEYS: ReadonlyArray<string> = [
-    'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'textAnchor', 'dominantBaseline',
+    'fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'textAnchor',
     'letterSpacing', 'wordSpacing', 'textDecoration', 'textTransform',
     'whiteSpace', 'x', 'y', 'dx', 'dy', 'lengthAdjust',
     'fill', 'stroke', 'strokeWidth', 'effects',
@@ -189,6 +184,11 @@ function glyphFontFor(s: Style, glyphs: Record<string, PxGlyphFont>, soleFont: P
     return gf;
 }
 
+/** The units the font's glyphs are drawn in: the stated ones, else the schema's default. */
+function unitsPerEmOf(gf: PxGlyphFont | undefined): number {
+    return gf?.unitsPerEm || PX_DEFAULT_UNITS_PER_EM;
+}
+
 function soleFontOf(glyphs: Record<string, PxGlyphFont>): PxGlyphFont | undefined {
     const names = Object.keys(glyphs);
     return names.length === 1 ? glyphs[names[0]] : undefined;
@@ -242,30 +242,24 @@ export function materializeGlyphTextHorizontal<E = any>(node: PxNode, opts: Glyp
     const placements: Array<Placement & { line: number; x: number; y: number; scale: number }> = [];
     const lines: Array<{ start: number; end: number }> = [{ start: pen.x, end: pen.x }];
     let line = 0;
-    const baseline = node.dominantBaseline;
 
     const renderChars = (content: string, s: Style): void => {
         const gf = glyphFontFor(s, glyphs, soleFont, warnings);
-        const upm = gf?.unitsPerEm || 1000;
+        const upm = unitsPerEmOf(gf);
         const scale = s.fontSize / upm;
         const ascentEm = gf?.ascent ?? 0.9 * upm;
         const paint = paintOf(s);
-        // The run's glyph baseline: the pen `y` moved by dominant-baseline (the pen itself
-        // stays put, so later x/y/dx/dy keep their meaning).
-        const baseY = (): number => pen.y + dominantBaselineShift(baseline, gf) * scale;
         for (let i = 0; i < content.length; i++) {
             const ch = content.charAt(i);
             const g = gf?.glyphs[ch];
             if (g && g.pathData) {
-                const y = baseY();
-                placements.push({ glyphD: g.pathData, m: [scale, 0, 0, scale, pen.x, y], paint, line, x: pen.x, y, scale });
+                placements.push({ glyphD: g.pathData, m: [scale, 0, 0, scale, pen.x, pen.y], paint, line, x: pen.x, y: pen.y, scale });
                 pen.x += g.width * scale;
             } else if (/\S/.test(ch)) {
                 // Missing glyph (font absent, or the char has no outline) → a visible □
                 // placeholder box so the text doesn't just silently vanish.
                 const advEm = (g && g.width > 0) ? g.width : MISSING_GLYPH_ADVANCE_EM * upm;
-                const y = baseY();
-                placements.push({ glyphD: missingGlyphBoxEm(advEm, ascentEm), m: [scale, 0, 0, scale, pen.x, y], paint, isMissing: true, line, x: pen.x, y, scale });
+                placements.push({ glyphD: missingGlyphBoxEm(advEm, ascentEm), m: [scale, 0, 0, scale, pen.x, pen.y], paint, isMissing: true, line, x: pen.x, y: pen.y, scale });
                 pen.x += advEm * scale;
             } else {
                 pen.x += (g ? g.width : 0) * scale;   // whitespace: advance only
@@ -348,19 +342,17 @@ export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterializeOp
     const boxes: Array<PxGlyphCharBox & { line: number }> = [];
     const lines: Array<{ start: number; end: number }> = [{ start: pen.x, end: pen.x }];
     let line = 0;
-    const baseline = node.dominantBaseline;
 
     const renderChars = (content: string, s: Style): void => {
         const gf = glyphFontFor(s, glyphs, soleFont, warnings);
-        const upm = gf?.unitsPerEm || 1000;
+        const upm = unitsPerEmOf(gf);
         const scale = s.fontSize / upm;
         const ascent = (gf?.ascent ?? 0.9 * upm) * scale;
-        const shift = dominantBaselineShift(baseline, gf) * scale;
         for (let i = 0; i < content.length; i++) {
             const ch = content.charAt(i);
             const g = gf?.glyphs[ch];
             const advance = (g ? g.width : 0) * scale + s.letterSpacing + (ch === ' ' ? s.wordSpacing : 0);
-            boxes.push({ x: pen.x, y: pen.y + shift, width: advance, ascent, fontSize: s.fontSize, line });
+            boxes.push({ x: pen.x, y: pen.y, width: advance, ascent, fontSize: s.fontSize, line });
             pen.x += advance;
             lines[line].end = pen.x;
         }
@@ -391,9 +383,8 @@ export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterializeOp
         if (boxes.length === before) {
             const s = resolveStyle(ch, rootStyle);
             const gf = glyphFontFor(s, glyphs, soleFont); // no warning — an empty line has nothing to render
-            const upm = gf?.unitsPerEm || 1000;
-            const scale = s.fontSize / upm;
-            boxes.push({ x: pen.x, y: pen.y + dominantBaselineShift(baseline, gf) * scale, width: 0, ascent: (gf?.ascent ?? 0.9 * upm) * scale, fontSize: s.fontSize, line });
+            const upm = unitsPerEmOf(gf);
+            boxes.push({ x: pen.x, y: pen.y, width: 0, ascent: (gf?.ascent ?? 0.9 * upm) * (s.fontSize / upm), fontSize: s.fontSize, line });
         }
     }
     const rootContent = str(node[PX_TEXT_CONTENT_ATTR]);
@@ -424,23 +415,22 @@ function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<G
     // Reading-order pass over leaf text (positioning attrs ignored — along-path is a
     // single run), recording each char's [advStart, advEnd], its glyph advance (WITHOUT
     // spacing) for the rotation midpoint, and bbox metrics.
-    const chars: Array<{ advStart: number; advEnd: number; glyphW: number; ascent: number; fontSize: number; shift: number }> = [];
+    const chars: Array<{ advStart: number; advEnd: number; glyphW: number; ascent: number; fontSize: number }> = [];
     let adv = 0;
     const walk = (el: PxNode, parentStyle: Style): void => {
         const s = resolveStyle(el, parentStyle);
         const content = str(el[PX_TEXT_CONTENT_ATTR]);
         if (content && !el.children?.length) {
             const gf = glyphFontFor(s, glyphs, soleFont, warnings);
-            const upm = gf?.unitsPerEm || 1000;
+            const upm = unitsPerEmOf(gf);
             const scale = s.fontSize / upm;
             const ascent = (gf?.ascent ?? 0.9 * upm) * scale;
-            const shift = dominantBaselineShift(node.dominantBaseline, gf) * scale;
             for (let i = 0; i < content.length; i++) {
                 const ch = content.charAt(i);
                 const g = gf?.glyphs[ch];
                 const glyphW = (g ? g.width : 0) * scale;
                 const advance = glyphW + s.letterSpacing + (ch === ' ' ? s.wordSpacing : 0);
-                chars.push({ advStart: adv, advEnd: adv + advance, glyphW, ascent, fontSize: s.fontSize, shift });
+                chars.push({ advStart: adv, advEnd: adv + advance, glyphW, ascent, fontSize: s.fontSize });
                 adv += advance;
             }
         }
@@ -462,17 +452,16 @@ function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<G
     const base = alongOffset + (so.kind === ReadKind.Animated ? (Number(so.keyframes[0]?.value) || 0)
         : so.kind === ReadKind.Static ? (Number(so.value) || 0) : 0);
 
-    // Shift a sampled point perpendicular to the path (left normal) by `perp` + the
-    // char's dominant-baseline shift.
-    const withPerp = (p: { x: number; y: number; angle: number }, shift: number) => ({
-        x: p.x - (perp + shift) * Math.sin(p.angle), y: p.y + (perp + shift) * Math.cos(p.angle), angle: p.angle,
+    // Shift a sampled point perpendicular to the path (left normal) by `perp`.
+    const withPerp = (p: { x: number; y: number; angle: number }) => ({
+        x: p.x - perp * Math.sin(p.angle), y: p.y + perp * Math.cos(p.angle), angle: p.angle,
     });
 
     return chars.map(c => {
         const dStart = base + c.advStart * k;
         const dEnd = base + c.advEnd * k;
-        const p0 = withPerp(sampler.sampleAtDistance(dStart), c.shift);
-        const p1 = withPerp(sampler.sampleAtDistance(dEnd), c.shift);
+        const p0 = withPerp(sampler.sampleAtDistance(dStart));
+        const p1 = withPerp(sampler.sampleAtDistance(dEnd));
         // Caret rotation = tangent at the GLYPH's own midpoint (advStart + glyphW/2), which
         // DISREGARDS the char's letter/word spacing. This keeps the synthetic caret aligned
         // with the baked glyph outline (which is placed at its glyph center), so letter
@@ -491,10 +480,9 @@ function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<G
 
 // ── ALONG-PATH ──────────────────────────────────────────────────────────────
 
-/** One glyph in path order: its outline + geometry, `midBase` = the arc-distance
- *  from the text start (startOffset 0) to the glyph's advance midpoint, and `shift` =
- *  its dominant-baseline offset (user units, perpendicular like `dy`). */
-interface AlongCell { glyphD: string; widthEm: number; scale: number; paint: Paint; midBase: number; shift: number; isMissing?: boolean; }
+/** One glyph in path order: its outline + geometry, and `midBase` = the arc-
+ *  distance from the text start (startOffset 0) to the glyph's advance midpoint. */
+interface AlongCell { glyphD: string; widthEm: number; scale: number; paint: Paint; midBase: number; isMissing?: boolean; }
 
 /** Walks the tspans in reading order, accumulating advance (whitespace included)
  *  so each rendered glyph gets its `midBase`. Positioning attrs are ignored —
@@ -510,22 +498,22 @@ function collectAlongPathCells(node: PxNode, glyphs: Record<string, PxGlyphFont>
         if (content && !el.children?.length) {
             const gf = glyphFontFor(s, glyphs, soleFont, warnings);
             if (gf) {
-                const scale = s.fontSize / gf.unitsPerEm;
-                const ascentEm = gf.ascent ?? 0.9 * gf.unitsPerEm;
-                const shift = dominantBaselineShift(node.dominantBaseline, gf) * scale;
+                const upm = unitsPerEmOf(gf);
+                const scale = s.fontSize / upm;
+                const ascentEm = gf.ascent ?? 0.9 * upm;
                 const paint = paintOf(s);
                 for (let i = 0; i < content.length; i++) {
                     const ch = content.charAt(i);
                     const g = gf.glyphs[ch];
                     if (g && g.pathData) {
                         const glyphAdv = g.width * scale;
-                        cells.push({ glyphD: g.pathData, widthEm: g.width, scale, paint, midBase: adv + glyphAdv / 2, shift });
+                        cells.push({ glyphD: g.pathData, widthEm: g.width, scale, paint, midBase: adv + glyphAdv / 2 });
                         adv += glyphAdv;
                     } else if (/\S/.test(ch)) {
                         // Missing glyph → a visible □ placeholder box (see missingGlyphBoxEm).
-                        const wEm = (g && g.width > 0) ? g.width : MISSING_GLYPH_ADVANCE_EM * gf.unitsPerEm;
+                        const wEm = (g && g.width > 0) ? g.width : MISSING_GLYPH_ADVANCE_EM * upm;
                         const boxAdv = wEm * scale;
-                        cells.push({ glyphD: missingGlyphBoxEm(wEm, ascentEm), widthEm: wEm, scale, paint, isMissing: true, midBase: adv + boxAdv / 2, shift });
+                        cells.push({ glyphD: missingGlyphBoxEm(wEm, ascentEm), widthEm: wEm, scale, paint, isMissing: true, midBase: adv + boxAdv / 2 });
                         adv += boxAdv;
                     } else {
                         adv += (g ? g.width : 0) * scale;   // whitespace: advance only
@@ -613,7 +601,7 @@ export function materializeGlyphTextAlongPath<E = any>(
         : cells;
     const placements: Array<Placement> = placeCells.map(c => ({
         glyphD: c.glyphD, paint: c.paint, isMissing: c.isMissing,
-        m: alongAffine(sampler, base + c.midBase * k, c.scale, c.widthEm, perp + c.shift),
+        m: alongAffine(sampler, base + c.midBase * k, c.scale, c.widthEm, perp),
     }));
     return toGroup(node, buildPaths(placements, create, warnings), create);
 }
@@ -696,12 +684,11 @@ function buildAnimatedAlongPath<E>(
         const sampleKf = (dist: number, time: number): TransformKeyframe => {
             const { x, y, angle } = sampler.sampleAtDistance(dist);
             const cos = Math.cos(angle), sin = Math.sin(angle);
-            // dy + dominant-baseline shift perpendicular to the path (left normal), in path units.
-            const off = perp + c.shift;
+            // dy shifts perpendicular to the path (left normal), in path units.
             return {
                 time,
                 value: {
-                    [TransformPart.Translate]: [roundN(x - off * sin, 3), roundN(y + off * cos, 3)],
+                    [TransformPart.Translate]: [roundN(x - perp * sin, 3), roundN(y + perp * cos, 3)],
                     [TransformPart.Rotate]: roundN(angle * 180 / Math.PI, 3),
                 },
             };
