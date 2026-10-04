@@ -1,6 +1,6 @@
 # Installing the players (overview)
 
-[← Set default playback settings & triggers](https://pixodesk.com/docs/svga/editor/playback-settings) · [Contents](../../README.md#documentation) · Next: [Web player →](./web-player.md)
+[← Get started with the player library](./get-started.md) · [Contents](../../README.md#documentation) · Next: [Web player →](./web-player.md)
 
 Install a package only if you use the **JSON** format. A pre-rendered SVG needs nothing —
 the CSS flavor is plain SVG, and the JS flavor carries its own copy of the player — so if
@@ -124,4 +124,4 @@ and `PxDiagnostics` is the channel object a player reports through.
 - **React Native:** 0.76 or newer, with `react-native-svg` 15 or newer and
   `react-native-reanimated` 3.16 or newer.
 
-[← Set default playback settings & triggers](https://pixodesk.com/docs/svga/editor/playback-settings) · [Contents](../../README.md#documentation) · Next: [Web player →](./web-player.md)
+[← Get started with the player library](./get-started.md) · [Contents](../../README.md#documentation) · Next: [Web player →](./web-player.md)

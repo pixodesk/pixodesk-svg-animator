@@ -1,6 +1,6 @@
 # Get started — From code — you fetch the file
 
-The [From code — you fetch the file](https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/get-started/README.md#from-code--you-fetch-the-file) section of the Get started guide as a project of its own: no bundler, no framework: your own `fetch` loads `animation.json` and the parsed object goes in as `doc`.
+The [From code — you fetch the file](https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/library/get-started.md#from-code--you-fetch-the-file) section of the *Get started with the player library* guide as a project of its own: no bundler, no framework: your own `fetch` loads `animation.json` and the parsed object goes in as `doc`.
 
 ```bash
 npm install

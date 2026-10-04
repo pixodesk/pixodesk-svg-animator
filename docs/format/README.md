@@ -1,4 +1,4 @@
-# The JSON format
+# Player JSON format
 
 The **JSON** animation document, in one page: the principles behind the format, the full
 reference, the player effects, the editor's `meta`, and the core library that validates and

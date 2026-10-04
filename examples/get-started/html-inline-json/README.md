@@ -1,6 +1,6 @@
 # Get started — From code — the JSON inside the page
 
-The [From code — the JSON inside the page](https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/get-started/README.md#from-code--the-json-inside-the-page) section of the Get started guide as a project of its own: no bundler, no framework, nothing to fetch: the JSON sits in a `<script type="application/json">` in `index.html`, parsed and handed over as `doc`. This page plays straight from disk too.
+The [From code — the JSON inside the page](https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/library/get-started.md#from-code--the-json-inside-the-page) section of the *Get started with the player library* guide as a project of its own: no bundler, no framework, nothing to fetch: the JSON sits in a `<script type="application/json">` in `index.html`, parsed and handed over as `doc`. This page plays straight from disk too.
 
 ```bash
 npm install

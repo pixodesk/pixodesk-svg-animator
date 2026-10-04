@@ -72,7 +72,7 @@ function render(codes) {
         bySection.get(c.section).push(c);
     }
     const rows = [];
-    rows.push('# Diagnostic codes');
+    rows.push('# Player diagnostic codes');
     rows.push('');
     rows.push('<!-- GENERATED from ' + SOURCE + ' by scripts/gen-diagnostics-md.mjs — edit the enum, not this file. -->');
     rows.push('');

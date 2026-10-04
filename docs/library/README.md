@@ -7,16 +7,17 @@ share. (Playing a **pre-rendered SVG** needs no library — see
 
 ## Contents
 
-1. [Installing the players](./installation.md) — npm packages, the UMD build for pages without a bundler, TypeScript
-2. [Web player (`@pixodesk/svg-animator-web`)](./web-player.md) — `createAnimator`, the playback API, callbacks, triggers, the API reference
-3. [React (`@pixodesk/svg-animator-react`)](./react.md) — the player component, its props, control modes
-4. [Next.js](./nextjs.md) — the React component in a Next.js app
-5. [Vue (`@pixodesk/svg-animator-vue`)](./vue.md) — the player component, props, events
-6. [Nuxt](./nuxt.md) — the Vue component in a Nuxt app
-7. [React Native (`@pixodesk/svg-animator-rn`)](./react-native.md) 🧪 — *in development*; install, props, feature support, limitations
-8. [Playback settings & triggers](./playback-and-triggers.md) — the `animator` configuration, and overriding it from props or the player API
-9. [Minification & property mangling](./minification.md) — safe by default; what to do if your build renames object keys
-10. [Troubleshooting & FAQ](./troubleshooting.md) — nothing plays, React/TypeScript/React Native gotchas, playback behavior
+1. [Get started with the player library](./get-started.md) — the shortest path, end to end: save a JSON, put it next to your component, install one package, render it; a complete example project per stack
+2. [Installing the players](./installation.md) — npm packages, the UMD build for pages without a bundler, TypeScript
+3. [Web player (`@pixodesk/svg-animator-web`)](./web-player.md) — `createAnimator`, the playback API, callbacks, triggers, the API reference
+4. [React (`@pixodesk/svg-animator-react`)](./react.md) — the player component, its props, control modes
+5. [Next.js](./nextjs.md) — the React component in a Next.js app
+6. [Vue (`@pixodesk/svg-animator-vue`)](./vue.md) — the player component, props, events
+7. [Nuxt](./nuxt.md) — the Vue component in a Nuxt app
+8. [React Native (`@pixodesk/svg-animator-rn`)](./react-native.md) 🧪 — *in development*; install, props, feature support, limitations
+9. [Playback settings & triggers](./playback-and-triggers.md) — the `animator` configuration, and overriding it from props or the player API
+10. [Minification & property mangling](./minification.md) — safe by default; what to do if your build renames object keys
+11. [Troubleshooting & FAQ](./troubleshooting.md) — nothing plays, React/TypeScript/React Native gotchas, playback behavior
 
 Below is what every player has in common — the same props under the same names, the same
 callbacks, the same rule for who controls playback, the same meaning of time — so what you learn

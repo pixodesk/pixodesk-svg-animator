@@ -1,4 +1,4 @@
-# Diagnostic codes
+# Player diagnostic codes
 
 <!-- GENERATED from packages/svg-animator-core/src/playback/PxDiagnosticCode.ts by scripts/gen-diagnostics-md.mjs — edit the enum, not this file. -->
 

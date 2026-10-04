@@ -1,6 +1,6 @@
 # Get started — From code — the player fetches the file
 
-The [From code — the player fetches the file](https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/get-started/README.md#from-code--the-player-fetches-the-file) section of the Get started guide as a project of its own: no bundler, no framework: `createAnimator({ src, container })` from the `PixodeskAnimator` global fetches `animation.json` and returns the player.
+The [From code — the player fetches the file](https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/library/get-started.md#from-code--the-player-fetches-the-file) section of the *Get started with the player library* guide as a project of its own: no bundler, no framework: `createAnimator({ src, container })` from the `PixodeskAnimator` global fetches `animation.json` and returns the player.
 
 ```bash
 npm install

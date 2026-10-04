@@ -1,6 +1,6 @@
 # Get started — No code — the element names the file
 
-The [No code — the element names the file](https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/get-started/README.md#no-code--the-element-names-the-file) section of the Get started guide as a project of its own: no bundler, no framework: `index.html` names `animation.json` on the element and `loadTagAnimators()` plays it.
+The [No code — the element names the file](https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/library/get-started.md#no-code--the-element-names-the-file) section of the *Get started with the player library* guide as a project of its own: no bundler, no framework: `index.html` names `animation.json` on the element and `loadTagAnimators()` plays it.
 
 ```bash
 npm install
