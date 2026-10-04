@@ -16,7 +16,9 @@ You do not need either to get the first animation playing.
 
 Every section below links to a complete example project in
 [`examples/get-started`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started) — one project per section, each with its own `package.json` and
-nothing shared, so it is exactly what the section describes. To run one, take just its folder:
+nothing shared, so it is exactly what the section describes. **Open in StackBlitz** runs it in
+your browser tab, code and page side by side, nothing installed. To run one on your machine,
+take just its folder:
 
 ```bash
 npx giget@latest gh:pixodesk/pixodesk-svg-animator/examples/get-started/react my-animation
@@ -77,7 +79,7 @@ loop. Run your dev server as usual (`npm run dev`) and open the page.
 
 ## React
 
-> **Example:** [`examples/get-started/react`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/react) — the complete project.
+> **Example:** [`examples/get-started/react`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/react) — the complete project · [Open in StackBlitz](https://stackblitz.com/github/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/react?startScript=dev&title=Get%20started%20%C2%B7%20React)
 
 ```bash
 npm install @pixodesk/svg-animator-react
@@ -105,7 +107,7 @@ element.
 
 ## Vue
 
-> **Example:** [`examples/get-started/vue`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/vue) — the complete project.
+> **Example:** [`examples/get-started/vue`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/vue) — the complete project · [Open in StackBlitz](https://stackblitz.com/github/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/vue?startScript=dev&title=Get%20started%20%C2%B7%20Vue)
 
 ```bash
 npm install @pixodesk/svg-animator-vue
@@ -131,7 +133,7 @@ import animation from './animation.json';
 
 ### With a bundler (Vite, webpack, …)
 
-> **Example:** [`examples/get-started/html-bundler`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-bundler) — the complete project.
+> **Example:** [`examples/get-started/html-bundler`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-bundler) — the complete project · [Open in StackBlitz](https://stackblitz.com/github/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-bundler?startScript=dev&title=Get%20started%20%C2%B7%20Plain%20HTML%2C%20with%20a%20bundler)
 
 ```bash
 npm install @pixodesk/svg-animator-web
@@ -170,7 +172,7 @@ the page, plays from disk.
 
 ### No code — the element names the file
 
-> **Example:** [`examples/get-started/html-tag`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-tag) — the complete project.
+> **Example:** [`examples/get-started/html-tag`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-tag) — the complete project · [Open in StackBlitz](https://stackblitz.com/github/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-tag?startScript=start&title=Get%20started%20%C2%B7%20No%20code%2C%20the%20element%20names%20the%20file)
 
 ```html
 <div data-px-animation-src="animation.json" style="width: 300px; height: 300px"></div>
@@ -181,7 +183,7 @@ the page, plays from disk.
 
 ### From code — the player fetches the file
 
-> **Example:** [`examples/get-started/html-create-animator`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-create-animator) — the complete project.
+> **Example:** [`examples/get-started/html-create-animator`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-create-animator) — the complete project · [Open in StackBlitz](https://stackblitz.com/github/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-create-animator?startScript=start&title=Get%20started%20%C2%B7%20From%20code%2C%20the%20player%20fetches%20the%20file)
 
 `createAnimator` returns the player, so you can call `animator.play()`, `animator.pause()` and
 the rest ([the playback API](./web-player.md#the-playback-api)). With `src` it fetches
@@ -198,7 +200,7 @@ the file itself:
 
 ### From code — you fetch the file
 
-> **Example:** [`examples/get-started/html-fetch`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-fetch) — the complete project.
+> **Example:** [`examples/get-started/html-fetch`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-fetch) — the complete project · [Open in StackBlitz](https://stackblitz.com/github/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-fetch?startScript=start&title=Get%20started%20%C2%B7%20From%20code%2C%20you%20fetch%20the%20file)
 
 Load the document yourself — your own `fetch`, a CMS field, a database — and hand over the
 parsed object as `doc`:
@@ -216,7 +218,7 @@ parsed object as `doc`:
 
 ### From code — the JSON inside the page
 
-> **Example:** [`examples/get-started/html-inline-json`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-inline-json) — the complete project.
+> **Example:** [`examples/get-started/html-inline-json`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-inline-json) — the complete project · [Open in StackBlitz](https://stackblitz.com/github/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-inline-json?startScript=start&title=Get%20started%20%C2%B7%20From%20code%2C%20the%20JSON%20inside%20the%20page)
 
 Nothing to fetch: paste the file's content into a `<script type="application/json">` (the browser
 does not run it), parse it, hand it over as `doc`:

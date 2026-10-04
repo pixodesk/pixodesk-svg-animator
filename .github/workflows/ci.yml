@@ -29,6 +29,8 @@ jobs:
 
       # turbo picks up every workspace package automatically, so new packages
       # (svg-animator-core, svg-animator-rn) are covered without changes here.
+      # It ends with `check:get-started --local`: the Get started example projects, installed
+      # from the PACKED workspace packages and opened in a browser — the release about to go out.
       - run: pnpm build
 
       # `build` only runs eslint + a bundler; neither fails on type errors.
@@ -37,16 +39,23 @@ jobs:
 
       - run: pnpm test
 
-  # examples/get-started/* are what a user gets: one project each, installed with npm from the
-  # PUBLISHED packages, outside the pnpm workspace. So they are not part of `pnpm build` above —
-  # this job installs and builds each of them as a user would.
+  # examples/get-started/* are what a user downloads: one project each, installed with npm from
+  # the PUBLISHED packages. `pnpm build` above checks them against the packages about to ship;
+  # this job checks them exactly as a user gets them today — install, build, and play in a browser.
   get-started-examples:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: pnpm
 
-      - run: node scripts/check-get-started-examples.mjs
+      # Only for the browser the check borrows from examples/docs-examples.
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @pixodesk/example-docs-examples exec playwright install --with-deps chromium
+
+      - run: pnpm check:get-started
