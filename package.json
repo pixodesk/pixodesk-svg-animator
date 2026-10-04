@@ -6,6 +6,7 @@
     "build": "turbo run build && pnpm check:entries && pnpm gen:diagnostics && pnpm check:docs",
     "check:docs": "turbo run test --filter=@pixodesk/docs-check",
     "check:entries": "node scripts/check-package-entries.mjs",
+    "check:get-started": "node scripts/check-get-started-examples.mjs",
     "report:audience": "pnpm --filter @pixodesk/docs-check report:audience",
     "dev": "turbo run dev",
     "lint": "turbo run lint",

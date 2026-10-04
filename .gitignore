@@ -157,3 +157,8 @@ scripts/.mangle-props.json
 
 # rendered twins of the dev-docs records (node scripts/gen-schema-html.mjs)
 dev-docs/**/*.html
+
+# examples/get-started/* are installed with npm on their own, outside the workspace
+examples/get-started/*/package-lock.json
+# copied from the package by each no-build project's postinstall
+examples/get-started/html-*/js/

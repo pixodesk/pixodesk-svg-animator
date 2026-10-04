@@ -314,7 +314,9 @@ player. The callbacks and diagnostics are the shape every player shares —
 [the API at a glance](./README.md#the-api-at-a-glance).
 
 <!-- px-check exports @pixodesk/svg-animator-vue -->
-The package exports the components and the handle type, `VueAnimatorApi`; nothing else.
+The package exports the components, the handle type `VueAnimatorApi`, and the document type
+`PxAnimatedSvgDocument` (for casting a JSON import — [TypeScript](./installation.md#typescript));
+nothing else.
 
 ## Example
 

@@ -36,3 +36,17 @@ jobs:
       - run: pnpm typecheck
 
       - run: pnpm test
+
+  # examples/get-started/* are what a user gets: one project each, installed with npm from the
+  # PUBLISHED packages, outside the pnpm workspace. So they are not part of `pnpm build` above —
+  # this job installs and builds each of them as a user would.
+  get-started-examples:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - run: node scripts/check-get-started-examples.mjs

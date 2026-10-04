@@ -93,14 +93,14 @@ Every package ships types. Importing a JSON file gives you a plain object; if yo
 complains about the shape, cast it once:
 
 ```ts
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
+import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-react'; // or -vue, -web, -rn, -core
 import _animation from './animation.json';
 const animation = _animation as PxAnimatedSvgDocument;
 ```
 
 Importing a `.json` file at all requires `"resolveJsonModule": true` in your `tsconfig.json`,
-under `compilerOptions`. The same `PxAnimatedSvgDocument` type is exported by the core and React
-Native packages.
+under `compilerOptions`. Every package exports the same `PxAnimatedSvgDocument`, so import it
+from the one you installed.
 
 Other types you may want by name:
 

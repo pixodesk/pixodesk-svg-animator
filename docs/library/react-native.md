@@ -248,8 +248,9 @@ interface PixodeskSvgAnimatorProps {
 }
 ```
 
-The package exports the component, its props (`PixodeskSvgAnimatorProps`) and its handle
-(`RnAnimatorApi`); nothing else.
+The package exports the component, its props (`PixodeskSvgAnimatorProps`), its handle
+(`RnAnimatorApi`) and the document type `PxAnimatedSvgDocument` (for casting a JSON import —
+[TypeScript](./installation.md#typescript)); nothing else.
 
 With none of `autoplay` / `play` / `pause` / `progress` / `time` set, the first frame renders
 statically.

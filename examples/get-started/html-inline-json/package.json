@@ -1,0 +1,11 @@
+{
+  "name": "get-started-html-inline-json",
+  "private": true,
+  "scripts": {
+    "postinstall": "node -e \"const fs=require('fs');fs.mkdirSync('js',{recursive:true});fs.copyFileSync('node_modules/@pixodesk/svg-animator-web/dist/pixodesk-svg-animator.umd.min.js','js/pixodesk-svg-animator.umd.min.js')\"",
+    "start": "npx serve ."
+  },
+  "dependencies": {
+    "@pixodesk/svg-animator-web": "^1.0.48"
+  }
+}

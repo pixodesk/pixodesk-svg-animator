@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Get started — from code, you fetch the file</title>
+  </head>
+  <body>
+    <div id="hero" style="width: 300px; height: 300px"></div>
+
+    <script src="js/pixodesk-svg-animator.umd.min.js"></script>
+    <script>
+      fetch('animation.json')
+        .then(response => response.json())
+        .then(doc => PixodeskAnimator.createAnimator({ doc, container: '#hero' }));
+    </script>
+  </body>
+</html>

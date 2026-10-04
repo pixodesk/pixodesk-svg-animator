@@ -317,6 +317,7 @@ the shape every player shares — [the API at a glance](./README.md#the-api-at-a
 
 <!-- px-check exports @pixodesk/svg-animator-react -->
 Also exported: **●** `PixodeskSvgAnimatorProps`, `ReactAnimatorApi`,
-`PixodeskSvgAnimatorCallbacks` (the `on*` props as a standalone type).
+`PixodeskSvgAnimatorCallbacks` (the `on*` props as a standalone type), and `PxAnimatedSvgDocument`
+(the document type, for casting a JSON import — [TypeScript](./installation.md#typescript)).
 
 [← Web player](./web-player.md) · [Contents](../../README.md#documentation) · Next: [Next.js →](./nextjs.md)

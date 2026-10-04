@@ -23,6 +23,7 @@ icon animations, loaders.
 
 ## Pick your path
 
+- 🏁 [Get started](./docs/get-started/README.md) — the editor to your app: save a JSON, install one package, render the file
 - 🚀 [Play a pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg) — no library, embed or inline the file
 - ⚛️ [Use in React](./docs/library/react.md) / [Next.js](./docs/library/nextjs.md) · 💚 [Vue](./docs/library/vue.md) / [Nuxt](./docs/library/nuxt.md) · 🌐 [Plain HTML / vanilla JS](./docs/library/web-player.md)
 - 📱 [React Native](./docs/library/react-native.md) 🧪 *(experimental)*
@@ -31,6 +32,7 @@ icon animations, loaders.
 
 ## Documentation
 
+- **[Get started](./docs/get-started/README.md)** — the shortest path, end to end: make the animation, save it as JSON, put the file in your project, install the player, render it — React, Vue, plain HTML, React Native
 - **[Library documentation](./docs/library/README.md)** — [the API at a glance](./docs/library/README.md#the-api-at-a-glance), then every player: web, React, Vue, React Native; installation, playback settings & triggers
 - **[Format documentation](./docs/format/README.md)** — the JSON document: reference, [the schema at a glance](./docs/format/README.md#schema-at-a-glance), effects, editor meta, [the core library](./docs/format/README.md#core-library--pixodesksvg-animator-core)
 - **API reference** — every export of every package, marked by audience, in signature form: what every player shares in [the API at a glance](./docs/library/README.md#the-api-at-a-glance), each player's own under its guide's *API reference*, document tooling under [the core library](./docs/format/README.md#core-library--pixodesksvg-animator-core). The docs are checked against the packages' types and schemas on every build — [tools/docs-check](./tools/docs-check/README.md)
@@ -69,6 +71,7 @@ Examples in [`examples/`](examples/):
 <!-- px-check off the example list, prose -->
 | Example | Package | Run |
 |---------|---------|-----|
+| [get-started/*](examples/get-started/) | one self-contained project per section of the [Get started](./docs/get-started/README.md) guide — React, Vue, plain HTML with and without a bundler, React Native 🧪 — on the published packages, nothing shared | `cd examples/get-started/react && npm install && npm run dev` |
 | [docs-examples](examples/docs-examples/) | one page per documented case — web, React, Vue, pre-rendered SVG, static sites — with a browser to step through them; every case is tested on each build | `pnpm example:docs` |
 | [preview-player](examples/preview-player/) | web / react / vue side by side | `pnpm example:preview` |
 | [react-native-preview-player](examples/react-native-preview-player/) 🧪 | `@pixodesk/svg-animator-rn` | `pnpm example:rn` |
