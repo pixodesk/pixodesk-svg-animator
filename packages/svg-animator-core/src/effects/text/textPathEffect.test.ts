@@ -95,3 +95,41 @@ describe('textPathEffect — inline path → <path> def + <textPath> wrap', () =
         expect(d.length).toBeGreaterThan(short.length);
     });
 });
+
+
+describe('textPathEffect — animated pathData (a moving path, browser-font)', () => {
+
+    const A = 'M0 0L100 0';
+    const B = 'M0 50L100 50';
+    const animated = (extra: any = {}) => scene({ pathData: { keyframes: [{ time: 0, value: { pathData: A } }, { time: 1000, value: { pathData: B } }] }, ...extra });
+
+    it('keeps the keyframes on the generated def as `animate.d`; the body `d` is the first keyframe\'s path', () => {
+        const out = materialize(animated());
+        const def = pathDef(out);
+        expect(def.d).toBe(A);                                     // a string, not the `{pathData}` baseline object
+        expect((def.animate as any).d.keyframes).toEqual([
+            { time: 0, value: { pathData: A } },
+            { time: 1000, value: { pathData: B } },
+        ]);
+        expect(textPathNode(out).href).toBe('#' + def.id);        // still wrapped and linked
+    });
+
+    it('forces `clip` while the path animates — no tangent lead-in, startOffset untouched', () => {
+        // `extend` on a static path would prepend a lead-in and shift startOffset (case 6).
+        const out = materialize(animated({ pathOverflow: 'extend', startOffset: -40 }));
+        expect(pathDef(out).d).toBe(A);                             // geometry as-is
+        expect(textPathNode(out).startOffset).toBe('-40');         // not shifted
+    });
+
+    it('a `{value}` static form unwraps like a plain string', () => {
+        const out = materialize(scene({ pathData: { value: A } }));
+        expect(pathDef(out).d).toBe(A);
+        expect((pathDef(out).animate as any)?.d).toBeUndefined();
+    });
+
+    it('carries the loop onto the def\'s `animate.d`', () => {
+        const loop = { direction: 'alternate' };
+        const out = materialize(scene({ pathData: { keyframes: [{ time: 0, value: { pathData: A } }, { time: 1000, value: { pathData: B } }], loop } }));
+        expect((pathDef(out).animate as any).d.loop).toEqual(loop);
+    });
+});

@@ -33,6 +33,7 @@ import { PX_TEXT_CONTENT_ATTR, CLASS_ATTR, PX_DEFAULT_UNITS_PER_EM } from '../..
 import { jsonElementFactory, type PxCreateElement } from './elementFactory';
 import { transformPathData, type Affine } from './glyphPathBake';
 import { createPathSampler, type PathSampler } from './pathSampler';
+import { pathTrackOf, type PathTrack } from '../shared/pathValue';
 import { unwrapAutoOrientRotations } from '../../materialize/PxMotionPath';
 import { ReadKind, readAnimatable, TransformPart } from '../shared/transformParts';
 import type { ApplyContext } from '../shared/types';
@@ -554,15 +555,20 @@ function alongPathNodeOffsets(node: PxNode): { along: number; perp: number } {
 /** @internal */
 export function materializeGlyphTextAlongPath<E = any>(
     node: PxNode,
-    pathD: string | undefined,
+    pathD: PxAnimatable<string> | undefined,
     startOffset: PxAnimatable<number> | undefined,
     opts: GlyphMaterializeOptions<E>,
     textLength?: PxAnimatable<number>,
     pathOverflow?: string,
 ): E | null {
     const { glyphs, create = jsonElementFactory as PxCreateElement<E>, warnings } = opts;
-    const sampler = pathD ? createPathSampler(pathD) : null;
-    if (!sampler) { warnings?.push('textGlyphs: unparsable along-path geometry'); return null; }
+    // The path itself may animate (`{keyframes}` of `{pathData}`): then every glyph is
+    // placed on the geometry AT each sample time — the third driver next to startOffset
+    // and textLength. One sampler per distinct time, memoised (@see pathSamplers).
+    const pathTrack = pathTrackOf(pathD);
+    const samplerAt = pathTrack ? pathSamplers(pathTrack) : null;
+    const sampler = samplerAt?.(0) ?? null;
+    if (!pathTrack || !samplerAt || !sampler) { warnings?.push('textGlyphs: unparsable along-path geometry'); return null; }
 
     const soleFont = soleFontOf(glyphs);
     const { cells, width } = collectAlongPathCells(node, glyphs, soleFont, warnings);
@@ -583,14 +589,16 @@ export function materializeGlyphTextAlongPath<E = any>(
     // sampler continues along the tangent. See svga.text.path-overflow.plan.md.
     const isClip = pathOverflow === 'clip' && !sampler.closed;
 
-    if (soTrack.animated || tlTrack.animated) {
-        // startOffset and/or textLength animate → each glyph slides along the path: its
-        // own <path> with sampled translate+rotate keyframes (no merge). Per merged-
-        // timeline interval both tracks are linear, so the glyph distance is linear too.
-        const times = mergeTrackTimes(soTrack.times, tlTrack.times);
+    if (soTrack.animated || tlTrack.animated || pathTrack.animated) {
+        // startOffset / textLength / the path animate → each glyph slides along (or rides) the
+        // path: its own <path> with sampled translate+rotate keyframes (no merge). Per merged-
+        // timeline interval every track is linear, so the glyph distance is linear too.
+        const times = mergeTrackTimes(mergeTrackTimes(pathTrack.times, soTrack.times), tlTrack.times);
         const distOf = (c: AlongCell, t: number): number => alongOffset + soTrack.at(t) + kOf(tlTrack.at(t)) * c.midBase;
-        const loop = soTrack.animated ? soTrack.loop : tlTrack.loop;
-        return toGroup(node, buildAnimatedAlongPath(cells, sampler, distOf, times, loop, create, isClip, perp), create);
+        // ONE loop per glyph motion: the first animated driver's — path, then startOffset,
+        // then textLength (the editor warns when the drivers' loops disagree).
+        const loop = (pathTrack.animated && pathTrack.loop !== undefined) ? pathTrack.loop : (soTrack.animated ? soTrack.loop : tlTrack.loop);
+        return toGroup(node, buildAnimatedAlongPath(cells, samplerAt, pathTrack, distOf, times, loop, create, isClip, perp), create);
     }
 
     // Static (or single-keyframe): place + bake; glyphs sharing paint still merge.
@@ -656,16 +664,34 @@ function roundN(v: number, n: number): number {
     return Math.round(v * f) / f;
 }
 
+/** The path's sampler at a time — ONE shared object for a static path, else one per
+ *  distinct sample time, memoised: the sample times repeat across the glyphs (same
+ *  intervals, same subdivision), so the LUT is built once per time, not once per glyph. */
+function pathSamplers(track: PathTrack): (t: number) => PathSampler | null {
+    if (!track.animated) {
+        const one = createPathSampler(track.dAt(0));
+        return () => one;
+    }
+    const byTime = new Map<number, PathSampler | null>();
+    return t => {
+        let s = byTime.get(t);
+        if (s === undefined) { s = createPathSampler(track.dAt(t)); byTime.set(t, s); }
+        return s;
+    };
+}
+
 /** Builds a separate glyph element per glyph, its outline baked centered at the
  *  origin (mid-advance baseline) so `animate.transform` translate+rotate places
  *  it along the path over time. `distOf` gives the glyph's along-path distance at a
- *  time (startOffset(t) + textLength-scale(t)·midBase + x/dx — both drivers merged
- *  into `times`); each interval is sub-sampled so the glyph tracks a curved path.
- *  Interval interp is linear (per-keyframe easing shaping isn't reproduced — a v1
- *  limitation). */
+ *  time (startOffset(t) + textLength-scale(t)·midBase + x/dx — the drivers merged
+ *  into `times`, the path's own keyframes included); each interval is sub-sampled so
+ *  the glyph tracks a curved path — densely enough for its travel along the path AND
+ *  for the path's own movement under it. Interval interp is linear (per-keyframe
+ *  easing shaping isn't reproduced — a v1 limitation). */
 function buildAnimatedAlongPath<E>(
     cells: Array<AlongCell>,
-    sampler: PathSampler,
+    samplerAt: (t: number) => PathSampler | null,
+    track: PathTrack,
     distOf: (c: AlongCell, t: number) => number,
     times: Array<number>,
     loop: unknown,
@@ -673,8 +699,15 @@ function buildAnimatedAlongPath<E>(
     isClip: boolean,
     perp = 0,
 ): Array<E> {
-    const step = Math.max(sampler.totalLength / ALONG_PATH_MAX_STEPS, 0.5);
-    const onPath = (dist: number): boolean => dist >= 0 && dist <= sampler.totalLength;
+    const first = samplerAt(times[0] ?? 0);
+    if (!first) return [];   // the caller has already sampled this geometry — unreachable
+    const at = (t: number): PathSampler => samplerAt(t) ?? first;   // an unparsable keyframe (never from the editor) keeps the first
+    // The step suits every time: derived from the LONGEST geometry across the keyframes.
+    const maxLength = track.animated ? Math.max(...track.times.map(t => at(t).totalLength)) : first.totalLength;
+    const step = Math.max(maxLength / ALONG_PATH_MAX_STEPS, 0.5);
+    const onPath = (dist: number, t: number): boolean => dist >= 0 && dist <= at(t).totalLength;
+    // How far the geometry moves per interval — the same for every glyph, so once.
+    const moved = times.map((t, k) => k ? track.moveBetween(times[k - 1], t) : 0);
 
     const out: Array<E> = [];
     for (const c of cells) {
@@ -682,7 +715,7 @@ function buildAnimatedAlongPath<E>(
         const d = transformPathData(c.glyphD, centered);
 
         const sampleKf = (dist: number, time: number): TransformKeyframe => {
-            const { x, y, angle } = sampler.sampleAtDistance(dist);
+            const { x, y, angle } = at(time).sampleAtDistance(dist);
             const cos = Math.cos(angle), sin = Math.sin(angle);
             // dy shifts perpendicular to the path (left normal), in path units.
             return {
@@ -701,14 +734,16 @@ function buildAnimatedAlongPath<E>(
         const opKfs: Array<TransformKeyframe<number>> = [];
         const pushKf = (dist: number, time: number): void => {
             kfs.push(sampleKf(dist, time));
-            if (isClip) opKfs.push({ time, value: onPath(dist) ? 1 : 0 });
+            if (isClip) opKfs.push({ time, value: onPath(dist, time) ? 1 : 0 });
         };
 
         pushKf(distOf(c, times[0]), times[0]);
         for (let k = 1; k < times.length; k++) {
             const t0 = times[k - 1], t1 = times[k];
             const d0 = distOf(c, t0), d1 = distOf(c, t1);
-            const n = Math.min(ALONG_PATH_MAX_STEPS_PER_SEGMENT, Math.max(1, Math.ceil(Math.abs(d1 - d0) / step)));
+            // Enough steps for the glyph's travel ALONG the path, and for the path moving
+            // UNDER a resting glyph (a bend between two path keyframes is a curve, not a chord).
+            const n = Math.min(ALONG_PATH_MAX_STEPS_PER_SEGMENT, Math.max(1, Math.ceil(Math.abs(d1 - d0) / step), Math.ceil(moved[k] / step)));
             for (let s = 1; s <= n; s++) {
                 const f = s / n;
                 const t = t0 + f * (t1 - t0);
@@ -816,7 +851,7 @@ function toGroup<E>(node: PxNode, children: Array<E>, create: PxCreateElement<E>
  */
 export function materializeGlyphText<E = any>(
     node: PxNode,
-    opts: GlyphMaterializeOptions<E> & { alongPath?: { pathD?: string; startOffset?: PxAnimatable<number>; textLength?: PxAnimatable<number>; pathOverflow?: string } },
+    opts: GlyphMaterializeOptions<E> & { alongPath?: { pathD?: PxAnimatable<string>; startOffset?: PxAnimatable<number>; textLength?: PxAnimatable<number>; pathOverflow?: string } },
 ): E | null {
     if (opts.alongPath) return materializeGlyphTextAlongPath(node, opts.alongPath.pathD, opts.alongPath.startOffset, opts, opts.alongPath.textLength, opts.alongPath.pathOverflow);
     return materializeGlyphTextHorizontal(node, opts);
@@ -830,7 +865,7 @@ export function applyTextGlyphsEffect(node: PxNode, fx: PxTextEffect | undefined
 }
 
 /** Pipeline adapter (plain wire nodes) — glyph text along a referenced path. */
-export function applyTextGlyphsAlongPath(node: PxNode, ctx: ApplyContext, pathD: string | undefined, startOffset: PxAnimatable<number> | undefined, textLength?: PxAnimatable<number>, pathOverflow?: string): PxNode | null {
+export function applyTextGlyphsAlongPath(node: PxNode, ctx: ApplyContext, pathD: PxAnimatable<string> | undefined, startOffset: PxAnimatable<number> | undefined, textLength?: PxAnimatable<number>, pathOverflow?: string): PxNode | null {
     if (!ctx.glyphs) { ctx.warnings.push('textGlyphs: no definitions.fonts'); return null; }
     return materializeGlyphTextAlongPath<PxNode>(node, pathD, startOffset, { glyphs: ctx.glyphs, warnings: ctx.warnings }, textLength, pathOverflow);
 }

@@ -345,6 +345,103 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
 });
 
 
+describe('textGlyphsEffect — along-path animated (moving path)', () => {
+
+    /** A `textPath` whose GEOMETRY is keyframed; `startOffset` optional. */
+    function movingScene(pathKfs: Array<{ time: number; d: string }>, extra: { startOffset?: unknown; pathLoop?: unknown; text?: string } = {}): PxNode {
+        const pathData: any = { keyframes: pathKfs.map(kf => ({ time: kf.time, value: { pathData: kf.d } })) };
+        if (extra.pathLoop !== undefined) pathData.loop = extra.pathLoop;
+        const textPath: any = { pathData };
+        if (extra.startOffset !== undefined) textPath.startOffset = extra.startOffset;
+        return {
+            type: 'svg',
+            animator: { definitions: { fonts: glyphs } },
+            children: [{
+                type: 'text', id: 't',
+                children: [{ type: 'tspan', textContent: extra.text ?? 'H', fontFamily: 'F', fontSize: '100px' }],
+                effects: { text: { useGlyphs: true }, textPath },
+            }],
+        } as unknown as PxNode;
+    }
+    const glyphPaths = (root: PxNode) =>
+        ((collectByType(root, 'g').find(n => n.id === 't')?.children) ?? []).filter(n => n.type === 'path');
+    const transformKfs = (p: PxNode): Array<any> => (p.animate as any).transform.keyframes;
+
+    const STRAIGHT = 'M0 0L1000 0';
+    const SHIFTED = 'M0 100L1000 100';          // the same line, 100 down
+    const BENT = 'M0 0C300 400 700 400 1000 0';  // the same two vertices, bent into an arch
+
+    it('a RESTING glyph rides the moving path — its own <path> with sampled keyframes, not one chord', () => {
+        const { root } = materializeRaw(movingScene([{ time: 0, d: STRAIGHT }, { time: 1000, d: SHIFTED }]));
+        const p = glyphPaths(root);
+        expect(p).toHaveLength(1);
+        expect(p[0].d).toBe('M-35 0L-25 0L-25-70Z');   // outline baked centred, as for a sliding glyph
+
+        const kfs = transformKfs(p[0]);
+        // The path moved 100 units: more than the two endpoint samples (the old rule, driven
+        // by the glyph's own travel along the path, would have given exactly 2).
+        expect(kfs.length).toBeGreaterThan(2);
+        expect(kfs[0].time).toBe(0);
+        expect(kfs[0].value.translate).toEqual([35, 0]);           // mid-advance at dist 0+35 on the line
+        expect(kfs[kfs.length - 1].time).toBe(1000);
+        expect(kfs[kfs.length - 1].value.translate).toEqual([35, 100]);
+        for (const kf of kfs) expect(kf.value.rotate).toBeCloseTo(0, 6);   // a translated line keeps its tangent
+    });
+
+    it('follows the geometry AT each sample time — a bend lifts and tilts the glyph mid-way', () => {
+        const { root } = materializeRaw(movingScene([{ time: 0, d: STRAIGHT }, { time: 1000, d: BENT }]));
+        const kfs = transformKfs(glyphPaths(root)[0]);
+
+        const mid = kfs.find(kf => kf.time > 400 && kf.time < 600);
+        expect(mid, 'a sample in the middle of the move').toBeDefined();
+        expect(mid.value.translate[1]).toBeGreaterThan(0);          // lifted off y=0 by the half-bent arch
+        expect(Math.abs(mid.value.rotate)).toBeGreaterThan(0);      // and tilted along its tangent
+        // Monotone in time, endpoints at the keyframes.
+        expect(kfs[0].time).toBe(0);
+        expect(kfs[kfs.length - 1].time).toBe(1000);
+        for (let i = 1; i < kfs.length; i++) expect(kfs[i].time).toBeGreaterThan(kfs[i - 1].time);
+    });
+
+    it('merges the path keyframes with a sliding startOffset — both drivers, one timeline', () => {
+        const { root } = materializeRaw(movingScene(
+            [{ time: 0, d: STRAIGHT }, { time: 1000, d: SHIFTED }],
+            { startOffset: { keyframes: [{ time: 0, value: 0 }, { time: 500, value: 100 }] } },
+        ));
+        const kfs = transformKfs(glyphPaths(root)[0]);
+        const times = kfs.map(kf => kf.time);
+        expect(times).toContain(500);                                // the startOffset keyframe is a sample
+        expect(kfs[0].value.translate).toEqual([35, 0]);
+        // At 500 ms: slid to dist 100+35 on a line half-way down (y=50).
+        const at500 = kfs[times.indexOf(500)];
+        expect(at500.value.translate[0]).toBeCloseTo(135, 6);
+        expect(at500.value.translate[1]).toBeCloseTo(50, 6);
+        expect(kfs[kfs.length - 1].value.translate).toEqual([135, 100]);
+    });
+
+    it('the loop: the path\'s when it has one, else the other drivers\' as before', () => {
+        const loopA = { direction: 'alternate' };
+        const withPathLoop = materializeRaw(movingScene([{ time: 0, d: STRAIGHT }, { time: 1000, d: SHIFTED }], { pathLoop: loopA })).root;
+        expect((glyphPaths(withPathLoop)[0].animate as any).transform.loop).toEqual(loopA);
+
+        const loopB = { repeatAt: 'start' };
+        const pathNoLoop = materializeRaw(movingScene(
+            [{ time: 0, d: STRAIGHT }, { time: 1000, d: SHIFTED }],
+            { startOffset: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 50 }], loop: loopB } },
+        )).root;
+        expect((glyphPaths(pathNoLoop)[0].animate as any).transform.loop).toEqual(loopB);
+    });
+
+    it('a single-keyframe path is static — glyphs bake and merge as for a plain string', () => {
+        const animated = materializeRaw(movingScene([{ time: 0, d: STRAIGHT }])).root;
+        const plain = materializeRaw({
+            type: 'svg', animator: { definitions: { fonts: glyphs } },
+            children: [{ type: 'text', id: 't', children: [{ type: 'tspan', textContent: 'H', fontFamily: 'F', fontSize: '100px' }],
+                effects: { text: { useGlyphs: true }, textPath: { pathData: STRAIGHT } } }],
+        } as unknown as PxNode).root;
+        expect(JSON.stringify(glyphPaths(animated))).toBe(JSON.stringify(glyphPaths(plain)));
+    });
+});
+
 describe('materializeGlyphText — injected element factory (editor reuse)', () => {
 
     // A non-JSON factory standing in for the editor's React/px `createPxElement`.

@@ -5,6 +5,7 @@
 
 
 import type { PxClipPathEffect, PxNode } from '../../format/PxAnimatorTypes';
+import { pathString } from '../shared/pathValue';
 import { ReadKind, readAnimatable, writeAnimatableChannel } from '../shared/transformParts';
 import type { ApplyContext } from '../shared/types';
 import { genId } from '../shared/util';
@@ -50,11 +51,4 @@ export function applyClipPathEffect(
     ctx.defs.push({ type: 'clipPath', id: clipId, children: [pathChild] });
     node.clipPath = 'url(#' + clipId + ')';
     return node;
-}
-
-/** Unwraps a `{pathData: "M…"}` kf-value object to its string; passes strings through. */
-function pathString(v: unknown): string | undefined {
-    if (typeof v === 'string') return v;
-    if (v && typeof v === 'object' && typeof (v as { pathData?: unknown }).pathData === 'string') return (v as { pathData: string }).pathData;
-    return undefined;
 }

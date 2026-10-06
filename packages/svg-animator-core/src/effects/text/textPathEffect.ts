@@ -5,6 +5,8 @@
 
 
 import type { PxAnimatable, PxKeyframe, PxLoop, PxNode, PxTextPathEffect } from '../../format/PxAnimatorTypes';
+import { PxPathOverflow } from '../../format/PxAnimatorConstants';
+import { pathString } from '../shared/pathValue';
 import type { ApplyContext } from '../shared/types';
 import { createPathSampler } from './pathSampler';
 import { ReadKind, readAnimatable, writeAnimatableChannel } from '../shared/transformParts';
@@ -95,7 +97,7 @@ export function shiftAnimatable(v: PxAnimatable<number> | undefined, by: number)
  *  Returns the extended `d` AND `startShift` — see {@link ExtendedPath}. * @internal
  */
 export function extendedPathForBrowser(pathD: string, opts: ExtendPathOptions): ExtendedPath {
-    if (opts.pathOverflow === 'clip') return { d: pathD, startShift: 0 };
+    if (opts.pathOverflow === PxPathOverflow.clip) return { d: pathD, startShift: 0 };
     const sampler = createPathSampler(pathD);
     if (!sampler || sampler.closed || sampler.totalLength <= 0) return { d: pathD, startShift: 0 };
 
@@ -154,14 +156,27 @@ export function applyTextPathEffect(
     fx: PxTextPathEffect | undefined,
     ctx: ApplyContext,
 ): PxNode {
-    if (!fx || typeof fx.pathData !== 'string' || !fx.pathData) return node;
+    if (!fx) return node;
+    const read = readAnimatable<string>(fx.pathData);
+    if (read.kind === ReadKind.Absent) return node;
+    const isAnimated = read.kind === ReadKind.Animated;
+    const baseD = pathString(isAnimated ? (read.base ?? read.keyframes[0]?.value) : read.value);
+    if (!baseD) return node;
 
     const pathId = genId(ctx, 'tpath');
-    const { d, startShift } = extendedPathForBrowser(fx.pathData, {
-        pathOverflow: fx.pathOverflow, startOffset: fx.startOffset,
+    // An animated geometry keeps its keyframes on the def (`animate.d` — the frame loop
+    // rewrites it; `<textPath>` follows an attribute change). The `extend` lead-in is
+    // computed for ONE geometry, so overflow falls back to `clip` while the path animates.
+    const { d, startShift } = extendedPathForBrowser(baseD, {
+        pathOverflow: isAnimated ? PxPathOverflow.clip : fx.pathOverflow, startOffset: fx.startOffset,
         textLength: fx.textLength, advance: estimateTextAdvance(node),
     });
-    ctx.defs.push({ type: 'path', id: pathId, d });
+    const pathDef: PxNode = { type: 'path', id: pathId, d };
+    if (isAnimated) {
+        writeAnimatableChannel(pathDef, 'd', read);
+        pathDef.d = pathString(pathDef.d) ?? d;   // the channel writer puts the `{pathData}` baseline on `d`
+    }
+    ctx.defs.push(pathDef);
 
     const textPath: PxNode = {
         type: 'textPath',

@@ -1668,18 +1668,23 @@ export const PxStrokeGradientEffectSchema = PxFillGradientEffectSchema;
 export type PxStrokeGradientEffect = PxFillGradientEffect;
 
 /** Text-path effect on a `<text>` host. The path geometry is carried INLINE as
- *  `pathData` (an SVG `d`; static for now, keyframed animation is a later step) — the
- *  applier generates a `<path>` def from it and wraps the text's children in a native
- *  `<textPath href="#…">` at apply time. All SVG-native textPath attrs
- *  (`lengthAdjust`, `method`, `spacing`, `startOffset`, `textLength`) ride on this
- *  effect; `startOffset`/`textLength` accept the full `PxAnimatable<number>` shape.
+ *  `pathData` — a standard animatable slot: static = an SVG `d` string; animated =
+ *  `{keyframes}` whose values are `{pathData:"M…"}` (every keyframe with the same point
+ *  count, as for a body `d`). The applier generates a `<path>` def from it and wraps the
+ *  text's children in a native `<textPath href="#…">` at apply time — an animated slot
+ *  becomes that def's `animate.d`, which only the frame loop drives (`<textPath>` does not
+ *  follow a CSS-animated `d`). Glyph text (`effects.text.useGlyphs`) re-samples each glyph's
+ *  place on the moving path instead, so there it works on every engine. All SVG-native
+ *  textPath attrs (`lengthAdjust`, `method`, `spacing`, `startOffset`, `textLength`) ride
+ *  on this effect; `startOffset`/`textLength` accept the full `PxAnimatable<number>` shape.
  *
  *  `pathOverflow` controls what happens to glyphs past the end of an OPEN path:
  *   - `'extend'` (default): glyphs continue straight along the endpoint tangent
- *     (Lottie / native-glyph behavior).
+ *     (Lottie / native-glyph behavior). Browser text falls back to `'clip'` while the
+ *     path animates (the tangent lead-in is computed for one geometry).
  *   - `'clip'`: glyphs past the end disappear (native `<textPath>` behavior). */
 export interface _PxTextPathEffect {
-    pathData: string;                                     // inline SVG `d`
+    pathData: PxAnimatable<string>;                       // inline SVG `d`, static or keyframed
     pathOverflow?: string;                                // 'clip' | 'extend' (default 'extend')
     lengthAdjust?: string;                                // 'spacing' | 'spacingAndGlyphs'
     method?: string;                                      // 'align' | 'stretch'
@@ -1689,7 +1694,7 @@ export interface _PxTextPathEffect {
 }
 /** @public @advanced */
 export const PxTextPathEffectSchema = implementsInterface<_PxTextPathEffect>()(px.object({
-    pathData: px.string(),
+    pathData: PxAnimatableStringSchema,
     // `extend` is what an omitted pathOverflow means (glyphs continue along the tangent); the
     // other three are SVG's own initial values for the native <textPath> attributes.
     pathOverflow: px.enum([PxPathOverflow.clip, PxPathOverflow.extend] as const, PxPathOverflow.extend).optional(),

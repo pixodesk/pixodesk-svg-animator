@@ -297,7 +297,7 @@ interface EFFECTS {
                         retime?: { start?, stretch?: number, timeCrop?: [inMs, outMs] } };  // retime is PURE timing
     fillGradient?:    GRADIENT;               // paints the fill …
     strokeGradient?:  GRADIENT;               // … or the stroke; same settings
-    textPath?:        { pathData: string /*inline SVG d*/, pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? };
+    textPath?:        { pathData: string | Animated /*inline SVG d, static or keyframed {pathData}*/, pathOverflow?, lengthAdjust?, method?, spacing?, startOffset?, textLength? };
     text?:            { useGlyphs?: boolean };  // render text from embedded glyph outlines (definitions.fonts)
 }
 
@@ -939,13 +939,17 @@ says which:
 <!-- px-check schema PxTextPathEffectSchema -->
 | Field | Type | Meaning | Applies to |
 |---|---|---|---|
-| `pathData` | path string | the path geometry (inline — no separate element needed) | browser text, glyphs |
+| `pathData` | path string \| `Animated<path string>` | the path geometry (inline — no separate element needed). Animated: each keyframe's value is `{ "pathData": "M…" }`, every keyframe with the same points, like an animated `d` | browser text, glyphs |
 | `startOffset` | number \| `Animated<number>` | where the text starts along the path ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/startOffset)) | browser text, glyphs |
 | `textLength` | number \| `Animated<number>` | stretch / squeeze the text to this length ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/textLength)) | browser text, glyphs |
 | `lengthAdjust` | `spacing` (default) · `spacingAndGlyphs` | how `textLength` is reached: by changing the space between glyphs only, or by stretching the glyphs too ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/lengthAdjust)) | browser text only |
 | `method` | `align` (default) · `stretch` | each glyph is rotated to sit on the path, or the glyphs themselves are bent to follow its curve ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/method)) | browser text only |
 | `spacing` | `auto` · `exact` (default) | `exact` places glyphs strictly by the SVG layout rules; `auto` lets the renderer adjust the spacing to look better on curves ([SVG spec](https://developer.mozilla.org/en-US/docs/Web/SVG/Reference/Attribute/spacing)) | browser text only |
-| `pathOverflow` | `extend` (default) · `clip` | glyphs past the end of an open path continue along the tangent, or disappear | browser text, glyphs |
+| `pathOverflow` | `extend` (default) · `clip` | glyphs past the end of an open path continue along the tangent, or disappear. Browser text falls back to `clip` while `pathData` animates | browser text, glyphs |
+
+A **moving path** (animated `pathData`) works everywhere for glyph text — each glyph is
+re-placed on the path as it bends. Browser text follows it only with the frame loop
+(`engine: 'auto'` switches for you); CSS exports keep the first keyframe's path.
 
 ```js
 { "type": "text", "fill": "#111", "fontSize": 18,
