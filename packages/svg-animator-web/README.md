@@ -88,7 +88,7 @@ animator.destroy();             // cleanup
 | `doc`       | `PxAnimatedSvgDocument`   | Inline animation document object                    |
 | `container` | `string \| Element`       | CSS selector or element to render the SVG into      |
 | `onPlay` · `onPause` · `onCancel` · `onFinish` · `onRemove` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take; plus `onWarn`, `onError`, `muteWarn`, `muteError` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onPlay,onPause,onCancel,onFinish,onRemove,onStop,onWarn,onError,muteWarn,muteError -->
-| `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Playback overrides](#playback-overrides) |
+| `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
 | `duration` · `delay` | `number`        | Shortcuts for `timeline.duration` / `.delay` (ms) | <!-- px names=duration,delay -->
 | `iterations` | `number \| 'infinite'`   | Shortcut for `timeline.iterations` |

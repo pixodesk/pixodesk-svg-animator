@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { audienceReport, guideFindings, mainEntryFindings, markFindings, signatureFindings, tagFindings } from './src/audience';
 import { coverageFindings, formatFindings, runMarker, type Ctx } from './src/checks';
 import { DOC_FILES, REPO_ROOT } from './src/config';
+import { externalUrls, linkFindings, reachable } from './src/links';
 import { parseMarkdown } from './src/md';
 import { SchemaFacts } from './src/schema-facts';
 import { TsFacts } from './src/ts-facts';
@@ -35,11 +36,17 @@ describe('audience', () => {
     });
 });
 
-for (const file of DOC_FILES) {
-    const doc = parseMarkdown(resolve(REPO_ROOT, file));
+const docs = DOC_FILES.map(file => parseMarkdown(resolve(REPO_ROOT, file)));
+
+for (const doc of docs) {
+    const file = doc.file === resolve(REPO_ROOT, doc.file) ? doc.file.slice(REPO_ROOT.length + 1) : doc.file;
     describe(file, () => {
         it('every table and reference block carries a px-check marker', () => {
             expect(formatFindings(file, coverageFindings(doc, ctx))).toBe('');
+        });
+        // Relative links, links into this repository on GitHub, StackBlitz links — see src/links.ts.
+        it('every link points at something that exists', () => {
+            expect(formatFindings(file, linkFindings({ ...doc, file }))).toBe('');
         });
         for (const m of doc.markers) {
             it(`:${m.line} ${m.kind}${m.target ? ' ' + m.target : ''}`, () => {
@@ -48,3 +55,13 @@ for (const file of DOC_FILES) {
         }
     });
 }
+
+// `DOCS_CHECK_ONLINE=1` (`pnpm check:docs:online`): every external URL must answer. Off by default —
+// it needs the network and other people's servers; CI runs it as a job of its own.
+describe.skipIf(!process.env.DOCS_CHECK_ONLINE)('online links', () => {
+    for (const { url, where } of externalUrls(docs.map(doc => ({ ...doc, file: doc.file.slice(REPO_ROOT.length + 1) })))) {
+        it(`${url} (${where})`, async () => {
+            expect(await reachable(url), `${where} — ${url}`).toBe('');
+        }, 40000);
+    }
+});

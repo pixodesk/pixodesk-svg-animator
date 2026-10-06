@@ -5,6 +5,7 @@
   "scripts": {
     "build": "turbo run build && pnpm check:entries && pnpm gen:diagnostics && pnpm check:docs && pnpm check:get-started --local",
     "check:docs": "turbo run test --filter=@pixodesk/docs-check",
+    "check:docs:online": "DOCS_CHECK_ONLINE=1 pnpm --filter @pixodesk/docs-check test",
     "check:entries": "node scripts/check-package-entries.mjs",
     "check:get-started": "node scripts/check-get-started-examples.mjs",
     "report:audience": "pnpm --filter @pixodesk/docs-check report:audience",

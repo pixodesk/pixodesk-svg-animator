@@ -29,6 +29,19 @@ wrong`, and usually what to write.
 `docs/`** (found by walking the directory, so a new page is covered the day it is added), and each
 package's `README.md`. Internal notes live in `dev-docs/` and are not covered.
 
+## Links
+
+Every file also has a test that every link in it points at something that exists — offline, from
+the repository alone ([`src/links.ts`](./src/links.ts)):
+
+| Link | Checked |
+|---|---|
+| relative (`./react.md#autoplay`, `../../examples/…`) | the file or folder exists; an `#anchor` is a heading of the markdown file (GitHub's slug rules; `#readme` on a README counts) |
+| `https://github.com/pixodesk/pixodesk-svg-animator/tree\|blob/main/<path>` | the path exists in this checkout, anchors as above; other branches are refused |
+| `https://stackblitz.com/github/pixodesk/pixodesk-svg-animator/tree/main/<path>` | the folder exists and has a `package.json`; `startScript=` names one of its scripts |
+| `#anchor` | a heading of the same file |
+| any other `http(s)` URL | nothing — offline. `pnpm check:docs:online` (`DOCS_CHECK_ONLINE=1`) fetches each distinct one and fails on a 4xx/5xx or no answer (a 403 / 429 — a host turning a script away, as npmjs.com does — passes); CI runs it as a job of its own, since it depends on other people's servers |
+
 ## Markers
 
 A marker is a line of its own directly above the block it checks:
