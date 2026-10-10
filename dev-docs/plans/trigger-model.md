@@ -1,7 +1,7 @@
 # Trigger block: one object, short keys, safe defaults — implementation plan
 
 **Status: IMPLEMENTED 2026-09-18.** Every step below is ticked. Two things found on the way are
-in §11; one of them (O2) is still open. Nothing is committed. No backwards compatibility is
+in §11; both are closed (O2 fixed 2026-10-10). Nothing is committed. No backwards compatibility is
 owed: the format has not shipped to clients, so this is a clean cut with no aliases and no shims.
 
 Scope is deliberately narrow: **only `timeline.trigger` changes.** No other part of the wire format
@@ -428,7 +428,10 @@ when `converted.applied.length`, on a COPY, since the audit wants the view untou
 now guards the WIRING instead of the emptiness, and a second test opens a real 1.1 SVG and asserts
 its raw tree comes out spelling `start` / `mouseOut`.
 
-**O2 — an explicit ZERO cannot be saved for either visibility value. ⬜ STILL OPEN.**
+**O2 — an explicit ZERO cannot be saved for either visibility value. ✅ FIXED 2026-10-10** — the
+editor's two visibility numbers now carry the schema default as their config default (an explicit
+0 is a value and is written), and both gates (`PxVisibilityGate`, the SVG+CSS/JS export) open only
+on a ratio ABOVE zero, so threshold 0 means "any pixel" rather than "no pixels". Original note:
 A falsy number reads as "unset" in the editor model, so `visibilityDebounce: 0` ("start the moment
 the threshold is met") and `visibilityThreshold: 0` ("any pixel counts") both come back as their
 defaults. This was harmless while those defaults were 0 themselves, and moving them to 0.5 and 150

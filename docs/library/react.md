@@ -291,7 +291,7 @@ const PixodeskSvgCssAnimator: FC<{
     mouseOut?: PxMouseOutAction;          // 'continue' (default) | 'pause' | 'reset'
                                           //   — 'reverse' is accepted but acts as 'continue': a class
                                           //   toggle cannot run CSS keyframes backwards
-    visibilityThreshold?: number;         // 0–1 of the SVG on screen before it may run; default 0.5
+    visibilityThreshold?: number;         // 0–1 of the SVG on screen before it may run; default 0.5; 0 = any visible pixel
     visibilityDebounce?: number;          // ms it must hold first; default 150
     className?: string;                   // on the wrapper div
     style?: CSSProperties;                // on the wrapper div

@@ -233,6 +233,20 @@ describe('setupAnimationTriggers', () => {
             expect(api.play).toHaveBeenCalledTimes(1);
         });
 
+        it('visibilityThreshold 0 means ANY visible pixel — zero visibility still keeps it shut', () => {
+            const io = stubIntersectionObserver();
+            const { api } = createMockApi();
+            setupAnimationTriggers(api, { visibilityThreshold: 0, visibilityDebounce: 0 });
+
+            // Not intersecting at all: a threshold of 0 is "any pixel", not "no pixels".
+            io.callback!([{ isIntersecting: false, intersectionRatio: 0 }]);
+            expect(api.play).not.toHaveBeenCalled();
+
+            // The first visible pixel opens it.
+            io.callback!([{ isIntersecting: true, intersectionRatio: 0.01 }]);
+            expect(api.play).toHaveBeenCalledTimes(1);
+        });
+
         it('HYSTERESIS: once open it stays open until zero, so a graphic on the boundary cannot flap', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi({ isPlaying: vi.fn(() => true) });

@@ -431,7 +431,7 @@ interface PxTrigger {                                  // also a wire type — t
     mouseOut?: 'continue' | 'pause' | 'reset' | 'reverse'; // pointer leaves; default 'continue'
     finish?: 'hold' | 'reset';                         // after a natural finish; default 'hold'
                                                        //   (the player reads it; setupAnimationTriggers does not)
-    visibilityThreshold?: number;                      // 0–1 visible ratio; default 0.5
+    visibilityThreshold?: number;                      // 0–1 visible ratio; default 0.5; 0 = any visible pixel
     visibilityDebounce?: number;                       // ms it must hold first; default 150
 }
 ```

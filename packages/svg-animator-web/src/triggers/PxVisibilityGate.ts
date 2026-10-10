@@ -153,14 +153,15 @@ export function createVisibilityGate(root: Element, trigger: PxGateTrigger, host
     };
 
     /** One measurement in, one decision out. The threshold governs OPENING (including its dwell);
-     *  only zero visibility CLOSES. Between the two nothing changes. */
+     *  only zero visibility CLOSES. Between the two nothing changes. A threshold of 0 means ANY
+     *  visible pixel — not "no pixels": the gate never opens on a ratio of 0. */
     const apply = (ratio: number): void => {
         lastRatio = ratio;
         if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
             close();
             return;
         }
-        if (ratio >= threshold) {
+        if (ratio > 0 && ratio >= threshold) {
             if (isOpen === true || openTimer !== undefined) return;
             if (debounceMs > 0) openTimer = setTimeout(open, debounceMs);
             else open();
