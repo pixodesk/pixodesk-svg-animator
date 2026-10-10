@@ -36,7 +36,8 @@ export type {
     PxWireConversionResult,
     PxWireConversionOptions,
 } from './version/PxWireVersion';
-export type { PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, PxRemoveIndex } from './schema/PxSchema';
+export type { PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, PxValidationFinding, PxRemoveIndex } from './schema/PxSchema';
+export { PxValidationFindingKind } from './schema/PxSchema';
 
 // Wire-format schemas
 export { PxAnimatedSvgDocumentSchema, PxAnimatorConfigSchema, PxAttrValueSchema, PxBezierPathSchema, PxDefinitionsSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBaseSchema, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeRootSchema, PxTransformPartsSchema, PxTriggerSchema, PxTimelineSchema, PxTimeTimelineSchema, PxTransformValueSchema } from './format/PxAnimatorTypes';

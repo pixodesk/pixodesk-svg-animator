@@ -1258,20 +1258,35 @@ Validate a document before it reaches a player — in a build step, a test, or a
 accepts files from users:
 
 ```ts
-import { isPxDocument, isValidPxDocument,
-         PxAnimatedSvgDocumentSchema, type PxValidationContext } from '@pixodesk/svg-animator-core';
+import { isPxDocument, isValidPxDocument, PxAnimatedSvgDocumentSchema, PxValidationFindingKind,
+         type PxValidationContext, type PxValidationFinding } from '@pixodesk/svg-animator-core';
 import { readFile } from 'node:fs/promises';
 
 const json = JSON.parse(await readFile('animation.json', 'utf8'));   // Node — or fetch() in a browser
 
 isPxDocument(json);        // cheap shallow gate — is this a Pixodesk document at all?
-isValidPxDocument(json);    // { valid, errors } — full schema
+isValidPxDocument(json);    // { valid, errors, findings } — full schema
 
 // per-field diagnostics
 const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
 if (!PxAnimatedSvgDocumentSchema.isValid(json, ctx, [])) console.error(ctx.errors);
 // → ["children[0].effects.strokeTrim.range: no union member matched for value 5"]
+
+// Code that must BRANCH on what went wrong reads findings, never the text. `findings` is the
+// structured twin of `errors`: one PxValidationFinding per line, with a PxValidationFindingKind
+// and the path as segments.
+const findings: Array<PxValidationFinding> = [];
+PxAnimatedSvgDocumentSchema.isValid(json, { errors: [], warnings: [], findings, strict: true }, []);
+const writtenByNewerVersion = findings.some(f => f.kind === PxValidationFindingKind.unknownKey);
+// → each finding: { kind, path: ['children', '[0]', …], reason, message, expected?, memberFindings? }
 ```
+
+The kinds are `unknownKey` (a key the schema does not declare — only reported under `strict`),
+`typeMismatch`, `invalidValue` (a `literal` / `enum` miss, or an unparseable version stamp), `missingValue`,
+`missingReference` (a glyph font face or easing name with no definition) and `unionMismatch`.
+A failed union is ONE `unionMismatch` finding: the best-matching member's own diagnosis sits
+nested in its `memberFindings`, so an extra key met while trying a union member describes a
+malformed value and never counts as the document's own unknown key.
 
 <!-- px-check off validation modes, prose -->
 | Mode | Question it answers | Unknown keys |
@@ -1482,7 +1497,7 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 | Enum values | `PxTimelineEngineSetting`, `PxTimelineEngine`, `PxGradientType`, `PxUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout` (`clone.without` → `'translate'`), `PxMaskType`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing`, `PxFillMode`, `PxPlaybackDirection`, `PxTriggerStart`, `PxOffScreenAction`, `PxMouseOutAction`, `PxFinishAction`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings — each is a const namespace AND the type derived from it, so `PxTriggerStart.click` and `start?: PxTriggerStart` come from one import |
 | Schema version | `PX_WIRE_SCHEMA_VERSION`, `PX_WIRE_VERSION`, `PX_WIRE_BASELINE_VERSION`, `PX_WIRE_STEPS`, `PX_WIRE_VERSION_KEY`, `PxWireVersionRelation`, `parseWireVersion`, `formatWireVersion`, `readWireVersion`, `compareWireVersion`, `wireVersionAdvice`, `convertWireDocument`, `downgradeWireDocument`, `applyWireSteps`, + `PxWireVersion`, `PxWireVersionStep`, `PxWireConversionResult`, `PxWireStepKind`, `PxWireConversionOptions` | ○ read, compare and convert a document's `animator.version` — [Versioning](#versioning) |
 | Schema release | `schemaFieldUniverse`, `diffFieldUniverse`, `planSchemaRelease`, `releaseLogProblems` | ▪ the field inventory and bump rule behind `scripts/schema-release.mjs` |
-| Diagnostics | `diagnoseDocument(doc)` (○) → (`{ problems }`), `reportDocumentDiagnostics(doc, where)`, `PX_UNKNOWN_KEY_ERROR` | ▪ the load-time check every player runs; call `validateDocument` instead |
+| Diagnostics | `diagnoseDocument(doc)` (○) → (`{ problems }`), `reportDocumentDiagnostics(doc, where)`, `PX_UNKNOWN_KEY_ERROR`, `PX_VALIDATION_ROOT_SEGMENT` | ▪ the load-time check every player runs; call `validateDocument` instead |
 | Validation | `isPxDocument`, `isValidPxDocument`| ○ a cheap "is this a Pixodesk document" gate / the pass-fail form of `validateDocument`, NON-strict, with every message it can name |
 | Document accessors | `getAnimatorConfig`, `getChildren`, `getBindings`, `getDefinitions` | ○ read a document without knowing its internals |
 | Timeline shape | `flattenAnimatorTimeline`, `nestAnimatorTimeline` | ○ nested `timeline` object ⇄ the flat runtime view |
@@ -1495,7 +1510,7 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 | Node props | `toDomProps` (○), `sanitizeAttributeValue`, `PX_CSS_ONLY_STYLE_PROPS`, `PX_DISALLOWED_SVG_TAGS_LOWER` | ▪ shared normalization and sanitization rules |
 | Scroll math | `isScrollTimeline`, `scrollViewProgress`, `scrollOffsetProgress`, `scrollPhaseInterval`, `scrollResolveAxis`, `scrollTotalDurationMs` | ▪ scroll-driven playback internals |
 | Maths & strings | `cubicBezier`, `subdivideCubicBezier`, `bezierToSvgPath`, `splitEasing`, `reverseEasing`, `clamp`, `toRGBA`, `composeTransformParts`, `camelCaseToKebabWordIfNeeded`, `kebabToCamelCaseWord`, `PX_COLOR_ATTR_NAMES`, `PX_STYLE_ATTR_NAMES`, `PX_PCT_BASED_ATTR_NAMES`, `PX_TRANSFORM_FN_NAMES`, `deepClone`, `generateUniqueId`, `PX_DEFAULT_DURATION_MS`, `PX_DEFAULT_ITERATIONS`, `PX_DEFAULT_UNITS_PER_EM`, `PX_LOOP_JUMP_SHIFT_MS` | ▪ helpers shared with the editor |
-| Schema toolkit types | `PxSchema`, `PxSchemaDesc`, `PxInfer`, `PxValidationContext`, `PxRemoveIndex` | ○ the types you build a schema with — see the toolkit above |
+| Schema toolkit types | `PxSchema`, `PxSchemaDesc`, `PxInfer`, `PxValidationContext`, `PxValidationFinding`, `PxValidationFindingKind`, `PxRemoveIndex` | ○ the types you build a schema with — see the toolkit above. `findings` on the context is the structured twin of `errors`: a `kind` (unknown key, type mismatch, invalid value, missing value, union mismatch) and a `path` per line, for code that must branch on what went wrong rather than read it |
 | Companion types | `PxMaterializeAllOptions`, `PxCreateElement`, `PxGlyphCharBox`, `PxAnimatable` | ▪ argument and result shapes of the functions above |
 | Attribute names | `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME`, `PX_TEXT_CONTENT_ATTR` | ▪ reserved keys — see [Nodes](#nodes) |
 

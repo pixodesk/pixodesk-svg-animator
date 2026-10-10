@@ -3,8 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { KeysMatch, PxInfer, PxSchema, PxValidationContext, PxRemoveIndex } from '../schema/PxSchema';
-import { implementsInterface, px } from '../schema/PxSchema';
+import type { KeysMatch, PxInfer, PxSchema, PxValidationContext, PxValidationFinding, PxRemoveIndex } from '../schema/PxSchema';
+import { implementsInterface, px, PxValidationFindingKind, reportValidationError } from '../schema/PxSchema';
 // Constants live in their own module so importing one does not pull the schema engine
 // in; re-exported here so this module's public surface is unchanged. See there.
 export * from './PxAnimatorConstants';
@@ -1792,24 +1792,40 @@ const _ck_PxEffects: KeysMatch<PxEffects, _PxEffects> = true;
  * @public @advanced
  */
 export function validateNodeEffects(root: PxNode, options?: { strict?: boolean }): Array<string> {
-    const warnings: Array<string> = [];
-    // `path` is a human-readable breadcrumb prepended to each warning so the
-    // reader can locate the offending node in the tree (e.g.
-    // `root.children[0].children[2].effects.transformBy.translate: …`).
-    const walk = (node: PxNode, path: string): void => {
+    const ctx = newCollectingContext(!!options?.strict);
+    collectNodeEffectProblems(root, ctx, false);
+    return ctx.errors;
+}
+
+/** The first path segment of every whole-document finding (`root.children[0]…`): the document
+ *  itself, so a path can always be told apart from a node-relative one. @internal */
+export const PX_VALIDATION_ROOT_SEGMENT = 'root';
+
+/** A context that collects lines AND findings — what every document-level check reports into. */
+function newCollectingContext(strict: boolean): PxValidationContext & { findings: Array<PxValidationFinding> } {
+    return { errors: [], warnings: [], findings: [], strict };
+}
+
+/** Every node's `effects` bucket, judged on its own so one failing bucket cannot hide the next.
+ *  The path is the breadcrumb a reader locates the node by (`root.children[0].effects…`);
+ *  `once` drops a line the context already holds (the whole-document check reports each mistake once). */
+function collectNodeEffectProblems(root: PxNode, ctx: PxValidationContext & { findings: Array<PxValidationFinding> }, once: boolean): void {
+    const walk = (node: PxNode, path: Array<string>): void => {
         if (node && node.effects) {
-            const ctx: PxValidationContext = { errors: [], warnings: [], strict: !!options?.strict };
-            const ok = PxEffectsSchema.isValid(node.effects, ctx, [path + '.effects']);
-            if (!ok) {
-                for (const err of ctx.errors) warnings.push(err);
+            const own = newCollectingContext(!!ctx.strict);
+            if (!PxEffectsSchema.isValid(node.effects, own, [...path, 'effects'])) {
+                for (const [i, f] of own.findings.entries()) {
+                    if (once && ctx.errors.includes(f.message)) continue;
+                    ctx.errors.push(own.errors[i]);
+                    ctx.findings.push(f);
+                }
             }
         }
         if (node && Array.isArray(node.children)) {
-            node.children.forEach((c, i) => walk(c, path + '.children[' + i + ']'));
+            node.children.forEach((c, i) => walk(c, [...path, 'children', '[' + i + ']']));
         }
     };
-    walk(root, 'root');
-    return warnings;
+    walk(root, [PX_VALIDATION_ROOT_SEGMENT]);
 }
 
 /**
@@ -1830,29 +1846,31 @@ export function validateNodeEffects(root: PxNode, options?: { strict?: boolean }
  * needs no font reload.
  */
 export function validateGlyphFontRefs(root: PxNode, fonts: { [face: string]: unknown; } | undefined): Array<string> {
-    if (!fonts || !Object.keys(fonts).length) return [];
+    const ctx = newCollectingContext(false);
+    collectGlyphFontRefProblems(root, fonts, ctx);
+    return ctx.errors;
+}
 
-    const problems: Array<string> = [];
-    const walk = (node: PxNode, path: string, inherited: string | undefined, inGlyphText: boolean): void => {
+function collectGlyphFontRefProblems(root: PxNode, fonts: { [face: string]: unknown; } | undefined, ctx: PxValidationContext): void {
+    if (!fonts || !Object.keys(fonts).length) return;
+
+    const walk = (node: PxNode, path: Array<string>, inherited: string | undefined, inGlyphText: boolean): void => {
         if (!node) return;
         // `font-family` inherits down the text tree, exactly as the renderer resolves it.
         const own = typeof node.fontFamily === 'string' ? node.fontFamily : undefined;
         const family = own ?? inherited;
         const isGlyphText = inGlyphText || (node.type === 'text' && !!node.effects?.text?.useGlyphs);
-
         // Report at the node that DECLARES the family — one problem per mistake, not one per
         // descendant that merely inherits it.
         if (isGlyphText && own && !Object.prototype.hasOwnProperty.call(fonts, own)) {
-            const problem = path + ': glyph-mode text uses font-family "' + own
-                + '", which has no entry in animator.definitions.fonts';
-            if (!problems.includes(problem)) problems.push(problem);
+            reportValidationError(ctx, path, PxValidationFindingKind.missingReference,
+                'glyph-mode text uses font-family "' + own + '", which has no entry in animator.definitions.fonts', { once: true });
         }
         if (Array.isArray(node.children)) {
-            node.children.forEach((c, i) => walk(c, path + '.children[' + i + ']', family, isGlyphText));
+            node.children.forEach((c, i) => walk(c, [...path, 'children', '[' + i + ']'], family, isGlyphText));
         }
     };
-    walk(root, 'root', undefined, false);
-    return problems;
+    walk(root, [PX_VALIDATION_ROOT_SEGMENT], undefined, false);
 }
 
 /**
@@ -1868,27 +1886,29 @@ export function validateGlyphFontRefs(root: PxNode, fonts: { [face: string]: unk
  * never a name, so it has nothing to cross-check.
  */
 export function validateEasingRefs(root: PxNode, easings: { [name: string]: unknown; } | undefined): Array<string> {
-    const problems: Array<string> = [];
-    const walk = (node: unknown, path: string): void => {
+    const ctx = newCollectingContext(false);
+    collectEasingRefProblems(root, easings, ctx);
+    return ctx.errors;
+}
+
+function collectEasingRefProblems(root: PxNode, easings: { [name: string]: unknown; } | undefined, ctx: PxValidationContext): void {
+    const walk = (node: unknown, path: Array<string>): void => {
         if (Array.isArray(node)) {
-            node.forEach((item, i) => walk(item, path + '[' + i + ']'));
+            node.forEach((item, i) => walk(item, [...path, '[' + i + ']']));
             return;
         }
         if (!node || typeof node !== 'object') return;
-
         const easing = (node as { easing?: unknown }).easing;
         if (typeof easing === 'string' && !(easings && Object.prototype.hasOwnProperty.call(easings, easing))) {
-            const problem = path + '.easing: "' + easing
-                + '" names no entry in animator.definitions.easings — it will play linear';
-            if (!problems.includes(problem)) problems.push(problem);
+            reportValidationError(ctx, [...path, 'easing'], PxValidationFindingKind.missingReference,
+                '"' + easing + '" names no entry in animator.definitions.easings — it will play linear', { once: true });
         }
         for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
             if (key === 'easing') continue;   // already handled; a string has nothing to walk
-            if (value && typeof value === 'object') walk(value, path + '.' + key);
+            if (value && typeof value === 'object') walk(value, [...path, key]);
         }
     };
-    walk(root, 'root');
-    return problems;
+    walk(root, [PX_VALIDATION_ROOT_SEGMENT]);
 }
 
 /**
@@ -1901,11 +1921,17 @@ export function validateEasingRefs(root: PxNode, easings: { [name: string]: unkn
  * An ABSENT stamp is legal and silent: only a present-but-unparseable one is reported.
  */
 export function validateVersionStamp(doc: PxAnimatedSvgDocument): Array<string> {
+    const ctx = newCollectingContext(false);
+    collectVersionStampProblems(doc, ctx);
+    return ctx.errors;
+}
+
+function collectVersionStampProblems(doc: PxAnimatedSvgDocument, ctx: PxValidationContext): void {
     const version = getAnimatorConfig(doc)?.version;
-    if (version === undefined) return [];
-    if (parseWireVersion(version) !== undefined) return [];
-    return ['root.animator.version: ' + JSON.stringify(version)
-        + ' is not a version stamp ("a.b" or "a.b.c") — it reads as unstamped'];
+    if (version === undefined) return;
+    if (parseWireVersion(version) !== undefined) return;
+    reportValidationError(ctx, [PX_VALIDATION_ROOT_SEGMENT, 'animator', 'version'], PxValidationFindingKind.invalidValue,
+        JSON.stringify(version) + ' is not a version stamp ("a.b" or "a.b.c") — it reads as unstamped', { once: true });
 }
 
 /**
@@ -1917,28 +1943,26 @@ export function validateVersionStamp(doc: PxAnimatedSvgDocument): Array<string> 
  * @public
  */
 export function validateDocument(doc: unknown, options?: { strict?: boolean }): Array<string> {
+    return collectDocumentProblems(doc, options).errors;
+}
+
+/** The one validator behind {@link validateDocument} and {@link isValidPxDocument}: every problem
+ *  as a line AND a finding, each mistake once. */
+function collectDocumentProblems(doc: unknown, options?: { strict?: boolean }): { errors: Array<string>; findings: Array<PxValidationFinding> } {
     // Strict (the default) rejects keys the schema does not declare — the right answer for a
     // document you are about to ship. `strict: false` tolerates them, which is what a READER
     // wants: an unknown key usually means a newer writer — worth a warning, never a refusal.
     const strict = options?.strict !== false;
-    const ctx: PxValidationContext = { errors: [], warnings: [], strict };
-    const problems: Array<string> = PxAnimatedSvgDocumentSchema.isValid(doc, ctx, ['root']) ? [] : [...ctx.errors];
+    const ctx = newCollectingContext(strict);
+    PxAnimatedSvgDocumentSchema.isValid(doc, ctx, [PX_VALIDATION_ROOT_SEGMENT]);
     if (doc && typeof doc === 'object') {
-        for (const w of validateNodeEffects(doc as PxNode, { strict })) {
-            if (!problems.includes(w)) problems.push(w);
-        }
+        collectNodeEffectProblems(doc as PxNode, ctx, true);
         const defs = getAnimatorConfig(doc as PxAnimatedSvgDocument)?.definitions;
-        for (const w of validateGlyphFontRefs(doc as PxNode, defs?.fonts)) {
-            if (!problems.includes(w)) problems.push(w);
-        }
-        for (const w of validateEasingRefs(doc as PxNode, defs?.easings)) {
-            if (!problems.includes(w)) problems.push(w);
-        }
-        for (const w of validateVersionStamp(doc as PxAnimatedSvgDocument)) {
-            if (!problems.includes(w)) problems.push(w);
-        }
+        collectGlyphFontRefProblems(doc as PxNode, defs?.fonts, ctx);
+        collectEasingRefProblems(doc as PxNode, defs?.easings, ctx);
+        collectVersionStampProblems(doc as PxAnimatedSvgDocument, ctx);
     }
-    return problems;
+    return { errors: ctx.errors, findings: ctx.findings };
 }
 
 
@@ -2293,6 +2317,8 @@ export type PxAnimatorHandle = Omit<PxAnimatorApi, 'isReady' | 'getRootElement' 
 export interface PxValidationResult {
     valid: boolean;
     errors: Array<string>;
+    /** The structured twin of `errors`, one finding per line — see `PxValidationContext.findings`. */
+    findings: Array<PxValidationFinding>;
 }
 
 /**
@@ -2306,6 +2332,6 @@ export interface PxValidationResult {
  * @public @advanced
  */
 export function isValidPxDocument(doc: unknown): PxValidationResult {
-    const errors = validateDocument(doc, { strict: false });
-    return { valid: errors.length === 0, errors };
+    const { errors, findings } = collectDocumentProblems(doc, { strict: false });
+    return { valid: errors.length === 0, errors, findings };
 }

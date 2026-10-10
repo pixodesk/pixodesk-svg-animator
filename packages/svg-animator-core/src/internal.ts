@@ -34,6 +34,7 @@ export { materializeMotionPathInPropAnim } from './materialize/PxMotionPath';
 export { createDiagnostics } from './playback/PxDiagnostics';
 export { isScrollTimeline, scrollOffsetProgress, scrollPhaseInterval, scrollResolveAxis, scrollTotalDurationMs, scrollViewProgress } from './playback/PxScrollMath';
 export { PX_UNKNOWN_KEY_ERROR } from './schema/PxSchema';
+export { PX_VALIDATION_ROOT_SEGMENT } from './format/PxAnimatorTypes';
 export { PX_COLOR_ATTR_NAMES, PX_DEFAULT_DURATION_MS, PX_PCT_BASED_ATTR_NAMES, PX_STYLE_ATTR_NAMES, PX_TRANSFORM_FN_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformParts, cubicBezier, kebabToCamelCaseWord, reverseEasing, splitEasing, subdivideCubicBezier, toRGBA } from './util/PxAnimatorUtil';
 export { deepClone, generateUniqueId } from './util/PxIdUtil';
 export { PX_CSS_ONLY_STYLE_PROPS, PX_DISALLOWED_SVG_TAGS_LOWER, sanitizeAttributeValue } from './util/PxNodeProps';

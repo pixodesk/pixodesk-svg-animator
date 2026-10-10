@@ -46,12 +46,53 @@
  */
 export const PX_UNKNOWN_KEY_ERROR = 'unexpected extra key';
 
+/** What a validation error IS, independent of its wording. Code branches on this; the lines in
+ *  `errors` are for people. @public @advanced */
+export enum PxValidationFindingKind {
+    /** A closed object met a key the schema does not declare (`strict`). The one finding that says
+     *  "a newer writer produced this document". */
+    unknownKey = 'unknownKey',
+    /** Not the type the schema wants (string / number / boolean / object / array / tuple…). */
+    typeMismatch = 'typeMismatch',
+    /** The right type, but not an accepted value (`px.literal`, `px.enum`). */
+    invalidValue = 'invalidValue',
+    /** A required value is absent. */
+    missingValue = 'missingValue',
+    /** A NAME that resolves to no definition: a glyph font face with no `definitions.fonts` entry,
+     *  an easing name with no `definitions.easings` entry. */
+    missingReference = 'missingReference',
+    /** No member of a `px.union` / `px.discriminatedUnion` took the value. The best-matching
+     *  member's own findings sit in `memberFindings`: a diagnosis of THIS malformed value, nested
+     *  so they never read as the document's own findings. */
+    unionMismatch = 'unionMismatch',
+}
+
+/** One validation error, structured — the twin of the `errors` line, pushed to
+ *  `PxValidationContext.findings` at the same moment. @public @advanced */
+export interface PxValidationFinding {
+    readonly kind: PxValidationFindingKind;
+    /** The failing value's path segments (`['children', '[0]', 'opacity']` — rendered as `children[0].opacity`). */
+    readonly path: ReadonlyArray<string>;
+    /** The reason alone — what the line says after `<path>: `. */
+    readonly reason: string;
+    /** The `errors` line itself: `<path>: <reason>`. */
+    readonly message: string;
+    /** `typeMismatch` / `invalidValue`: what was expected, as the reason names it (`finite number`, `one of "a" | "b"`). */
+    readonly expected?: string;
+    /** `unionMismatch` (`px.union`): the best-matching member's findings, bounded like the text (UNION_MEMBER_ERROR_LIMIT). */
+    readonly memberFindings?: ReadonlyArray<PxValidationFinding>;
+}
+
 /** Collects structured validation feedback. Pass to isValid() as the second argument. @public @advanced */
 export interface PxValidationContext {
     /** Per-field errors — each entry is "<dot.path>: <reason>". */
     errors: Array<string>;
     /** Per-field warnings — same format as errors but non-fatal. */
     warnings: Array<string>;
+    /** The structured twin of `errors`, one {@link PxValidationFinding} per line, when the caller
+     *  wants to BRANCH on what went wrong (its `kind` and `path`) rather than read it. Optional:
+     *  a context without it gets the text only. */
+    findings?: Array<PxValidationFinding>;
     /**
      * When true, closed objects (`px.object` / `px.extendedObject`) report any
      * extra (undeclared) keys as errors. Default `false` (or omitted) — extras
@@ -121,6 +162,34 @@ export type PxRemoveIndex<T> = {
 // Joins path segments into a dot-path string for error messages.
 // Segments starting with '[' are appended without a leading dot.
 // e.g. ['obj', 'key'] -> 'obj.key'   ['arr', '[0]'] -> 'arr[0]'   [] -> '.'
+/** One error, two forms pushed together: the line for people (`errors`) and the finding for code
+ *  (`findings`, when the context collects them). No-op without a context; `once` skips a line the
+ *  context already holds (the document-level checks report each mistake once). @internal */
+export function reportValidationError(ctx: PxValidationContext | undefined, path: ReadonlyArray<string> | undefined, kind: PxValidationFindingKind, reason: string,
+    extra?: { expected?: string; memberFindings?: ReadonlyArray<PxValidationFinding>; once?: boolean }): void {
+    if (!ctx) return;
+    const p = path ? [...path] : [];
+    const message = pathStr(p) + ': ' + reason;
+    if (extra?.once && ctx.errors.includes(message)) return;
+    ctx.errors.push(message);
+    ctx.findings?.push({
+        kind, path: p, reason, message,
+        ...(extra?.expected !== undefined && { expected: extra.expected }),
+        ...(extra?.memberFindings && { memberFindings: extra.memberFindings }),
+    });
+}
+
+/** The `expected <this>, got <that>` family — `expected` also travels on the finding, so a union can
+ *  fold its members' expectations without re-reading the text. */
+function reportExpected(ctx: PxValidationContext | undefined, path: ReadonlyArray<string> | undefined, kind: PxValidationFindingKind, expected: string, got: string): void {
+    reportValidationError(ctx, path, kind, 'expected ' + expected + ', got ' + got, { expected });
+}
+
+/** How deep a finding reaches — its own path, or a nested member diagnosis if that goes further. */
+function findingDepth(f: PxValidationFinding): number {
+    return Math.max(f.path.length, ...(f.memberFindings ?? []).map(findingDepth));
+}
+
 function pathStr(path: Array<string>): string {
     if (!path.length) return '.';
     let result = '';
@@ -197,7 +266,7 @@ class Str<D extends boolean> extends Base<string, false, D> {
     sanitize(raw: unknown): string { return typeof raw === 'string' ? raw : this._default; }
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (typeof raw === 'string') return true;
-        ctx?.errors.push(pathStr(path ?? []) + ': expected string, got ' + typeof raw);
+        reportExpected(ctx, path, PxValidationFindingKind.typeMismatch, 'string', typeof raw);
         return false;
     }
 }
@@ -210,7 +279,7 @@ class Num<D extends boolean> extends Base<number, false, D> {
     }
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (typeof raw === 'number' && isFinite(raw)) return true;
-        ctx?.errors.push(pathStr(path ?? []) + ': expected finite number, got ' + JSON.stringify(raw));
+        reportExpected(ctx, path, PxValidationFindingKind.typeMismatch, 'finite number', JSON.stringify(raw));
         return false;
     }
 }
@@ -221,7 +290,7 @@ class Bool<D extends boolean> extends Base<boolean, false, D> {
     sanitize(raw: unknown): boolean { return typeof raw === 'boolean' ? raw : this._default; }
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (typeof raw === 'boolean') return true;
-        ctx?.errors.push(pathStr(path ?? []) + ': expected boolean, got ' + typeof raw);
+        reportExpected(ctx, path, PxValidationFindingKind.typeMismatch, 'boolean', typeof raw);
         return false;
     }
 }
@@ -239,7 +308,7 @@ class Literal<T extends string | number | boolean> extends Base<T, false, true> 
     sanitize(raw: unknown): T { return raw === this.value ? this.value : this._default; }
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (raw === this.value) return true;
-        ctx?.errors.push(pathStr(path ?? []) + ': expected ' + JSON.stringify(this.value) + ', got ' + JSON.stringify(raw));
+        reportExpected(ctx, path, PxValidationFindingKind.invalidValue, JSON.stringify(this.value), JSON.stringify(raw));
         return false;
     }
 }
@@ -259,7 +328,7 @@ class Enum<T extends string | number, D extends boolean> extends Base<T, false, 
     sanitize(raw: unknown): T { return this.values.includes(raw as T) ? (raw as T) : this._default; }
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (this.values.includes(raw as T)) return true;
-        ctx?.errors.push(pathStr(path ?? []) + ': expected one of ' + this.values.map(v => JSON.stringify(v)).join(' | ') + ', got ' + JSON.stringify(raw));
+        reportExpected(ctx, path, PxValidationFindingKind.invalidValue, 'one of ' + this.values.map(v => JSON.stringify(v)).join(' | '), JSON.stringify(raw));
         return false;
     }
 }
@@ -299,52 +368,58 @@ class Union<T, D extends boolean> extends Base<T, false, D> {
         if (this.schemas.some(s => s.isValid(raw, probe, path ? [...path] : undefined))) return true;
         if (!ctx) return false;
 
-        const base = pathStr(path ?? []);
-        ctx.errors.push(base + ': no union member matched for value ' + (JSON.stringify(raw) ?? '').slice(0, 240));
+        const basePath = path ?? [];
 
-        // …then say WHY (review §2.8). The headline alone reads the same for a
-        // `keyframes`/`keyframe` typo, for short `t`/`v` keys and for a plain type
-        // mismatch, so an entry diagnostic — or an LLM repair loop — got no pointer to
-        // the fix. Re-run each member into its OWN sink and report the one that got
-        // FURTHEST into the value: the likeliest intended shape.
+        // Say WHY (review §2.8). The headline alone reads the same for a `keyframes`/`keyframe`
+        // typo, for short `t`/`v` keys and for a plain type mismatch, so an entry diagnostic — or
+        // an LLM repair loop — got no pointer to the fix. Re-run each member into its OWN sink and
+        // report the one that got FURTHEST into the value (the deepest finding path): the likeliest
+        // intended shape.
         //
         // Not every member's errors: the real unions run to 11 alternatives
         // (`PxKeyframeValueSchema`), so a typo inside one object member would arrive
         // buried under ten "expected string, got object" lines.
-        let best: Array<string> | undefined;
+        let best: { errors: Array<string>; findings: Array<PxValidationFinding> } | undefined;
         let bestDepth = -1;
         const leafExpectations: Array<string> = [];
 
         for (const member of this.schemas) {
-            const sink: PxValidationContext = { errors: [], warnings: [], strict: ctx.strict };
-            member.isValid(raw, sink, path ? [...path] : undefined);
-            if (!sink.errors.length) continue;   // cannot happen (it failed), but keeps this total
+            const sink = { errors: [] as Array<string>, warnings: [] as Array<string>, findings: [] as Array<PxValidationFinding>, strict: ctx.strict };
+            member.isValid(raw, sink, [...basePath]);
+            if (!sink.findings.length) continue;   // cannot happen (it failed), but keeps this total
 
-            // How far in did it get? Every message is "<path>: <reason>", and a member that
-            // descended reports at a LONGER path than the union's own.
-            const depth = Math.max(...sink.errors.map(e => e.slice(0, e.indexOf(':')).length));
-            if (depth > bestDepth || (depth === bestDepth && best && sink.errors.length < best.length)) {
+            // How far in did it get? A member that descended reports at a LONGER path than the union's own.
+            const depth = Math.max(...sink.findings.map(findingDepth));
+            if (depth > bestDepth || (depth === bestDepth && best && sink.findings.length < best.findings.length)) {
                 bestDepth = depth;
-                best = sink.errors;
+                best = sink;
             }
             // A member that stayed at the union's own path is a shape mismatch, not a
             // near-miss: collect just its expectation for the folded line below.
-            if (depth <= base.length) {
-                for (const e of sink.errors) {
-                    const m = /: expected (.+?), got /.exec(e);
-                    if (m && !leafExpectations.includes(m[1])) leafExpectations.push(m[1]);
+            if (depth <= basePath.length) {
+                for (const f of sink.findings) {
+                    if (f.expected !== undefined && !leafExpectations.includes(f.expected)) leafExpectations.push(f.expected);
                 }
             }
         }
 
-        if (best && bestDepth > base.length) {
-            // One member reached inside the value — its errors ARE the diagnosis.
-            for (const e of best.slice(0, UNION_MEMBER_ERROR_LIMIT)) {
+        // ONE finding for the union, with the member diagnosis NESTED under it: those findings
+        // describe this malformed value, and must never read as the document's own (an "extra
+        // key" inside a tried member is not a newer writer).
+        const descended = !!best && bestDepth > basePath.length;
+        reportValidationError(ctx, basePath, PxValidationFindingKind.unionMismatch,
+            'no union member matched for value ' + (JSON.stringify(raw) ?? '').slice(0, 240),
+            descended ? { memberFindings: best!.findings.slice(0, UNION_MEMBER_ERROR_LIMIT) } : undefined);
+
+        if (descended) {
+            // One member reached inside the value — its lines ARE the diagnosis (text only here;
+            // the structured form sits on the headline finding).
+            for (const e of best!.errors.slice(0, UNION_MEMBER_ERROR_LIMIT)) {
                 if (!ctx.errors.includes(e)) ctx.errors.push(e);
             }
         } else if (leafExpectations.length) {
             // Nothing descended: one line naming every shape this slot accepts.
-            ctx.errors.push(base + ': expected ' + leafExpectations.join(' | '));
+            ctx.errors.push(pathStr(basePath) + ': expected ' + leafExpectations.join(' | '));
         }
         return false;
     }
@@ -425,8 +500,8 @@ class DiscriminatedUnion<T> extends Base<T> {
         if (!schema) {
             const val = (raw !== null && typeof raw === 'object' && !Array.isArray(raw))
                 ? (raw as Record<string, unknown>)[this._key] : undefined;
-            ctx?.errors.push(pathStr(path ?? []) + ': no discriminated union member matched '
-                + this._key + '=' + JSON.stringify(val));
+            reportValidationError(ctx, path, PxValidationFindingKind.unionMismatch,
+                'no discriminated union member matched ' + this._key + '=' + JSON.stringify(val));
             return false;
         }
         return schema.isValid(raw, ctx, path);
@@ -509,7 +584,7 @@ class Obj<S extends AnyShape> extends Base<InferShape<S>> {
 
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-            ctx?.errors.push(pathStr(path ?? []) + ': expected object, got ' + (Array.isArray(raw) ? 'array' : typeof raw));
+            reportExpected(ctx, path, PxValidationFindingKind.typeMismatch, 'object', Array.isArray(raw) ? 'array' : typeof raw);
             return false;
         }
         const obj = raw as any;
@@ -532,7 +607,7 @@ class Obj<S extends AnyShape> extends Base<InferShape<S>> {
                 // phantom keys that cannot exist on the wire.
                 if (obj[key] === undefined) continue;
                 p.push(key);
-                ctx.errors.push(pathStr(p) + ': ' + PX_UNKNOWN_KEY_ERROR);
+                reportValidationError(ctx, p, PxValidationFindingKind.unknownKey, PX_UNKNOWN_KEY_ERROR);
                 p.pop();
                 ok = false;
             }
@@ -599,7 +674,7 @@ class OpenObj<S extends AnyShape, V = any> extends Base<InferOpenShape<S, V>> {
 
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-            ctx?.errors.push(pathStr(path ?? []) + ': expected object, got ' + (Array.isArray(raw) ? 'array' : typeof raw));
+            reportExpected(ctx, path, PxValidationFindingKind.typeMismatch, 'object', Array.isArray(raw) ? 'array' : typeof raw);
             return false;
         }
         const obj = raw as any;
@@ -648,7 +723,7 @@ class Arr<T> extends Base<Array<T>> {
 
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (!Array.isArray(raw)) {
-            ctx?.errors.push(pathStr(path ?? []) + ': expected array, got ' + typeof raw);
+            reportExpected(ctx, path, PxValidationFindingKind.typeMismatch, 'array', typeof raw);
             return false;
         }
         const p = path ?? [];
@@ -687,7 +762,7 @@ class Rec<T> extends Base<Record<string, T>> {
 
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-            ctx?.errors.push(pathStr(path ?? []) + ': expected object/record, got ' + (Array.isArray(raw) ? 'array' : typeof raw));
+            reportExpected(ctx, path, PxValidationFindingKind.typeMismatch, 'object/record', Array.isArray(raw) ? 'array' : typeof raw);
             return false;
         }
         const p = path ?? [];
@@ -734,7 +809,7 @@ class Defined extends Base<any> {
     sanitize(raw: unknown): any { return raw; }
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (raw !== undefined) return true;
-        ctx?.errors.push(pathStr(path ?? []) + ': required value is missing');
+        reportValidationError(ctx, path, PxValidationFindingKind.missingValue, 'required value is missing');
         return false;
     }
     override _canSanitize(raw: unknown): boolean { return raw !== undefined; }
@@ -787,7 +862,7 @@ class Tuple<T extends ReadonlyArray<PxSchema<any, any>>> extends Base<TupleItems
 
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (!Array.isArray(raw) || raw.length !== this.schemas.length) {
-            ctx?.errors.push(pathStr(path ?? []) + ': expected tuple of length ' + this.schemas.length + ', got ' + (Array.isArray(raw) ? 'array[' + (raw as unknown[]).length + ']' : typeof raw));
+            reportExpected(ctx, path, PxValidationFindingKind.typeMismatch, 'tuple of length ' + this.schemas.length, Array.isArray(raw) ? 'array[' + (raw as unknown[]).length + ']' : typeof raw);
             return false;
         }
         const p = path ?? [];
