@@ -37,8 +37,11 @@ import { PX_CSS_ONLY_STYLE_PROPS, PX_DISALLOWED_SVG_TAGS_LOWER, sanitizeAttribut
  * @internal
  */
 export interface PxElementSpec<T> {
-    /** The SVG tag name. */
+    /** The tag name — an SVG tag inside `<svg>`, an HTML tag outside it (a root `div`, its `h1`, …). */
     tag: string;
+    /** True for `<svg>` and everything inside it: the element belongs to the SVG namespace. False for HTML
+     *  around it (`{type:'div', children:[{type:'svg', …}]}`), which a DOM factory creates with `createElement`. */
+    inSvg: boolean;
     /** Attributes under the names SVG reads (`stroke-width`, `viewBox`, `class`), sanitized. */
     attrs: Record<string, string>;
     /** Inline style, camelCase property → value; `undefined` when there is none. */
@@ -50,7 +53,7 @@ export interface PxElementSpec<T> {
     text: string | undefined;
     /** The source node — for the node's `id` (refs) and nothing about rendering. */
     node: PxNode;
-    /** True for the tree's root `<svg>`. */
+    /** True for the tree's root element (`<svg>`, or the HTML element that wraps it). */
     isRoot: boolean;
     /** Position among its siblings — a stable list key for frameworks that want one. */
     index: number;
@@ -71,7 +74,10 @@ const CLASS_ATTR = 'class';
 const DOM_TYPE_KEY = 'domType';
 const TYPE_ATTR = 'type';
 
-const DEFAULT_TAG = 'g';
+/** A node without `type`: a group inside SVG, a block outside it. */
+const DEFAULT_SVG_TAG = 'g';
+const DEFAULT_HTML_TAG = 'div';
+const SVG_TAG = 'svg';
 
 
 /**
@@ -80,12 +86,16 @@ const DEFAULT_TAG = 'g';
  * @internal
  */
 export function renderPxTree<T>(node: PxNode | undefined, factory: PxElementFactory<T>, diag?: PxDiagnostics): T | null {
-    return node ? renderOne(node, factory, diag, true, 0) : null;
+    // a root without `type` is an SVG document (the format's original root); otherwise the root's own tag decides
+    const rootInSvg = !node?.type || node.type.toLowerCase() === SVG_TAG;
+    return node ? renderOne(node, factory, diag, true, 0, rootInSvg) : null;
 }
 
-function renderOne<T>(node: PxNode, factory: PxElementFactory<T>, diag: PxDiagnostics | undefined, isRoot: boolean, index: number): T | null {
+function renderOne<T>(node: PxNode, factory: PxElementFactory<T>, diag: PxDiagnostics | undefined, isRoot: boolean, index: number, parentInSvg: boolean): T | null {
     const { type, children, style, ...props } = node;
-    const tag = type || DEFAULT_TAG;
+    // inside <svg> every element is SVG; outside it, HTML — until an <svg> starts an SVG subtree
+    const inSvg = parentInSvg || (type || '').toLowerCase() === SVG_TAG;
+    const tag = type || (inSvg ? DEFAULT_SVG_TAG : DEFAULT_HTML_TAG);
 
     if (PX_DISALLOWED_SVG_TAGS_LOWER.has(tag.toLowerCase())) {
         // `document`: a blocked tag is content the FILE asked for, so the file is what changes.
@@ -128,7 +138,7 @@ function renderOne<T>(node: PxNode, factory: PxElementFactory<T>, diag: PxDiagno
     const rendered: Array<T> = [];
     if (children) {
         children.forEach((child, i) => {
-            const el = renderOne(child, factory, diag, false, i);
+            const el = renderOne(child, factory, diag, false, i, inSvg);
             if (el !== null) rendered.push(el);
         });
     }
@@ -136,5 +146,5 @@ function renderOne<T>(node: PxNode, factory: PxElementFactory<T>, diag: PxDiagno
     const ownText = props[PX_TEXT_CONTENT_ATTR];
     const text = !rendered.length && typeof ownText === 'string' && ownText ? ownText : undefined;
 
-    return factory({ tag, attrs, style: inlineStyle, children: rendered, text, node, isRoot, index });
+    return factory({ tag, attrs, style: inlineStyle, children: rendered, text, node, isRoot, index, inSvg });
 }

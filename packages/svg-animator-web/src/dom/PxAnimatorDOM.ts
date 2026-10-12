@@ -18,8 +18,9 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
  * core's `renderPxTree`, which the React and Vue components call with their own factories. So
  * the three cannot disagree about a document: they differ only in how an element is created.
  */
-const createDomElement: PxElementFactory<Element> = ({ tag, attrs, style, children, text }) => {
-    const element = document.createElementNS(SVG_NS, tag);
+const createDomElement: PxElementFactory<Element> = ({ tag, attrs, style, children, text, inSvg }) => {
+    // SVG inside <svg>, HTML outside it (a `div` root around the drawing)
+    const element = inSvg ? document.createElementNS(SVG_NS, tag) : document.createElement(tag);
 
     for (const name of Object.keys(attrs)) element.setAttribute(name, attrs[name]);
 

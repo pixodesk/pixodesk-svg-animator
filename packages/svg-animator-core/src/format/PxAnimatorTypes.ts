@@ -2096,7 +2096,8 @@ export interface PxSvgNode extends PxNode, Omit<PxInfer<typeof PxSvgNodeRootSche
 // ============================================================================
 
 /**
- * Root SVG document schema. Enforces `type === 'svg'` to distinguish from child nodes.
+ * Root document schema. `type` is the root tag — `svg`, or an HTML element (`div`, …) whose subtree holds HTML
+ * and `svg` elements; elements are SVG inside `<svg>` and HTML outside it.
  * This is the root type for the entire file format.
  *
  * `{ type:'svg', style?:…, width?:number, height?:number,
@@ -2107,7 +2108,7 @@ export interface PxSvgNode extends PxNode, Omit<PxInfer<typeof PxSvgNodeRootSche
 export const PxAnimatedSvgDocumentSchema = px.openObject({
     ...PxNodeBaseSchema._shape,
     ...PxSvgNodeRootSchema._shape,
-    type: px.literal('svg'),     // override string → literal to require 'svg'
+    type: px.string(),           // the root tag: `svg`, or an HTML element wrapping SVG content (`div`, …)
     children: px.array(PxNodeSchema).optional()
 }, PxAttrValueSchema);
 

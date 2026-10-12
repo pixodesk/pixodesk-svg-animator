@@ -161,7 +161,7 @@ write or transform documents in TypeScript rather than by hand:
 // Bind-by-id document: no children — player animates a pre-existing SVG DOM via animator.bindings
 // The root <svg> is a NODE too (every node key applies), plus:
 interface SVG_JSON extends NODE {
-    type: 'svg';        // document root marker
+    type: 'svg' | string;   // the root tag: 'svg', or an HTML tag ('div') around svg children
     id?: string;        // DOM id; in a bind-by-id document it locates the pre-rendered element
     viewBox?: string;   // internal coordinate space, e.g. "0 0 700 380"
     width?: number | string;   // rendered size; a string may carry CSS units, e.g. "100%"
@@ -338,12 +338,35 @@ interface ANIMATE {
 }
 ```
 
+### HTML around SVG
+
+The root may be an HTML element instead of `svg`: a small page — headings, text, layout — with one or more
+`svg` drawings inside it. Elements are **HTML outside `<svg>` and SVG inside it**: the player creates them in the
+matching namespace, a node without `type` is a `div` outside and a `g` inside. The animator, bindings and
+`animate` work the same; animate HTML elements through properties that apply to them (CSS ones in `style`).
+Tags that load or run other content (`script`, `iframe`, `object`, `embed`, `link`, `meta`, `base`, `frame`) are
+never rendered.
+
+```json
+{
+  "type": "div",
+  "style": { "textAlign": "center" },
+  "animator": { "timeline": { "duration": 1000 } },
+  "children": [
+    { "type": "h1", "textContent": "Hello, world!" },
+    { "type": "svg", "viewBox": "0 0 400 400", "width": 300, "height": 300,
+      "children": [{ "type": "circle", "cx": 200, "cy": 60, "r": 40,
+        "animate": { "cy": { "keyframes": [{ "time": 0, "value": 60 }, { "time": 1000, "value": 320 }] } } }] }
+  ]
+}
+```
+
 ### The document root
 
 <!-- px-check schema PxAnimatedSvgDocumentSchema -->
 | Field | Type | Meaning |
 |---|---|---|
-| `type` | always the string `"svg"` | required — marks the root element of the document |
+| `type` | string — usually `"svg"` | required — the root element's tag. `"svg"` for a drawing; an HTML tag such as `"div"` for a page that wraps one or more `svg` children (see [HTML around SVG](#html-around-svg)) |
 | `id` | string | the element's identifier — it becomes the DOM id, and other elements and effects reference the element by it ([documents without `children`](#animating-a-pre-rendered-svg) rely on these references) |
 | `viewBox` | string | the drawing's coordinate space, exactly as in SVG — e.g. `"0 0 700 380"` means "the drawing spans 700 × 380 units" |
 | `width` · `height` | number or string | how big the drawing appears on the page — the same `width` / `height` you would put on an `<svg>` tag. Write a plain number (`400`) for pixels, or a string for anything with a unit: `"32px"`, `"100%"` | <!-- px names=width,height -->

@@ -23,6 +23,8 @@ import { PX_COLOR_ATTR_NAMES, composeTransformParts, kebabToCamelCaseWord, toRGB
 export const PX_DISALLOWED_SVG_TAGS_LOWER = new Set([
     'script',
     'foreignobject',
+    // HTML outside <svg> (a `div` root): nothing that loads or runs other content
+    'iframe', 'frame', 'frameset', 'object', 'embed', 'link', 'meta', 'base',
 ]);
 
 

@@ -630,11 +630,10 @@ export function isPxDocument(doc: any): doc is PxAnimatedSvgDocument {
         return false;
     }
 
-    // `type` is the tag, and the ONLY discriminator — it is what the schema requires
-    // (`px.literal('svg')`). A `tagName` alternative was accepted here until 2026-08,
-    // which meant a tagName-only document passed this gate and then failed
-    // `isValidPxDocument`; nothing ever wrote it.
-    return doc.type === 'svg';
+    // `type` is the root tag, and the ONLY discriminator: `svg`, or an HTML element that wraps
+    // SVG content (`div`, …). A `tagName` alternative was accepted here until 2026-08; nothing
+    // ever wrote it. Lottie JSON has no `type`, so it never passes.
+    return typeof doc.type === 'string' && doc.type.length > 0;
 }
 
 /**
