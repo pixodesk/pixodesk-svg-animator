@@ -155,13 +155,14 @@ createAnimator({ doc: animation, container: '#hero' });
 
 ### Without a build step
 
-Copy the player's single-file build from the npm package into your site, next to the page and
-the JSON (`npm pack @pixodesk/svg-animator-web` downloads the package without a project):
+Copy the player library — its single-file build — into your site with the package's own
+command (no install, no project needed):
 
 ```bash
-npm install @pixodesk/svg-animator-web
-cp node_modules/@pixodesk/svg-animator-web/dist/pixodesk-svg-animator.umd.min.js ./js/
+npx @pixodesk/svg-animator-web copy-player-library js
 ```
+
+It puts `pixodesk-svg-animator.umd.min.js` into `./js`; run it again later to update the copy.
 
 The script puts a `PixodeskAnimator` global on the page. Then play the file one of the four ways
 below — each is complete on its own.

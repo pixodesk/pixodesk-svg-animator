@@ -28,8 +28,13 @@
     },
     "./mangle-reserved.json": "./mangle-reserved.json"
   },
+  "bin": {
+    "svg-animator-web": "bin/svg-animator-web.mjs"
+  },
   "files": [
     "dist",
+    "bin/svg-animator-web.mjs",
+    "bin/commands.mjs",
     "mangle-reserved.json"
   ],
   "scripts": {

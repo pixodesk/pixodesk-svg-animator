@@ -41,15 +41,16 @@ The web player ships in several builds, and your tooling picks the right one by 
 **Host it yourself.** We publish only to [npm](https://www.npmjs.com/package/@pixodesk/svg-animator-web)
 and [GitHub](https://github.com/pixodesk/pixodesk-svg-animator); we do not recommend loading
 the player from a third-party CDN, since that puts a file you did not verify between your
-page and your users. Get the file from the npm package and serve it alongside your site:
+page and your users. Copy the file into your site with the package's own command — no install,
+no project needed:
 
 ```bash
-npm install @pixodesk/svg-animator-web
-cp node_modules/@pixodesk/svg-animator-web/dist/pixodesk-svg-animator.umd.min.js ./js/
+npx @pixodesk/svg-animator-web copy-player-library js
 ```
 
-No project to install into? `npm pack @pixodesk/svg-animator-web` downloads the exact package
-tarball; the file is at `package/dist/pixodesk-svg-animator.umd.min.js` inside it.
+It puts `pixodesk-svg-animator.umd.min.js` into `./js` (leave the folder out for the current
+folder) and prints the tags that load it. The copy's first line names its version; run the
+command again to update it, and it tells you which version it replaced.
 
 Then load it with a relative path, like any other script of yours:
 
