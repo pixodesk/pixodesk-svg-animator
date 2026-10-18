@@ -268,14 +268,27 @@ export function createWebApiAnimator(
         diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.noBindings);
     }
 
+    // Pass 1 — every binding's keyframes, so support is known BEFORE any KeyframeEffect exists. A value the browser rejects
+    // (e.g. a unitless rect `width`) makes this engine step aside for the frame loop; building the effects first only
+    // made the browser log "Invalid keyframe value" for each element × property of animations that were never played.
+    const prepared: Array<{ id: string; keyframesMap: ReturnType<typeof convertToWebApiKeyframes> }> = [];
     for (const binding of bindings || []) {
         const animDef = binding.animate;
         if (!animDef || typeof animDef !== 'object' || Array.isArray(animDef)) {
             diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.unresolvedBinding, binding);
             continue;
         }
+        prepared.push({ id: binding.id, keyframesMap: convertToWebApiKeyframes(animDef, unsupportedSet, config) });
+    }
 
-        const selector = getSelector(binding.id);
+    if (!forceEvenIfHasUnsupportedAttrs && unsupportedSet.size) {
+        diag.warn(PxDiagnosticKind.platform, PxDiagnosticCode.unsupportedAnimatedAttrs, [...unsupportedSet].join(', '));
+        return null;
+    }
+
+    // Pass 2 — the effects
+    for (const { id, keyframesMap } of prepared) {
+        const selector = getSelector(id);
 
         // Use CSS selector to find elements
         const elements = rootElement?.querySelectorAll(selector) || document.querySelectorAll(selector);
@@ -283,9 +296,6 @@ export function createWebApiAnimator(
         if (elements.length === 0) {
             diag.warn(PxDiagnosticKind.host, PxDiagnosticCode.noElementsForSelector, selector);
         }
-
-        // Convert animation definition to Web API keyframes
-        const keyframesMap = convertToWebApiKeyframes(animDef, unsupportedSet, config);
 
 
         // Delay handling:
@@ -360,13 +370,6 @@ export function createWebApiAnimator(
                 }
             }
         }
-    }
-
-    ////////////////////////////////////////////////////////////////
-
-    if (!forceEvenIfHasUnsupportedAttrs && unsupportedSet.size) {
-        diag.warn(PxDiagnosticKind.platform, PxDiagnosticCode.unsupportedAnimatedAttrs, [...unsupportedSet].join(', '));
-        return null;
     }
 
     ////////////////////////////////////////////////////////////////

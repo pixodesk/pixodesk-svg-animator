@@ -13,7 +13,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const DOCS = ['dev-docs/schema-design.md', 'dev-docs/reviews/api-schema-review.md', 'dev-docs/reviews/api-surface-review.md', 'dev-docs/reviews/schema-naming-review.md'];
+const DOCS = ['dev-docs/schema-design.md', 'dev-docs/reviews/api-schema-review.md', 'dev-docs/reviews/api-surface-review.md', 'dev-docs/reviews/schema-naming-review.md', 'dev-docs/reviews/first-use-review.md'];
 
 const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
