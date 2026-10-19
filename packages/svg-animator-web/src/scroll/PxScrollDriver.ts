@@ -15,7 +15,7 @@
 // without a scroll. TODO (optimization, deliberate v1 omission): an IntersectionObserver
 // gate to park the listeners entirely while the subject is far outside its range.
 
-import { PxDiagnosticCode, PxDiagnosticKind, type PxAnimatorConfig, type PxDiagnostics, type PxScroll } from '@pixodesk/svg-animator-core';
+import { PxDiagnosticCode, PxDiagnosticKind, type PxAnimatorRuntimeConfig, type PxDiagnostics, type PxScroll } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, isScrollTimeline, scrollOffsetProgress, scrollResolveAxis, scrollViewProgress } from '@pixodesk/svg-animator-core/internal';
 
 
@@ -47,7 +47,7 @@ function nativeRangeOffset(point: { phase?: string; fraction?: number } | undefi
  */
 export function createNativeScrollTimeline(
     subject: Element,
-    config: PxAnimatorConfig | undefined,
+    config: PxAnimatorRuntimeConfig | undefined,
     diag?: PxDiagnostics,
 ): PxNativeScrollTimeline | null {
     // Exported, so the channel is optional and falls back to the console (review §5).
@@ -193,7 +193,7 @@ export function resolveScrollSubject(svgRoot: Element, subject: string | undefin
  */
 export function createScrollDriver(
     subject: Element,
-    config: PxAnimatorConfig | undefined,
+    config: PxAnimatorRuntimeConfig | undefined,
     onProgress: (progress: number) => void,
     diag?: PxDiagnostics,
 ): PxScrollDriver | null {

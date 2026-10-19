@@ -65,6 +65,12 @@ it · 🟡 smaller
 - **Do:** type the document's `animator` with the wire shape (`PxInfer<typeof
   PxAnimatorConfigSchema>`); give the runtime view an internal name and drop it from the public
   tables.
+- **Done (2026-10-19):** `PxAnimatorConfig` = the written shape, and `PxSvgNode` /
+  `PxAnimatedSvgDocument` take it as is, so `animator: { duration }` no longer type-checks. The flat
+  view is `PxAnimatorRuntimeConfig` (`@public @advanced`, core only): what `getAnimatorConfig` and
+  `flattenAnimatorTimeline` return and `nestAnimatorTimeline` takes. Public because those three
+  are; the format guide describes it next to them. Schema and runtime unchanged. Guard:
+  `PxAnimatorConfigWireType.test.ts`.
 
 ### 4. `duration` reads as speed, but it is the timeline's length
 

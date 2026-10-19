@@ -10,11 +10,11 @@
 // §4) documents the same formulas — keep them in sync.
 
 import { clamp, PX_DEFAULT_DURATION_MS } from '../util/PxAnimatorUtil';
-import type { PxAnimatorConfig, PxScroll, PxScrollPhase, PxScrollRangePoint } from '../format/PxAnimatorTypes';
+import type { PxAnimatorRuntimeConfig, PxScroll, PxScrollPhase, PxScrollRangePoint } from '../format/PxAnimatorTypes';
 
 
 /** Is this document scroll-driven? (`animator.timelineSource === 'scroll'`) @internal */
-export function isScrollTimeline(config: PxAnimatorConfig | undefined): boolean {
+export function isScrollTimeline(config: PxAnimatorRuntimeConfig | undefined): boolean {
     return config?.timelineSource === 'scroll';
 }
 
@@ -24,7 +24,7 @@ export function isScrollTimeline(config: PxAnimatorConfig | undefined): boolean 
  * D4) — treated as 1 with the read-side warning left to the consumer.
  * @internal
  */
-export function scrollTotalDurationMs(config: PxAnimatorConfig | undefined): number {
+export function scrollTotalDurationMs(config: PxAnimatorRuntimeConfig | undefined): number {
     const duration = (typeof config?.duration === 'number' && config.duration > 0)
         ? config.duration : PX_DEFAULT_DURATION_MS;
     const iterations = (typeof config?.iterations === 'number' && config.iterations > 0)

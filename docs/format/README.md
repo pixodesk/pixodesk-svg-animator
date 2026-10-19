@@ -1333,6 +1333,10 @@ if (problems.length) throw new Error(problems.join('\n'));
 `getAnimatorConfig(doc)`, `getChildren(doc)`, `getBindings(doc)` and `getDefinitions(doc)` read
 the `animator` block, the element tree, the bindings and the definitions of a document without
 knowing where they sit — reach for them over `doc.animator?.…` in a tool of your own.
+`getAnimatorConfig` returns the block as the players read it, a `PxAnimatorRuntimeConfig`: `timeline`
+folded into top-level `duration`, `trigger`, `iterations` and the rest. That flat shape is not
+something to write — a file's `animator` is a `PxAnimatorConfig`, and `nestAnimatorTimeline` turns
+the flat shape back into one.
 
 ### Flattening a document
 
@@ -1523,7 +1527,7 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 | Diagnostics | `diagnoseDocument(doc)` (○) → (`{ problems }`), `reportDocumentDiagnostics(doc, where)`, `PX_UNKNOWN_KEY_ERROR`, `PX_VALIDATION_ROOT_SEGMENT` | ▪ the load-time check every player runs; call `validateDocument` instead |
 | Validation | `isPxDocument`, `isValidPxDocument`| ○ a cheap "is this a Pixodesk document" gate / the pass-fail form of `validateDocument`, NON-strict, with every message it can name |
 | Document accessors | `getAnimatorConfig`, `getChildren`, `getBindings`, `getDefinitions` | ○ read a document without knowing its internals |
-| Timeline shape | `flattenAnimatorTimeline`, `nestAnimatorTimeline` | ○ nested `timeline` object ⇄ the flat runtime view |
+| Timeline shape | `flattenAnimatorTimeline`, `nestAnimatorTimeline`, `PxAnimatorRuntimeConfig` | ○ nested `timeline` object ⇄ the flat runtime view (`PxAnimatorRuntimeConfig`, what `getAnimatorConfig` returns) |
 | Playback override | `PxTimelinePatch`, `PxPlaybackOverride`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult`, `PxTimelineShortcuts` | ● the `timeline` override as every player takes it, and the companion types of the three merge functions above |
 | Keyframe forms | `keyframeValue`, `keyframeEasing`, `PxNormalizedKeyframe`, `PxNormalizedPropertyAnimation`, `PxAnyKeyframe` | ▪ read a keyframe in either its wire or its runtime (`t` / `v` / `e`) form; is what `normalizeBindings` hands the engines — bare id + merged animation, from a binding or a node alike |
 | Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTimeTimelineSchema`, `PxTriggerSchema`, `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxLoopSchema`, `PxDefinitionsSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxTransformValueSchema` | ○ the validator the format is written in |

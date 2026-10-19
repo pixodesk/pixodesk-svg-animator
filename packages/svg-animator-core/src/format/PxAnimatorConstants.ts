@@ -20,7 +20,7 @@
 // are fine — they are erased at build time and cannot create a runtime edge.
 // ============================================================================
 
-import type { PxAnimatedSvgDocument, PxAnimatorConfig, PxBinding, PxDefinitions, PxNode, PxScroll, PxTrigger } from './PxAnimatorTypes';
+import type { PxAnimatedSvgDocument, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBinding, PxDefinitions, PxNode, PxScroll, PxTrigger } from './PxAnimatorTypes';
 
 // ── WIRE ENUMS (review §2.7) ────────────────────────────────────────────────
 // ONE shape for every enumerated wire value: an exported `Px*` const namespace plus the
@@ -648,7 +648,7 @@ export function isPxDocument(doc: any): doc is PxAnimatedSvgDocument {
  * them and they were never in the schema.
  * @public @advanced
  */
-export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorConfig | undefined {
+export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorRuntimeConfig | undefined {
     const cfg = doc?.animator || doc?.meta?.animator;
     if (!cfg) return undefined;
     const memoised = wireViewMemo.get(cfg as object);
@@ -664,7 +664,7 @@ export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorConfig 
 
     // Every internal consumer sees the FLAT view — the nested `timeline` spelling is
     // folded down here, once, so the engines/effects/drivers never branch on it.
-    const view = flattenAnimatorTimeline(source as PxAnimatorConfig);
+    const view = flattenAnimatorTimeline(source as PxAnimatorRuntimeConfig);
     // Memoised on the DOCUMENT's config: repeated calls must return the same object (callers
     // compare identity and cache off it), and `source` is a fresh object when keys were dropped.
     wireViewMemo.set(cfg as object, view);
@@ -672,7 +672,7 @@ export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorConfig 
 }
 
 /** Memo for {@link getAnimatorConfig} — see the identity note inside it. */
-const wireViewMemo = new WeakMap<object, PxAnimatorConfig>();
+const wireViewMemo = new WeakMap<object, PxAnimatorRuntimeConfig>();
 
 
 // ============================================================================
@@ -689,14 +689,14 @@ const wireViewMemo = new WeakMap<object, PxAnimatorConfig>();
 
 /** Memo: flatten allocates a new config; repeated `getAnimatorConfig` calls must keep
  *  returning the SAME object (some callers compare identity / cache off it). */
-const flattenMemo = new WeakMap<object, PxAnimatorConfig>();
+const flattenMemo = new WeakMap<object, PxAnimatorRuntimeConfig>();
 
 /**
  * Folds `cfg.timeline` (the wire spelling) into the flat runtime-view fields the engines
  * consume. Returns `cfg` unchanged when there is nothing to fold. Never mutates input.
  * @public @advanced
  */
-export function flattenAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
+export function flattenAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorRuntimeConfig {
     const timeline: any = (cfg as any).timeline;
     if (timeline === undefined || timeline === null || typeof timeline !== 'object') return cfg;
 
@@ -766,7 +766,7 @@ function scrollKindOrDefault(kind: unknown): 'view' | 'scroll' {
  * through unchanged; a pure-shared config (duration/mode/… only) gets no `timeline` at all.
  * @public @advanced
  */
-export function nestAnimatorTimeline(cfg: PxAnimatorConfig): PxAnimatorConfig {
+export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorConfig {
     if (!cfg || (cfg as any).timeline !== undefined) return cfg;
 
     const { timelineSource, scroll, trigger, delay, iterations, direction, fill, resetOnFinish,

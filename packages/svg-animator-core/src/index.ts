@@ -48,7 +48,7 @@ export type { PxControlProps } from './format/PxAnimatorConstants';
 export { PX_WIRE_SCHEMA_VERSION } from './version/PxSchemaVersion';
 
 // Document / model types
-export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorApi, PxEngineCallbacks, PxAnimatorConfig, PxPlaybackApi, PxBezierPath, PxBinding, PxDefinitions, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTransformParts, PxTrigger, PxTransformValue } from './format/PxAnimatorTypes';
+export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorApi, PxEngineCallbacks, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxPlaybackApi, PxBezierPath, PxBinding, PxDefinitions, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTransformParts, PxTrigger, PxTransformValue } from './format/PxAnimatorTypes';
 // VALUE exports, not `export type`: each wire enum is a const namespace AND the string type
 // derived from it under the same name (review §2.7), so a consumer gets both `PxTriggerStart.click`
 // and `start?: PxTriggerStart` from one import.

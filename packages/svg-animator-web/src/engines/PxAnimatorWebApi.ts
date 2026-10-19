@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, normalizeBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxEngineCallbacks, type PxAnimatorConfig, type PxBezierPath, clampSeekMs, isValidPlaybackRate, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, normalizeBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxBezierPath, clampSeekMs, isValidPlaybackRate, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
 import { PX_DEFAULT_ITERATIONS } from '@pixodesk/svg-animator-core/internal';
 import { PX_PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, PX_COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateValue, kebabToCamelCaseWord, splitEasing, toRGBA, PX_TRANSFORM_FN_NAMES, type PxAnyKeyframe, type PxNormalizedKeyframe, keyframeEasing, keyframeValue, createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import { getSelector } from './PxAnimatorFrameLoop';
@@ -155,7 +155,7 @@ function clipKeyframesToDuration(
 export function convertToWebApiKeyframes(
     animDef: PxAnimationDefinition,
     unsupportedSet: Set<string>,
-    config: PxAnimatorConfig
+    config: PxAnimatorRuntimeConfig
 ): Map<string, Keyframe[]> {
     const result = new Map<string, Keyframe[]>();
 

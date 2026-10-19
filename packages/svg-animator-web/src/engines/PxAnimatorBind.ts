@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
@@ -31,7 +31,7 @@ import { applyScrollPin, createNativeScrollTimeline, createScrollDriver } from '
  * after creation — finish always happens asynchronously later.
  */
 export function finaliseAnimator(
-    animatorConfig: PxAnimatorConfig,
+    animatorConfig: PxAnimatorRuntimeConfig,
     callbacks: PxEngineCallbacks | undefined,
     make: (effectiveCallbacks?: PxEngineCallbacks) => PxAnimatorApi
 ): PxAnimatorApi {

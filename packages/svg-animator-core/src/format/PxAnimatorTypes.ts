@@ -1174,15 +1174,22 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
 }));
 
 /**
- * Global animation configuration that applies to all animations in the document.
- * Defines timing, playback behavior, and rendering strategy.
- *
- * This is the runtime VIEW type: the wire carries the playback dynamics nested in
- * `timeline` (see `PxAnimatorConfigSchema`), and `flattenAnimatorTimeline` folds them
- * into the flat fields the engines consume — so the type is a superset of the wire.
+ * The document's `animator` block as written in a file: `timeline`, `definitions`, `bindings`,
+ * `debugGlobalName`, `version` — the playback dynamics live inside `timeline` (review §2.1).
+ * A flat key (`duration`, `trigger`, …) does not type-check here: the player drops it.
  * @public
  */
-export type PxAnimatorConfig = _PxAnimatorConfig;
+export type PxAnimatorConfig = PxInfer<typeof PxAnimatorConfigSchema>;
+
+/**
+ * The flat runtime view of the `animator` block: `timeline` folded into top-level `duration`,
+ * `trigger`, `delay`, `iterations`, `fill`, `direction`, `resetOnFinish`, `timelineSource` /
+ * `scroll`, `engine`, `frameRate`. Not a file format — `getAnimatorConfig` and
+ * `flattenAnimatorTimeline` return it, `nestAnimatorTimeline` turns it back into a
+ * {@link PxAnimatorConfig}. A superset of the written shape.
+ * @public @advanced
+ */
+export type PxAnimatorRuntimeConfig = _PxAnimatorConfig;
 
 
 
@@ -2082,12 +2089,7 @@ export const PxSvgNodeRootSchema = px.object({
  * SVG-root fields.
  * @public
  */
-export interface PxSvgNode extends PxNode, Omit<PxInfer<typeof PxSvgNodeRootSchema>, 'animator'> {
-    /** The RUNTIME-VIEW type, not the wire shape: in-memory documents may carry the
-     *  flat playback fields (`flattenAnimatorTimeline` output, prop overrides in the
-     *  RN/React wrappers), while `PxAnimatorConfigSchema` validates only the nested
-     *  `timeline` spelling on the wire (review §2.1). */
-    animator?: PxAnimatorConfig;
+export interface PxSvgNode extends PxNode, PxInfer<typeof PxSvgNodeRootSchema> {
 }
 
 

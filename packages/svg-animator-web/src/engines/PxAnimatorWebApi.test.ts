@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { convertToWebApiKeyframes } from './PxAnimatorWebApi';
-import type { PxAnimationDefinition, PxAnimatorConfig, PxBezierPath } from '@pixodesk/svg-animator-core';
+import type { PxAnimationDefinition, PxAnimatorRuntimeConfig, PxBezierPath } from '@pixodesk/svg-animator-core';
 
 // Regression for the WAAPI `d` (animated path) builder.
 //
@@ -22,7 +22,7 @@ function triangle(dx: number): PxBezierPath {
     return { v, i: v.map(p => [...p] as [number, number]), o: v.map(p => [...p] as [number, number]), c: true };
 }
 
-const CONFIG: PxAnimatorConfig = { duration: 320 };
+const CONFIG: PxAnimatorRuntimeConfig = { duration: 320 };
 
 /** jsdom has no CSS.supports; stub a REALIZTIC one — `d` is supported only as `path("…")`, so the
  *  old "[object Object]" value would (correctly) be reported unsupported. */
