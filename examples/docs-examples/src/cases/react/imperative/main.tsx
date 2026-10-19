@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { useRef } from 'react';
-import { PixodeskSvgAnimator, type ReactAnimatorApi } from '@pixodesk/svg-animator-react';
+import { SvgAnimator, type ReactAnimatorApi } from '@pixodesk/svg-animator-react';
 import animation from '../../../fixtures/animation.json';
 
 function App() {
@@ -14,7 +14,7 @@ function App() {
         <button onClick={() => api.current?.finish()}>finish()</button>
       </div>
       <div className="stage">
-        <PixodeskSvgAnimator doc={animation as any} apiRef={api} />
+        <SvgAnimator doc={animation as any} apiRef={api} />
       </div>
     </>
   );

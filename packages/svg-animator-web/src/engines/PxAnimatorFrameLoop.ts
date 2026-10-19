@@ -3,14 +3,14 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createAdapterAnimator, getAnimatorConfig, PxDiagnosticCode, PxDiagnosticKind, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxDiagnostics, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { createAdapterSvgAnimator, getAnimatorConfig, PxDiagnosticCode, PxDiagnosticKind, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxDiagnostics, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { camelCaseToKebabWordIfNeeded, createDiagnostics, isScrollTimeline, PX_STYLE_ATTR_NAMES } from '@pixodesk/svg-animator-core/internal';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
 import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
 
 // Re-export the platform-neutral pieces from their historical home so the
 // package surface is unchanged by the core extraction.
-export { createAdapterAnimator };
+export { createAdapterSvgAnimator };
 export type { PxPlatformAdapter };
 
 /**
@@ -76,7 +76,7 @@ export function createFrameLoopAnimator(
         }
     }
 
-    const basicApi = createAdapterAnimator(
+    const basicApi = createAdapterSvgAnimator(
         doc,
         adapter || createDomAdapter(rootElement, diag),
         callbacks

@@ -4,14 +4,14 @@
  *---------------------------------------------------------------------------------------*/
 
 /**
- * The `timeline` / `resetTimeline` option on `createAnimator`, and the four flat shortcuts.
+ * The `timeline` / `resetTimeline` option on `createSvgAnimator`, and the four flat shortcuts.
  *
  * These assert the OBSERVABLE effect — what the animator actually plays — rather than the
  * merged object, because the bug this feature replaces was exactly a merge that happened and
  * was then silently discarded downstream.
  */
 import { describe, expect, it, vi } from 'vitest';
-import { createAnimator } from './PxAnimator';
+import { createSvgAnimator } from './PxAnimator';
 import { resolveTimelineOption } from './PxAnimator';
 import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
 
@@ -78,7 +78,7 @@ describe('resolveTimelineOption — shortcuts and the string form', () => {
     });
 });
 
-describe('createAnimator — the override reaches the running animation', () => {
+describe('createSvgAnimator — the override reaches the running animation', () => {
 
     // The observable: the document's `start: 'load'` makes it autoplay. If the override
     // reaches the engine, the animation is NOT playing. Chosen because it is unambiguous —
@@ -86,13 +86,13 @@ describe('createAnimator — the override reaches the running animation', () => 
     // value at a given instant, which makes opacity a poor witness.
 
     it('baseline: the document autoplays, so a change here is visible', () => {
-        const api = createAnimator({ doc: wireDoc(), container: stage() });
+        const api = createSvgAnimator({ doc: wireDoc(), container: stage() });
         expect(api.isPlaying()).toBe(true);
         api.destroy();
     });
 
     it('timeline (object) overrides the trigger on a WIRE document — the case flat props silently lost', () => {
-        const api = createAnimator({
+        const api = createSvgAnimator({
             doc: wireDoc(), container: stage(),
             timeline: { trigger: { start: 'none' } },
         });
@@ -101,7 +101,7 @@ describe('createAnimator — the override reaches the running animation', () => 
     });
 
     it('timeline as a JSON STRING works identically', () => {
-        const api = createAnimator({
+        const api = createSvgAnimator({
             doc: wireDoc(), container: stage(),
             timeline: '{"trigger":{"start":"none"}}',
         });
@@ -110,7 +110,7 @@ describe('createAnimator — the override reaches the running animation', () => 
     });
 
     it('the start SHORTCUT does the same thing', () => {
-        const api = createAnimator({ doc: wireDoc(), container: stage(), start: 'none' });
+        const api = createSvgAnimator({ doc: wireDoc(), container: stage(), start: 'none' });
         expect(api.isPlaying()).toBe(false);
         api.destroy();
     });
@@ -121,7 +121,7 @@ describe('createAnimator — the override reaches the running animation', () => 
         // Since review §2.1 a MISSING trigger resolves to `start: 'load'`, so dropping the
         // document's trigger no longer means "nothing starts" — it means the default applies.
         // To get "nothing autostarts", ask for it: see the `start: 'none'` test above.
-        const api = createAnimator({
+        const api = createSvgAnimator({
             doc: wireDoc(), container: stage(),
             resetTimeline: true, timeline: { engine: 'js', duration: 4000 },
         });
@@ -132,7 +132,7 @@ describe('createAnimator — the override reaches the running animation', () => 
     it('does not mutate the caller document', () => {
         const doc = wireDoc();
         const before = JSON.stringify(doc);
-        const api = createAnimator({ doc, container: stage(), timeline: { duration: 9999 } });
+        const api = createSvgAnimator({ doc, container: stage(), timeline: { duration: 9999 } });
         expect(JSON.stringify(doc)).toBe(before);
         api.destroy();
     });

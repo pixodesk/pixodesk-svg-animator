@@ -10,13 +10,13 @@ import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
  * THE PAGE-WIDE REGISTRY — every live animator in the window, whoever created it.
  *
  * Like lottie-web's `getRegisteredAnimations()`: a dev tool, a test, or a "pause everything
- * while the tab is hidden" can reach every player without holding on to each `createAnimator`
+ * while the tab is hidden" can reach every player without holding on to each `createSvgAnimator`
  * result. An animator joins when it is built and leaves on `destroy()`; play / pause / cancel /
  * finish are announced to subscribers.
  *
  * ONE registry per window, whatever the bundling: the store hangs off `globalThis` under a
  * `Symbol.for` key, so the ESM build in one script and the UMD build in another share it. It
- * is also reachable by NAME — `globalThis.__pixodeskAnimators` — for tooling that does not
+ * is also reachable by NAME — `globalThis.__pixodeskSvgAnimators` — for tooling that does not
  * import the library (a devtools panel reading a page it did not build). Web only: React
  * Native players never touch it.
  *
@@ -31,7 +31,7 @@ export type PxAnimatorsEvent = 'add' | 'remove' | 'play' | 'pause' | 'cancel' | 
 /** Called for every {@link PxAnimatorsEvent} of every animator in the window. Experimental — may change. @public */
 export type PxAnimatorsListener = (event: PxAnimatorsEvent, animator: PxAnimatorApi) => void;
 
-/** The store itself — what `globalThis.__pixodeskAnimators` holds. Experimental — may change. @public */
+/** The store itself — what `globalThis.__pixodeskSvgAnimators` holds. Experimental — may change. @public */
 export interface PxAnimatorRegistry {
     /** Every live animator, in creation order. */
     getAll(): ReadonlyArray<PxAnimatorApi>;
@@ -46,7 +46,7 @@ interface RegistryStore extends PxAnimatorRegistry {
 
 const STORE_KEY = Symbol.for('@pixodesk/svg-animator-web:animators');
 /** The by-name handle for tooling that cannot import the library. */
-const GLOBAL_NAME = '__pixodeskAnimators';
+const GLOBAL_NAME = '__pixodeskSvgAnimators';
 
 /** The one store of this window, created on first use. `globalThis` carries it under a
  *  symbol (shared across bundle copies) and, for discoverability, under {@link GLOBAL_NAME}. */
@@ -74,13 +74,13 @@ function store(): RegistryStore {
 }
 
 /** Every live animator in this window, in creation order. Experimental — may change. @public */
-export function getAllAnimators(): ReadonlyArray<PxAnimatorApi> {
+export function getAllSvgAnimators(): ReadonlyArray<PxAnimatorApi> {
     return store().getAll();
 }
 
 /** Hear every animator in this window start, pause, cancel, finish, appear or go — returns
  *  the unsubscribe. Experimental — may change. @public */
-export function onAnimatorsChange(listener: PxAnimatorsListener): () => void {
+export function onSvgAnimatorsChange(listener: PxAnimatorsListener): () => void {
     return store().subscribe(listener);
 }
 

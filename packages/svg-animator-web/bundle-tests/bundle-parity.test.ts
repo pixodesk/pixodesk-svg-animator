@@ -23,8 +23,8 @@ import { BUNDLE_PAIRS, bundleText, framesDoc, loadBundle } from './bundleHarness
  * See dev-docs/plans/minification-boundary.md §1.1 — all twelve were verified broken on 2026-09-08.
  */
 const BOUNDARY_NAMES: Array<{ name: string; why: string }> = [
-    { name: 'callbacks',      why: 'createAnimator option — the whole callbacks bag is dropped' },
-    { name: 'adapter',        why: 'createAnimator option — custom render targets are ignored' },
+    { name: 'callbacks',      why: 'createSvgAnimator option — the whole callbacks bag is dropped' },
+    { name: 'adapter',        why: 'createSvgAnimator option — custom render targets are ignored' },
     { name: 'onPlay',         why: 'documented lifecycle callback' },
     { name: 'onPause',        why: 'documented lifecycle callback' },
     { name: 'onCancel',       why: 'documented lifecycle callback' },
@@ -91,7 +91,7 @@ describe('shipped bundles: behavior is identical minified and unminified', () =>
         it(`[${pair.name}] lifecycle callbacks fire`, () => {
             const scenario = (px: any, win: any) => {
                 const fired: string[] = [];
-                const api = px.createAnimator({
+                const api = px.create({
                     data: framesDoc(),
                     container: win.document.getElementById('stage'),
                     callbacks: {
@@ -113,7 +113,7 @@ describe('shipped bundles: behavior is identical minified and unminified', () =>
         it(`[${pair.name}] a custom adapter is used`, () => {
             const scenario = (px: any, win: any) => {
                 let calls = 0;
-                const api = px.createAnimator({
+                const api = px.create({
                     data: framesDoc(),
                     container: win.document.getElementById('stage'),
                     adapter: {
@@ -132,7 +132,7 @@ describe('shipped bundles: behavior is identical minified and unminified', () =>
         if (pair.renders) {
             it(`[${pair.name}] domType becomes a real "type" attribute`, () => {
                 const scenario = (px: any, win: any) => {
-                    px.createAnimator({
+                    px.create({
                         data: {
                             type: 'svg',
                             viewBox: '0 0 10 10',

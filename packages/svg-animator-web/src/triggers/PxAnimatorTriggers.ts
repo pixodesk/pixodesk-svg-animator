@@ -31,7 +31,7 @@ import { createVisibilityGate } from './PxVisibilityGate';
  * @param trigger The trigger configuration. `finish` belongs to the PLAYER (what happens after a
  *   natural end), not to the trigger wiring, and is not read here.
  * @returns A disposer that detaches every listener, observer and timer this call attached
- *   (review §14). `createAnimator` ties it to `destroy()`. Call it yourself before re-arming an
+ *   (review §14). `createSvgAnimator` ties it to `destroy()`. Call it yourself before re-arming an
  *   element you wired by hand — otherwise the old listeners stay live next to the new ones.
  * @public
  */

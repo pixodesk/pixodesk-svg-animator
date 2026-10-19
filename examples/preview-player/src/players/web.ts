@@ -1,13 +1,13 @@
-import { createAnimator, type PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
+import { createSvgAnimator, type PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
 import { applyTriggerOverride, type PlayerHandle, type PlayerOptions } from './types';
 
-/** Mounts the vanilla Web player (`createAnimator`) into `container`. */
+/** Mounts the vanilla Web player (`createSvgAnimator`) into `container`. */
 export function createWebPlayer(
   container: HTMLElement,
   doc: PxAnimatedSvgDocument,
   opts?: PlayerOptions,
 ): PlayerHandle {
-  const api = createAnimator({
+  const api = createSvgAnimator({
     // Trigger handling (programmatic / from-file / custom) is shared across all players.
     doc: applyTriggerOverride(doc, opts),
     container,

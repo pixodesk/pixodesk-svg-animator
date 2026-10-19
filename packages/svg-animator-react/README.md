@@ -13,7 +13,7 @@ React component for rendering and controlling Pixodesk SVG animations.
 ## Usage
 
 ```tsx
-import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-react';
+import { SvgAnimator } from '@pixodesk/svg-animator-react';
 import { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
 import _animation from './animation.json';
 
@@ -25,7 +25,7 @@ const animation: PxAnimatedSvgDocument = _animation;
 Uses triggers defined in the animation document (load, click, hover, scroll):
 
 ```tsx
-<PixodeskSvgAnimator doc={animation} autoplay />
+<SvgAnimator doc={animation} autoplay />
 ```
 
 ### Declarative play/pause
@@ -36,7 +36,7 @@ Control playback with boolean props:
 const [play, setPlay] = useState(false);
 const [pause, setPause] = useState(false);
 
-<PixodeskSvgAnimator doc={animation} play={play} pause={pause} />
+<SvgAnimator doc={animation} play={play} pause={pause} />
 <button onClick={() => setPlay(p => !p)}>
   {play ? 'Play (on)' : 'Play (off)'}
 </button>
@@ -55,7 +55,7 @@ import type { ReactAnimatorApi } from '@pixodesk/svg-animator-react';
 
 const api = useRef<ReactAnimatorApi>(null);
 
-<PixodeskSvgAnimator doc={animation} apiRef={api} />
+<SvgAnimator doc={animation} apiRef={api} />
 <button onClick={() => api.current?.play()}>Play</button>
 <button onClick={() => api.current?.pause()}>Pause</button>
 <button onClick={() => api.current?.cancel()}>Cancel</button>
@@ -72,7 +72,7 @@ Move through the animation with a slider, or show one fixed frame:
 ```tsx
 const [time, setTime] = useState(0);
 
-<PixodeskSvgAnimator doc={animation} time={time} />
+<SvgAnimator doc={animation} time={time} />
 <input
   type="range"
   min={0}
@@ -85,7 +85,7 @@ const [time, setTime] = useState(0);
 
 ## Props
 
-<!-- px-check props PixodeskSvgAnimatorProps pkg=react -->
+<!-- px-check props SvgAnimatorProps pkg=react -->
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxAnimatedSvgDocument` | The animation document to render (required) |

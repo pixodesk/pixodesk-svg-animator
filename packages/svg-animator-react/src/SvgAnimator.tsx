@@ -6,7 +6,7 @@
 import type { PxAnimatedSvgDocument, PxAnimatorApi, PxTimelineEngineSetting, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
 import type { PxMouseOutAction } from '@pixodesk/svg-animator-core';
-import { createAnimator, PxDiagnosticKind, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
+import { createSvgAnimator, PxDiagnosticKind, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxDiagnosticCode, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import type { CSSProperties, FC, ReactElement } from 'react';
@@ -67,7 +67,7 @@ function toReactPropName(attr: string): string {
  */
 export type ReactAnimatorApi = PxAnimatorHandle;
 
-export interface PixodeskSvgAnimatorImplProps {
+export interface SvgAnimatorImplProps {
     className?: string;
     style?: CSSProperties;
     doc: PxAnimatedSvgDocument;
@@ -81,23 +81,23 @@ export interface PixodeskSvgAnimatorImplProps {
      * inner component always calls the current props even though it never
      * re-renders.
      */
-    callbacksRef: React.RefObject<PixodeskSvgAnimatorCallbacks>;
+    callbacksRef: React.RefObject<SvgAnimatorCallbacks>;
 
     /**
      * Latest diagnostics props (API review §5). Kept OUT of
-     * {@link PixodeskSvgAnimatorCallbacks} on purpose: that type is indexed with `keyof` and
+     * {@link SvgAnimatorCallbacks} on purpose: that type is indexed with `keyof` and
      * every member invoked as a function, so a `muteWarn: boolean` in there would not type.
      */
     diagRef: React.RefObject<PxDiagnosticsConfig>;
 }
 
 /**
- * The six lifecycle callbacks — a subset of {@link PixodeskSvgAnimatorProps}, derived from core's
+ * The six lifecycle callbacks — a subset of {@link SvgAnimatorProps}, derived from core's
  * `PxAnimatorCallbacks` (review §9). Kept under its own name because the inner component indexes
  * it with `keyof` and invokes every member, which the diagnostics members would not allow.
  * @public
  */
-export type PixodeskSvgAnimatorCallbacks =
+export type SvgAnimatorCallbacks =
     Pick<PxAnimatorCallbacks, 'onPlay' | 'onStop' | 'onPause' | 'onCancel' | 'onFinish' | 'onRemove'>;
 
 /**
@@ -107,7 +107,7 @@ export type PixodeskSvgAnimatorCallbacks =
  * React-specific is declared here.
  * @public
  */
-export interface PixodeskSvgAnimatorProps extends PxPlaybackOverride, PxControlProps, PxAnimatorCallbacks {
+export interface SvgAnimatorProps extends PxPlaybackOverride, PxControlProps, PxAnimatorCallbacks {
 
     /** Added to the root `<svg>`. */
     className?: string;
@@ -145,7 +145,7 @@ export interface PixodeskSvgAnimatorProps extends PxPlaybackOverride, PxControlP
 
 // -- Inner component (memoised, never re-renders) ---------------------------
 
-const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
+const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
     className, style, doc, compMode, apiHolderRef, callbacksRef, diagRef
 }) => {
 
@@ -179,14 +179,14 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
         return createElement(tag, props, children.length ? children : text);
     };
 
-    const root = renderPxTree(doc, createReactElement, createDiagnostics(diagRef.current ?? undefined, '[PixodeskSvgAnimator]'));
+    const root = renderPxTree(doc, createReactElement, createDiagnostics(diagRef.current ?? undefined, '[SvgAnimator]'));
 
     // Create the animator once per document and tear it down on unmount.
     useEffect(() => {
 
         // Route lifecycle events through `callbacksRef` so the latest callback
         // props are invoked even though this component never re-renders.
-        const cb = (name: keyof PixodeskSvgAnimatorCallbacks) => () => { callbacksRef.current?.[name]?.(); };
+        const cb = (name: keyof SvgAnimatorCallbacks) => () => { callbacksRef.current?.[name]?.(); };
         // The player's own diagnostics reach the same handlers as the component's (§5). Spread
         // the CURRENT values rather than wrapping them: `(m, d) => diagRef.current?.onWarn?.(m, d)`
         // would always be a function, so the channel would never fall back to the console.
@@ -211,7 +211,7 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
             muteWarn:  diagRef.current?.muteWarn,
             muteError: diagRef.current?.muteError,
         };
-        let api: PxAnimatorApi | undefined = createAnimator(options);
+        let api: PxAnimatorApi | undefined = createSvgAnimator(options);
         apiHolderRef.current = api;
 
         return () => {
@@ -224,8 +224,8 @@ const PixodeskSvgAnimatorImpl: FC<PixodeskSvgAnimatorImplProps> = ({
 };
 
 /** Memoised wrapper — the inner component never re-renders (props are stable by design). */
-const PixodeskSvgAnimatorImplOnce = React.memo(
-    PixodeskSvgAnimatorImpl,
+const SvgAnimatorImplOnce = React.memo(
+    SvgAnimatorImpl,
     () => true // Don't re-render
 );
 
@@ -239,29 +239,29 @@ const PixodeskSvgAnimatorImplOnce = React.memo(
  *
  * 1. **Autoplay** – uses triggers from the animation document.
  *    ```tsx
- *    <PixodeskSvgAnimator doc={animation} autoplay />
+ *    <SvgAnimator doc={animation} autoplay />
  *    ```
  *
  * 2. **Declarative play/pause** – controlled via boolean props.
  *    ```tsx
- *    <PixodeskSvgAnimator doc={animation} play pause={false} />
+ *    <SvgAnimator doc={animation} play pause={false} />
  *    ```
  *
  * 3. **Imperative** – exposes a ref-based API for full programmatic control.
  *    ```tsx
  *    const api = useRef<ReactAnimatorApi>(null);
- *    <PixodeskSvgAnimator doc={animation} apiRef={api} />
+ *    <SvgAnimator doc={animation} apiRef={api} />
  *    <button onClick={() => api.current?.play()}>Play</button>
  *    ```
  *
  * 4. **Controlled time** – renders a single frame at a given time.
  *    ```tsx
- *    <PixodeskSvgAnimator doc={animation} progress={0.5} />
- *    <PixodeskSvgAnimator doc={animation} time={500} />
+ *    <SvgAnimator doc={animation} progress={0.5} />
+ *    <SvgAnimator doc={animation} time={500} />
  *    ```
  * @public
  */
-const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
+const SvgAnimator: FC<SvgAnimatorProps> = ({
     className, style,
     doc, autoplay, play, pause, progress, time, apiRef,
 
@@ -276,7 +276,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
 
     // ONE control-mode rule, decided in core and shared with Vue and React Native
     // (API review §1/§7). `apiRef` is deliberately NOT an input: the handle is populated in
-    // every mode, so `<PixodeskSvgAnimator autoplay apiRef={api} />` now autostarts AND gives
+    // every mode, so `<SvgAnimator autoplay apiRef={api} />` now autostarts AND gives
     // you the handle, instead of the ref silently forcing `start: 'none'`.
     const { mode: compMode, warnings: modeWarnings } =
         resolveControlMode({ progress, time, play, pause, autoplay });
@@ -288,7 +288,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
      * would never fire for anyone who passed nothing.
      */
     const makeDiag = (): PxDiagnostics =>
-        createDiagnostics({ onWarn, onError, muteWarn, muteError }, '[PixodeskSvgAnimator]');
+        createDiagnostics({ onWarn, onError, muteWarn, muteError }, '[SvgAnimator]');
 
     // Warn once per distinct conflict, not once per render — a parent re-rendering on unrelated
     // state must not repeat the sentence. React Native guards it the same way.
@@ -350,7 +350,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     const apiHolderRef = useRef<PxAnimatorApi | null>(null);
 
     // Keep the latest callback props readable by the memoised inner component.
-    const callbacksRef = useRef<PixodeskSvgAnimatorCallbacks>({});
+    const callbacksRef = useRef<SvgAnimatorCallbacks>({});
     callbacksRef.current = { onPlay, onStop, onPause, onCancel, onFinish, onRemove };
 
     // Same idea for the diagnostics props, so the player and the adapter report where the
@@ -420,7 +420,7 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     }, [compMode, seekMs, key]);
 
     return (
-        <PixodeskSvgAnimatorImplOnce
+        <SvgAnimatorImplOnce
             key={key}
             className={className}
             style={style}
@@ -433,4 +433,4 @@ const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps> = ({
     );
 };
 
-export default PixodeskSvgAnimator;
+export default SvgAnimator;

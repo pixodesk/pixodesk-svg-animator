@@ -1,4 +1,4 @@
-import { createAnimator } from '@pixodesk/svg-animator-web';
+import { createSvgAnimator } from '@pixodesk/svg-animator-web';
 import animation from '../../../fixtures/animation.json';
 
 // `timeline.engine` picks who runs the animation: the browser (WAAPI) or the player's frame loop.
@@ -7,5 +7,5 @@ const withEngine = (engine: 'native' | 'js') => ({
   animator: { ...animation.animator, timeline: { ...animation.animator.timeline, engine, iterations: 'infinite' } },
 });
 
-createAnimator({ doc: withEngine('native') as any, container: '#waapi' });
-createAnimator({ doc: withEngine('js') as any, container: '#frames' });
+createSvgAnimator({ doc: withEngine('native') as any, container: '#waapi' });
+createSvgAnimator({ doc: withEngine('js') as any, container: '#frames' });

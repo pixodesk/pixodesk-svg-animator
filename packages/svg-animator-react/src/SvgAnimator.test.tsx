@@ -3,15 +3,15 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createAnimator, PxAnimatedSvgDocument, type PxNode } from '@pixodesk/svg-animator-web';
+import { createSvgAnimator, PxAnimatedSvgDocument, type PxNode } from '@pixodesk/svg-animator-web';
 import { PxDiagnosticCode } from '@pixodesk/svg-animator-core';
 import { cleanup, render } from "@testing-library/react";
 import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import PixodeskSvgAnimator, { REACT_CAMEL_CASED_SVG_ATTRS, ReactAnimatorApi } from './PixodeskSvgAnimator';
+import SvgAnimator, { REACT_CAMEL_CASED_SVG_ATTRS, ReactAnimatorApi } from './SvgAnimator';
 
 
-describe("PixodeskSvgAnimator (React)", () => {
+describe("SvgAnimator (React)", () => {
     beforeEach(() => {
         vi.useFakeTimers();
     });
@@ -32,7 +32,7 @@ describe("PixodeskSvgAnimator (React)", () => {
 
     describe("rendering", () => {
         it("renders the SVG tag tree with attributes", () => {
-            const { container } = render(<PixodeskSvgAnimator doc={getTreeJson()} />);
+            const { container } = render(<SvgAnimator doc={getTreeJson()} />);
 
             const svg = container.querySelector("svg");
             expect(svg).not.toBeNull();
@@ -54,7 +54,7 @@ describe("PixodeskSvgAnimator (React)", () => {
         });
 
         it("renders text content — a leaf <text> and its <tspan> children carry `textContent`", () => {
-            const { container } = render(<PixodeskSvgAnimator doc={getTextJson()} />);
+            const { container } = render(<SvgAnimator doc={getTextJson()} />);
 
             const [leaf, spans] = Array.from(container.querySelectorAll("svg > text"));
             expect(leaf?.textContent).toBe("Leaf");
@@ -65,7 +65,7 @@ describe("PixodeskSvgAnimator (React)", () => {
         });
 
         it("a node with child nodes renders its children, not its own `textContent` too", () => {
-            const { container } = render(<PixodeskSvgAnimator doc={getTextJson()} />);
+            const { container } = render(<SvgAnimator doc={getTextJson()} />);
 
             // the line <tspan> carries BOTH its folded text and the styled child span
             expect(container.querySelector("tspan > tspan")?.parentElement?.textContent).toBe("Hi");
@@ -73,7 +73,7 @@ describe("PixodeskSvgAnimator (React)", () => {
 
         it("regenerates ids (rendered id differs from doc id)", () => {
             const doc = getTreeJson();
-            const { container } = render(<PixodeskSvgAnimator doc={doc} />);
+            const { container } = render(<SvgAnimator doc={doc} />);
 
             const svg = container.querySelector("svg");
             const renderedRootId = svg?.getAttribute("id");
@@ -94,7 +94,7 @@ describe("PixodeskSvgAnimator (React)", () => {
                     { type: 'ellipse', fill: '#007fff', rx: 200, ry: 202.5, style: { display: 'none' } },
                 ],
             };
-            const { container } = render(<PixodeskSvgAnimator doc={doc} />);
+            const { container } = render(<SvgAnimator doc={doc} />);
 
             const [visible, hidden] = Array.from(container.querySelectorAll("ellipse")) as Array<SVGElement>;
             expect(visible.style.display).toBe("");
@@ -103,7 +103,7 @@ describe("PixodeskSvgAnimator (React)", () => {
 
         it("merges the root node's inline `style` with the component's `style` prop (the prop wins)", () => {
             const doc: PxAnimatedSvgDocument = { type: 'svg', viewBox: '0 0 100 100', style: { display: 'block', opacity: '0.5' }, children: [] };
-            const { container } = render(<PixodeskSvgAnimator doc={doc} style={{ opacity: 1 }} />);
+            const { container } = render(<SvgAnimator doc={doc} style={{ opacity: 1 }} />);
 
             const svg = container.querySelector("svg") as SVGSVGElement;
             expect(svg.style.display).toBe("block");
@@ -113,7 +113,7 @@ describe("PixodeskSvgAnimator (React)", () => {
         it("is static without control props (does not auto-play or auto-finish)", () => {
             const onPlay = vi.fn();
             const onFinish = vi.fn();
-            render(<PixodeskSvgAnimator doc={getTestJson()} onPlay={onPlay} onFinish={onFinish} />);
+            render(<SvgAnimator doc={getTestJson()} onPlay={onPlay} onFinish={onFinish} />);
 
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toBe("translate(200,100)");
@@ -130,7 +130,7 @@ describe("PixodeskSvgAnimator (React)", () => {
 
     describe("animation", () => {
         it("renders and animates with autoplay", () => {
-            render(<PixodeskSvgAnimator doc={getTestJson()} autoplay />);
+            render(<SvgAnimator doc={getTestJson()} autoplay />);
 
             const ellipse = document.querySelector("ellipse");
             expect(ellipse).not.toBeNull();
@@ -153,7 +153,7 @@ describe("PixodeskSvgAnimator (React)", () => {
             // The §1 bug: passing `apiRef` forced start:'none', so this
             // never moved on its own and `autoplay` was silently dead.
             const apiRef = createRef<ReactAnimatorApi>();
-            render(<PixodeskSvgAnimator doc={getTestJson()} autoplay apiRef={apiRef} />);
+            render(<SvgAnimator doc={getTestJson()} autoplay apiRef={apiRef} />);
 
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,100)");
@@ -168,7 +168,7 @@ describe("PixodeskSvgAnimator (React)", () => {
 
         it("warns when two control tiers are set, naming both and the winner", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
-            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay />);
+            render(<SvgAnimator doc={getTestJson()} progress={0.5} autoplay />);
 
             const said = warn.mock.calls.map(c => c.map(String).join(" ")).join("\n");
             expect(said).toContain("PX" + PxDiagnosticCode.controlPropsConflict);
@@ -180,7 +180,7 @@ describe("PixodeskSvgAnimator (React)", () => {
 
         it("says nothing when only one tier is used", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
-            render(<PixodeskSvgAnimator doc={getTestJson()} autoplay />);
+            render(<SvgAnimator doc={getTestJson()} autoplay />);
 
             expect(warn).not.toHaveBeenCalled();
             warn.mockRestore();
@@ -197,10 +197,10 @@ describe("PixodeskSvgAnimator (React)", () => {
             // identity, remount the animator, and let a remount satisfy this by accident.
             const doc = getTestJson();
             const { rerender } = render(
-                <PixodeskSvgAnimator doc={doc} play onPause={onPause} onFinish={onFinish} />);
+                <SvgAnimator doc={doc} play onPause={onPause} onFinish={onFinish} />);
             vi.advanceTimersByTime(32);
 
-            rerender(<PixodeskSvgAnimator doc={doc} play={false} onPause={onPause} onFinish={onFinish} />);
+            rerender(<SvgAnimator doc={doc} play={false} onPause={onPause} onFinish={onFinish} />);
 
             expect(onPause).toHaveBeenCalled();
             expect(onFinish).not.toHaveBeenCalled();   // this used to be finish()
@@ -214,7 +214,7 @@ describe("PixodeskSvgAnimator (React)", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
             const onWarn = vi.fn();
 
-            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay onWarn={onWarn} />);
+            render(<SvgAnimator doc={getTestJson()} progress={0.5} autoplay onWarn={onWarn} />);
 
             expect(onWarn).toHaveBeenCalled();
             const d = onWarn.mock.calls[0][0];
@@ -230,7 +230,7 @@ describe("PixodeskSvgAnimator (React)", () => {
         it("falls back to the console when no handler is given", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
-            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay />);
+            render(<SvgAnimator doc={getTestJson()} progress={0.5} autoplay />);
 
             expect(warn).toHaveBeenCalled();
             warn.mockRestore();
@@ -239,7 +239,7 @@ describe("PixodeskSvgAnimator (React)", () => {
         it("muteWarn switches the console fallback off", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
-            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay muteWarn />);
+            render(<SvgAnimator doc={getTestJson()} progress={0.5} autoplay muteWarn />);
 
             expect(warn).not.toHaveBeenCalled();
             warn.mockRestore();
@@ -249,7 +249,7 @@ describe("PixodeskSvgAnimator (React)", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
             // The control-mode conflict is a WARNING; muting errors leaves it audible.
-            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay muteError />);
+            render(<SvgAnimator doc={getTestJson()} progress={0.5} autoplay muteError />);
             expect(warn).toHaveBeenCalled();
             warn.mockRestore();
         });
@@ -258,7 +258,7 @@ describe("PixodeskSvgAnimator (React)", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
             const onWarn = vi.fn();
 
-            render(<PixodeskSvgAnimator doc={getTestJson()} progress={0.5} autoplay muteWarn onWarn={onWarn} />);
+            render(<SvgAnimator doc={getTestJson()} progress={0.5} autoplay muteWarn onWarn={onWarn} />);
 
             expect(onWarn).toHaveBeenCalled();
             expect(warn).not.toHaveBeenCalled();
@@ -271,7 +271,7 @@ describe("PixodeskSvgAnimator (React)", () => {
     describe("imperative API (apiRef)", () => {
         it("exposes play/pause/setCurrentTime/getCurrentTime/setPlaybackRate/isPlaying", () => {
             const apiRef = createRef<ReactAnimatorApi>();
-            render(<PixodeskSvgAnimator doc={getTestJson()} apiRef={apiRef} />);
+            render(<SvgAnimator doc={getTestJson()} apiRef={apiRef} />);
 
             const api = apiRef.current;
             expect(api).not.toBeNull();
@@ -312,7 +312,7 @@ describe("PixodeskSvgAnimator (React)", () => {
                 onPlay: vi.fn(), onPause: vi.fn(), onCancel: vi.fn(),
                 onFinish: vi.fn(), onRemove: vi.fn(), onStop: vi.fn(),
             };
-            const utils = render(<PixodeskSvgAnimator doc={getTestJson()} apiRef={apiRef} {...spies} />);
+            const utils = render(<SvgAnimator doc={getTestJson()} apiRef={apiRef} {...spies} />);
             return { apiRef, spies, ...utils };
         }
 
@@ -360,19 +360,19 @@ describe("PixodeskSvgAnimator (React)", () => {
 
     describe("controlled time", () => {
         it("renders mid-animation state with time (absolute milliseconds)", () => {
-            render(<PixodeskSvgAnimator doc={getTestJson1000()} time={500} />);
+            render(<SvgAnimator doc={getTestJson1000()} time={500} />);
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
         });
 
         it("treats `progress` as a fraction of duration (progress=0.5, duration=1000 → 500ms)", () => {
-            render(<PixodeskSvgAnimator doc={getTestJson1000()} progress={0.5} />);
+            render(<SvgAnimator doc={getTestJson1000()} progress={0.5} />);
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
         });
 
         it("does not advance on its own in fixed-time mode", () => {
-            render(<PixodeskSvgAnimator doc={getTestJson1000()} time={500} />);
+            render(<SvgAnimator doc={getTestJson1000()} time={500} />);
             const ellipse = document.querySelector("ellipse");
             vi.advanceTimersByTime(1000);
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
@@ -384,7 +384,7 @@ describe("PixodeskSvgAnimator (React)", () => {
     describe("className / style", () => {
         it("merges className onto the root svg and applies style", () => {
             const { container } = render(
-                <PixodeskSvgAnimator doc={getTestJson()} className="my-class" style={{ width: '123px' }} />
+                <SvgAnimator doc={getTestJson()} className="my-class" style={{ width: '123px' }} />
             );
             const svg = container.querySelector("svg");
             expect(svg).not.toBeNull();
@@ -400,11 +400,11 @@ describe("PixodeskSvgAnimator (React)", () => {
 
     describe("doc change", () => {
         it("swaps to a new animator when the doc prop changes", () => {
-            const { container, rerender } = render(<PixodeskSvgAnimator doc={getTestJson()} autoplay />);
+            const { container, rerender } = render(<SvgAnimator doc={getTestJson()} autoplay />);
             expect(container.querySelector("ellipse")).not.toBeNull();
             const firstRootId = container.querySelector("svg")?.getAttribute("id");
 
-            rerender(<PixodeskSvgAnimator doc={getRectJson()} autoplay />);
+            rerender(<SvgAnimator doc={getRectJson()} autoplay />);
 
             // Old content replaced by the new doc's content
             expect(container.querySelector("ellipse")).toBeNull();
@@ -448,29 +448,29 @@ describe("PixodeskSvgAnimator (React)", () => {
         const opacityNow = () => Number(document.querySelector("rect")?.getAttribute("opacity"));
 
         it("baseline: progress=0.5 of the document's own 1000ms lands mid-animation", () => {
-            render(<PixodeskSvgAnimator doc={wireJson()} progress={0.5} />);
+            render(<SvgAnimator doc={wireJson()} progress={0.5} />);
             expect(opacityNow()).toBeCloseTo(0.5, 1);
         });
 
         it("timeline overrides duration ON A WIRE DOCUMENT (the flat props never did)", () => {
-            render(<PixodeskSvgAnimator doc={wireJson()} progress={0.5} timeline={{ duration: 4000 }} />);
+            render(<SvgAnimator doc={wireJson()} progress={0.5} timeline={{ duration: 4000 }} />);
             expect(opacityNow()).toBe(1);
         });
 
         it("the duration SHORTCUT does the same thing", () => {
-            render(<PixodeskSvgAnimator doc={wireJson()} progress={0.5} duration={4000} />);
+            render(<SvgAnimator doc={wireJson()} progress={0.5} duration={4000} />);
             expect(opacityNow()).toBe(1);
         });
 
         it("accepts the JSON-string form of timeline", () => {
-            render(<PixodeskSvgAnimator doc={wireJson()} progress={0.5} timeline={'{"duration":4000}'} />);
+            render(<SvgAnimator doc={wireJson()} progress={0.5} timeline={'{"duration":4000}'} />);
             expect(opacityNow()).toBe(1);
         });
 
         it("does not mutate the document the caller passed", () => {
             const doc = wireJson();
             const before = JSON.stringify(doc);
-            render(<PixodeskSvgAnimator doc={doc} autoplay timeline={{ duration: 9999 }} />);
+            render(<SvgAnimator doc={doc} autoplay timeline={{ duration: 9999 }} />);
             expect(JSON.stringify(doc)).toBe(before);
         });
     });
@@ -481,12 +481,12 @@ describe("PixodeskSvgAnimator (React)", () => {
     // take their fill from `effects.fillGradient`, and the ellipse is `effects.maskedBy` the
     // rect. The web player plays it. React rendered an EMPTY canvas, because it built its DOM
     // from the raw document — `effects` never became <radialGradient>/<mask> defs, so every
-    // shape inherited `fill: none`. `createAnimator` did materialize, but only its own copy,
+    // shape inherited `fill: none`. `createSvgAnimator` did materialize, but only its own copy,
     // after React had already rendered.
 
     describe("effects", () => {
         it("renders the gradients and the mask that `effects` describe", () => {
-            const svg = renderSvg(<PixodeskSvgAnimator doc={getEffectsOnlyJson()} />);
+            const svg = renderSvg(<SvgAnimator doc={getEffectsOnlyJson()} />);
 
             expect(svg.querySelectorAll("radialGradient")).toHaveLength(2);
             expect(svg.querySelector("mask")).not.toBeNull();
@@ -495,7 +495,7 @@ describe("PixodeskSvgAnimator (React)", () => {
         });
 
         it("every url(#id) reference resolves to an element in the same svg", () => {
-            const svg = renderSvg(<PixodeskSvgAnimator doc={getEffectsOnlyJson()} />);
+            const svg = renderSvg(<SvgAnimator doc={getEffectsOnlyJson()} />);
 
             const refs = collectUrlRefs(svg);
             // The document is nothing BUT references — fill ×2 and mask — so an empty list
@@ -513,11 +513,11 @@ describe("PixodeskSvgAnimator (React)", () => {
             const host = document.createElement("div");
             document.body.appendChild(host);
             // The document's own trigger is mouse-over, so it does not start — nothing to stop.
-            const web = createAnimator({ doc: getEffectsOnlyJson(), container: host });
+            const web = createSvgAnimator({ doc: getEffectsOnlyJson(), container: host });
             const webSvg = host.querySelector("svg");
             expect(webSvg).not.toBeNull();
 
-            const svg = renderSvg(<PixodeskSvgAnimator doc={getEffectsOnlyJson()} />);
+            const svg = renderSvg(<SvgAnimator doc={getEffectsOnlyJson()} />);
 
             expect(tagCensus(svg)).toEqual(tagCensus(webSvg));
             web.destroy();
@@ -537,7 +537,7 @@ describe("PixodeskSvgAnimator (React)", () => {
                 // Frames engine: the document sets none, so it would resolve to native (WAAPI),
                 // which needs `CSS.supports` — jsdom has none, and the build would fail before
                 // anything bound. Every other test in this file pins `js` for the same reason.
-                const svg = renderSvg(<PixodeskSvgAnimator doc={getEffectsOnlyJson()} time={time} onWarn={onWarn} timeline={{ engine: "js" }} />);
+                const svg = renderSvg(<SvgAnimator doc={getEffectsOnlyJson()} time={time} onWarn={onWarn} timeline={{ engine: "js" }} />);
                 const transforms = Array.from(svg.querySelectorAll("[transform]"))
                     .map(el => el.getAttribute("transform")).join(" | ");
                 const missed = onWarn.mock.calls.filter(([d]) => d.code === PxDiagnosticCode.setAttributeNoElement);
@@ -558,8 +558,8 @@ describe("PixodeskSvgAnimator (React)", () => {
             // same gradient/mask ids — and `url(#…)` resolves document-wide, to the FIRST match.
             // The web player regenerates ids AFTER materializing; the component must too.
             const { container } = render(<>
-                <PixodeskSvgAnimator doc={getEffectsOnlyJson()} />
-                <PixodeskSvgAnimator doc={getEffectsOnlyJson()} />
+                <SvgAnimator doc={getEffectsOnlyJson()} />
+                <SvgAnimator doc={getEffectsOnlyJson()} />
             </>);
 
             const ids = Array.from(container.querySelectorAll("radialGradient, mask")).map(el => el.id);
@@ -580,7 +580,7 @@ describe("PixodeskSvgAnimator (React)", () => {
         it("a `load` trigger plays when the document's root has no id", () => {
             const onWarn = vi.fn();
             const { container } = render(
-                <PixodeskSvgAnimator doc={getMaskedLoadJson()} autoplay onWarn={onWarn} timeline={{ engine: "js" }} />);
+                <SvgAnimator doc={getMaskedLoadJson()} autoplay onWarn={onWarn} timeline={{ engine: "js" }} />);
 
             // The only animated element is the ellipse INSIDE the mask.
             const moving = container.querySelector("mask ellipse");
@@ -605,7 +605,7 @@ describe("PixodeskSvgAnimator (React)", () => {
 
     describe("attribute names", () => {
         it("`maskType` reaches the DOM as `mask-type`", () => {
-            const svg = renderSvg(<PixodeskSvgAnimator doc={getMaskedLoadJson()} />);
+            const svg = renderSvg(<SvgAnimator doc={getMaskedLoadJson()} />);
             const mask = svg.querySelector("mask");
 
             expect(mask?.getAttribute("mask-type")).toBe("alpha");
@@ -614,7 +614,7 @@ describe("PixodeskSvgAnimator (React)", () => {
 
         it("`maskType` from an effect reaches the DOM as `mask-type` too", () => {
             // The effects document: `maskedBy.maskType` is written onto the materialized mask.
-            const mask = renderSvg(<PixodeskSvgAnimator doc={getEffectsOnlyJson()} />).querySelector("mask");
+            const mask = renderSvg(<SvgAnimator doc={getEffectsOnlyJson()} />).querySelector("mask");
             expect(mask?.getAttribute("mask-type")).toBe("alpha");
         });
 
@@ -640,11 +640,11 @@ describe("PixodeskSvgAnimator (React)", () => {
 
             const host = document.createElement("div");
             document.body.appendChild(host);
-            const web = createAnimator({ doc, container: host });
+            const web = createSvgAnimator({ doc, container: host });
             const webNames = attributeNames(host.querySelector("rect"));
 
             const error = vi.spyOn(console, "error").mockImplementation(() => { });
-            const reactNames = attributeNames(renderSvg(<PixodeskSvgAnimator doc={doc} />).querySelector("rect"));
+            const reactNames = attributeNames(renderSvg(<SvgAnimator doc={doc} />).querySelector("rect"));
             error.mockRestore();
 
             expect(reactNames).toEqual(webNames);
@@ -656,7 +656,7 @@ describe("PixodeskSvgAnimator (React)", () => {
             // The other half of the contract: converting EVERYTHING to kebab would put
             // `stroke-width` in front of React, which warns "did you mean strokeWidth" for each.
             const error = vi.spyOn(console, "error").mockImplementation(() => { });
-            const svg = renderSvg(<PixodeskSvgAnimator doc={getEffectsOnlyJson()} />);
+            const svg = renderSvg(<SvgAnimator doc={getEffectsOnlyJson()} />);
 
             expect(svg.querySelector("stop")?.getAttribute("stop-color")).toBeTruthy();
             expect(svg.querySelector("radialGradient")?.getAttribute("gradientUnits")).toBe("userSpaceOnUse");

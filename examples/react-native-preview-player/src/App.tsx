@@ -6,7 +6,7 @@
  * loop override, playback rate and a light/dark theme toggle. Instead of the
  * web version's drag-and-drop, the documents are embedded (see `samples.ts`).
  */
-import { PixodeskSvgAnimator, type RnAnimatorApi } from '@pixodesk/svg-animator-rn';
+import { SvgAnimator, type RnAnimatorApi } from '@pixodesk/svg-animator-rn';
 import { getAnimatorConfig } from '@pixodesk/svg-animator-core';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -99,7 +99,7 @@ export default function App() {
 
                 {/* -- Stage --------------------------------------------------- */}
                 <View style={[styles.stage, { backgroundColor: t.card, borderColor: t.border }]}>
-                    <PixodeskSvgAnimator
+                    <SvgAnimator
                         key={sampleIdx + '|' + loopMode}
                         doc={doc}
                         iterations={loopIterations(loopMode)}

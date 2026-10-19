@@ -9,11 +9,11 @@ the client, so it works in the App Router — mark the file that uses it as a cl
 
 ```tsx
 'use client';
-import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-react';
+import { SvgAnimator } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export default function Hero() {
-  return <PixodeskSvgAnimator doc={animation} autoplay />;
+  return <SvgAnimator doc={animation} autoplay />;
 }
 ```
 

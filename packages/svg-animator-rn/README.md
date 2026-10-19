@@ -16,7 +16,7 @@ built on `react-native-svg` and `react-native-reanimated`. Props mirror
 
 ## What it does
 
-`<PixodeskSvgAnimator doc={…} />` takes an animation document exported from the
+`<SvgAnimator doc={…} />` takes an animation document exported from the
 Pixodesk editor — the **same `.json` the web player uses** — and renders it as
 native SVG, driven on the UI thread.
 
@@ -32,13 +32,13 @@ Drop `animation.json` next to your component and render it:
 
 ```tsx
 import { View } from 'react-native';
-import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-rn';
+import { SvgAnimator } from '@pixodesk/svg-animator-rn';
 import animation from './animation.json';
 
 export function Logo() {
     return (
         <View style={{ width: 200, height: 200 }}>
-            <PixodeskSvgAnimator doc={animation} autoplay />
+            <SvgAnimator doc={animation} autoplay />
         </View>
     );
 }
@@ -51,25 +51,25 @@ document says so.
 
 ```tsx
 // Play once when a screen opens, then hold the last frame
-<PixodeskSvgAnimator doc={doc} autoplay iterations={1} timeline={{ fillMode: 'forwards' }} />
+<SvgAnimator doc={doc} autoplay iterations={1} timeline={{ fillMode: 'forwards' }} />
 
 // Loop forever regardless of what the document says
-<PixodeskSvgAnimator doc={doc} autoplay iterations="infinite" />
+<SvgAnimator doc={doc} autoplay iterations="infinite" />
 
 // Static — first frame only, no playback
-<PixodeskSvgAnimator doc={doc} />
+<SvgAnimator doc={doc} />
 
 // Toggle from your own state
-<PixodeskSvgAnimator doc={doc} play={isPlaying} />
+<SvgAnimator doc={doc} play={isPlaying} />
 
 // Tie progress to a gesture / slider (no playback, just a frame)
-<PixodeskSvgAnimator doc={doc} time={scrollProgress} />
+<SvgAnimator doc={doc} time={scrollProgress} />
 
 // Override the document's timing (duration in ms, delay before start)
-<PixodeskSvgAnimator doc={doc} autoplay duration={4000} delay={500} />
+<SvgAnimator doc={doc} autoplay duration={4000} delay={500} />
 
 // Do something when it finishes
-<PixodeskSvgAnimator doc={doc} autoplay onFinish={() => setDone(true)} />
+<SvgAnimator doc={doc} autoplay onFinish={() => setDone(true)} />
 ```
 
 TypeScript: `import animation from './animation.json'` gives you a plain object.
@@ -117,7 +117,7 @@ Four ways to drive playback. Pick one — they are mutually exclusive.
 Uses the trigger defined in the animation document (`start: 'load'` plays once it is on screen):
 
 ```tsx
-<PixodeskSvgAnimator doc={doc} autoplay />
+<SvgAnimator doc={doc} autoplay />
 ```
 
 ### Declarative play/pause
@@ -128,7 +128,7 @@ Control playback with boolean props:
 const [play, setPlay] = useState(false);
 const [pause, setPause] = useState(false);
 
-<PixodeskSvgAnimator doc={doc} play={play} pause={pause} />
+<SvgAnimator doc={doc} play={play} pause={pause} />
 <Button title={play ? 'Play (on)' : 'Play (off)'} onPress={() => setPlay(p => !p)} />
 <Button title={pause ? 'Pause (on)' : 'Pause (off)'} onPress={() => setPause(p => !p)} />
 ```
@@ -143,7 +143,7 @@ import type { RnAnimatorApi } from '@pixodesk/svg-animator-rn';
 
 const api = useRef<RnAnimatorApi>(null);
 
-<PixodeskSvgAnimator doc={doc} apiRef={api} />
+<SvgAnimator doc={doc} apiRef={api} />
 <Button title="Play"   onPress={() => api.current?.play()} />
 <Button title="Pause"  onPress={() => api.current?.pause()} />
 <Button title="Cancel" onPress={() => api.current?.cancel()} />
@@ -160,13 +160,13 @@ Move through the animation with a slider, or show one fixed frame:
 ```tsx
 const [time, setTime] = useState(0);
 
-<PixodeskSvgAnimator doc={doc} time={time} />
+<SvgAnimator doc={doc} time={time} />
 <Slider minimumValue={0} maximumValue={2000} value={time} onValueChange={setTime} />
 ```
 
 ## Props
 
-<!-- px-check props PixodeskSvgAnimatorProps pkg=rn -->
+<!-- px-check props SvgAnimatorProps pkg=rn -->
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxAnimatedSvgDocument` | The animation document to render (required) |
@@ -205,7 +205,7 @@ so a failure is reported through `onError` — the shared diagnostic (`diagnosti
 Error), exactly as on the web — and shows `fallback` while the surrounding screen keeps working.
 
 ```tsx
-<PixodeskSvgAnimator
+<SvgAnimator
     doc={doc}
     autoplay
     onError={d => console.warn('animation failed:', d.message)}

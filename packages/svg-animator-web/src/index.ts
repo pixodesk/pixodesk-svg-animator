@@ -13,11 +13,13 @@
 // ============================================================================
 
 // `createAnimatorImpl` is no longer exported (review §11): six positional parameters, marked
-// internal, and nothing outside this file ever called it — `createAnimator` is the door.
-export { createAnimator, generateNewIds, loadTagAnimators } from './animator/PxAnimator';
+// internal, and nothing outside this file ever called it — `createSvgAnimator` is the door.
+export { createSvgAnimator, generateNewIds, loadTagSvgAnimators } from './animator/PxAnimator';
+// The `<script>` builds' global and its create member, for tools that emit or reach the global (the Editor's exporter).
+export { PX_PLAYER_CREATE, PX_PLAYER_GLOBAL } from './shared/PxPlayerGlobal';
 export type { PxTagAnimatorOptions } from './animator/PxAnimator';
-// The options of the pre-rendered builds' `createAnimator` — a type only, so the main entry can
-// describe every `createAnimator` there is (docs-check reads the docs against this file).
+// The options of the pre-rendered builds' `create` — a type only, so the main entry can
+// describe every create function there is (docs-check reads the docs against this file).
 export type { PxPrerenderedAnimatorOptions } from './engines/PxAnimatorBind';
 
 export { px } from '@pixodesk/svg-animator-core';
@@ -77,8 +79,8 @@ export {
 export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 
 // The page-wide registry — every live animator in the window, whoever made it, plus its
-// play / pause / cancel / finish announcements (also `globalThis.__pixodeskAnimators`).
-export { getAllAnimators, onAnimatorsChange } from './registry/PxAnimatorRegistry';
+// play / pause / cancel / finish announcements (also `globalThis.__pixodeskSvgAnimators`).
+export { getAllSvgAnimators, onSvgAnimatorsChange } from './registry/PxAnimatorRegistry';
 export type { PxAnimatorRegistry, PxAnimatorsEvent, PxAnimatorsListener } from './registry/PxAnimatorRegistry';
 
 // Normalization utilities
@@ -110,7 +112,7 @@ export { toDomProps, renderNode } from './dom/PxAnimatorDOM';
 // pipeline), DOM, or the editor's React/px elements — the editor calls
 // `materializeGlyphText` with its own `createPxElement` for Step 3 (static SVG
 // with baked glyph outlines). See textGlyphsEffect / elementFactory.
-export { createAdapterAnimator } from './engines/PxAnimatorFrameLoop';
+export { createAdapterSvgAnimator } from './engines/PxAnimatorFrameLoop';
 export type { PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 
 // Player-effects materializer — turns `node.effects` (the lightweight design format

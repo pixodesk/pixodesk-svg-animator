@@ -7,7 +7,7 @@ animation in the editor, save it as a JSON file, put the file next to your code,
 package, render the file with it. Nothing to configure.
 
 ```text
-the editor  ──save──▶  animation.json  ──import──▶  <PixodeskSvgAnimator doc={animation} />
+the editor  ──save──▶  animation.json  ──import──▶  <SvgAnimator doc={animation} />
 ```
 
 Everything on this page has a longer version — the [library documentation](./README.md)
@@ -87,13 +87,13 @@ npm install @pixodesk/svg-animator-react
 
 ```tsx
 // src/components/Hero.tsx
-import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-react';
+import { SvgAnimator } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Hero() {
   return (
     <div style={{ width: 300, height: 300 }}>
-      <PixodeskSvgAnimator doc={animation} autoplay />
+      <SvgAnimator doc={animation} autoplay />
     </div>
   );
 }
@@ -116,13 +116,13 @@ npm install @pixodesk/svg-animator-vue
 ```vue
 <!-- src/components/Hero.vue -->
 <script setup lang="ts">
-import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-vue';
+import { SvgAnimator } from '@pixodesk/svg-animator-vue';
 import animation from './animation.json';
 </script>
 
 <template>
   <div style="width: 300px; height: 300px">
-    <PixodeskSvgAnimator :doc="animation" autoplay />
+    <SvgAnimator :doc="animation" autoplay />
   </div>
 </template>
 ```
@@ -147,10 +147,10 @@ npm install @pixodesk/svg-animator-web
 
 ```js
 // src/main.js — animation.json sits next to it
-import { createAnimator } from '@pixodesk/svg-animator-web';
+import { createSvgAnimator } from '@pixodesk/svg-animator-web';
 import animation from './animation.json';
 
-createAnimator({ doc: animation, container: '#hero' });
+createSvgAnimator({ doc: animation, container: '#hero' });
 ```
 
 ### Without a build step
@@ -164,7 +164,7 @@ npx @pixodesk/svg-animator-web copy-player-library js
 
 It puts `pixodesk-svg-animator.umd.min.js` into `./js`; run it again later to update the copy.
 
-The script puts a `PixodeskAnimator` global on the page. Then play the file one of the four ways
+The script puts a `Pixodesk.SvgAnimator` global on the page. Then play the file one of the four ways
 below — each is complete on its own.
 
 Open the page through a local server (`npx serve .`), not as a `file://` URL: a browser does not
@@ -179,14 +179,14 @@ the page, plays from disk.
 <div data-px-animation-src="animation.json" style="width: 300px; height: 300px"></div>
 
 <script src="js/pixodesk-svg-animator.umd.min.js"></script>
-<script>PixodeskAnimator.loadTagAnimators();</script>
+<script>Pixodesk.SvgAnimator.loadTagSvgAnimators();</script>
 ```
 
 ### From code — the player fetches the file
 
 > **Example:** [`examples/get-started/html-create-animator`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-create-animator) — the complete project · [Open in StackBlitz](https://stackblitz.com/github/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-create-animator?startScript=start&title=Get%20started%20%C2%B7%20From%20code%2C%20the%20player%20fetches%20the%20file)
 
-`createAnimator` returns the player, so you can call `animator.play()`, `animator.pause()` and
+`createSvgAnimator` returns the player, so you can call `animator.play()`, `animator.pause()` and
 the rest ([the playback API](./web-player.md#the-playback-api)). With `src` it fetches
 the file itself:
 
@@ -195,7 +195,7 @@ the file itself:
 
 <script src="js/pixodesk-svg-animator.umd.min.js"></script>
 <script>
-  const animator = PixodeskAnimator.createAnimator({ src: 'animation.json', container: '#hero' });
+  const animator = Pixodesk.SvgAnimator.create({ src: 'animation.json', container: '#hero' });
 </script>
 ```
 
@@ -213,7 +213,7 @@ parsed object as `doc`:
 <script>
   fetch('animation.json')
     .then(response => response.json())
-    .then(doc => PixodeskAnimator.createAnimator({ doc, container: '#hero' }));
+    .then(doc => Pixodesk.SvgAnimator.create({ doc, container: '#hero' }));
 </script>
 ```
 
@@ -234,7 +234,7 @@ does not run it), parse it, hand it over as `doc`:
 <script src="js/pixodesk-svg-animator.umd.min.js"></script>
 <script>
   const doc = JSON.parse(document.getElementById('hero-animation').textContent);
-  PixodeskAnimator.createAnimator({ doc, container: '#hero' });
+  Pixodesk.SvgAnimator.create({ doc, container: '#hero' });
 </script>
 ```
 
@@ -256,13 +256,13 @@ Reanimated needs its Babel plugin — one line in `babel.config.js`, spelled out
 ```tsx
 // components/Hero.tsx
 import { View } from 'react-native';
-import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-rn';
+import { SvgAnimator } from '@pixodesk/svg-animator-rn';
 import animation from './animation.json';
 
 export function Hero() {
   return (
     <View style={{ width: 300, height: 300 }}>
-      <PixodeskSvgAnimator doc={animation} autoplay />
+      <SvgAnimator doc={animation} autoplay />
     </View>
   );
 }

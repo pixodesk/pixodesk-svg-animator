@@ -1,6 +1,6 @@
-import { loadTagAnimators } from '@pixodesk/svg-animator-web';
+import { loadTagSvgAnimators } from '@pixodesk/svg-animator-web';
 
-loadTagAnimators();
+loadTagSvgAnimators();
 
 // Calling it again is safe: only elements without an animator are picked up.
-loadTagAnimators();
+loadTagSvgAnimators();

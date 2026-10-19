@@ -286,7 +286,7 @@ export interface PxResolvedTrigger {
 // ── CONTROL MODE (API review §1 / §7) ────────────────────────────────────────
 // Which set of props drives playback. Every component picked its own order, so
 // `autoplay` + `progress={0.5}` played on React and Vue but seeked on React Native, and
-// React let a REF choose the mode — `<PixodeskSvgAnimator autoplay apiRef={api} />` never
+// React let a REF choose the mode — `<SvgAnimator autoplay apiRef={api} />` never
 // started, because the imperative branch forced `start: 'none'`.
 //
 // One order, decided once, used by react / vue / rn. This module owns the LOGIC and the
@@ -382,7 +382,7 @@ export function resolveControlMode(props: PxControlProps): PxResolvedControlMode
  * `start: 'none'` into its config patch.
  *
  * Every mode except `autoplay` — INCLUDING `static`. A component given no control props at all
- * must not start on its own: `<PixodeskSvgAnimator doc={…} />` renders the first frame and waits.
+ * must not start on its own: `<SvgAnimator doc={…} />` renders the first frame and waits.
  * `autoplay` is the one mode that says "let the document's trigger decide".
  * @public
  */

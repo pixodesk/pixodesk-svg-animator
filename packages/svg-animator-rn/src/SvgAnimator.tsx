@@ -42,7 +42,7 @@ export type RnAnimatorApi = PxAnimatorHandle;
  * on this platform is declared here: `fallback`, which has no web counterpart.
  * @public
  */
-export interface PixodeskSvgAnimatorProps
+export interface SvgAnimatorProps
     extends PxPlaybackOverride, PxControlProps, PxAnimatorCallbacks {
 
     // -- Source ---------------------------------------------------------------
@@ -242,7 +242,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
     const warnings = validateNodeEffects(doc as PxNode);
     for (const w of warnings) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.effectsShape, w);
     // The whole-document boundary diagnostic — see the note in the web player's entry.
-    reportDocumentDiagnostics(doc, '[PixodeskSvgAnimator]');
+    reportDocumentDiagnostics(doc, '[SvgAnimator]');
 
     // The per-instance override, applied to the WIRE document BEFORE anything reads the
     // config — `materializeAllInTree` samples motion paths against `duration`, so a later
@@ -290,12 +290,12 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
  * indexing the precompiled tracks. No JS-thread frame loop.
  * @public
  */
-export function PixodeskSvgAnimator({
+export function SvgAnimator({
     doc, timeline, resetTimeline, duration, delay, iterations, start,
     // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
     autoplay, play, pause, apiRef, progress: progressProp, time,
     onPlay, onStop, onPause, onCancel, onFinish, onRemove, onError, fallback, onWarn, muteWarn, muteError,
-}: PixodeskSvgAnimatorProps): ReactElement | null {
+}: SvgAnimatorProps): ReactElement | null {
 
     // -- Compile the document (once per doc/override change) ------------------
 
@@ -312,7 +312,7 @@ export function PixodeskSvgAnimator({
      * would never fire for anyone who passed nothing.
      */
     const makeDiag = (): PxDiagnostics => createDiagnostics(
-        { onWarn, onError, muteWarn, muteError }, '[PixodeskSvgAnimator]');
+        { onWarn, onError, muteWarn, muteError }, '[SvgAnimator]');
 
     const compiled = useMemo((): Compiled => {
         try {
@@ -707,4 +707,4 @@ export function PixodeskSvgAnimator({
     );
 }
 
-export default PixodeskSvgAnimator;
+export default SvgAnimator;

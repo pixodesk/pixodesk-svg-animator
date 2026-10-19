@@ -1,9 +1,9 @@
-import { createAnimator } from '@pixodesk/svg-animator-web';
+import { createSvgAnimator } from '@pixodesk/svg-animator-web';
 
 const log = document.getElementById('log')!;
 const say = (line: string) => { log.textContent += line + '\n'; };
 
-const animator = createAnimator({
+const animator = createSvgAnimator({
   src: '../../../../animation.json',
   container: '#box',
   onPlay:   () => say('onPlay'),    // started or resumed

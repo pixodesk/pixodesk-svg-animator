@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, cleanup } from "@testing-library/vue";
-import PixodeskSvgAnimator from './PixodeskSvgAnimator';
+import SvgAnimator from './SvgAnimator';
 import { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
 
 
@@ -20,7 +20,7 @@ describe("VueAnimator", () => {
     });
 
     it("renders and animates", async () => {
-        render(PixodeskSvgAnimator, {
+        render(SvgAnimator, {
             props: {
                 doc: getTestJson(),
                 autoplay: true,

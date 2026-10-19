@@ -172,7 +172,7 @@ export interface PxPrerenderedAnimatorOptions extends PxAnimatorCallbacks {
 function requireDoc(options: PxPrerenderedAnimatorOptions): PxAnimatedSvgDocument {
     // A wrong CALL throws (a bug at the call site); a document that cannot play is reported
     // through `onError` below — the rule in core's `PxDiagnostics` (review §25.1).
-    if (!options?.doc) throw new Error('createAnimator: `doc` is required');
+    if (!options?.doc) throw new Error('createSvgAnimator: `doc` is required');
     return options.doc;
 }
 
@@ -205,7 +205,7 @@ export function createPrerenderedAnimator(options: PxPrerenderedAnimatorOptions)
 }
 
 /**
- * The page-wide registry (`getAllAnimators()`) for the pre-rendered builds: the returned
+ * The page-wide registry (`getAllSvgAnimators()`) for the pre-rendered builds: the returned
  * API is enrolled — a build that failed (the inert API, `isReady()` false) is not — and hears
  * play / pause / cancel / finish through the callbacks the engine is given.
  */

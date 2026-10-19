@@ -135,11 +135,11 @@ export interface PxTimelineShortcuts {
 }
 
 /**
- * The playback-override props every surface takes — `createAnimator` and the three components:
+ * The playback-override props every surface takes — `createSvgAnimator` and the three components:
  * the document's `timeline` as a patch, the reset flag, and the four shortcuts above.
  *
  * ONE definition (review §9): React and React Native extend it, Vue derives its internal shape
- * from it, `createAnimator`'s options extend it.
+ * from it, `createSvgAnimator`'s options extend it.
  * @public
  */
 export interface PxPlaybackOverride extends PxTimelineShortcuts {

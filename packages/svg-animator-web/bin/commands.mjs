@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/** The single-file build for pages without a build step: exposes the `PixodeskAnimator` global. */
+/** The single-file build for pages without a build step: exposes the `Pixodesk.SvgAnimator` global. */
 export const PLAYER_LIBRARY_FILE = 'pixodesk-svg-animator.umd.min.js';
 const PACKAGE_NAME = '@pixodesk/svg-animator-web';
 const PACKAGE_DIR = fileURLToPath(new URL('..', import.meta.url));
@@ -62,7 +62,7 @@ function copyPlayerLibrary(args, io, packageDir) {
     io.out('');
     io.out('Load it in your page:');
     io.out(`  <script src="${src}"></script>`);
-    io.out('  <script>PixodeskAnimator.loadTagAnimators();</script>');
+    io.out('  <script>Pixodesk.SvgAnimator.loadTagSvgAnimators();</script>');
     return 0;
 }
 

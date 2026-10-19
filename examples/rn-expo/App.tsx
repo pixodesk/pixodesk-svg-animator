@@ -6,7 +6,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { PixodeskSvgAnimator, type RnAnimatorApi } from '@pixodesk/svg-animator-rn';
+import { SvgAnimator, type RnAnimatorApi } from '@pixodesk/svg-animator-rn';
 import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
 
 // -- Sample documents ---------------------------------------------------------
@@ -109,7 +109,7 @@ export default function AppPlayer() {
             </View>
 
             <View style={styles.svgContainer}>
-                <PixodeskSvgAnimator
+                <SvgAnimator
                     key={demo}
                     doc={current.doc}
                     autoplay={current.autoplay}

@@ -5,7 +5,7 @@
 
 import type { PxAnimatedSvgDocument, PxAnimatorApi, PxTimelineEngineSetting, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
-import { createAnimator, PxDiagnosticKind, type PxPlaybackOverride, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
+import { createSvgAnimator, PxDiagnosticKind, type PxPlaybackOverride, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxDiagnosticCode, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
@@ -114,29 +114,29 @@ function calcSeekMs(doc: PxAnimatedSvgDocument, props: DocOverrideProps): number
  *
  * 1. **Autoplay** – uses triggers from the animation document.
  *    ```vue
- *    <PixodeskSvgAnimator :doc="animation" autoplay />
+ *    <SvgAnimator :doc="animation" autoplay />
  *    ```
  *
  * 2. **Declarative play/pause** – controlled via boolean props.
  *    ```vue
- *    <PixodeskSvgAnimator :doc="animation" play :pause="false" />
+ *    <SvgAnimator :doc="animation" play :pause="false" />
  *    ```
  *
  * 3. **Imperative** – exposes a ref-based API for full programmatic control.
  *    ```vue
- *    <PixodeskSvgAnimator :doc="animation" ref="animator" />
+ *    <SvgAnimator :doc="animation" ref="animator" />
  *    <button @click="$refs.animator.play()">Play</button>
  *    ```
  *
  * 4. **Controlled time** – renders a single frame at a given time.
  *    ```vue
- *    <PixodeskSvgAnimator :doc="animation" :progress="0.5" />
- *    <PixodeskSvgAnimator :doc="animation" :time="500" />
+ *    <SvgAnimator :doc="animation" :progress="0.5" />
+ *    <SvgAnimator :doc="animation" :time="500" />
  *    ```
  * @public
  */
-const PixodeskSvgAnimator = defineComponent({
-    name: 'PixodeskSvgAnimator',
+const SvgAnimator = defineComponent({
+    name: 'SvgAnimator',
 
     props: {
         // -- Source
@@ -189,7 +189,7 @@ const PixodeskSvgAnimator = defineComponent({
          */
         const makeDiag = (): PxDiagnostics => createDiagnostics(
             { onWarn: props.onWarn, onError: props.onError, muteWarn: props.muteWarn, muteError: props.muteError },
-            '[PixodeskSvgAnimator]',
+            '[SvgAnimator]',
         );
 
         // -- Determine control mode ---------------------------------------------
@@ -262,7 +262,7 @@ const PixodeskSvgAnimator = defineComponent({
                 muteWarn:  props.muteWarn,
                 muteError: props.muteError,
             };
-            apiRef.value = createAnimator(options);
+            apiRef.value = createSvgAnimator(options);
 
             // (Re)apply the declarative control state to the fresh animator —
             // covers both the initial mount (e.g. `:play="true"` from the
@@ -350,4 +350,4 @@ const PixodeskSvgAnimator = defineComponent({
     },
 });
 
-export default PixodeskSvgAnimator;
+export default SvgAnimator;

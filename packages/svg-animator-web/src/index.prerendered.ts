@@ -13,8 +13,8 @@
 // the player (effects, materializers, DOM rendering, schema validation) is
 // unreachable and gets tree-shaken away. See dev-docs/plans/prerendered-player-builds.md.
 //
-// `createPrerenderedAnimator` is exported AS `createAnimator` so the emitted
-// `<script>` — `PixodeskAnimator.createAnimator({"doc": …})` — is byte-identical
+// `createPrerenderedAnimator` is exported AS `create` (PX_PLAYER_CREATE) so the emitted
+// `<script>` — `Pixodesk.SvgAnimator.create({"doc": …})` — is byte-identical
 // regardless of which bundle the Editor inlines.
 //
 // Validation is deliberately absent: the Editor produced both the DOM and the
@@ -23,7 +23,7 @@
 // keeps `validateNodeEffects` and its warnings.
 // ============================================================================
 
-export { createPrerenderedAnimator as createAnimator } from './engines/PxAnimatorBind';
+export { createPrerenderedAnimator as create } from './engines/PxAnimatorBind';
 export { PX_ANIMATOR_DOC_KEY } from './shared/PxAnimatorKeys';
 
 // Trigger wiring — used internally; exposed so a page can re-arm triggers after

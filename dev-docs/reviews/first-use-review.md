@@ -52,7 +52,7 @@ it · 🟡 smaller
 - **Do:** with §1 done the prop is no longer needed. If §1 is declined, rename it to what it does
   (e.g. `useTrigger`).
 
-### 3. The document type accepts keys the player drops
+### 3. ✅ The document type accepts keys the player drops
 
 - **Where:** `PxSvgNode.animator` / `PxAnimatedSvgDocument.animator` are typed `PxAnimatorConfig`
   (`svg-animator-core/src/format/PxAnimatorTypes.ts`) — the RUNTIME view, which still has flat
@@ -127,7 +127,7 @@ it · 🟡 smaller
 
 ## 🟠 Inconsistent surface
 
-### 7. The brand is spelled four ways
+### 7. ✅ The brand is spelled four ways
 
 | Where | Spelling |
 |---|---|
@@ -145,6 +145,13 @@ it · 🟡 smaller
   the editor's exporter changes in the same pass.
 - **Not `createSvgAnimator`:** it repeats the package name in every import. "Svg" belongs in the
   component name, where it also leaves room for a Lottie component.
+- **Done (2026-10-19), owner's rule instead — explicit "SvgAnimator" everywhere (a 2D/Lottie product sits next to it):**
+  components `SvgAnimator` / `SvgCssAnimator` (props `SvgAnimatorProps`, `SvgAnimatorCallbacks`); functions
+  `createSvgAnimator`, `loadTagSvgAnimators`, `getAllSvgAnimators`, `onSvgAnimatorsChange`, `createAdapterSvgAnimator`;
+  the one `<script>` global is the namespace `Pixodesk.SvgAnimator`, where the create function is the member `create`
+  (also in the pre-rendered builds — exports call `Pixodesk.SvgAnimator.create(…)`); the registry global
+  `__pixodeskSvgAnimators`. The React / Vue `<script>` builds were removed (unused, bundled their own framework).
+  `PX_PLAYER_GLOBAL` / `PX_PLAYER_CREATE` are the one spelling the build config and the Editor's exporter share.
 
 ### 8. One name, two functions
 

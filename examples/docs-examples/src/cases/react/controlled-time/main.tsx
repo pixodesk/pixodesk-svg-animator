@@ -1,6 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { useState } from 'react';
-import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-react';
+import { SvgAnimator } from '@pixodesk/svg-animator-react';
 import animation from '../../../fixtures/animation.json';
 
 function App() {
@@ -15,7 +15,7 @@ function App() {
         </label>
       </div>
       <div className="stage">
-        <PixodeskSvgAnimator doc={animation as any} time={time} />
+        <SvgAnimator doc={animation as any} time={time} />
       </div>
     </>
   );

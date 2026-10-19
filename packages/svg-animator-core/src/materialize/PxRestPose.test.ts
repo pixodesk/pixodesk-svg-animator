@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { normalizeBindings } from '../animation/PxDefinitions';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxNode } from '../format/PxAnimatorTypes';
-import { createAdapterAnimator } from '../playback/PxFrameLoop';
+import { createAdapterSvgAnimator } from '../playback/PxFrameLoop';
 import { toDomProps } from '../util/PxNodeProps';
 import { PX_TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
 import { materializeAllInTree } from './PxAnimatorMaterializeAll';
@@ -23,7 +23,7 @@ const first = (doc: PxAnimatedSvgDocument): PxNode => (doc.children ?? [])[0];
 /** What the ENGINE writes at its first frame — `id` → attribute → value. The reference. */
 function engineFirstFrame(doc: PxAnimatedSvgDocument): Map<string, Map<string, string>> {
     const written = new Map<string, Map<string, string>>();
-    const api = createAdapterAnimator(doc, {
+    const api = createAdapterSvgAnimator(doc, {
         isConnected: () => true,
         setAttribute: (id, attr, value) => {
             const attrs = written.get(id) ?? new Map<string, string>();

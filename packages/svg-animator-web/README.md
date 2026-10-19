@@ -37,7 +37,7 @@ A lightweight JavaScript library for playing SVG animations in the browser. Pixo
 
 ### Declarative (HTML)
 
-Add a `data-px-animation-src` attribute to any element pointing to your animation JSON file, then call `loadTagAnimators()`:
+Add a `data-px-animation-src` attribute to any element pointing to your animation JSON file, then call `loadTagSvgAnimators()`:
 
 ```html
 <div data-px-animation-src="/animation.json"></div>
@@ -45,7 +45,7 @@ Add a `data-px-animation-src` attribute to any element pointing to your animatio
 <!-- UMD -->
 <script src="pixodesk-svg-animator.umd.js"></script>
 <script>
-  PixodeskAnimator.loadTagAnimators();
+  Pixodesk.SvgAnimator.loadTagSvgAnimators();
 </script>
 ```
 
@@ -53,21 +53,21 @@ Each element gets an animator instance stored on `element._px_animator`, which y
 
 ### Programmatic
 
-Use `createAnimator` for full control:
+Use `createSvgAnimator` for full control:
 
 ```js
-import { createAnimator } from '@pixodesk/svg-animator-web';
+import { createSvgAnimator } from '@pixodesk/svg-animator-web';
 
 // From a URL — returns a proxy immediately; control calls made before the
 // document loads are queued and replayed once it's ready
-const animator = createAnimator({
+const animator = createSvgAnimator({
   src: '/animation.json',
   container: '#container',
   onFinish: () => console.log('done'),
 });
 
 // Or from an already-loaded document object
-const fromObject = createAnimator({ doc: animationDoc, container: '#container' });
+const fromObject = createSvgAnimator({ doc: animationDoc, container: '#container' });
 
 animator.play();
 animator.pause();
@@ -79,7 +79,7 @@ animator.destroy();             // cleanup
 
 ### API
 
-`createAnimator(options)` takes a single options object:
+`createSvgAnimator(options)` takes a single options object:
 
 <!-- px-check props PxAnimatorOptions pkg=web -->
 | Option | Type | Description |
@@ -99,7 +99,7 @@ one page needs it to play differently — the same file mounted twice at two spe
 that autostarts everywhere except inside your own transport UI:
 
 ```js
-const animator = createAnimator({
+const animator = createSvgAnimator({
   src: '/animation.json',
   container: '#box',
   timeline: { iterations: 'infinite', trigger: { start: 'none' } },
@@ -129,7 +129,7 @@ It returns a `PxAnimatorApi`:
 ### Callbacks
 
 ```js
-createAnimator({
+createSvgAnimator({
   doc: doc,
   container: '#container',
   onPlay:   () => { /* started/resumed */ },
@@ -150,7 +150,7 @@ createAnimator({
 
 ### Document format & effects
 
-The `doc` passed to `createAnimator` is a `PxAnimatedSvgDocument` (`type: 'svg'`), the
+The `doc` passed to `createSvgAnimator` is a `PxAnimatedSvgDocument` (`type: 'svg'`), the
 same shape as the JSON export. It comes in two modes:
 
 - **Self-contained document** — has `children`: the player renders the SVG tree and animates it.

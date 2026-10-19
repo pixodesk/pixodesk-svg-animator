@@ -6,7 +6,7 @@ import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { main, PLAYER_LIBRARY_FILE } from './commands.mjs';
 
-const LIBRARY = '"use strict";var PixodeskAnimator=(()=>{})();';
+const LIBRARY = '"use strict";var Pixodesk=Pixodesk||{};Pixodesk.SvgAnimator=(()=>{})();';
 let root, pkg, site, out, err;
 
 /** A package folder like the installed one: package.json + dist/<library>. */
@@ -37,7 +37,7 @@ describe('copy-player-library', () => {
             '',
             'Load it in your page:',
             `  <script src="${PLAYER_LIBRARY_FILE}"></script>`,
-            '  <script>PixodeskAnimator.loadTagAnimators();</script>',
+            '  <script>Pixodesk.SvgAnimator.loadTagSvgAnimators();</script>',
         ]);
     });
 

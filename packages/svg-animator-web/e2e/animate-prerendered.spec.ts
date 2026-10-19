@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test';
  * Smoke coverage for the PRE-RENDERED bundles, run against the MINIFIED artifact.
  *
  * Why this exists separately from the other e2e specs: those bootstrap through
- * `loadTagAnimators()` + `data-px-animation-src`, a path the pre-rendered builds
+ * `loadTagSvgAnimators()` + `data-px-animation-src`, a path the pre-rendered builds
  * deliberately do not contain. This fixture instead mirrors the Editor's SVG+JS export —
  * an already-rendered SVG plus a bindings-only payload.
  *
@@ -65,11 +65,11 @@ test.describe('pre-rendered bundle (minified)', () => {
     });
 
     test('exposes only the pre-rendered surface', async ({ page }) => {
-        const keys = await page.evaluate(() => Object.keys((window as any).PixodeskAnimator).sort());
-        expect(keys).toContain('createAnimator');
+        const keys = await page.evaluate(() => Object.keys((window as any).Pixodesk.SvgAnimator).sort());
+        expect(keys).toContain('create');
         // The external-JSON bootstrap belongs to the full build only; its absence is what
         // lets the effects pipeline and schema layer tree-shake away.
-        expect(keys).not.toContain('loadTagAnimators');
+        expect(keys).not.toContain('loadTagSvgAnimators');
     });
 
 });

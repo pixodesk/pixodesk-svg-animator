@@ -17,7 +17,7 @@
 //   - `onError`: THIS INSTANCE WILL NOT PLAY. Nothing is rendered, `isReady()` stays false,
 //     the component shows its `fallback`. The player reports it and stays inert rather than
 //     throwing at the caller — a throw would land in a fetch callback or a render, where no
-//     one can catch it. (A wrong CALL — `createAnimator()` with neither `src` nor `doc` — still
+//     one can catch it. (A wrong CALL — `createSvgAnimator()` with neither `src` nor `doc` — still
 //     throws: that is a bug at the call site, found the moment the line runs.)
 //   - `onWarn`: IT PLAYS, but something was ignored, degraded or misspelled — an unknown
 //     easing, an override that could not apply, an attribute the platform will not animate.
@@ -153,7 +153,7 @@ function errorIn(data: ReadonlyArray<unknown>): Error | undefined {
 /**
  * Builds the channel a player reports through.
  *
- * `prefix` labels the console fallback (e.g. `'[PixodeskSvgAnimator]'`) and is NOT added to the
+ * `prefix` labels the console fallback (e.g. `'[SvgAnimator]'`) and is NOT added to the
  * diagnostic handed to a handler — a caller that wants to prefix its own log can, and one
  * feeding a UI should not have to strip ours.
  * @internal

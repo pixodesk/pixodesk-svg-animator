@@ -6,7 +6,7 @@
 import { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import PixodeskSvgAnimator from './PixodeskSvgAnimator';
+import SvgAnimator from './SvgAnimator';
 
 
 describe("ReactAnimator", () => {
@@ -20,7 +20,7 @@ describe("ReactAnimator", () => {
     });
 
     it("renders and animates", async () => {
-        render(<PixodeskSvgAnimator doc={getTestJson()} autoplay />);
+        render(<SvgAnimator doc={getTestJson()} autoplay />);
 
         const ellipse = document.querySelector("ellipse");
         expect(ellipse).not.toBeNull();

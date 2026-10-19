@@ -24,12 +24,12 @@ or `time` the trigger is ignored. Passing `apiRef` does **not** change the mode.
 nothing. Add `autoplay`. `apiRef` on its own is such a case: the ref is a handle, not an
 instruction, so nothing moves until you call `play()` on it.
 
-**`loadTagAnimators()` ran before the elements existed.** Call it after the DOM is ready (end of
+**`loadTagSvgAnimators()` ran before the elements existed.** Call it after the DOM is ready (end of
 `<body>`, `DOMContentLoaded`), and call it again after inserting content dynamically — it only
 creates animators for elements that do not have an animator yet.
 
-**`createAnimator({ src })` — the file did not load.** Look in the console: the player logs
-`createAnimator: failed to load "…"` or `invalid animation document format`. The JSON must have
+**`createSvgAnimator({ src })` — the file did not load.** Look in the console: the player logs
+`createSvgAnimator: failed to load "…"` or `invalid animation document format`. The JSON must have
 `"type": "svg"` at the root. Calls made before the load finishes are queued, so `play()` is
 not lost — a network or CORS error is the usual cause.
 

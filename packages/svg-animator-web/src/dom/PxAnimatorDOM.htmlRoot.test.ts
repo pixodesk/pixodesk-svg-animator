@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
 import { PxTimelineEngine } from '@pixodesk/svg-animator-core';
 import { isPxDocument } from '@pixodesk/svg-animator-core';
-import { createAnimator } from '../index';
+import { createSvgAnimator } from '../index';
 import { renderNode } from './PxAnimatorDOM';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -62,7 +62,7 @@ describe('HTML root around SVG content', () => {
     });
 
     it('the animation inside plays and can be stepped frame by frame', () => {
-        const api = createAnimator({ doc: page(), container: '#stage' });
+        const api = createSvgAnimator({ doc: page(), container: '#stage' });
         const stage = document.getElementById('stage')!;
         expect(stage.querySelector('h1')!.textContent).toBe('Hello, world!');
         // the player gives ids an instance prefix; the drawing's only circle is the ball

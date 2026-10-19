@@ -11,11 +11,11 @@
 // engine is forced, so there is no fallback path to link against (`createWebApiAnimator`
 // never returns null when forced — it only warns about unsupported attrs).
 //
-// Exported AS `createAnimator` so the emitted `<script>` is identical across bundles.
+// Exported AS `create` (PX_PLAYER_CREATE) so the emitted `<script>` is identical across bundles.
 // See dev-docs/plans/prerendered-player-builds.md.
 // ============================================================================
 
-export { createPrerenderedWaapiAnimator as createAnimator } from './engines/PxAnimatorBind';
+export { createPrerenderedWaapiAnimator as create } from './engines/PxAnimatorBind';
 export { PX_ANIMATOR_DOC_KEY } from './shared/PxAnimatorKeys';
 
 export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';

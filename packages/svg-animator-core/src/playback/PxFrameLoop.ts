@@ -48,7 +48,7 @@ export interface PxPlatformAdapter {
  * @returns A PxAnimatorApi instance.
  * @public @advanced
  */
-export function createAdapterAnimator(
+export function createAdapterSvgAnimator(
     doc: PxAnimatedSvgDocument,
     adapter: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks

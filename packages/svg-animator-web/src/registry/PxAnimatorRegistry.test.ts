@@ -6,11 +6,11 @@
 // The page-wide registry: an animator is listed from creation to `destroy()`, its play /
 // pause / cancel / finish are announced, the caller's own callbacks still run first, and
 // the same store is reachable by name for tooling that does not import the library.
-// Through the public `createAnimator` (frames mode — jsdom has no WAAPI).
+// Through the public `createSvgAnimator` (frames mode — jsdom has no WAAPI).
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createAnimator } from '../animator/PxAnimator';
-import { getAllAnimators, onAnimatorsChange, type PxAnimatorRegistry, type PxAnimatorsEvent } from './PxAnimatorRegistry';
+import { createSvgAnimator } from '../animator/PxAnimator';
+import { getAllSvgAnimators, onSvgAnimatorsChange, type PxAnimatorRegistry, type PxAnimatorsEvent } from './PxAnimatorRegistry';
 import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
 import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
 
@@ -46,28 +46,28 @@ describe('the page-wide animator registry', () => {
     });
 
     const make = (): PxAnimatorApi => {
-        const api = createAnimator({ doc: makeDoc(), container });
+        const api = createSvgAnimator({ doc: makeDoc(), container });
         made.push(api);
         return api;
     };
 
     it('lists an animator from creation to destroy()', () => {
-        const before = getAllAnimators().length;
+        const before = getAllSvgAnimators().length;
         const api = make();
-        expect(getAllAnimators()).toContain(api);
-        expect(getAllAnimators().length).toBe(before + 1);
+        expect(getAllSvgAnimators()).toContain(api);
+        expect(getAllSvgAnimators().length).toBe(before + 1);
         api.destroy();
-        expect(getAllAnimators()).not.toContain(api);
-        expect(getAllAnimators().length).toBe(before);
+        expect(getAllSvgAnimators()).not.toContain(api);
+        expect(getAllSvgAnimators().length).toBe(before);
     });
 
     it('announces add, play, pause, cancel and remove for the object the caller holds — after its own callbacks', () => {
         const events: Array<string> = [];
         const subjects = new Set<PxAnimatorApi>();
         const own: Array<string> = [];
-        // (the listener must not touch `api` — `add` fires while `createAnimator` is still running)
-        const off = onAnimatorsChange((event: PxAnimatorsEvent, a: PxAnimatorApi) => { events.push(event); subjects.add(a); });
-        const api = createAnimator({
+        // (the listener must not touch `api` — `add` fires while `createSvgAnimator` is still running)
+        const off = onSvgAnimatorsChange((event: PxAnimatorsEvent, a: PxAnimatorApi) => { events.push(event); subjects.add(a); });
+        const api = createSvgAnimator({
             doc: makeDoc(), container,
             onPlay: () => own.push('play'), onPause: () => own.push('pause'), onCancel: () => own.push('cancel'),
         });
@@ -87,13 +87,13 @@ describe('the page-wide animator registry', () => {
         expect(own).toContain('play');
         expect(own).toContain('pause');
         expect(own).toContain('cancel');
-        // Every event named the proxy `createAnimator` returned — never the engine behind it.
+        // Every event named the proxy `createSvgAnimator` returned — never the engine behind it.
         expect([...subjects]).toEqual([api]);
     });
 
     it('announces finish for an animator that has no onFinish of its own', () => {
         const events: Array<string> = [];
-        const off = onAnimatorsChange(event => { events.push(event); });
+        const off = onSvgAnimatorsChange(event => { events.push(event); });
         const api = make();
         api.play();
         vi.advanceTimersByTime(DUR + 64);
@@ -103,8 +103,8 @@ describe('the page-wide animator registry', () => {
 
     it('a listener that throws does not break playback or the other listeners', () => {
         const heard: Array<string> = [];
-        const offBad = onAnimatorsChange(() => { throw new Error('bad listener'); });
-        const offGood = onAnimatorsChange(event => { heard.push(event); });
+        const offBad = onSvgAnimatorsChange(() => { throw new Error('bad listener'); });
+        const offGood = onSvgAnimatorsChange(event => { heard.push(event); });
         const api = make();
         expect(() => api.play()).not.toThrow();
         // `add`, then every `play` (the `load` trigger's at creation and the explicit one).
@@ -118,18 +118,18 @@ describe('the page-wide animator registry', () => {
 
     it('unsubscribe stops the announcements', () => {
         const events: Array<string> = [];
-        const off = onAnimatorsChange(event => { events.push(event); });
+        const off = onSvgAnimatorsChange(event => { events.push(event); });
         off();
         make().play();
         expect(events).toEqual([]);
     });
 
-    it('is reachable by name — globalThis.__pixodeskAnimators is the same store', () => {
-        const byName = (globalThis as unknown as { __pixodeskAnimators?: PxAnimatorRegistry }).__pixodeskAnimators;
+    it('is reachable by name — globalThis.__pixodeskSvgAnimators is the same store', () => {
+        const byName = (globalThis as unknown as { __pixodeskSvgAnimators?: PxAnimatorRegistry }).__pixodeskSvgAnimators;
         expect(byName).toBeDefined();
         const api = make();
         expect(byName?.getAll()).toContain(api);
-        expect(byName?.getAll()).toEqual(getAllAnimators());
+        expect(byName?.getAll()).toEqual(getAllSvgAnimators());
         const events: Array<string> = [];
         const off = byName!.subscribe(event => { events.push(event); });
         api.pause();

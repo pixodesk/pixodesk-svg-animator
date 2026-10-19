@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createAnimator, generateNewIds, loadTagAnimators } from './PxAnimator';
+import { createSvgAnimator, generateNewIds, loadTagSvgAnimators } from './PxAnimator';
 import { PX_ANIM_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { PxDiagnosticCode, type PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
 
@@ -52,7 +52,7 @@ function container(): Element {
 }
 
 
-describe('createAnimator', () => {
+describe('createSvgAnimator', () => {
     beforeEach(() => {
         document.body.innerHTML = '<div id="svg-container"></div>';
         // 'performance' must be faked alongside requestAnimationFrame: with the
@@ -70,15 +70,15 @@ describe('createAnimator', () => {
     });
 
     it('throws when both `src` and `doc` are provided', () => {
-        expect(() => createAnimator({ src: 'a.json', doc: makeDoc() })).toThrow();
+        expect(() => createSvgAnimator({ src: 'a.json', doc: makeDoc() })).toThrow();
     });
 
     it('throws when neither `src` nor `doc` is provided', () => {
-        expect(() => createAnimator({})).toThrow();
+        expect(() => createSvgAnimator({})).toThrow();
     });
 
     it('doc path: returns a working API synchronously', () => {
-        const api = createAnimator({ doc: makeDoc(), container: '#svg-container' });
+        const api = createSvgAnimator({ doc: makeDoc(), container: '#svg-container' });
 
         expect(api.isReady()).toBe(true);
         expect(container().querySelector('svg')).not.toBeNull();
@@ -95,7 +95,7 @@ describe('createAnimator', () => {
         const onPlay = vi.fn(), onPause = vi.fn(), onFinish = vi.fn(), onStop = vi.fn();
         const doc = makeDoc();
         doc.animator = { timeline: { engine: 'js', duration: DUR, trigger: { start: 'none' } } };
-        const api = createAnimator({ doc, container: '#svg-container', onPlay, onPause, onFinish, onStop });
+        const api = createSvgAnimator({ doc, container: '#svg-container', onPlay, onPause, onFinish, onStop });
 
         api.play();
         expect(onPlay).toHaveBeenCalledTimes(1);
@@ -111,14 +111,14 @@ describe('createAnimator', () => {
     });
 
     it('a document with no trigger starts on load — start defaults to load', () => {
-        const api = createAnimator({ doc: makeDoc(), container: '#svg-container' });
+        const api = createSvgAnimator({ doc: makeDoc(), container: '#svg-container' });
         expect(api.isPlaying()).toBe(true);
     });
 
     it('an explicit programmatic trigger still waits for play()', () => {
         const doc = makeDoc();
         doc.animator = { timeline: { engine: 'js', duration: DUR, trigger: { start: 'none' } } };
-        const api = createAnimator({ doc: doc, container: '#svg-container' });
+        const api = createSvgAnimator({ doc: doc, container: '#svg-container' });
         expect(api.isPlaying()).toBe(false);
     });
 
@@ -131,7 +131,7 @@ describe('createAnimator', () => {
         const fetchMock = stubFetch(doc);
         const onPlay = vi.fn();
 
-        const api = createAnimator({ src: 'anim.json', onPlay, container: '#svg-container' });
+        const api = createSvgAnimator({ src: 'anim.json', onPlay, container: '#svg-container' });
 
         // Not loaded yet: getters return their "not ready" values.
         expect(api.isReady()).toBe(false);
@@ -161,7 +161,7 @@ describe('createAnimator', () => {
     it('URL path: destroy() before load prevents creation', async () => {
         stubFetch(makeDoc());
 
-        const api = createAnimator({ src: 'anim.json', container: '#svg-container' });
+        const api = createSvgAnimator({ src: 'anim.json', container: '#svg-container' });
         api.play(); // queued — must be dropped by destroy()
         api.destroy();
 
@@ -175,7 +175,7 @@ describe('createAnimator', () => {
         vi.stubGlobal('fetch', vi.fn(() => Promise.reject(new Error('network down'))));
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => { /* silence */ });
 
-        const api = createAnimator({ src: 'broken.json', container: '#svg-container' });
+        const api = createSvgAnimator({ src: 'broken.json', container: '#svg-container' });
         api.play(); // queued, then dropped on failure
 
         await flushMicrotasks();
@@ -194,7 +194,7 @@ describe('createAnimator', () => {
         stubFetch({ hello: 'world' }); // not a px svg document
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => { /* silence */ });
 
-        const api = createAnimator({ src: 'weird.json', container: '#svg-container' });
+        const api = createSvgAnimator({ src: 'weird.json', container: '#svg-container' });
         await flushMicrotasks();
 
         expect(String(errorSpy.mock.calls[0][0])).toContain('PX' + PxDiagnosticCode.invalidDocumentAtSrc);
@@ -211,7 +211,7 @@ describe('createAnimator', () => {
         // A container whose `replaceChildren` throws stands in for anything breaking mid-construction.
         const broken = { replaceChildren: () => { throw new Error('boom'); } } as unknown as Element;
 
-        const api = createAnimator({ doc: makeDoc(), container: broken, onError });
+        const api = createSvgAnimator({ doc: makeDoc(), container: broken, onError });
 
         expect(onError).toHaveBeenCalledTimes(1);
         const d = onError.mock.calls[0][0];
@@ -228,10 +228,10 @@ describe('createAnimator', () => {
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => { /* silence */ });
         const broken = { replaceChildren: () => { throw new Error('boom'); } } as unknown as Element;
 
-        createAnimator({ doc: makeDoc(), container: broken });
+        createSvgAnimator({ doc: makeDoc(), container: broken });
         expect(errorSpy).toHaveBeenCalledTimes(1);             // the console is the fallback…
 
-        createAnimator({ doc: makeDoc(), container: broken, muteError: true });
+        createSvgAnimator({ doc: makeDoc(), container: broken, muteError: true });
         expect(errorSpy).toHaveBeenCalledTimes(1);             // …unless muted
     });
 });
@@ -308,7 +308,7 @@ describe('generateNewIds', () => {
 });
 
 
-describe('loadTagAnimators', () => {
+describe('loadTagSvgAnimators', () => {
     beforeEach(() => {
         vi.useFakeTimers({
             toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date', 'performance', 'requestAnimationFrame', 'cancelAnimationFrame'],
@@ -324,7 +324,7 @@ describe('loadTagAnimators', () => {
         document.body.innerHTML = '<div id="host" data-px-animation-src="anim.json"></div><div id="plain"></div>';
         const fetchMock = stubFetch(makeDoc());
 
-        loadTagAnimators();
+        loadTagSvgAnimators();
 
         const host = document.getElementById('host') as any;
         const plain = document.getElementById('plain') as any;
@@ -335,7 +335,7 @@ describe('loadTagAnimators', () => {
         expect(fetchMock).toHaveBeenCalledWith('anim.json');
 
         // A second scan must not replace the existing animator.
-        loadTagAnimators();
+        loadTagSvgAnimators();
         expect(host[PX_ANIM_ATTR_NAME]).toBe(instance);
         expect(fetchMock).toHaveBeenCalledTimes(1);
 
@@ -345,7 +345,7 @@ describe('loadTagAnimators', () => {
         expect(host.querySelector('svg')).not.toBeNull();
     });
 
-    it('passes the same options createAnimator takes to EVERY player it creates (review §15)', async () => {
+    it('passes the same options createSvgAnimator takes to EVERY player it creates (review §15)', async () => {
         document.body.innerHTML =
             '<div data-px-animation-src="a.json"></div><div data-px-animation-src="b.json"></div>';
         stubFetch(makeDoc());   // a document that would autoplay on load
@@ -353,7 +353,7 @@ describe('loadTagAnimators', () => {
 
         // A timeline override that cancels the autoplay, plus an inline callback — both must reach
         // both players. The zero-config path (no argument at all) is unchanged.
-        loadTagAnimators({ timeline: { trigger: { start: 'none' } }, onPlay });
+        loadTagSvgAnimators({ timeline: { trigger: { start: 'none' } }, onPlay });
         await flushMicrotasks();
 
         const instances = Array.from(document.querySelectorAll('[data-px-animation-src]'))
@@ -375,7 +375,7 @@ describe('destroy() and the rendered SVG', () => {
     });
 
     it('removes the SVG it rendered into the container', () => {
-        const api = createAnimator({ doc: makeDoc(), container: '#svg-container' });
+        const api = createSvgAnimator({ doc: makeDoc(), container: '#svg-container' });
         expect(container().querySelector('svg')).not.toBeNull();
 
         api.destroy();
@@ -388,7 +388,7 @@ describe('destroy() and the rendered SVG', () => {
         // No container: the caller owns whatever DOM exists (this is the React / Vue
         // adapter path). destroy() must not reach into it.
         container().innerHTML = '<svg id="mine"></svg>';
-        const api = createAnimator({ doc: makeDoc() });
+        const api = createSvgAnimator({ doc: makeDoc() });
 
         api.destroy();
 

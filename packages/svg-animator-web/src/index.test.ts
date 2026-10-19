@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createAnimator } from './index';
+import { createSvgAnimator } from './index';
 import type { PxAnimatedSvgDocument, PxAnimationDefinition } from '@pixodesk/svg-animator-core';
 import { PX_LOOP_JUMP_SHIFT_MS, cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from '@pixodesk/svg-animator-core/internal';
 import { calcAnimationValues, normalizeBindings } from '@pixodesk/svg-animator-core';
@@ -24,7 +24,7 @@ describe('animateBackground', () => {
 
     it('Simple test', async () => {
 
-        createAnimator({ doc: getTestJson(), container: '#svg-container' });
+        createSvgAnimator({ doc: getTestJson(), container: '#svg-container' });
 
         const svg = document.querySelector('svg');
         expect(svg).not.toBeNull();
@@ -50,7 +50,7 @@ describe('animateBackground', () => {
         // Add loop:true to the translate property (the ellipse's binding animates with `a0`)
         (json.animator!.definitions!.animations as any)['a0']['translate'].loop = true;
 
-        createAnimator({ doc: json, container: '#svg-container' });
+        createSvgAnimator({ doc: json, container: '#svg-container' });
 
         const ellipse = document.querySelector('ellipse');
         expect(ellipse).not.toBeNull();
@@ -86,7 +86,7 @@ describe('animateBackground', () => {
 
     it('Remove <script> tag', async () => {
 
-        createAnimator({
+        createSvgAnimator({
             doc: {
                 type: 'svg',
                 children: [
@@ -105,7 +105,7 @@ describe('animateBackground', () => {
 
     it('In-place property animation on element body (Mode A)', async () => {
 
-        createAnimator({
+        createSvgAnimator({
             doc: {
                 type: 'svg',
                 viewBox: '0 0 400 400',
@@ -152,7 +152,7 @@ describe('animateBackground', () => {
 
     it('frames: play() after natural end rewinds to start (regression)', async () => {
 
-        const api = createAnimator({
+        const api = createSvgAnimator({
             doc: {
                 type: 'svg',
                 viewBox: '0 0 400 400',
@@ -204,7 +204,7 @@ describe('animateBackground', () => {
 
     it('Animated path `d` accepts both bare string and { path } (Mode A)', async () => {
 
-        createAnimator({
+        createSvgAnimator({
             doc: {
                 type: 'svg',
                 viewBox: '0 0 400 400',

@@ -1,38 +1,17 @@
 import { defineConfig } from 'tsup';
 
-export default defineConfig((opts) => [
-    // ESM and CJS builds - no banner, use proper module imports
-    {
-        entry: ['src/index.ts'],
-        format: ['esm', 'cjs'],
-        dts: true,
-        clean: !opts.watch,   // watch mode must not wipe dist: dependents (and the examples' copy-umd) resolve files from it
-        sourcemap: true,
-        minify: false,
-        // external: ['react', 'react-dom', '@pixodesk/svg-animator-web'],
-        outExtension({ format }) {
-            if (format === 'esm') return { js: '.js' };
-            if (format === 'cjs') return { js: '.cjs' };
-            return { js: '.js' };
-        },
+// ESM + CJS only: React users always have a bundler. A page without one uses the web player's
+// `<script>` build (`Pixodesk.SvgAnimator`) — the former React IIFE build bundled its own React.
+export default defineConfig((opts) => ({
+    entry: ['src/index.ts'],
+    format: ['esm', 'cjs'],
+    dts: true,
+    clean: !opts.watch,   // watch mode must not wipe dist: dependents (and the examples' copy-umd) resolve files from it
+    sourcemap: true,
+    minify: false,
+    outExtension({ format }) {
+        if (format === 'esm') return { js: '.js' };
+        if (format === 'cjs') return { js: '.cjs' };
+        return { js: '.js' };
     },
-    // IIFE/UMD build - uses window globals
-    {
-        entry: ['src/index.ts'],
-        format: ['iife'],
-        globalName: 'PixodeskAnimatorReact',
-        dts: false,
-        clean: false,
-        sourcemap: true,
-        minify: false,
-        external: ['react', 'react-dom', '@pixodesk/svg-animator-web'],
-        esbuildOptions(options) {
-            options.banner = {
-                js: `var React = window.React; var ReactDOM = window.ReactDOM; var PixodeskAnimatorWeb = window.PixodeskAnimator;`,
-            };
-        },
-        outExtension() {
-            return { js: '.umd.js' };
-        },
-    },
-]);
+}));

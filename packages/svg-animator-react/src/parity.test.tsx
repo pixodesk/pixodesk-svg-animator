@@ -20,7 +20,7 @@ import { cleanup, render } from "@testing-library/react";
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import PixodeskSvgAnimator from './PixodeskSvgAnimator';
+import SvgAnimator from './SvgAnimator';
 
 
 const SAMPLES_DIR = path.resolve(__dirname, '../../svg-animator-web/e2e');
@@ -67,7 +67,7 @@ describe('parity with the web player', () => {
         const quiet = [vi.spyOn(console, 'error').mockImplementation(() => { }), vi.spyOn(console, 'warn').mockImplementation(() => { })];
 
         const webRoot = renderNode(prepareDocumentForRender(doc));
-        const ownRoot = render(<PixodeskSvgAnimator doc={doc} />).container.querySelector('svg');
+        const ownRoot = render(<SvgAnimator doc={doc} />).container.querySelector('svg');
         quiet.forEach(spy => spy.mockRestore());
 
         expect(webRoot, 'the web player renders it').not.toBeNull();

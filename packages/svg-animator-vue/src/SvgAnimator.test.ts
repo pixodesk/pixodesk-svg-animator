@@ -3,12 +3,12 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createAnimator, PxAnimatedSvgDocument, type PxNode } from '@pixodesk/svg-animator-web';
+import { createSvgAnimator, PxAnimatedSvgDocument, type PxNode } from '@pixodesk/svg-animator-web';
 import { PxDiagnosticCode } from '@pixodesk/svg-animator-core';
 import { cleanup, render } from "@testing-library/vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, ref } from "vue";
-import PixodeskSvgAnimator, { type VueAnimatorApi } from './PixodeskSvgAnimator';
+import SvgAnimator, { type VueAnimatorApi } from './SvgAnimator';
 
 
 /**
@@ -22,7 +22,7 @@ function renderWithApi(doc: PxAnimatedSvgDocument, listeners: Record<string, (..
     const utils = render(defineComponent({
         props: { doc: { type: Object, required: true } },
         setup(props) {
-            return () => h(PixodeskSvgAnimator, { doc: props.doc as PxAnimatedSvgDocument, ref: api as any, ...listeners });
+            return () => h(SvgAnimator, { doc: props.doc as PxAnimatedSvgDocument, ref: api as any, ...listeners });
         },
     }), {
         props: { doc },
@@ -30,7 +30,7 @@ function renderWithApi(doc: PxAnimatedSvgDocument, listeners: Record<string, (..
     return { api, ...utils };
 }
 
-describe("PixodeskSvgAnimator (Vue)", () => {
+describe("SvgAnimator (Vue)", () => {
     beforeEach(() => {
         vi.useFakeTimers();
     });
@@ -51,7 +51,7 @@ describe("PixodeskSvgAnimator (Vue)", () => {
 
     describe("rendering", () => {
         it("renders the SVG tag tree with attributes", () => {
-            const { container } = render(PixodeskSvgAnimator, {
+            const { container } = render(SvgAnimator, {
                 props: { doc: getTreeJson() },
             });
 
@@ -75,7 +75,7 @@ describe("PixodeskSvgAnimator (Vue)", () => {
         });
 
         it("renders text content — a leaf <text> and its <tspan> children carry `textContent`", () => {
-            const { container } = render(PixodeskSvgAnimator, { props: { doc: getTextJson() } });
+            const { container } = render(SvgAnimator, { props: { doc: getTextJson() } });
 
             const [leaf, spans] = Array.from(container.querySelectorAll("svg > text"));
             expect(leaf?.textContent).toBe("Leaf");
@@ -86,7 +86,7 @@ describe("PixodeskSvgAnimator (Vue)", () => {
         });
 
         it("a node with child nodes renders its children, not its own `textContent` too", () => {
-            const { container } = render(PixodeskSvgAnimator, { props: { doc: getTextJson() } });
+            const { container } = render(SvgAnimator, { props: { doc: getTextJson() } });
 
             // the line <tspan> carries BOTH its folded text and the styled child span
             expect(container.querySelector("tspan > tspan")?.parentElement?.textContent).toBe("Hi");
@@ -94,7 +94,7 @@ describe("PixodeskSvgAnimator (Vue)", () => {
 
         it("regenerates ids (rendered id differs from doc id)", () => {
             const doc = getTreeJson();
-            const { container } = render(PixodeskSvgAnimator, { props: { doc } });
+            const { container } = render(SvgAnimator, { props: { doc } });
 
             const svg = container.querySelector("svg");
             const renderedRootId = svg?.getAttribute("id");
@@ -115,7 +115,7 @@ describe("PixodeskSvgAnimator (Vue)", () => {
                     { type: 'ellipse', fill: '#007fff', rx: 200, ry: 202.5, style: { display: 'none' } },
                 ],
             };
-            const { container } = render(PixodeskSvgAnimator, { props: { doc } });
+            const { container } = render(SvgAnimator, { props: { doc } });
 
             const [visible, hidden] = Array.from(container.querySelectorAll("ellipse")) as Array<SVGElement>;
             expect(visible.style.display).toBe("");
@@ -142,7 +142,7 @@ describe("PixodeskSvgAnimator (Vue)", () => {
 
     describe("animation", () => {
         it("renders and animates with autoplay", () => {
-            render(PixodeskSvgAnimator, {
+            render(SvgAnimator, {
                 props: { doc: getTestJson(), autoplay: true },
             });
 
@@ -251,7 +251,7 @@ describe("PixodeskSvgAnimator (Vue)", () => {
 
     describe("controlled time", () => {
         it("renders mid-animation state with time (absolute milliseconds)", () => {
-            render(PixodeskSvgAnimator, {
+            render(SvgAnimator, {
                 props: { doc: getTestJson1000(), time: 500 },
             });
             const ellipse = document.querySelector("ellipse");
@@ -259,7 +259,7 @@ describe("PixodeskSvgAnimator (Vue)", () => {
         });
 
         it("treats `progress` as a fraction of duration (progress=0.5, duration=1000 → 500ms)", () => {
-            render(PixodeskSvgAnimator, {
+            render(SvgAnimator, {
                 props: { doc: getTestJson1000(), progress: 0.5 },
             });
             const ellipse = document.querySelector("ellipse");
@@ -267,7 +267,7 @@ describe("PixodeskSvgAnimator (Vue)", () => {
         });
 
         it("does not advance on its own in fixed-time mode", () => {
-            render(PixodeskSvgAnimator, {
+            render(SvgAnimator, {
                 props: { doc: getTestJson1000(), time: 500 },
             });
             const ellipse = document.querySelector("ellipse");
@@ -280,7 +280,7 @@ describe("PixodeskSvgAnimator (Vue)", () => {
 
     describe("attrs fallthrough", () => {
         it("passes class and style through to the root svg", () => {
-            const { container } = render(PixodeskSvgAnimator, {
+            const { container } = render(SvgAnimator, {
                 props: { doc: getTestJson() },
                 attrs: { class: 'my-class', style: 'width: 123px;' },
             });
@@ -331,8 +331,8 @@ describe("PixodeskSvgAnimator (Vue)", () => {
 // their fill from `effects.fillGradient`, and the ellipse is `effects.maskedBy` the rect. The web
 // player plays it. Vue rendered an EMPTY canvas, because it built its vnodes from the raw
 // document — `effects` never became <radialGradient>/<mask> defs, so every shape inherited
-// `fill: none`. `createAnimator` did materialize, but only its own copy, after Vue had rendered.
-describe("PixodeskSvgAnimator (Vue) — effects", () => {
+// `fill: none`. `createSvgAnimator` did materialize, but only its own copy, after Vue had rendered.
+describe("SvgAnimator (Vue) — effects", () => {
     afterEach(() => cleanup());
 
     it("renders the gradients and the mask that `effects` describe", () => {
@@ -357,7 +357,7 @@ describe("PixodeskSvgAnimator (Vue) — effects", () => {
         // The web player is the reference: it plays this document.
         const host = document.createElement("div");
         document.body.appendChild(host);
-        const web = createAnimator({ doc: getEffectsOnlyJson(), container: host });
+        const web = createSvgAnimator({ doc: getEffectsOnlyJson(), container: host });
         const webSvg = host.querySelector("svg");
         expect(webSvg).not.toBeNull();
 
@@ -371,8 +371,8 @@ describe("PixodeskSvgAnimator (Vue) — effects", () => {
     it("two instances on one page do not share def ids", () => {
         // Materialization numbers its defs from zero; ids must be regenerated AFTER it, as the
         // web player does, or two instances mint the same `url(#…)` targets.
-        const a = render(PixodeskSvgAnimator, { props: { doc: getEffectsOnlyJson() } });
-        const b = render(PixodeskSvgAnimator, { props: { doc: getEffectsOnlyJson() } });
+        const a = render(SvgAnimator, { props: { doc: getEffectsOnlyJson() } });
+        const b = render(SvgAnimator, { props: { doc: getEffectsOnlyJson() } });
 
         const ids = [a.container, b.container].flatMap(c =>
             Array.from(c.querySelectorAll("radialGradient, mask")).map(el => el.id));
@@ -385,7 +385,7 @@ describe("PixodeskSvgAnimator (Vue) — effects", () => {
 // Both engines find the root as `#` + the document's root id, so a document whose root `<svg>`
 // has no id had NO root here, and `setupAnimationTriggers` returned before wiring anything
 // (PX1201): a `load` trigger never fired. The component now hands over the `<svg>` it rendered.
-describe("PixodeskSvgAnimator (Vue) — root element", () => {
+describe("SvgAnimator (Vue) — root element", () => {
     beforeEach(() => { vi.useFakeTimers(); });
     afterEach(() => {
         vi.advanceTimersByTime(32); // drain a pending rAF before real timers come back
@@ -395,7 +395,7 @@ describe("PixodeskSvgAnimator (Vue) — root element", () => {
 
     it("a `load` trigger plays when the document's root has no id", () => {
         const onWarn = vi.fn();
-        const { container } = render(PixodeskSvgAnimator, {
+        const { container } = render(SvgAnimator, {
             props: { doc: getMaskedLoadJson(), autoplay: true, onWarn, timeline: { engine: "js" } },
         });
 
@@ -415,7 +415,7 @@ describe("PixodeskSvgAnimator (Vue) — root element", () => {
 // Vue has no camelCase-to-attribute mapping at all, so it wrote EVERY camelCase name verbatim —
 // `stopColor`, `strokeWidth`, `fillOpacity`, `maskType` — and SVG ignores that form: gradients
 // lost their colours, strokes their widths, masks their `alpha` mode.
-describe("PixodeskSvgAnimator (Vue) — attribute names", () => {
+describe("SvgAnimator (Vue) — attribute names", () => {
     afterEach(() => cleanup());
 
     it("`maskType` reaches the DOM as `mask-type`", () => {
@@ -443,7 +443,7 @@ describe("PixodeskSvgAnimator (Vue) — attribute names", () => {
 
         const host = document.createElement("div");
         document.body.appendChild(host);
-        const web = createAnimator({ doc, container: host });
+        const web = createSvgAnimator({ doc, container: host });
         const webNames = attributeNames(host.querySelector("rect"));
 
         expect(attributeNames(renderSvg(doc).querySelector("rect"))).toEqual(webNames);
@@ -486,7 +486,7 @@ function attributeNames(el: Element | null): Array<string> {
 
 /** Renders and returns the root `<svg>`, failing the test if there is none. */
 function renderSvg(doc: PxAnimatedSvgDocument): SVGSVGElement {
-    const svg = render(PixodeskSvgAnimator, { props: { doc } }).container.querySelector("svg");
+    const svg = render(SvgAnimator, { props: { doc } }).container.querySelector("svg");
     if (!svg) throw new Error("no <svg> rendered");
     return svg;
 }
@@ -722,7 +722,7 @@ function getRectJson(): PxAnimatedSvgDocument {
     };
 }
 
-describe('PixodeskSvgAnimator (Vue) — timeline override', () => {
+describe('SvgAnimator (Vue) — timeline override', () => {
 
     /** A WIRE-format document; the flat props this replaced were discarded on this shape. */
     const wireJson = (): any => ({
@@ -739,22 +739,22 @@ describe('PixodeskSvgAnimator (Vue) — timeline override', () => {
     const opacityIn = (container: Element) => Number(container.querySelector('rect')?.getAttribute('opacity'));
 
     it("baseline: progress=0.5 of the document's own 1000ms lands mid-animation", () => {
-        const { container } = render(PixodeskSvgAnimator, { props: { doc: wireJson(), progress: 0.5 } });
+        const { container } = render(SvgAnimator, { props: { doc: wireJson(), progress: 0.5 } });
         expect(opacityIn(container)).toBeCloseTo(0.5, 1);
     });
 
     it('timeline overrides duration ON A WIRE DOCUMENT (the flat props never did)', () => {
-        const { container } = render(PixodeskSvgAnimator, { props: { doc: wireJson(), progress: 0.5, timeline: { duration: 4000 } } });
+        const { container } = render(SvgAnimator, { props: { doc: wireJson(), progress: 0.5, timeline: { duration: 4000 } } });
         expect(opacityIn(container)).toBe(1);
     });
 
     it('the duration SHORTCUT does the same thing', () => {
-        const { container } = render(PixodeskSvgAnimator, { props: { doc: wireJson(), progress: 0.5, duration: 4000 } });
+        const { container } = render(SvgAnimator, { props: { doc: wireJson(), progress: 0.5, duration: 4000 } });
         expect(opacityIn(container)).toBe(1);
     });
 
     it('accepts the JSON-string form of timeline', () => {
-        const { container } = render(PixodeskSvgAnimator, { props: { doc: wireJson(), progress: 0.5, timeline: '{"duration":4000}' } });
+        const { container } = render(SvgAnimator, { props: { doc: wireJson(), progress: 0.5, timeline: '{"duration":4000}' } });
         expect(opacityIn(container)).toBe(1);
     });
 });

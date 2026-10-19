@@ -5,19 +5,19 @@
 
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import PixodeskSvgCssAnimator from './PixodeskSvgCssAnimator';
+import SvgCssAnimator from './SvgCssAnimator';
 
 
-describe("PixodeskSvgCssAnimator (React)", () => {
+describe("SvgCssAnimator (React)", () => {
     afterEach(() => {
         cleanup();
     });
 
     it("renders children inside the wrapper div", () => {
         const { container } = render(
-            <PixodeskSvgCssAnimator>
+            <SvgCssAnimator>
                 <svg data-testid="inner-svg" />
-            </PixodeskSvgCssAnimator>
+            </SvgCssAnimator>
         );
         const div = container.firstElementChild as HTMLElement;
         expect(div.tagName).toBe("DIV");
@@ -26,9 +26,9 @@ describe("PixodeskSvgCssAnimator (React)", () => {
 
     it("plays immediately with the default start='load'", () => {
         const { container } = render(
-            <PixodeskSvgCssAnimator>
+            <SvgCssAnimator>
                 <svg />
-            </PixodeskSvgCssAnimator>
+            </SvgCssAnimator>
         );
         const div = container.firstElementChild as HTMLElement;
         expect(div.className).toBe("px-anim-enabled px-anim-playing");
@@ -36,9 +36,9 @@ describe("PixodeskSvgCssAnimator (React)", () => {
 
     it("joins className correctly ('foo px-anim-enabled px-anim-playing')", () => {
         const { container } = render(
-            <PixodeskSvgCssAnimator className="foo">
+            <SvgCssAnimator className="foo">
                 <svg />
-            </PixodeskSvgCssAnimator>
+            </SvgCssAnimator>
         );
         const div = container.firstElementChild as HTMLElement;
         expect(div.className).toBe("foo px-anim-enabled px-anim-playing");
@@ -46,9 +46,9 @@ describe("PixodeskSvgCssAnimator (React)", () => {
 
     it("has no 'undefined' prefix when className is absent", () => {
         const { container } = render(
-            <PixodeskSvgCssAnimator>
+            <SvgCssAnimator>
                 <svg />
-            </PixodeskSvgCssAnimator>
+            </SvgCssAnimator>
         );
         const div = container.firstElementChild as HTMLElement;
         expect(div.className).not.toContain("undefined");
@@ -57,9 +57,9 @@ describe("PixodeskSvgCssAnimator (React)", () => {
 
     it("applies style to the wrapper div", () => {
         const { container } = render(
-            <PixodeskSvgCssAnimator style={{ width: '123px' }}>
+            <SvgCssAnimator style={{ width: '123px' }}>
                 <svg />
-            </PixodeskSvgCssAnimator>
+            </SvgCssAnimator>
         );
         const div = container.firstElementChild as HTMLElement;
         expect(div.style.width).toBe("123px");
@@ -67,9 +67,9 @@ describe("PixodeskSvgCssAnimator (React)", () => {
 
     it("toggles classes for start='mouseOver' + mouseOut='pause'", () => {
         const { container } = render(
-            <PixodeskSvgCssAnimator start="mouseOver" mouseOut="pause">
+            <SvgCssAnimator start="mouseOver" mouseOut="pause">
                 <svg />
-            </PixodeskSvgCssAnimator>
+            </SvgCssAnimator>
         );
         const div = container.firstElementChild as HTMLElement;
 
@@ -87,9 +87,9 @@ describe("PixodeskSvgCssAnimator (React)", () => {
 
     it("resets to idle on mouse-out when mouseOut='reset'", () => {
         const { container } = render(
-            <PixodeskSvgCssAnimator start="mouseOver" mouseOut="reset">
+            <SvgCssAnimator start="mouseOver" mouseOut="reset">
                 <svg />
-            </PixodeskSvgCssAnimator>
+            </SvgCssAnimator>
         );
         const div = container.firstElementChild as HTMLElement;
 

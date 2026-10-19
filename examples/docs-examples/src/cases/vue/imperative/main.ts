@@ -1,5 +1,5 @@
 import { createApp, h, ref } from 'vue';
-import { PixodeskSvgAnimator, type VueAnimatorApi } from '@pixodesk/svg-animator-vue';
+import { SvgAnimator, type VueAnimatorApi } from '@pixodesk/svg-animator-vue';
 import animation from '../../../fixtures/animation.json';
 
 createApp({
@@ -13,7 +13,7 @@ createApp({
         h('button', { onClick: () => api.value?.finish() }, 'finish()'),
       ]),
       h('div', { class: 'stage' }, [
-        h(PixodeskSvgAnimator as any, { doc: animation, ref: api }),
+        h(SvgAnimator as any, { doc: animation, ref: api }),
       ]),
     ];
   },

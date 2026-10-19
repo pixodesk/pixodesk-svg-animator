@@ -1,5 +1,5 @@
 import { createApp, h, ref } from 'vue';
-import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-vue';
+import { SvgAnimator } from '@pixodesk/svg-animator-vue';
 import animation from '../../../fixtures/animation.json';
 
 createApp({
@@ -12,7 +12,7 @@ createApp({
         h('button', { id: 'pause', onClick: () => { pause.value = !pause.value; } }, `pause = ${pause.value}`),
       ]),
       h('div', { class: 'stage' }, [
-        h(PixodeskSvgAnimator as any, { doc: animation, play: play.value, pause: pause.value }),
+        h(SvgAnimator as any, { doc: animation, play: play.value, pause: pause.value }),
       ]),
     ];
   },

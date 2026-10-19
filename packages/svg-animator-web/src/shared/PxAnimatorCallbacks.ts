@@ -8,7 +8,7 @@ import type { PxAnimatorApi } from './PxAnimatorWebTypes';
 
 /**
  * The engines take ONE callbacks object; every public surface takes the callbacks INLINE —
- * `createAnimator({ onFinish })`, `loadTagAnimators({ onFinish })`, `<PixodeskSvgAnimator
+ * `createSvgAnimator({ onFinish })`, `loadTagSvgAnimators({ onFinish })`, `<SvgAnimator
  * onFinish />`. This builds the one from the other, and adds `onStop`: it fires after any of
  * pause / cancel / finish / remove, for callers who only care that playback is no longer
  * running. Defined HERE, once, so the web player and the components cannot disagree on when.

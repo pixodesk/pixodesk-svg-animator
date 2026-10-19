@@ -11,6 +11,7 @@
  * in the shipped bundles without a single failure (dev-docs/plans/minification-boundary.md §1).
  * These tests run the real artefacts and compare minified against unminified.
  */
+import { PX_PLAYER_GLOBAL } from '../src/shared/PxPlayerGlobal';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { JSDOM } from 'jsdom';
@@ -26,7 +27,7 @@ export const BUNDLE_PAIRS = [
 
 export interface LoadedBundle {
     window: any;
-    /** The `PixodeskAnimator` UMD global. */
+    /** The UMD global, `Pixodesk.SvgAnimator` (PX_PLAYER_GLOBAL). */
     px: any;
     text: string;
 }
@@ -49,9 +50,9 @@ export function loadBundle(file: string): LoadedBundle {
     // The bundles open with `"use strict"`, and a strict-mode eval keeps its `var`
     // declarations in its OWN variable environment — so the UMD global never lands on
     // `window`. Publish it explicitly from inside the same eval, where it is in scope.
-    dom.window.eval(text + '\n;globalThis.PixodeskAnimator = PixodeskAnimator;');
-    const px = dom.window.PixodeskAnimator;
-    if (!px) throw new Error(`${file}: the UMD global PixodeskAnimator was not defined`);
+    dom.window.eval(`${text}\n;globalThis.__pxPlayer = ${PX_PLAYER_GLOBAL};`);
+    const px = dom.window.__pxPlayer;
+    if (!px) throw new Error(`${file}: the UMD global ${PX_PLAYER_GLOBAL} was not defined`);
     return { window: dom.window, px, text };
 }
 

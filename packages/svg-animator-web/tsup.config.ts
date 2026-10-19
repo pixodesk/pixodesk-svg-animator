@@ -1,6 +1,7 @@
 import { defineConfig } from 'tsup';
 import path from 'node:path';
 import { existsSync, readFileSync } from 'node:fs';
+import { PX_PLAYER_GLOBAL } from './src/shared/PxPlayerGlobal';
 
 // Two entries, on purpose (see dev-docs/plans/bundle-size.md §1):
 //   src/index.ts        -> esm + cjs. Full ~96-name surface; consumers tree-shake.
@@ -14,7 +15,7 @@ import { existsSync, readFileSync } from 'node:fs';
 // Bundle the core package into this dist so every output format — including the
 // UMD injected into iframes — stays fully self-contained.
 const NO_EXTERNAL = ['@pixodesk/svg-animator-core'];
-const GLOBAL_NAME = 'PixodeskAnimator';
+const GLOBAL_NAME = PX_PLAYER_GLOBAL;
 
 // --- lever 2: build the UMD from core's SOURCE rather than its prebuilt dist.
 // esbuild then sees ~40 individual modules instead of one pre-bundled file, and the
@@ -79,7 +80,7 @@ const terserFor = (mangleProps: boolean) => {
 // --- pre-rendered UMD builds (dev-docs/plans/prerendered-player-builds.md).
 // Inlined by the Editor into SVG+JS exports instead of the full player. Same iife shape
 // and same global name, so the emitted <script> is unchanged; only the code behind
-// `createAnimator` is narrower.
+// `create` is narrower.
 const prerenderedBuild = (name: string, minified: boolean) => ({
     entry: { [`index.${name}`]: `src/index.${name}.ts` },
     format: ['iife' as const],

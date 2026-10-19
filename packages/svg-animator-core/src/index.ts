@@ -83,7 +83,7 @@ export {
 export { materializeAllInTree } from './materialize/PxAnimatorMaterializeAll';
 
 // Adapter-driven frame-loop engine (platform-neutral playback)
-export { createAdapterAnimator } from './playback/PxFrameLoop';
+export { createAdapterSvgAnimator } from './playback/PxFrameLoop';
 export type { PxPlatformAdapter } from './playback/PxFrameLoop';
 
 // The ONE time contract every engine implements (review §3)

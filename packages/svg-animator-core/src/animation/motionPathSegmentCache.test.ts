@@ -16,7 +16,7 @@
 // Only frames-mode is affected: WAAPI materializes motion paths into sampled kfs upstream.
 
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { createAdapterAnimator, type PxPlatformAdapter } from '../playback/PxFrameLoop';
+import { createAdapterSvgAnimator, type PxPlatformAdapter } from '../playback/PxFrameLoop';
 import { calcAnimationValues, normalizeBindings } from './PxDefinitions';
 import type { PxAnimatedSvgDocument } from '../format/PxAnimatorTypes';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
@@ -54,7 +54,7 @@ const CHORD_Y = 74.5;
 function mkAnimator() {
     const attrs = new Map<string, string>();
     const adapter: PxPlatformAdapter = { isConnected: () => true, setAttribute: (id, a, v) => attrs.set(id + '|' + a, v) };
-    const api = createAdapterAnimator(mkDoc(), adapter);
+    const api = createAdapterSvgAnimator(mkDoc(), adapter);
     return { api, transform: () => attrs.get('el1|transform') };
 }
 

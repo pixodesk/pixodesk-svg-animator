@@ -28,13 +28,13 @@ browser consumer stays self-contained.
 The web player ships in several builds, and your tooling picks the right one by itself:
 
 - **ESM** — for a bundler (Vite, webpack, Rollup, esbuild) or any modern setup:
-  `import { createAnimator } from '@pixodesk/svg-animator-web'`. Nothing to configure after
+  `import { createSvgAnimator } from '@pixodesk/svg-animator-web'`. Nothing to configure after
   `npm install`; this is what the React and Vue packages use internally, and what every snippet
   in [Web player](./web-player.md) assumes.
 - **CJS** — for Node.js and older tooling that uses `require()`. Selected automatically through
   the package's `exports` map; you never reference the file by name.
 - **UMD** — for pages **without a build step**: plain HTML, CMS templates, code blocks. One
-  self-contained file, `pixodesk-svg-animator.umd.min.js`, that exposes a `PixodeskAnimator` global from a
+  self-contained file, `pixodesk-svg-animator.umd.min.js`, that exposes a `Pixodesk.SvgAnimator` global from a
   `<script>` tag. The rest of this section is about this build, because it is the only one
   you have to handle by hand.
 
@@ -65,10 +65,10 @@ Then load it with a relative path, like any other script of yours:
 <script>
 
   // declarative
-  PixodeskAnimator.loadTagAnimators(); 
+  Pixodesk.SvgAnimator.loadTagSvgAnimators(); 
 
   // programmatic
-  const a = PixodeskAnimator.createAnimator({ src: '/bouncing-ball.json', container: '#box' });
+  const a = Pixodesk.SvgAnimator.create({ src: '/bouncing-ball.json', container: '#box' });
   
 </script>
 ```
@@ -85,7 +85,7 @@ Files in `dist/`:
 |---|---|
 | `index.js` · `index.cjs` (+ `.min` variants) | ESM / CJS entry for bundlers |
 | `index.d.ts` | TypeScript types |
-| `pixodesk-svg-animator.umd.js` · `pixodesk-svg-animator.umd.min.js` | the full player as a `<script>` global (`PixodeskAnimator`) |
+| `pixodesk-svg-animator.umd.js` · `pixodesk-svg-animator.umd.min.js` | the full player as a `<script>` global (`Pixodesk.SvgAnimator`) |
 | `index.prerendered*.umd*.js` | trimmed builds the **editor** inlines into *SVG + JS animation* exports — you never load these yourself |
 
 ## TypeScript
@@ -105,7 +105,7 @@ from the one you installed.
 
 Other types you may want by name:
 
-- `PxTagAnimatorOptions` — the options `loadTagAnimators` takes.
+- `PxTagAnimatorOptions` — the options `loadTagSvgAnimators` takes.
 - `PxPrerenderedAnimatorOptions` — the options the pre-rendered builds take.
 - `PxAnimatorHandle` — the handle the components give you through `apiRef`.
 - `PxPlaybackApi` — the smaller set of methods a pre-rendered player offers.

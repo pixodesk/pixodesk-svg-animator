@@ -14,7 +14,7 @@ Vue component for rendering and controlling Pixodesk SVG animations.
 
 ```vue
 <script setup lang="ts">
-import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-vue';
+import { SvgAnimator } from '@pixodesk/svg-animator-vue';
 import animationDoc from './animation.json';
 </script>
 ```
@@ -25,7 +25,7 @@ Uses triggers defined in the animation document (load, click, hover, scroll):
 
 ```vue
 <template>
-  <PixodeskSvgAnimator :doc="animationDoc" autoplay />
+  <SvgAnimator :doc="animationDoc" autoplay />
 </template>
 ```
 
@@ -40,7 +40,7 @@ const paused = ref(false);
 </script>
 
 <template>
-  <PixodeskSvgAnimator :doc="animationDoc" play :pause="paused" />
+  <SvgAnimator :doc="animationDoc" play :pause="paused" />
   <button @click="paused = !paused">Toggle</button>
 </template>
 ```
@@ -58,7 +58,7 @@ const animator = ref<VueAnimatorApi | null>(null);
 </script>
 
 <template>
-  <PixodeskSvgAnimator :doc="animationDoc" ref="animator" />
+  <SvgAnimator :doc="animationDoc" ref="animator" />
   <button @click="animator?.play()">Play</button>
   <button @click="animator?.pause()">Pause</button>
 </template>
@@ -73,14 +73,14 @@ Render a single frame — by time in milliseconds, or by fraction of the whole t
 
 ```vue
 <template>
-  <PixodeskSvgAnimator :doc="animationDoc" :time="500" />      <!-- 500 ms in -->
-  <PixodeskSvgAnimator :doc="animationDoc" :progress="0.5" />  <!-- halfway through -->
+  <SvgAnimator :doc="animationDoc" :time="500" />      <!-- 500 ms in -->
+  <SvgAnimator :doc="animationDoc" :progress="0.5" />  <!-- halfway through -->
 </template>
 ```
 
 ## Props
 
-<!-- px-check props PixodeskSvgAnimator pkg=vue -->
+<!-- px-check props SvgAnimator pkg=vue -->
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxAnimatedSvgDocument` | The animation document to render (required) |
@@ -106,7 +106,7 @@ Note: passing a different `doc` (or unmounting) throws the old animator away and
 
 ## Events
 
-<!-- px-check emits PixodeskSvgAnimator pkg=vue -->
+<!-- px-check emits SvgAnimator pkg=vue -->
 | Event | Description |
 |---|---|
 | `play` | Animation started or resumed |

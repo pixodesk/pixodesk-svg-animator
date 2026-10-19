@@ -21,20 +21,20 @@
 // runtime. Anything the Editor imports belongs in `index.ts`.
 // ============================================================================
 
-// The player itself. `createAnimator` is what the Editor's exported SVG+JS calls
-// (`PixodeskAnimator.createAnimator({...})`); `loadTagAnimators` is the
-// declarative `data-px-animation-src` bootstrap.
+// The player itself. On the global, `createSvgAnimator` is the member `create` (PX_PLAYER_CREATE) —
+// what the Editor's exported SVG+JS calls (`Pixodesk.SvgAnimator.create({...})`); `loadTagSvgAnimators`
+// is the declarative `data-px-animation-src` bootstrap.
 export {
-    createAnimator,
+    createSvgAnimator as create,
     generateNewIds,
-    loadTagAnimators,
+    loadTagSvgAnimators,
     PX_ANIMATOR_DOC_KEY,
 } from './animator/PxAnimator';
 
-// Trigger wiring — `createAnimator` uses it internally; exposed so a page can
+// Trigger wiring — `create` uses it internally; exposed so a page can
 // re-arm triggers after swapping document content.
 export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
-export { getAllAnimators, onAnimatorsChange } from './registry/PxAnimatorRegistry';
+export { getAllSvgAnimators, onSvgAnimatorsChange } from './registry/PxAnimatorRegistry';
 export type { PxAnimatorRegistry, PxAnimatorsEvent, PxAnimatorsListener } from './registry/PxAnimatorRegistry';
 
 // Config enums a caller needs to build `PxAnimatorOptions` by hand.

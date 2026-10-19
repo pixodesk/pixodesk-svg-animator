@@ -2164,8 +2164,8 @@ export interface PxEngineCallbacks extends PxDiagnosticsConfig {
 }
 
 /**
- * What every PUBLIC surface takes, inline and under the same names — `createAnimator({ onFinish })`,
- * `loadTagAnimators`, the pre-rendered entries, and `<PixodeskSvgAnimator onFinish />` on React,
+ * What every PUBLIC surface takes, inline and under the same names — `createSvgAnimator({ onFinish })`,
+ * `loadTagSvgAnimators`, the pre-rendered entries, and `<SvgAnimator onFinish />` on React,
  * Vue and React Native (review §9, §24): the engine's callbacks plus `onStop`, which fires after
  * any of `onPause` / `onCancel` / `onFinish` / `onRemove` — for callers who only care that
  * playback is no longer running, whatever the reason.

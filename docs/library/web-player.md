@@ -5,7 +5,7 @@
 Use this on a plain web page — or anywhere you write JavaScript without a framework — to play
 a JSON animation with full control. Hand it the document and it builds the SVG DOM, drives the
 animation with the Web Animations API or a frame loop, and wires up hover / click / scroll
-triggers for you. It ships as ESM, CJS and UMD (global `PixodeskAnimator`), so it fits a
+triggers for you. It ships as ESM, CJS and UMD (global `Pixodesk.SvgAnimator`), so it fits a
 bundler or a plain `<script>` tag equally well.
 
 ```bash
@@ -18,7 +18,7 @@ npm install @pixodesk/svg-animator-web
 
 > **Example:** [`web/declarative`](../../examples/docs-examples/src/cases/web/declarative/) — `pnpm example:docs`, then open `#web/declarative`.
 
-Point an element at the JSON file and call `loadTagAnimators()` once the DOM is ready. The
+Point an element at the JSON file and call `loadTagSvgAnimators()` once the DOM is ready. The
 script is the UMD build, copied from the npm package into your site — see
 [Installing the players (overview)](./installation.md#builds--esm-cjs-and-umd):
 
@@ -26,7 +26,7 @@ script is the UMD build, copied from the npm package into your site — see
 <div data-px-animation-src="/bouncing-ball.json" style="width: 300px; height: 300px"></div>
 
 <script src="/js/pixodesk-svg-animator.umd.min.js"></script>
-<script>PixodeskAnimator.loadTagAnimators();</script>
+<script>Pixodesk.SvgAnimator.loadTagSvgAnimators();</script>
 ```
 
 `bouncing-ball.json` is the whole document — a ball on an eased, alternating bounce. (The
@@ -69,14 +69,14 @@ comments are explanatory; JSON does not allow comments, so the real file has non
 ```
 
 Every matching element gets its own animator, stored on the element as `element._px_animator`
-(the [playback API](#the-playback-api) below). Calling `loadTagAnimators()` again only picks up
+(the [playback API](#the-playback-api) below). Calling `loadTagSvgAnimators()` again only picks up
 elements that do not have an animator yet, so it is safe to call after inserting new content.
 
-### Programmatic — `createAnimator(options)`
+### Programmatic — `createSvgAnimator(options)`
 
 > **Example:** [`web/programmatic`](../../examples/docs-examples/src/cases/web/programmatic/) — `pnpm example:docs`, then open `#web/programmatic`.
 
-Use `createAnimator` when you want to start the animation from code, react to what it does,
+Use `createSvgAnimator` when you want to start the animation from code, react to what it does,
 or control it after it has loaded. It returns the playback API at once — even while the
 document is still loading from a URL.
 
@@ -85,19 +85,19 @@ document is still loading from a URL.
 ```
 
 ```js
-import { createAnimator } from '@pixodesk/svg-animator-web';
+import { createSvgAnimator } from '@pixodesk/svg-animator-web';
 import animationDoc from './bouncing-ball.json';
 
 // from a URL — returns immediately; control calls made before the file loads are
 // queued and replayed in order once it is ready
-const animator = createAnimator({
+const animator = createSvgAnimator({
   src: '/bouncing-ball.json',
   container: '#hero',
   onFinish: () => console.log('done'),
 });
 
 // or from a document object you already have — imported, fetched, or built in code
-const animator2 = createAnimator({ doc: animationDoc, container: document.getElementById('hero') });
+const animator2 = createSvgAnimator({ doc: animationDoc, container: document.getElementById('hero') });
 
 animator.play();
 ```
@@ -108,10 +108,10 @@ animator.play();
 ```typescript
 // Create a player. Provide exactly one of `src` / `doc` — both, or neither, throws.
 // With `src`, control calls made before the fetch resolves are queued and replayed in
-// order, so `createAnimator({ src }).play()` works as written. A failed fetch or an
+// order, so `createSvgAnimator({ src }).play()` works as written. A failed fetch or an
 // invalid document reaches `onError` — and `console.error` when no handler is given;
 // `isReady()` stays false either way.
-function createAnimator(options: PxAnimatorOptions): PxAnimatorApi;
+function createSvgAnimator(options: PxAnimatorOptions): PxAnimatorApi;
 
 interface PxAnimatorOptions {
     src?: string;                          // URL to fetch the JSON document from
@@ -152,7 +152,7 @@ settings you chose in the editor. So a file plays the way it was designed.
 at two speeds, or a file that autostarts everywhere except inside your own transport UI:
 
 ```js
-const animator = createAnimator({
+const animator = createSvgAnimator({
   src: '/bouncing-ball.json',
   container: '#box',
   timeline: { iterations: 'infinite', trigger: { start: 'none' } },
@@ -168,13 +168,13 @@ Every field and its meaning is in [Playback settings & triggers](./playback-and-
 
 ## The playback API
 
-`createAnimator` returns a `PxAnimatorApi`. Time is ms from the start of the whole run, every
+`createSvgAnimator` returns a `PxAnimatorApi`. Time is ms from the start of the whole run, every
 iteration included; a seek is clamped to it; a rate of `0` is rejected — the same contract on
 every player.
 
 <!-- px-check signature pkg=web -->
 ```typescript
-// Playback control returned by `createAnimator` — core's `PxAnimatorApi<Element>`.
+// Playback control returned by `createSvgAnimator` — core's `PxAnimatorApi<Element>`.
 interface PxAnimatorApi extends PxPlaybackApi {
     finish(): void;                        // jump to the end and hold the final state; fires onFinish
     setPlaybackRate(rate: number): void;   // 1 normal, 2 double, 0.5 half, negative plays backwards;
@@ -207,10 +207,10 @@ interface PxPlaybackApi {
 ```
 
 ```js
-import { createAnimator } from '@pixodesk/svg-animator-web';
+import { createSvgAnimator } from '@pixodesk/svg-animator-web';
 import doc from './bouncing-ball.json';
 
-const animator = createAnimator({ doc: doc, container: '#hero' });
+const animator = createSvgAnimator({ doc: doc, container: '#hero' });
 
 const slider = document.querySelector('#time-slider');
 slider.addEventListener('input', () => {
@@ -246,10 +246,10 @@ line.
 ```
 
 ```js
-import { createAnimator } from '@pixodesk/svg-animator-web';
+import { createSvgAnimator } from '@pixodesk/svg-animator-web';
 import doc from './bouncing-ball.json';
 
-createAnimator({
+createSvgAnimator({
   doc: doc,
   container: '#box',
   onPlay:   () => {},   // started or resumed
@@ -300,7 +300,7 @@ the whole document runs on the frame loop. Either way it plays.
 > **Example:** [`web/several`](../../examples/docs-examples/src/cases/web/several/) — `pnpm example:docs`, then open `#web/several`.
 
 To put several animations on one page — different files, or even the same JSON file more than
-once — give each one its own element and call `loadTagAnimators()` once. Every element gets its own
+once — give each one its own element and call `loadTagSvgAnimators()` once. Every element gets its own
 independent animator, so the copies play, pause and finish on their own.
 
 ```html
@@ -310,12 +310,12 @@ independent animator, so the copies play, pause and finish on their own.
 ```
 
 ```js
-import { loadTagAnimators } from '@pixodesk/svg-animator-web';
+import { loadTagSvgAnimators } from '@pixodesk/svg-animator-web';
 
-loadTagAnimators();
+loadTagSvgAnimators();
 
 // Calling it again is safe: only elements without an animator are picked up.
-loadTagAnimators();
+loadTagSvgAnimators();
 ```
 
 Showing the same JSON file twice is safe here, unlike inlining the same pre-rendered SVG twice:
@@ -324,30 +324,30 @@ the second copy fresh ids yourself:
 
 ```js
 // Two copies of one animation on a page (ids must stay unique)
-import { createAnimator, generateNewIds } from '@pixodesk/svg-animator-web';
+import { createSvgAnimator, generateNewIds } from '@pixodesk/svg-animator-web';
 
-createAnimator({ doc: doc, container: '#first' });
-createAnimator({ doc: generateNewIds(doc), container: '#second' });
+createSvgAnimator({ doc: doc, container: '#first' });
+createSvgAnimator({ doc: generateNewIds(doc), container: '#second' });
 ```
 
 ## Every animator on the page (experimental)
 
 > **Experimental.** The registry is not settled yet: the event names, what
 > `getAll()` includes (the pre-rendered builds, an animator whose `src` is still loading) and
-> the `__pixodeskAnimators` global may change without a major version change. Use it for dev
+> the `__pixodeskSvgAnimators` global may change without a major version change. Use it for dev
 > tooling and tests; expect to adjust your code as new versions come out.
 
 The players keep a page-wide registry — the same idea as lottie-web's
-`getRegisteredAnimations()`. Every animator built by this package (`createAnimator`,
-`loadTagAnimators`, the pre-rendered builds, the React and Vue components) is listed from the
+`getRegisteredAnimations()`. Every animator built by this package (`createSvgAnimator`,
+`loadTagSvgAnimators`, the pre-rendered builds, the React and Vue components) is listed from the
 moment it exists until its `destroy()`, and announces its playback changes. One registry per
 window, whatever the bundling: an ESM import in one script and the UMD build in another see
 the same list.
 
 <!-- px-check signature pkg=web -->
 ```typescript
-function getAllAnimators(): ReadonlyArray<PxAnimatorApi>;
-function onAnimatorsChange(listener: PxAnimatorsListener): () => void;
+function getAllSvgAnimators(): ReadonlyArray<PxAnimatorApi>;
+function onSvgAnimatorsChange(listener: PxAnimatorsListener): () => void;
 
 type PxAnimatorsEvent = 'add' | 'remove' | 'play' | 'pause' | 'cancel' | 'finish';
 type PxAnimatorsListener = (event: PxAnimatorsEvent, animator: PxAnimatorApi) => void;
@@ -358,18 +358,18 @@ interface PxAnimatorRegistry {
 }
 ```
 
-`getAllAnimators()` returns the live animators in creation order. `onAnimatorsChange` hears
+`getAllSvgAnimators()` returns the live animators in creation order. `onSvgAnimatorsChange` hears
 every animator appear (`add`), start (`play`), pause, cancel, finish and go (`remove`); an
 animator's own `onPlay` / `onPause` / … callbacks run first. It returns the unsubscribe.
 
 ```js
-import { getAllAnimators, onAnimatorsChange } from '@pixodesk/svg-animator-web';
+import { getAllSvgAnimators, onSvgAnimatorsChange } from '@pixodesk/svg-animator-web';
 
 // Pause everything while the tab is hidden, resume what was playing when it is back.
 let paused = [];
 document.addEventListener('visibilitychange', () => {
     if (document.hidden) {
-        paused = getAllAnimators().filter(a => a.isPlaying());
+        paused = getAllSvgAnimators().filter(a => a.isPlaying());
         paused.forEach(a => a.pause());
     } else {
         paused.forEach(a => a.play());
@@ -378,12 +378,12 @@ document.addEventListener('visibilitychange', () => {
 });
 
 // A dev panel: how many are playing right now?
-onAnimatorsChange(() => {
-    console.log(getAllAnimators().filter(a => a.isPlaying()).length, 'playing');
+onSvgAnimatorsChange(() => {
+    console.log(getAllSvgAnimators().filter(a => a.isPlaying()).length, 'playing');
 });
 ```
 
-The same store is reachable **by name** as `globalThis.__pixodeskAnimators` — a
+The same store is reachable **by name** as `globalThis.__pixodeskSvgAnimators` — a
 `PxAnimatorRegistry` with `getAll()` and `subscribe()` — for tooling that reads a page it did
 not build (a devtools panel, a test harness) without importing the library. Web only: the
 React Native player keeps no registry.
@@ -398,8 +398,8 @@ once. Frameworks: the React and Vue components do this on unmount.
 
 ## API reference
 
-The calls above are spelled out where they are used: `createAnimator` and its options under
-[Programmatic](#programmatic--createanimatoroptions), the returned `PxAnimatorApi` under
+The calls above are spelled out where they are used: `createSvgAnimator` and its options under
+[Programmatic](#programmatic--createsvganimatoroptions), the returned `PxAnimatorApi` under
 [The playback API](#the-playback-api). The callbacks and diagnostics are one shape on every
 player, written out once in [the API at a glance](./README.md#the-api-at-a-glance). The rest:
 
@@ -408,11 +408,11 @@ player, written out once in [the API at a glance](./README.md#the-api-at-a-glanc
 // Scan the page for `<div data-px-animation-src="animation.json">` and create one
 // player per match, rendered into that element and stored on it. Safe to call
 // repeatedly: elements that already carry a player are skipped. Nothing calls it for
-// you. `options` — everything `createAnimator` takes except `src` / `doc` /
+// you. `options` — everything `createSvgAnimator` takes except `src` / `doc` /
 // `container` — applies to EVERY player this call creates; omit it for zero-config.
-function loadTagAnimators(options?: PxTagAnimatorOptions): void;
+function loadTagSvgAnimators(options?: PxTagAnimatorOptions): void;
 
-// Wire a player to a DOM trigger. `createAnimator` already does this from the
+// Wire a player to a DOM trigger. `createSvgAnimator` already does this from the
 // document's own `animator.timeline.trigger`, and ties the disposer to `destroy()`.
 // Use it after you have replaced the rendered SVG yourself (the player's listeners went
 // with the old elements). To change the trigger, use `timeline`. Returns a DISPOSER that
@@ -437,14 +437,14 @@ interface PxTrigger {                                  // also a wire type — t
 ```
 
 **Builds.** The ESM and CJS entries (`dist/index.js`, `dist/index.cjs`) carry everything on this
-page. The `<script>` builds put a smaller set of functions on one global, `window.PixodeskAnimator`
+page. The `<script>` builds put a smaller set of functions on one global, `window.Pixodesk.SvgAnimator`
 (the files themselves: [Installing the players](./installation.md#builds--esm-cjs-and-umd)):
 
 <!-- px-check off the UMD file list, prose -->
-| File | For | On `PixodeskAnimator` |
+| File | For | On `Pixodesk.SvgAnimator` |
 |---|---|---|
-| `pixodesk-svg-animator.umd.min.js` | a page playing JSON documents | `createAnimator`, `loadTagAnimators`, `setupAnimationTriggers`, `validateDocument`, `generateNewIds`, `PxTimelineEngineSetting`, `PxTimelineEngine`, `PX_ANIMATOR_DOC_KEY`, `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME` |
-| `index.prerendered.umd.min.js` | a pre-rendered SVG + JS export (engine `auto` / `js`) | `createAnimator(options: PxPrerenderedAnimatorOptions)`, `setupAnimationTriggers`, `PX_ANIMATOR_DOC_KEY` |
+| `pixodesk-svg-animator.umd.min.js` | a page playing JSON documents | `create` (= `createSvgAnimator`), `loadTagSvgAnimators`, `setupAnimationTriggers`, `validateDocument`, `generateNewIds`, `PxTimelineEngineSetting`, `PxTimelineEngine`, `PX_ANIMATOR_DOC_KEY`, `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME` |
+| `index.prerendered.umd.min.js` | a pre-rendered SVG + JS export (engine `auto` / `js`) | `create(options: PxPrerenderedAnimatorOptions)`, `setupAnimationTriggers`, `PX_ANIMATOR_DOC_KEY` |
 | `index.prerendered-waapi.umd.min.js` | the same with engine `native` — the smallest build | the same as the line above |
 
 `PxPrerenderedAnimatorOptions` is `{ doc: PxAnimatedSvgDocument }` plus the inline callbacks. Its `doc`
@@ -452,8 +452,9 @@ carries only `animator.definitions` and `animator.bindings` — the SVG is alrea
 and it is not validated. There is no `src` form.
 
 **Globals.** Importing the player writes nothing to `window`. `<script>` pages reach the player's
-functions through `PixodeskAnimator.*` on the UMD build; ESM and CJS consumers import what they
-need. Separately, a document with `animator.debugGlobalName: "heroBanner"` makes the player
+functions through `Pixodesk.SvgAnimator.*` on the UMD build — `createSvgAnimator` is the member `create`
+there; ESM and CJS consumers import what they need. A tool that writes a script for those pages (an
+exporter) builds the call from `PX_PLAYER_GLOBAL` and `PX_PLAYER_CREATE` instead of spelling it. Separately, a document with `animator.debugGlobalName: "heroBanner"` makes the player
 assign its API object to `window.heroBanner`, so a live instance can be driven from the console —
 opt-in per document; see [Playback & triggers → Debug handle](./playback-and-triggers.md#debug-handle--debugglobalname).
 
@@ -463,14 +464,15 @@ opt-in per document; see [Playback & triggers → Debug handle](./playback-and-t
 <!-- px-check exports @pixodesk/svg-animator-web -->
 | Identifier | Audience · what it is for |
 |---|---|
-| `createAnimator(options)`, `loadTagAnimators(options?)`, `setupAnimationTriggers(api, trigger, diag?)` | ● the player — above |
-| `getAllAnimators()`, `onAnimatorsChange(listener)`, `PxAnimatorRegistry`, `PxAnimatorsEvent`, `PxAnimatorsListener` | ● **experimental** — [every animator on the page](#every-animator-on-the-page-experimental): the window-wide registry, also `globalThis.__pixodeskAnimators`; not settled, may change without a major version |
-| `createAdapterAnimator(doc, adapter, callbacks?)` | ○ the frame-loop engine against a custom `PxPlatformAdapter` — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
+| `createSvgAnimator(options)`, `loadTagSvgAnimators(options?)`, `setupAnimationTriggers(api, trigger, diag?)` | ● the player — above |
+| `getAllSvgAnimators()`, `onSvgAnimatorsChange(listener)`, `PxAnimatorRegistry`, `PxAnimatorsEvent`, `PxAnimatorsListener` | ● **experimental** — [every animator on the page](#every-animator-on-the-page-experimental): the window-wide registry, also `globalThis.__pixodeskSvgAnimators`; not settled, may change without a major version |
+| `createAdapterSvgAnimator(doc, adapter, callbacks?)` | ○ the frame-loop engine against a custom `PxPlatformAdapter` — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
 | `PxInternalAnimatorOptions` | ▪ `PxAnimatorOptions` plus `adapter` — the frame loop's custom render target (`PxPlatformAdapter`: `isConnected()` + `setAttribute(id, name, value)`). What the React and Vue components build the player with, so writes go to the elements they rendered; not an option of the public API, because a page has a DOM to write to |
 | `renderNode(node, defs?, diag?)` → `toDomProps(props)` | ○ render one wire node to a DOM element / resolve a node's attributes. `diag` is optional — without it a blocked tag is reported on the console |
 | `validateDocument(doc)` | ● the whole-document check — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
 | `generateNewIds` | ○ document tooling — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
 | `PX_ANIMATOR_DOC_KEY` | ▪ attribute and property names the player writes |
+| `PX_PLAYER_GLOBAL`, `PX_PLAYER_CREATE` | ○ the `<script>` builds' global (`'Pixodesk.SvgAnimator'`) and its create member (`'create'`) — for tools that emit a call to it |
 | `createVisibilityGate(root, trigger, host)`, `PLAY_WHEN_VISIBLE_DEFAULTS`, `PxVisibilityGate`, `PxGateHost`, `PxGateTrigger` | ▪ the gate `setupAnimationTriggers` wires for every document — it opens at `visibilityThreshold`, closes only at zero visibility, waits out `visibilityDebounce` and treats a hidden tab as off screen. Exported so the CSS-only React and Vue wrappers gate on the same rules rather than each growing their own observer |
 | `px`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTriggerSchema`, `PxScrollSchema`, `PxDefinitionsSchema`, `PxSchema`, `PxInfer`, `PxValidationContext` | ○ the schema toolkit, re-exported from core — the schema values and the types to build on them |
 | `PxDiagnosticsConfig`, `PxDiagnostic`, `PxDiagnosticKind` | ● the diagnostics every player shares — re-exported for the React and Vue components; spelled out in [the API at a glance](./README.md#the-api-at-a-glance) |

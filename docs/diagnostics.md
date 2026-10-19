@@ -7,7 +7,7 @@ ships the number; the words are here. That keeps the library small, and gives ea
 diagnostic a stable identity you can switch on in code and search for.
 
 ```js
-createAnimator({
+createSvgAnimator({
   src: '/animation.json',
   container: '#stage',
   onWarn:  d => console.log(d.code, d.data),   // 1204, ['#missing']

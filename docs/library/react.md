@@ -12,11 +12,11 @@ npm install @pixodesk/svg-animator-react
 ```
 
 ```tsx
-import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-react';
+import { SvgAnimator } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Logo() {
-  return <PixodeskSvgAnimator doc={animation} autoplay />;
+  return <SvgAnimator doc={animation} autoplay />;
 }
 ```
 
@@ -41,14 +41,14 @@ any button, timer or effect in your app can start, pause, or jump to any point i
 
 ```tsx
 import { useRef } from 'react';
-import { PixodeskSvgAnimator, type ReactAnimatorApi } from '@pixodesk/svg-animator-react';
+import { SvgAnimator, type ReactAnimatorApi } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Player() {
   const api = useRef<ReactAnimatorApi>(null);
   return (
     <>
-      <PixodeskSvgAnimator doc={animation} apiRef={api} />
+      <SvgAnimator doc={animation} apiRef={api} />
       <button onClick={() => api.current?.play()}>Play</button>
       <button onClick={() => api.current?.pause()}>Pause</button>
       <button onClick={() => api.current?.setPlaybackRate(-1)}>Reverse</button>
@@ -88,11 +88,11 @@ The simplest mode: the component starts the animation the way the file says it s
 load, on hover, on click, or when scrolled into view.
 
 ```tsx
-import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-react';
+import { SvgAnimator } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Intro() {
-  return <PixodeskSvgAnimator doc={animation} autoplay />;
+  return <SvgAnimator doc={animation} autoplay />;
 }
 ```
 
@@ -110,14 +110,14 @@ it just jumps to the new time.
 
 ```tsx
 import { useState } from 'react';
-import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-react';
+import { SvgAnimator } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Scrubber() {
   const [time, setTime] = useState(0);
   return (
     <>
-      <PixodeskSvgAnimator doc={animation} time={time} />
+      <SvgAnimator doc={animation} time={time} />
       <input type="range" min={0} max={2000} value={time} onChange={e => setTime(+e.target.value)} />
     </>
   );
@@ -135,7 +135,7 @@ of your component's state (a toggle, a visibility flag) and you would rather not
 
 ```tsx
 import { useState } from 'react';
-import { PixodeskSvgAnimator } from '@pixodesk/svg-animator-react';
+import { SvgAnimator } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Controlled() {
@@ -143,7 +143,7 @@ export function Controlled() {
   const [pause, setPause] = useState(false);
   return (
     <>
-      <PixodeskSvgAnimator doc={animation} play={play} pause={pause} />
+      <SvgAnimator doc={animation} play={play} pause={pause} />
       <button onClick={() => { setPlay(true); setPause(false); }}>Play</button>
       <button onClick={() => setPause(true)}>Pause</button>
     </>
@@ -167,7 +167,7 @@ shaped exactly like the file's own `animator` block and deep-merges it over what
 
 ```tsx
 // The file loops twice and starts on load; here it loops forever and waits for play().
-<PixodeskSvgAnimator
+<SvgAnimator
   doc={animation}
   timeline={{ iterations: 'infinite', trigger: { start: 'none' } }}
   apiRef={apiRef}
@@ -178,7 +178,7 @@ Objects merge key by key, values replace, and `null` **deletes** a key so the de
 absence means comes back:
 
 ```tsx
-<PixodeskSvgAnimator doc={animation} autoplay timeline={{ delay: null }} />
+<SvgAnimator doc={animation} autoplay timeline={{ delay: null }} />
 ```
 
 `duration`, `delay`, `iterations` and `start` are also plain props, because
@@ -196,9 +196,9 @@ the SVG; the player drives its attributes.
 
 <!-- px-check signature pkg=react -->
 ```typescript
-const PixodeskSvgAnimator: FC<PixodeskSvgAnimatorProps>;
+const SvgAnimator: FC<SvgAnimatorProps>;
 
-interface PixodeskSvgAnimatorProps {
+interface SvgAnimatorProps {
     doc: PxAnimatedSvgDocument;           // the animation document (the JSON format page); no URL form
     className?: string;                   // added to the root <svg>
     style?: CSSProperties;                // set on the root <svg>
@@ -255,25 +255,25 @@ Passing a different `doc` (or changing `className` / `style` / the control mode)
 old animator away and builds a new one; the old instance emits `onCancel`, `onRemove` and
 `onStop` on its way out. Changing `progress` / `time` does not recreate anything.
 
-## CSS-flavor SVGs — `PixodeskSvgCssAnimator`
+## CSS-flavor SVGs — `SvgCssAnimator`
 
 > **Example:** [`react/css-svgr`](../../examples/docs-examples/src/cases/react/css-svgr/) — `pnpm example:docs`, then open `#react/css-svgr`.
 
 For a **pre-rendered SVG + CSS animation** file imported as a component with
 [SVGR](https://react-svgr.com/) (`@svgr/webpack`, `vite-plugin-svgr`), this small wrapper adds
 the hover / click / scroll triggers. It renders a `<div>` of its own around your SVG component —
-that is what `PixodeskSvgCssAnimator` becomes on the page — and starts, pauses or resets the
+that is what `SvgCssAnimator` becomes on the page — and starts, pauses or resets the
 animation by switching the file's CSS classes on that `<div>`:
 
 ```tsx
-import { PixodeskSvgCssAnimator } from '@pixodesk/svg-animator-react';
+import { SvgCssAnimator } from '@pixodesk/svg-animator-react';
 import AnimationSvg from './animation.svg?react';   // vite-plugin-svgr
 
 export function HoverLogo() {
   return (
-    <PixodeskSvgCssAnimator start="mouseOver" mouseOut="pause" style={{ width: 400, height: 400 }}>
+    <SvgCssAnimator start="mouseOver" mouseOut="pause" style={{ width: 400, height: 400 }}>
       <AnimationSvg />
-    </PixodeskSvgCssAnimator>
+    </SvgCssAnimator>
   );
 }
 ```
@@ -282,7 +282,7 @@ export function HoverLogo() {
 ```typescript
 // Wraps the SVG in a div and drives it by toggling class names — `px-anim-enabled` once
 // started, plus `px-anim-playing` while running.
-const PixodeskSvgCssAnimator: FC<{
+const SvgCssAnimator: FC<{
     children: ReactNode;                  // the SVGR-imported SVG component
     start?: PxTriggerStart;               // 'load' (default) | 'mouseOver' | 'click'
                                           //   — 'none' does nothing here (no play())
@@ -299,7 +299,7 @@ const PixodeskSvgCssAnimator: FC<{
 ```
 
 > ⚠️ **Don't put the SAME SVG file on a page twice.** You can have as many
-> `<PixodeskSvgCssAnimator>` on a page as you like, each with a *different* file. What does not
+> `<SvgCssAnimator>` on a page as you like, each with a *different* file. What does not
 > work is the *same* file twice: the imported component is the file's markup, element ids
 > included, so two copies share the same ids and their masks and gradients cross over. To show
 > one animation several times, use the JSON component instead — the player gives every copy
@@ -310,14 +310,14 @@ SVGR strips `<script>` tags, so only the pure CSS flavor works this way. Files w
 
 ## API reference
 
-Everything is spelled out above: `PixodeskSvgAnimator` and its props under [Props](#props), the
-handle under [Imperative API](#imperative-api-apiref), `PixodeskSvgCssAnimator` under
-[CSS-flavor SVGs](#css-flavor-svgs--pixodesksvgcssanimator). The callbacks and diagnostics are
+Everything is spelled out above: `SvgAnimator` and its props under [Props](#props), the
+handle under [Imperative API](#imperative-api-apiref), `SvgCssAnimator` under
+[CSS-flavor SVGs](#css-flavor-svgs--svgcssanimator). The callbacks and diagnostics are
 the shape every player shares — [the API at a glance](./README.md#the-api-at-a-glance).
 
 <!-- px-check exports @pixodesk/svg-animator-react -->
-Also exported: **●** `PixodeskSvgAnimatorProps`, `ReactAnimatorApi`,
-`PixodeskSvgAnimatorCallbacks` (the `on*` props as a standalone type), and `PxAnimatedSvgDocument`
+Also exported: **●** `SvgAnimatorProps`, `ReactAnimatorApi`,
+`SvgAnimatorCallbacks` (the `on*` props as a standalone type), and `PxAnimatedSvgDocument`
 (the document type, for casting a JSON import — [TypeScript](./installation.md#typescript)).
 
 [← Web player](./web-player.md) · [Contents](../../README.md#documentation) · Next: [Next.js →](./nextjs.md)

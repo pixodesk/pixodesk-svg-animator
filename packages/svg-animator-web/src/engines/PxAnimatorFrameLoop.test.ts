@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createAdapterAnimator, type PxPlatformAdapter } from './PxAnimatorFrameLoop';
+import { createAdapterSvgAnimator, type PxPlatformAdapter } from './PxAnimatorFrameLoop';
 import type { PxAnimatedSvgDocument, PxEngineCallbacks } from '@pixodesk/svg-animator-core';
 
 
@@ -64,12 +64,12 @@ function createMockAdapter() {
 
 function setup(timeline: Record<string, any> = {}, callbacks?: PxEngineCallbacks) {
     const mock = createMockAdapter();
-    const api = createAdapterAnimator(makeDoc(timeline), mock.adapter, callbacks);
+    const api = createAdapterSvgAnimator(makeDoc(timeline), mock.adapter, callbacks);
     return { api, ...mock };
 }
 
 
-describe('createAdapterAnimator', () => {
+describe('createAdapterSvgAnimator', () => {
     beforeEach(() => {
         // 'performance' must be faked alongside requestAnimationFrame: with the
         // default toFake set, jsdom's rAF stops firing from the second test in

@@ -2,9 +2,9 @@
 
 A single-page preview player that demonstrates all three runtime packages side by side:
 
-- **Web** — `@pixodesk/svg-animator-web` (`createAnimator`)
-- **React** — `@pixodesk/svg-animator-react` (`<PixodeskSvgAnimator/>`)
-- **Vue** — `@pixodesk/svg-animator-vue` (`<PixodeskSvgAnimator/>`)
+- **Web** — `@pixodesk/svg-animator-web` (`createSvgAnimator`)
+- **React** — `@pixodesk/svg-animator-react` (`<SvgAnimator/>`)
+- **Vue** — `@pixodesk/svg-animator-vue` (`<SvgAnimator/>`)
 
 ## Features
 

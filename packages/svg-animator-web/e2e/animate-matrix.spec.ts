@@ -320,7 +320,7 @@ test.describe("animate-matrix (waapi, seek-driven)", () => {
         test(name, async ({ page }) => {
             await openWithDoc(page, doc);
 
-            // Wait until loadTagAnimators has attached a ready animator.
+            // Wait until loadTagSvgAnimators has attached a ready animator.
             await page.waitForFunction(() => {
                 const el = document.querySelector('[data-px-animation-src]') as any;
                 return el && el._px_animator && el._px_animator.isReady();

@@ -687,9 +687,9 @@ of **bindings**, each saying which element (`target`, by `#id`) plays which of t
 (`animateWith`). You will normally never write such a document yourself; the editor generates it.
 
 ```js
-import { createAnimator } from '@pixodesk/svg-animator-web';
+import { createSvgAnimator } from '@pixodesk/svg-animator-web';
 
-createAnimator({ container: '#box', doc: {   // an empty <div id="box"> on the page
+createSvgAnimator({ container: '#box', doc: {   // an empty <div id="box"> on the page
   type: 'svg', id: '_px_root',
   animator: {
     timeline: { duration: 2000 },
@@ -1383,12 +1383,12 @@ renders each tick.
 
 ### Writing your own player
 
-Implement `PxPlatformAdapter` and hand it to `createAdapterAnimator`; the engine
+Implement `PxPlatformAdapter` and hand it to `createAdapterSvgAnimator`; the engine
 handles timing, delay, direction, iterations, fill, playback rate and the lifecycle callbacks,
 then calls you with plain attribute writes:
 
 ```ts
-import { createAdapterAnimator, materializeAllInTree, generateNewIds,
+import { createAdapterSvgAnimator, materializeAllInTree, generateNewIds,
          PxTimelineEngine, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import doc from './bouncing-ball.json';
 
@@ -1399,7 +1399,7 @@ const adapter: PxPlatformAdapter = {
   setAttribute: (id, attrName, value) => { /* apply to your element */ },
 };
 
-const api = createAdapterAnimator(flatDoc, adapter, { onFinish: () => console.log('done') });
+const api = createAdapterSvgAnimator(flatDoc, adapter, { onFinish: () => console.log('done') });
 api.play();
 ```
 
@@ -1480,7 +1480,7 @@ function downgradeWireDocument(doc: unknown, target: PxWireVersion): PxWireDowng
 function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocument;
 
 // ○ Playback on a non-DOM target: implement the adapter, get the frame-loop engine.
-function createAdapterAnimator(
+function createAdapterSvgAnimator(
     doc: PxAnimatedSvgDocument,
     adapter: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks,
