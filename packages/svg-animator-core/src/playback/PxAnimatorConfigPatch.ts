@@ -119,10 +119,14 @@ function mergeTimeline(base: unknown, patch: Record<string, any>, warn: (m: stri
 /** A deep-partial of the WIRE `timeline` block; `null` at any slot deletes it. @public */
 export type PxTimelinePatch = Record<string, any> | null;
 
-/** The four flat shortcuts every surface offers for the keys people reach for most. @public */
+/** The flat shortcuts every surface offers for the keys people reach for most. @public */
 export interface PxTimelineShortcuts {
-    /** Shortcut for `timeline.duration` — one iteration, ms. Wins over the same key in `timeline`. */
-    duration?: number;
+    /** Shortcut for `timeline.inTime` — where the content window begins, ms. Wins over the same key in `timeline`. */
+    inTime?: number;
+    /** Shortcut for `timeline.outTime` — where the content window ends, ms. */
+    outTime?: number;
+    /** Shortcut for `timeline.playDuration` — wall ms one pass of the window takes. */
+    playDuration?: number;
     /** Shortcut for `timeline.delay` — the wait before the first iteration, ms. */
     delay?: number;
     /** Shortcut for `timeline.iterations`; `'infinite'` never stops. */
@@ -186,13 +190,16 @@ export function foldTimelineOverride(
         base = timeline ?? undefined;
     }
 
-    const { duration, delay, iterations, start } = shortcuts;
-    if (duration === undefined && delay === undefined && iterations === undefined && start === undefined) {
+    const { inTime, outTime, playDuration, delay, iterations, start } = shortcuts;
+    if (inTime === undefined && outTime === undefined && playDuration === undefined
+        && delay === undefined && iterations === undefined && start === undefined) {
         return base === undefined ? undefined : { timeline: base };
     }
 
     const out: Record<string, any> = isPlainObject(base) ? { ...base } : {};
-    if (duration !== undefined) out.duration = duration;
+    if (inTime !== undefined) out.inTime = inTime;
+    if (outTime !== undefined) out.outTime = outTime;
+    if (playDuration !== undefined) out.playDuration = playDuration;
     if (delay !== undefined) out.delay = delay;
     if (iterations !== undefined) out.iterations = iterations;
     if (start !== undefined) {

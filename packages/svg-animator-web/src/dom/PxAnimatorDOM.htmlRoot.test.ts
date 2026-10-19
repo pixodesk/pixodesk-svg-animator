@@ -16,7 +16,7 @@ const HTML_NS = 'http://www.w3.org/1999/xhtml';
 const page = (): PxAnimatedSvgDocument => ({
     type: 'div',
     style: { textAlign: 'center' },
-    animator: { timeline: { duration: 1000, engine: PxTimelineEngine.js } },
+    animator: { timeline: { outTime: 1000, engine: PxTimelineEngine.js } },
     children: [
         { type: 'h1', textContent: 'Hello, world!' },
         {

@@ -12,7 +12,7 @@ export const effectCloneSymbolAlongPath: SvgaCaseJson = {
     "animator": {
         "timeline": {
             "mode": "auto",
-            "duration": 1000,
+            "outTime": 1000,
             "trigger": {
                 "start": "load",
                 "offScreen": "continue"
@@ -31,7 +31,7 @@ export const effectCloneSymbolAlongPath: SvgaCaseJson = {
                     "meta": {
                         "label": "star-symbol",
                         "timeline": {
-                            "duration": 500
+                            "outTime": 500
                         }
                     },
                     "children": [

@@ -238,7 +238,7 @@ const EMPTY_TRACKS: PxCompiledTracks = {
  * whole thing sits behind one try/catch, and so it can be tested directly.
  */
 function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides, diag: PxDiagnostics): Compiled {
-    const { timeline, resetTimeline, duration, delay, iterations, start } = overrides;
+    const { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start } = overrides;
     const warnings = validateNodeEffects(doc as PxNode);
     for (const w of warnings) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.effectsShape, w);
     // The whole-document boundary diagnostic — see the note in the web player's entry.
@@ -247,7 +247,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
     // The per-instance override, applied to the WIRE document BEFORE anything reads the
     // config — `materializeAllInTree` samples motion paths against `duration`, so a later
     // patch would be read by none of the pipeline. Same call, same rules, on every surface.
-    const patch = foldTimelineOverride(timeline, { duration, delay, iterations, start });
+    const patch = foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start });
     if (patch !== undefined || resetTimeline) {
         const applied = applyAnimatorConfig(doc, patch ?? {}, { resetTimeline: !!resetTimeline });
         for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
@@ -291,7 +291,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
  * @public
  */
 export function SvgAnimator({
-    doc, timeline, resetTimeline, duration, delay, iterations, start,
+    doc, timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start,
     // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
     playAsSaved, play, pause, apiRef, progress: progressProp, time,
     onPlay, onStop, onPause, onCancel, onFinish, onRemove, onError, fallback, onWarn, muteWarn, muteError,
@@ -318,7 +318,7 @@ export function SvgAnimator({
         try {
             return compileDocument(
                 doc,
-                { timeline, resetTimeline, duration, delay, iterations, start },
+                { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start },
                 makeDiag(),
             );
         } catch (e) {
@@ -330,7 +330,7 @@ export function SvgAnimator({
         }
         // `timeline` is an object prop, so a fresh literal each render would recompile the whole
         // document. Key on its CONTENT — the override is small, unlike the document.
-    }, [doc, timelineKey, resetTimeline, duration, delay, iterations, start]);
+    }, [doc, timelineKey, resetTimeline, inTime, outTime, playDuration, delay, iterations, start]);
 
     const tracks: PxCompiledTracks = compiled.tracks;
     // The span `progress` 0–1 covers (ONE iteration when endless) — NOT the seek ceiling.

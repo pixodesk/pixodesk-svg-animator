@@ -22,7 +22,7 @@ function wireDoc(): PxAnimatedSvgDocument {
         viewBox: '0 0 100 100',
         animator: {
             timeline: {
-                engine: 'js', duration: 1000, iterations: 2,
+                engine: 'js', outTime: 1000, iterations: 2,
                 trigger: { start: 'load' },
             },
         },
@@ -42,18 +42,18 @@ const stage = () => {
 describe('resolveTimelineOption — shortcuts and the string form', () => {
 
     it('folds the four shortcuts into the timeline patch', () => {
-        const out = resolveTimelineOption({ duration: 500, delay: 20, iterations: 'infinite', start: 'click' } as any);
-        expect(out).toEqual({ timeline: { duration: 500, delay: 20, iterations: 'infinite', trigger: { start: 'click' } } });
+        const out = resolveTimelineOption({ outTime: 500, delay: 20, iterations: 'infinite', start: 'click' } as any);
+        expect(out).toEqual({ timeline: { outTime: 500, delay: 20, iterations: 'infinite', trigger: { start: 'click' } } });
     });
 
     it('a shortcut WINS over the same key inside timeline', () => {
-        const out = resolveTimelineOption({ timeline: { duration: 1 }, duration: 999 } as any);
-        expect((out as any).timeline.duration).toBe(999);
+        const out = resolveTimelineOption({ timeline: { outTime: 1 }, outTime: 999 } as any);
+        expect((out as any).timeline.outTime).toBe(999);
     });
 
     it('a shortcut merges INTO timeline rather than replacing it', () => {
-        const out = resolveTimelineOption({ timeline: { fillMode: 'both' }, duration: 42 } as any);
-        expect((out as any).timeline).toEqual({ fillMode: 'both', duration: 42 });
+        const out = resolveTimelineOption({ timeline: { fillMode: 'both' }, outTime: 42 } as any);
+        expect((out as any).timeline).toEqual({ fillMode: 'both', outTime: 42 });
     });
 
     it('start merges into an existing trigger', () => {
@@ -123,7 +123,7 @@ describe('createSvgAnimator — the override reaches the running animation', () 
         // To get "nothing autostarts", ask for it: see the `start: 'none'` test above.
         const api = createSvgAnimator({
             playAsSaved: true, doc: wireDoc(), container: stage(),
-            resetTimeline: true, timeline: { engine: 'js', duration: 4000 },
+            resetTimeline: true, timeline: { engine: 'js', outTime: 4000 },
         });
         expect(api.isPlaying()).toBe(true);
         api.destroy();
@@ -132,7 +132,7 @@ describe('createSvgAnimator — the override reaches the running animation', () 
     it('does not mutate the caller document', () => {
         const doc = wireDoc();
         const before = JSON.stringify(doc);
-        const api = createSvgAnimator({ playAsSaved: true, doc, container: stage(), timeline: { duration: 9999 } });
+        const api = createSvgAnimator({ playAsSaved: true, doc, container: stage(), timeline: { outTime: 9999 } });
         expect(JSON.stringify(doc)).toBe(before);
         api.destroy();
     });

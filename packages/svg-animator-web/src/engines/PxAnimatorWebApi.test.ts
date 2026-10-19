@@ -22,7 +22,7 @@ function triangle(dx: number): PxBezierPath {
     return { v, i: v.map(p => [...p] as [number, number]), o: v.map(p => [...p] as [number, number]), c: true };
 }
 
-const CONFIG: PxAnimatorRuntimeConfig = { duration: 320 };
+const CONFIG: PxAnimatorRuntimeConfig = { duration: 320 };   // the FLAT view keeps `duration` (= the window length)
 
 /** jsdom has no CSS.supports; stub a REALIZTIC one — `d` is supported only as `path("…")`, so the
  *  old "[object Object]" value would (correctly) be reported unsupported. */

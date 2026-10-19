@@ -16,7 +16,7 @@ import { diagnoseDocument, reportDocumentDiagnostics } from './PxDocumentDiagnos
 /** The current wire spelling — nothing to report. */
 const sound = {
     type: 'svg',
-    animator: { timeline: { duration: 1000, frameRate: 30, trigger: { start: 'load' } } },
+    animator: { timeline: { outTime: 1000, frameRate: 30, trigger: { start: 'load' } } },
     children: [{ type: 'rect', id: 'r', width: 10, height: 10 }],
 };
 

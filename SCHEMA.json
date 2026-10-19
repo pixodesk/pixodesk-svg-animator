@@ -6,7 +6,7 @@
   "type": "object",
   "properties": {
     "type": {
-      "const": "svg"
+      "type": "string"
     },
     "domType": {
       "type": "string"
@@ -1461,7 +1461,26 @@
           "type": "object",
           "properties": {
             "pathData": {
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "$ref": "#/$defs/PropertyAnimation"
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "value": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "value"
+                  ],
+                  "additionalProperties": false
+                }
+              ]
             },
             "pathOverflow": {
               "enum": [
@@ -1637,7 +1656,13 @@
             "frameRate": {
               "type": "number"
             },
-            "duration": {
+            "inTime": {
+              "type": "number"
+            },
+            "outTime": {
+              "type": "number"
+            },
+            "playDuration": {
               "type": "number"
             },
             "trigger": {
@@ -1681,7 +1706,10 @@
             "type": {
               "const": "scroll"
             },
-            "duration": {
+            "inTime": {
+              "type": "number"
+            },
+            "outTime": {
               "type": "number"
             },
             "iterations": {
@@ -1799,7 +1827,10 @@
             "type": {
               "const": "view"
             },
-            "duration": {
+            "inTime": {
+              "type": "number"
+            },
+            "outTime": {
               "type": "number"
             },
             "iterations": {

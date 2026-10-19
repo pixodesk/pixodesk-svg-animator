@@ -41,7 +41,7 @@ comments are explanatory; JSON does not allow comments, so the real file has non
   // ADDED: the playback settings — how long, how many times, what starts it
   "animator": {
     "timeline": {
-      "duration": 1000,
+      "outTime": 1000,
       "iterations": "infinite",
       "direction": "alternate",
       "trigger": { "start": "load" }
@@ -140,7 +140,9 @@ interface PxAnimatorOptions {
                                            //   that key. A JSON string is accepted too (survives
                                            //   property mangling)
     resetTimeline?: boolean;               // start from the player's defaults, `timeline` on top
-    duration?: number;                     // ▸ timeline.duration — one iteration, ms
+    inTime?: number;                       // ▸ timeline.inTime — the content window's start, ms
+    outTime?: number;                     // ▸ timeline.outTime — …and its end (one pass plays the window)
+    playDuration?: number;                // ▸ timeline.playDuration — the window in wall ms (slower / faster)
     delay?: number;                        // ▸ timeline.delay, ms; negative skips ahead
     iterations?: number | 'infinite';      // ▸ timeline.iterations
     start?: 'load' | 'mouseOver' | 'click' | 'none';
@@ -149,7 +151,7 @@ interface PxAnimatorOptions {
 }
 ```
 
-By default there is nothing to configure: the player takes duration, iterations, direction,
+By default there is nothing to configure: the player takes the window, iterations, direction,
 what starts the animation and the engine from the `animator` block inside the JSON — the
 settings you chose in the editor. So a file plays the way it was designed.
 

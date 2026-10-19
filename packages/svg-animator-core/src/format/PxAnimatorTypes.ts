@@ -895,8 +895,14 @@ export interface _PxTimeTimeline {
     /** Target fps for the player's frame loop — a parameter of the `engine` chosen above, so it
      *  sits beside it. Uncapped when absent; ignored by every engine except the frame loop. */
     frameRate?: number;
-    /** §2.8: how long one pass takes, ms. */
-    duration?: number;
+    /** CONTENT ms where the window begins (first-use review §4). Default 0. */
+    inTime?: number;
+    /** CONTENT ms where the window ends. The editor always writes it; absent, the player derives
+     *  it — the max raw keyframe time across all animations, else the old default length. */
+    outTime?: number;
+    /** WALL ms one pass of the window takes. Default `outTime − inTime` (play time = content
+     *  time). The remap is implemented as an initial playback-rate factor. */
+    playDuration?: number;
     /** What starts it, and what happens when that condition ends. */
     trigger?: _PxTrigger;
     /** Wait before the first iteration, ms. Negative skips ahead. */
@@ -917,8 +923,13 @@ export const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.ob
     type: px.literal('time').optional(),
     engine: PxTimelineEngineSchema,
     frameRate: px.number().optional(),
-    // §2.8: duration is a property of the TIMELINE — how long one pass takes.
-    duration: px.number(PX_DEFAULT_DURATION_MS).optional(),
+    // First-use review §4: the content WINDOW replaces `duration` — `inTime`/`outTime` are
+    // content ms (the editing in/out points); `playDuration` remaps the window to wall ms.
+    // `outTime` and `playDuration` have DERIVED defaults (max keyframe time; window length),
+    // so the schema states no constant for them.
+    inTime: px.number(0).optional(),
+    outTime: px.number().optional(),
+    playDuration: px.number().optional(),
     trigger: PxTriggerSchema.optional(),
     delay: px.number(0).optional(),
     iterations: px.union([px.number(PX_DEFAULT_ITERATIONS), px.literal('infinite')], PX_DEFAULT_ITERATIONS).optional(),
@@ -936,9 +947,10 @@ const _ck_PxTimeTimeline: KeysMatch<PxInfer<typeof PxTimeTimelineSchema>, _PxTim
 // into this discriminant). `mode` (shared by every timeline type) says who runs the
 // animation; `pin` is boolean-or-object (§2.2).
 const scrollishTimelineShape = {
-    // §2.8: duration is a property of the TIMELINE — under scrubbing it is the keyframe
-    // span the scroll range maps onto.
-    duration: px.number().optional(),
+    // First-use review §4: the content WINDOW — under scrubbing it is the keyframe span the
+    // scroll range maps onto. No `playDuration` here: scroll owns the pace.
+    inTime: px.number(0).optional(),
+    outTime: px.number().optional(),
     // Finite repeat count IS meaningful when scrubbing — the scroll range maps onto
     // duration × iterations (rule D4; `'infinite'` cannot map to a range, so no literal here).
     iterations: px.number().optional(),
@@ -953,8 +965,10 @@ const scrollishTimelineShape = {
 };
 /** The keys both scroll-driven members carry. Locked the same way as the time member. */
 export interface _PxScrollishTimelineShape {
-    /** §2.8: under scrubbing, the keyframe span the scroll range maps onto. */
-    duration?: number;
+    /** CONTENT ms where the window begins. Default 0. */
+    inTime?: number;
+    /** CONTENT ms where the window ends; under scrubbing the scroll range maps onto the window. */
+    outTime?: number;
     /** Finite only — `'infinite'` cannot map onto a range (rule D4). */
     iterations?: number;
     /** How the animated attributes get updated. Default `auto`. */
@@ -1012,9 +1026,17 @@ export interface _PxAnimatorConfig {
      *  see {@link PxTimelineEngineSetting}. */
     engine?: PxTimelineEngineSetting;
 
-    /** RUNTIME VIEW ONLY (not wire — §2.8: the wire spells it `timeline.duration`).
-     *  Total animation duration in milliseconds. */
+    /** RUNTIME VIEW ONLY (not wire — the wire spells the window `timeline.inTime`/`outTime`).
+     *  The resolved CONTENT WINDOW LENGTH in ms (`outTime − inTime`): the engines' one length. */
     duration?: number;
+
+    /** RUNTIME VIEW ONLY. The resolved window start in CONTENT ms — `normalizeBindings` shifts
+     *  every keyframe time by it, so the engines keep sampling from 0. Default 0. */
+    inTime?: number;
+
+    /** RUNTIME VIEW ONLY. Wall ms one pass takes; applied as an initial playback-rate factor
+     *  (`duration / playDuration`) in `finaliseAnimator`. Absent = no remap. */
+    playDuration?: number;
 
     /** Delay before animation starts in milliseconds */
     delay?: number;

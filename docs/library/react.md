@@ -181,8 +181,8 @@ absence means comes back:
 <SvgAnimator doc={animation} playAsSaved timeline={{ delay: null }} />
 ```
 
-`duration`, `delay`, `iterations` and `start` are also plain props, because
-`duration={2000}` reads better than a nested object; a prop wins over the same key inside
+`inTime`, `outTime`, `playDuration`, `delay`, `iterations` and `start` are also plain props,
+because `outTime={2000}` reads better than a nested object; a prop wins over the same key inside
 `timeline`. To ignore the file's playback settings entirely and start from the player's defaults,
 add `resetTimeline`.
 
@@ -211,7 +211,9 @@ interface SvgAnimatorProps {
     resetTimeline?: boolean;              // start from the player's defaults, `timeline` on top
 
     // Shortcuts — a shortcut wins over the same key inside `timeline`
-    duration?: number;                    // ▸ timeline.duration (one iteration, ms)
+    inTime?: number;                      // ▸ timeline.inTime — the content window's start, ms
+    outTime?: number;                     // ▸ timeline.outTime — …and its end (one pass plays the window)
+    playDuration?: number;                // ▸ timeline.playDuration — the window in wall ms (slower / faster)
     delay?: number;                       // ▸ timeline.delay (ms). Negative skips ahead: -500 starts
                                           //   at once from the frame at 0.5 s
     iterations?: number | 'infinite';     // ▸ timeline.iterations; 'infinite' never stops

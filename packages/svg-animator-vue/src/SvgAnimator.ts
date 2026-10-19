@@ -59,8 +59,8 @@ function applyDocOverrides(
     // wire-format document — which is what every writer emits — `flattenAnimatorTimeline`
     // overwrote them from `timeline` immediately afterwards, so the overrides were silently
     // discarded. See dev-docs/plans/playback-override.md §1.1.
-    const { timeline, resetTimeline, duration, delay, iterations, start } = props;
-    const patch = foldTimelineOverride(timeline, { duration, delay, iterations, start });
+    const { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start } = props;
+    const patch = foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start });
     const fullPatch: any = controlModeTakesOverTrigger(compMode) ? suppressTriggerStart(patch) : patch;
 
     if (fullPatch !== undefined || resetTimeline) {
@@ -89,7 +89,8 @@ function calcSeekMs(doc: PxAnimatedSvgDocument, props: DocOverrideProps): number
         const iterationsValue = props.iterations ?? animator.iterations;
         const iterationsCount = iterationsValue === 'infinite' ? Infinity
             : (typeof iterationsValue === 'number' && iterationsValue >= 1 ? iterationsValue : 1);
-        const singleDuration = props.duration ?? animator.duration ?? PX_DEFAULT_DURATION_MS;
+        // the window length — the shortcuts are already folded into the patched doc
+        const singleDuration = animator.duration ?? PX_DEFAULT_DURATION_MS;
         seekMs = progressToTimeMs(props.progress, singleDuration, iterationsCount);
     }
     if (props.time !== undefined) seekMs = props.time;
@@ -138,7 +139,9 @@ const SvgAnimator = defineComponent({
         //    plus the four shortcuts people reach for most. The same names as React / RN.
         timeline: { type: [Object, String] as PropType<PxTimelinePatch | string> },
         resetTimeline: { type: Boolean, default: undefined },
-        duration: { type: Number },
+        inTime: { type: Number },
+        outTime: { type: Number },
+        playDuration: { type: Number },
         delay: { type: Number },
         iterations: { type: [Number, String] as PropType<number | 'infinite'> },
         start: { type: String as PropType<'load' | 'mouseOver' | 'click' | 'none'> },

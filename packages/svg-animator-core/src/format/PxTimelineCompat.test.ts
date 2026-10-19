@@ -15,12 +15,36 @@ import type { PxValidationContext } from '../schema/PxSchema';
 
 describe('animator.timeline spelling compat', () => {
 
+    it('§4: the window folds — inTime/outTime → flat duration (window length) + inTime; playDuration passes', () => {
+        const cfg = getAnimatorConfig({
+            type: 'svg',
+            animator: { timeline: { inTime: 500, outTime: 2500, playDuration: 4000 } },
+        } as any) as any;
+        expect(cfg.duration).toBe(2000);        // outTime − inTime: the engines' one length
+        expect(cfg.inTime).toBe(500);           // the sampling shift
+        expect(cfg.playDuration).toBe(4000);    // the wall remap, applied as a rate factor
+        // …and the round trip writes the window back as its two points
+        expect((nestAnimatorTimeline({ inTime: 500, duration: 2000, playDuration: 4000 } as any) as any).timeline)
+            .toEqual({ inTime: 500, outTime: 2500, playDuration: 4000 });
+    });
+
+    it('§4: an absent outTime means the max raw keyframe time; none at all means the old default', () => {
+        const withKfs = getAnimatorConfig({
+            type: 'svg',
+            animator: {},
+            children: [{ type: 'rect', animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 3200, value: 1 }] } } }],
+        } as any) as any;
+        expect(withKfs.duration).toBe(3200);
+        const bare = getAnimatorConfig({ type: 'svg', animator: {} } as any) as any;
+        expect(bare.duration).toBe(1000);       // PX_DEFAULT_DURATION_MS
+    });
+
     // ── flatten: nested → the flat view every engine consumes ────────────────
 
     it('flattens a time timeline to the flat runtime keys (trigger.finish → resetOnFinish, fillMode → fill)', () => {
         const flat = flattenAnimatorTimeline({
             timeline: {
-                type: 'time', duration: 4000,
+                type: 'time', outTime: 4000,
                 trigger: { start: 'click', mouseOut: 'pause', finish: 'reset' },
                 delay: 250, iterations: 'infinite', direction: 'alternate', fillMode: 'both'
             }
@@ -37,7 +61,7 @@ describe('animator.timeline spelling compat', () => {
     it("flattens 'view' and 'scroll' timelines to timelineSource:'scroll' + scroll.kind, pin object → pin flags; engine is shared", () => {
         const flat = flattenAnimatorTimeline({
             timeline: {
-                type: 'view', duration: 4000, engine: 'js', axis: 'block', subject: 'parent',
+                type: 'view', outTime: 4000, engine: 'js', axis: 'block', subject: 'parent',
                 smoothing: 120, pin: { align: 'center', offset: 24, distance: 600 },
                 range: { start: { phase: 'entry', fraction: 0.1 } }
             }
@@ -57,9 +81,9 @@ describe('animator.timeline spelling compat', () => {
         // No `scroll` block, so the kind sits at its default — `'view'` (see the kind-default
         // case below); `timelineSource: 'scroll'` names the FAMILY, not the member.
         expect(nestAnimatorTimeline({ duration: 1, timelineSource: 'scroll', iterations: 3 } as any))
-            .toEqual({ timeline: { type: 'view', duration: 1, iterations: 3 } });
+            .toEqual({ timeline: { type: 'view', outTime: 1, iterations: 3 } });
         expect(nestAnimatorTimeline({ duration: 1, timelineSource: 'scroll', iterations: 'infinite' } as any))
-            .toEqual({ timeline: { type: 'view', duration: 1 } });
+            .toEqual({ timeline: { type: 'view', outTime: 1 } });
         expect(flattenAnimatorTimeline({ timeline: { type: 'view', iterations: 2 } } as any))
             .toMatchObject({ timelineSource: 'scroll', iterations: 2 });
     });
@@ -77,17 +101,18 @@ describe('animator.timeline spelling compat', () => {
             animator: { timeline: { duration: 500, delay: 42 } }
         } as any) as any;
         expect(cfg.timeline).toBeUndefined();
-        expect(cfg.duration).toBe(500);   // §2.8: wire timeline.duration → runtime-view duration
+        expect(cfg.duration).toBe(500);   // LEGACY (pre-1.3) wire `timeline.duration` still reads as the window
         expect(cfg.delay).toBe(42);
     });
 
     it('getAnimatorConfig DROPS flat playback keys found on a document — the wire states playback only inside `timeline`', () => {
         const cfg = getAnimatorConfig({
             type: 'svg',
-            animator: { duration: 1000, trigger: { start: 'load' }, fill: 'both', resetOnFinish: true },
+            animator: { duration: 9999, trigger: { start: 'load' }, fill: 'both', resetOnFinish: true },
         } as any) as any;
 
-        expect(cfg.duration).toBeUndefined();
+        // the stray value never wins: the window resolves to the DEFAULT, not the dropped 9999
+        expect(cfg.duration).toBe(1000);
         expect(cfg.trigger).toBeUndefined();
         expect(cfg.fill).toBeUndefined();
         expect(cfg.resetOnFinish).toBeUndefined();
@@ -116,7 +141,7 @@ describe('animator.timeline spelling compat', () => {
         expect(nested).toEqual({
             timeline: {
                 engine: 'auto',
-                duration: 4000,
+                outTime: 4000,
                 trigger: { start: 'click', finish: 'reset' },
                 delay: 250, iterations: 3, direction: 'reverse', fillMode: 'none'
             }
@@ -133,7 +158,7 @@ describe('animator.timeline spelling compat', () => {
         } as any) as any;
         expect(nested).toEqual({
             timeline: {
-                type: 'view', engine: 'native', duration: 4000, axis: 'block', smoothing: 120,
+                type: 'view', engine: 'native', outTime: 4000, axis: 'block', smoothing: 120,
                 pin: { align: 'center', offset: 24 }
             }
         });
@@ -160,9 +185,9 @@ describe('animator.timeline spelling compat', () => {
     });
 
     it('omits an empty time timeline entirely, and passes a config that already has one through unchanged', () => {
-        // §2.8: a set duration now forces the timeline block (it lives there on the wire)…
+        // §4: a set window now forces the timeline block (it lives there on the wire)…
         expect(nestAnimatorTimeline({ duration: 1000, engine: 'auto' } as any))
-            .toEqual({ timeline: { engine: 'auto', duration: 1000 } });
+            .toEqual({ timeline: { engine: 'auto', outTime: 1000 } });
         // …`engine` lives in the timeline too, and so does `frameRate` — it parameterises the
         // engine chosen there, so the two sit at the same level.
         expect(nestAnimatorTimeline({ engine: 'auto' } as any)).toEqual({ timeline: { engine: 'auto' } });
@@ -187,7 +212,7 @@ describe('animator.timeline spelling compat', () => {
     it('the nested spelling validates strictly; a time knob inside a scroll timeline is a schema error', () => {
         const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
         expect(PxAnimatorConfigSchema.isValid({
-            timeline: { type: 'view', duration: 4000, axis: 'block', pin: { align: 'top' } }
+            timeline: { type: 'view', outTime: 4000, axis: 'block', pin: { align: 'top' } }
         }, ctx)).toBe(true);
         expect(ctx.errors).toEqual([]);
 
@@ -199,13 +224,13 @@ describe('animator.timeline spelling compat', () => {
     });
 
     it("time timeline: `type: 'time'` and an absent type both validate; the retired 'clock' does not", () => {
-        for (const timeline of [{ type: 'time', duration: 10 }, { duration: 10, fillMode: 'both' }]) {
+        for (const timeline of [{ type: 'time', outTime: 10 }, { outTime: 10, fillMode: 'both' }]) {
             const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
             expect(PxAnimatorConfigSchema.isValid({ timeline }, ctx)).toBe(true);
             expect(ctx.errors).toEqual([]);
         }
         const bad: PxValidationContext = { errors: [], warnings: [], strict: true };
-        expect(PxAnimatorConfigSchema.isValid({ timeline: { type: 'clock', duration: 10 } }, bad)).toBe(false);
+        expect(PxAnimatorConfigSchema.isValid({ timeline: { type: 'clock', outTime: 10 } }, bad)).toBe(false);
         expect(bad.errors.length).toBeGreaterThan(0);
         // the OLD fill spelling has no slot on the wire either
         const oldFill: PxValidationContext = { errors: [], warnings: [], strict: true };

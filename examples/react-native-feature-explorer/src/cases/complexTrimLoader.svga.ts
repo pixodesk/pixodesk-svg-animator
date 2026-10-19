@@ -12,7 +12,7 @@ export const complexTrimLoader: SvgaCaseJson = {
     "animator": {
         "timeline": {
             "mode": "auto",
-            "duration": 3750,
+            "outTime": 3750,
             "trigger": {
                 "start": "load",
                 "offScreen": "continue"

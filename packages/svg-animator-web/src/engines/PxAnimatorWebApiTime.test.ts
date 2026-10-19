@@ -44,7 +44,7 @@ function doc(timeline: Record<string, unknown> = {}): PxAnimatedSvgDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'native', duration: DUR, ...timeline } },
+        animator: { timeline: { engine: 'native', outTime: DUR, ...timeline } },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: DUR, value: 1 }] } },

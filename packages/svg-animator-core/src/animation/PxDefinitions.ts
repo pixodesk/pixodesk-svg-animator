@@ -693,7 +693,8 @@ function normalizeKeyframes(
     propName: string,
     propAnim: PxPropertyAnimation,
     duration: number,
-    defs?: PxDefinitions
+    defs?: PxDefinitions,
+    inTime = 0,
 ): PxNormalizedKeyframe[] {
     const keyframes = propAnim.keyframes || [];
 
@@ -721,7 +722,8 @@ function normalizeKeyframes(
         }
 
         const normKf: PxNormalizedKeyframe = {
-            t: timePct,
+            // shifted into window space: content `inTime` becomes the engines' 0
+            t: timePct - inTime,
             v: value,
             e: resolveEasing(easing, defs)
         };
@@ -902,6 +904,7 @@ function normalizeAnimationDefinition(
     duration: number,
     defs?: PxDefinitions,
     engine: PxTimelineEngine = PxTimelineEngine.native,
+    inTime = 0,
 ): PxAnimationDefinition {
     const normalized: PxAnimationDefinition = {};
 
@@ -923,7 +926,7 @@ function normalizeAnimationDefinition(
             && (animDef as Record<string, unknown>)['offsetDistance'] !== undefined) {
             continue;
         }
-        const normalizedKfs = normalizeKeyframes(propName, propAnim, duration, defs);
+        const normalizedKfs = normalizeKeyframes(propName, propAnim, duration, defs, inTime);
         if (normalizedKfs.length > 0) {
             // Internal normalized form converges on `keyframes` too — the `kfs` alias
             // is gone from the format AND the runtime (review §1.2/§6.1).
@@ -966,6 +969,9 @@ export function normalizeBindings(
     const animatorConfig = getAnimatorConfig(doc) || {};
     const defs = getDefinitions(doc);
     const duration = animatorConfig.duration || 1000; // FIXME - get rid of 1000 here
+    // The window start (first-use review §4): keyframe times are shifted by it ONCE, here, so
+    // every engine keeps sampling a [0, duration] space.
+    const inTime = animatorConfig.inTime ?? 0;
 
     const bindings: PxNormalizedBinding[] = [];
 
@@ -981,7 +987,7 @@ export function normalizeBindings(
         // composes under the animated one — merged BEFORE normalization so both
         // engines see complete parts records.
         const merged = mergeStaticTransformIntoAnimDef(mergeAnimationDefinitions(animDefs), staticTransform);
-        const normalizedAnim = normalizeAnimationDefinition(merged, duration, defs, engine);
+        const normalizedAnim = normalizeAnimationDefinition(merged, duration, defs, engine, inTime);
 
         if (Object.keys(normalizedAnim).length === 0) return null;
 

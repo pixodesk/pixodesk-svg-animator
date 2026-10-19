@@ -26,7 +26,7 @@ const bouncingBall: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         timeline: {
-            duration: 1400, iterations: 'infinite',
+            outTime: 1400, iterations: 'infinite',
             trigger: { start: 'load', offScreen: 'continue' },
         },
     },
@@ -168,7 +168,7 @@ const textAlongPath: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         timeline: {
-            duration: TEXT_DURATION, iterations: 'infinite',
+            outTime: TEXT_DURATION, iterations: 'infinite',
             trigger: { start: 'load', offScreen: 'continue' },
         },
     },
@@ -197,7 +197,7 @@ const strokeTrim: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         timeline: {
-            duration: 2600, iterations: 'infinite',
+            outTime: 2600, iterations: 'infinite',
             trigger: { start: 'load', offScreen: 'continue' },
         },
     },
@@ -248,7 +248,7 @@ const repeater: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         timeline: {
-            duration: 2000, iterations: 'infinite', direction: 'alternate',
+            outTime: 2000, iterations: 'infinite', direction: 'alternate',
             trigger: { start: 'load', offScreen: 'continue' },
         },
     },
@@ -293,7 +293,7 @@ const gradient: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         timeline: {
-            duration: 3000, iterations: 'infinite', direction: 'alternate',
+            outTime: 3000, iterations: 'infinite', direction: 'alternate',
             trigger: { start: 'load', offScreen: 'continue' },
         },
     },
@@ -335,7 +335,7 @@ const morph: PxAnimatedSvgDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         timeline: {
-            duration: 2400, iterations: 'infinite', direction: 'alternate',
+            outTime: 2400, iterations: 'infinite', direction: 'alternate',
             trigger: { start: 'load', offScreen: 'continue' },
         },
     },

@@ -60,7 +60,7 @@ export const elemTextBrowser: SvgaCaseJson = {
         },
         "timeline": {
             "mode": "auto",
-            "duration": 1000,
+            "outTime": 1000,
             "trigger": {
                 "start": "load",
                 "offScreen": "continue"

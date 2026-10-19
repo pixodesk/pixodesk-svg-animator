@@ -439,7 +439,7 @@ describe("SvgAnimator (Vue) — attribute names", () => {
             // unsafe and the two renders differ for a reason that is not the name.
             rect[kebabToCamel(kebab)] = REFERENCE_ATTRIBUTES.has(kebab) ? "url(#r)" : "1";
         }
-        const doc: PxAnimatedSvgDocument = { type: "svg", viewBox: "0 0 10 10", animator: { timeline: { duration: 100, engine: "js" } }, children: [rect] };
+        const doc: PxAnimatedSvgDocument = { type: "svg", viewBox: "0 0 10 10", animator: { timeline: { outTime: 100, engine: "js" } }, children: [rect] };
 
         const host = document.createElement("div");
         document.body.appendChild(host);
@@ -536,7 +536,7 @@ function getTestJson(): PxAnimatedSvgDocument {
             bindings: [{ target: '#_px_2pp00tnc', animateWith: ['a0'] }],
             timeline: {
                 engine: "js",
-                duration: 128,
+                outTime: 128,
                 fillMode: "forwards",
                 direction: "normal",
                 trigger: { start: "load" },
@@ -577,7 +577,7 @@ function getTestJson1000(): PxAnimatedSvgDocument {
             bindings: [{ target: '#_px_2pp00tnc', animateWith: ['a0'] }],
             timeline: {
                 engine: "js",
-                duration: 1000,
+                outTime: 1000,
                 fillMode: "forwards",
                 direction: "normal",
                 trigger: { start: "load" },
@@ -644,7 +644,7 @@ function getTreeJson(): PxAnimatedSvgDocument {
             bindings: [{ target: '#_px_tree_ell', animateWith: ['a0'] }],
             timeline: {
                 engine: "js",
-                duration: 128,
+                outTime: 128,
                 fillMode: "forwards",
                 direction: "normal",
                 trigger: { start: "load" },
@@ -700,7 +700,7 @@ function getRectJson(): PxAnimatedSvgDocument {
             bindings: [{ target: '#_px_rect_b', animateWith: ['a0'] }],
             timeline: {
                 engine: "js",
-                duration: 128,
+                outTime: 128,
                 fillMode: "forwards",
                 direction: "normal",
                 trigger: { start: "load" },
@@ -727,7 +727,7 @@ describe('SvgAnimator (Vue) — timeline override', () => {
     /** A WIRE-format document; the flat props this replaced were discarded on this shape. */
     const wireJson = (): any => ({
         type: 'svg', id: '_px_wire', viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'js', duration: 1000, trigger: { start: 'load' } } },
+        animator: { timeline: { engine: 'js', outTime: 1000, trigger: { start: 'load' } } },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
@@ -744,17 +744,17 @@ describe('SvgAnimator (Vue) — timeline override', () => {
     });
 
     it('timeline overrides duration ON A WIRE DOCUMENT (the flat props never did)', () => {
-        const { container } = render(SvgAnimator, { props: { doc: wireJson(), progress: 0.5, timeline: { duration: 4000 } } });
+        const { container } = render(SvgAnimator, { props: { doc: wireJson(), progress: 0.5, timeline: { outTime: 4000 } } });
         expect(opacityIn(container)).toBe(1);
     });
 
-    it('the duration SHORTCUT does the same thing', () => {
-        const { container } = render(SvgAnimator, { props: { doc: wireJson(), progress: 0.5, duration: 4000 } });
+    it('the outTime SHORTCUT does the same thing', () => {
+        const { container } = render(SvgAnimator, { props: { doc: wireJson(), progress: 0.5, outTime: 4000 } });
         expect(opacityIn(container)).toBe(1);
     });
 
     it('accepts the JSON-string form of timeline', () => {
-        const { container } = render(SvgAnimator, { props: { doc: wireJson(), progress: 0.5, timeline: '{"duration":4000}' } });
+        const { container } = render(SvgAnimator, { props: { doc: wireJson(), progress: 0.5, timeline: '{"outTime":4000}' } });
         expect(opacityIn(container)).toBe(1);
     });
 });
@@ -771,7 +771,7 @@ function getEffectsOnlyJson(): PxAnimatedSvgDocument {
         type: "svg", fill: "none", preserveAspectRatio: "xMaxYMax ", viewBox: "0 0 500 500",
         animator: {
             timeline: {
-                duration: 1000,
+                outTime: 1000,
                 trigger: { start: "mouseOver", offScreen: "pause", mouseOut: "pause", visibilityThreshold: 0.5, visibilityDebounce: 150 },
                 iterations: "infinite", direction: "normal",
             },
@@ -835,7 +835,7 @@ function getMaskedLoadJson(): PxAnimatedSvgDocument {
         type: "svg", fill: "none", preserveAspectRatio: "xMaxYMax ", viewBox: "0 0 500 500",
         animator: {
             timeline: {
-                duration: 1000,
+                outTime: 1000,
                 trigger: { start: "load", offScreen: "pause", visibilityThreshold: 0.5, visibilityDebounce: 150 },
                 iterations: "infinite", direction: "normal",
             },

@@ -16,7 +16,7 @@ function makeDoc(): PxAnimatedSvgDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'js', duration: DUR } },
+        animator: { timeline: { engine: 'js', outTime: DUR } },
         children: [
             {
                 type: 'rect',
@@ -94,7 +94,7 @@ describe('createSvgAnimator', () => {
     it('takes the callbacks INLINE, and fires onStop after pause / finish (the same names as the components)', () => {
         const onPlay = vi.fn(), onPause = vi.fn(), onFinish = vi.fn(), onStop = vi.fn();
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', duration: DUR, trigger: { start: 'none' } } };
+        doc.animator = { timeline: { engine: 'js', outTime: DUR, trigger: { start: 'none' } } };
         const api = createSvgAnimator({ doc, container: '#svg-container', onPlay, onPause, onFinish, onStop });
 
         api.play();
@@ -125,7 +125,7 @@ describe('createSvgAnimator', () => {
 
     it('an explicit programmatic trigger still waits for play()', () => {
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', duration: DUR, trigger: { start: 'none' } } };
+        doc.animator = { timeline: { engine: 'js', outTime: DUR, trigger: { start: 'none' } } };
         const api = createSvgAnimator({ doc: doc, container: '#svg-container' });
         expect(api.isPlaying()).toBe(false);
     });
@@ -135,7 +135,7 @@ describe('createSvgAnimator', () => {
         // load, which would fire `onPlay` a second time and hide this test's subject — that a
         // control call made before the fetch resolves is queued and replayed exactly once.
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', duration: DUR, trigger: { start: 'none' } } };
+        doc.animator = { timeline: { engine: 'js', outTime: DUR, trigger: { start: 'none' } } };
         const fetchMock = stubFetch(doc);
         const onPlay = vi.fn();
 
@@ -257,7 +257,7 @@ describe('generateNewIds', () => {
                 } } },
                 bindings: [{ target: '#rect1', animateWith: ['fade'] }],
                 timeline: {
-                    duration: 100,
+                    outTime: 100,
                 },
             },
             children: [

@@ -23,7 +23,7 @@ comments, so a real file has none.)
   // Everything about WHEN and HOW the animation plays lives here
   "animator": {
     "timeline": {
-      "duration": 2000,
+      "outTime": 2000,
       "iterations": "infinite",
       "direction": "alternate",
       // Starts once half of it is on screen; pauses when it scrolls away
@@ -77,7 +77,9 @@ timeline. `animator` itself keeps only what is not playback: the lookup tables
 <!-- px-check schema PxAnimatorConfigSchema partial -->
 | Field | Values | Default | Meaning |
 |---|---|---|---|
-| `timeline.duration` | ms | `1000` | length of **one** pass of the timeline. Keyframe times are absolute offsets within it |
+| `timeline.inTime` | ms | `0` | where the content WINDOW begins. Keyframe times are absolute content ms |
+| `timeline.outTime` | ms | max keyframe time | …and where it ends — one pass plays `inTime` → `outTime`. The editor always writes it |
+| `timeline.playDuration` | ms | `outTime − inTime` | the window remapped to WALL time: one pass takes this long. Set it to play the same content faster or slower |
 | `timeline.frameRate` | fps | uncapped | target rate for the player's frame loop only — a parameter of the engine `timeline.engine` selects, so it sits beside it |
 | `timeline.engine` | `auto` · `native` · `js` | `auto` | how the animated attributes get updated — [Engine](#engine) |
 | `timeline.delay` | ms | `0` | wait this long, then start. A **negative** value skips ahead instead: `-500` starts right away from the frame at 0.5 s, as if the animation had already been running for half a second |
@@ -241,10 +243,10 @@ a.play();
 <!-- px-check off the merge rules, prose -->
 | | |
 | --- | --- |
-| **Objects merge, key by key** | `timeline: { duration: 2000 }` changes the duration and leaves `iterations`, `trigger` and everything else as the file has them |
+| **Objects merge, key by key** | `timeline: { outTime: 2000 }` changes the window end and leaves `iterations`, `trigger` and everything else as the file has them |
 | **Values replace** | numbers, strings and arrays are taken as given, never combined |
 | **`null` deletes** | `{ timeline: { delay: null } }` removes the file's delay, restoring what its *absence* means. This is the only way to get a default back, because there is no value that spells "unset" |
-| **Changing `timeline.type` starts over** | switching between a clock and a scroll timeline keeps only `duration`, `iterations`, `engine` and `frameRate` — the keys both kinds share. Clock-only keys (`trigger`, `delay`, `fillMode`, `direction`) have no meaning on a scroll timeline and are dropped, with a console warning |
+| **Changing `timeline.type` starts over** | switching between a clock and a scroll timeline keeps only `inTime`, `outTime`, `iterations`, `engine` and `frameRate` — the keys both kinds share. Clock-only keys (`trigger`, `delay`, `fillMode`, `direction`) have no meaning on a scroll timeline and are dropped, with a console warning |
 
 Every player uses the same merge code from core. `applyAnimatorConfig` applies a
 patch to a whole document; `mergeAnimatorConfig` does the same one level down, on the `animator`
@@ -256,12 +258,14 @@ part of one a `PxTimelinePatch`.
 ### Shortcuts
 
 The keys people reach for most also exist as plain props / options, because
-`duration={2000}` reads better than a nested object:
+`outTime={2000}` reads better than a nested object:
 
 <!-- px-check props PxTimelineShortcuts pkg=core -->
 | Shortcut | Same as |
 | --- | --- |
-| `duration` | `timeline.duration` |
+| `inTime` | `timeline.inTime` |
+| `outTime` | `timeline.outTime` |
+| `playDuration` | `timeline.playDuration` |
 | `delay` | `timeline.delay` |
 | `iterations` | `timeline.iterations` |
 | `start` | `timeline.trigger.start` |
@@ -274,7 +278,7 @@ A shortcut wins over the same key inside `timeline`, the way an inline style bea
 player's own defaults, add `resetTimeline`:
 
 ```jsx
-<SvgAnimator doc={doc} resetTimeline timeline={{ duration: 3000 }} />
+<SvgAnimator doc={doc} resetTimeline timeline={{ outTime: 3000 }} />
 ```
 
 That plays for 3 s with default timing whatever the file declares. Fonts and the per-element
@@ -296,7 +300,7 @@ one mode. `controlModeTakesOverTrigger` then says whether that mode ignores the 
 true for every mode except `playAsSaved`.
 
 > **Mangled builds.** `timeline` also accepts a **JSON string** —
-> `timeline='{"duration":2000}'` — which survives a build that renames object keys.
+> `timeline='{"outTime":2000}'` — which survives a build that renames object keys.
 > See [Minification](./minification.md).
 
 ## Debug handle — `debugGlobalName`
@@ -321,8 +325,8 @@ animations. Choose
 ```js
 "animator": {
   // The playhead follows the SVG's journey through the viewport instead of the clock;
-  // `duration` is the keyframe span the scroll range maps onto.
-  "timeline": { "type": "view", "duration": 3000, "range": { "start": { "phase": "entry", "fraction": 0 }, "end": { "phase": "exit", "fraction": 1 } } }
+  // `outTime` is the keyframe span the scroll range maps onto.
+  "timeline": { "type": "view", "outTime": 3000, "range": { "start": { "phase": "entry", "fraction": 0 }, "end": { "phase": "exit", "fraction": 1 } } }
 }
 ```
 
@@ -332,7 +336,7 @@ is on screen"*; `type: "scroll"` follows the scroll container's offset instead. 
 fields (`trigger`, `delay`, `"infinite"`) have no slot in these timelines. The rest of the
 object tunes it:
 
-<!-- px-check schema PxTimelineSchema variant=scroll omit=duration,frameRate -->
+<!-- px-check schema PxTimelineSchema variant=scroll omit=inTime,outTime,frameRate -->
 | `timeline.` | Values | Meaning |
 |---|---|---|
 | `type` | `view` · `scroll` | progress = the SVG's journey across the scrollport, or the scroll container's offset ratio |

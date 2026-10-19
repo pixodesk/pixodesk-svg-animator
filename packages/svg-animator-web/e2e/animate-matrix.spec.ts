@@ -45,7 +45,7 @@ async function advanceTimeIncrementally(
 function animator(mode: 'auto' | 'native' | 'player') {
     const programmatic = mode === 'native';
     return {
-        duration: 1000,
+        outTime: 1000,
         mode,
         fill: 'forwards' as const,
         trigger: {

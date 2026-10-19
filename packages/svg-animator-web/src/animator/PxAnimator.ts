@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, suppressTriggerStart, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, materializeAllInTree, PxDiagnosticCode, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, suppressTriggerStart, compareWireVersion, convertWireDocument, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, materializeAllInTree, PxDiagnosticCode, PxDiagnosticKind, PxWireVersionRelation, PX_WIRE_VERSION, readWireVersion, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { reportDocumentDiagnostics, createDiagnostics, isScrollTimeline, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
@@ -65,6 +65,12 @@ function createAnimatorImpl(
     // Everything this player has to say goes through one channel (API review §5): the caller's
     // `onWarn` / `onError` if given, the console otherwise — unless `muteWarn` / `muteError` switch it off.
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
+
+    // An OLDER stamped document converts on load (`PX_WIRE_STEPS`), so renamed keys keep their
+    // meaning. The result is a converted COPY, or the input itself when nothing applied.
+    if (compareWireVersion(readWireVersion(doc), PX_WIRE_VERSION, false) === PxWireVersionRelation.older) {
+        doc = convertWireDocument(doc).doc as PxAnimatedSvgDocument;
+    }
 
     const effectsWarnings = validateNodeEffects(doc as any);
     for (const w of effectsWarnings) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.effectsShape, w);
@@ -214,8 +220,8 @@ function isInternalOptions(options: PxAnimatorOptions): options is PxInternalAni
  * component packages and the plain-JS entry cannot drift).
  */
 export function resolveTimelineOption(options: PxAnimatorOptions): PxAnimatorConfigPatch | undefined {
-    const { timeline, duration, delay, iterations, start } = options;
-    return foldTimelineOverride(timeline, { duration, delay, iterations, start });
+    const { timeline, inTime, outTime, playDuration, delay, iterations, start } = options;
+    return foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start });
 }
 
 /**

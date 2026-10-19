@@ -12,7 +12,7 @@ export const complexFirework: SvgaCaseJson = {
     "animator": {
         "timeline": {
             "mode": "auto",
-            "duration": 6250,
+            "outTime": 6250,
             "trigger": {
                 "start": "load",
                 "offScreen": "continue"

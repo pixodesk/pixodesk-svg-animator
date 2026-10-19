@@ -78,6 +78,8 @@ export function materializeRestPosesInTree(root: PxAnimatedSvgDocument, engine: 
     // timeline runs backwards.
     const config = getAnimatorConfig(out) || {};
     const duration = +(config.duration || PX_DEFAULT_DURATION_MS);
+    // WINDOW space: the bindings sampled below were shifted by `inTime` in `normalizeBindings`,
+    // so 0 already IS the window's first frame (§4) — no extra shift here.
     const firstFrameTime = REVERSED_DIRECTIONS.has(String(config.direction)) ? duration : 0;
 
     const nodes = animatedNodes(out);

@@ -93,7 +93,12 @@ describe('schema.defaults — what an absent field means', () => {
     });
 
     it('the timeline numbers the runtime falls back to are the schema\'s', () => {
-        expect(PxTimeTimelineSchema.defaults.duration).toBe(PX_DEFAULT_DURATION_MS);
+        // §4: the window replaced `duration`. `inTime` has the stated default; `outTime` and
+        // `playDuration` have DERIVED defaults (max keyframe time; window length), so the schema
+        // deliberately states none — `PX_DEFAULT_DURATION_MS` survives only as the scan fallback.
+        expect(PxTimeTimelineSchema.defaults.inTime).toBe(0);
+        expect(PxTimeTimelineSchema.defaults.outTime).toBeUndefined();
+        expect(PxTimeTimelineSchema.defaults.playDuration).toBeUndefined();
         expect(PxTimeTimelineSchema.defaults.iterations).toBe(PX_DEFAULT_ITERATIONS);
         expect(PxTimeTimelineSchema.defaults.delay).toBe(0);
     });

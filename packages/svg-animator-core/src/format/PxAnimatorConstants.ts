@@ -174,11 +174,11 @@ export type PxAlongPathMode = typeof PxAlongPathMode[keyof typeof PxAlongPathMod
  *  change the outcome: being a demand, an attribute WAAPI declines simply does not
  *  animate. See `isNativeForced`.) */
 /** Timeline keys that BOTH union members carry, so they survive a change of `type`. */
-export const PX_TIMELINE_SHARED_KEYS = ['duration', 'iterations', 'engine', 'frameRate'] as const;
+export const PX_TIMELINE_SHARED_KEYS = ['inTime', 'outTime', 'iterations', 'engine', 'frameRate'] as const;
 
 /** Timeline keys that exist ONLY on the time-driven member — a scroll/view timeline is
- *  scrubbed by position, so nothing starts it and nothing delays it. */
-export const PX_TIME_ONLY_TIMELINE_KEYS = ['trigger', 'delay', 'fillMode', 'direction'] as const;
+ *  scrubbed by position, so nothing starts it, nothing delays it, and nothing remaps its pace. */
+export const PX_TIME_ONLY_TIMELINE_KEYS = ['trigger', 'delay', 'playDuration', 'fillMode', 'direction'] as const;
 
 /**
  * The flat RUNTIME-VIEW keys — `duration`, `trigger`, `scroll`, … at the animator ROOT.
@@ -189,7 +189,7 @@ export const PX_TIME_ONLY_TIMELINE_KEYS = ['trigger', 'delay', 'fillMode', 'dire
  */
 export const PX_FLAT_RUNTIME_VIEW_KEYS: ReadonlyArray<string> = [
     ...PX_TIMELINE_SHARED_KEYS, ...PX_TIME_ONLY_TIMELINE_KEYS,
-    'fill', 'resetOnFinish', 'timelineSource', 'scroll',
+    'duration', 'fill', 'resetOnFinish', 'timelineSource', 'scroll',
 ];
 
 /**
@@ -666,7 +666,15 @@ export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorRuntime
 
     // Every internal consumer sees the FLAT view — the nested `timeline` spelling is
     // folded down here, once, so the engines/effects/drivers never branch on it.
-    const view = flattenAnimatorTimeline(source as PxAnimatorRuntimeConfig);
+    let view = flattenAnimatorTimeline(source as PxAnimatorRuntimeConfig);
+    // Resolve the window (first-use review §4) — the ONE place, so every engine just reads
+    // `duration`: an absent `outTime` means the max raw keyframe time, else the old default;
+    // a non-positive `playDuration` is ignored (it would be a division by zero as a rate).
+    if (view.duration === undefined || (view.playDuration !== undefined && !(view.playDuration > 0))) {
+        view = { ...view };
+        if (view.duration === undefined) view.duration = (maxKeyframeTimeOf(doc) ?? PX_DEFAULT_DURATION_MS) - (view.inTime ?? 0);
+        if (view.playDuration !== undefined && !(view.playDuration > 0)) delete view.playDuration;
+    }
     // Memoised on the DOCUMENT's config: repeated calls must return the same object (callers
     // compare identity and cache off it), and `source` is a fresh object when keys were dropped.
     wireViewMemo.set(cfg as object, view);
@@ -693,6 +701,47 @@ const wireViewMemo = new WeakMap<object, PxAnimatorRuntimeConfig>();
  *  returning the SAME object (some callers compare identity / cache off it). */
 const flattenMemo = new WeakMap<object, PxAnimatorRuntimeConfig>();
 
+/** Wire window → flat view: `duration` = window length, `inTime` = the sampling shift.
+ *  `timeline.duration` is the PRE-1.3 spelling (≡ `outTime` with `inTime` 0) — read for old
+ *  files, never written; `convertWireDocument` renames it in stamped documents. */
+function foldWindow(timeline: any, flat: Record<string, unknown>): void {
+    const inTime = typeof timeline.inTime === 'number' ? timeline.inTime : 0;
+    const outTime = timeline.outTime !== undefined ? timeline.outTime : timeline.duration;
+    if (inTime !== 0) flat.inTime = inTime;
+    if (outTime !== undefined) flat.duration = outTime - inTime;
+}
+
+/** The max RAW keyframe time (ms) in the document — `node.animate` across the tree plus the
+ *  named `definitions.animations` — before loop expansion (loops fill TO the window). What an
+ *  absent `outTime` means; `undefined` when there are no keyframe times to take it from.
+ *  @internal */
+export function maxKeyframeTimeOf(doc: PxAnimatedSvgDocument): number | undefined {
+    let max: number | undefined;
+    const scanAnimation = (animation: unknown): void => {
+        if (!animation || typeof animation !== 'object') return;
+        for (const prop of Object.values(animation as Record<string, unknown>)) {
+            const keyframes = (prop as { keyframes?: Array<{ time?: number }> } | undefined)?.keyframes;
+            if (!Array.isArray(keyframes)) continue;
+            for (const kf of keyframes) {
+                if (typeof kf?.time === 'number' && (max === undefined || kf.time > max)) max = kf.time;
+            }
+        }
+    };
+    const scanNode = (node: unknown): void => {
+        if (!node || typeof node !== 'object') return;
+        scanAnimation((node as { animate?: unknown }).animate);
+        const children = (node as { children?: Array<unknown> }).children;
+        if (Array.isArray(children)) children.forEach(scanNode);
+    };
+    scanNode(doc);
+    // The definitions read RAW (not via `getDefinitions`, whose route through `getAnimatorConfig`
+    // would re-enter this scan before the memo is set).
+    const animator = (doc?.animator ?? (doc?.meta as { animator?: unknown } | undefined)?.animator) as { definitions?: { animations?: Record<string, unknown> } } | undefined;
+    const animations = animator?.definitions?.animations;
+    if (animations && typeof animations === 'object') Object.values(animations).forEach(scanAnimation);
+    return max;
+}
+
 /**
  * Folds `cfg.timeline` (the wire spelling) into the flat runtime-view fields the engines
  * consume. Returns `cfg` unchanged when there is nothing to fold. Never mutates input.
@@ -714,7 +763,7 @@ export function flattenAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
 
     if (timeline.type === 'scroll' || timeline.type === 'view') {
         flat.timelineSource = 'scroll';
-        if (timeline.duration !== undefined) flat.duration = timeline.duration;   // §2.8
+        foldWindow(timeline, flat);
         if (timeline.iterations !== undefined) flat.iterations = timeline.iterations;
         const scroll: PxScroll = { ...(flat.scroll || {}) };
         scroll.kind = timeline.type;
@@ -733,7 +782,8 @@ export function flattenAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
         }
         flat.scroll = scroll;
     } else { // 'time', absent, or unknown — the time-driven timeline is the default
-        if (timeline.duration !== undefined) flat.duration = timeline.duration;   // §2.8
+        foldWindow(timeline, flat);
+        if (timeline.playDuration !== undefined) flat.playDuration = timeline.playDuration;
         if (timeline.trigger !== undefined) {
             const { finish, ...restTrigger } = timeline.trigger;
             if (Object.keys(restTrigger).length) flat.trigger = restTrigger;
@@ -772,13 +822,18 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
     if (!cfg || (cfg as any).timeline !== undefined) return cfg;
 
     const { timelineSource, scroll, trigger, delay, iterations, direction, fill, resetOnFinish,
-            duration, engine, frameRate, ...shared } = cfg as any;
+            duration, inTime, playDuration, engine, frameRate, ...shared } = cfg as any;
+    // flat `duration` is the WINDOW LENGTH; on the wire the window is written as its two points
+    const writeWindow = (timeline: any) => {
+        if (inTime !== undefined && inTime !== 0) timeline.inTime = inTime;
+        if (duration !== undefined) timeline.outTime = (inTime ?? 0) + duration;
+    };
 
     if (timelineSource === 'scroll') {
         const timeline: any = { type: scrollKindOrDefault(scroll?.kind) };
         if (engine !== undefined) timeline.engine = engine;
         if (frameRate !== undefined) timeline.frameRate = frameRate;
-        if (duration !== undefined) timeline.duration = duration;   // §2.8
+        writeWindow(timeline);
         // Finite iterations survive scrubbing (D4); 'infinite' cannot map to a range.
         if (typeof iterations === 'number') timeline.iterations = iterations;
         if (scroll) {
@@ -806,7 +861,8 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
     const timeline: any = {};
     if (engine !== undefined) timeline.engine = engine;
     if (frameRate !== undefined) timeline.frameRate = frameRate;
-    if (duration !== undefined) timeline.duration = duration;   // §2.8
+    writeWindow(timeline);
+    if (playDuration !== undefined) timeline.playDuration = playDuration;
     if (trigger !== undefined || resetOnFinish) {
         const t: any = { ...(trigger || {}) };
         if (resetOnFinish) t.finish = 'reset';

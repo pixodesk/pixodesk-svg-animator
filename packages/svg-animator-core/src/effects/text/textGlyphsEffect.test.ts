@@ -288,7 +288,7 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
         // gives them their first-frame pose; the startOffset track starts BEFORE 0 here, as
         // converted documents' do, so "the first keyframe" would be the wrong answer.
         const scene = animScene('M0 0L1000 0', [{ time: -500, value: 0 }, { time: 1000, value: 300 }], 'Hi');
-        (scene.animator as { timeline?: unknown }).timeline = { duration: 1000, engine: 'js' };
+        (scene.animator as { timeline?: unknown }).timeline = { outTime: 1000, engine: 'js' };
         const out = materializeEngine(scene, PxTimelineEngine.js);
         const engine = engineFirstFrame(out);
 
@@ -306,7 +306,7 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
         // `pathOverflow: 'clip'` on an open 100-long path; the glyph starts at 500 — far off it.
         const scene = animScene('M0 0L100 0', [{ time: 0, value: 500 }, { time: 1000, value: 0 }], 'H');
         ((scene.children?.[0].effects as any).textPath).pathOverflow = 'clip';
-        (scene.animator as { timeline?: unknown }).timeline = { duration: 1000, engine: 'js' };
+        (scene.animator as { timeline?: unknown }).timeline = { outTime: 1000, engine: 'js' };
         const p = glyphPaths(materializeEngine(scene, PxTimelineEngine.js));
 
         expect((p[0].animate as any).opacity, 'the scene must actually produce a visibility track').toBeDefined();

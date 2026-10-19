@@ -9,7 +9,7 @@ import { applyAnimatorConfig, mergeAnimatorConfig } from './PxAnimatorConfigPatc
 const timeBase = {
     frameRate: 60,
     timeline: {
-        duration: 1000,
+        outTime: 1000,
         iterations: 2,
         fillMode: 'both',
         direction: 'normal',
@@ -19,7 +19,7 @@ const timeBase = {
 
 const scrollBase = {
     timeline: {
-        type: 'view', duration: 4000, axis: 'block', subject: 'parent',
+        type: 'view', outTime: 4000, axis: 'block', subject: 'parent',
         range: { start: { phase: 'entry', fraction: 0 }, end: { phase: 'exit', fraction: 1 } },
         pin: { align: 'center', offset: 24 },
     },
@@ -30,8 +30,8 @@ const merge = (base: any, patch: any) => mergeAnimatorConfig(base, patch);
 describe('mergeAnimatorConfig — RFC 7386 base semantics', () => {
 
     it('merges objects per level, leaving untouched siblings alone', () => {
-        const { config } = merge(timeBase, { timeline: { duration: 5000 } });
-        expect(config!.timeline).toMatchObject({ duration: 5000, iterations: 2, fillMode: 'both' });
+        const { config } = merge(timeBase, { timeline: { outTime: 5000 } });
+        expect(config!.timeline).toMatchObject({ outTime: 5000, iterations: 2, fillMode: 'both' });
         expect((config as any).frameRate).toBe(60);
     });
 
@@ -41,7 +41,7 @@ describe('mergeAnimatorConfig — RFC 7386 base semantics', () => {
     });
 
     it('replaces primitives and arrays wholesale', () => {
-        const base = { timeline: { duration: 1000 }, definitions: { easings: { a: [0, 0, 1, 1] } } } as any;
+        const base = { timeline: { outTime: 1000 }, definitions: { easings: { a: [0, 0, 1, 1] } } } as any;
         const { config } = merge(base, { definitions: { easings: { a: [0.5, 0, 0.5, 1] } } });
         expect((config as any).definitions.easings.a).toEqual([0.5, 0, 0.5, 1]);
     });
@@ -57,7 +57,7 @@ describe('mergeAnimatorConfig — RFC 7386 base semantics', () => {
 
     it('never mutates either argument', () => {
         const base = JSON.parse(JSON.stringify(timeBase));
-        const patch = { timeline: { duration: 7000, trigger: { start: 'click' } } };
+        const patch = { timeline: { outTime: 7000, trigger: { start: 'click' } } };
         const snapshotBase = JSON.stringify(base);
         const snapshotPatch = JSON.stringify(patch);
         merge(base, patch);
@@ -66,7 +66,7 @@ describe('mergeAnimatorConfig — RFC 7386 base semantics', () => {
     });
 
     it('returns a NEW object — the flatten memo keys on identity', () => {
-        const { config } = merge(timeBase, { timeline: { duration: 2000 } });
+        const { config } = merge(timeBase, { timeline: { outTime: 2000 } });
         expect(config).not.toBe(timeBase);
     });
 });
@@ -75,12 +75,12 @@ describe('mergeAnimatorConfig — the timeline union', () => {
 
     it('RULE 2: the same type merges', () => {
         const { config } = merge(timeBase, { timeline: { type: 'time', delay: 250 } });
-        expect((config as any).timeline).toMatchObject({ duration: 1000, delay: 250, iterations: 2 });
+        expect((config as any).timeline).toMatchObject({ outTime: 1000, delay: 250, iterations: 2 });
     });
 
     it('RULE 2: an explicit `time` against an ABSENT type is a match, not a type change', () => {
         // The trap: `timelineTypeOf` must normalize absent -> 'time', or this replaces.
-        const { config } = merge(timeBase, { timeline: { type: 'time', duration: 3000 } });
+        const { config } = merge(timeBase, { timeline: { type: 'time', outTime: 3000 } });
         expect((config as any).timeline.trigger).toEqual({ start: 'load', offScreen: 'pause' });
     });
 
@@ -93,7 +93,7 @@ describe('mergeAnimatorConfig — the timeline union', () => {
     it('RULE 1: a DIFFERENT type replaces the timeline, carrying only the shared keys', () => {
         const { config } = merge(timeBase, { timeline: { type: 'view', subject: 'parent' } });
         const tl = (config as any).timeline;
-        expect(tl).toEqual({ duration: 1000, iterations: 2, type: 'view', subject: 'parent' });
+        expect(tl).toEqual({ outTime: 1000, iterations: 2, type: 'view', subject: 'parent' });
         expect('trigger' in tl).toBe(false);   // the clock keys do not strand on a scroll timeline
         expect('fillMode' in tl).toBe(false);
     });
@@ -101,7 +101,7 @@ describe('mergeAnimatorConfig — the timeline union', () => {
     it('RULE 1: going back to a time timeline drops the scroll-only keys', () => {
         const { config } = merge(scrollBase, { timeline: { type: 'time', trigger: { start: 'click' } } });
         const tl = (config as any).timeline;
-        expect(tl).toEqual({ duration: 4000, type: 'time', trigger: { start: 'click' } });
+        expect(tl).toEqual({ outTime: 4000, type: 'time', trigger: { start: 'click' } });
         expect('range' in tl).toBe(false);
         expect('pin' in tl).toBe(false);
     });
@@ -159,7 +159,7 @@ describe('mergeAnimatorConfig — records and content', () => {
 describe('mergeAnimatorConfig — guards', () => {
 
     it('RULE 5: warns when the BASE uses the flat runtime spelling', () => {
-        const { warnings } = merge({ duration: 1000, trigger: { start: 'load' } } as any, { timeline: { duration: 2000 } });
+        const { warnings } = merge({ outTime: 1000, trigger: { start: 'load' } } as any, { timeline: { outTime: 2000 } });
         expect(warnings.join(' ')).toContain('flat runtime spelling');
     });
 
@@ -168,36 +168,36 @@ describe('mergeAnimatorConfig — guards', () => {
     });
 
     it('an undefined base is a legal starting point', () => {
-        const { config } = merge(undefined, { timeline: { duration: 800 } });
-        expect(config).toEqual({ timeline: { duration: 800 } });
+        const { config } = merge(undefined, { timeline: { outTime: 800 } });
+        expect(config).toEqual({ timeline: { outTime: 800 } });
     });
 });
 
 describe('applyAnimatorConfig — document level', () => {
 
-    const doc = () => ({ type: 'svg', animator: { timeline: { duration: 1000 } }, children: [{ type: 'rect' }] } as any);
+    const doc = () => ({ type: 'svg', animator: { timeline: { outTime: 1000 } }, children: [{ type: 'rect' }] } as any);
 
     it('returns a NEW document that shares untouched subtrees', () => {
         const d = doc();
-        const { doc: out } = applyAnimatorConfig(d, { timeline: { duration: 2000 } });
+        const { doc: out } = applyAnimatorConfig(d, { timeline: { outTime: 2000 } });
         expect(out).not.toBe(d);
         expect(out.children).toBe(d.children);     // untouched subtree shared by reference
-        expect((out as any).animator.timeline.duration).toBe(2000);
-        expect((d as any).animator.timeline.duration).toBe(1000);   // input untouched
+        expect((out as any).animator.timeline.outTime).toBe(2000);
+        expect((d as any).animator.timeline.outTime).toBe(1000);   // input untouched
     });
 
     it('patches `doc.meta.animator` when that is where the config lives', () => {
-        const d = { type: 'svg', meta: { animator: { timeline: { duration: 500 } } } } as any;
-        const { doc: out } = applyAnimatorConfig(d, { timeline: { duration: 900 } });
-        expect(out.meta.animator.timeline.duration).toBe(900);
+        const d = { type: 'svg', meta: { animator: { timeline: { outTime: 500 } } } } as any;
+        const { doc: out } = applyAnimatorConfig(d, { timeline: { outTime: 900 } });
+        expect(out.meta.animator.timeline.outTime).toBe(900);
         expect((out as any).animator).toBeUndefined();   // never invents the other address
     });
 
     it('warns when both addresses exist, and patches the one that wins', () => {
-        const d = { type: 'svg', animator: { timeline: { duration: 1 } }, meta: { animator: { timeline: { duration: 2 } } } } as any;
-        const { doc: out, warnings } = applyAnimatorConfig(d, { timeline: { duration: 9 } });
-        expect((out as any).animator.timeline.duration).toBe(9);
-        expect((out as any).meta.animator.timeline.duration).toBe(2);
+        const d = { type: 'svg', animator: { timeline: { outTime: 1 } }, meta: { animator: { timeline: { outTime: 2 } } } } as any;
+        const { doc: out, warnings } = applyAnimatorConfig(d, { timeline: { outTime: 9 } });
+        expect((out as any).animator.timeline.outTime).toBe(9);
+        expect((out as any).meta.animator.timeline.outTime).toBe(2);
         expect(warnings.join(' ')).toContain('shadowed');
     });
 
@@ -211,21 +211,21 @@ describe('applyAnimatorConfig — document level', () => {
             type: 'svg',
             animator: {
                 frameRate: 30,
-                timeline: { duration: 1000, iterations: 5, trigger: { start: 'click' } },
+                timeline: { outTime: 1000, iterations: 5, trigger: { start: 'click' } },
                 definitions: { fonts: { Inter: { unitsPerEm: 1000 } } },
                 bindings: [{ target: '#r1', animateWith: ['a0'] }],
             },
         } as any;
-        const { doc: out } = applyAnimatorConfig(d, { timeline: { duration: 250 } }, { resetTimeline: true });
+        const { doc: out } = applyAnimatorConfig(d, { timeline: { outTime: 250 } }, { resetTimeline: true });
         const cfg = (out as any).animator;
-        expect(cfg.timeline).toEqual({ duration: 250 });   // nothing of the document's timing survives
+        expect(cfg.timeline).toEqual({ outTime: 250 });   // nothing of the document's timing survives
         expect(cfg.frameRate).toBeUndefined();
         expect(cfg.definitions.fonts.Inter.unitsPerEm).toBe(1000);   // content kept
         expect(cfg.bindings).toEqual([{ target: '#r1', animateWith: ['a0'] }]);
     });
 
     it('resetTimeline with NO patch means "play it with vanilla settings"', () => {
-        const d = { type: 'svg', animator: { timeline: { duration: 1000, iterations: 4 } } } as any;
+        const d = { type: 'svg', animator: { timeline: { outTime: 1000, iterations: 4 } } } as any;
         const { doc: out } = applyAnimatorConfig(d, {}, { resetTimeline: true });
         expect((out as any).animator.timeline).toBeUndefined();
     });

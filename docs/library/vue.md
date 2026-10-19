@@ -170,7 +170,7 @@ shaped exactly like the file's own `animator` block and deep-merges it over what
 Objects merge key by key, values replace, and `null` **deletes** a key so the default its
 absence means comes back (`:timeline="{ delay: null }"`).
 
-`duration`, `delay`, `iterations` and `start` are also plain props, because `:duration="2000"`
+`inTime`, `outTime`, `playDuration`, `delay`, `iterations` and `start` are also plain props, because `:out-time="2000"`
 reads better than a nested object; a prop wins over the same key inside `timeline`. To ignore the
 file's playback settings entirely and start from the player's defaults, add `resetTimeline`.
 
@@ -194,7 +194,10 @@ const SvgAnimator: DefineComponent<{
     // Playback override — the document's `timeline` block, deep-merged (Playback overrides above)
     timeline?: PxTimelinePatch | string;  // a JSON string is accepted too
     resetTimeline?: boolean;              // start from the player's defaults, `timeline` on top
-    duration?: number; delay?: number;    // shortcuts, ms: one iteration, and the wait before it
+    inTime?: number;                      // ▸ timeline.inTime — the content window's start, ms
+    outTime?: number;                     // ▸ timeline.outTime — …and its end (one pass plays the window)
+    playDuration?: number;                // ▸ timeline.playDuration — the window in wall ms (slower / faster)
+    delay?: number;                       // ▸ timeline.delay — the wait before the first pass, ms
     iterations?: number | 'infinite';     // 'infinite' never stops
     start?: 'load' | 'mouseOver' | 'click' | 'none';
 

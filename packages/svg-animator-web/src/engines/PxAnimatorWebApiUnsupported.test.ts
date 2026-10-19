@@ -43,7 +43,7 @@ function doc(engine: string): PxAnimatedSvgDocument {
     });
     return {
         type: 'svg', viewBox: '0 0 100 100',
-        animator: { timeline: { engine, duration: DUR, trigger: { start: 'none' } } },
+        animator: { timeline: { engine, outTime: DUR, trigger: { start: 'none' } } },
         children: [rect('a'), rect('b')],
     } as PxAnimatedSvgDocument;
 }

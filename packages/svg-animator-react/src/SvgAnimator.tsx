@@ -269,7 +269,7 @@ const SvgAnimator: FC<SvgAnimatorProps> = ({
     doc, playAsSaved, play, pause, progress, time, apiRef,
 
     // Overrides
-    timeline, resetTimeline, duration, delay, iterations, start,
+    timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start,
 
     onPlay, onStop, onPause, onCancel, onFinish, onRemove,
 
@@ -309,7 +309,7 @@ const SvgAnimator: FC<SvgAnimatorProps> = ({
     // which is what every writer emits — `flattenAnimatorTimeline` overwrites those flat keys from
     // `timeline` immediately afterwards, so every one of those overrides was silently discarded.
     // See dev-docs/plans/playback-override.md §1.1.
-    const patch = foldTimelineOverride(timeline, { duration, delay, iterations, start });
+    const patch = foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start });
     const takeOverTrigger = controlModeTakesOverTrigger(compMode);
     const fullPatch: any = takeOverTrigger ? suppressTriggerStart(patch) : patch;
 
@@ -336,7 +336,8 @@ const SvgAnimator: FC<SvgAnimatorProps> = ({
             const iterationsValue = iterations ?? animator.iterations;
             const iterationsCount = iterationsValue === 'infinite' ? Infinity
                 : (typeof iterationsValue === 'number' && iterationsValue >= 1 ? iterationsValue : 1);
-            const singleDuration = duration ?? animator.duration ?? PX_DEFAULT_DURATION_MS;
+            // the window length — the shortcuts are already folded into the patched doc above
+            const singleDuration = animator.duration ?? PX_DEFAULT_DURATION_MS;
             seekMs = progressToTimeMs(progress, singleDuration, iterationsCount);
         }
         if (time !== undefined) seekMs = time;

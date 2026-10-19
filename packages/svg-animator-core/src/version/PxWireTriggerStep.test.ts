@@ -71,6 +71,6 @@ describe('wire step 1.1 → 1.2 — the trigger block', () => {
     it('a document with no trigger is left alone', () => {
         const input = { type: 'svg', animator: { version: '1.1.1', timeline: { duration: 1000 } }, children: [] };
         const out = convertWireDocument(input);
-        expect((out.doc as any).animator.timeline).toEqual({ duration: 1000 });
+        expect((out.doc as any).animator.timeline).toEqual({ outTime: 1000 });   // the 1.2 → 1.3 step renames the length
     });
 });

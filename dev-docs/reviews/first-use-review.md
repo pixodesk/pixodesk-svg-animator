@@ -1,7 +1,7 @@
 # First-use review — the API, the schema and the docs through a newcomer's eyes
 
 Status **2026-10-15** (two passes the same day: the exports and schemas, then every guide in
-`docs/`). All items open; nothing implemented yet.
+`docs/`). Done so far: §1+2, §3, §4 (player side), §7, §8 — each closes with a **Done** note.
 
 Read as a first-time user would: the five packages' exports, the wire schemas, the component
 props, then the guides end to end — `README.md`, `docs/library/*`, `docs/format/README.md`,
@@ -22,6 +22,31 @@ Where an item reopens a decided question, it says so.
 it · 🟡 smaller
 
 ---
+
+## ⏰ Reminder — after the next player publish
+
+The renames (§7 `SvgAnimator` / `Pixodesk.SvgAnimator`, §8 `bind`, §1+2 `playAsSaved`) are in the
+packages but NOT published; these run on the PUBLISHED player and are fixed only after
+`pnpm publish` + a version bump:
+
+1. **kf** — bump `@pixodesk/svg-animator-*` in `app/package.json` and
+   `unified-preview-player/package.json`; plain `yarn install` (never `--ignore-scripts`); the
+   user rebuilds Electron.
+2. **kf learn/tutorial videos** — the `.data` projects' `package.json` versions and the typed code
+   lines in the video scripts still say `createAnimator` / `PixodeskSvgAnimator` / `autoplay`;
+   update the scripts, then re-record with `yarn website:videos` (needs the kf dev server).
+3. **website live cards** — `yarn website:real-ui` regenerates `cards.json` and copies the new
+   player to `public/app/real-ui/` (the cards' markup still calls the old global until then).
+4. **website players + docs** — `yarn website:svga-player` / `website:player` re-copy the
+   published builds; `yarn website:svga-docs` re-syncs these guides (which now teach the new
+   names) — sync only AFTER publishing, or the docs describe a player the site does not run.
+5. **website code** — `src/scripts/real-ui.ts`, `src/scripts/px-anim-monitor.ts`
+   (`__pixodeskAnimators` → `__pixodeskSvgAnimators`, the global), `src/layouts/new-design2/codeTabs.ts`
+   and the `/new-design/svg-animator` code samples (`createSvgAnimator`, `playAsSaved`,
+   component `SvgAnimator`). The file-format examples are already regenerated.
+6. **old exports** — SVG + JS files exported with "external player" before the rename call
+   `PixodeskAnimator.createAnimator(…)`: they need re-exporting; inlined-player exports keep
+   working.
 
 # Part 1 — the API and the schema
 
@@ -94,30 +119,86 @@ createSvgAnimator({ src: 'wave.json', container: '#box', playAsSaved: true }); /
   are; the format guide describes it next to them. Schema and runtime unchanged. Guard:
   `PxAnimatorConfigWireType.test.ts`.
 
-### 4. `duration` reads as speed, but it is the timeline's length
+### 4. ✅ `duration` reads as speed, but it is the timeline's length
 
-- **Where:** wire `timeline.duration`; the shortcut `PxTimelineShortcuts.duration`
-  (`svg-animator-core/src/playback/PxAnimatorConfigPatch.ts`) on `createAnimator` and the three
-  components; the Timing table in `docs/library/playback-and-triggers.md`.
+- **Where:** wire `timeline.duration`; the shortcut `PxTimelineShortcuts.duration` on
+  `createSvgAnimator` and the three components; the Timing table in `playback-and-triggers.md`.
 - **Why:** keyframe `time` is absolute ms, so a longer `duration` adds a still tail and a shorter
-  one cuts the end. Designers expect that (After Effects composition length, Lottie's out point).
-  Developers expect scaling (CSS `animation-duration`, Web Animations API `duration`, where keyframe
-  offsets are 0–1). The wire name is actually right — `timeline.duration` *is* the length of the
-  timeline — but the shortcut drops the word that made it right, and that shortcut is exactly where
-  developers meet it. No option changes speed; only `setPlaybackRate()` after creation. Yet the docs
-  twice motivate the override with "the same file shown twice at two speeds" (web-player › Options,
-  playback-and-triggers › Overriding from a player) — something the override cannot do.
-- **Do** (no rename needed):
-  1. Add a `playbackRate` option / prop / shortcut — the starting speed. Same word as
-     `setPlaybackRate()`, the Web Animations API and `<video>`.
-  2. Describe `duration` everywhere as "length of the timeline — keyframes keep their times; to
-     play faster or slower, use `playbackRate`" (TSDoc of the shortcut, the Timing table, the
-     shortcuts table, the editor's tooltip). Fix the "two speeds" sentences to use `playbackRate`.
-  3. Warn (diagnostic) when an override `duration` is shorter than the last keyframe — the end is
-     cut silently today.
-- **Note:** the format already scales time once, `clone.retime.stretch`, and it runs the opposite
-  way: `stretch: 2` is slower, `playbackRate: 2` is faster. If a speed key ever enters the timeline
-  itself, pick one direction.
+  one cuts the end. Designers expect that (After Effects, Lottie's out point); developers expect
+  scaling (CSS `animation-duration`, WAAPI). No option changes speed — only `setPlaybackRate()`
+  after creation (the api method is the ONLY speed control today; the format has never carried
+  one) — yet the docs twice motivate the override with "the same file shown twice at two speeds".
+
+**Design settled (owner, 2026-10-19) — two clocks, not a rename. Not yet implemented.**
+
+Content time is what keyframes are written in (ms, unchanged, what the editor's timeline shows).
+Play time is wall clock, derived. `duration` is replaced by a content WINDOW plus one wall span:
+
+```js
+timeline: { inTime: 500, outTime: 2500 }                      // play this window of the content
+timeline: { inTime: 500, outTime: 2500, playDuration: 4000 }  // …remapped to 4 s of wall time
+// today's  duration: 3000  ≡  inTime: 0, outTime: 3000 — strictly less expressive
+```
+
+- **`inTime`** — content ms, default 0 (absent = 0, per the stated-defaults rule).
+- **`outTime`** — content ms. The Editor ALWAYS writes it; absent, the player derives it: the max
+  RAW keyframe time across all animations (before loop expansion — loops then fill to it), and
+  the old default (`PX_DEFAULT_DURATION_MS`) when there are no keyframe times to take it from.
+- **`playDuration`** — wall ms for one pass of the window; default `outTime − inTime` (play time
+  = content time unless remapped). A duration name on purpose: `in`/`out` are POINTS, the remap
+  is a SPAN — `playTime` read as a third point. Effective rate = `(outTime − inTime) /
+  playDuration`, and `setPlaybackRate()` multiplies on top, live.
+- **Named `inTime` / `outTime`, not `startTime` / `endTime`** (owner + review, 2026-10-19):
+  "in/out point" is the editing term with exactly our meaning (AE, Premiere, Lottie's `ip`/`op`);
+  WAAPI's `startTime` means wall-clock scheduling (our `delay`), and "start" is already taken
+  twice next door (`trigger.start`, the `start` shortcut). The api keeps `setPlaybackRate`
+  (owner, same date): the signed factor IS the WAAPI/`<video>` semantic; Lottie's `speed` is
+  unsigned with a separate direction, so that name would break what it borrows.
+- **No `speed` factor in the schema** (owner): `playDuration` covers it; don't ship schema we may
+  not need and then must support. Side benefit: an absolute span cannot collide with
+  `retime.stretch`'s direction (`stretch: 2` = slower), which a rate key would have.
+- **Known trade-off, accepted:** `playDuration` silently means a new rate when the window is
+  edited. In the editor that is visible (it owns both values); hand-written overrides own it.
+- **Iterations** play the window over `playDuration` each; `delay` stays wall-side, unchanged.
+  Scroll timelines take the window and ignore `playDuration` — scroll owns the pace
+  (accepted-limits row). `getCurrentTime()` / `setCurrentTime()` stay CONTENT ms (the one meaning
+  of time); wall time is derived.
+- **Fragments become a feature:** `inTime`/`outTime` deliberately play a slice, so the old idea of
+  warning when the window cuts keyframes dies with the rename; the override shortcuts become
+  `inTime` / `outTime` / `playDuration` (the `duration` shortcut goes with the wire key).
+- **Editor (owner, 2026-10-19):** SVGA gains `inTime` support the way the Lottie side already
+  has it (Lottie's `ip` — SVGA could not represent a nonzero in point until now, so the
+  Lottie → SVGA conversion had nowhere to put it). On the right attrs panel: an `inTime` input,
+  and a `playDuration` input whose placeholder shows the computed default (`outTime − inTime`)
+  with an [x] button that unsets it (absent = not written).
+- **Scope:** a wire-format change — schema + a `PX_WIRE_STEPS` conversion step (`duration` →
+  `outTime`, mechanical), the engines' wall ↔ content mapping, the editor's writer/reader and
+  attrs-panel UI, loop expansion, the export math, SCHEMA.json, docs.
+- **Done in the player (2026-10-19):** schema (`PxTimeTimelineSchema` + scrollish shape), wire
+  step 1.2 → 1.3 (`duration` → `outTime`; the player now AUTO-CONVERTS older stamped documents on
+  load) with the legacy `timeline.duration` still read for unstamped files; the window resolves
+  ONCE in `getAnimatorConfig` (flat view: `inTime` + `duration` = window length + `playDuration`),
+  `normalizeBindings` shifts keyframe times by `inTime`, loops fill to `outTime`, and
+  `playDuration` is an initial rate factor composed under `setPlaybackRate` in
+  `finaliseAnimator`. BOTH engines take the full window — the WAAPI clipper already interpolates
+  boundary values with easing splitting, so no accepted limit was needed. Scroll timelines take
+  the window, ignore `playDuration`. Shortcuts and component props: `inTime` / `outTime` /
+  `playDuration` replace `duration`. Guards: `PxAnimatorWindow.test.ts` (web),
+  PxTimelineCompat §4 cases (core). Editor-side (kf) tracked above, in progress.
+- **Done in the editor (kf, 2026-10-20):** the model gains `inTime` + `playDuration` attrs (flat
+  runtime view; `duration` stays the window LENGTH), so the wire nests/flattens them for free;
+  `getAnimInFrame`/`setAnimInFrame` are real (frames ↔ `inTime` ms) and `setAnimRange` is
+  `[in, out]` like Lottie; the Lottie → SVGA conversion passes `ip` straight through (the
+  in-point-to-zero normaliser is retired from the conversion path). Attrs panel: `In Time` input
+  (placeholder 0) and `Play Duration` input (placeholder = the computed window length, [x] unsets;
+  hidden for scroll timelines). The PRE-RENDERED SVG+CSS export BAKES the window: keyframes remap
+  `[inTime, outTime]` → `[0%, 100%]`, playback starts at the window immediately (no
+  `animation-delay` lead-in), and `playDuration` becomes the CSS shorthand duration
+  (`getCssWallScale`); the `data-px-meta` stays the lossless carrier (raw keyframe times + the
+  window), and SVG+JS needs no baking — the embedded player shifts at runtime. Guards:
+  `window-export.spec.ts` (kf; wire round-trip + both CSS behaviours, both seen failing first).
+  Note: a `<symbol>`'s own `meta.timeline.duration` (editor extension) deliberately KEEPS the
+  `duration` spelling — it is a plain length, not a window.
 
 ### 5. The first snippet does not type-check
 

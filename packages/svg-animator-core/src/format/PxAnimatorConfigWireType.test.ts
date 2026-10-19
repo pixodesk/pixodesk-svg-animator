@@ -12,19 +12,20 @@ import { getAnimatorConfig, nestAnimatorTimeline } from '../index';
 
 describe('the animator type is the written shape', () => {
     it('a nested timeline type-checks and reaches the players', () => {
-        const doc: PxAnimatedSvgDocument = { type: 'svg', animator: { timeline: { duration: 2000 } } };
+        const doc: PxAnimatedSvgDocument = { type: 'svg', animator: { timeline: { outTime: 2000 } } };
         expect(getAnimatorConfig(doc)?.duration).toBe(2000);
     });
 
     it('a flat key at the animator root does not type-check, and the player drops it', () => {
-        // @ts-expect-error — `duration` belongs inside `timeline`; at the root the player drops it
+        // @ts-expect-error — the window belongs inside `timeline`; at the root the player drops it
         const doc: PxAnimatedSvgDocument = { type: 'svg', animator: { duration: 2000 } };
-        expect(getAnimatorConfig(doc)?.duration).toBeUndefined();
+        // dropped, then the window resolves to its DEFAULT — never to the stray 2000
+        expect(getAnimatorConfig(doc)?.duration).toBe(1000);
     });
 
     it('the runtime view goes back to the written shape through nestAnimatorTimeline', () => {
         const flat: PxAnimatorRuntimeConfig = { duration: 2000, trigger: { start: 'click' } };
         const written: PxAnimatorConfig = nestAnimatorTimeline(flat);
-        expect(written).toEqual({ timeline: { duration: 2000, trigger: { start: 'click' } } });
+        expect(written).toEqual({ timeline: { outTime: 2000, trigger: { start: 'click' } } });
     });
 });

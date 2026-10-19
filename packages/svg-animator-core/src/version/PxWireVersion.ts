@@ -214,7 +214,27 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         // No `down`: 1.2 can express combinations 1.1 could not ("start on click AND pause when
         // scrolled away"), so the mapping is not invertible.
     },
+    {
+        from: '1.2',
+        to: '1.3',
+        reason: 'The timeline\'s one length became a content WINDOW (first-use review §4): '
+            + '`duration` is renamed `outTime`, and `inTime` (window start, default 0) and '
+            + '`playDuration` (the window remapped to wall ms) join it. `duration` read as the '
+            + 'CSS word for speed, which it never was.',
+        kind: PxWireStepKind.converted,
+        up: upDurationToWindow,
+        // No `down`: 1.3 can express fragments and remaps 1.2 could not.
+    },
 ];
+
+/** 1.2 → 1.3: `timeline.duration` → `timeline.outTime`, at either animator address. */
+function upDurationToWindow(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    if (!timeline || timeline['duration'] === undefined) return;
+    timeline['outTime'] = timeline['duration'];
+    delete timeline['duration'];
+}
 
 /**
  * 1.1 → 1.2. `outAction` meant three different things depending on `startOn`, so it can only be

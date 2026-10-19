@@ -97,7 +97,8 @@ const [time, setTime] = useState(0);
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
 | `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
-| `duration` | `number` | Shortcut for `timeline.duration` (ms) |
+| `inTime` / `outTime` | `number` | Shortcuts for the content window, `timeline.inTime` / `.outTime` (ms) | <!-- px names=inTime,outTime -->
+| `playDuration` | `number` | Shortcut for `timeline.playDuration` — the window in wall ms |
 | `delay` | `number` | Shortcut for `timeline.delay` (ms) |
 | `iterations` | `number \| 'infinite'` | Shortcut for `timeline.iterations` |
 | `start` | `'load' \| 'mouseOver' \| 'click' \| 'none'` | Shortcut for `timeline.trigger.start` |

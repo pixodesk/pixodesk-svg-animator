@@ -25,5 +25,24 @@
    "animator.timeline|time.trigger.startOn"
   ],
   "note": "The trigger block became two axes: `start` says what STARTS an animation, `offScreen` + `visibilityThreshold` + `visibilityDebounce` say whether it may RUN. `scrollIntoView` is no longer a start value — it is what `start: 'load'` behind the default gate already means — and `outAction` split into `offScreen` (scroll) and `mouseOut` (hover), because one field meant three things."
+ },
+ {
+  "version": "1.3",
+  "date": "2026-10-19",
+  "added": [
+   "animator.timeline|scroll.inTime",
+   "animator.timeline|scroll.outTime",
+   "animator.timeline|time.inTime",
+   "animator.timeline|time.outTime",
+   "animator.timeline|time.playDuration",
+   "animator.timeline|view.inTime",
+   "animator.timeline|view.outTime"
+  ],
+  "removed": [
+   "animator.timeline|scroll.duration",
+   "animator.timeline|time.duration",
+   "animator.timeline|view.duration"
+  ],
+  "note": "The timeline's one length became a content WINDOW (first-use review §4): `duration` is renamed `outTime`, and `inTime` (window start, default 0) and `playDuration` (the window remapped to wall ms) join it. `duration` read as the CSS word for speed, which it never was."
  }
 ]

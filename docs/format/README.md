@@ -79,7 +79,7 @@ comments, so a real file has none):
   "viewBox": "0 0 400 400",
 
   // ADDED: the playback settings — how long, how many times, what starts it
-  "animator": { "timeline": { "duration": 1000, "iterations": "infinite", "trigger": { "start": "load" } } },
+  "animator": { "timeline": { "outTime": 1000, "iterations": "infinite", "trigger": { "start": "load" } } },
 
   "children": [
     {
@@ -109,7 +109,7 @@ A few ideas cover most of the format:
    element's `animate` key, filed by the attribute's name. The static attribute itself stays
    where it is, so if you remove every `animate`, a valid static SVG remains.
 3. **One place for playback settings** — the root `animator` object holds everything about
-   how the document plays: duration, loops, what starts it.
+   how the document plays: the content window, loops, what starts it.
 
 ### Schema at a glance
 
@@ -182,7 +182,9 @@ interface SVG_JSON extends NODE {
                                                    // 'native' = browser only; 'js' = the player's own loop (+ own scroll measurement)
                 frameRate?: number;                // target fps for the player's own frame loop ('js', or 'auto' after
                                                    // falling back to it); uncapped when absent, ignored by WAAPI/RN
-                duration?: number;                 // length of ONE iteration, ms (default 1000); keyframe times are absolute offsets
+                inTime?: number;                   // the content WINDOW's start, ms (default 0); keyframe times are absolute content ms
+                outTime?: number;                  // …and its end. The editor always writes it; absent = the max keyframe time (else 1000)
+                playDuration?: number;             // wall ms one pass of the window takes; default outTime − inTime (no remap)
                 delay?: number;                    // wait before start, ms (default 0); negative = skip ahead, e.g. -500 starts from the 0.5 s frame
                 iterations?: number | 'infinite';  // repeat count (default 1); composes with per-property loop (loop-within-loop)
                 fillMode?: 'forwards' | 'backwards' | 'both' | 'none';                  // CSS animation-fill-mode; default 'forwards' holds final state
@@ -200,7 +202,8 @@ interface SVG_JSON extends NODE {
             | {
                 type: 'scroll' | 'view';           // scrubbed: the scroll container's offset ('scroll') or the SVG's
                                                    // journey through the viewport ('view'); no trigger/delay slots exist here
-                duration?: number;                 // the keyframe span the scroll range maps onto, ms
+                inTime?: number;                   // the content WINDOW's start, ms (default 0)
+                outTime?: number;                  // …and its end — the keyframe span the scroll range maps onto
                 iterations?: number;               // finite only — 'infinite' cannot map onto a range
                 engine?: 'auto' | 'native' | 'js';  // as above — 'auto'/'native' try the browser's ScrollTimeline, 'js' measures itself
                 frameRate?: number;                // target fps for the player's own frame loop ('js', or 'auto' after
@@ -326,7 +329,7 @@ interface ANIMATE {
     value?: any;                              // optional static baseline (rarely needed — the node's own attribute is the baseline)
     autoOrient?: boolean;                     // translate-only: rotate element to face the path tangent
     alongPathMode?: 'sampled' | 'offsetPath'; // transform-only: how a motion path is rendered — pre-sampled keyframes (default) or CSS offset-path
-    // pre-processes keyframes to fill the timeline duration by repeating a segment
+    // pre-processes keyframes to fill the timeline window by repeating a segment
     // true → default: repeat last segment, cycling forward
     // independent of timeline.iterations; composes as loop-within-loop
     loop?: boolean | {
@@ -351,7 +354,7 @@ never rendered.
 {
   "type": "div",
   "style": { "textAlign": "center" },
-  "animator": { "timeline": { "duration": 1000 } },
+  "animator": { "timeline": { "outTime": 1000 } },
   "children": [
     { "type": "h1", "textContent": "Hello, world!" },
     { "type": "svg", "viewBox": "0 0 400 400", "width": 300, "height": 300,
@@ -370,7 +373,7 @@ never rendered.
 | `id` | string | the element's identifier — it becomes the DOM id, and other elements and effects reference the element by it ([documents without `children`](#animating-a-pre-rendered-svg) rely on these references) |
 | `viewBox` | string | the drawing's coordinate space, exactly as in SVG — e.g. `"0 0 700 380"` means "the drawing spans 700 × 380 units" |
 | `width` · `height` | number or string | how big the drawing appears on the page — the same `width` / `height` you would put on an `<svg>` tag. Write a plain number (`400`) for pixels, or a string for anything with a unit: `"32px"`, `"100%"` | <!-- px names=width,height -->
-| `animator` | object | the playback settings — duration, loops, trigger, etc — see [Playback settings](../library/playback-and-triggers.md) and [Definitions](#definitions--animatordefinitions) |
+| `animator` | object | the playback settings — the window, loops, trigger, etc — see [Playback settings](../library/playback-and-triggers.md) and [Definitions](#definitions--animatordefinitions) |
 | `children` | array of element objects | the nested SVG children tree |
 | `animate` · `effects` · `style` · `meta` · `textContent` · `domType` | as on any node | the root `<svg>` is a node too — every [node key](#nodes) applies to it | <!-- px names=animate,effects,style,meta,textContent,domType -->
 | any SVG attribute | string or number | any other key is passed through to the rendered `<svg>` as an SVG attribute (`fill`, `style`, …) | <!-- px skip -->
@@ -557,7 +560,7 @@ all the way to the next keyframe.
 
 ##### Per-property loops
 
-A property can repeat part of its own keyframes to fill the timeline's `duration`, independently of
+A property can repeat part of its own keyframes to fill the timeline's window (`outTime`), independently of
 the document's `iterations`:
 
 ```json
@@ -692,7 +695,7 @@ import { createSvgAnimator } from '@pixodesk/svg-animator-web';
 createSvgAnimator({ container: '#box', doc: {   // an empty <div id="box"> on the page
   type: 'svg', id: '_px_root',
   animator: {
-    timeline: { duration: 2000 },
+    timeline: { outTime: 2000 },
     definitions: { animations: {
       fadeIn: { opacity: { keyframes: [ { time: 0, value: 0 }, { time: 2000, value: 1 } ] } },
       warm:   { fill:    { keyframes: [ { time: 0, value: '#0087ff' }, { time: 2000, value: '#ff3b30' } ] } },
@@ -722,7 +725,7 @@ each property has one fixed unit that is always understood:
 <!-- px-check off units, prose -->
 | Value | Unit |
 |---|---|
-| time (`time`, `timeline.duration`, `timeline.delay`, `retime.start`) | milliseconds |
+| time (`time`, `timeline.inTime` / `outTime` / `playDuration`, `timeline.delay`, `retime.start`) | milliseconds |
 | lengths, coordinates, `fontSize` in px | plain numbers in the drawing's coordinates (the `viewBox` space) — no unit is written |
 | `rotate`, `skew`, angles | degrees |
 | `opacity`, trim `range` / `offset`, stop `offset`, `visibilityThreshold` | a share of the whole, from `0` (none) to `1` (all) |
@@ -763,7 +766,7 @@ Complete documents, one idea each.
   "type": "svg",
   "viewBox": "0 0 400 400",
   "animator": {
-    "timeline": { "duration": 1000, "iterations": "infinite",
+    "timeline": { "outTime": 1000, "iterations": "infinite",
                   "trigger": { "start": "load" } }
   },
   "children": [
@@ -783,7 +786,7 @@ Complete documents, one idea each.
   "type": "svg",
   "viewBox": "0 0 600 400",
   "animator": {
-    "timeline": { "duration": 2000, "direction": "alternate", "iterations": "infinite" },
+    "timeline": { "outTime": 2000, "direction": "alternate", "iterations": "infinite" },
     "definitions": {
       "easings": { "smooth": [0.42, 0, 0.58, 1] },
       "animations": { "fadeIn": { "opacity": { "keyframes": [
@@ -810,7 +813,7 @@ by `#id` and the animations it plays by name — [above](#animating-a-pre-render
   "type": "svg",
   "id": "heroSvg",
   "animator": {
-    "timeline": { "duration": 3000, "iterations": "infinite" },
+    "timeline": { "outTime": 3000, "iterations": "infinite" },
     "definitions": { "animations": {
       "spin":     { "rotate": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 3000, "value": 360 } ] } },
       "spinBack": { "rotate": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 3000, "value": -360 } ] } }
@@ -829,7 +832,7 @@ by `#id` and the animations it plays by name — [above](#animating-a-pre-render
 {
   "type": "svg",
   "viewBox": "0 0 400 200",
-  "animator": { "timeline": { "duration": 1000 } },
+  "animator": { "timeline": { "outTime": 1000 } },
   "children": [
     { "type": "path", "d": "M20,100C60,20,140,20,180,100", "stroke": "#000000", "fill": "none",
       "effects": {
@@ -850,7 +853,7 @@ by `#id` and the animations it plays by name — [above](#animating-a-pre-render
   "type": "svg",
   "viewBox": "0 0 400 400",
   "animator": {
-    "timeline": { "type": "view", "duration": 3000,
+    "timeline": { "type": "view", "outTime": 3000,
                   "range": { "start": { "phase": "entry", "fraction": 0 },
                              "end":   { "phase": "exit",  "fraction": 1 } } }
   },
@@ -927,7 +930,7 @@ and no font file needs to be installed or loaded.
   "type": "svg",
   "viewBox": "0 0 400 100",
   "animator": {
-    "timeline": { "duration": 1000 },
+    "timeline": { "outTime": 1000 },
     "definitions": {
       // The outlines the text is drawn from — one entry per letter used
       // (paths shortened here; the editor writes the real ones)
@@ -1470,7 +1473,7 @@ function foldTimelineOverride(
 ): PxAnimatorConfigPatch | undefined;
 
 // ○ The schema version — see Versioning, below.
-const PX_WIRE_SCHEMA_VERSION: '1.2';                                    // the schema this build reads
+const PX_WIRE_SCHEMA_VERSION: '1.3';                                    // the schema this build reads
 function readWireVersion(doc: unknown): PxWireVersion | undefined;          // animator.version (or meta.animator.version)
 function convertWireDocument(doc: unknown): PxWireConversionResult;     // up to this schema; never refuses, never mutates
 function downgradeWireDocument(doc: unknown, target: PxWireVersion): PxWireDowngradeResult;   // all or nothing

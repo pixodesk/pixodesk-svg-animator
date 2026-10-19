@@ -75,7 +75,10 @@ export function materializeAllInTree(
     // 2. Loops → flat repeated keyframes. Always runs (both engines need flat
     //    kfs covering the duration; per-binding expansion in
     //    `normalizeKeyframes` becomes a no-op once the loop field is consumed).
-    const duration = getAnimatorConfig(root)?.duration ?? PX_DEFAULT_DURATION_MS;
+    // Tree-level keyframe times are still CONTENT ms (the shift to window space happens later,
+    // in `normalizeBindings`), so loops fill to the window END — `inTime + duration` (§4).
+    const config = getAnimatorConfig(root);
+    const duration = (config?.inTime ?? 0) + (config?.duration ?? PX_DEFAULT_DURATION_MS);
     root = materializeInternalLoopsInTree(root, duration);
 
     if (engine === PxTimelineEngine.native) {

@@ -51,6 +51,17 @@ export function finaliseAnimator(
     const res = make(effectiveCallbacks);
     apiRef = res;
 
+    // `playDuration` (§4): the window remapped to wall ms, implemented as an initial rate factor.
+    // The caller's `setPlaybackRate` stays in its own units — the factor composes underneath —
+    // and `getCurrentTime` stays CONTENT ms untouched. Scroll owns its pace: no factor there.
+    const { duration, playDuration } = animatorConfig;
+    if (playDuration !== undefined && playDuration > 0 && duration && animatorConfig.timelineSource !== 'scroll') {
+        const factor = duration / playDuration;
+        const setEngineRate = res.setPlaybackRate.bind(res);
+        res.setPlaybackRate = (rate: number) => setEngineRate(rate * factor);
+        setEngineRate(factor);
+    }
+
     if (animatorConfig.debugGlobalName) {
         (window as any)[animatorConfig.debugGlobalName] = res; // Exposing as global variable for debug
     }

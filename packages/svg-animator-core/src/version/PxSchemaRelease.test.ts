@@ -30,15 +30,15 @@ describe('the release log (5.4)', () => {
 
     it('MUTATION SELF-TEST: a bump with no changelog entry is named', () => {
         // One version PAST the log, whatever the log ends at today.
-        const problems = releaseLogProblems(releases, [step('1.3', PxWireStepKind.additive)], '1.3', PX_WIRE_BASELINE_VERSION);
+        const problems = releaseLogProblems(releases, [step('1.4', PxWireStepKind.additive)], '1.4', PX_WIRE_BASELINE_VERSION);
         expect(problems.join(' ')).toContain('last release record is ' + LATEST_RELEASED);
     });
 
     it('a release with no step, or a removal logged under an additive step, is named', () => {
         const log: Array<SchemaReleaseRecord> = [...releases,
-            { version: '1.3', date: '2026-10-01', added: [], removed: ['effects.x'] }];
-        expect(releaseLogProblems(log, [], '1.3', PX_WIRE_BASELINE_VERSION).join(' ')).toContain('no PX_WIRE_STEPS entry');
-        expect(releaseLogProblems(log, [step('1.3', PxWireStepKind.additive)], '1.3', PX_WIRE_BASELINE_VERSION).join(' '))
+            { version: '1.4', date: '2026-10-01', added: [], removed: ['effects.x'] }];
+        expect(releaseLogProblems(log, [], '1.4', PX_WIRE_BASELINE_VERSION).join(' ')).toContain('no PX_WIRE_STEPS entry');
+        expect(releaseLogProblems(log, [step('1.4', PxWireStepKind.additive)], '1.4', PX_WIRE_BASELINE_VERSION).join(' '))
             .toContain('not `converted`');
     });
 });

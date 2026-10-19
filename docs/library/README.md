@@ -73,7 +73,9 @@ a number when it differs — the note with that number, under the table, says ho
 | **Playback override** | | | | | | |
 | `timeline` | ✓ | — | — | ✓ | ✓ | 4 |
 | `resetTimeline` | ✓ | — | — | ✓ | ✓ | ✓ |
-| `duration` | ✓ | — | — | ✓ | ✓ | ✓ |
+| `inTime` | ✓ | — | — | ✓ | ✓ | ✓ |
+| `outTime` | ✓ | — | — | ✓ | ✓ | ✓ |
+| `playDuration` | ✓ | — | — | ✓ | ✓ | ✓ |
 | `delay` | ✓ | — | — | ✓ | ✓ | ✓ |
 | `iterations` | ✓ | — | — | ✓ | ✓ | ✓ |
 | `start` | ✓ | — | — | ✓ | ✓ | 5 |

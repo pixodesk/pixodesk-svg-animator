@@ -65,7 +65,7 @@ function getTestJson(): PxAnimatedSvgDocument {
             bindings: [{ target: '#_px_2pp00tnc', animateWith: ['a0'] }],
             timeline: {
                 engine: "js",
-                duration: 128,
+                outTime: 128,
                 fillMode: "forwards",
                 direction: "normal",
                 trigger: { start: "load" },

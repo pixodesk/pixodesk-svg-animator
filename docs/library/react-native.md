@@ -88,7 +88,7 @@ Common variations. Each line is the `<SvgAnimator>` element inside a component l
 <SvgAnimator doc={doc} time={scrollProgress} />
 
 // Override the document's timing
-<SvgAnimator doc={doc} playAsSaved duration={4000} delay={500} />
+<SvgAnimator doc={doc} playAsSaved outTime={4000} delay={500} />
 
 // Do something when it finishes
 <SvgAnimator doc={doc} playAsSaved onFinish={() => setDone(true)} />
@@ -216,7 +216,10 @@ interface SvgAnimatorProps {
     timeline?: PxTimelinePatch | string;
     resetTimeline?: boolean;              // start from the player's defaults, `timeline` on top
 
-    duration?: number; delay?: number;    // shortcuts, ms: one iteration, and the wait before it
+    inTime?: number;                      // ▸ timeline.inTime — the content window's start, ms
+    outTime?: number;                     // ▸ timeline.outTime — …and its end (one pass plays the window)
+    playDuration?: number;                // ▸ timeline.playDuration — the window in wall ms (slower / faster)
+    delay?: number;                       // ▸ timeline.delay — the wait before the first pass, ms
     iterations?: number | 'infinite';     // 'infinite' never stops
     start?: PxTriggerStart;                  // 'mouseOver' has no touch equivalent and is ignored;
                                           //   'click' = tap (a second tap applies mouseOut);
@@ -271,7 +274,7 @@ you passed is never modified.
 ```
 
 Objects merge key by key, values replace, and `null` **deletes** a key so the default its
-absence means comes back. `duration`, `delay`, `iterations` and `start` are also plain props,
+absence means comes back. `inTime`, `outTime`, `playDuration`, `delay`, `iterations` and `start` are also plain props,
 and win over the same key inside `timeline`. To ignore the file's playback settings entirely,
 add `resetTimeline`.
 
@@ -411,7 +414,7 @@ not supported.
 <!-- px-check off support matrix, prose -->
 | Feature | Supported | Notes |
 |---|---|---|
-| `duration`, `delay`, `iterations` (incl. infinite) | ✅ | |
+| `inTime` / `outTime` / `playDuration`, `delay`, `iterations` (incl. infinite) | ✅ | |
 | All four `direction` values, all `fillMode` values, `trigger.finish` | ✅ | through `timeline` — see [Playback overrides](#playback-overrides) |
 | play / pause / cancel / finish | ✅ | |
 | Jumping to any time, also while playing | ✅ | |

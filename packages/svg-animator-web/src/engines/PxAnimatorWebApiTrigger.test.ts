@@ -33,7 +33,7 @@ function doc(trigger?: { start: 'none' }): PxAnimatedSvgDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'native', duration: 1000, ...(trigger ? { trigger } : {}) } },
+        animator: { timeline: { engine: 'native', outTime: 1000, ...(trigger ? { trigger } : {}) } },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
