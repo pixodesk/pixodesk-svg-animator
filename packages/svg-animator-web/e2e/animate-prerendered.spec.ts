@@ -66,7 +66,9 @@ test.describe('pre-rendered bundle (minified)', () => {
 
     test('exposes only the pre-rendered surface', async ({ page }) => {
         const keys = await page.evaluate(() => Object.keys((window as any).Pixodesk.SvgAnimator).sort());
-        expect(keys).toContain('create');
+        expect(keys).toContain('bind');
+        // `create` renders a document into a container: the full build only (first-use review §8)
+        expect(keys).not.toContain('create');
         // The external-JSON bootstrap belongs to the full build only; its absence is what
         // lets the effects pipeline and schema layer tree-shake away.
         expect(keys).not.toContain('loadTagSvgAnimators');

@@ -87,11 +87,13 @@ describe('shipped bundles: behavior is identical minified and unminified', () =>
     }
 
     for (const pair of BUNDLE_PAIRS) {
+        // the full build renders (`create`); the pre-rendered builds bind markup already on the page (`bind`)
+        const enter = (px: any) => (pair.renders ? px.create : px.bind);
 
         it(`[${pair.name}] lifecycle callbacks fire`, () => {
             const scenario = (px: any, win: any) => {
                 const fired: string[] = [];
-                const api = px.create({
+                const api = enter(px)({
                     data: framesDoc(),
                     container: win.document.getElementById('stage'),
                     callbacks: {
@@ -113,7 +115,7 @@ describe('shipped bundles: behavior is identical minified and unminified', () =>
         it(`[${pair.name}] a custom adapter is used`, () => {
             const scenario = (px: any, win: any) => {
                 let calls = 0;
-                const api = px.create({
+                const api = enter(px)({
                     data: framesDoc(),
                     container: win.document.getElementById('stage'),
                     adapter: {
@@ -132,7 +134,7 @@ describe('shipped bundles: behavior is identical minified and unminified', () =>
         if (pair.renders) {
             it(`[${pair.name}] domType becomes a real "type" attribute`, () => {
                 const scenario = (px: any, win: any) => {
-                    px.create({
+                    enter(px)({
                         data: {
                             type: 'svg',
                             viewBox: '0 0 10 10',

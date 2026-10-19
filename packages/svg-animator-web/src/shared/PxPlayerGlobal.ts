@@ -6,5 +6,9 @@
 /** The global the `<script>` builds define: one `Pixodesk` namespace for the brand's browser libraries. @public @advanced */
 export const PX_PLAYER_GLOBAL = 'Pixodesk.SvgAnimator';
 
-/** The function each `<script>` build puts on {@link PX_PLAYER_GLOBAL} — what an SVG + JS export calls. @public @advanced */
+/** The full `<script>` build's member that renders a document into a container (`createSvgAnimator`). @public @advanced */
 export const PX_PLAYER_CREATE = 'create';
+
+/** The member every `<script>` build has that binds a pre-rendered SVG already on the page (`bindSvgAnimator`) —
+ *  what an SVG + JS export calls. @public @advanced */
+export const PX_PLAYER_BIND = 'bind';

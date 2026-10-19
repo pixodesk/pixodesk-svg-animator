@@ -21,9 +21,11 @@
 // runtime. Anything the Editor imports belongs in `index.ts`.
 // ============================================================================
 
-// The player itself. On the global, `createSvgAnimator` is the member `create` (PX_PLAYER_CREATE) —
-// what the Editor's exported SVG+JS calls (`Pixodesk.SvgAnimator.create({...})`); `loadTagSvgAnimators`
-// is the declarative `data-px-animation-src` bootstrap.
+// The player itself. On the global, `createSvgAnimator` is the member `create` (PX_PLAYER_CREATE): a document
+// into a container. `bindSvgAnimator` is `bind` (PX_PLAYER_BIND): a pre-rendered SVG already on the page — what
+// the Editor's SVG+JS export calls, so an export that leaves the player to the page works with this build too.
+// `loadTagSvgAnimators` is the declarative `data-px-animation-src` bootstrap.
+export { createPrerenderedAnimator as bind } from './engines/PxAnimatorBind';
 export {
     createSvgAnimator as create,
     generateNewIds,

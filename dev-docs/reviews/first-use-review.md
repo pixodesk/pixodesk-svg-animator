@@ -153,7 +153,7 @@ it · 🟡 smaller
   `__pixodeskSvgAnimators`. The React / Vue `<script>` builds were removed (unused, bundled their own framework).
   `PX_PLAYER_GLOBAL` / `PX_PLAYER_CREATE` are the one spelling the build config and the Editor's exporter share.
 
-### 8. One name, two functions
+### 8. ✅ One name, two functions
 
 - **Where:** `index.prerendered.ts` exports `createPrerenderedAnimator` *as* `createAnimator`
   (`doc` only, binds to markup already on the page), next to the package's
@@ -163,6 +163,10 @@ it · 🟡 smaller
   full build's `createAnimator` *also* binds to existing markup when `container` is omitted.
 - **Do:** give the bind entry its own verb (e.g. `bindAnimator`) in both builds; the editor's
   exporter emits that.
+- **Done (2026-10-19):** the bind entry is `bindSvgAnimator` (npm) / `bind` on the `<script>` global, in every
+  build — the pre-rendered ones carry only `bind`, the full one `create` and `bind`. SVG + JS exports call
+  `Pixodesk.SvgAnimator.bind({"doc": …})` (`PX_PLAYER_BIND`), so a page may supply either build. `createSvgAnimator`
+  still binds when `container` is omitted (unchanged).
 
 ### 9. Handle types: six names, and the docs explain them wrong
 

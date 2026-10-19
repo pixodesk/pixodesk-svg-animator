@@ -443,18 +443,25 @@ page. The `<script>` builds put a smaller set of functions on one global, `windo
 <!-- px-check off the UMD file list, prose -->
 | File | For | On `Pixodesk.SvgAnimator` |
 |---|---|---|
-| `pixodesk-svg-animator.umd.min.js` | a page playing JSON documents | `create` (= `createSvgAnimator`), `loadTagSvgAnimators`, `setupAnimationTriggers`, `validateDocument`, `generateNewIds`, `PxTimelineEngineSetting`, `PxTimelineEngine`, `PX_ANIMATOR_DOC_KEY`, `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME` |
-| `index.prerendered.umd.min.js` | a pre-rendered SVG + JS export (engine `auto` / `js`) | `create(options: PxPrerenderedAnimatorOptions)`, `setupAnimationTriggers`, `PX_ANIMATOR_DOC_KEY` |
+| `pixodesk-svg-animator.umd.min.js` | a page playing JSON documents | `create` (= `createSvgAnimator`), `bind` (= `bindSvgAnimator`), `loadTagSvgAnimators`, `setupAnimationTriggers`, `validateDocument`, `generateNewIds`, `PxTimelineEngineSetting`, `PxTimelineEngine`, `PX_ANIMATOR_DOC_KEY`, `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME` |
+| `index.prerendered.umd.min.js` | a pre-rendered SVG + JS export (engine `auto` / `js`) | `bind(options: PxPrerenderedAnimatorOptions)`, `setupAnimationTriggers`, `PX_ANIMATOR_DOC_KEY` |
 | `index.prerendered-waapi.umd.min.js` | the same with engine `native` — the smallest build | the same as the line above |
 
 `PxPrerenderedAnimatorOptions` is `{ doc: PxAnimatedSvgDocument }` plus the inline callbacks. Its `doc`
 carries only `animator.definitions` and `animator.bindings` — the SVG is already in the page —
 and it is not validated. There is no `src` form.
 
+<!-- px-check signature pkg=web -->
+```typescript
+// Bind a pre-rendered SVG that is already on the page — what an SVG + JS export's script calls,
+// as `Pixodesk.SvgAnimator.bind(…)`. Every build has it; only the full build also has `create`.
+function bindSvgAnimator(options: PxPrerenderedAnimatorOptions): PxAnimatorApi;
+```
+
 **Globals.** Importing the player writes nothing to `window`. `<script>` pages reach the player's
 functions through `Pixodesk.SvgAnimator.*` on the UMD build — `createSvgAnimator` is the member `create`
-there; ESM and CJS consumers import what they need. A tool that writes a script for those pages (an
-exporter) builds the call from `PX_PLAYER_GLOBAL` and `PX_PLAYER_CREATE` instead of spelling it. Separately, a document with `animator.debugGlobalName: "heroBanner"` makes the player
+there and `bindSvgAnimator` the member `bind`; ESM and CJS consumers import what they need. A tool that writes a script for those pages (an
+exporter) builds the call from `PX_PLAYER_GLOBAL`, `PX_PLAYER_CREATE` and `PX_PLAYER_BIND` instead of spelling it. Separately, a document with `animator.debugGlobalName: "heroBanner"` makes the player
 assign its API object to `window.heroBanner`, so a live instance can be driven from the console —
 opt-in per document; see [Playback & triggers → Debug handle](./playback-and-triggers.md#debug-handle--debugglobalname).
 
@@ -464,7 +471,7 @@ opt-in per document; see [Playback & triggers → Debug handle](./playback-and-t
 <!-- px-check exports @pixodesk/svg-animator-web -->
 | Identifier | Audience · what it is for |
 |---|---|
-| `createSvgAnimator(options)`, `loadTagSvgAnimators(options?)`, `setupAnimationTriggers(api, trigger, diag?)` | ● the player — above |
+| `createSvgAnimator(options)`, `bindSvgAnimator(options)`, `loadTagSvgAnimators(options?)`, `setupAnimationTriggers(api, trigger, diag?)` | ● the player — above |
 | `getAllSvgAnimators()`, `onSvgAnimatorsChange(listener)`, `PxAnimatorRegistry`, `PxAnimatorsEvent`, `PxAnimatorsListener` | ● **experimental** — [every animator on the page](#every-animator-on-the-page-experimental): the window-wide registry, also `globalThis.__pixodeskSvgAnimators`; not settled, may change without a major version |
 | `createAdapterSvgAnimator(doc, adapter, callbacks?)` | ○ the frame-loop engine against a custom `PxPlatformAdapter` — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
 | `PxInternalAnimatorOptions` | ▪ `PxAnimatorOptions` plus `adapter` — the frame loop's custom render target (`PxPlatformAdapter`: `isConnected()` + `setAttribute(id, name, value)`). What the React and Vue components build the player with, so writes go to the elements they rendered; not an option of the public API, because a page has a DOM to write to |
@@ -472,7 +479,7 @@ opt-in per document; see [Playback & triggers → Debug handle](./playback-and-t
 | `validateDocument(doc)` | ● the whole-document check — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
 | `generateNewIds` | ○ document tooling — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
 | `PX_ANIMATOR_DOC_KEY` | ▪ attribute and property names the player writes |
-| `PX_PLAYER_GLOBAL`, `PX_PLAYER_CREATE` | ○ the `<script>` builds' global (`'Pixodesk.SvgAnimator'`) and its create member (`'create'`) — for tools that emit a call to it |
+| `PX_PLAYER_GLOBAL`, `PX_PLAYER_CREATE`, `PX_PLAYER_BIND` | ○ the `<script>` builds' global (`'Pixodesk.SvgAnimator'`) and its two members, `'create'` and `'bind'` — for tools that emit a call to it |
 | `createVisibilityGate(root, trigger, host)`, `PLAY_WHEN_VISIBLE_DEFAULTS`, `PxVisibilityGate`, `PxGateHost`, `PxGateTrigger` | ▪ the gate `setupAnimationTriggers` wires for every document — it opens at `visibilityThreshold`, closes only at zero visibility, waits out `visibilityDebounce` and treats a hidden tab as off screen. Exported so the CSS-only React and Vue wrappers gate on the same rules rather than each growing their own observer |
 | `px`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTriggerSchema`, `PxScrollSchema`, `PxDefinitionsSchema`, `PxSchema`, `PxInfer`, `PxValidationContext` | ○ the schema toolkit, re-exported from core — the schema values and the types to build on them |
 | `PxDiagnosticsConfig`, `PxDiagnostic`, `PxDiagnosticKind` | ● the diagnostics every player shares — re-exported for the React and Vue components; spelled out in [the API at a glance](./README.md#the-api-at-a-glance) |

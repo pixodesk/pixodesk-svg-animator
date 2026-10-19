@@ -30,7 +30,7 @@ than folded away. When a record and the code disagree, the code (and its tests) 
 |---|---|
 | [reviews/api-schema-review.md](reviews/api-schema-review.md) | the player API review (2026-09-08 → 2026-09-13), 25 items, all closed: one control-mode rule, one diagnostics channel, one meaning of time, `doc` / `timeline` / inline callbacks |
 | [reviews/api-surface-review.md](reviews/api-surface-review.md) | the export surface (2026-09-13), all closed: audience tags on every export, who consumes what, the `/internal` entries, the renames (§26 and §6), the checks that keep "public" meaning "documented" |
-| [reviews/first-use-review.md](reviews/first-use-review.md) | the API, the schema and the docs read as a newcomer would (2026-10-15), §3 and §7 done, the rest open: 26 API/schema items (one start rule for web and components, `autoplay`, `duration` vs speed, types that reject JSON imports or accept dropped keys, names), 6 on how the guides read, 12 wrong statements in the docs |
+| [reviews/first-use-review.md](reviews/first-use-review.md) | the API, the schema and the docs read as a newcomer would (2026-10-15), §3, §7 and §8 done, the rest open: 26 API/schema items (one start rule for web and components, `autoplay`, `duration` vs speed, types that reject JSON imports or accept dropped keys, names), 6 on how the guides read, 12 wrong statements in the docs |
 
 ## Code layout and architecture
 
