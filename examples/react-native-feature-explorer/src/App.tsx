@@ -95,7 +95,7 @@ const CaseRow = memo(function CaseRow({
                     // back into view, and leaves off-screen rows completely idle.
                     key={(active ? 'play' : 'idle') + (loop ? '-loop' : '')}
                     doc={doc as any}
-                    autoplay={active}
+                    playAsSaved={active}
                     // The fixtures are authored one-shot (1s, no iterations), which
                     // is right for the editor's frame-by-frame inspection but means
                     // a row would be finished before you scrolled to it.

@@ -25,7 +25,7 @@ Uses triggers defined in the animation document (load, click, hover, scroll):
 
 ```vue
 <template>
-  <SvgAnimator :doc="animationDoc" autoplay />
+  <SvgAnimator :doc="animationDoc" playAsSaved />
 </template>
 ```
 
@@ -84,7 +84,7 @@ Render a single frame — by time in milliseconds, or by fraction of the whole t
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxAnimatedSvgDocument` | The animation document to render (required) |
-| `autoplay` | `boolean` | Use triggers from the document |
+| `playAsSaved` | `boolean` | Use triggers from the document |
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
@@ -100,7 +100,7 @@ Render a single frame — by time in milliseconds, or by fraction of the whole t
 | `muteWarn` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarn`, if you gave it, still fires: mute is about the console, not about you |
 | `muteError` | `boolean` | the same switch for `console.error` |
 
-With none of `autoplay` / `play` / `pause` / `progress` / `time` set, the component renders the animation statically (initial state, no playback); use the template ref for imperative control.
+With none of `playAsSaved` / `play` / `pause` / `progress` / `time` set, the component renders the animation statically (initial state, no playback); use the template ref for imperative control.
 
 Note: passing a different `doc` (or unmounting) throws the old animator away and builds a new one; the old instance emits `cancel`, `remove`, and `stop` on its way out. Changing `progress` / `time` does **not** recreate the animator — it just jumps the existing one to the new time.
 

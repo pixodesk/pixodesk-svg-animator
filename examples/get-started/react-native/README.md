@@ -1,6 +1,6 @@
 # Get started — React Native
 
-The [React Native](https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/library/get-started.md#react-native) section of the *Get started with the player library* guide as a project of its own: an Expo app whose `App.js` renders `animation.json`, the file next to it, with `<SvgAnimator doc={animation} autoplay />`. 🧪 The React Native player is in development.
+The [React Native](https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/library/get-started.md#react-native) section of the *Get started with the player library* guide as a project of its own: an Expo app whose `App.js` renders `animation.json`, the file next to it, with `<SvgAnimator doc={animation} playAsSaved />`. 🧪 The React Native player is in development.
 
 ```bash
 npm install

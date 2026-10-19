@@ -5,6 +5,6 @@ import animation from './animation.json';
 
 <template>
   <div style="width: 300px; height: 300px">
-    <SvgAnimator :doc="animation" autoplay />
+    <SvgAnimator :doc="animation" playAsSaved />
   </div>
 </template>

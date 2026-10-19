@@ -8,6 +8,7 @@ export function createWebPlayer(
   opts?: PlayerOptions,
 ): PlayerHandle {
   const api = createSvgAnimator({
+    playAsSaved: true,
     // Trigger handling (programmatic / from-file / custom) is shared across all players.
     doc: applyTriggerOverride(doc, opts),
     container,

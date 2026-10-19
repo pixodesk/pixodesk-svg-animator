@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, getAnimatorConfig, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, suppressTriggerStart, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
@@ -167,6 +167,20 @@ export interface PxPrerenderedAnimatorOptions extends PxAnimatorCallbacks {
      * in the DOM.
      */
     doc: PxAnimatedSvgDocument;
+    /**
+     * Play the way the editor saved it — the document's own `timeline.trigger` decides (the
+     * Editor's SVG + JS export passes it). WITHOUT it the binding is still: `trigger.start` is
+     * forced to `'none'` and the returned api drives it (first-use review §1+2).
+     */
+    playAsSaved?: boolean;
+}
+
+/** The no-driver rule, on the bind path: nothing starts itself unless `playAsSaved` says so.
+ *  Scroll-driven documents are exempt — scroll IS their named driver (same rule as `createSvgAnimator`). */
+function docToPlay(options: PxPrerenderedAnimatorOptions): PxAnimatedSvgDocument {
+    const doc = requireDoc(options);
+    if (options.playAsSaved || isScrollTimeline(getAnimatorConfig(doc))) return doc;
+    return applyAnimatorConfig(doc, suppressTriggerStart()).doc;
 }
 
 function requireDoc(options: PxPrerenderedAnimatorOptions): PxAnimatedSvgDocument {
@@ -200,7 +214,7 @@ function buildOrReport(options: PxPrerenderedAnimatorOptions, build: () => PxAni
  * @public
  */
 export function createPrerenderedAnimator(options: PxPrerenderedAnimatorOptions): PxAnimatorApi {
-    const doc = requireDoc(options);
+    const doc = docToPlay(options);
     return registered(options, callbacks => buildOrReport(options, () => bindWithEngineChoice(doc, undefined, callbacks, null)));
 }
 
@@ -223,7 +237,7 @@ function registered(options: PxPrerenderedAnimatorOptions, build: (callbacks: Px
  * @public
  */
 export function createPrerenderedWaapiAnimator(options: PxPrerenderedAnimatorOptions): PxAnimatorApi {
-    const doc = requireDoc(options);
+    const doc = docToPlay(options);
     return registered(options, callbacks => buildOrReport(options, () => {
         const animatorConfig = getAnimatorConfig(doc) || {};
         return finaliseAnimator(animatorConfig, callbacks, cb => createWebApiAnimator(doc, cb, null, true)!);

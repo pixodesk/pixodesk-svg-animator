@@ -25,7 +25,7 @@ const animation: PxAnimatedSvgDocument = _animation;
 Uses triggers defined in the animation document (load, click, hover, scroll):
 
 ```tsx
-<SvgAnimator doc={animation} autoplay />
+<SvgAnimator doc={animation} playAsSaved />
 ```
 
 ### Declarative play/pause
@@ -89,7 +89,7 @@ const [time, setTime] = useState(0);
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxAnimatedSvgDocument` | The animation document to render (required) |
-| `autoplay` | `boolean` | Use triggers from the document |
+| `playAsSaved` | `boolean` | Use triggers from the document |
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
 | `apiRef` | `RefObject<ReactAnimatorApi>` | Ref for imperative control |
@@ -114,6 +114,6 @@ const [time, setTime] = useState(0);
 | `className` | `string` | CSS class applied to the rendered root `<svg>` |
 | `style` | `CSSProperties` | Inline styles applied to the rendered root `<svg>` |
 
-With none of `autoplay` / `play` / `pause` / `apiRef` / `progress` / `time` set, the component renders the animation statically (initial state, no playback).
+With none of `playAsSaved` / `play` / `pause` / `apiRef` / `progress` / `time` set, the component renders the animation statically (initial state, no playback).
 
 Note: passing a different `doc` (or unmounting) throws the old animator away and builds a new one; the old instance emits `onCancel`, `onRemove`, and `onStop` on its way out. Changing `progress` / `time` does **not** recreate the animator — it just jumps the existing one to the new time.

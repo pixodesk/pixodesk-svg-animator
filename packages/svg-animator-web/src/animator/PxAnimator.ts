@@ -3,8 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, materializeAllInTree, PxDiagnosticCode, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
-import { reportDocumentDiagnostics, createDiagnostics, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
+import { applyAnimatorConfig, suppressTriggerStart, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, materializeAllInTree, PxDiagnosticCode, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { reportDocumentDiagnostics, createDiagnostics, isScrollTimeline, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
 import { bindWithEngineChoice } from '../engines/PxAnimatorBind';
@@ -54,7 +54,8 @@ function createAnimatorImpl(
     containerElement?: string | Element,
     patch?: PxAnimatorConfigPatch,
     resetTimeline?: boolean,
-    providedRoot?: Element
+    providedRoot?: Element,
+    playAsSaved?: boolean
 ): PxAnimatorApi {
 
     // Validate every `node.effects` bucket against `PxEffectsSchema` and warn
@@ -81,6 +82,15 @@ function createAnimatorImpl(
         const patched = applyAnimatorConfig(doc, patch ?? {}, { resetTimeline: !!resetTimeline });
         for (const w of patched.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
         doc = patched.doc;
+    }
+
+    // The no-driver rule (first-use review §1+2): without `playAsSaved` the document must not
+    // start itself — `start: 'none'` goes on AFTER the caller's own override, so nothing re-arms
+    // it; the same rule the components' control modes apply. Scroll-driven documents are exempt:
+    // scroll IS their named driver, and a clock trigger pushed into a scroll timeline would only
+    // be reported as an ignored override.
+    if (!playAsSaved && !isScrollTimeline(getAnimatorConfig(doc))) {
+        doc = applyAnimatorConfig(doc, suppressTriggerStart()).doc;
     }
 
     // Decide the engine upfront so the materialization pipeline knows which
@@ -151,6 +161,13 @@ export { PX_ANIMATOR_DOC_KEY } from '../shared/PxAnimatorKeys';
  * @public
  */
 export interface PxAnimatorOptions extends PxPlaybackOverride, PxAnimatorCallbacks {
+    /**
+     * Play the way the editor saved it: the document's own `timeline.trigger` starts (and gates)
+     * playback. WITHOUT it the animator builds still — the first frame is shown, `trigger.start`
+     * is forced to `'none'` — and the returned api (`play()`, `setCurrentTime()`) drives it
+     * (first-use review §1+2: nothing plays until a line names the driver).
+     */
+    playAsSaved?: boolean;
     /** URL to fetch the animation document from. Provide either this or `doc`, not both. */
     src?: string;
     /** The animation document, inline (see docs/format/README.md). Provide either this or `src`, not both. */
@@ -265,7 +282,7 @@ export function createSvgAnimator(options: PxAnimatorOptions): PxAnimatorApi {
     // throw at the caller, which would land inside a fetch callback where no one can catch it.
     const build = (document: PxAnimatedSvgDocument): void => {
         try {
-            ready(createAnimatorImpl(document, adapter, callbacks, container, patch, resetTimeline, providedRoot));
+            ready(createAnimatorImpl(document, adapter, callbacks, container, patch, resetTimeline, providedRoot, options.playAsSaved));
         } catch (e) {
             const err = asThrownError(e);
             failed(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, err);
@@ -322,7 +339,7 @@ export function createSvgAnimator(options: PxAnimatorOptions): PxAnimatorApi {
  * forbids (`data`): callbacks, the diagnostics channel, a playback override and its shortcuts.
  * @public
  */
-export type PxTagAnimatorOptions = Omit<PxAnimatorOptions, 'src' | 'doc' | 'container'>;
+export type PxTagAnimatorOptions = Omit<PxAnimatorOptions, 'src' | 'doc' | 'container' | 'playAsSaved'>;
 
 /**
  * Scan the page for `<div data-px-animation-src="animation.json">` and create one player per
@@ -340,7 +357,8 @@ export function loadTagSvgAnimators(options?: PxTagAnimatorOptions) {
         if (!(element as any)[PX_ANIM_ATTR_NAME]) {
             const src = element.getAttribute(PX_ANIM_SRC_ATTR_NAME);
             if (src) {
-                (element as any)[PX_ANIM_ATTR_NAME] = createSvgAnimator({ ...options, src, container: element });
+                // A tag embeds a finished file: the file IS the driver, so `playAsSaved` is not an option here.
+                (element as any)[PX_ANIM_ATTR_NAME] = createSvgAnimator({ ...options, src, container: element, playAsSaved: true });
             }
         }
     }

@@ -23,7 +23,7 @@ describe("VueAnimator", () => {
         render(SvgAnimator, {
             props: {
                 doc: getTestJson(),
-                autoplay: true,
+                playAsSaved: true,
             },
         });
 

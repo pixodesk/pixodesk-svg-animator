@@ -84,10 +84,10 @@ const motionPathDoc: PxAnimatedSvgDocument = {
     ],
 };
 
-const DEMOS: Array<{ name: string; doc: PxAnimatedSvgDocument; autoplay: boolean }> = [
-    { name: 'Animated', doc: animatedDoc, autoplay: true },
-    { name: 'Motion path', doc: motionPathDoc, autoplay: true },
-    { name: 'Static', doc: staticDoc, autoplay: false },
+const DEMOS: Array<{ name: string; doc: PxAnimatedSvgDocument; playAsSaved: boolean }> = [
+    { name: 'Animated', doc: animatedDoc, playAsSaved: true },
+    { name: 'Motion path', doc: motionPathDoc, playAsSaved: true },
+    { name: 'Static', doc: staticDoc, playAsSaved: false },
 ];
 
 export default function AppPlayer() {
@@ -112,7 +112,7 @@ export default function AppPlayer() {
                 <SvgAnimator
                     key={demo}
                     doc={current.doc}
-                    autoplay={current.autoplay}
+                    playAsSaved={current.playAsSaved}
                     apiRef={api}
                 />
             </View>

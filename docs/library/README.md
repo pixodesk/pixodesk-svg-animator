@@ -77,8 +77,8 @@ a number when it differs — the note with that number, under the table, says ho
 | `delay` | ✓ | — | — | ✓ | ✓ | ✓ |
 | `iterations` | ✓ | — | — | ✓ | ✓ | ✓ |
 | `start` | ✓ | — | — | ✓ | ✓ | 5 |
-| **Autoplay control** | | | | | | |
-| `autoplay` | — | — | — | ✓ | ✓ | ✓ |
+| **Play as saved** | | | | | | |
+| `playAsSaved` | ✓ | 10 | ✓ | ✓ | ✓ | ✓ |
 | **Declarative control** | | | | | | |
 | `play` | — | — | — | ✓ | ✓ | ✓ |
 | `pause` | — | — | — | ✓ | ✓ | ✓ |
@@ -115,6 +115,8 @@ a number when it differs — the note with that number, under the table, says ho
 7. The handle is on the element, as `element._px_animator`.
 8. The handle is the component's template ref, a `VueAnimatorApi`.
 9. Written `class`; like `style`, it falls through to the root `<svg>`.
+10. The tag always plays as saved — embedding a finished file IS choosing its behaviour — so it
+    takes no `playAsSaved` option.
 
 What some of the names mean:
 
@@ -126,8 +128,9 @@ What some of the names mean:
   is also part of the export format: every SVG + JS file the editor exports calls
   `createSvgAnimator({"doc": …})` (`PX_ANIMATOR_DOC_KEY`), so it is never renamed by a minifier.
 - **`container`** left out means: animate an SVG that is already in the page.
-- **`autoplay`** means "play the way the document says". The web player and the tag always work
-  this way.
+- **`playAsSaved`** means "play the way the document says". The HTML tag always works this way;
+  the web player takes it as an option (`createSvgAnimator({ …, playAsSaved: true })`) — without
+  it, nothing starts and the returned api drives playback.
 - **`play`** set to `false` holds the current frame; **`pause`** holds it too, and setting it
   back to `false` resumes.
 - **`progress`** shows the frame at a point between 0 and 1 of the whole run (of one iteration
@@ -178,13 +181,13 @@ core (`resolveControlMode`), so they always pick the same winner:
 |---|---|---|---|
 | 1 | controlled time | `progress` or `time` | switched off; the player seeks and holds |
 | 2 | play / pause | `play` or `pause` | switched off; `play` plays, `pause` holds, `play={false}` holds too |
-| 3 | autoplay | `autoplay` | used, after the override |
+| 3 | playAsSaved | `playAsSaved` | used, after the override |
 | 4 | static | none of the above | switched off; the first frame renders and nothing plays |
 
 `apiRef` is not in the table: the handle is filled in **every** mode and never changes it, so
-`<SvgAnimator doc={doc} autoplay apiRef={api} />` autoplays and gives you the handle.
-`autoplay: false` is not a control prop and claims nothing; `play: false` is one, and holds.
-The web player and the HTML tag are always in autoplay mode — the document's own trigger.
+`<SvgAnimator doc={doc} playAsSaved apiRef={api} />` autoplays and gives you the handle.
+`playAsSaved: false` is not a control prop and claims nothing; `play: false` is one, and holds.
+The HTML tag is always in playAsSaved mode; the web player's `playAsSaved: true` option is the same mode.
 
 ### Callbacks and diagnostics — one shape
 

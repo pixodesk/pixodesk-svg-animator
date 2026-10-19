@@ -9,7 +9,7 @@ createRoot(document.getElementById('root')!).render(
   <div className="stage">
     <SvgAnimator
       doc={animation as any}
-      autoplay
+      playAsSaved
       iterations="infinite"
       timeline={{ engine: 'js', direction: 'alternate' }}
     />

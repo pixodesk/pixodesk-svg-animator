@@ -103,7 +103,7 @@ export default function App() {
                         key={sampleIdx + '|' + loopMode}
                         doc={doc}
                         iterations={loopIterations(loopMode)}
-                        autoplay
+                        playAsSaved
                         apiRef={api}
                     />
                 </View>

@@ -224,7 +224,7 @@ import { createSvgAnimator } from '@pixodesk/svg-animator-web';
 const a = createSvgAnimator({
   src: '/bouncing-ball.json',
   container: '#box',
-  timeline: { iterations: 'infinite', trigger: { start: 'none' } },
+  timeline: { iterations: 'infinite' },   // no `playAsSaved`: nothing starts until a.play()
 });
 a.play();
 ```
@@ -232,7 +232,7 @@ a.play();
 **React / Vue / React Native** — the same object, as a prop:
 
 ```jsx
-<SvgAnimator doc={doc} autoplay
+<SvgAnimator doc={doc} playAsSaved
   timeline={{ iterations: 'infinite', trigger: { start: 'none' } }} />
 ```
 
@@ -284,7 +284,8 @@ itself, not playback settings.
 ### A note on the components' control props
 
 When you control a component with `play`, `pause`, `progress` or `time`, the component ignores
-the trigger saved in the file (it acts as if `start` were `'none'`). Only `autoplay` mode follows
+the trigger saved in the file (it acts as if `start` were `'none'` — core's `suppressTriggerStart`,
+the same patch the web player applies when `playAsSaved` is absent). Only `playAsSaved` mode follows
 the file's trigger. `apiRef` is not a control prop: the handle is filled in every mode and never
 changes which one you are in.
 
@@ -292,7 +293,7 @@ React, Vue and React Native decide this with the same core function, so they alw
 `resolveControlMode` looks at the control props you passed (`PxControlProps`) and returns the
 mode that wins (`PxControlMode`), plus a ready-made warning if you passed props from more than
 one mode. `controlModeTakesOverTrigger` then says whether that mode ignores the file's trigger —
-true for every mode except `autoplay`.
+true for every mode except `playAsSaved`.
 
 > **Mangled builds.** `timeline` also accepts a **JSON string** —
 > `timeline='{"duration":2000}'` — which survives a build that renames object keys.

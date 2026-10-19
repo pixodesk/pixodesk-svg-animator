@@ -59,7 +59,7 @@ import animation from './animation.json';
 export function Logo() {
   return (
     <View style={{ width: 200, height: 200 }}>
-      <SvgAnimator doc={animation} autoplay />
+      <SvgAnimator doc={animation} playAsSaved />
     </View>
   );
 }
@@ -73,10 +73,10 @@ Common variations. Each line is the `<SvgAnimator>` element inside a component l
 
 ```tsx
 // Play once when a screen opens, then hold the last frame
-<SvgAnimator doc={doc} autoplay iterations={1} timeline={{ fillMode: 'forwards' }} />
+<SvgAnimator doc={doc} playAsSaved iterations={1} timeline={{ fillMode: 'forwards' }} />
 
 // Loop forever regardless of what the document says
-<SvgAnimator doc={doc} autoplay iterations="infinite" />
+<SvgAnimator doc={doc} playAsSaved iterations="infinite" />
 
 // Static — first frame only
 <SvgAnimator doc={doc} />
@@ -88,10 +88,10 @@ Common variations. Each line is the `<SvgAnimator>` element inside a component l
 <SvgAnimator doc={doc} time={scrollProgress} />
 
 // Override the document's timing
-<SvgAnimator doc={doc} autoplay duration={4000} delay={500} />
+<SvgAnimator doc={doc} playAsSaved duration={4000} delay={500} />
 
 // Do something when it finishes
-<SvgAnimator doc={doc} autoplay onFinish={() => setDone(true)} />
+<SvgAnimator doc={doc} playAsSaved onFinish={() => setDone(true)} />
 ```
 
 TypeScript: `import animation from './animation.json'` gives a plain object; cast it if your
@@ -105,7 +105,7 @@ const doc = animation as PxAnimatedSvgDocument;
 ## Control modes
 
 Several control modes, plus a handle that is not one. Set more than one control prop and the
-highest-priority one wins — `progress` / `time` → `play` / `pause` → `autoplay` — and the
+highest-priority one wins — `progress` / `time` → `play` / `pause` → `playAsSaved` — and the
 component warns, naming both props and the winner; set none of them and the first frame renders
 statically. `apiRef` is filled in every mode and never changes which one you are in. React, Vue
 and React Native all resolve this the same way, from one rule in core.
@@ -118,7 +118,7 @@ import { SvgAnimator } from '@pixodesk/svg-animator-rn';
 import doc from './animation.json';
 
 export function Intro() {
-  return <SvgAnimator doc={doc} autoplay />;
+  return <SvgAnimator doc={doc} playAsSaved />;
 }
 ```
 
@@ -223,7 +223,7 @@ interface SvgAnimatorProps {
                                           //   visibility is measured every 200 ms
 
     // Control — the highest-priority one that is set picks the mode (Control modes above)
-    autoplay?: boolean;                   // honor the document trigger — the same defaults as the
+    playAsSaved?: boolean;                   // honor the document trigger — the same defaults as the
                                           //   web: start 'load', offScreen 'pause'
     play?: boolean; pause?: boolean;      // unconditional control; play={false} holds where it is
     progress?: number;                    // 0–1 of duration × iterations (one iteration when 'infinite')
@@ -252,7 +252,7 @@ The package exports the component, its props (`SvgAnimatorProps`), its handle
 (`RnAnimatorApi`) and the document type `PxAnimatedSvgDocument` (for casting a JSON import —
 [TypeScript](./installation.md#typescript)); nothing else.
 
-With none of `autoplay` / `play` / `pause` / `progress` / `time` set, the first frame renders
+With none of `playAsSaved` / `play` / `pause` / `progress` / `time` set, the first frame renders
 statically.
 
 ### Playback overrides
@@ -265,7 +265,7 @@ you passed is never modified.
 // The file loops twice and starts on mount; here it loops forever and holds the last frame.
 <SvgAnimator
   doc={doc}
-  autoplay
+  playAsSaved
   timeline={{ iterations: 'infinite', fillMode: 'forwards' }}
 />
 ```
@@ -305,7 +305,7 @@ export function Safe() {
   return (
     <SvgAnimator
       doc={doc}
-      autoplay
+      playAsSaved
       onError={d => console.warn('animation failed:', d.message)}
       fallback={() => <Text>could not play this animation</Text>}
     />

@@ -202,6 +202,23 @@ export function foldTimelineOverride(
 }
 
 /**
+ * The "nobody named a driver" patch (first-use review §1+2): forces `trigger.start: 'none'` ON TOP
+ * of the caller's own override, so the document cannot start itself. One spelling for the web
+ * player's missing `playAsSaved` option and the components' non-`playAsSaved` control modes.
+ * @public @advanced
+ */
+export function suppressTriggerStart(patch?: PxAnimatorConfigPatch): PxAnimatorConfigPatch {
+    const base = (patch ?? {}) as Record<string, any>;
+    return {
+        ...base,
+        timeline: {
+            ...(base.timeline ?? {}),
+            trigger: { ...(base.timeline?.trigger ?? {}), start: 'none' },
+        },
+    };
+}
+
+/**
  * Merge a patch over an animator config. PURE — neither argument is mutated, and the result is
  * always a NEW object, which also matters because `flattenAnimatorTimeline` memoises on config
  * identity: mutating in place would hand every later reader the pre-merge view.

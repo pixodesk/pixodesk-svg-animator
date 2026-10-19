@@ -93,11 +93,12 @@ import animationDoc from './bouncing-ball.json';
 const animator = createSvgAnimator({
   src: '/bouncing-ball.json',
   container: '#hero',
+  playAsSaved: true,            // play the way the editor saved it; without it, nothing starts
   onFinish: () => console.log('done'),
 });
 
 // or from a document object you already have — imported, fetched, or built in code
-const animator2 = createSvgAnimator({ doc: animationDoc, container: document.getElementById('hero') });
+const animator2 = createSvgAnimator({ doc: animationDoc, container: document.getElementById('hero'), playAsSaved: true });
 
 animator.play();
 ```
@@ -114,6 +115,10 @@ animator.play();
 function createSvgAnimator(options: PxAnimatorOptions): PxAnimatorApi;
 
 interface PxAnimatorOptions {
+    playAsSaved?: boolean;                 // play the way the editor saved it — the document's own
+                                           //   trigger starts and gates playback. WITHOUT it the
+                                           //   animator builds still (trigger start forced to
+                                           //   'none') and the returned api drives it
     src?: string;                          // URL to fetch the JSON document from
     doc?: PxAnimatedSvgDocument;           // …or the document inline (the JSON format page)
     container?: string | Element;          // CSS selector or element to render into (its content is
@@ -149,13 +154,14 @@ what starts the animation and the engine from the `animator` block inside the JS
 settings you chose in the editor. So a file plays the way it was designed.
 
 `timeline` is there for when one page needs it to play differently — the same file mounted twice
-at two speeds, or a file that autostarts everywhere except inside your own transport UI:
+at two speeds. For your own transport UI there is nothing to override: just leave `playAsSaved`
+out, and nothing starts until you say so:
 
 ```js
 const animator = createSvgAnimator({
   src: '/bouncing-ball.json',
   container: '#box',
-  timeline: { iterations: 'infinite', trigger: { start: 'none' } },
+  timeline: { iterations: 'infinite' },
 });
 animator.play();
 ```
@@ -252,6 +258,7 @@ import doc from './bouncing-ball.json';
 createSvgAnimator({
   doc: doc,
   container: '#box',
+  playAsSaved: true,
   onPlay:   () => {},   // started or resumed
   onPause:  () => {},   // paused
   onCancel: () => {},   // canceled (reset)
@@ -326,8 +333,8 @@ the second copy fresh ids yourself:
 // Two copies of one animation on a page (ids must stay unique)
 import { createSvgAnimator, generateNewIds } from '@pixodesk/svg-animator-web';
 
-createSvgAnimator({ doc: doc, container: '#first' });
-createSvgAnimator({ doc: generateNewIds(doc), container: '#second' });
+createSvgAnimator({ doc: doc, container: '#first', playAsSaved: true });
+createSvgAnimator({ doc: generateNewIds(doc), container: '#second', playAsSaved: true });
 ```
 
 ## Every animator on the page (experimental)

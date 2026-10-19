@@ -84,6 +84,7 @@ animator.destroy();             // cleanup
 <!-- px-check props PxAnimatorOptions pkg=web -->
 | Option | Type | Description |
 | ----------- | ------------------------- | -------------------------------------------------- |
+| `playAsSaved` | `boolean`               | play the way the editor saved it — the document's own trigger starts it; without it nothing starts and the returned api drives playback |
 | `src`       | `string`                  | URL to fetch the animation document from (provide either `src` or `doc`) |
 | `doc`       | `PxAnimatedSvgDocument`   | Inline animation document object                    |
 | `container` | `string \| Element`       | CSS selector or element to render the SVG into      |

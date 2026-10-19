@@ -1496,7 +1496,7 @@ interface PxPlatformAdapter {
 //   wins:
 //     1. `progress` or `time` set  → you control the position
 //     2. `play` or `pause` set     → you control playing and pausing
-//     3. `autoplay` set            → the document's own trigger
+//     3. `playAsSaved` set            → the document's own trigger
 //     4. nothing set               → static: the first frame, nothing plays
 //   If you set props from more than one line, the result includes a ready-made
 //   warning to show. `apiRef` never changes the result: it is a handle for calling
@@ -1504,7 +1504,7 @@ interface PxPlatformAdapter {
 function resolveControlMode(props: PxControlProps): PxResolvedControlMode;
 
 // ● True when that mode has to take the document's own trigger over — every mode
-//   except `autoplay`, INCLUDING `static`: a component given no control props at
+//   except `playAsSaved`, INCLUDING `static`: a component given no control props at
 //   all renders the first frame and waits, so it forces `start: 'none'`.
 function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 ```
@@ -1529,6 +1529,7 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 | Document accessors | `getAnimatorConfig`, `getChildren`, `getBindings`, `getDefinitions` | ○ read a document without knowing its internals |
 | Timeline shape | `flattenAnimatorTimeline`, `nestAnimatorTimeline`, `PxAnimatorRuntimeConfig` | ○ nested `timeline` object ⇄ the flat runtime view (`PxAnimatorRuntimeConfig`, what `getAnimatorConfig` returns) |
 | Playback override | `PxTimelinePatch`, `PxPlaybackOverride`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult`, `PxTimelineShortcuts` | ● the `timeline` override as every player takes it, and the companion types of the three merge functions above |
+| No-driver patch | `suppressTriggerStart(patch?)` | ○ `trigger.start` forced to `'none'` on top of a caller's override — what every player applies when `playAsSaved` is absent (the components' non-`playAsSaved` control modes use the same helper) |
 | Keyframe forms | `keyframeValue`, `keyframeEasing`, `PxNormalizedKeyframe`, `PxNormalizedPropertyAnimation`, `PxAnyKeyframe` | ▪ read a keyframe in either its wire or its runtime (`t` / `v` / `e`) form; is what `normalizeBindings` hands the engines — bare id + merged animation, from a binding or a node alike |
 | Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTimeTimelineSchema`, `PxTriggerSchema`, `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxLoopSchema`, `PxDefinitionsSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxTransformValueSchema` | ○ the validator the format is written in |
 | Pipeline stages | `normalizeBindings` (○), `calcAnimationValues` (○), `interpolateValue`, `materializeMotionPathInPropAnim`, `mergeStaticTransformIntoAnimDef` | ▪ stages of `materializeAllInTree`; call the pipeline instead |

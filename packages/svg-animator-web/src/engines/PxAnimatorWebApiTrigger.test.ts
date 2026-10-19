@@ -55,12 +55,12 @@ afterEach(() => {
 describe('WAAPI engine — trigger wiring', () => {
 
     it('a document with no trigger starts on load', () => {
-        const api = createSvgAnimator({ doc: doc(), container: '#stage' });
+        const api = createSvgAnimator({ playAsSaved: true, doc: doc(), container: '#stage' });
         expect(api.isPlaying()).toBe(true);
     });
 
     it('an explicit programmatic trigger still waits for play()', () => {
-        const api = createSvgAnimator({ doc: doc({ start: 'none' }), container: '#stage' });
+        const api = createSvgAnimator({ playAsSaved: true, doc: doc({ start: 'none' }), container: '#stage' });
         expect(api.isPlaying()).toBe(false);
         api.play();
         expect(api.isPlaying()).toBe(true);

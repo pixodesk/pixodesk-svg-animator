@@ -42,6 +42,8 @@ const EXEMPT: Record<string, string> = {
         'tests the merge, including its flat-base warning',
     'packages/svg-animator-core/src/format/PxDocumentDiagnostic.test.ts':
         'feeds the diagnostic a deliberately LEGACY-FLAT document — that is the case under test',
+    'packages/svg-animator-core/src/format/PxAnimatorConfigWireType.test.ts':
+        'proves a flat key no longer type-checks — the wrong spelling is the subject (review §3)',
 };
 
 /** Keys that belong inside `timeline`. `debugGlobalName` and the lookup tables do not.

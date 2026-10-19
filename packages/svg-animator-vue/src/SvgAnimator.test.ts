@@ -141,9 +141,9 @@ describe("SvgAnimator (Vue)", () => {
     // -- 2. Animation smoke ----------------------------------------------------
 
     describe("animation", () => {
-        it("renders and animates with autoplay", () => {
+        it("renders and animates with playAsSaved", () => {
             render(SvgAnimator, {
-                props: { doc: getTestJson(), autoplay: true },
+                props: { doc: getTestJson(), playAsSaved: true },
             });
 
             const ellipse = document.querySelector("ellipse");
@@ -396,7 +396,7 @@ describe("SvgAnimator (Vue) — root element", () => {
     it("a `load` trigger plays when the document's root has no id", () => {
         const onWarn = vi.fn();
         const { container } = render(SvgAnimator, {
-            props: { doc: getMaskedLoadJson(), autoplay: true, onWarn, timeline: { engine: "js" } },
+            props: { doc: getMaskedLoadJson(), playAsSaved: true, onWarn, timeline: { engine: "js" } },
         });
 
         const moving = container.querySelector("mask ellipse");

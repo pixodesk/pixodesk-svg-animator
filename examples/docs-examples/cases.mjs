@@ -36,7 +36,7 @@ export const CASES = [
   // -- React ------------------------------------------------------------------
   { group: 'react', id: 'imperative',      title: 'Imperative API (apiRef)', anchor: 'imperative-api-apiref',
     summary: 'play / pause / cancel / finish through a ref.' },
-  { group: 'react', id: 'autoplay',        title: 'Autoplay', anchor: 'autoplay',
+  { group: 'react', id: 'play-as-saved',   title: 'Play as saved', anchor: 'play-as-saved',
     summary: 'The component honors the document\'s own trigger.' },
   { group: 'react', id: 'controlled-time', title: 'Controlled time (time)', anchor: 'controlled-time-progress--time',
     summary: 'A slider drives time (ms); the component renders that exact frame.' },
@@ -46,7 +46,7 @@ export const CASES = [
     summary: 'A pre-rendered SVG imported as a component, with a click trigger added by the wrapper.' },
 
   // -- Vue --------------------------------------------------------------------
-  { group: 'vue', id: 'autoplay',        title: 'Autoplay', anchor: 'autoplay',
+  { group: 'vue', id: 'play-as-saved',   title: 'Play as saved', anchor: 'play-as-saved',
     summary: 'The component honors the document\'s own trigger.' },
   { group: 'vue', id: 'controlled-time', title: 'Controlled time (time)', anchor: 'controlled-time-progress--time',
     summary: 'A slider drives time (ms); the component renders that exact frame.' },

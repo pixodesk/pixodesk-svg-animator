@@ -80,20 +80,20 @@ describe('resolveTimelineOption — shortcuts and the string form', () => {
 
 describe('createSvgAnimator — the override reaches the running animation', () => {
 
-    // The observable: the document's `start: 'load'` makes it autoplay. If the override
+    // The observable: the document's `start: 'load'` makes it playAsSaved. If the override
     // reaches the engine, the animation is NOT playing. Chosen because it is unambiguous —
     // keyframe times are absolute, so a duration override changes when playback ENDS, not the
     // value at a given instant, which makes opacity a poor witness.
 
     it('baseline: the document autoplays, so a change here is visible', () => {
-        const api = createSvgAnimator({ doc: wireDoc(), container: stage() });
+        const api = createSvgAnimator({ playAsSaved: true, doc: wireDoc(), container: stage() });
         expect(api.isPlaying()).toBe(true);
         api.destroy();
     });
 
     it('timeline (object) overrides the trigger on a WIRE document — the case flat props silently lost', () => {
         const api = createSvgAnimator({
-            doc: wireDoc(), container: stage(),
+            playAsSaved: true, doc: wireDoc(), container: stage(),
             timeline: { trigger: { start: 'none' } },
         });
         expect(api.isPlaying()).toBe(false);
@@ -102,7 +102,7 @@ describe('createSvgAnimator — the override reaches the running animation', () 
 
     it('timeline as a JSON STRING works identically', () => {
         const api = createSvgAnimator({
-            doc: wireDoc(), container: stage(),
+            playAsSaved: true, doc: wireDoc(), container: stage(),
             timeline: '{"trigger":{"start":"none"}}',
         });
         expect(api.isPlaying()).toBe(false);
@@ -110,7 +110,7 @@ describe('createSvgAnimator — the override reaches the running animation', () 
     });
 
     it('the start SHORTCUT does the same thing', () => {
-        const api = createSvgAnimator({ doc: wireDoc(), container: stage(), start: 'none' });
+        const api = createSvgAnimator({ playAsSaved: true, doc: wireDoc(), container: stage(), start: 'none' });
         expect(api.isPlaying()).toBe(false);
         api.destroy();
     });
@@ -122,7 +122,7 @@ describe('createSvgAnimator — the override reaches the running animation', () 
         // document's trigger no longer means "nothing starts" — it means the default applies.
         // To get "nothing autostarts", ask for it: see the `start: 'none'` test above.
         const api = createSvgAnimator({
-            doc: wireDoc(), container: stage(),
+            playAsSaved: true, doc: wireDoc(), container: stage(),
             resetTimeline: true, timeline: { engine: 'js', duration: 4000 },
         });
         expect(api.isPlaying()).toBe(true);
@@ -132,7 +132,7 @@ describe('createSvgAnimator — the override reaches the running animation', () 
     it('does not mutate the caller document', () => {
         const doc = wireDoc();
         const before = JSON.stringify(doc);
-        const api = createSvgAnimator({ doc, container: stage(), timeline: { duration: 9999 } });
+        const api = createSvgAnimator({ playAsSaved: true, doc, container: stage(), timeline: { duration: 9999 } });
         expect(JSON.stringify(doc)).toBe(before);
         api.destroy();
     });

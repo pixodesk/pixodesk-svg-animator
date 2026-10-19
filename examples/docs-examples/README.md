@@ -13,7 +13,7 @@ pnpm example:docs:test     # Playwright: every case loads clean and does what it
 ## Addressing a case
 
 The browser (`index.html`) keeps the selected case in the URL hash, so every case has a
-stable address the docs link to: `#react/autoplay`, `#prerendered/inline-css`, …
+stable address the docs link to: `#react/play-as-saved`, `#prerendered/inline-css`, …
 
 Each case is also a plain page of its own at `src/cases/<group>/<id>/index.html` — open it
 directly, view source, copy it.

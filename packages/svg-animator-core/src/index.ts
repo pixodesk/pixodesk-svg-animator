@@ -132,7 +132,7 @@ export {
     validateDocument,
     validateNodeEffects,
 } from './format/PxAnimatorTypes';
-export { applyAnimatorConfig, foldTimelineOverride, mergeAnimatorConfig } from './playback/PxAnimatorConfigPatch';
+export { applyAnimatorConfig, foldTimelineOverride, mergeAnimatorConfig, suppressTriggerStart } from './playback/PxAnimatorConfigPatch';
 export { diagnoseDocument } from './format/PxDocumentDiagnostic';
 export type { PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxTimelineShortcuts, PxTimelinePatch } from './playback/PxAnimatorConfigPatch';
 export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxUnits, PxMaskType, PxPathOverflow, PxLengthAdjust, PxTextPathMethod, PxTextPathSpacing } from './format/PxAnimatorConstants';

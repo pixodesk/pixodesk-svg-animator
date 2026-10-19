@@ -16,12 +16,12 @@ is not here, go to [Still stuck?](#still-stuck) at the end.
 setting in the editor). `click` and `mouseOver` wait for the user; `none` waits for you to call
 `play()`. Even `load` waits until enough of the animation is on screen, and pauses while it is
 scrolled out of view (`offScreen: 'pause'`, the default). In React/Vue/React Native, remember that
-`autoplay` is the only mode that uses the document's trigger — with `play`, `pause`, `progress`
+`playAsSaved` is the only mode that uses the document's trigger — with `play`, `pause`, `progress`
 or `time` the trigger is ignored. Passing `apiRef` does **not** change the mode.
 
-**React / Vue component with no control prop.** With none of `autoplay` / `play` / `pause` /
+**React / Vue component with no control prop.** With none of `playAsSaved` / `play` / `pause` /
 `progress` / `time` set, the component deliberately renders the first frame and does
-nothing. Add `autoplay`. `apiRef` on its own is such a case: the ref is a handle, not an
+nothing. Add `playAsSaved`. `apiRef` on its own is such a case: the ref is a handle, not an
 instruction, so nothing moves until you call `play()` on it.
 
 **`loadTagSvgAnimators()` ran before the elements existed.** Call it after the DOM is ready (end of

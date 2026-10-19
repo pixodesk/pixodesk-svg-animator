@@ -18,7 +18,7 @@ import animation from './animation.json';
 </script>
 
 <template>
-  <SvgAnimator :doc="animation" autoplay />
+  <SvgAnimator :doc="animation" playAsSaved />
 </template>
 ```
 
@@ -29,14 +29,14 @@ component itself — see the props table); the SVG keeps its proportions.
 ## Control modes
 
 Several control modes, plus a template ref that is not one. Set more than one control prop and the
-highest-priority one wins — `progress` / `time` → `play` / `pause` → `autoplay` — and the
+highest-priority one wins — `progress` / `time` → `play` / `pause` → `playAsSaved` — and the
 component warns, naming both props and the winner. The ref is available in every mode and never
 changes which one you are in. React, Vue and React Native all resolve this the same way, from one
 rule in core.
 
 ### Autoplay
 
-> **Example:** [`vue/autoplay`](../../examples/docs-examples/src/cases/vue/autoplay/) — `pnpm example:docs`, then open `#vue/autoplay`.
+> **Example:** [`vue/play-as-saved`](../../examples/docs-examples/src/cases/vue/play-as-saved/) — `pnpm example:docs`, then open `#vue/play-as-saved`.
 
 The simplest mode: the component starts the animation the way the file says it should — on
 load, on hover, on click, or when scrolled into view.
@@ -48,7 +48,7 @@ import animation from './animation.json';
 </script>
 
 <template>
-  <SvgAnimator :doc="animation" autoplay />
+  <SvgAnimator :doc="animation" playAsSaved />
 </template>
 ```
 
@@ -147,7 +147,7 @@ interface VueAnimatorApi {
 }
 ```
 
-With none of `autoplay` / `progress` / `time` / `play` / `pause` set, the first frame renders
+With none of `playAsSaved` / `progress` / `time` / `play` / `pause` set, the first frame renders
 statically and the ref is your only control.
 
 ## Playback overrides
@@ -199,7 +199,7 @@ const SvgAnimator: DefineComponent<{
     start?: 'load' | 'mouseOver' | 'click' | 'none';
 
     // Control — the highest-priority one that is set picks the mode (Control modes above)
-    autoplay?: boolean;                   // start the way the file says — the editor's Start setting
+    playAsSaved?: boolean;                   // start the way the file says — the editor's Start setting
     play?: boolean; pause?: boolean;      // play now, whatever the trigger says / hold; false resumes
     progress?: number; time?: number;     // a frame at 0–1 of the whole run / at this ms
 
@@ -248,7 +248,7 @@ const onStop = () => console.log('stopped');
 </script>
 
 <template>
-  <SvgAnimator :doc="animation" autoplay @finish="onDone" @stop="onStop" />
+  <SvgAnimator :doc="animation" playAsSaved @finish="onDone" @stop="onStop" />
 </template>
 ```
 
@@ -308,7 +308,7 @@ scripts should be inlined as raw HTML, or use JSON.
 Everything is spelled out above: `SvgAnimator` under [Props](#props) and [Events](#events),
 the handle under [Imperative API](#imperative-api-template-ref), `SvgCssAnimator` under
 [CSS-flavor SVGs](#css-flavor-svgs--svgcssanimator). Modes, highest priority wins:
-`progress` / `time` → `play` / `pause` → `autoplay` → static — the same rule as React and React
+`progress` / `time` → `play` / `pause` → `playAsSaved` → static — the same rule as React and React
 Native, conflicts warned the same way; any change to `doc` or to an override prop re-creates the
 player. The callbacks and diagnostics are the shape every player shares —
 [the API at a glance](./README.md#the-api-at-a-glance).
@@ -325,6 +325,6 @@ Every section above links to its running example in
 page, and they are all collected in one app: a list of every example down the side, with the
 selected one running next to it. Run `pnpm example:docs` from the repository root to open it,
 then pick an example from the list — or jump straight to one by its address in the URL, like
-`#vue/autoplay`. Each example has a test that runs on every build.
+`#vue/play-as-saved`. Each example has a test that runs on every build.
 
 [← Next.js](./nextjs.md) · [Contents](../../README.md#documentation) · Next: [Nuxt →](./nuxt.md)

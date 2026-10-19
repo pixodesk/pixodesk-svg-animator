@@ -4,6 +4,6 @@ import animation from '../../../fixtures/animation.json';
 
 createRoot(document.getElementById('root')!).render(
   <div className="stage">
-    <SvgAnimator doc={animation as any} autoplay />
+    <SvgAnimator doc={animation as any} playAsSaved />
   </div>
 );

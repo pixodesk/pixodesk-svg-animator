@@ -94,7 +94,7 @@ Two mechanisms, because virtualisation alone is not enough:
    (`initialNumToRender: 3`, `windowSize: 5`, `removeClippedSubviews`), so most
    cases don't exist as components at all.
 2. **Visibility gating** — `onViewableItemsChanged` tracks which rows are
-   genuinely on screen, and only those get `autoplay`. Rows that are mounted but
+   genuinely on screen, and only those get `playAsSaved`. Rows that are mounted but
    scrolled out render their first frame and sit idle, so no off-screen timeline
    burns a frame budget.
 

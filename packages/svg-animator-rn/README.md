@@ -22,7 +22,7 @@ native SVG, driven on the UI thread.
 
 - **One prop to render:** put the `.json` next to your component, import it, pass
   it as `doc`.
-- **Playback control:** declarative props (`autoplay`, `play`, `pause`,
+- **Playback control:** declarative props (`playAsSaved`, `play`, `pause`,
   `time`) or an imperative ref (`play()`, `pause()`, `setCurrentTime()`, …).
 - **No size of its own:** it fills whatever `View` you put it in — give that `View` a `width` and `height`.
 
@@ -38,7 +38,7 @@ import animation from './animation.json';
 export function Logo() {
     return (
         <View style={{ width: 200, height: 200 }}>
-            <SvgAnimator doc={animation} autoplay />
+            <SvgAnimator doc={animation} playAsSaved />
         </View>
     );
 }
@@ -51,10 +51,10 @@ document says so.
 
 ```tsx
 // Play once when a screen opens, then hold the last frame
-<SvgAnimator doc={doc} autoplay iterations={1} timeline={{ fillMode: 'forwards' }} />
+<SvgAnimator doc={doc} playAsSaved iterations={1} timeline={{ fillMode: 'forwards' }} />
 
 // Loop forever regardless of what the document says
-<SvgAnimator doc={doc} autoplay iterations="infinite" />
+<SvgAnimator doc={doc} playAsSaved iterations="infinite" />
 
 // Static — first frame only, no playback
 <SvgAnimator doc={doc} />
@@ -66,10 +66,10 @@ document says so.
 <SvgAnimator doc={doc} time={scrollProgress} />
 
 // Override the document's timing (duration in ms, delay before start)
-<SvgAnimator doc={doc} autoplay duration={4000} delay={500} />
+<SvgAnimator doc={doc} playAsSaved duration={4000} delay={500} />
 
 // Do something when it finishes
-<SvgAnimator doc={doc} autoplay onFinish={() => setDone(true)} />
+<SvgAnimator doc={doc} playAsSaved onFinish={() => setDone(true)} />
 ```
 
 TypeScript: `import animation from './animation.json'` gives you a plain object.
@@ -117,7 +117,7 @@ Four ways to drive playback. Pick one — they are mutually exclusive.
 Uses the trigger defined in the animation document (`start: 'load'` plays once it is on screen):
 
 ```tsx
-<SvgAnimator doc={doc} autoplay />
+<SvgAnimator doc={doc} playAsSaved />
 ```
 
 ### Declarative play/pause
@@ -170,7 +170,7 @@ const [time, setTime] = useState(0);
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxAnimatedSvgDocument` | The animation document to render (required) |
-| `autoplay` | `boolean` | Use the trigger from the document |
+| `playAsSaved` | `boolean` | Use the trigger from the document |
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
 | `apiRef` | `RefObject<RnAnimatorApi>` | Ref for imperative control |
@@ -194,7 +194,7 @@ const [time, setTime] = useState(0);
 | `muteError` | `boolean` | the same switch for `console.error` |
 | `fallback` | `(error) => ReactElement \| null` | Rendered in place of a failed animation (default: nothing) |
 
-With none of `autoplay` / `play` / `pause` / `progress` / `time` set, the component
+With none of `playAsSaved` / `play` / `pause` / `progress` / `time` set, the component
 renders the animation statically (initial state, no playback).
 
 ### Failure handling
@@ -207,7 +207,7 @@ Error), exactly as on the web — and shows `fallback` while the surrounding scr
 ```tsx
 <SvgAnimator
     doc={doc}
-    autoplay
+    playAsSaved
     onError={d => console.warn('animation failed:', d.message)}
     fallback={() => <Text>could not play this animation</Text>}
 />

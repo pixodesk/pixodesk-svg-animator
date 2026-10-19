@@ -110,8 +110,16 @@ describe('createSvgAnimator', () => {
         expect(onStop).toHaveBeenCalledTimes(2);   // ...and after finish
     });
 
-    it('a document with no trigger starts on load — start defaults to load', () => {
+    it('playAsSaved: a document with no trigger starts on load — start defaults to load', () => {
+        const api = createSvgAnimator({ doc: makeDoc(), container: '#svg-container', playAsSaved: true });
+        expect(api.isPlaying()).toBe(true);
+    });
+
+    // The no-driver rule (first-use review §1+2): nothing plays until a line names the driver.
+    it('without playAsSaved the same document builds still, and the api drives it', () => {
         const api = createSvgAnimator({ doc: makeDoc(), container: '#svg-container' });
+        expect(api.isPlaying()).toBe(false);
+        api.play();
         expect(api.isPlaying()).toBe(true);
     });
 
@@ -348,10 +356,10 @@ describe('loadTagSvgAnimators', () => {
     it('passes the same options createSvgAnimator takes to EVERY player it creates (review §15)', async () => {
         document.body.innerHTML =
             '<div data-px-animation-src="a.json"></div><div data-px-animation-src="b.json"></div>';
-        stubFetch(makeDoc());   // a document that would autoplay on load
+        stubFetch(makeDoc());   // a document that would playAsSaved on load
         const onPlay = vi.fn();
 
-        // A timeline override that cancels the autoplay, plus an inline callback — both must reach
+        // A timeline override that cancels the playAsSaved, plus an inline callback — both must reach
         // both players. The zero-config path (no argument at all) is unchanged.
         loadTagSvgAnimators({ timeline: { trigger: { start: 'none' } }, onPlay });
         await flushMicrotasks();

@@ -6,6 +6,7 @@ import animation from '../../../fixtures/animation.json';
 // vocabulary to learn — and `start: 'none'` means nothing starts it but the
 // button below.
 const animator = createSvgAnimator({
+    playAsSaved: true,
   doc: animation as any,
   container: '#box',
   timeline: {

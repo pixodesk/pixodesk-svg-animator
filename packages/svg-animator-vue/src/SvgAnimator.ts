@@ -6,7 +6,7 @@
 import type { PxAnimatedSvgDocument, PxAnimatorApi, PxTimelineEngineSetting, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimator, PxDiagnosticKind, type PxPlaybackOverride, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxDiagnosticCode, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxDiagnosticCode, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
@@ -53,7 +53,7 @@ function applyDocOverrides(
 ): PxAnimatedSvgDocument {
 
     // ONE patch, applied ONCE: the props, plus the component's own need to take the trigger
-    // over in the non-autoplay control modes.
+    // over in the non-playAsSaved control modes.
     //
     // This replaces three hand-rolled spread blocks that wrote the FLAT runtime keys. On a
     // wire-format document — which is what every writer emits — `flattenAnimatorTimeline`
@@ -61,15 +61,7 @@ function applyDocOverrides(
     // discarded. See dev-docs/plans/playback-override.md §1.1.
     const { timeline, resetTimeline, duration, delay, iterations, start } = props;
     const patch = foldTimelineOverride(timeline, { duration, delay, iterations, start });
-    const fullPatch: any = controlModeTakesOverTrigger(compMode)
-        ? {
-            ...(patch ?? {}),
-            timeline: {
-                ...((patch as any)?.timeline ?? {}),
-                trigger: { ...((patch as any)?.timeline?.trigger ?? {}), start: 'none' },
-            },
-        }
-        : patch;
+    const fullPatch: any = controlModeTakesOverTrigger(compMode) ? suppressTriggerStart(patch) : patch;
 
     if (fullPatch !== undefined || resetTimeline) {
         const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetTimeline: !!resetTimeline });
@@ -114,7 +106,7 @@ function calcSeekMs(doc: PxAnimatedSvgDocument, props: DocOverrideProps): number
  *
  * 1. **Autoplay** – uses triggers from the animation document.
  *    ```vue
- *    <SvgAnimator :doc="animation" autoplay />
+ *    <SvgAnimator :doc="animation" playAsSaved />
  *    ```
  *
  * 2. **Declarative play/pause** – controlled via boolean props.
@@ -152,7 +144,7 @@ const SvgAnimator = defineComponent({
         start: { type: String as PropType<'load' | 'mouseOver' | 'click' | 'none'> },
 
         // -- Declarative control
-        autoplay: { type: Boolean, default: undefined },
+        playAsSaved: { type: Boolean, default: undefined },
         play: { type: Boolean, default: undefined },
         pause: { type: Boolean, default: undefined },
 
@@ -198,7 +190,7 @@ const SvgAnimator = defineComponent({
         // input: it is exposed in every mode and never changes which one is chosen.
         const resolvedMode = computed(() => resolveControlMode({
             progress: props.progress, time: props.time,
-            play: props.play, pause: props.pause, autoplay: props.autoplay,
+            play: props.play, pause: props.pause, playAsSaved: props.playAsSaved,
         }));
         const compMode = computed<PxControlMode>(() => resolvedMode.value.mode);
 
@@ -248,6 +240,9 @@ const SvgAnimator = defineComponent({
             // id under the root. A second writer here was a second place for rules to go missing.
             const options: PxInternalAnimatorOptions = {
                 doc,
+                // The component resolved its control mode and patched `doc` above — the web player
+                // must not add its own no-driver suppression on top (first-use review §1+2).
+                playAsSaved: true,
                 // Mounted (or `flush: 'post'`) by the time this runs, so the root exists.
                 rootElement: rootElement ?? undefined,
                 onPlay:   () => emit('play'),
@@ -311,7 +306,7 @@ const SvgAnimator = defineComponent({
         // Recreate the animator when the resolved doc changes.
         // `flush: 'post'` — the animator must be created AFTER the DOM is
         // patched, otherwise the new root element isn't in the document yet
-        // and trigger setup fails (autoplay would never resume after a doc swap).
+        // and trigger setup fails (playAsSaved would never resume after a doc swap).
         watch(resolvedDoc, () => createApi(), { flush: 'post' });
 
         // Sync declarative play/pause props with the animator.

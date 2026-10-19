@@ -129,8 +129,8 @@ describe("SvgAnimator (React)", () => {
     // -- 2. Animation smoke ----------------------------------------------------
 
     describe("animation", () => {
-        it("renders and animates with autoplay", () => {
-            render(<SvgAnimator doc={getTestJson()} autoplay />);
+        it("renders and animates with playAsSaved", () => {
+            render(<SvgAnimator doc={getTestJson()} playAsSaved />);
 
             const ellipse = document.querySelector("ellipse");
             expect(ellipse).not.toBeNull();
@@ -149,11 +149,11 @@ describe("SvgAnimator (React)", () => {
     // -- 2b. Control-mode precedence (API review §1) ---------------------------
 
     describe("control-mode precedence", () => {
-        it("autoplay still starts when an apiRef is passed — a handle is not a mode", () => {
+        it("playAsSaved still starts when an apiRef is passed — a handle is not a mode", () => {
             // The §1 bug: passing `apiRef` forced start:'none', so this
-            // never moved on its own and `autoplay` was silently dead.
+            // never moved on its own and `playAsSaved` was silently dead.
             const apiRef = createRef<ReactAnimatorApi>();
-            render(<SvgAnimator doc={getTestJson()} autoplay apiRef={apiRef} />);
+            render(<SvgAnimator doc={getTestJson()} playAsSaved apiRef={apiRef} />);
 
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,100)");
@@ -168,19 +168,19 @@ describe("SvgAnimator (React)", () => {
 
         it("warns when two control tiers are set, naming both and the winner", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
-            render(<SvgAnimator doc={getTestJson()} progress={0.5} autoplay />);
+            render(<SvgAnimator doc={getTestJson()} progress={0.5} playAsSaved />);
 
             const said = warn.mock.calls.map(c => c.map(String).join(" ")).join("\n");
             expect(said).toContain("PX" + PxDiagnosticCode.controlPropsConflict);
             expect(said).toContain("progress/time");
-            expect(said).toContain("autoplay");
+            expect(said).toContain("playAsSaved");
             expect(said).toContain("ignored");
             warn.mockRestore();
         });
 
         it("says nothing when only one tier is used", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
-            render(<SvgAnimator doc={getTestJson()} autoplay />);
+            render(<SvgAnimator doc={getTestJson()} playAsSaved />);
 
             expect(warn).not.toHaveBeenCalled();
             warn.mockRestore();
@@ -214,7 +214,7 @@ describe("SvgAnimator (React)", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
             const onWarn = vi.fn();
 
-            render(<SvgAnimator doc={getTestJson()} progress={0.5} autoplay onWarn={onWarn} />);
+            render(<SvgAnimator doc={getTestJson()} progress={0.5} playAsSaved onWarn={onWarn} />);
 
             expect(onWarn).toHaveBeenCalled();
             const d = onWarn.mock.calls[0][0];
@@ -230,7 +230,7 @@ describe("SvgAnimator (React)", () => {
         it("falls back to the console when no handler is given", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
-            render(<SvgAnimator doc={getTestJson()} progress={0.5} autoplay />);
+            render(<SvgAnimator doc={getTestJson()} progress={0.5} playAsSaved />);
 
             expect(warn).toHaveBeenCalled();
             warn.mockRestore();
@@ -239,7 +239,7 @@ describe("SvgAnimator (React)", () => {
         it("muteWarn switches the console fallback off", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
-            render(<SvgAnimator doc={getTestJson()} progress={0.5} autoplay muteWarn />);
+            render(<SvgAnimator doc={getTestJson()} progress={0.5} playAsSaved muteWarn />);
 
             expect(warn).not.toHaveBeenCalled();
             warn.mockRestore();
@@ -249,7 +249,7 @@ describe("SvgAnimator (React)", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
             // The control-mode conflict is a WARNING; muting errors leaves it audible.
-            render(<SvgAnimator doc={getTestJson()} progress={0.5} autoplay muteError />);
+            render(<SvgAnimator doc={getTestJson()} progress={0.5} playAsSaved muteError />);
             expect(warn).toHaveBeenCalled();
             warn.mockRestore();
         });
@@ -258,7 +258,7 @@ describe("SvgAnimator (React)", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
             const onWarn = vi.fn();
 
-            render(<SvgAnimator doc={getTestJson()} progress={0.5} autoplay muteWarn onWarn={onWarn} />);
+            render(<SvgAnimator doc={getTestJson()} progress={0.5} playAsSaved muteWarn onWarn={onWarn} />);
 
             expect(onWarn).toHaveBeenCalled();
             expect(warn).not.toHaveBeenCalled();
@@ -400,11 +400,11 @@ describe("SvgAnimator (React)", () => {
 
     describe("doc change", () => {
         it("swaps to a new animator when the doc prop changes", () => {
-            const { container, rerender } = render(<SvgAnimator doc={getTestJson()} autoplay />);
+            const { container, rerender } = render(<SvgAnimator doc={getTestJson()} playAsSaved />);
             expect(container.querySelector("ellipse")).not.toBeNull();
             const firstRootId = container.querySelector("svg")?.getAttribute("id");
 
-            rerender(<SvgAnimator doc={getRectJson()} autoplay />);
+            rerender(<SvgAnimator doc={getRectJson()} playAsSaved />);
 
             // Old content replaced by the new doc's content
             expect(container.querySelector("ellipse")).toBeNull();
@@ -470,7 +470,7 @@ describe("SvgAnimator (React)", () => {
         it("does not mutate the document the caller passed", () => {
             const doc = wireJson();
             const before = JSON.stringify(doc);
-            render(<SvgAnimator doc={doc} autoplay timeline={{ duration: 9999 }} />);
+            render(<SvgAnimator doc={doc} playAsSaved timeline={{ duration: 9999 }} />);
             expect(JSON.stringify(doc)).toBe(before);
         });
     });
@@ -580,7 +580,7 @@ describe("SvgAnimator (React)", () => {
         it("a `load` trigger plays when the document's root has no id", () => {
             const onWarn = vi.fn();
             const { container } = render(
-                <SvgAnimator doc={getMaskedLoadJson()} autoplay onWarn={onWarn} timeline={{ engine: "js" }} />);
+                <SvgAnimator doc={getMaskedLoadJson()} playAsSaved onWarn={onWarn} timeline={{ engine: "js" }} />);
 
             // The only animated element is the ellipse INSIDE the mask.
             const moving = container.querySelector("mask ellipse");

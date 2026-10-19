@@ -11,7 +11,7 @@
     <script>
       fetch('animation.json')
         .then(response => response.json())
-        .then(doc => Pixodesk.SvgAnimator.create({ doc, container: '#hero' }));
+        .then(doc => Pixodesk.SvgAnimator.create({ doc, container: '#hero', playAsSaved: true }));
     </script>
   </body>
 </html>

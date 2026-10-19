@@ -4,6 +4,6 @@ import animation from '../../../fixtures/animation.json';
 
 createApp({
   render: () => h('div', { class: 'stage' }, [
-    h(SvgAnimator as any, { doc: animation, autoplay: true }),
+    h(SvgAnimator as any, { doc: animation, playAsSaved: true }),
   ]),
 }).mount('#app');

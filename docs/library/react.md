@@ -5,7 +5,7 @@
 Use this in a React or Next.js app: drop in the component, pass it the JSON, and it renders
 the animation and controls its playback. It wraps the [web player](./web-player.md)
 and renders the SVG with React itself, so it is SSR-safe and works in Next.js. Control it the
-way that suits your code — autoplay, declarative props, an imperative ref, or controlled time.
+way that suits your code — playAsSaved, declarative props, an imperative ref, or controlled time.
 
 ```bash
 npm install @pixodesk/svg-animator-react
@@ -16,7 +16,7 @@ import { SvgAnimator } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Logo() {
-  return <SvgAnimator doc={animation} autoplay />;
+  return <SvgAnimator doc={animation} playAsSaved />;
 }
 ```
 
@@ -26,7 +26,7 @@ by sizing the parent (the SVG keeps its `viewBox`).
 ## Control modes
 
 Several control modes, plus a handle that is not one. Set more than one control prop and the
-highest-priority one wins — `progress` / `time` → `play` / `pause` → `autoplay` — and the
+highest-priority one wins — `progress` / `time` → `play` / `pause` → `playAsSaved` — and the
 component warns, naming both props and the winner. `apiRef` is filled in **every** mode and never
 changes which one you are in, so you can always call `play()` / `pause()` yourself; `apiRef` with
 no control prop beside it is simply the static mode, where nothing plays until you say so. React,
@@ -82,7 +82,7 @@ interface ReactAnimatorApi {
 
 ### Autoplay
 
-> **Example:** [`react/autoplay`](../../examples/docs-examples/src/cases/react/autoplay/) — `pnpm example:docs`, then open `#react/autoplay`.
+> **Example:** [`react/play-as-saved`](../../examples/docs-examples/src/cases/react/play-as-saved/) — `pnpm example:docs`, then open `#react/play-as-saved`.
 
 The simplest mode: the component starts the animation the way the file says it should — on
 load, on hover, on click, or when scrolled into view.
@@ -92,7 +92,7 @@ import { SvgAnimator } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Intro() {
-  return <SvgAnimator doc={animation} autoplay />;
+  return <SvgAnimator doc={animation} playAsSaved />;
 }
 ```
 
@@ -154,7 +154,7 @@ export function Controlled() {
 `play && !pause` plays; `pause` pauses; `play === false` holds where it is; a pause that is
 switched back off resumes.
 
-With none of `autoplay` / `progress` / `time` / `play` / `pause` set, the component renders the
+With none of `playAsSaved` / `progress` / `time` / `play` / `pause` set, the component renders the
 first frame statically — `apiRef` on its own is such a case, so playback waits for your `play()`.
 
 ## Playback overrides
@@ -178,7 +178,7 @@ Objects merge key by key, values replace, and `null` **deletes** a key so the de
 absence means comes back:
 
 ```tsx
-<SvgAnimator doc={animation} autoplay timeline={{ delay: null }} />
+<SvgAnimator doc={animation} playAsSaved timeline={{ delay: null }} />
 ```
 
 `duration`, `delay`, `iterations` and `start` are also plain props, because
@@ -220,7 +220,7 @@ interface SvgAnimatorProps {
 
     // Control — the HIGHEST-priority one that is set picks the mode (Control modes, above)
     apiRef?: React.RefObject<ReactAnimatorApi | null>;   // never a mode: filled in every mode
-    autoplay?: boolean;                   // obey the document's own trigger — the Start setting from the editor
+    playAsSaved?: boolean;                   // obey the document's own trigger — the Start setting from the editor
     progress?: number;                    // controlled: 0–1 of duration × iterations
                                           //   (one iteration when iterations is 'infinite')
     time?: number;                        // controlled: ms from the start

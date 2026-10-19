@@ -12,4 +12,4 @@ const doc = {
   },
 };
 
-createSvgAnimator({ doc: doc as any, container: '#box' });
+createSvgAnimator({ doc: doc as any, container: '#box', playAsSaved: true });

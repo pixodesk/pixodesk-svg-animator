@@ -23,7 +23,7 @@ export function createReactPlayer(
       // The component overrides the document's iterations when this prop is set;
       // leaving it `undefined` (auto) keeps the document's own value.
       iterations: opts?.iterations,
-      autoplay: shouldAutoplayForTrigger(opts),
+      playAsSaved: shouldAutoplayForTrigger(opts),
       style: { width: '100%', height: '100%' },
     }),
   );

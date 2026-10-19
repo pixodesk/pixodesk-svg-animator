@@ -63,7 +63,7 @@ export interface SvgAnimatorProps
 
     /**
      * Ref populated with the imperative playback API. Filled in EVERY mode and never picks one
-     * (review §1): `autoplay` next to it still autoplays.
+     * (review §1): `playAsSaved` next to it still autoplays.
      */
     apiRef?: React.RefObject<RnAnimatorApi | null>;
 
@@ -293,7 +293,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
 export function SvgAnimator({
     doc, timeline, resetTimeline, duration, delay, iterations, start,
     // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
-    autoplay, play, pause, apiRef, progress: progressProp, time,
+    playAsSaved, play, pause, apiRef, progress: progressProp, time,
     onPlay, onStop, onPause, onCancel, onFinish, onRemove, onError, fallback, onWarn, muteWarn, muteError,
 }: SvgAnimatorProps): ReactElement | null {
 
@@ -508,7 +508,7 @@ export function SvgAnimator({
     // This component always had the right ORDER but no name for it, and never told anyone when
     // two tiers of props were passed together.
     const { mode: compMode, warnings: modeWarnings } =
-        resolveControlMode({ progress: progressProp, time, play, pause, autoplay });
+        resolveControlMode({ progress: progressProp, time, play, pause, playAsSaved });
 
     useEffect(() => {
         const diag = makeDiag();
@@ -533,11 +533,11 @@ export function SvgAnimator({
         }
         // 'click' starts from its own handler below, and a GATED document starts from the
         // visibility poll — calling play() here as well would defeat the gate.
-        if (compMode === PxControlMode.autoplay && effectiveStart === 'load' && !gated) {
+        if (compMode === PxControlMode.playAsSaved && effectiveStart === 'load' && !gated) {
             api.play();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compiled, compMode, autoplay, play, pause, progressProp, time]);
+    }, [compiled, compMode, playAsSaved, play, pause, progressProp, time]);
 
     // THE VISIBILITY GATE — permission to run, whatever started the animation, exactly as on the
     // web (`PxVisibilityGate`). React Native has no IntersectionObserver, so visibility is sampled
@@ -546,7 +546,7 @@ export function SvgAnimator({
     const scrollRef = useRef<View | null>(null);
     const inViewRef = useRef(false);
     useEffect(() => {
-        if (!autoplay || !gated) return;
+        if (!playAsSaved || !gated) return;
         const threshold = trigger.visibilityThreshold;
         inViewRef.current = false;
 
@@ -573,7 +573,7 @@ export function SvgAnimator({
         const id = setInterval(check, 200);
         return () => clearInterval(id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compiled, autoplay, gated, effectiveOffScreen]);
+    }, [compiled, playAsSaved, gated, effectiveOffScreen]);
 
     // Stop cleanly on unmount / doc swap — and say so, the way the web's destroy() does (§18):
     // both are "the animator was thrown away", so `onRemove` fires, and `onStop` with it.
@@ -674,7 +674,7 @@ export function SvgAnimator({
     // left to the host app.
     let content: ReactElement | null = root;
 
-    if (autoplay && effectiveStart === 'click' && root) {
+    if (playAsSaved && effectiveStart === 'click' && root) {
         content = (
             <Pressable
                 onPress={() => {
@@ -693,7 +693,7 @@ export function SvgAnimator({
 
     // The gate measures the view, so it must survive in the native tree:
     // `collapsable={false}` keeps it there.
-    if (autoplay && gated && content) {
+    if (playAsSaved && gated && content) {
         content = <View ref={scrollRef} collapsable={false}>{content}</View>;
     }
 

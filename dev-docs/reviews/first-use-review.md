@@ -27,30 +27,52 @@ it · 🟡 smaller
 
 ## 🔴 Expectation vs behavior
 
-### 1. The same file starts differently on the web and in a component
+### 1 + 2. ✅ One start rule — the same file started differently per surface, and `autoplay` lied
 
-- **Where:** `createAnimator` (`svg-animator-web/src/animator/PxAnimator.ts`) follows the
-  document's trigger; the components go through `controlModeTakesOverTrigger`
-  (`svg-animator-core/src/format/PxAnimatorConstants.ts`), which forces `start: 'none'` in every
-  mode but `autoplay`.
-- **Why:** `createAnimator({ doc })` plays on load; `<PixodeskSvgAnimator doc={…} />` shows the
-  first frame and waits. The docs have to work around it in three places: get-started §3 promises
-  "every snippet below plays the file the way the editor saved it" (true only because the component
-  snippets add `autoplay`); `docs/library/README.md` says "the web player and the tag are always in
-  autoplay mode"; troubleshooting's first React entry is "with no control prop … add `autoplay`".
-- **Do:** make "follow the document's trigger" the components' default, as on the web.
-  `play` / `pause` / `progress` / `time` still take over; `apiRef` stays a handle. Reopens the
-  static-by-default choice behind api-schema-review §1 / §7.
+- **Was:** `createSvgAnimator` followed the file's trigger; the components forced `start: 'none'`
+  in every control mode except `autoplay` — so the same file played on the web and sat still in
+  React, the docs worked around it in three places, and `autoplay` did not mean "play now" (with
+  a `click` trigger it waited), unlike `<video>`, lottie, dotLottie and Rive.
 
-### 2. `autoplay` means "follow the trigger", not "play now"
+**Done (2026-10-19), owner's rule: NOTHING plays until a line names the driver — on every surface.**
 
-- **Where:** `PxControlProps.autoplay` (core `PxAnimatorConstants.ts`); React / Vue / RN props.
-- **Why:** with a `click` trigger, `autoplay` waits for a click. In `<video>`, lottie-react,
-  dotLottie and Rive, `autoplay` starts at once. The guides even show
-  `<PixodeskSvgAnimator doc={doc} autoplay timeline={{ trigger: { start: 'none' } }} />` — an
-  "autoplay" that waits for `play()` (playback-and-triggers › Overriding from a player).
-- **Do:** with §1 done the prop is no longer needed. If §1 is declined, rename it to what it does
-  (e.g. `useTrigger`).
+```tsx
+createSvgAnimator({ src: 'wave.json', container: '#box' });                     // still — you own it, api drives
+createSvgAnimator({ src: 'wave.json', container: '#box', playAsSaved: true }); // the FILE drives it
+
+<SvgAnimator src="wave.json" />                 // still                       (unchanged)
+<SvgAnimator src="wave.json" playAsSaved />     // the FILE drives it          (was `autoplay`)
+```
+
+- **`autoplay` → `playAsSaved`** everywhere: the prop, `PxControlProps`, the `PxControlMode`
+  value, docs, examples (the docs-examples case is now `play-as-saved`). The name is the docs'
+  own promise — "plays the file the way the editor saved it" — honest for every trigger kind
+  (a click file "plays as saved" = waits for the click), and it shares the `play` prefix with
+  the control props, so the IDE autocompletes the driver words together.
+- **Web `createSvgAnimator` takes `playAsSaved` too** — same word, same default (off). Without a
+  driver it builds still: core's `suppressTriggerStart` (the components' takeover patch, now ONE
+  helper) forces `trigger.start: 'none'` after the caller's override. The old
+  `timeline: { trigger: { start: 'none' } }` transport workaround dies.
+- **`bind` (pre-rendered) takes it as well, and the Editor's SVG + JS export emits it** —
+  `Pixodesk.SvgAnimator.bind({"playAsSaved": true, "doc": …})` — the driver named before the
+  data. `loadTagSvgAnimators` passes it internally: a tag embeds a finished file, the file IS
+  the driver, so the tag takes no such option.
+- **Scroll-driven documents are exempt** from the suppression (web and bind): scroll is their
+  named driver; a clock trigger pushed into a scroll timeline would only warn.
+- **Rationale kept short:** a bare component gave playback an INVISIBLE source (option A,
+  declined); a `playback: "file" | "playing" | "paused"` enum mixed a controller into a state
+  enum (option D, declined); `create` CONSTRUCTS — `new Audio`, `new Animation()`, dotLottie and
+  Rive constructors are all still by default, and the modern players (dotLottie, Rive,
+  react-player) all default to not playing. Generated snippets carrying the explicit word is a
+  feature: the line documents itself (owner).
+- **Deferred, recorded here:** `play` / `pause` are still tri-state booleans (absent ≠ `false`);
+  the single-boolean / visible-state rework ("no boolean whose absence means a third thing",
+  owner) is a separate later item.
+- **Breaking:** web callers that relied on self-start add `playAsSaved: true` (folded into the
+  already-breaking SvgAnimator-rename publish); component users only recompile (`autoplay` →
+  `playAsSaved`, same behaviour). Guards: the web no-driver test (seen failing under the old
+  behaviour), the components' control-mode suites, docs-check on every renamed name.
+
 
 ### 3. ✅ The document type accepts keys the player drops
 
