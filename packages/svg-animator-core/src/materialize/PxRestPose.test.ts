@@ -17,7 +17,7 @@ import { materializeRestPosesInTree } from './PxRestPose';
 const JS = PxTimelineEngine.js;
 const kf = <V>(time: number, value: V): { time: number; value: V } => ({ time, value });
 const docOf = (children: Array<PxNode>, timeline: Record<string, unknown> = {}): PxAnimatedSvgDocument =>
-    ({ type: 'svg', viewBox: '0 0 100 100', animator: { timeline: { duration: 1000, engine: 'js', ...timeline } }, children });
+    ({ type: 'svg', viewBox: '0 0 100 100', animator: { timeline: { outTime: 1000, engine: 'js', ...timeline } }, children });
 const first = (doc: PxAnimatedSvgDocument): PxNode => (doc.children ?? [])[0];
 
 /** What the ENGINE writes at its first frame — `id` → attribute → value. The reference. */

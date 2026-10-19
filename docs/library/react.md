@@ -199,7 +199,7 @@ the SVG; the player drives its attributes.
 const SvgAnimator: FC<SvgAnimatorProps>;
 
 interface SvgAnimatorProps {
-    doc: PxAnimatedSvgDocument;           // the animation document (the JSON format page); no URL form
+    doc: PxDocumentInput;                 // the animation document (a .json import passes as-is); no URL form
     className?: string;                   // added to the root <svg>
     style?: CSSProperties;                // set on the root <svg>
 

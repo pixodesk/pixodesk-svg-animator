@@ -189,7 +189,7 @@ inheritance cover those:
 <!-- px-check signature pkg=vue -->
 ```typescript
 const SvgAnimator: DefineComponent<{
-    doc: PxAnimatedSvgDocument;           // required — the animation, as saved by the editor
+    doc: PxDocumentInput;                 // required — the animation; a .json import passes as-is
 
     // Playback override — the document's `timeline` block, deep-merged (Playback overrides above)
     timeline?: PxTimelinePatch | string;  // a JSON string is accepted too

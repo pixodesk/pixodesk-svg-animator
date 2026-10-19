@@ -2144,6 +2144,38 @@ export const PxAnimatedSvgDocumentSchema = px.openObject({
 export interface PxAnimatedSvgDocument extends PxSvgNode {
 }
 
+/** What a `.json` import produces from a given wire type: every string literal is widened to
+ *  `string` and every tuple to a plain array, because TypeScript types an imported JSON file
+ *  structurally. Objects and optionality are preserved. */
+type PxWidenJsonImport<T> =
+    T extends string ? string :
+    T extends number ? number :
+    T extends boolean ? boolean :
+    T extends Array<infer U> ? Array<PxWidenJsonImport<U>> :
+    T extends object ? { [K in keyof T]: PxWidenJsonImport<T[K]> } :
+    T;
+
+/**
+ * The document as a `.json` IMPORT types it — {@link PxAnimatedSvgDocument} with every literal
+ * union widened to `string` and tuples widened to arrays, so
+ * `import animation from './animation.json'` passes straight into `doc` with no cast
+ * (first-use review §5). Every player entry point takes this type and validates the values at
+ * runtime as always; use `PxAnimatedSvgDocument` when BUILDING a document in code, for the
+ * narrow literal types and autocomplete.
+ * @public
+ */
+export type PxDocumentInput = PxWidenJsonImport<PxAnimatedSvgDocument>;
+
+/**
+ * Names the one type-level narrowing from {@link PxDocumentInput} (what a JSON import is typed
+ * as) to {@link PxAnimatedSvgDocument} (the wire type the internals speak). Not a check: the
+ * runtime validates and diagnoses real value mismatches on every create/bind path as before.
+ * @public @advanced
+ */
+export function toAnimatedSvgDocument(doc: PxDocumentInput): PxAnimatedSvgDocument {
+    return doc as PxAnimatedSvgDocument;
+}
+
 
 // ============================================================================
 // API INTERFACES

@@ -40,7 +40,7 @@ export type { PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, PxValidation
 export { PxValidationFindingKind } from './schema/PxSchema';
 
 // Wire-format schemas
-export { PxAnimatedSvgDocumentSchema, PxAnimatorConfigSchema, PxAttrValueSchema, PxBezierPathSchema, PxDefinitionsSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBaseSchema, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeRootSchema, PxTransformPartsSchema, PxTriggerSchema, PxTimelineSchema, PxTimeTimelineSchema, PxTransformValueSchema } from './format/PxAnimatorTypes';
+export { toAnimatedSvgDocument, PxAnimatedSvgDocumentSchema, PxAnimatorConfigSchema, PxAttrValueSchema, PxBezierPathSchema, PxDefinitionsSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBaseSchema, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeRootSchema, PxTransformPartsSchema, PxTriggerSchema, PxTimelineSchema, PxTimeTimelineSchema, PxTransformValueSchema } from './format/PxAnimatorTypes';
 export { resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline, PxTimelineEngine, PxCloneWithout, PxTimelineEngineSetting, PX_TRIGGER_DEFAULTS, resolveTrigger, PX_TRANSFORM_PART_KEYS } from './format/PxAnimatorConstants';
 // ONE control-mode rule for react / vue / rn (API review §1, §7) — logic + warning text.
 export { PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from './format/PxAnimatorConstants';
@@ -48,7 +48,7 @@ export type { PxControlProps } from './format/PxAnimatorConstants';
 export { PX_WIRE_SCHEMA_VERSION } from './version/PxSchemaVersion';
 
 // Document / model types
-export type { PxAnimatedSvgDocument, PxAnimationDefinition, PxAnimatorApi, PxEngineCallbacks, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxPlaybackApi, PxBezierPath, PxBinding, PxDefinitions, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTransformParts, PxTrigger, PxTransformValue } from './format/PxAnimatorTypes';
+export type { PxAnimatedSvgDocument, PxDocumentInput, PxAnimationDefinition, PxAnimatorApi, PxEngineCallbacks, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxPlaybackApi, PxBezierPath, PxBinding, PxDefinitions, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTransformParts, PxTrigger, PxTransformValue } from './format/PxAnimatorTypes';
 // VALUE exports, not `export type`: each wire enum is a const namespace AND the string type
 // derived from it under the same name (review §2.7), so a consumer gets both `PxTriggerStart.click`
 // and `start?: PxTriggerStart` from one import.

@@ -88,7 +88,7 @@ const [time, setTime] = useState(0);
 <!-- px-check props SvgAnimatorProps pkg=react -->
 | Prop | Type | Description |
 |---|---|---|
-| `doc` | `PxAnimatedSvgDocument` | The animation document to render (required) |
+| `doc` | `PxDocumentInput` | The animation document to render (required); a `.json` import passes as-is |
 | `playAsSaved` | `boolean` | Use triggers from the document |
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |

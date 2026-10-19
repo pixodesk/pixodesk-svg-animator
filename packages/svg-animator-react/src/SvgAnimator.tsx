@@ -7,7 +7,7 @@ import type { PxAnimatedSvgDocument, PxAnimatorApi, PxTimelineEngineSetting, PxT
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
 import type { PxMouseOutAction } from '@pixodesk/svg-animator-core';
 import { createSvgAnimator, PxDiagnosticKind, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxDiagnosticCode, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, foldTimelineOverride, toAnimatedSvgDocument, type PxDocumentInput, getAnimatorConfig, PxDiagnosticCode, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
@@ -121,7 +121,7 @@ export interface SvgAnimatorProps extends PxPlaybackOverride, PxControlProps, Px
      * The animation document to render. No URL form by design (review §16): in a component
      * tree the app already owns loading — import the JSON or fetch it, then pass it down.
      */
-    doc: PxAnimatedSvgDocument;
+    doc: PxDocumentInput;
 
     // -- Imperative control --------------------------------------------------
 
@@ -266,7 +266,7 @@ const SvgAnimatorImplOnce = React.memo(
  */
 const SvgAnimator: FC<SvgAnimatorProps> = ({
     className, style,
-    doc, playAsSaved, play, pause, progress, time, apiRef,
+    doc: docInput, playAsSaved, play, pause, progress, time, apiRef,
 
     // Overrides
     timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start,
@@ -276,6 +276,9 @@ const SvgAnimator: FC<SvgAnimatorProps> = ({
     // Diagnostics (API review §5)
     onWarn, onError, muteWarn, muteError
 }) => {
+    // ONE type-level narrowing from the JSON-import shape (§5); the runtime validates values.
+    // `let`: the timeline overrides below replace it with the patched copy.
+    let doc = toAnimatedSvgDocument(docInput);
 
     // ONE control-mode rule, decided in core and shared with Vue and React Native
     // (API review §1/§7). `apiRef` is deliberately NOT an input: the handle is populated in

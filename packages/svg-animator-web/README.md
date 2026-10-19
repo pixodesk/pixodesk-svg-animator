@@ -86,7 +86,7 @@ animator.destroy();             // cleanup
 | ----------- | ------------------------- | -------------------------------------------------- |
 | `playAsSaved` | `boolean`               | play the way the editor saved it — the document's own trigger starts it; without it nothing starts and the returned api drives playback |
 | `src`       | `string`                  | URL to fetch the animation document from (provide either `src` or `doc`) |
-| `doc`       | `PxAnimatedSvgDocument`   | Inline animation document object                    |
+| `doc`       | `PxDocumentInput`         | Inline animation document object (a `.json` import passes as-is) |
 | `container` | `string \| Element`       | CSS selector or element to render the SVG into      |
 | `onPlay` · `onPause` · `onCancel` · `onFinish` · `onRemove` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take; plus `onWarn`, `onError`, `muteWarn`, `muteError` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onPlay,onPause,onCancel,onFinish,onRemove,onStop,onWarn,onError,muteWarn,muteError -->
 | `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
@@ -151,7 +151,7 @@ createSvgAnimator({
 
 ### Document format & effects
 
-The `doc` passed to `createSvgAnimator` is a `PxAnimatedSvgDocument` (`type: 'svg'`), the
+The `doc` passed to `createSvgAnimator` is the animation document (`type: 'svg'`), the
 same shape as the JSON export. It comes in two modes:
 
 - **Self-contained document** — has `children`: the player renders the SVG tree and animates it.

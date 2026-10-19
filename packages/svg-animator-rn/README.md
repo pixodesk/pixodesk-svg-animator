@@ -72,13 +72,9 @@ document says so.
 <SvgAnimator doc={doc} playAsSaved onFinish={() => setDone(true)} />
 ```
 
-TypeScript: `import animation from './animation.json'` gives you a plain object.
-If your `tsconfig` complains, cast it:
-
-```tsx
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
-const doc = animation as PxAnimatedSvgDocument;
-```
+TypeScript: `doc` accepts `import animation from './animation.json'` as-is (it is typed
+`PxDocumentInput` — the shape a JSON import produces); enable `"resolveJsonModule"` in
+`tsconfig.json`.
 
 ## Install
 
@@ -169,7 +165,7 @@ const [time, setTime] = useState(0);
 <!-- px-check props SvgAnimatorProps pkg=rn -->
 | Prop | Type | Description |
 |---|---|---|
-| `doc` | `PxAnimatedSvgDocument` | The animation document to render (required) |
+| `doc` | `PxDocumentInput` | The animation document to render (required); a `.json` import passes as-is |
 | `playAsSaved` | `boolean` | Use the trigger from the document |
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |

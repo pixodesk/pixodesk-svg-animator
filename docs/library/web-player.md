@@ -120,7 +120,7 @@ interface PxAnimatorOptions {
                                            //   animator builds still (trigger start forced to
                                            //   'none') and the returned api drives it
     src?: string;                          // URL to fetch the JSON document from
-    doc?: PxAnimatedSvgDocument;           // …or the document inline (the JSON format page)
+    doc?: PxDocumentInput;                 // …or the document inline (a .json import passes as-is)
     container?: string | Element;          // CSS selector or element to render into (its content is
                                            //   replaced). Omit it to animate an SVG already in the
                                            //   page, found by the document's `id`
@@ -456,7 +456,7 @@ page. The `<script>` builds put a smaller set of functions on one global, `windo
 | `index.prerendered.umd.min.js` | a pre-rendered SVG + JS export (engine `auto` / `js`) | `bind(options: PxPrerenderedAnimatorOptions)`, `setupAnimationTriggers`, `PX_ANIMATOR_DOC_KEY` |
 | `index.prerendered-waapi.umd.min.js` | the same with engine `native` — the smallest build | the same as the line above |
 
-`PxPrerenderedAnimatorOptions` is `{ doc: PxAnimatedSvgDocument }` plus the inline callbacks. Its `doc`
+`PxPrerenderedAnimatorOptions` is `{ doc: PxDocumentInput }` plus the inline callbacks. Its `doc`
 carries only `animator.definitions` and `animator.bindings` — the SVG is already in the page —
 and it is not validated. There is no `src` form.
 

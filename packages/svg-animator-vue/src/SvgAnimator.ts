@@ -6,7 +6,7 @@
 import type { PxAnimatedSvgDocument, PxAnimatorApi, PxTimelineEngineSetting, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimator, PxDiagnosticKind, type PxPlaybackOverride, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, foldTimelineOverride, getAnimatorConfig, PxDiagnosticCode, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, foldTimelineOverride, toAnimatedSvgDocument, type PxDocumentInput, getAnimatorConfig, PxDiagnosticCode, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
@@ -133,7 +133,7 @@ const SvgAnimator = defineComponent({
 
     props: {
         // -- Source
-        doc: { type: Object as PropType<PxAnimatedSvgDocument>, required: true },
+        doc: { type: Object as PropType<PxDocumentInput>, required: true },
 
         // -- Playback override: the document's `timeline` block as a patch (or a JSON string),
         //    plus the four shortcuts people reach for most. The same names as React / RN.
@@ -212,7 +212,7 @@ const SvgAnimator = defineComponent({
             // expansion). Then render what the web player renders — materialized, fresh ids.
             // Rendering the raw document dropped every `effects` bucket, so a document painted
             // by `effects` alone came out as an empty canvas.
-            const doc = applyDocOverrides(props.doc, props, compMode.value, makeDiag());
+            const doc = applyDocOverrides(toAnimatedSvgDocument(props.doc), props, compMode.value, makeDiag());
             return prepareDocumentForRender(doc);
         });
 

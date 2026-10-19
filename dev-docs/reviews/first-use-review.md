@@ -1,7 +1,7 @@
 # First-use review — the API, the schema and the docs through a newcomer's eyes
 
 Status **2026-10-15** (two passes the same day: the exports and schemas, then every guide in
-`docs/`). Done so far: §1+2, §3, §4 (player side), §7, §8 — each closes with a **Done** note.
+`docs/`). Done so far: §1+2, §3, §4, §5, §7, §8 — each closes with a **Done** note.
 
 Read as a first-time user would: the five packages' exports, the wire schemas, the component
 props, then the guides end to end — `README.md`, `docs/library/*`, `docs/format/README.md`,
@@ -200,7 +200,7 @@ timeline: { inTime: 500, outTime: 2500, playDuration: 4000 }  // …remapped to 
   Note: a `<symbol>`'s own `meta.timeline.duration` (editor extension) deliberately KEEPS the
   `duration` spelling — it is a plain length, not a window.
 
-### 5. The first snippet does not type-check
+### 5. The first snippet does not type-check ✅
 
 - **Where:** get-started §3 (React, React Native) and every component guide pass
   `doc={animation}` straight from `import animation from './animation.json'`; the `doc` props and
@@ -212,6 +212,17 @@ timeline: { inTime: 500, outTime: 2500, playDuration: 4000 }  // …remapped to 
 - **Do:** let the players accept what a JSON import produces — a widened input type for `doc`
   (e.g. `PxDocumentInput`, every literal union widened to `string`), validated at runtime as today.
   Keep `PxAnimatedSvgDocument` for authors who build documents in code.
+- **Done (2026-10-20):** `PxDocumentInput` = `PxAnimatedSvgDocument` with every literal widened to
+  `string` and every tuple to an array (a recursive mapped type — one source, cannot drift), and
+  `toAnimatedSvgDocument(doc)` names the one type-level narrowing to the strict type (runtime
+  validation unchanged). Every `doc` input takes it: `PxAnimatorOptions.doc` (web create),
+  `PxPrerenderedAnimatorOptions.doc` (bind), and the React / Vue / React Native `doc` props — each
+  narrows once at its boundary. Docs: the cast notes in get-started / installation /
+  troubleshooting / react-native / rn README became "a `.json` import passes as-is"; prop tables
+  and signature blocks say `PxDocumentInput`; the strict type is positioned as the
+  build-a-document-in-code type. Guard: `PxDocumentInput.test.ts` (core) assigns the exact
+  JSON-import shape with no cast and keeps a `@ts-expect-error` proving the strict type still
+  rejects it.
 
 ### 6. Transforms have two spellings, and one of them has a trap
 
@@ -227,6 +238,19 @@ timeline: { inTime: 500, outTime: 2500, playDuration: 4000 }  // …remapped to 
   Then either make per-part channels compose on one node, or warn when two are set together; and
   qualify the "one spelling" sentence (it is also untrue for the bare-string path value, the SVG
   transform string and kebab-case attribute names, which are all accepted).
+- **Investigated (2026-10-20), owner's question "does the Editor even produce per-part
+  channels?":** NO — it never has. The editor MODEL stores the parts separately
+  (`TSvgTransformAttr`: translate / rotation / scale / skew / origin), but its writer FOLDS them
+  into the one unified `animate.transform` record (`writeKeyframesPxAttr` — "emits ONE unified
+  animation entry", and throws `InternalError(404)` if the fold bails, so a per-part write cannot
+  slip out). Checked across editor-written artifacts: the ~50 learn assets (only `ball-typo.json`
+  — the deliberate-mistake tutorial asset, hand-made — has `animate.translate`), the
+  feature-explorer cases, the trigger-explorer fixtures and the website file-format examples are
+  all record-form. The per-part spelling exists ONLY as a hand-authoring convenience the player
+  accepts: the guides' hand-written bouncing ball (web-player.md), the `rn-expo` example and the
+  react-native.md support-matrix row teach it. So the trap cannot appear in any editor-saved
+  file — it bites hand-written documents only, and the "Do" above is purely a player + docs
+  decision (compose or warn), with no editor change and no compat concern either way.
 
 ## 🟠 Inconsistent surface
 

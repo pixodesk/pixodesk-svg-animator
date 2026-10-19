@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { clampSeekMs, createRunClock, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, generateNewIds, getAnimatorConfig, getDefinitions, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
+import { clampSeekMs, createRunClock, toAnimatedSvgDocument, type PxDocumentInput, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, generateNewIds, getAnimatorConfig, getDefinitions, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
@@ -48,7 +48,7 @@ export interface SvgAnimatorProps
     // -- Source ---------------------------------------------------------------
 
     /** The animation document to render. */
-    doc: PxAnimatedSvgDocument;
+    doc: PxDocumentInput;
 
     /**
      * Per-instance override of the document's `timeline` — see `PxPlaybackOverride`.
@@ -317,7 +317,7 @@ export function SvgAnimator({
     const compiled = useMemo((): Compiled => {
         try {
             return compileDocument(
-                doc,
+                toAnimatedSvgDocument(doc),
                 { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start },
                 makeDiag(),
             );

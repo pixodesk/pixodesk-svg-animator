@@ -90,17 +90,19 @@ Files in `dist/`:
 
 ## TypeScript
 
-Every package ships types. Importing a JSON file gives you a plain object; if your `tsconfig`
-complains about the shape, cast it once:
+Every package ships types, and `doc` accepts a `.json` import as-is:
 
 ```ts
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-react'; // or -vue, -web, -rn, -core
-import _animation from './animation.json';
-const animation = _animation as PxAnimatedSvgDocument;
+import animation from './animation.json';
+// <SvgAnimator doc={animation} /> — no cast: `doc` is typed `PxDocumentInput`,
+// the shape a JSON import produces; values are validated at runtime.
 ```
 
 Importing a `.json` file at all requires `"resolveJsonModule": true` in your `tsconfig.json`,
-under `compilerOptions`. Every package exports the same `PxAnimatedSvgDocument`, so import it
+under `compilerOptions`. Every package also exports the strict `PxAnimatedSvgDocument` — the
+type to use when you BUILD a document in code (literal unions, autocomplete) — and
+`toAnimatedSvgDocument(animation)`, which names the one narrowing from a JSON import to that
+strict type when an advanced API asks for it (values are validated at runtime); import it
 from the one you installed.
 
 Other types you may want by name:

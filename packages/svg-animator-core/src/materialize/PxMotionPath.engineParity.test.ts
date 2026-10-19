@@ -20,7 +20,7 @@ function curveDoc(engine: 'js' | 'native', rotate: { from?: number; to?: number 
     const value = (translate: [number, number], r: number | undefined) => (r === undefined ? { translate } : { translate, rotate: r });
     return {
         type: 'svg', viewBox: '0 0 200 200',
-        animator: { timeline: { duration: 1000, engine } },
+        animator: { timeline: { outTime: 1000, engine } },
         children: [{
             type: 'rect', id: 'r', width: 10, height: 10,
             ...(staticRotate !== undefined ? { transform: { translate: [0, 0], rotate: staticRotate } } : {}),

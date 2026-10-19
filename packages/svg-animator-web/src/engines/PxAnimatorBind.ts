@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, getAnimatorConfig, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, suppressTriggerStart, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, getAnimatorConfig, toAnimatedSvgDocument, type PxDocumentInput, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, suppressTriggerStart, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
@@ -177,7 +177,7 @@ export interface PxPrerenderedAnimatorOptions extends PxAnimatorCallbacks {
      * and `animator.bindings` only — no `children`, because the elements are already
      * in the DOM.
      */
-    doc: PxAnimatedSvgDocument;
+    doc: PxDocumentInput;
     /**
      * Play the way the editor saved it — the document's own `timeline.trigger` decides (the
      * Editor's SVG + JS export passes it). WITHOUT it the binding is still: `trigger.start` is
@@ -198,7 +198,7 @@ function requireDoc(options: PxPrerenderedAnimatorOptions): PxAnimatedSvgDocumen
     // A wrong CALL throws (a bug at the call site); a document that cannot play is reported
     // through `onError` below — the rule in core's `PxDiagnostics` (review §25.1).
     if (!options?.doc) throw new Error('createSvgAnimator: `doc` is required');
-    return options.doc;
+    return toAnimatedSvgDocument(options.doc);
 }
 
 /**

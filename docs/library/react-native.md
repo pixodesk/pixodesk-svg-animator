@@ -94,13 +94,9 @@ Common variations. Each line is the `<SvgAnimator>` element inside a component l
 <SvgAnimator doc={doc} playAsSaved onFinish={() => setDone(true)} />
 ```
 
-TypeScript: `import animation from './animation.json'` gives a plain object; cast it if your
-`tsconfig` complains:
-
-```tsx
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
-const doc = animation as PxAnimatedSvgDocument;
-```
+TypeScript: `doc` accepts `import animation from './animation.json'` as-is (it is typed
+`PxDocumentInput` — the shape a JSON import produces); enable `"resolveJsonModule"` in
+`tsconfig.json`.
 
 ## Control modes
 
@@ -209,7 +205,7 @@ every element, and playback runs on the UI thread. No CSS-flavor component, no
 function SvgAnimator(props: SvgAnimatorProps): ReactElement | null;
 
 interface SvgAnimatorProps {
-    doc: PxAnimatedSvgDocument;           // required — the animation, as saved by the editor
+    doc: PxDocumentInput;                 // required — the animation; a .json import passes as-is
 
     // Playback override — the same object as React (Playback overrides below). `timeline.engine`
     // is accepted but ignored: React Native always uses the `native` materialization.
@@ -252,7 +248,7 @@ interface SvgAnimatorProps {
 ```
 
 The package exports the component, its props (`SvgAnimatorProps`), its handle
-(`RnAnimatorApi`) and the document type `PxAnimatedSvgDocument` (for casting a JSON import —
+(`RnAnimatorApi`) and the document types `PxDocumentInput` / `PxAnimatedSvgDocument` (a JSON import —
 [TypeScript](./installation.md#typescript)); nothing else.
 
 With none of `playAsSaved` / `play` / `pause` / `progress` / `time` set, the first frame renders

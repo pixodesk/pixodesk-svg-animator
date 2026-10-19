@@ -55,9 +55,10 @@ component — add `'use client'` at the top of the file that renders it.
 
 ## TypeScript
 
-**`Type '…' is not assignable to type 'PxAnimatedSvgDocument'` when importing JSON.** Cast
-once: `const doc = animation as PxAnimatedSvgDocument;` — JSON imports are typed structurally
-and a string field such as `"engine": "auto"` widens to `string`. Enable `resolveJsonModule`.
+**A JSON import is flagged on `doc`.** It shouldn't be: `doc` is typed `PxDocumentInput`,
+which is exactly the shape a JSON import produces — so first enable `"resolveJsonModule"` in
+`tsconfig.json` and update the player packages. Only `PxAnimatedSvgDocument` (the strict type,
+for documents built in code) rejects a JSON import's widened strings.
 
 ## React Native
 

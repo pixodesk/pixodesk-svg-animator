@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, suppressTriggerStart, compareWireVersion, convertWireDocument, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, materializeAllInTree, PxDiagnosticCode, PxDiagnosticKind, PxWireVersionRelation, PX_WIRE_VERSION, readWireVersion, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, suppressTriggerStart, toAnimatedSvgDocument, type PxDocumentInput, compareWireVersion, convertWireDocument, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, materializeAllInTree, PxDiagnosticCode, PxDiagnosticKind, PxWireVersionRelation, PX_WIRE_VERSION, readWireVersion, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { reportDocumentDiagnostics, createDiagnostics, isScrollTimeline, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
@@ -176,8 +176,10 @@ export interface PxAnimatorOptions extends PxPlaybackOverride, PxAnimatorCallbac
     playAsSaved?: boolean;
     /** URL to fetch the animation document from. Provide either this or `doc`, not both. */
     src?: string;
-    /** The animation document, inline (see docs/format/README.md). Provide either this or `src`, not both. */
-    doc?: PxAnimatedSvgDocument;
+    /** The animation document, inline (see docs/format/README.md) — typed as a JSON import
+     *  produces it ({@link PxDocumentInput}), so `import animation from './animation.json'`
+     *  passes with no cast. Provide either this or `src`, not both. */
+    doc?: PxDocumentInput;
     /** CSS selector or element to render the SVG into. */
     container?: string | Element;
 }
@@ -321,7 +323,7 @@ export function createSvgAnimator(options: PxAnimatorOptions): PxAnimatorApi {
     registerAnimator(proxy);
 
     if (doc !== undefined) {
-        build(doc);
+        build(toAnimatedSvgDocument(doc));
     } else {
         fetch(src!).then(res => res.json()).then(json => {
             if (destroyed) return; // destroy() was called before the document loaded

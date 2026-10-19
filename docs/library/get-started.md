@@ -56,10 +56,9 @@ src/
 A plain page without a bundler keeps it next to the HTML file instead (see
 [Plain HTML](#plain-html)).
 
-**TypeScript:** a `.json` import is typed as a plain object, so your editor may flag
-`doc={animation}` (a string field is not the literal the document type expects). Cast it once —
-`animation as PxAnimatedSvgDocument`, the type comes from the package you installed — and make
-sure `"resolveJsonModule": true` is in your `tsconfig.json`; both are spelled out in
+**TypeScript:** `doc` accepts a `.json` import as-is — no cast needed (the input type,
+`PxDocumentInput`, is the shape a JSON import produces; values are validated at runtime).
+Just make sure `"resolveJsonModule": true` is in your `tsconfig.json` — see
 [Installing the players › TypeScript](./installation.md#typescript).
 
 ## 3. Install the player and render the file
