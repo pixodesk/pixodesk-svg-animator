@@ -12,6 +12,7 @@
 // exported functions; this is the command-line front for them.
 import { readFileSync, writeFileSync } from 'node:fs';
 import * as core from '../packages/svg-animator-core/dist/index.js';
+import * as coreInternal from '../packages/svg-animator-core/dist/internal.js';
 
 const args = process.argv.slice(2);
 const input = args.find(a => !a.startsWith('--') && args[args.indexOf(a) - 1] !== '--out' && args[args.indexOf(a) - 1] !== '--to');
@@ -36,7 +37,7 @@ if (to) {
 } else {
     result = core.convertWireDocument(doc);
     const from = result.from ? core.formatWireVersion(result.from) : 'unstamped';
-    console.log('File schema: ' + from + ' — ' + result.relation + ' relative to this player (' + core.PX_WIRE_SCHEMA_VERSION + ').');
+    console.log('File schema: ' + from + ' — ' + result.relation + ' relative to this player (' + coreInternal.PX_WIRE_SCHEMA_VERSION + ').');
     if (result.advice) console.log(result.advice);
 }
 for (const step of result.applied) console.log('  applied ' + step.from + ' → ' + step.to + ': ' + step.reason);

@@ -1,7 +1,7 @@
 # First-use review — the API, the schema and the docs through a newcomer's eyes
 
 Status **2026-10-15** (two passes the same day: the exports and schemas, then every guide in
-`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4), §14 (onReady + getDuration), §15 (one validateDocument → { valid, errors, findings }). — each closes with a **Done** note.
+`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4), §14 (onReady + getDuration), §15 (one validateDocument → { valid, errors, findings }), §16 (one public PX_WIRE_VERSION; the string is internal). — each closes with a **Done** note.
 
 Read as a first-time user would: the five packages' exports, the wire schemas, the component
 props, then the guides end to end — `README.md`, `docs/library/*`, `docs/format/README.md`,
@@ -623,11 +623,19 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
   All suites + docs-check green in both repos.
 
 
-### 16. Two version constants for one fact
+### 16. Two version constants for one fact ✅
 
 - **Where:** `PX_WIRE_VERSION` (`{ a, b, c }`) and `PX_WIRE_SCHEMA_VERSION` (`'1.2'`), beside
   `PX_WIRE_BASELINE_VERSION`. api-surface-review §6.6 unified their prefix; the duplication stayed.
 - **Do:** keep one public constant (`formatWireVersion` gives the string).
+- **Done (2026-10-21):** the one public constant is `PX_WIRE_VERSION` (parsed `{ a, b, c }`);
+  `formatWireVersion(PX_WIRE_VERSION)` gives the `"a.b.c"` string back. `PX_WIRE_SCHEMA_VERSION`
+  is demoted to `@internal` — it stays as THE one bump site (the string the release tooling
+  diffs against), exported only from `/internal`; `scripts/schema-release.mjs` and
+  `scripts/upgrade-document.mjs` read it from there. The format guide's signature block,
+  exports-table row and Versioning prose now teach only the public pair (and the prose caught
+  up with wire 1.4 / editor stamp 1.4.1 — it still said 1.2). kf already used only
+  `PX_WIRE_VERSION` / `formatWireVersion`, so nothing moved there. All suites + docs-check green.
 
 ### 17. "Flatten" names two operations; the function for it names a third idea
 

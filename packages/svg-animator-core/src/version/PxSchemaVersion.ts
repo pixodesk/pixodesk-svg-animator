@@ -19,6 +19,10 @@
  * NOT the library's npm version, and never derived from it: the library ships far more often
  * than the format changes, so tying the two would make every release look like a format change
  * and every format change invisible between releases.
- * @public @advanced
+ *
+ * THE BUMP SITE, not the api (review §16): the one public constant is `PX_WIRE_VERSION` (this
+ * string, parsed) and `formatWireVersion` gives the string back. Internal + the release
+ * machinery only.
+ * @internal
  */
 export const PX_WIRE_SCHEMA_VERSION = '1.4';

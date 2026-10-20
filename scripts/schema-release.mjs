@@ -36,7 +36,7 @@ const snapshot = JSON.parse(readFileSync(SNAPSHOT, 'utf8'));
 const releases = JSON.parse(readFileSync(RELEASES, 'utf8'));
 const last = releases[releases.length - 1];
 const { added, removed } = coreInternal.diffFieldUniverse(snapshot, live);
-const declared = core.PX_WIRE_SCHEMA_VERSION;
+const declared = coreInternal.PX_WIRE_SCHEMA_VERSION;
 const plan = coreInternal.planSchemaRelease({ added, removed, declared, lastReleased: last.version, steps: core.PX_WIRE_STEPS });
 
 console.log('Player schema: declared ' + declared + ', last released ' + last.version + ' (' + last.date + ').');

@@ -48,7 +48,6 @@ export { PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from '
 export { PxPlayMode, PxPlaybackWorld, PxDeclarativeAction, resolvePlaybackWorld, resolveDeclarativePlayback, applyDeclarativeAction, createIterationStopWatcher, composeApiExtras } from './playback/PxDeclarativePlayback';
 export type { PxDeclarativeProps, PxDeclarativeArgs, PxDeclarativeRunContext, PxDeclarativeTarget, PxPlayOnceConfig, PxPlayOnceTarget } from './playback/PxDeclarativePlayback';
 export type { PxControlProps } from './format/PxAnimatorConstants';
-export { PX_WIRE_SCHEMA_VERSION } from './version/PxSchemaVersion';
 
 // Document / model types
 export type { PxEngineAnimatorApi, PxAnimatedSvgDocument, PxDocumentInput, PxAnimationDefinition, PxAnimatorApi, PxEngineCallbacks, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBezierPath, PxBinding, PxDefinitions, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTransformParts, PxTrigger, PxTransformValue } from './format/PxAnimatorTypes';
