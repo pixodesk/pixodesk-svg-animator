@@ -44,7 +44,7 @@ export { toAnimatedSvgDocument, PxAnimatedSvgDocumentSchema, PxAnimatorConfigSch
 export { resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline, PxTimelineEngine, PxCloneWithout, PxTimelineEngineSetting, PX_TRIGGER_DEFAULTS, resolveTrigger, PX_TRANSFORM_PART_KEYS } from './format/PxAnimatorConstants';
 // ONE control-mode rule for react / vue / rn (API review §1, §7) — logic + warning text.
 export { PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from './format/PxAnimatorConstants';
-export { PxPlayMode, PxPlaybackWorld, PxDeclarativeAction, resolvePlaybackWorld, resolveDeclarativePlayback, applyDeclarativeAction, createIterationStopWatcher, composePlayOnce } from './playback/PxDeclarativePlayback';
+export { PxPlayMode, PxPlaybackWorld, PxDeclarativeAction, resolvePlaybackWorld, resolveDeclarativePlayback, applyDeclarativeAction, createIterationStopWatcher, composeApiExtras } from './playback/PxDeclarativePlayback';
 export type { PxDeclarativeProps, PxDeclarativeArgs, PxDeclarativeRunContext, PxDeclarativeTarget, PxPlayOnceConfig, PxPlayOnceTarget } from './playback/PxDeclarativePlayback';
 export type { PxControlProps } from './format/PxAnimatorConstants';
 export { PX_WIRE_SCHEMA_VERSION } from './version/PxSchemaVersion';

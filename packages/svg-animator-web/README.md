@@ -88,7 +88,7 @@ animator.destroy();             // cleanup
 | `src`       | `string`                  | URL to fetch the animation document from (provide either `src` or `doc`) |
 | `doc`       | `PxDocumentInput`         | Inline animation document object (a `.json` import passes as-is) |
 | `container` | `string \| Element`       | CSS selector or element to render the SVG into      |
-| `onPlay` · `onPause` · `onCancel` · `onFinish` · `onDestroy` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take; plus `onWarn`, `onError`, `muteWarn`, `muteError` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onPlay,onPause,onCancel,onFinish,onDestroy,onStop,onWarn,onError,muteWarn,muteError -->
+| `onReady` · `onPlay` · `onPause` · `onCancel` · `onFinish` · `onDestroy` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take (`onReady` fires once, async: the push twin of `isReady()`); plus `onWarn`, `onError`, `muteWarn`, `muteError` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onReady,onPlay,onPause,onCancel,onFinish,onDestroy,onStop,onWarn,onError,muteWarn,muteError -->
 | `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
 | `inTime` · `outTime` · `playDuration` · `delay` | `number`        | Shortcuts for the content window (`timeline.inTime` / `.outTime`), its wall-time remap and the start delay (ms) | <!-- px names=inTime,outTime,playDuration,delay -->
@@ -122,6 +122,7 @@ It returns a `PxAnimatorApi`:
 | `cancel()`              | Stop and reset to the start                                       |
 | `finish()`              | Jump to the end                                                   |
 | `playOnce()`            | One fresh pass from the start, whatever `iterations` say          |
+| `getDuration()`         | One pass of the content window, ms — the slider maximum (`null` before a `src` loads) |
 | `setPlaybackRate(rate)` | Change speed (1 = normal, 2 = double, -1 = reverse)               |
 | `getCurrentTime()`      | Current time in ms                                                |
 | `setCurrentTime(ms)`    | Jump to a point in the animation, in milliseconds from its start |

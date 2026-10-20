@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, composePlayOnce, getAnimatorConfig, toAnimatedSvgDocument, type PxDocumentInput, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, suppressTriggerStart, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, composeApiExtras, getAnimatorConfig, toAnimatedSvgDocument, type PxDocumentInput, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, suppressTriggerStart, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
@@ -49,7 +49,7 @@ export function finaliseAnimator(
     }
 
     // `playOnce` is composed ON TOP of the engine — the one shared one-pass rule (review §10)
-    const res: PxAnimatorApi = composePlayOnce(make(effectiveCallbacks), animatorConfig, (cb) => { window.requestAnimationFrame(cb); });
+    const res: PxAnimatorApi = composeApiExtras(make(effectiveCallbacks), animatorConfig, (cb) => { window.requestAnimationFrame(cb); });
     apiRef = res;
 
     // `playDuration` (§4): the window remapped to wall ms, implemented as an initial rate factor.
@@ -238,7 +238,12 @@ export function createPrerenderedAnimator(options: PxPrerenderedAnimatorOptions)
 function registered(options: PxPrerenderedAnimatorOptions, build: (callbacks: PxEngineCallbacks) => PxAnimatorApi): PxAnimatorApi {
     let apiRef: PxAnimatorApi | undefined;
     const api = build(withRegistryEvents(toEngineCallbacks(options), () => apiRef));
-    if (api.isReady()) { apiRef = api; registerAnimator(api); }
+    if (api.isReady()) {
+        apiRef = api;
+        registerAnimator(api);
+        // `onReady` (review §14): asynchronous, so the create call has returned first
+        queueMicrotask(() => options.onReady?.());
+    }
     return api;
 }
 

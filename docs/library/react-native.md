@@ -246,6 +246,7 @@ interface SvgAnimatorProps {
                                           //   same meanings: whole-run time, clamped seeks, rate 0 rejected
 
     // Lifecycle — no arguments; the same meanings as on the web
+    onReady?: () => void;                 // once per compiled document, asynchronously
     onPlay?: () => void; onStop?: () => void; onPause?: () => void;
     onCancel?: () => void; onFinish?: () => void;
     onDestroy?: () => void;                // unmount, or a `doc` swap

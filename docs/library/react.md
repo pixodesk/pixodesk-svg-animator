@@ -73,6 +73,8 @@ interface PxAnimatorHandle {
                                            //   say — the verb behind "plays once on click"
     setPlaybackRate(rate: number): void;   // 1 normal, 2 double, negative = reverse; 0 is rejected
                                            //   with a warning — use pause()
+    getDuration(): number | null;         // ONE pass of the content window, ms — the slider
+                                           //   maximum nobody hard-codes (× iterations = the run)
     getCurrentTime(): number | null;       // ms from the start of the whole run, every iteration
                                            //   included; null before mount
     setCurrentTime(time: number): void;    // seek, ms from the start; clamped to the run
@@ -111,16 +113,19 @@ Render one frame, and move through the animation by changing the prop. The anima
 it just jumps to the new time.
 
 ```tsx
-import { useState } from 'react';
-import { SvgAnimator } from '@pixodesk/svg-animator-react';
+import { useRef, useState } from 'react';
+import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Scrubber() {
+  const api = useRef<PxAnimatorHandle>(null);
   const [time, setTime] = useState(0);
+  const [max, setMax] = useState(0);
   return (
     <>
-      <SvgAnimator doc={animation} time={time} />
-      <input type="range" min={0} max={2000} value={time} onChange={e => setTime(+e.target.value)} />
+      <SvgAnimator doc={animation} time={time} apiRef={api}
+                   onReady={() => setMax(api.current?.getDuration() ?? 0)} />
+      <input type="range" min={0} max={max} value={time} onChange={e => setTime(+e.target.value)} />
     </>
   );
 }
@@ -273,6 +278,8 @@ interface SvgAnimatorProps {
                                           //   iteration, then rests
 
     // Lifecycle — no arguments
+    onReady?: () => void;    // the animator exists and the SVG is rendered — fires once, async;
+                             //   the push twin of isReady()
     onPlay?: () => void;     // started, or resumed after a pause
     onPause?: () => void;    // paused: the `pause` prop, the API's pause(), or a trigger's out action
     onCancel?: () => void;   // stopped and back at the start state

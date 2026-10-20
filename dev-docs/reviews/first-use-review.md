@@ -1,7 +1,7 @@
 # First-use review — the API, the schema and the docs through a newcomer's eyes
 
 Status **2026-10-15** (two passes the same day: the exports and schemas, then every guide in
-`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4). — each closes with a **Done** note.
+`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4), §14 (onReady + getDuration). — each closes with a **Done** note.
 
 Read as a first-time user would: the five packages' exports, the wire schemas, the component
 props, then the guides end to end — `README.md`, `docs/library/*`, `docs/format/README.md`,
@@ -574,13 +574,24 @@ ending per the file's `finish` action; re-entrant (a second call restarts).
   mode, website file-format examples regenerated. All suites + docs-check green in both repos.
 
 
-### 14. No ready event, no duration getter
+### 14. No ready event, no duration getter ✅
 
 - **Where:** `PxAnimatorApi`; web-player › The playback API; react.md / vue.md › Controlled time.
 - **Why:** with `src`, the only way to know the SVG exists is polling `isReady()`. There is no
   `getDuration()`, so every slider example hard-codes its maximum (`max="1000"`, `max={2000}`).
 - **Do:** add `onReady` to the callbacks and `getDuration()` (one iteration, ms) to the handle;
   use it in the slider examples.
+- **Done (2026-10-20):** `getDuration()` (ONE pass of the content window, ms; `null` before a
+  `src` loads) on `PxAnimatorApi`/`PxAnimatorHandle` — composed centrally with `playOnce()`
+  (`composePlayOnce` became **`composeApiExtras`**), so every engine, the src-proxy, the inert
+  stub, RN and both component facades got it in one move. `onReady` on `PxAnimatorCallbacks` —
+  the push twin of `isReady()`: fires ONCE, always asynchronously (the create call has returned);
+  wired in the web create path (doc + src), the pre-rendered registry path, React/RN props and
+  Vue's `@ready` emit. The slider examples (web-player.md, react.md Controlled time) now set
+  their maximum from `getDuration()` on `onReady` instead of hard-coding it. Guard:
+  `PxReadyAndDuration.test.ts` (window-length duration, async-once onReady, the src path
+  null→value transition).
+
 
 ### 15. Five ways to check a document
 

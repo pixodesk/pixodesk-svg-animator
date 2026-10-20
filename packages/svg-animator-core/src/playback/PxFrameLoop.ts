@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { type PxAnimatedSvgDocument, type PxAnimatorApi, type PxEngineAnimatorApi, type PxEngineCallbacks } from '../format/PxAnimatorTypes';
-import { composePlayOnce } from './PxDeclarativePlayback';
+import { composeApiExtras } from './PxDeclarativePlayback';
 import { getAnimatorConfig, PX_DEFAULT_ITERATIONS, PxTimelineEngine } from '../format/PxAnimatorConstants';
 import { PxTimeTimelineSchema } from '../format/PxAnimatorTypes';
 import { camelCaseToKebabWordIfNeeded, clamp, PX_DEFAULT_DURATION_MS, PX_STYLE_ATTR_NAMES } from '../util/PxAnimatorUtil';
@@ -492,7 +492,7 @@ export function createAdapterSvgAnimator(
     ////////////////////////////////////////////////////////////////
 
     // `playOnce` is composed ON TOP of the engine — the one shared one-pass rule (review §10)
-    return composePlayOnce(api, config, requestFrame);
+    return composeApiExtras(api, config, requestFrame);
 }
 
 

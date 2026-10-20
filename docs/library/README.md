@@ -99,6 +99,7 @@ a number when it differs — the note with that number, under the table, says ho
 | `onPause` | ✓ | — | ✓ | ✓ | `@pause` | ✓ |
 | `onCancel` | ✓ | — | ✓ | ✓ | `@cancel` | ✓ |
 | `onFinish` | ✓ | — | ✓ | ✓ | `@finish` | ✓ |
+| `onReady` | ✓ | — | ✓ | ✓ | `@ready` | ✓ |
 | `onDestroy` | ✓ | — | ✓ | ✓ | `@destroy` | ✓ |
 | `onStop` | ✓ | — | ✓ | ✓ | `@stop` | ✓ |
 | `onError` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
@@ -212,6 +213,8 @@ once in core, as `PxAnimatorCallbacks`:
 // engine such as `createAdapterSvgAnimator` takes) → `PxAnimatorCallbacks` (+ `onStop`; what every
 // player takes).
 interface PxAnimatorCallbacks {
+    onReady?: () => void;   // the animator exists and the SVG is rendered — once, async;
+                            //   the push twin of isReady()
     onPlay?: () => void;    // started or resumed
     onPause?: () => void;
     onCancel?: () => void;

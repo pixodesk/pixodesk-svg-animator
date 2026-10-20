@@ -282,6 +282,9 @@ export function createSvgAnimator(options: PxAnimatorOptions): PxAnimatorApi {
         const queued = pending;
         pending = null;
         queued?.forEach(call => call(api));
+        // `onReady` (review §14) — the push twin of `isReady()`. Always asynchronous, so the
+        // `createSvgAnimator` call has returned and the handler can use the returned api.
+        queueMicrotask(() => { if (!destroyed) options.onReady?.(); });
     };
     // The instance will not play: report once, drop the queue, stay inert.
     const failed = (kind: PxDiagnosticKind, code: PxDiagnosticCode, ...data: Array<unknown>): void => {
@@ -311,6 +314,7 @@ export function createSvgAnimator(options: PxAnimatorOptions): PxAnimatorApi {
         "cancel": () => { enqueue(api => api.cancel()); },
         "finish": () => { enqueue(api => api.finish()); },
         "playOnce": () => { enqueue(api => api.playOnce()); },
+        "getDuration": () => animator ? animator.getDuration() : null,
         "setPlaybackRate": (rate: number) => { enqueue(api => api.setPlaybackRate(rate)); },
         "getCurrentTime": () => animator ? animator.getCurrentTime() : null,
         "setCurrentTime": (time: number) => { enqueue(api => api.setCurrentTime(time)); },

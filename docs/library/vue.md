@@ -148,6 +148,8 @@ interface PxAnimatorHandle {
     playOnce(): void;                      // ONE fresh pass from the start, whatever `iterations` say
     setPlaybackRate(rate: number): void;   // 1 normal, 2 double, negative = reverse; 0 is rejected
                                            //   with a warning — use pause()
+    getDuration(): number | null;          // ONE pass of the content window, ms — the slider
+                                           //   maximum nobody hard-codes (× iterations = the run)
     getCurrentTime(): number | null;       // ms from the start of the whole run, every iteration included
     setCurrentTime(time: number): void;    // seek, ms; clamped to the run
     getCurrentProgress(): number | null;   // the same position as 0–1 of the whole run — the read
@@ -241,6 +243,7 @@ dimensions to the element that contains it — the SVG keeps its proportions eit
 <!-- px-check emits SvgAnimator pkg=vue -->
 | Event | When |
 |---|---|
+| `ready` | the animator exists and the SVG is rendered — once, asynchronously; the push twin of `isReady()` |
 | `play` | the animation started playing — for the first time, or resumed after a pause |
 | `pause` | playback paused at the current frame — via the `pause` prop, the API's `pause()`, or a trigger's *out action* |
 | `cancel` | playback stopped and the animation went back to its start state |

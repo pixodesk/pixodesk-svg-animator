@@ -65,7 +65,7 @@ const animator = ref<PxAnimatorHandle | null>(null);
 ```
 
 <!-- px-check members PxAnimatorHandle pkg=vue -->
-`PxAnimatorHandle` methods: `play()`, `pause()`, `cancel()`, `finish()`, `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
+`PxAnimatorHandle` methods: `getDuration()` (one pass, ms — the slider maximum), `play()`, `pause()`, `cancel()`, `finish()`, `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
 
 ### Controlled time
 
@@ -116,6 +116,7 @@ Note: passing a different `doc` (or unmounting) throws the old animator away and
 <!-- px-check emits SvgAnimator pkg=vue -->
 | Event | Description |
 |---|---|
+| `ready` | The animator exists and the SVG is rendered (once, async) |
 | `play` | Animation started or resumed |
 | `pause` | Animation paused |
 | `cancel` | Animation canceled |

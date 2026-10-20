@@ -2272,6 +2272,10 @@ export interface PxEngineCallbacks extends PxDiagnosticsConfig {
  * @public
  */
 export interface PxAnimatorCallbacks extends PxEngineCallbacks {
+    /** The animator exists and the SVG is rendered (review §14) — the push twin of `isReady()`.
+     *  Fires ONCE, always asynchronously (so the create call has returned): with `doc`
+     *  effectively immediately, with `src` after the fetch. */
+    onReady?: () => void;
     /** "No longer playing, whatever the reason" (review §11): fires after any of `onPause` /
      *  `onCancel` / `onFinish` / `onDestroy`. Not a `stop()` pair — there is no `stop()` method
      *  on purpose (`cancel()` is the stop-and-reset verb, `pause()` the hold; a `stop` alias
@@ -2384,6 +2388,11 @@ export interface PxAnimatorApi<TRoot = unknown> {
      */
     setPlaybackRate(rate: number): void;
 
+    /** ONE pass of the content window, ms (one iteration — multiply by `iterations` for the
+     *  whole run). The slider maximum nobody has to hard-code (review §14). `null` before a
+     *  `src` document has loaded. */
+    getDuration(): number | null;
+
     /** Current playback time, ms from the start of the whole run. `null` before ready. */
     getCurrentTime(): number | null;
 
@@ -2421,7 +2430,7 @@ export type PxAnimatorHandle = Omit<PxAnimatorApi, 'isReady' | 'getRootElement' 
 /** What an ENGINE constructs: the full api minus `playOnce`, which is composed ONCE on top of
  *  any engine (`finaliseAnimator` on the web, the handle builder on React Native) so the
  *  one-pass rule cannot drift between engines. @public @advanced */
-export type PxEngineAnimatorApi<TRoot = unknown> = Omit<PxAnimatorApi<TRoot>, 'playOnce'>;
+export type PxEngineAnimatorApi<TRoot = unknown> = Omit<PxAnimatorApi<TRoot>, 'playOnce' | 'getDuration'>;
 
 
 // ============================================================================

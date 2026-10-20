@@ -185,6 +185,7 @@ const [time, setTime] = useState(0);
 | `mouseOut` | `PxMouseOutAction` | Shortcut for `timeline.trigger.mouseOut` (second tap, for `start: 'click'`) |
 | `visibilityThreshold` | `number` | Shortcut for `timeline.trigger.visibilityThreshold` |
 | `visibilityDebounce` | `number` | Shortcut for `timeline.trigger.visibilityDebounce` |
+| `onReady` | `() => void` | The animator exists and the tree is rendered — once, async |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
 | `onFinish` | `() => void` | Called when the animation reaches its end — every iteration played, or `finish()` was called |

@@ -244,21 +244,23 @@ export interface PxPlayOnceConfig {
 export type PxPlayOnceTarget = Pick<PxAnimatorApi, 'play' | 'pause' | 'cancel' | 'setPlaybackRate' | 'getCurrentTime' | 'setCurrentTime'> & { destroy?: () => void };
 
 /**
- * Completes an api with `playOnce()` (review §10) — ONE implementation on top of any engine or
- * handle, so the one-pass rule cannot drift. Always a fresh pass from the start; a single-pass
- * document just restarts (its natural finish already applies the file's `finish` action); a
- * multi-pass one gets a boundary watcher that settles at the end of pass ONE — `'reset'` snaps
- * to rest, the default holds the pass-end pose. Re-entrant: a later call takes the watcher over.
- * Mutates and returns the same object.
+ * Completes an api with the COMPOSED members — `playOnce()` (review §10) and `getDuration()`
+ * (review §14) — ONE implementation on top of any engine or handle, so neither can drift.
+ * `playOnce`: always a fresh pass from the start; a single-pass document just restarts (its
+ * natural finish already applies the file's `finish` action); a multi-pass one gets a boundary
+ * watcher that settles at the end of pass ONE — `'reset'` snaps to rest, the default holds the
+ * pass-end pose; re-entrant. `getDuration`: one pass of the content window, ms. Mutates and
+ * returns the same object.
  * @public @advanced
  */
-export function composePlayOnce<T extends PxPlayOnceTarget>(
+export function composeApiExtras<T extends PxPlayOnceTarget>(
     api: T,
     cfg: PxPlayOnceConfig,
     raf: (cb: () => void) => void,
-): T & { playOnce: () => void } {
-    // ONE type-level widening: `playOnce` is assigned right below, completing the api.
-    const full = api as T & { playOnce: () => void };
+): T & { playOnce: () => void; getDuration: () => number | null } {
+    // ONE type-level widening: both members are assigned right below, completing the api.
+    const full = api as T & { playOnce: () => void; getDuration: () => number | null };
+    full.getDuration = () => cfg.duration ?? null;
     let token = 0;
     // destroy() invalidates a pending pass watcher — otherwise it rAF-loops forever on a dead animator
     if (full.destroy) {

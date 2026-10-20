@@ -127,6 +127,8 @@ interface PxAnimatorOptions {
 
     // Callbacks, inline: `PxAnimatorCallbacks`, the one shape every player takes — see
     // Callbacks below; the shape itself is spelled out once, in the library overview
+    onReady?: () => void;   // the animator exists and the SVG is rendered — once, async;
+                            //   the push twin of isReady() (no more polling with `src`)
     onPlay?: () => void;    onPause?: () => void;    onCancel?: () => void;
     onFinish?: () => void;  onDestroy?: () => void;   onStop?: () => void;
     onWarn?: (d: PxDiagnostic) => void;
@@ -201,6 +203,8 @@ interface PxAnimatorApi {
                                            //   then settles per the file's `finish`
     setPlaybackRate(rate: number): void;   // 1 normal, 2 double, 0.5 half, negative plays backwards;
                                            //   0 and non-finite are rejected with a warning — use pause()
+    getDuration(): number | null;          // ONE pass of the content window, ms — the slider
+                                           //   maximum nobody hard-codes; null before a `src` loads
     getCurrentTime(): number | null;       // ms from the start of the whole run; null before a
                                            //   `src` document has loaded
     setCurrentTime(time: number): void;    // seek, ms; clamped to [0, duration × iterations]. Paused,
@@ -214,19 +218,23 @@ interface PxAnimatorApi {
 
 ```html
 <div id="hero" style="width: 300px; height: 300px"></div>
-<input id="time-slider" type="range" min="0" max="1000" value="0">
+<input id="time-slider" type="range" min="0" value="0">
 ```
 
 ```js
 import { createSvgAnimator } from '@pixodesk/svg-animator-web';
-import doc from './bouncing-ball.json';
-
-const animator = createSvgAnimator({ doc: doc, container: '#hero' });
 
 const slider = document.querySelector('#time-slider');
+const animator = createSvgAnimator({
+  src: '/bouncing-ball.json',
+  container: '#hero',
+  // §14: no polling isReady(), no hard-coded maximum — the document knows its own length
+  onReady: () => { slider.max = String(animator.getDuration()); },
+});
+
 slider.addEventListener('input', () => {
   animator.pause();
-  animator.setCurrentTime(Number(slider.value));   // from 0 to the duration, in ms
+  animator.setCurrentTime(Number(slider.value));   // from 0 to getDuration(), in ms
 });
 ```
 

@@ -181,7 +181,7 @@ const SvgAnimator = defineComponent({
         muteError: { type: Boolean, default: undefined },
     },
 
-    emits: ['play', 'stop', 'pause', 'cancel', 'finish', 'destroy'],
+    emits: ['ready', 'play', 'stop', 'pause', 'cancel', 'finish', 'destroy'],
 
     setup(props, { expose, emit }) {
         // The `<svg>` this component rendered — handed to the player, which attaches its
@@ -261,6 +261,7 @@ const SvgAnimator = defineComponent({
                 playAsSaved: true,
                 // Mounted (or `flush: 'post'`) by the time this runs, so the root exists.
                 rootElement: rootElement ?? undefined,
+                onReady:  () => emit('ready'),
                 onPlay:   () => emit('play'),
                 onPause:  () => emit('pause'),
                 onCancel: () => emit('cancel'),
@@ -392,6 +393,7 @@ const SvgAnimator = defineComponent({
             finish: () => { guardWrite('finish()'); apiRef.value?.finish(); },
             playOnce: () => { guardWrite('playOnce()'); apiRef.value?.playOnce(); },
             setPlaybackRate: (rate: number) => { guardWrite('setPlaybackRate()'); apiRef.value?.setPlaybackRate(rate); },
+            getDuration: () => apiRef.value?.getDuration() ?? null,
             getCurrentTime: () => apiRef.value?.getCurrentTime() ?? null,
             setCurrentTime: (time: number) => { guardWrite('setCurrentTime()'); apiRef.value?.setCurrentTime(time); },
             getCurrentProgress: () => apiRef.value?.getCurrentProgress() ?? null,

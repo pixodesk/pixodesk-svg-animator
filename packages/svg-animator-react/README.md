@@ -63,7 +63,7 @@ const api = useRef<PxAnimatorHandle>(null);
 ```
 
 <!-- px-check members PxAnimatorHandle pkg=react -->
-`PxAnimatorHandle` methods: `play()`, `pause()`, `cancel()`, `finish()`, `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
+`PxAnimatorHandle` methods: `getDuration()` (one pass, ms — the slider maximum), `play()`, `pause()`, `cancel()`, `finish()`, `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
 
 ### Controlled time
 
@@ -108,6 +108,7 @@ const [time, setTime] = useState(0);
 | `mouseOut` | `PxMouseOutAction` | Shortcut for `timeline.trigger.mouseOut` |
 | `visibilityThreshold` | `number` | Shortcut for `timeline.trigger.visibilityThreshold` |
 | `visibilityDebounce` | `number` | Shortcut for `timeline.trigger.visibilityDebounce` |
+| `onReady` | `() => void` | The animator exists and the SVG is rendered — once, async |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
 | `onFinish` | `() => void` | Called when the animation reaches its end — every iteration played, or `finish()` was called |

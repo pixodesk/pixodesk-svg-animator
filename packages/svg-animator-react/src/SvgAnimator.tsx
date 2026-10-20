@@ -97,7 +97,7 @@ export interface SvgAnimatorImplProps {
  * @public
  */
 export type SvgAnimatorCallbacks =
-    Pick<PxAnimatorCallbacks, 'onPlay' | 'onStop' | 'onPause' | 'onCancel' | 'onFinish' | 'onDestroy'>;
+    Pick<PxAnimatorCallbacks, 'onReady' | 'onPlay' | 'onStop' | 'onPause' | 'onCancel' | 'onFinish' | 'onDestroy'>;
 
 /**
  * The component's props. The playback override, the control props and every callback are
@@ -202,6 +202,7 @@ const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
             playAsSaved: true,
             // Refs are attached during commit, before this effect runs, so the root exists here.
             rootElement: rootRef.current ?? undefined,
+            onReady:  cb('onReady'),
             onPlay:   cb('onPlay'),
             onPause:  cb('onPause'),
             onCancel: cb('onCancel'),
@@ -271,7 +272,7 @@ const SvgAnimator: FC<SvgAnimatorProps> = ({
     timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start,
     offScreen, mouseOut, visibilityThreshold, visibilityDebounce,
 
-    onPlay, onStop, onPause, onCancel, onFinish, onDestroy,
+    onReady, onPlay, onStop, onPause, onCancel, onFinish, onDestroy,
 
     // Diagnostics (API review §5)
     onWarn, onError, muteWarn, muteError
@@ -364,7 +365,7 @@ const SvgAnimator: FC<SvgAnimatorProps> = ({
 
     // Keep the latest callback props readable by the memoised inner component.
     const callbacksRef = useRef<SvgAnimatorCallbacks>({});
-    callbacksRef.current = { onPlay, onStop, onPause, onCancel, onFinish, onDestroy };
+    callbacksRef.current = { onReady, onPlay, onStop, onPause, onCancel, onFinish, onDestroy };
 
     // Same idea for the diagnostics props, so the player and the adapter report where the
     // component does (§5).
@@ -390,6 +391,7 @@ const SvgAnimator: FC<SvgAnimatorProps> = ({
             finish: () => { guardWrite('finish()'); apiHolderRef.current?.finish(); },
             playOnce: () => { guardWrite('playOnce()'); apiHolderRef.current?.playOnce(); },
             setPlaybackRate: (rate: number) => { guardWrite('setPlaybackRate()'); apiHolderRef.current?.setPlaybackRate(rate); },
+            getDuration: () => apiHolderRef.current?.getDuration() ?? null,
             getCurrentTime: () => apiHolderRef.current?.getCurrentTime() ?? null,
             setCurrentTime: (time: number) => { guardWrite('setCurrentTime()'); apiHolderRef.current?.setCurrentTime(time); },
             getCurrentProgress: () => apiHolderRef.current?.getCurrentProgress() ?? null,

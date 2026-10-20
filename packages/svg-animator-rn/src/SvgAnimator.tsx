@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyDeclarativeAction, clampSeekMs, composePlayOnce, createIterationStopWatcher, createRunClock, toAnimatedSvgDocument, validateDeprecatedTransformChannels, type PxDocumentInput, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, PxPlayMode, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, generateNewIds, getAnimatorConfig, getDefinitions, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
+import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createIterationStopWatcher, createRunClock, toAnimatedSvgDocument, validateDeprecatedTransformChannels, type PxDocumentInput, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, PxPlayMode, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, generateNewIds, getAnimatorConfig, getDefinitions, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
@@ -303,7 +303,7 @@ export function SvgAnimator({
     // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
     playAsSaved, play, pause, playMode, completeIteration, apiRef, progress: progressProp, time,
     offScreen: offScreenProp, mouseOut: mouseOutProp, visibilityThreshold: visibilityThresholdProp, visibilityDebounce: visibilityDebounceProp,
-    onPlay, onStop, onPause, onCancel, onFinish, onDestroy, onError, fallback, onWarn, muteWarn, muteError,
+    onReady, onPlay, onStop, onPause, onCancel, onFinish, onDestroy, onError, fallback, onWarn, muteWarn, muteError,
 }: SvgAnimatorProps): ReactElement | null {
 
     // -- Compile the document (once per doc/override change) ------------------
@@ -505,7 +505,14 @@ export function SvgAnimator({
         },
     } as PxAnimatorHandle;
     // `playOnce` — the one shared one-pass rule (review §10), same composer as the web engines
-    composePlayOnce(api, { duration: tracks.duration, iterations: tracks.iterations === Infinity ? 'infinite' : tracks.iterations, resetOnFinish: tracks.resetOnFinish }, (cb) => { requestAnimationFrame(cb); });
+    composeApiExtras(api, { duration: tracks.duration, iterations: tracks.iterations === Infinity ? 'infinite' : tracks.iterations, resetOnFinish: tracks.resetOnFinish }, (cb) => { requestAnimationFrame(cb); });
+
+    // `onReady` (review §14): the animator exists and the tree is rendered — once per compiled
+    // instance, asynchronously like the web player fires it.
+    useEffect(() => {
+        if (!compiled.error) queueMicrotask(() => onReady?.());
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [compiled]);
 
     /** The last APPLIED declarative props, per compiled animator (§10). */
     const prevPlaybackRef = useRef<{ compiled: Compiled; props: PxDeclarativeProps } | null>(null);
