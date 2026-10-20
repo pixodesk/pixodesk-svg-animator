@@ -244,7 +244,7 @@ interface SvgAnimatorProps {
     // Lifecycle — no arguments; the same meanings as on the web
     onPlay?: () => void; onStop?: () => void; onPause?: () => void;
     onCancel?: () => void; onFinish?: () => void;
-    onRemove?: () => void;                // unmount, or a `doc` swap
+    onDestroy?: () => void;                // unmount, or a `doc` swap
 
     // Diagnostics — the shared channel (the API at a glance): onError means THIS INSTANCE WILL NOT
     // PLAY — the compile or the render threw; d.error is the Error, and d.data carries the

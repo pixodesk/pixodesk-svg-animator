@@ -88,7 +88,7 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
     await page.click('#finish');
     await expect(log).toContainText('onFinish');
     await page.click('#destroy');
-    await expect(log).toContainText('onRemove');
+    await expect(log).toContainText('onDestroy');
     await expect(page.locator('#box svg')).toHaveCount(0);
   },
 

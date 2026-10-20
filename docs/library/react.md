@@ -274,8 +274,9 @@ interface SvgAnimatorProps {
     onCancel?: () => void;   // stopped and back at the start state
     onFinish?: () => void;   // reached the end — every iteration played, or finish() was called;
                              //   not when stopped early
-    onRemove?: () => void;   // the player was destroyed — unmount, or a new `doc` re-created it
-    onStop?: () => void;     // after any of onPause / onCancel / onFinish / onRemove — the one to use
+    onDestroy?: () => void;   // the player was destroyed — unmount, or a new `doc` re-created it
+    onStop?: () => void;     // "no longer playing, whatever the reason" — after any of onPause /
+                             //   onCancel / onFinish / onDestroy; the one to use
                              //   when you only care that it is no longer playing
 
     // Diagnostics — the shared channel (the API at a glance): onWarn = it plays, but something was
@@ -293,7 +294,7 @@ can route rather than just log — surface `document` problems in a build check,
 you know what a document has to say and tolerate it, `muteWarn` keeps it out of the console.
 
 Passing a different `doc` (or changing `className` / `style` / the control mode) throws the
-old animator away and builds a new one; the old instance emits `onCancel`, `onRemove` and
+old animator away and builds a new one; the old instance emits `onCancel`, `onDestroy` and
 `onStop` on its way out. Changing `progress` / `time` does not recreate anything.
 
 ## CSS-flavor SVGs — `SvgCssAnimator`

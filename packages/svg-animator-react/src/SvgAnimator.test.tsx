@@ -402,7 +402,7 @@ describe("SvgAnimator (React)", () => {
             const apiRef = createRef<PxAnimatorHandle>();
             const spies = {
                 onPlay: vi.fn(), onPause: vi.fn(), onCancel: vi.fn(),
-                onFinish: vi.fn(), onRemove: vi.fn(), onStop: vi.fn(),
+                onFinish: vi.fn(), onDestroy: vi.fn(), onStop: vi.fn(),
             };
             const utils = render(<SvgAnimator doc={getTestJson()} apiRef={apiRef} {...spies} />);
             return { apiRef, spies, ...utils };
@@ -439,11 +439,11 @@ describe("SvgAnimator (React)", () => {
             expect(spies.onStop).toHaveBeenCalledTimes(1);
         });
 
-        it("fires onRemove and onStop on unmount", () => {
+        it("fires onDestroy and onStop on unmount", () => {
             const { spies, unmount } = renderWithCallbacks();
-            expect(spies.onRemove).not.toHaveBeenCalled();
+            expect(spies.onDestroy).not.toHaveBeenCalled();
             unmount();
-            expect(spies.onRemove).toHaveBeenCalledTimes(1);
+            expect(spies.onDestroy).toHaveBeenCalledTimes(1);
             expect(spies.onStop).toHaveBeenCalled();
         });
     });

@@ -261,10 +261,10 @@ describe('createAdapterSvgAnimator', () => {
         expect(opacity()).toBeCloseTo(0.5, 5);
     });
 
-    it('callbacks: onPlay / onPause / onCancel fire; onFinish fires exactly once; onRemove on destroy()', () => {
+    it('callbacks: onPlay / onPause / onCancel fire; onFinish fires exactly once; onDestroy on destroy()', () => {
         const callbacks = {
             onPlay: vi.fn(), onPause: vi.fn(), onCancel: vi.fn(),
-            onFinish: vi.fn(), onRemove: vi.fn(),
+            onFinish: vi.fn(), onDestroy: vi.fn(),
         };
         const { api } = setup({}, callbacks);
 
@@ -285,7 +285,7 @@ describe('createAdapterSvgAnimator', () => {
         expect(callbacks.onCancel).toHaveBeenCalledTimes(1);
 
         api.destroy();
-        expect(callbacks.onRemove).toHaveBeenCalledTimes(1);
+        expect(callbacks.onDestroy).toHaveBeenCalledTimes(1);
     });
 
     it('setCurrentTime seeks and re-arms onFinish', () => {

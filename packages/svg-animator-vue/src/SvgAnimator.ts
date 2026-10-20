@@ -177,7 +177,7 @@ const SvgAnimator = defineComponent({
         muteError: { type: Boolean, default: undefined },
     },
 
-    emits: ['play', 'stop', 'pause', 'cancel', 'finish', 'remove'],
+    emits: ['play', 'stop', 'pause', 'cancel', 'finish', 'destroy'],
 
     setup(props, { expose, emit }) {
         // The `<svg>` this component rendered — handed to the player, which attaches its
@@ -261,7 +261,7 @@ const SvgAnimator = defineComponent({
                 onPause:  () => emit('pause'),
                 onCancel: () => emit('cancel'),
                 onFinish: () => emit('finish'),
-                onRemove: () => emit('remove'),
+                onDestroy: () => emit('destroy'),
                 onStop:   () => emit('stop'),
                 // The player's own diagnostics reach the same handlers as the component's.
                 onWarn:   props.onWarn,

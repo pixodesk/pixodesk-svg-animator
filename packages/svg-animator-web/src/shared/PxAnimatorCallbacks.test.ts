@@ -11,12 +11,12 @@ import { toEngineCallbacks } from './PxAnimatorCallbacks';
 describe('toEngineCallbacks', () => {
 
     it('passes each lifecycle callback through', () => {
-        const onPlay = vi.fn(), onPause = vi.fn(), onCancel = vi.fn(), onFinish = vi.fn(), onRemove = vi.fn();
-        const out = toEngineCallbacks({ onPlay, onPause, onCancel, onFinish, onRemove });
+        const onPlay = vi.fn(), onPause = vi.fn(), onCancel = vi.fn(), onFinish = vi.fn(), onDestroy = vi.fn();
+        const out = toEngineCallbacks({ onPlay, onPause, onCancel, onFinish, onDestroy });
 
-        out.onPlay?.(); out.onPause?.(); out.onCancel?.(); out.onFinish?.(); out.onRemove?.();
+        out.onPlay?.(); out.onPause?.(); out.onCancel?.(); out.onFinish?.(); out.onDestroy?.();
 
-        for (const fn of [onPlay, onPause, onCancel, onFinish, onRemove]) expect(fn).toHaveBeenCalledTimes(1);
+        for (const fn of [onPlay, onPause, onCancel, onFinish, onDestroy]) expect(fn).toHaveBeenCalledTimes(1);
     });
 
     it('fires onStop after pause / cancel / finish / remove — and never after play', () => {
@@ -26,7 +26,7 @@ describe('toEngineCallbacks', () => {
         out.onPlay?.();
         expect(onStop).not.toHaveBeenCalled();
 
-        out.onPause?.(); out.onCancel?.(); out.onFinish?.(); out.onRemove?.();
+        out.onPause?.(); out.onCancel?.(); out.onFinish?.(); out.onDestroy?.();
         expect(onStop).toHaveBeenCalledTimes(4);
     });
 
@@ -46,7 +46,7 @@ describe('toEngineCallbacks', () => {
         expect(out.onPause).toBeUndefined();
         expect(out.onCancel).toBeUndefined();
         expect(out.onFinish).toBeUndefined();
-        expect(out.onRemove).toBeUndefined();
+        expect(out.onDestroy).toBeUndefined();
     });
 
     it('accepts no options at all', () => {

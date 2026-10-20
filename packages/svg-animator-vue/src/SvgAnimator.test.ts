@@ -202,7 +202,7 @@ describe("SvgAnimator (Vue)", () => {
         function renderWithListeners() {
             const spies = {
                 onPlay: vi.fn(), onPause: vi.fn(), onCancel: vi.fn(),
-                onFinish: vi.fn(), onRemove: vi.fn(), onStop: vi.fn(),
+                onFinish: vi.fn(), onDestroy: vi.fn(), onStop: vi.fn(),
             };
             const utils = renderWithApi(getTestJson(), spies);
             return { spies, ...utils };
@@ -239,11 +239,11 @@ describe("SvgAnimator (Vue)", () => {
             expect(spies.onStop).toHaveBeenCalledTimes(1);
         });
 
-        it("emits 'remove' and 'stop' on unmount", () => {
+        it("emits 'destroy' and 'stop' on unmount", () => {
             const { spies, unmount } = renderWithListeners();
-            expect(spies.onRemove).not.toHaveBeenCalled();
+            expect(spies.onDestroy).not.toHaveBeenCalled();
             unmount();
-            expect(spies.onRemove).toHaveBeenCalledTimes(1);
+            expect(spies.onDestroy).toHaveBeenCalledTimes(1);
             expect(spies.onStop).toHaveBeenCalled();
         });
     });

@@ -128,7 +128,7 @@ interface PxAnimatorOptions {
     // Callbacks, inline: `PxAnimatorCallbacks`, the one shape every player takes — see
     // Callbacks below; the shape itself is spelled out once, in the library overview
     onPlay?: () => void;    onPause?: () => void;    onCancel?: () => void;
-    onFinish?: () => void;  onRemove?: () => void;   onStop?: () => void;
+    onFinish?: () => void;  onDestroy?: () => void;   onStop?: () => void;
     onWarn?: (d: PxDiagnostic) => void;
     onError?: (d: PxDiagnostic) => void;
     muteWarn?: boolean;  muteError?: boolean;
@@ -204,7 +204,7 @@ interface PxAnimatorApi {
                                            //   steps through it this way; playing, it continues from there
     getCurrentProgress(): number | null;   // the same position as 0–1 of the whole run; null before ready
     setCurrentProgress(p: number): void;   // seek, 0–1 of the whole run (clamped)
-    destroy(): void;                       // stop, remove the SVG it rendered, release everything; fires onRemove
+    destroy(): void;                       // stop, remove the SVG it rendered, release everything; fires onDestroy
 }
 ```
 
@@ -264,7 +264,7 @@ createSvgAnimator({
   onPause:  () => {},   // paused
   onCancel: () => {},   // canceled (reset)
   onFinish: () => {},   // finished naturally, or finish() was called
-  onRemove: () => {},   // destroyed
+  onDestroy: () => {},   // destroyed
 
   onWarn:  (d) => {},   // d = { code, kind, data? }; else console.warn
   onError: (d) => {},   // d = { code, kind, data?, error }; else console.error
@@ -400,7 +400,7 @@ React Native player keeps no registry.
 
 > **Example:** [`web/cleanup`](../../examples/docs-examples/src/cases/web/cleanup/) — `pnpm example:docs`, then open `#web/cleanup`.
 
-Call `destroy()` when the container goes away (route change, modal close). `onRemove` fires
+Call `destroy()` when the container goes away (route change, modal close). `onDestroy` fires
 once. Frameworks: the React and Vue components do this on unmount.
 
 

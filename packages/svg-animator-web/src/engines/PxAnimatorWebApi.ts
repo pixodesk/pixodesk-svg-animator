@@ -349,10 +349,10 @@ export function createWebApiAnimator(
                             finishNotified = true;
                             callbacks.onFinish?.();
                         };
-                        if (callbacks?.onRemove) anim.onremove = () => {
+                        if (callbacks?.onDestroy) anim.onremove = () => {
                             if (removeCalled) return;
                             removeCalled = true;
-                            callbacks.onRemove?.();
+                            callbacks.onDestroy?.();
                         };
 
                         // Seek forward for negative delay (e.g., delay=-500 → seek to 500ms).
@@ -454,7 +454,7 @@ export function createWebApiAnimator(
             animations.splice(0, animations.length);
             if (!removeCalled) {
                 removeCalled = true;
-                callbacks?.onRemove?.();
+                callbacks?.onDestroy?.();
             }
         }
     };

@@ -1,7 +1,7 @@
 # First-use review — the API, the schema and the docs through a newcomer's eyes
 
 Status **2026-10-15** (two passes the same day: the exports and schemas, then every guide in
-`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept). §10 (play/pause/playMode/completeIteration + playOnce) is DONE. — each closes with a **Done** note.
+`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented). — each closes with a **Done** note.
 
 Read as a first-time user would: the five packages' exports, the wire schemas, the component
 props, then the guides end to end — `README.md`, `docs/library/*`, `docs/format/README.md`,
@@ -515,13 +515,21 @@ ending per the file's `finish` action; re-entrant (a second call restarts).
   `enterFrame`). Continuous position must never flow through React state.
 - **Promoting `direction` to a top-level shortcut prop** (today it needs the `timeline` patch).
 
-### 11. Methods and events don't pair
+### 11. Methods and events don't pair ✅
 
 - **Where:** `PxEngineCallbacks` / `PxAnimatorCallbacks` (core `PxAnimatorTypes.ts`).
 - **Why:** `destroy()` fires `onRemove`. `onStop` fires after pause, cancel, finish or remove, yet
   there is no `stop()` — and Lottie users expect a `stop()` that rewinds.
 - **Do:** `destroy()` ↔ `onDestroy`. Rename `onStop` to say what it means ("no longer playing,
   whatever the reason"), or at least say so in its TSDoc and the callbacks table.
+- **Done (2026-10-20):** `destroy()` ↔ **`onDestroy`** — `onRemove` renamed across core, every
+  engine, the three components (Vue's event: `remove` → `destroy`), docs, examples and tests.
+  `onStop` KEEPS its name and now says what it means in its TSDoc and every callbacks table:
+  "no longer playing, whatever the reason" — fires after any of `onPause` / `onCancel` /
+  `onFinish` / `onDestroy`. Deliberately NO `stop()` method: `cancel()` is the stop-and-reset
+  verb and `pause()` the hold — a `stop` alias would be a second spelling (the no-aliases rule);
+  the Lottie-user expectation is answered by `cancel()`'s docs line "stop and reset to the start".
+
 
 ### 12. Sibling components take different prop shapes
 

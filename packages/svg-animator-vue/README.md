@@ -105,7 +105,7 @@ Render a single frame — by time in milliseconds, or by fraction of the whole t
 
 With none of `playAsSaved` / `play` / `pause` / `progress` / `time` set, the component renders the animation statically (initial state, no playback); use the template ref for imperative control.
 
-Note: passing a different `doc` (or unmounting) throws the old animator away and builds a new one; the old instance emits `cancel`, `remove`, and `stop` on its way out. Changing `progress` / `time` does **not** recreate the animator — it just jumps the existing one to the new time.
+Note: passing a different `doc` (or unmounting) throws the old animator away and builds a new one; the old instance emits `cancel`, `destroy`, and `stop` on its way out. Changing `progress` / `time` does **not** recreate the animator — it just jumps the existing one to the new time.
 
 ## Events
 
@@ -116,5 +116,5 @@ Note: passing a different `doc` (or unmounting) throws the old animator away and
 | `pause` | Animation paused |
 | `cancel` | Animation canceled |
 | `finish` | Animation reached its end — every iteration played, or `finish()` was called |
-| `remove` | Animation cleaned up (e.g. on unmount) |
-| `stop` | Fired alongside any event that halts playback (`pause` / `cancel` / `finish` / `remove`) |
+| `destroy` | The animator was torn down (e.g. on unmount) |
+| `stop` | "No longer playing, whatever the reason" — fired alongside `pause` / `cancel` / `finish` / `destroy` |

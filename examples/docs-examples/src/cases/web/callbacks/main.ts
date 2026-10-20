@@ -11,7 +11,7 @@ const animator = createSvgAnimator({
   onPause:  () => say('onPause'),
   onCancel: () => say('onCancel'),  // reset to the start
   onFinish: () => say('onFinish'),  // natural end, or finish()
-  onRemove: () => say('onRemove'),  // destroyed
+  onDestroy: () => say('onDestroy'),  // destroyed
 });
 
 const $ = (id: string) => document.getElementById(id)!;

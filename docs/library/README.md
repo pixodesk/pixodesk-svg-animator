@@ -95,7 +95,7 @@ a number when it differs — the note with that number, under the table, says ho
 | `onPause` | ✓ | — | ✓ | ✓ | `@pause` | ✓ |
 | `onCancel` | ✓ | — | ✓ | ✓ | `@cancel` | ✓ |
 | `onFinish` | ✓ | — | ✓ | ✓ | `@finish` | ✓ |
-| `onRemove` | ✓ | — | ✓ | ✓ | `@remove` | ✓ |
+| `onDestroy` | ✓ | — | ✓ | ✓ | `@destroy` | ✓ |
 | `onStop` | ✓ | — | ✓ | ✓ | `@stop` | ✓ |
 | `onError` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
 | `onWarn` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
@@ -141,7 +141,7 @@ What some of the names mean:
   when `iterations` is `'infinite'`); **`time`** shows the frame at that many ms from the start.
 - **`apiRef`** is the handle for calling `play()`, `pause()` and the rest from your code. Having
   it never changes how the component is controlled.
-- **`onRemove`** fires when the player is thrown away: `destroy()`, an unmount, or a new `doc`.
+- **`onDestroy`** fires when the player is thrown away: `destroy()`, an unmount, or a new `doc`.
   **`onStop`** fires after any of pause, cancel, finish or remove.
 - **`onError`** means this player will not play: the document failed to load, parse or build,
   or drawing it threw. Nothing is rendered, `isReady()` is `false`, and React Native shows
@@ -212,7 +212,7 @@ interface PxAnimatorCallbacks {
     onPause?: () => void;
     onCancel?: () => void;
     onFinish?: () => void;  // reached the end, or finish() was called — not when stopped early
-    onRemove?: () => void;  // destroy() was called, the component unmounted, or a new `doc` arrived
+    onDestroy?: () => void;  // destroy() was called, the component unmounted, or a new `doc` arrived
     onStop?: () => void;    // after any of pause / cancel / finish / remove
 
     // Diagnostics — two severities, one meaning each, on every player. Neither ever throws at

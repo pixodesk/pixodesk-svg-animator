@@ -47,7 +47,7 @@ inline with a changing value. Build the document once (module level or `useMemo`
 **Console: `setAttribute: No elements found for selector "#…"` on unmount.** Cosmetic — a
 late frame after teardown. Safe to ignore.
 
-**`onCancel` / `onRemove` / `onStop` fire when I pass a different `doc`.** Expected: a new
+**`onCancel` / `onDestroy` / `onStop` fire when I pass a different `doc`.** Expected: a new
 document means a new animator; the old one is thrown away and reports it on its way out.
 
 **Next.js: "useRef is not a function" / hooks error.** The component must be used from a client

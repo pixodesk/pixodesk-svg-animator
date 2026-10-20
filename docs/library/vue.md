@@ -241,8 +241,8 @@ dimensions to the element that contains it — the SVG keeps its proportions eit
 | `pause` | playback paused at the current frame — via the `pause` prop, the API's `pause()`, or a trigger's *out action* |
 | `cancel` | playback stopped and the animation went back to its start state |
 | `finish` | the animation reached its end — it played all its iterations, or `finish()` was called. Does not fire when playback is stopped early |
-| `remove` | the animator was thrown away: the component unmounted, or you passed a different `doc` and a new animator was built for it |
-| `stop` | fires *in addition to* whichever of `pause`, `cancel`, `finish` or `remove` just fired. Listen to this one event when you only care that the animation is no longer playing, whatever the reason |
+| `destroy` | the animator was thrown away: the component unmounted, or you passed a different `doc` and a new animator was built for it |
+| `stop` | "no longer playing, whatever the reason": fires *in addition to* whichever of `pause`, `cancel`, `finish` or `destroy` just fired |
 
 `onWarn` and `onError` are **props**, not events. With an event, Vue would treat the message as
 handled even when nobody listens, so it would never reach the console. As props, leaving them
@@ -268,7 +268,7 @@ const onStop = () => console.log('stopped');
 ```
 
 Passing a different `doc` throws the old animator away and builds a new one; the old instance
-emits `cancel`, `remove` and `stop` on its way out.
+emits `cancel`, `destroy` and `stop` on its way out.
 
 ## CSS-flavor SVGs — `SvgCssAnimator`
 

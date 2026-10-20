@@ -97,7 +97,7 @@ export interface SvgAnimatorImplProps {
  * @public
  */
 export type SvgAnimatorCallbacks =
-    Pick<PxAnimatorCallbacks, 'onPlay' | 'onStop' | 'onPause' | 'onCancel' | 'onFinish' | 'onRemove'>;
+    Pick<PxAnimatorCallbacks, 'onPlay' | 'onStop' | 'onPause' | 'onCancel' | 'onFinish' | 'onDestroy'>;
 
 /**
  * The component's props. The playback override, the control props and every callback are
@@ -206,7 +206,7 @@ const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
             onPause:  cb('onPause'),
             onCancel: cb('onCancel'),
             onFinish: cb('onFinish'),
-            onRemove: cb('onRemove'),
+            onDestroy: cb('onDestroy'),
             onStop:   cb('onStop'),
             onWarn:   diagRef.current?.onWarn,
             onError:  diagRef.current?.onError,
@@ -270,7 +270,7 @@ const SvgAnimator: FC<SvgAnimatorProps> = ({
     // Overrides
     timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start,
 
-    onPlay, onStop, onPause, onCancel, onFinish, onRemove,
+    onPlay, onStop, onPause, onCancel, onFinish, onDestroy,
 
     // Diagnostics (API review §5)
     onWarn, onError, muteWarn, muteError
@@ -363,7 +363,7 @@ const SvgAnimator: FC<SvgAnimatorProps> = ({
 
     // Keep the latest callback props readable by the memoised inner component.
     const callbacksRef = useRef<SvgAnimatorCallbacks>({});
-    callbacksRef.current = { onPlay, onStop, onPause, onCancel, onFinish, onRemove };
+    callbacksRef.current = { onPlay, onStop, onPause, onCancel, onFinish, onDestroy };
 
     // Same idea for the diagnostics props, so the player and the adapter report where the
     // component does (§5).

@@ -2220,7 +2220,7 @@ export function toAnimatedSvgDocument(doc: PxDocumentInput): PxAnimatedSvgDocume
 // -- Callbacks: one chain, three levels (API review §9, §5; dev-docs/reviews/api-surface-review.md §26.1) ----------------------------
 //
 //   PxDiagnosticsConfig   onWarn / onError / muteWarn / muteError   — what `createDiagnostics` reads
-//   PxEngineCallbacks     + onPlay / onPause / onCancel / onFinish / onRemove — what an ENGINE takes
+//   PxEngineCallbacks     + onPlay / onPause / onCancel / onFinish / onDestroy — what an ENGINE takes
 //   PxAnimatorCallbacks   + onStop                                  — what every PUBLIC surface takes
 //
 // Each level extends the one above, so a field is spelled once and the surfaces cannot drift.
@@ -2245,19 +2245,20 @@ export interface PxEngineCallbacks extends PxDiagnosticsConfig {
 
     /**
      * Callback executed when the animation reaches its end — it played every iteration, or
-     * `finish()` was called. Not fired when playback is stopped early (pause / cancel / remove).
+     * `finish()` was called. Not fired when playback is stopped early (pause / cancel / destroy).
      */
     onFinish?: () => void;
 
-    /** Callback executed when the animation is removed. */
-    onRemove?: () => void;
+    /** `destroy()`'s pair (review §11): the animator was torn down — an unmount, a document
+     *  swap, or an explicit `destroy()` call. */
+    onDestroy?: () => void;
 }
 
 /**
  * What every PUBLIC surface takes, inline and under the same names — `createSvgAnimator({ onFinish })`,
  * `loadTagSvgAnimators`, the pre-rendered entries, and `<SvgAnimator onFinish />` on React,
  * Vue and React Native (review §9, §24): the engine's callbacks plus `onStop`, which fires after
- * any of `onPause` / `onCancel` / `onFinish` / `onRemove` — for callers who only care that
+ * any of `onPause` / `onCancel` / `onFinish` / `onDestroy` — for callers who only care that
  * playback is no longer running, whatever the reason.
  *
  * ONE definition: the components derive their props from it instead of each spelling the same
@@ -2265,6 +2266,10 @@ export interface PxEngineCallbacks extends PxDiagnosticsConfig {
  * @public
  */
 export interface PxAnimatorCallbacks extends PxEngineCallbacks {
+    /** "No longer playing, whatever the reason" (review §11): fires after any of `onPause` /
+     *  `onCancel` / `onFinish` / `onDestroy`. Not a `stop()` pair — there is no `stop()` method
+     *  on purpose (`cancel()` is the stop-and-reset verb, `pause()` the hold; a `stop` alias
+     *  would be a second spelling). */
     onStop?: () => void;
 }
 

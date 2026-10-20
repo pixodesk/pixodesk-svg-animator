@@ -302,7 +302,7 @@ export function SvgAnimator({
     doc, timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start,
     // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
     playAsSaved, play, pause, playMode, completeIteration, apiRef, progress: progressProp, time,
-    onPlay, onStop, onPause, onCancel, onFinish, onRemove, onError, fallback, onWarn, muteWarn, muteError,
+    onPlay, onStop, onPause, onCancel, onFinish, onDestroy, onError, fallback, onWarn, muteWarn, muteError,
 }: SvgAnimatorProps): ReactElement | null {
 
     // -- Compile the document (once per doc/override change) ------------------
@@ -642,12 +642,12 @@ export function SvgAnimator({
     }, [compiled, playAsSaved, gated, effectiveOffScreen]);
 
     // Stop cleanly on unmount / doc swap — and say so, the way the web's destroy() does (§18):
-    // both are "the animator was thrown away", so `onRemove` fires, and `onStop` with it.
+    // both are "the animator was thrown away", so `onDestroy` fires, and `onStop` with it.
     useEffect(() => {
         return () => {
             cancelAnimation(progress);
             playingRef.current = false;
-            onRemove?.();
+            onDestroy?.();
             onStop?.();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps

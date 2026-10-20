@@ -185,8 +185,8 @@ const [time, setTime] = useState(0);
 | `onPause` | `() => void` | Called on pause |
 | `onFinish` | `() => void` | Called when the animation reaches its end — every iteration played, or `finish()` was called |
 | `onCancel` | `() => void` | Called on cancel |
-| `onRemove` | `() => void` | Called when the animator is thrown away — the component unmounted, or a new `doc` replaced it |
-| `onStop` | `() => void` | Called whenever playback halts (pause / cancel / finish / remove) |
+| `onDestroy` | `() => void` | Called when the animator is thrown away — the component unmounted, or a new `doc` replaced it |
+| `onStop` | `() => void` | "No longer playing, whatever the reason" — fires after any of pause / cancel / finish / destroy |
 | `onError` | `(diagnostic) => void` | this instance will not play — the document could not be compiled or rendered; `fallback` shows instead. `diagnostic.error` is the Error, `diagnostic.detail.componentStack` when the error boundary caught it |
 | `onWarn` | `(diagnostic) => void` | it plays, but something was ignored, degraded or misspelled; without it → `console.warn` |
 | `muteWarn` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarn`, if you gave it, still fires: mute is about the console, not about you |
@@ -225,7 +225,7 @@ renderer never reaches JavaScript and cannot be caught — see
 | `timeline.frameRate` | Ignored. The screen's own refresh rate is used. The player does not compute values frame by frame: when the document loads it works out the animated values in advance, as a list of snapshots (60 per second of animation), and each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, which the player fixes at 60. |
 | `start: 'mouseOver'` | Has no touch equivalent, so it is not honored. The other three values (`load`, `click`, `none`) work as they do on the web, from the file or from the `start` prop. |
 | `className` / `style` | Not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height`. Styling *inside* the document (`style` on an element in the JSON) is supported. |
-| `onRemove` | Never called. On the web it tells you the animator was thrown away; here there is nothing to tell — when the component leaves the screen, React removes it and everything it created. To run code at that moment, use a `useEffect` cleanup function in your own component. |
+| `onDestroy` | Never called. On the web it tells you the animator was thrown away; here there is nothing to tell — when the component leaves the screen, React removes it and everything it created. To run code at that moment, use a `useEffect` cleanup function in your own component. |
 
 ## How playback works
 

@@ -485,7 +485,7 @@ export function createAdapterSvgAnimator(
 
         "destroy": () => {
             api.cancel();
-            callbacks?.onRemove?.();
+            callbacks?.onDestroy?.();
         }
     };
 

@@ -28,7 +28,7 @@ const BOUNDARY_NAMES: Array<{ name: string; why: string }> = [
     { name: 'onPlay',         why: 'documented lifecycle callback' },
     { name: 'onPause',        why: 'documented lifecycle callback' },
     { name: 'onCancel',       why: 'documented lifecycle callback' },
-    { name: 'onRemove',       why: 'documented lifecycle callback' },
+    { name: 'onDestroy',       why: 'documented lifecycle callback' },
     { name: 'domType',        why: 'wire key: <feTurbulence domType="fractalNoise"> loses its type attribute' },
     { name: 'rangeName',      why: 'WAAPI TimelineRangeOffset key — a native view timeline scrubs the wrong range' },
     { name: 'class',          why: 'the missing-glyph marker attribute' },

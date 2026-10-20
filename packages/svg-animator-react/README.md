@@ -108,8 +108,8 @@ const [time, setTime] = useState(0);
 | `onPause` | `() => void` | Called on pause |
 | `onFinish` | `() => void` | Called when the animation reaches its end — every iteration played, or `finish()` was called |
 | `onCancel` | `() => void` | Called on cancel |
-| `onRemove` | `() => void` | Called when the animation is destroyed (e.g. unmount) |
-| `onStop` | `() => void` | Called whenever playback halts (pause / cancel / finish / remove) |
+| `onDestroy` | `() => void` | Called when the animation is destroyed (e.g. unmount) |
+| `onStop` | `() => void` | "No longer playing, whatever the reason" — fires after any of pause / cancel / finish / destroy |
 | `onWarn` | `(diagnostic) => void` | it plays, but something was ignored, degraded or misspelled; without it → `console.warn` |
 | `onError` | `(diagnostic) => void` | this instance will not play — failed to load, parse or build, or the render threw; without it → `console.error` |
 | `muteWarn` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarn`, if you gave it, still fires: mute is about the console, not about you |
@@ -119,4 +119,4 @@ const [time, setTime] = useState(0);
 
 With none of `playAsSaved` / `play` / `pause` / `apiRef` / `progress` / `time` set, the component renders the animation statically (initial state, no playback).
 
-Note: passing a different `doc` (or unmounting) throws the old animator away and builds a new one; the old instance emits `onCancel`, `onRemove`, and `onStop` on its way out. Changing `progress` / `time` does **not** recreate the animator — it just jumps the existing one to the new time.
+Note: passing a different `doc` (or unmounting) throws the old animator away and builds a new one; the old instance emits `onCancel`, `onDestroy`, and `onStop` on its way out. Changing `progress` / `time` does **not** recreate the animator — it just jumps the existing one to the new time.
