@@ -36,10 +36,10 @@ comments, so a real file has none.)
       "id": "ball",
       "cx": 0, "cy": 0, "r": 40, "fill": "#0087ff",
       "animate": {
-        "translate": {
+        "transform": {
           "keyframes": [
-            { "time": 0,    "value": [200, 60],  "easing": [0.33, 0, 0.67, 0.33] },
-            { "time": 2000, "value": [200, 340] }
+            { "time": 0,    "value": { "translate": [200, 60] },  "easing": [0.33, 0, 0.67, 0.33] },
+            { "time": 2000, "value": { "translate": [200, 340] } }
           ]
         }
       }

@@ -612,7 +612,17 @@ static `transform` on the same element — put a fixed placement on a wrapping `
 And since all parts share one set of keyframes, they run on one schedule; to give each part
 its own timing, use the [`transformBy` effect](#8--transformby).
 
-The per-key form (`animate: { translate, rotate, scale }` — used in the examples below) is also accepted; both produce the same composed `transform` string at render. A static `transform` attribute **composes under** the animated transform (CSS's own precedence, applied at read): partial keyframe parts inherit the static parts they don't set, and a single per-key channel next to a static transform keeps that static — `transform: {rotate: 45}` + an animated `translate` slides the element *while it stays rotated*. The one remaining last-write-wins case: several per-key channels animated at once on one node — compose those by nesting `<g>`s instead.
+A static `transform` attribute **composes under** the animated transform (CSS's own
+precedence, applied at read): partial keyframe parts inherit the static parts they don't set,
+so `transform: {rotate: 45}` + keyframes animating only `translate` slides the element *while
+it stays rotated*.
+
+> **Deprecated:** the per-key form (`animate: { translate: {…} }`, one channel per part) is
+> still READ — files migrated from older versions carry it — but it is no longer the way to
+> write documents, and the player warns about it
+> ([PX1107](../diagnostics.md)): two per-key channels on one node are last-write-wins,
+> each writing the whole `transform`. Spell the pose as `animate.transform` record keyframes;
+> parts that need their own timing belong in the [`transformBy` effect](#8--transformby).
 
 ### Motion along a path
 
@@ -771,9 +781,9 @@ Complete documents, one idea each.
   },
   "children": [
     { "type": "ellipse", "fill": "#007fff85", "rx": 64, "ry": 64,
-      "animate": { "translate": { "keyframes": [
-        { "time": 0,    "value": [139, 163] },
-        { "time": 1000, "value": [139, 310] }
+      "animate": { "transform": { "keyframes": [
+        { "time": 0,    "value": { "translate": [139, 163] } },
+        { "time": 1000, "value": { "translate": [139, 310] } }
       ] } } }
   ]
 }
@@ -859,8 +869,8 @@ by `#id` and the animations it plays by name — [above](#animating-a-pre-render
   },
   "children": [
     { "type": "rect", "width": 80, "height": 80, "fill": "#10b981",
-      "animate": { "translate": { "keyframes": [
-        { "time": 0, "value": [0, 0] }, { "time": 3000, "value": [320, 0] } ] } } }
+      "animate": { "transform": { "keyframes": [
+        { "time": 0, "value": { "translate": [0, 0] } }, { "time": 3000, "value": { "translate": [320, 0] } } ] } } }
   ]
 }
 ```
@@ -1445,6 +1455,13 @@ function validateDocument(doc: unknown, options?: { strict?: boolean }): Array<s
 //   human-readable warnings (each prefixed with the node's path) and never
 //   throws; the players run this on load and log whatever comes back.
 function validateNodeEffects(root: PxNode, options?: { strict?: boolean }): Array<string>;
+
+// ○ Flag the DEPRECATED per-key transform channels (`animate.translate`, `animate.rotate`, …)
+//   on any node, depth-first — still read for files migrated from older versions, but two on
+//   one node are last-write-wins, so the players warn (PX1107 on the diagnostics page). New
+//   documents spell the pose `animate.transform` (record keyframes), or `effects.transformBy`
+//   for independently-timed parts. Returns human-readable warnings; never throws.
+function validateDeprecatedTransformChannels(root: PxNode): Array<string>;
 
 // ● Per-instance playback override, shared by every player. `patch` is a
 //   deep-partial of the document's `animator` block; objects merge key by key,

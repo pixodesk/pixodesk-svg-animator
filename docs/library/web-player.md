@@ -56,10 +56,10 @@ comments are explanatory; JSON does not allow comments, so the real file has non
 
       // ADDED: the circle's animation — keyframes for its position
       "animate": {
-        "translate": {
+        "transform": {
           "keyframes": [
-            { "time": 0,    "value": [200, 60],  "easing": [0.33, 0, 0.67, 0.33] },
-            { "time": 1000, "value": [200, 340] }
+            { "time": 0,    "value": { "translate": [200, 60] },  "easing": [0.33, 0, 0.67, 0.33] },
+            { "time": 1000, "value": { "translate": [200, 340] } }
           ]
         }
       }

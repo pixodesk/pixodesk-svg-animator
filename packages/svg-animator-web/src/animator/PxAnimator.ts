@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, suppressTriggerStart, toAnimatedSvgDocument, type PxDocumentInput, compareWireVersion, convertWireDocument, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, materializeAllInTree, PxDiagnosticCode, PxDiagnosticKind, PxWireVersionRelation, PX_WIRE_VERSION, readWireVersion, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, suppressTriggerStart, validateDeprecatedTransformChannels, toAnimatedSvgDocument, type PxDocumentInput, compareWireVersion, convertWireDocument, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, materializeAllInTree, PxDiagnosticCode, PxDiagnosticKind, PxWireVersionRelation, PX_WIRE_VERSION, readWireVersion, resolveTimelineEngine, type PxTimelineEngine, validateNodeEffects, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { reportDocumentDiagnostics, createDiagnostics, isScrollTimeline, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
@@ -74,6 +74,8 @@ function createAnimatorImpl(
 
     const effectsWarnings = validateNodeEffects(doc as any);
     for (const w of effectsWarnings) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.effectsShape, w);
+    // §6: per-key transform channels still play (old migrated files), but are named as deprecated
+    for (const w of validateDeprecatedTransformChannels(doc)) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.deprecatedTransformChannel, w);
 
     // …and the WHOLE-document check beside it. This is the boundary diagnostic: if a consumer's
     // build mangled property names, the keys reaching us are unrecognizable and this says so,

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { clampSeekMs, createRunClock, toAnimatedSvgDocument, type PxDocumentInput, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, generateNewIds, getAnimatorConfig, getDefinitions, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
+import { clampSeekMs, createRunClock, toAnimatedSvgDocument, validateDeprecatedTransformChannels, type PxDocumentInput, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, generateNewIds, getAnimatorConfig, getDefinitions, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
@@ -241,6 +241,8 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
     const { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start } = overrides;
     const warnings = validateNodeEffects(doc as PxNode);
     for (const w of warnings) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.effectsShape, w);
+    // §6: per-key transform channels still play (old migrated files), but are named as deprecated
+    for (const w of validateDeprecatedTransformChannels(doc as PxNode)) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.deprecatedTransformChannel, w);
     // The whole-document boundary diagnostic — see the note in the web player's entry.
     reportDocumentDiagnostics(doc, '[SvgAnimator]');
 

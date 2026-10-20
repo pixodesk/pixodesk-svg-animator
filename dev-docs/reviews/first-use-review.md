@@ -1,7 +1,7 @@
 # First-use review — the API, the schema and the docs through a newcomer's eyes
 
 Status **2026-10-15** (two passes the same day: the exports and schemas, then every guide in
-`docs/`). Done so far: §1+2, §3, §4, §5, §7, §8 — each closes with a **Done** note.
+`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8 — each closes with a **Done** note.
 
 Read as a first-time user would: the five packages' exports, the wire schemas, the component
 props, then the guides end to end — `README.md`, `docs/library/*`, `docs/format/README.md`,
@@ -224,7 +224,7 @@ timeline: { inTime: 500, outTime: 2500, playDuration: 4000 }  // …remapped to 
   JSON-import shape with no cast and keeps a `@ts-expect-error` proving the strict type still
   rejects it.
 
-### 6. Transforms have two spellings, and one of them has a trap
+### 6. Transforms have two spellings, and one of them has a trap ✅
 
 - **Where:** `docs/format/README.md` › Transforms; the library guides' examples.
 - **Why:** `animate.transform` with record keyframes (`{ translate, rotate, scale }`) and per-part
@@ -238,19 +238,36 @@ timeline: { inTime: 500, outTime: 2500, playDuration: 4000 }  // …remapped to 
   Then either make per-part channels compose on one node, or warn when two are set together; and
   qualify the "one spelling" sentence (it is also untrue for the bare-string path value, the SVG
   transform string and kebab-case attribute names, which are all accepted).
-- **Investigated (2026-10-20), owner's question "does the Editor even produce per-part
-  channels?":** NO — it never has. The editor MODEL stores the parts separately
-  (`TSvgTransformAttr`: translate / rotation / scale / skew / origin), but its writer FOLDS them
-  into the one unified `animate.transform` record (`writeKeyframesPxAttr` — "emits ONE unified
-  animation entry", and throws `InternalError(404)` if the fold bails, so a per-part write cannot
-  slip out). Checked across editor-written artifacts: the ~50 learn assets (only `ball-typo.json`
-  — the deliberate-mistake tutorial asset, hand-made — has `animate.translate`), the
-  feature-explorer cases, the trigger-explorer fixtures and the website file-format examples are
-  all record-form. The per-part spelling exists ONLY as a hand-authoring convenience the player
-  accepts: the guides' hand-written bouncing ball (web-player.md), the `rn-expo` example and the
-  react-native.md support-matrix row teach it. So the trap cannot appear in any editor-saved
-  file — it bites hand-written documents only, and the "Do" above is purely a player + docs
-  decision (compose or warn), with no editor change and no compat concern either way.
+- **Investigated (2026-10-20, corrected same day), owner's question "does the Editor even
+  produce per-part channels?":** the CURRENT writer never does — the editor model stores the
+  parts separately (`TSvgTransformAttr`) but always FOLDS them into the one unified
+  `animate.transform` record on write (`writeKeyframesPxAttr`, `InternalError(404)` if the fold
+  bails). The ~50 learn assets (all but the hand-made `ball-typo.json`), the feature-explorer
+  cases, the trigger fixtures and the website art generators are all record-form. BUT the
+  per-key spelling is the descendant of the OLD editor's per-axis storage: ancient
+  `data-px-attrs`-era files spell transforms per axis (`transform-translate`, `transform-scale`,
+  top-level `rotation`), and the kf migrator (`tools/migrate-data-px-meta.mjs`) maps each axis
+  onto `animate.translate` / `animate.rotate` / `animate.scale` — SEVERAL on one node when the
+  old file animated several, which is exactly the last-write-wins case. The kf reader folds
+  per-key channels back into the per-part model (a re-save normalises to the record form), so
+  the trap bites only migrated-but-never-resaved old files fed straight to the player, plus
+  hand-written documents following the guides (web-player.md's ball, `rn-expo`). Implication for
+  the "Do": the per-key READ must stay (compat for migrated files), and those multi-axis
+  migrated files argue for COMPOSE (or at least a diagnostic) over documentation alone.
+- **Decision (owner, 2026-10-20):** get rid of the per-key form — out of the docs entirely; it is
+  too ambiguous (what would `animate.translate` + `animate.rotate` with different timings even
+  mean?). Independently-timed parts belong to `effects.transformBy`.
+- **Done (2026-10-20):** every doc and example now teaches the record form only — web-player.md's
+  ball, playback-and-triggers.md, the format guide's two `px-player` examples,
+  `get-started/html-inline-json`, `rn-expo`, `react-native-preview-player` samples, the
+  react-native.md support-matrix row, and the `PxAnimationDefinition` / `PxElementAnimation`
+  JSDoc examples. The format guide's teaching paragraph became a **Deprecated** note (still
+  read, for migrated files). The players now WARN: `validateDeprecatedTransformChannels(root)`
+  (core, next to `validateNodeEffects`) + diagnostic **PX1107**, wired in the web create path
+  and the RN `compileDocument` — so a migrated-but-never-resaved multi-axis file names itself
+  instead of silently dropping a channel. Guard: `PxDeprecatedTransformChannels.test.ts` (seen
+  failing first). NOT done (deliberately): the read stays — published docs taught the spelling,
+  so dropping it is a format break for hand-written files; revisit at the next major if wanted.
 
 ## 🟠 Inconsistent surface
 

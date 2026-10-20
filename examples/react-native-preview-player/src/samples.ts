@@ -342,7 +342,7 @@ const morph: PxAnimatedSvgDocument = {
     children: [
         {
             // Position lives on a wrapper `<g>`: a static `transform` attribute
-            // on the SAME node as an animated `rotate` would be overwritten —
+            // on the SAME node as an animated transform would be overwritten —
             // both compose into the one `transform` prop. One transform
             // function per nesting level is the rule.
             type: 'g', transform: 'translate(150,140)',
@@ -362,8 +362,8 @@ const morph: PxAnimatedSvgDocument = {
                             { time: 2400, value: '#0ea5e9' },
                         ],
                     },
-                    rotate: {
-                        keyframes: [{ time: 0, value: 0 }, { time: 2400, value: 90 }],
+                    transform: {
+                        keyframes: [{ time: 0, value: { rotate: 0 } }, { time: 2400, value: { rotate: 90 } }],
                     },
                 },
             }],

@@ -104,6 +104,14 @@ export enum PxDiagnosticCode {
     noBindings = 1105,
 
     /**
+     * A transform part is animated as its own `animate` channel (`animate.translate`, …) — the
+     * deprecated spelling: several on one node are last-write-wins. Spell it `animate.transform`
+     * (record keyframes), or `effects.transformBy` for independently-timed parts.
+     * @data the channel(s) and the node
+     */
+    deprecatedTransformChannel = 1107,
+
+    /**
      * A binding names no element, or names animations that `definitions.animations` does not have.
      * @data the binding
      */

@@ -486,10 +486,12 @@ export type PxTransformValue = PxInfer<typeof PxTransformValueSchema>;
 
 /**
  * Complete animation definition containing one or more property animations.
- * Each key is a CSS/SVG property name (e.g., "opacity", "translate", "fill").
+ * Each key is a CSS/SVG property name (e.g., "opacity", "transform", "fill").
+ * (Per-key transform parts — "translate", "rotate", … — are the DEPRECATED spelling: still
+ * read, warned as PX1107; spell the pose as a `transform` record, or `effects.transformBy`.)
  *
  * @example
- * { "opacity": { keyframes: [...] }, "translate": { keyframes: [...] } }
+ * { "opacity": { keyframes: [...] }, "transform": { keyframes: [...] } }
  */
 export interface _PxAnimationDefinition {
     [property: string]: PxPropertyAnimation;
@@ -524,7 +526,7 @@ export type PxAnimationDefinition = PxInfer<typeof PxAnimationDefinitionSchema>;
  * "fadeIn"
  * ["fadeIn", "spin"]
  * { opacity: { keyframes: [...] } }
- * ["fadeIn", { scale: { keyframes: [...] } }]
+ * ["fadeIn", { transform: { keyframes: [...] } }]
  */
 export type _PxElementAnimation =
     | string
@@ -1824,6 +1826,40 @@ export function validateNodeEffects(root: PxNode, options?: { strict?: boolean }
     const ctx = newCollectingContext(!!options?.strict);
     collectNodeEffectProblems(root, ctx, false);
     return ctx.errors;
+}
+
+/** The transform parts a per-key `animate` channel can (deprecatedly) name. */
+const PX_PER_KEY_TRANSFORM_CHANNELS = ['translate', 'rotate', 'scale', 'skew', 'origin'] as const;
+
+/**
+ * Walks `root` and flags every node animating a transform PART as its own `animate` channel
+ * (`animate.translate`, `animate.rotate`, …) — the DEPRECATED spelling (format review §6): two
+ * such channels on one node are last-write-wins, so the composed forms replace it. Still read,
+ * for files migrated from the pre-record era; new documents spell it `animate.transform`
+ * (record keyframes), or `effects.transformBy` when the parts need independent timing.
+ * Returns one human-readable warning per offending node (empty when all good); never mutates.
+ * @public @advanced
+ */
+export function validateDeprecatedTransformChannels(root: PxNode): Array<string> {
+    const warnings: Array<string> = [];
+    const walk = (node: PxNode, path: Array<string>): void => {
+        const animate = node?.animate as { [k: string]: unknown } | undefined;
+        if (animate) {
+            const hit = PX_PER_KEY_TRANSFORM_CHANNELS.filter((k) => animate[k] !== undefined);
+            if (hit.length) {
+                const where = node.id ? '#' + node.id : path.join('.');
+                warnings.push(
+                    'deprecated per-key transform channel(s) ' + hit.map((k) => 'animate.' + k).join(', ') + ' on ' + where +
+                    ' — several on one node are last-write-wins. Use `animate.transform` record keyframes (value: { ' +
+                    hit.join(', ') + ' }), or `effects.transformBy` for independently-timed parts.');
+            }
+        }
+        if (node && Array.isArray(node.children)) {
+            node.children.forEach((c, i) => walk(c, [...path, 'children', '[' + i + ']']));
+        }
+    };
+    walk(root, [PX_VALIDATION_ROOT_SEGMENT]);
+    return warnings;
 }
 
 /** The first path segment of every whole-document finding (`root.children[0]…`): the document

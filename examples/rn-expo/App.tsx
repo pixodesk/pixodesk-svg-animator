@@ -43,12 +43,12 @@ const animatedDoc: PxAnimatedSvgDocument = {
         {
             type: 'g', id: 'spinner',
             animate: {
-                translate: { keyframes: [{ time: 0, value: [200, 80] }, { time: 2000, value: [200, 220] }] },
+                transform: { keyframes: [{ time: 0, value: { translate: [200, 80] } }, { time: 2000, value: { translate: [200, 220] } }] },
             },
             children: [{
                 type: 'g', id: 'spinnerInner',
                 animate: {
-                    rotate: { keyframes: [{ time: 0, value: 0 }, { time: 2000, value: 180 }] },
+                    transform: { keyframes: [{ time: 0, value: { rotate: 0 } }, { time: 2000, value: { rotate: 180 } }] },
                 },
                 children: [{ type: 'rect', x: -25, y: -25, width: 50, height: 50, rx: 6, fill: '#ff6b35' }],
             }],

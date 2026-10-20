@@ -31,14 +31,16 @@
             "r": 40,
             "fill": "#0087ff",
             "animate": {
-              "translate": {
+              "transform": {
                 "keyframes": [
                   {
                     "time": 0,
-                    "value": [
-                      200,
-                      60
-                    ],
+                    "value": {
+                      "translate": [
+                        200,
+                        60
+                      ]
+                    },
                     "easing": [
                       0.33,
                       0,
@@ -48,10 +50,12 @@
                   },
                   {
                     "time": 1000,
-                    "value": [
-                      200,
-                      340
-                    ]
+                    "value": {
+                      "translate": [
+                        200,
+                        340
+                      ]
+                    }
                   }
                 ]
               }

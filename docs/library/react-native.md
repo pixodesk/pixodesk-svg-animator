@@ -371,7 +371,7 @@ not supported.
 | `strokeDasharray` | ⚠️ | animates; the native value bridge not yet checked on a device |
 | `x`, `y`, `width`, `height`, `cx`, `cy`, `r`, `rx`, `ry` | ✅ | |
 | `d` (path morphing) | ✅ | keyframes must share the same command structure |
-| `transform` (an object holding all the parts: translate, rotate, scale, …) and per-key `translate` / `rotate` / `scale` | ✅ | |
+| `transform` (record keyframes holding the parts: translate, rotate, scale, …) | ✅ | per-key `translate` / `rotate` / `scale` channels are deprecated — still read, warned as [PX1107](../diagnostics.md) |
 | gradient stop `offset`, `stopColor` | ✅ | |
 | `fontSize` and any other numeric attribute | ✅ | |
 | filter primitive attributes | ⚠️ | compiles; on-device rendering not yet checked |

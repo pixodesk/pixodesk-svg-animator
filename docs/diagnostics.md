@@ -41,6 +41,7 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 | <a id="px1103"></a>**1103** | An SVG tag that can execute or load remote content was dropped from the rendered tree. | the tag name |
 | <a id="px1104"></a>**1104** | The browser will not animate these attributes, so the document fell back to the frame loop. | the attribute names |
 | <a id="px1105"></a>**1105** | A bind-by-id document carries no `animator.bindings`, so nothing is animated. | — |
+| <a id="px1107"></a>**1107** | A transform part is animated as its own `animate` channel (`animate.translate`, …) — the deprecated spelling: several on one node are last-write-wins. Spell it `animate.transform` (record keyframes), or `effects.transformBy` for independently-timed parts. | the channel(s) and the node |
 | <a id="px1106"></a>**1106** | A binding names no element, or names animations that `definitions.animations` does not have. | the binding |
 
 ## The mount: elements the player could not find

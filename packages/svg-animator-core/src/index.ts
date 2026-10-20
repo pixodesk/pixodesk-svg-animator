@@ -130,6 +130,7 @@ export {
     PxTransformByEffectSchema,
     PxStrokeTrimEffectSchema,
     validateDocument,
+    validateDeprecatedTransformChannels,
     validateNodeEffects,
 } from './format/PxAnimatorTypes';
 export { applyAnimatorConfig, foldTimelineOverride, mergeAnimatorConfig, suppressTriggerStart } from './playback/PxAnimatorConfigPatch';
