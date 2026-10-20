@@ -227,6 +227,10 @@ interface SvgAnimatorProps {
     start?: PxTriggerStart;                  // 'mouseOver' has no touch equivalent and is ignored;
                                           //   'click' = tap (a second tap applies mouseOut);
                                           //   visibility is measured every 200 ms
+    offScreen?: PxOffScreenAction;        // ▸ timeline.trigger.offScreen — while none of it is on screen
+    mouseOut?: PxMouseOutAction;          // ▸ timeline.trigger.mouseOut — for start: 'mouseOver'
+    visibilityThreshold?: number;         // ▸ timeline.trigger.visibilityThreshold — 0–1 on screen
+    visibilityDebounce?: number;          // ▸ timeline.trigger.visibilityDebounce — ms it must hold
 
     // Control — the highest-priority one that is set picks the mode (Control modes above)
     playAsSaved?: boolean;                   // honor the document trigger — the same defaults as the

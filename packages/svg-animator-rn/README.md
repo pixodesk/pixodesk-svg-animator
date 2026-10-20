@@ -181,6 +181,10 @@ const [time, setTime] = useState(0);
 | `delay` | `number` | Shortcut for `timeline.delay` (ms) |
 | `iterations` | `number \| 'infinite'` | Shortcut for `timeline.iterations` |
 | `start` | `PxTriggerStart` | Shortcut for `timeline.trigger.start`. `mouseOver` has no touch equivalent and is ignored |
+| `offScreen` | `PxOffScreenAction` | Shortcut for `timeline.trigger.offScreen` |
+| `mouseOut` | `PxMouseOutAction` | Shortcut for `timeline.trigger.mouseOut` (second tap, for `start: 'click'`) |
+| `visibilityThreshold` | `number` | Shortcut for `timeline.trigger.visibilityThreshold` |
+| `visibilityDebounce` | `number` | Shortcut for `timeline.trigger.visibilityDebounce` |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
 | `onFinish` | `() => void` | Called when the animation reaches its end — every iteration played, or `finish()` was called |

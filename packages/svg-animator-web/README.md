@@ -94,6 +94,10 @@ animator.destroy();             // cleanup
 | `inTime` · `outTime` · `playDuration` · `delay` | `number`        | Shortcuts for the content window (`timeline.inTime` / `.outTime`), its wall-time remap and the start delay (ms) | <!-- px names=inTime,outTime,playDuration,delay -->
 | `iterations` | `number \| 'infinite'`   | Shortcut for `timeline.iterations` |
 | `start`     | `PxTriggerStart`          | Shortcut for `timeline.trigger.start` |
+| `offScreen` | `PxOffScreenAction`       | Shortcut for `timeline.trigger.offScreen` |
+| `mouseOut`  | `PxMouseOutAction`        | Shortcut for `timeline.trigger.mouseOut` |
+| `visibilityThreshold` | `number`       | Shortcut for `timeline.trigger.visibilityThreshold` |
+| `visibilityDebounce` | `number`        | Shortcut for `timeline.trigger.visibilityDebounce` |
 
 The document plays the way it was designed with no configuration at all; `timeline` is for when
 one page needs it to play differently — the same file mounted twice at two speeds, or a file

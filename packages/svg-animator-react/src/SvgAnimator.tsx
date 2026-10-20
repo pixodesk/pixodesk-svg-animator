@@ -269,6 +269,7 @@ const SvgAnimator: FC<SvgAnimatorProps> = ({
 
     // Overrides
     timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start,
+    offScreen, mouseOut, visibilityThreshold, visibilityDebounce,
 
     onPlay, onStop, onPause, onCancel, onFinish, onDestroy,
 
@@ -311,7 +312,7 @@ const SvgAnimator: FC<SvgAnimatorProps> = ({
     // which is what every writer emits — `flattenAnimatorTimeline` overwrites those flat keys from
     // `timeline` immediately afterwards, so every one of those overrides was silently discarded.
     // See dev-docs/plans/playback-override.md §1.1.
-    const patch = foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start });
+    const patch = foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce });
     const takeOverTrigger = controlModeTakesOverTrigger(compMode);
     const fullPatch: any = takeOverTrigger ? suppressTriggerStart(patch) : patch;
 

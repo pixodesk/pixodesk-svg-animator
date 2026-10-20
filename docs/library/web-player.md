@@ -148,6 +148,10 @@ interface PxAnimatorOptions {
     start?: 'load' | 'mouseOver' | 'click' | 'none';
                                            // ▸ timeline.trigger.start — a shortcut wins over
                                            //   the same key in `timeline`
+    offScreen?: PxOffScreenAction;         // ▸ timeline.trigger.offScreen
+    mouseOut?: PxMouseOutAction;           // ▸ timeline.trigger.mouseOut (for start: 'mouseOver')
+    visibilityThreshold?: number;          // ▸ timeline.trigger.visibilityThreshold (0–1)
+    visibilityDebounce?: number;           // ▸ timeline.trigger.visibilityDebounce (ms)
 }
 ```
 

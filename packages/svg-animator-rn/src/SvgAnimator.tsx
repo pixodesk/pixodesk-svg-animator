@@ -237,7 +237,7 @@ const EMPTY_TRACKS: PxCompiledTracks = {
  * whole thing sits behind one try/catch, and so it can be tested directly.
  */
 function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides, pinPoseFill: boolean, diag: PxDiagnostics): Compiled {
-    const { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start } = overrides;
+    const { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce } = overrides;
     const warnings = validateNodeEffects(doc as PxNode);
     for (const w of warnings) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.effectsShape, w);
     // §6: per-key transform channels still play (old migrated files), but are named as deprecated
@@ -248,7 +248,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
     // The per-instance override, applied to the WIRE document BEFORE anything reads the
     // config — `materializeAllInTree` samples motion paths against `duration`, so a later
     // patch would be read by none of the pipeline. Same call, same rules, on every surface.
-    const patch = foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start });
+    const patch = foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce });
     if (patch !== undefined || resetTimeline) {
         const applied = applyAnimatorConfig(doc, patch ?? {}, { resetTimeline: !!resetTimeline });
         for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
@@ -302,6 +302,7 @@ export function SvgAnimator({
     doc, timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start,
     // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
     playAsSaved, play, pause, playMode, completeIteration, apiRef, progress: progressProp, time,
+    offScreen: offScreenProp, mouseOut: mouseOutProp, visibilityThreshold: visibilityThresholdProp, visibilityDebounce: visibilityDebounceProp,
     onPlay, onStop, onPause, onCancel, onFinish, onDestroy, onError, fallback, onWarn, muteWarn, muteError,
 }: SvgAnimatorProps): ReactElement | null {
 
@@ -331,7 +332,7 @@ export function SvgAnimator({
         try {
             return compileDocument(
                 toAnimatedSvgDocument(doc),
-                { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start },
+                { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, offScreen: offScreenProp, mouseOut: mouseOutProp, visibilityThreshold: visibilityThresholdProp, visibilityDebounce: visibilityDebounceProp },
                 compMode === PxControlMode.play,
                 makeDiag(),
             );
@@ -344,7 +345,7 @@ export function SvgAnimator({
         }
         // `timeline` is an object prop, so a fresh literal each render would recompile the whole
         // document. Key on its CONTENT — the override is small, unlike the document.
-    }, [doc, timelineKey, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, compMode]);
+    }, [doc, timelineKey, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, offScreenProp, mouseOutProp, visibilityThresholdProp, visibilityDebounceProp, compMode]);
 
     const tracks: PxCompiledTracks = compiled.tracks;
     // The span `progress` 0–1 covers (ONE iteration when endless) — NOT the seek ceiling.

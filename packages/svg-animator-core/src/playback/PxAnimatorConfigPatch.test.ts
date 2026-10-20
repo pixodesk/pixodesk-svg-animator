@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { describe, expect, it } from 'vitest';
-import { applyAnimatorConfig, mergeAnimatorConfig } from './PxAnimatorConfigPatch';
+import { applyAnimatorConfig, mergeAnimatorConfig, foldTimelineOverride } from './PxAnimatorConfigPatch';
 
 const timeBase = {
     frameRate: 60,
@@ -170,6 +170,24 @@ describe('mergeAnimatorConfig — guards', () => {
     it('an undefined base is a legal starting point', () => {
         const { config } = merge(undefined, { timeline: { outTime: 800 } });
         expect(config).toEqual({ timeline: { outTime: 800 } });
+    });
+});
+
+describe('foldTimelineOverride — flat trigger shortcuts (review §12)', () => {
+    it('folds the four trigger shortcuts into `timeline.trigger`, same as the CSS component takes', () => {
+        const patch = foldTimelineOverride(undefined, {
+            start: 'mouseOver', offScreen: 'continue', mouseOut: 'reverse',
+            visibilityThreshold: 0.25, visibilityDebounce: 300,
+        } as any);
+        expect(patch).toEqual({ timeline: { trigger: {
+            start: 'mouseOver', offScreen: 'continue', mouseOut: 'reverse',
+            visibilityThreshold: 0.25, visibilityDebounce: 300,
+        } } });
+    });
+
+    it('a shortcut wins over the same key inside the `timeline` patch', () => {
+        const patch = foldTimelineOverride({ trigger: { mouseOut: 'pause', finish: 'reset' } }, { mouseOut: 'reverse' } as any);
+        expect((patch as any).timeline.trigger).toEqual({ mouseOut: 'reverse', finish: 'reset' });
     });
 });
 

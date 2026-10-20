@@ -22,7 +22,7 @@
  * on the nested form is the only place those values mean what they say.
  */
 import { PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS } from '../format/PxAnimatorConstants';
-import type { PxTriggerStart } from '../format/PxAnimatorConstants';
+import type { PxMouseOutAction, PxOffScreenAction, PxTriggerStart } from '../format/PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxAnimatorConfig } from '../format/PxAnimatorTypes';
 
 /** A deep-partial of the WIRE animator config; `null` at any slot deletes it. @public */
@@ -136,6 +136,14 @@ export interface PxTimelineShortcuts {
      * `'none'` — "nothing starts this but a `play()` call".
      */
     start?: PxTriggerStart;
+    /** Shortcut for `timeline.trigger.offScreen` — what happens while none of it is on screen. */
+    offScreen?: PxOffScreenAction;
+    /** Shortcut for `timeline.trigger.mouseOut` — what the pointer leaving does, for `start: 'mouseOver'`. */
+    mouseOut?: PxMouseOutAction;
+    /** Shortcut for `timeline.trigger.visibilityThreshold` — how much must be on screen (0–1). */
+    visibilityThreshold?: number;
+    /** Shortcut for `timeline.trigger.visibilityDebounce` — ms the visibility must hold. */
+    visibilityDebounce?: number;
 }
 
 /**
@@ -190,9 +198,11 @@ export function foldTimelineOverride(
         base = timeline ?? undefined;
     }
 
-    const { inTime, outTime, playDuration, delay, iterations, start } = shortcuts;
+    const { inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce } = shortcuts;
     if (inTime === undefined && outTime === undefined && playDuration === undefined
-        && delay === undefined && iterations === undefined && start === undefined) {
+        && delay === undefined && iterations === undefined && start === undefined
+        && offScreen === undefined && mouseOut === undefined
+        && visibilityThreshold === undefined && visibilityDebounce === undefined) {
         return base === undefined ? undefined : { timeline: base };
     }
 
@@ -202,9 +212,14 @@ export function foldTimelineOverride(
     if (playDuration !== undefined) out.playDuration = playDuration;
     if (delay !== undefined) out.delay = delay;
     if (iterations !== undefined) out.iterations = iterations;
-    if (start !== undefined) {
-        out.trigger = { ...(out.trigger as Record<string, any> | undefined), start };
-    }
+    // the trigger shortcuts — the SAME flat names the CSS component takes (review §12)
+    const trigger: Record<string, any> = { ...(out.trigger as Record<string, any> | undefined) };
+    if (start !== undefined) trigger.start = start;
+    if (offScreen !== undefined) trigger.offScreen = offScreen;
+    if (mouseOut !== undefined) trigger.mouseOut = mouseOut;
+    if (visibilityThreshold !== undefined) trigger.visibilityThreshold = visibilityThreshold;
+    if (visibilityDebounce !== undefined) trigger.visibilityDebounce = visibilityDebounce;
+    if (Object.keys(trigger).length) out.trigger = trigger;
     return { timeline: out };
 }
 

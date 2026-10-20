@@ -250,6 +250,10 @@ interface SvgAnimatorProps {
     iterations?: number | 'infinite';     // ▸ timeline.iterations; 'infinite' never stops
     start?: PxTriggerStart;                  // ▸ timeline.trigger.start: 'load' | 'mouseOver' | 'click' |
                                           //   'none' (only a play() from code)
+    offScreen?: PxOffScreenAction;        // ▸ timeline.trigger.offScreen — while none of it is on screen
+    mouseOut?: PxMouseOutAction;          // ▸ timeline.trigger.mouseOut — for start: 'mouseOver'
+    visibilityThreshold?: number;         // ▸ timeline.trigger.visibilityThreshold — 0–1 on screen
+    visibilityDebounce?: number;          // ▸ timeline.trigger.visibilityDebounce — ms it must hold
 
     // Control — the HIGHEST-priority one that is set picks the mode (Control modes, above)
     apiRef?: React.RefObject<PxAnimatorHandle | null>;   // never a mode: filled in every mode

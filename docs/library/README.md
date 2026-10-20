@@ -79,6 +79,10 @@ a number when it differs — the note with that number, under the table, says ho
 | `delay` | ✓ | — | — | ✓ | ✓ | ✓ |
 | `iterations` | ✓ | — | — | ✓ | ✓ | ✓ |
 | `start` | ✓ | — | — | ✓ | ✓ | 5 |
+| `offScreen` | ✓ | — | — | ✓ | ✓ | ✓ |
+| `mouseOut` | ✓ | — | — | ✓ | ✓ | ✓ |
+| `visibilityThreshold` | ✓ | — | — | ✓ | ✓ | ✓ |
+| `visibilityDebounce` | ✓ | — | — | ✓ | ✓ | ✓ |
 | **Play as saved** | | | | | | |
 | `playAsSaved` | ✓ | 10 | ✓ | ✓ | ✓ | ✓ |
 | **Declarative control** | | | | | | |

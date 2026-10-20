@@ -1,7 +1,7 @@
 # First-use review — the API, the schema and the docs through a newcomer's eyes
 
 Status **2026-10-15** (two passes the same day: the exports and schemas, then every guide in
-`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented). — each closes with a **Done** note.
+`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere). — each closes with a **Done** note.
 
 Read as a first-time user would: the five packages' exports, the wire schemas, the component
 props, then the guides end to end — `README.md`, `docs/library/*`, `docs/format/README.md`,
@@ -531,13 +531,23 @@ ending per the file's `finish` action; re-entrant (a second call restarts).
   the Lottie-user expectation is answered by `cancel()`'s docs line "stop and reset to the start".
 
 
-### 12. Sibling components take different prop shapes
+### 12. Sibling components take different prop shapes ✅
 
 - **Where:** `PixodeskSvgCssAnimator` (React and Vue) takes `start`, `offScreen`, `mouseOut`,
   `visibilityThreshold`, `visibilityDebounce` as flat props; `PixodeskSvgAnimator` takes `start`
   flat and the rest only through `timeline={{ trigger: { … } }}`.
 - **Do:** one shape for both — the same flat trigger props on `PixodeskSvgAnimator`, or `timeline`
   on the CSS component.
+- **Done (2026-10-20), the first option:** the SAME flat trigger props on `SvgAnimator` —
+  `offScreen`, `mouseOut`, `visibilityThreshold`, `visibilityDebounce` joined `start` as
+  shortcuts in core's `PxTimelineShortcuts`/`foldTimelineOverride` (ONE choke point), so the
+  web `createSvgAnimator` options and all three components gained them in one move; a shortcut
+  still wins over the same key inside `timeline`. `SvgCssAnimator` is untouched — both siblings
+  now read identically: `<SvgAnimator playAsSaved start="mouseOver" mouseOut="reverse" />`.
+  Docs: shortcut tables, signature blocks, the API matrix, playback-and-triggers. Guard: two
+  fold tests (seen failing first). This also closes the §10-era note that trigger recipes needed
+  the nested patch for anything beyond `start`.
+
 
 ### 13. What is shown after the end is decided in two places
 

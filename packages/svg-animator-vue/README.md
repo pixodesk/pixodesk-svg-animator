@@ -98,6 +98,10 @@ Render a single frame — by time in milliseconds, or by fraction of the whole t
 | `delay` | `number` | Shortcut for `timeline.delay` (ms) |
 | `iterations` | `number \| 'infinite'` | Shortcut for `timeline.iterations` |
 | `start` | `'load' \| 'mouseOver' \| 'click' \| 'none'` | Shortcut for `timeline.trigger.start` |
+| `offScreen` | `PxOffScreenAction` | Shortcut for `timeline.trigger.offScreen` |
+| `mouseOut` | `PxMouseOutAction` | Shortcut for `timeline.trigger.mouseOut` |
+| `visibilityThreshold` | `number` | Shortcut for `timeline.trigger.visibilityThreshold` |
+| `visibilityDebounce` | `number` | Shortcut for `timeline.trigger.visibilityDebounce` |
 | `onWarn` | `(diagnostic) => void` | it plays, but something was ignored, degraded or misspelled; without it → `console.warn` (a prop, not an event — see below) |
 | `onError` | `(diagnostic) => void` | this instance will not play — failed to load, parse or build, or the render threw; without it → `console.error` |
 | `muteWarn` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarn`, if you gave it, still fires: mute is about the console, not about you |

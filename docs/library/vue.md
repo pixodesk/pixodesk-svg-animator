@@ -209,6 +209,10 @@ const SvgAnimator: DefineComponent<{
     delay?: number;                       // ▸ timeline.delay — the wait before the first pass, ms
     iterations?: number | 'infinite';     // 'infinite' never stops
     start?: 'load' | 'mouseOver' | 'click' | 'none';
+    offScreen?: PxOffScreenAction;        // ▸ timeline.trigger.offScreen
+    mouseOut?: PxMouseOutAction;          // ▸ timeline.trigger.mouseOut (for start: 'mouseOver')
+    visibilityThreshold?: number;         // ▸ timeline.trigger.visibilityThreshold (0–1)
+    visibilityDebounce?: number;          // ▸ timeline.trigger.visibilityDebounce (ms)
 
     // Control — the highest-priority one that is set picks the mode (Control modes above)
     playAsSaved?: boolean;                   // start the way the file says — the editor's Start setting
@@ -298,6 +302,10 @@ import AnimationSvg from './animation.svg';   // vite-svg-loader
 // The SVG goes in the default slot; every other attribute (class, style, …) lands on the wrapper div.
 const SvgCssAnimator: DefineComponent<{
     start?: PxTriggerStart;               // 'load' (default) | 'mouseOver' | 'click'
+    offScreen?: PxOffScreenAction;        // ▸ timeline.trigger.offScreen
+    mouseOut?: PxMouseOutAction;          // ▸ timeline.trigger.mouseOut (for start: 'mouseOver')
+    visibilityThreshold?: number;         // ▸ timeline.trigger.visibilityThreshold (0–1)
+    visibilityDebounce?: number;          // ▸ timeline.trigger.visibilityDebounce (ms)
                                           //   — 'none' does nothing here (no play())
     offScreen?: PxOffScreenAction;        // 'pause' (default) | 'continue' | 'reset' — what happens
                                           //   while nobody can see it, whatever started it

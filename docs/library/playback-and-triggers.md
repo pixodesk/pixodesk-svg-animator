@@ -269,6 +269,10 @@ The keys people reach for most also exist as plain props / options, because
 | `delay` | `timeline.delay` |
 | `iterations` | `timeline.iterations` |
 | `start` | `timeline.trigger.start` |
+| `offScreen` | `timeline.trigger.offScreen` |
+| `mouseOut` | `timeline.trigger.mouseOut` |
+| `visibilityThreshold` | `timeline.trigger.visibilityThreshold` |
+| `visibilityDebounce` | `timeline.trigger.visibilityDebounce` |
 
 A shortcut wins over the same key inside `timeline`, the way an inline style beats a stylesheet.
 
