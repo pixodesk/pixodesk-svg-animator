@@ -1826,7 +1826,7 @@ const _ck_PxEffects: KeysMatch<PxEffects, _PxEffects> = true;
  * Doesn't mutate the tree. Called by `createAnimatorImpl` before applying effects.
  *
  * Pass `strict: true` to also flag undeclared keys (useful in dev / tests).
- * @public @advanced
+ * @internal — folded into `validateDocument`; on the `/internal` entry for the players.
  */
 export function validateNodeEffects(root: PxNode, options?: { strict?: boolean }): Array<string> {
     const ctx = newCollectingContext(!!options?.strict);
@@ -1844,7 +1844,7 @@ const PX_PER_KEY_TRANSFORM_CHANNELS = ['translate', 'rotate', 'scale', 'skew', '
  * for files migrated from the pre-record era; new documents spell it `animate.transform`
  * (record keyframes), or `effects.transformBy` when the parts need independent timing.
  * Returns one human-readable warning per offending node (empty when all good); never mutates.
- * @public @advanced
+ * @internal — the players run it on load (PX1107); on the `/internal` entry.
  */
 export function validateDeprecatedTransformChannels(root: PxNode): Array<string> {
     const warnings: Array<string> = [];
@@ -1956,6 +1956,7 @@ function collectGlyphFontRefProblems(root: PxNode, fonts: { [face: string]: unkn
  * Only the wire spelling `easing` is read. The runtime view's `e` is an already-RESOLVED curve,
  * never a name, so it has nothing to cross-check.
  */
+/** @internal — folded into `validateDocument`; on the `/internal` entry for the editor. */
 export function validateEasingRefs(root: PxNode, easings: { [name: string]: unknown; } | undefined): Array<string> {
     const ctx = newCollectingContext(false);
     collectEasingRefProblems(root, easings, ctx);
@@ -1991,6 +1992,7 @@ function collectEasingRefProblems(root: PxNode, easings: { [name: string]: unkno
  *
  * An ABSENT stamp is legal and silent: only a present-but-unparseable one is reported.
  */
+/** @internal — folded into `validateDocument`; on the `/internal` entry for the editor. */
 export function validateVersionStamp(doc: PxAnimatedSvgDocument): Array<string> {
     const ctx = newCollectingContext(false);
     collectVersionStampProblems(doc, ctx);
@@ -2006,15 +2008,20 @@ function collectVersionStampProblems(doc: PxAnimatedSvgDocument, ctx: PxValidati
 }
 
 /**
- * Validates a WHOLE document against the wire schema — strictly, so undeclared keys are
- * reported too — plus every node's `effects` bucket and the glyph-font references. Returns
- * human-readable problems (`path: what is wrong`), empty when the document is sound; never
- * throws. The player itself only warns and skips what it cannot read; this is the one call
- * for tooling, CI and agents that want a yes/no answer before shipping a document.
+ * THE one validation call (review §15). Checks a WHOLE document against the wire schema — plus
+ * every node's `effects` bucket, the glyph-font and easing references and the version stamp —
+ * and answers `{ valid, errors, findings }`: human-readable problem lines (`path: what is
+ * wrong`) and their structured twins. Never throws. `strict` (the default) rejects keys the
+ * schema does not declare — the right answer before you ship; `{ strict: false }` tolerates
+ * them, which is what a READER wants: an unknown key usually means a newer writer. The player
+ * itself only warns and skips what it cannot read; this is the yes/no for tooling, CI and
+ * agents. The only other public check is the `isPxDocument` type guard — everything narrower
+ * (`validateNodeEffects`, `diagnoseDocument`, …) is plumbing on the `/internal` entry.
  * @public
  */
-export function validateDocument(doc: unknown, options?: { strict?: boolean }): Array<string> {
-    return collectDocumentProblems(doc, options).errors;
+export function validateDocument(doc: unknown, options?: { strict?: boolean }): PxValidationResult {
+    const { errors, findings } = collectDocumentProblems(doc, options);
+    return { valid: errors.length === 0, errors, findings };
 }
 
 /** The one validator behind {@link validateDocument} and {@link isValidPxDocument}: every problem
@@ -2437,7 +2444,8 @@ export type PxEngineAnimatorApi<TRoot = unknown> = Omit<PxAnimatorApi<TRoot>, 'p
 // DEEP VALIDATION
 // ============================================================================
 
-/** @public @advanced */
+/** What {@link validateDocument} answers: the yes/no, the problem lines, and their structured
+ *  twins for code that must BRANCH on what went wrong. @public */
 export interface PxValidationResult {
     valid: boolean;
     errors: Array<string>;
@@ -2446,16 +2454,11 @@ export interface PxValidationResult {
 }
 
 /**
- * The pass/fail form of {@link validateDocument}, NON-strict — unknown keys are tolerated —
- * for readers that want a flag plus messages rather than a list.
- *
- * One implementation (review §10). This used to run the schema on its own and answer
- * `'Document failed schema validation'` without ever saying what failed; now every problem
- * `validateDocument` can name comes back with its path. Non-strict on purpose: the editor calls
- * this on OPEN, where a key from a newer version is worth a warning, never a refusal.
- * @public @advanced
+ * The pre-§15 spelling of `validateDocument(doc, { strict: false })` — kept on the `/internal`
+ * entry for the editor's read path; new code calls `validateDocument`. (The `is` prefix lied:
+ * it returns an object, not a boolean.)
+ * @internal
  */
 export function isValidPxDocument(doc: unknown): PxValidationResult {
-    const { errors, findings } = collectDocumentProblems(doc, { strict: false });
-    return { valid: errors.length === 0, errors, findings };
+    return validateDocument(doc, { strict: false });
 }

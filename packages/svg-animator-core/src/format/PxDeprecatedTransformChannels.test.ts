@@ -8,7 +8,7 @@
 // `effects.transformBy` for independently-timed parts, is the spelling.
 import { describe, expect, it } from 'vitest';
 import type { PxNode } from '../index';
-import { validateDeprecatedTransformChannels } from '../index';
+import { validateDeprecatedTransformChannels } from '../internal';
 
 const kfs = { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [9, 9] }] };
 

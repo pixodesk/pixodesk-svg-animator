@@ -25,7 +25,10 @@ export { extendedPathForBrowser } from './effects/text/textPathEffect';
 export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PX_TEXT_CONTENT_ATTR, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM } from './format/PxAnimatorConstants';
 export { keyframeEasing, keyframeValue } from './format/PxAnimatorTypes';
 export type { PxAnimatable, PxAnyKeyframe, PxNormalizedKeyframe, PxNormalizedPropertyAnimation } from './format/PxAnimatorTypes';
-export { reportDocumentDiagnostics } from './format/PxDocumentDiagnostic';
+export { diagnoseDocument, reportDocumentDiagnostics } from './format/PxDocumentDiagnostic';
+// The narrow document checkers (review §15): `validateDocument` on the MAIN entry is the one
+// public answer; these are the plumbing it is built from, for players and the editor.
+export { isValidPxDocument, validateDeprecatedTransformChannels, validateEasingRefs, validateNodeEffects, validateVersionStamp } from './format/PxAnimatorTypes';
 export type { PxMaterializeAllOptions } from './materialize/PxAnimatorMaterializeAll';
 export { prepareDocumentForRender } from './materialize/PxAnimatorMaterializeAll';
 export { renderPxTree } from './render/PxRenderTree';

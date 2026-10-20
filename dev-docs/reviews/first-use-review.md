@@ -1,7 +1,7 @@
 # First-use review — the API, the schema and the docs through a newcomer's eyes
 
 Status **2026-10-15** (two passes the same day: the exports and schemas, then every guide in
-`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4), §14 (onReady + getDuration). — each closes with a **Done** note.
+`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4), §14 (onReady + getDuration), §15 (one validateDocument → { valid, errors, findings }). — each closes with a **Done** note.
 
 Read as a first-time user would: the five packages' exports, the wire schemas, the component
 props, then the guides end to end — `README.md`, `docs/library/*`, `docs/format/README.md`,
@@ -593,7 +593,7 @@ ending per the file's `finish` action; re-entrant (a second call restarts).
   null→value transition).
 
 
-### 15. Five ways to check a document
+### 15. Five ways to check a document ✅
 
 | Function | Returns |
 |---|---|
@@ -609,6 +609,19 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
 
 - **Do:** one public `validateDocument` returning `{ valid, errors, findings }` plus the
   `isPxDocument` guard; move the rest to `/internal`; lead the section with it.
+- **Done (2026-10-21):** ONE public deep check — `validateDocument(doc, { strict? })` now
+  returns **`{ valid, errors, findings }`** (`PxValidationResult`, retagged plain `@public`) —
+  plus the `isPxDocument` guard (retagged plain `@public`); everything narrower moved to
+  `@pixodesk/svg-animator-core/internal`: `isValidPxDocument` (now a thin alias of
+  `validateDocument(doc, { strict: false })`, kept for the editor's read path),
+  `diagnoseDocument`, `validateNodeEffects`, `validateDeprecatedTransformChannels`,
+  `validateEasingRefs`, `validateVersionStamp`. The format guide's "Validating a document" now
+  LEADS with `validateDocument` + the guard and no longer teaches the raw schema call or the
+  `is`-prefixed object-returner; the mode table describes `validateDocument`'s own two modes.
+  Players import the walkers from `/internal`; the editor's read-time validation switched to
+  `validateDocument(…, { strict: false })` and the preview check script reads `.errors`.
+  All suites + docs-check green in both repos.
+
 
 ### 16. Two version constants for one fact
 

@@ -32,11 +32,11 @@ function doc(fonts: Record<string, unknown> | undefined, span: Record<string, un
 describe('validateDocument — glyph-mode text must name an embedded face (§2.5)', () => {
 
     it('accepts a face that IS embedded', () => {
-        expect(validateDocument(doc({ 'Roboto-Regular': FACE }, { fontFamily: 'Roboto-Regular' }))).toEqual([]);
+        expect(validateDocument(doc({ 'Roboto-Regular': FACE }, { fontFamily: 'Roboto-Regular' })).errors).toEqual([]);
     });
 
     it('reports a face that is NOT embedded, naming it and where', () => {
-        const problems = validateDocument(doc({ 'Roboto-Regular': FACE }, { fontFamily: 'Roboto-Bold' }));
+        const problems = validateDocument(doc({ 'Roboto-Regular': FACE }, { fontFamily: 'Roboto-Bold' })).errors;
         expect(problems).toHaveLength(1);
         expect(problems[0]).toContain('Roboto-Bold');
         expect(problems[0]).toContain('animator.definitions.fonts');
@@ -48,26 +48,26 @@ describe('validateDocument — glyph-mode text must name an embedded face (§2.5
         // problem belongs to the node that declares the name — not to every descendant too.
         const d: any = doc({ 'Roboto-Regular': FACE }, {});
         d.children[0].fontFamily = 'Roboto-Bold';
-        const problems = validateDocument(d);
+        const problems = validateDocument(d).errors;
         expect(problems).toHaveLength(1);
         expect(problems[0]).toContain('root.children[0]:');
 
         d.children[0].fontFamily = 'Roboto-Regular';
-        expect(validateDocument(d)).toEqual([]);
+        expect(validateDocument(d).errors).toEqual([]);
     });
 
     //// ── deliberate silences ────────────────────────────────────────────────
 
     it('says nothing when the document embeds NO faces (browser-font text)', () => {
-        expect(validateDocument(doc(undefined, { fontFamily: 'sans-serif' }))).toEqual([]);
+        expect(validateDocument(doc(undefined, { fontFamily: 'sans-serif' })).errors).toEqual([]);
     });
 
     it('says nothing when a node carries no font-family (the soleFont path)', () => {
-        expect(validateDocument(doc({ 'Roboto-Regular': FACE }, {}))).toEqual([]);
+        expect(validateDocument(doc({ 'Roboto-Regular': FACE }, {})).errors).toEqual([]);
     });
 
     it('says nothing about a face nothing references — keeping it is legal', () => {
         // Glyph mode OFF, outlines retained so toggling it back on needs no font reload.
-        expect(validateDocument(doc({ 'Roboto-Regular': FACE }, { fontFamily: 'sans-serif' }, false))).toEqual([]);
+        expect(validateDocument(doc({ 'Roboto-Regular': FACE }, { fontFamily: 'sans-serif' }, false)).errors).toEqual([]);
     });
 });

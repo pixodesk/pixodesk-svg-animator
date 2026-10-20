@@ -37,6 +37,7 @@ export type {
     PxWireConversionOptions,
 } from './version/PxWireVersion';
 export type { PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, PxValidationFinding, PxRemoveIndex } from './schema/PxSchema';
+export type { PxValidationResult } from './format/PxAnimatorTypes';
 export { PxValidationFindingKind } from './schema/PxSchema';
 
 // Wire-format schemas
@@ -56,7 +57,6 @@ export type { PxEngineAnimatorApi, PxAnimatedSvgDocument, PxDocumentInput, PxAni
 // and `start?: PxTriggerStart` from one import.
 export { PxFillMode, PxMouseOutAction, PxOffScreenAction, PxPlaybackDirection, PxTriggerStart } from './format/PxAnimatorConstants';
 
-export { isValidPxDocument } from './format/PxAnimatorTypes';
 export { getBindings, getChildren, getDefinitions } from './format/PxAnimatorConstants';
 export { getAnimatorConfig, isPxDocument, flattenAnimatorTimeline, nestAnimatorTimeline } from './format/PxAnimatorConstants';
 
@@ -132,11 +132,8 @@ export {
     PxTransformByEffectSchema,
     PxStrokeTrimEffectSchema,
     validateDocument,
-    validateDeprecatedTransformChannels,
-    validateNodeEffects,
 } from './format/PxAnimatorTypes';
 export { applyAnimatorConfig, foldTimelineOverride, mergeAnimatorConfig, suppressTriggerStart } from './playback/PxAnimatorConfigPatch';
-export { diagnoseDocument } from './format/PxDocumentDiagnostic';
 export type { PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxTimelineShortcuts, PxTimelinePatch } from './playback/PxAnimatorConfigPatch';
 export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxUnits, PxMaskType, PxPathOverflow, PxLengthAdjust, PxTextPathMethod, PxTextPathSpacing } from './format/PxAnimatorConstants';
 // The remaining wire enums (review §2.7). `PxFillMode` / `PxOffScreenAction` / `PxMouseOutAction` /

@@ -46,15 +46,15 @@ function withEasing(easing: unknown, easings?: Record<string, unknown>) {
 describe('validateDocument — a named easing must be defined (§2.9)', () => {
 
     it('accepts a name that IS defined', () => {
-        expect(validateDocument(withEasing('softDrop', { softDrop: [0.33, 0, 0.2, 1] }))).toEqual([]);
+        expect(validateDocument(withEasing('softDrop', { softDrop: [0.33, 0, 0.2, 1] })).errors).toEqual([]);
     });
 
     it('accepts an inline cubic-bezier array — nothing to cross-check', () => {
-        expect(validateDocument(withEasing([0.4, 0, 0.6, 1], { softDrop: [0.33, 0, 0.2, 1] }))).toEqual([]);
+        expect(validateDocument(withEasing([0.4, 0, 0.6, 1], { softDrop: [0.33, 0, 0.2, 1] })).errors).toEqual([]);
     });
 
     it('reports a CSS keyword, which is exactly the silent mistake', () => {
-        const problems = validateDocument(withEasing('ease-in-out', { softDrop: [0.33, 0, 0.2, 1] }));
+        const problems = validateDocument(withEasing('ease-in-out', { softDrop: [0.33, 0, 0.2, 1] })).errors;
         expect(problems).toHaveLength(1);
         expect(problems[0]).toContain('ease-in-out');
         expect(problems[0]).toContain('definitions.easings');
@@ -62,34 +62,34 @@ describe('validateDocument — a named easing must be defined (§2.9)', () => {
     });
 
     it('reports a name when the document defines NO easings at all', () => {
-        expect(validateDocument(withEasing('softDrop'))).toHaveLength(1);
+        expect(validateDocument(withEasing('softDrop')).errors).toHaveLength(1);
     });
 
     it('says nothing when no keyframe names an easing', () => {
-        expect(validateDocument(doc({ timeline: { outTime: 1000 } }))).toEqual([]);
+        expect(validateDocument(doc({ timeline: { outTime: 1000 } })).errors).toEqual([]);
     });
 });
 
 describe('validateDocument — the version stamp must parse (§2.10)', () => {
 
     it('accepts "a.b.c" and "a.b"', () => {
-        expect(validateDocument(doc({ version: '1.1.1' }))).toEqual([]);
-        expect(validateDocument(doc({ version: '2.0' }))).toEqual([]);
+        expect(validateDocument(doc({ version: '1.1.1' })).errors).toEqual([]);
+        expect(validateDocument(doc({ version: '2.0' })).errors).toEqual([]);
     });
 
     it('accepts an ABSENT stamp — unstamped is legal', () => {
-        expect(validateDocument(doc({ timeline: { outTime: 1000 } }))).toEqual([]);
+        expect(validateDocument(doc({ timeline: { outTime: 1000 } })).errors).toEqual([]);
     });
 
     it('reports a stamp that does not parse', () => {
-        const problems = validateDocument(doc({ version: 'v1' }));
+        const problems = validateDocument(doc({ version: 'v1' })).errors;
         expect(problems).toHaveLength(1);
         expect(problems[0]).toContain('animator.version');
         expect(problems[0]).toContain('unstamped');
     });
 
     it('reports a nearly-right stamp too', () => {
-        expect(validateDocument(doc({ version: '1.1.1-beta' }))).toHaveLength(1);
-        expect(validateDocument(doc({ version: '1' }))).toHaveLength(1);
+        expect(validateDocument(doc({ version: '1.1.1-beta' })).errors).toHaveLength(1);
+        expect(validateDocument(doc({ version: '1' })).errors).toHaveLength(1);
     });
 });

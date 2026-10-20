@@ -765,7 +765,7 @@ a document.
   is not an error and is not reported; one whose value is an object is.
 
 To check a generated document before it ships, call `validateDocument(doc)` — see
-[Validating a document](#validating-a-document). It returns the same problem strings, `[]` when
+[Validating a document](#validating-a-document). Its `errors` are the same problem strings, empty when
 the document is sound. [SCHEMA.json](../../SCHEMA.json) is a JSON Schema generated from the same
 runtime schemas (`node scripts/gen-schema-json.mjs`), for tools that validate JSON themselves.
 
@@ -1294,31 +1294,26 @@ npm install @pixodesk/svg-animator-core
 
 ### Validating a document
 
-Validate a document before it reaches a player — in a build step, a test, or a tool that
-accepts files from users:
+ONE call answers everything (review §15): `validateDocument(doc)` checks the whole document —
+the wire schema, every node's `effects` bucket, the glyph-font and easing references, the
+version stamp — and returns a `PxValidationResult`:
 
 ```ts
-import { isPxDocument, isValidPxDocument, PxAnimatedSvgDocumentSchema, PxValidationFindingKind,
-         type PxValidationContext, type PxValidationFinding } from '@pixodesk/svg-animator-core';
+// Check a generated document before it ships — a build step, a test, a tool taking user files
+import { validateDocument, isPxDocument } from '@pixodesk/svg-animator-core';   // also exported by the web player
 import { readFile } from 'node:fs/promises';
 
 const json = JSON.parse(await readFile('animation.json', 'utf8'));   // Node — or fetch() in a browser
 
-isPxDocument(json);        // cheap shallow gate — is this a Pixodesk document at all?
-isValidPxDocument(json);    // { valid, errors, findings } — full schema
+if (!isPxDocument(json)) throw new Error('not a Pixodesk document');  // the cheap shallow gate
 
-// per-field diagnostics
-const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
-if (!PxAnimatedSvgDocumentSchema.isValid(json, ctx, [])) console.error(ctx.errors);
-// → ["children[0].effects.strokeTrim.range: no union member matched for value 5"]
+const { valid, errors, findings } = validateDocument(json);
+if (!valid) throw new Error(errors.join('\n'));    // "path: what is wrong", one line per problem
 
-// Code that must BRANCH on what went wrong reads findings, never the text. `findings` is the
-// structured twin of `errors`: one PxValidationFinding per line, with a PxValidationFindingKind
-// and the path as segments.
-const findings: Array<PxValidationFinding> = [];
-PxAnimatedSvgDocumentSchema.isValid(json, { errors: [], warnings: [], findings, strict: true }, []);
+// Code that must BRANCH on what went wrong reads `findings`, never the text — the structured
+// twin of `errors`: one PxValidationFinding per line, with a PxValidationFindingKind and the
+// path as segments: { kind, path: ['children', '[0]', …], reason, message, expected?, memberFindings? }
 const writtenByNewerVersion = findings.some(f => f.kind === PxValidationFindingKind.unknownKey);
-// → each finding: { kind, path: ['children', '[0]', …], reason, message, expected?, memberFindings? }
 ```
 
 The kinds are `unknownKey` (a key the schema does not declare — only reported under `strict`),
@@ -1331,19 +1326,12 @@ malformed value and never counts as the document's own unknown key.
 <!-- px-check off validation modes, prose -->
 | Mode | Question it answers | Unknown keys |
 |---|---|---|
-| default | *is this document usable?* — what the players accept | ignored (forward-compatible) |
-| `strict: true` | *is this document exactly well-formed?* | reported as errors |
+| `validateDocument(doc)` — strict, the default | *is this document exactly well-formed?* — before you ship | reported as errors |
+| `validateDocument(doc, { strict: false })` | *is this document usable?* — what a reader accepts | tolerated (forward-compatible: an unknown key usually means a newer writer) |
 
-Use the default in production readers and `strict` in tests and tooling.
-`validateDocument(doc)` checks the whole document strictly and returns problem strings (`path: what is wrong`), empty when sound; `validateNodeEffects(doc)` checks just the `effects` buckets and returns warning strings.
-
-```ts
-// Check a generated document before it ships
-import { validateDocument } from '@pixodesk/svg-animator-core';   // also exported by the web player
-
-const problems = validateDocument(doc);   // [] when the document is sound
-if (problems.length) throw new Error(problems.join('\n'));
-```
+These two are the whole public checking surface — `validateDocument` and the `isPxDocument`
+guard. The narrower checkers it is built from (per-part walkers, the raw schema calls) live on
+`@pixodesk/svg-animator-core/internal` for the players and the editor.
 
 ### Reading a document
 
@@ -1445,20 +1433,21 @@ function materializeAllInTree(
 // ○ One stage of it: `node.effects` → plain renderable nodes (+ generated defs).
 function materializeNodeEffects(root: PxNode): ApplyResult;
 
-// ● The whole-document check: the strict wire schema (undeclared keys included)
-//   plus every `effects` bucket. Returns human-readable problems (`path: what is
-//   wrong`), empty when the document is sound; never throws. Every player runs the
-//   same check on load and prints the problems as one console warning — call this
-//   before shipping a document instead of relying on the console.
-function validateDocument(doc: unknown, options?: { strict?: boolean }): Array<string>;
+// ● The cheap shallow gate — "is this a Pixodesk document at all?" (a type guard). With
+//   `validateDocument` below, the whole public checking surface (review §15).
+function isPxDocument(doc: any): boolean;   // a type guard: true narrows to PxAnimatedSvgDocument
+
+// ● THE whole-document check (review §15 — the ONE public answer): the wire schema (undeclared
+//   keys included under strict), every `effects` bucket, the glyph-font and easing references
+//   and the version stamp. Answers `{ valid, errors, findings }`: problem lines
+//   (`path: what is wrong`) and their structured twins; never throws. Every player runs the
+//   same check on load and prints the problems as one console warning — call this before
+//   shipping a document instead of relying on the console.
+function validateDocument(doc: unknown, options?: { strict?: boolean }): PxValidationResult;
 //   `strict` (default true) rejects keys the schema does not declare — right before you ship.
 //   `{ strict: false }` tolerates them, which is what a READER wants: an unknown key usually
-//   means a newer writer — worth a warning, never a refusal.
-
-// ○ Check every `node.effects` bucket against the schema, depth-first. Returns
-//   human-readable warnings (each prefixed with the node's path) and never
-//   throws; the players run this on load and log whatever comes back.
-function validateNodeEffects(root: PxNode, options?: { strict?: boolean }): Array<string>;
+//   means a newer writer — worth a warning, never a refusal. The narrower checkers live on
+//   the `/internal` entry.
 
 // ── Declarative playback plumbing (review §10) — what the React / Vue / React Native
 // components are built FROM, public for anyone building a component of their own. ●
@@ -1476,13 +1465,6 @@ function validateNodeEffects(root: PxNode, options?: { strict?: boolean }): Arra
 //   `composeApiExtras(api: PxPlayOnceTarget, cfg: PxPlayOnceConfig, raf)` completes any engine
 //   or handle with the COMPOSED members — the one-pass `playOnce()` and `getDuration()`. `PxEngineAnimatorApi` is what an engine
 //   constructs — the full api minus the composed `playOnce`.
-
-// ○ Flag the DEPRECATED per-key transform channels (`animate.translate`, `animate.rotate`, …)
-//   on any node, depth-first — still read for files migrated from older versions, but two on
-//   one node are last-write-wins, so the players warn (PX1107 on the diagnostics page). New
-//   documents spell the pose `animate.transform` (record keyframes), or `effects.transformBy`
-//   for independently-timed parts. Returns human-readable warnings; never throws.
-function validateDeprecatedTransformChannels(root: PxNode): Array<string>;
 
 // ● Per-instance playback override, shared by every player. `patch` is a
 //   deep-partial of the document's `animator` block; objects merge key by key,
@@ -1565,8 +1547,8 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 | Enum values | `PxTimelineEngineSetting`, `PxTimelineEngine`, `PxGradientType`, `PxUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout` (`clone.without` → `'translate'`), `PxMaskType`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing`, `PxFillMode`, `PxPlaybackDirection`, `PxTriggerStart`, `PxOffScreenAction`, `PxMouseOutAction`, `PxFinishAction`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings — each is a const namespace AND the type derived from it, so `PxTriggerStart.click` and `start?: PxTriggerStart` come from one import |
 | Schema version | `PX_WIRE_SCHEMA_VERSION`, `PX_WIRE_VERSION`, `PX_WIRE_BASELINE_VERSION`, `PX_WIRE_STEPS`, `PX_WIRE_VERSION_KEY`, `PxWireVersionRelation`, `parseWireVersion`, `formatWireVersion`, `readWireVersion`, `compareWireVersion`, `wireVersionAdvice`, `convertWireDocument`, `downgradeWireDocument`, `applyWireSteps`, + `PxWireVersion`, `PxWireVersionStep`, `PxWireConversionResult`, `PxWireStepKind`, `PxWireConversionOptions` | ○ read, compare and convert a document's `animator.version` — [Versioning](#versioning) |
 | Schema release | `schemaFieldUniverse`, `diffFieldUniverse`, `planSchemaRelease`, `releaseLogProblems` | ▪ the field inventory and bump rule behind `scripts/schema-release.mjs` |
-| Diagnostics | `diagnoseDocument(doc)` (○) → (`{ problems }`), `reportDocumentDiagnostics(doc, where)`, `PX_UNKNOWN_KEY_ERROR`, `PX_VALIDATION_ROOT_SEGMENT` | ▪ the load-time check every player runs; call `validateDocument` instead |
-| Validation | `isPxDocument`, `isValidPxDocument`| ○ a cheap "is this a Pixodesk document" gate / the pass-fail form of `validateDocument`, NON-strict, with every message it can name |
+| Diagnostics | `diagnoseDocument(doc)` → (`{ problems }`), `reportDocumentDiagnostics(doc, where)`, `PX_UNKNOWN_KEY_ERROR`, `PX_VALIDATION_ROOT_SEGMENT` | ▪ the load-time check every player runs; call `validateDocument` instead |
+| Validation | `isPxDocument`, `validateDocument(doc, options?)` → `PxValidationResult` | ● the shallow guard, and THE one deep check: `{ valid, errors, findings }` (review §15). `isValidPxDocument`, `validateNodeEffects`, `validateDeprecatedTransformChannels`, `validateEasingRefs`, `validateVersionStamp` (▪) moved to `/internal` |
 | Document accessors | `getAnimatorConfig`, `getChildren`, `getBindings`, `getDefinitions` | ○ read a document without knowing its internals |
 | Timeline shape | `flattenAnimatorTimeline`, `nestAnimatorTimeline`, `PxAnimatorRuntimeConfig` | ○ nested `timeline` object ⇄ the flat runtime view (`PxAnimatorRuntimeConfig`, what `getAnimatorConfig` returns) |
 | Playback override | `PxTimelinePatch`, `PxPlaybackOverride`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult`, `PxTimelineShortcuts` | ● the `timeline` override as every player takes it, and the companion types of the three merge functions above |

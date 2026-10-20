@@ -631,7 +631,8 @@ export type PxGradientType = typeof PxGradientType[keyof typeof PxGradientType];
 // HELPER FUNCTIONS
 // ============================================================================
 
-/** @public @advanced */
+/** The cheap shallow gate — "is this a Pixodesk document at all?". With `validateDocument`,
+ *  the whole public checking surface (review §15). @public */
 export function isPxDocument(doc: any): doc is PxAnimatedSvgDocument {
     if (!(
         doc &&

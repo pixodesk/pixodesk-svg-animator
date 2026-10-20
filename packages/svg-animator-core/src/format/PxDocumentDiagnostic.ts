@@ -36,10 +36,11 @@ export interface PxDocumentDiagnosis {
     problems: Array<string>;
 }
 
-/** Pure: collect a document's schema findings. Never throws. @public @advanced */
+/** Pure: collect a document's schema findings. Never throws. Plumbing behind
+ *  `reportDocumentDiagnostics` — `validateDocument` is the public answer (review §15). @internal */
 export function diagnoseDocument(doc: unknown): PxDocumentDiagnosis {
     try {
-        return { problems: validateDocument(doc) };
+        return { problems: validateDocument(doc).errors };
     } catch {
         return { problems: [] };   // a diagnostic must never be the thing that breaks
     }

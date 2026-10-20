@@ -27,25 +27,25 @@ const clipped = (fx: unknown) => ({
 describe('path data spelling', () => {
 
     it('a `d` keyframe carries its geometry under `pathData`', () => {
-        expect(validateDocument(animatedD({ pathData: 'M0,0L10,10' }))).toEqual([]);
+        expect(validateDocument(animatedD({ pathData: 'M0,0L10,10' })).errors).toEqual([]);
     });
 
     it('the old `{path}` wrapper is a schema error', () => {
-        expect(validateDocument(animatedD({ path: 'M0,0L10,10' })).length).toBeGreaterThan(0);
+        expect(validateDocument(animatedD({ path: 'M0,0L10,10' })).errors.length).toBeGreaterThan(0);
     });
 
     it('the legacy `{paths: [{v,i,o,c}]}` bezier-array form is gone', () => {
         const legacy = { paths: [{ v: [[0, 0], [10, 10]], i: [[0, 0], [0, 0]], o: [[0, 0], [0, 0]], c: true }] };
-        expect(validateDocument(animatedD(legacy)).length).toBeGreaterThan(0);
+        expect(validateDocument(animatedD(legacy)).errors.length).toBeGreaterThan(0);
     });
 
     it('the clip-path effect states its geometry as `pathData`, not `d`', () => {
-        expect(validateDocument(clipped({ pathData: 'M0,0L10,10' }))).toEqual([]);
-        expect(validateDocument(clipped({ d: 'M0,0L10,10' })).length).toBeGreaterThan(0);
+        expect(validateDocument(clipped({ pathData: 'M0,0L10,10' })).errors).toEqual([]);
+        expect(validateDocument(clipped({ d: 'M0,0L10,10' })).errors.length).toBeGreaterThan(0);
     });
 
     it('an animated clip path takes the same keyframe values as a body `d`', () => {
         const fx = { pathData: { keyframes: [{ time: 0, value: { pathData: 'M0,0L1,1' } }, { time: 100, value: { pathData: 'M0,0L2,2' } }] } };
-        expect(validateDocument(clipped(fx))).toEqual([]);
+        expect(validateDocument(clipped(fx)).errors).toEqual([]);
     });
 });
