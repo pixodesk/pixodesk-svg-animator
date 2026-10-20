@@ -6,7 +6,7 @@
 import type { PxAnimatedSvgDocument, PxAnimatorApi, PxTimelineEngineSetting, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimator, PxDiagnosticKind, type PxPlaybackOverride, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, foldTimelineOverride, toAnimatedSvgDocument, type PxDocumentInput, getAnimatorConfig, PxDiagnosticCode, PxControlMode, resolveControlMode, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, applyDeclarativeAction, createIterationStopWatcher, foldTimelineOverride, toAnimatedSvgDocument, type PxDocumentInput, getAnimatorConfig, PxDeclarativeAction, type PxDeclarativeProps, PxDiagnosticCode, PxControlMode, PxFillMode, PxPlaybackWorld, PxPlayMode, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
@@ -66,6 +66,14 @@ function applyDocOverrides(
         const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetTimeline: !!resetTimeline });
         for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
         doc = applied.doc;
+    }
+
+    // §10: in the play tier's ONE-SHOT world the pose contract beats `fillMode` — pin both
+    // sides, so the held poses are the same on every file (a `fillMode: 'none'` document would
+    // otherwise revert to its static attrs after the run).
+    if (compMode === PxControlMode.play
+        && resolvePlaybackWorld((getAnimatorConfig(doc) || {}).iterations) === PxPlaybackWorld.oneShot) {
+        doc = applyAnimatorConfig(doc, { timeline: { fillMode: PxFillMode.both } }).doc;
     }
 
     return doc;
@@ -149,6 +157,8 @@ const SvgAnimator = defineComponent({
         playAsSaved: { type: Boolean, default: undefined },
         play: { type: Boolean, default: undefined },
         pause: { type: Boolean, default: undefined },
+        playMode: { type: String as PropType<PxPlayMode | `${PxPlayMode}`> },
+        completeIteration: { type: Boolean, default: undefined },
 
         // -- Controlled time
         progress: { type: Number },
@@ -263,30 +273,69 @@ const SvgAnimator = defineComponent({
 
             // (Re)apply the declarative control state to the fresh animator —
             // covers both the initial mount (e.g. `:play="true"` from the
-            // start) and doc swaps.
+            // start) and doc swaps. The fresh instance has seen nothing: mount semantics.
+            prevPlayback = null;
+            pendingStop?.();
+            pendingStop = null;
             syncPlayState();
             applySeek();
         }
 
         function destroyApi() {
+            pendingStop?.();
+            pendingStop = null;
             apiRef.value?.destroy();
             apiRef.value = null;
         }
 
-        /** Declarative play/pause → animator calls. */
+        /** The last APPLIED declarative props — `null` until the fresh animator saw one apply. */
+        let prevPlayback: PxDeclarativeProps | null = null;
+        let pendingStop: (() => void) | null = null;
+
+        /** The run's geometry for the executor guards (§10). */
+        function playbackGeometry() {
+            const view = getAnimatorConfig(resolvedDoc.value) || {};
+            const passMs = view.duration ?? PX_DEFAULT_DURATION_MS;
+            const totalMs = view.iterations === 'infinite' ? Infinity
+                : passMs * (typeof view.iterations === 'number' && view.iterations >= 1 ? view.iterations : 1);
+            return { world: resolvePlaybackWorld(view.iterations), passMs, totalMs };
+        }
+
+        /** Declarative props → animator calls — ONE shared rule (§10, `resolveDeclarativePlayback`
+         *  in core, same as React and React Native): `play` is a pose switch on a one-shot
+         *  document and a run switch on a looping one; `playMode` says what travels; `pause`
+         *  freezes the clock; `completeIteration` defers a loop's off to the boundary. */
         function syncPlayState() {
             if (compMode.value !== PxControlMode.play) return;
-            if (props.play && !props.pause) {
-                apiRef.value?.play();
-            } else if (props.pause) {
-                apiRef.value?.pause();
-            } else if (props.play === false) {
-                // explicit play=false → hold where it is (review §8). This used to `finish()`;
-                // a boolean whose `false` means "jump to the end" is not what anyone guesses.
-                apiRef.value?.pause();
-            } else {
-                // pause-only usage: pause switched off → resume
-                apiRef.value?.play();
+            const api = apiRef.value;
+            const { world, passMs, totalMs } = playbackGeometry();
+            const { actions, warnings } = resolveDeclarativePlayback({
+                world,
+                playMode: (props.playMode as PxPlayMode | undefined) ?? PxPlayMode.forwards,
+                playModeExplicit: props.playMode !== undefined,
+                completeIteration: !!props.completeIteration,
+                prev: prevPlayback ?? undefined,
+                next: { play: props.play, pause: props.pause },
+            });
+            prevPlayback = { play: props.play, pause: props.pause };
+            if (warnings.length) {
+                const diag = makeDiag();
+                for (const w of warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.playModifierIgnored, w);
+            }
+            if (actions.length) {
+                // any new instruction discards a pending deferred stop; a new one re-arms below
+                pendingStop?.();
+                pendingStop = null;
+            }
+            for (const action of actions) {
+                if (!api) break;
+                if (action === PxDeclarativeAction.stopLoopAtIterationEnd) {
+                    pendingStop = createIterationStopWatcher(
+                        api, passMs, (cb) => { window.requestAnimationFrame(cb); },
+                        () => { pendingStop = null; });
+                } else {
+                    applyDeclarativeAction(api, action, { passMs, totalMs });
+                }
             }
         }
 
@@ -323,17 +372,26 @@ const SvgAnimator = defineComponent({
 
         // -- Expose imperative API ----------------------------------------------
 
+        // The template ref is an ambient CAPABILITY, never a mode (§10) — but a WRITE call
+        // landing while a declarative driver owns playback is the actual collision: warn
+        // (PX1503) and apply; the next prop change reasserts the props.
+        const guardWrite = (call: string): void => {
+            if (compMode.value === PxControlMode.play || compMode.value === PxControlMode.fixedTime) {
+                makeDiag().warn(PxDiagnosticKind.usage, PxDiagnosticCode.imperativeOverDeclarative, call);
+            }
+        };
         const publicApi: PxAnimatorHandle = {
             isPlaying: () => apiRef.value?.isPlaying() || false,
-            play: () => apiRef.value?.play(),
-            pause: () => apiRef.value?.pause(),
-            cancel: () => apiRef.value?.cancel(),
-            finish: () => apiRef.value?.finish(),
-            setPlaybackRate: (rate: number) => apiRef.value?.setPlaybackRate(rate),
+            play: () => { guardWrite('play()'); apiRef.value?.play(); },
+            pause: () => { guardWrite('pause()'); apiRef.value?.pause(); },
+            cancel: () => { guardWrite('cancel()'); apiRef.value?.cancel(); },
+            finish: () => { guardWrite('finish()'); apiRef.value?.finish(); },
+            playOnce: () => { guardWrite('playOnce()'); apiRef.value?.playOnce(); },
+            setPlaybackRate: (rate: number) => { guardWrite('setPlaybackRate()'); apiRef.value?.setPlaybackRate(rate); },
             getCurrentTime: () => apiRef.value?.getCurrentTime() ?? null,
-            setCurrentTime: (time: number) => apiRef.value?.setCurrentTime(time),
+            setCurrentTime: (time: number) => { guardWrite('setCurrentTime()'); apiRef.value?.setCurrentTime(time); },
             getCurrentProgress: () => apiRef.value?.getCurrentProgress() ?? null,
-            setCurrentProgress: (progress: number) => apiRef.value?.setCurrentProgress(progress),
+            setCurrentProgress: (progress: number) => { guardWrite('setCurrentProgress()'); apiRef.value?.setCurrentProgress(progress); },
         };
 
         expose(publicApi);

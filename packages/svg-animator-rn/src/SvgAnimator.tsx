@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { clampSeekMs, createRunClock, toAnimatedSvgDocument, validateDeprecatedTransformChannels, type PxDocumentInput, isValidPlaybackRate, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, generateNewIds, getAnimatorConfig, getDefinitions, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, type PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
+import { applyDeclarativeAction, clampSeekMs, composePlayOnce, createIterationStopWatcher, createRunClock, toAnimatedSvgDocument, validateDeprecatedTransformChannels, type PxDocumentInput, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, PxPlayMode, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, generateNewIds, getAnimatorConfig, getDefinitions, materializeAllInTree, resolveTrigger, validateNodeEffects, PxTimelineEngine, PxControlMode, resolveControlMode, PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
@@ -236,7 +236,7 @@ const EMPTY_TRACKS: PxCompiledTracks = {
  * Materializes + compiles a document. Extracted from the component so the
  * whole thing sits behind one try/catch, and so it can be tested directly.
  */
-function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides, diag: PxDiagnostics): Compiled {
+function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides, pinPoseFill: boolean, diag: PxDiagnostics): Compiled {
     const { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start } = overrides;
     const warnings = validateNodeEffects(doc as PxNode);
     for (const w of warnings) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.effectsShape, w);
@@ -253,6 +253,13 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
         const applied = applyAnimatorConfig(doc, patch ?? {}, { resetTimeline: !!resetTimeline });
         for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
         doc = applied.doc;
+    }
+
+    // §10: in the play tier's ONE-SHOT world the pose contract beats `fillMode` — pin both
+    // sides, so the held poses are the same on every file (a `fillMode: 'none'` document would
+    // otherwise revert to its static attrs after the run).
+    if (pinPoseFill && resolvePlaybackWorld((getAnimatorConfig(doc) || {}).iterations) === PxPlaybackWorld.oneShot) {
+        doc = applyAnimatorConfig(doc, { timeline: { fillMode: PxFillMode.both } }).doc;
     }
 
     // `native` = the FULLY-FLATTENED materialization: effects + loops +
@@ -294,7 +301,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
 export function SvgAnimator({
     doc, timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start,
     // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
-    playAsSaved, play, pause, apiRef, progress: progressProp, time,
+    playAsSaved, play, pause, playMode, completeIteration, apiRef, progress: progressProp, time,
     onPlay, onStop, onPause, onCancel, onFinish, onRemove, onError, fallback, onWarn, muteWarn, muteError,
 }: SvgAnimatorProps): ReactElement | null {
 
@@ -315,11 +322,17 @@ export function SvgAnimator({
     const makeDiag = (): PxDiagnostics => createDiagnostics(
         { onWarn, onError, muteWarn, muteError }, '[SvgAnimator]');
 
+    // ONE control-mode rule, decided in core and shared with React and Vue (API review §1/§7) —
+    // resolved BEFORE compilation, because the play tier's pose contract pins `fillMode` there.
+    const { mode: compMode, warnings: modeWarnings } =
+        resolveControlMode({ progress: progressProp, time, play, pause, playAsSaved });
+
     const compiled = useMemo((): Compiled => {
         try {
             return compileDocument(
                 toAnimatedSvgDocument(doc),
                 { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start },
+                compMode === PxControlMode.play,
                 makeDiag(),
             );
         } catch (e) {
@@ -331,7 +344,7 @@ export function SvgAnimator({
         }
         // `timeline` is an object prop, so a fresh literal each render would recompile the whole
         // document. Key on its CONTENT — the override is small, unlike the document.
-    }, [doc, timelineKey, resetTimeline, inTime, outTime, playDuration, delay, iterations, start]);
+    }, [doc, timelineKey, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, compMode]);
 
     const tracks: PxCompiledTracks = compiled.tracks;
     // The span `progress` 0–1 covers (ONE iteration when endless) — NOT the seek ceiling.
@@ -489,9 +502,35 @@ export function SvgAnimator({
         setCurrentProgress: (p: number) => {
             api.setCurrentTime(progressToTimeMs(p, tracks.duration, tracks.iterations));
         },
-    };
+    } as PxAnimatorHandle;
+    // `playOnce` — the one shared one-pass rule (review §10), same composer as the web engines
+    composePlayOnce(api, { duration: tracks.duration, iterations: tracks.iterations === Infinity ? 'infinite' : tracks.iterations, resetOnFinish: tracks.resetOnFinish }, (cb) => { requestAnimationFrame(cb); });
 
-    useImperativeHandle(apiRef, () => api, [compiled]);
+    /** The last APPLIED declarative props, per compiled animator (§10). */
+    const prevPlaybackRef = useRef<{ compiled: Compiled; props: PxDeclarativeProps } | null>(null);
+    const pendingStopRef = useRef<(() => void) | null>(null);
+    useEffect(() => () => { pendingStopRef.current?.(); pendingStopRef.current = null; }, []);
+
+    // The ref is an ambient CAPABILITY, never a mode (§10) — but a WRITE call landing while a
+    // declarative driver owns playback is the actual collision: warn (PX1503) and apply.
+    useImperativeHandle(apiRef, () => {
+        const guardWrite = (call: string): void => {
+            if (compMode === PxControlMode.play || compMode === PxControlMode.fixedTime) {
+                makeDiag().warn(PxDiagnosticKind.usage, PxDiagnosticCode.imperativeOverDeclarative, call);
+            }
+        };
+        return {
+            ...api,
+            play: () => { guardWrite('play()'); api.play(); },
+            pause: () => { guardWrite('pause()'); api.pause(); },
+            cancel: () => { guardWrite('cancel()'); api.cancel(); },
+            finish: () => { guardWrite('finish()'); api.finish(); },
+            playOnce: () => { guardWrite('playOnce()'); api.playOnce(); },
+            setPlaybackRate: (rate: number) => { guardWrite('setPlaybackRate()'); api.setPlaybackRate(rate); },
+            setCurrentTime: (t: number) => { guardWrite('setCurrentTime()'); api.setCurrentTime(t); },
+            setCurrentProgress: (p: number) => { guardWrite('setCurrentProgress()'); api.setCurrentProgress(p); },
+        };
+    }, [compiled, compMode]);
 
     // -- Declarative control --------------------------------------------------
 
@@ -504,12 +543,6 @@ export function SvgAnimator({
     const effectiveOffScreen = trigger.offScreen;
     /** Whether visibility governs this document. `continue` means "run wherever it is". */
     const gated = effectiveOffScreen !== 'continue';
-
-    // ONE control-mode rule, decided in core and shared with React and Vue (API review §1/§7).
-    // This component always had the right ORDER but no name for it, and never told anyone when
-    // two tiers of props were passed together.
-    const { mode: compMode, warnings: modeWarnings } =
-        resolveControlMode({ progress: progressProp, time, play, pause, playAsSaved });
 
     useEffect(() => {
         const diag = makeDiag();
@@ -526,10 +559,42 @@ export function SvgAnimator({
             return;
         }
         if (compMode === PxControlMode.play) {
-            if (play && !pause) api.play();
-            else if (pause) api.pause();
-            else if (play === false) api.pause();   // hold, not finish() — review §8, same as web
-            else api.play();
+            // ONE shared rule (§10, `resolveDeclarativePlayback` in core — same as React and
+            // Vue): `play` is a pose switch on a one-shot document and a run switch on a looping
+            // one; `playMode` says what travels; `pause` freezes the clock; `completeIteration`
+            // defers a loop's off to the boundary. A new `compiled` is a new animator — the
+            // carried-over props then apply from scratch (mount semantics: no animation).
+            const world = resolvePlaybackWorld(tracks.iterations === Infinity ? 'infinite' : tracks.iterations);
+            const passMs = tracks.duration;
+            const totalMs = tracks.iterations === Infinity ? Infinity : passMs * Math.max(1, tracks.iterations);
+            const prev = prevPlaybackRef.current?.compiled === compiled ? prevPlaybackRef.current.props : undefined;
+            const { actions, warnings } = resolveDeclarativePlayback({
+                world,
+                playMode: (playMode as PxPlayMode | undefined) ?? PxPlayMode.forwards,
+                playModeExplicit: playMode !== undefined,
+                completeIteration: !!completeIteration,
+                prev,
+                next: { play, pause },
+            });
+            prevPlaybackRef.current = { compiled, props: { play, pause } };
+            if (warnings.length) {
+                const diag = makeDiag();
+                for (const w of warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.playModifierIgnored, w);
+            }
+            if (actions.length) {
+                // any new instruction discards a pending deferred stop; a new one re-arms below
+                pendingStopRef.current?.();
+                pendingStopRef.current = null;
+            }
+            for (const action of actions) {
+                if (action === PxDeclarativeAction.stopLoopAtIterationEnd) {
+                    pendingStopRef.current = createIterationStopWatcher(
+                        api, passMs, (cb) => { requestAnimationFrame(cb); },
+                        () => { pendingStopRef.current = null; });
+                } else {
+                    applyDeclarativeAction(api, action, { passMs, totalMs });
+                }
+            }
             return;
         }
         // 'click' starts from its own handler below, and a GATED document starts from the

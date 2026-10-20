@@ -84,6 +84,8 @@ a number when it differs — the note with that number, under the table, says ho
 | **Declarative control** | | | | | | |
 | `play` | — | — | — | ✓ | ✓ | ✓ |
 | `pause` | — | — | — | ✓ | ✓ | ✓ |
+| `playMode` | — | — | — | ✓ | ✓ | ✓ |
+| `completeIteration` | — | — | — | ✓ | ✓ | ✓ |
 | `progress` | — | — | — | ✓ | ✓ | ✓ |
 | `time` | — | — | — | ✓ | ✓ | ✓ |
 | **Imperative control** | | | | | | |

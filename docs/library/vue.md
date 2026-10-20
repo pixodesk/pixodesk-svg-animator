@@ -84,28 +84,36 @@ const time = ref(0);
 
 Changing the value moves the existing animator to the new time — nothing is recreated.
 
-### Declarative play / pause
+### Declarative playback — `play`, `pause`, `playMode`, `completeIteration`
 
 > **Example:** [`vue/declarative`](../../examples/docs-examples/src/cases/vue/declarative/) — `pnpm example:docs`, then open `#vue/declarative`.
 
-Drive playback from your own state with two booleans — handy when play/pause is already part
-of your component's state (a toggle, a visibility flag) and you would rather not hold a ref.
+**`play` names a state, not a command.** On a ONE-SHOT document (a single pass) it is a POSE
+switch — `false` the start pose, `true` the finish pose; a change moves there per `playMode`
+(`'forwards'` default: plays there, snaps back; `'both'`: plays both ways — the hover toggle;
+`'backwards'`; `'none'`), always from the current frame, and a mount renders the pose without
+animating. On a LOOPING document (`iterations` > 1 or `'infinite'`) it is a RUN switch — `false`
+snaps to rest, or finishes the current iteration first with `completeIteration`. `pause` freezes
+the current frame immediately and only means something while `play` is true. The rule is shared
+with the React and React Native components (`resolveDeclarativePlayback` in core); a misplaced
+modifier warns and changes nothing. One-shot verbs (`playOnce()`, `finish()`) live on the
+template ref.
 
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue';
 import { SvgAnimator } from '@pixodesk/svg-animator-vue';
 import animation from './animation.json';
-const paused = ref(false);
+const hovered = ref(false);
 </script>
 
 <template>
-  <SvgAnimator :doc="animation" play :pause="paused" />
-  <button @click="paused = !paused">Toggle</button>
+  <!-- the trash-can lid: opens on hover, plays BACK closed on leave, from wherever it is -->
+  <div @mouseenter="hovered = true" @mouseleave="hovered = false">
+    <SvgAnimator :doc="animation" :play="hovered" playMode="both" />
+  </div>
 </template>
 ```
-
-`play && !pause` plays; `pause` pauses; `play === false` holds where it is.
 
 ### Imperative API (template ref)
 
@@ -137,6 +145,7 @@ exports, so the three cannot drift apart:
 interface PxAnimatorHandle {
     isPlaying(): boolean;
     play(): void; pause(): void; cancel(): void; finish(): void;
+    playOnce(): void;                      // ONE fresh pass from the start, whatever `iterations` say
     setPlaybackRate(rate: number): void;   // 1 normal, 2 double, negative = reverse; 0 is rejected
                                            //   with a warning — use pause()
     getCurrentTime(): number | null;       // ms from the start of the whole run, every iteration included
@@ -203,7 +212,10 @@ const SvgAnimator: DefineComponent<{
 
     // Control — the highest-priority one that is set picks the mode (Control modes above)
     playAsSaved?: boolean;                   // start the way the file says — the editor's Start setting
-    play?: boolean; pause?: boolean;      // play now, whatever the trigger says / hold; false resumes
+    play?: boolean; pause?: boolean;      // the STATE (one-shot: which pose; loop: running) / freeze now
+    playMode?: PxPlayMode | `${PxPlayMode}`; // one-shot: which pose changes PLAY vs snap —
+                                          //   'forwards' (default) | 'backwards' | 'both' | 'none'
+    completeIteration?: boolean;          // loop: play=false finishes the CURRENT iteration, then rests
     progress?: number; time?: number;     // a frame at 0–1 of the whole run / at this ms
 
     // Diagnostics stay PROPS, not events: an event handler always exists, which would silence

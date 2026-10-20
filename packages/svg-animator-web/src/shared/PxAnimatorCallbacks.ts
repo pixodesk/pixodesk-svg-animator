@@ -44,6 +44,7 @@ export function createInertAnimator(): PxAnimatorApi {
         pause: () => {},
         cancel: () => {},
         finish: () => {},
+        playOnce: () => {},
         setPlaybackRate: () => {},
         getCurrentTime: () => null,
         setCurrentTime: () => {},

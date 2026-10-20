@@ -8,7 +8,7 @@ import { PX_DEFAULT_ITERATIONS } from '@pixodesk/svg-animator-core/internal';
 import { PX_PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, PX_COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateValue, kebabToCamelCaseWord, splitEasing, toRGBA, PX_TRANSFORM_FN_NAMES, type PxAnyKeyframe, type PxNormalizedKeyframe, keyframeEasing, keyframeValue, createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
-import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
+import type { PxEngineAnimatorApi } from '../shared/PxAnimatorWebTypes';
 
 
 /**
@@ -221,7 +221,7 @@ export function createWebApiAnimator(
     rootElement?: Element | null,
     forceEvenIfHasUnsupportedAttrs?: boolean,
     scrollTimeline?: PxWebApiScrollTimeline
-): PxAnimatorApi | null {
+): PxEngineAnimatorApi<Element> | null {
 
     const config = getAnimatorConfig(doc) || {};
 
@@ -374,7 +374,7 @@ export function createWebApiAnimator(
 
     ////////////////////////////////////////////////////////////////
 
-    const api: PxAnimatorApi = {
+    const api: PxEngineAnimatorApi<Element> = {
 
         "isReady": () => true,
 

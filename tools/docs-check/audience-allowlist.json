@@ -1,7 +1,4 @@
 {
     "comment": "Names tagged @public in the source that no guide describes yet. Each entry needs a reason, and an entry that is no longer needed FAILS the check \u2014 so this list can only shrink. Emptied on 2026-09-13: all 88 names were either written up in a guide or stopped being public. A new entry here is a promise to document, not a place to park one.",
-    "undocumented": {
-        "PxDeclarativePlayback": "first-use review \u00a710: the shared declarative play/pause rule, landed ahead of the components' rewiring; the guide text comes with the owner's A-vs-B decision (two booleans vs one playback state prop)",
-        "resolveDeclarativePlayback": "first-use review \u00a710: the shared declarative play/pause rule, landed ahead of the components' rewiring; the guide text comes with the owner's A-vs-B decision (two booleans vs one playback state prop)"
-    }
+    "undocumented": {}
 }

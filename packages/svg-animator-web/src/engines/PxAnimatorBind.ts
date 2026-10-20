@@ -3,12 +3,12 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, getAnimatorConfig, toAnimatedSvgDocument, type PxDocumentInput, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, suppressTriggerStart, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, composePlayOnce, getAnimatorConfig, toAnimatedSvgDocument, type PxDocumentInput, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, suppressTriggerStart, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
-import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
+import type { PxAnimatorApi, PxEngineAnimatorApi } from '../shared/PxAnimatorWebTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
 import { applyScrollPin, createNativeScrollTimeline, createScrollDriver } from '../scroll/PxScrollDriver';
 
@@ -33,7 +33,7 @@ import { applyScrollPin, createNativeScrollTimeline, createScrollDriver } from '
 export function finaliseAnimator(
     animatorConfig: PxAnimatorRuntimeConfig,
     callbacks: PxEngineCallbacks | undefined,
-    make: (effectiveCallbacks?: PxEngineCallbacks) => PxAnimatorApi
+    make: (effectiveCallbacks?: PxEngineCallbacks) => PxEngineAnimatorApi<Element>
 ): PxAnimatorApi {
 
     let apiRef: PxAnimatorApi | undefined;
@@ -48,7 +48,8 @@ export function finaliseAnimator(
         };
     }
 
-    const res = make(effectiveCallbacks);
+    // `playOnce` is composed ON TOP of the engine — the one shared one-pass rule (review §10)
+    const res: PxAnimatorApi = composePlayOnce(make(effectiveCallbacks), animatorConfig, (cb) => { window.requestAnimationFrame(cb); });
     apiRef = res;
 
     // `playDuration` (§4): the window remapped to wall ms, implemented as an initial rate factor.

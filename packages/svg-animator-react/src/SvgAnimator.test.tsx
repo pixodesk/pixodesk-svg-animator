@@ -190,21 +190,112 @@ describe("SvgAnimator (React)", () => {
 
     // -- 2b′. Declarative play / pause (API review §8) -------------------------
 
-    describe("declarative play={false}", () => {
-        it("HOLDS where it is — it no longer jumps to the end (review §8)", () => {
-            const onPause = vi.fn();
+    describe("declarative playback (§10) — play is a STATE, playMode says what travels", () => {
+        // ONE document object across renders in each test: a fresh one would change the `doc`
+        // identity, remount the animator, and let a remount satisfy these by accident.
+
+        it("play={false} returns to the START pose — never to the end (review §8 held)", () => {
+            const onCancel = vi.fn();
             const onFinish = vi.fn();
-            // ONE document object for both renders: a fresh one would change the `doc`
-            // identity, remount the animator, and let a remount satisfy this by accident.
-            const doc = getTestJson();
+            const doc = getTestJson1000();
             const { rerender } = render(
-                <SvgAnimator doc={doc} play onPause={onPause} onFinish={onFinish} />);
+                <SvgAnimator doc={doc} play onCancel={onCancel} onFinish={onFinish} />);
+            vi.advanceTimersByTime(200);
+
+            rerender(<SvgAnimator doc={doc} play={false} onCancel={onCancel} onFinish={onFinish} />);
+
+            expect(onCancel).toHaveBeenCalled();       // default playMode 'forwards': snap back
+            expect(onFinish).not.toHaveBeenCalled();   // this used to be finish()
+        });
+
+        it("a mount never animates — play={true} renders the FINISH pose silently", () => {
+            const onPlay = vi.fn();
+            const apiRef = createRef<PxAnimatorHandle>();
+            render(<SvgAnimator doc={getTestJson1000()} play apiRef={apiRef} onPlay={onPlay} />);
+            vi.advanceTimersByTime(32);
+            expect(onPlay).not.toHaveBeenCalled();
+            expect(apiRef.current?.isPlaying()).toBe(false);
+            expect(apiRef.current?.getCurrentTime()).toBe(1000);
+        });
+
+        it("playMode='both': the off TRAVELS back from the current frame (the hover toggle)", () => {
+            const onCancel = vi.fn();
+            const onPlay = vi.fn();
+            const apiRef = createRef<PxAnimatorHandle>();
+            const doc = getTestJson1000();
+            const { rerender } = render(
+                <SvgAnimator doc={doc} play={false} playMode="both" apiRef={apiRef} onCancel={onCancel} onPlay={onPlay} />);
+            rerender(<SvgAnimator doc={doc} play playMode="both" apiRef={apiRef} onCancel={onCancel} onPlay={onPlay} />);
+            vi.advanceTimersByTime(400);
+
+            rerender(<SvgAnimator doc={doc} play={false} playMode="both" apiRef={apiRef} onCancel={onCancel} onPlay={onPlay} />);
             vi.advanceTimersByTime(32);
 
-            rerender(<SvgAnimator doc={doc} play={false} onPause={onPause} onFinish={onFinish} />);
+            expect(onCancel).not.toHaveBeenCalled();           // no reset — it turns around
+            expect(apiRef.current?.isPlaying()).toBe(true);    // travelling back
+            vi.advanceTimersByTime(2000);
+            expect(apiRef.current?.getCurrentTime()).toBe(0);  // arrived at the start pose
+        });
 
-            expect(onPause).toHaveBeenCalled();
-            expect(onFinish).not.toHaveBeenCalled();   // this used to be finish()
+        it("pause freezes IN PLACE and resumes — never resets", () => {
+            const onCancel = vi.fn();
+            const apiRef = createRef<PxAnimatorHandle>();
+            const doc = getTestJson1000();
+            const { rerender } = render(
+                <SvgAnimator doc={doc} play={false} apiRef={apiRef} onCancel={onCancel} />);
+            rerender(<SvgAnimator doc={doc} play apiRef={apiRef} onCancel={onCancel} />);
+            vi.advanceTimersByTime(300);
+
+            rerender(<SvgAnimator doc={doc} play pause apiRef={apiRef} onCancel={onCancel} />);
+            const frozenAt = apiRef.current?.getCurrentTime() ?? 0;
+            vi.advanceTimersByTime(300);
+            expect(apiRef.current?.getCurrentTime()).toBe(frozenAt);
+
+            rerender(<SvgAnimator doc={doc} play pause={false} apiRef={apiRef} onCancel={onCancel} />);
+            vi.advanceTimersByTime(100);
+            expect((apiRef.current?.getCurrentTime() ?? 0)).toBeGreaterThan(frozenAt);
+            expect(onCancel).not.toHaveBeenCalled();
+        });
+
+        it("loop world: play runs, off snaps to rest; completeIteration finishes the pass first", () => {
+            const apiRef = createRef<PxAnimatorHandle>();
+            const doc = getTestJson1000();
+            const { rerender } = render(
+                <SvgAnimator doc={doc} iterations="infinite" play={false} completeIteration apiRef={apiRef} />);
+            rerender(<SvgAnimator doc={doc} iterations="infinite" play completeIteration apiRef={apiRef} />);
+            vi.advanceTimersByTime(300);
+            expect(apiRef.current?.isPlaying()).toBe(true);
+
+            rerender(<SvgAnimator doc={doc} iterations="infinite" play={false} completeIteration apiRef={apiRef} />);
+            vi.advanceTimersByTime(100);
+            expect(apiRef.current?.isPlaying()).toBe(true);    // still finishing the iteration
+            vi.advanceTimersByTime(1200);                      // past the boundary — the watcher landed it
+            expect(apiRef.current?.isPlaying()).toBe(false);
+            expect(apiRef.current?.getCurrentTime()).toBe(0);  // at rest
+        });
+
+        it("playOnce() on the ref plays one fresh pass — and warns (PX1503) only under a declarative driver", () => {
+            const onWarn = vi.fn();
+            const apiRef = createRef<PxAnimatorHandle>();
+            render(<SvgAnimator doc={getTestJson1000()} apiRef={apiRef} onWarn={onWarn} />);
+            apiRef.current?.playOnce();                        // the blessed doorbell — no warning
+            vi.advanceTimersByTime(100);
+            expect(apiRef.current?.isPlaying()).toBe(true);
+            expect(onWarn).not.toHaveBeenCalled();
+
+            const onWarn2 = vi.fn();
+            const apiRef2 = createRef<PxAnimatorHandle>();
+            render(<SvgAnimator doc={getTestJson1000()} play apiRef={apiRef2} onWarn={onWarn2} />);
+            apiRef2.current?.playOnce();                       // a write call under the play driver
+            expect(onWarn2).toHaveBeenCalled();
+            expect(onWarn2.mock.calls[0][0].code).toBe(PxDiagnosticCode.imperativeOverDeclarative);
+        });
+
+        it("misplaced modifiers warn once and change nothing (PX1502)", () => {
+            const onWarn = vi.fn();
+            render(<SvgAnimator doc={getTestJson1000()} iterations="infinite" play playMode="both" onWarn={onWarn} />);
+            expect(onWarn).toHaveBeenCalled();
+            expect(onWarn.mock.calls[0][0].code).toBe(PxDiagnosticCode.playModifierIgnored);
         });
     });
 

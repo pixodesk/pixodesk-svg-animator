@@ -1,7 +1,7 @@
 # First-use review — the API, the schema and the docs through a newcomer's eyes
 
 Status **2026-10-15** (two passes the same day: the exports and schemas, then every guide in
-`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept) — each closes with a **Done** note.
+`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept). §10 (play/pause/playMode/completeIteration + playOnce) is DONE. — each closes with a **Done** note.
 
 Read as a first-time user would: the five packages' exports, the wire schemas, the component
 props, then the guides end to end — `README.md`, `docs/library/*`, `docs/format/README.md`,
@@ -333,38 +333,187 @@ timeline: { inTime: 500, outTime: 2500, playDuration: 4000 }  // …remapped to 
   every example swept. Owner's call: `apiRef` STAYS as the React/RN prop (the standard-`ref`
   idea is dropped); Vue keeps its template ref.
 
-### 10. Two booleans for one state
+### 10. Two booleans for one state — REWORKED into the declarative playback proposal ✅
 
 - **Where:** `PxControlProps.play` / `pause`; react.md › Declarative play / pause.
-- **Why:** `play && !pause` plays, `pause` pauses, `play === false` holds. The guide's own
-  example has to set both on every click (`setPlay(true); setPause(false)`), and four
-  combinations describe two states.
-- **Do:** one boolean — `playing` (or `paused`) — for the declarative mode.
-- **Corrected (owner, 2026-10-20):** the critique holds for the CURRENT code (today `play: false`
-  and `pause: true` both just `pause()` — nothing ever resets, so four combos really are two
-  behaviours), but "one boolean" is the wrong fix: stop-and-rewind and freeze-in-place are two
-  different things a UI needs, and one boolean cannot say both. The intended semantics are two
-  AXES — `play` = run/stop (a change RESETS to the initial state; `cancel()` is the existing
-  primitive, so the stopped pose is the document's own rest pose, no new config key), `pause` =
-  freeze/resume in place, meaningful only while `play` is true.
-- **Alternatives researched (2026-10-20)** — declarative playback control in other libraries:
-  | | Shape | Precedent | For / against |
-  |---|---|---|---|
-  | A | Two booleans, two axes: `play` (run/stop, change resets) + `pause` (freeze/resume) | react-lottie `isStopped` / `isPaused` — exactly these semantics | familiar, both axes animatable; but `pause` is subordinate to `play` and that hierarchy lives in docs, not in the type |
-  | B | ONE state prop: `playback: playing \| paused \| stopped \| finished` | CSS `animation-play-state: running \| paused`; WAAPI `playState` = `running \| paused \| idle \| finished` | the states are mutually exclusive, so one enum makes contradictions unrepresentable; `finished` (the old `finish()`) comes free as a word, not a third boolean; restart while playing needs a transit through `stopped` (or a remount `key`) |
-  | C | `play` + adjective booleans (`play paused`, `play stopped`, `play finished`) | — | B wearing boolean clothes: the adjectives exclude each other, so N booleans re-create this very card at larger scale; folded into B |
-  | D | One boolean `playing` (play/resume vs pause-in-place) + edge-triggered `reset` | react-player's single `playing`; react-spring's `reset` | the 90 % toggle case is one boolean; but no declarative stopped STATE, and an edge-triggered boolean is un-React-ish (set, then unset) |
+- **Why (original):** `play && !pause` plays, `pause` pauses, `play === false` holds — four
+  combinations for two behaviours, and the guide's own example has to set both per click.
+- **Trail (2026-10-20):** a first two-axis implementation (play=run/reset, pause=freeze, PX1502,
+  shared `resolveDeclarativePlayback` rule) was built, then REVERTED by owner decision — the
+  design below supersedes it; we start afresh on a go. Research kept in git history: nobody in
+  the lottie/SVGator/Rive field ships declarative play state (config + ref + events is the norm);
+  the full on/off permutation matrix collapsed to the small prop set below; `reverse`-as-a-prop
+  died on the mount case ("rest at start" is inexpressible when reverse means a motion).
 
-  lottie-react (the current one) and Remotion offer NO declarative state — `autoplay` + an
-  imperative ref only; that tier already exists here as `playAsSaved` + `apiRef`.
-- **Recommendation:** B — the type enforces what docs would otherwise explain, the vocabulary
-  matches WAAPI/CSS, and this rename wave is unpublished, so replacing `play`/`pause` with one
-  prop is a clean break, not an extra one. Open namings: the prop (`playback` vs `playState`)
-  and `stopped` vs WAAPI's `idle` — proposal: `playback` + `stopped`.
-- **State:** core already holds the shared A-semantics rule (`resolveDeclarativePlayback` +
-  `PxDeclarativePlayback`, tested) — it drives B's transitions too (the enum states map onto the
-  same verbs), so no work is thrown away either way. Components not yet rewired; awaiting the
-  owner's pick between A and B.
+#### Proposed declarative playback API (settled 2026-10-20, awaiting go)
+
+The key idea: **`play` names a STATE, not a command** — like a CSS class; *how* a state change
+looks is the `playMode` config. Two worlds, told apart by the document's effective `iterations`:
+
+**World 1 — one-shot (a single pass): `play` is a POSE switch.**
+`false` = the START pose, `true` = the FINISH pose. A change moves to the new pose per
+`playMode`, always FROM THE CURRENT FRAME (interruptions turn around smoothly — never
+configurable, never a jump). On mount the component SHOWS the pose without animating (a
+re-rendered list of icons must not all play at once).
+
+**World 2 — loop (`iterations` > 1 or `infinite`): `play` is a RUN switch.**
+`true` = running, `false` = stopped at rest (snap). There are no poses, so `playMode` does not
+apply (usage warning if set).
+
+| Prop | World | Meaning |
+|---|---|---|
+| `play?: boolean` | both | one-shot: which pose; loop: running or not |
+| `pause?: boolean` | both | freeze the current frame NOW / resume from it — always immediate, never deferred |
+| `playMode?: 'none' \| 'forwards' \| 'backwards' \| 'both'` | one-shot | which pose changes PLAY (animate) vs snap — default **`forwards`**: plays forwards, snaps back |
+| `completeIteration?: boolean` | loop | an off first finishes the CURRENT iteration, then rests (off by default; re-on before the boundary cancels the pending stop) |
+
+`playMode` deliberately reuses `fillMode`'s value spellings and side-mapping — `forwards` is the
+toward-END side, `backwards` the toward-START side, `both`/`none` both/neither — read as plain
+English each value states its own meaning: "plays forwards only", "plays backwards only",
+"plays both ways", "never plays — snaps". (NOT named `fillMode`: that key already exists in the
+timeline and answers a different question — see below. NOT `playDirection`: `timeline.direction`
+is the run's direction. Not lottie's old `playMode: normal|bounce` — one docs note.)
+
+**`playMode` vs `fillMode`, side by side** (both active on one tag): a toast icon popping in
+after a delay — `<SvgAnimator play={visible} playMode="both" />` with
+`timeline: { delay: 300, fillMode: 'backwards' }`. `visible` flips true → `playMode` says the
+change ANIMATES (vs snap); during the 300 ms delay the run is active but before keyframe 0 →
+`fillMode: 'backwards'` says WHICH PICTURE shows while waiting (first keyframe's pose, not the
+raw static attrs). `playMode` picks whether a change travels; `fillMode` picks the picture at
+rest around a run. Neither can express the other.
+
+Config shortcuts stay as they are (`iterations`, `inTime`/`outTime`/`playDuration`, `delay`,
+`timeline={{ … }}` for `direction` etc.); the ref gains ONE verb: **`playOnce()`** — always a
+fresh single PASS from the start (even on loop-configured or finite multi-iteration docs),
+ending per the file's `finish` action; re-entrant (a second call restarts).
+
+#### Every case, one line each
+
+```tsx
+// ── one-shot ────────────────────────────────────────────────────────────────────────────
+// Splash / stamp — zero config: plays forward, switching off SNAPS back to clean.
+// NOTE: a REPEAT splash needs the off edge — re-arm on finish (or use api.playOnce() instead):
+<SvgAnimator doc={doc} play={isSplashing} onFinish={() => setIsSplashing(false)} />
+
+// Hover icon / trash-can lid / hamburger↔X:
+// rests at start · hover → plays forward · rests at end · unhover → plays BACK · rests
+<SvgAnimator doc={doc} play={isHovered} playMode="both" />
+
+// Menu/overlay art: appears INSTANTLY, retreats animated
+<SvgAnimator doc={doc} play={isOpen} playMode="backwards" />
+
+// Pure pose display (no motion at all — poster states)
+<SvgAnimator doc={doc} play={isOn} playMode="none" />
+
+// Freezable one-shot: freeze mid-motion while a dialog is open, resume after
+<SvgAnimator doc={doc} play={isOn} pause={dialogOpen} />
+
+// ── loop ────────────────────────────────────────────────────────────────────────────────
+// Spinner: spins while busy, off = snap to rest
+<SvgAnimator doc={doc} play={isBusy} iterations="infinite" />
+
+// Pausable loop: freeze mid-cycle, resume from the same frame
+<SvgAnimator doc={doc} play pause={!isActive} iterations="infinite" />
+
+// Heartbeat: never dies mid-beat — finishes the current iteration, then rests
+<SvgAnimator doc={doc} play={isBeating} iterations="infinite" completeIteration />
+
+// Ping-pong while on (config, not control — one run alternates; nothing to do with playMode)
+<SvgAnimator doc={doc} play={isOn} iterations="infinite" timeline={{ direction: 'alternate' }} />
+
+// ── ref verbs (the imperative 20 %) ─────────────────────────────────────────────────────
+// Doorbell: click plays once, start to finish — there is no "off"
+<SvgAnimator doc={doc} apiRef={api} />   /* + onClick={() => api.current?.playOnce()} */
+
+// Skip to the final pose                      api.current?.finish()
+// Play backward / rates (exotic)              api.current?.setPlaybackRate(-1)
+```
+
+#### Rules that make it behave
+
+- **Mount never animates** — the component renders the pose/state the props name.
+- **Interruptions always continue from the current frame** (turn around / proceed) — smoothness
+  is a guarantee, not an option; there is deliberately NO "abrupt" mode.
+- **`pause` always wins immediately** — the escape hatch is never deferred, not even by
+  `completeIteration`. It freezes the CLOCK only: prop changes still retarget while frozen, and
+  unpausing resumes toward the current target. And it is only meaningful while `play` is true —
+  `play: false` forcibly unfreezes, and the off happens exactly as if nothing had been frozen.
+- **The pose contract beats `fillMode` in the play tier:** while `play` is true and the run has
+  ended, the FINISH pose is held even for a `fillMode: 'none'` document (which would otherwise
+  revert to its static attrs) — the same props must give the same picture on every file.
+- **Conflicts:** `play`/`pause` beat `playAsSaved` (warning, lower tier ignored — the existing
+  rule). The ref is an AMBIENT CAPABILITY, never a mode (Vue's handle is the standard template
+  ref — undetectable by design, and read-only uses are legitimate): an imperative WRITE call
+  acts immediately, the next declarative prop EDGE reasserts the props, and a write call landing
+  while a declarative driver (`play` or `progress`/`time`) is active emits a usage warning at
+  the moment of the actual collision. `<SvgAnimator apiRef={api} />` with no control props (the
+  doorbell) is the blessed pattern — no warning.
+- The one-shot/loop split follows the document's EFFECTIVE iterations (file + `iterations`
+  prop); `playMode` on a loop, `completeIteration` on a one-shot, and `pause`/modifiers without
+  `play` are one usage warning each, animation unaffected.
+- Tier precedence unchanged: `progress`/`time` → `play`/`pause` → `playAsSaved` → static.
+
+#### Settled (owner, 2026-10-20)
+
+- Prop names: `play`, `pause` (not `paused`), **`playMode`** (rejected: `transition` — conflates
+  with CSS; `fillMode`, `playDirection` — collide with existing keys), `completeIteration`.
+- `playMode` values = `fillMode`'s spellings (`none|forwards|backwards|both`), same side-mapping.
+- **Default `playMode: 'forwards'`** (owner): off snapping back feels more natural than reverse
+  playing by default — and it matches the pre-rendered export's class-toggle physics and makes
+  the splash zero-config; the hover icon pays one word (`playMode="both"`).
+- `playOnce()` = one PASS on every document, finite multi-iteration included.
+- Contract breaches warn (usage), never alter playback.
+- Pause semantics (owner): subordinate to `play` — `play: false` forcibly unfreezes; while
+  frozen, retargets apply and unpause travels to the current target.
+- Ref stays mode-neutral; conflicts are detected at WRITE CALLS, not at the ref's existence
+  (owner accepted — Vue's template ref is undetectable, reads are legitimate).
+
+#### Implementation notes (for the build, when it gets its go)
+
+- The loop-world warning for `playMode` fires only when the prop was EXPLICITLY written —
+  `playMode` has a default (`'forwards'`), so the check is on `undefined`-ness, not the value.
+- Pose pinning (the `fillMode: 'none'` rule above) and `playMode: 'backwards'` travel need
+  engine-level care: backward playback from arbitrary frames on BOTH engines, snap-to-finish as
+  a static render (no animation on mount), reversed easings are the standard mirrored behaviour.
+- The one-shot/loop world split reads the document's EFFECTIVE iterations — a designer flipping
+  a file to looping changes what `play` means in integration code; the warning plus a docs
+  callout cover it, but say it loudly in the guides.
+- COMPAT/CHANGELOG duty: `play: false` changes meaning vs the published packages (was "hold
+  where it is", becomes "snap/travel to the start pose") — list it in the release notes with
+  the rest of this wave's breaks.
+
+#### Done (2026-10-20) — the proposal above is BUILT
+
+- Core: `resolveDeclarativePlayback` (the one rule, pure, rule-table-tested), `PxPlayMode`,
+  `resolvePlaybackWorld`, `applyDeclarativeAction` (executor with the boundary guards that stop
+  `play()`'s rewind-at-boundary from turning a re-apply into a replay), `createIterationStopWatcher`
+  (the `completeIteration` boundary landing), `composePlayOnce` (ONE `playOnce()` on top of any
+  engine or handle; a pending pass watcher is invalidated by `destroy()` — leak found and fixed),
+  `PxEngineAnimatorApi` (what engines construct; `playOnce` is composed once on top). Codes
+  **PX1502** (misplaced modifier) and **PX1503** (imperative write under a declarative driver).
+- Components: React, Vue and React Native all consume the shared rule; the play-tier one-shot
+  world pins `fillMode: 'both'` (the pose contract); mounts render the pose silently; the public
+  ref/handle warns PX1503 on write calls under a declarative driver and carries `playOnce()`.
+- Web api: `PxAnimatorApi.playOnce()` everywhere (create, src-proxy queue, pre-rendered builds,
+  the inert stub).
+- Docs: react.md / vue.md / react-native.md declarative sections teach the two worlds + the
+  recipes; signature blocks, prop tables, the API matrix, web-player.md, the format README's
+  exports table + plumbing block, diagnostics.md (30 codes) — docs-check green.
+- Guards: core rule table (12 cases, seen failing first), web `PxPlayOnce.test.ts` (3), React
+  §10 suite (7: snap-back default, silent mount, playMode='both' travel-back, pause freeze/resume,
+  loop + completeIteration boundary, playOnce + PX1503, PX1502). All five packages green:
+  core 655 · web 209 · react 66 · vue 48 · rn 42 · docs-check 145.
+- kf uses only `playAsSaved` — no editor-side impact.
+
+#### Parked for separate consideration (not part of this proposal)
+
+- **Out-channels:** `onPlaybackChange(state)` (one callback with a state enum on every
+  transition, incl. natural finish — echo it back for a controlled component; precedent:
+  LottieFiles react-lottie-player `onStateChange`), readonly `getPlayState()` on the api (same
+  enum; precedent: WAAPI `playState`, SVGator `player.state`), and a throttled
+  `onTimeUpdate(ms, progress)` for progress bars (precedent: media `timeupdate`, lottie
+  `enterFrame`). Continuous position must never flow through React state.
+- **Promoting `direction` to a top-level shortcut prop** (today it needs the `timeline` patch).
 
 ### 11. Methods and events don't pair
 

@@ -63,7 +63,7 @@ const api = useRef<PxAnimatorHandle>(null);
 ```
 
 <!-- px-check members PxAnimatorHandle pkg=react -->
-`PxAnimatorHandle` methods: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
+`PxAnimatorHandle` methods: `play()`, `pause()`, `cancel()`, `finish()`, `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
 
 ### Controlled time
 
@@ -92,6 +92,8 @@ const [time, setTime] = useState(0);
 | `playAsSaved` | `boolean` | Use triggers from the document |
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
+| `playMode` | `'none' \| 'forwards' \| 'backwards' \| 'both'` | One-shot documents: which pose changes PLAY vs snap (default `forwards` — plays there, snaps back) |
+| `completeIteration` | `boolean` | Looping documents: `play={false}` finishes the current iteration, then rests |
 | `apiRef` | `RefObject<PxAnimatorHandle>` | Ref for imperative control |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |

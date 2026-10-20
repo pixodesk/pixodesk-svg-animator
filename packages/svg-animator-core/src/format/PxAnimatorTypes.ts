@@ -2359,6 +2359,15 @@ export interface PxAnimatorApi<TRoot = unknown> {
     finish(): void;
 
     /**
+     * Plays ONE fresh pass of the content window from the start — always, whatever is playing
+     * and whatever the document's `iterations` say (a loop-configured document plays a single
+     * pass). Re-entrant: calling it mid-pass restarts. The end pose follows the document's
+     * `trigger.finish` (`'reset'` snaps back, the default holds). The one-shot verb behind
+     * "plays once on click" — no `play` prop juggling needed.
+     */
+    playOnce(): void;
+
+    /**
      * Changes the speed of the animation. 1 is normal, 2 is double, -1 is reverse.
      * A rate of 0 — or a non-finite one — is rejected with a warning; use `pause()`.
      */
@@ -2397,6 +2406,11 @@ export interface PxAnimatorApi<TRoot = unknown> {
  * @public
  */
 export type PxAnimatorHandle = Omit<PxAnimatorApi, 'isReady' | 'getRootElement' | 'destroy'>;
+
+/** What an ENGINE constructs: the full api minus `playOnce`, which is composed ONCE on top of
+ *  any engine (`finaliseAnimator` on the web, the handle builder on React Native) so the
+ *  one-pass rule cannot drift between engines. @public @advanced */
+export type PxEngineAnimatorApi<TRoot = unknown> = Omit<PxAnimatorApi<TRoot>, 'playOnce'>;
 
 
 // ============================================================================

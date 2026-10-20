@@ -1456,6 +1456,23 @@ function validateDocument(doc: unknown, options?: { strict?: boolean }): Array<s
 //   throws; the players run this on load and log whatever comes back.
 function validateNodeEffects(root: PxNode, options?: { strict?: boolean }): Array<string>;
 
+// ── Declarative playback plumbing (review §10) — what the React / Vue / React Native
+// components are built FROM, public for anyone building a component of their own. ●
+// `PxPlayMode` is the user-facing half: which pose changes PLAY vs snap (`fillMode`'s
+// spellings — `forwards` plays there and snaps back (the default), `backwards` snaps there
+// and plays back, `both` plays both ways, `none` snaps both ways).
+//
+// ○ The shared rule itself: `resolvePlaybackWorld(iterations)` says what `play` drives — a
+//   POSE on a one-shot document (`PxPlaybackWorld.oneShot`) or a RUN on a looping one;
+//   `resolveDeclarativePlayback(args: PxDeclarativeArgs)` turns a props change
+//   (`PxDeclarativeProps`) into ordered `PxDeclarativeAction`s plus usage warnings;
+//   `applyDeclarativeAction(api: PxDeclarativeTarget, action, ctx: PxDeclarativeRunContext)`
+//   executes one action with the boundary guards; `createIterationStopWatcher` lands a loop's
+//   deferred stop (`completeIteration`) on the iteration boundary; and
+//   `composePlayOnce(api: PxPlayOnceTarget, cfg: PxPlayOnceConfig, raf)` completes any engine
+//   or handle with the one-pass `playOnce()`. `PxEngineAnimatorApi` is what an engine
+//   constructs — the full api minus the composed `playOnce`.
+
 // ○ Flag the DEPRECATED per-key transform channels (`animate.translate`, `animate.rotate`, …)
 //   on any node, depth-first — still read for files migrated from older versions, but two on
 //   one node are last-write-wins, so the players warn (PX1107 on the diagnostics page). New
@@ -1535,8 +1552,8 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 | Group | Identifiers | Audience · what it is for |
 |---|---|---|
 | Wire types | `PxAnimatedSvgDocument`, `PxDocumentInput`, `toAnimatedSvgDocument(doc)` (○), `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTimeline`, `PxTrigger`, `PxElementAnimation`, `PxPropertyAnimation`, `PxKeyframe`, `PxLoop`, `PxBinding`, `PxDefinitions`, `PxEffects`, `PxTransformParts`, `PxBezierPath`, `PxGlyph`, `PxGlyphFont`, `PxAnimationDefinition`, `PxScroll`, `PxScrollRangePoint`, `PxVec2`, `PxTransformValue` | ● the shapes in [Schema at a glance](#schema-at-a-glance) |
-| Player API types | `PxAnimatorApi<TRoot>`, `PxEngineCallbacks`, `PxPlatformAdapter` | ● platform-neutral; the web fixes `TRoot` to `Element`. `PxEngineCallbacks` is what an engine takes — the lifecycle on top of `PxDiagnosticsConfig` |
-| Component contract | `PxAnimatorHandle`, `PxAnimatorCallbacks`, `PxControlProps`, `PxControlMode`, `resolveControlMode(props)`, `controlModeTakesOverTrigger(mode)`, `resolveDeclarativePlayback(prev, next)` (○), `PxDeclarativePlayback` (○), `prepareDocumentForRender(doc)` (▪), `renderPxTree(node, factory)` (▪), `PxElementFactory` (▪), `PxElementSpec` (▪) | ● what the React / Vue / React Native components share: the imperative handle, the callback set, the props that pick a mode and the one rule that picks it — [the API at a glance](../library/README.md#the-api-at-a-glance). `renderPxTree` is THE renderer of every DOM player: it makes each decision about a document — tags, attribute names and values, sanitization, styles, text — and a player supplies only a `PxElementFactory`, "create an element from this finished `PxElementSpec`" (a DOM node, a React element, a Vue vnode). `prepareDocumentForRender` is the document it is given: materialized, then fresh ids |
+| Player API types | `PxAnimatorApi<TRoot>`, `PxEngineAnimatorApi<TRoot>` (○), `PxEngineCallbacks`, `PxPlatformAdapter` | ● platform-neutral; the web fixes `TRoot` to `Element`. `PxEngineCallbacks` is what an engine takes — the lifecycle on top of `PxDiagnosticsConfig` |
+| Component contract | `PxAnimatorHandle`, `PxAnimatorCallbacks`, `PxControlProps`, `PxControlMode`, `resolveControlMode(props)`, `controlModeTakesOverTrigger(mode)`, `PxPlayMode`, `resolveDeclarativePlayback(args)` (○), `PxDeclarativeAction` (○), `PxDeclarativeProps` (○), `PxDeclarativeArgs` (○), `PxDeclarativeTarget` (○), `PxDeclarativeRunContext` (○), `applyDeclarativeAction(api, action, ctx)` (○), `createIterationStopWatcher(api, passMs, raf, onStopped?)` (○), `resolvePlaybackWorld(iterations)` (○), `PxPlaybackWorld` (○), `composePlayOnce(api, cfg, raf)` (○), `PxPlayOnceConfig` (○), `PxPlayOnceTarget` (○), `prepareDocumentForRender(doc)` (▪), `renderPxTree(node, factory)` (▪), `PxElementFactory` (▪), `PxElementSpec` (▪) | ● what the React / Vue / React Native components share: the imperative handle, the callback set, the props that pick a mode and the one rule that picks it — [the API at a glance](../library/README.md#the-api-at-a-glance). `renderPxTree` is THE renderer of every DOM player: it makes each decision about a document — tags, attribute names and values, sanitization, styles, text — and a player supplies only a `PxElementFactory`, "create an element from this finished `PxElementSpec`" (a DOM node, a React element, a Vue vnode). `prepareDocumentForRender` is the document it is given: materialized, then fresh ids |
 | Engine rules | `resolveTimelineEngine(engine)`, `isNativeForced(engine)`, `mayUseNativeScrollTimeline(engine)` | ○ how a `timeline.engine` resolves to an engine / to the browser's ScrollTimeline — the players' own decision helpers |
 | Trigger defaults | `PX_TRIGGER_DEFAULTS`, `resolveTrigger(trigger)`| ○ what a missing trigger field means (`start` 'load', `offScreen` 'pause', `mouseOut` 'pause', threshold 0.5, debounce 150 ms) — the one resolution every player uses |
 | Time contract | `seekCeilingMs`, `progressSpanMs`, `clampSeekMs`, `timeToProgress`, `progressToTimeMs`, `isValidPlaybackRate`, `PX_RATE_REJECTED`, `createRunClock` + | ○ the one meaning of time, seeking and rate that every engine implements — see `PxAnimatorApi` |

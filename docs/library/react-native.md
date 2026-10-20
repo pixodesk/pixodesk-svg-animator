@@ -118,7 +118,13 @@ export function Intro() {
 }
 ```
 
-**Declarative play / pause:**
+**Declarative playback** — `play` names a STATE, the same shared rule as the React and Vue
+components (`resolveDeclarativePlayback` in core). One-shot document: `play` is a POSE switch
+(`false` the start pose, `true` the finish pose; changes move per `playMode` — `'forwards'`
+default plays there and snaps back, `'both'` plays both ways — always from the current frame,
+and a mount renders the pose without animating). Looping document: `play` is a RUN switch —
+`false` snaps to rest, or finishes the current iteration first with `completeIteration`.
+`pause` freezes the current frame immediately, while `play` is true.
 
 ```tsx
 import { useState } from 'react';
@@ -127,13 +133,13 @@ import { SvgAnimator } from '@pixodesk/svg-animator-rn';
 import doc from './animation.json';
 
 export function Controlled() {
-  const [play, setPlay] = useState(false);
-  const [pause, setPause] = useState(false);
+  const [on, setOn] = useState(false);
+  const [frozen, setFrozen] = useState(false);
   return (
     <View>
-      <SvgAnimator doc={doc} play={play} pause={pause} />
-      <Button title="Play" onPress={() => { setPlay(true); setPause(false); }} />
-      <Button title="Pause" onPress={() => setPause(true)} />
+      <SvgAnimator doc={doc} play={on} playMode="both" pause={frozen} />
+      <Button title={on ? 'Back to start' : 'Play'} onPress={() => setOn(!on)} />
+      <Button title={frozen ? 'Resume' : 'Freeze'} onPress={() => setFrozen(!frozen)} />
     </View>
   );
 }
@@ -159,7 +165,8 @@ export function Imperative() {
 }
 ```
 
-`PxAnimatorHandle`: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`,
+`PxAnimatorHandle`: `play()`, `pause()`, `cancel()`, `finish()`, `playOnce()` (ONE fresh pass
+from the start, whatever `iterations` say — the "plays once on click" verb), `isPlaying()`,
 `setPlaybackRate(rate)` (negative = reverse; `0` is rejected with a warning — use `pause()`),
 `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)` —
 jumping to a time while playing continues from there.
@@ -224,7 +231,10 @@ interface SvgAnimatorProps {
     // Control — the highest-priority one that is set picks the mode (Control modes above)
     playAsSaved?: boolean;                   // honor the document trigger — the same defaults as the
                                           //   web: start 'load', offScreen 'pause'
-    play?: boolean; pause?: boolean;      // unconditional control; play={false} holds where it is
+    play?: boolean; pause?: boolean;      // the STATE (one-shot: which pose; loop: running) / freeze now
+    playMode?: 'forwards' | 'backwards' | 'both' | 'none' | PxPlayMode; // one-shot: which pose changes PLAY vs snap —
+                                          //   'forwards' (default) | 'backwards' | 'both' | 'none'
+    completeIteration?: boolean;          // loop: play=false finishes the CURRENT iteration, then rests
     progress?: number;                    // 0–1 of duration × iterations (one iteration when 'infinite')
     time?: number;                        // ms from the start
 

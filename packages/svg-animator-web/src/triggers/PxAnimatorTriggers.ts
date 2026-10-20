@@ -6,7 +6,7 @@
 import { PxDiagnosticCode, PxDiagnosticKind, PxMouseOutAction, PxTriggerStart, resolveTrigger,
     type PxDiagnostics, type PxTrigger } from '@pixodesk/svg-animator-core';
 import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
-import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
+import type { PxEngineAnimatorApi } from '../shared/PxAnimatorWebTypes';
 import { createVisibilityGate } from './PxVisibilityGate';
 
 
@@ -36,7 +36,7 @@ import { createVisibilityGate } from './PxVisibilityGate';
  * @public
  */
 export function setupAnimationTriggers(
-    api: PxAnimatorApi,
+    api: PxEngineAnimatorApi,
     trigger: PxTrigger,
     diag?: PxDiagnostics
 ): () => void {

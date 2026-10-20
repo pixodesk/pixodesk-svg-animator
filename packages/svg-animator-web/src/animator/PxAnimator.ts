@@ -310,6 +310,7 @@ export function createSvgAnimator(options: PxAnimatorOptions): PxAnimatorApi {
         "pause": () => { enqueue(api => api.pause()); },
         "cancel": () => { enqueue(api => api.cancel()); },
         "finish": () => { enqueue(api => api.finish()); },
+        "playOnce": () => { enqueue(api => api.playOnce()); },
         "setPlaybackRate": (rate: number) => { enqueue(api => api.setPlaybackRate(rate)); },
         "getCurrentTime": () => animator ? animator.getCurrentTime() : null,
         "setCurrentTime": (time: number) => { enqueue(api => api.setCurrentTime(time)); },

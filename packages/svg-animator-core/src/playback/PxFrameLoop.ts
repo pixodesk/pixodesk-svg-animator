@@ -3,7 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { type PxAnimatedSvgDocument, type PxAnimatorApi, type PxEngineCallbacks } from '../format/PxAnimatorTypes';
+import { type PxAnimatedSvgDocument, type PxAnimatorApi, type PxEngineAnimatorApi, type PxEngineCallbacks } from '../format/PxAnimatorTypes';
+import { composePlayOnce } from './PxDeclarativePlayback';
 import { getAnimatorConfig, PX_DEFAULT_ITERATIONS, PxTimelineEngine } from '../format/PxAnimatorConstants';
 import { PxTimeTimelineSchema } from '../format/PxAnimatorTypes';
 import { camelCaseToKebabWordIfNeeded, clamp, PX_DEFAULT_DURATION_MS, PX_STYLE_ATTR_NAMES } from '../util/PxAnimatorUtil';
@@ -421,7 +422,7 @@ export function createAdapterSvgAnimator(
 
     ////////////////////////////////////////////////////////////////
 
-    const api: PxAnimatorApi = {
+    const api: PxEngineAnimatorApi = {
 
         "isReady": () => true,
 
@@ -490,7 +491,8 @@ export function createAdapterSvgAnimator(
 
     ////////////////////////////////////////////////////////////////
 
-    return api;
+    // `playOnce` is composed ON TOP of the engine — the one shared one-pass rule (review §10)
+    return composePlayOnce(api, config, requestFrame);
 }
 
 

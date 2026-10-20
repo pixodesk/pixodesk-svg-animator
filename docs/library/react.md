@@ -69,6 +69,8 @@ interface PxAnimatorHandle {
     pause(): void;                         // hold the current frame
     cancel(): void;                        // stop and reset to the start
     finish(): void;                        // jump to the end and hold it
+    playOnce(): void;                      // ONE fresh pass from the start, whatever `iterations`
+                                           //   say — the verb behind "plays once on click"
     setPlaybackRate(rate: number): void;   // 1 normal, 2 double, negative = reverse; 0 is rejected
                                            //   with a warning — use pause()
     getCurrentTime(): number | null;       // ms from the start of the whole run, every iteration
@@ -126,36 +128,65 @@ export function Scrubber() {
 
 `progress` is a position in the whole timeline (duration × iterations), from `0`, the first frame, to `1`, the last; `time` is a time in milliseconds from the start.
 
-### Declarative play / pause
+### Declarative playback — `play`, `pause`, `playMode`, `completeIteration`
 
 > **Example:** [`react/declarative`](../../examples/docs-examples/src/cases/react/declarative/) — `pnpm example:docs`, then open `#react/declarative`.
 
-Drive playback from your own state with two booleans — handy when play/pause is already part
-of your component's state (a toggle, a visibility flag) and you would rather not hold a ref.
+**`play` names a state, not a command** — like a CSS class; how a change LOOKS is config. What
+that state means follows the document's effective `iterations` (the file's value plus the
+`iterations` prop):
+
+- **One-shot document (a single pass): `play` is a POSE switch.** `false` = the start pose,
+  `true` = the finish pose. A change moves to the new pose **from the current frame** —
+  interruptions turn around smoothly, never jump — and a **mount never animates**: the component
+  renders the pose the props name (so a re-rendered list of icons does not all play at once).
+  `playMode` says which changes actually play: `'forwards'` (the default — plays there, snaps
+  back), `'backwards'` (appears instantly, plays back), `'both'` (the two-pose toggle), `'none'`
+  (snaps both ways). The same four words as `fillMode`, the same side-mapping — but a different
+  question: `fillMode` picks the picture at rest around a run, `playMode` picks whether a `play`
+  change travels.
+- **Looping document (`iterations` > 1 or `'infinite'`): `play` is a RUN switch.** `true` runs,
+  `false` snaps to rest — or, with `completeIteration`, first finishes the current iteration (a
+  heartbeat should not die mid-beat) and then rests.
+- **`pause` freezes the current frame, immediately,** and lifting it resumes toward the current
+  target. It only means something while `play` is true — `play={false}` forcibly unfreezes.
+
+The everyday recipes:
 
 ```tsx
-import { useState } from 'react';
-import { SvgAnimator } from '@pixodesk/svg-animator-react';
-import animation from './animation.json';
+// Hover icon (trash-can lid): rests at start · hover → plays forward · rests at end ·
+// unhover → plays BACK from wherever it is · rests. One boolean, playMode="both".
+<SvgAnimator doc={doc} play={isHovered} playMode="both" />
 
-export function Controlled() {
-  const [play, setPlay] = useState(false);
-  const [pause, setPause] = useState(false);
-  return (
-    <>
-      <SvgAnimator doc={animation} play={play} pause={pause} />
-      <button onClick={() => { setPlay(true); setPause(false); }}>Play</button>
-      <button onClick={() => setPause(true)}>Pause</button>
-    </>
-  );
-}
+// Splash / stamp — zero config: plays forward, off SNAPS back to clean.
+// A REPEAT splash needs the off edge — re-arm on finish (or use apiRef + playOnce()):
+<SvgAnimator doc={doc} play={isSplashing} onFinish={() => setIsSplashing(false)} />
+
+// Overlay art: appears instantly, retreats animated
+<SvgAnimator doc={doc} play={isOpen} playMode="backwards" />
+
+// Spinner: spins while busy, off snaps to rest
+<SvgAnimator doc={doc} play={isBusy} iterations="infinite" />
+
+// Heartbeat: finishes the current beat, then rests
+<SvgAnimator doc={doc} play={isBeating} iterations="infinite" completeIteration />
+
+// Doorbell — click plays once, start to finish; there is no "off", so it is a ref verb:
+<SvgAnimator doc={doc} apiRef={api} />  /* + onClick={() => api.current?.playOnce()} */
 ```
 
-`play && !pause` plays; `pause` pauses; `play === false` holds where it is; a pause that is
-switched back off resumes.
+The same two switches drive a pre-rendered SVG+CSS export as class names on its root —
+`px-anim-enabled` (the run switch; removing it resets) and `px-anim-playing` (the freeze
+switch) — and the Vue and React Native components share this component's rule
+(`resolveDeclarativePlayback` in core, acting through `PxDeclarativeAction`s), so the behaviour
+cannot drift. A misplaced modifier (`playMode` on a loop, `completeIteration` on a one-shot,
+`pause` without `play`) warns and changes nothing.
 
 With none of `playAsSaved` / `progress` / `time` / `play` / `pause` set, the component renders the
-first frame statically — `apiRef` on its own is such a case, so playback waits for your `play()`.
+first frame statically — `apiRef` on its own is such a case, so playback waits for your call
+(`playOnce()` for the one-shot ping). A WRITE call on the ref while `play`/`pause` or
+`progress`/`time` own playback warns ([PX1503](../diagnostics.md)) and is applied; the next prop
+change reasserts the props.
 
 ## Playback overrides
 
@@ -226,8 +257,16 @@ interface SvgAnimatorProps {
     progress?: number;                    // controlled: 0–1 of duration × iterations
                                           //   (one iteration when iterations is 'infinite')
     time?: number;                        // controlled: ms from the start
-    play?: boolean;                       // true: play regardless of the trigger; false: hold where it is
-    pause?: boolean;                      // hold the current frame; false again resumes
+    play?: boolean;                       // the STATE: one-shot doc — which POSE (false = start,
+                                          //   true = finish; changes move per playMode, never on
+                                          //   mount); looping doc — running or not (false = rest)
+    pause?: boolean;                      // freeze the current frame NOW / resume; only while
+                                          //   `play` is true — play={false} forcibly unfreezes
+    playMode?: 'forwards' | 'backwards' | 'both' | 'none' | PxPlayMode; // one-shot only: which pose changes PLAY vs snap —
+                                          //   'forwards' (default: plays there, snaps back) |
+                                          //   'backwards' | 'both' | 'none' (fillMode's spellings)
+    completeIteration?: boolean;          // loop only: play={false} finishes the CURRENT
+                                          //   iteration, then rests
 
     // Lifecycle — no arguments
     onPlay?: () => void;     // started, or resumed after a pause

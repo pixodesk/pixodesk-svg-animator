@@ -5,6 +5,7 @@
 
 import type {
     PxAnimatorApi as PxAnimatorAPICore,
+    PxEngineAnimatorApi as PxEngineAnimatorApiCore,
 } from '@pixodesk/svg-animator-core';
 
 /**
@@ -15,3 +16,7 @@ import type {
  */
 /** @public */
 export type PxAnimatorApi = PxAnimatorAPICore<Element>;
+
+/** What the web ENGINES construct — the api minus `playOnce`, composed in `finaliseAnimator`.
+ *  @public @advanced */
+export type PxEngineAnimatorApi<TRoot = Element> = PxEngineAnimatorApiCore<TRoot>;

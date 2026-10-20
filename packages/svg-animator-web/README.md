@@ -117,6 +117,7 @@ It returns a `PxAnimatorApi`:
 | `pause()`               | Pause at the current time                                         |
 | `cancel()`              | Stop and reset to the start                                       |
 | `finish()`              | Jump to the end                                                   |
+| `playOnce()`            | One fresh pass from the start, whatever `iterations` say          |
 | `setPlaybackRate(rate)` | Change speed (1 = normal, 2 = double, -1 = reverse)               |
 | `getCurrentTime()`      | Current time in ms                                                |
 | `setCurrentTime(ms)`    | Jump to a point in the animation, in milliseconds from its start |

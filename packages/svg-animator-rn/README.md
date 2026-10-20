@@ -169,6 +169,8 @@ const [time, setTime] = useState(0);
 | `playAsSaved` | `boolean` | Use the trigger from the document |
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
+| `playMode` | `'none' \| 'forwards' \| 'backwards' \| 'both'` | One-shot documents: which pose changes PLAY vs snap (default `forwards`) |
+| `completeIteration` | `boolean` | Looping documents: `play={false}` finishes the current iteration, then rests |
 | `apiRef` | `RefObject<PxAnimatorHandle>` | Ref for imperative control |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |

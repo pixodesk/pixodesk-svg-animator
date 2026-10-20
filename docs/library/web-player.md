@@ -192,6 +192,9 @@ interface PxAnimatorApi {
     pause(): void;                         // hold the current frame
     cancel(): void;                        // stop and reset to the start state
     finish(): void;                        // jump to the end and hold the final state; fires onFinish
+    playOnce(): void;                      // ONE fresh pass from the start, whatever `iterations`
+                                           //   say — a loop-configured document plays a single pass,
+                                           //   then settles per the file's `trigger.finish`
     setPlaybackRate(rate: number): void;   // 1 normal, 2 double, 0.5 half, negative plays backwards;
                                            //   0 and non-finite are rejected with a warning — use pause()
     getCurrentTime(): number | null;       // ms from the start of the whole run; null before a
@@ -426,7 +429,7 @@ function loadTagSvgAnimators(options?: PxTagAnimatorOptions): void;
 // `mouseOut` / `visibilityThreshold`; `finish` is the player's, not the
 // trigger wiring's. `diag` is optional: omit it and anything this has to say goes to
 // the console.
-function setupAnimationTriggers(api: PxAnimatorApi, trigger: PxTrigger,
+function setupAnimationTriggers(api: PxEngineAnimatorApi, trigger: PxTrigger,
                                 diag?: PxDiagnostics): () => void;
 
 interface PxTrigger {                                  // also a wire type — the JSON format page

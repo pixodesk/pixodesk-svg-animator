@@ -183,6 +183,21 @@ export enum PxDiagnosticCode {
      */
     controlPropsConflict = 1501,
 
+    /**
+     * A declarative playback modifier was set where it cannot apply — `pause` without `play`,
+     * `playMode` on a looping document, `completeIteration` on a single-pass one. Ignored.
+     * @data the explanation
+     */
+    playModifierIgnored = 1502,
+
+    /**
+     * An imperative write call (`play()`, `pause()`, `playOnce()`, …) landed while a declarative
+     * driver (`play`/`pause` or `progress`/`time` props) owns playback. The call is applied, and
+     * the next prop change reasserts the props.
+     * @data the call
+     */
+    imperativeOverDeclarative = 1503,
+
     // ── 1600 · React Native ──────────────────────────────────────────────────────────────────
 
     /**
