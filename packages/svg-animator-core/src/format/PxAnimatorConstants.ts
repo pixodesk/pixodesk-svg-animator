@@ -323,9 +323,11 @@ export interface PxControlProps {
     progress?: number;
     /** Show the frame at this time, ms from the start of the whole run. Wins like `progress`. */
     time?: number;
-    /** `true` plays now, whatever the document's trigger says; `false` holds where it is. */
+    /** The RUN axis — a change RESETS: `true` (re)starts from the initial state, whatever the
+     *  document's trigger says; `false` stops and shows the initial state (the rest pose). */
     play?: boolean;
-    /** Hold the current frame; set it back to `false` to resume. */
+    /** The FREEZE axis, while `play` is true: `true` holds the current frame, back to `false`
+     *  resumes from it — no reset. Does nothing without `play`. */
     pause?: boolean;
     /** Play the way the editor saved it — the document's own `trigger` block decides. */
     playAsSaved?: boolean;
@@ -337,6 +339,61 @@ export interface PxControlProps {
 export interface PxResolvedControlMode {
     readonly mode: PxControlMode;
     readonly warnings: ReadonlyArray<string>;
+}
+
+/** What the declarative `play`/`pause` props ask for on this render — see
+ *  {@link resolveDeclarativePlayback}. @public @advanced */
+export enum PxDeclarativePlayback {
+    /** Nothing changed that playback has to act on. */
+    none = 'none',
+    /** (Re)start from the initial state: `cancel()` then `play()`. */
+    restart = 'restart',
+    /** Stop and show the initial state: `cancel()`. */
+    stop = 'stop',
+    /** Freeze the current frame: `pause()`. */
+    pause = 'pause',
+    /** Resume from the held frame: `play()`. */
+    resume = 'resume',
+}
+
+/**
+ * ONE rule for the declarative `play`/`pause` props (first-use review §10), shared by the React,
+ * Vue and React Native components so the three cannot drift. The two props are two AXES, not two
+ * spellings of one state (a media player's stop vs pause; react-lottie's isStopped/isPaused):
+ *
+ * - `play` is the RUN axis, and a CHANGE resets: `true` (re)starts from the initial state,
+ *   `false` stops and shows it (`cancel()` — the document's rest pose).
+ * - `pause` is the FREEZE axis, meaningful only while `play` is true: `true` holds the current
+ *   frame, back to `false` resumes from it — no reset.
+ *
+ * `prev` is the previous render's `{ play, pause }` (both `undefined` on mount, and reset to
+ * that when the animator is recreated, so a carried-over `play: true` starts the new instance).
+ * @public @advanced
+ */
+export function resolveDeclarativePlayback(
+    prev: { play?: boolean; pause?: boolean },
+    next: { play?: boolean; pause?: boolean },
+): { action: PxDeclarativePlayback; warning?: string } {
+    const playChanged = prev.play !== next.play;
+    const pauseChanged = prev.pause !== next.pause;
+    if (next.play === undefined) {
+        // `pause` is subordinate: alone there is nothing to freeze.
+        return next.pause !== undefined && pauseChanged
+            ? { action: PxDeclarativePlayback.none, warning: '`pause` does nothing without `play` — it freezes a run that `play` started.' }
+            : { action: PxDeclarativePlayback.none };
+    }
+    if (next.play === false) {
+        return { action: playChanged ? PxDeclarativePlayback.stop : PxDeclarativePlayback.none };
+    }
+    // play === true
+    if (playChanged) {
+        // arriving true with pause already up: reset, then HOLD the initial state
+        return { action: next.pause ? PxDeclarativePlayback.stop : PxDeclarativePlayback.restart };
+    }
+    if (pauseChanged) {
+        return { action: next.pause ? PxDeclarativePlayback.pause : PxDeclarativePlayback.resume };
+    }
+    return { action: PxDeclarativePlayback.none };
 }
 
 /**

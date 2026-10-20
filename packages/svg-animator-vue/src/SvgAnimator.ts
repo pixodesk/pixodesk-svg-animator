@@ -24,7 +24,6 @@ const VUE_PROP = { ref: 'ref', style: 'style' } as const;
  * package's name (review §9). One definition for React, Vue and React Native.
  * @public
  */
-export type VueAnimatorApi = PxAnimatorHandle;
 
 
 // -- Internal types ---------------------------------------------------------
@@ -324,7 +323,7 @@ const SvgAnimator = defineComponent({
 
         // -- Expose imperative API ----------------------------------------------
 
-        const publicApi: VueAnimatorApi = {
+        const publicApi: PxAnimatorHandle = {
             isPlaying: () => apiRef.value?.isPlaying() || false,
             play: () => apiRef.value?.play(),
             pause: () => apiRef.value?.pause(),

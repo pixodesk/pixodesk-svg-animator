@@ -4,7 +4,8 @@
  *---------------------------------------------------------------------------------------*/
 
 import SvgAnimator from './SvgAnimator';
-export type { SvgAnimatorCallbacks, SvgAnimatorProps, ReactAnimatorApi } from './SvgAnimator';
+export type { SvgAnimatorCallbacks, SvgAnimatorProps } from './SvgAnimator';
+export type { PxAnimatorHandle } from '@pixodesk/svg-animator-core';
 export { SvgAnimator };
 
 import SvgCssAnimator from './SvgCssAnimator';

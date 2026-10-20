@@ -2318,27 +2318,6 @@ const _ck_PxBezierPath: KeysMatch<PxBezierPath, _PxBezierPath> = true; // the ke
  * React Native player to its own view handle. Defaults to `unknown`.
  * @public
  */
-export interface PxPlaybackApi<TRoot = unknown> {
-
-    isReady(): boolean;
-
-    /** Returns the root element for the animation (platform-specific type). */
-    getRootElement(): TRoot | null;
-
-    /** Returns true if the animation is currently running. */
-    isPlaying(): boolean;
-
-    /** Starts or resumes the animation. */
-    play(): void;
-
-    /** Pauses the animation at its current state. */
-    pause(): void;
-
-    /** Stops the animation and resets it to its initial state. */
-    cancel(): void;
-
-}
-
 /**
  * The full programmatic control interface for an animation.
  *
@@ -2357,7 +2336,24 @@ export interface PxPlaybackApi<TRoot = unknown> {
  * rather than one per engine.
  * @public
  */
-export interface PxAnimatorApi<TRoot = unknown> extends PxPlaybackApi<TRoot> {
+export interface PxAnimatorApi<TRoot = unknown> {
+
+    isReady(): boolean;
+
+    /** Returns the root element for the animation (platform-specific type). */
+    getRootElement(): TRoot | null;
+
+    /** Returns true if the animation is currently running. */
+    isPlaying(): boolean;
+
+    /** Starts or resumes the animation. */
+    play(): void;
+
+    /** Pauses the animation at its current state. */
+    pause(): void;
+
+    /** Stops the animation and resets it to its initial state. */
+    cancel(): void;
 
     /** Jumps to the end of the animation and holds the final state. */
     finish(): void;
@@ -2394,9 +2390,10 @@ export interface PxAnimatorApi<TRoot = unknown> extends PxPlaybackApi<TRoot> {
  * what the component itself owns — `isReady` (the document is inline, so it is always ready),
  * `getRootElement` (the framework renders it) and `destroy` (unmounting does it).
  *
- * ONE definition (review §9). `ReactAnimatorApi`, `VueAnimatorApi` and `RnAnimatorApi` are
- * aliases of this, so the three can no longer drift — they had: React Native's
- * `setPlaybackRate` comment had already lost "negative plays backwards".
+ * ONE definition and ONE name (review §9): every framework package re-exports
+ * `PxAnimatorHandle` itself — the per-package aliases (`ReactAnimatorApi`, …) are gone, so the
+ * three cannot drift (React Native's `setPlaybackRate` comment had already lost
+ * "negative plays backwards").
  * @public
  */
 export type PxAnimatorHandle = Omit<PxAnimatorApi, 'isReady' | 'getRootElement' | 'destroy'>;

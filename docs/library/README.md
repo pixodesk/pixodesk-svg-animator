@@ -115,7 +115,7 @@ a number when it differs — the note with that number, under the table, says ho
    has no touch equivalent.
 6. The handle is what `createSvgAnimator` returns, a `PxAnimatorApi`.
 7. The handle is on the element, as `element._px_animator`.
-8. The handle is the component's template ref, a `VueAnimatorApi`.
+8. The handle is the component's template ref, a `PxAnimatorHandle`.
 9. Written `class`; like `style`, it falls through to the root `<svg>`.
 10. The tag always plays as saved — embedding a finished file IS choosing its behaviour — so it
     takes no `playAsSaved` option.

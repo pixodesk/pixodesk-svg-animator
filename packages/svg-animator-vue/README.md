@@ -52,9 +52,9 @@ Use a template ref for full programmatic control:
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { VueAnimatorApi } from '@pixodesk/svg-animator-vue';
+import type { PxAnimatorHandle } from '@pixodesk/svg-animator-vue';
 
-const animator = ref<VueAnimatorApi | null>(null);
+const animator = ref<PxAnimatorHandle | null>(null);
 </script>
 
 <template>
@@ -64,8 +64,8 @@ const animator = ref<VueAnimatorApi | null>(null);
 </template>
 ```
 
-<!-- px-check members VueAnimatorApi pkg=vue -->
-`VueAnimatorApi` methods: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
+<!-- px-check members PxAnimatorHandle pkg=vue -->
+`PxAnimatorHandle` methods: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
 
 ### Controlled time
 

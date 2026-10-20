@@ -1,5 +1,5 @@
 import { createApp, h, onMounted, ref } from 'vue';
-import { SvgAnimator, type VueAnimatorApi } from '@pixodesk/svg-animator-vue';
+import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-vue';
 import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
 import { applyTriggerOverride, shouldAutoplayForTrigger, type PlayerHandle, type PlayerOptions } from './types';
 
@@ -10,7 +10,7 @@ export function createVuePlayer(
   opts?: PlayerOptions,
 ): PlayerHandle {
   // The component `expose()`s its imperative API; a template ref captures it.
-  let api: VueAnimatorApi | null = null;
+  let api: PxAnimatorHandle | null = null;
 
   const app = createApp({
     setup() {

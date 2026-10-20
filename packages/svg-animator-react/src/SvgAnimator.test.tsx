@@ -8,7 +8,8 @@ import { PxDiagnosticCode } from '@pixodesk/svg-animator-core';
 import { cleanup, render } from "@testing-library/react";
 import { createRef } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import SvgAnimator, { REACT_CAMEL_CASED_SVG_ATTRS, ReactAnimatorApi } from './SvgAnimator';
+import type { PxAnimatorHandle } from '@pixodesk/svg-animator-core';
+import SvgAnimator, { REACT_CAMEL_CASED_SVG_ATTRS } from './SvgAnimator';
 
 
 describe("SvgAnimator (React)", () => {
@@ -152,7 +153,7 @@ describe("SvgAnimator (React)", () => {
         it("playAsSaved still starts when an apiRef is passed — a handle is not a mode", () => {
             // The §1 bug: passing `apiRef` forced start:'none', so this
             // never moved on its own and `playAsSaved` was silently dead.
-            const apiRef = createRef<ReactAnimatorApi>();
+            const apiRef = createRef<PxAnimatorHandle>();
             render(<SvgAnimator doc={getTestJson()} playAsSaved apiRef={apiRef} />);
 
             const ellipse = document.querySelector("ellipse");
@@ -270,7 +271,7 @@ describe("SvgAnimator (React)", () => {
 
     describe("imperative API (apiRef)", () => {
         it("exposes play/pause/setCurrentTime/getCurrentTime/setPlaybackRate/isPlaying", () => {
-            const apiRef = createRef<ReactAnimatorApi>();
+            const apiRef = createRef<PxAnimatorHandle>();
             render(<SvgAnimator doc={getTestJson()} apiRef={apiRef} />);
 
             const api = apiRef.current;
@@ -307,7 +308,7 @@ describe("SvgAnimator (React)", () => {
 
     describe("callbacks", () => {
         function renderWithCallbacks() {
-            const apiRef = createRef<ReactAnimatorApi>();
+            const apiRef = createRef<PxAnimatorHandle>();
             const spies = {
                 onPlay: vi.fn(), onPause: vi.fn(), onCancel: vi.fn(),
                 onFinish: vi.fn(), onRemove: vi.fn(), onStop: vi.fn(),

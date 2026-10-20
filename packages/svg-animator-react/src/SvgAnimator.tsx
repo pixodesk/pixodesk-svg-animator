@@ -65,7 +65,6 @@ function toReactPropName(attr: string): string {
  * the same methods separately, and their comments had already begun to drift.
  * @public
  */
-export type ReactAnimatorApi = PxAnimatorHandle;
 
 export interface SvgAnimatorImplProps {
     className?: string;
@@ -129,7 +128,7 @@ export interface SvgAnimatorProps extends PxPlaybackOverride, PxControlProps, Px
      * Ref populated with the imperative playback API. Filled in EVERY mode and never picks one
      * (review §1): `playAsSaved` next to it still autoplays.
      */
-    apiRef?: React.RefObject<ReactAnimatorApi | null>;
+    apiRef?: React.RefObject<PxAnimatorHandle | null>;
 }
 
 
@@ -252,7 +251,7 @@ const SvgAnimatorImplOnce = React.memo(
  *
  * 3. **Imperative** – exposes a ref-based API for full programmatic control.
  *    ```tsx
- *    const api = useRef<ReactAnimatorApi>(null);
+ *    const api = useRef<PxAnimatorHandle>(null);
  *    <SvgAnimator doc={animation} apiRef={api} />
  *    <button onClick={() => api.current?.play()}>Play</button>
  *    ```

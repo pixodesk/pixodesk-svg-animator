@@ -5,7 +5,7 @@
 
 import SvgAnimator from './SvgAnimator';
 export { SvgAnimator };
-export type { VueAnimatorApi } from './SvgAnimator';
+export type { PxAnimatorHandle } from '@pixodesk/svg-animator-core';
 
 import SvgCssAnimator from './SvgCssAnimator';
 export { SvgCssAnimator };

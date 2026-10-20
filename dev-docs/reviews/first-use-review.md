@@ -1,7 +1,7 @@
 # First-use review — the API, the schema and the docs through a newcomer's eyes
 
 Status **2026-10-15** (two passes the same day: the exports and schemas, then every guide in
-`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8 — each closes with a **Done** note.
+`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept) — each closes with a **Done** note.
 
 Read as a first-time user would: the five packages' exports, the wire schemas, the component
 props, then the guides end to end — `README.md`, `docs/library/*`, `docs/format/README.md`,
@@ -312,7 +312,7 @@ timeline: { inTime: 500, outTime: 2500, playDuration: 4000 }  // …remapped to 
   `Pixodesk.SvgAnimator.bind({"doc": …})` (`PX_PLAYER_BIND`), so a page may supply either build. `createSvgAnimator`
   still binds when `container` is omitted (unchanged).
 
-### 9. Handle types: six names, and the docs explain them wrong
+### 9. Handle types: six names, and the docs explain them wrong ✅
 
 - **Where:** core `PxPlaybackApi`, `PxAnimatorApi`, `PxAnimatorHandle`; React `ReactAnimatorApi`,
   Vue `VueAnimatorApi`, RN `RnAnimatorApi` (all three = `PxAnimatorHandle`).
@@ -324,6 +324,14 @@ timeline: { inTime: 500, outTime: 2500, playDuration: 4000 }  // …remapped to 
   re-exported under that name by each framework package; fold `PxPlaybackApi` into
   `PxAnimatorApi`. In React, consider the standard `ref` (React 19 takes `ref` as a prop;
   `forwardRef` before it) so React and Vue match.
+- **Done (2026-10-20), types + docs only — NO functionality change:** `PxPlaybackApi` folded into
+  `PxAnimatorApi` (it was returned by nothing); the three aliases (`ReactAnimatorApi`,
+  `VueAnimatorApi`, `RnAnimatorApi`) are gone — each framework package re-exports
+  `PxAnimatorHandle` itself, so the handle has ONE name everywhere. installation.md's wrong
+  explanation ("the smaller set a pre-rendered player offers") removed; web-player.md's split
+  signature block merged into one `PxAnimatorApi`; guides, package READMEs, px-check markers and
+  every example swept. Owner's call: `apiRef` STAYS as the React/RN prop (the standard-`ref`
+  idea is dropped); Vue keeps its template ref.
 
 ### 10. Two booleans for one state
 
@@ -332,6 +340,31 @@ timeline: { inTime: 500, outTime: 2500, playDuration: 4000 }  // …remapped to 
   example has to set both on every click (`setPlay(true); setPause(false)`), and four
   combinations describe two states.
 - **Do:** one boolean — `playing` (or `paused`) — for the declarative mode.
+- **Corrected (owner, 2026-10-20):** the critique holds for the CURRENT code (today `play: false`
+  and `pause: true` both just `pause()` — nothing ever resets, so four combos really are two
+  behaviours), but "one boolean" is the wrong fix: stop-and-rewind and freeze-in-place are two
+  different things a UI needs, and one boolean cannot say both. The intended semantics are two
+  AXES — `play` = run/stop (a change RESETS to the initial state; `cancel()` is the existing
+  primitive, so the stopped pose is the document's own rest pose, no new config key), `pause` =
+  freeze/resume in place, meaningful only while `play` is true.
+- **Alternatives researched (2026-10-20)** — declarative playback control in other libraries:
+  | | Shape | Precedent | For / against |
+  |---|---|---|---|
+  | A | Two booleans, two axes: `play` (run/stop, change resets) + `pause` (freeze/resume) | react-lottie `isStopped` / `isPaused` — exactly these semantics | familiar, both axes animatable; but `pause` is subordinate to `play` and that hierarchy lives in docs, not in the type |
+  | B | ONE state prop: `playback: playing \| paused \| stopped \| finished` | CSS `animation-play-state: running \| paused`; WAAPI `playState` = `running \| paused \| idle \| finished` | the states are mutually exclusive, so one enum makes contradictions unrepresentable; `finished` (the old `finish()`) comes free as a word, not a third boolean; restart while playing needs a transit through `stopped` (or a remount `key`) |
+  | C | `play` + adjective booleans (`play paused`, `play stopped`, `play finished`) | — | B wearing boolean clothes: the adjectives exclude each other, so N booleans re-create this very card at larger scale; folded into B |
+  | D | One boolean `playing` (play/resume vs pause-in-place) + edge-triggered `reset` | react-player's single `playing`; react-spring's `reset` | the 90 % toggle case is one boolean; but no declarative stopped STATE, and an edge-triggered boolean is un-React-ish (set, then unset) |
+
+  lottie-react (the current one) and Remotion offer NO declarative state — `autoplay` + an
+  imperative ref only; that tier already exists here as `playAsSaved` + `apiRef`.
+- **Recommendation:** B — the type enforces what docs would otherwise explain, the vocabulary
+  matches WAAPI/CSS, and this rename wave is unpublished, so replacing `play`/`pause` with one
+  prop is a clean break, not an extra one. Open namings: the prop (`playback` vs `playState`)
+  and `stopped` vs WAAPI's `idle` — proposal: `playback` + `stopped`.
+- **State:** core already holds the shared A-semantics rule (`resolveDeclarativePlayback` +
+  `PxDeclarativePlayback`, tested) — it drives B's transitions too (the enum states map onto the
+  same verbs), so no work is thrown away either way. Components not yet rewired; awaiting the
+  owner's pick between A and B.
 
 ### 11. Methods and events don't pair
 

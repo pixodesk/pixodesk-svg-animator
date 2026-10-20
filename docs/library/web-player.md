@@ -183,7 +183,14 @@ every player.
 <!-- px-check signature pkg=web -->
 ```typescript
 // Playback control returned by `createSvgAnimator` — core's `PxAnimatorApi<Element>`.
-interface PxAnimatorApi extends PxPlaybackApi {
+interface PxAnimatorApi {
+    isReady(): boolean;                    // true once a `src` document has loaded and rendered
+    getRootElement(): Element | null;      // the rendered <svg>; null before ready
+    isPlaying(): boolean;                  // true while running
+    play(): void;                          // start, or resume from the current time; on a finished
+                                           //   animation, rewinds and plays again
+    pause(): void;                         // hold the current frame
+    cancel(): void;                        // stop and reset to the start state
     finish(): void;                        // jump to the end and hold the final state; fires onFinish
     setPlaybackRate(rate: number): void;   // 1 normal, 2 double, 0.5 half, negative plays backwards;
                                            //   0 and non-finite are rejected with a warning — use pause()
@@ -195,17 +202,6 @@ interface PxAnimatorApi extends PxPlaybackApi {
     getCurrentProgress(): number | null;   // the same position as 0–1 of the whole run; null before ready
     setCurrentProgress(p: number): void;   // seek, 0–1 of the whole run (clamped)
     destroy(): void;                       // stop, remove the SVG it rendered, release everything; fires onRemove
-}
-
-// The platform-neutral base from core; the web fixes the root type to `Element`.
-interface PxPlaybackApi {
-    isReady(): boolean;                    // true once a `src` document has loaded and rendered
-    getRootElement(): Element | null;      // the rendered <svg>; null before ready
-    isPlaying(): boolean;                  // true while running
-    play(): void;                          // start, or resume from the current time; on a finished
-                                           //   animation, rewinds and plays again
-    pause(): void;                         // hold the current frame
-    cancel(): void;                        // stop and reset to the start state
 }
 ```
 
@@ -494,7 +490,7 @@ opt-in per document; see [Playback & triggers → Debug handle](./playback-and-t
 | `PxDiagnosticsConfig`, `PxDiagnostic`, `PxDiagnosticKind` | ● the diagnostics every player shares — re-exported for the React and Vue components; spelled out in [the API at a glance](./README.md#the-api-at-a-glance) |
 | `PxTimelineEngineSetting`, `PxFillMode`, `PxPlaybackDirection`, `PxTriggerStart` | ● named wire values — one const per wire enum, with the string type derived from it under the same name. `PxTimelineEngineSetting` is what `timeline.engine` accepts (`auto` · `native` · `js`); `PxTimelineEngine` is the resolved engine (`native` · `js`), the argument of `materializeAllInTree`, never an option. `PxUnits` covers `gradientUnits` and the mask units alike |
 | `PxAnimatedSvgDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTrigger`, `PxBinding`, `PxDefinitions` | ● wire types — the shapes in [the JSON format](../format/README.md#schema-at-a-glance) |
-| `PxAnimatorOptions`, `PxTagAnimatorOptions`, `PxAnimatorApi`, `PxPlaybackApi`, `PxAnimatorCallbacks`, `PxEngineCallbacks`, `PxPlaybackOverride`, `PxTimelinePatch`, `PxPlatformAdapter` | ● / ○ companion types of the calls above |
+| `PxAnimatorOptions`, `PxTagAnimatorOptions`, `PxAnimatorApi`, `PxAnimatorCallbacks`, `PxEngineCallbacks`, `PxPlaybackOverride`, `PxTimelinePatch`, `PxPlatformAdapter` | ● / ○ companion types of the calls above |
 
 **Core only**: `flattenAnimatorTimeline` / `nestAnimatorTimeline`, the engine rules
 (`resolveTimelineEngine`, …) and the scroll maths.

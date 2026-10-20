@@ -6,7 +6,7 @@
  * loop override, playback rate and a light/dark theme toggle. Instead of the
  * web version's drag-and-drop, the documents are embedded (see `samples.ts`).
  */
-import { SvgAnimator, type RnAnimatorApi } from '@pixodesk/svg-animator-rn';
+import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-rn';
 import { getAnimatorConfig } from '@pixodesk/svg-animator-core';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -34,7 +34,7 @@ export default function App() {
     const [playing, setPlaying] = useState(false);
     const [timeMs, setTimeMs] = useState(0);
 
-    const api = useRef<RnAnimatorApi | null>(null);
+    const api = useRef<PxAnimatorHandle | null>(null);
     const sample = SAMPLES[sampleIdx];
     const doc = sample.doc;
 
@@ -60,7 +60,7 @@ export default function App() {
     // Re-apply the rate whenever it changes or the document is rebuilt.
     useEffect(() => { api.current?.setPlaybackRate(rate); }, [rate, doc]);
 
-    const call = (fn: (a: RnAnimatorApi) => void) => () => { if (api.current) fn(api.current); };
+    const call = (fn: (a: PxAnimatorHandle) => void) => () => { if (api.current) fn(api.current); };
 
     return (
         <View style={[styles.root, { backgroundColor: t.bg }]}>

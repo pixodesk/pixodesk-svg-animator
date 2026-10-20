@@ -5,7 +5,6 @@
 
 import type {
     PxAnimatorApi as PxAnimatorAPICore,
-    PxPlaybackApi as PxBasicAnimatorAPICore,
 } from '@pixodesk/svg-animator-core';
 
 /**
@@ -14,6 +13,5 @@ import type {
  * the historical (pre-core-extraction) signatures for web consumers.
  * @public
  */
-export type PxPlaybackApi = PxBasicAnimatorAPICore<Element>;
 /** @public */
 export type PxAnimatorApi = PxAnimatorAPICore<Element>;

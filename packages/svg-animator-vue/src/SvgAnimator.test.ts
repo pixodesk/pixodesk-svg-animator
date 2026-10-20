@@ -8,7 +8,8 @@ import { PxDiagnosticCode } from '@pixodesk/svg-animator-core';
 import { cleanup, render } from "@testing-library/vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, ref } from "vue";
-import SvgAnimator, { type VueAnimatorApi } from './SvgAnimator';
+import type { PxAnimatorHandle } from '@pixodesk/svg-animator-core';
+import SvgAnimator from './SvgAnimator';
 
 
 /**
@@ -18,7 +19,7 @@ import SvgAnimator, { type VueAnimatorApi } from './SvgAnimator';
  * `rerender({ doc })` reaches the animator.
  */
 function renderWithApi(doc: PxAnimatedSvgDocument, listeners: Record<string, (...args: any[]) => void> = {}) {
-    const api = ref<VueAnimatorApi | null>(null);
+    const api = ref<PxAnimatorHandle | null>(null);
     const utils = render(defineComponent({
         props: { doc: { type: Object, required: true } },
         setup(props) {

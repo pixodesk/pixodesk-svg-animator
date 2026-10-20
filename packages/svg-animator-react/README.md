@@ -51,9 +51,9 @@ Use a ref for full programmatic control:
 
 ```tsx
 import { useRef } from 'react';
-import type { ReactAnimatorApi } from '@pixodesk/svg-animator-react';
+import type { PxAnimatorHandle } from '@pixodesk/svg-animator-react';
 
-const api = useRef<ReactAnimatorApi>(null);
+const api = useRef<PxAnimatorHandle>(null);
 
 <SvgAnimator doc={animation} apiRef={api} />
 <button onClick={() => api.current?.play()}>Play</button>
@@ -62,8 +62,8 @@ const api = useRef<ReactAnimatorApi>(null);
 <button onClick={() => api.current?.finish()}>Finish</button>
 ```
 
-<!-- px-check members ReactAnimatorApi pkg=react -->
-`ReactAnimatorApi` methods: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
+<!-- px-check members PxAnimatorHandle pkg=react -->
+`PxAnimatorHandle` methods: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
 
 ### Controlled time
 
@@ -92,7 +92,7 @@ const [time, setTime] = useState(0);
 | `playAsSaved` | `boolean` | Use triggers from the document |
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
-| `apiRef` | `RefObject<ReactAnimatorApi>` | Ref for imperative control |
+| `apiRef` | `RefObject<PxAnimatorHandle>` | Ref for imperative control |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
 | `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |

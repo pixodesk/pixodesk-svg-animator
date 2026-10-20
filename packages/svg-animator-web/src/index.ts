@@ -55,7 +55,7 @@ export type {
 } from '@pixodesk/svg-animator-core';
 
 // DOM specializations — on the web `getRootElement()` returns a DOM Element.
-export type { PxAnimatorApi, PxPlaybackApi } from './shared/PxAnimatorWebTypes';
+export type { PxAnimatorApi } from './shared/PxAnimatorWebTypes';
 
 // ONE control-mode rule for every component (API review §1, §7). React and Vue reach core
 // through this package, so the resolver is forwarded here; React Native imports core directly.

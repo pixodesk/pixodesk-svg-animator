@@ -41,11 +41,11 @@ any button, timer or effect in your app can start, pause, or jump to any point i
 
 ```tsx
 import { useRef } from 'react';
-import { SvgAnimator, type ReactAnimatorApi } from '@pixodesk/svg-animator-react';
+import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Player() {
-  const api = useRef<ReactAnimatorApi>(null);
+  const api = useRef<PxAnimatorHandle>(null);
   return (
     <>
       <SvgAnimator doc={animation} apiRef={api} />
@@ -58,12 +58,12 @@ export function Player() {
 ```
 
 What `apiRef.current` gives you — the web API minus `destroy` / `getRootElement` / `isReady`,
-because the component owns the element's lifetime. It is core's `PxAnimatorHandle` under this
-package's name; `VueAnimatorApi` and `RnAnimatorApi` are the same type, so they cannot drift apart:
+because the component owns the element's lifetime. It is core's `PxAnimatorHandle`, under that
+one name in every framework package, so the three cannot drift apart:
 
 <!-- px-check signature pkg=react -->
 ```typescript
-interface ReactAnimatorApi {
+interface PxAnimatorHandle {
     isPlaying(): boolean;                  // true while running; false when paused, finished or not started
     play(): void;                          // start, or resume from the current time
     pause(): void;                         // hold the current frame
@@ -221,7 +221,7 @@ interface SvgAnimatorProps {
                                           //   'none' (only a play() from code)
 
     // Control — the HIGHEST-priority one that is set picks the mode (Control modes, above)
-    apiRef?: React.RefObject<ReactAnimatorApi | null>;   // never a mode: filled in every mode
+    apiRef?: React.RefObject<PxAnimatorHandle | null>;   // never a mode: filled in every mode
     playAsSaved?: boolean;                   // obey the document's own trigger — the Start setting from the editor
     progress?: number;                    // controlled: 0–1 of duration × iterations
                                           //   (one iteration when iterations is 'infinite')
@@ -318,7 +318,7 @@ handle under [Imperative API](#imperative-api-apiref), `SvgCssAnimator` under
 the shape every player shares — [the API at a glance](./README.md#the-api-at-a-glance).
 
 <!-- px-check exports @pixodesk/svg-animator-react -->
-Also exported: **●** `SvgAnimatorProps`, `ReactAnimatorApi`,
+Also exported: **●** `SvgAnimatorProps`, `PxAnimatorHandle`,
 `SvgAnimatorCallbacks` (the `on*` props as a standalone type), and `PxAnimatedSvgDocument`
 (the document type, for casting a JSON import — [TypeScript](./installation.md#typescript)).
 

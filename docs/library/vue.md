@@ -116,9 +116,9 @@ The component exposes the playback API on its template ref, so it is available i
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue';
-import { SvgAnimator, type VueAnimatorApi } from '@pixodesk/svg-animator-vue';
+import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-vue';
 import animation from './animation.json';
-const animator = ref<VueAnimatorApi | null>(null);
+const animator = ref<PxAnimatorHandle | null>(null);
 </script>
 
 <template>
@@ -129,12 +129,12 @@ const animator = ref<VueAnimatorApi | null>(null);
 </template>
 ```
 
-The ref holds core's `PxAnimatorHandle` under this package's name — the same type as
-`ReactAnimatorApi` and `RnAnimatorApi`, so they cannot drift apart:
+The ref holds core's `PxAnimatorHandle` — the one handle name every framework package
+exports, so the three cannot drift apart:
 
 <!-- px-check signature pkg=vue -->
 ```typescript
-interface VueAnimatorApi {
+interface PxAnimatorHandle {
     isPlaying(): boolean;
     play(): void; pause(): void; cancel(): void; finish(): void;
     setPlaybackRate(rate: number): void;   // 1 normal, 2 double, negative = reverse; 0 is rejected
@@ -317,7 +317,7 @@ player. The callbacks and diagnostics are the shape every player shares —
 [the API at a glance](./README.md#the-api-at-a-glance).
 
 <!-- px-check exports @pixodesk/svg-animator-vue -->
-The package exports the components, the handle type `VueAnimatorApi`, and the document type
+The package exports the components, the handle type `PxAnimatorHandle`, and the document type
 `PxAnimatedSvgDocument` (for casting a JSON import — [TypeScript](./installation.md#typescript));
 nothing else.
 

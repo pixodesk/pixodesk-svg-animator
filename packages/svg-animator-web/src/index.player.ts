@@ -47,7 +47,7 @@ export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator
 
 // Types are erased at build time — zero bytes, kept for editor tooling.
 export type { PxAnimatorOptions } from './animator/PxAnimator';
-export type { PxAnimatorApi, PxPlaybackApi } from './shared/PxAnimatorWebTypes';
+export type { PxAnimatorApi } from './shared/PxAnimatorWebTypes';
 export type {
     PxAnimatedSvgDocument,
     PxEngineCallbacks,

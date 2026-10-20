@@ -135,9 +135,9 @@ Use a ref for full programmatic control:
 
 ```tsx
 import { useRef } from 'react';
-import type { RnAnimatorApi } from '@pixodesk/svg-animator-rn';
+import type { PxAnimatorHandle } from '@pixodesk/svg-animator-rn';
 
-const api = useRef<RnAnimatorApi>(null);
+const api = useRef<PxAnimatorHandle>(null);
 
 <SvgAnimator doc={doc} apiRef={api} />
 <Button title="Play"   onPress={() => api.current?.play()} />
@@ -146,7 +146,7 @@ const api = useRef<RnAnimatorApi>(null);
 <Button title="Finish" onPress={() => api.current?.finish()} />
 ```
 
-`RnAnimatorApi` methods: `play()`, `pause()`, `cancel()`, `finish()`,
+`PxAnimatorHandle` methods: `play()`, `pause()`, `cancel()`, `finish()`,
 `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`.
 
 ### Controlled time
@@ -169,7 +169,7 @@ const [time, setTime] = useState(0);
 | `playAsSaved` | `boolean` | Use the trigger from the document |
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
-| `apiRef` | `RefObject<RnAnimatorApi>` | Ref for imperative control |
+| `apiRef` | `RefObject<PxAnimatorHandle>` | Ref for imperative control |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
 | `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |

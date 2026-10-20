@@ -1,10 +1,10 @@
 import { createApp, h, ref } from 'vue';
-import { SvgAnimator, type VueAnimatorApi } from '@pixodesk/svg-animator-vue';
+import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-vue';
 import animation from '../../../fixtures/animation.json';
 
 createApp({
   setup() {
-    const api = ref<VueAnimatorApi | null>(null);
+    const api = ref<PxAnimatorHandle | null>(null);
     return () => [
       h('div', { class: 'controls' }, [
         h('button', { onClick: () => api.value?.play() }, 'play()'),

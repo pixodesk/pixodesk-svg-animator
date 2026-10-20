@@ -109,8 +109,8 @@ Other types you may want by name:
 
 - `PxTagAnimatorOptions` — the options `loadTagSvgAnimators` takes.
 - `PxPrerenderedAnimatorOptions` — the options the pre-rendered builds take.
-- `PxAnimatorHandle` — the handle the components give you through `apiRef`.
-- `PxPlaybackApi` — the smaller set of methods a pre-rendered player offers.
+- `PxAnimatorHandle` — the handle the components give you through `apiRef` (every framework
+  package exports this one name).
 - `PxPlaybackOverride` — the playback override every player accepts.
 
 Hearing back from it: `PxAnimatorCallbacks` is the single callback shape — the playback lifecycle

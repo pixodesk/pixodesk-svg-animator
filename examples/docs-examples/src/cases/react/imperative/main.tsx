@@ -1,10 +1,10 @@
 import { createRoot } from 'react-dom/client';
 import { useRef } from 'react';
-import { SvgAnimator, type ReactAnimatorApi } from '@pixodesk/svg-animator-react';
+import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-react';
 import animation from '../../../fixtures/animation.json';
 
 function App() {
-  const api = useRef<ReactAnimatorApi | null>(null);
+  const api = useRef<PxAnimatorHandle | null>(null);
   return (
     <>
       <div className="controls">

@@ -6,7 +6,7 @@
  * so only on-screen rows are mounted, and only rows actually visible are
  * *playing* — see `visibleIds` below.
  */
-import { SvgAnimator, type RnAnimatorApi } from '@pixodesk/svg-animator-rn';
+import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-rn';
 import { StatusBar } from 'expo-status-bar';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -54,7 +54,7 @@ const CaseRow = memo(function CaseRow({
     /** Reports a failure up to the app-wide error log. */
     onError: (caseId: string, error: Error) => void;
 }) {
-    const api = useRef<RnAnimatorApi | null>(null);
+    const api = useRef<PxAnimatorHandle | null>(null);
     const active = visible && playing;
     const [error, setError] = useState<Error | null>(null);
 

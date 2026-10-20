@@ -144,11 +144,11 @@ export function Controlled() {
 ```tsx
 import { useRef } from 'react';
 import { Button, View } from 'react-native';
-import { SvgAnimator, type RnAnimatorApi } from '@pixodesk/svg-animator-rn';
+import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-rn';
 import doc from './animation.json';
 
 export function Imperative() {
-  const api = useRef<RnAnimatorApi>(null);
+  const api = useRef<PxAnimatorHandle>(null);
   return (
     <View>
       <SvgAnimator doc={doc} apiRef={api} />
@@ -159,7 +159,7 @@ export function Imperative() {
 }
 ```
 
-`RnAnimatorApi`: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`,
+`PxAnimatorHandle`: `play()`, `pause()`, `cancel()`, `finish()`, `isPlaying()`,
 `setPlaybackRate(rate)` (negative = reverse; `0` is rejected with a warning — use `pause()`),
 `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)` —
 jumping to a time while playing continues from there.
@@ -228,7 +228,7 @@ interface SvgAnimatorProps {
     progress?: number;                    // 0–1 of duration × iterations (one iteration when 'infinite')
     time?: number;                        // ms from the start
 
-    apiRef?: React.RefObject<RnAnimatorApi | null>;   // the same methods as ReactAnimatorApi, and the
+    apiRef?: React.RefObject<PxAnimatorHandle | null>;   // the same methods as on the web components, and the
                                           //   same meanings: whole-run time, clamped seeks, rate 0 rejected
 
     // Lifecycle — no arguments; the same meanings as on the web
@@ -248,7 +248,7 @@ interface SvgAnimatorProps {
 ```
 
 The package exports the component, its props (`SvgAnimatorProps`), its handle
-(`RnAnimatorApi`) and the document types `PxDocumentInput` / `PxAnimatedSvgDocument` (a JSON import —
+(`PxAnimatorHandle`) and the document types `PxDocumentInput` / `PxAnimatedSvgDocument` (a JSON import —
 [TypeScript](./installation.md#typescript)); nothing else.
 
 With none of `playAsSaved` / `play` / `pause` / `progress` / `time` set, the first frame renders

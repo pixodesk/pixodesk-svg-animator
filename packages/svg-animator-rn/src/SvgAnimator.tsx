@@ -33,7 +33,6 @@ import { openClosedTextPathTargets } from './PxRnSafety';
  * drifted (its `setPlaybackRate` comment lost "negative plays backwards"). One definition.
  * @public
  */
-export type RnAnimatorApi = PxAnimatorHandle;
 
 /**
  * The component's props. The playback override, the control props and the callbacks are core's
@@ -65,7 +64,7 @@ export interface SvgAnimatorProps
      * Ref populated with the imperative playback API. Filled in EVERY mode and never picks one
      * (review §1): `playAsSaved` next to it still autoplays.
      */
-    apiRef?: React.RefObject<RnAnimatorApi | null>;
+    apiRef?: React.RefObject<PxAnimatorHandle | null>;
 
     // -- Failure handling -----------------------------------------------------
     // A document that cannot be compiled or rendered is reported through `onError` — the same
@@ -413,7 +412,7 @@ export function SvgAnimator({
         playingRef.current = true;
     };
 
-    const api: RnAnimatorApi = {
+    const api: PxAnimatorHandle = {
         isPlaying: () => playingRef.current,
         play: () => {
             // `startFrom` rewinds to the opposite end when the playhead is
