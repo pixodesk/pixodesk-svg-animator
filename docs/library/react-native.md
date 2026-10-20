@@ -289,7 +289,7 @@ and win over the same key inside `timeline`. To ignore the file's playback setti
 add `resetTimeline`.
 
 Other playback settings go inside `timeline` —
-`{ timeline: { fillMode, direction, trigger: { mouseOut, finish } } }`. Full merge rules
+`{ timeline: { fillMode, finish, direction, trigger: { mouseOut } } }`. Full merge rules
 are in [Playback & triggers → Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
 
 ### Differences from the React package
@@ -425,7 +425,7 @@ not supported.
 | Feature | Supported | Notes |
 |---|---|---|
 | `inTime` / `outTime` / `playDuration`, `delay`, `iterations` (incl. infinite) | ✅ | |
-| All four `direction` values, all `fillMode` values, `trigger.finish` | ✅ | through `timeline` — see [Playback overrides](#playback-overrides) |
+| All four `direction` values, all `fillMode` values, `finish` | ✅ | through `timeline` — see [Playback overrides](#playback-overrides) |
 | play / pause / cancel / finish | ✅ | |
 | Jumping to any time, also while playing | ✅ | |
 | Playback rate: faster, slower, reverse | ✅ | |

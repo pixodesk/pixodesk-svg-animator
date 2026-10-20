@@ -78,10 +78,15 @@ yourself.
 
 ## Playback behavior
 
-**It holds the last frame — I want it to reset.** Set `timeline.trigger.finish: "reset"`
-in the file, or `fillMode: 'none'` (see [Playback settings](./playback-and-triggers.md#timing)).
-For one mount only, pass the same thing as an override:
-`timeline={{ trigger: { finish: 'reset' } }}`.
+**It holds the last frame — I want it to reset.** Set `timeline.finish: "reset"` — the
+animation CANCELS at its natural end and snaps back to the start state. Its sibling
+`timeline.fillMode` answers a different question: what shows AT REST around a run —
+`fillMode: 'none'` also ends on the static SVG, but only because nothing is held; during a
+`delay` it shows the raw attributes too, and it never actively resets. Rule of thumb:
+want a snap-back at the end → `finish: 'reset'`; want the end pose held → leave `finish`
+alone and let `fillMode` (default `forwards`) hold it
+(see [Playback settings](./playback-and-triggers.md#timing)).
+For one mount only, pass the same thing as an override: `timeline={{ finish: 'reset' }}`.
 
 **How do I play backwards?** `animator.setPlaybackRate(-1); animator.play();` — also as a
 trigger out action (`mouseOut: 'reverse'`).

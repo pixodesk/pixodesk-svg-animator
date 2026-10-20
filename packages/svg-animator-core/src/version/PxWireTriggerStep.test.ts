@@ -56,10 +56,14 @@ describe('wire step 1.1 → 1.2 — the trigger block', () => {
         expect(triggerOf(out.doc)).toEqual({ visibilityThreshold: 0 });
     });
 
-    it('finishAction becomes finish', () => {
+    it('finishAction becomes finish — and the 1.4 step then moves it next to fillMode (§13)', () => {
         const out = convertWireDocument(doc11({ startOn: 'load', finishAction: 'reset' }));
-        expect(triggerOf(out.doc)).toMatchObject({ finish: 'reset' });
-        expect(triggerOf(out.doc)).not.toHaveProperty('finishAction');
+        expect((out.doc as any).animator.timeline.finish).toBe('reset');
+        const trigger = triggerOf(out.doc);
+        if (trigger !== undefined) {
+            expect(trigger).not.toHaveProperty('finish');
+            expect(trigger).not.toHaveProperty('finishAction');
+        }
     });
 
     it('never mutates the caller’s document', () => {

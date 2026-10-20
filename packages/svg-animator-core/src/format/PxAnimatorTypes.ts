@@ -582,15 +582,10 @@ export interface _PxTrigger {
      *  the moment the threshold is met. */
     visibilityDebounce?: number;
 
-    /** After a NATURAL finish: `'hold'` (default — keep the end state per `fill`) or `'reset'`
-   *  (snap back to the start). Named for its occasion like its siblings, and NOT `onFinish`,
-   *  which is the CALLBACK on `PxEngineCallbacks` — a value key and a function key with
-   *  one name read badly side by side in a document literal or in JSX. */
-    finish?: PxFinishAction;
 }
 
 // `{ start?:'load'|'mouseOver'|'click'|'none', offScreen?:…, mouseOut?:…, visibilityThreshold?:number,
-//    visibilityDebounce?:number, finish?:'hold'|'reset' }`
+//    visibilityDebounce?:number }`
 // An absent field means its PX_TRIGGER_DEFAULTS entry — the table every player resolves through.
 // Keys are bare because the parent says `trigger`; the two that name a measured QUANTITY rather
 // than an occasion keep their subject word (plan: trigger-model.md D6).
@@ -599,10 +594,8 @@ export const PxTriggerSchema = implementsInterface<_PxTrigger>()(px.object({
     start: px.enum([PxTriggerStart.load, PxTriggerStart.mouseOver, PxTriggerStart.click, PxTriggerStart.none] as const, PX_TRIGGER_DEFAULTS.start).optional(),
     offScreen: px.enum([PxOffScreenAction.pause, PxOffScreenAction.continue, PxOffScreenAction.reset] as const, PX_TRIGGER_DEFAULTS.offScreen).optional(),
     mouseOut: px.enum([PxMouseOutAction.continue, PxMouseOutAction.pause, PxMouseOutAction.reset, PxMouseOutAction.reverse] as const, PX_TRIGGER_DEFAULTS.mouseOut).optional(),
-    // What happens after a NATURAL finish — `'hold'` (default: keep the end state per
-    // `fill`) or `'reset'` (snap back to the start state). One of four occasion keys
-    // (`start`, `offScreen`, `mouseOut`, `finish`), all named the same way.
-    finish: px.enum([PxFinishAction.hold, PxFinishAction.reset] as const, PX_TRIGGER_DEFAULTS.finish).optional(),
+    // `finish` moved OUT of the trigger and next to `fillMode` (review §13, wire 1.4): it is the
+    // only question about neither starting nor running, and it combines with `fillMode`.
     visibilityThreshold: px.number(PX_TRIGGER_DEFAULTS.visibilityThreshold).optional(),
     visibilityDebounce: px.number(PX_TRIGGER_DEFAULTS.visibilityDebounce).optional(),
 }));
@@ -879,7 +872,7 @@ const _ck_PxTimelinePin: KeysMatch<PxTimelinePin, _PxTimelinePin> = true; // the
 // Time-driven — wall-clock playback: something STARTS it (trigger) and it has the
 // WAAPI playback dynamics. `type` is OPTIONAL: an absent `type` (or an absent
 // `timeline` altogether) means this one — the common case declares nothing.
-// `resetOnFinish` has no slot here: its successor is `trigger.finish: 'reset'`.
+// `resetOnFinish` has no slot here: its successor is `timeline.finish: 'reset'` (review §13).
 /** `timeline.engine` — HOW the animated attributes get updated (every timeline type;
  *  default `auto`). Not `mode`: an implementation preference, not a behavior switch. */
 const PxTimelineEngineSchema = px.enum([PxTimelineEngineSetting.auto, PxTimelineEngineSetting.native, PxTimelineEngineSetting.js] as const, PxTimelineEngineSetting.auto).optional();
@@ -911,9 +904,20 @@ export interface _PxTimeTimeline {
     delay?: number;
     /** Repeat count, or `'infinite'`. */
     iterations?: number | 'infinite';
-    /** CSS `animation-fill-mode` — what shows outside the active time. NEVER spelled `fill`,
-     *  which is paint everywhere else in the format; the runtime view calls it `fill`. */
+    /** CSS `animation-fill-mode` — what shows outside the active time (before a delayed start,
+     *  and at rest after the end). NEVER spelled `fill`, which is paint everywhere else in the
+     *  format; the runtime view calls it `fill`. HOW IT COMBINES with `finish` (review §13):
+     *  `finish: 'reset'` wins at the natural end — the run is cancelled, so there is no "after
+     *  the end" for `fillMode` to fill; with `finish: 'hold'` (the default), `fillMode` decides
+     *  what the end shows (`forwards`/`both` hold the last keyframe, `none`/`backwards` revert
+     *  to the static attributes). */
     fillMode?: 'forwards' | 'backwards' | 'both' | 'none';
+    /** After a NATURAL finish: `'hold'` (default — the end shows what `fillMode` says) or
+     *  `'reset'` (cancel: snap back to the start state, overriding `fillMode`). Lives next to
+     *  `fillMode` because the two answer the same question — what is shown after the end
+     *  (review §13; the runtime view calls it `resetOnFinish`). NOT `onFinish`, which is the
+     *  CALLBACK on `PxEngineCallbacks`. */
+    finish?: PxFinishAction;
     /** Forward, backward, or turning around each iteration. */
     direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';
 }
@@ -938,6 +942,8 @@ export const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.ob
     // `fillMode` on the wire (CSS `animation-fill-mode`; the runtime view calls it `fill`)
     // — never `fill`, which is paint everywhere else in the format.
     fillMode: px.enum([PxFillMode.forwards, PxFillMode.backwards, PxFillMode.both, PxFillMode.none] as const, PxFillMode.forwards).optional(),
+    // its sibling (review §13): `'reset'` cancels at the natural end and wins over `fillMode`
+    finish: px.enum([PxFinishAction.hold, PxFinishAction.reset] as const, PxFinishAction.hold).optional(),
     direction: px.enum([PxPlaybackDirection.normal, PxPlaybackDirection.reverse, PxPlaybackDirection.alternate, PxPlaybackDirection.alternateReverse] as const, PxPlaybackDirection.normal).optional(),
 }));
 const _ck_PxTimeTimeline: KeysMatch<PxInfer<typeof PxTimeTimelineSchema>, _PxTimeTimeline> = true;
@@ -2367,7 +2373,7 @@ export interface PxAnimatorApi<TRoot = unknown> {
      * Plays ONE fresh pass of the content window from the start — always, whatever is playing
      * and whatever the document's `iterations` say (a loop-configured document plays a single
      * pass). Re-entrant: calling it mid-pass restarts. The end pose follows the document's
-     * `trigger.finish` (`'reset'` snaps back, the default holds). The one-shot verb behind
+     * `timeline.finish` (`'reset'` snaps back, the default holds). The one-shot verb behind
      * "plays once on click" — no `play` prop juggling needed.
      */
     playOnce(): void;

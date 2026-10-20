@@ -225,7 +225,40 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         up: upDurationToWindow,
         // No `down`: 1.3 can express fragments and remaps 1.2 could not.
     },
+    {
+        from: '1.3',
+        to: '1.4',
+        reason: 'What is shown after the end was decided in two places (first-use review §13): '
+            + '`trigger.finish` moves OUT of the trigger — the only trigger key about neither '
+            + 'starting nor running — and next to `fillMode` as `timeline.finish`, because the '
+            + 'two answer the same question and must document how they combine.',
+        kind: PxWireStepKind.converted,
+        up: upFinishToTimeline,
+        down: downFinishToTrigger,
+    },
 ];
+
+/** 1.3 → 1.4: `timeline.trigger.finish` → `timeline.finish`, at either animator address. */
+function upFinishToTimeline(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    const trigger = timeline ? readObjectProp(timeline, 'trigger') : undefined;
+    if (!timeline || !trigger || trigger['finish'] === undefined) return;
+    timeline['finish'] = trigger['finish'];
+    delete trigger['finish'];
+    if (Object.keys(trigger).length === 0) delete timeline['trigger'];
+}
+
+/** 1.4 → 1.3: the exact inverse — the move loses nothing either way. */
+function downFinishToTrigger(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    if (!timeline || timeline['finish'] === undefined) return;
+    const trigger = (readObjectProp(timeline, 'trigger') ?? {}) as Record<string, unknown>;
+    trigger['finish'] = timeline['finish'];
+    timeline['trigger'] = trigger;
+    delete timeline['finish'];
+}
 
 /** 1.2 → 1.3: `timeline.duration` → `timeline.outTime`, at either animator address. */
 function upDurationToWindow(doc: Record<string, unknown>): void {

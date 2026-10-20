@@ -1623,12 +1623,6 @@
             "reverse"
           ]
         },
-        "finish": {
-          "enum": [
-            "hold",
-            "reset"
-          ]
-        },
         "visibilityThreshold": {
           "type": "number"
         },
@@ -1687,6 +1681,12 @@
                 "backwards",
                 "both",
                 "none"
+              ]
+            },
+            "finish": {
+              "enum": [
+                "hold",
+                "reset"
               ]
             },
             "direction": {

@@ -96,7 +96,7 @@ export const PxMouseOutAction = {
 
 export type PxMouseOutAction = typeof PxMouseOutAction[keyof typeof PxMouseOutAction];
 
-/** `trigger.finish` — what happens after a NATURAL finish. @public */
+/** `timeline.finish` — what happens after a NATURAL finish (§13: next to `fillMode`). @public */
 export const PxFinishAction = {
     hold:  'hold',
     reset: 'reset',
@@ -179,7 +179,7 @@ export const PX_TIMELINE_SHARED_KEYS = ['inTime', 'outTime', 'iterations', 'engi
 
 /** Timeline keys that exist ONLY on the time-driven member — a scroll/view timeline is
  *  scrubbed by position, so nothing starts it, nothing delays it, and nothing remaps its pace. */
-export const PX_TIME_ONLY_TIMELINE_KEYS = ['trigger', 'delay', 'playDuration', 'fillMode', 'direction'] as const;
+export const PX_TIME_ONLY_TIMELINE_KEYS = ['trigger', 'delay', 'playDuration', 'fillMode', 'finish', 'direction'] as const;
 
 /**
  * The flat RUNTIME-VIEW keys — `duration`, `trigger`, `scroll`, … at the animator ROOT.
@@ -263,7 +263,6 @@ export const PX_TRIGGER_DEFAULTS = {
     mouseOut: 'pause',
     visibilityThreshold: 0.5,
     visibilityDebounce: 150,
-    finish: 'hold',
 } as const;
 
 /**
@@ -795,10 +794,13 @@ export function flattenAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
         foldWindow(timeline, flat);
         if (timeline.playDuration !== undefined) flat.playDuration = timeline.playDuration;
         if (timeline.trigger !== undefined) {
-            const { finish, ...restTrigger } = timeline.trigger;
+            // `trigger.finish` is the PRE-1.4 spelling (review §13) — read for old unstamped
+            // files; stamped ones were converted by the wire step before this runs.
+            const { finish: legacyFinish, ...restTrigger } = timeline.trigger;
             if (Object.keys(restTrigger).length) flat.trigger = restTrigger;
-            if (finish !== undefined) flat.resetOnFinish = finish === 'reset';
+            if (legacyFinish !== undefined) flat.resetOnFinish = legacyFinish === 'reset';
         }
+        if (timeline.finish !== undefined) flat.resetOnFinish = timeline.finish === 'reset';
         if (timeline.delay !== undefined) flat.delay = timeline.delay;
         if (timeline.iterations !== undefined) flat.iterations = timeline.iterations;
         if (timeline.direction !== undefined) flat.direction = timeline.direction;
@@ -873,11 +875,8 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
     if (frameRate !== undefined) timeline.frameRate = frameRate;
     writeWindow(timeline);
     if (playDuration !== undefined) timeline.playDuration = playDuration;
-    if (trigger !== undefined || resetOnFinish) {
-        const t: any = { ...(trigger || {}) };
-        if (resetOnFinish) t.finish = 'reset';
-        timeline.trigger = t;
-    }
+    if (trigger !== undefined) timeline.trigger = { ...trigger };
+    if (resetOnFinish) timeline.finish = 'reset';   // §13: next to fillMode, not in the trigger
     if (delay !== undefined) timeline.delay = delay;
     if (iterations !== undefined) timeline.iterations = iterations;
     if (direction !== undefined) timeline.direction = direction;

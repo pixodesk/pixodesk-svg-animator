@@ -198,7 +198,7 @@ interface PxAnimatorApi {
     finish(): void;                        // jump to the end and hold the final state; fires onFinish
     playOnce(): void;                      // ONE fresh pass from the start, whatever `iterations`
                                            //   say — a loop-configured document plays a single pass,
-                                           //   then settles per the file's `trigger.finish`
+                                           //   then settles per the file's `finish`
     setPlaybackRate(rate: number): void;   // 1 normal, 2 double, 0.5 half, negative plays backwards;
                                            //   0 and non-finite are rejected with a warning — use pause()
     getCurrentTime(): number | null;       // ms from the start of the whole run; null before a
@@ -441,8 +441,6 @@ interface PxTrigger {                                  // also a wire type — t
                                                        //   'none' waits for play()
     offScreen?: 'pause' | 'continue' | 'reset';        // while nobody can see it; default 'pause'
     mouseOut?: 'continue' | 'pause' | 'reset' | 'reverse'; // pointer leaves; default 'continue'
-    finish?: 'hold' | 'reset';                         // after a natural finish; default 'hold'
-                                                       //   (the player reads it; setupAnimationTriggers does not)
     visibilityThreshold?: number;                      // 0–1 visible ratio; default 0.5; 0 = any visible pixel
     visibilityDebounce?: number;                       // ms it must hold first; default 150
 }

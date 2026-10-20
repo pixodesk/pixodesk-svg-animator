@@ -44,5 +44,16 @@
    "animator.timeline|view.duration"
   ],
   "note": "The timeline's one length became a content WINDOW (first-use review §4): `duration` is renamed `outTime`, and `inTime` (window start, default 0) and `playDuration` (the window remapped to wall ms) join it. `duration` read as the CSS word for speed, which it never was."
+ },
+ {
+  "version": "1.4",
+  "date": "2026-10-20",
+  "added": [
+   "animator.timeline|time.finish"
+  ],
+  "removed": [
+   "animator.timeline|time.trigger.finish"
+  ],
+  "note": "What is shown after the end was decided in two places (first-use review §13): `trigger.finish` moves OUT of the trigger — the only trigger key about neither starting nor running — and next to `fillMode` as `timeline.finish`, because the two answer the same question and must document how they combine."
  }
 ]

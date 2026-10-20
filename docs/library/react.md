@@ -237,7 +237,7 @@ interface SvgAnimatorProps {
     // Playback override — one object, shaped exactly like the file's `timeline` block,
     // deep-merged over it. `null` at a slot DELETES that key — see Playback overrides above:
     //   timeline={{ engine, frameRate, fillMode, direction,
-    //              trigger: { mouseOut, finish, visibilityThreshold } }}
+    //              finish, trigger: { mouseOut, visibilityThreshold } }}
     timeline?: PxTimelinePatch | string;  // a JSON string is accepted too
     resetTimeline?: boolean;              // start from the player's defaults, `timeline` on top
 

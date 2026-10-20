@@ -329,7 +329,7 @@ player sees plain nodes. **All are supported:**
 | `inTime` / `outTime` / `playDuration`, `delay`, `iterations` (incl. `'infinite'`) | ✅ | |
 | `direction` — all four values | ✅ | |
 | `fillMode` — `forwards` / `backwards` / `both` / `none` | ✅ | |
-| `trigger.finish: 'reset'` | ✅ | |
+| `finish: 'reset'` | ✅ | |
 | `play` / `pause` / `cancel` / `finish` | ✅ | |
 | `setCurrentTime` — jump to a time, including **while playing** | ✅ | playback continues from the new point |
 | `setPlaybackRate` — faster, slower and **reverse** (negative) | ✅ | composes with `direction` |

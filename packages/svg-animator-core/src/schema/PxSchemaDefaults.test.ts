@@ -80,16 +80,17 @@ describe('schema.defaults — what an absent field means', () => {
     });
 
     it('the trigger resolver fills exactly the schema\'s stated defaults', () => {
-        // The schema states exactly the constants the runtime is built from.
+        // The schema states exactly the constants the runtime is built from. `finish` is no
+        // longer a trigger key — it moved next to `fillMode` (review §13, wire 1.4).
         expect(PxTriggerSchema.defaults).toEqual(PX_TRIGGER_DEFAULTS);
-        // The resolver covers the start/stop decisions; `finish` reaches the engines as the runtime
-        // view's `resetOnFinish`, where absent = hold = not set.
-        const { finish, ...startStop } = PxTriggerSchema.defaults;
-        expect(resolveTrigger(undefined)).toEqual(startStop);
-        expect(finish).toBe(PxFinishAction.hold);
+        expect(resolveTrigger(undefined)).toEqual(PX_TRIGGER_DEFAULTS);
+        // `timeline.finish` reaches the engines as the runtime view's `resetOnFinish`,
+        // where absent = hold = not set. The PRE-1.4 `trigger.finish` spelling is still read.
+        expect(PxTimeTimelineSchema.defaults.finish).toBe(PxFinishAction.hold);
         const flat = flattenAnimatorTimeline({ timeline: { trigger: { start: PxTriggerStart.load } } });
         expect(flat.resetOnFinish).toBeFalsy();
-        expect(flattenAnimatorTimeline({ timeline: { trigger: { finish: PxFinishAction.reset } } }).resetOnFinish).toBe(true);
+        expect(flattenAnimatorTimeline({ timeline: { finish: PxFinishAction.reset } }).resetOnFinish).toBe(true);
+        expect(flattenAnimatorTimeline({ timeline: { trigger: { finish: PxFinishAction.reset } } } as any).resetOnFinish).toBe(true);
     });
 
     it('the timeline numbers the runtime falls back to are the schema\'s', () => {

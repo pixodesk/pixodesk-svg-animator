@@ -187,14 +187,18 @@ interface SVG_JSON extends NODE {
                 playDuration?: number;             // wall ms one pass of the window takes; default outTime − inTime (no remap)
                 delay?: number;                    // wait before start, ms (default 0); negative = skip ahead, e.g. -500 starts from the 0.5 s frame
                 iterations?: number | 'infinite';  // repeat count (default 1); composes with per-property loop (loop-within-loop)
-                fillMode?: 'forwards' | 'backwards' | 'both' | 'none';                  // CSS animation-fill-mode; default 'forwards' holds final state
+                fillMode?: 'forwards' | 'backwards' | 'both' | 'none';                  // CSS animation-fill-mode; default 'forwards' holds final state.
+                                                   // Combines with `finish` below: `finish: 'reset'` wins at the natural
+                                                   // end (the run is cancelled); otherwise fillMode decides what the end shows
+                finish?: 'hold' | 'reset';         // after a NATURAL finish (default 'hold' — the end shows what fillMode
+                                                   // says); 'reset' cancels back to the start state, overriding fillMode.
+                                                   // Next to fillMode because both answer "what is shown after the end" (§13);
+                                                   // named for its occasion, and to stay clear of the onFinish CALLBACK
                 direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';  // default 'normal'
                 trigger?: {
                     start?: 'load' | 'mouseOver' | 'click' | 'none';       // what STARTS it; default 'load'; 'none' waits for play()
                     offScreen?: 'pause' | 'continue' | 'reset';            // while nobody can see it; default 'pause'
                     mouseOut?: 'continue' | 'pause' | 'reset' | 'reverse'; // when the pointer leaves; default 'continue'; read for start 'mouseOver'
-                    finish?: 'hold' | 'reset';        // after a NATURAL finish; default 'hold' (keep end state per `fillMode`).
-                                                      // Named for its occasion like its siblings, and to stay clear of the onFinish CALLBACK
                     visibilityThreshold?: number;     // how much must be on screen before it may run: 0 = any part, 1 = all of it; default 0.5
                     visibilityDebounce?: number;      // and for how long, ms; default 150, so scrolling straight past starts nothing
                 };
@@ -1507,7 +1511,7 @@ function foldTimelineOverride(
 ): PxAnimatorConfigPatch | undefined;
 
 // ○ The schema version — see Versioning, below.
-const PX_WIRE_SCHEMA_VERSION: '1.3';                                    // the schema this build reads
+const PX_WIRE_SCHEMA_VERSION: '1.4';                                    // the schema this build reads
 function readWireVersion(doc: unknown): PxWireVersion | undefined;          // animator.version (or meta.animator.version)
 function convertWireDocument(doc: unknown): PxWireConversionResult;     // up to this schema; never refuses, never mutates
 function downgradeWireDocument(doc: unknown, target: PxWireVersion): PxWireDowngradeResult;   // all or nothing

@@ -28,7 +28,7 @@ import { createVisibilityGate } from './PxVisibilityGate';
  * toggle with nothing to configure.
  *
  * @param api The animator API instance to control.
- * @param trigger The trigger configuration. `finish` belongs to the PLAYER (what happens after a
+ * @param trigger The trigger configuration. `finish` now LIVES on the timeline next to `fillMode` (review §13) — it was never this wiring's (what happens after a
  *   natural end), not to the trigger wiring, and is not read here.
  * @returns A disposer that detaches every listener, observer and timer this call attached
  *   (review §14). `createSvgAnimator` ties it to `destroy()`. Call it yourself before re-arming an

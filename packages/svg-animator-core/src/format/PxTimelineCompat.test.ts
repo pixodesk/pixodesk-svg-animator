@@ -132,7 +132,7 @@ describe('animator.timeline spelling compat', () => {
 
     // ── nest: flat → the written spelling; engine-dead keys structurally gone ──
 
-    it('nests flat time keys under a type-less timeline (absent type = time), fill → fillMode, resetOnFinish → trigger.finish', () => {
+    it('nests flat time keys under a type-less timeline (absent type = time), fill → fillMode, resetOnFinish → timeline.finish (§13)', () => {
         const nested = nestAnimatorTimeline({
             duration: 4000, engine: 'auto',
             trigger: { start: 'click' }, delay: 250, iterations: 3,
@@ -142,7 +142,8 @@ describe('animator.timeline spelling compat', () => {
             timeline: {
                 engine: 'auto',
                 outTime: 4000,
-                trigger: { start: 'click', finish: 'reset' },
+                trigger: { start: 'click' },
+                finish: 'reset',
                 delay: 250, iterations: 3, direction: 'reverse', fillMode: 'none'
             }
         });

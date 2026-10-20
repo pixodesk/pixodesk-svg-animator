@@ -1,7 +1,7 @@
 # First-use review — the API, the schema and the docs through a newcomer's eyes
 
 Status **2026-10-15** (two passes the same day: the exports and schemas, then every guide in
-`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere). — each closes with a **Done** note.
+`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4). — each closes with a **Done** note.
 
 Read as a first-time user would: the five packages' exports, the wire schemas, the component
 props, then the guides end to end — `README.md`, `docs/library/*`, `docs/format/README.md`,
@@ -549,7 +549,7 @@ ending per the file's `finish` action; re-entrant (a second call restarts).
   the nested patch for anything beyond `start`.
 
 
-### 13. What is shown after the end is decided in two places
+### 13. What is shown after the end is decided in two places ✅
 
 - **Where:** `timeline.fillMode` and `timeline.trigger.finish`; the runtime view calls the second
   `resetOnFinish`.
@@ -560,6 +560,19 @@ ending per the file's `finish` action; re-entrant (a second call restarts).
   player's, not the trigger wiring's".
 - **Do:** move `finish` next to `fillMode` in `timeline`, and say in both rows how they combine.
   Reopens the placement chosen in the trigger model.
+- **Done (2026-10-20), wire 1.4:** `finish` moved out of the trigger and next to `fillMode` as
+  `timeline.finish` — schema, flatten (the pre-1.4 `trigger.finish` still read for unstamped
+  files), nest, and a `PX_WIRE_STEPS` 1.3 → 1.4 step (with a `down`: the move is lossless both
+  ways; older players can be written for). Both rows now document HOW THEY COMBINE, in the
+  schema JSDoc and every doc table: `finish: 'reset'` wins at the natural end (the run is
+  cancelled, so there is nothing for `fillMode` to fill); with the default `hold`, `fillMode`
+  decides what the end shows. Troubleshooting's "I want it to reset" now explains the difference
+  instead of offering both. The runtime view keeps `resetOnFinish` (engines unchanged);
+  `resolveTrigger` and `setupAnimationTriggers` lose the key that was never theirs. Editor side:
+  the coverage doc moved the key, writer etalons and fixtures restamped 1.4.1, the preview
+  player's "After finish" row moved from the Trigger section to the timeline rows next to Fill
+  mode, website file-format examples regenerated. All suites + docs-check green in both repos.
+
 
 ### 14. No ready event, no duration getter
 
