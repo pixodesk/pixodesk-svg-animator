@@ -48,7 +48,7 @@ the stamp", everything local, no global state.
 5. **Public surface:** add `prepareDocument(doc, { stage?, engine?, freshIds? })` (default
    stage `plain`), `documentStage(doc)`, the `PxDocStage` const-object + type, `PxPreparedDocument`
    branded type. Everything existing stays public and source-compatible;
-   `flattenAnimatorTimeline` becomes a plain pure function (no memo).
+   `flattenAnimatorTimeline` becomes a plain pure function (no memo) — then renamed `resolveAnimatorTimeline` and moved to `/internal` (owner, 2026-10-21).
 6. **Validation stays OUTSIDE the pipeline** (a check, not a transform).
 7. `freshIds` runs `generateNewIds` after `plain` and is not recorded in the stamp (documented
    accepted limit: `fixToStage` never re-runs id regeneration).

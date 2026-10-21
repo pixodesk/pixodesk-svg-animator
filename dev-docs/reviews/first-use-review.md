@@ -1,7 +1,7 @@
 # First-use review — the API, the schema and the docs through a newcomer's eyes
 
 Status **2026-10-15** (two passes the same day: the exports and schemas, then every guide in
-`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4), §14 (onReady + getDuration), §15 (one validateDocument → { valid, errors, findings }), §16 (one public PX_WIRE_VERSION; the string is internal), §17 (guide says "materializing"; no rename). Parked/pending: §17a `flattenAnimatorTimeline` (owner review), §17b WeakMap audit, §17c `as any` audit. — each closes with a **Done** note.
+`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4), §14 (onReady + getDuration), §15 (one validateDocument → { valid, errors, findings }), §16 (one public PX_WIRE_VERSION; the string is internal), §17 (guide says "materializing"; no rename), §17a (prepareDocument pipeline, no WeakMaps; `resolveAnimatorTimeline` internal). Pending: §17b WeakMap audit, §17c `as any` audit. — each closes with a **Done** note.
 
 Read as a first-time user would: the five packages' exports, the wire schemas, the component
 props, then the guides end to end — `README.md`, `docs/library/*`, `docs/format/README.md`,
@@ -655,8 +655,15 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
   is unchanged (the section already states the `<use>`-propagation rule honestly).
   The `flattenAnimatorTimeline` half of the card moved to §17a — parked for owner review.
 
-### 17a. `flattenAnimatorTimeline` ⏸ OWNER REVIEW
+### 17a. `flattenAnimatorTimeline` ✅ (now `resolveAnimatorTimeline`, internal)
 
+- **Done (2026-10-21):** the WeakMap question is answered by the staged pipeline (below:
+  `prepareDocument`, both memos deleted); then, owner's call: renamed `flattenAnimatorTimeline` →
+  `resolveAnimatorTimeline` (nothing is "flattened" — it resolves the wire `timeline` into the
+  runtime view) and moved from the main entry to `/internal` — public code reads the view through
+  `getAnimatorConfig` / `prepareDocument`. No alias. kf's five editor call sites import it from
+  `/internal`; guides and the core README no longer teach it (format-guide "Timeline shape" row
+  names it ▪). Its body's `(cfg as any)` reads are §17c's.
 - **What it is:** the wire→runtime adapter — the 2026-09 overhaul made the nested `timeline`
   object the only WRITTEN spelling, while the engines still read the old FLAT fields
   (`duration`, `fill`, `trigger`, `timelineSource`, `scroll`, …); this memoised fold sits at

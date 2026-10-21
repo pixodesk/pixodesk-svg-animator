@@ -242,8 +242,8 @@ export function suppressTriggerStart(patch?: PxAnimatorConfigPatch): PxAnimatorC
 
 /**
  * Merge a patch over an animator config. PURE — neither argument is mutated, and the result is
- * always a NEW object, which also matters because `flattenAnimatorTimeline` memoises on config
- * identity: mutating in place would hand every later reader the pre-merge view.
+ * always a NEW object, which also matters because a prepared document trusts its stamped runtime
+ * view only while it holds the SAME config object: a new object makes readers resolve afresh.
  * @public
  */
 export function mergeAnimatorConfig(
@@ -259,7 +259,7 @@ export function mergeAnimatorConfig(
     }
 
     // RULE 5 — a base in the flat runtime spelling cannot take a wire patch soundly:
-    // `flattenAnimatorTimeline` copies the flat keys first and then overwrites them from
+    // `resolveAnimatorTimeline` copies the flat keys first and then overwrites them from
     // `timeline`, so a flat `delay` would survive a `timeline.delay: null` deletion.
     const flatInBase = isPlainObject(base) ? FLAT_ONLY_KEYS.filter(k => (base as any)[k] !== undefined) : [];
     if (flatInBase.length) {

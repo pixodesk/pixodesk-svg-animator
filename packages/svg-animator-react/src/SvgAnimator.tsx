@@ -310,7 +310,7 @@ const SvgAnimator: FC<SvgAnimatorProps> = ({
     //
     // This replaces three hand-rolled spread blocks that wrote the FLAT runtime keys
     // (`animator.duration`, `animator.trigger`). On a wire-format document — `animator.timeline.…`,
-    // which is what every writer emits — `flattenAnimatorTimeline` overwrites those flat keys from
+    // which is what every writer emits — `resolveAnimatorTimeline` overwrites those flat keys from
     // `timeline` immediately afterwards, so every one of those overrides was silently discarded.
     // See dev-docs/plans/playback-override.md §1.1.
     const patch = foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce });

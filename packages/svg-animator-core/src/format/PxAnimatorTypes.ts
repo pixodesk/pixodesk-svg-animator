@@ -842,7 +842,7 @@ const _ck_PxScroll: KeysMatch<PxScroll, _PxScroll> = true; // the key sets are i
 // Each mode carries ONLY its own parameters, so a key that is dead in the other mode is
 // structurally unwritable — the old flat spelling (`timelineSource` + sibling `scroll` +
 // clock knobs loose at the animator root) required design rules (D3/D4) to keep dead keys
-// out; readers accept BOTH spellings (see `flattenAnimatorTimeline`), writers emit only
+// out; readers accept BOTH spellings (see `resolveAnimatorTimeline`), writers emit only
 // this one.
 
 /** Pin parameters as one object — presence enables pinning (review §2.2; the flat runtime-view
@@ -879,7 +879,7 @@ const PxTimelineEngineSchema = px.enum([PxTimelineEngineSetting.auto, PxTimeline
 
 /**
  * The time-driven timeline. Declared as an interface so a rename inside the schema below is a
- * COMPILE error rather than a silent wire-format change — `flattenAnimatorTimeline` reads the
+ * COMPILE error rather than a silent wire-format change — `resolveAnimatorTimeline` reads the
  * timeline through `any`, so without this lock nothing else in the repo would notice.
  */
 export interface _PxTimeTimeline {
@@ -1104,7 +1104,7 @@ export interface _PxAnimatorConfig {
      * CSS scroll-driven animations.
      *
      * The wire spells this as `timeline.type` ('time' — or absent — vs 'scroll'/'view');
-     * `flattenAnimatorTimeline` folds it into this field for the engines.
+     * `resolveAnimatorTimeline` folds it into this field for the engines.
      * Distinct from `trigger.start`, which says what STARTS the animation: one
      * names the beginning, this one names what moves the playhead afterwards.
      * Design: app `svgeditor/animation/scroll-timeline.design.md`.
@@ -1119,7 +1119,7 @@ export interface _PxAnimatorConfig {
      *  `{ type?: 'time' | 'scroll' | 'view', … }` object mirroring WAAPI's timeline
      *  classes. Carries the playback dynamics (`trigger`/`delay`/`iterations`/`fillMode`/
      *  `direction` for time; scroll geometry for scroll/view); the flat fields above
-     *  are the internal runtime view `flattenAnimatorTimeline` produces from it. */
+     *  are the internal runtime view `resolveAnimatorTimeline` produces from it. */
     timeline?: PxTimeline;
 
     /** Debug helper: exposes the animator instance as `window[debugGlobalName]`. */
@@ -1188,7 +1188,7 @@ export interface PxNormalizedBinding {
 // The WIRE format (review §2.1): playback dynamics live only inside `timeline` —
 // the flat spelling (`trigger`/`delay`/`iterations`/`fill`/`direction`/`resetOnFinish`/
 // `timelineSource`/`scroll`) is NOT part of the format. It exists only as the internal
-// runtime VIEW (`_PxAnimatorConfig`) that `flattenAnimatorTimeline` produces for the engines.
+// runtime VIEW (`_PxAnimatorConfig`) that `resolveAnimatorTimeline` produces for the engines.
 /** @public @advanced */
 export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(px.object({
     // (`mode`, `duration` and `frameRate` live INSIDE `timeline` on the wire — §2.8; they exist
@@ -1215,7 +1215,7 @@ export type PxAnimatorConfig = PxInfer<typeof PxAnimatorConfigSchema>;
  * The flat runtime view of the `animator` block: `timeline` folded into top-level `duration`,
  * `trigger`, `delay`, `iterations`, `fill`, `direction`, `resetOnFinish`, `timelineSource` /
  * `scroll`, `engine`, `frameRate`. Not a file format — `getAnimatorConfig` and
- * `flattenAnimatorTimeline` return it, `nestAnimatorTimeline` turns it back into a
+ * `resolveAnimatorTimeline` return it, `nestAnimatorTimeline` turns it back into a
  * {@link PxAnimatorConfig}. A superset of the written shape.
  * @public @advanced
  */

@@ -126,8 +126,9 @@ back the problems it found instead of throwing, and `validateDocument` above is 
 the same question.
 
 A document's timeline has two shapes — the nested object the file stores, and the flat view the
-engines read. `flattenAnimatorTimeline` and `nestAnimatorTimeline` convert between them, so an
-editor can hold one and a player the other with neither having to guess.
+engines read. `getAnimatorConfig` reads the engines' view of a document, `nestAnimatorTimeline`
+turns that view back into the stored shape, so an editor can hold one and a player the other with
+neither having to guess.
 `PX_TRANSFORM_PART_KEYS` lists the parts a transform is written in, in the order they compose.
 
 ## The materialization pipeline

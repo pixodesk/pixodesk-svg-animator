@@ -28,6 +28,9 @@ export type { PxAnimatable, PxAnyKeyframe, PxNormalizedKeyframe, PxNormalizedPro
 export { diagnoseDocument, reportDocumentDiagnostics } from './format/PxDocumentDiagnostic';
 // Stage-stamp plumbing for players that derive a doc from a prepared one without touching its config.
 export { carryPrep } from './format/PxAnimatorConstants';
+// Wire `timeline` → runtime view (review §17a: renamed from flattenAnimatorTimeline, demoted from the
+// main entry) — public code reads the view through `getAnimatorConfig` / `prepareDocument`.
+export { resolveAnimatorTimeline } from './format/PxAnimatorConstants';
 // The bump-site string (review §16): public code reads `PX_WIRE_VERSION` / `formatWireVersion`.
 export { PX_WIRE_SCHEMA_VERSION } from './version/PxSchemaVersion';
 // The narrow document checkers (review §15): `validateDocument` on the MAIN entry is the one

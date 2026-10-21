@@ -10,7 +10,7 @@
 // `pause` to the Editor), (3) that the runtime's own fallbacks are the schema's.
 
 import { describe, expect, it } from 'vitest';
-import { flattenAnimatorTimeline, getAnimatorConfig, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_TRIGGER_DEFAULTS, PxFinishAction, PxTriggerStart, resolveTrigger } from '../format/PxAnimatorConstants';
+import { resolveAnimatorTimeline, getAnimatorConfig, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_TRIGGER_DEFAULTS, PxFinishAction, PxTriggerStart, resolveTrigger } from '../format/PxAnimatorConstants';
 import {
     PxAnimatedSvgDocumentSchema, PxAnimatorConfigSchema, PxCloneEffectSchema, PxFillGradientEffectSchema, PxGlyphFontSchema, PxLoopSchema, PxMaskedByEffectSchema,
     PxPropertyAnimationSchema, PxScrollRangePointSchema, PxScrollSchema, PxStrokeTrimEffectSchema, PxTextPathEffectSchema, PxTimelineSchema,
@@ -87,10 +87,10 @@ describe('schema.defaults — what an absent field means', () => {
         // `timeline.finish` reaches the engines as the runtime view's `resetOnFinish`,
         // where absent = hold = not set. The PRE-1.4 `trigger.finish` spelling is still read.
         expect(PxTimeTimelineSchema.defaults.finish).toBe(PxFinishAction.hold);
-        const flat = flattenAnimatorTimeline({ timeline: { trigger: { start: PxTriggerStart.load } } });
+        const flat = resolveAnimatorTimeline({ timeline: { trigger: { start: PxTriggerStart.load } } });
         expect(flat.resetOnFinish).toBeFalsy();
-        expect(flattenAnimatorTimeline({ timeline: { finish: PxFinishAction.reset } }).resetOnFinish).toBe(true);
-        expect(flattenAnimatorTimeline({ timeline: { trigger: { finish: PxFinishAction.reset } } } as any).resetOnFinish).toBe(true);
+        expect(resolveAnimatorTimeline({ timeline: { finish: PxFinishAction.reset } }).resetOnFinish).toBe(true);
+        expect(resolveAnimatorTimeline({ timeline: { trigger: { finish: PxFinishAction.reset } } } as any).resetOnFinish).toBe(true);
     });
 
     it('the timeline numbers the runtime falls back to are the schema\'s', () => {

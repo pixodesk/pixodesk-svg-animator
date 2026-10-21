@@ -505,7 +505,7 @@ opt-in per document; see [Playback & triggers → Debug handle](./playback-and-t
 | `PxAnimatedSvgDocument`, `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTrigger`, `PxBinding`, `PxDefinitions` | ● wire types — the shapes in [the JSON format](../format/README.md#schema-at-a-glance) |
 | `PxAnimatorOptions`, `PxTagAnimatorOptions`, `PxAnimatorApi`, `PxAnimatorCallbacks`, `PxEngineCallbacks`, `PxPlaybackOverride`, `PxTimelinePatch`, `PxPlatformAdapter` | ● / ○ companion types of the calls above |
 
-**Core only**: `flattenAnimatorTimeline` / `nestAnimatorTimeline`, the engine rules
+**Core only**: `prepareDocument` / `nestAnimatorTimeline`, the engine rules
 (`resolveTimelineEngine`, …) and the scroll maths.
 
 ## Related

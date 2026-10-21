@@ -57,7 +57,7 @@ export type { PxEngineAnimatorApi, PxAnimatedSvgDocument, PxDocumentInput, PxAni
 export { PxFillMode, PxMouseOutAction, PxOffScreenAction, PxPlaybackDirection, PxTriggerStart } from './format/PxAnimatorConstants';
 
 export { getBindings, getChildren, getDefinitions } from './format/PxAnimatorConstants';
-export { getAnimatorConfig, isPxDocument, flattenAnimatorTimeline, nestAnimatorTimeline } from './format/PxAnimatorConstants';
+export { getAnimatorConfig, isPxDocument, nestAnimatorTimeline } from './format/PxAnimatorConstants';
 
 // Utils (string/color/easing/bezier math)
 

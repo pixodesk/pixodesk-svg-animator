@@ -9,7 +9,7 @@
 // spells fill-mode `fillMode`; the runtime view keeps `fill`.
 
 import { describe, expect, it } from 'vitest';
-import { flattenAnimatorTimeline, getAnimatorConfig, nestAnimatorTimeline } from './PxAnimatorConstants';
+import { resolveAnimatorTimeline, getAnimatorConfig, nestAnimatorTimeline } from './PxAnimatorConstants';
 import { PxAnimatorConfigSchema } from './PxAnimatorTypes';
 import type { PxValidationContext } from '../schema/PxSchema';
 
@@ -42,7 +42,7 @@ describe('animator.timeline spelling compat', () => {
     // ── flatten: nested → the flat view every engine consumes ────────────────
 
     it('flattens a time timeline to the flat runtime keys (trigger.finish → resetOnFinish, fillMode → fill)', () => {
-        const flat = flattenAnimatorTimeline({
+        const flat = resolveAnimatorTimeline({
             timeline: {
                 type: 'time', outTime: 4000,
                 trigger: { start: 'click', mouseOut: 'pause', finish: 'reset' },
@@ -59,7 +59,7 @@ describe('animator.timeline spelling compat', () => {
     });
 
     it("flattens 'view' and 'scroll' timelines to timelineSource:'scroll' + scroll.kind, pin object → pin flags; engine is shared", () => {
-        const flat = flattenAnimatorTimeline({
+        const flat = resolveAnimatorTimeline({
             timeline: {
                 type: 'view', outTime: 4000, engine: 'js', axis: 'block', subject: 'parent',
                 smoothing: 120, pin: { align: 'center', offset: 24, distance: 600 },
@@ -73,7 +73,7 @@ describe('animator.timeline spelling compat', () => {
             pin: true, pinAlign: 'center', pinOffset: 24, pinDistance: 600,
             range: { start: { phase: 'entry', fraction: 0.1 } }
         });
-        expect(flattenAnimatorTimeline({ timeline: { type: 'scroll', pin: true } } as any))
+        expect(resolveAnimatorTimeline({ timeline: { type: 'scroll', pin: true } } as any))
             .toMatchObject({ timelineSource: 'scroll', scroll: { kind: 'scroll', pin: true } });
     });
 
@@ -84,16 +84,16 @@ describe('animator.timeline spelling compat', () => {
             .toEqual({ timeline: { type: 'view', outTime: 1, iterations: 3 } });
         expect(nestAnimatorTimeline({ duration: 1, timelineSource: 'scroll', iterations: 'infinite' } as any))
             .toEqual({ timeline: { type: 'view', outTime: 1 } });
-        expect(flattenAnimatorTimeline({ timeline: { type: 'view', iterations: 2 } } as any))
+        expect(resolveAnimatorTimeline({ timeline: { type: 'view', iterations: 2 } } as any))
             .toMatchObject({ timelineSource: 'scroll', iterations: 2 });
     });
 
     it('is identity for a flat runtime-view config and pure for a nested one', () => {
         const flat = { duration: 1000, trigger: { start: 'load' } } as any;
-        expect(flattenAnimatorTimeline(flat)).toBe(flat);            // nothing to fold → same object
+        expect(resolveAnimatorTimeline(flat)).toBe(flat);            // nothing to fold → same object
         const nested = { timeline: { delay: 5 } } as any;   // no `type` = time-driven
         // no memo since the prepare-document pipeline: an equal answer every call, not the same object
-        expect(flattenAnimatorTimeline(nested)).toEqual(flattenAnimatorTimeline(nested));
+        expect(resolveAnimatorTimeline(nested)).toEqual(resolveAnimatorTimeline(nested));
     });
 
     it('getAnimatorConfig serves the flat view (engines never see `timeline`)', () => {
@@ -182,7 +182,7 @@ describe('animator.timeline spelling compat', () => {
         // …and the whole trip is stable: a kind, once written, comes back as itself.
         for (const kind of ['view', 'scroll'] as const) {
             const flat = { timelineSource: 'scroll', scroll: { kind } } as any;
-            expect(flattenAnimatorTimeline(nestAnimatorTimeline(flat)))
+            expect(resolveAnimatorTimeline(nestAnimatorTimeline(flat)))
                 .toMatchObject({ timelineSource: 'scroll', scroll: { kind } });
         }
     });
@@ -207,7 +207,7 @@ describe('animator.timeline spelling compat', () => {
             trigger: { start: 'click', mouseOut: 'pause' }, delay: 250,
             iterations: 'infinite', direction: 'alternate', fill: 'both', resetOnFinish: true
         } as any;
-        expect(flattenAnimatorTimeline(nestAnimatorTimeline(flat))).toEqual(flat);
+        expect(resolveAnimatorTimeline(nestAnimatorTimeline(flat))).toEqual(flat);
     });
 
     // ── schema: the written spelling validates strictly; dead keys have no slot ──

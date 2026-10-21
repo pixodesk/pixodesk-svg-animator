@@ -700,7 +700,7 @@ export function deriveRuntimeView(doc: PxAnimatedSvgDocument): PxAnimatorRuntime
 
     // Every internal consumer sees the FLAT view — the nested `timeline` spelling is
     // folded down here, so the engines/effects/drivers never branch on it.
-    let view = flattenAnimatorTimeline(source as PxAnimatorRuntimeConfig);
+    let view = resolveAnimatorTimeline(source as PxAnimatorRuntimeConfig);
     // Resolve the window (first-use review §4) — the ONE place, so every engine just reads
     // `duration`: an absent `outTime` means the max raw keyframe time, else the old default;
     // a non-positive `playDuration` is ignored (it would be a division by zero as a rate).
@@ -719,7 +719,7 @@ export function deriveRuntimeView(doc: PxAnimatedSvgDocument): PxAnimatorRuntime
 // The wire spelling is `animator.timeline: { type?: 'time'|'scroll'|'view', … }` (absent = 'time');
 // the flat form (`timelineSource` + `scroll` + loose clock knobs) is the INTERNAL
 // runtime view only — not a wire format. These two functions convert between them:
-//   • flattenAnimatorTimeline — wire → runtime view; applied by `getAnimatorConfig`,
+//   • resolveAnimatorTimeline — wire → runtime view; applied by `getAnimatorConfig`,
 //     so ALL runtime code keeps consuming the flat form it always has.
 //   • nestAnimatorTimeline — runtime view → wire; applied by writers (the editor) so
 //     files carry only the nested spelling and its mode-dead keys are structurally absent.
@@ -767,11 +767,12 @@ export function maxKeyframeTimeOf(doc: PxAnimatedSvgDocument): number | undefine
 }
 
 /**
- * Folds `cfg.timeline` (the wire spelling) into the flat runtime-view fields the engines
- * consume. Returns `cfg` unchanged when there is nothing to fold. Never mutates input.
- * @public @advanced
+ * Resolves `cfg.timeline` (the wire spelling) into the runtime-view fields the engines consume.
+ * Returns `cfg` unchanged when there is nothing to resolve. Pure: never mutates, never caches.
+ * Public code reads the result through `getAnimatorConfig` / `prepareDocument` (review §17a).
+ * @internal
  */
-export function flattenAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorRuntimeConfig {
+export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorRuntimeConfig {
     const timeline: any = (cfg as any).timeline;
     if (timeline === undefined || timeline === null || typeof timeline !== 'object') return cfg;
 

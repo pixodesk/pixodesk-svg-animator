@@ -55,7 +55,7 @@ function applyDocOverrides(
     // over in the non-playAsSaved control modes.
     //
     // This replaces three hand-rolled spread blocks that wrote the FLAT runtime keys. On a
-    // wire-format document — which is what every writer emits — `flattenAnimatorTimeline`
+    // wire-format document — which is what every writer emits — `resolveAnimatorTimeline`
     // overwrote them from `timeline` immediately afterwards, so the overrides were silently
     // discarded. See dev-docs/plans/playback-override.md §1.1.
     const { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce } = props;
