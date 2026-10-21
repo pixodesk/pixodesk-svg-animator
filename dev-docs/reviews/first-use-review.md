@@ -1,7 +1,7 @@
 # First-use review — the API, the schema and the docs through a newcomer's eyes
 
 Status **2026-10-15** (two passes the same day: the exports and schemas, then every guide in
-`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4), §14 (onReady + getDuration), §15 (one validateDocument → { valid, errors, findings }), §16 (one public PX_WIRE_VERSION; the string is internal). — each closes with a **Done** note.
+`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4), §14 (onReady + getDuration), §15 (one validateDocument → { valid, errors, findings }), §16 (one public PX_WIRE_VERSION; the string is internal), §17 (guide says "materializing"; no rename). Parked/pending: §17a `flattenAnimatorTimeline` (owner review), §17b WeakMap audit, §17c `as any` audit. — each closes with a **Done** note.
 
 Read as a first-time user would: the five packages' exports, the wire schemas, the component
 props, then the guides end to end — `README.md`, `docs/library/*`, `docs/format/README.md`,
@@ -637,7 +637,7 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
   up with wire 1.4 / editor stamp 1.4.1 — it still said 1.2). kf already used only
   `PX_WIRE_VERSION` / `formatWireVersion`, so nothing moved there. All suites + docs-check green.
 
-### 17. "Flatten" names two operations; the function for it names a third idea
+### 17. "Flatten" names two operations; the function for it names a third idea ✅
 
 - **Where:** `materializeAllInTree(doc, engine)`; format guide › Flattening a document.
 - **Why:** the guide calls the job "flattening a document", the function is "materialize all in
@@ -645,8 +645,118 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
   runtime view). The second argument is a playback-engine name (`'native' | 'js'`) used to mean
   "does the target renderer resolve `<use>` live" — so React Native must pass `'native'`, the word
   that means the Web Animations API everywhere else.
-- **Do:** `flattenDocument(doc, { … })` with an option named for what it decides (e.g.
-  `{ inlineUse: true }`); `flattenAnimatorTimeline` → a name about the runtime view.
+- **Decision (2026-10-21):** inverted from the original Do — "materialize" is the established,
+  correct word (every stage function says it: `materializeNodeEffects`, `materializeMotionPathsInTree`,
+  `materializeAnimatedUseInstances`, …); the GUIDE invented "flattening". So: no rename of
+  `materializeAllInTree`, fix the docs instead.
+- **Done (docs, 2026-10-21):** guide section renamed "Flattening a document" → "Materializing a
+  document"; the stray "flatten" wording for this operation fixed in the core intro, the section
+  body and the signature-block comment. No anchors pointed at the old slug. The `engine` argument
+  is unchanged (the section already states the `<use>`-propagation rule honestly).
+  The `flattenAnimatorTimeline` half of the card moved to §17a — parked for owner review.
+
+### 17a. `flattenAnimatorTimeline` ⏸ OWNER REVIEW
+
+- **What it is:** the wire→runtime adapter — the 2026-09 overhaul made the nested `timeline`
+  object the only WRITTEN spelling, while the engines still read the old FLAT fields
+  (`duration`, `fill`, `trigger`, `timelineSource`, `scroll`, …); this memoised fold sits at
+  the boundary (applied by `getAnimatorConfig`) and also absorbs legacy spellings (pre-1.3
+  `duration`, pre-1.4 `trigger.finish`). Scroll already flows through it
+  (`timeline.type: 'scroll' | 'view'` → `timelineSource: 'scroll'` + the `scroll` block);
+  a future timeline type lands as one more branch of the `type` discriminator.
+- **⏸ PARKED:** the owner wants to review this function before deciding anything.
+  Candidate rename if kept as-is: `resolveAnimatorTimeline(cfg)`.
+  Tooling for the review: dev monitor › **Player fns** (`/player-functions`) — the call graph of
+  all player packages with multi-level caller/callee trees per function.
+- **Owner's specific question: what is the `flattenMemo` WeakMap doing there?** Current answer
+  in code: the fold allocates a fresh flat object, but `getAnimatorConfig` callers compare the
+  config by identity / cache off it, so repeated calls must return the SAME object;
+  `wireViewMemo` two lines up exists for the same reason. Whether that identity contract is the
+  right design is the thing to review. See also §17b (WeakMaps) and §17c (`as any` — the body
+  reads the wire through `(cfg as any).timeline`).
+
+- **Research (2026-10-21): "fix once + stamp + trust" instead of the WeakMaps — feasible, and it
+  wants to be ONE staged pipeline.**
+  - **Today's lowering is fragmented** (the owner's core complaint): version migration in
+    `convertWireDocument`, config fold + window resolution LAZILY per read in
+    `getAnimatorConfig` (26 call sites, WeakMap-memoised), effects/loops/motion-paths/`<use>`/rest
+    poses in `materializeAllInTree(doc, engine)`, window-time keyframes in `normalizeBindings`,
+    engine projection inline in each player's bind. No public "give me a doc lowered to level X";
+    the closest to "WAAPI-ready" is what `PxAnimatorBind` composes internally.
+  - **Proposal: `prepareDocument(doc, { stage, engine? })` with a monotonic stage ladder** that
+    mirrors the documented layer model (format guide › layers L0–L5): `wire` (as loaded) →
+    `current` (version-migrated) → `resolved` (animator config folded to the runtime view ONCE,
+    window resolved — the lazy fold dies) → `plain` (L3 effects translated down to L0–L2; the
+    engine/`inlineUse` choice lives here) → `engine` (bindings in window time, directly
+    projectable to WAAPI / frame loop). Each stage is already a pure doc→new-doc function; the
+    pipeline just composes them.
+  - **The stamp (immutable — the input is NEVER touched):** each stage stamps its RESULT via a
+    non-enumerable **Symbol** property `{ stage, engine?, coreVersion }`. `fixToStage(doc, s)`
+    returns `doc` when `stamp.stage ≥ s`, else runs the remaining stages. A symbol key is
+    invisible to `JSON.stringify`, `Object.keys`, schema validation and `structuredClone` — a
+    saved/cloned doc naturally loses the stamp and is re-verified. One ORDERED stage (not
+    boolean soup) answers the "fixed and unfixed at the same time" worry: a doc carries the
+    highest stage it reached, nothing else. Branded types (`PxDocAt<'plain'>`) make the trust
+    compile-time checkable for internal signatures.
+  - **Stamp vs WeakMap, by aspect:**
+    | Aspect | Symbol stamp on the result | WeakMap side table (today) |
+    |---|---|---|
+    | Locality | travels WITH the object; visible in a debugger | global module state; invisible |
+    | Input mutation | never (stamp only on new objects) | never |
+    | Stale-trust hazard | in-place mutation keeps a wrong stamp — strippable at the editor's edit choke point | in-place mutation serves a stale view — nothing to strip |
+    | Serialization | symbol drops on JSON/clone → safe re-verify (a STRING key would leak into files — unacceptable) | nothing to leak |
+    | Two copies of the lib on one page | stamp crosses copies → must carry `coreVersion` and distrust foreign stamps | each copy re-derives — safe, slightly wasteful |
+    | Perf | caller must KEEP the prepared doc (that's the point); re-preparing a raw doc re-pays the cost | caches implicitly even for unplumbed call graphs |
+    | Type safety | pairs with branded stage types | none possible |
+    | API | one explicit pipeline entry + stage param | zero API, zero visibility |
+  - **IMPLEMENTED 2026-10-21** — plan + log: `dev-docs/plans/prepare-document-pipeline.md`.
+    `prepareDocument` / `documentStage` / `PxDocStage` public; both WeakMaps (`wireViewMemo`,
+    `flattenMemo`) deleted; `getAnimatorConfig` = stamp read (while the doc holds the same config
+    object — `viewOf`) else fresh derive; web load path, RN compile and `prepareDocumentForRender`
+    on the pipeline (RN now version-migrates, as web always did). `flattenAnimatorTimeline` is now a
+    plain pure fold — its rename (`resolveAnimatorTimeline`?) stays the owner's call.
+  - **Feasibility verdict: yes.** The stages exist and are pure; the refactor is composing them
+    under one entry, replacing the 26 lazy folds with a read of the already-resolved config, and
+    switching kf's direct piece-calls to the pipeline. The WeakMaps then disappear (or shrink to
+    a transition shim). Costs: internal signatures change (branded types), the editor must strip
+    stamps at its mutable-edit choke point, and the stamp must be version-guarded.
+
+### 17b. Audit every WeakMap in the library ⏳
+
+- **Trigger:** the `flattenMemo` WeakMap in §17a looked suspicious to the owner — audit the rest.
+- **Instances today (non-test), `packages/*/src`:**
+  | Where | What it memoises |
+  |---|---|
+  | `format/PxAnimatorConstants.ts:695` `wireViewMemo` | `getAnimatorConfig` result per document config — identity contract (callers compare/cache by identity) |
+  | `format/PxAnimatorConstants.ts:712` `flattenMemo` | `flattenAnimatorTimeline` result per config — same identity contract (§17a) |
+  | `materialize/PxMotionPath.ts:99` `_segmentCache` | per keyframe-PAIR sampled motion-path segments (nested WeakMap, module-level) |
+  | `materialize/PxAnimatorUseMaterializer.ts:121` `cache` | function-LOCAL per-node boolean during one materialize pass (harmless scope) |
+- **Do:** for each module-level one, establish who relies on the cached identity, whether a
+  mutated input object can serve a stale value, and whether the cache belongs at module scope
+  at all (cross-document leaks of correctness, not memory — WeakMap handles memory). Decide
+  keep / scope-down / replace with an explicit field on the owning object.
+
+### 17c. Audit every `as any` in the library ⏳
+
+- **Trigger:** `flattenAnimatorTimeline` reads the wire through `(cfg as any).timeline` even
+  though the document was already validated — once a document passed the check it HAS a type,
+  and reading it through `any` throws that away. Audit the rest.
+- **Instances today (non-test), `packages/*/src` — 63 in 19 files:**
+  | Count | File |
+  |---|---|
+  | 16 | `core/effects/reference/contentRefSplit.ts` |
+  | 7 | `core/schema/PxSchema.ts` |
+  | 5 | `core/effects/effectTestKit.ts` |
+  | 4 each | `rn/SvgAnimator.tsx`, `rn/PxRnSafety.ts`, `core/format/PxAnimatorConstants.ts` |
+  | 3 each | `web/animator/PxAnimator.ts`, `core/playback/PxAnimatorConfigPatch.ts`, `core/effects/reference/retimeEffect.ts` |
+  | 2 each | `web/engines/PxAnimatorWebApi.ts`, `core/playback/PxFrameLoop.ts`, `core/effects/clipping/maskedByEffect.ts`, `core/effects/PlayerEffectsUtil.visualModel.ts` |
+  | 1 each | `web/engines/PxAnimatorFrameLoop.ts`, `web/engines/PxAnimatorBind.ts`, `rn/PxRnRender.tsx`, `core/util/PxIdUtil.ts`, `core/effects/text/textPathEffect.ts`, `core/animation/PxDefinitions.ts` |
+- **Do:** classify each — (a) a validated document read through `any` → type it: validation
+  should NARROW (`validateDocument` ok → the doc IS `PxAnimatedSvgDocument`, its config IS the
+  schema shape); (b) a genuine unknown-input boundary (raw JSON before validation) → `unknown`
+  + a typed guard, never `as any`; (c) structural plumbing (schema internals, test kits) →
+  justify in place or fix. Target: zero `as any` outside documented boundary helpers — the
+  same bar the editor codebase already holds.
 
 ## 🟡 Smaller
 

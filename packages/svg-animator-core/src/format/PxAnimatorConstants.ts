@@ -22,6 +22,7 @@
 
 import type { PxPlayMode } from '../playback/PxDeclarativePlayback';
 import type { PxAnimatedSvgDocument, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBinding, PxDefinitions, PxNode, PxScroll, PxTrigger } from './PxAnimatorTypes';
+import { animatorOf, prepOf, stageAtLeast, stampPrep, trustedView, PxDocStage, type PxDocPrep } from './PxDocStage';
 
 // ── WIRE ENUMS (review §2.7) ────────────────────────────────────────────────
 // ONE shape for every enumerated wire value: an exported `Px*` const namespace plus the
@@ -661,10 +662,33 @@ export function isPxDocument(doc: any): doc is PxAnimatedSvgDocument {
  * @public @advanced
  */
 export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorRuntimeConfig | undefined {
+    // A PREPARED document (stage ≥ resolved) carries its runtime view in the stamp — a plain
+    // property read, same object every time, while the doc still holds the config object the view
+    // came from. Anything else derives FRESH on every call: no module state, no caches
+    // (dev-docs/plans/prepare-document-pipeline.md); hot paths prepare first.
+    const trusted = trustedView(doc, prepOf(doc));
+    return trusted ? trusted.view : deriveRuntimeView(doc);
+}
+
+/** `prep` re-pointed at `doc`: its view is reused while `doc` holds the same animator config object, else re-derived. @internal */
+export function prepFor(doc: PxAnimatedSvgDocument, prep: PxDocPrep): PxDocPrep {
+    if (!stageAtLeast(prep.stage, PxDocStage.resolved)) return prep;
+    const cfg = animatorOf(doc);
+    return cfg === prep.viewOf ? prep : { ...prep, view: deriveRuntimeView(doc), viewOf: cfg };
+}
+
+/** Stamps `to` (a doc the caller derived from `from`, e.g. by id regeneration) with `from`'s stage —
+ *  the view re-derived when `to`'s animator config is a new object. Returns `to`. @internal */
+export function carryPrep<T extends PxAnimatedSvgDocument>(from: PxAnimatedSvgDocument, to: T): T {
+    const prep = prepOf(from);
+    if (prep && to !== (from as PxAnimatedSvgDocument)) stampPrep(to, prepFor(to, prep));
+    return to;
+}
+
+/** The runtime view derived from the wire form — what `prepareDocument` attaches at `resolved`. @internal */
+export function deriveRuntimeView(doc: PxAnimatedSvgDocument): PxAnimatorRuntimeConfig | undefined {
     const cfg = doc?.animator || doc?.meta?.animator;
     if (!cfg) return undefined;
-    const memoised = wireViewMemo.get(cfg as object);
-    if (memoised) return memoised;
 
     // A document states playback ONLY inside `timeline`. A flat key at the animator root is not a
     // second spelling to honor — it is an unknown key (`validateDocument` and the entry diagnostic
@@ -675,7 +699,7 @@ export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorRuntime
     for (const k of stray) delete (source as Record<string, unknown>)[k];
 
     // Every internal consumer sees the FLAT view — the nested `timeline` spelling is
-    // folded down here, once, so the engines/effects/drivers never branch on it.
+    // folded down here, so the engines/effects/drivers never branch on it.
     let view = flattenAnimatorTimeline(source as PxAnimatorRuntimeConfig);
     // Resolve the window (first-use review §4) — the ONE place, so every engine just reads
     // `duration`: an absent `outTime` means the max raw keyframe time, else the old default;
@@ -685,14 +709,8 @@ export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorRuntime
         if (view.duration === undefined) view.duration = (maxKeyframeTimeOf(doc) ?? PX_DEFAULT_DURATION_MS) - (view.inTime ?? 0);
         if (view.playDuration !== undefined && !(view.playDuration > 0)) delete view.playDuration;
     }
-    // Memoised on the DOCUMENT's config: repeated calls must return the same object (callers
-    // compare identity and cache off it), and `source` is a fresh object when keys were dropped.
-    wireViewMemo.set(cfg as object, view);
     return view;
 }
-
-/** Memo for {@link getAnimatorConfig} — see the identity note inside it. */
-const wireViewMemo = new WeakMap<object, PxAnimatorRuntimeConfig>();
 
 
 // ============================================================================
@@ -706,10 +724,6 @@ const wireViewMemo = new WeakMap<object, PxAnimatorRuntimeConfig>();
 //   • nestAnimatorTimeline — runtime view → wire; applied by writers (the editor) so
 //     files carry only the nested spelling and its mode-dead keys are structurally absent.
 // ============================================================================
-
-/** Memo: flatten allocates a new config; repeated `getAnimatorConfig` calls must keep
- *  returning the SAME object (some callers compare identity / cache off it). */
-const flattenMemo = new WeakMap<object, PxAnimatorRuntimeConfig>();
 
 /** Wire window → flat view: `duration` = window length, `inTime` = the sampling shift.
  *  `timeline.duration` is the PRE-1.3 spelling (≡ `outTime` with `inTime` 0) — read for old
@@ -761,8 +775,6 @@ export function flattenAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
     const timeline: any = (cfg as any).timeline;
     if (timeline === undefined || timeline === null || typeof timeline !== 'object') return cfg;
 
-    const memoised = flattenMemo.get(cfg as object);
-    if (memoised) return memoised;
 
     const { timeline: _dropped, ...flat } = cfg as any;
 
@@ -808,7 +820,6 @@ export function flattenAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
         if (timeline.fillMode !== undefined) flat.fill = timeline.fillMode;   // wire `fillMode` → runtime `fill`
     }
 
-    flattenMemo.set(cfg as object, flat);
     return flat;
 }
 

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, suppressTriggerStart, toAnimatedSvgDocument, type PxDocumentInput, compareWireVersion, convertWireDocument, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, materializeAllInTree, PxDiagnosticCode, PxDiagnosticKind, PxWireVersionRelation, PX_WIRE_VERSION, readWireVersion, resolveTimelineEngine, type PxTimelineEngine, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, suppressTriggerStart, toAnimatedSvgDocument, type PxDocumentInput, compareWireVersion, convertWireDocument, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxWireVersionRelation, PX_WIRE_VERSION, readWireVersion, resolveTimelineEngine, type PxTimelineEngine, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { validateDeprecatedTransformChannels, validateNodeEffects } from '@pixodesk/svg-animator-core/internal';
 import { reportDocumentDiagnostics, createDiagnostics, isScrollTimeline, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
@@ -102,18 +102,17 @@ function createAnimatorImpl(
         doc = applyAnimatorConfig(doc, suppressTriggerStart()).doc;
     }
 
-    // Decide the engine upfront so the materialization pipeline knows which
-    // stages to run. `auto` and `native` resolve to the native (WAAPI) materialization; if the
+    // Lower once through the staged pipeline (`prepareDocument`) — the patched doc above is a new,
+    // unstamped object, so it is resolved afresh. `resolved` first: the engine is read from the
+    // runtime view. `auto` and `native` resolve to the native (WAAPI) materialization; if the
     // native engine later declines the document at construction, the frame loop (`js`) is used
     // as fallback — slight over-materialization for that doc, but no correctness issue.
-    const animatorConfig = getAnimatorConfig(doc) || {};
-    const engine: PxTimelineEngine = resolveTimelineEngine(animatorConfig.engine);
+    const resolved = prepareDocument(doc, { stage: PxDocStage.resolved });
+    const engine: PxTimelineEngine = resolveTimelineEngine(getAnimatorConfig(resolved)?.engine);
 
-    // Run the full document materialization pipeline:
-    //   effects → loops → motion-path (native engine only) → animated-use (native engine only)
-    //   → rest poses (so the frame shown BEFORE anything plays is the first frame)
-    // The exact same function is exported for the Editor — no parallel pipeline.
-    doc = materializeAllInTree(doc, engine);
+    // `plain`: effects → loops → motion-path (native only) → animated-use (native only) → rest
+    // poses. The exact same pipeline is exported for the Editor — no parallel pipeline.
+    doc = prepareDocument(resolved, { engine });
 
     let rootElement: Element | null = null;
 
@@ -123,7 +122,7 @@ function createAnimatorImpl(
     // which a consumer cannot tell apart from "the render failed".
     if (containerElement) {
 
-        doc = generateNewIds(doc); // Regenerate IDs so repeated calls to createSvgAnimator(...) produce different ids in elements
+        doc = prepareDocument(doc, { engine, freshIds: true }); // fresh ids so repeated createSvgAnimator(...) calls never collide
 
         const containerEl = typeof containerElement === 'string' ?
             document.querySelector(containerElement) : containerElement;

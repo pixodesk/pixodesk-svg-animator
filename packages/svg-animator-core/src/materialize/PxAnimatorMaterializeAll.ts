@@ -40,7 +40,8 @@ import { materializeInternalLoopsInTree } from '../animation/PxDefinitions';
 import { materializeOffsetPathsInTree } from './PxOffsetPathMaterializer';
 import { materializeMotionPathsInTree } from './PxMotionPath';
 import type { MotionPathMaterializationOptions } from './PxMotionPath';
-import { getAnimatorConfig, PxTimelineEngine, resolveTimelineEngine } from '../format/PxAnimatorConstants';
+import { carryPrep, deriveRuntimeView, getAnimatorConfig, prepFor, PxTimelineEngine, resolveTimelineEngine } from '../format/PxAnimatorConstants';
+import { animatorOf, prepOf, stampPrep, trustedView, PxDocStage, type PxDocPrep } from '../format/PxDocStage';
 import type { PxAnimatedSvgDocument, PxNode } from '../format/PxAnimatorTypes';
 import { materializeAnimatedUseInstances } from './PxAnimatorUseMaterializer';
 import { generateNewIds } from '../util/PxIdUtil';
@@ -63,14 +64,25 @@ export function materializeAllInTree(
     engine: PxTimelineEngine,
     options?: PxMaterializeAllOptions,
 ): PxAnimatedSvgDocument {
+    // Resolve the runtime view ONCE and carry it on every intermediate root, so the
+    // `getAnimatorConfig` reads below (and inside the stages) are plain property reads.
+    // The input is never stamped — only roots this function created.
+    const trusted = trustedView(doc, prepOf(doc));
+    const view = trusted ? trusted.view : deriveRuntimeView(doc);
+    // `viewOf`: a stage that REPLACES the animator config invalidates the carried view for its
+    // output (getAnimatorConfig then derives afresh) — exactly when the old memo missed.
+    const carry: PxDocPrep = { stage: PxDocStage.resolved, view, viewOf: animatorOf(doc) };
+    // A stage may hand back its input by reference — never stamp the caller's document.
+    const own = (r: PxAnimatedSvgDocument): PxAnimatedSvgDocument => (r === doc ? { ...r } : r);
+
     // 1. Effects → structural materialization. Always runs; returns a fresh root.
-    let root = materializeNodeEffects(doc).root as PxAnimatedSvgDocument;
+    let root: PxAnimatedSvgDocument = stampPrep(own(materializeNodeEffects(doc).root as PxAnimatedSvgDocument), carry);
 
     // 1b. `alongPathMode: 'offsetPath'` transforms → CSS Motion Path (offset-path style
     //     + `offsetDistance` binding). Both engines: frames drives `offset-distance` per
     //     rAF, waapi animates it natively (percent values). BEFORE loop expansion so a
     //     carried `loop` expands on the rewritten binding.
-    root = materializeOffsetPathsInTree(root);
+    root = stampPrep(materializeOffsetPathsInTree(root), carry);
 
     // 2. Loops → flat repeated keyframes. Always runs (both engines need flat
     //    kfs covering the duration; per-binding expansion in
@@ -79,25 +91,25 @@ export function materializeAllInTree(
     // in `normalizeBindings`), so loops fill to the window END — `inTime + duration` (§4).
     const config = getAnimatorConfig(root);
     const duration = (config?.inTime ?? 0) + (config?.duration ?? PX_DEFAULT_DURATION_MS);
-    root = materializeInternalLoopsInTree(root, duration);
+    root = stampPrep(materializeInternalLoopsInTree(root, duration), carry);
 
     if (engine === PxTimelineEngine.native) {
         // 3. Motion-along-path → sampled `{translate, rotate}` kfs. WAAPI can't
         //    evaluate parametric tangents; frames-mode does that per frame so
         //    we skip this for frames.
-        root = materializeMotionPathsInTree(root, options?.motionPath);
+        root = stampPrep(materializeMotionPathsInTree(root, options?.motionPath), carry);
 
         // 4. <use> referencing animated subtrees → <g> wrapping a fresh clone.
         //    WAAPI / CSS animations don't reliably propagate through SVG <use>
         //    shadow trees in Chrome / Safari; frames-mode updates source
         //    attributes per frame and the shadow tree picks those up natively.
-        root = materializeAnimatedUseInstances(root);
+        root = stampPrep(materializeAnimatedUseInstances(root), carry);
 
         // 5. Prune <defs> `<g>`/`<symbol>` entries that step 4 orphaned — i.e. no
         //    `<use>` references them any more (the animated uses that did got
         //    inlined into `<g>`+clones). waapi-only: frames keeps `<use href>`,
         //    so nothing is orphaned there.
-        root = pruneUnreferencedDefs(root);
+        root = stampPrep(pruneUnreferencedDefs(root), carry);
     }
 
     // 6. Rest poses — LAST, so every node the stages above generated is covered, clones
@@ -105,7 +117,9 @@ export function materializeAllInTree(
     //    a generated animated wrapper has no static transform of its own. See `PxRestPose`.
     root = materializeRestPosesInTree(root, engine);
 
-    return root;
+    // The output IS the `plain` stage: materialized for `engine`, view attached.
+    const out = own(root);
+    return stampPrep(out, prepFor(out, { ...carry, stage: PxDocStage.plain, engine }));
 }
 
 
@@ -131,7 +145,8 @@ export function materializeAllInTree(
  */
 export function prepareDocumentForRender(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocument {
     const engine = resolveTimelineEngine(getAnimatorConfig(doc)?.engine);
-    return generateNewIds(materializeAllInTree(doc, engine));
+    const plain = materializeAllInTree(doc, engine);
+    return carryPrep(plain, generateNewIds(plain));
 }
 
 

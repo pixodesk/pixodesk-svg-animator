@@ -88,11 +88,12 @@ describe('animator.timeline spelling compat', () => {
             .toMatchObject({ timelineSource: 'scroll', iterations: 2 });
     });
 
-    it('is identity for a flat runtime-view config and memoised for a nested one', () => {
+    it('is identity for a flat runtime-view config and pure for a nested one', () => {
         const flat = { duration: 1000, trigger: { start: 'load' } } as any;
         expect(flattenAnimatorTimeline(flat)).toBe(flat);            // nothing to fold → same object
         const nested = { timeline: { delay: 5 } } as any;   // no `type` = time-driven
-        expect(flattenAnimatorTimeline(nested)).toBe(flattenAnimatorTimeline(nested)); // memoised
+        // no memo since the prepare-document pipeline: an equal answer every call, not the same object
+        expect(flattenAnimatorTimeline(nested)).toEqual(flattenAnimatorTimeline(nested));
     });
 
     it('getAnimatorConfig serves the flat view (engines never see `timeline`)', () => {
@@ -127,7 +128,8 @@ describe('animator.timeline spelling compat', () => {
 
         expect(cfg.duration).toBe(500);                  // the timeline wins — the stray key is gone
         expect(cfg.definitions).toEqual({ easings: {} }); // content keys are untouched
-        expect(getAnimatorConfig(doc)).toBe(cfg);        // identity memo holds even when keys were dropped
+        // a RAW doc derives fresh: equal every call (same-object identity holds for PREPARED docs — PxPrepareDocument.test)
+        expect(getAnimatorConfig(doc)).toEqual(cfg);
     });
 
     // ── nest: flat → the written spelling; engine-dead keys structurally gone ──

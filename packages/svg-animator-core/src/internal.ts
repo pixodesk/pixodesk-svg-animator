@@ -26,6 +26,8 @@ export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PX_TEXT_CONTENT_ATTR, PX_DEFA
 export { keyframeEasing, keyframeValue } from './format/PxAnimatorTypes';
 export type { PxAnimatable, PxAnyKeyframe, PxNormalizedKeyframe, PxNormalizedPropertyAnimation } from './format/PxAnimatorTypes';
 export { diagnoseDocument, reportDocumentDiagnostics } from './format/PxDocumentDiagnostic';
+// Stage-stamp plumbing for players that derive a doc from a prepared one without touching its config.
+export { carryPrep } from './format/PxAnimatorConstants';
 // The bump-site string (review §16): public code reads `PX_WIRE_VERSION` / `formatWireVersion`.
 export { PX_WIRE_SCHEMA_VERSION } from './version/PxSchemaVersion';
 // The narrow document checkers (review §15): `validateDocument` on the MAIN entry is the one

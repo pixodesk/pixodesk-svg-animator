@@ -83,6 +83,12 @@ export {
 // Single-call materialization pipeline (effects → loops → motion-path → use)
 export { materializeAllInTree } from './materialize/PxAnimatorMaterializeAll';
 
+// The staged lowering pipeline: current → resolved → plain, stamped on the result
+export { prepareDocument } from './pipeline/PxPrepareDocument';
+export type { PxPrepareOptions } from './pipeline/PxPrepareDocument';
+export { PxDocStage, documentStage } from './format/PxDocStage';
+export type { PxPreparedDocument } from './format/PxDocStage';
+
 // Adapter-driven frame-loop engine (platform-neutral playback)
 export { createAdapterSvgAnimator } from './playback/PxFrameLoop';
 export type { PxPlatformAdapter } from './playback/PxFrameLoop';

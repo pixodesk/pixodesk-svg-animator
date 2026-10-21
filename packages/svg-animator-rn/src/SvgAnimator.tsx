@@ -3,8 +3,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createIterationStopWatcher, createRunClock, toAnimatedSvgDocument, type PxDocumentInput, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, PxPlayMode, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, generateNewIds, getAnimatorConfig, getDefinitions, materializeAllInTree, resolveTrigger, PxTimelineEngine, PxControlMode, resolveControlMode, PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
-import { validateDeprecatedTransformChannels, validateNodeEffects } from '@pixodesk/svg-animator-core/internal';
+import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createIterationStopWatcher, createRunClock, toAnimatedSvgDocument, type PxDocumentInput, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, PxPlayMode, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, resolveTrigger, PxTimelineEngine, PxControlMode, resolveControlMode, PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
+import { carryPrep, validateDeprecatedTransformChannels, validateNodeEffects } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
@@ -270,16 +270,18 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
     // live references, which only work because the DOM propagates
     // attribute writes through `<use>` shadow trees. react-native-svg has
     // no such live propagation, so an animated `<use>` would render frozen.
-    let prepared = materializeAllInTree(doc, PxTimelineEngine.native);
+    // Through the shared staged pipeline: version-migrated → resolved → plain.
+    let prepared: PxAnimatedSvgDocument = prepareDocument(doc, { engine: PxTimelineEngine.native });
 
     // Sidestep a react-native-svg NATIVE crash (see PxRnSafety). Guarded on
     // the platform because the DOM renders this case correctly and the web
     // document must stay exactly as the core pipeline produced it.
+    // It edits textPath targets only — the animator config is untouched, so the stamp carries over.
     if (NATIVE_SVG_VIEWS) {
-        prepared = openClosedTextPathTargets(prepared as PxNode) as PxAnimatedSvgDocument;
+        prepared = carryPrep(prepared, openClosedTextPathTargets(prepared as PxNode) as PxAnimatedSvgDocument);
     }
 
-    prepared = generateNewIds(prepared);
+    prepared = prepareDocument(prepared, { engine: PxTimelineEngine.native, freshIds: true });
     const tracks = compileTracks(prepared, { native: NATIVE_SVG_VIEWS });
     return { doc: prepared, tracks, error: null };
 }

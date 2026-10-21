@@ -1285,7 +1285,7 @@ React Native player produce identical values from the same document.
 
 Usually **no** — install a [player](../library/installation.md) instead; each depends on the core and
 re-exports what you need. Install the core directly when you work with **documents rather
-than playback**: validating them, transforming them, flattening them for a renderer of your
+than playback**: validating them, transforming them, materializing them for a renderer of your
 own, or computing values at a given time without rendering anything.
 
 ```bash
@@ -1343,9 +1343,43 @@ folded into top-level `duration`, `trigger`, `iterations` and the rest. That fla
 something to write — a file's `animator` is a `PxAnimatorConfig`, and `nestAnimatorTimeline` turns
 the flat shape back into one.
 
-### Flattening a document
+### Preparing a document
 
-`materializeAllInTree(doc, engine)` turns a document into a flat tree any renderer can walk:
+`prepareDocument(doc, options?)` is the one call that lowers a document as far as you need —
+always in this order — and remembers how far it got:
+
+<!-- px-check off stage ladder, prose -->
+| Stage (`PxDocStage`) | What is done |
+|---|---|
+| `current` | migrated to the schema this build reads — [Versioning](#versioning) |
+| `resolved` | the animator config's runtime view computed once and attached: `getAnimatorConfig` on the result is a plain read |
+| `plain` (the default) | materialized for an engine — [Materializing a document](#materializing-a-document), below — what the Web Animations API or the frame loop consumes directly |
+
+- **The input is never changed.** The result is a new document stamped with its stage
+  (`documentStage(doc)`); the stamp is invisible to `JSON.stringify` and `Object.keys`, and a
+  saved or cloned copy loses it.
+- **Prepared once, trusted after.** Preparing a document that already reached the stage (for the
+  same engine) returns it unchanged — passing a prepared document on and preparing it again "just
+  in case" costs nothing. The result's type, `PxPreparedDocument`, says it was prepared.
+- **Edits start over.** The stamp is trusted only while the document keeps the animator config it
+  was prepared with; an edited copy is a new object and is prepared afresh.
+- `freshIds: true` mints new ids on the result — needed before putting the same animation on a
+  page twice.
+
+```ts
+import { prepareDocument, documentStage, getAnimatorConfig } from '@pixodesk/svg-animator-core';
+import doc from './bouncing-ball.json';
+
+const ready = prepareDocument(doc, { freshIds: true });   // current → resolved → plain
+documentStage(ready);                                      // 'plain'
+getAnimatorConfig(ready)?.duration;                        // a property read — nothing re-derived
+prepareDocument(ready) === ready;                          // true: trusted, nothing redone
+```
+
+### Materializing a document
+
+`materializeAllInTree(doc, engine)` — the `plain` step of `prepareDocument` — expands every
+indirection into plain nodes and plain keyframes, a tree any renderer can walk:
 
 1. **Effects** — every `node.effects` becomes real nodes, wrappers and defs.
 2. **Loops** — each property's `loop` is expanded into explicit keyframes.
@@ -1374,10 +1408,10 @@ import { materializeAllInTree, generateNewIds, calcAnimationValues,
          normalizeBindings, PxTimelineEngine } from '@pixodesk/svg-animator-core';
 import doc from './bouncing-ball.json';
 
-const flat = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
+const plain = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
 
 // values at any time, no renderer involved
-for (const binding of normalizeBindings(flat, PxTimelineEngine.js) ?? []) {
+for (const binding of normalizeBindings(plain, PxTimelineEngine.js) ?? []) {
   const values = calcAnimationValues(binding.animate, 500);   // t = 500 ms
   console.log(binding.id, values);   // → ball { transform: 'translate(200,129.65)' }   (the bouncing ball, half-way down)
 }
@@ -1419,9 +1453,20 @@ The calls above, and the rest of what you would call directly, in signature form
 
 <!-- px-check signature pkg=core -->
 ```typescript
+// ○ The one lowering pipeline — current → resolved → plain — stamped on the result; a document
+//   that already reached the stage comes back unchanged (see Preparing a document).
+function prepareDocument(doc: PxAnimatedSvgDocument, options?: PxPrepareOptions): PxPreparedDocument;
+function documentStage(doc: PxAnimatedSvgDocument): PxDocStage | undefined;   // undefined = a raw document
+
+interface PxPrepareOptions {
+    stage?: PxDocStage;          // 'current' | 'resolved' | 'plain' (the default)
+    engine?: PxTimelineEngine;   // what `plain` materializes for; default: the document's own
+    freshIds?: boolean;          // mint new ids on the result
+}
+
 // ○ Run the whole materialization pipeline: effects → loops → motion paths →
 //   <use> instances → rest poses, always in this order. This is exactly what the player
-//   runs internally, so a document flattened here plays identically — the way
+//   runs internally, so a document materialized here plays identically — the way
 //   to feed a renderer that has no effects support. `resolveTimelineEngine`
 //   turns a document's `timeline.engine` into this argument.
 function materializeAllInTree(
@@ -1552,6 +1597,7 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 | Validation | `isPxDocument`, `validateDocument(doc, options?)` → `PxValidationResult` | ● the shallow guard, and THE one deep check: `{ valid, errors, findings }` (review §15). `isValidPxDocument`, `validateNodeEffects`, `validateDeprecatedTransformChannels`, `validateEasingRefs`, `validateVersionStamp` (▪) moved to `/internal` |
 | Document accessors | `getAnimatorConfig`, `getChildren`, `getBindings`, `getDefinitions` | ○ read a document without knowing its internals |
 | Timeline shape | `flattenAnimatorTimeline`, `nestAnimatorTimeline`, `PxAnimatorRuntimeConfig` | ○ nested `timeline` object ⇄ the flat runtime view (`PxAnimatorRuntimeConfig`, what `getAnimatorConfig` returns) |
+| Preparing | `prepareDocument`, `documentStage`, `PxDocStage`, + `PxPrepareOptions`, `PxPreparedDocument` | ○ the one lowering pipeline, current → resolved → plain, stamped on the result — [Preparing a document](#preparing-a-document). `carryPrep` (▪) re-stamps a doc a player derived from a prepared one |
 | Playback override | `PxTimelinePatch`, `PxPlaybackOverride`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult`, `PxTimelineShortcuts` | ● the `timeline` override as every player takes it, and the companion types of the three merge functions above |
 | No-driver patch | `suppressTriggerStart(patch?)` | ○ `trigger.start` forced to `'none'` on top of a caller's override — what every player applies when `playAsSaved` is absent (the components' non-`playAsSaved` control modes use the same helper) |
 | Keyframe forms | `keyframeValue`, `keyframeEasing`, `PxNormalizedKeyframe`, `PxNormalizedPropertyAnimation`, `PxAnyKeyframe` | ▪ read a keyframe in either its wire or its runtime (`t` / `v` / `e`) form; is what `normalizeBindings` hands the engines — bare id + merged animation, from a binding or a node alike |

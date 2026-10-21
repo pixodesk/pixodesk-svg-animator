@@ -66,8 +66,8 @@ export interface CompileTracksOptions {
 
 
 /**
- * Compiles a MATERIALIZED document (run `materializeAllInTree(doc, 'frames')`
- * + `generateNewIds` first) into densely sampled per-element tracks.
+ * Compiles a MATERIALIZED document (run `prepareDocument(doc, { engine: 'native', freshIds: true })`
+ * first) into densely sampled per-element tracks.
  * @internal
  */
 export function compileTracks(doc: PxAnimatedSvgDocument, opts?: CompileTracksOptions): PxCompiledTracks {
