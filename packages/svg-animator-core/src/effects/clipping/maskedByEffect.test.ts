@@ -11,7 +11,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { PxTimelineEngine } from '../../format/PxAnimatorConstants';
-import type { PxNode } from '../../format/PxAnimatorTypes';
+import type { PxNode, PxVec2 } from '../../format/PxAnimatorTypes';
+import { staticTransformParts } from '../shared/transformParts';
 import { collectByType, countNodes, engineFirstFrame, materialize, materializeEngine, materializeRaw, normalizeGeneratedIds, staticAttr } from '../effectTestKit';
 
 /** A mask SOURCE shape + a TARGET rect masked by it. `extraEffects` merge
@@ -249,6 +250,19 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
             expect(g.transform, 'wrapper has a rest pose').toBeDefined();
             expect(staticAttr(g, 'transform'), 'rest pose of a mask wrapper').toBe(engine.get(String(g.id))?.get('transform'));
         }
+    });
+
+    it('case 3c — a STATIC transformBy.scale is a factor in the mask inverse too (the editor writes [1.5, 1.5] for 150 %)', () => {
+        const out = materialize(scene({ source: 'src' }, { transformBy: { scale: [1.5, 1.5] } }));
+        const scalesIn = (root: PxNode): Array<PxVec2> => collectByType(root, 'g')
+            .map(g => staticTransformParts(g.transform)?.scale)
+            .filter((s): s is PxVec2 => s !== undefined);
+        const mask = maskNode(out);
+        const inverse = mask ? scalesIn(mask) : [];
+        expect(inverse).toHaveLength(1);
+        expect(inverse[0][0]).toBeCloseTo(1 / 1.5);                // undoes the forward wrapper's 1.5
+        expect(inverse[0][1]).toBeCloseTo(1 / 1.5);
+        expect(scalesIn(out)).toContainEqual([1.5, 1.5]);          // the forward wrapper on the target
     });
 
     it('case 4 — missing source is rejected with an error (no mask generated)', () => {

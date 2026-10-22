@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import { PxChannelNumberSchema, PxTransformPartsSchema, PxVec2Schema, type PxAnimatable, type PxKeyframe, type PxMaskedByEffect, type PxNode, type PxPropertyAnimation, type PxTransformByEffect, type PxTransformParts, type PxVec2 } from '../../format/PxAnimatorTypes';
+import { PxChannelNumberSchema, PxTransformPartsSchema, PxVec2Schema, type PxKeyframe, type PxMaskedByEffect, type PxNode, type PxPropertyAnimation, type PxTransformByEffect, type PxTransformParts, type PxVec2 } from '../../format/PxAnimatorTypes';
 import { inlineAnimate, keyframeWith, normalizeKeyframe, partsRecord, ReadKind, readAnimatable, readStaticOrigin, staticTransformParts, TransformPart, type ReadPart, type ValueKeyframe } from '../shared/transformParts';
 import type { ApplyContext, MaskAncestorTransform } from '../shared/types';
 import { genId, stripHash } from '../shared/util';
@@ -95,16 +95,9 @@ function wrapInverseTransform(inner: PxNode, fx: PxTransformByEffect | undefined
     let n = inner;
     n = wrapInversePart(n, TransformPart.Translate, readAnimatable(fx.translate, PxVec2Schema), v => [-v[0], -v[1]], undefined);
     n = wrapInversePart(n, TransformPart.Rotate, readAnimatable(fx.rotate, PxChannelNumberSchema), v => -v, origin);
-    n = wrapInversePart(n, TransformPart.Scale, readAnimatable(scaleInFactors(fx.scale), PxVec2Schema), v => [1 / v[0], 1 / v[1]], origin);
+    // `fx.scale` is a FACTOR in every form (bare, `{value}`, keyframes) — the same as the forward effect.
+    n = wrapInversePart(n, TransformPart.Scale, readAnimatable(fx.scale, PxVec2Schema), v => [1 / v[0], 1 / v[1]], origin);
     return n;
-}
-
-/** `fx.scale` in BARE-ARRAY form is PERCENT (150 = 1.5×), matching
- *  `applyTransformByEffect`'s forward `normalizeScale`. Convert to 1.0-units
- *  before reading, so the inverse of `[1.5,1.5]` is `[2/3, 2/3]`, not
- *  `[1/150, 1/150]`. Keyframe / {value} forms already use 1.0-units. */
-function scaleInFactors(raw: PxAnimatable<PxVec2> | undefined): PxAnimatable<PxVec2> | undefined {
-    return Array.isArray(raw) ? [raw[0] / 100, raw[1] / 100] : raw;
 }
 
 function wrapInversePart<T extends number | PxVec2>(
