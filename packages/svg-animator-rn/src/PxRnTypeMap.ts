@@ -56,16 +56,14 @@ import {
 } from 'react-native-svg';
 import type { ComponentType } from 'react';
 
-/**
- * SVG tag → react-native-svg component. Tags not in this map are skipped at
- * render time (with a warning collected by the renderer) — they go on the
- * feature-gap list rather than crashing the tree.
- *
- * Keys are the wire-format `node.type` values, which follow SVG's own casing
- * (`clipPath`, `feGaussianBlur`, `linearGradient`, …).
- * @internal
- */
-export const RN_SVG_COMPONENTS: Record<string, ComponentType<any>> = {
+/** The props the renderer gives an element — names and values the DOCUMENT decides at run time. @internal */
+export type RnSvgProps = { [prop: string]: unknown };
+
+/** A react-native-svg element as the renderer drives it. @internal */
+export type RnSvgComponent = ComponentType<RnSvgProps>;
+
+/** SVG tag → react-native-svg component, each typed for its own props. */
+const COMPONENT_BY_TAG = {
     // Root & containers
     svg: Svg,
     g: G,
@@ -128,5 +126,25 @@ export const RN_SVG_COMPONENTS: Record<string, ComponentType<any>> = {
     feTile: FeTile,
     feTurbulence: FeTurbulence,
 };
+
+/** react-native-svg types every component for its own props (`CircleProps`, …); the renderer drives each one with
+ *  props the document decides at run time. TypeScript cannot follow that, so it is stated once, here. */
+const drivenByDocument = (component: typeof COMPONENT_BY_TAG[keyof typeof COMPONENT_BY_TAG]): RnSvgComponent =>
+    component as RnSvgComponent;
+
+/**
+ * SVG tag → react-native-svg component. Tags not in this map are skipped at
+ * render time (with a warning collected by the renderer) — they go on the
+ * feature-gap list rather than crashing the tree.
+ *
+ * Keys are the wire-format `node.type` values, which follow SVG's own casing
+ * (`clipPath`, `feGaussianBlur`, `linearGradient`, …).
+ * @internal
+ */
+export const RN_SVG_COMPONENTS: Readonly<Record<string, RnSvgComponent>> = (() => {
+    const out: Record<string, RnSvgComponent> = {};
+    for (const [tag, component] of Object.entries(COMPONENT_BY_TAG)) out[tag] = drivenByDocument(component);
+    return out;
+})();
 
 export { toRnPropName } from './PxRnPropNames';

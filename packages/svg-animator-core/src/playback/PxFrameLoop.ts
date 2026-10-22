@@ -14,19 +14,28 @@ import { createMotionPathSegments } from '../materialize/PxMotionPath';
 import { clampSeekMs, isValidPlaybackRate, progressToTimeMs, PX_RATE_REJECTED, timeToProgress } from './PxPlaybackTime';
 
 
+/** The scheduling a host offers on `globalThis`. Core compiles without the DOM types (platform-neutral), so a
+ *  browser's or React Native's frame scheduler is OPTIONAL here; the timers every JS host has are the fallback. */
+interface FrameHost {
+    requestAnimationFrame?: (cb: () => void) => number;
+    cancelAnimationFrame?: (handle: number) => void;
+    setTimeout: typeof setTimeout;
+    clearTimeout: typeof clearTimeout;
+}
+type FrameHandle = number | ReturnType<typeof setTimeout>;
+
 // Frame scheduling — resolved LAZILY from globalThis on every call so test
 // harnesses that install fake timers (and hosts that polyfill rAF late) are
 // honored. Falls back to a ~60fps setTimeout when rAF is unavailable.
-function requestFrame(cb: () => void): number {
-    const g: any = globalThis as any;
-    if (typeof g.requestAnimationFrame === 'function') return g.requestAnimationFrame(cb);
-    return g.setTimeout(cb, 16) as unknown as number;
+function requestFrame(cb: () => void): FrameHandle {
+    const host: FrameHost = globalThis;
+    return typeof host.requestAnimationFrame === 'function' ? host.requestAnimationFrame(cb) : host.setTimeout(cb, 16);
 }
 
-function cancelFrame(handle: number): void {
-    const g: any = globalThis as any;
-    if (typeof g.cancelAnimationFrame === 'function') { g.cancelAnimationFrame(handle); return; }
-    g.clearTimeout(handle);
+function cancelFrame(handle: FrameHandle): void {
+    const host: FrameHost = globalThis;
+    if (typeof host.cancelAnimationFrame === 'function' && typeof handle === 'number') { host.cancelAnimationFrame(handle); return; }
+    host.clearTimeout(handle);
 }
 
 /**
@@ -88,7 +97,7 @@ export function createAdapterSvgAnimator(
 
     ////////////////////////////////////////////////////////////////
 
-    let timerId: number | null = null;
+    let timerId: FrameHandle | null = null;
     let playing = false;
 
     // Accumulated logical time before the current run (ms). A positive

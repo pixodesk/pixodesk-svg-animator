@@ -140,8 +140,8 @@ export function createDomAdapter(rootElement?: Element | null, diag?: PxDiagnost
                     ? 'patternTransform'
                     : attrName;
                 element.setAttribute(effectiveAttrName, value);
-                if (PX_STYLE_ATTR_NAMES.has(attrName)) {
-                    (element as HTMLElement).style[attrName as any] = value;
+                if (PX_STYLE_ATTR_NAMES.has(attrName) && (element instanceof SVGElement || element instanceof HTMLElement)) {
+                    element.style.setProperty(camelCaseToKebabWordIfNeeded(attrName), value);
                 }
             }
         },

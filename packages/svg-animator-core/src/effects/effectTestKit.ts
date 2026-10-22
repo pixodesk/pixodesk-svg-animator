@@ -15,7 +15,8 @@ import { toDomProps } from '../util/PxNodeProps';
 import { materializeNodeEffects } from './PlayerEffectsUtil';
 import { materializeAllInTree } from '../materialize/PxAnimatorMaterializeAll';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
-import type { PxAnimatedSvgDocument, PxNode } from '../format/PxAnimatorTypes';
+import type { PxAnimatedSvgDocument, PxEffects, PxNode } from '../format/PxAnimatorTypes';
+import { isRecord } from '../schema/PxSchema';
 
 export { PxTimelineEngine };
 
@@ -75,11 +76,11 @@ export function normalizeGeneratedIds(tree: PxNode): string {
         }
         for (const k of Object.keys(n)) {
             if (k === 'children' || k === 'effects' || k === 'meta' || k === 'id' || k === 'href' || k === 'animate') continue;
-            const v = (n as any)[k];
-            if (typeof v === 'string' && v.indexOf('url(#') !== -1) (n as any)[k] = rewriteUrl(v);
+            const v = n[k];
+            if (typeof v === 'string' && v.indexOf('url(#') !== -1) n[k] = rewriteUrl(v);
         }
-        // Compact `animate` to one line (keyframe arrays otherwise explode).
-        if (n.animate) (n as any).animate = JSON.stringify(n.animate);
+        // Compact `animate` to one line (keyframe arrays otherwise explode) — a string is an `animate` value.
+        if (n.animate) n.animate = JSON.stringify(n.animate);
         n.children?.forEach(walkRewrite);
     };
     walkRewrite(cloned);
@@ -89,10 +90,10 @@ export function normalizeGeneratedIds(tree: PxNode): string {
 }
 
 /** Recursively rebuilds objects so `children` is the last key (other keys sorted). */
-function childrenLast(v: any): any {
+function childrenLast(v: unknown): unknown {
     if (Array.isArray(v)) return v.map(childrenLast);
-    if (v && typeof v === 'object') {
-        const out: any = {};
+    if (isRecord(v)) {
+        const out: Record<string, unknown> = {};
         for (const k of Object.keys(v).filter(k => k !== 'children').sort()) out[k] = childrenLast(v[k]);
         if ('children' in v) out.children = childrenLast(v.children);
         return out;
@@ -123,16 +124,18 @@ export function countNodes(root: PxNode, pred: (n: PxNode) => boolean): number {
 export function transformKfTimes(root: PxNode): Array<Array<number>> {
     const out: Array<Array<number>> = [];
     for (const n of flatten(root)) {
-        const kfs = (n.animate as any)?.transform?.keyframes;
-        if (Array.isArray(kfs)) out.push(kfs.map((k: any) => k.time));
+        const animate = n.animate;
+        const transform = isRecord(animate) ? animate.transform : undefined;
+        const kfs: ReadonlyArray<{ readonly time?: number }> | undefined = transform?.keyframes;
+        if (kfs) out.push(kfs.map(k => k.time ?? 0));
     }
     return out.sort((a, b) => (a[0] - b[0]) || ((a[1] ?? 0) - (b[1] ?? 0)));
 }
 
 /** Nodes that STILL carry `effects.<key>` after materialization (should be 0 —
  *  every applied effect must be consumed, never left dangling on the wire). */
-export function danglingEffectCount(root: PxNode, key: string): number {
-    return countNodes(root, n => !!(n.effects as any)?.[key]);
+export function danglingEffectCount(root: PxNode, key: keyof PxEffects): number {
+    return countNodes(root, n => !!n.effects?.[key]);
 }
 
 /** True if every effect bucket was consumed (no node has a non-empty `effects`). */

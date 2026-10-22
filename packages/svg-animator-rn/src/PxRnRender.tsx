@@ -6,8 +6,8 @@
 
 import { toDomProps, type PxDefinitions, type PxNode } from '@pixodesk/svg-animator-core';
 import { sanitizeAttributeValue, PX_DISALLOWED_SVG_TAGS_LOWER, PX_TEXT_CONTENT_ATTR } from '@pixodesk/svg-animator-core/internal';
-import { createElement, type ComponentType, type ReactElement, type ReactNode } from 'react';
-import { RN_SVG_COMPONENTS } from './PxRnTypeMap';
+import { createElement, type ReactElement, type ReactNode } from 'react';
+import { RN_SVG_COMPONENTS, type RnSvgComponent, type RnSvgProps } from './PxRnTypeMap';
 import { toRnPropName, toRnPropValue } from './PxRnPropNames';
 
 /** @internal */
@@ -28,8 +28,8 @@ export interface RenderRnNodeOptions {
      */
     decorate?: (
         node: PxNode,
-        Component: ComponentType<any>,
-        props: Record<string, any>,
+        Component: RnSvgComponent,
+        props: RnSvgProps,
         children: ReactNode,
         key: string | number | undefined
     ) => ReactElement | undefined;
@@ -41,9 +41,9 @@ export interface RenderRnNodeOptions {
  * coercion where possible.
  * @internal
  */
-export function toRnProps(props: Record<string, any>, warnings?: Array<string>, tag?: string): Record<string, any> {
+export function toRnProps(props: Record<string, unknown>, warnings?: Array<string>, tag?: string): RnSvgProps {
     const normalized = toDomProps(props);
-    const out: Record<string, any> = {};
+    const out: RnSvgProps = {};
     for (const key of Object.keys(normalized)) {
         const sanitized = sanitizeAttributeValue(key, normalized[key]);
         if (sanitized === undefined) continue;

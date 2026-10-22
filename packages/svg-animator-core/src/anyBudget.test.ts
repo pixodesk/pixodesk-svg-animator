@@ -1,7 +1,7 @@
 // The `any` budget (first-use review §17c, dev-docs/plans/schema-cast-and-stamps.md): document data
 // is EARNED as a type — schema casts on the checked document — never declared `any`. Each package's
 // shipped source may hold at most its budget of explicit `any`; the budget is a RATCHET — when a
-// change removes some, lower the number here to the new count. It never goes up.
+// change removes some, lower the number here to the new count. It never goes up — and it is 0 now.
 import { describe, expect, it } from 'vitest';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, dirname, relative } from 'node:path';
@@ -10,14 +10,13 @@ import * as ts from 'typescript';
 
 const PACKAGES = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-/** What is left is outside the document: the schema DSL internals, the interpolator's runtime values,
- *  the element-factory generic, platform globals (DOM, React components), the effects test kit. */
+/** Nothing is left: a fact TypeScript cannot follow is stated once, by a named cast (`asBuilt`, `drivenByDocument`), never as `any`. */
 const BUDGET: ReadonlyArray<{ pkg: string; max: number }> = [
-    { pkg: 'svg-animator-core', max: 13 },
-    { pkg: 'svg-animator-web', max: 3 },
+    { pkg: 'svg-animator-core', max: 0 },
+    { pkg: 'svg-animator-web', max: 0 },
     { pkg: 'svg-animator-react', max: 0 },
     { pkg: 'svg-animator-vue', max: 0 },
-    { pkg: 'svg-animator-rn', max: 15 },
+    { pkg: 'svg-animator-rn', max: 0 },
 ];
 
 function sources(dir: string, out: Array<string> = []): Array<string> {

@@ -365,15 +365,20 @@ export type PxTagAnimatorOptions = Omit<PxAnimatorOptions, 'src' | 'doc' | 'cont
 export function loadTagSvgAnimators(options?: PxTagAnimatorOptions) {
     const elements = document.querySelectorAll('[' + PX_ANIM_SRC_ATTR_NAME + ']');
     for (let i = 0; i < elements.length; i++) {
-        const element = elements[i];
-        if (!(element as any)[PX_ANIM_ATTR_NAME]) {
+        const element: PxTagElement = elements[i];
+        if (!element[PX_ANIM_ATTR_NAME]) {
             const src = element.getAttribute(PX_ANIM_SRC_ATTR_NAME);
             if (src) {
                 // A tag embeds a finished file: the file IS the driver, so `playAsSaved` is not an option here.
-                (element as any)[PX_ANIM_ATTR_NAME] = createSvgAnimator({ ...options, src, container: element, playAsSaved: true });
+                element[PX_ANIM_ATTR_NAME] = createSvgAnimator({ ...options, src, container: element, playAsSaved: true });
             }
         }
     }
+}
+
+/** A `data-px-animation-src` element: the player `loadTagSvgAnimators` created is kept ON it, so a second call skips it. */
+interface PxTagElement extends Element {
+    [PX_ANIM_ATTR_NAME]?: PxAnimatorApi;
 }
 
 // No module-level globals (API review §4). This file used to end by assigning

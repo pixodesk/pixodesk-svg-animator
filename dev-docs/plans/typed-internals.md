@@ -124,3 +124,11 @@ from the format, `doc` compared by content in React, Vue and React Native — se
   transport and render-diff page find the file's animator there. `doc` comparison: core `deepEquals` (typed; an object
   reused in two places no longer reads as a cycle — the old guard threw during render); React keeps deep compare, Vue
   (`docInput` + watch) and React Native (`docRef`) now match it. Budgets: web 4 → 3, react 8 → 0.
+- 2026-10-23 — the last 31 shipped `any` (owner: "do it"), each given its real type; budgets 0 in all five packages:
+  | Where | Was | Now |
+  |---|---|---|
+  | core frame loop (4) | `globalThis as any` for rAF | `FrameHost`: the host's OPTIONAL frame scheduler (core has no DOM lib) + the timers every JS host has |
+  | core effects test kit (9) | `as any` reads/writes, `childrenLast(any)` | `PxNode`'s `unknown` index, `isRecord`, `keyof PxEffects` |
+  | web tag loader (2) | `element as any` expando | `PxTagElement` — the player kept ON the element under its typed key |
+  | web frame loop (1) | `style[attr as any]` | `style.setProperty(kebab, value)` on an `SVGElement` / `HTMLElement` |
+  | React Native (15) | `ComponentType<any>`, `Record<string, any>` | `RnSvgProps` / `RnSvgComponent`; ONE named cast, `drivenByDocument` — react-native-svg types each component for its own props, the renderer drives them with props the document decides at run time |
