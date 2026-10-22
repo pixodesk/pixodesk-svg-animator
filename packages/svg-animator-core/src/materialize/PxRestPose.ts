@@ -51,7 +51,8 @@
 import { calcAnimationValues, normalizeBindings } from '../animation/PxDefinitions';
 import { createMotionPathSegments, type MotionPathSegments } from './PxMotionPath';
 import { getAnimatorConfig, type PxTimelineEngine } from '../format/PxAnimatorConstants';
-import type { PxAnimatedSvgDocument, PxAnimationDefinition, PxNode, PxTransformParts } from '../format/PxAnimatorTypes';
+import type { PxAnimatedSvgDocument, PxNode, PxTransformParts } from '../format/PxAnimatorTypes';
+import type { PxRuntimeAnimation } from '../animation/PxRuntimeChannel';
 import { parseTransformParts, PX_DEFAULT_DURATION_MS, PX_TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
 import { deepClone } from '../util/PxIdUtil';
 
@@ -145,7 +146,7 @@ function mayCarryTransformRestPose(node: PxNode): boolean {
 }
 
 /** Rule 1: exactly what the engine writes for this channel at the first frame. */
-function firstFrameValue(animate: PxAnimationDefinition, channel: string, timeMs: number, segments: MotionPathSegments): string | undefined {
+function firstFrameValue(animate: PxRuntimeAnimation, channel: string, timeMs: number, segments: MotionPathSegments): string | undefined {
     const values = Object.values(calcAnimationValues({ [channel]: animate[channel] }, timeMs, segments));
     return values.length === 1 && values[0] !== '' ? values[0] : undefined;
 }
@@ -156,8 +157,8 @@ function firstFrameValue(animate: PxAnimationDefinition, channel: string, timeMs
  * back into a parts record. The engine's string carries CSS units (`translate(139px,163px)`,
  * `rotate(30deg)`); the static record has none. Unparseable → no pose, never a guess.
  */
-function firstFrameTransformParts(animate: PxAnimationDefinition, timeMs: number, segments: MotionPathSegments): PxTransformParts | undefined {
-    const family: PxAnimationDefinition = {};
+function firstFrameTransformParts(animate: PxRuntimeAnimation, timeMs: number, segments: MotionPathSegments): PxTransformParts | undefined {
+    const family: PxRuntimeAnimation = {};
     for (const channel of Object.keys(animate)) if (PX_TRANSFORM_FN_NAMES.has(channel)) family[channel] = animate[channel];
     const written = calcAnimationValues(family, timeMs, segments)[TRANSFORM_CHANNEL];
     if (!written) return undefined;
@@ -171,9 +172,9 @@ function firstFrameTransformParts(animate: PxAnimationDefinition, timeMs: number
  * written, not by structure — see the header. Whitespace is ignored: `translate(1px, 2px)` and
  * `translate(1px,2px)` are one value.
  */
-function writesTheSameFrames(a: PxAnimationDefinition | undefined, b: PxAnimationDefinition | undefined, durationMs: number, segments: MotionPathSegments): boolean {
+function writesTheSameFrames(a: PxRuntimeAnimation | undefined, b: PxRuntimeAnimation | undefined, durationMs: number, segments: MotionPathSegments): boolean {
     if (!a || !b) return a === b;
-    const frame = (animate: PxAnimationDefinition, t: number): string =>
+    const frame = (animate: PxRuntimeAnimation, t: number): string =>
         JSON.stringify(calcAnimationValues(animate, t, segments)).replace(/\s+/g, '');
     return VERIFY_SAMPLE_FRACTIONS.every(fraction => frame(a, fraction * durationMs) === frame(b, fraction * durationMs));
 }
@@ -189,17 +190,17 @@ function writesTheSameFrames(a: PxAnimationDefinition | undefined, b: PxAnimatio
  * ids; the same traversal over the real tree (`animatedNodes`) yields the same keys, and the
  * output document gains no ids it did not have.
  */
-function bindingsOf(tree: PxAnimatedSvgDocument, engine: PxTimelineEngine): Map<string, PxAnimationDefinition> {
+function bindingsOf(tree: PxAnimatedSvgDocument, engine: PxTimelineEngine): Map<string, PxRuntimeAnimation> {
     const scratch: PxAnimatedSvgDocument = deepClone(tree);
     const keyById = new Map<string, string>();
     for (const [key, node] of animatedNodes(scratch)) {
         if (node.id === undefined) node.id = SCRATCH_ID_PREFIX + key;
         keyById.set(String(node.id), key);
     }
-    const out = new Map<string, PxAnimationDefinition>();
+    const out = new Map<string, PxRuntimeAnimation>();
     for (const binding of normalizeBindings(scratch, engine)) {
         const key = keyById.get(binding.id);
-        if (key !== undefined) out.set(key, binding.animate);
+        if (key !== undefined) out.set(key, binding.channels);
     }
     return out;
 }

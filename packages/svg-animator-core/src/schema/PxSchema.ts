@@ -150,7 +150,16 @@ export interface PxSchema<T, IsOptional extends boolean = false, StatesDefault e
     castOrFix(raw: unknown): PxCastResult<T>;
     /** The one-visit worker behind `castOrFix` — builds the copy, counts repairs in `run`. @internal */
     _fix(raw: unknown, run: PxFixRun): T;
+    /** Its own structure, for walkers — see {@link PxSchemaDesc}. @internal */
+    describe(): PxSchemaDesc;
 }
+
+/**
+ * A schema of SOME value — the type of "any schema" in lists and constraints. Exact, not loose:
+ * `PxSchema<T>` only ever PRODUCES a `T` (never takes one in), so every schema is one of these.
+ * @public @advanced
+ */
+export type PxAnySchema = PxSchema<unknown, boolean, boolean>;
 
 /** What {@link PxSchema.castOrFix} returns: the checked value and what had to be repaired. @public @advanced */
 export interface PxCastResult<T> {
@@ -173,11 +182,11 @@ export class PxSchemaCastError extends Error {
 }
 
 /** Extract the TypeScript type from a schema. @public @advanced */
-export type PxInfer<S> = S extends PxSchema<infer T, any> ? T : never;
+export type PxInfer<S> = S extends PxSchema<infer T, boolean> ? T : never;
 
 /**
  * Removes string/number index signatures from T, leaving only explicitly named properties.
- * Useful for strict property-access checking on types that have an open `[key: string]: any`.
+ * Useful for strict property-access checking on types that have an open `[key: string]: unknown`.
  *
  * @example
  * type Strict = PxRemoveIndex<PxAnimatedSvgDocument>;
@@ -311,6 +320,9 @@ abstract class Base<T, IsOptional extends boolean = false, D extends boolean = f
         return this.sanitize(raw);
     }
 
+    /** Scalars, literals, enums, `any`: nothing to walk. Containers override. */
+    describe(): PxSchemaDesc { return { kind: 'leaf' }; }
+
     /** Stamps a container `_fix` built — at once when nothing was repaired inside it, else only
      *  after checking the repaired result (so a stamp never vouches for an invalid value). */
     protected _seal<V extends object>(out: V, clean: boolean): V {
@@ -320,6 +332,8 @@ abstract class Base<T, IsOptional extends boolean = false, D extends boolean = f
 }
 
 const hasOwn = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
+/** A plain (non-array) object, read by string key — what object, record and union schemas walk. */
+const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -334,7 +348,7 @@ const hasOwn = (o: object, k: string): boolean => Object.prototype.hasOwnPropert
  */
 class Optional<T, D extends boolean> extends Base<T | undefined, true, D> {
     readonly _default = undefined as T | undefined;
-    constructor(private readonly inner: PxSchema<T, any, D>) { super(inner._statesDefault); }
+    constructor(private readonly inner: PxSchema<T, boolean, D>) { super(inner._statesDefault); }
     /** Absent means the inner schema's STATED default — or nothing at all when it states none. */
     override absentDefault(): T | undefined { return this.inner._statesDefault ? this.inner._default : undefined; }
 
@@ -360,6 +374,8 @@ class Optional<T, D extends boolean> extends Base<T | undefined, true, D> {
         if (!this.inner._canSanitize(raw)) { run.repairs++; return undefined; }
         return this.inner._fix(raw, run);
     }
+
+    override describe(): PxSchemaDesc { return { kind: 'optional', inner: this.inner }; }
 }
 
 
@@ -452,8 +468,6 @@ const UNION_MEMBER_ERROR_LIMIT = 4;
 
 /** Tries member schemas in order; first whose isValid passes wins. sanitize returns _default when none match. */
 class Union<T, D extends boolean> extends Base<T, false, D> {
-    /** Structural tag read by {@link describeSchema} — `schemas` alone cannot tell Union from Tuple. */
-    readonly _kind = 'union' as const;
     readonly _default: T;
     constructor(private readonly schemas: ReadonlyArray<PxSchema<T>>, defaultVal: T | undefined, statesDefault: D) {
         super(statesDefault);
@@ -549,6 +563,7 @@ class Union<T, D extends boolean> extends Base<T, false, D> {
         return false;
     }
     override _canSanitize(raw: unknown): boolean { return this.schemas.some(s => s._canSanitize(raw)); }
+    override describe(): PxSchemaDesc { return { kind: 'union', members: this.schemas }; }
 }
 
 // Infers the union of all member types from a tuple of schemas.
@@ -557,9 +572,16 @@ class Union<T, D extends boolean> extends Base<T, false, D> {
 // union to a single member (in practice the object branch) and the bare statics
 // vanish from the inferred type — `px.union([px.number(), px.object(…)])` typed as
 // the object alone. Per-position inference unions them properly (V6/Q1).
-type UnionMembers<T extends ReadonlyArray<PxSchema<any, any>>> = {
-    [K in keyof T]: T[K] extends PxSchema<infer U, any> ? U : never
+type UnionMembers<T extends ReadonlyArray<PxAnySchema>> = {
+    [K in keyof T]: T[K] extends PxSchema<infer U, boolean> ? U : never
 }[number];
+
+/** `UnionMembers<T>` is BY DEFINITION what `T`'s members produce — TypeScript cannot follow the mapped
+ *  type back to the array it came from, so the union factories state it here, once. */
+function asMembersOf<T extends ReadonlyArray<PxAnySchema>>(schemas: T): ReadonlyArray<PxSchema<UnionMembers<T>>> {
+    return schemas as ReadonlyArray<PxSchema<UnionMembers<T>>>;
+}
+
 // NOTE: this only works because `px.union` / `px.discriminatedUnion` declare their
 // schema list as `const T` (Q1). Without the modifier TS infers the argument as a
 // plain ARRAY and unifies the element type to one `PxSchema<…>`, so `keyof T` has a
@@ -574,7 +596,7 @@ type UnionMembers<T extends ReadonlyArray<PxSchema<any, any>>> = {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // `undefined` admitted: a member may declare its discriminant `.optional()` (see `_absentMember`).
-type AnyDiscriminantShape<K extends string> = Record<K, PxSchema<string | number | boolean | undefined, any>>;
+type AnyDiscriminantShape<K extends string> = Record<K, PxSchema<string | number | boolean | undefined, boolean>>;
 
 /**
  * Reads `raw[key]`, finds the member schema whose literal matches that value,
@@ -582,38 +604,39 @@ type AnyDiscriminantShape<K extends string> = Record<K, PxSchema<string | number
  * member for sanitize when no match is found.
  */
 class DiscriminatedUnion<T> extends Base<T> {
-    /** Structural tag read by {@link describeSchema}. */
-    readonly _kind = 'discriminatedUnion' as const;
     readonly _default: T;
     private readonly _map: Map<string | number | boolean, PxSchema<T>>;
     /** The member an ABSENT discriminant selects — the one whose discriminant slot is
      *  `.optional()` (e.g. `timeline.type` omitted = the time-driven timeline). */
     private readonly _absentMember: PxSchema<T> | undefined;
 
+    private readonly _schemas: ReadonlyArray<PxSchema<T>>;
+
     constructor(
         private readonly _key: string,
-        private readonly _schemas: ReadonlyArray<PxSchema<T> & { readonly _shape: AnyDiscriminantShape<string> }>,
+        members: ReadonlyArray<{ schema: PxSchema<T>; shape: AnyDiscriminantShape<string> }>,
         defaultVal?: T
     ) {
         super(false);
-        this._default = defaultVal ?? _schemas[0]._default;
+        this._schemas = members.map(m => m.schema);
+        this._default = defaultVal ?? this._schemas[0]._default;
         this._map = new Map();
-        for (const s of _schemas) {
-            const keySchema = s._shape[_key] as any;
+        for (const { schema: s, shape } of members) {
+            const keySchema = shape[_key];
             if (!keySchema) continue;
-            // An optional discriminant wraps its literal: map the literal's value, and
-            // remember this member as the one to use when the key is missing.
-            const literal = keySchema.inner ?? keySchema;
-            this._map.set(literal._default, s);
-            if (keySchema.inner) this._absentMember = s;
+            // The literal's value — what an absent key means for an optional one too (a literal STATES it).
+            const value = keySchema.absentDefault();
+            if (value !== undefined) this._map.set(value, s);
+            // An optional discriminant: this member is the one to use when the key is missing.
+            if (keySchema.describe().kind === 'optional') this._absentMember = s;
         }
     }
 
     private _findSchema(raw: unknown): PxSchema<T> | undefined {
-        if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
-        const val = (raw as Record<string, unknown>)[this._key];
+        if (!isRecord(raw)) return undefined;
+        const val = raw[this._key];
         if (val === undefined || val === null) return this._absentMember;
-        return this._map.get(val as string | number | boolean);
+        return typeof val === 'string' || typeof val === 'number' || typeof val === 'boolean' ? this._map.get(val) : undefined;
     }
 
     sanitize(raw: unknown): T {
@@ -633,8 +656,7 @@ class DiscriminatedUnion<T> extends Base<T> {
         if (!ctx?.strict && isStampedFor(raw, this)) return true;
         const schema = this._findSchema(raw);
         if (!schema) {
-            const val = (raw !== null && typeof raw === 'object' && !Array.isArray(raw))
-                ? (raw as Record<string, unknown>)[this._key] : undefined;
+            const val = isRecord(raw) ? raw[this._key] : undefined;
             reportValidationError(ctx, path, PxValidationFindingKind.unionMismatch,
                 'no discriminated union member matched ' + this._key + '=' + JSON.stringify(val));
             return false;
@@ -643,10 +665,12 @@ class DiscriminatedUnion<T> extends Base<T> {
     }
 
     override _canSanitize(raw: unknown): boolean {
-        if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return false;
+        if (!isRecord(raw)) return false;
         const schema = this._findSchema(raw);
         return schema ? schema._canSanitize(raw) : this._schemas[0]._canSanitize(raw);
     }
+
+    override describe(): PxSchemaDesc { return { kind: 'discriminatedUnion', key: this._key, members: this._schemas }; }
 }
 
 
@@ -655,10 +679,10 @@ class DiscriminatedUnion<T> extends Base<T> {
 // _canSanitize: true when raw is a plain (non-array) object
 // ─────────────────────────────────────────────────────────────────────────────
 
-type AnyShape = Record<string, PxSchema<any, any>>;
+type AnyShape = Record<string, PxAnySchema>;
 
 /** The keys of a shape whose schema STATES what absent means. */
-type StatedKeys<S extends AnyShape> = { [K in keyof S]: S[K] extends PxSchema<any, any, true> ? K : never }[keyof S];
+type StatedKeys<S extends AnyShape> = { [K in keyof S]: S[K] extends PxSchema<unknown, boolean, true> ? K : never }[keyof S];
 
 /**
  * WHAT EACH FIELD MEANS WHEN A DOCUMENT LEAVES IT OUT — one entry per field whose schema states it
@@ -681,8 +705,19 @@ function statedDefaults<S extends AnyShape>(shape: S): InferDefaults<S> {
 // Required keys: IsOptional=false → plain property.
 // Optional keys: IsOptional=true  → ?:, with Exclude<T,undefined> (?: already adds undefined).
 type InferShape<S extends AnyShape> =
-    { [K in keyof S as S[K] extends PxSchema<any, true> ? never : K]: PxInfer<S[K]> } &
-    { [K in keyof S as S[K] extends PxSchema<any, true> ? K : never]?: Exclude<PxInfer<S[K]>, undefined> };
+    { [K in keyof S as S[K] extends PxSchema<unknown, true> ? never : K]: PxInfer<S[K]> } &
+    { [K in keyof S as S[K] extends PxSchema<unknown, true> ? K : never]?: Exclude<PxInfer<S[K]>, undefined> };
+
+/** The ONE place an object is built key by key from a shape — a loop cannot prove to TypeScript that it
+ *  produced the mapped type, so the builders state it here. */
+const asBuilt = <T>(built: Record<string, unknown>): T => built as T;
+
+/** Each declared key's schema default — an object schema's own `_default`. */
+function shapeDefaults(shape: AnyShape): Record<string, unknown> {
+    const d: Record<string, unknown> = {};
+    for (const key of Object.keys(shape)) d[key] = shape[key]._default;
+    return d;
+}
 
 /**
  * Typed object schema; strips unknown keys, repairs required fields via their defaults.
@@ -695,15 +730,13 @@ class Obj<S extends AnyShape> extends Base<InferShape<S>> {
 
     constructor(readonly _shape: S) {
         super(false);
-        const d: any = {};
-        for (const key of Object.keys(_shape)) d[key] = _shape[key]._default;
-        this._default = d;
+        this._default = asBuilt(shapeDefaults(_shape));
         this.defaults = statedDefaults(_shape);
     }
 
     sanitize(raw: unknown): InferShape<S> {
-        const src = (raw && typeof raw === 'object' && !Array.isArray(raw)) ? raw as any : {};
-        const out: any = {};
+        const src = isRecord(raw) ? raw : {};
+        const out: Record<string, unknown> = {};
         for (const key of Object.keys(this._shape)) {
             const v = this._shape[key].sanitize(src[key]);
             // An OPTIONAL key that was absent sanitizes to `undefined`. Writing it anyway
@@ -714,7 +747,7 @@ class Obj<S extends AnyShape> extends Base<InferShape<S>> {
             // 135 real documents: 16,367 phantoms, changing the render of 10 of them.
             if (v !== undefined) out[key] = v;
         }
-        return out;
+        return asBuilt(out);
     }
 
     /** One visit: declared keys checked and repaired, undeclared keys KEPT as they are (lenient —
@@ -722,10 +755,9 @@ class Obj<S extends AnyShape> extends Base<InferShape<S>> {
     override _fix(raw: unknown, run: PxFixRun): InferShape<S> {
         if (isStampedFor(raw, this)) return raw as InferShape<S>;   // already checked — reuse, never rebuild
         const before = run.repairs;
-        const isObj = !!raw && typeof raw === 'object' && !Array.isArray(raw);
-        if (!isObj) run.repairs++;
-        const src = isObj ? raw as Record<string, unknown> : {};
-        const shape = this._shape as Record<string, PxSchema<unknown, boolean>>;
+        if (!isRecord(raw)) run.repairs++;
+        const src = isRecord(raw) ? raw : {};
+        const shape: AnyShape = this._shape;
         const out: Record<string, unknown> = {};
         for (const key of Object.keys(src)) {
             const v = hasOwn(shape, key) ? shape[key]._fix(src[key], run) : src[key];
@@ -736,16 +768,16 @@ class Obj<S extends AnyShape> extends Base<InferShape<S>> {
             const v = shape[key]._fix(undefined, run);
             if (v !== undefined) out[key] = v;
         }
-        return this._seal(out, run.repairs === before) as InferShape<S>;
+        return asBuilt(this._seal(out, run.repairs === before));
     }
 
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (!ctx?.strict && isStampedFor(raw, this)) return true;
-        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+        if (!isRecord(raw)) {
             reportExpected(ctx, path, PxValidationFindingKind.typeMismatch, 'object', Array.isArray(raw) ? 'array' : typeof raw);
             return false;
         }
-        const obj = raw as any;
+        const obj = raw;
         const p = path ?? [];
         let ok = true;
         for (const key of Object.keys(this._shape)) {
@@ -773,9 +805,9 @@ class Obj<S extends AnyShape> extends Base<InferShape<S>> {
         return ok;
     }
 
-    override _canSanitize(raw: unknown): boolean {
-        return !!raw && typeof raw === 'object' && !Array.isArray(raw);
-    }
+    override _canSanitize(raw: unknown): boolean { return isRecord(raw); }
+
+    override describe(): PxSchemaDesc { return { kind: 'shape', shape: this._shape }; }
 }
 
 
@@ -784,13 +816,13 @@ class Obj<S extends AnyShape> extends Base<InferShape<S>> {
 // them against an optional open-value schema).
 // Known keys are validated/sanitized; unknown keys are passed through as-is when no
 // open schema is given, or validated/sanitized against the open schema when one is provided.
-// Inferred type: InferShape<S> & { [key: string]: V } where V defaults to any.
-// Note: TypeScript intersection semantics mean named-property access on the
-// derived type yields `any` rather than the specific declared type. For
-// type-precise access keep a hand-written interface alongside the schema.
+// Inferred type: InferShape<S> & { [key: string]: unknown } — an undeclared key is KEPT, not typed:
+// read it through the open-value schema (`PxAttrValueSchema.castOrNull(node.fill)`). `unknown`, not
+// `V`: TypeScript would demand that every DECLARED key's value also fit `V`. (It used to be `any`,
+// which made even the declared keys read as `any` — `T & any` is `any`.)
 // ─────────────────────────────────────────────────────────────────────────────
 
-type InferOpenShape<S extends AnyShape, _V = any> = InferShape<S> & { [key: string]: any };
+type InferOpenShape<S extends AnyShape> = InferShape<S> & { [key: string]: unknown };
 
 /**
  * Open object schema; validates/repairs known keys, passes unknown keys through unchanged.
@@ -800,23 +832,19 @@ type InferOpenShape<S extends AnyShape, _V = any> = InferShape<S> & { [key: stri
  * @param openSchema   Optional schema applied to every unknown key's value.
  *                     When omitted, unknown values are passed through as-is (`any`).
  */
-class OpenObj<S extends AnyShape, V = any> extends Base<InferOpenShape<S, V>> {
-    readonly _default: InferOpenShape<S, V>;
+class OpenObj<S extends AnyShape> extends Base<InferOpenShape<S>> {
+    readonly _default: InferOpenShape<S>;
     /** What each declared field means when a document leaves it out — see {@link InferDefaults}. */
     readonly defaults: InferDefaults<S>;
 
-    constructor(readonly _shape: S, private readonly _openSchema?: PxSchema<V>) {
+    constructor(readonly _shape: S, private readonly _openSchema?: PxAnySchema) {
         super(false);
-        const d: any = {};
-        for (const key of Object.keys(_shape)) d[key] = _shape[key]._default;
-        this._default = d;
+        this._default = asBuilt(shapeDefaults(_shape));
         this.defaults = statedDefaults(_shape);
     }
 
-    sanitize(raw: unknown): InferOpenShape<S, V> {
-        const src: Record<string, unknown> = (raw && typeof raw === 'object' && !Array.isArray(raw))
-            ? raw as Record<string, unknown>
-            : {};
+    sanitize(raw: unknown): InferOpenShape<S> {
+        const src = isRecord(raw) ? raw : {};
         const out: Record<string, unknown> = { ...src };
         for (const key of Object.keys(this._shape)) {
             const v = this._shape[key].sanitize(src[key]);
@@ -827,18 +855,17 @@ class OpenObj<S extends AnyShape, V = any> extends Base<InferOpenShape<S, V>> {
                 if (!(key in this._shape)) out[key] = this._openSchema.sanitize(src[key]);
             }
         }
-        return out as InferOpenShape<S, V>;
+        return asBuilt(out);
     }
 
     /** One visit: declared keys checked and repaired, the others through the open-value schema
      *  (or kept as they are without one), input key order preserved. */
-    override _fix(raw: unknown, run: PxFixRun): InferOpenShape<S, V> {
-        if (isStampedFor(raw, this)) return raw as InferOpenShape<S, V>;   // already checked — reuse, never rebuild
+    override _fix(raw: unknown, run: PxFixRun): InferOpenShape<S> {
+        if (isStampedFor(raw, this)) return raw as InferOpenShape<S>;   // already checked — reuse, never rebuild
         const before = run.repairs;
-        const isObj = !!raw && typeof raw === 'object' && !Array.isArray(raw);
-        if (!isObj) run.repairs++;
-        const src = isObj ? raw as Record<string, unknown> : {};
-        const shape = this._shape as Record<string, PxSchema<unknown, boolean>>;
+        if (!isRecord(raw)) run.repairs++;
+        const src = isRecord(raw) ? raw : {};
+        const shape: AnyShape = this._shape;
         const open = this._openSchema;
         const out: Record<string, unknown> = {};
         for (const key of Object.keys(src)) {
@@ -850,16 +877,16 @@ class OpenObj<S extends AnyShape, V = any> extends Base<InferOpenShape<S, V>> {
             const v = shape[key]._fix(undefined, run);
             if (v !== undefined) out[key] = v;
         }
-        return this._seal(out, run.repairs === before) as InferOpenShape<S, V>;
+        return asBuilt(this._seal(out, run.repairs === before));
     }
 
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (!ctx?.strict && isStampedFor(raw, this)) return true;
-        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+        if (!isRecord(raw)) {
             reportExpected(ctx, path, PxValidationFindingKind.typeMismatch, 'object', Array.isArray(raw) ? 'array' : typeof raw);
             return false;
         }
-        const obj = raw as any;
+        const obj = raw;
         const p = path ?? [];
         let ok = true;
         for (const key of Object.keys(this._shape)) {
@@ -878,9 +905,9 @@ class OpenObj<S extends AnyShape, V = any> extends Base<InferOpenShape<S, V>> {
         return ok;
     }
 
-    override _canSanitize(raw: unknown): boolean {
-        return !!raw && typeof raw === 'object' && !Array.isArray(raw);
-    }
+    override _canSanitize(raw: unknown): boolean { return isRecord(raw); }
+
+    override describe(): PxSchemaDesc { return { kind: 'shape', shape: this._shape, openValue: this._openSchema }; }
 }
 
 
@@ -932,6 +959,7 @@ class Arr<T> extends Base<Array<T>> {
     }
 
     override _canSanitize(raw: unknown): boolean { return Array.isArray(raw); }
+    override describe(): PxSchemaDesc { return { kind: 'array', item: this.item }; }
 }
 
 
@@ -941,13 +969,11 @@ class Arr<T> extends Base<Array<T>> {
 
 /** String-keyed record; values failing _canSanitize are dropped rather than blocking the whole record. */
 class Rec<T> extends Base<Record<string, T>> {
-    /** Structural tag read by {@link describeSchema}. */
-    readonly _kind = 'record' as const;
     readonly _default: Record<string, T> = {};
     constructor(private readonly value: PxSchema<T>) { super(false); }
 
     sanitize(raw: unknown): Record<string, T> {
-        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {};
+        if (!isRecord(raw)) return {};
         const out: Record<string, T> = {};
         for (const [k, v] of Object.entries(raw)) {
             if (this.value._canSanitize(v)) out[k] = this.value.sanitize(v);
@@ -959,7 +985,7 @@ class Rec<T> extends Base<Record<string, T>> {
         if (isStampedFor(raw, this)) return raw as Record<string, T>;   // already checked — reuse, never rebuild
         const before = run.repairs;
         const out: Record<string, T> = {};
-        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) run.repairs++;
+        if (!isRecord(raw)) run.repairs++;
         else for (const [k, v] of Object.entries(raw)) {
             if (this.value._canSanitize(v)) out[k] = this.value._fix(v, run);
             else run.repairs++;                                  // dropped, as sanitize drops it
@@ -969,13 +995,13 @@ class Rec<T> extends Base<Record<string, T>> {
 
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (!ctx?.strict && isStampedFor(raw, this)) return true;
-        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+        if (!isRecord(raw)) {
             reportExpected(ctx, path, PxValidationFindingKind.typeMismatch, 'object/record', Array.isArray(raw) ? 'array' : typeof raw);
             return false;
         }
         const p = path ?? [];
         let ok = true;
-        for (const [k, v] of Object.entries(raw as object)) {
+        for (const [k, v] of Object.entries(raw)) {
             p.push(k);
             if (!this.value.isValid(v, ctx, p)) ok = false;
             p.pop();
@@ -983,9 +1009,8 @@ class Rec<T> extends Base<Record<string, T>> {
         return ok;
     }
 
-    override _canSanitize(raw: unknown): boolean {
-        return !!raw && typeof raw === 'object' && !Array.isArray(raw);
-    }
+    override _canSanitize(raw: unknown): boolean { return isRecord(raw); }
+    override describe(): PxSchemaDesc { return { kind: 'record', value: this.value }; }
 }
 
 
@@ -1042,6 +1067,8 @@ class Lazy<T> extends Base<T> {
     override _canSanitize(raw: unknown): boolean { return this.schema._canSanitize(raw); }
     override is(raw: unknown): raw is T { return this.schema.is(raw); }
     override _fix(raw: unknown, run: PxFixRun): T { return this.schema._fix(raw, run); }
+    /** Resolved once and cached, so two walks agree on the schema's identity. */
+    override describe(): PxSchemaDesc { return { kind: 'lazy', resolved: this.schema }; }
 }
 
 
@@ -1051,13 +1078,11 @@ class Lazy<T> extends Base<T> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // Maps a tuple of schemas to a tuple of their inferred types.
-type TupleItems<T extends ReadonlyArray<PxSchema<any, any>>> =
-    { -readonly [K in keyof T]: T[K] extends PxSchema<infer U, any> ? U : never };
+type TupleItems<T extends ReadonlyArray<PxAnySchema>> =
+    { -readonly [K in keyof T]: T[K] extends PxSchema<infer U, boolean> ? U : never };
 
 /** Fixed-length array schema; validates element count and each position individually. */
-class Tuple<T extends ReadonlyArray<PxSchema<any, any>>> extends Base<TupleItems<T>> {
-    /** Structural tag read by {@link describeSchema} — `schemas` alone cannot tell Tuple from Union. */
-    readonly _kind = 'tuple' as const;
+class Tuple<T extends ReadonlyArray<PxAnySchema>> extends Base<TupleItems<T>> {
     readonly _default: TupleItems<T>;
 
     constructor(private readonly schemas: T) {
@@ -1074,7 +1099,7 @@ class Tuple<T extends ReadonlyArray<PxSchema<any, any>>> extends Base<TupleItems
         if (isStampedFor(raw, this)) return raw as TupleItems<T>;   // already checked — reuse, never rebuild
         if (!Array.isArray(raw) || raw.length !== this.schemas.length) { run.repairs++; return this._default; }
         const before = run.repairs;
-        const out = (this.schemas as ReadonlyArray<PxSchema<unknown, boolean>>).map((s, i) => s._fix((raw as Array<unknown>)[i], run));
+        const out = this.schemas.map((s, i) => s._fix(raw[i], run));
         return this._seal(out, run.repairs === before) as unknown as TupleItems<T>;
     }
 
@@ -1088,7 +1113,7 @@ class Tuple<T extends ReadonlyArray<PxSchema<any, any>>> extends Base<TupleItems
         let ok = true;
         for (let i = 0; i < this.schemas.length; i++) {
             p.push('[' + i + ']');
-            if (!(this.schemas as ReadonlyArray<PxSchema<any, any>>)[i].isValid((raw as unknown[])[i], ctx, p)) ok = false;
+            if (!this.schemas[i].isValid(raw[i], ctx, p)) ok = false;
             p.pop();
         }
         return ok;
@@ -1098,6 +1123,8 @@ class Tuple<T extends ReadonlyArray<PxSchema<any, any>>> extends Base<TupleItems
     override _canSanitize(raw: unknown): boolean {
         return Array.isArray(raw) && raw.length === this.schemas.length;
     }
+
+    override describe(): PxSchemaDesc { return { kind: 'tuple', items: this.schemas }; }
 }
 
 
@@ -1143,7 +1170,7 @@ export type KeysMatch<A, B> =
  * if the field is renamed in the schema.
  * @public @advanced
  */
-export function schemaKeys<S extends { readonly _shape: Record<string, any> }>(schema: S) {
+export function schemaKeys<S extends { readonly _shape: Record<string, unknown> }>(schema: S) {
     return Object.fromEntries(
         Object.keys(schema['_shape']).map(k => [k, k])
     ) as { [K in keyof S['_shape']]: K };
@@ -1172,34 +1199,19 @@ export function schemaKeys<S extends { readonly _shape: Record<string, any> }>(s
  * @public @advanced
  */
 export type PxSchemaDesc =
-    | { kind: 'shape';    shape: Record<string, PxSchema<any, any>>; openValue?: PxSchema<any, any> }
-    | { kind: 'array';    item: PxSchema<any, any> }
-    | { kind: 'optional'; inner: PxSchema<any, any> }
-    | { kind: 'lazy';     resolved: PxSchema<any, any> }
-    | { kind: 'union';    members: ReadonlyArray<PxSchema<any, any>> }
-    | { kind: 'discriminatedUnion'; key: string; members: ReadonlyArray<PxSchema<any, any>> }
-    | { kind: 'record';   value: PxSchema<any, any> }
-    | { kind: 'tuple';    items: ReadonlyArray<PxSchema<any, any>> }
+    | { kind: 'shape';    shape: Record<string, PxAnySchema>; openValue?: PxAnySchema }
+    | { kind: 'array';    item: PxAnySchema }
+    | { kind: 'optional'; inner: PxAnySchema }
+    | { kind: 'lazy';     resolved: PxAnySchema }
+    | { kind: 'union';    members: ReadonlyArray<PxAnySchema> }
+    | { kind: 'discriminatedUnion'; key: string; members: ReadonlyArray<PxAnySchema> }
+    | { kind: 'record';   value: PxAnySchema }
+    | { kind: 'tuple';    items: ReadonlyArray<PxAnySchema> }
     | { kind: 'leaf' };
 
-/** @public @advanced */
-export function describeSchema(schema: PxSchema<any, any>): PxSchemaDesc {
-    const s = schema as any;
-    // `_kind` is set only by the classes that are otherwise indistinguishable by
-    // duck-typing (Union vs Tuple both carry `schemas`), so it is checked first.
-    switch (s._kind) {
-        case 'union':              return { kind: 'union',  members: s.schemas };
-        case 'discriminatedUnion': return { kind: 'discriminatedUnion', key: s._key, members: s._schemas };
-        case 'record':             return { kind: 'record', value: s.value };
-        case 'tuple':              return { kind: 'tuple',  items: s.schemas };
-    }
-    if ('_shape' in s) return { kind: 'shape',    shape: s._shape, openValue: s._openSchema };
-    if ('item'   in s) return { kind: 'array',    item: s.item };
-    if ('inner'  in s) return { kind: 'optional', inner: s.inner };
-    // `??=` (not `??`): an unresolved lazy would otherwise build a FRESH schema on
-    // every call, so two traversals could never agree on schema identity.
-    if ('fn'     in s) return { kind: 'lazy',     resolved: (s.resolved ??= s.fn()) };
-    return { kind: 'leaf' };
+/** A schema's structure — each schema class describes itself. @public @advanced */
+export function describeSchema(schema: PxAnySchema): PxSchemaDesc {
+    return schema.describe();
 }
 
 
@@ -1243,12 +1255,12 @@ function oneOf<T extends string | number>(values: readonly T[], defaultVal?: T):
  * Returns the first schema whose isValid passes; TypeScript infers the union of all member types.
  * Absent means the stated value; without one, the first member's default is only the repair value.
  */
-function unionOf<const T extends ReadonlyArray<PxSchema<any, any>>>(schemas: T): PxSchema<UnionMembers<T>, false, false>;
-function unionOf<const T extends ReadonlyArray<PxSchema<any, any>>>(schemas: T, defaultVal: UnionMembers<T>): PxSchema<UnionMembers<T>, false, true>;
-function unionOf<const T extends ReadonlyArray<PxSchema<any, any>>>(schemas: T, defaultVal?: UnionMembers<T>): PxSchema<UnionMembers<T>, false, boolean> {
+function unionOf<const T extends ReadonlyArray<PxAnySchema>>(schemas: T): PxSchema<UnionMembers<T>, false, false>;
+function unionOf<const T extends ReadonlyArray<PxAnySchema>>(schemas: T, defaultVal: UnionMembers<T>): PxSchema<UnionMembers<T>, false, true>;
+function unionOf<const T extends ReadonlyArray<PxAnySchema>>(schemas: T, defaultVal?: UnionMembers<T>): PxSchema<UnionMembers<T>, false, boolean> {
     return defaultVal === undefined
-        ? new Union<UnionMembers<T>, false>(schemas, undefined, false)
-        : new Union<UnionMembers<T>, true>(schemas, defaultVal, true);
+        ? new Union<UnionMembers<T>, false>(asMembersOf(schemas), undefined, false)
+        : new Union<UnionMembers<T>, true>(asMembersOf(schemas), defaultVal, true);
 }
 
 /** @public @advanced */
@@ -1272,9 +1284,9 @@ export const px = {
      */
     discriminatedUnion: <
         K extends string,
-        const T extends ReadonlyArray<PxSchema<any, any> & { readonly _shape: AnyDiscriminantShape<K> }>
+        const T extends ReadonlyArray<PxAnySchema & { readonly _shape: AnyDiscriminantShape<K> }>
     >(key: K, schemas: T): PxSchema<UnionMembers<T>> =>
-        new DiscriminatedUnion(key, schemas as any) as any,
+        new DiscriminatedUnion<UnionMembers<T>>(key, schemas.map((s, i) => ({ schema: asMembersOf(schemas)[i], shape: s._shape }))),
 
     /** Typed object — unknown keys are stripped. Required fields fall back to their default.
      *  Its `defaults` say what each stated field means when a document leaves it out. */
@@ -1285,11 +1297,11 @@ export const px = {
      * Open object — validates known keys; passes unknown keys through as-is,
      * or validates/sanitizes them against `openSchema` when provided.
      */
-    openObject: <S extends AnyShape, V = any>(
+    openObject: <S extends AnyShape>(
         shape: S,
-        openSchema?: PxSchema<V>
-    ): ObjectSchema<InferOpenShape<S, V>, S> =>
-        new OpenObj(shape, openSchema) as any,
+        openSchema?: PxAnySchema
+    ): ObjectSchema<InferOpenShape<S>, S> =>
+        new OpenObj(shape, openSchema),
 
     /**
      * Creates a new closed object schema by merging a base schema's shape with additional fields.
@@ -1319,7 +1331,7 @@ export const px = {
     defined: (): PxSchema<unknown> => new Defined(),
 
     /** Fixed-length tuple — validates element count and each position individually. */
-    tuple: <T extends ReadonlyArray<PxSchema<any, any>>>(schemas: T): PxSchema<TupleItems<T>> =>
+    tuple: <T extends ReadonlyArray<PxAnySchema>>(schemas: T): PxSchema<TupleItems<T>> =>
         new Tuple(schemas),
 
     /** Defers schema creation — required for recursive types. Must supply a default value. */

@@ -92,7 +92,7 @@ export function materializeAllInTree(
     // in `normalizeBindings`), so loops fill to the window END — `inTime + duration` (§4).
     const config = getAnimatorConfig(root);
     const duration = (config?.inTime ?? 0) + (config?.duration ?? PX_DEFAULT_DURATION_MS);
-    root = stampPrep(materializeInternalLoopsInTree(root, duration), carry);
+    root = stampPrep(materializeInternalLoopsInTree(root, duration, config?.definitions), carry);
 
     if (engine === PxTimelineEngine.native) {
         // 3. Motion-along-path → sampled `{translate, rotate}` kfs. WAAPI can't

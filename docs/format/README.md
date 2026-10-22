@@ -1358,6 +1358,9 @@ const { value: kf, problems } = PxKeyframeSchema.castOrFix(value);   // a repair
   is, and an edited copy only re-checks what changed.
 - `prepareDocument` runs `castOrFix` over the whole document in its `checked` stage (below), so
   every part of a prepared document casts for free.
+- To walk a schema itself, `describeSchema(schema)` returns its structure (`PxSchemaDesc`: an
+  object's fields, an array's item, a union's members, …). Each part is a `PxAnySchema` — a schema
+  of some value — so a walker stays typed all the way down.
 
 ### Reading a document
 
@@ -1439,13 +1442,22 @@ const plain = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native))
 
 // values at any time, no renderer involved
 for (const binding of normalizeBindings(plain, PxTimelineEngine.js) ?? []) {
-  const values = calcAnimationValues(binding.animate, 500);   // t = 500 ms
+  const values = calcAnimationValues(binding.channels, 500);   // t = 500 ms
   console.log(binding.id, values);   // → ball { transform: 'translate(200,129.65)' }   (the bouncing ball, half-way down)
 }
 ```
 
 This is exactly how the React Native player precomputes its tracks and how the web frame loop
 renders each tick.
+
+`normalizeBindings` hands back each element as a `PxNormalizedBinding`: its id and its
+`channels` (`PxRuntimeAnimation`) — one `PxRuntimeChannel` per animated property, in the form the
+engines blend: times in window ms, easings resolved (`PxCubicBezier`), values converted. What a
+property's values ARE is decided once per channel and carried as its `kind` (`PxValueKind`): a
+colour as RGBA numbers, `d` as bezier paths (`PxPathValue`), `transform` as a parts record, a number
+with its unit (`"20%"` → `"80%"` blends and stays a percentage); a value that fits no blendable kind
+(`url(#a)` → `url(#b)`) switches at the halfway point instead of blending. Each keyframe is a
+`PxRuntimeKeyframe`, typed by its channel's kind.
 
 ### Writing your own player
 
@@ -1628,16 +1640,17 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 | Preparing | `prepareDocument`, `documentStage`, `PxDocStage`, + `PxPrepareOptions`, `PxPreparedDocument` | ○ the one lowering pipeline, current → checked → resolved → plain, stamped on the result — [Preparing a document](#preparing-a-document). `carryPrep` (▪) re-stamps a doc a player derived from a prepared one; `reportDocumentProblems` (▪) turns what `checked` repaired into a player's warnings (`effectsShape` inside `effects`, else `documentRepaired`) |
 | Playback override | `PxTimelinePatch`, `PxPlaybackOverride`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult`, `PxTimelineShortcuts` | ● the `timeline` override as every player takes it, and the companion types of the three merge functions above |
 | No-driver patch | `suppressTriggerStart(patch?)` | ○ `trigger.start` forced to `'none'` on top of a caller's override — what every player applies when `playAsSaved` is absent (the components' non-`playAsSaved` control modes use the same helper) |
-| Keyframe forms | `keyframeValue`, `keyframeEasing`, `PxNormalizedKeyframe`, `PxNormalizedPropertyAnimation`, `PxAnyKeyframe`, `PxNormalizedPathValueSchema` | ▪ read a keyframe in either its wire or its runtime (`t` / `v` / `e`) form; is what `normalizeBindings` hands the engines — bare id + merged animation, from a binding or a node alike. `PxNormalizedPathValueSchema` casts a runtime `d` value (`{paths}`) |
+| Keyframe forms | `keyframeValue`, `keyframeEasing`, `PxNormalizedKeyframe`, `PxNormalizedPropertyAnimation`, `PxAnyKeyframe`, `PxNormalizedPathValueSchema` | ▪ read a keyframe in either its wire or its runtime (`t` / `v` / `e`) form. `PxNormalizedPathValueSchema` casts a runtime `d` value (`{paths}`) |
+| Runtime channels | `PxNormalizedBinding`, `PxRuntimeAnimation`, `PxRuntimeChannel`, `PxRuntimeKeyframe`, `PxValueKind`, `PxCubicBezier`, `PxPathValue` | ○ what `normalizeBindings` hands the engines — see [Materializing a document](#materializing-a-document). `channelKindOf` (▪) is the one place a property's value kind is decided; `mapChannelKeyframes` (▪) runs keyframe work with the blend of the channel's kind (`PxChannelLerp` ▪) |
 | Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTimeTimelineSchema`, `PxTriggerSchema`, `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxLoopSchema`, `PxDefinitionsSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxTransformValueSchema` | ○ the validator the format is written in |
-| Pipeline stages | `normalizeBindings` (○), `calcAnimationValues` (○), `interpolateValue`, `materializeMotionPathInPropAnim`, `mergeStaticTransformIntoAnimDef` | ▪ stages of `materializeAllInTree`; call the pipeline instead. `calcAnimationValues(def, ms, segments?)` takes an optional motion-path segment table (`createMotionPathSegments`, `MotionPathSegments` ▪) that its owner — an animator, one pass — keeps, so each curve segment is built once; there is no module-level cache |
+| Pipeline stages | `normalizeBindings` (○), `calcAnimationValues` (○), `materializeMotionPathInPropAnim`, `mergeStaticTransformIntoAnimDef` | ▪ stages of `materializeAllInTree`; call the pipeline instead. `calcAnimationValues(channels, ms, segments?)` takes an optional motion-path segment table (`createMotionPathSegments`, `MotionPathSegments` ▪) that its owner — an animator, one pass — keeps, so each curve segment is built once; there is no module-level cache |
 | Effect harness | `diffInEffect` | ▪ the editor's "equal in effect" comparison |
 | Text & paths | `materializeGlyphText`, `layoutGlyphTextChars`, `createPathSampler`, `extendedPathForBrowser`, `materializeGlyphTextAlongPath` | ▪ glyph-text and text-on-path materialization |
 | Node props | `toDomProps` (○), `sanitizeAttributeValue`, `PX_CSS_ONLY_STYLE_PROPS`, `PX_DISALLOWED_SVG_TAGS_LOWER` | ▪ shared normalization and sanitization rules |
 | Scroll math | `isScrollTimeline`, `scrollViewProgress`, `scrollOffsetProgress`, `scrollPhaseInterval`, `scrollResolveAxis`, `scrollTotalDurationMs` | ▪ scroll-driven playback internals |
 | Maths & strings | `cubicBezier`, `subdivideCubicBezier`, `bezierToSvgPath`, `splitEasing`, `reverseEasing`, `clamp`, `toRGBA`, `composeTransformParts`, `camelCaseToKebabWordIfNeeded`, `kebabToCamelCaseWord`, `PX_COLOR_ATTR_NAMES`, `PX_STYLE_ATTR_NAMES`, `PX_PCT_BASED_ATTR_NAMES`, `PX_TRANSFORM_FN_NAMES`, `deepClone`, `generateUniqueId`, `PX_DEFAULT_DURATION_MS`, `PX_DEFAULT_ITERATIONS`, `PX_DEFAULT_UNITS_PER_EM`, `PX_LOOP_JUMP_SHIFT_MS` | ▪ helpers shared with the editor |
-| Schema toolkit types | `PxSchema`, `PxSchemaDesc`, `PxInfer`, `PxValidationContext`, `PxValidationFinding`, `PxValidationFindingKind`, `PxRemoveIndex` | ○ the types you build a schema with — see the toolkit above. `findings` on the context is the structured twin of `errors`: a `kind` (unknown key, type mismatch, invalid value, missing value, union mismatch) and a `path` per line, for code that must branch on what went wrong rather than read it |
-| Companion types | `PxMaterializeAllOptions`, `PxCreateElement`, `PxGlyphCharBox`, `PxAnimatable` | ▪ argument and result shapes of the functions above |
+| Schema toolkit types | `PxSchema`, `PxAnySchema`, `PxSchemaDesc`, `PxInfer`, `PxValidationContext`, `PxValidationFinding`, `PxValidationFindingKind`, `PxRemoveIndex` | ○ the types you build a schema with — see the toolkit above. `PxAnySchema` is "a schema of some value" (lists, constraints, `describeSchema`). `findings` on the context is the structured twin of `errors`: a `kind` (unknown key, type mismatch, invalid value, missing value, union mismatch) and a `path` per line, for code that must branch on what went wrong rather than read it |
+| Companion types | `PxMaterializeAllOptions`, `PxGlyphCharBox`, `PxAnimatable`, `GlyphTextNode`, `GlyphFactory`, `GlyphPathProps`, `GlyphPaint`, `GlyphMotion`, `GlyphVisibility`, `GlyphFontsInput` | ▪ argument and result shapes of the functions above. The glyph materializer reads a `GlyphTextNode` (layout typed, paint carried as the caller's own type) and builds through the caller's `GlyphFactory` |
 | Attribute names | `PX_ANIM_ATTR_NAME`, `PX_ANIM_SRC_ATTR_NAME`, `PX_TEXT_CONTENT_ATTR` | ▪ reserved keys — see [Nodes](#nodes) |
 
 ### Versioning

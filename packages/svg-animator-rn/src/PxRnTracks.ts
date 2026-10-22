@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { calcAnimationValues, getAnimatorConfig, normalizeBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxNode } from '@pixodesk/svg-animator-core';
+import { calcAnimationValues, getAnimatorConfig, normalizeBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxNode } from '@pixodesk/svg-animator-core';
 import { createMotionPathSegments } from '@pixodesk/svg-animator-core/internal';
 import { PX_DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
 import { toRnPropName, toRnPropValue } from './PxRnPropNames';
@@ -104,13 +104,11 @@ export function compileTracks(doc: PxAnimatedSvgDocument, opts?: CompileTracksOp
 
     const elements: Array<PxElementTracks> = [];
     for (const binding of bindings) {
-        const animDef = binding.animate;
-        if (!animDef || typeof animDef !== 'object' || Array.isArray(animDef)) continue;
 
         const props: Record<string, Array<string | number | Array<number>>> = {};
         for (let i = 0; i < sampleCount; i++) {
             const t = i === sampleCount - 1 ? duration : i * stepMs;
-            const values = calcAnimationValues(animDef as PxAnimationDefinition, t, segments);
+            const values = calcAnimationValues(binding.channels, t, segments);
             for (const [attr, value] of Object.entries(values)) {
                 const rnProp = toRnPropName(attr);
                 if (!rnProp) continue;

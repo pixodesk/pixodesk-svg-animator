@@ -63,7 +63,7 @@ function mkAnimator() {
 describe('frames motion-path — a pre-start frame must not poison the segment cache', () => {
 
     it('evaluating BEFORE the first keyframe leaves mid-segment sampling on the arc', () => {
-        const animDef = normalizeBindings(mkDoc(), PxTimelineEngine.js)[0].animate as never;
+        const animDef = normalizeBindings(mkDoc(), PxTimelineEngine.js)[0].channels;
 
         // Frame 0 of playback: before the first kf. This is the call that used to poison.
         calcAnimationValues(animDef, 0);
@@ -73,7 +73,7 @@ describe('frames motion-path — a pre-start frame must not poison the segment c
     });
 
     it('the apex keyframe is honored at its own time', () => {
-        const animDef = normalizeBindings(mkDoc(), PxTimelineEngine.js)[0].animate as never;
+        const animDef = normalizeBindings(mkDoc(), PxTimelineEngine.js)[0].channels;
         calcAnimationValues(animDef, 0);
 
         const [x, y] = xy(calcAnimationValues(animDef, 500).transform);
@@ -82,7 +82,7 @@ describe('frames motion-path — a pre-start frame must not poison the segment c
     });
 
     it('auto-orient before the start uses the real initial tangent, not the chord angle', () => {
-        const animDef = normalizeBindings(mkDoc(), PxTimelineEngine.js)[0].animate as never;
+        const animDef = normalizeBindings(mkDoc(), PxTimelineEngine.js)[0].channels;
         const deg = (t: number) => parseFloat((/rotate\(([-\d.]+)\)/.exec(calcAnimationValues(animDef, t).transform) || [])[1]);
 
         // The path leaves START heading steeply up (≈ -84°). The chord is ≈ +0.7°.
@@ -134,7 +134,7 @@ describe('frames motion-path — a pre-start frame must not poison the segment c
 describe('frames motion-path — an owner-held segment table', () => {
 
     it('a pre-start frame does not poison the table: mid-segment stays on the arc', () => {
-        const animDef = normalizeBindings(mkDoc(), PxTimelineEngine.js)[0].animate as never;
+        const animDef = normalizeBindings(mkDoc(), PxTimelineEngine.js)[0].channels;
         const segments = createMotionPathSegments();
         calcAnimationValues(animDef, 0, segments);
         const [, y] = xy(calcAnimationValues(animDef, 384, segments).transform);
@@ -142,7 +142,7 @@ describe('frames motion-path — an owner-held segment table', () => {
     });
 
     it('fills once per keyframe pair, reuses it, and matches uncached evaluation', () => {
-        const animDef = normalizeBindings(mkDoc(), PxTimelineEngine.js)[0].animate as never;
+        const animDef = normalizeBindings(mkDoc(), PxTimelineEngine.js)[0].channels;
         const segments = createMotionPathSegments();
         const times = [260, 300, 384, 450, 520, 600, 700, 740];
         const cached = times.map(t => calcAnimationValues(animDef, t, segments).transform);

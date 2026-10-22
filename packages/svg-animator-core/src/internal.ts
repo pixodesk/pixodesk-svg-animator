@@ -15,12 +15,12 @@
 // against the published package until it moves across. The next release drops them from there.
 // ============================================================================
 
-export { PX_LOOP_JUMP_SHIFT_MS, interpolateValue, mergeStaticTransformIntoAnimDef } from './animation/PxDefinitions';
+export { PX_LOOP_JUMP_SHIFT_MS, mergeStaticTransformIntoAnimDef } from './animation/PxDefinitions';
+export { channelKindOf, mapChannelKeyframes, type PxChannelLerp } from './animation/PxRuntimeChannel';
 export { diffInEffect } from './effects/PlayerEffectsUtil.visualModel';
-export type { PxCreateElement } from './effects/text/elementFactory';
 export { createPathSampler } from './effects/text/pathSampler';
 export { layoutGlyphTextChars, materializeGlyphText, materializeGlyphTextAlongPath } from './effects/text/textGlyphsEffect';
-export type { PxGlyphCharBox } from './effects/text/textGlyphsEffect';
+export type { PxGlyphCharBox, GlyphFactory, GlyphFontsInput, GlyphMotion, GlyphPaint, GlyphPathProps, GlyphTextNode, GlyphVisibility } from './effects/text/textGlyphsEffect';
 export { extendedPathForBrowser } from './effects/text/textPathEffect';
 export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PX_TEXT_CONTENT_ATTR, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM } from './format/PxAnimatorConstants';
 export { keyframeEasing, keyframeValue } from './format/PxAnimatorTypes';

@@ -96,9 +96,9 @@ function evaluateAt(doc: PxAnimatedSvgDocument, engine: PxTimelineEngine, time: 
     const bindings = normalizeBindings(doc, engine);
     if (bindings.length === 0) return undefined;
     // Find the binding whose id matches the animated rect/ellipse in the fixture.
-    const animatedBinding = bindings.find(b => b.animate && Object.keys(b.animate).length > 0);
+    const animatedBinding = bindings.find(b => Object.keys(b.channels).length > 0);
     if (!animatedBinding) return undefined;
-    return calcAnimationValues(animatedBinding.animate as any, time);
+    return calcAnimationValues(animatedBinding.channels, time);
 }
 
 

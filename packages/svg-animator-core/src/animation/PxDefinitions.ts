@@ -4,12 +4,13 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxBezierPath, type PxNormalizedBinding, type PxBinding, type PxDefinitions, type PxElementAnimation, type PxKeyframe, type PxNormalizedKeyframe, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts, keyframeTime, keyframeValue, keyframeEasing, keyframeTangentIn, keyframeTangentOut } from '../format/PxAnimatorTypes';
-import { getBindings, getDefinitions, TRANSFORM_ATTR } from '../format/PxAnimatorConstants';
+import { PxNormalizedPathValueSchema, PxPathDataValueSchema, PxTransformPartsSchema, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAnyKeyframe, type PxBezierPath, type PxBinding, type PxDefinitions, type PxElementAnimation, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts, keyframeTime, keyframeValue, keyframeEasing, keyframeTangentIn, keyframeTangentOut } from '../format/PxAnimatorTypes';
+import { getBindings, getDefinitions } from '../format/PxAnimatorConstants';
 import { getAnimatorConfig, PxTimelineEngine, PxLoopDirection, PxLoopRepeatAt } from '../format/PxAnimatorConstants';
-import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, PX_COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, parseTransformParts, PX_PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, PX_TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
-import { evaluateMotionPathSegment, materializeMotionPathInPropAnim, propAnimIsMotionPath, type MotionPathSegments } from '../materialize/PxMotionPath';
+import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, remap, reverseEasing, splitEasing, toRGBA } from '../util/PxAnimatorUtil';
+import { evaluateMotionPathSegment, propAnimIsMotionPath, sampleMotionPathKeyframes, type MotionPathSegments } from '../materialize/PxMotionPath';
 import { mergeStaticTransformIntoAnimDef } from './PxStaticTransformMerge';
+import { channelKindOf, interpolateTransformParts, mapChannelKeyframes, PxValueKind, sharedUnitOf, type PxChannelLerp, type PxCubicBezier, type PxNormalizedBinding, type PxPathValue, type PxRuntimeAnimation, type PxRuntimeChannel, type PxRuntimeKeyframe } from './PxRuntimeChannel';
 
 // Declared in its own leaf module so the motion-path flattener can use it too, without importing
 // this one back (it is imported here). Re-exported so this module's surface is unchanged.
@@ -186,57 +187,39 @@ function isPathString(value: unknown): value is string {
  * - "M..." -> { paths: [PxBezierPath] }
  * - { paths: [PxBezierPath] } -> as-is
  */
-function normalizePathValue(value: any): { paths: Array<PxBezierPath> } | any {
+/** A list of parsed bezier paths — the `paths` of a runtime `d` value. */
+const BEZIER_LIST_SCHEMA = PxNormalizedPathValueSchema._shape.paths;
+
+function normalizePathValue(value: unknown): PxPathValue | undefined {
     // THE wire form: { pathData: "M..." } (compound = multiple `M…` sub-paths in one string).
     // The `{ paths: [...] }` shapes below are this function's OWN output, not wire spellings.
-    if (value && typeof value === 'object' && typeof value.pathData === 'string') {
-        const d = extractPathData(value.pathData);
-        return d ? { paths: parseSvgPathToBezier(d) } : value;
+    const pathData = PxPathDataValueSchema.castOrNull(value);
+    if (pathData) {
+        const d = extractPathData(pathData.pathData);
+        return d ? { paths: parseSvgPathToBezier(d) } : undefined;
     }
-
-    // If already in { paths: [...] } format
-    if (value && typeof value === 'object' && 'paths' in value) {
+    const parseAll = (strings: ReadonlyArray<unknown>): PxPathValue => {
+        const paths: Array<PxBezierPath> = [];
+        for (const pathStr of strings) {
+            const d = isPathString(pathStr) ? extractPathData(pathStr) : undefined;
+            if (d) paths.push(...parseSvgPathToBezier(d));
+        }
+        return { paths };
+    };
+    // Already { paths: [...] } — of path strings to parse, or of parsed beziers
+    if (typeof value === 'object' && value !== null && 'paths' in value) {
         const pathsArray = value.paths;
-        if (Array.isArray(pathsArray) && pathsArray.length > 0) {
-            // Check if paths contain path strings that need parsing
-            if (isPathString(pathsArray[0])) {
-                const paths: Array<PxBezierPath> = [];
-                for (const pathStr of pathsArray) {
-                    const d = extractPathData(pathStr);
-                    if (d) {
-                        paths.push(...parseSvgPathToBezier(d));
-                    }
-                }
-                return { paths };
-            }
-        }
-        // Already in correct format
-        return value;
+        if (Array.isArray(pathsArray) && pathsArray.length > 0 && isPathString(pathsArray[0])) return parseAll(pathsArray);
+        return PxNormalizedPathValueSchema.castOrNull(value) ?? undefined;
     }
-
-    // If it's an array of path strings
+    // An array of path strings, or of parsed beziers
     if (Array.isArray(value)) {
-        if (value.length > 0 && isPathString(value[0])) {
-            const paths: Array<PxBezierPath> = [];
-            for (const pathStr of value) {
-                const d = extractPathData(pathStr);
-                if (d) {
-                    paths.push(...parseSvgPathToBezier(d));
-                }
-            }
-            return { paths };
-        }
-        // Already an array of PxBezierPath - wrap in { paths: }
-        return { paths: value };
+        if (value.length > 0 && isPathString(value[0])) return parseAll(value);
+        const beziers = BEZIER_LIST_SCHEMA.castOrNull(value);
+        return beziers ? { paths: beziers } : undefined;
     }
-
-    // If it's a single path string
-    if (isPathString(value)) {
-        const d = extractPathData(value)!;
-        return { paths: parseSvgPathToBezier(d) };
-    }
-
-    return value;
+    if (isPathString(value)) return parseAll([value]);
+    return undefined;
 }
 
 
@@ -327,74 +310,10 @@ function resolveElementAnimation(
 // LOOP EXPANSION: Duplicate keyframe segments to fill gaps in the timeline
 // ============================================================================
 
-// @px-importance important
-/**
- * Interpolates between two keyframe values based on property type.
- * Returns the raw interpolated value (not a CSS string).
- *
- * Dispatch order matters — the unified-transform-record branch must run
- * BEFORE the standalone-`rotate` branch, otherwise a `transform`-named
- * animation whose kfs are number-typed (rare but valid) would be routed
- * through the vec path.
- * @internal
- */
-export function interpolateValue(propName: string, a: any, b: any, t: number): any {
-    if (propName === 'd') {
-        const aPaths = a?.paths ?? (Array.isArray(a) ? a : []);
-        const bPaths = b?.paths ?? (Array.isArray(b) ? b : []);
-        return { paths: interpolateBeziers(aPaths, bPaths, t) };
-    }
-    if (PX_COLOR_ATTR_NAMES.has(propName)) {
-        return interpolateColor(a || [0, 0, 0, 1], b || [0, 0, 0, 1], t);
-    }
-    // Unified-transform record (`{translate, rotate, scale, origin}`) — the
-    // most common animated `propName === 'transform'` shape. Per-part interp
-    // so `+({}) = NaN` (the old fall-through) doesn't poison the boundary kf
-    // at a loop seam.
-    if (propName === 'transform'
-        && typeof a === 'object' && a !== null && !Array.isArray(a)
-        && typeof b === 'object' && b !== null && !Array.isArray(b)
-    ) {
-        return interpolateTransformParts(a as PxTransformParts, b as PxTransformParts, t);
-    }
-    // Standalone `rotate` as a propAnim — value is a NUMBER, not a vector.
-    // The general PX_TRANSFORM_FN_NAMES branch below would route it through
-    // `interpolateVec`, which on a scalar returns `[]` (length NaN → no loop)
-    // — wrong CSS output.
-    if (propName === 'rotate' && typeof a === 'number' && typeof b === 'number') {
-        return interpolateNum(a, b, t);
-    }
-    if (PX_TRANSFORM_FN_NAMES.has(propName) || propName === 'stroke-dasharray' || propName === 'strokeDasharray') {
-        return interpolateVec(a || [], b || [], t);
-    }
-    return interpolateNum(+(a || 0), +(b || 0), t);
-}
-
-/** Per-part interpolation for a unified-transform parts record. Mirrors the
- *  inline logic in `calcPropertyValue`'s transform branch. */
-function interpolateTransformParts(a: PxTransformParts, b: PxTransformParts, t: number): PxTransformParts {
-    const keys = new Set<string>([...Object.keys(a ?? {}), ...Object.keys(b ?? {})]);
-    const out: { [k: string]: unknown } = {};
-    for (const k of keys) {
-        const av = (a as { [k: string]: unknown })?.[k];
-        const bv = (b as { [k: string]: unknown })?.[k];
-        if (k === 'rotate' || k === 'skew') {
-            out[k] = interpolateNum(+(av ?? 0), +(bv ?? 0), t);
-        } else if (k === 'translate' || k === 'scale' || k === 'origin') {
-            const fallback: Array<number> = k === 'scale' ? [1, 1] : [0, 0];
-            out[k] = interpolateVec((av as Array<number>) || fallback, (bv as Array<number>) || fallback, t);
-        } else {
-            // Unknown part — prefer next if present, otherwise prev.
-            out[k] = bv ?? av;
-        }
-    }
-    return out as PxTransformParts;
-}
-
-interface LoopTemplateEntry {
+interface LoopTemplateEntry<V> {
     relT: number; // 0..1 relative position within segment
-    v: any;
-    e: [number, number, number, number] | undefined;
+    v: V;
+    e: PxCubicBezier | undefined;
     // Per-vertex spatial tangents (motion-along-path). Carried so repeated
     // segments keep their curvature; reversed reps swap in<->out (see appendRep).
     tangentIn?: [number, number];
@@ -405,17 +324,17 @@ interface LoopTemplateEntry {
  * Expands keyframes by repeating a segment to fill the gap between the keyframe
  * range and the global animation duration, implementing PxLoop "local loop" behavior.
  */
-function expandLoopKeyframes(
-    propName: string,
-    keyframes: PxNormalizedKeyframe[],
+function expandLoopKeyframes<V>(
+    keyframes: Array<PxRuntimeKeyframe<V>>,
     loop: PxLoop,
-    duration: number
-): PxNormalizedKeyframe[] {
+    duration: number,
+    lerp: PxChannelLerp<V>,
+): Array<PxRuntimeKeyframe<V>> {
     const totalIntervals = keyframes.length - 1;
     const segCount = clamp(loop.segmentCount ?? totalIntervals, 1, totalIntervals);
 
     // Extract segment keyframes
-    let segKfs: PxNormalizedKeyframe[];
+    let segKfs: Array<PxRuntimeKeyframe<V>>;
     if (loop.repeatAt === PxLoopRepeatAt.start) {
         segKfs = keyframes.slice(0, segCount + 1);
     } else {
@@ -445,19 +364,19 @@ function expandLoopKeyframes(
     if (segDuration <= 0) return keyframes;
 
     // Build template with relative offsets (0..1)
-    const template: LoopTemplateEntry[] = segKfs.map(kf => ({
-        relT: (kf.t! - segStartT) / segDuration,
+    const template: Array<LoopTemplateEntry<V>> = segKfs.map(kf => ({
+        relT: (kf.t - segStartT) / segDuration,
         v: kf.v,
-        e: kf.e as [number, number, number, number] | undefined,
-        tangentIn: keyframeTangentIn(kf) as [number, number] | undefined,
-        tangentOut: keyframeTangentOut(kf) as [number, number] | undefined
+        e: kf.e,
+        tangentIn: kf.tangentIn,
+        tangentOut: kf.tangentOut,
     }));
 
     const fullReps = Math.floor(fillDuration / segDuration);
     const remainder = fillDuration - fullReps * segDuration;
     const partialFraction = remainder / segDuration;
 
-    const looped: PxNormalizedKeyframe[] = [];
+    const looped: Array<PxRuntimeKeyframe<V>> = [];
 
     // A cycle's first keyframe lands at the SAME time as the previous repetition's
     // last one. Emitting both at that time makes the value at that instant depend on
@@ -476,7 +395,7 @@ function expandLoopKeyframes(
     const separateBoundary = loop.repeatAt !== PxLoopRepeatAt.start;
     // The keyframe the FIRST repetition butts up against: loopOut tiles forward from
     // the last original keyframe (the originals are concatenated only at assembly).
-    const originalTerminalKf: PxNormalizedKeyframe | undefined = keyframes[keyframes.length - 1];
+    const originalTerminalKf: PxRuntimeKeyframe<V> | undefined = keyframes[keyframes.length - 1];
 
     // Easing that a skipped boundary keyframe hands to the ORIGINAL terminal keyframe.
     // Easing describes the interval that FOLLOWS a keyframe, so when a pingpong turn's
@@ -484,12 +403,12 @@ function expandLoopKeyframes(
     // redundant — it owns the return leg. Without this hand-off the return leg renders
     // LINEAR while the outbound is eased. The originals belong to the caller, so it is
     // applied by replacing the terminal with a copy at assembly, never by mutation.
-    let terminalEasingOverride: PxNormalizedKeyframe['e'] | undefined;
+    let terminalEasingOverride: PxCubicBezier | undefined;
     let hasTerminalEasingOverride = false;
 
     // Helper: append one full or partial repetition
     function appendRep(repStart: number, isReversed: boolean, partial?: number) {
-        let entries: LoopTemplateEntry[];
+        let entries: Array<LoopTemplateEntry<V>>;
         if (isReversed) {
             // Reverse keyframe order and reverse easings
             entries = [];
@@ -522,7 +441,7 @@ function expandLoopKeyframes(
 
                 // Apply easing to get the eased progress for value interpolation
                 const easedFrac = prev.e ? cubicBezier(prev.e)(localFrac) : localFrac;
-                const cutValue = interpolateValue(propName, prev.v, entry.v, easedFrac);
+                const cutValue = lerp(prev.v, entry.v, easedFrac);
 
                 // Split easing — use left portion for the truncated interval
                 const { left: leftEasing } = splitEasing(prev.e, localFrac);
@@ -561,7 +480,7 @@ function expandLoopKeyframes(
                 if (looped.length > 0) { delete prevKf.tangentIn; delete prevKf.tangentOut; }
             }
 
-            const pushed: PxNormalizedKeyframe = {
+            const pushed: PxRuntimeKeyframe<V> = {
                 t: repStart + entry.relT * segDuration + (isBoundary ? PX_LOOP_JUMP_SHIFT_MS : 0),
                 v: entry.v,
                 e: i < entries.length - 1 ? entry.e : undefined
@@ -582,7 +501,7 @@ function expandLoopKeyframes(
     // (as appendRep does) would land the leftover ADJACENT to firstT and desync the
     // whole backward fill — the loopIn `f0` bug.
     function appendRepTail(repStart: number, isReversed: boolean, tailFraction: number) {
-        let entries: LoopTemplateEntry[];
+        let entries: Array<LoopTemplateEntry<V>>;
         if (isReversed) {
             entries = [];
             for (let i = template.length - 1; i >= 0; i--) {
@@ -612,12 +531,12 @@ function expandLoopKeyframes(
                 const intervalSpan = entry.relT - prev.relT;
                 const localFrac = (startRelT - prev.relT) / intervalSpan;
                 const easedFrac = prev.e ? cubicBezier(prev.e)(localFrac) : localFrac;
-                const startValue = interpolateValue(propName, prev.v, entry.v, easedFrac);
+                const startValue = lerp(prev.v, entry.v, easedFrac);
                 const { right: rightEasing } = splitEasing(prev.e, localFrac);
                 looped.push({ t: repStart, v: startValue, e: rightEasing });
             }
 
-            const pushed: PxNormalizedKeyframe = {
+            const pushed: PxRuntimeKeyframe<V> = {
                 t: repStart + (entry.relT - startRelT) * segDuration,
                 v: entry.v,
                 e: i < entries.length - 1 ? entry.e : undefined
@@ -681,78 +600,103 @@ function expandLoopKeyframes(
 // KEYFRAME NORMALIZATION
 // ============================================================================
 
+const DEFAULT_RGBA: Array<number> = [0, 0, 0, 1];
+/** A number — of a plain or unit-carrying value (`"20%"` → 20); `0` when absent. */
+const toNumber = (v: unknown): number => (typeof v === 'string' ? parseFloat(v) : Number(v || 0));
+/** A parts record, repaired part by part (a malformed part is dropped, the rest kept) — or the
+ *  `{translate}` of a bare `[x, y]` (a motion path's per-part translate). */
+function toParts(v: unknown): PxTransformParts {
+    if (Array.isArray(v)) return typeof v[0] === 'number' && typeof v[1] === 'number' ? { translate: [v[0], v[1]] } : {};
+    return PxTransformPartsSchema.castOrFix(v).value;
+}
+const toNumberList = (fallback: Array<number>) => (v: unknown): Array<number> =>
+    Array.isArray(v) && v.every(x => typeof x === 'number') ? v : fallback;
+const toText = (v: unknown): string => (v === undefined || v === null ? '' : String(v));
+
 // @px-importance important
 /**
- * Normalizes keyframes from the new API format (time in ms) to internal format (time as 0-1 fraction).
- * Resolves easing references, normalizes times, and converts path strings for 'd' attribute.
- * If a loop configuration is present, expands the keyframes to fill the global duration.
- * @param propName The property name (e.g., 'd' for path)
- * @param propAnim The property animation with keyframes
- * @param duration The total animation duration in ms
- * @param defs The definitions containing named easings
- * @returns Array of normalized keyframes (same structure, resolved refs, normalized times)
+ * ONE property's keyframes → its runtime channel: the kind decided once (`channelKindOf`), every value
+ * converted to it, times shifted into window space, easings resolved (`easingOf`). The keyframes may be
+ * in either spelling: a `plain` tree already carries converted ones (loops expanded there).
  */
-function normalizeKeyframes(
+function toRuntimeChannel(
+    propName: string,
+    keyframes: ReadonlyArray<PxAnyKeyframe>,
+    easingOf: (kf: PxAnyKeyframe) => PxCubicBezier | undefined,
+    timeShift: number,
+): PxRuntimeChannel {
+    const at = <V>(kf: PxAnyKeyframe, v: V): PxRuntimeKeyframe<V> => {
+        const out: PxRuntimeKeyframe<V> = { t: keyframeTime(kf) - timeShift, v };
+        const e = easingOf(kf);
+        if (e) out.e = e;
+        // Motion-along-path tangents (a `parts` channel) — sampled or evaluated downstream.
+        const tIn = keyframeTangentIn(kf);
+        const tOut = keyframeTangentOut(kf);
+        if (tIn) out.tangentIn = tIn;
+        if (tOut) out.tangentOut = tOut;
+        return out;
+    };
+    const values = keyframes.map(keyframeValue);
+    const kind = channelKindOf(propName, values);
+    switch (kind) {
+        case PxValueKind.number: {
+            const numbers = keyframes.map(kf => at(kf, toNumber(keyframeValue(kf))));
+            const unit = sharedUnitOf(values);
+            return unit ? { kind, keyframes: numbers, unit } : { kind, keyframes: numbers };
+        }
+        case PxValueKind.percent: case PxValueKind.rotate: case PxValueKind.skew:
+            return { kind, keyframes: keyframes.map(kf => at(kf, toNumber(keyframeValue(kf)))) };
+        case PxValueKind.color:
+            return { kind, keyframes: keyframes.map(kf => at(kf, parseColor(keyframeValue(kf)) ?? DEFAULT_RGBA)) };
+        case PxValueKind.path:
+            return { kind, keyframes: keyframes.map(kf => at(kf, normalizePathValue(keyframeValue(kf)) ?? { paths: [] })) };
+        case PxValueKind.parts:
+            return { kind, keyframes: keyframes.map(kf => at(kf, toParts(keyframeValue(kf)))) };
+        case PxValueKind.numberList:
+            return { kind, keyframes: keyframes.map(kf => at(kf, toNumberList([])(keyframeValue(kf)))) };
+        case PxValueKind.translate:
+            return { kind, keyframes: keyframes.map(kf => at(kf, toNumberList([0, 0])(keyframeValue(kf)))) };
+        case PxValueKind.scale:
+            return { kind, keyframes: keyframes.map(kf => at(kf, toNumberList([1, 1])(keyframeValue(kf)))) };
+        case PxValueKind.discrete:
+            return { kind, keyframes: keyframes.map(kf => at(kf, toText(keyframeValue(kf)))) };
+    }
+}
+
+/** `loop: true` is the default loop; absent / false is none. */
+const loopOf = (raw: PxLoop | boolean | undefined): PxLoop | undefined => (raw === true ? {} : raw || undefined);
+
+/** Expands a channel's `loop` into repeated keyframes filling `duration`. */
+function expandChannelLoop(ch: PxRuntimeChannel, loop: PxLoop, duration: number): PxRuntimeChannel {
+    if (ch.keyframes.length < 2) return ch;
+    return mapChannelKeyframes(ch, (keyframes, lerp) => expandLoopKeyframes(keyframes, loop, duration, lerp));
+}
+
+/**
+ * The engine's channel for one property animation: converted, sorted, its loop expanded, and — on a
+ * `parts` channel that moves along a path — either SAMPLED into plain parts keyframes (the native
+ * engine: WAAPI cannot evaluate tangents) or flagged for per-frame evaluation (the frames engine).
+ */
+function normalizeChannel(
     propName: string,
     propAnim: PxPropertyAnimation,
     duration: number,
-    defs?: PxDefinitions,
-    inTime = 0,
-): PxNormalizedKeyframe[] {
-    const keyframes = propAnim.keyframes || [];
-
-    const normalized: PxNormalizedKeyframe[] = [];
-
-    for (const kf of keyframes) {
-        const timePct = keyframeTime(kf);
-        let value = keyframeValue(kf);
-        const easing = keyframeEasing(kf);
-
-        // Normalize path values for 'd' attribute
-        if (propName === 'd') {
-            value = normalizePathValue(value);
-        }
-
-        // Normalize color values (hex/rgb/rgba strings to [0-1] vectors).
-        // `PX_COLOR_ATTR_NAMES` is keyed in kebab-case (`stop-color`, `flood-color`,
-        // `lighting-color`); the wire format uses both kebab AND camelCase
-        // (`stopColor`) for these props. Without converting, frames-mode would
-        // call `interpolateColor` on the raw strings and produce `NaN` channels
-        // — the visible "rgba(NaN,NaN,NaN,…)" bug on stop-color animations.
-        const propNameKebab = isCamelCaseWord(propName) ? camelCaseToKebabWordIfNeeded(propName) : propName;
-        if (PX_COLOR_ATTR_NAMES.has(propNameKebab)) {
-            value = parseColor(value) ?? value;
-        }
-
-        const normKf: PxNormalizedKeyframe = {
-            // shifted into window space: content `inTime` becomes the engines' 0
-            t: timePct - inTime,
-            v: value,
-            e: resolveEasing(easing, defs)
-        };
-        // Motion-along-path: keep the spatial tangents so the downstream
-        // `materializeMotionPathInPropAnim` (called in `normalizeAnimationDefinition`) can
-        // sample them into transform kfs. Short aliases `ti` / `to` collapse
-        // into their canonical names.
-        const tIn = keyframeTangentIn(kf);
-        const tOut = keyframeTangentOut(kf);
-        if (tIn) normKf.tangentIn = tIn;
-        if (tOut) normKf.tangentOut = tOut;
-
-        normalized.push(normKf);
+    defs: PxDefinitions | undefined,
+    engine: PxTimelineEngine,
+    inTime: number,
+): PxRuntimeChannel {
+    const converted = toRuntimeChannel(propName, propAnim.keyframes || [], kf => resolveEasing(keyframeEasing(kf), defs), inTime);
+    const sorted = mapChannelKeyframes(converted, keyframes => [...keyframes].sort((a, b) => a.t - b.t));
+    const loop = loopOf(propAnim.loop);
+    const ch = loop ? expandChannelLoop(sorted, loop, duration) : sorted;
+    if (ch.kind !== PxValueKind.parts) return ch;
+    const moves = !!propAnim.autoOrient || ch.keyframes.some(kf => kf.tangentIn || kf.tangentOut);
+    if (!moves) return ch;
+    if (engine === PxTimelineEngine.native) {
+        const sampled = sampleMotionPathKeyframes(ch.keyframes, !!propAnim.autoOrient);
+        return sampled ? { kind: PxValueKind.parts, keyframes: sampled } : ch;
     }
-
-    // Sort by time
-    normalized.sort((a, b) => (a.t ?? 0) - (b.t ?? 0));
-
-    // Expand loop if configured (loop:true is shorthand for default PxLoop)
-    const loopRaw = propAnim.loop;
-    const loop: PxLoop | undefined = loopRaw === true ? {} : loopRaw || undefined;
-    if (loop && normalized.length >= 2) {
-        return expandLoopKeyframes(propName, normalized, loop, duration);
-    }
-
-    return normalized;
+    return { ...ch, motionPath: { autoOrient: !!propAnim.autoOrient } };
 }
 
 /**
@@ -790,48 +734,25 @@ function mergeAnimationDefinitions(
 /**
  * Replaces `propAnim.loop` with explicit repeated keyframes via
  * `expandLoopKeyframes`. Returns the input by reference when no loop is
- * configured (no-op). Output drops the `loop` field (consumed).
+ * configured (no-op). Output drops the `loop` field (consumed). The keyframes are converted
+ * first (`toRuntimeChannel` — kind, values, named easings resolved through `defs`), so the
+ * loop seam blends real values; the output carries them in the runtime spelling (`t` / `v` / `e`).
  * @internal
  */
 export function materializeInternalLoopsInPropAnim(
     propName: string,
     propAnim: PxPropertyAnimation,
     duration: number,
+    defs?: PxDefinitions,
 ): PxPropertyAnimation {
-    const loopRaw = propAnim.loop;
-    if (loopRaw === undefined || loopRaw === null || loopRaw === false) return propAnim;
-    const loop: PxLoop = loopRaw === true ? {} : (loopRaw as PxLoop);
-    const rawKfs = propAnim.keyframes as PxKeyframe[] | undefined;
+    const loop = loopOf(propAnim.loop);
+    if (!loop) return propAnim;
+    const rawKfs = propAnim.keyframes;
     if (!Array.isArray(rawKfs) || rawKfs.length < 2) return propAnim;
 
-    // `expandLoopKeyframes` reads kf.t / kf.v / kf.e (short form). When this
-    // function is called from the materialization pipeline OUTSIDE the
-    // binding-normalization path (e.g. by `materializeAllInTree`), the input
-    // kfs may still be in long form (`time` / `value` / `easing`) AND the
-    // values may be unparsed (hex color strings, raw path-`d`). Normalize
-    // both here so `interpolateValue` (called by `expandLoopKeyframes` at the
-    // loop seam) sees structured data — without this, a color boundary kf
-    // ends up `[NaN,NaN,NaN,NaN]` and the bug stays visible until the
-    // animation cycle restarts.
-    const propNameKebab = isCamelCaseWord(propName) ? camelCaseToKebabWordIfNeeded(propName) : propName;
-    const isColor = PX_COLOR_ATTR_NAMES.has(propNameKebab);
-    const kfs: PxNormalizedKeyframe[] = rawKfs.map(kf => {
-        const t = keyframeTime(kf);
-        let v: unknown = keyframeValue(kf);
-        if (propName === 'd') v = normalizePathValue(v);
-        if (isColor) v = parseColor(v) ?? v;
-        const e = keyframeEasing(kf);
-        const out: PxNormalizedKeyframe = { t, v, e };
-        const tIn = keyframeTangentIn(kf);
-        const tOut = keyframeTangentOut(kf);
-        if (tIn) out.tangentIn = tIn;
-        if (tOut) out.tangentOut = tOut;
-        return out;
-    });
-
-    const expanded = expandLoopKeyframes(propName, kfs, loop, duration);
-    const out: PxPropertyAnimation = { keyframes: expanded };
-    if (propAnim.autoOrient !== undefined) (out as { autoOrient?: unknown }).autoOrient = propAnim.autoOrient;
+    const channel = toRuntimeChannel(propName, rawKfs, kf => resolveEasing(keyframeEasing(kf), defs), 0);
+    const out: PxPropertyAnimation = { keyframes: expandChannelLoop(channel, loop, duration).keyframes };
+    if (propAnim.autoOrient !== undefined) out.autoOrient = propAnim.autoOrient;
     return out;
 }
 
@@ -847,29 +768,29 @@ export function materializeInternalLoopsInPropAnim(
 export function materializeInternalLoopsInTree(
     root: PxNode,
     duration: number,
+    defs?: PxDefinitions,
 ): PxNode {
-    const ret = walkAndMaterializeLoops(root, duration);
+    const ret = walkAndMaterializeLoops(root, duration, defs);
     return ret ?? root;
 }
 
-function walkAndMaterializeLoops(node: PxNode, duration: number): PxNode | null {
+function walkAndMaterializeLoops(node: PxNode, duration: number, defs: PxDefinitions | undefined): PxNode | null {
     let newChildren: Array<PxNode> | undefined;
     if (node.children) {
         for (let i = 0; i < node.children.length; i++) {
-            const ret = walkAndMaterializeLoops(node.children[i], duration);
+            const ret = walkAndMaterializeLoops(node.children[i], duration, defs);
             if (ret !== null) {
                 if (!newChildren) newChildren = node.children.slice();
                 newChildren[i] = ret;
             }
         }
     }
-    let newAnimate: Record<string, PxPropertyAnimation> | undefined;
-    const animBucket = node.animate;
-    if (animBucket && typeof animBucket === 'object' && !Array.isArray(animBucket)) {
-        const animDef = animBucket as Record<string, PxPropertyAnimation>;
+    let newAnimate: PxAnimationDefinition | undefined;
+    const animDef = node.animate;
+    if (typeof animDef === 'object' && !Array.isArray(animDef)) {
         for (const propName of Object.keys(animDef)) {
             const propAnim = animDef[propName];
-            const materialized = materializeInternalLoopsInPropAnim(propName, propAnim, duration);
+            const materialized = materializeInternalLoopsInPropAnim(propName, propAnim, duration, defs);
             if (materialized !== propAnim) {
                 if (!newAnimate) newAnimate = { ...animDef };
                 newAnimate[propName] = materialized;
@@ -879,7 +800,7 @@ function walkAndMaterializeLoops(node: PxNode, duration: number): PxNode | null 
     if (!newChildren && !newAnimate) return null;
     const cloned: PxNode = { ...node };
     if (newChildren) cloned.children = newChildren;
-    if (newAnimate)  cloned.animate  = newAnimate as PxNode['animate'];
+    if (newAnimate)  cloned.animate  = newAnimate;
     return cloned;
 }
 
@@ -900,9 +821,8 @@ export function resetElementIdCounter(): void {
 }
 
 /**
- * Normalizes an animation definition by resolving easing references and normalizing keyframe times.
- * Keeps the key/value mapping structure. `engine` controls motion-along-path
- * handling — see {@link PxTimelineEngine}.
+ * Converts an animation definition into the engine's channels (one per property). `engine`
+ * controls motion-along-path handling — see {@link normalizeChannel}.
  */
 function normalizeAnimationDefinition(
     animDef: PxAnimationDefinition,
@@ -910,8 +830,8 @@ function normalizeAnimationDefinition(
     defs?: PxDefinitions,
     engine: PxTimelineEngine = PxTimelineEngine.native,
     inTime = 0,
-): PxAnimationDefinition {
-    const normalized: PxAnimationDefinition = {};
+): PxRuntimeAnimation {
+    const channels: PxRuntimeAnimation = {};
 
     for (const [propName, propAnim] of Object.entries(animDef)) {
         // `alongPathMode: 'offsetPath'` — this transform's motion is rendered by CSS
@@ -921,43 +841,21 @@ function normalizeAnimationDefinition(
         // them: doing both moved the element to the path position and then translated it
         // again (double position). Skip the binding; `offsetDistance` owns the motion.
         if (propName === 'transform'
-            && (propAnim as { alongPathMode?: string }).alongPathMode === 'offsetPath'
+            && propAnim.alongPathMode === 'offsetPath'
             // …but ONLY when the offset infrastructure actually exists (an `offsetDistance`
             // track in the same definition — the pre-rendered dict shape, or a lightweight
             // doc the offset materializer rewrote). A marked transform the materializer
             // BAILED on (e.g. rotate animated in the same keyframes — inexpressible as
             // offset-path) must fall through to the ordinary sampled pipeline; skipping it
             // unconditionally froze those elements at their base pose.
-            && (animDef as Record<string, unknown>)['offsetDistance'] !== undefined) {
+            && animDef.offsetDistance !== undefined) {
             continue;
         }
-        const normalizedKfs = normalizeKeyframes(propName, propAnim, duration, defs, inTime);
-        if (normalizedKfs.length > 0) {
-            // Internal normalized form converges on `keyframes` too — the `kfs` alias
-            // is gone from the format AND the runtime (review §1.2/§6.1).
-            const out: PxPropertyAnimation = { keyframes: normalizedKfs };
-            // Carry top-level animation flags through normalization — `materializeMotionPathInPropAnim`
-            // and the runtime evaluators need `autoOrient` / `loop` to be present
-            // alongside the kfs.
-            if (propAnim.autoOrient !== undefined) out.autoOrient = propAnim.autoOrient;
-            if (propAnim.loop !== undefined) out.loop = propAnim.loop;
-
-            // Pipeline: loops are already expanded by `normalizeKeyframes` above.
-            // For the `waapi` engine ONLY, materialize motion-along-path
-            // (tangented `transform` kfs + autoOrient) into plain sampled
-            // `{ translate, rotate? }` kfs — CSS WAAPI can't evaluate parametric
-            // tangents at runtime. Frames-mode keeps the parametric form so the
-            // frame-loop kernel `evaluateMotionPathSegment` can sample per frame
-            // (better spatial fidelity than any finite sampling).
-            // `materializeMotionPathInPropAnim` is a no-op for non-motion-path
-            // animations, so non-transform props pay zero cost.
-            normalized[propName] = (engine === PxTimelineEngine.native && propName === 'transform')
-                ? materializeMotionPathInPropAnim(out)
-                : out;
-        }
+        const channel = normalizeChannel(propName, propAnim, duration, defs, engine, inTime);
+        if (channel.keyframes.length > 0) channels[propName] = channel;
     }
 
-    return normalized;
+    return channels;
 }
 
 /**
@@ -996,10 +894,7 @@ export function normalizeBindings(
 
         if (Object.keys(normalizedAnim).length === 0) return null;
 
-        return {
-            id,
-            animate: normalizedAnim
-        };
+        return { id, channels: normalizedAnim };
     };
 
     // Process bindings (for pre-rendered DOM): `target` is `#id`-spelled on the wire (every
@@ -1058,7 +953,7 @@ export function normalizeBindings(
 /**
  * Finds prev/next keyframes for a given progress.
  */
-function getKeyframesPair(keyframes: PxNormalizedKeyframe[], progress: number) {
+function getKeyframesPair<V>(keyframes: Array<PxRuntimeKeyframe<V>>, progress: number) {
     // Outside the keyframe range, clamp to the NEAREST REAL segment (the caller clamps
     // `localProgress` to 0/1, so that holds the boundary pose). Spanning first→last
     // instead would invent a segment that exists nowhere in the animation: for keyframes
@@ -1070,8 +965,8 @@ function getKeyframesPair(keyframes: PxNormalizedKeyframe[], progress: number) {
     let nextKf = keyframes[last > 0 ? 1 : 0];
 
     for (let j = 0; j < last; j++) {
-        const aOff = (keyframes[j].t ?? 0);
-        const bOff = (keyframes[j + 1].t ?? 0);
+        const aOff = keyframes[j].t;
+        const bOff = keyframes[j + 1].t;
         if (aOff <= progress && progress <= bOff) {
             prevKf = keyframes[j];
             nextKf = keyframes[j + 1];
@@ -1086,174 +981,115 @@ function getKeyframesPair(keyframes: PxNormalizedKeyframe[], progress: number) {
     return { prevKf, nextKf };
 }
 
-// @px-importance important
-/**
- * Calculates interpolated value for a single property animation.
- */
-function calcPropertyValue(
-    propName: string,
-    propAnim: PxPropertyAnimation,
-    progress: number,
-    segments: MotionPathSegments | undefined,
-): { k: string, v: string } | null {
-    const keyframes = propAnim.keyframes || [];
-    if (keyframes.length === 0) return null;
-
+/** The bracketing pair at `progress` and the eased 0..1 position between them. */
+function pairAt<V>(keyframes: Array<PxRuntimeKeyframe<V>>, progress: number): { prevKf: PxRuntimeKeyframe<V>; nextKf: PxRuntimeKeyframe<V>; p: number } {
     const { prevKf, nextKf } = getKeyframesPair(keyframes, progress);
-
     // remap to local 0..1 within prevKf..nextKf
-    let localProgress = (prevKf === nextKf) ? 0 : remap(progress, prevKf.t ?? 0, nextKf.t ?? 0, 0, 1);
-    localProgress = clamp(localProgress, 0, 1);
-    const easing = keyframeEasing(prevKf); // e is on the source keyframe: applied from this KF to the next
-    if (easing && Array.isArray(easing)) {
+    let p = (prevKf === nextKf) ? 0 : remap(progress, prevKf.t, nextKf.t, 0, 1);
+    p = clamp(p, 0, 1);
+    // e is on the source keyframe: applied from this KF to the next
+    if (prevKf.e) {
         try {
-            localProgress = cubicBezier(easing as [number, number, number, number])(localProgress);
+            p = cubicBezier(prevKf.e)(p);
         } catch (e) {
             // fallback: ignore easing if parsing fails
         }
     }
+    return { prevKf, nextKf, p };
+}
 
-    let cssAttrName = isCamelCaseWord(propName) ? camelCaseToKebabWordIfNeeded(propName) : propName;
-    let cssValue: string | number | null = null;
+// @px-importance important
+/**
+ * The attribute the frames engine writes for one channel at `progress`, and its value — by kind.
+ */
+function calcPropertyValue(
+    propName: string,
+    channel: PxRuntimeChannel,
+    progress: number,
+    segments: MotionPathSegments | undefined,
+): { k: string, v: string } | null {
+    if (channel.keyframes.length === 0) return null;
+    const attrName = isCamelCaseWord(propName) ? camelCaseToKebabWordIfNeeded(propName) : propName;
 
-    const prevV = prevKf?.v;
-    const nextV = nextKf?.v;
-
-    if (cssAttrName === 'd') {
-        // Extract paths from { paths: [...] } format
-        const prevPaths = prevV?.paths ?? (Array.isArray(prevV) ? prevV : []);
-        const nextPaths = nextV?.paths ?? (Array.isArray(nextV) ? nextV : []);
-        cssValue = interpolateBeziers(
-            prevPaths,
-            nextPaths,
-            localProgress
-        ).map(bz => bezierToSvgPath(bz)).join('');
-    } else if (PX_COLOR_ATTR_NAMES.has(cssAttrName)) {
-        cssValue = toRGBA(interpolateColor(
-            prevV || [0, 0, 0, 1],
-            nextV || [0, 0, 0, 1],
-            localProgress
-        ));
-        cssAttrName = propName;
-    } else if (cssAttrName === 'stroke-dasharray') {
-        cssValue = interpolateVec(
-            prevV || [],
-            nextV || [],
-            localProgress
-        ).join(' ');
-        cssAttrName = propName;
-    } else if (
-        cssAttrName === 'transform' &&
-        prevV !== null && typeof prevV === 'object' && !Array.isArray(prevV)
-    ) {
-        // Unified transform: keyframe values are PxTransformParts records.
-        // Interpolate each present part separately, then compose into a transform
-        // string for the SVG `transform` attribute (no units).
-        const partKeys = new Set<string>([
-            ...(prevV ? Object.keys(prevV) : []),
-            ...(nextV ? Object.keys(nextV) : []),
-        ]);
-        const partsResult: PxTransformParts = {};
-        for (const partKey of partKeys) {
-            const prevPart = prevV?.[partKey];
-            const nextPart = nextV?.[partKey];
-            if (partKey === 'rotate' || partKey === 'skew') {
-                partsResult[partKey] = interpolateNum(+(prevPart ?? 0), +(nextPart ?? 0), localProgress);
-            } else if (partKey === 'translate' || partKey === 'scale' || partKey === 'origin') {
-                const fallback = partKey === 'scale' ? [1, 1] : [0, 0];
-                const [x, y] = interpolateVec(prevPart || fallback, nextPart || fallback, localProgress);
-                partsResult[partKey] = [x, y];
-            }
+    switch (channel.kind) {
+        case PxValueKind.path: {
+            const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
+            return { k: attrName, v: interpolateBeziers(prevKf.v.paths, nextKf.v.paths, p).map(bz => bezierToSvgPath(bz)).join('') };
         }
-        // Motion-along-path override (frames-mode only). The WAAPI binding
-        // pipeline materializes tangents + autoOrient into sampled
-        // `{translate, rotate}` kfs upstream (in `normalizeAnimationDefinition`),
-        // so for WAAPI this branch is a no-op (`propAnimIsMotionPath` returns
-        // false on already-materialized kfs). Frames-mode preserves the
-        // parametric form and we evaluate the Bezier per frame here — gives
-        // exact spatial fidelity vs. any finite sampling.
-        if (propAnimIsMotionPath(propAnim)) {
-            const prevTr = (prevV as { translate?: [number, number] }).translate;
-            const nextTr = (nextV as { translate?: [number, number] }).translate;
-            if (Array.isArray(prevTr) && Array.isArray(nextTr)) {
-                const sample = evaluateMotionPathSegment(
-                    prevKf, nextKf,
-                    [+prevTr[0], +prevTr[1]],
-                    [+nextTr[0], +nextTr[1]],
-                    localProgress,
-                    !!propAnim.autoOrient,
-                    segments,
-                );
-                partsResult.translate = [sample.translate[0], sample.translate[1]];
+        case PxValueKind.color: {
+            const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
+            return { k: propName, v: toRGBA(interpolateColor(prevKf.v, nextKf.v, p)) };
+        }
+        case PxValueKind.numberList: {
+            const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
+            return { k: propName, v: interpolateVec(prevKf.v, nextKf.v, p).join(' ') };
+        }
+        case PxValueKind.parts: {
+            const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
+            // Unified transform: interpolate each present part separately, then compose into a
+            // transform string for the SVG `transform` attribute (no units).
+            const parts = interpolateTransformParts(prevKf.v, nextKf.v, p);
+            // Motion-along-path (frames engine only — the native one sampled the path at
+            // normalization): evaluate the Bezier per frame — exact spatial fidelity.
+            const prevTr = prevKf.v.translate;
+            const nextTr = nextKf.v.translate;
+            if (channel.motionPath && prevTr && nextTr) {
+                const sample = evaluateMotionPathSegment(prevKf, nextKf, prevTr, nextTr, p, channel.motionPath.autoOrient, segments);
+                parts.translate = [sample.translate[0], sample.translate[1]];
                 // ADD the tangent angle to the element's own rotation, already interpolated into
-                // `partsResult.rotate` above — never replace it. The native engine's flattener
+                // `parts.rotate` above — never replace it. The native engine's flattener
                 // sums the two (`buildOutKfValue` in PxMotionPath), as do the editor and Lottie;
                 // overwriting here silently dropped a base rotation, so one document turned by a
                 // different amount depending on which engine played it.
-                if (sample.rotateDeg !== undefined) partsResult.rotate = sample.rotateDeg + (partsResult.rotate ?? 0);
+                if (sample.rotateDeg !== undefined) parts.rotate = sample.rotateDeg + (parts.rotate ?? 0);
             }
+            return { k: 'transform', v: composeTransformParts(parts, { withUnits: false }) };
         }
-        cssValue = composeTransformParts(partsResult, { withUnits: false });
-        cssAttrName = 'transform';
-    } else if (cssAttrName === 'translate') {
-        const v = interpolateVec(
-            prevV || [0, 0],
-            nextV || [0, 0],
-            localProgress
-        );
-        cssValue = 'translate(' + v.join(',') + ')';
-        cssAttrName = 'transform';
-    } else if (cssAttrName === 'rotate') {
-        const v = interpolateNum(
-            +(prevV || 0),
-            +(nextV || 0),
-            localProgress
-        );
-        cssValue = 'rotate(' + v + ')';
-        cssAttrName = 'transform';
-    } else if (cssAttrName === 'scale') {
-        const v = interpolateVec(
-            prevV || [1, 1],
-            nextV || [1, 1],
-            localProgress
-        );
-        cssValue = 'scale(' + v.join(',') + ')';
-        cssAttrName = 'transform';
-    } else {
-        // numeric attr
-        const num = interpolateNum(
-            +(prevV || 0),
-            +(nextV || 0),
-            localProgress
-        );
-        cssValue = num;
+        case PxValueKind.translate: case PxValueKind.scale: {
+            const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
+            return { k: 'transform', v: channel.kind + '(' + interpolateVec(prevKf.v, nextKf.v, p).join(',') + ')' };
+        }
+        case PxValueKind.rotate: {
+            const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
+            return { k: 'transform', v: 'rotate(' + interpolateNum(prevKf.v, nextKf.v, p) + ')' };
+        }
+        case PxValueKind.skew: {
+            const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
+            return { k: 'transform', v: 'skewX(' + interpolateNum(prevKf.v, nextKf.v, p) + ')' };
+        }
+        case PxValueKind.percent: {
+            const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
+            return { k: attrName, v: (interpolateNum(prevKf.v, nextKf.v, p) * 100) + '%' };
+        }
+        case PxValueKind.number: {
+            const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
+            return { k: attrName, v: '' + interpolateNum(prevKf.v, nextKf.v, p) + (channel.unit ?? '') };
+        }
+        case PxValueKind.discrete: {
+            const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
+            return { k: attrName, v: p < 0.5 ? prevKf.v : nextKf.v };
+        }
     }
-
-    if (PX_PCT_BASED_ATTR_NAMES.has(cssAttrName) && typeof cssValue === 'number') {
-        cssValue = (cssValue * 100) + '%';
-    }
-
-    return { k: cssAttrName, v: cssValue === null ? '' : '' + cssValue };
 }
 
 /**
- * Calculates interpolated attribute values for an animation definition.
- * @param animDef The animation definition (with resolved refs and normalized times)
- * @param progress The current animation progress (0-1)
+ * The attribute values the frames engine writes for an element's channels at `progress` (ms).
+ * @param channels The element's runtime channels (`normalizeBindings`)
+ * @param progress The current time in window ms
  * @param segments Optional motion-path segment table owned by the caller (an animator keeps one for its
  *   whole life) — repeated evaluations then build each Bezier segment once; without it nothing is cached.
  * @returns Object with computed attribute name/value pairs
  * @public @advanced
  */
 export function calcAnimationValues(
-    animDef: PxAnimationDefinition,
+    channels: PxRuntimeAnimation,
     progress: number,
     segments?: MotionPathSegments,
 ): Record<string, string> {
     const result: Record<string, string> = {};
 
-    for (const [propName, propAnim] of Object.entries(animDef)) {        
-        const computed = calcPropertyValue(propName, propAnim, progress, segments);
+    for (const [propName, channel] of Object.entries(channels)) {
+        const computed = calcPropertyValue(propName, channel, progress, segments);
         if (computed) {
             result[computed.k] = computed.v;
         }

@@ -193,8 +193,8 @@ export const PxKeyframeSchema = implementsInterface<_PxKeyframe>()(px.object({
 export interface _PxNormalizedKeyframe {
     /** Time in ms from the animation start (the wire spells it `time`). */
     t?: number;
-    /** The parsed value at this keyframe (the wire spells it `value`). */
-    v?: any;
+    /** The parsed value at this keyframe (the wire spells it `value`) — typed per kind on the engine's channels (`PxRuntimeChannel`). */
+    v?: unknown;
     /** The RESOLVED easing — never a name (the wire spells it `easing`). */
     e?: PxEasingOrRef;
     /** Incoming spatial tangent, same meaning as the wire's. */
@@ -1182,17 +1182,6 @@ export const PxBindingSchema = implementsInterface<_PxBinding>()(px.object({
 /** @public */
 export type PxBinding = PxInfer<typeof PxBindingSchema>;
 const _ck_PxBinding: KeysMatch<PxBinding, _PxBinding> = true; // the key sets are identical
-
-/**
- * RUNTIME VIEW ONLY (not wire) — a binding once `normalizeBindings` has resolved it: the
- * bare DOM id and the merged, normalized animation. A self-contained document yields the same
- * shape from every animated node, so the engines never see which kind of document they play.
- * @internal
- */
-export interface PxNormalizedBinding {
-    id: string;
-    animate: PxAnimationDefinition;
-}
 
 // The WIRE format (review §2.1): playback dynamics live only inside `timeline` —
 // the flat spelling (`trigger`/`delay`/`iterations`/`fill`/`direction`/`resetOnFinish`/

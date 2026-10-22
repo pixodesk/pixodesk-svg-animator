@@ -55,7 +55,7 @@ runtime crash on a non-browser platform.
 | **Schema & types** | `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxEffectsSchema`, … plus every `Px*` TypeScript type and the `px` schema builder |
 | **Validation** | `validateDocument` (the whole document, strict), `isPxDocument`, `isValidPxDocument`, `validateNodeEffects` |
 | **Materializers** | `materializeAllInTree`, `materializeNodeEffects` |
-| **Interpolation** | `calcAnimationValues`, `interpolateValue`, `normalizeBindings` |
+| **Interpolation** | `calcAnimationValues`, `normalizeBindings` (typed runtime channels: `PxRuntimeAnimation`, `PxValueKind`) |
 | **Sampling / geometry** | `createPathSampler`, bezier helpers, `cubicBezier`, `splitEasing` |
 | **Text** | `materializeGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
 | **Node helpers** | `toDomProps`, `sanitizeAttributeValue`, `generateNewIds` |

@@ -22,16 +22,16 @@
 // whole node schema and the inventory explodes into thousands of paths that say nothing new.
 // ============================================================================
 
-import { describeSchema, type PxSchema } from '../schema/PxSchema';
+import { describeSchema, type PxAnySchema } from '../schema/PxSchema';
 
 /** Every field identity `root` can carry, as canonical paths, sorted. @internal */
-export function schemaFieldUniverse(root: PxSchema<any, any>): Array<string> {
+export function schemaFieldUniverse(root: PxAnySchema): Array<string> {
     const fields = new Set<string>();
     const enumerated = new Set<unknown>();
-    const queue: Array<{ schema: PxSchema<any, any>; path: string }> = [{ schema: root, path: '' }];
+    const queue: Array<{ schema: PxAnySchema; path: string }> = [{ schema: root, path: '' }];
 
-    while (queue.length) {
-        const { schema, path } = queue.shift()!;
+    for (let next = 0; next < queue.length; next++) {   // breadth-first, in arrival order
+        const { schema, path } = queue[next];
         const d = describeSchema(schema);
         switch (d.kind) {
             case 'shape': {
@@ -63,7 +63,7 @@ export function schemaFieldUniverse(root: PxSchema<any, any>): Array<string> {
 
 /** The literal a discriminated-union member carries at its discriminant, unwrapping an
  *  OPTIONAL discriminant (`type?: 'time'`). `?` when it carries none. */
-function discriminantOf(member: PxSchema<any, any>, key: string): string {
+function discriminantOf(member: PxAnySchema, key: string): string {
     const d = describeSchema(member);
     if (d.kind !== 'shape') return '?';
     const keySchema = d.shape[key];

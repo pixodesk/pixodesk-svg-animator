@@ -799,8 +799,11 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
     of shapes; effect channels through `readAnimatable(raw, valueSchema)`; open JSON as `Record<string, unknown>`.
   - Root holes closed: `PxNode` index, `meta`, `PxKeyframe<T = unknown>`, `keyframeValue(): unknown`, `px.any()`.
   - Guards: `noImplicitAny` on everywhere; `anyBudget.test.ts` — a per-package ratchet that can only go down.
-  - Left (later track): schema DSL internals, the interpolator's per-frame value domain, the glyph element
-    factory generic, platform globals (DOM / React Native), the effects test kit, React `deepEquals`.
+  - Part 2 (`dev-docs/plans/typed-internals.md`): the schema framework typed (`PxAnySchema`, `describe()` per class),
+    the glyph materializer generic over the caller's paint (`GlyphTextNode<P, A>`, `GlyphFactory`), the engine's
+    runtime values as typed channels with ONE value-kind decision (`channelKindOf`) — which fixed animated gradient
+    stops falling back to the frames engine, `NaN` at loop cut points with named easings, `"20%"` offsets. Shipped
+    `any` 126 → 40; left: platform globals, React Native component types, React `deepEquals`, the effects test kit.
 - **Trigger:** `flattenAnimatorTimeline` reads the wire through `(cfg as any).timeline` even
   though the document was already validated — once a document passed the check it HAS a type,
   and reading it through `any` throws that away. Audit the rest.

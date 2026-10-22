@@ -8,7 +8,7 @@
 // string, animated = `{keyframes}` whose values are `{pathData:"M…"}` — the one wire form
 // for animated geometry (@see PxKeyframeValueSchema).
 
-import { PxPathValueSchema, type PxAnimatable, type PxBezierPath } from '../../format/PxAnimatorTypes';
+import { PxPathValueSchema, type PxAnimatable, type PxBezierPath, type PxLoop } from '../../format/PxAnimatorTypes';
 import { parseSvgPathToBezier } from '../../animation/PxDefinitions';
 import { bezierToSvgPath, interpolateBeziers } from '../../util/PxAnimatorUtil';
 import { ReadKind, readAnimatable } from './transformParts';
@@ -32,7 +32,7 @@ export interface PathTrack {
     animated: boolean;
     /** Keyframe times — empty when static. */
     times: Array<number>;
-    loop?: unknown;
+    loop?: PxLoop | boolean;
     /** The path's `d` at time `t`. */
     dAt(t: number): string;
     /** The longest path across the keyframes — a sampling step derived from it suits every time. */

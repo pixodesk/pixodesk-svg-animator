@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimator } from './index';
-import type { PxAnimatedSvgDocument, PxAnimationDefinition } from '@pixodesk/svg-animator-core';
+import type { PxAnimatedSvgDocument, PxRuntimeAnimation } from '@pixodesk/svg-animator-core';
 import { PX_LOOP_JUMP_SHIFT_MS, cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from '@pixodesk/svg-animator-core/internal';
 import { calcAnimationValues, normalizeBindings } from '@pixodesk/svg-animator-core';
 import { materializeAllInTree } from '@pixodesk/svg-animator-core';
@@ -253,10 +253,10 @@ describe('animateBackground', () => {
 describe('Loop expansion', () => {
 
     /** Helper: get normalized binding's animate definition for translate */
-    function getTranslateAnim(doc: PxAnimatedSvgDocument): PxAnimationDefinition {
+    function getTranslateAnim(doc: PxAnimatedSvgDocument): PxRuntimeAnimation {
         const bindings = normalizeBindings(doc);
         expect(bindings.length).toBeGreaterThan(0);
-        return bindings[0].animate! as PxAnimationDefinition;
+        return bindings[0].channels;
     }
 
     /** Helper: extract translate [x,y] at a given progress (0-1) from the animation definition */
@@ -722,10 +722,10 @@ describe('Color attribute normalization (frames-mode parity)', () => {
         }
     }
 
-    function getBindings(doc: PxAnimatedSvgDocument): PxAnimationDefinition {
+    function getBindings(doc: PxAnimatedSvgDocument): PxRuntimeAnimation {
         const bindings = normalizeBindings(doc);
         expect(bindings.length).toBeGreaterThan(0);
-        return bindings[0].animate! as PxAnimationDefinition;
+        return bindings[0].channels;
     }
 
     it('camelCase `stopColor` is parsed (regression: frames-mode produced rgba(NaN,NaN,NaN,…))', () => {

@@ -29,9 +29,13 @@
 
 import { bezier2D_arcAtT, bezier2D_arcLengthLUT, bezier2D_derivativeAt, bezier2D_pointAt, clamp, invertEasing, splitEasing } from '../util/PxAnimatorUtil';
 import type { ArcLengthLUT } from '../util/PxAnimatorUtil';
-import type { PxAnyKeyframe, PxKeyframe, PxNormalizedKeyframe, PxNode, PxPropertyAnimation, PxTransformParts } from '../format/PxAnimatorTypes';
+import type { PxAnyKeyframe, PxNode, PxPropertyAnimation, PxTransformParts } from '../format/PxAnimatorTypes';
 import { keyframeTime, keyframeValue, keyframeEasing, keyframeTangentIn, keyframeTangentOut } from '../format/PxAnimatorTypes';
 import { mergeStaticTransformIntoAnimDef } from '../animation/PxStaticTransformMerge';
+import type { PxRuntimeKeyframe } from '../animation/PxRuntimeChannel';
+
+/** A sampled output keyframe: a plain parts record, no tangents. */
+type SampledKf = PxRuntimeKeyframe<PxTransformParts>;
 
 
 type Point2 = [number, number];
@@ -54,8 +58,10 @@ function getKfTime(kf: PxAnyKeyframe): number {
     return keyframeTime(kf) as number;
 }
 
+/** A RESOLVED easing only — a name (a wire keyframe the tree walker reads) cannot be split, so it samples linear. */
 function getKfEasing(kf: PxAnyKeyframe): Easing | undefined {
-    return keyframeEasing(kf) as Easing | undefined;
+    const e = keyframeEasing(kf);
+    return Array.isArray(e) ? e : undefined;
 }
 
 
@@ -157,8 +163,8 @@ export interface MotionPathSample {
  * @internal
  */
 export function evaluateMotionPathSegment(
-    prevKf: PxKeyframe,
-    nextKf: PxKeyframe,
+    prevKf: PxAnyKeyframe,
+    nextKf: PxAnyKeyframe,
     prevPos: Point2,
     nextPos: Point2,
     localProgress: number,
@@ -239,22 +245,41 @@ export function materializeMotionPathInPropAnim(
     opts?: MotionPathMaterializationOptions,
 ): PxPropertyAnimation {
     if (!propAnimIsMotionPath(anim)) return anim;
-    const kfs = anim.keyframes as Array<PxAnyKeyframe> | undefined;
+    const kfs = anim.keyframes;
     if (!Array.isArray(kfs) || kfs.length < 2) return anim;
+    const out = sampleMotionPathKeyframes(kfs, !!anim.autoOrient, opts);
+    if (!out) return anim;
+    // Output converges on `keyframes` — the `kfs` alias is gone (review §1.2/§6.1). The sampled
+    // keyframes are in the runtime spelling (`t` / `v` / `e`) — the plain tree carries them (open: 2b).
+    const result: PxPropertyAnimation = { keyframes: out };
+    if (anim.loop !== undefined) result.loop = anim.loop;
+    return result;
+}
 
-    const autoOrient   = !!anim.autoOrient;
+/**
+ * The motion-path SAMPLER behind {@link materializeMotionPathInPropAnim} and the native engine's
+ * channels: a track's keyframes (tangents, optional `autoOrient`) → plain parts records placed at
+ * curve extrema and adaptive bisection points. `undefined` when the first keyframe has no translate.
+ * @internal
+ */
+export function sampleMotionPathKeyframes(
+    kfs: ReadonlyArray<PxAnyKeyframe>,
+    autoOrient: boolean,
+    opts?: MotionPathMaterializationOptions,
+): Array<SampledKf> | undefined {
+    if (kfs.length < 2) return undefined;
     const flatnessTol  = opts?.flatnessTolerance  ?? DEFAULT_FLATNESS_TOL;
     const rotationTol  = opts?.rotationTolerance  ?? DEFAULT_ROTATION_TOL;
     const maxSamples   = opts?.maxSamplesPerSegment ?? DEFAULT_MAX_SAMPLES;
 
-    const out: Array<PxNormalizedKeyframe> = [];
+    const out: Array<SampledKf> = [];
     const segments = createMotionPathSegments();   // this call's own: each segment is asked for 2–3 times
 
     // First output kf — translate from input; rotate from segment-0 derivative
     // at t=0 if autoOrient. All other transform parts (`origin`, `scale`, an
     // explicit `rotate` when `autoOrient` is false, …) come from kfs[0].value.
     const firstPos = getKfTranslate(kfs[0]);
-    if (!firstPos) return anim;
+    if (!firstPos) return undefined;
     const firstRotate = autoOrient ? derivAngleForFirstKf(kfs[0], kfs[1], segments) : undefined;
     out.push(makeOutKf(
         getKfTime(kfs[0]),
@@ -303,11 +328,7 @@ export function materializeMotionPathInPropAnim(
     // a tangent rotating slowly across the +X axis (e.g. -179° → +179°)
     // would otherwise be lerp'd as a ~358° spin instead of a ~2° step.
     if (autoOrient) unwrapAutoOrientRotations(out);
-
-    // Output converges on `keyframes` — the `kfs` alias is gone (review §1.2/§6.1).
-    const result: PxPropertyAnimation = { keyframes: out };
-    if (anim.loop !== undefined) (result as { loop?: unknown }).loop = anim.loop;
-    return result;
+    return out;
 }
 
 
@@ -334,7 +355,7 @@ export function unwrapAutoOrientRotations(kfs: Array<PxAnyKeyframe>): void {
 }
 
 
-function makeOutKf(time: number, value: PxTransformParts): PxNormalizedKeyframe {
+function makeOutKf(time: number, value: PxTransformParts): SampledKf {
     return { t: time, v: value };
 }
 
@@ -455,15 +476,13 @@ function wrappedAngleDelta(a: number, b: number): number {
  * easing on segment `i+1` works exactly as before.
  */
 function insertSharpCornerStepKfIfNeeded(
-    out: Array<PxNormalizedKeyframe>,
+    out: Array<SampledKf>,
     prevKf: PxAnyKeyframe, nextKf: PxAnyKeyframe,
     prevPos: Point2, nextPos: Point2,
     rotationTol: number,
     segments: MotionPathSegments,
 ): void {
-    const lastKf = out[out.length - 1];
-    const lastV = keyframeValue(lastKf) as { rotate?: number } | undefined;
-    const prevExit = lastV?.rotate;
+    const prevExit = out[out.length - 1].v.rotate;
     if (typeof prevExit !== 'number') return;
 
     // `prevExit` is the SUMMED rotation (tangent + explicit). Compare pure
@@ -504,8 +523,8 @@ const CORNER_STEP_AFTER_BOUNDARY_MS = 0.05;
  *  critical/adaptive points + the next-kf endpoint), with positions, optional
  *  rotations, and split easings. */
 function materializeSegment(
-    out: Array<PxNormalizedKeyframe>,
-    prevKf: PxKeyframe, nextKf: PxKeyframe,
+    out: Array<SampledKf>,
+    prevKf: PxAnyKeyframe, nextKf: PxAnyKeyframe,
     prevPos: Point2, nextPos: Point2,
     autoOrient: boolean,
     flatnessTol: number, rotationTol: number, maxSamples: number,

@@ -55,8 +55,8 @@ describe('effect keyframes accept the short wire aliases', () => {
         const m = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
         const bindings = normalizeBindings(m, PxTimelineEngine.js) || [];
         return bindings.map(b => [
-            calcAnimationValues(b.animate as any, 0),
-            calcAnimationValues(b.animate as any, 1000),
+            calcAnimationValues(b.channels, 0),
+            calcAnimationValues(b.channels, 1000),
         ]);
     };
 
@@ -116,13 +116,13 @@ describe('gradient geometry animation', () => {
         const m = generateNewIds(materializeAllInTree(linearDoc(), PxTimelineEngine.native));
         const bindings = normalizeBindings(m, PxTimelineEngine.js) || [];
         const geom = bindings
-            .map(b => calcAnimationValues(b.animate as any, 0))
+            .map(b => calcAnimationValues(b.channels, 0))
             .find(v => 'y1' in v || 'y2' in v);
         expect(geom).toBeDefined();
 
         const at = (t: number) => {
-            const b = bindings.find(x => 'y1' in calcAnimationValues(x.animate as any, 0))!;
-            return calcAnimationValues(b.animate as any, t);
+            const b = bindings.find(x => 'y1' in calcAnimationValues(x.channels, 0))!;
+            return calcAnimationValues(b.channels, t);
         };
         expect(+at(0).y1).toBeCloseTo(-45, 3);
         expect(+at(1000).y1).toBeCloseTo(45, 3);
@@ -151,7 +151,7 @@ describe('gradient geometry animation', () => {
 
         const m = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
         const bindings = normalizeBindings(m, PxTimelineEngine.js) || [];
-        const end = bindings.map(b => calcAnimationValues(b.animate as any, 1000)).find(v => 'r' in v)!;
+        const end = bindings.map(b => calcAnimationValues(b.channels, 1000)).find(v => 'r' in v)!;
         expect(end).toMatchObject({ cx: '20', cy: '30', fx: '10', fy: '15', r: '90' });
     });
 });

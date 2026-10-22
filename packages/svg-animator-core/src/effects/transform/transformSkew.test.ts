@@ -13,7 +13,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { composeTransformParts } from '../../util/PxAnimatorUtil';
-import { interpolateValue } from '../../animation/PxDefinitions';
+import { interpolateTransformParts } from '../../animation/PxRuntimeChannel';
 import type { PxNode } from '../../format/PxAnimatorTypes';
 import { materialize } from '../effectTestKit';
 
@@ -27,8 +27,8 @@ describe('skew transform part', () => {
         expect(s).toBe('translate(10,20)translate(50,60)rotate(30)skewX(15)scale(2,3)translate(-50,-60)');
     });
 
-    it('interpolateValue lerps the skew slot', () => {
-        const v = interpolateValue('transform', { skew: 0 }, { skew: 30 }, 0.5) as { skew?: number };
+    it('the transform parts blend lerps the skew slot', () => {
+        const v = interpolateTransformParts({ skew: 0 }, { skew: 30 }, 0.5);
         expect(v.skew).toBe(15);
     });
 

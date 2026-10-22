@@ -4,89 +4,45 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, normalizeBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxBezierPath, PxTransformPartsSchema, clampSeekMs, isValidPlaybackRate, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
-import { PX_DEFAULT_ITERATIONS, PxNormalizedPathValueSchema } from '@pixodesk/svg-animator-core/internal';
-import { PX_PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, PX_COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateValue, kebabToCamelCaseWord, splitEasing, toRGBA, PX_TRANSFORM_FN_NAMES, type PxAnyKeyframe, type PxNormalizedKeyframe, keyframeEasing, keyframeValue, createDiagnostics } from '@pixodesk/svg-animator-core/internal';
+import { getAnimatorConfig, normalizeBindings, PxTimelineEngine, PxValueKind, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxRuntimeAnimation, type PxRuntimeChannel, type PxRuntimeKeyframe, clampSeekMs, isValidPlaybackRate, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
+import { PX_DEFAULT_ITERATIONS, mapChannelKeyframes, type PxChannelLerp } from '@pixodesk/svg-animator-core/internal';
+import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformParts, cubicBezier, kebabToCamelCaseWord, splitEasing, toRGBA, createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
 import type { PxEngineAnimatorApi } from '../shared/PxAnimatorWebTypes';
 
 
+/** One WAAPI keyframe's CSS: the property it writes and the value, before the `offset` / `easing`. */
+interface CssValue { key: string; value: string }
+
 /**
- * Converts a single normalized keyframe into a Web Animations API Keyframe object.
- *
- * Handles three categories of CSS property:
- * - **Color attributes** (e.g. fill, stroke): array values are converted to an rgba() string.
- * - **Transform functions** (e.g. translate, rotate, scale): values are formatted as a
- *   CSS transform function string and mapped to the transform property.
- * - **All other properties**: the value is coerced to a string as-is.
- *
- * If the resulting (cssKey, cssValue) pair is not supported by the browser (CSS.supports returns
- * false), cssKey is added to unsupportedSet so the caller can decide whether to fall back to the
- * frame-loop animator.
+ * The CSS a channel's keyframe writes — by its KIND (decided once, at conversion): a colour as
+ * `rgba()`, a parts record / per-part channel into `transform` (with CSS units), `d` as `path("…")`,
+ * a percent number as `%`, a number with its unit, anything else as it is.
  */
-function createCssKf(kf: PxAnyKeyframe, t: number, propName: string, unsupportedSet: Set<string>) {
-    const value = keyframeValue(kf);
-    // The easing is on the SOURCE keyframe: it applies from this kf to the next, matching the
-    // WAAPI convention. Resolved already when the keyframe came through `normalizeKeyframes`.
-    const e = keyframeEasing(kf);
-
-    const cssKf: Keyframe = {
-        offset: t,
-        easing: e && Array.isArray(e) ? "cubic-bezier(" + e.join(',') + ")" : undefined
-    };
-
-    let cssValue: string;
-    let cssKey = propName;
-    // Unified transform: the keyframe value is a parts record (PxTransformParts).
-    const parts = propName === 'transform' ? PxTransformPartsSchema.castOrNull(value) : null;
-
-    if (PX_COLOR_ATTR_NAMES.has(propName) && Array.isArray(value)) {
-        cssValue = toRGBA(value);
-    } else if (parts) {
-        // Compose all present parts into one CSS transform string.
-        cssValue = composeTransformParts(parts, { withUnits: true });
-        cssKey = 'transform';
-    } else if (PX_TRANSFORM_FN_NAMES.has(propName)) {
-        let fnArgs: unknown = value;
-        if (Array.isArray(value)) fnArgs = (propName === 'translate' ? value.map(v => v + 'px') : value).join(',');
-        if (propName === 'rotate') fnArgs = fnArgs + 'deg';
-        cssValue = propName + '(' + fnArgs + ')';
-        cssKey = 'transform';
-    } else if (propName === 'd') {
-        // Animated path. The value is a { paths: PxBezierPath[] } record (same shape the CSS/frame
-        // builder consumes). Without this branch it stringified to "[object Object]", an invalid
-        // `d`, which empties the <path> — the shape vanished in forced WAAPI while svg-css (which
-        // emits `d: path(...)`) rendered it. Emit the CSS `d` presentation-attr syntax `path("…")`
-        // via the same bezierToSvgPath used by the CSS path, so WAAPI animates it identically.
-        const paths: Array<PxBezierPath> = PxNormalizedPathValueSchema.castOrNull(value)?.paths ?? [];
-        // forceCurves: CSS/WAAPI only interpolates `path()` values with IDENTICAL command
-        // sequences — uniform all-`C` output keeps every keyframe structurally equal
-        // (mixed L/C, e.g. round-corner radius 0 vs >0, would go DISCRETE → 50% flip).
-        cssValue = 'path("' + paths.map(bz => bezierToSvgPath(bz, true)).join('') + '")';
-    } else if (PX_PCT_BASED_ATTR_NAMES.has(propName) && typeof value === 'number') {
-        // Percent-based CSS properties (offset-distance): the wire carries 0..1 numbers,
-        // but the property needs a <length-percentage>. The frames engine already converts
-        // (`calcPropertyValue`); without this twin branch WAAPI got a bare "0.25", which
-        // `CSS.supports('offset-distance', '0.25')` rejects — so the attr was flagged
-        // unsupported and the WHOLE document silently fell back to frames. Same maths,
-        // same units, both engines.
-        cssValue = (value * 100) + '%';
-    } else {
-        cssValue = '' + value;
+function cssValuesOf(propName: string, channel: PxRuntimeChannel): Array<CssValue> {
+    switch (channel.kind) {
+        case PxValueKind.color: return channel.keyframes.map(kf => ({ key: propName, value: toRGBA(kf.v) }));
+        case PxValueKind.parts: return channel.keyframes.map(kf => ({ key: TRANSFORM, value: composeTransformParts(kf.v, { withUnits: true }) }));
+        case PxValueKind.translate: return channel.keyframes.map(kf => ({ key: TRANSFORM, value: 'translate(' + kf.v.map(v => v + 'px').join(',') + ')' }));
+        case PxValueKind.scale: return channel.keyframes.map(kf => ({ key: TRANSFORM, value: 'scale(' + kf.v.join(',') + ')' }));
+        case PxValueKind.rotate: return channel.keyframes.map(kf => ({ key: TRANSFORM, value: 'rotate(' + kf.v + 'deg)' }));
+        case PxValueKind.skew: return channel.keyframes.map(kf => ({ key: TRANSFORM, value: 'skewX(' + kf.v + 'deg)' }));
+        // Animated path: the CSS `d` presentation-attr syntax `path("…")`, via the same bezierToSvgPath
+        // the CSS export uses. forceCurves: CSS/WAAPI only interpolates `path()` values with IDENTICAL
+        // command sequences — uniform all-`C` output keeps every keyframe structurally equal (mixed L/C,
+        // e.g. round-corner radius 0 vs >0, would go DISCRETE → 50% flip).
+        case PxValueKind.path: return channel.keyframes.map(kf => ({ key: propName, value: 'path("' + kf.v.paths.map(bz => bezierToSvgPath(bz, true)).join('') + '")' }));
+        // Percent-based CSS properties (offset-distance): the wire carries 0..1 numbers, the property
+        // needs a <length-percentage> — the same maths and units as the frames engine.
+        case PxValueKind.percent: return channel.keyframes.map(kf => ({ key: propName, value: (kf.v * 100) + '%' }));
+        case PxValueKind.number: return channel.keyframes.map(kf => ({ key: propName, value: '' + kf.v + (channel.unit ?? '') }));
+        case PxValueKind.numberList: return channel.keyframes.map(kf => ({ key: propName, value: '' + kf.v }));
+        case PxValueKind.discrete: return channel.keyframes.map(kf => ({ key: propName, value: kf.v }));
     }
-
-    // `CSS.supports` takes a CSS PROPERTY name, so it must be asked in kebab-case —
-    // `CSS.supports('strokeDasharray', …)` is always false. Prop names reach us in
-    // either form (the app materializes trim paths as camelCase `strokeDasharray` /
-    // `strokeDashoffset` / `strokeOpacity`), and an unsupported entry makes the caller
-    // discard EVERY animation on the document, so a false negative here is costly.
-    if (!CSS.supports(camelCaseToKebabWordIfNeeded(cssKey), cssValue)) unsupportedSet.add(cssKey);
-
-    cssKey = kebabToCamelCaseWord(cssKey);
-    cssKf[cssKey] = cssValue;
-    return cssKf;
 }
+
+const TRANSFORM = 'transform';
 
 /**
  * Clips keyframes to the [0, duration] range.
@@ -94,27 +50,25 @@ function createCssKf(kf: PxAnyKeyframe, t: number, propName: string, unsupported
  * keyframe at the boundary with the correct value and split easing, so WAAPI sees
  * exact start/end values rather than out-of-range ones.
  */
-function clipKeyframesToDuration(
-    propName: string,
-    keyframes: PxNormalizedKeyframe[],
-    duration: number
-): PxNormalizedKeyframe[] {
-    const result: PxNormalizedKeyframe[] = [];
+function clipKeyframesToDuration<V>(
+    keyframes: Array<PxRuntimeKeyframe<V>>,
+    duration: number,
+    lerp: PxChannelLerp<V>,
+): Array<PxRuntimeKeyframe<V>> {
+    const result: Array<PxRuntimeKeyframe<V>> = [];
 
     for (let i = 0; i < keyframes.length; i++) {
         const kf = keyframes[i];
-        const t = kf.t ?? 0;
+        const t = kf.t;
 
         if (t < 0) {
             // If the next keyframe is in range, interpolate value at t=0
             const next = keyframes[i + 1];
-            if (next && (next.t ?? 0) >= 0) {
-                const nextT = next.t ?? 0;
-                const localFrac = (0 - t) / (nextT - t);
-                const bezier = Array.isArray(kf.e) ? kf.e : undefined;   // a normalized keyframe's easing is resolved — never a name
-                const easedFrac = bezier ? cubicBezier(bezier)(localFrac) : localFrac;
-                const { right: rightEasing } = splitEasing(bezier, localFrac);
-                result.push({ t: 0, v: interpolateValue(propName, kf.v, next.v, easedFrac), e: rightEasing });
+            if (next && next.t >= 0) {
+                const localFrac = (0 - t) / (next.t - t);
+                const easedFrac = kf.e ? cubicBezier(kf.e)(localFrac) : localFrac;
+                const { right: rightEasing } = splitEasing(kf.e, localFrac);
+                result.push({ t: 0, v: lerp(kf.v, next.v, easedFrac), e: rightEasing });
             }
             continue;
         }
@@ -122,14 +76,12 @@ function clipKeyframesToDuration(
         if (t > duration) {
             // If the previous keyframe was in range, interpolate value at t=duration
             const prev = keyframes[i - 1];
-            if (prev && (prev.t ?? 0) <= duration) {
-                const prevT = prev.t ?? 0;
-                const localFrac = (duration - prevT) / (t - prevT);
-                const bezier = Array.isArray(prev.e) ? prev.e : undefined;
-                const easedFrac = bezier ? cubicBezier(bezier)(localFrac) : localFrac;
-                const { left: leftEasing } = splitEasing(bezier, localFrac);
+            if (prev && prev.t <= duration) {
+                const localFrac = (duration - prev.t) / (t - prev.t);
+                const easedFrac = prev.e ? cubicBezier(prev.e)(localFrac) : localFrac;
+                const { left: leftEasing } = splitEasing(prev.e, localFrac);
                 if (result.length > 0) result[result.length - 1] = { ...result[result.length - 1], e: leftEasing };
-                result.push({ t: duration, v: interpolateValue(propName, prev.v, kf.v, easedFrac), e: undefined });
+                result.push({ t: duration, v: lerp(prev.v, kf.v, easedFrac), e: undefined });
             }
             break;
         }
@@ -141,35 +93,50 @@ function clipKeyframesToDuration(
 }
 
 /**
- * Converts a PxAnimationDefinition into a map of Web Animations API Keyframe arrays, one per
+ * Converts an element's runtime channels into a map of Web Animations API Keyframe arrays, one per
  * animated property.
  *
- * For each property in the definition the function:
+ * For each channel the function:
  * 1. Clips keyframes to [0, duration], interpolating boundary values when a pair straddles an edge.
  * 2. Normalizes keyframe time values to the [0, 1] offset range (time / duration).
- * 3. Delegates CSS value conversion to createCssKf.
+ * 3. Writes each keyframe's CSS by the channel's kind (`cssValuesOf`).
  * 4. Ensures the keyframe sequence always starts at offset: 0 and ends at offset: 1 — a
  *    requirement of the Web Animations API for correct looping behavior. If the first keyframe
  *    starts after 0 or the last keyframe ends before 1, a copy of that keyframe is inserted at the
  *    boundary with the adjusted offset.
+ *
+ * A value the browser rejects (`CSS.supports` false) adds its property to `unsupportedSet`, so the
+ * caller can decide whether to fall back to the frame-loop animator.
  */
 export function convertToWebApiKeyframes(
-    animDef: PxAnimationDefinition,
+    channels: PxRuntimeAnimation,
     unsupportedSet: Set<string>,
     config: PxAnimatorRuntimeConfig
 ): Map<string, Keyframe[]> {
     const result = new Map<string, Keyframe[]>();
 
-    for (const [propName, propAnim] of Object.entries(animDef)) {
+    for (const [propName, channel] of Object.entries(channels)) {
         const duration = config.duration || 1;
-        const clippedKeyframes = clipKeyframesToDuration(propName, propAnim.keyframes || [], duration);
+        const clipped = mapChannelKeyframes(channel, (keyframes, lerp) => clipKeyframesToDuration(keyframes, duration, lerp));
+        const css = cssValuesOf(propName, clipped);
         const cssKeyframes: Keyframe[] = [];
 
-        for (let i = 0; i < clippedKeyframes.length; i++) {
-            const kf = clippedKeyframes[i];
-
-            const t = clamp((kf.t ?? 0) / duration, 0, 1);
-            const cssKf: Keyframe = createCssKf(kf, t, propName, unsupportedSet);
+        for (let i = 0; i < clipped.keyframes.length; i++) {
+            const kf = clipped.keyframes[i];
+            const { key, value } = css[i];
+            // The easing is on the SOURCE keyframe: it applies from this kf to the next, matching the
+            // WAAPI convention — resolved already when the channel was converted.
+            const cssKf: Keyframe = {
+                offset: clamp(kf.t / duration, 0, 1),
+                easing: kf.e ? 'cubic-bezier(' + kf.e.join(',') + ')' : undefined,
+            };
+            // `CSS.supports` takes a CSS PROPERTY name, so it must be asked in kebab-case —
+            // `CSS.supports('strokeDasharray', …)` is always false. Prop names reach us in
+            // either form (the app materializes trim paths as camelCase `strokeDasharray` /
+            // `strokeDashoffset` / `strokeOpacity`), and an unsupported entry makes the caller
+            // discard EVERY animation on the document, so a false negative here is costly.
+            if (!CSS.supports(camelCaseToKebabWordIfNeeded(key), value)) unsupportedSet.add(key);
+            cssKf[kebabToCamelCaseWord(key)] = value;
 
             // Keyframes need to start with offset:0 to work correctly with loops
             if (i === 0 && (cssKf.offset || 0) > 0) {
@@ -275,12 +242,7 @@ export function createWebApiAnimator(
     // made the browser log "Invalid keyframe value" for each element × property of animations that were never played.
     const prepared: Array<{ id: string; keyframesMap: ReturnType<typeof convertToWebApiKeyframes> }> = [];
     for (const binding of bindings || []) {
-        const animDef = binding.animate;
-        if (!animDef || typeof animDef !== 'object' || Array.isArray(animDef)) {
-            diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.unresolvedBinding, binding);
-            continue;
-        }
-        prepared.push({ id: binding.id, keyframesMap: convertToWebApiKeyframes(animDef, unsupportedSet, config) });
+        prepared.push({ id: binding.id, keyframesMap: convertToWebApiKeyframes(binding.channels, unsupportedSet, config) });
     }
 
     if (!forceEvenIfHasUnsupportedAttrs && unsupportedSet.size) {

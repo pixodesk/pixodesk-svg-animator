@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { PX_LOOP_JUMP_SHIFT_MS, calcAnimationValues, materializeInternalLoopsInPropAnim } from './PxDefinitions';
 import type { PxPropertyAnimation } from '../format/PxAnimatorTypes';
+import { PxValueKind, type PxRuntimeAnimation } from './PxRuntimeChannel';
 
 /**
  * B7 — a cycle loop's snap-back must not share a time with the previous repetition's
@@ -30,6 +31,16 @@ describe('cycle-loop boundary (B7)', () => {
     const kfsOf = (a: PxPropertyAnimation): Array<LooseKf> => (a.keyframes ?? []) as Array<LooseKf>;
     const times = (a: PxPropertyAnimation) => kfsOf(a).map(k => k.t ?? k.time);
     const xs = (a: PxPropertyAnimation) => kfsOf(a).map(k => (k.v ?? k.value)?.translate?.[0]);
+    /** The expanded keyframes as the frames engine's `parts` channel. */
+    const channelsOf = (a: PxPropertyAnimation): PxRuntimeAnimation => ({
+        transform: {
+            kind: PxValueKind.parts,
+            keyframes: kfsOf(a).map(k => {
+                const tr = (k.v ?? k.value)?.translate ?? [0, 0];
+                return { t: k.t ?? k.time ?? 0, v: { translate: [tr[0], tr[1]] } };
+            }),
+        },
+    });
 
     it('a cycle separates the snap-back by PX_LOOP_JUMP_SHIFT_MS — matching the editor', () => {
         const out = expand(true);
@@ -48,7 +59,7 @@ describe('cycle-loop boundary (B7)', () => {
     it('sampling exactly ON the boundary is unambiguous', () => {
         const out = expand(true);
         const at = (t: number) => {
-            const v = calcAnimationValues({ transform: out } as never, t) as { transform?: string };
+            const v = calcAnimationValues(channelsOf(out), t);
             return Number((/translate\(([-\d.]+)/.exec(v.transform ?? '') ?? [])[1]);
         };
         // No two keyframes share a time, so no tie-break decides these.

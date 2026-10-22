@@ -193,7 +193,7 @@ export function createAdapterSvgAnimator(
         // FIXME - pre-calc defs, then use
 
         for (const binding of bindings || []) {
-            const animDef = binding.animate;
+            const animDef = binding.channels;
             if (!animDef || typeof animDef !== 'object' || Array.isArray(animDef)) {
                 console.warn('Empty or unresolved binding', binding);
                 continue;

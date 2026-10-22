@@ -29,7 +29,7 @@ describe('bindings — #id-spelled targets (review §3.2, 2.12)', () => {
     it('normalizeBindings resolves the names and strips the hash — engines get bare DOM ids', () => {
         const [binding] = normalizeBindings(doc());
         expect(binding.id).toBe('ball');
-        expect(Object.keys(binding.animate)).toEqual(['opacity']);
+        expect(Object.keys(binding.channels)).toEqual(['opacity']);
     });
 
     it('generateNewIds rewrites a hashed target and keeps its spelling', () => {

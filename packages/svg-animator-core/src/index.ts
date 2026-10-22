@@ -36,7 +36,7 @@ export type {
     PxWireConversionResult,
     PxWireConversionOptions,
 } from './version/PxWireVersion';
-export type { PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, PxValidationFinding, PxRemoveIndex, PxCastResult } from './schema/PxSchema';
+export type { PxInfer, PxSchema, PxAnySchema, PxSchemaDesc, PxValidationContext, PxValidationFinding, PxRemoveIndex, PxCastResult } from './schema/PxSchema';
 export type { PxValidationResult } from './format/PxAnimatorTypes';
 export { PxValidationFindingKind } from './schema/PxSchema';
 
@@ -75,6 +75,9 @@ export {
     calcAnimationValues,
     normalizeBindings,
 } from './animation/PxDefinitions';
+// The engine's runtime form those two speak — one typed channel per animated property
+export { PxValueKind } from './animation/PxRuntimeChannel';
+export type { PxCubicBezier, PxNormalizedBinding, PxPathValue, PxRuntimeAnimation, PxRuntimeChannel, PxRuntimeKeyframe } from './animation/PxRuntimeChannel';
 
 // Motion-along-path materializer (sampling)
 

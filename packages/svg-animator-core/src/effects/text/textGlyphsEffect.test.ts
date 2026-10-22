@@ -12,10 +12,10 @@
 //   H: width 700, box 100×700   i: width 300, box 50×500   ' ': width 250, no outline
 
 import { describe, expect, it } from 'vitest';
-import { PxGlyphFontSchema, type PxNode } from '../../format/PxAnimatorTypes';
+import { PxGlyphFontSchema, type PxAnimationDefinition, type PxNode } from '../../format/PxAnimatorTypes';
 import { PxTimelineEngine } from '../../format/PxAnimatorConstants';
 import { collectByType, engineFirstFrame, materializeEngine, materializeRaw, staticAttr } from '../effectTestKit';
-import { layoutGlyphTextChars, materializeGlyphText } from './textGlyphsEffect';
+import { glyphNodeFactory, glyphTextNodeOf, layoutGlyphTextChars, materializeGlyphText, type GlyphFactory } from './textGlyphsEffect';
 
 const glyphs = {
     F: {
@@ -444,10 +444,12 @@ describe('textGlyphsEffect — along-path animated (moving path)', () => {
 
 describe('materializeGlyphText — injected element factory (editor reuse)', () => {
 
-    // A non-JSON factory standing in for the editor's React/px `createPxElement`.
-    interface Fake { tag: string; attrs: Record<string, any>; kids: Array<Fake>; }
-    const fakeFactory = (tag: string, attrs: Record<string, any>, kids?: any): Fake =>
-        ({ tag, attrs, kids: Array.isArray(kids) ? kids : (kids ? [kids] : []) });
+    // A non-JSON factory standing in for the editor's own model elements.
+    interface Fake { tag: string; attrs: Record<string, unknown>; kids: Array<Fake>; }
+    const fakeFactory: GlyphFactory<Fake, unknown, PxAnimationDefinition> = {
+        path: ({ d, paint }) => ({ tag: 'path', attrs: { d, fill: paint.fill }, kids: [] }),
+        group: (attrs, kids) => ({ tag: 'g', attrs, kids }),
+    };
 
     const textNode = (): PxNode => ({
         type: 'text', id: 't', transform: 'translate(10,50)',
@@ -455,7 +457,7 @@ describe('materializeGlyphText — injected element factory (editor reuse)', () 
     } as unknown as PxNode);
 
     it('builds the group + paths via the caller-supplied factory (not JSON nodes)', () => {
-        const g = materializeGlyphText<Fake>(textNode(), { glyphs, create: fakeFactory });
+        const g = materializeGlyphText(glyphTextNodeOf(textNode()), { glyphs, create: fakeFactory });
         expect(g).toBeTruthy();
         expect(g!.tag).toBe('g');
         expect(g!.attrs.id).toBe('t');
@@ -467,8 +469,8 @@ describe('materializeGlyphText — injected element factory (editor reuse)', () 
         expect(g!.kids[0].attrs.fill).toBe('#f00');
     });
 
-    it('defaults to plain wire nodes when no factory is passed', () => {
-        const g = materializeGlyphText<PxNode>(textNode(), { glyphs });
+    it('the player\'s factory builds plain wire nodes', () => {
+        const g = materializeGlyphText(glyphTextNodeOf(textNode()), { glyphs, create: glyphNodeFactory });
         expect(g!.type).toBe('g');
         expect((g!.children as Array<PxNode>)[0].type).toBe('path');
     });
@@ -496,7 +498,7 @@ describe('layoutGlyphTextChars — per-char caret/hit boxes', () => {
     } as unknown as PxNode);
 
     it('emits one zero-width filler box for an empty line, in DOM order', () => {
-        const boxes = layoutGlyphTextChars(threeLinesMiddleEmpty(), { glyphs });
+        const boxes = layoutGlyphTextChars(glyphTextNodeOf(threeLinesMiddleEmpty()), { glyphs });
 
         // 'H','i' + filler + 'H' — the filler occupies the empty line's DOM slot.
         expect(boxes).toHaveLength(4);
@@ -524,7 +526,7 @@ describe('layoutGlyphTextChars — per-char caret/hit boxes', () => {
                 { type: 'tspan', x: 0, y: 120, textContent: ' ', fontFamily: 'F', fontSize: '100px' },
             ],
         } as unknown as PxNode;
-        const boxes = layoutGlyphTextChars(node, { glyphs });
+        const boxes = layoutGlyphTextChars(glyphTextNodeOf(node), { glyphs });
         expect(boxes).toHaveLength(2);
         expect(boxes[1].width).toBe(25); // space advance 250 × 0.1 — a real box, not a filler
     });

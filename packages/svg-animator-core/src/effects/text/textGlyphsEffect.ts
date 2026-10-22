@@ -20,18 +20,18 @@
  *    (see {@link alongPathNodeOffsets}); `y` and per-tspan positioning are ignored
  *    (a single run).
  *
- * Element creation goes through an injected {@link PxCreateElement} factory, so
- * the SAME layout produces plain wire nodes here (the effects pipeline) or the
- * editor's React/px elements when the editor calls it — see
- * {@link materializeGlyphText}.
+ * A LAYOUT engine shared by two callers: the player (wire nodes, through
+ * {@link glyphTextNodeOf} + {@link glyphNodeFactory}) and the editor (its own model
+ * elements). Layout fields are READ with exact types; paint is never inspected —
+ * only carried onto the baked shapes — so it is a type parameter (`P`, `A`), and
+ * the caller's {@link GlyphFactory} builds its own element type `E`.
  *
  * v1 scope (see svga.text.design.md): keyframe-interval easing is linear;
  * kerning/ligatures, per-tspan opacity, text-level animated fill are out of scope.
  */
 
-import { PxChannelNumberSchema, type PxAnimatable, type PxGlyphFont, type PxNode, type PxTextEffect, type PxTransformParts } from '../../format/PxAnimatorTypes';
+import { PxChannelNumberSchema, type PxAnimatable, type PxAnimationDefinition, type PxGlyphFont, type PxLoop, type PxNode, type PxTextEffect, type PxTransformParts } from '../../format/PxAnimatorTypes';
 import { PX_TEXT_CONTENT_ATTR, CLASS_ATTR, PX_DEFAULT_UNITS_PER_EM } from '../../format/PxAnimatorConstants';
-import { jsonElementFactory, type PxCreateElement } from './elementFactory';
 import { transformPathData, type Affine } from './glyphPathBake';
 import { createPathSampler, type PathSampler } from './pathSampler';
 import { pathTrackOf, type PathTrack } from '../shared/pathValue';
@@ -51,38 +51,90 @@ const TEXT_ATTR_KEYS: ReadonlyArray<string> = [
     PX_TEXT_CONTENT_ATTR, 'xml:space',
 ];
 
-/** Inputs for a glyph materialization, decoupled from the effects `ApplyContext`
- *  so the editor can call the materializer directly. * @internal
- */
-export interface GlyphMaterializeOptions<E = any> {
-    /** Embedded glyph fonts, keyed by `font-family`. */
+/** The embedded glyph fonts (keyed by `font-family`) and an optional diagnostics sink. @internal */
+export interface GlyphFontsInput {
     glyphs: Record<string, PxGlyphFont>;
-    /** Element factory — defaults to plain wire nodes ({@link jsonElementFactory}). */
-    create?: PxCreateElement<E>;
-    /** Optional diagnostics sink. */
     warnings?: Array<string>;
 }
 
-// All paint values are OPAQUE pass-throughs — copied verbatim onto the emitted element.
-// The wire uses plain values (hex strings, numbers, arrays); the editor threads its own
-// model VALUES through unchanged (the factory maps them back to shape paint).
-//
+/** Inputs for a glyph materialization — the fonts and the caller's element factory. @internal */
+export interface GlyphMaterializeOptions<E, P, A> extends GlyphFontsInput {
+    create: GlyphFactory<E, P, A>;
+}
+
+/**
+ * The materializer's INPUT: a `<text>` / `<tspan>` tree. Layout fields are READ (exact types);
+ * paint (`P`) and the span's animated paint (`A`) are CARRIED onto the baked shapes as given —
+ * the player's wire values, or the editor's own model values.
+ * @internal
+ */
+export interface GlyphTextNode<P = unknown, A = unknown> extends GlyphPaintValues<P> {
+    /** `'text'` marks the root: its own opacity / animation ride the emitted `<g>` (`groupAttrs`), not the glyphs. */
+    type?: string;
+    textContent?: string;
+    children?: Array<GlyphTextNode<P, A>>;
+    fontFamily?: string;
+    /** A number, or a length string (`"16px"`) read as its number. */
+    fontSize?: number | string;
+    letterSpacing?: number | string;
+    wordSpacing?: number | string;
+    x?: number | string;
+    y?: number | string;
+    dx?: number | string;
+    dy?: number | string;
+    textAnchor?: string;
+    /** Folded into the baked path (nearest wins — never composed). */
+    opacity?: number | string;
+    /** The span's ANIMATED paint (paint channels only — never geometry), carried onto its paths. */
+    animate?: A;
+    /** The root's own attributes the emitted `<g>` keeps (transform, id, its animation, …). */
+    groupAttrs?: Record<string, unknown>;
+}
+
+/** The paint channels a span carries onto its baked paths — the caller's own value type. @internal */
+export interface GlyphPaintValues<P> {
+    fill?: P; stroke?: P; strokeWidth?: P;
+    fillOpacity?: P; fillRule?: P;
+    strokeOpacity?: P; strokeDasharray?: P; strokeDashoffset?: P;
+    strokeLinecap?: P; strokeLinejoin?: P; strokeMiterlimit?: P;
+    mixBlendMode?: P; filter?: P;
+}
+
 // A SPAN's paint must fold into the baked paths — the span element itself disappears in
 // the bake, so anything left on it is silently lost. TEXT-level values are NOT part of
-// the paint: they ride the emitted `<g>` (via `toGroup`), so `resolveStyle` skips
-// `type:'text'` nodes' own values. `animate` is the span's animate bag filtered to
-// PAINT keys only (see `PAINT_ANIMATE_KEYS`) — forwarded verbatim onto the emitted
-// `<path>` (the wire's keyframe bags, or the editor's animated-value riders).
-interface Paint {
-    fill?: unknown; stroke?: unknown; strokeWidth?: unknown;
+// the paint: they ride the emitted `<g>` (`groupAttrs`), so `resolveStyle` skips
+// `type:'text'` nodes' own values.
+/** One baked path's paint: the span's paint values, its opacity, its animated paint. @internal */
+export interface GlyphPaint<P = unknown, A = unknown> extends GlyphPaintValues<P> {
     opacity?: number;
-    fillOpacity?: unknown; fillRule?: unknown;
-    strokeOpacity?: unknown; strokeDasharray?: unknown; strokeDashoffset?: unknown;
-    strokeLinecap?: unknown; strokeLinejoin?: unknown; strokeMiterlimit?: unknown;
-    mixBlendMode?: unknown; filter?: unknown;
-    animate?: Record<string, unknown>;
+    animate?: A;
 }
-/** The per-span statics that fold into `Paint` by simple nearest-wins lookup. */
+
+/** What the factory gets for ONE baked glyph path. @internal */
+export interface GlyphPathProps<P, A> {
+    /** The baked outline. */
+    d: string;
+    /** The span paint, as the caller gave it. */
+    paint: GlyphPaint<P, A>;
+    /** {@link MISSING_GLYPH_CLASS_NAME} on the □ placeholder path of missing glyphs (consumers style it); absent on real glyphs. */
+    className?: string;
+    /** Along-path, moving: this glyph's sampled `translate` + `rotate` keyframes (+ the driver's loop). */
+    motion?: GlyphMotion;
+    /** Along-path `pathOverflow: 'clip'`: the 0/1 visibility track — it wins over an animated span opacity. */
+    visibility?: GlyphVisibility;
+}
+
+/** A glyph's motion along the path: a parts record (`translate`, `rotate`) per sampled keyframe. @internal */
+export interface GlyphMotion { keyframes: Array<TransformKeyframe>; loop?: PxLoop | boolean; }
+/** The clip-mode visibility track: opacity 0 (off the path) or 1 per sampled keyframe. @internal */
+export interface GlyphVisibility { keyframes: Array<TransformKeyframe<number>>; loop?: PxLoop | boolean; }
+
+/** The caller's element factory: one baked glyph path, and the `<g>` that replaces the `<text>`. @internal */
+export interface GlyphFactory<E, P, A> {
+    path(props: GlyphPathProps<P, A>): E;
+    group(attrs: Record<string, unknown>, children: Array<E>): E;
+}
+/** The per-span statics that fold into the paint by simple nearest-wins lookup. */
 const PAINT_STATIC_KEYS = [
     'fillOpacity', 'fillRule', 'strokeOpacity', 'strokeDasharray', 'strokeDashoffset',
     'strokeLinecap', 'strokeLinejoin', 'strokeMiterlimit', 'mixBlendMode', 'filter',
@@ -90,11 +142,11 @@ const PAINT_STATIC_KEYS = [
 /** `animate.<key>`s that are PAINT (ride the baked path). Geometry keys — x/dx/fontSize/
  *  letterSpacing/… — are baked into the outlines and must NOT be forwarded. */
 const PAINT_ANIMATE_KEYS = ['fill', 'stroke', 'strokeWidth', 'opacity', 'fillOpacity', 'strokeOpacity', 'strokeDasharray', 'strokeDashoffset'];
-interface Style extends Paint { fontFamily?: string; fontSize: number; letterSpacing: number; wordSpacing: number; }
+interface Style<P, A> extends GlyphPaint<P, A> { fontFamily?: string; fontSize: number; letterSpacing: number; wordSpacing: number; }
 /** A glyph ready to emit: its em outline + the affine placing it in the doc.
  *  `isMissing` marks the □ placeholder — kept out of the merged real-glyph paths so a
  *  consumer can style it (see `MISSING_GLYPH_CLASS_NAME`). */
-interface Placement { glyphD: string; m: Affine; paint: Paint; isMissing?: boolean; }
+interface Placement<P, A> { glyphD: string; m: Affine; paint: GlyphPaint<P, A>; isMissing?: boolean; }
 /** Minimal emitted keyframe: transform parts (or the clip track's number) at a time. */
 interface TransformKeyframe<V = PxTransformParts> { time?: number; value: V; }
 
@@ -110,17 +162,17 @@ function str(v: unknown): string | undefined {
 }
 
 /** A span's paint-only `animate` bag, or undefined when it has none (see `PAINT_ANIMATE_KEYS`). */
-function paintAnimateOf(node: PxNode): Record<string, unknown> | undefined {
+function paintAnimateOf(node: PxNode): PxAnimationDefinition | undefined {
     const bag = inlineAnimate(node);
     if (!bag) return undefined;
-    let out: Record<string, unknown> | undefined;
+    let out: PxAnimationDefinition | undefined;
     for (const k of PAINT_ANIMATE_KEYS) {
         if (bag[k] !== undefined) (out ??= {})[k] = bag[k];
     }
     return out;
 }
 
-function resolveStyle(node: PxNode, parent: Style): Style {
+function resolveStyle<P, A>(node: GlyphTextNode<P, A>, parent: Style<P, A>): Style<P, A> {
     // SPAN paint only: the root `<text>`'s own values (and its whole `animate` bag) ride
     // the emitted `<g>` via `toGroup` — reading them here too would apply them twice.
     //
@@ -129,10 +181,8 @@ function resolveStyle(node: PxNode, parent: Style): Style {
     // span with the same style — the same opacity on BOTH nesting levels; multiplying
     // would square it. Same override semantics as the other style props (fill, fontSize).
     const isTextRoot = node.type === 'text';
-    const nodeStyle = node.style;
-    const own = (key: string): unknown => isTextRoot ? undefined : (node[key] ?? nodeStyle?.[key]);
 
-    const res: Style = {
+    const res: Style<P, A> = {
         fontFamily: str(node.fontFamily) ?? parent.fontFamily,
         fontSize: parseLen(node.fontSize) ?? parent.fontSize,
         fill: node.fill ?? parent.fill,
@@ -140,17 +190,17 @@ function resolveStyle(node: PxNode, parent: Style): Style {
         strokeWidth: node.strokeWidth ?? parent.strokeWidth,
         letterSpacing: parseLen(node.letterSpacing) ?? parent.letterSpacing,
         wordSpacing: parseLen(node.wordSpacing) ?? parent.wordSpacing,
-        opacity: parseLen(own('opacity')) ?? parent.opacity,
-        animate: (isTextRoot ? undefined : paintAnimateOf(node)) ?? parent.animate,
+        opacity: parseLen(isTextRoot ? undefined : node.opacity) ?? parent.opacity,
+        animate: (isTextRoot ? undefined : node.animate) ?? parent.animate,
     };
     for (const key of PAINT_STATIC_KEYS) {
-        const v = own(key) ?? parent[key];
+        const v = (isTextRoot ? undefined : node[key]) ?? parent[key];
         if (v !== undefined) res[key] = v;
     }
     return res;
 }
 
-function rootStyleOf(node: PxNode): Style {
+function rootStyleOf<P, A>(node: GlyphTextNode<P, A>): Style<P, A> {
     return {
         fontFamily: str(node.fontFamily),
         fontSize: parseLen(node.fontSize) ?? DEFAULT_FONT_SIZE,
@@ -162,9 +212,9 @@ function rootStyleOf(node: PxNode): Style {
     };
 }
 
-function paintOf(s: Style): Paint {
+function paintOf<P, A>(s: Style<P, A>): GlyphPaint<P, A> {
     // Field order is FIXED (it feeds the JSON.stringify merge key in `buildPaths`).
-    const p: Paint = {};
+    const p: GlyphPaint<P, A> = {};
     if (s.fill !== undefined) p.fill = s.fill;
     if (s.stroke !== undefined) p.stroke = s.stroke;
     if (s.strokeWidth !== undefined) p.strokeWidth = s.strokeWidth;
@@ -179,7 +229,7 @@ function paintOf(s: Style): Paint {
 /** The embedded outlines for a span. `font-family` holds the FACE name the author picked
  *  (`Roboto-Light`), which is exactly the key the writer stored, so this is a direct lookup —
  *  weight/slant are CSS attrs and never select a face. */
-function glyphFontFor(s: Style, glyphs: Record<string, PxGlyphFont>, soleFont: PxGlyphFont | undefined, warnings?: Array<string>): PxGlyphFont | undefined {
+function glyphFontFor<P, A>(s: Style<P, A>, glyphs: Record<string, PxGlyphFont>, soleFont: PxGlyphFont | undefined, warnings?: Array<string>): PxGlyphFont | undefined {
     const gf = s.fontFamily ? glyphs[s.fontFamily] : soleFont;
     if (!gf) warnings?.push('textGlyphs: no glyphs for font "' + (s.fontFamily ?? '') + '"');
     return gf;
@@ -236,16 +286,16 @@ function missingGlyphBoxEm(advanceEm: number, ascentEm: number): string {
 
 // @px-importance important
 /** @internal */
-export function materializeGlyphTextHorizontal<E = any>(node: PxNode, opts: GlyphMaterializeOptions<E>): E {
-    const { glyphs, create = jsonElementFactory as PxCreateElement<E>, warnings } = opts;
+export function materializeGlyphTextHorizontal<E, P, A>(node: GlyphTextNode<P, A>, opts: GlyphMaterializeOptions<E, P, A>): E {
+    const { glyphs, create, warnings } = opts;
     const soleFont = soleFontOf(glyphs);
 
     const pen = { x: parseLen(node.x) ?? 0, y: parseLen(node.y) ?? 0 };
-    const placements: Array<Placement & { line: number; x: number; y: number; scale: number }> = [];
+    const placements: Array<Placement<P, A> & { line: number; x: number; y: number; scale: number }> = [];
     const lines: Array<{ start: number; end: number }> = [{ start: pen.x, end: pen.x }];
     let line = 0;
 
-    const renderChars = (content: string, s: Style): void => {
+    const renderChars = (content: string, s: Style<P, A>): void => {
         const gf = glyphFontFor(s, glyphs, soleFont, warnings);
         const upm = unitsPerEmOf(gf);
         const scale = s.fontSize / upm;
@@ -271,7 +321,7 @@ export function materializeGlyphTextHorizontal<E = any>(node: PxNode, opts: Glyp
         }
     };
 
-    const walk = (el: PxNode, parentStyle: Style): void => {
+    const walk = (el: GlyphTextNode<P, A>, parentStyle: Style<P, A>): void => {
         const s = resolveStyle(el, parentStyle);
         const x = parseLen(el.x);
         const y = parseLen(el.y);
@@ -303,7 +353,7 @@ export function materializeGlyphTextHorizontal<E = any>(node: PxNode, opts: Glyp
         }
     }
 
-    return toGroup(node, buildPaths(placements, create, warnings), create);
+    return create.group(node.groupAttrs ?? {}, buildPaths(placements, create, warnings));
 }
 
 
@@ -336,7 +386,7 @@ export interface GlyphCharBoxAlongPath { pathD?: string; startOffset?: PxAnimata
  *  an editor caret built from these lands on the rendered glyphs. Empty for a text with
  *  no glyph font / unparsable path. * @internal
  */
-export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterializeOptions, 'glyphs' | 'warnings'> & { alongPath?: GlyphCharBoxAlongPath }): Array<PxGlyphCharBox> {
+export function layoutGlyphTextChars<P, A>(node: GlyphTextNode<P, A>, opts: GlyphFontsInput & { alongPath?: GlyphCharBoxAlongPath }): Array<PxGlyphCharBox> {
     if (opts.alongPath?.pathD) return layoutGlyphTextCharsAlongPath(node, opts.alongPath.pathD, opts);
     const { glyphs, warnings } = opts;
     const soleFont = soleFontOf(glyphs);
@@ -346,7 +396,7 @@ export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterializeOp
     const lines: Array<{ start: number; end: number }> = [{ start: pen.x, end: pen.x }];
     let line = 0;
 
-    const renderChars = (content: string, s: Style): void => {
+    const renderChars = (content: string, s: Style<P, A>): void => {
         const gf = glyphFontFor(s, glyphs, soleFont, warnings);
         const upm = unitsPerEmOf(gf);
         const scale = s.fontSize / upm;
@@ -361,7 +411,7 @@ export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterializeOp
         }
     };
 
-    const walk = (el: PxNode, parentStyle: Style): void => {
+    const walk = (el: GlyphTextNode<P, A>, parentStyle: Style<P, A>): void => {
         const s = resolveStyle(el, parentStyle);
         const x = parseLen(el.x);
         const y = parseLen(el.y);
@@ -409,7 +459,7 @@ export function layoutGlyphTextChars(node: PxNode, opts: Pick<GlyphMaterializeOp
  *  Mirrors `collectAlongPathCells` + `materializeGlyphTextAlongPath`, but records EVERY
  *  char (the materializer's cells skip glyph-less chars). `pStart`=char leading edge on
  *  the path, `end`=trailing edge, `rotation`=tangent at the char midpoint. */
-function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<GlyphMaterializeOptions, 'glyphs' | 'warnings'> & { alongPath?: GlyphCharBoxAlongPath }): Array<PxGlyphCharBox> {
+function layoutGlyphTextCharsAlongPath<P, A>(node: GlyphTextNode<P, A>, pathD: string, opts: GlyphFontsInput & { alongPath?: GlyphCharBoxAlongPath }): Array<PxGlyphCharBox> {
     const { glyphs, warnings, alongPath } = opts;
     const sampler = createPathSampler(pathD);
     if (!sampler) { warnings?.push('textGlyphs: unparsable along-path geometry (caret)'); return []; }
@@ -420,7 +470,7 @@ function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<G
     // spacing) for the rotation midpoint, and bbox metrics.
     const chars: Array<{ advStart: number; advEnd: number; glyphW: number; ascent: number; fontSize: number }> = [];
     let adv = 0;
-    const walk = (el: PxNode, parentStyle: Style): void => {
+    const walk = (el: GlyphTextNode<P, A>, parentStyle: Style<P, A>): void => {
         const s = resolveStyle(el, parentStyle);
         const content = str(el[PX_TEXT_CONTENT_ATTR]);
         if (content && !el.children?.length) {
@@ -485,15 +535,15 @@ function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<G
 
 /** One glyph in path order: its outline + geometry, and `midBase` = the arc-
  *  distance from the text start (startOffset 0) to the glyph's advance midpoint. */
-interface AlongCell { glyphD: string; widthEm: number; scale: number; paint: Paint; midBase: number; isMissing?: boolean; }
+interface AlongCell<P, A> { glyphD: string; widthEm: number; scale: number; paint: GlyphPaint<P, A>; midBase: number; isMissing?: boolean; }
 
 /** Walks the tspans in reading order, accumulating advance (whitespace included)
  *  so each rendered glyph gets its `midBase`. Positioning attrs are ignored —
  *  along-path text is a single run. */
-function collectAlongPathCells(node: PxNode, glyphs: Record<string, PxGlyphFont>, soleFont: PxGlyphFont | undefined, warnings?: Array<string>): { cells: Array<AlongCell>; width: number } {
-    const cells: Array<AlongCell> = [];
+function collectAlongPathCells<P, A>(node: GlyphTextNode<P, A>, glyphs: Record<string, PxGlyphFont>, soleFont: PxGlyphFont | undefined, warnings?: Array<string>): { cells: Array<AlongCell<P, A>>; width: number } {
+    const cells: Array<AlongCell<P, A>> = [];
     let adv = 0;
-    const walk = (el: PxNode, parentStyle: Style): void => {
+    const walk = (el: GlyphTextNode<P, A>, parentStyle: Style<P, A>): void => {
         const s = resolveStyle(el, parentStyle);
         const content = str(el[PX_TEXT_CONTENT_ATTR]);
         // Only leaf text (no children) — a single-span line folds its text onto the
@@ -547,7 +597,7 @@ function alongAffine(sampler: PathSampler, dist: number, scale: number, widthEm:
  *   • `dy` shifts PERPENDICULAR to the path,
  *   • `y` is IGNORED (the path, not `y`, sets the cross-axis position).
  *  Matches the browser's native `<textPath>` so our baked glyphs line up with it. */
-function alongPathNodeOffsets(node: PxNode): { along: number; perp: number } {
+function alongPathNodeOffsets<P, A>(node: GlyphTextNode<P, A>): { along: number; perp: number } {
     return {
         along: (parseLen(node.x) ?? 0) + (parseLen(node.dx) ?? 0),
         perp: parseLen(node.dy) ?? 0,
@@ -556,15 +606,15 @@ function alongPathNodeOffsets(node: PxNode): { along: number; perp: number } {
 
 // @px-importance important
 /** @internal */
-export function materializeGlyphTextAlongPath<E = any>(
-    node: PxNode,
+export function materializeGlyphTextAlongPath<E, P, A>(
+    node: GlyphTextNode<P, A>,
     pathD: PxAnimatable<string> | undefined,
     startOffset: PxAnimatable<number> | undefined,
-    opts: GlyphMaterializeOptions<E>,
+    opts: GlyphMaterializeOptions<E, P, A>,
     textLength?: PxAnimatable<number>,
     pathOverflow?: string,
 ): E | null {
-    const { glyphs, create = jsonElementFactory as PxCreateElement<E>, warnings } = opts;
+    const { glyphs, create, warnings } = opts;
     // The path itself may animate (`{keyframes}` of `{pathData}`): then every glyph is
     // placed on the geometry AT each sample time — the third driver next to startOffset
     // and textLength. One sampler per distinct time, memoised (@see pathSamplers).
@@ -575,7 +625,7 @@ export function materializeGlyphTextAlongPath<E = any>(
 
     const soleFont = soleFontOf(glyphs);
     const { cells, width } = collectAlongPathCells(node, glyphs, soleFont, warnings);
-    if (!cells.length) return toGroup(node, [], create);
+    if (!cells.length) return create.group(node.groupAttrs ?? {}, []);
 
     // x/dx → extra distance ALONG the path (added to startOffset); dy → perpendicular.
     const { along: alongOffset, perp } = alongPathNodeOffsets(node);
@@ -597,11 +647,11 @@ export function materializeGlyphTextAlongPath<E = any>(
         // path: its own <path> with sampled translate+rotate keyframes (no merge). Per merged-
         // timeline interval every track is linear, so the glyph distance is linear too.
         const times = mergeTrackTimes(mergeTrackTimes(pathTrack.times, soTrack.times), tlTrack.times);
-        const distOf = (c: AlongCell, t: number): number => alongOffset + soTrack.at(t) + kOf(tlTrack.at(t)) * c.midBase;
+        const distOf = (c: AlongCell<P, A>, t: number): number => alongOffset + soTrack.at(t) + kOf(tlTrack.at(t)) * c.midBase;
         // ONE loop per glyph motion: the first animated driver's — path, then startOffset,
         // then textLength (the editor warns when the drivers' loops disagree).
         const loop = (pathTrack.animated && pathTrack.loop !== undefined) ? pathTrack.loop : (soTrack.animated ? soTrack.loop : tlTrack.loop);
-        return toGroup(node, buildAnimatedAlongPath(cells, samplerAt, pathTrack, distOf, times, loop, create, isClip, perp), create);
+        return create.group(node.groupAttrs ?? {}, buildAnimatedAlongPath(cells, samplerAt, pathTrack, distOf, times, loop, create, isClip, perp));
     }
 
     // Static (or single-keyframe): place + bake; glyphs sharing paint still merge.
@@ -610,17 +660,17 @@ export function materializeGlyphTextAlongPath<E = any>(
     const placeCells = isClip
         ? cells.filter(c => { const d = base + c.midBase * k; return d >= 0 && d <= sampler.totalLength; })
         : cells;
-    const placements: Array<Placement> = placeCells.map(c => ({
+    const placements: Array<Placement<P, A>> = placeCells.map(c => ({
         glyphD: c.glyphD, paint: c.paint, isMissing: c.isMissing,
         m: alongAffine(sampler, base + c.midBase * k, c.scale, c.widthEm, perp),
     }));
-    return toGroup(node, buildPaths(placements, create, warnings), create);
+    return create.group(node.groupAttrs ?? {}, buildPaths(placements, create, warnings));
 }
 
 /** A `PxAnimatable<number>` as a clamped piecewise-LINEAR sampler: constant for
  *  static / absent / single-keyframe, keyframe-interpolated when animated — the same
  *  linear-per-interval interpretation the along-path baking has always used. */
-interface NumTrack { animated: boolean; times: Array<number>; loop?: unknown; at(t: number): number; }
+interface NumTrack { animated: boolean; times: Array<number>; loop?: PxLoop | boolean; at(t: number): number; }
 
 function numTrackOf(raw: PxAnimatable<number> | undefined): NumTrack {
     const r = readAnimatable(raw, PxChannelNumberSchema);
@@ -691,14 +741,14 @@ function pathSamplers(track: PathTrack): (t: number) => PathSampler | null {
  *  the glyph tracks a curved path — densely enough for its travel along the path AND
  *  for the path's own movement under it. Interval interp is linear (per-keyframe
  *  easing shaping isn't reproduced — a v1 limitation). */
-function buildAnimatedAlongPath<E>(
-    cells: Array<AlongCell>,
+function buildAnimatedAlongPath<E, P, A>(
+    cells: Array<AlongCell<P, A>>,
     samplerAt: (t: number) => PathSampler | null,
     track: PathTrack,
-    distOf: (c: AlongCell, t: number) => number,
+    distOf: (c: AlongCell<P, A>, t: number) => number,
     times: Array<number>,
-    loop: unknown,
-    create: PxCreateElement<E>,
+    loop: PxLoop | boolean | undefined,
+    create: GlyphFactory<E, P, A>,
     isClip: boolean,
     perp = 0,
 ): Array<E> {
@@ -759,23 +809,15 @@ function buildAnimatedAlongPath<E>(
         // samples and visibly flip the glyph. Same fix as motion-path auto-orient.
         unwrapAutoOrientRotations(kfs);
 
-        const transform: { keyframes: Array<TransformKeyframe>; loop?: unknown } = { keyframes: kfs };
-        if (loop !== undefined) transform.loop = loop;
-        const animate: Record<string, unknown> = { transform };
-        // Only add an opacity track when it actually toggles (a glyph fully on-path
-        // the whole time needs none).
-        // Span-level animated paint rides along (dasharray, fill, …).
-        if (c.paint.animate) Object.assign(animate, c.paint.animate);
+        const motion: GlyphMotion = { keyframes: kfs };
+        if (loop !== undefined) motion.loop = loop;
+        // Only an opacity track that actually toggles (a glyph fully on-path the whole time needs none).
+        let visibility: GlyphVisibility | undefined;
         if (isClip && opKfs.some(k => k.value === 0)) {
-            // The CLIP visibility track owns the opacity slot — two opacity animations
-            // aren't expressible on one element, and visibility is what makes clip mode
-            // work at all, so it overrides a span's own animated opacity.
-            const op: { keyframes: Array<TransformKeyframe<number>>; loop?: unknown } = { keyframes: opKfs };
-            if (loop !== undefined) op.loop = loop;
-            animate.opacity = op;
+            visibility = { keyframes: opKfs };
+            if (loop !== undefined) visibility.loop = loop;
         }
-
-        out.push(create('path', { d, ...paintProps(c.paint), ...missingGlyphProps(c.isMissing), animate }, []));
+        out.push(create.path({ d, paint: c.paint, className: classNameOf(c.isMissing), motion, visibility }));
     }
     return out;
 }
@@ -783,31 +825,18 @@ function buildAnimatedAlongPath<E>(
 
 // ── shared emit ───────────────────────────────────────────────────────────────
 
-function paintProps(paint: Paint): Record<string, unknown> {
-    const p: Record<string, unknown> = {};
-    if (paint.fill !== undefined) p.fill = paint.fill;
-    if (paint.stroke !== undefined) p.stroke = paint.stroke;
-    if (paint.strokeWidth !== undefined) p.strokeWidth = paint.strokeWidth;
-    if (paint.opacity !== undefined) p.opacity = paint.opacity;
-    for (const key of PAINT_STATIC_KEYS) {
-        if (paint[key] !== undefined) p[key] = paint[key];
-    }
-    // NOT `animate` — it merges into the emitted `animate` bag at each emit site.
-    return p;
-}
-
-/** Marks a □-placeholder `<path>` for consumers; nothing at all for real glyphs. */
-function missingGlyphProps(isMissing: boolean | undefined): Record<string, string> {
-    return isMissing ? { [CLASS_ATTR]: MISSING_GLYPH_CLASS_NAME } : {};
+/** The class of a baked path: the □ placeholders' own, nothing for real glyphs. */
+function classNameOf(isMissing: boolean | undefined): string | undefined {
+    return isMissing ? MISSING_GLYPH_CLASS_NAME : undefined;
 }
 
 /** Merges placements sharing paint into baked `<path>` elements. MISSING-glyph boxes merge
  *  only with each other, so they end up in their own classed `<path>` (see
  *  `MISSING_GLYPH_CLASS_NAME`) instead of being indistinguishable subpaths of a real one. */
-function buildPaths<E>(placements: Array<Placement>, create: PxCreateElement<E>, warnings?: Array<string>): Array<E> {
+function buildPaths<E, P, A>(placements: Array<Placement<P, A>>, create: GlyphFactory<E, P, A>, warnings?: Array<string>): Array<E> {
     if (!placements.length) { warnings?.push('textGlyphs: nothing to render'); return []; }
 
-    const byPaint = new Map<string, { paint: Paint; d: string; isMissing?: boolean }>();
+    const byPaint = new Map<string, { paint: GlyphPaint<P, A>; d: string; isMissing?: boolean }>();
     for (const p of placements) {
         // Stable key across any paint value type (hex string, [r,g,b], gradient object).
         // The WHOLE paint — statics AND the animate bag — is the key (`paintOf` builds it
@@ -820,30 +849,8 @@ function buildPaths<E>(placements: Array<Placement>, create: PxCreateElement<E>,
     }
 
     const out: Array<E> = [];
-    for (const { paint, d, isMissing } of byPaint.values()) {
-        out.push(create('path', {
-            d, ...paintProps(paint), ...missingGlyphProps(isMissing),
-            // A span's ANIMATED paint rides the merged path as a standard animate bag.
-            ...(paint.animate !== undefined ? { animate: { ...paint.animate } } : {}),
-        }, []));
-    }
+    for (const { paint, d, isMissing } of byPaint.values()) out.push(create.path({ d, paint, className: classNameOf(isMissing) }));
     return out;
-}
-
-/** Builds the `<g>` that replaces the `<text>`: keeps its transform / id /
- *  animate / opacity, drops text-specific attributes, holds the glyph elements. */
-function toGroup<E>(node: PxNode, children: Array<E>, create: PxCreateElement<E>): E {
-    const gProps: Record<string, unknown> = {};
-    for (const k of Object.keys(node)) {
-        if (k === 'type' || k === 'children' || TEXT_ATTR_KEYS.indexOf(k) !== -1) continue;
-        gProps[k] = node[k];
-    }
-    if (node.style && typeof node.style === 'object') {
-        const style = { ...node.style };
-        delete style['white-space'];
-        if (Object.keys(style).length) gProps.style = style; else delete gProps.style;
-    }
-    return create('g', gProps, children);
 }
 
 
@@ -852,9 +859,9 @@ function toGroup<E>(node: PxNode, children: Array<E>, create: PxCreateElement<E>
 /** Single entry the EDITOR calls: materializes a glyph `<text>` node into the
  *  factory's element type, choosing along-path when `alongPath` is given. * @internal
  */
-export function materializeGlyphText<E = any>(
-    node: PxNode,
-    opts: GlyphMaterializeOptions<E> & { alongPath?: { pathD?: PxAnimatable<string>; startOffset?: PxAnimatable<number>; textLength?: PxAnimatable<number>; pathOverflow?: string } },
+export function materializeGlyphText<E, P, A>(
+    node: GlyphTextNode<P, A>,
+    opts: GlyphMaterializeOptions<E, P, A> & { alongPath?: { pathD?: PxAnimatable<string>; startOffset?: PxAnimatable<number>; textLength?: PxAnimatable<number>; pathOverflow?: string } },
 ): E | null {
     if (opts.alongPath) return materializeGlyphTextAlongPath(node, opts.alongPath.pathD, opts.alongPath.startOffset, opts, opts.alongPath.textLength, opts.alongPath.pathOverflow);
     return materializeGlyphTextHorizontal(node, opts);
@@ -864,11 +871,86 @@ export function materializeGlyphText<E = any>(
 export function applyTextGlyphsEffect(node: PxNode, fx: PxTextEffect | undefined, ctx: ApplyContext): PxNode {
     if (!fx?.useGlyphs) return node;
     if (!ctx.glyphs) { ctx.warnings.push('textGlyphs: no definitions.fonts — left as native <text>'); return node; }
-    return materializeGlyphTextHorizontal<PxNode>(node, { glyphs: ctx.glyphs, warnings: ctx.warnings });
+    return materializeGlyphTextHorizontal(glyphTextNodeOf(node), { glyphs: ctx.glyphs, warnings: ctx.warnings, create: glyphNodeFactory });
 }
 
 /** Pipeline adapter (plain wire nodes) — glyph text along a referenced path. */
 export function applyTextGlyphsAlongPath(node: PxNode, ctx: ApplyContext, pathD: PxAnimatable<string> | undefined, startOffset: PxAnimatable<number> | undefined, textLength?: PxAnimatable<number>, pathOverflow?: string): PxNode | null {
     if (!ctx.glyphs) { ctx.warnings.push('textGlyphs: no definitions.fonts'); return null; }
-    return materializeGlyphTextAlongPath<PxNode>(node, pathD, startOffset, { glyphs: ctx.glyphs, warnings: ctx.warnings }, textLength, pathOverflow);
+    return materializeGlyphTextAlongPath(glyphTextNodeOf(node), pathD, startOffset, { glyphs: ctx.glyphs, warnings: ctx.warnings, create: glyphNodeFactory }, textLength, pathOverflow);
 }
+
+
+// ── the player's side: wire node in, wire nodes out ───────────────────────────
+
+const lengthOf = (v: unknown): number | string | undefined => (typeof v === 'number' || typeof v === 'string') ? v : undefined;
+
+/** A wire `<text>` / `<tspan>` as the materializer's input. Reads layout with types, folds a
+ *  span's style declarations under its paint attributes (the attribute wins), keeps only the
+ *  PAINT animations, and gives the root's other attributes to the emitted `<g>`. @internal */
+export function glyphTextNodeOf(node: PxNode, isRoot = true): GlyphTextNode<unknown, PxAnimationDefinition> {
+    const style = node.style;
+    const own = (key: string): unknown => node[key] ?? style?.[key];
+    const out: GlyphTextNode<unknown, PxAnimationDefinition> = {
+        type: node.type,
+        textContent: node.textContent,
+        fontFamily: str(node.fontFamily),
+        fontSize: lengthOf(node.fontSize),
+        letterSpacing: lengthOf(node.letterSpacing),
+        wordSpacing: lengthOf(node.wordSpacing),
+        x: lengthOf(node.x), y: lengthOf(node.y), dx: lengthOf(node.dx), dy: lengthOf(node.dy),
+        textAnchor: str(node.textAnchor),
+        opacity: lengthOf(own('opacity')),
+        fill: node.fill, stroke: node.stroke, strokeWidth: node.strokeWidth,
+        animate: paintAnimateOf(node),
+    };
+    for (const key of PAINT_STATIC_KEYS) out[key] = own(key);
+    if (node.children) out.children = node.children.map(child => glyphTextNodeOf(child, false));
+    if (isRoot) out.groupAttrs = groupAttrsOf(node);
+    return out;
+}
+
+/** What the `<g>` replacing a wire `<text>` keeps: its transform / id / animate / opacity — not
+ *  the text-specific attributes, and not the style's `white-space`. */
+function groupAttrsOf(node: PxNode): Record<string, unknown> {
+    const attrs: Record<string, unknown> = {};
+    for (const k of Object.keys(node)) {
+        if (k === 'type' || k === 'children' || TEXT_ATTR_KEYS.indexOf(k) !== -1) continue;
+        attrs[k] = node[k];
+    }
+    if (node.style && typeof node.style === 'object') {
+        const style = { ...node.style };
+        delete style['white-space'];
+        if (Object.keys(style).length) attrs.style = style; else delete attrs.style;
+    }
+    return attrs;
+}
+
+/** The player's factory: plain wire nodes. A path carries its paint, the placeholder class, and
+ *  ONE animate bag — the motion first, then the span's animated paint, the clip visibility last
+ *  (it owns the opacity slot: two opacity animations are not expressible on one element). @internal */
+export const glyphNodeFactory: GlyphFactory<PxNode, unknown, PxAnimationDefinition> = {
+    path({ d, paint, className, motion, visibility }) {
+        const node: PxNode = { type: 'path', d };
+        if (paint.fill !== undefined) node.fill = paint.fill;
+        if (paint.stroke !== undefined) node.stroke = paint.stroke;
+        if (paint.strokeWidth !== undefined) node.strokeWidth = paint.strokeWidth;
+        if (paint.opacity !== undefined) node.opacity = paint.opacity;
+        for (const key of PAINT_STATIC_KEYS) if (paint[key] !== undefined) node[key] = paint[key];
+        if (className !== undefined) node[CLASS_ATTR] = className;
+        if (motion) {
+            const animate: PxAnimationDefinition = { transform: motion, ...paint.animate };
+            if (visibility) animate.opacity = visibility;
+            node.animate = animate;
+        } else if (paint.animate !== undefined) {
+            node.animate = { ...paint.animate };
+        }
+        return node;
+    },
+    group(attrs, children) {
+        const node: PxNode = { type: 'g' };
+        for (const k of Object.keys(attrs)) if (attrs[k] !== undefined) node[k] = attrs[k];
+        if (children.length) node.children = children;
+        return node;
+    },
+};
