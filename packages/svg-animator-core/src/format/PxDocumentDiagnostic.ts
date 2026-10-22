@@ -20,7 +20,10 @@
  *   - nodes are `px.openObject`, so an unknown attribute on a node is indistinguishable from a
  *     legitimate SVG attribute. The diagnostic therefore keys off the strict parts.
  */
-import { validateDocument } from './PxAnimatorTypes';
+import { PxNodeBaseSchema, validateDocument } from './PxAnimatorTypes';
+import { schemaKeys, type PxValidationFinding } from '../schema/PxSchema';
+import { PxDiagnosticCode } from '../playback/PxDiagnosticCode';
+import { PxDiagnosticKind, type PxDiagnostics } from '../playback/PxDiagnostics';
 
 /** How many problems to print before summarizing the rest. A wall of text gets scrolled past. */
 const MAX_REPORTED = 6;
@@ -71,4 +74,21 @@ export function reportDocumentDiagnostics(doc: unknown, where: string): void {
         + 'inside the player stops them matching the keys in the JSON, and the animation silently '
         + 'does nothing. Feed the published reserved-name list to your minifier — '
         + '@pixodesk/svg-animator-web/mangle-reserved.json — see docs/library/minification.md.');
+}
+
+/** The node key whose findings keep the effects code (an effect ignored or degraded). */
+const EFFECTS_KEY = schemaKeys(PxNodeBaseSchema).effects;
+
+// @px-importance important
+/**
+ * Reports what `prepareDocument`'s `checked` stage repaired, through a player's diagnostics channel:
+ * a problem inside a node's `effects` keeps `effectsShape` (the effect is ignored or degraded, as
+ * before), every other one is `documentRepaired`. Decided on the finding's PATH, never its text.
+ * @internal
+ */
+export function reportDocumentProblems(problems: ReadonlyArray<PxValidationFinding>, diag: PxDiagnostics): void {
+    for (const f of problems) {
+        const code = f.path.includes(EFFECTS_KEY) ? PxDiagnosticCode.effectsShape : PxDiagnosticCode.documentRepaired;
+        diag.warn(PxDiagnosticKind.document, code, f.message);
+    }
 }

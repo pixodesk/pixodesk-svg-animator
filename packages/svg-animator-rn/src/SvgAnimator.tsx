@@ -4,8 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createIterationStopWatcher, createRunClock, toAnimatedSvgDocument, type PxDocumentInput, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, PxPlayMode, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, resolveTrigger, PxTimelineEngine, PxControlMode, resolveControlMode, PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
-import { carryPrep, validateDeprecatedTransformChannels, validateNodeEffects } from '@pixodesk/svg-animator-core/internal';
+import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createIterationStopWatcher, createRunClock, toAnimatedSvgDocument, type PxDocumentInput, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, PxPlayMode, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, resolveTrigger, PxTimelineEngine, PxControlMode, resolveControlMode, PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
+import { carryPrep, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
@@ -166,7 +166,7 @@ const SAMPLED_DEF_TAGS = new Set(['linearGradient', 'radialGradient', ...NON_HOS
  *  either the node itself is an animated def, or it owns an animated non-host
  *  child (an animated `<Stop>` only re-renders via its parent gradient). */
 function needsJsSampling(node: PxNode, trackById: Map<string, PxElementTracks>): boolean {
-    const id = (node as any).id;
+    const id = node.id;
     if (SAMPLED_DEF_TAGS.has(String(node.type)) && id && trackById.has(id)) return true;
     return (node.children ?? []).some(c => needsJsSampling(c, trackById));
 }
@@ -207,7 +207,7 @@ function SampledSubtree({
         ...renderOpts,
         // Sampled values are baked in as PLAIN props — nothing reanimated-driven.
         decorate: (n, Component, staticProps, children, key) => {
-            const id = (n as any).id;
+            const id = n.id;
             const tracks = id ? trackById.get(id) : undefined;
             if (!tracks) return undefined;
             // Wire prop names, NOT the native ones: these go back through
@@ -245,10 +245,11 @@ const EMPTY_TRACKS: PxCompiledTracks = {
  */
 function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides, pinPoseFill: boolean, diag: PxDiagnostics): Compiled {
     const { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce } = overrides;
-    const warnings = validateNodeEffects(doc as PxNode);
-    for (const w of warnings) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.effectsShape, w);
+    // Migrate + check ONCE — the same `checked` stage and reporting as the web player's entry.
+    const onProblems = (problems: Parameters<typeof reportDocumentProblems>[0]) => reportDocumentProblems(problems, diag);
+    doc = prepareDocument(doc, { stage: PxDocStage.checked, onProblems });
     // §6: per-key transform channels still play (old migrated files), but are named as deprecated
-    for (const w of validateDeprecatedTransformChannels(doc as PxNode)) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.deprecatedTransformChannel, w);
+    for (const w of validateDeprecatedTransformChannels(doc)) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.deprecatedTransformChannel, w);
     // The whole-document boundary diagnostic — see the note in the web player's entry.
     reportDocumentDiagnostics(doc, '[SvgAnimator]');
 
@@ -277,7 +278,7 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
     // attribute writes through `<use>` shadow trees. react-native-svg has
     // no such live propagation, so an animated `<use>` would render frozen.
     // Through the shared staged pipeline: version-migrated → resolved → plain.
-    let prepared: PxAnimatedSvgDocument = prepareDocument(doc, { engine: PxTimelineEngine.native });
+    let prepared: PxAnimatedSvgDocument = prepareDocument(doc, { engine: PxTimelineEngine.native, onProblems });   // only the override's own values can still need repair
 
     // Sidestep a react-native-svg NATIVE crash (see PxRnSafety). Guarded on
     // the platform because the DOM renders this case correctly and the web
@@ -710,7 +711,7 @@ export function SvgAnimator({
                         );
                     }
 
-                    const id = (node as any).id;
+                    const id = node.id;
                     const elTracks = id ? trackById.get(id) : undefined;
                     if (!elTracks) return undefined;
                     return (

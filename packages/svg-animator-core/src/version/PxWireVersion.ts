@@ -418,10 +418,14 @@ export function convertWireDocument(doc: unknown): PxWireConversionResult {
 
 /** A structural copy of a parsed JSON document. `structuredClone` where the runtime has it
  *  (every browser the player targets, and Node 17+), else a JSON round trip — the input is
- *  parsed wire data either way, so both are lossless for it. */
+ *  parsed wire data either way, so both are lossless for it. `structuredClone` refuses a Proxy
+ *  (a Vue reactive document is one): the JSON round trip reads through it. */
 function clonePlain<T>(value: T): T {
     const structured = (globalThis as { structuredClone?: (v: unknown) => unknown }).structuredClone;
-    return structured ? structured(value) as T : JSON.parse(JSON.stringify(value)) as T;
+    if (structured) {
+        try { return structured(value) as T; } catch { /* a Proxy — fall through to the JSON copy */ }
+    }
+    return JSON.parse(JSON.stringify(value)) as T;
 }
 
 /**

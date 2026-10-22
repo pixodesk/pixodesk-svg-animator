@@ -8,7 +8,7 @@
 // string, animated = `{keyframes}` whose values are `{pathData:"M…"}` — the one wire form
 // for animated geometry (@see PxKeyframeValueSchema).
 
-import type { PxAnimatable, PxBezierPath } from '../../format/PxAnimatorTypes';
+import { PxPathValueSchema, type PxAnimatable, type PxBezierPath } from '../../format/PxAnimatorTypes';
 import { parseSvgPathToBezier } from '../../animation/PxDefinitions';
 import { bezierToSvgPath, interpolateBeziers } from '../../util/PxAnimatorUtil';
 import { ReadKind, readAnimatable } from './transformParts';
@@ -43,7 +43,7 @@ export interface PathTrack {
 
 /** `undefined` when the slot is absent or holds no usable path. */
 export function pathTrackOf(raw: PxAnimatable<string> | undefined): PathTrack | undefined {
-    const r = readAnimatable<string>(raw);
+    const r = readAnimatable(raw, PxPathValueSchema);
     if (r.kind === ReadKind.Absent) return undefined;
 
     if (r.kind === ReadKind.Static || r.keyframes.length < 2) {

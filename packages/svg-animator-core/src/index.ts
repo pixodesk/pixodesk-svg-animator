@@ -13,7 +13,7 @@
 
 // Schema toolkit
 
-export { px, schemaKeys, describeSchema } from './schema/PxSchema';
+export { px, schemaKeys, describeSchema, PxSchemaCastError } from './schema/PxSchema';
 export {
     PX_WIRE_VERSION_KEY,
     PX_WIRE_VERSION,
@@ -36,7 +36,7 @@ export type {
     PxWireConversionResult,
     PxWireConversionOptions,
 } from './version/PxWireVersion';
-export type { PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, PxValidationFinding, PxRemoveIndex } from './schema/PxSchema';
+export type { PxInfer, PxSchema, PxSchemaDesc, PxValidationContext, PxValidationFinding, PxRemoveIndex, PxCastResult } from './schema/PxSchema';
 export type { PxValidationResult } from './format/PxAnimatorTypes';
 export { PxValidationFindingKind } from './schema/PxSchema';
 

@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { calcAnimationValues, getAnimatorConfig, normalizeBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxAnimationDefinition } from '@pixodesk/svg-animator-core';
+import { calcAnimationValues, getAnimatorConfig, normalizeBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxNode } from '@pixodesk/svg-animator-core';
 import { createMotionPathSegments } from '@pixodesk/svg-animator-core/internal';
 import { PX_DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
 import { toRnPropName, toRnPropValue } from './PxRnPropNames';
@@ -93,7 +93,7 @@ export function compileTracks(doc: PxAnimatedSvgDocument, opts?: CompileTracksOp
     // Element tag per id — `toRnPropValue` needs it to leave the root `<Svg>`'s
     // transform as a string (see its `tag` parameter).
     const tagById = new Map<string, string>();
-    const indexTags = (n: any): void => {
+    const indexTags = (n: PxNode): void => {
         if (n && typeof n.id === 'string') tagById.set(n.id, String(n.type));
         (n?.children ?? []).forEach(indexTags);
     };

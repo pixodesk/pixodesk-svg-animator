@@ -45,7 +45,8 @@
  */
 
 import { applyTransformByEffect } from '../transform/transformationEffect';
-import type { PxAnimatable, PxAnimationDefinition, PxKeyframe, PxNode, PxTransformByEffect, PxVec2 } from '../../format/PxAnimatorTypes';
+import { PxTransformPartsSchema, PxTransformValueWrapperSchema, type PxAnimationDefinition, type PxKeyframe, type PxNode, type PxPropertyAnimation, type PxTransformByEffect, type PxTransformParts } from '../../format/PxAnimatorTypes';
+import { hasPathRotation, inlineAnimate, keyframeWith, staticTransformParts, type ValueKeyframe } from '../shared/transformParts';
 import type { ApplyContext } from '../shared/types';
 import { stripHash } from '../shared/util';
 
@@ -122,8 +123,8 @@ export function splitForContentRef(
 ////////////////////////////////////////////////////////////////
 
 interface OuterBody {
-    transform?: string | { value?: any; keyframes?: Array<any> };
-    animate?: { transform: any };
+    transform?: string | PxTransformParts | { value: PxTransformParts };
+    animate?: PxAnimationDefinition;
 }
 
 /** Removes translate parts from `node.transform` (string) and from `node.animate.transform`,
@@ -140,68 +141,58 @@ function liftBodyTranslate(node: PxNode, transformBy: PxTransformByEffect | unde
     //    belong to translate; they go to the OUTER wrapper with translate, never
     //    to the inner one (the inner has rotate/scale only).
     let didLiftAnimate = false;
-    // In-place animations on a node body are always the record form
-    // (`{propName: PxPropertyAnimation}`) at this point in the pipeline —
-    // narrow the `PxElementAnimation` union accordingly.
-    const animTr = (node.animate as PxAnimationDefinition | undefined)?.transform;
-    if (animTr && typeof animTr === 'object' && Array.isArray(animTr.keyframes)) {
-        const kfs: Array<PxKeyframe<any>> = animTr.keyframes;
-        const hasTranslate = kfs.some(kf => kf.value && (kf.value as any).translate);
-        if (hasTranslate) {
-            const outerHasOrigin = needsOriginOnOuter(animTr as PxAnimatable<PxVec2>);
-            const outerKfs = kfs.map(kf => {
-                const v = (kf.value || {}) as any;
-                const newValue: any = {};
-                if (v.translate !== undefined) newValue.translate = v.translate;
-                if (outerHasOrigin && v.origin !== undefined) newValue.origin = v.origin;
-                const outerKf: any = { value: newValue };
-                if (kf.time !== undefined) outerKf.time = kf.time;
-                if (kf.easing !== undefined) outerKf.easing = kf.easing;
-                if ((kf as any).tangentOut !== undefined) outerKf.tangentOut = (kf as any).tangentOut;
-                if ((kf as any).tangentIn !== undefined) outerKf.tangentIn = (kf as any).tangentIn;
-                return outerKf;
-            });
-            const outerAnimTr: any = { keyframes: outerKfs };
-            if ((animTr as any).autoOrient) outerAnimTr.autoOrient = true;
-            // Forward `loop` so the split outer/inner halves keep the source
-            // alternate/cycle semantics; otherwise lifting a transform with
-            // `loop.alternate` silently drops the loop on translate side.
-            const srcLoop = (animTr as any).loop;
-            if (srcLoop !== undefined) outerAnimTr.loop = srcLoop;
-            out.animate = { transform: outerAnimTr };
+    const animate = inlineAnimate(node);
+    const animTr = animate?.transform;
+    const kfs = animTr?.keyframes;
+    // Each keyframe's parts record (a non-record value reads as no parts).
+    const parts = kfs?.map((kf: PxKeyframe): PxTransformParts => PxTransformPartsSchema.castOrNull(kf.value) ?? {});
+    if (animate && animTr && kfs && parts?.some(v => v.translate)) {
+        const outerHasOrigin = needsOriginOnOuter(animTr);
+        // `keyframeWith` copies time / easing / tangents — the motion-path metadata goes OUTER.
+        const outerKfs = kfs.map((kf, i) => {
+            const v = parts[i];
+            const newValue: PxTransformParts = {};
+            if (v.translate !== undefined) newValue.translate = v.translate;
+            if (outerHasOrigin && v.origin !== undefined) newValue.origin = v.origin;
+            return keyframeWith(kf, newValue);
+        });
+        const outerAnimTr: PxPropertyAnimation = { keyframes: outerKfs };
+        if (animTr.autoOrient) outerAnimTr.autoOrient = true;
+        // Forward `loop` so the split outer/inner halves keep the source
+        // alternate/cycle semantics; otherwise lifting a transform with
+        // `loop.alternate` silently drops the loop on translate side.
+        const srcLoop = animTr.loop;
+        if (srcLoop !== undefined) outerAnimTr.loop = srcLoop;
+        out.animate = { transform: outerAnimTr };
 
-            const innerHasPivotedPart = kfs.some(kf => {
-                const v = (kf.value || {}) as any;
-                return v.rotate !== undefined || v.scale !== undefined;
-            });
-            const innerKfs = kfs.map(kf => {
-                const v = (kf.value || {}) as any;
-                const newValue: any = {};
-                if (v.rotate !== undefined) newValue.rotate = v.rotate;
-                if (v.scale !== undefined) newValue.scale = v.scale;
-                // Origin lives on inner kfs whenever rotate/scale need a pivot —
-                // a separate origin sandwich at the inner layer (even when origin
-                // is also on outer for the auto-orient sandwich).
-                if (v.origin !== undefined && (!outerHasOrigin || innerHasPivotedPart)) newValue.origin = v.origin;
-                // Inner kf intentionally drops tangentOut/tangentIn (translate-only).
-                const innerKf: any = { value: newValue };
-                if (kf.time !== undefined) innerKf.time = kf.time;
-                if (kf.easing !== undefined) innerKf.easing = kf.easing;
-                return innerKf;
-            });
-            const allInnerEmpty = innerKfs.every(kf => Object.keys(kf.value as object).length === 0);
-            if (allInnerEmpty) {
-                delete (node.animate as any).transform;
-                if (node.animate && Object.keys(node.animate).length === 0) delete node.animate;
-            } else {
-                // Inner animate keeps non-translate kfs; autoOrient flag is intentionally dropped.
-                // `loop` is forwarded so the inner rotate/scale half also alternates/cycles.
-                const innerAnimTr: any = { keyframes: innerKfs };
-                if (srcLoop !== undefined) innerAnimTr.loop = srcLoop;
-                (node.animate as any).transform = innerAnimTr;
-            }
-            didLiftAnimate = true;
+        const innerHasPivotedPart = parts.some(v => v.rotate !== undefined || v.scale !== undefined);
+        const innerKfs = kfs.map((kf, i) => {
+            const v = parts[i];
+            const newValue: PxTransformParts = {};
+            if (v.rotate !== undefined) newValue.rotate = v.rotate;
+            if (v.scale !== undefined) newValue.scale = v.scale;
+            // Origin lives on inner kfs whenever rotate/scale need a pivot —
+            // a separate origin sandwich at the inner layer (even when origin
+            // is also on outer for the auto-orient sandwich).
+            if (v.origin !== undefined && (!outerHasOrigin || innerHasPivotedPart)) newValue.origin = v.origin;
+            // Inner kf intentionally drops tangentOut/tangentIn (translate-only).
+            const innerKf: ValueKeyframe<PxTransformParts> = { value: newValue };
+            if (kf.time !== undefined) innerKf.time = kf.time;
+            if (kf.easing !== undefined) innerKf.easing = kf.easing;
+            return innerKf;
+        });
+        const allInnerEmpty = innerKfs.every(kf => Object.keys(kf.value).length === 0);
+        if (allInnerEmpty) {
+            delete animate.transform;
+            if (Object.keys(animate).length === 0) delete node.animate;
+        } else {
+            // Inner animate keeps non-translate kfs; autoOrient flag is intentionally dropped.
+            // `loop` is forwarded so the inner rotate/scale half also alternates/cycles.
+            const innerAnimTr: PxPropertyAnimation = { keyframes: innerKfs };
+            if (srcLoop !== undefined) innerAnimTr.loop = srcLoop;
+            animate.transform = innerAnimTr;
         }
+        didLiftAnimate = true;
     }
 
     // 2. Body `transform` — the composed STRING (pre-rendered forms / legacy /
@@ -217,8 +208,8 @@ function liftBodyTranslate(node: PxNode, transformBy: PxTransformByEffect | unde
     // wrapper recomputes both at every frame (including t=0) via the lifted
     // keyframes + autoOrient, so the body baseline is redundant and would
     // double-apply on top of it.
-    const liftedAnimateIsAutoOriented = didLiftAnimate && needsOriginOnOuter((node.animate as PxAnimationDefinition | undefined)?.transform as any || undefined)
-        || didLiftAnimate && needsOriginOnOuter((out.animate as PxAnimationDefinition | undefined)?.transform as any || undefined);
+    const liftedAnimateIsAutoOriented = didLiftAnimate && needsOriginOnOuter(inlineAnimate(node)?.transform)
+        || didLiftAnimate && needsOriginOnOuter(out.animate?.transform);
     if (typeof node.transform === 'string') {
         const split = splitTransformString(node.transform);
         if (stripBodyTranslateOnly) {
@@ -243,17 +234,14 @@ function liftBodyTranslate(node: PxNode, transformBy: PxTransformByEffect | unde
             if (split.rest) node.transform = split.rest;
             else delete node.transform;
         }
-    } else if (node.transform && typeof node.transform === 'object' && !Array.isArray(node.transform)
-               && !(node.transform as any).keyframes) {
+    } else {
         // STATIC RECORD — bare `{translate, …}` (canonical) or the legacy
         // `{value: {…}}` wrapper; the rewrite keeps the incoming spelling.
-        const wrapped = (node.transform as { value?: Record<string, unknown> }).value;
-        const isWrapped = !!(wrapped && typeof wrapped === 'object');
-        const value = (isWrapped ? wrapped : node.transform) as Record<string, unknown>;
-        const rewrap = (rec: Record<string, unknown>) => (isWrapped ? { value: rec } : rec) as any;
-        if (Array.isArray((value as any).translate)) {
-            const rest: Record<string, unknown> = { ...value };
-            delete rest.translate;
+        const value = staticTransformParts(node.transform);
+        const isWrapped = PxTransformValueWrapperSchema.is(node.transform);
+        const rewrap = (rec: PxTransformParts): PxTransformParts | { value: PxTransformParts } => (isWrapped ? { value: rec } : rec);
+        if (value?.translate) {
+            const { translate, ...rest } = value;
             const hasRest = Object.keys(rest).length > 0;
             if (stripBodyTranslateOnly) {
                 // Same redundancy rule as the string branch: the outer wrapper
@@ -261,7 +249,7 @@ function liftBodyTranslate(node: PxNode, transformBy: PxTransformByEffect | unde
                 if (hasRest) node.transform = rewrap(rest);
                 else delete node.transform;
             } else {
-                out.transform = rewrap({ translate: (value as any).translate });
+                out.transform = rewrap({ translate });
                 if (hasRest) node.transform = rewrap(rest);
                 else delete node.transform;
             }
@@ -423,12 +411,6 @@ function splitTransformByEffect(fx: PxTransformByEffect | undefined): {
 /** True when the translate animation produces rotation at the outer level
  *  (tangent handles or `autoOrient`) — meaning origin must sit on the outer
  *  with translate so the path-tangent rotation pivots around it. */
-function needsOriginOnOuter(translateAnim: PxAnimatable<PxVec2> | undefined): boolean {
-    if (!translateAnim || typeof translateAnim !== 'object') return false;
-    const obj = translateAnim as { autoOrient?: boolean; keyframes?: Array<PxKeyframe<PxVec2> & { tangentOut?: PxVec2; tangentIn?: PxVec2 }> };
-    if (obj.autoOrient) return true;
-    if (Array.isArray(obj.keyframes)) {
-        return obj.keyframes.some(kf => kf.tangentOut || kf.tangentIn);
-    }
-    return false;
+function needsOriginOnOuter(translateAnim: unknown): boolean {
+    return hasPathRotation(translateAnim);
 }

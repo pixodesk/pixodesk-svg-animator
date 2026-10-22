@@ -25,7 +25,7 @@ export { extendedPathForBrowser } from './effects/text/textPathEffect';
 export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PX_TEXT_CONTENT_ATTR, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM } from './format/PxAnimatorConstants';
 export { keyframeEasing, keyframeValue } from './format/PxAnimatorTypes';
 export type { PxAnimatable, PxAnyKeyframe, PxNormalizedKeyframe, PxNormalizedPropertyAnimation } from './format/PxAnimatorTypes';
-export { diagnoseDocument, reportDocumentDiagnostics } from './format/PxDocumentDiagnostic';
+export { diagnoseDocument, reportDocumentDiagnostics, reportDocumentProblems } from './format/PxDocumentDiagnostic';
 // Stage-stamp plumbing for players that derive a doc from a prepared one without touching its config.
 export { carryPrep } from './format/PxAnimatorConstants';
 // Wire `timeline` → runtime view (review §17a: renamed from flattenAnimatorTimeline, demoted from the
@@ -33,6 +33,8 @@ export { carryPrep } from './format/PxAnimatorConstants';
 export { resolveAnimatorTimeline } from './format/PxAnimatorConstants';
 // A motion-path segment table — owned by whoever evaluates segments repeatedly (an animator, a compile).
 export { createMotionPathSegments } from './materialize/PxMotionPath';
+export { PxNormalizedPathValueSchema } from './format/PxAnimatorTypes';
+export { legacyAnimatorOf } from './format/PxDocStage';
 export type { MotionPathSegments } from './materialize/PxMotionPath';
 // The bump-site string (review §16): public code reads `PX_WIRE_VERSION` / `formatWireVersion`.
 export { PX_WIRE_SCHEMA_VERSION } from './version/PxSchemaVersion';
@@ -40,7 +42,7 @@ export { PX_WIRE_SCHEMA_VERSION } from './version/PxSchemaVersion';
 // public answer; these are the plumbing it is built from, for players and the editor.
 export { isValidPxDocument, validateDeprecatedTransformChannels, validateEasingRefs, validateNodeEffects, validateVersionStamp } from './format/PxAnimatorTypes';
 export type { PxMaterializeAllOptions } from './materialize/PxAnimatorMaterializeAll';
-export { prepareDocumentForRender } from './materialize/PxAnimatorMaterializeAll';
+export { prepareDocumentForRender } from './pipeline/PxPrepareDocument';
 export { renderPxTree } from './render/PxRenderTree';
 export type { PxElementFactory, PxElementSpec } from './render/PxRenderTree';
 export { materializeMotionPathInPropAnim } from './materialize/PxMotionPath';

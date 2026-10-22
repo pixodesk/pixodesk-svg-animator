@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import type { PxClipPathEffect, PxNode } from '../../format/PxAnimatorTypes';
+import { PxPathValueSchema, type PxClipPathEffect, type PxNode } from '../../format/PxAnimatorTypes';
 import { pathString } from '../shared/pathValue';
 import { ReadKind, readAnimatable, writeAnimatableChannel } from '../shared/transformParts';
 import type { ApplyContext } from '../shared/types';
@@ -39,7 +39,7 @@ export function applyClipPathEffect(
 
     const clipId = genId(ctx, 'clip');
     const pathChild: PxNode = { type: 'path' };
-    const read = readAnimatable<string>(fx.pathData);
+    const read = readAnimatable(fx.pathData, PxPathValueSchema);
     if (read.kind !== ReadKind.Absent) {
         // Static values may be the bare path string or a `{pathData}` object (the kf
         // value encoding) — normalize to the string for the body attr.

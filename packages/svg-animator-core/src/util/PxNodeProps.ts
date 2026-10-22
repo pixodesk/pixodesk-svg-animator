@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { type PxDefinitions } from '../format/PxAnimatorTypes';
+import { PxPropertyAnimationSchema, PxTransformPartsSchema, PxTransformValueWrapperSchema, type PxDefinitions } from '../format/PxAnimatorTypes';
 import { INTERNAL_ATTRS, TRANSFORM_ATTR } from '../format/PxAnimatorConstants';
 import { PX_COLOR_ATTR_NAMES, composeTransformParts, kebabToCamelCaseWord, toRGBA, PX_TRANSFORM_FN_NAMES } from './PxAnimatorUtil';
 
@@ -133,7 +133,7 @@ function isDangerousAttrName(nameLower: string): boolean {
  * Everything else passes through.
  * @internal
  */
-export function sanitizeAttributeValue(name: string, value: any): any | undefined {
+export function sanitizeAttributeValue(name: string, value: string): string | undefined {
     const nameLower = name.toLowerCase();
 
     if (isDangerousAttrName(nameLower)) {
@@ -166,8 +166,8 @@ export function sanitizeAttributeValue(name: string, value: any): any | undefine
 }
 
 /** @public @advanced */
-export function toDomProps(props: Record<string, any>) {
-    const propsCopy: Record<string, any> = {};
+export function toDomProps(props: Record<string, unknown>): Record<string, string> {
+    const propsCopy: Record<string, string> = {};
 
     // Process regular attributes
     for (const rawKey of Object.keys(props)) {
@@ -186,20 +186,20 @@ export function toDomProps(props: Record<string, any>) {
             propsCopy[key] = toRGBA(value);
         } else if (
             key === 'transform' && value !== null && typeof value === 'object' &&
-            !Array.isArray(value) && !value.keyframes
+            !Array.isArray(value) && !PxPropertyAnimationSchema.castOrNull(value)?.keyframes
         ) {
             // Unified transform static record — bare `{translate, rotate, …}`
             // (canonical) or the legacy `{value: PxTransformParts}` wrapper.
             // Compose into an SVG transform string (no units — SVG transform attribute).
-            const parts = value.value && typeof value.value === 'object' ? value.value : value;
+            const parts = PxTransformValueWrapperSchema.castOrNull(value)?.value ?? PxTransformPartsSchema.castOrNull(value);
             propsCopy[TRANSFORM_ATTR] = composeTransformParts(parts, { withUnits: false });
         } else if (PX_TRANSFORM_FN_NAMES.has(key)) {
             if (Array.isArray(value)) {
-                if (key === 'translate') value = value.map((v: number) => v + 'px');
-                value = value.join(',');
+                const items = key === 'translate' ? value.map((v: number) => v + 'px') : value;
+                value = items.join(',');
             }
-            if (key === 'rotate') value = value + 'deg';
-            propsCopy[TRANSFORM_ATTR] = key + '(' + value + ')';
+            if (key === 'rotate') value = String(value) + 'deg';
+            propsCopy[TRANSFORM_ATTR] = key + '(' + String(value) + ')';
         } else if (Array.isArray(value)) {
             // Raw-array STATIC form of number-list attributes — `strokeDasharray: [16, 16]`
             // (the wire's canonical static shape; the string form "16,16" is also accepted

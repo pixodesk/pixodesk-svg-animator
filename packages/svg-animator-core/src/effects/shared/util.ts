@@ -16,12 +16,12 @@ export function genId(ctx: ApplyContext, prefix: string): string {
     return '_lw_' + prefix + '_' + (ctx.nextId++);
 }
 
-export function stripHash(href: any): string | undefined {
+export function stripHash(href: unknown): string | undefined {
     return typeof href === 'string' ? href.replace(/^#/, '') : undefined;
 }
 
 /** Reads the leading `translate(x,y)` from an SVG transform string. */
-export function readTranslateFromTransform(transform: any): PxVec2 | undefined {
+export function readTranslateFromTransform(transform: unknown): PxVec2 | undefined {
     if (typeof transform !== 'string') return undefined;
     const m = transform.match(/translate\(\s*(-?[\d.]+)\s*,\s*(-?[\d.]+)\s*\)/);
     return m ? [Number(m[1]), Number(m[2])] : undefined;

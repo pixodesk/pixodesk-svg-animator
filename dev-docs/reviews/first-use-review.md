@@ -1,7 +1,7 @@
 # First-use review — the API, the schema and the docs through a newcomer's eyes
 
 Status **2026-10-15** (two passes the same day: the exports and schemas, then every guide in
-`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4), §14 (onReady + getDuration), §15 (one validateDocument → { valid, errors, findings }), §16 (one public PX_WIRE_VERSION; the string is internal), §17 (guide says "materializing"; no rename), §17a (prepareDocument pipeline, no WeakMaps; `resolveAnimatorTimeline` internal). §17b (no WeakMaps or global caches: motion-path segment tables owned per animator / per pass). Pending: §17c `as any` audit. — each closes with a **Done** note.
+`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4), §14 (onReady + getDuration), §15 (one validateDocument → { valid, errors, findings }), §16 (one public PX_WIRE_VERSION; the string is internal), §17 (guide says "materializing"; no rename), §17a (prepareDocument pipeline, no WeakMaps; `resolveAnimatorTimeline` internal). §17b (no WeakMaps or global caches: motion-path segment tables owned per animator / per pass). §17c (documents earned as types: schema casts + type stamps + the `checked` stage; any budget 319 → 126, ratchet guard). — each closes with a **Done** note.
 
 Read as a first-time user would: the five packages' exports, the wire schemas, the component
 props, then the guides end to end — `README.md`, `docs/library/*`, `docs/format/README.md`,
@@ -788,27 +788,71 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
     by constants, holds no document data. Options: keep as is, or build it EAGERLY at module load from
     the known element map — a constant table like the attribute `Set`s, no lazy mutation.
 
-### 17c. Audit every `as any` in the library ⏳
+### 17c. Audit every `as any` in the library ✅ (the document part; the rest is a later track)
 
+- **Done (2026-10-22)** — plan and log: `dev-docs/plans/schema-cast-and-stamps.md`. Shipped `any` 319 → 126.
+  - ONE mechanism bound to the schema framework: every schema has `is` / `cast` / `castOrNull` / `castOrFix`;
+    `castOrFix` repairs in one visit, builds a NEW tree and type-stamps what it checked (non-enumerable Symbol),
+    so a later cast is a stamp lookup. The `checked` stage of `prepareDocument` runs it on every document;
+    repairs are reported (`documentRepaired` PX1108, or `effectsShape` inside `effects`).
+  - Reads after that: TS narrowing where the doc type says the shape; a schema cast where a value is a union
+    of shapes; effect channels through `readAnimatable(raw, valueSchema)`; open JSON as `Record<string, unknown>`.
+  - Root holes closed: `PxNode` index, `meta`, `PxKeyframe<T = unknown>`, `keyframeValue(): unknown`, `px.any()`.
+  - Guards: `noImplicitAny` on everywhere; `anyBudget.test.ts` — a per-package ratchet that can only go down.
+  - Left (later track): schema DSL internals, the interpolator's per-frame value domain, the glyph element
+    factory generic, platform globals (DOM / React Native), the effects test kit, React `deepEquals`.
 - **Trigger:** `flattenAnimatorTimeline` reads the wire through `(cfg as any).timeline` even
   though the document was already validated — once a document passed the check it HAS a type,
   and reading it through `any` throws that away. Audit the rest.
-- **Instances today (non-test), `packages/*/src` — 63 in 19 files:**
-  | Count | File |
-  |---|---|
-  | 16 | `core/effects/reference/contentRefSplit.ts` |
-  | 7 | `core/schema/PxSchema.ts` |
-  | 5 | `core/effects/effectTestKit.ts` |
-  | 4 each | `rn/SvgAnimator.tsx`, `rn/PxRnSafety.ts`, `core/format/PxAnimatorConstants.ts` |
-  | 3 each | `web/animator/PxAnimator.ts`, `core/playback/PxAnimatorConfigPatch.ts`, `core/effects/reference/retimeEffect.ts` |
-  | 2 each | `web/engines/PxAnimatorWebApi.ts`, `core/playback/PxFrameLoop.ts`, `core/effects/clipping/maskedByEffect.ts`, `core/effects/PlayerEffectsUtil.visualModel.ts` |
-  | 1 each | `web/engines/PxAnimatorFrameLoop.ts`, `web/engines/PxAnimatorBind.ts`, `rn/PxRnRender.tsx`, `core/util/PxIdUtil.ts`, `core/effects/text/textPathEffect.ts`, `core/animation/PxDefinitions.ts` |
-- **Do:** classify each — (a) a validated document read through `any` → type it: validation
-  should NARROW (`validateDocument` ok → the doc IS `PxAnimatedSvgDocument`, its config IS the
-  schema shape); (b) a genuine unknown-input boundary (raw JSON before validation) → `unknown`
-  + a typed guard, never `as any`; (c) structural plumbing (schema internals, test kits) →
-  justify in place or fix. Target: zero `as any` outside documented boundary helpers — the
-  same bar the editor codebase already holds.
+- **Real numbers (2026-10-22, TypeScript AST — every `any` type node, not text matches).** The earlier
+  "63" counted only non-test lines with the literal `as any` — it hid most of it.
+  | | `any` nodes, shipped source | in tests | literal `as any` (src / tests) |
+  |---|---|---|---|
+  | core | **277** | 299 | 51 / 192 |
+  | web | 8 | 27 | 7 / 21 |
+  | react | 9 | 1 | 0 / 1 |
+  | vue | 1 | 4 | 0 / 2 |
+  | rn | 24 | 36 | 10 / 1 |
+  | **total** | **319** | **367** | 68 / 217 |
+- **Silent multipliers — not in any count, but they spread `any` everywhere:**
+  1. `PxNode` (public) has `[camelCaseDomKey: string]: any` — every attribute read on a node is `any`.
+  2. `PxKeyframe<T = any>` (44 bare uses) and `keyframeValue(): any` (20 call sites).
+  3. `noImplicitAny: false` in all five tsconfigs (only 2 implicit sites exist today — tests).
+  Measured by switching each to `unknown`: PxNode index → 0 source errors (1 test); `keyframeValue` → 0;
+  `PxKeyframe` default → 8 errors in 4 files. The holes are nearly free to close.
+- **Why it exists — shipped source by cause:**
+  | Cause | Nodes | Where |
+  |---|---|---|
+  | A. Schema DSL generics — `PxSchema<any, any>` in `infer` / mapped types | 79 | `PxSchema.ts`, `PxSchemaFieldUniverse.ts` |
+  | B. Animated values whose type depends on the attribute — keyframes, animatables, interpolation | ~100 | `maskedByEffect`, `contentRefSplit`, `transformParts`, `visualModel`, `retime`, `PxDefinitions` |
+  | D. Open JSON records — `Record<string, any>` | 50 | config patches, node/raw objects |
+  | G. Platform boundaries — React / RN / DOM / WAAPI | 42 | web, react, rn |
+  | I. Reading an already-VALIDATED doc through `any` (`(cfg as any).timeline`) | 14 | `PxAnimatorConstants`, `PxAnimatorTypes` |
+  | F. Paint/style property bags (`fill?: any`) | 13 | `textGlyphsEffect` |
+  | E. Generic defaults (`<E = any>`) | 8 | glyph element factory |
+  | H. Test kit shipped in `src` | 9 | `effectTestKit` |
+  Tests (367): typed-`any` helpers 150, reading results `(x as any).prop` 90, fixture literals `{…} as any` 63,
+  invalid input on purpose / mocks 58.
+- **Ranked plan (easiest × biggest effect first):**
+  1. **Close the root holes + stop regressions** (≈1 h): `PxNode` index → `unknown`, `keyframeValue(): unknown`,
+     `PxKeyframe<T = unknown>`, `noImplicitAny: true` everywhere, and an "any budget" guard (AST count per
+     package that can only go DOWN, like the docs-check allowlist). Few visible nodes, but ends the silent spread
+     — and `PxNode` is public, so consumers' code stops being unchecked too.
+  2. **A — schema generics** (−~75, one file, type-level only): one schema alias for "any schema" in
+     constraints, `boolean` instead of `any` in `infer` positions.
+  3. **I — validated reads** (−~14): the owner's point — after `prepareDocument` the types ARE settled; read the
+     wire config as `PxAnimatorConfig` (typed `timeline` union) instead of `as any`; `isPxDocument(doc: unknown)`.
+  4. **D — JSON records** (−~45): `Record<string, unknown>` + the existing `isPlainObject` predicate;
+     `PxAnimatorConfigPatch` stays writable for consumers.
+  5. **E + F** (−~20): `<E = unknown>`; paint bags typed `PxAnimatable<string>` / `unknown`.
+  6. **B — animated values** (−~100, the real design work, file by file): typed accessors and type predicates
+     — `readTransformParts(kf)`, `PxAnimatable<PxTransformParts>` instead of `<any>`, an attribute-value union
+     for `interpolateValue` with `isTransformParts` / `isVec2` guards (`isX(): v is X`).
+  7. **G — platform** (−~30): DOM `Keyframe` types, a declared global instead of `globalThis as any`; keep the
+     genuinely loose library edges (react-native-svg props) as a handful of commented casts. RN last.
+  8. **Tests** (−~300, mechanical): validators already take `unknown`, so invalid-input tests need no cast;
+     typed fixture builders for partial documents; read results through their real types.
+  Shipped source after 1–7: 319 → roughly 15 documented boundary casts.
 
 ## 🟡 Smaller
 

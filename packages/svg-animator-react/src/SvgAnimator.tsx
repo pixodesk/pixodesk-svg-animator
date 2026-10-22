@@ -8,8 +8,8 @@ import type { PxAnimatedSvgDocument, PxAnimatorApi, PxTimelineEngineSetting, PxT
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
 import type { PxMouseOutAction } from '@pixodesk/svg-animator-core';
 import { createSvgAnimator, PxDiagnosticKind, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, applyDeclarativeAction, createIterationStopWatcher, foldTimelineOverride, toAnimatedSvgDocument, type PxDocumentInput, getAnimatorConfig, PxDeclarativeAction, type PxDeclarativeProps, PxDiagnosticCode, PxControlMode, PxFillMode, PxPlaybackWorld, PxPlayMode, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
-import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
+import { applyAnimatorConfig, applyDeclarativeAction, createIterationStopWatcher, foldTimelineOverride, toAnimatedSvgDocument, type PxDocumentInput, getAnimatorConfig, PxDeclarativeAction, type PxDeclarativeProps, PxDiagnosticCode, PxControlMode, PxFillMode, PxPlaybackWorld, PxPlayMode, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorConfigPatch, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
+import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
 import { useDepsVersion } from './Utils';
@@ -153,7 +153,8 @@ const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
     // Render what the web player renders: materialized, then fresh ids. Rendering the raw
     // document dropped every `effects` bucket — no gradient, mask or wrapper defs — so a
     // document painted by `effects` alone came out as an empty canvas.
-    doc = prepareDocumentForRender(doc);
+    // The checked stage repairs what does not match the schema and says what it repaired.
+    doc = prepareDocumentForRender(doc, ps => reportDocumentProblems(ps, createDiagnostics(diagRef.current ?? undefined, '[SvgAnimator]')));
 
     // The `<svg>` this component rendered — handed to the player, which attaches its triggers
     // to it and writes animated values to the elements under it.
@@ -317,7 +318,7 @@ const SvgAnimator: FC<SvgAnimatorProps> = ({
     // See dev-docs/plans/playback-override.md §1.1.
     const patch = foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce });
     const takeOverTrigger = controlModeTakesOverTrigger(compMode);
-    const fullPatch: any = takeOverTrigger ? suppressTriggerStart(patch) : patch;
+    const fullPatch: PxAnimatorConfigPatch | undefined = takeOverTrigger ? suppressTriggerStart(patch) : patch;
 
     if (fullPatch !== undefined || resetTimeline) {
         const applied = applyAnimatorConfig(doc, fullPatch ?? {}, { resetTimeline: !!resetTimeline });

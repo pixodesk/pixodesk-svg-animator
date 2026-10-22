@@ -136,6 +136,40 @@ export interface PxSchema<T, IsOptional extends boolean = false, StatesDefault e
     absentDefault(): T | undefined;
     /** Returns a new schema that marks this field as optional (?: in object shapes). */
     optional(): PxSchema<T | undefined, true, StatesDefault>;
+    /** Narrowing guard: true when `raw` is a `T`. A value `castOrFix` stamped answers at once. */
+    is(raw: unknown): raw is T;
+    /** `raw` as a `T`, or throws {@link PxSchemaCastError} naming every problem with its path. */
+    cast(raw: unknown): T;
+    /** `raw` as a `T`, or `null`. */
+    castOrNull(raw: unknown): T | null;
+    /**
+     * ONE visit: a NEW tree with every declared value checked and repaired, every object and array in
+     * it stamped as checked — later `is` / `cast*` on it answer from the stamp. Lenient: undeclared
+     * keys are kept untouched. The input is never modified; a stamped tree comes back as it is.
+     */
+    castOrFix(raw: unknown): PxCastResult<T>;
+    /** The one-visit worker behind `castOrFix` — builds the copy, counts repairs in `run`. @internal */
+    _fix(raw: unknown, run: PxFixRun): T;
+}
+
+/** What {@link PxSchema.castOrFix} returns: the checked value and what had to be repaired. @public @advanced */
+export interface PxCastResult<T> {
+    readonly value: T;
+    /** One finding per repair (empty when the input was already valid). */
+    readonly problems: ReadonlyArray<PxValidationFinding>;
+    /** The same problems as `<path>: <reason>` lines. */
+    readonly errors: ReadonlyArray<string>;
+}
+
+/** Repair counter threaded through `_fix`. @internal */
+export interface PxFixRun { repairs: number }
+
+/** Thrown by {@link PxSchema.cast}: the value does not match; `errors` / `findings` say where. @public @advanced */
+export class PxSchemaCastError extends Error {
+    constructor(readonly errors: ReadonlyArray<string>, readonly findings: ReadonlyArray<PxValidationFinding>) {
+        super('value does not match the schema' + (errors.length ? ':\n  ' + errors.slice(0, 8).join('\n  ') + (errors.length > 8 ? '\n  …' : '') : ''));
+        this.name = 'PxSchemaCastError';
+    }
 }
 
 /** Extract the TypeScript type from a schema. @public @advanced */
@@ -206,6 +240,31 @@ function pathStr(path: Array<string>): string {
 // Base — default _canSanitize = isValid (correct for primitives)
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Type stamps — "this object was checked against these schemas"
+//   - written only on objects/arrays `castOrFix` CREATED (never on an input);
+//   - non-enumerable Symbol: invisible to JSON, Object.keys, spread and clones —
+//     a copy is unstamped and gets checked again;
+//   - `Symbol()` is per module instance: another copy of the library never trusts it.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const PX_SCHEMA_STAMP: unique symbol = Symbol('pxSchemaStamp');
+type StampHolder = { [PX_SCHEMA_STAMP]?: Array<object> };
+
+/** True when `raw` is an object stamped as checked against `schema`. */
+function isStampedFor(raw: unknown, schema: object): boolean {
+    return raw !== null && typeof raw === 'object' && !!(raw as StampHolder)[PX_SCHEMA_STAMP]?.includes(schema);
+}
+/** True when `raw` carries any stamp — i.e. `castOrFix` created it. */
+function isStampedObject(raw: unknown): boolean {
+    return raw !== null && typeof raw === 'object' && !!(raw as StampHolder)[PX_SCHEMA_STAMP];
+}
+function stamp(obj: object, schema: object): void {
+    const list = (obj as StampHolder)[PX_SCHEMA_STAMP];
+    if (list) { if (!list.includes(schema)) list.push(schema); }
+    else Object.defineProperty(obj, PX_SCHEMA_STAMP, { value: [schema], enumerable: false, configurable: true });
+}
+
 /** Shared base; overrides _canSanitize only when the structural check must differ from isValid. */
 abstract class Base<T, IsOptional extends boolean = false, D extends boolean = false> implements PxSchema<T, IsOptional, D> {
     // `declare` emits no runtime code; purely satisfies the interface's phantom _optional property.
@@ -222,7 +281,45 @@ abstract class Base<T, IsOptional extends boolean = false, D extends boolean = f
     absentDefault(): T | undefined { return this._default; }
 
     optional(): PxSchema<T | undefined, true, D> { return new Optional(this); }
+
+    is(raw: unknown): raw is T { return isStampedFor(raw, this) || this.isValid(raw); }
+
+    cast(raw: unknown): T {
+        if (this.is(raw)) return raw;
+        const ctx = { errors: [] as Array<string>, warnings: [] as Array<string>, findings: [] as Array<PxValidationFinding> };
+        this.isValid(raw, ctx, []);
+        throw new PxSchemaCastError(ctx.errors, ctx.findings);
+    }
+
+    castOrNull(raw: unknown): T | null { return this.is(raw) ? raw : null; }
+
+    castOrFix(raw: unknown): PxCastResult<T> {
+        if (isStampedFor(raw, this)) return { value: raw as T, problems: [], errors: [] };
+        const run: PxFixRun = { repairs: 0 };
+        const value = this._fix(raw, run);
+        if (!run.repairs) return { value, problems: [], errors: [] };
+        // The rare path: say what was repaired, with the exact findings `isValid` reports.
+        const ctx = { errors: [] as Array<string>, warnings: [] as Array<string>, findings: [] as Array<PxValidationFinding> };
+        this.isValid(raw, ctx, []);
+        return { value, problems: ctx.findings, errors: ctx.errors };
+    }
+
+    /** Scalars: the value itself when valid, else the repair `sanitize` makes. Containers override. */
+    _fix(raw: unknown, run: PxFixRun): T {
+        if (this.isValid(raw)) return raw as T;
+        run.repairs++;
+        return this.sanitize(raw);
+    }
+
+    /** Stamps a container `_fix` built — at once when nothing was repaired inside it, else only
+     *  after checking the repaired result (so a stamp never vouches for an invalid value). */
+    protected _seal<V extends object>(out: V, clean: boolean): V {
+        if (clean || this.isValid(out)) stamp(out, this);
+        return out;
+    }
 }
+
+const hasOwn = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -253,6 +350,15 @@ class Optional<T, D extends boolean> extends Base<T | undefined, true, D> {
 
     override _canSanitize(raw: unknown): boolean {
         return raw === undefined || raw === null || this.inner._canSanitize(raw);
+    }
+
+    /** Exact type: `undefined` or an inner value (a wire `null` is repaired to `undefined` by `castOrFix`). */
+    override is(raw: unknown): raw is T | undefined { return raw === undefined || this.inner.is(raw); }
+
+    override _fix(raw: unknown, run: PxFixRun): T | undefined {
+        if (raw === undefined || raw === null) return undefined;
+        if (!this.inner._canSanitize(raw)) { run.repairs++; return undefined; }
+        return this.inner._fix(raw, run);
     }
 }
 
@@ -359,7 +465,25 @@ class Union<T, D extends boolean> extends Base<T, false, D> {
         }
         return this._default;
     }
+    override _fix(raw: unknown, run: PxFixRun): T {
+        if (isStampedFor(raw, this)) return raw as T;   // already checked — reuse, never rebuild
+        // ≡ sanitize's "first member whose isValid passes": the first member that fixes with ZERO
+        // repairs. A member whose cheap structural check fails cannot be valid — skipped.
+        for (const s of this.schemas) {
+            if (!s._canSanitize(raw)) continue;
+            const trial: PxFixRun = { repairs: 0 };
+            const v = s._fix(raw, trial);
+            if (!trial.repairs) {
+                if (isStampedObject(v)) stamp(v as object, this);   // only objects WE built — never an input passed through
+                return v;
+            }
+        }
+        run.repairs++;
+        return this._default;
+    }
+
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (!ctx?.strict && isStampedFor(raw, this)) return true;
         // Members see the MODE but NOT the caller's error sink (V6). Two separate
         // things were bundled in `ctx`: passing it whole made every non-matching
         // branch push errors even when a later branch matched; passing nothing at
@@ -496,7 +620,17 @@ class DiscriminatedUnion<T> extends Base<T> {
         return (this._findSchema(raw) ?? this._schemas[0]).sanitize(raw);
     }
 
+    override _fix(raw: unknown, run: PxFixRun): T {
+        if (isStampedFor(raw, this)) return raw as T;   // already checked — reuse, never rebuild
+        const schema = this._findSchema(raw);
+        if (!schema) run.repairs++;
+        const v = (schema ?? this._schemas[0])._fix(raw, run);
+        if (schema && isStampedFor(v, schema)) stamp(v as object, this);
+        return v;
+    }
+
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (!ctx?.strict && isStampedFor(raw, this)) return true;
         const schema = this._findSchema(raw);
         if (!schema) {
             const val = (raw !== null && typeof raw === 'object' && !Array.isArray(raw))
@@ -583,7 +717,30 @@ class Obj<S extends AnyShape> extends Base<InferShape<S>> {
         return out;
     }
 
+    /** One visit: declared keys checked and repaired, undeclared keys KEPT as they are (lenient —
+     *  unlike `sanitize`), input key order preserved; no phantom `undefined` keys. */
+    override _fix(raw: unknown, run: PxFixRun): InferShape<S> {
+        if (isStampedFor(raw, this)) return raw as InferShape<S>;   // already checked — reuse, never rebuild
+        const before = run.repairs;
+        const isObj = !!raw && typeof raw === 'object' && !Array.isArray(raw);
+        if (!isObj) run.repairs++;
+        const src = isObj ? raw as Record<string, unknown> : {};
+        const shape = this._shape as Record<string, PxSchema<unknown, boolean>>;
+        const out: Record<string, unknown> = {};
+        for (const key of Object.keys(src)) {
+            const v = hasOwn(shape, key) ? shape[key]._fix(src[key], run) : src[key];
+            if (v !== undefined) out[key] = v;
+        }
+        for (const key of Object.keys(shape)) {
+            if (hasOwn(src, key)) continue;
+            const v = shape[key]._fix(undefined, run);
+            if (v !== undefined) out[key] = v;
+        }
+        return this._seal(out, run.repairs === before) as InferShape<S>;
+    }
+
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (!ctx?.strict && isStampedFor(raw, this)) return true;
         if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
             reportExpected(ctx, path, PxValidationFindingKind.typeMismatch, 'object', Array.isArray(raw) ? 'array' : typeof raw);
             return false;
@@ -673,7 +830,31 @@ class OpenObj<S extends AnyShape, V = any> extends Base<InferOpenShape<S, V>> {
         return out as InferOpenShape<S, V>;
     }
 
+    /** One visit: declared keys checked and repaired, the others through the open-value schema
+     *  (or kept as they are without one), input key order preserved. */
+    override _fix(raw: unknown, run: PxFixRun): InferOpenShape<S, V> {
+        if (isStampedFor(raw, this)) return raw as InferOpenShape<S, V>;   // already checked — reuse, never rebuild
+        const before = run.repairs;
+        const isObj = !!raw && typeof raw === 'object' && !Array.isArray(raw);
+        if (!isObj) run.repairs++;
+        const src = isObj ? raw as Record<string, unknown> : {};
+        const shape = this._shape as Record<string, PxSchema<unknown, boolean>>;
+        const open = this._openSchema;
+        const out: Record<string, unknown> = {};
+        for (const key of Object.keys(src)) {
+            const v = hasOwn(shape, key) ? shape[key]._fix(src[key], run) : open ? open._fix(src[key], run) : src[key];
+            if (v !== undefined) out[key] = v;
+        }
+        for (const key of Object.keys(shape)) {
+            if (hasOwn(src, key)) continue;
+            const v = shape[key]._fix(undefined, run);
+            if (v !== undefined) out[key] = v;
+        }
+        return this._seal(out, run.repairs === before) as InferOpenShape<S, V>;
+    }
+
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (!ctx?.strict && isStampedFor(raw, this)) return true;
         if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
             reportExpected(ctx, path, PxValidationFindingKind.typeMismatch, 'object', Array.isArray(raw) ? 'array' : typeof raw);
             return false;
@@ -722,7 +903,20 @@ class Arr<T> extends Base<Array<T>> {
         return out;
     }
 
+    override _fix(raw: unknown, run: PxFixRun): Array<T> {
+        if (isStampedFor(raw, this)) return raw as Array<T>;   // already checked — reuse, never rebuild
+        const before = run.repairs;
+        const out: Array<T> = [];
+        if (!Array.isArray(raw)) run.repairs++;
+        else for (const el of raw) {
+            if (this.item._canSanitize(el)) out.push(this.item._fix(el, run));
+            else run.repairs++;                                  // dropped, as sanitize drops it
+        }
+        return this._seal(out, run.repairs === before);
+    }
+
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (!ctx?.strict && isStampedFor(raw, this)) return true;
         if (!Array.isArray(raw)) {
             reportExpected(ctx, path, PxValidationFindingKind.typeMismatch, 'array', typeof raw);
             return false;
@@ -761,7 +955,20 @@ class Rec<T> extends Base<Record<string, T>> {
         return out;
     }
 
+    override _fix(raw: unknown, run: PxFixRun): Record<string, T> {
+        if (isStampedFor(raw, this)) return raw as Record<string, T>;   // already checked — reuse, never rebuild
+        const before = run.repairs;
+        const out: Record<string, T> = {};
+        if (!raw || typeof raw !== 'object' || Array.isArray(raw)) run.repairs++;
+        else for (const [k, v] of Object.entries(raw)) {
+            if (this.value._canSanitize(v)) out[k] = this.value._fix(v, run);
+            else run.repairs++;                                  // dropped, as sanitize drops it
+        }
+        return this._seal(out, run.repairs === before);
+    }
+
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (!ctx?.strict && isStampedFor(raw, this)) return true;
         if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
             reportExpected(ctx, path, PxValidationFindingKind.typeMismatch, 'object/record', Array.isArray(raw) ? 'array' : typeof raw);
             return false;
@@ -787,10 +994,10 @@ class Rec<T> extends Base<Record<string, T>> {
 // ─────────────────────────────────────────────────────────────────────────────
 
 /** Passes any value through unchanged; always valid. Useful for opaque blobs with no schema. */
-class Any extends Base<any> {
-    readonly _default: any = undefined;
+class Any extends Base<unknown> {
+    readonly _default: unknown = undefined;
     constructor() { super(false); }
-    sanitize(raw: unknown): any { return raw; }
+    sanitize(raw: unknown): unknown { return raw; }
     isValid(_raw: unknown, _ctx?: PxValidationContext, _path?: Array<string>): boolean { return true; }
     override _canSanitize(_raw: unknown): boolean { return true; }
 }
@@ -804,10 +1011,10 @@ class Any extends Base<any> {
  * there, the branch matched EVERY object, because `any` accepts `undefined` and
  * an absent key is indistinguishable from one holding `undefined`.
  */
-class Defined extends Base<any> {
-    readonly _default: any = undefined;
+class Defined extends Base<unknown> {
+    readonly _default: unknown = undefined;
     constructor() { super(false); }
-    sanitize(raw: unknown): any { return raw; }
+    sanitize(raw: unknown): unknown { return raw; }
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
         if (raw !== undefined) return true;
         reportValidationError(ctx, path, PxValidationFindingKind.missingValue, 'required value is missing');
@@ -833,6 +1040,8 @@ class Lazy<T> extends Base<T> {
     sanitize(raw: unknown): T { return this.schema.sanitize(raw); }
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean { return this.schema.isValid(raw, ctx, path); }
     override _canSanitize(raw: unknown): boolean { return this.schema._canSanitize(raw); }
+    override is(raw: unknown): raw is T { return this.schema.is(raw); }
+    override _fix(raw: unknown, run: PxFixRun): T { return this.schema._fix(raw, run); }
 }
 
 
@@ -861,7 +1070,16 @@ class Tuple<T extends ReadonlyArray<PxSchema<any, any>>> extends Base<TupleItems
         return this.schemas.map((s, i) => s.sanitize((raw as unknown[])[i])) as unknown as TupleItems<T>;
     }
 
+    override _fix(raw: unknown, run: PxFixRun): TupleItems<T> {
+        if (isStampedFor(raw, this)) return raw as TupleItems<T>;   // already checked — reuse, never rebuild
+        if (!Array.isArray(raw) || raw.length !== this.schemas.length) { run.repairs++; return this._default; }
+        const before = run.repairs;
+        const out = (this.schemas as ReadonlyArray<PxSchema<unknown, boolean>>).map((s, i) => s._fix((raw as Array<unknown>)[i], run));
+        return this._seal(out, run.repairs === before) as unknown as TupleItems<T>;
+    }
+
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {
+        if (!ctx?.strict && isStampedFor(raw, this)) return true;
         if (!Array.isArray(raw) || raw.length !== this.schemas.length) {
             reportExpected(ctx, path, PxValidationFindingKind.typeMismatch, 'tuple of length ' + this.schemas.length, Array.isArray(raw) ? 'array[' + (raw as unknown[]).length + ']' : typeof raw);
             return false;
@@ -1095,10 +1313,10 @@ export const px = {
         new Rec(value),
 
     /** Passes anything through unchanged — always valid. */
-    any: (): PxSchema<any> => new Any(),
+    any: (): PxSchema<unknown> => new Any(),
 
     /** Anything EXCEPT `undefined` — an open type whose presence is required (V6). */
-    defined: (): PxSchema<any> => new Defined(),
+    defined: (): PxSchema<unknown> => new Defined(),
 
     /** Fixed-length tuple — validates element count and each position individually. */
     tuple: <T extends ReadonlyArray<PxSchema<any, any>>>(schemas: T): PxSchema<TupleItems<T>> =>

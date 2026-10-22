@@ -5,8 +5,8 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import { keyframeWith, partsRecord, ReadKind, readAnimatable, TransformPart } from '../shared/transformParts';
-import type { PxAnimatable, PxNode, PxTransformByEffect, PxVec2 } from '../../format/PxAnimatorTypes';
+import { hasPathRotation, keyframeWith, partsRecord, ReadKind, readAnimatable, TransformPart, type ReadPart } from '../shared/transformParts';
+import { PxChannelNumberSchema, PxVec2Schema, type PxAnimatable, type PxNode, type PxPropertyAnimation, type PxTransformByEffect, type PxVec2 } from '../../format/PxAnimatorTypes';
 import type { ApplyContext } from '../shared/types';
 
 
@@ -44,20 +44,20 @@ export function applyTransformByEffect(node: PxNode, fx: PxTransformByEffect | u
     // slot shared with the unified body transform and Lottie (see skew-support.plan.md).
     let n = node;
     n = wrapOrigin(n, fx.origin, /*invert=*/true);                       // -origin (r/k/s sandwich)
-    n = wrapTransformPart(n, TransformPart.Scale, normalizeScale(fx.scale), ctx);
-    n = wrapTransformPart(n, TransformPart.Skew, fx.skew, ctx);
-    n = wrapTransformPart(n, TransformPart.Rotate, fx.rotate, ctx);
+    n = wrapTransformPart(n, TransformPart.Scale, readAnimatable(normalizeScale(fx.scale), PxVec2Schema));
+    n = wrapTransformPart(n, TransformPart.Skew, readAnimatable(fx.skew, PxChannelNumberSchema));
+    n = wrapTransformPart(n, TransformPart.Rotate, readAnimatable(fx.rotate, PxChannelNumberSchema));
     n = wrapOrigin(n, fx.origin, /*invert=*/false);                      // +origin (r/k/s sandwich)
 
-    if (translateHasAutoOrient(fx.translate)) {
+    if (hasPathRotation(fx.translate)) {
         // Sandwich translate with its own +o/-o so the motion-path tangent
         // rotation built into the translate wrapper pivots around origin
         // (the `[+o, t_path_ao, -o]` branch).
         n = wrapOrigin(n, fx.origin, /*invert=*/true);                   // -origin (translate sandwich)
-        n = wrapTransformPart(n, TransformPart.Translate, fx.translate, ctx);
+        n = wrapTransformPart(n, TransformPart.Translate, readAnimatable(fx.translate, PxVec2Schema));
         n = wrapOrigin(n, fx.origin, /*invert=*/false);                  // +origin (translate sandwich)
     } else {
-        n = wrapTransformPart(n, TransformPart.Translate, fx.translate, ctx);
+        n = wrapTransformPart(n, TransformPart.Translate, readAnimatable(fx.translate, PxVec2Schema));
     }
 
     // The OUTERMOST wrapper takes the element's id (B4/A1): an id names the WHOLE
@@ -72,15 +72,6 @@ export function applyTransformByEffect(node: PxNode, fx: PxTransformByEffect | u
     return n;
 }
 
-/** True when the translate animation carries motion-path tangent handles or
- *  `autoOrient` — the path-tangent rotation needs origin-sandwich to pivot. */
-function translateHasAutoOrient(translate: PxAnimatable<PxVec2> | undefined): boolean {
-    if (!translate || typeof translate !== 'object') return false;
-    const obj = translate as { autoOrient?: boolean; keyframes?: Array<{ tangentOut?: PxVec2; tangentIn?: PxVec2 }> };
-    if (obj.autoOrient) return true;
-    return Array.isArray(obj.keyframes) && obj.keyframes.some(kf => kf.tangentOut || kf.tangentIn);
-}
-
 /**
  * The wire `effects.transformBy.scale` is a FACTOR (1.5 = 150%) in every form —
  * bare static, `{value:…}` and `{keyframes:…}` alike (one convention, see
@@ -93,18 +84,12 @@ function normalizeScale(raw: PxAnimatable<PxVec2> | undefined): PxAnimatable<PxV
 }
 
 /** Wraps `inner` in a `<g>` carrying a single transform part, static or animated. */
-function wrapTransformPart(
-    inner: PxNode, part: TransformPart,
-    raw: PxAnimatable<any> | undefined, ctx: ApplyContext
-): PxNode {
-    if (raw === undefined) return inner;
-
-    const v = readAnimatable<any>(raw);
+function wrapTransformPart<T extends number | PxVec2>(inner: PxNode, part: TransformPart, v: ReadPart<T>): PxNode {
     if (v.kind === ReadKind.Static) {
         return { type: 'g', transform: { value: partsRecord(part, v.value, undefined) }, children: [inner] };
     }
     if (v.kind === ReadKind.Animated) {
-        const animTr: any = { keyframes: v.keyframes.map(kf => keyframeWith(kf, partsRecord(part, kf.value, undefined))) };
+        const animTr: PxPropertyAnimation = { keyframes: v.keyframes.map(kf => keyframeWith(kf, partsRecord(part, kf.value, undefined))) };
         if (v.autoOrient) animTr.autoOrient = true;
         if (v.loop !== undefined) animTr.loop = v.loop;
         return {
@@ -127,7 +112,7 @@ function wrapTransformPart(
  */
 function wrapOrigin(inner: PxNode, raw: PxAnimatable<PxVec2> | undefined, invert: boolean): PxNode {
     if (raw === undefined) return inner;
-    const v = readAnimatable<PxVec2>(raw);
+    const v = readAnimatable(raw, PxVec2Schema);
     const sign = (value: PxVec2): PxVec2 => invert ? [-value[0], -value[1]] : value;
 
     if (v.kind === ReadKind.Absent) return inner;
@@ -136,7 +121,7 @@ function wrapOrigin(inner: PxNode, raw: PxAnimatable<PxVec2> | undefined, invert
         return { type: 'g', transform: { value: { translate: sign(v.value) } }, children: [inner] };
     }
     if (v.kind === ReadKind.Animated) {
-        const animTr: any = { keyframes: v.keyframes.map(kf => keyframeWith(kf, { translate: sign(kf.value as PxVec2) })) };
+        const animTr: PxPropertyAnimation = { keyframes: v.keyframes.map(kf => keyframeWith(kf, { translate: sign(kf.value) })) };
         if (v.loop !== undefined) animTr.loop = v.loop;
         return {
             type: 'g',

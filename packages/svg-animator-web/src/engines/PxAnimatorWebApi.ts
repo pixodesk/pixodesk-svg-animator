@@ -4,8 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, normalizeBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxBezierPath, clampSeekMs, isValidPlaybackRate, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
-import { PX_DEFAULT_ITERATIONS } from '@pixodesk/svg-animator-core/internal';
+import { getAnimatorConfig, normalizeBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxBezierPath, PxTransformPartsSchema, clampSeekMs, isValidPlaybackRate, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
+import { PX_DEFAULT_ITERATIONS, PxNormalizedPathValueSchema } from '@pixodesk/svg-animator-core/internal';
 import { PX_PCT_BASED_ATTR_NAMES, bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, PX_COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateValue, kebabToCamelCaseWord, splitEasing, toRGBA, PX_TRANSFORM_FN_NAMES, type PxAnyKeyframe, type PxNormalizedKeyframe, keyframeEasing, keyframeValue, createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
@@ -26,7 +26,7 @@ import type { PxEngineAnimatorApi } from '../shared/PxAnimatorWebTypes';
  * frame-loop animator.
  */
 function createCssKf(kf: PxAnyKeyframe, t: number, propName: string, unsupportedSet: Set<string>) {
-    let value = keyframeValue(kf);
+    const value = keyframeValue(kf);
     // The easing is on the SOURCE keyframe: it applies from this kf to the next, matching the
     // WAAPI convention. Resolved already when the keyframe came through `normalizeKeyframes`.
     const e = keyframeEasing(kf);
@@ -36,23 +36,22 @@ function createCssKf(kf: PxAnyKeyframe, t: number, propName: string, unsupported
         easing: e && Array.isArray(e) ? "cubic-bezier(" + e.join(',') + ")" : undefined
     };
 
-    let cssValue: any;
+    let cssValue: string;
     let cssKey = propName;
+    // Unified transform: the keyframe value is a parts record (PxTransformParts).
+    const parts = propName === 'transform' ? PxTransformPartsSchema.castOrNull(value) : null;
 
     if (PX_COLOR_ATTR_NAMES.has(propName) && Array.isArray(value)) {
         cssValue = toRGBA(value);
-    } else if (propName === 'transform' && value !== null && typeof value === 'object' && !Array.isArray(value)) {
-        // Unified transform: keyframe value is a parts record (PxTransformParts).
+    } else if (parts) {
         // Compose all present parts into one CSS transform string.
-        cssValue = composeTransformParts(value, { withUnits: true });
+        cssValue = composeTransformParts(parts, { withUnits: true });
         cssKey = 'transform';
     } else if (PX_TRANSFORM_FN_NAMES.has(propName)) {
-        if (Array.isArray(value)) {
-            if (propName === 'translate') value = value.map(v => v + 'px');
-            value = value.join(',');
-        }
-        if (propName === 'rotate') value = value + 'deg';
-        cssValue = propName + '(' + value + ')';
+        let fnArgs: unknown = value;
+        if (Array.isArray(value)) fnArgs = (propName === 'translate' ? value.map(v => v + 'px') : value).join(',');
+        if (propName === 'rotate') fnArgs = fnArgs + 'deg';
+        cssValue = propName + '(' + fnArgs + ')';
         cssKey = 'transform';
     } else if (propName === 'd') {
         // Animated path. The value is a { paths: PxBezierPath[] } record (same shape the CSS/frame
@@ -60,8 +59,7 @@ function createCssKf(kf: PxAnyKeyframe, t: number, propName: string, unsupported
         // `d`, which empties the <path> — the shape vanished in forced WAAPI while svg-css (which
         // emits `d: path(...)`) rendered it. Emit the CSS `d` presentation-attr syntax `path("…")`
         // via the same bezierToSvgPath used by the CSS path, so WAAPI animates it identically.
-        const paths: Array<PxBezierPath> = (value && typeof value === 'object' && Array.isArray(value.paths))
-            ? value.paths : [];
+        const paths: Array<PxBezierPath> = PxNormalizedPathValueSchema.castOrNull(value)?.paths ?? [];
         // forceCurves: CSS/WAAPI only interpolates `path()` values with IDENTICAL command
         // sequences — uniform all-`C` output keeps every keyframe structurally equal
         // (mixed L/C, e.g. round-corner radius 0 vs >0, would go DISCRETE → 50% flip).
@@ -113,8 +111,9 @@ function clipKeyframesToDuration(
             if (next && (next.t ?? 0) >= 0) {
                 const nextT = next.t ?? 0;
                 const localFrac = (0 - t) / (nextT - t);
-                const easedFrac = kf.e ? cubicBezier(kf.e as [number, number, number, number])(localFrac) : localFrac;
-                const { right: rightEasing } = splitEasing(kf.e as any, localFrac);
+                const bezier = Array.isArray(kf.e) ? kf.e : undefined;   // a normalized keyframe's easing is resolved — never a name
+                const easedFrac = bezier ? cubicBezier(bezier)(localFrac) : localFrac;
+                const { right: rightEasing } = splitEasing(bezier, localFrac);
                 result.push({ t: 0, v: interpolateValue(propName, kf.v, next.v, easedFrac), e: rightEasing });
             }
             continue;
@@ -126,8 +125,9 @@ function clipKeyframesToDuration(
             if (prev && (prev.t ?? 0) <= duration) {
                 const prevT = prev.t ?? 0;
                 const localFrac = (duration - prevT) / (t - prevT);
-                const easedFrac = prev.e ? cubicBezier(prev.e as [number, number, number, number])(localFrac) : localFrac;
-                const { left: leftEasing } = splitEasing(prev.e as any, localFrac);
+                const bezier = Array.isArray(prev.e) ? prev.e : undefined;
+                const easedFrac = bezier ? cubicBezier(bezier)(localFrac) : localFrac;
+                const { left: leftEasing } = splitEasing(bezier, localFrac);
                 if (result.length > 0) result[result.length - 1] = { ...result[result.length - 1], e: leftEasing };
                 result.push({ t: duration, v: interpolateValue(propName, prev.v, kf.v, easedFrac), e: undefined });
             }

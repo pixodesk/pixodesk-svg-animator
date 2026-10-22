@@ -4,8 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, suppressTriggerStart, toAnimatedSvgDocument, type PxDocumentInput, compareWireVersion, convertWireDocument, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxWireVersionRelation, PX_WIRE_VERSION, readWireVersion, resolveTimelineEngine, type PxTimelineEngine, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
-import { validateDeprecatedTransformChannels, validateNodeEffects } from '@pixodesk/svg-animator-core/internal';
+import { applyAnimatorConfig, suppressTriggerStart, toAnimatedSvgDocument, type PxDocumentInput, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { reportDocumentDiagnostics, createDiagnostics, isScrollTimeline, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
@@ -61,28 +61,23 @@ function createAnimatorImpl(
     playAsSaved?: boolean
 ): PxAnimatorApi {
 
-    // Validate every `node.effects` bucket against `PxEffectsSchema` and warn
-    // about any shape drift. Doesn't mutate or block — the materializer tries
-    // its best even when shapes are off, but a warning helps spot wire-format
-    // regressions early.
     // Everything this player has to say goes through one channel (API review §5): the caller's
     // `onWarn` / `onError` if given, the console otherwise — unless `muteWarn` / `muteError` switch it off.
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
+    const onProblems = (problems: Parameters<typeof reportDocumentProblems>[0]) => reportDocumentProblems(problems, diag);
 
-    // An OLDER stamped document converts on load (`PX_WIRE_STEPS`), so renamed keys keep their
-    // meaning. The result is a converted COPY, or the input itself when nothing applied.
-    if (compareWireVersion(readWireVersion(doc), PX_WIRE_VERSION, false) === PxWireVersionRelation.older) {
-        doc = convertWireDocument(doc).doc as PxAnimatedSvgDocument;
-    }
-
-    const effectsWarnings = validateNodeEffects(doc as any);
-    for (const w of effectsWarnings) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.effectsShape, w);
+    // Migrate an OLDER stamped document and check it ONCE (`checked` stage): a repaired, type-stamped
+    // copy; every repair is reported — inside `effects` as `effectsShape`, anything else as
+    // `documentRepaired`. Every later stage and cast reuses the stamps instead of re-checking.
+    doc = prepareDocument(doc, { stage: PxDocStage.checked, onProblems });
     // §6: per-key transform channels still play (old migrated files), but are named as deprecated
     for (const w of validateDeprecatedTransformChannels(doc)) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.deprecatedTransformChannel, w);
 
-    // …and the WHOLE-document check beside it. This is the boundary diagnostic: if a consumer's
-    // build mangled property names, the keys reaching us are unrecognizable and this says so,
-    // instead of the animation silently rendering nothing (dev-docs/plans/minification-boundary.md §3).
+    // The boundary diagnostic, STRICT: if a consumer's build mangled property names, the keys
+    // reaching us are unrecognizable and this says so, instead of the animation silently rendering
+    // nothing (dev-docs/plans/minification-boundary.md §3). On the checked copy, which keeps unknown
+    // keys and has its invalid values already repaired and reported above — so it names exactly the
+    // keys this build does not know.
     reportDocumentDiagnostics(doc, '[PxAnimator] createSvgAnimator');
 
     // The per-instance override, applied BEFORE anything reads the config. Everything below
@@ -109,7 +104,7 @@ function createAnimatorImpl(
     // runtime view. `auto` and `native` resolve to the native (WAAPI) materialization; if the
     // native engine later declines the document at construction, the frame loop (`js`) is used
     // as fallback — slight over-materialization for that doc, but no correctness issue.
-    const resolved = prepareDocument(doc, { stage: PxDocStage.resolved });
+    const resolved = prepareDocument(doc, { stage: PxDocStage.resolved, onProblems });   // only the override's own values can still need repair
     const engine: PxTimelineEngine = resolveTimelineEngine(getAnimatorConfig(resolved)?.engine);
 
     // `plain`: effects → loops → motion-path (native only) → animated-use (native only) → rest

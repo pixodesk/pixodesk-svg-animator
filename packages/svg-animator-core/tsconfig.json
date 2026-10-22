@@ -27,7 +27,7 @@
         "noEmit": false,
         "noImplicitThis": false,
         "experimentalDecorators": true,
-        "noImplicitAny": false,
+        "noImplicitAny": true,
         "noImplicitOverride": true,
         "target": "es6",
         "module": "ESNext",

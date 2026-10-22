@@ -5,11 +5,11 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import { type PxAnimatable, type PxBezierPath, type PxKeyframe, type PxLoop, type PxNode, type PxVec2, type _PxStrokeTrimEffect, keyframeTime, keyframeValue, keyframeEasing } from '../../format/PxAnimatorTypes';
+import { PxChannelNumberSchema, PxVec2Schema, type PxAnimatable, type PxBezierPath, type PxKeyframeValue, type PxEasingOrRef, type PxKeyframe, type PxLoop, type PxNode, type PxVec2, type _PxStrokeTrimEffect, keyframeTime, keyframeValue, keyframeEasing } from '../../format/PxAnimatorTypes';
 import { PxStrokeTrimSubPaths } from '../../format/PxAnimatorConstants';
 import { bezier2D_arcLengthLUT, bezierToSvgPath, clamp } from '../../util/PxAnimatorUtil';
 import { parseSvgPathToBezier } from '../../animation/PxDefinitions';
-import { ReadKind, readAnimatable, writeAnimatableChannel, type ReadPart } from '../shared/transformParts';
+import { ReadKind, readAnimatable, writeAnimatableChannel, type ReadPart, type ValueKeyframe } from '../shared/transformParts';
 import type { ApplyContext } from '../shared/types';
 
 
@@ -96,7 +96,7 @@ export function applyStrokeTrimEffect(
     // `stroke-linecap="round"` from painting a round dot at the zero-length
     // first dash. Missing-emit means no `stroke-dashoffset`, no shift, and
     // the dot reappears.
-    const offsetReadRaw = readAnimatable<number>(strokeTrim.offset);
+    const offsetReadRaw = readAnimatable(strokeTrim.offset, PxChannelNumberSchema);
     const offsetRead: ReadPart<number> = offsetReadRaw.kind === ReadKind.Absent
         ? { kind: ReadKind.Static, value: 0 }
         : offsetReadRaw;
@@ -290,7 +290,7 @@ function getOffsetIndexRange(minMaxOffset: [number, number]): [number, number] {
 
 type AnimAttrResult<TOut> =
     | { kind: ReadKind.Static; value: TOut }
-    | { kind: ReadKind.Animated; keyframes: Array<PxKeyframe>; loop?: PxLoop | boolean }
+    | { kind: ReadKind.Animated; keyframes: Array<ValueKeyframe<TOut>>; loop?: PxLoop | boolean }
     | undefined;
 
 function readScalarValues(r: ReadPart<number>): Array<number> {
@@ -311,7 +311,7 @@ function computeAnimAttr<TIn, TOut>(read: ReadPart<TIn>, map: (v: TIn) => TOut):
         kind: ReadKind.Animated,
         keyframes: read.keyframes.map(kf => ({
             time: keyframeTime(kf),
-            value: map(keyframeValue(kf) as TIn),
+            value: map(kf.value),
             easing: keyframeEasing(kf),
         })),
         loop: read.loop,
@@ -321,7 +321,7 @@ function computeAnimAttr<TIn, TOut>(read: ReadPart<TIn>, map: (v: TIn) => TOut):
 // Static + animated emit (incl. the first-kf static baseline for pre-tick DOM
 // correctness) is the shared `writeAnimatableChannel` — `AnimAttrResult` is a
 // `ReadPart` minus the Absent arm, so it passes straight through.
-function applyAttr<T>(node: PxNode, attrName: string, attr: AnimAttrResult<T>): void {
+function applyAttr<T extends PxKeyframeValue>(node: PxNode, attrName: string, attr: AnimAttrResult<T>): void {
     if (!attr) return;
     writeAnimatableChannel(node, attrName, attr);
 }
@@ -353,7 +353,7 @@ function computeOpacityFromRange(rangeRead: ReadPart<PxVec2>): AnimAttrResult<nu
 
     // Prev/next-aware emitter — only inserts kfs at the transitions to keep the
     // wire compact.
-    const out: Array<PxKeyframe> = [];
+    const out: Array<ValueKeyframe<number>> = [];
     for (let i = 0; i < kfs.length; i++) {
         const kf = kfs[i];
         const prevKf = i > 0 ? kfs[i - 1] : undefined;
@@ -380,13 +380,13 @@ function computeOpacityFromRange(rangeRead: ReadPart<PxVec2>): AnimAttrResult<nu
 // Range cross-over
 // ============================================================================
 
-interface SimpleKf { time: number; value: PxVec2; easing?: any; }
+interface SimpleKf { time: number; value: PxVec2; easing?: PxEasingOrRef; }
 
 /** Reads `range` and, when the kf sequence has `value[0] > value[1]` anywhere,
  *  inserts crossing-point keyframes (bisection-located) and swaps any
  *  remaining reversed kfs so every emitted range satisfies `range[0] ≤ range[1]`. */
 function readRangeWithCrossings(raw: PxAnimatable<PxVec2> | undefined): ReadPart<PxVec2> {
-    const r = readAnimatable<PxVec2>(raw);
+    const r = readAnimatable(raw, PxVec2Schema);
     if (r.kind !== ReadKind.Animated) return r;
 
     const kfs: Array<SimpleKf> = r.keyframes.map(kf => ({

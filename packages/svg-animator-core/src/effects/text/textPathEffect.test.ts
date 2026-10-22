@@ -85,7 +85,7 @@ describe('textPathEffect — inline path → <path> def + <textPath> wrap', () =
 
         expect(clipD).toBe(short);                          // clip → browser drops overflow, path unchanged
         expect(extendD.length).toBeGreaterThan(short.length); // extend → straight tangent tail appended
-        const xs = (extendD.match(/-?\d*\.?\d+/g) ?? []).map(Number).filter((_, i) => i % 2 === 0);
+        const xs = (extendD.match(/-?\d*\.?\d+/g) ?? []).map(Number).filter((_: number, i: number) => i % 2 === 0);
         expect(Math.max(...xs)).toBeGreaterThan(100);       // extension runs past the original end (x=100)
     });
 

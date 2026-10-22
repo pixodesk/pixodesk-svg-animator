@@ -2,7 +2,8 @@
 // ============================================================================
 // THE DOCUMENT STAGE STAMP (dev-docs/plans/prepare-document-pipeline.md)
 //
-// A document is lowered through ordered STAGES: `current` (version-migrated) → `resolved`
+// A document is lowered through ordered STAGES: `current` (version-migrated) → `checked`
+// (validated and repaired against the schema, every object type-stamped) → `resolved`
 // (the animator config's runtime view computed once and attached) → `plain` (effects
 // materialized for an engine — directly projectable to WAAPI / the frame loop).
 //
@@ -21,12 +22,13 @@ import type { PxTimelineEngine } from './PxAnimatorConstants';
 /** How far a document has been lowered — see the module note. @public @advanced */
 export const PxDocStage = {
     current: 'current',
+    checked: 'checked',
     resolved: 'resolved',
     plain: 'plain',
 } as const;
 export type PxDocStage = typeof PxDocStage[keyof typeof PxDocStage];
 
-const STAGE_ORDER: Record<PxDocStage, number> = { current: 1, resolved: 2, plain: 3 };
+const STAGE_ORDER: Record<PxDocStage, number> = { current: 1, checked: 2, resolved: 3, plain: 4 };
 /** Whether a reached stage satisfies a requested one. @internal */
 export const stageAtLeast = (reached: PxDocStage, wanted: PxDocStage): boolean =>
     STAGE_ORDER[reached] >= STAGE_ORDER[wanted];
@@ -48,7 +50,14 @@ export interface PxDocPrep {
 
 /** The animator config object of a document, at either of its two addresses. @internal */
 export function animatorOf(doc: PxAnimatedSvgDocument | undefined): object | undefined {
-    return doc?.animator || doc?.meta?.animator;
+    return doc?.animator || legacyAnimatorOf(doc);
+}
+
+/** `doc.meta.animator` — the pre-rendered SVG's address (`meta` is otherwise the editor's, opaque). @internal */
+export function legacyAnimatorOf(doc: PxAnimatedSvgDocument | undefined): object | undefined {
+    const meta = doc?.meta;
+    const legacy = typeof meta === 'object' && meta !== null && 'animator' in meta ? meta.animator : undefined;
+    return typeof legacy === 'object' && legacy !== null ? legacy : undefined;
 }
 
 /** The stamped view, when it still belongs to `doc`'s current animator config. @internal */

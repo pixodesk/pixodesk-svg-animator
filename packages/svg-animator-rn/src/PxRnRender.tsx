@@ -64,7 +64,7 @@ export function toRnProps(props: Record<string, any>, warnings?: Array<string>, 
 export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?: string | number): ReactElement | null {
     if (!node) return null;
 
-    const { type, children, style, animate, meta, effects, ...props } = node as any;
+    const { type, children, style, animate, meta, effects, ...props } = node;
     const tag = String(type || 'g');
 
     // ESCAPE KEY (S2): elements whose SVG `type` ATTRIBUTE collides with the reserved
@@ -97,7 +97,7 @@ export function renderRnNode(node: PxNode, opts: RenderRnNodeOptions = {}, key?:
         for (const [k, v] of Object.entries(resolved)) {
             const rnKey = toRnPropName(k);
             if (!rnKey || rnKey in rnProps) continue;
-            const sanitized = sanitizeAttributeValue(rnKey, v);
+            const sanitized = sanitizeAttributeValue(rnKey, String(v));
             if (sanitized === undefined) continue;
             rnProps[rnKey] = toRnPropValue(rnKey, String(sanitized), tag);
         }

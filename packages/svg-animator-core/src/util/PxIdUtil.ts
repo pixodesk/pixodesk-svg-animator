@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxAnimatedSvgDocument } from '../format/PxAnimatorTypes';
+import type { PxAnimatedSvgDocument, PxNode } from '../format/PxAnimatorTypes';
 
 
 /**
@@ -77,8 +77,11 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
     const isEffectSourceRef = (key: string, parentKey: string | undefined) =>
         key === 'source' && (parentKey === 'maskedBy' || parentKey === 'clone');
 
+    // Any non-null object, read by string key — arrays included: the walk descends into keyframe lists by index.
+    const isJsonObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null;
+
     // Phase 1: Collect all IDs and generate new ones
-    function collectIds(node: any): void {
+    function collectIds(node: PxNode): void {
         if (!node || typeof node !== 'object') return;
 
         if (node.id && typeof node.id === 'string') {
@@ -100,8 +103,8 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
     }
 
     // Phase 2: Update all references to old IDs
-    function updateRefs(node: any, parentKey?: string): void {
-        if (!node || typeof node !== 'object') return;
+    function updateRefs(node: unknown, parentKey?: string): void {
+        if (!isJsonObject(node)) return;
 
         for (const [key, value] of Object.entries(node)) {
             if (key === 'children') {
@@ -142,10 +145,10 @@ export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocumen
                 }
             }
             // Check style object for url() references
-            else if (key === 'style' && typeof value === 'object' && value !== null) {
+            else if (key === 'style' && isJsonObject(value)) {
                 for (const [styleProp, styleValue] of Object.entries(value)) {
                     if (typeof styleValue === 'string') {
-                        (value as any)[styleProp] = replaceUrlRefs(styleValue, idMap);
+                        value[styleProp] = replaceUrlRefs(styleValue, idMap);
                     }
                 }
             }

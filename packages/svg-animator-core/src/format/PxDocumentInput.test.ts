@@ -10,15 +10,16 @@ import { describe, expect, it } from 'vitest';
 import type { PxAnimatedSvgDocument, PxDocumentInput } from '../index';
 import { getAnimatorConfig, toAnimatedSvgDocument } from '../index';
 
-/** Exactly how TypeScript types a JSON import of this document: literals widened, tuples → arrays. */
-interface AsJsonImport {
+/** Exactly how TypeScript types a JSON import of this document: literals widened, tuples → arrays —
+ *  an anonymous object TYPE (a JSON module is never an interface). */
+type AsJsonImport = {
     type: string;
     animator: { timeline: { outTime: number; engine: string; trigger: { start: string } } };
     children: Array<{
         type: string; width: number;
         animate: { opacity: { keyframes: Array<{ time: number; value: number; easing: Array<number> }> } };
     }>;
-}
+};
 const fromJsonImport: AsJsonImport = {
     type: 'svg',
     animator: { timeline: { outTime: 1200, engine: 'auto', trigger: { start: 'click' } } },

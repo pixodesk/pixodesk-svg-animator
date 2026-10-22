@@ -24,13 +24,12 @@
  * sampled values are exact.
  */
 
+import { PxPropertyAnimationSchema, PxTransformPartsSchema, PxTransformValueWrapperSchema, type PxAnimationDefinition, type PxKeyframe, type PxNode, type PxTransformParts } from '../format/PxAnimatorTypes';
+
 type Mat = [number, number, number, number, number, number];
 
-interface VmNode {
-    type?: string;
-    children?: Array<VmNode>;
-    [attr: string]: any;
-}
+type VmNode = PxNode;
+type Parts = PxTransformParts;
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -82,8 +81,6 @@ function parseTransformString(s: string): Mat {
     return m;
 }
 
-interface Parts { translate?: [number, number]; rotate?: number; scale?: [number, number]; origin?: [number, number]; }
-
 /** Composes a `PxTransformParts` record (player canonical order, origin-pivoted). */
 function partsToMatrix(p: Parts): Mat {
     let m = IDENTITY;
@@ -99,16 +96,17 @@ function partsToMatrix(p: Parts): Mat {
 function lerp(a: number, b: number, f: number): number { return a + (b - a) * f; }
 
 /** Linear-interpolates a parts record between keyframes at time `t` (ms). */
-function interpParts(kfs: Array<any>, t: number): Parts {
+function interpParts(kfs: Array<PxKeyframe>, t: number): Parts {
+    const partsOf = (kf: PxKeyframe): Parts => PxTransformPartsSchema.castOrNull(kf.value) ?? {};
     if (!kfs.length) return {};
-    if (t <= (kfs[0].time ?? 0)) return kfs[0].value || {};
-    if (t >= (kfs[kfs.length - 1].time ?? 0)) return kfs[kfs.length - 1].value || {};
+    if (t <= (kfs[0].time ?? 0)) return partsOf(kfs[0]);
+    if (t >= (kfs[kfs.length - 1].time ?? 0)) return partsOf(kfs[kfs.length - 1]);
 
     let i = 0;
     while (i < kfs.length - 1 && (kfs[i + 1].time ?? 0) < t) i++;
     const a = kfs[i], b = kfs[i + 1];
     const f = (t - (a.time ?? 0)) / ((b.time ?? 0) - (a.time ?? 0) || 1);
-    const va: Parts = a.value || {}, vb: Parts = b.value || {};
+    const va = partsOf(a), vb = partsOf(b);
 
     const out: Parts = {};
     if (va.translate && vb.translate) out.translate = [lerp(va.translate[0], vb.translate[0], f), lerp(va.translate[1], vb.translate[1], f)];
@@ -122,33 +120,38 @@ function interpParts(kfs: Array<any>, t: number): Parts {
 }
 
 /** Resolves any transform-slot form (string | bare record | {value} | {keyframes}) to a matrix at `t`. */
-function evalTransformValue(v: any, t: number): Mat {
-    if (v === undefined || v === null) return IDENTITY;
+function evalTransformValue(v: unknown, t: number): Mat {
     if (typeof v === 'string') return parseTransformString(v);
-    if (v.keyframes) return partsToMatrix(interpParts(v.keyframes, t));
-    if (v.value) return partsToMatrix(v.value);
-    if (typeof v === 'object' && !Array.isArray(v)) return partsToMatrix(v);   // bare parts record
-    return IDENTITY;
+    const keyframes = PxPropertyAnimationSchema.castOrNull(v)?.keyframes;
+    if (keyframes) return partsToMatrix(interpParts(keyframes, t));
+    const parts = PxTransformValueWrapperSchema.castOrNull(v)?.value ?? PxTransformPartsSchema.castOrNull(v);   // {value} or bare record
+    return parts ? partsToMatrix(parts) : IDENTITY;
+}
+
+/** The element's inline animation definition, if any. */
+function inlineAnimateOf(node: VmNode): PxAnimationDefinition | undefined {
+    return typeof node.animate === 'object' && !Array.isArray(node.animate) ? node.animate : undefined;
 }
 
 /** The node's own transform at `t`: animated slot wins over the static baseline. */
 function nodeMatrix(node: VmNode, t: number): Mat {
-    if (node.animate && node.animate.transform) return evalTransformValue(node.animate.transform, t);
+    const animated = inlineAnimateOf(node)?.transform;
+    if (animated) return evalTransformValue(animated, t);
     if (node.transform !== undefined) return evalTransformValue(node.transform, t);
     return IDENTITY;
 }
 
 /** Linear-interpolates a scalar animation (e.g. opacity); falls back to static / default. */
-function evalScalar(animated: any, staticVal: any, fallback: number, t: number): number {
-    if (animated && animated.keyframes && animated.keyframes.length) {
-        const kfs = animated.keyframes;
-        if (t <= (kfs[0].time ?? 0)) return kfs[0].value;
-        if (t >= (kfs[kfs.length - 1].time ?? 0)) return kfs[kfs.length - 1].value;
+function evalScalar(animated: unknown, staticVal: unknown, fallback: number, t: number): number {
+    const kfs = PxPropertyAnimationSchema.castOrNull(animated)?.keyframes;
+    if (kfs && kfs.length) {
+        if (t <= (kfs[0].time ?? 0)) return Number(kfs[0].value);
+        if (t >= (kfs[kfs.length - 1].time ?? 0)) return Number(kfs[kfs.length - 1].value);
         let i = 0;
         while (i < kfs.length - 1 && (kfs[i + 1].time ?? 0) < t) i++;
         const a = kfs[i], b = kfs[i + 1];
         const f = (t - (a.time ?? 0)) / ((b.time ?? 0) - (a.time ?? 0) || 1);
-        return lerp(a.value, b.value, f);
+        return lerp(Number(a.value), Number(b.value), f);
     }
     return staticVal !== undefined ? Number(staticVal) : fallback;
 }
@@ -166,7 +169,7 @@ function buildIdMap(node: VmNode, map: Map<string, VmNode>): void {
     node.children?.forEach(c => buildIdMap(c, map));
 }
 
-function num(v: any): number { return v === undefined || v === null ? 0 : Number(v); }
+function num(v: unknown): number { return v === undefined || v === null ? 0 : Number(v); }
 
 // 2-decimal rounding (sub-pixel). The heavy path bakes matrices into strings
 // rounded to ~4 decimals; comparing at 2 decimals avoids straddling a rounding
@@ -184,10 +187,10 @@ function geomKey(node: VmNode): string {
 }
 
 function describePrimitive(node: VmNode, m: Mat, t: number): string {
-    const fill = node.fill ?? '';
-    const stroke = node.stroke ?? '';
+    const fill = String(node.fill ?? '');
+    const stroke = String(node.stroke ?? '');
     const sw = node['stroke-width'] ?? node.strokeWidth ?? '';
-    const opacity = round(evalScalar(node.animate?.opacity, node.opacity, 1, t));
+    const opacity = round(evalScalar(inlineAnimateOf(node)?.opacity, node.opacity, 1, t));
     const masked = node.mask ? 1 : 0;
     const mat = m.map(round).join(',');
     return node.type + '|' + geomKey(node) + '|[' + mat + ']|f:' + fill + '|s:' + stroke + '|sw:' + (num(sw) || '') + '|o:' + opacity + '|m:' + masked;
@@ -224,17 +227,10 @@ function flatten(node: VmNode, parent: Mat, t: number, idMap: Map<string, VmNode
 /** Every keyframe `time` found anywhere in the tree, plus 0. @internal */
 export function collectSampleTimes(node: VmNode, into: Set<number>): void {
     into.add(0);
-    const scanAnim = (anim: any) => {
-        if (!anim || typeof anim !== 'object') return;
-        for (const key of Object.keys(anim)) {
-            const kfs = anim[key]?.keyframes;
-            if (Array.isArray(kfs)) kfs.forEach(kf => into.add(kf.time ?? 0));
-        }
-    };
-    scanAnim(node.animate);
-    if (node.transform && typeof node.transform === 'object' && (node.transform as any).keyframes) {
-        (node.transform as any).keyframes.forEach((kf: any) => into.add(kf.time ?? 0));
-    }
+    const scanKeyframes = (kfs: Array<PxKeyframe> | undefined) => kfs?.forEach(kf => into.add(kf.time ?? 0));
+    const animate = inlineAnimateOf(node);
+    if (animate) for (const key of Object.keys(animate)) scanKeyframes(animate[key]?.keyframes);
+    scanKeyframes(PxPropertyAnimationSchema.castOrNull(node.transform)?.keyframes);
     node.children?.forEach(c => collectSampleTimes(c, into));
 }
 

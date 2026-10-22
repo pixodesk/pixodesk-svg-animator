@@ -22,12 +22,13 @@
  * scroll branch, `pin:false`, and an empty time block emitting no `timeline` at all). Merging
  * on the nested form is the only place those values mean what they say.
  */
-import { PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS } from '../format/PxAnimatorConstants';
-import type { PxMouseOutAction, PxOffScreenAction, PxTriggerStart } from '../format/PxAnimatorConstants';
+import { PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS, PxTriggerStart } from '../format/PxAnimatorConstants';
+import type { PxMouseOutAction, PxOffScreenAction } from '../format/PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxAnimatorConfig } from '../format/PxAnimatorTypes';
+import { legacyAnimatorOf } from '../format/PxDocStage';
 
 /** A deep-partial of the WIRE animator config; `null` at any slot deletes it. @public */
-export type PxAnimatorConfigPatch = Record<string, any> | null;
+export type PxAnimatorConfigPatch = Record<string, unknown> | null;
 
 /** @public */
 export interface PxAnimatorConfigMergeResult {
@@ -43,10 +44,10 @@ const FLAT_ONLY_KEYS = [
     'direction', 'fill', 'resetOnFinish', 'duration', 'mode', 'frameRate',
 ];
 
-/** The lookup tables and the bindings. They are animation CONTENT, not playback, and are never reset. */
-const CONTENT_KEYS = ['definitions', 'bindings'];
+/** One level of a JSON object — what a merge patch and the configs it merges are made of. */
+type JsonRecord = Record<string, unknown>;
 
-const isPlainObject = (v: unknown): v is Record<string, any> =>
+const isPlainObject = (v: unknown): v is JsonRecord =>
     !!v && typeof v === 'object' && !Array.isArray(v);
 
 /** Absent `type` means the time-driven timeline, so compare the normalized values (RULE 2). */
@@ -60,8 +61,8 @@ const isScrollish = (type: string): boolean => type === 'scroll' || type === 'vi
  * (`trigger`, `range`, `definitions.fonts`, …), which is why patching one font leaves its
  * siblings alone. Arrays are values: a patched `bindings` list replaces the document's whole list.
  */
-function mergePlain(base: unknown, patch: Record<string, any>): Record<string, any> {
-    const out: Record<string, any> = isPlainObject(base) ? { ...base } : {};
+function mergePlain(base: unknown, patch: JsonRecord): JsonRecord {
+    const out: JsonRecord = isPlainObject(base) ? { ...base } : {};
     for (const key of Object.keys(patch)) {
         const value = patch[key];
         if (value === null) { delete out[key]; continue; }          // RULE 7: null deletes
@@ -84,15 +85,14 @@ function mergePlain(base: unknown, patch: Record<string, any>): Record<string, a
  *          same way the wire has no slot for them.
  * RULE 4 — `iterations: 'infinite'` cannot map onto a scroll range.
  */
-function mergeTimeline(base: unknown, patch: Record<string, any>, warn: (m: string) => void): Record<string, any> {
+function mergeTimeline(base: unknown, patch: JsonRecord, warn: (m: string) => void): JsonRecord {
     const baseType = timelineTypeOf(base);
-    const patchNamesType = isPlainObject(patch) && typeof patch.type === 'string';
-    const patchType = patchNamesType ? String(patch.type) : baseType;
+    const patchType = typeof patch.type === 'string' ? patch.type : baseType;
 
-    let merged: Record<string, any>;
+    let merged: JsonRecord;
     if (patchType !== baseType) {
         // RULE 1
-        const carried: Record<string, any> = {};
+        const carried: JsonRecord = {};
         if (isPlainObject(base)) {
             for (const k of PX_TIMELINE_SHARED_KEYS) {
                 if (base[k] !== undefined) carried[k] = base[k];
@@ -118,7 +118,7 @@ function mergeTimeline(base: unknown, patch: Record<string, any>, warn: (m: stri
 }
 
 /** A deep-partial of the WIRE `timeline` block; `null` at any slot deletes it. @public */
-export type PxTimelinePatch = Record<string, any> | null;
+export type PxTimelinePatch = Record<string, unknown> | null;
 
 /** The flat shortcuts every surface offers for the keys people reach for most. @public */
 export interface PxTimelineShortcuts {
@@ -190,7 +190,9 @@ export function foldTimelineOverride(
     let base: PxTimelinePatch | undefined;
     if (typeof timeline === 'string') {
         try {
-            base = JSON.parse(timeline);
+            const parsed: unknown = JSON.parse(timeline);
+            base = isPlainObject(parsed) || parsed === null ? parsed : undefined;
+            if (base === undefined) console.warn('timeline override: not a JSON object — ignored');
         } catch (e) {
             console.warn('timeline override: not valid JSON — ignored', e);
             base = undefined;
@@ -207,14 +209,14 @@ export function foldTimelineOverride(
         return base === undefined ? undefined : { timeline: base };
     }
 
-    const out: Record<string, any> = isPlainObject(base) ? { ...base } : {};
+    const out: JsonRecord = isPlainObject(base) ? { ...base } : {};
     if (inTime !== undefined) out.inTime = inTime;
     if (outTime !== undefined) out.outTime = outTime;
     if (playDuration !== undefined) out.playDuration = playDuration;
     if (delay !== undefined) out.delay = delay;
     if (iterations !== undefined) out.iterations = iterations;
     // the trigger shortcuts — the SAME flat names the CSS component takes (review §12)
-    const trigger: Record<string, any> = { ...(out.trigger as Record<string, any> | undefined) };
+    const trigger: JsonRecord = isPlainObject(out.trigger) ? { ...out.trigger } : {};
     if (start !== undefined) trigger.start = start;
     if (offScreen !== undefined) trigger.offScreen = offScreen;
     if (mouseOut !== undefined) trigger.mouseOut = mouseOut;
@@ -231,14 +233,10 @@ export function foldTimelineOverride(
  * @public @advanced
  */
 export function suppressTriggerStart(patch?: PxAnimatorConfigPatch): PxAnimatorConfigPatch {
-    const base = (patch ?? {}) as Record<string, any>;
-    return {
-        ...base,
-        timeline: {
-            ...(base.timeline ?? {}),
-            trigger: { ...(base.timeline?.trigger ?? {}), start: 'none' },
-        },
-    };
+    const base = patch ?? {};
+    const timeline = isPlainObject(base.timeline) ? base.timeline : {};
+    const trigger = isPlainObject(timeline.trigger) ? timeline.trigger : {};
+    return { ...base, timeline: { ...timeline, trigger: { ...trigger, start: PxTriggerStart.none } } };
 }
 
 /**
@@ -252,23 +250,28 @@ export function mergeAnimatorConfig(
     patch: PxAnimatorConfigPatch,
 ): PxAnimatorConfigMergeResult {
     const warnings: Array<string> = [];
-    const warn = (m: string) => warnings.push(m);
-
     if (patch === null) return { config: undefined, warnings };
     if (!isPlainObject(patch) || Object.keys(patch).length === 0) {
         return { config: base, warnings };                            // nothing to do: same identity
     }
+    return { config: uncheckedConfig(mergeConfigRecord(base, patch, m => warnings.push(m))), warnings };
+}
 
+/** The merge's result — UNCHECKED: the document it lands in is checked at its `checked` stage, which repairs and reports what does not fit. */
+const uncheckedConfig = (merged: JsonRecord): PxAnimatorConfig => merged as PxAnimatorConfig;
+
+/** The JSON level of {@link mergeAnimatorConfig}: RULE 5, then the per-key merge. */
+function mergeConfigRecord(base: unknown, patch: JsonRecord, warn: (m: string) => void): JsonRecord {
     // RULE 5 — a base in the flat runtime spelling cannot take a wire patch soundly:
     // `resolveAnimatorTimeline` copies the flat keys first and then overwrites them from
     // `timeline`, so a flat `delay` would survive a `timeline.delay: null` deletion.
-    const flatInBase = isPlainObject(base) ? FLAT_ONLY_KEYS.filter(k => (base as any)[k] !== undefined) : [];
+    const out: JsonRecord = isPlainObject(base) ? { ...base } : {};
+    const flatInBase = FLAT_ONLY_KEYS.filter(k => out[k] !== undefined);
     if (flatInBase.length) {
         warn('animator: the base carries the flat runtime spelling (' + flatInBase.join(', ') + '); '
             + 'the patch merges the wire spelling only');
     }
 
-    const out: Record<string, any> = isPlainObject(base) ? { ...base } : {};
     for (const key of Object.keys(patch)) {
         const value = patch[key];
         if (value === null) { delete out[key]; continue; }
@@ -279,7 +282,7 @@ export function mergeAnimatorConfig(
         if (isPlainObject(value)) { out[key] = mergePlain(out[key], value); continue; }
         out[key] = value;
     }
-    return { config: out as PxAnimatorConfig, warnings };
+    return out;
 }
 
 /**
@@ -302,37 +305,32 @@ export function applyAnimatorConfig(
         return { doc, warnings: [] };
     }
 
-    const anyDoc = doc as any;
-    const atRoot = isPlainObject(anyDoc.animator);
-    const atMeta = !atRoot && isPlainObject(anyDoc.meta?.animator);
-    const current: PxAnimatorConfig | undefined = atRoot ? anyDoc.animator
-        : atMeta ? anyDoc.meta.animator
-        : undefined;
+    const legacy = legacyAnimatorOf(doc);
+    const atRoot = isPlainObject(doc.animator);
+    const atMeta = !atRoot && legacy !== undefined;
+    const current = atRoot ? doc.animator : legacy;
 
     const warnings: Array<string> = [];
-    if (atRoot && isPlainObject(anyDoc.meta?.animator)) {
+    if (atRoot && legacy) {
         warnings.push('animator: doc.meta.animator is shadowed by doc.animator and was not patched');
     }
 
-    let base = current;
+    let base: JsonRecord | undefined = isPlainObject(current) ? current : undefined;
     if (reset) {
-        // Keep only the content tables; everything else starts from the player's defaults.
-        const kept: Record<string, any> = {};
-        for (const k of CONTENT_KEYS) {
-            if (isPlainObject(current) && (current as any)[k] !== undefined) kept[k] = (current as any)[k];
-        }
-        base = kept as PxAnimatorConfig;
+        // Keep only the content — the lookup tables and the bindings, never reset; everything else starts from the player's defaults.
+        const kept: JsonRecord = {};
+        if (base?.definitions !== undefined) kept.definitions = base.definitions;
+        if (base?.bindings !== undefined) kept.bindings = base.bindings;
+        base = kept;
     }
 
-    const merged = mergeAnimatorConfig(base, patch ?? {});
-    warnings.push(...merged.warnings);
-    if (merged.config === current) return { doc, warnings };
+    const p = patch ?? {};
+    const merged = isPlainObject(p) && Object.keys(p).length ? mergeConfigRecord(base, p, m => warnings.push(m)) : base;
+    if (merged === current || !merged) return { doc, warnings };
 
     if (atMeta) {
-        return {
-            doc: { ...anyDoc, meta: { ...anyDoc.meta, animator: merged.config } } as PxAnimatedSvgDocument,
-            warnings,
-        };
+        const meta = isPlainObject(doc.meta) ? doc.meta : {};
+        return { doc: { ...doc, meta: { ...meta, animator: merged } }, warnings };
     }
-    return { doc: { ...anyDoc, animator: merged.config } as PxAnimatedSvgDocument, warnings };
+    return { doc: { ...doc, animator: uncheckedConfig(merged) }, warnings };
 }

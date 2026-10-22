@@ -273,7 +273,7 @@ interface SVG_JSON extends NODE {
 interface NODE {
     type: string;       // SVG element tag: "rect", "g", "path", "ellipse", "use", …
     id?: string;        // DOM id; required for href="#id" refs or as a binding's target
-    [camelCaseDomKey: string]: any; // SVG attrs by camelCase DOM name — cx, cy, r, fill, strokeWidth, fontSize, transform, … (kebab-case is accepted too); pass-through
+    [camelCaseDomKey: string]: unknown; // SVG attrs by camelCase DOM name — cx, cy, r, fill, strokeWidth, fontSize, transform, … (kebab-case is accepted too); pass-through
     domType?: string;   // the `type` ATTRIBUTE of the few elements that have one (feTurbulence, …):
                         // `type` is taken by the tag name, so the attribute travels here
     textContent?: string; // text content for <text>/<tspan>
@@ -282,7 +282,7 @@ interface NODE {
     // reference definitions.animations by name (rarely used), and can be mixed in an array
     animate?: Record<string, ANIMATE> | string | Array<string | Record<string, ANIMATE>>;
     effects?: EFFECTS;  // see "Player effects" below; JSON-only — the pre-rendered SVG export materializes these
-    meta?: any;         // editor-only (label, shape, …); not rendered, ignored by the player
+    meta?: unknown;     // editor-only (label, shape, …); not rendered, ignored by the player
     children?: Array<NODE>; // recursive; <g>, <defs>, <symbol>, <text>, <use>, …
 }
 
@@ -1329,9 +1329,35 @@ malformed value and never counts as the document's own unknown key.
 | `validateDocument(doc)` — strict, the default | *is this document exactly well-formed?* — before you ship | reported as errors |
 | `validateDocument(doc, { strict: false })` | *is this document usable?* — what a reader accepts | tolerated (forward-compatible: an unknown key usually means a newer writer) |
 
-These two are the whole public checking surface — `validateDocument` and the `isPxDocument`
-guard. The narrower checkers it is built from (per-part walkers, the raw schema calls) live on
+These two are the whole public checking surface for a DOCUMENT — `validateDocument` and the
+`isPxDocument` guard. The narrower checkers it is built from (per-part walkers) live on
 `@pixodesk/svg-animator-core/internal` for the players and the editor.
+
+#### Casting a value with its schema
+
+Every schema can also turn an unchecked value into a typed one — the way to read any part of a
+document without guessing its type:
+
+```ts
+import { PxKeyframeSchema, PxSchemaCastError } from '@pixodesk/svg-animator-core';
+
+PxKeyframeSchema.is(value);          // a type guard: true narrows `value` to a keyframe
+PxKeyframeSchema.cast(value);        // the keyframe, or throws PxSchemaCastError naming each problem's path
+PxKeyframeSchema.castOrNull(value);  // the keyframe, or null
+const { value: kf, problems } = PxKeyframeSchema.castOrFix(value);   // a repaired copy + what was repaired
+```
+
+- **`castOrFix` checks in one visit** and builds a NEW value: declared fields are checked and
+  repaired (to the schema's default, or dropped), undeclared keys are kept as they are — it is as
+  forgiving as a reader — and `problems` lists every repair (`PxCastResult`). The input is never
+  modified.
+- **Checked values are stamped.** Every object and array `castOrFix` builds remembers which
+  schemas it satisfies, so `is` / `cast` / `castOrNull` on it answer at once instead of walking it
+  again. The stamp is invisible to `JSON.stringify` and `Object.keys`; a copy, a clone or a saved
+  file loses it and is simply checked again. Passing a stamped value to `castOrFix` returns it as it
+  is, and an edited copy only re-checks what changed.
+- `prepareDocument` runs `castOrFix` over the whole document in its `checked` stage (below), so
+  every part of a prepared document casts for free.
 
 ### Reading a document
 
@@ -1352,6 +1378,7 @@ always in this order — and remembers how far it got:
 | Stage (`PxDocStage`) | What is done |
 |---|---|
 | `current` | migrated to the schema this build reads — [Versioning](#versioning) |
+| `checked` | checked and repaired against the schema in one visit, every part stamped — see [Casting a value with its schema](#casting-a-value-with-its-schema); `onProblems` receives what was repaired |
 | `resolved` | the animator config's runtime view computed once and attached: `getAnimatorConfig` on the result is a plain read |
 | `plain` (the default) | materialized for an engine — [Materializing a document](#materializing-a-document), below — what the Web Animations API or the frame loop consumes directly |
 
@@ -1370,7 +1397,7 @@ always in this order — and remembers how far it got:
 import { prepareDocument, documentStage, getAnimatorConfig } from '@pixodesk/svg-animator-core';
 import doc from './bouncing-ball.json';
 
-const ready = prepareDocument(doc, { freshIds: true });   // current → resolved → plain
+const ready = prepareDocument(doc, { freshIds: true });   // current → checked → resolved → plain
 documentStage(ready);                                      // 'plain'
 getAnimatorConfig(ready)?.duration;                        // a property read — nothing re-derived
 prepareDocument(ready) === ready;                          // true: trusted, nothing redone
@@ -1459,9 +1486,10 @@ function prepareDocument(doc: PxAnimatedSvgDocument, options?: PxPrepareOptions)
 function documentStage(doc: PxAnimatedSvgDocument): PxDocStage | undefined;   // undefined = a raw document
 
 interface PxPrepareOptions {
-    stage?: PxDocStage;          // 'current' | 'resolved' | 'plain' (the default)
+    stage?: PxDocStage;          // 'current' | 'checked' | 'resolved' | 'plain' (the default)
     engine?: PxTimelineEngine;   // what `plain` materializes for; default: the document's own
     freshIds?: boolean;          // mint new ids on the result
+    onProblems?: (problems: ReadonlyArray<PxValidationFinding>) => void;   // what `checked` repaired
 }
 
 // ○ Run the whole materialization pipeline: effects → loops → motion paths →
@@ -1480,7 +1508,7 @@ function materializeNodeEffects(root: PxNode): ApplyResult;
 
 // ● The cheap shallow gate — "is this a Pixodesk document at all?" (a type guard). With
 //   `validateDocument` below, the whole public checking surface (review §15).
-function isPxDocument(doc: any): boolean;   // a type guard: true narrows to PxAnimatedSvgDocument
+function isPxDocument(doc: unknown): boolean;   // a type guard: true narrows to PxAnimatedSvgDocument
 
 // ● THE whole-document check (review §15 — the ONE public answer): the wire schema (undeclared
 //   keys included under strict), every `effects` bucket, the glyph-font and easing references
@@ -1595,12 +1623,12 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 | Schema release | `schemaFieldUniverse`, `diffFieldUniverse`, `planSchemaRelease`, `releaseLogProblems` | ▪ the field inventory and bump rule behind `scripts/schema-release.mjs` |
 | Diagnostics | `diagnoseDocument(doc)` → (`{ problems }`), `reportDocumentDiagnostics(doc, where)`, `PX_UNKNOWN_KEY_ERROR`, `PX_VALIDATION_ROOT_SEGMENT` | ▪ the load-time check every player runs; call `validateDocument` instead |
 | Validation | `isPxDocument`, `validateDocument(doc, options?)` → `PxValidationResult` | ● the shallow guard, and THE one deep check: `{ valid, errors, findings }` (review §15). `isValidPxDocument`, `validateNodeEffects`, `validateDeprecatedTransformChannels`, `validateEasingRefs`, `validateVersionStamp` (▪) moved to `/internal` |
-| Document accessors | `getAnimatorConfig`, `getChildren`, `getBindings`, `getDefinitions` | ○ read a document without knowing its internals |
+| Document accessors | `getAnimatorConfig`, `getChildren`, `getBindings`, `getDefinitions` | ○ read a document without knowing its internals. `legacyAnimatorOf` (▪) is the raw config at the pre-rendered SVG's `meta.animator` address — unchecked: cast it with `PxAnimatorConfigSchema` |
 | Timeline shape | `nestAnimatorTimeline`, `PxAnimatorRuntimeConfig` | ○ the runtime view (`PxAnimatorRuntimeConfig`, what `getAnimatorConfig` returns) → the nested `timeline` object. The other direction, `resolveAnimatorTimeline` (▪), moved to `/internal` (review §17a): read the view through `getAnimatorConfig` / `prepareDocument` |
-| Preparing | `prepareDocument`, `documentStage`, `PxDocStage`, + `PxPrepareOptions`, `PxPreparedDocument` | ○ the one lowering pipeline, current → resolved → plain, stamped on the result — [Preparing a document](#preparing-a-document). `carryPrep` (▪) re-stamps a doc a player derived from a prepared one |
+| Preparing | `prepareDocument`, `documentStage`, `PxDocStage`, + `PxPrepareOptions`, `PxPreparedDocument` | ○ the one lowering pipeline, current → checked → resolved → plain, stamped on the result — [Preparing a document](#preparing-a-document). `carryPrep` (▪) re-stamps a doc a player derived from a prepared one; `reportDocumentProblems` (▪) turns what `checked` repaired into a player's warnings (`effectsShape` inside `effects`, else `documentRepaired`) |
 | Playback override | `PxTimelinePatch`, `PxPlaybackOverride`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult`, `PxTimelineShortcuts` | ● the `timeline` override as every player takes it, and the companion types of the three merge functions above |
 | No-driver patch | `suppressTriggerStart(patch?)` | ○ `trigger.start` forced to `'none'` on top of a caller's override — what every player applies when `playAsSaved` is absent (the components' non-`playAsSaved` control modes use the same helper) |
-| Keyframe forms | `keyframeValue`, `keyframeEasing`, `PxNormalizedKeyframe`, `PxNormalizedPropertyAnimation`, `PxAnyKeyframe` | ▪ read a keyframe in either its wire or its runtime (`t` / `v` / `e`) form; is what `normalizeBindings` hands the engines — bare id + merged animation, from a binding or a node alike |
+| Keyframe forms | `keyframeValue`, `keyframeEasing`, `PxNormalizedKeyframe`, `PxNormalizedPropertyAnimation`, `PxAnyKeyframe`, `PxNormalizedPathValueSchema` | ▪ read a keyframe in either its wire or its runtime (`t` / `v` / `e`) form; is what `normalizeBindings` hands the engines — bare id + merged animation, from a binding or a node alike. `PxNormalizedPathValueSchema` casts a runtime `d` value (`{paths}`) |
 | Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTimeTimelineSchema`, `PxTriggerSchema`, `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxLoopSchema`, `PxDefinitionsSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxTransformValueSchema` | ○ the validator the format is written in |
 | Pipeline stages | `normalizeBindings` (○), `calcAnimationValues` (○), `interpolateValue`, `materializeMotionPathInPropAnim`, `mergeStaticTransformIntoAnimDef` | ▪ stages of `materializeAllInTree`; call the pipeline instead. `calcAnimationValues(def, ms, segments?)` takes an optional motion-path segment table (`createMotionPathSegments`, `MotionPathSegments` ▪) that its owner — an animator, one pass — keeps, so each curve segment is built once; there is no module-level cache |
 | Effect harness | `diffInEffect` | ▪ the editor's "equal in effect" comparison |

@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import type { PxAnimatable, PxFillGradientEffect, PxGradientStop, PxKeyframe, PxLoop, PxNode, PxStrokeGradientEffect, PxVec2 } from '../../format/PxAnimatorTypes';
+import { PxChannelNumberSchema, PxGradientStopsSchema, PxVec2Schema, type PxAnimatable, type PxFillGradientEffect, type PxGradientStop, type PxKeyframe, type PxKeyframeValue, type PxLoop, type PxNode, type PxStrokeGradientEffect, type PxVec2 } from '../../format/PxAnimatorTypes';
 import { PxGradientType } from '../../format/PxAnimatorConstants';
 import { ReadKind, readAnimatable, writeAnimatableChannel } from '../shared/transformParts';
 import type { ApplyContext } from '../shared/types';
@@ -100,7 +100,7 @@ function synthesiseGradientDef(fx: PxFillGradientEffect, id: string, ctx: ApplyC
  *  per-axis `animate` channels (times/easings preserved, `loop` carried) plus
  *  static baseline attrs from the base/first kf. */
 function applyGeomVec(out: PxNode, xAttr: string, yAttr: string, raw: PxAnimatable<PxVec2> | undefined): void {
-    const read = readAnimatable<PxVec2>(raw);
+    const read = readAnimatable(raw, PxVec2Schema);
     if (read.kind === ReadKind.Absent) return;
     if (read.kind === ReadKind.Static) {
         out[xAttr] = String(read.value[0]);
@@ -131,7 +131,7 @@ function applyGeomVec(out: PxNode, xAttr: string, yAttr: string, raw: PxAnimatab
 
 /** Animatable number geometry slot (radial `r`) → static attr or `animate` channel. */
 function applyGeomNumber(out: PxNode, attrName: string, raw: PxAnimatable<number> | undefined): void {
-    const read = readAnimatable<number>(raw);
+    const read = readAnimatable(raw, PxChannelNumberSchema);
     if (read.kind === ReadKind.Absent) return;
     writeAnimatableChannel(out, attrName, read, { asString: true });
 }
@@ -146,7 +146,7 @@ function buildStopChildren(stops: PxAnimatable<Array<PxGradientStop>> | undefine
     if (!stops) return [];
 
     // Shared reader — bare array / `{value: […]}` statics, `{keyframes|kfs, loop?}` animated.
-    const read = readAnimatable<Array<PxGradientStop>>(stops);
+    const read = readAnimatable(stops, PxGradientStopsSchema);
     if (read.kind === ReadKind.Absent) return [];
     if (read.kind === ReadKind.Static) return Array.isArray(read.value) ? read.value.map(staticStopNode) : [];
 
@@ -191,8 +191,8 @@ function staticStopNode(s: PxGradientStop): PxNode {
 }
 
 function animatedStopNode(baseline: PxGradientStop, kfs: Array<PxKeyframe>, stopIdx: number, _ctx: ApplyContext, loop: PxLoop | boolean | undefined): PxNode {
-    const colorKfs: Array<PxKeyframe> = [];
-    const offsetKfs: Array<PxKeyframe> = [];
+    const colorKfs: Array<PxKeyframe<PxKeyframeValue>> = [];
+    const offsetKfs: Array<PxKeyframe<PxKeyframeValue>> = [];
     // Only emit an `offset` timeline when the offset actually moves across
     // kfs — most gradients animate color only, and a static offset attr is
     // cheaper than a runtime binding that recomputes the same value.
@@ -204,13 +204,13 @@ function animatedStopNode(baseline: PxGradientStop, kfs: Array<PxKeyframe>, stop
         if (!sliced) continue;
         const easing = keyframeEasing(kf);
 
-        const colorOut: PxKeyframe = { time: t, value: sliced.color };
+        const colorOut: PxKeyframe<PxKeyframeValue> = { time: t, value: sliced.color };
         if (easing !== undefined) colorOut.easing = easing;
         colorKfs.push(colorOut);
 
         // Offset is a unitless 0..1 fraction (SVG `<stop offset>` accepts it
         // bare); the runtime interpolates it as a numeric attr.
-        const offsetOut: PxKeyframe = { time: t, value: sliced.offset };
+        const offsetOut: PxKeyframe<PxKeyframeValue> = { time: t, value: sliced.offset };
         if (easing !== undefined) offsetOut.easing = easing;
         offsetKfs.push(offsetOut);
         if (sliced.offset !== baseline.offset) offsetVaries = true;
@@ -221,7 +221,7 @@ function animatedStopNode(baseline: PxGradientStop, kfs: Array<PxKeyframe>, stop
         offset: formatOffset(baseline.offset),
         stopColor: baseline.color,
     };
-    const animate: { [k: string]: { keyframes: Array<PxKeyframe>, loop?: PxLoop | boolean } } = {};
+    const animate: { [k: string]: { keyframes: Array<PxKeyframe<PxKeyframeValue>>, loop?: PxLoop | boolean } } = {};
     if (colorKfs.length) {
         animate.stopColor = { keyframes: colorKfs };
         if (loop !== undefined) animate.stopColor.loop = loop;

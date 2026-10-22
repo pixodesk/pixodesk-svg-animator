@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import type { PxAnimatable, PxKeyframe, PxLoop, PxNode, PxTextPathEffect } from '../../format/PxAnimatorTypes';
+import { PxChannelNumberSchema, PxPathValueSchema, type PxAnimatable, type PxKeyframe, type PxLoop, type PxNode, type PxTextPathEffect } from '../../format/PxAnimatorTypes';
 import { PxPathOverflow } from '../../format/PxAnimatorConstants';
 import { pathString } from '../shared/pathValue';
 import type { ApplyContext } from '../shared/types';
@@ -23,7 +23,7 @@ const EXTEND_MARGIN_FRAC = 0.15; // slack (× path length) to absorb sampling/me
  *  startOffset(+textLength) drives the END — using only one value (e.g. the max)
  *  misses the other end when startOffset is animated. */
 function numRange(v: PxAnimatable<number> | undefined): { min: number; max: number } {
-    const read = readAnimatable<number>(v);
+    const read = readAnimatable(v, PxChannelNumberSchema);
     if (read.kind === ReadKind.Static && typeof read.value === 'number') return { min: read.value, max: read.value };
     if (read.kind === ReadKind.Animated && read.keyframes.length) {
         const vals = read.keyframes.map(k => Number(k.value) || 0);
@@ -38,7 +38,7 @@ function numRange(v: PxAnimatable<number> | undefined): { min: number; max: numb
 function estimateTextAdvance(node: PxNode): number {
     let chars = 0, maxFont = 16;
     const walk = (el: PxNode): void => {
-        const fs = parseFloat(String((el as any).fontSize ?? '')) || 0;
+        const fs = parseFloat(String(el.fontSize ?? '')) || 0;
         if (fs) maxFont = Math.max(maxFont, fs);
         const t = el.textContent;
         if (typeof t === 'string') chars += t.length;
@@ -78,7 +78,7 @@ export interface ExtendedPath {
  */
 export function shiftAnimatable(v: PxAnimatable<number> | undefined, by: number): PxAnimatable<number> | undefined {
     if (!by || v === undefined || v === null) return v;
-    const read = readAnimatable<number>(v);
+    const read = readAnimatable(v, PxChannelNumberSchema);
     if (read.kind === ReadKind.Absent) return v;
     if (read.kind === ReadKind.Static) return typeof v === 'number' ? read.value + by : { value: read.value + by };
     const out: { keyframes: Array<PxKeyframe<number>>; loop?: PxLoop | boolean; autoOrient?: boolean; value?: number } = {
@@ -159,7 +159,7 @@ export function applyTextPathEffect(
     ctx: ApplyContext,
 ): PxNode {
     if (!fx) return node;
-    const read = readAnimatable<string>(fx.pathData);
+    const read = readAnimatable(fx.pathData, PxPathValueSchema);
     if (read.kind === ReadKind.Absent) return node;
     const isAnimated = read.kind === ReadKind.Animated;
     const baseD = pathString(isAnimated ? (read.base ?? read.keyframes[0]?.value) : read.value);
@@ -204,5 +204,5 @@ export function applyTextPathEffect(
  *  carried through and a static first-kf baseline attr. */
 function applyAnimatableNumber(node: PxNode, attrName: string, raw: PxAnimatable<number> | undefined): void {
     if (raw === undefined || raw === null) return;
-    writeAnimatableChannel(node, attrName, readAnimatable<number>(raw), { asString: true });
+    writeAnimatableChannel(node, attrName, readAnimatable(raw, PxChannelNumberSchema), { asString: true });
 }

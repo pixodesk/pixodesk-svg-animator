@@ -6,7 +6,8 @@
 
 
 import { applyTransformByEffect } from './transformationEffect';
-import type { PxAnimatable, PxAnimationDefinition, PxKeyframe, PxLoop, PxNode, PxRepeaterEffect, PxTransformByEffect, PxVec2 } from '../../format/PxAnimatorTypes';
+import { PxChannelNumberSchema, PxVec2Schema, type PxAnimatable, type PxAnimationDefinition, type PxKeyframe, type PxKeyframeValue, type PxLoop, type PxNode, type PxRepeaterEffect, type PxTransformByEffect, type PxVec2 } from '../../format/PxAnimatorTypes';
+import type { PxSchema } from '../../schema/PxSchema';
 import { ReadKind, readAnimatable } from '../shared/transformParts';
 import type { ApplyContext } from '../shared/types';
 import { clone } from '../shared/util';
@@ -94,13 +95,13 @@ function synthesisePerCopyFx(fx: PxRepeaterEffect, i: number): PxTransformByEffe
     const out: PxTransformByEffect = {};
 
     if (fx.translate !== undefined) {
-        out.translate = mapAnimatable<PxVec2>(fx.translate, v => [v[0] * i, v[1] * i]);
+        out.translate = mapAnimatable<PxVec2>(fx.translate, PxVec2Schema, v => [v[0] * i, v[1] * i]);
     }
     if (fx.rotate !== undefined) {
-        out.rotate = mapAnimatable<number>(fx.rotate, v => v * i);
+        out.rotate = mapAnimatable<number>(fx.rotate, PxChannelNumberSchema, v => v * i);
     }
     if (fx.skew !== undefined) {
-        out.skew = mapAnimatable<number>(fx.skew, v => v * i);
+        out.skew = mapAnimatable<number>(fx.skew, PxChannelNumberSchema, v => v * i);
     }
     if (fx.scale !== undefined) {
         out.scale = synthesiseScale(fx.scale, i);
@@ -123,8 +124,8 @@ function synthesisePerCopyFx(fx: PxRepeaterEffect, i: number): PxTransformByEffe
  * `{keyframes, loop?, autoOrient?, value?}` with kf values mapped and
  * time/easing/tangents preserved.
  */
-function mapAnimatable<T>(raw: PxAnimatable<T>, fn: (v: T) => T, wrapStatic = false): PxAnimatable<T> {
-    const read = readAnimatable<T>(raw);
+function mapAnimatable<T extends PxKeyframeValue>(raw: PxAnimatable<T>, valueSchema: PxSchema<T>, fn: (v: T) => T, wrapStatic = false): PxAnimatable<T> {
+    const read = readAnimatable(raw, valueSchema);
     if (read.kind === ReadKind.Absent) return raw;
     if (read.kind === ReadKind.Static) {
         const mapped = fn(read.value);
@@ -132,7 +133,7 @@ function mapAnimatable<T>(raw: PxAnimatable<T>, fn: (v: T) => T, wrapStatic = fa
         return (wasRawStatic && !wrapStatic) ? mapped : { value: mapped };
     }
     const out: { keyframes: Array<PxKeyframe<T>>; loop?: PxLoop | boolean; autoOrient?: boolean; value?: T } = {
-        keyframes: read.keyframes.map(kf => kf && kf.value !== undefined ? { ...kf, value: fn(kf.value) } : kf),
+        keyframes: read.keyframes.map(kf => ({ ...kf, value: fn(kf.value) })),
     };
     if (read.loop !== undefined) out.loop = read.loop;
     if (read.autoOrient !== undefined) out.autoOrient = read.autoOrient;
@@ -151,5 +152,5 @@ function mapAnimatable<T>(raw: PxAnimatable<T>, fn: (v: T) => T, wrapStatic = fa
  */
 function synthesiseScale(raw: PxAnimatable<PxVec2>, i: number): PxAnimatable<PxVec2> {
     const scalePower = (v: PxVec2): PxVec2 => [Math.pow(v[0], i), Math.pow(v[1], i)];
-    return mapAnimatable<PxVec2>(raw, scalePower, true);
+    return mapAnimatable<PxVec2>(raw, PxVec2Schema, scalePower, true);
 }

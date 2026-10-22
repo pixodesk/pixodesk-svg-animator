@@ -71,7 +71,7 @@ export interface _PxKeyframe {
     time?: number;
 
     /** The value of the animated property at this keyframe */
-    value?: any;
+    value?: _PxKeyframeValue;
 
     /** Easing function applied to the interval from this keyframe to the next */
     easing?: PxEasingOrRef;
@@ -133,6 +133,9 @@ export type _PxKeyframeValue =
 //
 // `PxTransformPartsSchema` is declared later in this file — `px.lazy` defers the lookup
 // until validation time so the declarations stay in narrative order without a TDZ at load.
+/** The `{pathData}` keyframe value of an animated path `d`. @internal */
+export const PxPathDataValueSchema = px.object({ pathData: px.string() });
+
 /** @public @advanced */
 export const PxKeyframeValueSchema = implementsInterface<_PxKeyframeValue>()(px.union([
     px.string(), // e.g. for colors
@@ -144,7 +147,7 @@ export const PxKeyframeValueSchema = implementsInterface<_PxKeyframeValue>()(px.
     // Union.sanitize route `{pathData}` values into it and strip them to `{}` —
     // silent morph-data loss (repro: the editor's keyframeValueSanitize spec). Validity is
     // order-independent (`some()`); only sanitize routing depends on this order.
-    px.object({ pathData: px.string() }),
+    PxPathDataValueSchema,
     // Gradient `stops` timeline — each kf value is the full stops-array snapshot.
     px.lazy<Array<_PxGradientStop>>(() => px.array(PxGradientStopSchema), []),
     px.lazy<PxTransformParts>(() => PxTransformPartsSchema, {}),
@@ -216,7 +219,7 @@ const anyKf = (kf: PxAnyKeyframe) => kf as _PxKeyframe & _PxNormalizedKeyframe;
 export const keyframeTime = (kf: PxAnyKeyframe): number => anyKf(kf).time ?? anyKf(kf).t ?? 0;
 // @px-area keyframes
 /** Value, whichever spelling. @internal */
-export const keyframeValue = (kf: PxAnyKeyframe): any => anyKf(kf).value ?? anyKf(kf).v;
+export const keyframeValue = (kf: PxAnyKeyframe): unknown => anyKf(kf).value ?? anyKf(kf).v;
 // @px-area keyframes
 /** Easing — resolved on a normalized keyframe, possibly a NAME on a wire one. @internal */
 export const keyframeEasing = (kf: PxAnyKeyframe): PxEasingOrRef | undefined => anyKf(kf).easing ?? anyKf(kf).e;
@@ -234,12 +237,12 @@ export const keyframeTangentOut = (kf: PxAnyKeyframe): [number, number] | undefi
  * @public
  */
 // The WIRE type, generic over the value type. The engines use `PxNormalizedKeyframe`.
-export type PxKeyframe<T = any> = Omit<_PxKeyframe, 'value'> & { value?: T };
+export type PxKeyframe<T = unknown> = Omit<_PxKeyframe, 'value'> & { value?: T };
 // Locks the interface to the schema at the default instantiation.
 const _ck_PxKeyframe: KeysMatch<PxInfer<typeof PxKeyframeSchema>, _PxKeyframe> = true;
 
 /** {@link PxNormalizedKeyframe}, generic over the value type — the runtime counterpart. */
-export type PxNormalizedKeyframeOf<T = any> = Omit<_PxNormalizedKeyframe, 'v'> & { v?: T };
+export type PxNormalizedKeyframeOf<T = unknown> = Omit<_PxNormalizedKeyframe, 'v'> & { v?: T };
 
 /**
  * A property animation whose keyframes are in the RUNTIME form.
@@ -348,10 +351,10 @@ export interface _PxPropertyAnimation {
      *    patch semantics (the editor's extended-d `shape` effect) merge each
      *    keyframe's partial value over this base.
      */
-    value?: any;
+    value?: _PxKeyframeValue;
 
     /** Array of keyframes defining the animation timeline */
-    keyframes?: PxKeyframe[];
+    keyframes?: Array<_PxKeyframe>;
 
     /**
      * Optional loop configuration. When set, the keyframe sequence is expanded at pre-processing
@@ -450,6 +453,9 @@ export const PxTransformPartsSchema = implementsInterface<_PxTransformParts>()(p
 export type PxTransformParts = PxInfer<typeof PxTransformPartsSchema>;
 const _ck_PxTransformParts: KeysMatch<PxTransformParts, _PxTransformParts> = true; // the key sets are identical
 
+/** The structured-static wrapper `{value: parts}` of a `transform` slot (legacy beside the bare record). @internal */
+export const PxTransformValueWrapperSchema = px.object({ value: PxTransformPartsSchema });
+
 /**
  * Unified `transform` slot value. Valid shapes:
  *
@@ -475,7 +481,7 @@ const _ck_PxTransformParts: KeysMatch<PxTransformParts, _PxTransformParts> = tru
 export const PxTransformValueSchema = px.union([
     px.string(),
     PxTransformPartsSchema,
-    px.object({ value: PxTransformPartsSchema }),
+    PxTransformValueWrapperSchema,
     PxPropertyAnimationSchema,
 ]);
 
@@ -1273,7 +1279,7 @@ export const PxAttrValueSchema = px.union([
 /** Per-attribute value: primitive/number-array for static, `{value}` for structured
  *  static, or a bare transform parts record. NEVER an animation — see `animate` (R2). * @public
  */
-export type PxAttrValue = string | number | Array<number> | { value: any } | PxTransformParts;
+export type PxAttrValue = string | number | Array<number> | { value: unknown } | PxTransformParts;
 
 
 /**
@@ -1296,8 +1302,8 @@ export interface _PxNode {
     /** Child elements (for container elements like <g>) */
     children?: PxNode[];
 
-    /** Meta informaion about this element */
-    meta?: any;
+    /** Meta informaion about this element — the editor's, opaque to the player. */
+    meta?: unknown;
 
     /**
      * Player-effects bucket (transformation/repeater/maskedBy/strokeTrim/retime/ref)
@@ -1336,7 +1342,7 @@ export interface _PxNode {
      * spelling on the way in. A value is either a primitive (static) or a PxPropertyAnimation
      * (in-place animation `{ keyframes: [...] }`).
      */
-    [camelCaseDomKey: string]: any;
+    [camelCaseDomKey: string]: unknown;
 }
 
 // ============================================================================
@@ -1360,6 +1366,14 @@ export interface _PxNode {
 
 /** Fixed-length 2-number tuple. `[x, y]` for positions, `[sx, sy]` for scale, …. @public */
 export type PxVec2 = [number, number];
+
+// The VALUE grammars of the animatable channels — `readAnimatable` casts static and keyframe values with them.
+/** @internal */
+export const PxVec2Schema = px.tuple([px.number(), px.number()] as const);
+/** @internal */
+export const PxChannelNumberSchema = px.number();
+/** A path slot's value: the `d` string, or the `{pathData}` keyframe-value object. @internal */
+export const PxPathValueSchema = px.union([px.string(), PxPathDataValueSchema]);
 
 /**
  * Animatable wire value — the ONE grammar for every animatable slot:
@@ -1391,18 +1405,18 @@ export type PxAnimatable<T> = T | { value: T } | _PxPropertyAnimation;
 
 // PxAnimatable<number> — static number OR `{value}` static OR PxPropertyAnimation.
 const PxAnimatableNumberSchema = px.union([
-    px.number(),
+    PxChannelNumberSchema,
     PxPropertyAnimationSchema,
-    px.object({ value: px.number() }),
+    px.object({ value: PxChannelNumberSchema }),
 ]);
 
 // PxAnimatable<PxVec2> — static `[x,y]` OR `{value:[x,y]}` OR PxPropertyAnimation.
 // `as const` on the tuples is REQUIRED for TS to infer `[number, number]` (a
 // fixed-length tuple = `PxVec2`) instead of the looser `number[]`.
 const PxAnimatableVec2Schema = px.union([
-    px.tuple([px.number(), px.number()] as const),
+    PxVec2Schema,
     PxPropertyAnimationSchema,
-    px.object({ value: px.tuple([px.number(), px.number()] as const) }),
+    px.object({ value: PxVec2Schema }),
 ]);
 
 // PxAnimatable<string> — static `"M…"` OR `{value:"M…"}` OR PxPropertyAnimation.
@@ -1653,9 +1667,12 @@ const _ck_PxGradientStop: KeysMatch<PxGradientStop, _PxGradientStop> = true;
  *  LAW (SCHEMA-DESIGN R5, S9): stops are ONE animatable value — whole-array
  *  snapshots on a single timeline, deliberately NO per-stop keyframes/easing
  *  (gradient GEOMETRY animates per-slot with independent timelines). */
+/** The stops slot's value grammar — one whole-array snapshot. @internal */
+export const PxGradientStopsSchema = px.array(PxGradientStopSchema);
+
 const PxAnimatableGradientStopsSchema = px.union([
-    px.array(PxGradientStopSchema),
-    px.object({ value: px.array(PxGradientStopSchema) }),
+    PxGradientStopsSchema,
+    px.object({ value: PxGradientStopsSchema }),
     PxPropertyAnimationSchema,
 ]);
 
@@ -2098,7 +2115,7 @@ export const PxNodeBaseSchema = px.openObject({
 // By the time the lazy resolves (first isValid/sanitize call), PxNodeSchema is assigned.
 // `PxNodeBaseSchema & { children?:PxNode[] }`
 /** @public @advanced */
-let PxNodeSchema: PxSchema<any> = px.openObject({
+let PxNodeSchema: PxSchema<PxNode> = px.openObject({
     ...PxNodeBaseSchema._shape,
     children: px.lazy(() => px.array(PxNodeSchema), []).optional(),
 }, PxAttrValueSchema);
@@ -2114,7 +2131,7 @@ export { PxNodeSchema };
  */
 export interface PxNode extends PxInfer<typeof PxNodeBaseSchema> {
     children?: PxNode[];
-    [camelCaseDomKey: string]: any;
+    [camelCaseDomKey: string]: unknown;
 }
 
 
@@ -2332,6 +2349,9 @@ export const PxBezierPathSchema = implementsInterface<_PxBezierPath>()(px.object
 
 /** Represents a vector path for SVG shape animations. @public */
 export type PxBezierPath = PxInfer<typeof PxBezierPathSchema>;
+
+/** A `d` keyframe value after normalization — the bezier paths the engines interpolate. @internal */
+export const PxNormalizedPathValueSchema = px.object({ paths: px.array(PxBezierPathSchema) });
 const _ck_PxBezierPath: KeysMatch<PxBezierPath, _PxBezierPath> = true; // the key sets are identical
 
 

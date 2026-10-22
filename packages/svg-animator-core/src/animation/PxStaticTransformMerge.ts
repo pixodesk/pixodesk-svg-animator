@@ -10,7 +10,7 @@
 // pipeline applies is a rule the two engines disagree about.
 
 import { TRANSFORM_ATTR } from '../format/PxAnimatorConstants';
-import type { PxAnimationDefinition, PxPropertyAnimation, PxTransformParts } from '../format/PxAnimatorTypes';
+import { PxTransformPartsSchema, type PxAnimationDefinition, type PxKeyframeValue, type PxPropertyAnimation, type PxTransformParts } from '../format/PxAnimatorTypes';
 import { parseTransformParts, PX_TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
 
 
@@ -45,8 +45,9 @@ export function mergeStaticTransformIntoAnimDef(
             : parseTransformParts(staticTransform as string);
     if (!staticParts || !Object.keys(staticParts).length) return animDef;
 
-    const mergeKfValue = (v: unknown): unknown =>
-        v && typeof v === 'object' && !Array.isArray(v) ? { ...staticParts, ...(v as PxTransformParts) } : v;
+    // a transform-parts value takes the static parts underneath; any other value stays as it is
+    const mergeKfValue = (v: PxKeyframeValue | undefined): PxKeyframeValue | undefined =>
+        PxTransformPartsSchema.is(v) ? { ...staticParts, ...v } : v;
 
     const transformAnim = animDef[TRANSFORM_ATTR];
     if (transformAnim && typeof transformAnim === 'object') {
@@ -56,7 +57,7 @@ export function mergeStaticTransformIntoAnimDef(
                 ...anim,
                 keyframes: anim.keyframes.map(kf => ({ ...kf, value: mergeKfValue(kf.value) })),
             };
-            if (out.value !== undefined) out.value = mergeKfValue(out.value) as PxPropertyAnimation['value'];
+            if (out.value !== undefined) out.value = mergeKfValue(out.value);
             return { ...animDef, transform: out };
         }
         return animDef;

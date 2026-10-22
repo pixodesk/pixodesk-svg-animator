@@ -4,7 +4,7 @@
         "outDir": "dist",
         "rootDir": "src",
         "jsx": "preserve",
-        "noImplicitAny": false,
+        "noImplicitAny": true,
         "noImplicitThis": false,
         "noImplicitOverride": true
     },

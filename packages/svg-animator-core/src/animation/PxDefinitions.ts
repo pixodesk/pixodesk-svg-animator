@@ -170,7 +170,7 @@ function extractPathData(str: string): string | undefined {
 /**
  * Checks if the value is a path string (either "path(...)" or raw "M...").
  */
-function isPathString(value: any): value is string {
+function isPathString(value: unknown): value is string {
     return typeof value === 'string' && extractPathData(value) !== undefined;
 }
 
@@ -1161,8 +1161,8 @@ function calcPropertyValue(
                 partsResult[partKey] = interpolateNum(+(prevPart ?? 0), +(nextPart ?? 0), localProgress);
             } else if (partKey === 'translate' || partKey === 'scale' || partKey === 'origin') {
                 const fallback = partKey === 'scale' ? [1, 1] : [0, 0];
-                const interp = interpolateVec(prevPart || fallback, nextPart || fallback, localProgress);
-                (partsResult as any)[partKey] = interp;
+                const [x, y] = interpolateVec(prevPart || fallback, nextPart || fallback, localProgress);
+                partsResult[partKey] = [x, y];
             }
         }
         // Motion-along-path override (frames-mode only). The WAAPI binding

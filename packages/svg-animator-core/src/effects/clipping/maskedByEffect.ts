@@ -5,8 +5,8 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import type { PxAnimatable, PxMaskedByEffect, PxNode, PxTransformByEffect, PxVec2 } from '../../format/PxAnimatorTypes';
-import { keyframeWith, partsRecord, ReadKind, readAnimatable, readStaticOrigin, TransformPart } from '../shared/transformParts';
+import { PxChannelNumberSchema, PxTransformPartsSchema, PxVec2Schema, type PxAnimatable, type PxKeyframe, type PxMaskedByEffect, type PxNode, type PxPropertyAnimation, type PxTransformByEffect, type PxTransformParts, type PxVec2 } from '../../format/PxAnimatorTypes';
+import { inlineAnimate, keyframeWith, normalizeKeyframe, partsRecord, ReadKind, readAnimatable, readStaticOrigin, staticTransformParts, TransformPart, type ReadPart, type ValueKeyframe } from '../shared/transformParts';
 import type { ApplyContext, MaskAncestorTransform } from '../shared/types';
 import { genId, stripHash } from '../shared/util';
 
@@ -93,32 +93,29 @@ function wrapInverseTransform(inner: PxNode, fx: PxTransformByEffect | undefined
     const origin = readStaticOrigin(fx.origin, ctx);
 
     let n = inner;
-    n = wrapInversePart(n, TransformPart.Translate, fx.translate, undefined, ctx);
-    n = wrapInversePart(n, TransformPart.Rotate, fx.rotate, origin, ctx);
-    n = wrapInversePart(n, TransformPart.Scale, fx.scale, origin, ctx);
+    n = wrapInversePart(n, TransformPart.Translate, readAnimatable(fx.translate, PxVec2Schema), v => [-v[0], -v[1]], undefined);
+    n = wrapInversePart(n, TransformPart.Rotate, readAnimatable(fx.rotate, PxChannelNumberSchema), v => -v, origin);
+    n = wrapInversePart(n, TransformPart.Scale, readAnimatable(scaleInFactors(fx.scale), PxVec2Schema), v => [1 / v[0], 1 / v[1]], origin);
     return n;
 }
 
-function wrapInversePart(
-    inner: PxNode, part: TransformPart,
-    raw: PxAnimatable<any> | undefined, origin: PxVec2 | undefined, ctx: ApplyContext
+/** `fx.scale` in BARE-ARRAY form is PERCENT (150 = 1.5×), matching
+ *  `applyTransformByEffect`'s forward `normalizeScale`. Convert to 1.0-units
+ *  before reading, so the inverse of `[1.5,1.5]` is `[2/3, 2/3]`, not
+ *  `[1/150, 1/150]`. Keyframe / {value} forms already use 1.0-units. */
+function scaleInFactors(raw: PxAnimatable<PxVec2> | undefined): PxAnimatable<PxVec2> | undefined {
+    return Array.isArray(raw) ? [raw[0] / 100, raw[1] / 100] : raw;
+}
+
+function wrapInversePart<T extends number | PxVec2>(
+    inner: PxNode, part: TransformPart, v: ReadPart<T>, invert: (value: T) => T, origin: PxVec2 | undefined,
 ): PxNode {
-    if (raw === undefined) return inner;
-    // `fx.scale` in BARE-ARRAY form is PERCENT (150 = 1.5×), matching
-    // `applyTransformByEffect`'s forward `normalizeScale`. Convert to
-    // 1.0-units before reading, so `invertPartValue([1.5,1.5])` produces
-    // the right `[2/3, 2/3]` instead of `[1/150, 1/150]`. Keyframe / {value}
-    // forms already use 1.0-units per the wire convention.
-    const normalizedRaw: PxAnimatable<any> | undefined = (part === TransformPart.Scale && Array.isArray(raw))
-        ? [raw[0] / 100, raw[1] / 100] as unknown as PxAnimatable<any>
-        : raw;
-    const v = readAnimatable<any>(normalizedRaw);
     if (v.kind === ReadKind.Static) {
-        return { type: 'g', transform: { value: partsRecord(part, invertPartValue(part, v.value), origin) }, children: [inner] };
+        return { type: 'g', transform: { value: partsRecord(part, invert(v.value), origin) }, children: [inner] };
     }
     if (v.kind === ReadKind.Animated) {
-        const animTr: any = { keyframes: v.keyframes.map(kf => {
-            const out = keyframeWith(kf, partsRecord(part, invertPartValue(part, kf.value), origin));
+        const animTr: PxPropertyAnimation = { keyframes: v.keyframes.map(kf => {
+            const out = keyframeWith(kf, partsRecord(part, invert(kf.value), origin));
             return part === TransformPart.Translate ? { ...out, ...negatedSpatialTangents(kf) } : out;
         }) };
         if (v.loop !== undefined) animTr.loop = v.loop;
@@ -131,26 +128,18 @@ function wrapInversePart(
     return inner;
 }
 
-function invertPartValue(part: TransformPart, value: any): any {
-    if (part === TransformPart.Translate) return [-value[0], -value[1]];
-    if (part === TransformPart.Rotate) return -value;
-    return [1 / value[0], 1 / value[1]];   // scale
-}
-
 /**
- * Spatial tangents (`tangentOut`/`tangentIn`, wire aliases `to`/`ti`) are
- * RELATIVE control-point offsets (control = value + tangent), so an inverse
- * translate keyframe must negate them along with the value — copying them
+ * Spatial tangents (`tangentOut`/`tangentIn`; the short aliases are normalized
+ * before) are RELATIVE control-point offsets (control = value + tangent), so an
+ * inverse translate keyframe must negate them along with the value — copying them
  * verbatim keeps the ORIGINAL curve direction and the derived mask sags
  * mid-segment on a motion-along-path masked element (endpoints stay exact,
  * which is why only mid-frame sampling exposes it).
  */
-function negatedSpatialTangents(kf: Record<string, any>): Record<string, any> {
-    const out: Record<string, any> = {};
-    const to = kf.tangentOut ?? kf.to;
-    const ti = kf.tangentIn ?? kf.ti;
-    if (Array.isArray(to)) out.tangentOut = [-to[0], -to[1]];
-    if (Array.isArray(ti)) out.tangentIn = [-ti[0], -ti[1]];
+function negatedSpatialTangents(kf: PxKeyframe): Pick<PxKeyframe, 'tangentOut' | 'tangentIn'> {
+    const out: Pick<PxKeyframe, 'tangentOut' | 'tangentIn'> = {};
+    if (kf.tangentOut) out.tangentOut = [-kf.tangentOut[0], -kf.tangentOut[1]];
+    if (kf.tangentIn) out.tangentIn = [-kf.tangentIn[0], -kf.tangentIn[1]];
     return out;
 }
 
@@ -175,45 +164,34 @@ function negatedSpatialTangents(kf: Record<string, any>): Record<string, any> {
  * sandwich pivots correctly per frame.
  */
 function wrapInverseAnimatedBodyTransform(inner: PxNode, node: PxNode, _ctx: ApplyContext): PxNode {
-    const animate = node.animate && typeof node.animate === 'object' && !Array.isArray(node.animate)
-        ? (node.animate as Record<string, any>) : undefined;
-    const animTr = animate?.transform;
-    const kfs = animTr && typeof animTr === 'object' && Array.isArray((animTr as Record<string, any>).keyframes)
-        ? ((animTr as Record<string, any>).keyframes as Array<Record<string, any>>)
-        : undefined;
+    const animTr = inlineAnimate(node)?.transform;
+    const kfs = animTr?.keyframes;
     if (!kfs || !kfs.length) return inner;
 
-    const translateKfs: Array<Record<string, any>> = [];
-    const rotateKfs: Array<Record<string, any>> = [];
-    const scaleKfs: Array<Record<string, any>> = [];
+    const translateKfs: Array<ValueKeyframe<PxTransformParts>> = [];
+    const rotateKfs: Array<ValueKeyframe<PxTransformParts>> = [];
+    const scaleKfs: Array<ValueKeyframe<PxTransformParts>> = [];
+    const withOrigin = (rec: PxTransformParts, origin: PxVec2 | undefined): PxTransformParts =>
+        origin ? { ...rec, origin: [origin[0], origin[1]] } : rec;
 
-    for (const kf of kfs) {
-        const v = (kf.value ?? kf.v) || {};
-        const baseKf = keyframeWith(kf as any, undefined);   // copies time / easing / tangents
-        if (Array.isArray(v.translate)) {
-            translateKfs.push({ ...baseKf, ...negatedSpatialTangents(kf), value: { translate: [-v.translate[0], -v.translate[1]] } });
+    for (const raw of kfs) {
+        const kf = normalizeKeyframe(raw, PxTransformPartsSchema);
+        if (!kf) continue;
+        const v = kf.value;
+        // `keyframeWith` copies time / easing / tangents.
+        if (v.translate) {
+            translateKfs.push({ ...keyframeWith(kf, { translate: [-v.translate[0], -v.translate[1]] }), ...negatedSpatialTangents(kf) });
         }
-        if (typeof v.rotate === 'number') {
-            const rec: Record<string, any> = { rotate: -v.rotate };
-            if (Array.isArray(v.origin)) rec.origin = [v.origin[0], v.origin[1]];
-            rotateKfs.push({ ...baseKf, value: rec });
-        }
-        if (Array.isArray(v.scale)) {
-            const rec: Record<string, any> = { scale: [1 / v.scale[0], 1 / v.scale[1]] };
-            if (Array.isArray(v.origin)) rec.origin = [v.origin[0], v.origin[1]];
-            scaleKfs.push({ ...baseKf, value: rec });
-        }
+        if (v.rotate !== undefined) rotateKfs.push(keyframeWith(kf, withOrigin({ rotate: -v.rotate }, v.origin)));
+        if (v.scale) scaleKfs.push(keyframeWith(kf, withOrigin({ scale: [1 / v.scale[0], 1 / v.scale[1]] }, v.origin)));
     }
 
     // Forward the source animate.transform's loop config (alternate/cycle/etc.)
     // onto each per-part inverse wrapper so a loop on the masked element's body
     // transform survives the inversion split.
-    const srcLoop = (animTr as Record<string, any> | undefined)?.loop;
-    const withLoop = (kfs: Array<Record<string, any>>): Record<string, any> => {
-        const block: Record<string, any> = { keyframes: kfs };
-        if (srcLoop !== undefined) block.loop = srcLoop;
-        return block;
-    };
+    const srcLoop = animTr.loop;
+    const withLoop = (keyframes: Array<ValueKeyframe<PxTransformParts>>): PxPropertyAnimation =>
+        srcLoop !== undefined ? { keyframes, loop: srcLoop } : { keyframes };
 
     let n = inner;
     // Innermost = translate (matches `wrapInverseTransform`'s order).
@@ -235,9 +213,7 @@ function nodeHasBodyTransform(node: PxNode): boolean {
 /** True when the node carries an `animate.transform` block (per-frame
  *  override of `node.transform`). */
 function hasAnimateTransform(node: PxNode): boolean {
-    const animate = node.animate && typeof node.animate === 'object' && !Array.isArray(node.animate)
-        ? (node.animate as Record<string, any>) : undefined;
-    return !!(animate && animate.transform);
+    return !!inlineAnimate(node)?.transform;
 }
 
 /** Parses the masked element's body transform (`node.transform` string) into a
@@ -268,21 +244,15 @@ function readTransformationFromBody(node: PxNode): PxTransformByEffect | undefin
     // the legacy `{value: partsRecord}` wrapper — the lightweight wire's static
     // form; values are already wire units (scale = factor), so scale passes
     // through `{value}` like the string branch.
-    if (node.transform && typeof node.transform === 'object'
-        && !(node.transform as any).keyframes) {
-        const wrapped = (node.transform as { value?: Record<string, any> }).value;
-        const value = (wrapped && typeof wrapped === 'object' ? wrapped : node.transform) as Record<string, any>;
-        if (value && typeof value === 'object') {
-            const out: PxTransformByEffect = {};
-            if (Array.isArray(value.translate)) out.translate = value.translate as [number, number];
-            if (typeof value.rotate === 'number') out.rotate = value.rotate;
-            if (typeof value.skew === 'number') out.skew = value.skew;
-            if (Array.isArray(value.scale)) out.scale = { value: value.scale as [number, number] };
-            if (Array.isArray(value.origin)) out.origin = value.origin as [number, number];
-            return Object.keys(out).length ? out : undefined;
-        }
-    }
-    return undefined;
+    const value = staticTransformParts(node.transform);
+    if (!value) return undefined;
+    const out: PxTransformByEffect = {};
+    if (value.translate) out.translate = value.translate;
+    if (value.rotate !== undefined) out.rotate = value.rotate;
+    if (value.skew !== undefined) out.skew = value.skew;
+    if (value.scale) out.scale = { value: value.scale };
+    if (value.origin) out.origin = value.origin;
+    return Object.keys(out).length ? out : undefined;
 }
 
 /** Parses the canonical body-transform string of the form
@@ -508,8 +478,7 @@ export function collectMaskAncestorChains(root: PxNode, ctx: ApplyContext): void
  *  non-translate parts. Pushes a warning when a non-translate part is dropped. */
 function extractTranslateOnly(node: PxNode, ctx: ApplyContext): MaskAncestorTransform | undefined {
     const tr = node.transform;
-    const animateBlock = node.animate && typeof node.animate === 'object' && !Array.isArray(node.animate)
-        ? (node.animate as Record<string, any>).transform : undefined;
+    const animateBlock = inlineAnimate(node)?.transform;
     if (tr === undefined && !animateBlock) return undefined;
 
     const out: MaskAncestorTransform = {};
@@ -517,26 +486,22 @@ function extractTranslateOnly(node: PxNode, ctx: ApplyContext): MaskAncestorTran
     if (typeof tr === 'string') {
         const parts = parseTranslateOnlyFromString(tr, ctx);
         if (parts) out.translate = parts;
-    } else if (tr && typeof tr === 'object' && !(tr as Record<string, any>).keyframes) {
+    } else {
         // bare parts record (canonical) or the legacy {value: record} wrapper
-        const wrapped = (tr as Record<string, any>).value;
-        const value = (wrapped && typeof wrapped === 'object') ? wrapped : (tr as Record<string, any>);
-        if (value && typeof value === 'object' && Array.isArray(value.translate)) {
-            out.translate = [value.translate[0] || 0, value.translate[1] || 0];
-        }
+        const value = staticTransformParts(tr);
+        if (value?.translate) out.translate = [value.translate[0] || 0, value.translate[1] || 0];
         if (value && (value.rotate !== undefined || value.scale !== undefined || value.skew !== undefined)) {
             ctx.warnings.push('maskedBy ancestor: non-translate transform parts ignored (rotate/scale not yet supported)');
         }
     }
 
-    if (animateBlock && Array.isArray((animateBlock as Record<string, any>).keyframes)) {
-        const kfs = (animateBlock as Record<string, any>).keyframes as Array<Record<string, any>>;
+    if (animateBlock?.keyframes) {
         const translateKfs: Array<{ time: number; value: [number, number] }> = [];
-        for (const kf of kfs) {
-            const v = kf.value ?? kf.v;
-            const t = (kf.time ?? kf.t ?? 0) as number;
-            if (v && typeof v === 'object' && Array.isArray(v.translate)) {
-                translateKfs.push({ time: t, value: [v.translate[0] || 0, v.translate[1] || 0] });
+        for (const raw of animateBlock.keyframes) {
+            const kf = normalizeKeyframe(raw, PxTransformPartsSchema);
+            const v = kf?.value;
+            if (v?.translate) {
+                translateKfs.push({ time: kf?.time ?? 0, value: [v.translate[0] || 0, v.translate[1] || 0] });
                 if (v.rotate !== undefined || v.scale !== undefined || v.skew !== undefined) {
                     ctx.warnings.push('maskedBy ancestor: animated non-translate parts ignored');
                 }

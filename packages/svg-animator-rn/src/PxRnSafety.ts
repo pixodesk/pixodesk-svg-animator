@@ -72,7 +72,7 @@ export function openClosedTextPathTargets(doc: PxNode, warnings?: Array<string>)
 
     const byId = new Map<string, PxNode>();
     forEachNode(result, n => {
-        const id = (n as any).id;
+        const id = n.id;
         if (typeof id === 'string') byId.set(id, n);
     });
 
@@ -93,17 +93,16 @@ export function openClosedTextPathTargets(doc: PxNode, warnings?: Array<string>)
     forEachNode(result, node => {
         if (String(node.type) !== 'textPath') return;
 
-        const anyNode = node as any;
-        const attr = anyNode.href !== undefined ? 'href' : 'xlink:href';
-        const targetId = localRef(anyNode[attr]);
+        const attr = node.href !== undefined ? 'href' : 'xlink:href';
+        const targetId = localRef(node[attr]);
         if (!targetId) return;
 
         const target = byId.get(targetId);
-        if (!target || !isClosedPath((target as any).d)) return;
+        if (!target || !isClosedPath(target.d)) return;
 
         let copyId = openCopies.get(targetId);
         if (!copyId) {
-            const copy = deepClone(target) as any;
+            const copy: PxNode = deepClone(target);
             copyId = 'px_open_' + generateUniqueId();
             copy.id = copyId;
             copy.d = openPath(String(copy.d));
@@ -120,7 +119,7 @@ export function openClosedTextPathTargets(doc: PxNode, warnings?: Array<string>)
             );
         }
 
-        anyNode[attr] = '#' + copyId;
+        node[attr] = '#' + copyId;
     });
 
     return result;

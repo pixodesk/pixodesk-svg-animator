@@ -112,6 +112,14 @@ export enum PxDiagnosticCode {
     deprecatedTransformChannel = 1107,
 
     /**
+     * A document value did not match the schema and was repaired before playing — replaced by the
+     * schema's default, or dropped when nothing could be kept. The document plays; the value is not
+     * what was written.
+     * @data the problem, with its path
+     */
+    documentRepaired = 1108,
+
+    /**
      * A binding names no element, or names animations that `definitions.animations` does not have.
      * @data the binding
      */

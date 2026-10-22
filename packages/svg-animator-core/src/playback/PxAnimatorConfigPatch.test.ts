@@ -207,7 +207,7 @@ describe('applyAnimatorConfig — document level', () => {
     it('patches `doc.meta.animator` when that is where the config lives', () => {
         const d = { type: 'svg', meta: { animator: { timeline: { outTime: 500 } } } } as any;
         const { doc: out } = applyAnimatorConfig(d, { timeline: { outTime: 900 } });
-        expect(out.meta.animator.timeline.outTime).toBe(900);
+        expect(out.meta).toMatchObject({ animator: { timeline: { outTime: 900 } } });
         expect((out as any).animator).toBeUndefined();   // never invents the other address
     });
 

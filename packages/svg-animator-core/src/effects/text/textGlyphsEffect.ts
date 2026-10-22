@@ -29,14 +29,14 @@
  * kerning/ligatures, per-tspan opacity, text-level animated fill are out of scope.
  */
 
-import { type PxAnimatable, type PxGlyphFont, type PxNode, type PxTextEffect } from '../../format/PxAnimatorTypes';
+import { PxChannelNumberSchema, type PxAnimatable, type PxGlyphFont, type PxNode, type PxTextEffect, type PxTransformParts } from '../../format/PxAnimatorTypes';
 import { PX_TEXT_CONTENT_ATTR, CLASS_ATTR, PX_DEFAULT_UNITS_PER_EM } from '../../format/PxAnimatorConstants';
 import { jsonElementFactory, type PxCreateElement } from './elementFactory';
 import { transformPathData, type Affine } from './glyphPathBake';
 import { createPathSampler, type PathSampler } from './pathSampler';
 import { pathTrackOf, type PathTrack } from '../shared/pathValue';
 import { unwrapAutoOrientRotations } from '../../materialize/PxMotionPath';
-import { ReadKind, readAnimatable, TransformPart } from '../shared/transformParts';
+import { inlineAnimate, ReadKind, readAnimatable, TransformPart } from '../shared/transformParts';
 import type { ApplyContext } from '../shared/types';
 
 
@@ -74,13 +74,13 @@ export interface GlyphMaterializeOptions<E = any> {
 // PAINT keys only (see `PAINT_ANIMATE_KEYS`) — forwarded verbatim onto the emitted
 // `<path>` (the wire's keyframe bags, or the editor's animated-value riders).
 interface Paint {
-    fill?: any; stroke?: any; strokeWidth?: any;
+    fill?: unknown; stroke?: unknown; strokeWidth?: unknown;
     opacity?: number;
-    fillOpacity?: any; fillRule?: any;
-    strokeOpacity?: any; strokeDasharray?: any; strokeDashoffset?: any;
-    strokeLinecap?: any; strokeLinejoin?: any; strokeMiterlimit?: any;
-    mixBlendMode?: any; filter?: any;
-    animate?: { [k: string]: any };
+    fillOpacity?: unknown; fillRule?: unknown;
+    strokeOpacity?: unknown; strokeDasharray?: unknown; strokeDashoffset?: unknown;
+    strokeLinecap?: unknown; strokeLinejoin?: unknown; strokeMiterlimit?: unknown;
+    mixBlendMode?: unknown; filter?: unknown;
+    animate?: Record<string, unknown>;
 }
 /** The per-span statics that fold into `Paint` by simple nearest-wins lookup. */
 const PAINT_STATIC_KEYS = [
@@ -95,9 +95,8 @@ interface Style extends Paint { fontFamily?: string; fontSize: number; letterSpa
  *  `isMissing` marks the □ placeholder — kept out of the merged real-glyph paths so a
  *  consumer can style it (see `MISSING_GLYPH_CLASS_NAME`). */
 interface Placement { glyphD: string; m: Affine; paint: Paint; isMissing?: boolean; }
-/** Minimal keyframe shape (avoids `PxKeyframe`'s non-generic type). Input
- *  `startOffset` kfs carry a number `value`; emitted kfs carry transform parts. */
-interface TransformKeyframe<V = any> { time?: number; value: V; }
+/** Minimal emitted keyframe: transform parts (or the clip track's number) at a time. */
+interface TransformKeyframe<V = PxTransformParts> { time?: number; value: V; }
 
 
 function parseLen(v: unknown): number | undefined {
@@ -111,10 +110,10 @@ function str(v: unknown): string | undefined {
 }
 
 /** A span's paint-only `animate` bag, or undefined when it has none (see `PAINT_ANIMATE_KEYS`). */
-function paintAnimateOf(node: PxNode): { [k: string]: any } | undefined {
-    const bag = node.animate as { [k: string]: any } | undefined;
-    if (!bag || typeof bag !== 'object') return undefined;
-    let out: { [k: string]: any } | undefined;
+function paintAnimateOf(node: PxNode): Record<string, unknown> | undefined {
+    const bag = inlineAnimate(node);
+    if (!bag) return undefined;
+    let out: Record<string, unknown> | undefined;
     for (const k of PAINT_ANIMATE_KEYS) {
         if (bag[k] !== undefined) (out ??= {})[k] = bag[k];
     }
@@ -130,8 +129,8 @@ function resolveStyle(node: PxNode, parent: Style): Style {
     // span with the same style — the same opacity on BOTH nesting levels; multiplying
     // would square it. Same override semantics as the other style props (fill, fontSize).
     const isTextRoot = node.type === 'text';
-    const nodeStyle = node.style as { [k: string]: any } | undefined;
-    const own = (key: string): any => isTextRoot ? undefined : ((node as { [k: string]: any })[key] ?? nodeStyle?.[key]);
+    const nodeStyle = node.style;
+    const own = (key: string): unknown => isTextRoot ? undefined : (node[key] ?? nodeStyle?.[key]);
 
     const res: Style = {
         fontFamily: str(node.fontFamily) ?? parent.fontFamily,
@@ -445,13 +444,13 @@ function layoutGlyphTextCharsAlongPath(node: PxNode, pathD: string, opts: Pick<G
     const width = adv;
     // textLength (lengthAdjust=spacing): scale positions so the run spans textLength.
     // Static / frame-0 read — the caret is a static-frame layout (like startOffset below).
-    const tlr = readAnimatable<number>(alongPath?.textLength);
+    const tlr = readAnimatable(alongPath?.textLength, PxChannelNumberSchema);
     const tlv = tlr.kind === ReadKind.Animated ? (Number(tlr.keyframes[0]?.value) || 0)
         : tlr.kind === ReadKind.Static ? (Number(tlr.value) || 0) : 0;
     const k = (tlv > 0 && width > 0) ? tlv / width : 1;
     // startOffset base — static or frame-0 keyframe (matches the materializer's static place).
     // x/dx add along-path distance; dy shifts perpendicular (both mirror the materializer).
-    const so = readAnimatable<number>(alongPath?.startOffset);
+    const so = readAnimatable(alongPath?.startOffset, PxChannelNumberSchema);
     const { along: alongOffset, perp } = alongPathNodeOffsets(node);
     const base = alongOffset + (so.kind === ReadKind.Animated ? (Number(so.keyframes[0]?.value) || 0)
         : so.kind === ReadKind.Static ? (Number(so.value) || 0) : 0);
@@ -624,7 +623,7 @@ export function materializeGlyphTextAlongPath<E = any>(
 interface NumTrack { animated: boolean; times: Array<number>; loop?: unknown; at(t: number): number; }
 
 function numTrackOf(raw: PxAnimatable<number> | undefined): NumTrack {
-    const r = readAnimatable<number>(raw);
+    const r = readAnimatable(raw, PxChannelNumberSchema);
     if (r.kind === ReadKind.Animated && r.keyframes.length >= 2) {
         const kfs = [...r.keyframes].sort((k1, k2) => (Number(k1.time) || 0) - (Number(k2.time) || 0));
         const times = kfs.map(kf => Number(kf.time) || 0);
@@ -762,7 +761,7 @@ function buildAnimatedAlongPath<E>(
 
         const transform: { keyframes: Array<TransformKeyframe>; loop?: unknown } = { keyframes: kfs };
         if (loop !== undefined) transform.loop = loop;
-        const animate: { [k: string]: any } = { transform };
+        const animate: Record<string, unknown> = { transform };
         // Only add an opacity track when it actually toggles (a glyph fully on-path
         // the whole time needs none).
         // Span-level animated paint rides along (dasharray, fill, …).
@@ -784,8 +783,8 @@ function buildAnimatedAlongPath<E>(
 
 // ── shared emit ───────────────────────────────────────────────────────────────
 
-function paintProps(paint: Paint): { [k: string]: any } {
-    const p: { [k: string]: any } = {};
+function paintProps(paint: Paint): Record<string, unknown> {
+    const p: Record<string, unknown> = {};
     if (paint.fill !== undefined) p.fill = paint.fill;
     if (paint.stroke !== undefined) p.stroke = paint.stroke;
     if (paint.strokeWidth !== undefined) p.strokeWidth = paint.strokeWidth;
@@ -798,7 +797,7 @@ function paintProps(paint: Paint): { [k: string]: any } {
 }
 
 /** Marks a □-placeholder `<path>` for consumers; nothing at all for real glyphs. */
-function missingGlyphProps(isMissing: boolean | undefined): { [k: string]: any } {
+function missingGlyphProps(isMissing: boolean | undefined): Record<string, string> {
     return isMissing ? { [CLASS_ATTR]: MISSING_GLYPH_CLASS_NAME } : {};
 }
 
@@ -834,13 +833,13 @@ function buildPaths<E>(placements: Array<Placement>, create: PxCreateElement<E>,
 /** Builds the `<g>` that replaces the `<text>`: keeps its transform / id /
  *  animate / opacity, drops text-specific attributes, holds the glyph elements. */
 function toGroup<E>(node: PxNode, children: Array<E>, create: PxCreateElement<E>): E {
-    const gProps: { [k: string]: any } = {};
+    const gProps: Record<string, unknown> = {};
     for (const k of Object.keys(node)) {
         if (k === 'type' || k === 'children' || TEXT_ATTR_KEYS.indexOf(k) !== -1) continue;
-        gProps[k] = (node as { [k: string]: any })[k];
+        gProps[k] = node[k];
     }
-    if (gProps.style && typeof gProps.style === 'object') {
-        const style = { ...(gProps.style as Record<string, unknown>) };
+    if (node.style && typeof node.style === 'object') {
+        const style = { ...node.style };
         delete style['white-space'];
         if (Object.keys(style).length) gProps.style = style; else delete gProps.style;
     }

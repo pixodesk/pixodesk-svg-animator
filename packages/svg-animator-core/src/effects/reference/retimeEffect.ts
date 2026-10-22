@@ -28,7 +28,8 @@
  * follows `href`.
  */
 
-import type { PxNode, PxRetimeEffect } from '../../format/PxAnimatorTypes';
+import { PxPropertyAnimationSchema, type PxKeyframe, type PxNode, type PxRetimeEffect } from '../../format/PxAnimatorTypes';
+import { inlineAnimate } from '../shared/transformParts';
 import type { ApplyContext } from '../shared/types';
 import { applyUseOffsetToG } from '../../util/PxNodeCloneUtil';
 import { clone, genId, indexById, regenerateIdsInClone, stripHash } from '../shared/util';
@@ -290,16 +291,10 @@ function remapKeyframeTimes(node: PxNode, start: number, stretch: number): void 
 }
 
 function remapKeyframeTimesOnly(node: PxNode, start: number, stretch: number): void {
-    const remap = (kfs: Array<any>): void => {
-        for (const kf of kfs) if (typeof kf.time === 'number') kf.time = start + kf.time * stretch;
+    const remap = (kfs: Array<PxKeyframe> | undefined): void => {
+        for (const kf of kfs ?? []) if (typeof kf.time === 'number') kf.time = start + kf.time * stretch;
     };
-    if (node.transform && typeof node.transform === 'object' && Array.isArray((node.transform as any).keyframes)) {
-        remap((node.transform as any).keyframes);
-    }
-    if (node.animate && typeof node.animate === 'object') {
-        for (const prop of Object.keys(node.animate)) {
-            const anim = (node.animate as any)[prop];
-            if (anim && Array.isArray(anim.keyframes)) remap(anim.keyframes);
-        }
-    }
+    remap(PxPropertyAnimationSchema.castOrNull(node.transform)?.keyframes);
+    const animate = inlineAnimate(node);
+    if (animate) for (const prop of Object.keys(animate)) remap(animate[prop]?.keyframes);
 }

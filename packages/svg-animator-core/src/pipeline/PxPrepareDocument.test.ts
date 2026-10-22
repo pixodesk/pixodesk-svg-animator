@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { prepareDocument, type PxPrepareOptions } from './PxPrepareDocument';
 import { PxDocStage, documentStage } from '../format/PxDocStage';
 import { getAnimatorConfig, materializeAllInTree, PxTimelineEngine, validateDocument, convertWireDocument, type PxAnimatedSvgDocument } from '../index';
+import { PxAnimationDefinitionSchema, PxKeyframeSchema } from '../format/PxAnimatorTypes';
 
 /** A small but real document: an animated rect plus a gradient effect to materialize. */
 function makeDoc(): PxAnimatedSvgDocument {
@@ -119,5 +120,35 @@ describe('prepareDocument', () => {
         expect(ids.length).toBeGreaterThan(0);
         expect(JSON.stringify(out)).not.toContain('"id":"r1"');
         expect(documentStage(out)).toBe(PxDocStage.plain);
+    });
+});
+
+describe('prepareDocument — the checked stage', () => {
+    it('sits between current and resolved, and is trusted once reached', () => {
+        const checked = prep(makeDoc(), { stage: PxDocStage.checked });
+        expect(documentStage(checked)).toBe(PxDocStage.checked);
+        expect(prep(checked, { stage: PxDocStage.checked })).toBe(checked);
+        expect(documentStage(prep(checked, { stage: PxDocStage.resolved }))).toBe(PxDocStage.resolved);
+    });
+
+    it('repairs what does not match the schema, reports it, and plays the rest', () => {
+        const doc = makeDoc();
+        (doc.animator as { timeline: Record<string, unknown> }).timeline.trigger = { start: 'onLoad' };
+        const seen: Array<string> = [];
+        const out = prep(doc, { stage: PxDocStage.checked, onProblems: ps => ps.forEach(p => seen.push(p.message)) });
+        expect(seen.length).toBe(1);
+        expect(seen[0]).toContain('trigger.start');
+        expect((out.animator as { timeline: { trigger: Record<string, unknown> } }).timeline.trigger).toEqual({});   // the bad value is gone
+        expect((doc.animator as { timeline: { trigger: { start: string } } }).timeline.trigger.start).toBe('onLoad');   // input untouched
+    });
+
+    it('a valid document reports nothing and comes out type-stamped', () => {
+        let called = false;
+        const out = prep(makeDoc(), { stage: PxDocStage.checked, onProblems: () => { called = true; } });
+        expect(called).toBe(false);
+        const animate = PxAnimationDefinitionSchema.cast(out.children?.[0]?.animate);   // the element's inline definition
+        const kf = PxKeyframeSchema.cast(animate.opacity?.keyframes?.[0]);
+        Object.assign(kf, { time: 'broken' });           // a deliberate breach: only a stamp can still say "valid"
+        expect(PxKeyframeSchema.is(kf)).toBe(true);
     });
 });

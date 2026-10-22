@@ -22,7 +22,8 @@
 // ============================================================================
 
 import type { PxPlayMode } from '../playback/PxDeclarativePlayback';
-import type { PxAnimatedSvgDocument, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBinding, PxDefinitions, PxNode, PxScroll, PxTrigger } from './PxAnimatorTypes';
+import type { PxAnimatedSvgDocument, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBinding, PxDefinitions, PxNode, PxScroll, PxTimeline, PxTrigger, _PxScrollishTimelineShape, _PxTimeTimeline } from './PxAnimatorTypes';
+// (TYPES only from PxAnimatorTypes: it reads this module's constants while it loads.)
 import { animatorOf, prepOf, stageAtLeast, stampPrep, trustedView, PxDocStage, type PxDocPrep } from './PxDocStage';
 
 // ── WIRE ENUMS (review §2.7) ────────────────────────────────────────────────
@@ -642,19 +643,13 @@ export type PxGradientType = typeof PxGradientType[keyof typeof PxGradientType];
 // @px-area validation
 /** The cheap shallow gate — "is this a Pixodesk document at all?". With `validateDocument`,
  *  the whole public checking surface (review §15). @public */
-export function isPxDocument(doc: any): doc is PxAnimatedSvgDocument {
-    if (!(
-        doc &&
-        typeof doc === 'object' &&
-        !Array.isArray(doc)
-    )) {
-        return false;
-    }
+export function isPxDocument(doc: unknown): doc is PxAnimatedSvgDocument {
+    if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return false;
 
     // `type` is the root tag, and the ONLY discriminator: `svg`, or an HTML element that wraps
     // SVG content (`div`, …). A `tagName` alternative was accepted here until 2026-08; nothing
     // ever wrote it. Lottie JSON has no `type`, so it never passes.
-    return typeof doc.type === 'string' && doc.type.length > 0;
+    return 'type' in doc && typeof doc.type === 'string' && doc.type.length > 0;
 }
 
 /**
@@ -698,7 +693,7 @@ export function carryPrep<T extends PxAnimatedSvgDocument>(from: PxAnimatedSvgDo
 // @px-importance important
 /** The runtime view derived from the wire form — what `prepareDocument` attaches at `resolved`. @internal */
 export function deriveRuntimeView(doc: PxAnimatedSvgDocument): PxAnimatorRuntimeConfig | undefined {
-    const cfg = doc?.animator || doc?.meta?.animator;
+    const cfg = animatorOf(doc);
     if (!cfg) return undefined;
 
     // A document states playback ONLY inside `timeline`. A flat key at the animator root is not a
@@ -739,9 +734,10 @@ export function deriveRuntimeView(doc: PxAnimatedSvgDocument): PxAnimatorRuntime
 /** Wire window → flat view: `duration` = window length, `inTime` = the sampling shift.
  *  `timeline.duration` is the PRE-1.3 spelling (≡ `outTime` with `inTime` 0) — read for old
  *  files, never written; `convertWireDocument` renames it in stamped documents. */
-function foldWindow(timeline: any, flat: Record<string, unknown>): void {
+function foldWindow(timeline: PxTimeline, flat: PxAnimatorRuntimeConfig): void {
     const inTime = typeof timeline.inTime === 'number' ? timeline.inTime : 0;
-    const outTime = timeline.outTime !== undefined ? timeline.outTime : timeline.duration;
+    const legacyDuration = 'duration' in timeline && typeof timeline.duration === 'number' ? timeline.duration : undefined;
+    const outTime = timeline.outTime !== undefined ? timeline.outTime : legacyDuration;
     if (inTime !== 0) flat.inTime = inTime;
     if (outTime !== undefined) flat.duration = outTime - inTime;
 }
@@ -771,7 +767,7 @@ export function maxKeyframeTimeOf(doc: PxAnimatedSvgDocument): number | undefine
     scanNode(doc);
     // The definitions read RAW (not via `getDefinitions`, whose route through `getAnimatorConfig`
     // would re-enter this scan before the memo is set).
-    const animator = (doc?.animator ?? (doc?.meta as { animator?: unknown } | undefined)?.animator) as { definitions?: { animations?: Record<string, unknown> } } | undefined;
+    const animator = animatorOf(doc) as { definitions?: { animations?: Record<string, unknown> } } | undefined;
     const animations = animator?.definitions?.animations;
     if (animations && typeof animations === 'object') Object.values(animations).forEach(scanAnimation);
     return max;
@@ -785,11 +781,10 @@ export function maxKeyframeTimeOf(doc: PxAnimatedSvgDocument): number | undefine
  * @internal
  */
 export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorRuntimeConfig {
-    const timeline: any = (cfg as any).timeline;
+    const timeline = cfg.timeline;
     if (timeline === undefined || timeline === null || typeof timeline !== 'object') return cfg;
 
-
-    const { timeline: _dropped, ...flat } = cfg as any;
+    const { timeline: _dropped, ...flat }: PxAnimatorRuntimeConfig = cfg;
 
     // `engine` and `frameRate` are shared by every timeline type: how the attributes get
     // updated, and at what rate when that is the player's own frame loop.
@@ -822,11 +817,16 @@ export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
         if (timeline.trigger !== undefined) {
             // `trigger.finish` is the PRE-1.4 spelling (review §13) — read for old unstamped
             // files; stamped ones were converted by the wire step before this runs.
-            const { finish: legacyFinish, ...restTrigger } = timeline.trigger;
-            if (Object.keys(restTrigger).length) flat.trigger = restTrigger;
-            if (legacyFinish !== undefined) flat.resetOnFinish = legacyFinish === 'reset';
+            const trigger = timeline.trigger;
+            if ('finish' in trigger) {
+                const { finish: legacyFinish, ...restTrigger } = trigger;
+                if (Object.keys(restTrigger).length) flat.trigger = restTrigger;
+                if (legacyFinish !== undefined) flat.resetOnFinish = legacyFinish === PxFinishAction.reset;
+            } else if (Object.keys(trigger).length) {
+                flat.trigger = { ...trigger };
+            }
         }
-        if (timeline.finish !== undefined) flat.resetOnFinish = timeline.finish === 'reset';
+        if (timeline.finish !== undefined) flat.resetOnFinish = timeline.finish === PxFinishAction.reset;
         if (timeline.delay !== undefined) flat.delay = timeline.delay;
         if (timeline.iterations !== undefined) flat.iterations = timeline.iterations;
         if (timeline.direction !== undefined) flat.direction = timeline.direction;
@@ -856,18 +856,18 @@ function scrollKindOrDefault(kind: unknown): 'view' | 'scroll' {
  * @public @advanced
  */
 export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorConfig {
-    if (!cfg || (cfg as any).timeline !== undefined) return cfg;
+    if (!cfg || cfg.timeline !== undefined) return cfg;
 
     const { timelineSource, scroll, trigger, delay, iterations, direction, fill, resetOnFinish,
-            duration, inTime, playDuration, engine, frameRate, ...shared } = cfg as any;
+            duration, inTime, playDuration, engine, frameRate, ...shared } = cfg;
     // flat `duration` is the WINDOW LENGTH; on the wire the window is written as its two points
-    const writeWindow = (timeline: any) => {
+    const writeWindow = (timeline: { inTime?: number; outTime?: number }) => {
         if (inTime !== undefined && inTime !== 0) timeline.inTime = inTime;
         if (duration !== undefined) timeline.outTime = (inTime ?? 0) + duration;
     };
 
     if (timelineSource === 'scroll') {
-        const timeline: any = { type: scrollKindOrDefault(scroll?.kind) };
+        const timeline: _PxScrollishTimelineShape & { type: 'scroll' | 'view' } = { type: scrollKindOrDefault(scroll?.kind) };
         if (engine !== undefined) timeline.engine = engine;
         if (frameRate !== undefined) timeline.frameRate = frameRate;
         writeWindow(timeline);
@@ -895,13 +895,13 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
 
     // Time-driven: `type` is optional on the wire and 'time' is the default, so the
     // writer omits it — the common case declares nothing.
-    const timeline: any = {};
+    const timeline: _PxTimeTimeline = {};
     if (engine !== undefined) timeline.engine = engine;
     if (frameRate !== undefined) timeline.frameRate = frameRate;
     writeWindow(timeline);
     if (playDuration !== undefined) timeline.playDuration = playDuration;
     if (trigger !== undefined) timeline.trigger = { ...trigger };
-    if (resetOnFinish) timeline.finish = 'reset';   // §13: next to fillMode, not in the trigger
+    if (resetOnFinish) timeline.finish = PxFinishAction.reset;   // §13: next to fillMode, not in the trigger
     if (delay !== undefined) timeline.delay = delay;
     if (iterations !== undefined) timeline.iterations = iterations;
     if (direction !== undefined) timeline.direction = direction;
