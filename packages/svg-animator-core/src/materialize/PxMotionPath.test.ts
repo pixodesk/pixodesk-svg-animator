@@ -1,4 +1,3 @@
-import { type PxAnyKeyframe, keyframeValue, keyframeTime as kfTimeOf } from '../format/PxAnimatorTypes';
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -12,20 +11,21 @@ import { type PxAnyKeyframe, keyframeValue, keyframeTime as kfTimeOf } from '../
 //   - `materializeMotionPathInPropAnim` — the new materializer that desugars tangented kfs +
 //     autoOrient into plain `{ translate, rotate }` kfs (extremes-aware
 //     adaptive sampling + easing split)
-//   - `materializeMotionPathsInTree` — the immutable tree walker
+//   - `compileAnimationsInTree` — the immutable tree step that samples it (native engine)
 //   - `invertEasing` helper
-//   - `materializeInternalLoopsInPropAnim` + `materializeInternalLoopsInTree`
+//   - `compileAnimation` + `compileAnimationsInTree` — loop expansion
 
 
 import { describe, expect, it } from 'vitest';
-import type { PxAnimatedSvgDocument, PxKeyframe, PxNode, PxPropertyAnimation } from '../format/PxAnimatorTypes';
+import { isCompiledAnimation, type PxAnimatedSvgDocument, type PxAnyPropertyAnimation, type PxCompiledAnimation, type PxKeyframe, type PxNode, type PxPropertyAnimation } from '../format/PxAnimatorTypes';
+import { PxTimelineEngine, PxValueKind } from '../format/PxAnimatorConstants';
 import { invertEasing } from '../util/PxAnimatorUtil';
-import { materializeInternalLoopsInPropAnim, materializeInternalLoopsInTree } from '../animation/PxDefinitions';
+import { compileAnimation, compileAnimationsInTree, type PxCompileContext } from '../animation/PxDefinitions';
 import {
     materializeMotionPathInPropAnim,
-    materializeMotionPathsInTree,
     evaluateMotionPathSegment,
     propAnimIsMotionPath,
+    type MotionPathKeyframe,
 } from './PxMotionPath';
 
 
@@ -175,18 +175,24 @@ function getKfs(anim: PxPropertyAnimation): Array<PxKeyframe> {
     return kfs;
 }
 
-function kfTranslate(kf: PxAnyKeyframe): [number, number] {
-    const v = keyframeValue(kf) as { translate?: [number, number] };
+function kfTranslate(kf: MotionPathKeyframe): [number, number] {
+    const v = kf.value as { translate?: [number, number] };
     return v.translate as [number, number];
 }
 
-function keyframeTime(kf: PxAnyKeyframe): number {
-    return kfTimeOf(kf);
+function keyframeTime(kf: MotionPathKeyframe): number {
+    return kf.time ?? 0;
 }
 
-function kfRotate(kf: PxAnyKeyframe): number | undefined {
-    const v = keyframeValue(kf) as { rotate?: number };
+function kfRotate(kf: MotionPathKeyframe): number | undefined {
+    const v = kf.value as { rotate?: number };
     return v.rotate;
+}
+
+/** An entry the compile step produced, as the compiled `transform` it must be. */
+function compiledTransform(anim: PxAnyPropertyAnimation | undefined): Extract<PxCompiledAnimation, { kind: 'transform' }> {
+    if (!anim || !isCompiledAnimation(anim) || anim.kind !== PxValueKind.transform) throw new Error('not a compiled transform');
+    return anim;
 }
 
 
@@ -360,11 +366,13 @@ describe('materializeMotionPathInPropAnim', () => {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  materializeMotionPathsInTree
+//  compileAnimationsInTree — motion path
 // ─────────────────────────────────────────────────────────────────────────────
 
 
-describe('materializeMotionPathsInTree', () => {
+describe('compileAnimationsInTree — a motion path (native engine)', () => {
+
+    const NATIVE: PxCompileContext = { windowStart: 0, windowEnd: 1020, engine: PxTimelineEngine.native };
 
     function makeTreeWithMotionPath(): PxAnimatedSvgDocument {
         return {
@@ -388,37 +396,37 @@ describe('materializeMotionPathsInTree', () => {
         } as PxAnimatedSvgDocument;
     }
 
-    it('returns the input by reference when the tree has no motion-path animations', () => {
+    it('returns the input by reference when the tree has no animations', () => {
         const tree: PxAnimatedSvgDocument = {
             type: 'svg',
             children: [
                 { type: 'rect', id: 'static', width: 10, height: 10 } as PxNode,
             ],
         } as PxAnimatedSvgDocument;
-        const out = materializeMotionPathsInTree(tree);
+        const out = compileAnimationsInTree(tree, NATIVE);
         expect(out).toBe(tree);
     });
 
     it('returns a new tree when a motion-path animation is present', () => {
         const tree = makeTreeWithMotionPath();
-        const out = materializeMotionPathsInTree(tree);
+        const out = compileAnimationsInTree(tree, NATIVE);
         expect(out).not.toBe(tree);
     });
 
-    it('shares non-motion sub-trees by reference', () => {
+    it('shares un-animated sub-trees by reference', () => {
         const tree = makeTreeWithMotionPath();
         const staticChild = tree.children![0];
-        const out = materializeMotionPathsInTree(tree);
+        const out = compileAnimationsInTree(tree, NATIVE);
         expect(out.children![0]).toBe(staticChild);
     });
 
     it('materializes the motion-path node\'s animate.transform (no tangents, no autoOrient on output)', () => {
         const tree = makeTreeWithMotionPath();
-        const out = materializeMotionPathsInTree(tree);
+        const out = compileAnimationsInTree(tree, NATIVE);
         const movingOut = out.children![1] as PxNode;
-        const anim = (movingOut.animate as Record<string, PxPropertyAnimation>).transform;
+        const anim = compiledTransform((movingOut.animate as Record<string, PxAnyPropertyAnimation>).transform);
         expect(anim.autoOrient).toBeUndefined();
-        for (const kf of getKfs(anim)) {
+        for (const kf of anim.keyframes) {
             expect(kf.tangentIn).toBeUndefined();
             expect(kf.tangentOut).toBeUndefined();
         }
@@ -427,7 +435,7 @@ describe('materializeMotionPathsInTree', () => {
     it('does not mutate the input tree', () => {
         const tree = makeTreeWithMotionPath();
         const snapshotJson = JSON.stringify(tree);
-        materializeMotionPathsInTree(tree);
+        compileAnimationsInTree(tree, NATIVE);
         expect(JSON.stringify(tree)).toBe(snapshotJson);
     });
 });
@@ -464,19 +472,22 @@ describe('invertEasing', () => {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  materializeInternalLoops (propAnim + tree)
+//  Loops (propAnim + tree)
 // ─────────────────────────────────────────────────────────────────────────────
 
 
-describe('materializeInternalLoopsInPropAnim', () => {
+describe('compileAnimation — loops', () => {
 
-    it('returns the input by reference when propAnim has no loop', () => {
+    const WINDOW: PxCompileContext = { windowStart: 0, windowEnd: 2000, engine: PxTimelineEngine.native };
+    const times = (ch: PxCompiledAnimation) => ch.keyframes.map(kf => kf.time);
+
+    it('a property animation with no loop keeps its own keyframes — none are added', () => {
         const anim: PxPropertyAnimation = { keyframes: [
             { time: 0,    value: 0 },
             { time: 1000, value: 100 },
         ] };
-        const out = materializeInternalLoopsInPropAnim('opacity', anim, 2000);
-        expect(out).toBe(anim);
+        const out = compileAnimation('opacity', anim, WINDOW);
+        expect(times(out)).toEqual([0, 1000]);
     });
 
     it('drops `loop` from the output after expansion', () => {
@@ -487,16 +498,19 @@ describe('materializeInternalLoopsInPropAnim', () => {
                 { time: 500,  value: 1 },
             ],
         };
-        const out = materializeInternalLoopsInPropAnim('opacity', anim, 2000);
-        expect(out).not.toBe(anim);
-        expect((out as PxPropertyAnimation).loop).toBeUndefined();
+        const out = compileAnimation('opacity', anim, WINDOW);
+        expect('loop' in out).toBe(false);
+        expect(times(out)[times(out).length - 1]).toBe(2000);
     });
 });
 
 
-describe('materializeInternalLoopsInTree', () => {
+describe('compileAnimationsInTree — loops', () => {
 
-    it('returns the input by reference when no propAnim has a loop', () => {
+    const entryOf = (tree: PxNode): PxAnyPropertyAnimation | undefined =>
+        (tree.children?.[0].animate as Record<string, PxAnyPropertyAnimation> | undefined)?.opacity;
+
+    it('lowers every entry — a loop-less one too, to its own keyframes', () => {
         const tree: PxAnimatedSvgDocument = {
             type: 'svg',
             children: [
@@ -505,8 +519,8 @@ describe('materializeInternalLoopsInTree', () => {
                 ] } } } as PxNode,
             ],
         } as PxAnimatedSvgDocument;
-        const out = materializeInternalLoopsInTree(tree, 1000);
-        expect(out).toBe(tree);
+        const entry = entryOf(compileAnimationsInTree(tree, { windowStart: 0, windowEnd: 1000, engine: PxTimelineEngine.native }));
+        expect(entry && isCompiledAnimation(entry) ? entry.keyframes.map(kf => kf.time) : undefined).toEqual([0, 1000]);
     });
 
     it('returns a new tree when at least one propAnim has a loop', () => {
@@ -519,7 +533,7 @@ describe('materializeInternalLoopsInTree', () => {
                 } } } as PxNode,
             ],
         } as PxAnimatedSvgDocument;
-        const out = materializeInternalLoopsInTree(tree, 2000);
+        const out = compileAnimationsInTree(tree, { windowStart: 0, windowEnd: 2000, engine: PxTimelineEngine.native });
         expect(out).not.toBe(tree);
     });
 });

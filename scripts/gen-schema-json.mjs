@@ -22,6 +22,7 @@ const NAMED = new Map([
   [core.PxTriggerSchema, 'Trigger'],
   [core.PxDefinitionsSchema, 'Definitions'],
   [core.PxElementAnimationSchema, 'ElementAnimation'],
+  [core.PxAnyPropertyAnimationSchema, 'AnyPropertyAnimation'],
   [core.PxPropertyAnimationSchema, 'PropertyAnimation'],
   [core.PxKeyframeSchema, 'Keyframe'],
   [core.PxLoopSchema, 'Loop'],

@@ -16,12 +16,10 @@
  *
  *   1. `materializeNodeEffects` — `node.effects` (ref / transformation / repeater /
  *      maskedBy / strokeTrim / retime) materialized into wrappers, defs, clones.
- *   2. `materializeInternalLoopsInTree` — every `propAnim.loop` expanded into
- *      repeated keyframes filling the duration.
- *   3. `materializeMotionPathsInTree` — `transform` kfs with tangents +
- *      `autoOrient` flattened into sampled `{translate, rotate}` kfs. Only
- *      for `engine === waapi` — frames-mode keeps the parametric form and
- *      evaluates per frame for max spatial fidelity.
+ *   2. `compileAnimationsInTree` — every `animate` entry lowered to the format's COMPILED form:
+ *      values typed by kind, easings resolved, loops expanded over the window, a moving
+ *      `transform` sampled into `{translate, rotate}` kfs (native) or kept with its tangents
+ *      for per-frame evaluation (frames).
  *   4. `materializeAnimatedUseInstances` — `<use>` referencing an animated
  *      subtree replaced with a `<g>` carrying a deep clone (fresh ids).
  *      Only for `engine === waapi` — frames-mode updates source attrs
@@ -37,9 +35,8 @@
 
 import { materializeNodeEffects } from '../effects/PlayerEffectsUtil';
 import { PX_DEFAULT_DURATION_MS } from '../util/PxAnimatorUtil';
-import { materializeInternalLoopsInTree } from '../animation/PxDefinitions';
+import { compileAnimationsInTree } from '../animation/PxDefinitions';
 import { materializeOffsetPathsInTree } from './PxOffsetPathMaterializer';
-import { materializeMotionPathsInTree } from './PxMotionPath';
 import type { MotionPathMaterializationOptions } from './PxMotionPath';
 import { carryPrep, deriveRuntimeView, getAnimatorConfig, prepFor, PxTimelineEngine, resolveTimelineEngine } from '../format/PxAnimatorConstants';
 import { animatorOf, prepOf, stampPrep, trustedView, PxDocStage, type PxDocPrep } from '../format/PxDocStage';
@@ -53,8 +50,8 @@ import { materializeRestPosesInTree } from './PxRestPose';
  *  per-stage materializers; ordering is fixed (see module doc). * @internal
  */
 export interface PxMaterializeAllOptions {
-    /** Knobs forwarded to `materializeMotionPathsInTree`. Only consulted for
-     *  `engine === waapi` — frames-mode skips that stage entirely. */
+    /** The native engine's motion-path sampling knobs, forwarded to the compile step (frames-mode
+     *  keeps the path and evaluates it per frame). */
     motionPath?: MotionPathMaterializationOptions;
 }
 
@@ -85,21 +82,22 @@ export function materializeAllInTree(
     //     carried `loop` expands on the rewritten binding.
     root = stampPrep(materializeOffsetPathsInTree(root), carry);
 
-    // 2. Loops → flat repeated keyframes. Always runs (both engines need flat
-    //    kfs covering the duration; per-binding expansion in
-    //    `normalizeKeyframes` becomes a no-op once the loop field is consumed).
-    // Tree-level keyframe times are still CONTENT ms (the shift to window space happens later,
-    // in `normalizeBindings`), so loops fill to the window END — `inTime + duration` (§4).
+    // 2. Animations → their COMPILED form (the format's low layer — compiled-animation-layer.md): values
+    //    typed by kind, easings resolved, loops expanded over the window, the static transform composed
+    //    under the animated one, a moving `transform` sampled (native: WAAPI cannot evaluate tangents) or
+    //    kept with its tangents (frames evaluates it per frame). The window is CONTENT ms (§4):
+    //    `[inTime, inTime + duration]`.
     const config = getAnimatorConfig(root);
-    const duration = (config?.inTime ?? 0) + (config?.duration ?? PX_DEFAULT_DURATION_MS);
-    root = stampPrep(materializeInternalLoopsInTree(root, duration, config?.definitions), carry);
+    const inTime = config?.inTime ?? 0;
+    root = stampPrep(compileAnimationsInTree(root, {
+        windowStart: inTime,
+        windowEnd: inTime + (config?.duration ?? PX_DEFAULT_DURATION_MS),
+        defs: config?.definitions,
+        engine,
+        motionPath: options?.motionPath,
+    }), carry);
 
     if (engine === PxTimelineEngine.native) {
-        // 3. Motion-along-path → sampled `{translate, rotate}` kfs. WAAPI can't
-        //    evaluate parametric tangents; frames-mode does that per frame so
-        //    we skip this for frames.
-        root = stampPrep(materializeMotionPathsInTree(root, options?.motionPath), carry);
-
         // 4. <use> referencing animated subtrees → <g> wrapping a fresh clone.
         //    WAAPI / CSS animations don't reliably propagate through SVG <use>
         //    shadow trees in Chrome / Safari; frames-mode updates source

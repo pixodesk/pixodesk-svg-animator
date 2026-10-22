@@ -4,13 +4,13 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxNormalizedPathValueSchema, PxPathDataValueSchema, PxTransformPartsSchema, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAnyKeyframe, type PxBezierPath, type PxBinding, type PxDefinitions, type PxElementAnimation, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts, keyframeTime, keyframeValue, keyframeEasing, keyframeTangentIn, keyframeTangentOut } from '../format/PxAnimatorTypes';
-import { getBindings, getDefinitions } from '../format/PxAnimatorConstants';
+import { isCompiledAnimation, PxNormalizedPathValueSchema, PxPathDataValueSchema, PxTransformPartsSchema, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxBezierPath, type PxCompiledAnimation, type PxCompiledKeyframe, type PxCubicBezier, type PxDefinitions, type PxElementAnimation, type PxKeyframe, type PxLoop, type PxNode, type PxPathValue, type PxPropertyAnimation, type PxRgba, type PxTransformParts } from '../format/PxAnimatorTypes';
+import { getBindings, getDefinitions, PxAlongPathMode, PxValueKind, TRANSFORM_ATTR } from '../format/PxAnimatorConstants';
 import { getAnimatorConfig, PxTimelineEngine, PxLoopDirection, PxLoopRepeatAt } from '../format/PxAnimatorConstants';
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, remap, reverseEasing, splitEasing, toRGBA } from '../util/PxAnimatorUtil';
-import { evaluateMotionPathSegment, propAnimIsMotionPath, sampleMotionPathKeyframes, type MotionPathSegments } from '../materialize/PxMotionPath';
+import { evaluateMotionPathSegment, sampleMotionPathKeyframes, type MotionPathMaterializationOptions, type MotionPathSegments } from '../materialize/PxMotionPath';
 import { mergeStaticTransformIntoAnimDef } from './PxStaticTransformMerge';
-import { channelKindOf, interpolateTransformParts, mapChannelKeyframes, PxValueKind, sharedUnitOf, type PxChannelLerp, type PxCubicBezier, type PxNormalizedBinding, type PxPathValue, type PxRuntimeAnimation, type PxRuntimeChannel, type PxRuntimeKeyframe } from './PxRuntimeChannel';
+import { channelKindOf, interpolateTransformParts, mapChannelKeyframes, movesAlongPath, sharedUnitOf, type PxChannelLerp, type PxNormalizedBinding, type PxRuntimeAnimation } from './PxRuntimeChannel';
 
 // Declared in its own leaf module so the motion-path flattener can use it too, without importing
 // this one back (it is imported here). Re-exported so this module's surface is unchanged.
@@ -312,8 +312,8 @@ function resolveElementAnimation(
 
 interface LoopTemplateEntry<V> {
     relT: number; // 0..1 relative position within segment
-    v: V;
-    e: PxCubicBezier | undefined;
+    value: V;
+    easing: PxCubicBezier | undefined;
     // Per-vertex spatial tangents (motion-along-path). Carried so repeated
     // segments keep their curvature; reversed reps swap in<->out (see appendRep).
     tangentIn?: [number, number];
@@ -325,16 +325,17 @@ interface LoopTemplateEntry<V> {
  * range and the global animation duration, implementing PxLoop "local loop" behavior.
  */
 function expandLoopKeyframes<V>(
-    keyframes: Array<PxRuntimeKeyframe<V>>,
+    keyframes: Array<PxCompiledKeyframe<V>>,
     loop: PxLoop,
-    duration: number,
+    windowStart: number,
+    windowEnd: number,
     lerp: PxChannelLerp<V>,
-): Array<PxRuntimeKeyframe<V>> {
+): Array<PxCompiledKeyframe<V>> {
     const totalIntervals = keyframes.length - 1;
     const segCount = clamp(loop.segmentCount ?? totalIntervals, 1, totalIntervals);
 
     // Extract segment keyframes
-    let segKfs: Array<PxRuntimeKeyframe<V>>;
+    let segKfs: Array<PxCompiledKeyframe<V>>;
     if (loop.repeatAt === PxLoopRepeatAt.start) {
         segKfs = keyframes.slice(0, segCount + 1);
     } else {
@@ -342,32 +343,32 @@ function expandLoopKeyframes<V>(
     }
 
     // Determine fill region
-    const firstT = keyframes[0].t ?? 0;
-    const lastT = keyframes[keyframes.length - 1].t ?? 0;
+    const firstT = keyframes[0].time;
+    const lastT = keyframes[keyframes.length - 1].time;
 
     let fillStart: number, fillEnd: number;
     if (loop.repeatAt === PxLoopRepeatAt.start) {
-        fillStart = 0;
+        fillStart = windowStart;
         fillEnd = firstT;
     } else {
         fillStart = lastT;
-        fillEnd = duration;
+        fillEnd = windowEnd;
     }
 
     const fillDuration = fillEnd - fillStart;
     if (fillDuration <= 0) return keyframes;
 
     // Segment timing
-    const segStartT = segKfs[0].t ?? 0;
-    const segEndT = segKfs[segKfs.length - 1].t ?? 0;
+    const segStartT = segKfs[0].time;
+    const segEndT = segKfs[segKfs.length - 1].time;
     const segDuration = segEndT - segStartT;
     if (segDuration <= 0) return keyframes;
 
     // Build template with relative offsets (0..1)
     const template: Array<LoopTemplateEntry<V>> = segKfs.map(kf => ({
-        relT: (kf.t - segStartT) / segDuration,
-        v: kf.v,
-        e: kf.e,
+        relT: (kf.time - segStartT) / segDuration,
+        value: kf.value,
+        easing: kf.easing,
         tangentIn: kf.tangentIn,
         tangentOut: kf.tangentOut,
     }));
@@ -376,7 +377,7 @@ function expandLoopKeyframes<V>(
     const remainder = fillDuration - fullReps * segDuration;
     const partialFraction = remainder / segDuration;
 
-    const looped: Array<PxRuntimeKeyframe<V>> = [];
+    const looped: Array<PxCompiledKeyframe<V>> = [];
 
     // A cycle's first keyframe lands at the SAME time as the previous repetition's
     // last one. Emitting both at that time makes the value at that instant depend on
@@ -395,7 +396,7 @@ function expandLoopKeyframes<V>(
     const separateBoundary = loop.repeatAt !== PxLoopRepeatAt.start;
     // The keyframe the FIRST repetition butts up against: loopOut tiles forward from
     // the last original keyframe (the originals are concatenated only at assembly).
-    const originalTerminalKf: PxRuntimeKeyframe<V> | undefined = keyframes[keyframes.length - 1];
+    const originalTerminalKf: PxCompiledKeyframe<V> | undefined = keyframes[keyframes.length - 1];
 
     // Easing that a skipped boundary keyframe hands to the ORIGINAL terminal keyframe.
     // Easing describes the interval that FOLLOWS a keyframe, so when a pingpong turn's
@@ -415,9 +416,9 @@ function expandLoopKeyframes<V>(
             for (let i = template.length - 1; i >= 0; i--) {
                 entries.push({
                     relT: 1 - template[i].relT,
-                    v: template[i].v,
+                    value: template[i].value,
                     // Easing for reversed transition: use reversed easing from the forward "from" keyframe
-                    e: i > 0 ? reverseEasing(template[i - 1].e) : undefined,
+                    easing: i > 0 ? reverseEasing(template[i - 1].easing) : undefined,
                     // Reversed traversal swaps each vertex's in/out spatial tangents
                     // (geometry is identical, walked backwards), so curvature and
                     // auto-orientation survive the reversed rep.
@@ -440,18 +441,18 @@ function expandLoopKeyframes<V>(
                 const localFrac = (cutRelT - prev.relT) / intervalSpan;
 
                 // Apply easing to get the eased progress for value interpolation
-                const easedFrac = prev.e ? cubicBezier(prev.e)(localFrac) : localFrac;
-                const cutValue = lerp(prev.v, entry.v, easedFrac);
+                const easedFrac = prev.easing ? cubicBezier(prev.easing)(localFrac) : localFrac;
+                const cutValue = lerp(prev.value, entry.value, easedFrac);
 
                 // Split easing — use left portion for the truncated interval
-                const { left: leftEasing } = splitEasing(prev.e, localFrac);
+                const { left: leftEasing } = splitEasing(prev.easing, localFrac);
 
                 // Update previous keyframe's easing to the left portion
                 if (looped.length > 0 && prev.relT <= cutRelT) {
-                    looped[looped.length - 1].e = leftEasing;
+                    looped[looped.length - 1].easing = leftEasing;
                 }
 
-                looped.push({ t: repStart + cutRelT * segDuration, v: cutValue, e: undefined });
+                looped.push({ time: repStart + cutRelT * segDuration, value: cutValue, easing: undefined });
                 return;
             }
 
@@ -460,17 +461,17 @@ function expandLoopKeyframes<V>(
             // originals are concatenated only at assembly time), not a `looped` entry.
             const prevKf = looped.length > 0 ? looped[looped.length - 1] : originalTerminalKf;
             const isBoundary = separateBoundary && i === 0 && prevKf !== undefined
-                && Math.abs((prevKf.t ?? 0) - (repStart + entry.relT * segDuration)) < 1e-9;
+                && Math.abs(prevKf.time - (repStart + entry.relT * segDuration)) < 1e-9;
             if (isBoundary) {
-                if (deepEqualValue(prevKf.v, entry.v)) {
+                if (deepEqualValue(prevKf.value, entry.value)) {
                     // Pingpong turn — the duplicate says nothing about VALUE, but it carries
                     // the easing (and out-tangent) for the interval that follows it. Hand
                     // those to the surviving neighbour instead of discarding them.
                     if (looped.length > 0) {
-                        prevKf.e = entry.e;
+                        prevKf.easing = entry.easing;
                         prevKf.tangentOut = entry.tangentOut;
                     } else {
-                        terminalEasingOverride = entry.e;
+                        terminalEasingOverride = entry.easing;
                         hasTerminalEasingOverride = true;
                     }
                     continue;
@@ -480,10 +481,10 @@ function expandLoopKeyframes<V>(
                 if (looped.length > 0) { delete prevKf.tangentIn; delete prevKf.tangentOut; }
             }
 
-            const pushed: PxRuntimeKeyframe<V> = {
-                t: repStart + entry.relT * segDuration + (isBoundary ? PX_LOOP_JUMP_SHIFT_MS : 0),
-                v: entry.v,
-                e: i < entries.length - 1 ? entry.e : undefined
+            const pushed: PxCompiledKeyframe<V> = {
+                time: repStart + entry.relT * segDuration + (isBoundary ? PX_LOOP_JUMP_SHIFT_MS : 0),
+                value: entry.value,
+                easing: i < entries.length - 1 ? entry.easing : undefined
             };
             // Carry per-vertex spatial tangents so the repeated segment keeps its
             // motion-path curvature (reversed reps already have in/out swapped above).
@@ -507,8 +508,8 @@ function expandLoopKeyframes<V>(
             for (let i = template.length - 1; i >= 0; i--) {
                 entries.push({
                     relT: 1 - template[i].relT,
-                    v: template[i].v,
-                    e: i > 0 ? reverseEasing(template[i - 1].e) : undefined,
+                    value: template[i].value,
+                    easing: i > 0 ? reverseEasing(template[i - 1].easing) : undefined,
                     tangentIn: template[i].tangentOut,
                     tangentOut: template[i].tangentIn
                 });
@@ -530,16 +531,16 @@ function expandLoopKeyframes<V>(
             if (prev && prev.relT < startRelT - 1e-9 && entry.relT > startRelT + 1e-9) {
                 const intervalSpan = entry.relT - prev.relT;
                 const localFrac = (startRelT - prev.relT) / intervalSpan;
-                const easedFrac = prev.e ? cubicBezier(prev.e)(localFrac) : localFrac;
-                const startValue = lerp(prev.v, entry.v, easedFrac);
-                const { right: rightEasing } = splitEasing(prev.e, localFrac);
-                looped.push({ t: repStart, v: startValue, e: rightEasing });
+                const easedFrac = prev.easing ? cubicBezier(prev.easing)(localFrac) : localFrac;
+                const startValue = lerp(prev.value, entry.value, easedFrac);
+                const { right: rightEasing } = splitEasing(prev.easing, localFrac);
+                looped.push({ time: repStart, value: startValue, easing: rightEasing });
             }
 
-            const pushed: PxRuntimeKeyframe<V> = {
-                t: repStart + (entry.relT - startRelT) * segDuration,
-                v: entry.v,
-                e: i < entries.length - 1 ? entry.e : undefined
+            const pushed: PxCompiledKeyframe<V> = {
+                time: repStart + (entry.relT - startRelT) * segDuration,
+                value: entry.value,
+                easing: i < entries.length - 1 ? entry.easing : undefined
             };
             if (entry.tangentIn) pushed.tangentIn = entry.tangentIn;
             if (entry.tangentOut) pushed.tangentOut = entry.tangentOut;
@@ -588,7 +589,7 @@ function expandLoopKeyframes<V>(
     } else {
         if (hasTerminalEasingOverride && keyframes.length > 0) {
             const head = keyframes.slice(0, -1);
-            const tail = { ...keyframes[keyframes.length - 1], e: terminalEasingOverride };
+            const tail = { ...keyframes[keyframes.length - 1], easing: terminalEasingOverride };
             return [...head, tail, ...looped];
         }
         return [...keyframes, ...looped];
@@ -597,10 +598,12 @@ function expandLoopKeyframes<V>(
 
 
 // ============================================================================
-// KEYFRAME NORMALIZATION
+// COMPILING — an authored animation → its compiled form (the format's low layer)
 // ============================================================================
 
-const DEFAULT_RGBA: Array<number> = [0, 0, 0, 1];
+const DEFAULT_RGBA: PxRgba = [0, 0, 0, 1];
+/** A parsed colour as the compiled form holds it: four channels, alpha 1 when it had none. */
+const toRgba = (c: Array<number> | undefined): PxRgba => (c ? [c[0] ?? 0, c[1] ?? 0, c[2] ?? 0, c[3] ?? 1] : DEFAULT_RGBA);
 /** A number — of a plain or unit-carrying value (`"20%"` → 20); `0` when absent. */
 const toNumber = (v: unknown): number => (typeof v === 'string' ? parseFloat(v) : Number(v || 0));
 /** A parts record, repaired part by part (a malformed part is dropped, the rest kept) — or the
@@ -613,90 +616,98 @@ const toNumberList = (fallback: Array<number>) => (v: unknown): Array<number> =>
     Array.isArray(v) && v.every(x => typeof x === 'number') ? v : fallback;
 const toText = (v: unknown): string => (v === undefined || v === null ? '' : String(v));
 
+/** What a compile fills and resolves against: the window in CONTENT ms — `[inTime, inTime + duration]` (§4). @internal */
+export interface PxCompileContext {
+    readonly windowStart: number;
+    readonly windowEnd: number;
+    readonly defs?: PxDefinitions;
+    readonly engine: PxTimelineEngine;
+    /** The native engine's motion-path sampling knobs. */
+    readonly motionPath?: MotionPathMaterializationOptions;
+}
+
 // @px-importance important
 /**
- * ONE property's keyframes → its runtime channel: the kind decided once (`channelKindOf`), every value
- * converted to it, times shifted into window space, easings resolved (`easingOf`). The keyframes may be
- * in either spelling: a `plain` tree already carries converted ones (loops expanded there).
+ * ONE property's authored keyframes → its compiled channel: the kind decided once (`channelKindOf`),
+ * every value converted to it, easings resolved (`easingOf`), times kept in content ms.
  */
-function toRuntimeChannel(
+function toCompiledChannel(
     propName: string,
-    keyframes: ReadonlyArray<PxAnyKeyframe>,
-    easingOf: (kf: PxAnyKeyframe) => PxCubicBezier | undefined,
-    timeShift: number,
-): PxRuntimeChannel {
-    const at = <V>(kf: PxAnyKeyframe, v: V): PxRuntimeKeyframe<V> => {
-        const out: PxRuntimeKeyframe<V> = { t: keyframeTime(kf) - timeShift, v };
-        const e = easingOf(kf);
-        if (e) out.e = e;
-        // Motion-along-path tangents (a `parts` channel) — sampled or evaluated downstream.
-        const tIn = keyframeTangentIn(kf);
-        const tOut = keyframeTangentOut(kf);
-        if (tIn) out.tangentIn = tIn;
-        if (tOut) out.tangentOut = tOut;
+    keyframes: ReadonlyArray<PxKeyframe>,
+    easingOf: (kf: PxKeyframe) => PxCubicBezier | undefined,
+): PxCompiledAnimation {
+    const values = keyframes.map(kf => kf.value);
+    const kind = channelKindOf(propName, values);
+    const at = <V>(kf: PxKeyframe, value: V): PxCompiledKeyframe<V> => {
+        const out: PxCompiledKeyframe<V> = { time: kf.time ?? 0, value };
+        const easing = easingOf(kf);
+        if (easing) out.easing = easing;
+        // Motion-along-path tangents — a `transform` channel's only; sampled or evaluated downstream.
+        if (kind === PxValueKind.transform) {
+            if (kf.tangentIn) out.tangentIn = kf.tangentIn;
+            if (kf.tangentOut) out.tangentOut = kf.tangentOut;
+        }
         return out;
     };
-    const values = keyframes.map(keyframeValue);
-    const kind = channelKindOf(propName, values);
     switch (kind) {
         case PxValueKind.number: {
-            const numbers = keyframes.map(kf => at(kf, toNumber(keyframeValue(kf))));
+            const numbers = keyframes.map(kf => at(kf, toNumber(kf.value)));
             const unit = sharedUnitOf(values);
             return unit ? { kind, keyframes: numbers, unit } : { kind, keyframes: numbers };
         }
         case PxValueKind.percent: case PxValueKind.rotate: case PxValueKind.skew:
-            return { kind, keyframes: keyframes.map(kf => at(kf, toNumber(keyframeValue(kf)))) };
+            return { kind, keyframes: keyframes.map(kf => at(kf, toNumber(kf.value))) };
         case PxValueKind.color:
-            return { kind, keyframes: keyframes.map(kf => at(kf, parseColor(keyframeValue(kf)) ?? DEFAULT_RGBA)) };
+            return { kind, keyframes: keyframes.map(kf => at(kf, toRgba(parseColor(kf.value)))) };
         case PxValueKind.path:
-            return { kind, keyframes: keyframes.map(kf => at(kf, normalizePathValue(keyframeValue(kf)) ?? { paths: [] })) };
-        case PxValueKind.parts:
-            return { kind, keyframes: keyframes.map(kf => at(kf, toParts(keyframeValue(kf)))) };
+            return { kind, keyframes: keyframes.map(kf => at(kf, normalizePathValue(kf.value) ?? { paths: [] })) };
+        case PxValueKind.transform:
+            return { kind, keyframes: keyframes.map(kf => at(kf, toParts(kf.value))) };
         case PxValueKind.numberList:
-            return { kind, keyframes: keyframes.map(kf => at(kf, toNumberList([])(keyframeValue(kf)))) };
+            return { kind, keyframes: keyframes.map(kf => at(kf, toNumberList([])(kf.value))) };
         case PxValueKind.translate:
-            return { kind, keyframes: keyframes.map(kf => at(kf, toNumberList([0, 0])(keyframeValue(kf)))) };
+            return { kind, keyframes: keyframes.map(kf => at(kf, toNumberList([0, 0])(kf.value))) };
         case PxValueKind.scale:
-            return { kind, keyframes: keyframes.map(kf => at(kf, toNumberList([1, 1])(keyframeValue(kf)))) };
+            return { kind, keyframes: keyframes.map(kf => at(kf, toNumberList([1, 1])(kf.value))) };
         case PxValueKind.discrete:
-            return { kind, keyframes: keyframes.map(kf => at(kf, toText(keyframeValue(kf)))) };
+            return { kind, keyframes: keyframes.map(kf => at(kf, toText(kf.value))) };
     }
 }
 
 /** `loop: true` is the default loop; absent / false is none. */
 const loopOf = (raw: PxLoop | boolean | undefined): PxLoop | undefined => (raw === true ? {} : raw || undefined);
 
-/** Expands a channel's `loop` into repeated keyframes filling `duration`. */
-function expandChannelLoop(ch: PxRuntimeChannel, loop: PxLoop, duration: number): PxRuntimeChannel {
+/** Expands a channel's `loop` into repeated keyframes filling the window. */
+function expandChannelLoop(ch: PxCompiledAnimation, loop: PxLoop, ctx: PxCompileContext): PxCompiledAnimation {
     if (ch.keyframes.length < 2) return ch;
-    return mapChannelKeyframes(ch, (keyframes, lerp) => expandLoopKeyframes(keyframes, loop, duration, lerp));
+    return mapChannelKeyframes(ch, (keyframes, lerp) => expandLoopKeyframes(keyframes, loop, ctx.windowStart, ctx.windowEnd, lerp));
 }
 
+const withoutTangents = <V>(kf: PxCompiledKeyframe<V>): PxCompiledKeyframe<V> =>
+    (kf.easing ? { time: kf.time, value: kf.value, easing: kf.easing } : { time: kf.time, value: kf.value });
+
+// @px-importance important
 /**
- * The engine's channel for one property animation: converted, sorted, its loop expanded, and — on a
- * `parts` channel that moves along a path — either SAMPLED into plain parts keyframes (the native
- * engine: WAAPI cannot evaluate tangents) or flagged for per-frame evaluation (the frames engine).
+ * ONE authored property animation → its compiled form (content ms): converted, sorted, its loop
+ * expanded over the window, and — on a `transform` that moves along a path — SAMPLED into plain parts
+ * keyframes (the native engine: WAAPI cannot evaluate tangents) or kept with its tangents for per-frame
+ * evaluation (the frames engine).
+ * @internal
  */
-function normalizeChannel(
-    propName: string,
-    propAnim: PxPropertyAnimation,
-    duration: number,
-    defs: PxDefinitions | undefined,
-    engine: PxTimelineEngine,
-    inTime: number,
-): PxRuntimeChannel {
-    const converted = toRuntimeChannel(propName, propAnim.keyframes || [], kf => resolveEasing(keyframeEasing(kf), defs), inTime);
-    const sorted = mapChannelKeyframes(converted, keyframes => [...keyframes].sort((a, b) => a.t - b.t));
-    const loop = loopOf(propAnim.loop);
-    const ch = loop ? expandChannelLoop(sorted, loop, duration) : sorted;
-    if (ch.kind !== PxValueKind.parts) return ch;
-    const moves = !!propAnim.autoOrient || ch.keyframes.some(kf => kf.tangentIn || kf.tangentOut);
-    if (!moves) return ch;
-    if (engine === PxTimelineEngine.native) {
-        const sampled = sampleMotionPathKeyframes(ch.keyframes, !!propAnim.autoOrient);
-        return sampled ? { kind: PxValueKind.parts, keyframes: sampled } : ch;
+export function compileAnimation(propName: string, anim: PxPropertyAnimation, ctx: PxCompileContext): PxCompiledAnimation {
+    const converted = toCompiledChannel(propName, anim.keyframes || [], kf => resolveEasing(kf.easing, ctx.defs));
+    const sorted = mapChannelKeyframes(converted, keyframes => [...keyframes].sort((a, b) => a.time - b.time));
+    const loop = loopOf(anim.loop);
+    const ch = loop ? expandChannelLoop(sorted, loop, ctx) : sorted;
+    if (ch.kind !== PxValueKind.transform) return ch;
+    const autoOrient = !!anim.autoOrient;
+    if (!autoOrient && !ch.keyframes.some(kf => kf.tangentIn || kf.tangentOut)) return ch;
+    if (ctx.engine === PxTimelineEngine.native) {
+        // a path with no translate to start from cannot be sampled: it plays straight, as it always did
+        const sampled = sampleMotionPathKeyframes(ch.keyframes, autoOrient, ctx.motionPath);
+        return { kind: PxValueKind.transform, keyframes: sampled ?? ch.keyframes.map(withoutTangents) };
     }
-    return { ...ch, motionPath: { autoOrient: !!propAnim.autoOrient } };
+    return autoOrient ? { ...ch, autoOrient } : ch;
 }
 
 /**
@@ -717,91 +728,72 @@ function mergeAnimationDefinitions(
     return merged;
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  Public loop-materialization API
-//
-//  Used internally by `normalizeKeyframes` (where `expandLoopKeyframes` is
-//  already called at the tail of normalization). Exposed here at the propAnim
-//  and tree levels so the Editor (or any external caller) can compose:
-//      root = materializeNodeEffects(root).root;
-//      root = materializeInternalLoopsInTree(root, duration);
-//      root = materializeMotionPathsInTree(root);
-//  to produce a fully-flat document with no `loop`, no `effects`, no tangents.
-// ─────────────────────────────────────────────────────────────────────────────
-
-
 // @px-importance important
 /**
- * Replaces `propAnim.loop` with explicit repeated keyframes via
- * `expandLoopKeyframes`. Returns the input by reference when no loop is
- * configured (no-op). Output drops the `loop` field (consumed). The keyframes are converted
- * first (`toRuntimeChannel` — kind, values, named easings resolved through `defs`), so the
- * loop seam blends real values; the output carries them in the runtime spelling (`t` / `v` / `e`).
+ * An element's animation definition → its compiled entries. The static `transform` composes under the
+ * animated one FIRST (`mergeStaticTransformIntoAnimDef`, CSS precedence — review §0.4/§1.6), so every
+ * engine sees complete parts; entries already compiled pass through; an empty channel is dropped.
  * @internal
  */
-export function materializeInternalLoopsInPropAnim(
-    propName: string,
-    propAnim: PxPropertyAnimation,
-    duration: number,
-    defs?: PxDefinitions,
-): PxPropertyAnimation {
-    const loop = loopOf(propAnim.loop);
-    if (!loop) return propAnim;
-    const rawKfs = propAnim.keyframes;
-    if (!Array.isArray(rawKfs) || rawKfs.length < 2) return propAnim;
-
-    const channel = toRuntimeChannel(propName, rawKfs, kf => resolveEasing(keyframeEasing(kf), defs), 0);
-    const out: PxPropertyAnimation = { keyframes: expandChannelLoop(channel, loop, duration).keyframes };
-    if (propAnim.autoOrient !== undefined) out.autoOrient = propAnim.autoOrient;
+export function compileAnimationDefinition(
+    animDef: PxAnimationDefinition,
+    staticTransform: unknown,
+    ctx: PxCompileContext,
+): Record<string, PxCompiledAnimation> {
+    const merged = mergeStaticTransformIntoAnimDef(animDef, staticTransform);
+    const out: Record<string, PxCompiledAnimation> = {};
+    for (const [propName, anim] of Object.entries(merged)) {
+        // `alongPathMode: 'offsetPath'` — this transform's motion is rendered by CSS Motion Path
+        // (`offset-path` style on the element + an `offsetDistance` track in the same dict); driving
+        // the tangented keyframes as well moved the element twice. Skipped — but ONLY when the offset
+        // infrastructure exists (an `offsetDistance` track beside it): a marked transform the offset
+        // materializer BAILED on falls through to the ordinary sampled pipeline.
+        if (!isCompiledAnimation(anim) && propName === TRANSFORM_ATTR
+            && anim.alongPathMode === PxAlongPathMode.offsetPath && merged.offsetDistance !== undefined) continue;
+        const channel = isCompiledAnimation(anim) ? anim : compileAnimation(propName, anim, ctx);
+        if (channel.keyframes.length > 0) out[propName] = channel;
+    }
     return out;
 }
 
-
-// @px-importance important
 /**
- * Walks `root` and materializes every animated property's `loop` via
- * `materializeInternalLoopsInPropAnim`. Immutable — returns the input by
- * reference when no loop was found anywhere; otherwise clones along the path
- * to each affected node, sharing untouched sub-trees.
+ * The `plain` stage's animation step: every node's `animate` (named references resolved) lowered to
+ * compiled entries. Immutable — clones along the path to each animated node, sharing the rest.
  * @internal
  */
-export function materializeInternalLoopsInTree(
-    root: PxNode,
-    duration: number,
-    defs?: PxDefinitions,
-): PxNode {
-    const ret = walkAndMaterializeLoops(root, duration, defs);
-    return ret ?? root;
+export function compileAnimationsInTree(root: PxNode, ctx: PxCompileContext): PxNode {
+    return compileNode(root, ctx) ?? root;
 }
 
-function walkAndMaterializeLoops(node: PxNode, duration: number, defs: PxDefinitions | undefined): PxNode | null {
+function compileNode(node: PxNode, ctx: PxCompileContext): PxNode | null {
     let newChildren: Array<PxNode> | undefined;
     if (node.children) {
         for (let i = 0; i < node.children.length; i++) {
-            const ret = walkAndMaterializeLoops(node.children[i], duration, defs);
+            const ret = compileNode(node.children[i], ctx);
             if (ret !== null) {
                 if (!newChildren) newChildren = node.children.slice();
                 newChildren[i] = ret;
             }
         }
     }
-    let newAnimate: PxAnimationDefinition | undefined;
-    const animDef = node.animate;
-    if (typeof animDef === 'object' && !Array.isArray(animDef)) {
-        for (const propName of Object.keys(animDef)) {
-            const propAnim = animDef[propName];
-            const materialized = materializeInternalLoopsInPropAnim(propName, propAnim, duration, defs);
-            if (materialized !== propAnim) {
-                if (!newAnimate) newAnimate = { ...animDef };
-                newAnimate[propName] = materialized;
-            }
-        }
-    }
+    const newAnimate = node.animate
+        ? compileAnimationDefinition(mergeAnimationDefinitions(resolveElementAnimation(node.animate, ctx.defs)), node.transform, ctx)
+        : undefined;
     if (!newChildren && !newAnimate) return null;
     const cloned: PxNode = { ...node };
     if (newChildren) cloned.children = newChildren;
-    if (newAnimate)  cloned.animate  = newAnimate;
+    if (newAnimate) cloned.animate = newAnimate;
     return cloned;
+}
+
+/** Compiled channels (content ms) → the window ms the engines sample: every time less the window start. */
+function shiftToWindow(channels: Record<string, PxCompiledAnimation>, windowStart: number): PxRuntimeAnimation {
+    if (!windowStart) return channels;
+    const out: PxRuntimeAnimation = {};
+    for (const [propName, ch] of Object.entries(channels)) {
+        out[propName] = mapChannelKeyframes(ch, keyframes => keyframes.map(kf => ({ ...kf, time: kf.time - windowStart })));
+    }
+    return out;
 }
 
 
@@ -821,44 +813,6 @@ export function resetElementIdCounter(): void {
 }
 
 /**
- * Converts an animation definition into the engine's channels (one per property). `engine`
- * controls motion-along-path handling — see {@link normalizeChannel}.
- */
-function normalizeAnimationDefinition(
-    animDef: PxAnimationDefinition,
-    duration: number,
-    defs?: PxDefinitions,
-    engine: PxTimelineEngine = PxTimelineEngine.native,
-    inTime = 0,
-): PxRuntimeAnimation {
-    const channels: PxRuntimeAnimation = {};
-
-    for (const [propName, propAnim] of Object.entries(animDef)) {
-        // `alongPathMode: 'offsetPath'` — this transform's motion is rendered by CSS
-        // Motion Path (`offset-path` style on the element + an `offsetDistance` track in
-        // the same dict). The tangented keyframes stay on the wire as the DESIGN source
-        // (the editor round-trip reads them back), but the player must not ALSO drive
-        // them: doing both moved the element to the path position and then translated it
-        // again (double position). Skip the binding; `offsetDistance` owns the motion.
-        if (propName === 'transform'
-            && propAnim.alongPathMode === 'offsetPath'
-            // …but ONLY when the offset infrastructure actually exists (an `offsetDistance`
-            // track in the same definition — the pre-rendered dict shape, or a lightweight
-            // doc the offset materializer rewrote). A marked transform the materializer
-            // BAILED on (e.g. rotate animated in the same keyframes — inexpressible as
-            // offset-path) must fall through to the ordinary sampled pipeline; skipping it
-            // unconditionally froze those elements at their base pose.
-            && animDef.offsetDistance !== undefined) {
-            continue;
-        }
-        const channel = normalizeChannel(propName, propAnim, duration, defs, engine, inTime);
-        if (channel.keyframes.length > 0) channels[propName] = channel;
-    }
-
-    return channels;
-}
-
-/**
  * Normalizes a PxAnimatedSvgDocument to a PxAnimatorConfig for the animation engines.
  * This is the main entry point for converting the new API format to internal format.
  * Resolves animation/easing references. `engine` controls motion-along-path
@@ -872,29 +826,24 @@ export function normalizeBindings(
     const animatorConfig = getAnimatorConfig(doc) || {};
     const defs = getDefinitions(doc);
     const duration = animatorConfig.duration || 1000; // FIXME - get rid of 1000 here
-    // The window start (first-use review §4): keyframe times are shifted by it ONCE, here, so
-    // every engine keeps sampling a [0, duration] space.
+    // The window start (first-use review §4): compiled times are content ms; they are shifted by it
+    // ONCE, here, so every engine keeps sampling a [0, duration] space.
     const inTime = animatorConfig.inTime ?? 0;
+    const ctx: PxCompileContext = { windowStart: inTime, windowEnd: inTime + duration, defs, engine };
 
     const bindings: PxNormalizedBinding[] = [];
 
-    // Helper to merge and normalize the resolved animation definitions of one element
+    // One element's resolved definitions → its channels: authored entries compiled (a `plain` document's
+    // already are — the pre-rendered builds and an unprepared document compile here), then windowed.
     const processAnimation = (
         id: string,
         animDefs: PxAnimationDefinition[],
         staticTransform?: unknown,
     ): PxNormalizedBinding | null => {
         if (animDefs.length === 0) return null;
-
-        // CSS transform precedence (review §0.4/§1.6): the node's static transform
-        // composes under the animated one — merged BEFORE normalization so both
-        // engines see complete parts records.
-        const merged = mergeStaticTransformIntoAnimDef(mergeAnimationDefinitions(animDefs), staticTransform);
-        const normalizedAnim = normalizeAnimationDefinition(merged, duration, defs, engine, inTime);
-
-        if (Object.keys(normalizedAnim).length === 0) return null;
-
-        return { id, channels: normalizedAnim };
+        const compiled = compileAnimationDefinition(mergeAnimationDefinitions(animDefs), staticTransform, ctx);
+        if (Object.keys(compiled).length === 0) return null;
+        return { id, channels: shiftToWindow(compiled, inTime) };
     };
 
     // Process bindings (for pre-rendered DOM): `target` is `#id`-spelled on the wire (every
@@ -953,7 +902,7 @@ export function normalizeBindings(
 /**
  * Finds prev/next keyframes for a given progress.
  */
-function getKeyframesPair<V>(keyframes: Array<PxRuntimeKeyframe<V>>, progress: number) {
+function getKeyframesPair<V>(keyframes: Array<PxCompiledKeyframe<V>>, progress: number) {
     // Outside the keyframe range, clamp to the NEAREST REAL segment (the caller clamps
     // `localProgress` to 0/1, so that holds the boundary pose). Spanning first→last
     // instead would invent a segment that exists nowhere in the animation: for keyframes
@@ -965,8 +914,8 @@ function getKeyframesPair<V>(keyframes: Array<PxRuntimeKeyframe<V>>, progress: n
     let nextKf = keyframes[last > 0 ? 1 : 0];
 
     for (let j = 0; j < last; j++) {
-        const aOff = keyframes[j].t;
-        const bOff = keyframes[j + 1].t;
+        const aOff = keyframes[j].time;
+        const bOff = keyframes[j + 1].time;
         if (aOff <= progress && progress <= bOff) {
             prevKf = keyframes[j];
             nextKf = keyframes[j + 1];
@@ -982,15 +931,15 @@ function getKeyframesPair<V>(keyframes: Array<PxRuntimeKeyframe<V>>, progress: n
 }
 
 /** The bracketing pair at `progress` and the eased 0..1 position between them. */
-function pairAt<V>(keyframes: Array<PxRuntimeKeyframe<V>>, progress: number): { prevKf: PxRuntimeKeyframe<V>; nextKf: PxRuntimeKeyframe<V>; p: number } {
+function pairAt<V>(keyframes: Array<PxCompiledKeyframe<V>>, progress: number): { prevKf: PxCompiledKeyframe<V>; nextKf: PxCompiledKeyframe<V>; p: number } {
     const { prevKf, nextKf } = getKeyframesPair(keyframes, progress);
     // remap to local 0..1 within prevKf..nextKf
-    let p = (prevKf === nextKf) ? 0 : remap(progress, prevKf.t, nextKf.t, 0, 1);
+    let p = (prevKf === nextKf) ? 0 : remap(progress, prevKf.time, nextKf.time, 0, 1);
     p = clamp(p, 0, 1);
-    // e is on the source keyframe: applied from this KF to the next
-    if (prevKf.e) {
+    // the easing is on the source keyframe: applied from this KF to the next
+    if (prevKf.easing) {
         try {
-            p = cubicBezier(prevKf.e)(p);
+            p = cubicBezier(prevKf.easing)(p);
         } catch (e) {
             // fallback: ignore easing if parsing fails
         }
@@ -1004,7 +953,7 @@ function pairAt<V>(keyframes: Array<PxRuntimeKeyframe<V>>, progress: number): { 
  */
 function calcPropertyValue(
     propName: string,
-    channel: PxRuntimeChannel,
+    channel: PxCompiledAnimation,
     progress: number,
     segments: MotionPathSegments | undefined,
 ): { k: string, v: string } | null {
@@ -1014,27 +963,27 @@ function calcPropertyValue(
     switch (channel.kind) {
         case PxValueKind.path: {
             const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
-            return { k: attrName, v: interpolateBeziers(prevKf.v.paths, nextKf.v.paths, p).map(bz => bezierToSvgPath(bz)).join('') };
+            return { k: attrName, v: interpolateBeziers(prevKf.value.paths, nextKf.value.paths, p).map(bz => bezierToSvgPath(bz)).join('') };
         }
         case PxValueKind.color: {
             const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
-            return { k: propName, v: toRGBA(interpolateColor(prevKf.v, nextKf.v, p)) };
+            return { k: propName, v: toRGBA(interpolateColor(prevKf.value, nextKf.value, p)) };
         }
         case PxValueKind.numberList: {
             const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
-            return { k: propName, v: interpolateVec(prevKf.v, nextKf.v, p).join(' ') };
+            return { k: propName, v: interpolateVec(prevKf.value, nextKf.value, p).join(' ') };
         }
-        case PxValueKind.parts: {
+        case PxValueKind.transform: {
             const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
             // Unified transform: interpolate each present part separately, then compose into a
             // transform string for the SVG `transform` attribute (no units).
-            const parts = interpolateTransformParts(prevKf.v, nextKf.v, p);
-            // Motion-along-path (frames engine only — the native one sampled the path at
-            // normalization): evaluate the Bezier per frame — exact spatial fidelity.
-            const prevTr = prevKf.v.translate;
-            const nextTr = nextKf.v.translate;
-            if (channel.motionPath && prevTr && nextTr) {
-                const sample = evaluateMotionPathSegment(prevKf, nextKf, prevTr, nextTr, p, channel.motionPath.autoOrient, segments);
+            const parts = interpolateTransformParts(prevKf.value, nextKf.value, p);
+            // Motion-along-path (frames engine only — the native one sampled the path when it was
+            // compiled): evaluate the Bezier per frame — exact spatial fidelity.
+            const prevTr = prevKf.value.translate;
+            const nextTr = nextKf.value.translate;
+            if (movesAlongPath(channel) && prevTr && nextTr) {
+                const sample = evaluateMotionPathSegment(prevKf, nextKf, prevTr, nextTr, p, !!channel.autoOrient, segments);
                 parts.translate = [sample.translate[0], sample.translate[1]];
                 // ADD the tangent angle to the element's own rotation, already interpolated into
                 // `parts.rotate` above — never replace it. The native engine's flattener
@@ -1047,27 +996,27 @@ function calcPropertyValue(
         }
         case PxValueKind.translate: case PxValueKind.scale: {
             const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
-            return { k: 'transform', v: channel.kind + '(' + interpolateVec(prevKf.v, nextKf.v, p).join(',') + ')' };
+            return { k: 'transform', v: channel.kind + '(' + interpolateVec(prevKf.value, nextKf.value, p).join(',') + ')' };
         }
         case PxValueKind.rotate: {
             const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
-            return { k: 'transform', v: 'rotate(' + interpolateNum(prevKf.v, nextKf.v, p) + ')' };
+            return { k: 'transform', v: 'rotate(' + interpolateNum(prevKf.value, nextKf.value, p) + ')' };
         }
         case PxValueKind.skew: {
             const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
-            return { k: 'transform', v: 'skewX(' + interpolateNum(prevKf.v, nextKf.v, p) + ')' };
+            return { k: 'transform', v: 'skewX(' + interpolateNum(prevKf.value, nextKf.value, p) + ')' };
         }
         case PxValueKind.percent: {
             const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
-            return { k: attrName, v: (interpolateNum(prevKf.v, nextKf.v, p) * 100) + '%' };
+            return { k: attrName, v: (interpolateNum(prevKf.value, nextKf.value, p) * 100) + '%' };
         }
         case PxValueKind.number: {
             const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
-            return { k: attrName, v: '' + interpolateNum(prevKf.v, nextKf.v, p) + (channel.unit ?? '') };
+            return { k: attrName, v: '' + interpolateNum(prevKf.value, nextKf.value, p) + (channel.unit ?? '') };
         }
         case PxValueKind.discrete: {
             const { prevKf, nextKf, p } = pairAt(channel.keyframes, progress);
-            return { k: attrName, v: p < 0.5 ? prevKf.v : nextKf.v };
+            return { k: attrName, v: p < 0.5 ? prevKf.value : nextKf.value };
         }
     }
 }

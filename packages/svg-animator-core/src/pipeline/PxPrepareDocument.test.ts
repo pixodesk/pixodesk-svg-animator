@@ -17,7 +17,7 @@ function makeDoc(): PxAnimatedSvgDocument {
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
             effects: { fillGradient: { type: 'linear', stops: [{ offset: 0, color: '#000' }, { offset: 1, color: '#fff' }] } },
         }],
-        animator: { version: '1.5.0', timeline: { outTime: 800 } },
+        animator: { version: '1.6.0', timeline: { outTime: 800 } },
     })) as PxAnimatedSvgDocument;
 }
 const prep = (doc: PxAnimatedSvgDocument, options?: PxPrepareOptions) => prepareDocument(doc, options);

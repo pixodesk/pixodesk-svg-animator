@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 
-import { PxChannelNumberSchema, PxVec2Schema, type PxAnimatable, type PxBezierPath, type PxKeyframeValue, type PxEasingOrRef, type PxKeyframe, type PxLoop, type PxNode, type PxVec2, type _PxStrokeTrimEffect, keyframeTime, keyframeValue, keyframeEasing } from '../../format/PxAnimatorTypes';
+import { PxChannelNumberSchema, PxVec2Schema, type PxAnimatable, type PxBezierPath, type PxKeyframeValue, type PxEasingOrRef, type PxKeyframe, type PxLoop, type PxNode, type PxVec2, type _PxStrokeTrimEffect } from '../../format/PxAnimatorTypes';
 import { PxStrokeTrimSubPaths } from '../../format/PxAnimatorConstants';
 import { bezier2D_arcLengthLUT, bezierToSvgPath, clamp } from '../../util/PxAnimatorUtil';
 import { parseSvgPathToBezier } from '../../animation/PxDefinitions';
@@ -298,7 +298,7 @@ function readScalarValues(r: ReadPart<number>): Array<number> {
     if (r.kind === ReadKind.Static) return [r.value];
     const out: Array<number> = [];
     for (const kf of r.keyframes) {
-        const v = keyframeValue(kf);
+        const v = kf.value;
         if (typeof v === 'number') out.push(v);
     }
     return out;
@@ -310,9 +310,9 @@ function computeAnimAttr<TIn, TOut>(read: ReadPart<TIn>, map: (v: TIn) => TOut):
     return {
         kind: ReadKind.Animated,
         keyframes: read.keyframes.map(kf => ({
-            time: keyframeTime(kf),
+            time: (kf.time ?? 0),
             value: map(kf.value),
-            easing: keyframeEasing(kf),
+            easing: kf.easing,
         })),
         loop: read.loop,
     };
@@ -345,7 +345,7 @@ function computeOpacityFromRange(rangeRead: ReadPart<PxVec2>): AnimAttrResult<nu
     let anyHide = false;
     let allHide = true;
     for (const kf of kfs) {
-        if (hide(keyframeValue(kf) as PxVec2)) anyHide = true;
+        if (hide(kf.value as PxVec2)) anyHide = true;
         else allHide = false;
     }
     if (!anyHide) return undefined;
@@ -358,10 +358,10 @@ function computeOpacityFromRange(rangeRead: ReadPart<PxVec2>): AnimAttrResult<nu
         const kf = kfs[i];
         const prevKf = i > 0 ? kfs[i - 1] : undefined;
         const nextKf = i < kfs.length - 1 ? kfs[i + 1] : undefined;
-        const t = keyframeTime(kf);
-        const thisHide = hide(keyframeValue(kf) as PxVec2);
-        const prevHide = prevKf ? thisHide && hide(keyframeValue(prevKf) as PxVec2) : thisHide;
-        const nextHide = nextKf ? thisHide && hide(keyframeValue(nextKf) as PxVec2) : thisHide;
+        const t = (kf.time ?? 0);
+        const thisHide = hide(kf.value as PxVec2);
+        const prevHide = prevKf ? thisHide && hide(prevKf.value as PxVec2) : thisHide;
+        const nextHide = nextKf ? thisHide && hide(nextKf.value as PxVec2) : thisHide;
 
         if (prevHide && !nextHide) {
             out.push({ time: t, value: 0 });
@@ -390,9 +390,9 @@ function readRangeWithCrossings(raw: PxAnimatable<PxVec2> | undefined): ReadPart
     if (r.kind !== ReadKind.Animated) return r;
 
     const kfs: Array<SimpleKf> = r.keyframes.map(kf => ({
-        time: keyframeTime(kf),
-        value: keyframeValue(kf) as PxVec2,
-        easing: keyframeEasing(kf),
+        time: (kf.time ?? 0),
+        value: kf.value as PxVec2,
+        easing: kf.easing,
     }));
 
     const hasReverse = kfs.some(kf => kf.value[0] > kf.value[1]);

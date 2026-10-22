@@ -333,7 +333,7 @@ abstract class Base<T, IsOptional extends boolean = false, D extends boolean = f
 
 const hasOwn = (o: object, k: string): boolean => Object.prototype.hasOwnProperty.call(o, k);
 /** A plain (non-array) object, read by string key — what object, record and union schemas walk. */
-const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
+export const isRecord = (v: unknown): v is Record<string, unknown> => !!v && typeof v === 'object' && !Array.isArray(v);
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -606,8 +606,9 @@ type AnyDiscriminantShape<K extends string> = Record<K, PxSchema<string | number
 class DiscriminatedUnion<T> extends Base<T> {
     readonly _default: T;
     private readonly _map: Map<string | number | boolean, PxSchema<T>>;
-    /** The member an ABSENT discriminant selects — the one whose discriminant slot is
-     *  `.optional()` (e.g. `timeline.type` omitted = the time-driven timeline). */
+    /** The member an ABSENT discriminant selects — the `absent` member given to the factory (it does not
+     *  declare the key at all), else the one whose discriminant slot is `.optional()` (e.g. `timeline.type`
+     *  omitted = the time-driven timeline). */
     private readonly _absentMember: PxSchema<T> | undefined;
 
     private readonly _schemas: ReadonlyArray<PxSchema<T>>;
@@ -615,12 +616,14 @@ class DiscriminatedUnion<T> extends Base<T> {
     constructor(
         private readonly _key: string,
         members: ReadonlyArray<{ schema: PxSchema<T>; shape: AnyDiscriminantShape<string> }>,
-        defaultVal?: T
+        absent?: PxSchema<T>,
     ) {
         super(false);
-        this._schemas = members.map(m => m.schema);
-        this._default = defaultVal ?? this._schemas[0]._default;
+        // the absent member first: it is also what an unknown discriminant is repaired into
+        this._schemas = absent ? [absent, ...members.map(m => m.schema)] : members.map(m => m.schema);
+        this._default = this._schemas[0]._default;
         this._map = new Map();
+        this._absentMember = absent;
         for (const { schema: s, shape } of members) {
             const keySchema = shape[_key];
             if (!keySchema) continue;
@@ -628,7 +631,7 @@ class DiscriminatedUnion<T> extends Base<T> {
             const value = keySchema.absentDefault();
             if (value !== undefined) this._map.set(value, s);
             // An optional discriminant: this member is the one to use when the key is missing.
-            if (keySchema.describe().kind === 'optional') this._absentMember = s;
+            if (!absent && keySchema.describe().kind === 'optional') this._absentMember = s;
         }
     }
 
@@ -1280,13 +1283,16 @@ export const px = {
      * Discriminated union — reads `raw[key]`, finds the member schema whose
      * literal at `key` matches, then delegates sanitize/isValid to that member.
      * Each member must be an object schema with a `px.literal(...)` at `key`.
-     * TypeScript infers the union of all member types automatically.
+     * `absent` (optional) is the member a value WITHOUT the key selects — an object schema that
+     * does not declare it (an authored animation, which has no `kind`). A value WITH the key never
+     * reaches it. TypeScript infers the union of all member types automatically.
      */
     discriminatedUnion: <
         K extends string,
-        const T extends ReadonlyArray<PxAnySchema & { readonly _shape: AnyDiscriminantShape<K> }>
-    >(key: K, schemas: T): PxSchema<UnionMembers<T>> =>
-        new DiscriminatedUnion<UnionMembers<T>>(key, schemas.map((s, i) => ({ schema: asMembersOf(schemas)[i], shape: s._shape }))),
+        const T extends ReadonlyArray<PxAnySchema & { readonly _shape: AnyDiscriminantShape<K> }>,
+        A = never,
+    >(key: K, schemas: T, absent?: PxSchema<A>): PxSchema<UnionMembers<T> | A> =>
+        new DiscriminatedUnion<UnionMembers<T> | A>(key, schemas.map((s, i) => ({ schema: asMembersOf(schemas)[i], shape: s._shape })), absent),
 
     /** Typed object — unknown keys are stripped. Required fields fall back to their default.
      *  Its `defaults` say what each stated field means when a document leaves it out. */

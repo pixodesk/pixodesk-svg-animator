@@ -12,7 +12,7 @@ export * from './PxAnimatorConstants';
 import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_TRANSFORM_PART_KEYS, PX_TRIGGER_DEFAULTS, PxTimelineEngineSetting, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits,
     // Wire enums named in review §2.7 — used as VALUES by the schemas below.
     PxAlongPathMode, PxFillMode, PxFinishAction, PxMouseOutAction, PxOffScreenAction, PxPinAlign, PxPlaybackDirection,
-    PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxTriggerStart } from './PxAnimatorConstants';
+    PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxTriggerStart, PxValueKind } from './PxAnimatorConstants';
 import type { PxTimelineEngine, PxTransformPartKey } from './PxAnimatorConstants';
 // Version stamps are parsed by the reader's own parser (review §2.10) so the validator and the
 // reader can never disagree on what counts as a stamp. `PxWireVersion` imports only
@@ -56,14 +56,9 @@ export type PxEasingOrRef = PxInfer<typeof PxEasingOrRefSchema>;
 /**
  * A single animation keyframe defining the state at a specific point in time.
  *
- * THE WIRE FORM, and only that: `time` / `value` / `easing` / `tangentIn` / `tangentOut`.
+ * THE AUTHORED FORM: `time` / `value` / `easing` / `tangentIn` / `tangentOut`.
  * Locked to `PxKeyframeSchema` by the `KeysMatch` assertion below, so this interface and the
- * validator cannot drift apart.
- *
- * The engines consume {@link _PxNormalizedKeyframe} instead — the short-field form
- * `normalizeKeyframes` produces, with easing refs resolved and values parsed. The two used to
- * be ONE interface carrying both spellings, which meant no key-set lock was possible here and
- * nothing in the types said which form a given function expected.
+ * validator cannot drift apart. The compiled form ({@link PxCompiledKeyframe}) uses the same keys.
  */
 export interface _PxKeyframe {
 
@@ -165,8 +160,7 @@ export type PxKeyframeValue = PxInfer<typeof PxKeyframeValueSchema>;
 // `PxKeyframe<T = any>` its generic default) so the duck-typed interpolator
 // access in `PxDefinitions.ts` stays untyped-permissive at compile time.
 // LONG SPELLINGS ONLY (review §1.2/§6.1): the short aliases (`t`/`v`/`e`/`to`/`ti`)
-// were removed from the wire outright — one clear spelling, no mixing ambiguity.
-// They survive only as the internal normalized runtime view (see `_PxKeyframe`).
+// were removed outright — one clear spelling, no mixing ambiguity.
 /** @public @advanced */
 export const PxKeyframeSchema = implementsInterface<_PxKeyframe>()(px.object({
     time: px.number().optional(),
@@ -180,55 +174,6 @@ export const PxKeyframeSchema = implementsInterface<_PxKeyframe>()(px.object({
 }));
 
 /**
- * THE RUNTIME FORM — what `normalizeKeyframes` hands the engines, and what the tree-level
- * materializers (`materializeInternalLoopsInTree` and everything after it in
- * `materializeAllInTree`) write back into the document.
- *
- * Short-named on purpose: these are read once per property per frame. `e` is a RESOLVED easing
- * (named refs already looked up in `definitions.easings`) and `v` is a PARSED value (colors as
- * RGBA arrays, path `d` normalized) — which is the substantive difference from the wire form,
- * not just the spelling. Deliberately NOT a wire shape: `validateDocument` rejects it, and a
- * materialized document is a runtime artefact that is never written to disk.
- */
-export interface _PxNormalizedKeyframe {
-    /** Time in ms from the animation start (the wire spells it `time`). */
-    t?: number;
-    /** The parsed value at this keyframe (the wire spells it `value`) — typed per kind on the engine's channels (`PxRuntimeChannel`). */
-    v?: unknown;
-    /** The RESOLVED easing — never a name (the wire spells it `easing`). */
-    e?: PxEasingOrRef;
-    /** Incoming spatial tangent, same meaning as the wire's. */
-    tangentIn?: [number, number];
-    /** Outgoing spatial tangent, same meaning as the wire's. */
-    tangentOut?: [number, number];
-}
-
-/** @internal */
-export type PxNormalizedKeyframe = _PxNormalizedKeyframe;
-
-/**
- * Either spelling. For the handful of helpers that genuinely run on BOTH sides of
- * normalization — read them through the `kf*` accessors below rather than branching inline.
- * @internal
- */
-export type PxAnyKeyframe = _PxKeyframe | _PxNormalizedKeyframe;
-
-const anyKf = (kf: PxAnyKeyframe) => kf as _PxKeyframe & _PxNormalizedKeyframe;
-
-/** Time in ms, whichever spelling the keyframe is in. @internal */
-export const keyframeTime = (kf: PxAnyKeyframe): number => anyKf(kf).time ?? anyKf(kf).t ?? 0;
-// @px-area keyframes
-/** Value, whichever spelling. @internal */
-export const keyframeValue = (kf: PxAnyKeyframe): unknown => anyKf(kf).value ?? anyKf(kf).v;
-// @px-area keyframes
-/** Easing — resolved on a normalized keyframe, possibly a NAME on a wire one. @internal */
-export const keyframeEasing = (kf: PxAnyKeyframe): PxEasingOrRef | undefined => anyKf(kf).easing ?? anyKf(kf).e;
-/** Incoming spatial tangent, whichever spelling. @internal */
-export const keyframeTangentIn = (kf: PxAnyKeyframe): [number, number] | undefined => anyKf(kf).tangentIn;
-/** Outgoing spatial tangent, whichever spelling. @internal */
-export const keyframeTangentOut = (kf: PxAnyKeyframe): [number, number] | undefined => anyKf(kf).tangentOut;
-
-/**
  * A single animation keyframe defining the state at a specific point in time.
  *
  * Generic over the keyframe `value` type for callers that know the per-property
@@ -236,24 +181,10 @@ export const keyframeTangentOut = (kf: PxAnyKeyframe): [number, number] | undefi
  * `any`, matching the schema (`value` is stored as `px.any()` on the wire).
  * @public
  */
-// The WIRE type, generic over the value type. The engines use `PxNormalizedKeyframe`.
+// The authored type, generic over the value type.
 export type PxKeyframe<T = unknown> = Omit<_PxKeyframe, 'value'> & { value?: T };
 // Locks the interface to the schema at the default instantiation.
 const _ck_PxKeyframe: KeysMatch<PxInfer<typeof PxKeyframeSchema>, _PxKeyframe> = true;
-
-/** {@link PxNormalizedKeyframe}, generic over the value type — the runtime counterpart. */
-export type PxNormalizedKeyframeOf<T = unknown> = Omit<_PxNormalizedKeyframe, 'v'> & { v?: T };
-
-/**
- * A property animation whose keyframes are in the RUNTIME form.
- *
- * What `normalizeKeyframes` produces, what the engines consume — and what the EDITOR's in-memory
- * model is: its keyframe objects carry the short field names and serialize to the long wire ones
- * through `@serializable`, so the model implements this rather than the wire shape.
- * @internal
- */
-export type PxNormalizedPropertyAnimation =
-    Omit<_PxPropertyAnimation, 'keyframes'> & { keyframes?: Array<_PxNormalizedKeyframe> };
 
 
 // ============================================================================
@@ -397,9 +328,7 @@ export const PxPropertyAnimationSchema = implementsInterface<_PxPropertyAnimatio
     alongPathMode: px.enum([PxAlongPathMode.sampled, PxAlongPathMode.offsetPath] as const, PxAlongPathMode.sampled).optional(),
 }));
 
-/** Animation definition for a single CSS/SVG property. @public */
-// The runtime-VIEW type: its `keyframes` items are runtime-view PxKeyframes (they may
-// carry the internal normalized short fields), which the schema-inferred type cannot.
+/** Animation definition for a single CSS/SVG property — the authored form. @public */
 export type PxPropertyAnimation = _PxPropertyAnimation;
 // KeysMatch compares only the KEY SETS, so it still locks the schema to the interface even
 // though the two disagree about the VALUE type of `keyframes` (above). Worth having here in
@@ -490,6 +419,93 @@ export type PxTransformValue = PxInfer<typeof PxTransformValueSchema>;
 
 
 // ============================================================================
+// COMPILED ANIMATION — the low layer (dev-docs/plans/compiled-animation-layer.md)
+// ============================================================================
+//
+// What the `plain` stage lowers every `animate` entry to, and what the engines play. The same
+// keyframe keys as the authored form; the values are typed by `kind` and nothing is left to
+// resolve: no `loop`, no named easing, `time` required, times in content ms. An entry is
+// all authored or all compiled. The editor writes the authored form only.
+
+/** A resolved cubic-bezier easing `[x1, y1, x2, y2]` — the only easing a compiled keyframe carries. @public @advanced */
+export const PxCubicBezierSchema = px.tuple([px.number(), px.number(), px.number(), px.number()] as const);
+
+/** A resolved cubic-bezier easing `[x1, y1, x2, y2]`. @public @advanced */
+export type PxCubicBezier = PxInfer<typeof PxCubicBezierSchema>;
+
+/** A compiled colour `[r, g, b, a]`, every channel 0..1 — always four. @public @advanced */
+export const PxRgbaSchema = px.tuple([px.number(), px.number(), px.number(), px.number()] as const);
+
+/** A compiled colour `[r, g, b, a]`, every channel 0..1. @public @advanced */
+export type PxRgba = PxInfer<typeof PxRgbaSchema>;
+
+/** A compiled keyframe holding a `V`. */
+const compiledKeyframe = <V>(value: PxSchema<V>) => px.object({
+    time: px.number(),
+    value,
+    easing: PxCubicBezierSchema.optional(),
+});
+
+/** A compiled `transform` keyframe: a motion path's tangents stay for the frame loop (the native engine samples them away). */
+const PxCompiledTransformKeyframeSchema = px.extendedObject(compiledKeyframe(PxTransformPartsSchema), {
+    tangentIn: px.tuple([px.number(), px.number()] as const).optional(),
+    tangentOut: px.tuple([px.number(), px.number()] as const).optional(),
+});
+
+/** A compiled keyframe holding a `V` — the fields every kind shares (only `transform` keyframes carry tangents). @public @advanced */
+export type PxCompiledKeyframe<V> = Omit<PxInfer<typeof PxCompiledTransformKeyframeSchema>, 'value'> & { value: V };
+
+/** A `d` value once compiled: the parsed bezier paths. @public @advanced */
+export type PxPathValue = PxInfer<typeof PxNormalizedPathValueSchema>;
+
+const compiledMember = <K extends PxValueKind, V>(kind: K, value: PxSchema<V>) =>
+    px.object({ kind: px.literal(kind), keyframes: px.array(compiledKeyframe(value)) });
+
+/** One member per `kind` — the value each kind holds. */
+const PX_COMPILED_MEMBERS = [
+    px.extendedObject(compiledMember(PxValueKind.number, px.number()), {
+        /** The one unit every authored value carried (`"20%"` → `20` + `"%"`) — written back with it. */
+        unit: px.string().optional(),
+    }),
+    compiledMember(PxValueKind.percent, px.number()),
+    compiledMember(PxValueKind.rotate, px.number()),
+    compiledMember(PxValueKind.skew, px.number()),
+    compiledMember(PxValueKind.color, PxRgbaSchema),
+    compiledMember(PxValueKind.path, px.lazy<PxPathValue>(() => PxNormalizedPathValueSchema, { paths: [] })),
+    px.object({
+        kind: px.literal(PxValueKind.transform),
+        keyframes: px.array(PxCompiledTransformKeyframeSchema),
+        /** With tangents: the frame loop turns the element along the path. */
+        autoOrient: px.boolean().optional(),
+    }),
+    compiledMember(PxValueKind.numberList, px.array(px.number())),
+    compiledMember(PxValueKind.translate, px.array(px.number())),
+    compiledMember(PxValueKind.scale, px.array(px.number())),
+    compiledMember(PxValueKind.discrete, px.string()),
+] as const;
+
+/** A compiled animation — one property's keyframes, explicit and typed by `kind`. @public @advanced */
+export const PxCompiledAnimationSchema = px.discriminatedUnion('kind', PX_COMPILED_MEMBERS);
+
+/** A compiled animation — one property's keyframes, explicit and typed by `kind`. @public @advanced */
+export type PxCompiledAnimation = PxInfer<typeof PxCompiledAnimationSchema>;
+
+/** The `animate` entry union around an authored schema — the player's, or one that WIDENS it (the editor's). @internal */
+export const anyPropertyAnimationSchemaOf = <A>(authored: PxSchema<A>) => px.discriminatedUnion('kind', PX_COMPILED_MEMBERS, authored);
+
+/** An `animate` entry: authored (no `kind` — what the editor writes) or compiled. @public @advanced */
+export const PxAnyPropertyAnimationSchema = anyPropertyAnimationSchemaOf(PxPropertyAnimationSchema);
+
+/** An `animate` entry: authored or compiled. @public @advanced */
+export type PxAnyPropertyAnimation = PxInfer<typeof PxAnyPropertyAnimationSchema>;
+
+/** Whether an `animate` entry is in the compiled form. @public @advanced */
+export function isCompiledAnimation(anim: PxAnyPropertyAnimation): anim is PxCompiledAnimation {
+    return 'kind' in anim;
+}
+
+
+// ============================================================================
 // ANIMATION DEFINITION
 // ============================================================================
 
@@ -503,13 +519,13 @@ export type PxTransformValue = PxInfer<typeof PxTransformValueSchema>;
  * { "opacity": { keyframes: [...] }, "transform": { keyframes: [...] } }
  */
 export interface _PxAnimationDefinition {
-    [property: string]: PxPropertyAnimation;
+    [property: string]: PxAnyPropertyAnimation;
 }
 
-// `Record<propName, PropertyAnimation>`
+// `Record<propName, PropertyAnimation | CompiledAnimation>`
 /** @public @advanced */
 export const PxAnimationDefinitionSchema = implementsInterface<_PxAnimationDefinition>()(
-    px.record(PxPropertyAnimationSchema)
+    px.record(PxAnyPropertyAnimationSchema)
 );
 
 /**

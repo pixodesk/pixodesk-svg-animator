@@ -53,7 +53,11 @@ export function schemaFieldUniverse(root: PxAnySchema): Array<string> {
                 d.members.forEach((member, i) => queue.push({ schema: member, path: path + '|' + i }));
                 break;
             case 'discriminatedUnion':
-                for (const member of d.members) queue.push({ schema: member, path: path + '|' + discriminantOf(member, d.key) });
+                for (const member of d.members) {
+                    // the member an ABSENT key selects declares none: its fields keep the union's own path
+                    const label = discriminantOf(member, d.key);
+                    queue.push({ schema: member, path: label === undefined ? path : path + '|' + label });
+                }
                 break;
             default: break;   // tuple / leaf: no named fields
         }
@@ -62,12 +66,12 @@ export function schemaFieldUniverse(root: PxAnySchema): Array<string> {
 }
 
 /** The literal a discriminated-union member carries at its discriminant, unwrapping an
- *  OPTIONAL discriminant (`type?: 'time'`). `?` when it carries none. */
-function discriminantOf(member: PxAnySchema, key: string): string {
+ *  OPTIONAL discriminant (`type?: 'time'`); `undefined` for the member that declares none. */
+function discriminantOf(member: PxAnySchema, key: string): string | undefined {
     const d = describeSchema(member);
     if (d.kind !== 'shape') return '?';
     const keySchema = d.shape[key];
-    if (keySchema === undefined) return '?';
+    if (keySchema === undefined) return undefined;
     const kd = describeSchema(keySchema);
     return String((kd.kind === 'optional' ? kd.inner : keySchema)._default);
 }

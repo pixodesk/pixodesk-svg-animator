@@ -10,7 +10,6 @@ import { PxGradientType } from '../../format/PxAnimatorConstants';
 import { ReadKind, readAnimatable, writeAnimatableChannel } from '../shared/transformParts';
 import type { ApplyContext } from '../shared/types';
 import { genId } from '../shared/util';
-import { keyframeTime, keyframeValue, keyframeEasing } from '../../format/PxAnimatorTypes';
 
 
 // @px-importance important
@@ -164,7 +163,7 @@ function buildStopChildren(stops: PxAnimatable<Array<PxGradientStop>> | undefine
     // count, but defensive — when missing, hold the last value).
     let stopCount = 0;
     for (const kf of kfs) {
-        const v = keyframeValue(kf) as Array<PxGradientStop> | undefined;
+        const v = kf.value as Array<PxGradientStop> | undefined;
         if (Array.isArray(v) && v.length > stopCount) stopCount = v.length;
     }
     if (!stopCount) return [];
@@ -172,7 +171,7 @@ function buildStopChildren(stops: PxAnimatable<Array<PxGradientStop>> | undefine
     // Baseline stop info from kf[0] — offsets stay fixed across kfs, only
     // colors animate; offset rarely animates but if it does we sample at
     // each kf.
-    const firstKfValue = keyframeValue(kfs[0]) as Array<PxGradientStop> | undefined;
+    const firstKfValue = kfs[0].value as Array<PxGradientStop> | undefined;
     const baselineStops: Array<PxGradientStop> = [];
     for (let i = 0; i < stopCount; i++) {
         const s = firstKfValue?.[i] ?? prevDefinedStop(kfs, 0, i) ?? { offset: i / Math.max(1, stopCount - 1), color: '#000000' };
@@ -198,11 +197,11 @@ function animatedStopNode(baseline: PxGradientStop, kfs: Array<PxKeyframe>, stop
     // cheaper than a runtime binding that recomputes the same value.
     let offsetVaries = false;
     for (const kf of kfs) {
-        const t = keyframeTime(kf);
-        const arr = keyframeValue(kf) as Array<PxGradientStop> | undefined;
+        const t = (kf.time ?? 0);
+        const arr = kf.value as Array<PxGradientStop> | undefined;
         const sliced = arr?.[stopIdx] ?? prevDefinedStop(kfs, kfs.indexOf(kf), stopIdx);
         if (!sliced) continue;
-        const easing = keyframeEasing(kf);
+        const easing = kf.easing;
 
         const colorOut: PxKeyframe<PxKeyframeValue> = { time: t, value: sliced.color };
         if (easing !== undefined) colorOut.easing = easing;
@@ -240,11 +239,11 @@ function animatedStopNode(baseline: PxGradientStop, kfs: Array<PxKeyframe>, stop
  *  but degrades gracefully). */
 function prevDefinedStop(kfs: Array<PxKeyframe>, fromIdx: number, stopIdx: number): PxGradientStop | undefined {
     for (let i = fromIdx; i >= 0; i--) {
-        const arr = keyframeValue(kfs[i]) as Array<PxGradientStop> | undefined;
+        const arr = kfs[i].value as Array<PxGradientStop> | undefined;
         if (arr?.[stopIdx]) return arr[stopIdx];
     }
     for (let i = fromIdx + 1; i < kfs.length; i++) {
-        const arr = keyframeValue(kfs[i]) as Array<PxGradientStop> | undefined;
+        const arr = kfs[i].value as Array<PxGradientStop> | undefined;
         if (arr?.[stopIdx]) return arr[stopIdx];
     }
     return undefined;

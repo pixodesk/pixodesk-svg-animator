@@ -6,7 +6,7 @@
 
 
 import { PxChannelNumberSchema, PxTransformPartsSchema, PxVec2Schema, type PxKeyframe, type PxMaskedByEffect, type PxNode, type PxPropertyAnimation, type PxTransformByEffect, type PxTransformParts, type PxVec2 } from '../../format/PxAnimatorTypes';
-import { inlineAnimate, keyframeWith, normalizeKeyframe, partsRecord, ReadKind, readAnimatable, readStaticOrigin, staticTransformParts, TransformPart, type ReadPart, type ValueKeyframe } from '../shared/transformParts';
+import { authoredOf, inlineAnimate, keyframeWith, normalizeKeyframe, partsRecord, ReadKind, readAnimatable, readStaticOrigin, staticTransformParts, TransformPart, type ReadPart, type ValueKeyframe } from '../shared/transformParts';
 import type { ApplyContext, MaskAncestorTransform } from '../shared/types';
 import { genId, stripHash } from '../shared/util';
 
@@ -157,7 +157,7 @@ function negatedSpatialTangents(kf: PxKeyframe): Pick<PxKeyframe, 'tangentOut' |
  * sandwich pivots correctly per frame.
  */
 function wrapInverseAnimatedBodyTransform(inner: PxNode, node: PxNode, _ctx: ApplyContext): PxNode {
-    const animTr = inlineAnimate(node)?.transform;
+    const animTr = authoredOf(inlineAnimate(node)?.transform);
     const kfs = animTr?.keyframes;
     if (!kfs || !kfs.length) return inner;
 

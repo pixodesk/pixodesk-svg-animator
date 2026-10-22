@@ -53,6 +53,7 @@ only.
 | **L0 — plain SVG** | the element object itself: `{type, ...attributes, children}` | the drawing — elements and their SVG attributes, exactly as in any SVG; values are plain strings | the browser |
 | **L1 — typed values** | the same SVG attributes as L0 — the layer changes their values, not their place | values become typed instead of strings: numbers (`opacity: 0.5`), arrays (`translate: [96.8, 46.8]`), objects (`transform: { translate, rotate, scale }`). Units are never written — each property has one fixed, implied unit. A value written this way is exactly what a keyframe of L2 holds | the player |
 | **L2 — animated attributes** | `node.animate`, one entry per animated attribute name | keyframes for any attribute; the element itself and its place in the tree are untouched — delete every `animate` key and a valid static SVG remains | the player |
+| **L2 compiled — the low layer** | the same `node.animate` entries, spelled `{ kind, keyframes }` | the explicit form the player lowers every entry to before it plays: values typed by `kind`, easings resolved, loops expanded, a motion path sampled (or kept for the frame loop) — nothing left to resolve. An entry is all authored or all compiled — [Compiled animation](#compiled-animation--the-low-layer) | the player writes it; the editor reads it, never writes it |
 | **L3 — player effects** | `node.effects` | effects — short descriptions of masks, gradients, copies and other effects ([see more](#player-effects)), which the player expands into plain elements and attributes when the file loads | the player |
 | **L4 — editor meta** | `node.meta` | everything only the editor needs — labels, shape presets, the sources of applied effects; the player ignores this key entirely — [Editor meta and applied effects](#editor-meta-and-applied-effects) | the editor |
 | **L5 — pre-rendered SVG** | unlike the layers above, this one is not a part of the JSON document — it is a separate `.svg` file the editor produces on export | the same document, converted into an ordinary SVG file: the animation travels as CSS or a script inside it, and the editor data as `data-px-meta` attributes — [Meta in pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg/data-px-meta) | depends on the flavor: a CSS-animation file is played by the browser alone; a JS-animation file is played by the player embedded in it |
@@ -663,6 +664,44 @@ editor get this right automatically:
 ```
 
 Morphing runs on the player's frame loop (`engine: 'auto'` switches to it automatically).
+
+### Compiled animation — the low layer
+
+Before it plays a document, the player LOWERS every `animate` entry to its **compiled** form, and
+the result stays a valid document of this format — the same keyframe keys, the values typed by a
+`kind`, and nothing left to resolve:
+
+```js
+"fill": { "keyframes": [ { "time": 0, "value": "#ff0000", "easing": "smooth" }, { "time": 400, "value": "#0000ff" } ], "loop": true }   // authored
+"fill": { "kind": "color", "keyframes": [ { "time": 0, "value": [1, 0, 0, 1], "easing": [0.42, 0, 0.58, 1] }, … ] }                    // compiled
+```
+
+- **All authored or all compiled.** An entry with a `kind` is compiled through and through; an entry
+  without one is authored. A compiled kind with authored values (`"kind": "color"` holding `"#ff0000"`)
+  is not valid.
+- **Explicit.** `time` is required; `easing` is a resolved curve, never a name; there is no `loop`
+  (it is expanded into keyframes over the window). Times are content ms, like the authored ones.
+- **Per engine.** For the native engine a motion path is sampled into plain `transform` keyframes;
+  for the frame loop it keeps its tangents and `autoOrient`, and is evaluated each frame.
+- **Who writes it.** The player, in `prepareDocument`'s `plain` stage. The editor reads a compiled
+  entry back as its authored form and never writes one.
+
+<!-- px-check off compiled kinds, prose -->
+| `kind` | `value` | Extra |
+|---|---|---|
+| `number` | a number | `unit` — the unit every authored value carried (`"20%"` → `20` with `"unit": "%"`) |
+| `percent` | a 0..1 number, written as a percentage (`offset-distance`) | |
+| `rotate`, `skew` | a number (degrees) | |
+| `color` | `[r, g, b, a]`, every channel 0..1 — always four | |
+| `path` | `{ "paths": [ { "v", "i", "o", "c" } ] }` — the parsed bezier paths of `d` | |
+| `transform` | a parts record | keyframe `tangentIn` / `tangentOut` and `autoOrient` — a motion path the frame loop evaluates |
+| `numberList`, `translate`, `scale` | an array of numbers | |
+| `discrete` | a string — switches at the half, never blends (`url(#a)`, `none`, …) | |
+
+`isCompiledAnimation(entry)` tells the two forms apart; `PxAnyPropertyAnimationSchema` validates an
+entry of either form (`PxAnyPropertyAnimation`), `PxCompiledAnimationSchema` the compiled one alone
+(`PxCompiledAnimation`, its keyframes `PxCompiledKeyframe`). A compiled colour is a `PxRgba`
+(`PxRgbaSchema`), a resolved easing a `PxCubicBezier` (`PxCubicBezierSchema`). Schema 1.6 added this layer.
 
 ### Definitions — `animator.definitions`
 
@@ -1410,11 +1449,13 @@ prepareDocument(ready) === ready;                          // true: trusted, not
 indirection into plain nodes and plain keyframes, a tree any renderer can walk:
 
 1. **Effects** — every `node.effects` becomes real nodes, wrappers and defs.
-2. **Loops** — each property's `loop` is expanded into explicit keyframes.
-3. **Motion paths** — tangented `transform` keyframes and `autoOrient` are sampled into plain
-   `{ translate, rotate }` keyframes.
-4. **Animated `<use>`** — replaced by a `<g>` with a deep clone and fresh ids.
-5. **Rest poses** — an animated property with no static value gets the value of its **first
+2. **Animations** — every `animate` entry is lowered to its [compiled form](#compiled-animation--the-low-layer):
+   values typed by kind, easings resolved, each `loop` expanded into explicit keyframes, the static
+   `transform` composed under the animated one, and a motion path (tangented `transform` keyframes,
+   `autoOrient`) sampled into plain `{ translate, rotate }` keyframes — or, for the frame loop, kept
+   to be evaluated each frame.
+3. **Animated `<use>`** — replaced by a `<g>` with a deep clone and fresh ids.
+4. **Rest poses** — an animated property with no static value gets the value of its **first
    frame** as a plain attribute. At rest — not yet played, or cancelled — a player shows the
    static document, and a node an effect generated (a `transformBy` wrapper, a mask's inverse
    chain, a glyph on a path) has no static value of its own: without this step it sits at the
@@ -1427,7 +1468,7 @@ indirection into plain nodes and plain keyframes, a tree any renderer can walk:
    rest: the engine is run again with the poses in place, and a pose that changes anything it
    writes, at any point of the iteration, is taken back.
 
-Steps 3–4 run when `engine` is `native`. Pass `native` for **any renderer without live `<use>`
+Step 3 runs when `engine` is `native`, as does the sampling in step 2. Pass `native` for **any renderer without live `<use>`
 propagation** (including `react-native-svg`); `js` only for the DOM, which resolves `<use>`
 natively.
 
@@ -1449,13 +1490,14 @@ This is exactly how the React Native player precomputes its tracks and how the w
 renders each tick.
 
 `normalizeBindings` hands back each element as a `PxNormalizedBinding`: its id and its
-`channels` (`PxRuntimeAnimation`) — one `PxRuntimeChannel` per animated property, in the form the
-engines blend: times in window ms, easings resolved (`PxCubicBezier`), values converted. What a
-property's values ARE is decided once per channel and carried as its `kind` (`PxValueKind`): a
-colour as RGBA numbers, `d` as bezier paths (`PxPathValue`), `transform` as a parts record, a number
-with its unit (`"20%"` → `"80%"` blends and stays a percentage); a value that fits no blendable kind
-(`url(#a)` → `url(#b)`) switches at the halfway point instead of blending. Each keyframe is a
-`PxRuntimeKeyframe`, typed by its channel's kind.
+`channels` (`PxRuntimeAnimation`) — one compiled animation (`PxCompiledAnimation`) per animated
+property, shifted from content ms into window ms. An authored entry (an unprepared document, the
+pre-rendered builds) is compiled there. What a property's values ARE is decided once and carried
+as its `kind` (`PxValueKind`): a colour as RGBA numbers (`PxRgba`), `d` as bezier paths
+(`PxPathValue`), `transform` as a parts record, a number with its unit (`"20%"` → `"80%"` blends and
+stays a percentage); a value that fits no blendable kind (`url(#a)` → `url(#b)`) switches at the
+halfway point instead of blending. Easings are resolved (`PxCubicBezier`); each keyframe is a
+`PxCompiledKeyframe`, typed by its kind.
 
 ### Writing your own player
 
@@ -1638,8 +1680,8 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 | Preparing | `prepareDocument`, `documentStage`, `PxDocStage`, + `PxPrepareOptions`, `PxPreparedDocument` | ○ the one lowering pipeline, current → checked → resolved → plain, stamped on the result — [Preparing a document](#preparing-a-document). `carryPrep` (▪) re-stamps a doc a player derived from a prepared one; `reportDocumentProblems` (▪) turns what `checked` repaired into a player's warnings (`effectsShape` inside `effects`, else `documentRepaired`) |
 | Playback override | `PxTimelinePatch`, `PxPlaybackOverride`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult`, `PxTimelineShortcuts` | ● the `timeline` override as every player takes it, and the companion types of the three merge functions above |
 | No-driver patch | `suppressTriggerStart(patch?)` | ○ `trigger.start` forced to `'none'` on top of a caller's override — what every player applies when `playAsSaved` is absent (the components' non-`playAsSaved` control modes use the same helper) |
-| Keyframe forms | `keyframeValue`, `keyframeEasing`, `PxNormalizedKeyframe`, `PxNormalizedPropertyAnimation`, `PxAnyKeyframe`, `PxNormalizedPathValueSchema` | ▪ read a keyframe in either its wire or its runtime (`t` / `v` / `e`) form. `PxNormalizedPathValueSchema` casts a runtime `d` value (`{paths}`) |
-| Runtime channels | `PxNormalizedBinding`, `PxRuntimeAnimation`, `PxRuntimeChannel`, `PxRuntimeKeyframe`, `PxValueKind`, `PxCubicBezier`, `PxPathValue` | ○ what `normalizeBindings` hands the engines — see [Materializing a document](#materializing-a-document). `channelKindOf` (▪) is the one place a property's value kind is decided; `mapChannelKeyframes` (▪) runs keyframe work with the blend of the channel's kind (`PxChannelLerp` ▪) |
+| Compiled animation | `PxCompiledAnimation`, `PxCompiledKeyframe`, `PxAnyPropertyAnimation`, `isCompiledAnimation(entry)`, `PxCompiledAnimationSchema`, `PxAnyPropertyAnimationSchema`, `PxRgba`, `PxRgbaSchema`, `PxCubicBezier`, `PxCubicBezierSchema`, `PxPathValue` | ○ the format's low layer — [Compiled animation](#compiled-animation--the-low-layer). `compileAnimation`, `compileAnimationDefinition`, `compileAnimationsInTree`, `PxCompileContext` (▪) lower authored entries to it; `toAuthoredAnimation`, `authorCompiledAnimations` (▪) read it back as the authored form (the editor's read path); `anyPropertyAnimationSchemaOf` (▪) builds the entry union around a widened authored schema (the editor's); `PxNormalizedPathValueSchema` (▪) casts a compiled `d` value (`{paths}`) |
+| Runtime channels | `PxNormalizedBinding`, `PxRuntimeAnimation`, `PxValueKind` | ○ what `normalizeBindings` hands the engines: compiled animations in window ms — see [Materializing a document](#materializing-a-document). `channelKindOf` (▪) is the one place a property's value kind is decided; `mapChannelKeyframes` (▪) runs keyframe work with the blend of the channel's kind (`PxChannelLerp` ▪); `movesAlongPath` (▪) says whether a compiled `transform` is a motion path the frame loop evaluates |
 | Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTimeTimelineSchema`, `PxTriggerSchema`, `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxLoopSchema`, `PxDefinitionsSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxTransformValueSchema` | ○ the validator the format is written in |
 | Pipeline stages | `normalizeBindings` (○), `calcAnimationValues` (○), `materializeMotionPathInPropAnim`, `mergeStaticTransformIntoAnimDef` | ▪ stages of `materializeAllInTree`; call the pipeline instead. `calcAnimationValues(channels, ms, segments?)` takes an optional motion-path segment table (`createMotionPathSegments`, `MotionPathSegments` ▪) that its owner — an animator, one pass — keeps, so each curve segment is built once; there is no module-level cache |
 | Effect harness | `diffInEffect` | ▪ the editor's "equal in effect" comparison |
@@ -1672,8 +1714,8 @@ A string `"a.b.c"`:
 | `b` | player schema revision. A player at `a.b` reads files of the same `a` and any `b` up to its own |
 | `c` | editor extension — covers `meta.*` only. The player ignores it |
 
-This release reads schema **`1.5`** (`PX_WIRE_VERSION`, parsed; `formatWireVersion` gives the
-string back). The editor stamps every file it saves (`"1.5.1"` today); the player never writes
+This release reads schema **`1.6`** (`PX_WIRE_VERSION`, parsed; `formatWireVersion` gives the
+string back). The editor stamps every file it saves (`"1.6.1"` today); the player never writes
 the stamp.
 
 - **Not a gate.** A version gap on its own never refuses a file or warns. The player does not

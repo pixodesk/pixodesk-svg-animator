@@ -16,15 +16,17 @@
 // ============================================================================
 
 export { PX_LOOP_JUMP_SHIFT_MS, mergeStaticTransformIntoAnimDef } from './animation/PxDefinitions';
-export { channelKindOf, mapChannelKeyframes, type PxChannelLerp } from './animation/PxRuntimeChannel';
+export { channelKindOf, mapChannelKeyframes, movesAlongPath, type PxChannelLerp } from './animation/PxRuntimeChannel';
+export { authorCompiledAnimations, toAuthoredAnimation } from './animation/PxAuthoredAnimation';
+export { anyPropertyAnimationSchemaOf } from './format/PxAnimatorTypes';
+export { compileAnimation, compileAnimationDefinition, compileAnimationsInTree, type PxCompileContext } from './animation/PxDefinitions';
 export { diffInEffect } from './effects/PlayerEffectsUtil.visualModel';
 export { createPathSampler } from './effects/text/pathSampler';
 export { layoutGlyphTextChars, materializeGlyphText, materializeGlyphTextAlongPath } from './effects/text/textGlyphsEffect';
 export type { PxGlyphCharBox, GlyphFactory, GlyphFontsInput, GlyphMotion, GlyphPaint, GlyphPathProps, GlyphTextNode, GlyphVisibility } from './effects/text/textGlyphsEffect';
 export { extendedPathForBrowser } from './effects/text/textPathEffect';
 export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME, PX_TEXT_CONTENT_ATTR, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM } from './format/PxAnimatorConstants';
-export { keyframeEasing, keyframeValue } from './format/PxAnimatorTypes';
-export type { PxAnimatable, PxAnyKeyframe, PxNormalizedKeyframe, PxNormalizedPropertyAnimation } from './format/PxAnimatorTypes';
+export type { PxAnimatable } from './format/PxAnimatorTypes';
 export { diagnoseDocument, reportDocumentDiagnostics, reportDocumentProblems } from './format/PxDocumentDiagnostic';
 // Stage-stamp plumbing for players that derive a doc from a prepared one without touching its config.
 export { carryPrep } from './format/PxAnimatorConstants';

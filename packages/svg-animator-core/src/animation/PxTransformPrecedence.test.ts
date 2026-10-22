@@ -114,8 +114,8 @@ describe('end-to-end — normalizeBindings composes the static transform under t
         const anim: any = bindings[0].channels;
         expect(anim.translate).toBeUndefined();                       // lifted into transform
         const kfs = anim.transform.keyframes;
-        expect(kfs[0].v).toEqual({ rotate: 45, translate: [0, 0] });
-        expect(kfs[1].v).toEqual({ rotate: 45, translate: [80, 0] });
+        expect(kfs[0].value).toEqual({ rotate: 45, translate: [0, 0] });
+        expect(kfs[1].value).toEqual({ rotate: 45, translate: [80, 0] });
     });
 
     it('partial transform parts records inherit a STRING static transform', () => {
@@ -126,7 +126,7 @@ describe('end-to-end — normalizeBindings composes the static transform under t
             ] },
         }, 'translate(10,10)rotate(45)'));
         const kfs: any = (bindings[0].channels as any).transform.keyframes;
-        expect(kfs[0].v).toEqual({ translate: [0, 0], rotate: 45 }); // kf translate wins; rotate inherited
-        expect(kfs[1].v).toEqual({ translate: [80, 0], rotate: 45 });
+        expect(kfs[0].value).toEqual({ translate: [0, 0], rotate: 45 }); // kf translate wins; rotate inherited
+        expect(kfs[1].value).toEqual({ translate: [80, 0], rotate: 45 });
     });
 });

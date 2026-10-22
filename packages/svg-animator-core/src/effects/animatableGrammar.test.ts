@@ -36,8 +36,8 @@ describe('unified animatable grammar — loop / value base in effect slots', () 
         const path = collectByType(out, 'path')[0];
         expect(anim(path).strokeDashoffset.loop).toBe(true);
 
-        // Full pipeline: the SAME materializeInternalLoops code that expands
-        // node.animate loops consumes it — loop gone, kfs fill the 2000ms doc.
+        // Full pipeline: the compile step that expands node.animate loops
+        // consumes it — loop gone, kfs fill the 2000ms doc.
         const full = materializeEngine(input, PxTimelineEngine.js);
         const fullPath = collectByType(full, 'path')[0];
         const block = anim(fullPath).strokeDashoffset;

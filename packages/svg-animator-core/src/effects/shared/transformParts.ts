@@ -13,8 +13,8 @@
 
 import { px, type PxSchema } from '../../schema/PxSchema';
 import {
-    PxEasingOrRefSchema, PxKeyframeValueSchema, PxPropertyAnimationSchema, PxTransformPartsSchema, PxTransformValueWrapperSchema, PxVec2Schema,
-    type PxAnimationDefinition, type PxKeyframe, type PxKeyframeValue, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts, type PxVec2,
+    isCompiledAnimation, PxEasingOrRefSchema, PxKeyframeValueSchema, PxPropertyAnimationSchema, PxTransformPartsSchema, PxTransformValueWrapperSchema, PxVec2Schema,
+    type PxAnimationDefinition, type PxAnyPropertyAnimation, type PxKeyframe, type PxKeyframeValue, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts, type PxVec2,
 } from '../../format/PxAnimatorTypes';
 import type { ApplyContext } from './types';
 
@@ -74,6 +74,11 @@ const ShortSpellingSchema = px.object({
 export function inlineAnimate(node: PxNode): PxAnimationDefinition | undefined {
     const animate = node.animate;
     return typeof animate === 'object' && !Array.isArray(animate) ? animate : undefined;
+}
+
+/** An `animate` entry as an effect reworks it: authored only — effects run before the compile step, a compiled entry is already lowered. */
+export function authoredOf(anim: PxAnyPropertyAnimation | undefined): PxPropertyAnimation | undefined {
+    return anim && !isCompiledAnimation(anim) ? anim : undefined;
 }
 
 /** True when a translate animation rotates along its path (tangent handles or `autoOrient`) — origin must then pivot that rotation too. */

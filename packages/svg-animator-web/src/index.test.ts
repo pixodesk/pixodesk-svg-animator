@@ -504,13 +504,13 @@ describe('Loop expansion', () => {
         };
 
         const animDef = getTranslateAnim(doc);
-        const kfs = animDef['transform']?.keyframes as Array<{ t: number; v: { translate: [number, number] } }>;
-        const x = (i: number) => kfs[i].v.translate[0];
+        const kfs = animDef['transform']?.keyframes as Array<{ time: number; value: { translate: [number, number] } }>;
+        const x = (i: number) => kfs[i].value.translate[0];
 
         // Expected backward-tiled fill (then the 2 original kfs):
         //   t=0:[50,0] (tail start) · t=50:[100,0] (tail end) ┊ t=50:[0,0] · t=150:[100,0] (full rep)
         //   ┊ t=150:[0,0] · t=250:[100,0] (original)
-        expect(kfs.map(k => k.t)).toEqual([0, 50, 50, 150, 150, 250]);
+        expect(kfs.map(k => k.time)).toEqual([0, 50, 50, 150, 150, 250]);
 
         // The fix: the FIRST kf is the segment's mid-point tail (x=50), NOT the
         // head (x=0) the forward-tiling bug produced.
@@ -838,10 +838,9 @@ describe('Color attribute normalization (frames-mode parity)', () => {
     });
 
     // Audit other value types — same umbrella path, same loop-seam scenario.
-    // Bug shape: `expandLoopKeyframes` calls `interpolateValue(propName, prev.v,
-    // next.v, t)` at a partial-cut boundary. Each value type needs `interpolateValue`
-    // (and the pre-normalization in `materializeInternalLoopsInPropAnim`) to
-    // produce a clean result there — otherwise the boundary kf is NaN / broken
+    // Bug shape: `expandLoopKeyframes` blends `prev.value` and `next.value` at a
+    // partial-cut boundary. Each value kind needs its blend (and the conversion
+    // in `compileAnimation`) to produce a clean result there — otherwise the boundary kf is NaN / broken
     // and stays that way past the seam.
 
     it('loop on a NUMERIC `opacity` animation — no NaN at the seam', () => {

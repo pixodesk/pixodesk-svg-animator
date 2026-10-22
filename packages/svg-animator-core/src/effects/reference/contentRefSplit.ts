@@ -46,7 +46,7 @@
 
 import { applyTransformByEffect } from '../transform/transformationEffect';
 import { PxTransformPartsSchema, PxTransformValueWrapperSchema, type PxAnimationDefinition, type PxKeyframe, type PxNode, type PxPropertyAnimation, type PxTransformByEffect, type PxTransformParts } from '../../format/PxAnimatorTypes';
-import { hasPathRotation, inlineAnimate, keyframeWith, staticTransformParts, type ValueKeyframe } from '../shared/transformParts';
+import { authoredOf, hasPathRotation, inlineAnimate, keyframeWith, staticTransformParts, type ValueKeyframe } from '../shared/transformParts';
 import type { ApplyContext } from '../shared/types';
 import { stripHash } from '../shared/util';
 
@@ -142,7 +142,7 @@ function liftBodyTranslate(node: PxNode, transformBy: PxTransformByEffect | unde
     //    to the inner one (the inner has rotate/scale only).
     let didLiftAnimate = false;
     const animate = inlineAnimate(node);
-    const animTr = animate?.transform;
+    const animTr = authoredOf(animate?.transform);
     const kfs = animTr?.keyframes;
     // Each keyframe's parts record (a non-record value reads as no parts).
     const parts = kfs?.map((kf: PxKeyframe): PxTransformParts => PxTransformPartsSchema.castOrNull(kf.value) ?? {});

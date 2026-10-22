@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, normalizeBindings, PxTimelineEngine, PxValueKind, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxRuntimeAnimation, type PxRuntimeChannel, type PxRuntimeKeyframe, clampSeekMs, isValidPlaybackRate, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, normalizeBindings, PxTimelineEngine, PxValueKind, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxCompiledAnimation, type PxCompiledKeyframe, type PxRuntimeAnimation, clampSeekMs, isValidPlaybackRate, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
 import { PX_DEFAULT_ITERATIONS, mapChannelKeyframes, type PxChannelLerp } from '@pixodesk/svg-animator-core/internal';
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformParts, cubicBezier, kebabToCamelCaseWord, splitEasing, toRGBA, createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import { getSelector } from './PxAnimatorFrameLoop';
@@ -20,25 +20,25 @@ interface CssValue { key: string; value: string }
  * `rgba()`, a parts record / per-part channel into `transform` (with CSS units), `d` as `path("…")`,
  * a percent number as `%`, a number with its unit, anything else as it is.
  */
-function cssValuesOf(propName: string, channel: PxRuntimeChannel): Array<CssValue> {
+function cssValuesOf(propName: string, channel: PxCompiledAnimation): Array<CssValue> {
     switch (channel.kind) {
-        case PxValueKind.color: return channel.keyframes.map(kf => ({ key: propName, value: toRGBA(kf.v) }));
-        case PxValueKind.parts: return channel.keyframes.map(kf => ({ key: TRANSFORM, value: composeTransformParts(kf.v, { withUnits: true }) }));
-        case PxValueKind.translate: return channel.keyframes.map(kf => ({ key: TRANSFORM, value: 'translate(' + kf.v.map(v => v + 'px').join(',') + ')' }));
-        case PxValueKind.scale: return channel.keyframes.map(kf => ({ key: TRANSFORM, value: 'scale(' + kf.v.join(',') + ')' }));
-        case PxValueKind.rotate: return channel.keyframes.map(kf => ({ key: TRANSFORM, value: 'rotate(' + kf.v + 'deg)' }));
-        case PxValueKind.skew: return channel.keyframes.map(kf => ({ key: TRANSFORM, value: 'skewX(' + kf.v + 'deg)' }));
+        case PxValueKind.color: return channel.keyframes.map(kf => ({ key: propName, value: toRGBA(kf.value) }));
+        case PxValueKind.transform: return channel.keyframes.map(kf => ({ key: TRANSFORM, value: composeTransformParts(kf.value, { withUnits: true }) }));
+        case PxValueKind.translate: return channel.keyframes.map(kf => ({ key: TRANSFORM, value: 'translate(' + kf.value.map(v => v + 'px').join(',') + ')' }));
+        case PxValueKind.scale: return channel.keyframes.map(kf => ({ key: TRANSFORM, value: 'scale(' + kf.value.join(',') + ')' }));
+        case PxValueKind.rotate: return channel.keyframes.map(kf => ({ key: TRANSFORM, value: 'rotate(' + kf.value + 'deg)' }));
+        case PxValueKind.skew: return channel.keyframes.map(kf => ({ key: TRANSFORM, value: 'skewX(' + kf.value + 'deg)' }));
         // Animated path: the CSS `d` presentation-attr syntax `path("…")`, via the same bezierToSvgPath
         // the CSS export uses. forceCurves: CSS/WAAPI only interpolates `path()` values with IDENTICAL
         // command sequences — uniform all-`C` output keeps every keyframe structurally equal (mixed L/C,
         // e.g. round-corner radius 0 vs >0, would go DISCRETE → 50% flip).
-        case PxValueKind.path: return channel.keyframes.map(kf => ({ key: propName, value: 'path("' + kf.v.paths.map(bz => bezierToSvgPath(bz, true)).join('') + '")' }));
+        case PxValueKind.path: return channel.keyframes.map(kf => ({ key: propName, value: 'path("' + kf.value.paths.map(bz => bezierToSvgPath(bz, true)).join('') + '")' }));
         // Percent-based CSS properties (offset-distance): the wire carries 0..1 numbers, the property
         // needs a <length-percentage> — the same maths and units as the frames engine.
-        case PxValueKind.percent: return channel.keyframes.map(kf => ({ key: propName, value: (kf.v * 100) + '%' }));
-        case PxValueKind.number: return channel.keyframes.map(kf => ({ key: propName, value: '' + kf.v + (channel.unit ?? '') }));
-        case PxValueKind.numberList: return channel.keyframes.map(kf => ({ key: propName, value: '' + kf.v }));
-        case PxValueKind.discrete: return channel.keyframes.map(kf => ({ key: propName, value: kf.v }));
+        case PxValueKind.percent: return channel.keyframes.map(kf => ({ key: propName, value: (kf.value * 100) + '%' }));
+        case PxValueKind.number: return channel.keyframes.map(kf => ({ key: propName, value: '' + kf.value + (channel.unit ?? '') }));
+        case PxValueKind.numberList: return channel.keyframes.map(kf => ({ key: propName, value: '' + kf.value }));
+        case PxValueKind.discrete: return channel.keyframes.map(kf => ({ key: propName, value: kf.value }));
     }
 }
 
@@ -51,24 +51,24 @@ const TRANSFORM = 'transform';
  * exact start/end values rather than out-of-range ones.
  */
 function clipKeyframesToDuration<V>(
-    keyframes: Array<PxRuntimeKeyframe<V>>,
+    keyframes: Array<PxCompiledKeyframe<V>>,
     duration: number,
     lerp: PxChannelLerp<V>,
-): Array<PxRuntimeKeyframe<V>> {
-    const result: Array<PxRuntimeKeyframe<V>> = [];
+): Array<PxCompiledKeyframe<V>> {
+    const result: Array<PxCompiledKeyframe<V>> = [];
 
     for (let i = 0; i < keyframes.length; i++) {
         const kf = keyframes[i];
-        const t = kf.t;
+        const t = kf.time;
 
         if (t < 0) {
             // If the next keyframe is in range, interpolate value at t=0
             const next = keyframes[i + 1];
-            if (next && next.t >= 0) {
-                const localFrac = (0 - t) / (next.t - t);
-                const easedFrac = kf.e ? cubicBezier(kf.e)(localFrac) : localFrac;
-                const { right: rightEasing } = splitEasing(kf.e, localFrac);
-                result.push({ t: 0, v: lerp(kf.v, next.v, easedFrac), e: rightEasing });
+            if (next && next.time >= 0) {
+                const localFrac = (0 - t) / (next.time - t);
+                const easedFrac = kf.easing ? cubicBezier(kf.easing)(localFrac) : localFrac;
+                const { right: rightEasing } = splitEasing(kf.easing, localFrac);
+                result.push({ time: 0, value: lerp(kf.value, next.value, easedFrac), easing: rightEasing });
             }
             continue;
         }
@@ -76,12 +76,12 @@ function clipKeyframesToDuration<V>(
         if (t > duration) {
             // If the previous keyframe was in range, interpolate value at t=duration
             const prev = keyframes[i - 1];
-            if (prev && prev.t <= duration) {
-                const localFrac = (duration - prev.t) / (t - prev.t);
-                const easedFrac = prev.e ? cubicBezier(prev.e)(localFrac) : localFrac;
-                const { left: leftEasing } = splitEasing(prev.e, localFrac);
-                if (result.length > 0) result[result.length - 1] = { ...result[result.length - 1], e: leftEasing };
-                result.push({ t: duration, v: lerp(prev.v, kf.v, easedFrac), e: undefined });
+            if (prev && prev.time <= duration) {
+                const localFrac = (duration - prev.time) / (t - prev.time);
+                const easedFrac = prev.easing ? cubicBezier(prev.easing)(localFrac) : localFrac;
+                const { left: leftEasing } = splitEasing(prev.easing, localFrac);
+                if (result.length > 0) result[result.length - 1] = { ...result[result.length - 1], easing: leftEasing };
+                result.push({ time: duration, value: lerp(prev.value, kf.value, easedFrac), easing: undefined });
             }
             break;
         }
@@ -127,8 +127,8 @@ export function convertToWebApiKeyframes(
             // The easing is on the SOURCE keyframe: it applies from this kf to the next, matching the
             // WAAPI convention — resolved already when the channel was converted.
             const cssKf: Keyframe = {
-                offset: clamp(kf.t / duration, 0, 1),
-                easing: kf.e ? 'cubic-bezier(' + kf.e.join(',') + ')' : undefined,
+                offset: clamp(kf.time / duration, 0, 1),
+                easing: kf.easing ? 'cubic-bezier(' + kf.easing.join(',') + ')' : undefined,
             };
             // `CSS.supports` takes a CSS PROPERTY name, so it must be asked in kebab-case —
             // `CSS.supports('strokeDasharray', …)` is always false. Prop names reach us in

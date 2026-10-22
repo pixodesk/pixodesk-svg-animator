@@ -90,8 +90,8 @@ export type { PxAnimatorRegistry, PxAnimatorsEvent, PxAnimatorsListener } from '
 // into plain sampled `{ translate, rotate? }` kfs. Called automatically by the
 // player's binding pipeline; exposed so the Editor can produce a fully-flat
 // document for renderers without tangent support (e.g. react-native-svg).
-// Pair with `materializeNodeEffects` + `materializeInternalLoopsInTree` for the
-// full flatten pipeline (see motion-along-path-waapi-rework.md).
+// The full flatten pipeline is `materializeAllInTree` — its compile step samples the path
+// (see motion-along-path-waapi-rework.md).
 
 // `<use>` instance materializer — replaces `<use href="#anim-target">` with
 // `<g>` carrying a deep clone of the target subtree (fresh ids, rewritten
@@ -99,7 +99,7 @@ export type { PxAnimatorRegistry, PxAnimatorsEvent, PxAnimatorsListener } from '
 // through SVG `<use>` shadow trees in Chrome and Safari.
 
 // Single-call materialization pipeline — runs `materializeNodeEffects` +
-// `materializeInternalLoopsInTree` + (for waapi) `materializeMotionPathsInTree`
+// `compileAnimationsInTree` (loops expanded; for waapi, motion paths sampled)
 // + `materializeAnimatedUseInstances` in the canonical order. The player calls
 // this internally from `createAnimatorImpl`; exported here so the Editor's
 // flat-export path uses the EXACT same function — guarantees no pipeline

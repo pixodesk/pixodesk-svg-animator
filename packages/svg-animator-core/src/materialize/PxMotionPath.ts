@@ -29,21 +29,28 @@
 
 import { bezier2D_arcAtT, bezier2D_arcLengthLUT, bezier2D_derivativeAt, bezier2D_pointAt, clamp, invertEasing, splitEasing } from '../util/PxAnimatorUtil';
 import type { ArcLengthLUT } from '../util/PxAnimatorUtil';
-import type { PxAnyKeyframe, PxNode, PxPropertyAnimation, PxTransformParts } from '../format/PxAnimatorTypes';
-import { keyframeTime, keyframeValue, keyframeEasing, keyframeTangentIn, keyframeTangentOut } from '../format/PxAnimatorTypes';
-import { mergeStaticTransformIntoAnimDef } from '../animation/PxStaticTransformMerge';
-import type { PxRuntimeKeyframe } from '../animation/PxRuntimeChannel';
+import type { PxCompiledKeyframe, PxEasingOrRef, PxPropertyAnimation, PxTransformParts, PxVec2 } from '../format/PxAnimatorTypes';
+import { isRecord } from '../schema/PxSchema';
 
 /** A sampled output keyframe: a plain parts record, no tangents. */
-type SampledKf = PxRuntimeKeyframe<PxTransformParts>;
+type SampledKf = PxCompiledKeyframe<PxTransformParts>;
+
+/** What the sampler and the per-frame evaluation read from a keyframe — an authored one and a compiled `transform` one both qualify. @internal */
+export interface MotionPathKeyframe {
+    readonly time?: number;
+    readonly value?: unknown;
+    readonly easing?: PxEasingOrRef;
+    readonly tangentIn?: PxVec2;
+    readonly tangentOut?: PxVec2;
+}
 
 
 type Point2 = [number, number];
 type Easing = [number, number, number, number];
 
 
-function getKfTranslate(kf: PxAnyKeyframe): Point2 | undefined {
-    const v = keyframeValue(kf);
+function getKfTranslate(kf: MotionPathKeyframe): Point2 | undefined {
+    const v = kf.value;
     if (!v) return undefined;
     if (Array.isArray(v) && v.length >= 2 && typeof v[0] === 'number' && typeof v[1] === 'number') {
         // Composite per-part shape: `value: [x, y]` directly.
@@ -54,13 +61,13 @@ function getKfTranslate(kf: PxAnyKeyframe): Point2 | undefined {
     return undefined;
 }
 
-function getKfTime(kf: PxAnyKeyframe): number {
-    return keyframeTime(kf) as number;
+function getKfTime(kf: MotionPathKeyframe): number {
+    return kf.time ?? 0;
 }
 
-/** A RESOLVED easing only — a name (a wire keyframe the tree walker reads) cannot be split, so it samples linear. */
-function getKfEasing(kf: PxAnyKeyframe): Easing | undefined {
-    const e = keyframeEasing(kf);
+/** A RESOLVED easing only — a name (an authored keyframe nobody resolved) cannot be split, so it samples linear. */
+function getKfEasing(kf: MotionPathKeyframe): Easing | undefined {
+    const e = kf.easing;
     return Array.isArray(e) ? e : undefined;
 }
 
@@ -73,11 +80,11 @@ function getKfEasing(kf: PxAnyKeyframe): Easing | undefined {
  * @internal
  */
 export function propAnimIsMotionPath(anim: PxPropertyAnimation): boolean {
-    const kfs: Array<PxAnyKeyframe> | undefined = anim.keyframes;
+    const kfs = anim.keyframes;
     if (!Array.isArray(kfs)) return false;
     if (anim.autoOrient) return true;
     for (const kf of kfs) {
-        if (keyframeTangentIn(kf) || keyframeTangentOut(kf)) return true;
+        if (kf.tangentIn || kf.tangentOut) return true;
     }
     return false;
 }
@@ -102,7 +109,7 @@ interface MotionPathSegmentCache {
 /** Computed segments of one owner, keyed on the keyframe PAIR — not `prevKf` alone: one keyframe can
  *  start different segments across evaluations (a lookup outside the keyframe range answers with a
  *  first→last pair), and a `prevKf`-only key served that bogus segment for the real one. @internal */
-export type MotionPathSegments = Map<PxAnyKeyframe, Map<PxAnyKeyframe, MotionPathSegmentCache>>;
+export type MotionPathSegments = Map<MotionPathKeyframe, Map<MotionPathKeyframe, MotionPathSegmentCache>>;
 
 /** A fresh, empty segment table — one per owner (an animator, a materialize call). @internal */
 export function createMotionPathSegments(): MotionPathSegments {
@@ -111,8 +118,8 @@ export function createMotionPathSegments(): MotionPathSegments {
 
 /** The segment prevKf → nextKf: from `segments` when given (computed once per pair), else computed fresh. */
 function segmentOf(
-    prevKf: PxAnyKeyframe,
-    nextKf: PxAnyKeyframe,
+    prevKf: MotionPathKeyframe,
+    nextKf: MotionPathKeyframe,
     prevPos: Point2,
     nextPos: Point2,
     segments: MotionPathSegments | undefined,
@@ -120,8 +127,8 @@ function segmentOf(
     let byNext = segments?.get(prevKf);
     const existing = byNext?.get(nextKf);
     if (existing) return existing;
-    const to = keyframeTangentOut(prevKf);
-    const ti = keyframeTangentIn(nextKf);
+    const to = prevKf.tangentOut;
+    const ti = nextKf.tangentIn;
     const P1: Point2 = [prevPos[0] + (to ? to[0] : 0), prevPos[1] + (to ? to[1] : 0)];
     const P2: Point2 = [nextPos[0] + (ti ? ti[0] : 0), nextPos[1] + (ti ? ti[1] : 0)];
     const lut = bezier2D_arcLengthLUT(prevPos, P1, P2, nextPos);
@@ -139,10 +146,8 @@ function segmentOf(
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Frames-mode kernel — preserved for any caller that still wants parametric
-//  evaluation. The binding pipeline no longer needs it (motion-path is
-//  materialized at `normalizeBindings` time), but it's a useful primitive
-//  on its own.
+//  Frames-mode kernel — the frame loop evaluates a compiled motion path (one that
+//  kept its tangents) with it, per frame.
 // ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -163,8 +168,8 @@ export interface MotionPathSample {
  * @internal
  */
 export function evaluateMotionPathSegment(
-    prevKf: PxAnyKeyframe,
-    nextKf: PxAnyKeyframe,
+    prevKf: MotionPathKeyframe,
+    nextKf: MotionPathKeyframe,
     prevPos: Point2,
     nextPos: Point2,
     localProgress: number,
@@ -208,7 +213,7 @@ function tFromArcFraction(lut: ArcLengthLUT, arcFrac: number): number {
 // ─────────────────────────────────────────────────────────────────────────────
 
 
-/** Sampling configuration shared by `materializeMotionPathInPropAnim` + `materializeMotionPathsInTree`. @internal */
+/** Sampling configuration of `sampleMotionPathKeyframes` (and `materializeMotionPathInPropAnim`). @internal */
 export interface MotionPathMaterializationOptions {
     /** Max chord-to-curve deviation per sub-interval, in user units (default 0.5). */
     flatnessTolerance?: number;
@@ -249,8 +254,7 @@ export function materializeMotionPathInPropAnim(
     if (!Array.isArray(kfs) || kfs.length < 2) return anim;
     const out = sampleMotionPathKeyframes(kfs, !!anim.autoOrient, opts);
     if (!out) return anim;
-    // Output converges on `keyframes` — the `kfs` alias is gone (review §1.2/§6.1). The sampled
-    // keyframes are in the runtime spelling (`t` / `v` / `e`) — the plain tree carries them (open: 2b).
+    // Authored again: sampled parts records with resolved easings are plain authored keyframes.
     const result: PxPropertyAnimation = { keyframes: out };
     if (anim.loop !== undefined) result.loop = anim.loop;
     return result;
@@ -263,7 +267,7 @@ export function materializeMotionPathInPropAnim(
  * @internal
  */
 export function sampleMotionPathKeyframes(
-    kfs: ReadonlyArray<PxAnyKeyframe>,
+    kfs: ReadonlyArray<MotionPathKeyframe>,
     autoOrient: boolean,
     opts?: MotionPathMaterializationOptions,
 ): Array<SampledKf> | undefined {
@@ -321,7 +325,7 @@ export function sampleMotionPathKeyframes(
     // applies to the NEXT segment after this animation, or nothing — but the
     // wire format preserves it regardless).
     const lastInE = getKfEasing(kfs[kfs.length - 1]);
-    if (lastInE) out[out.length - 1].e = lastInE;
+    if (lastInE) out[out.length - 1].easing = lastInE;
 
     // Unwrap autoOrient rotations so linear interp between samples doesn't
     // take the long way around the circle. atan2 returns in (-180°, 180°];
@@ -340,11 +344,11 @@ export function sampleMotionPathKeyframes(
  *  CSS / SVG rotation accepts any range. Exported — the glyph along-path baker
  *  (`buildAnimatedAlongPath`) needs the identical seam fix for its sampled
  *  per-glyph tangent rotations. */
-export function unwrapAutoOrientRotations(kfs: Array<PxAnyKeyframe>): void {
+export function unwrapAutoOrientRotations(kfs: ReadonlyArray<{ readonly value?: unknown }>): void {
     let prev: number | undefined;
     for (const kf of kfs) {
-        const v = keyframeValue(kf) as { rotate?: number } | undefined;
-        if (!v || typeof v.rotate !== 'number') continue;
+        const v = kf.value;
+        if (!isRecord(v) || typeof v.rotate !== 'number') continue;
         if (prev === undefined) { prev = v.rotate; continue; }
         let r = v.rotate;
         while (r - prev > 180)  r -= 360;
@@ -356,13 +360,13 @@ export function unwrapAutoOrientRotations(kfs: Array<PxAnyKeyframe>): void {
 
 
 function makeOutKf(time: number, value: PxTransformParts): SampledKf {
-    return { t: time, v: value };
+    return { time, value };
 }
 
 /** Reads the kf's value-as-parts (object form). Returns `undefined` if the kf
  *  has no value or it's an array form (single-part composite). */
-function getKfValueParts(kf: PxAnyKeyframe): PxTransformParts | undefined {
-    const v = keyframeValue(kf);
+function getKfValueParts(kf: MotionPathKeyframe): PxTransformParts | undefined {
+    const v = kf.value;
     if (!v || typeof v !== 'object' || Array.isArray(v)) return undefined;
     return v as PxTransformParts;
 }
@@ -442,7 +446,7 @@ function explicitRotateAt(
 /** Derivative angle at t=0 of segment kf[0] → kf[1]. Used to seed the first
  *  output kf's rotation; without this the very first frame would render with
  *  no rotation while every subsequent sample has one. */
-function derivAngleForFirstKf(kf0: PxAnyKeyframe, kf1: PxAnyKeyframe, segments: MotionPathSegments): number {
+function derivAngleForFirstKf(kf0: MotionPathKeyframe, kf1: MotionPathKeyframe, segments: MotionPathSegments): number {
     const p0 = getKfTranslate(kf0);
     const p1 = getKfTranslate(kf1);
     if (!p0 || !p1) return 0;
@@ -477,12 +481,12 @@ function wrappedAngleDelta(a: number, b: number): number {
  */
 function insertSharpCornerStepKfIfNeeded(
     out: Array<SampledKf>,
-    prevKf: PxAnyKeyframe, nextKf: PxAnyKeyframe,
+    prevKf: MotionPathKeyframe, nextKf: MotionPathKeyframe,
     prevPos: Point2, nextPos: Point2,
     rotationTol: number,
     segments: MotionPathSegments,
 ): void {
-    const prevExit = out[out.length - 1].v.rotate;
+    const prevExit = out[out.length - 1].value.rotate;
     if (typeof prevExit !== 'number') return;
 
     // `prevExit` is the SUMMED rotation (tangent + explicit). Compare pure
@@ -524,7 +528,7 @@ const CORNER_STEP_AFTER_BOUNDARY_MS = 0.05;
  *  rotations, and split easings. */
 function materializeSegment(
     out: Array<SampledKf>,
-    prevKf: PxAnyKeyframe, nextKf: PxAnyKeyframe,
+    prevKf: MotionPathKeyframe, nextKf: MotionPathKeyframe,
     prevPos: Point2, nextPos: Point2,
     autoOrient: boolean,
     flatnessTol: number, rotationTol: number, maxSamples: number,
@@ -575,8 +579,8 @@ function materializeSegment(
         // (which is the kf that PRECEDES this sub-kf — the prev kf for i=0,
         // or the previously-emitted sub-kf for i>0).
         const ownerIdx = i === 0 ? startIdx : out.length - 1;
-        if (left) out[ownerIdx].e = left;
-        else delete out[ownerIdx].e;
+        if (left) out[ownerIdx].easing = left;
+        else delete out[ownerIdx].easing;
 
         const tGlobal = prevTime + s.u * (nextTime - prevTime);
         const value = buildOutKfValue(prevV, nextV, s.p, s.pos, s.rotateDeg, autoOrient);
@@ -710,62 +714,4 @@ function perpDist(q: Point2, pA: Point2, pB: Point2): number {
     }
     const cross = (q[0] - pA[0]) * dy - (q[1] - pA[1]) * dx;
     return Math.abs(cross) / Math.sqrt(len2);
-}
-
-
-// ─────────────────────────────────────────────────────────────────────────────
-//  Tree walker — applies `materializeMotionPathInPropAnim` to every `node.animate.transform`
-//  whose propAnim is a motion-path. Immutable: returns the input by reference
-//  when no changes were needed; otherwise clones along the path to each
-//  converted node and shares all other sub-trees.
-// ─────────────────────────────────────────────────────────────────────────────
-
-
-// @px-importance important
-/** @internal */
-export function materializeMotionPathsInTree(
-    root: PxNode,
-    opts?: MotionPathMaterializationOptions,
-): PxNode {
-    const out = walkAndMaterialize(root, opts);
-    return out ?? root;
-}
-
-function walkAndMaterialize(node: PxNode, opts?: MotionPathMaterializationOptions): PxNode | null {
-    let newChildren: Array<PxNode> | undefined;
-    if (node.children) {
-        for (let i = 0; i < node.children.length; i++) {
-            const ch = node.children[i];
-            const ret = walkAndMaterialize(ch, opts);
-            if (ret !== null) {
-                if (!newChildren) newChildren = node.children.slice();
-                newChildren[i] = ret;
-            }
-        }
-    }
-
-    let newAnimate: Record<string, PxPropertyAnimation> | undefined;
-    const animBucket = node.animate;
-    if (animBucket && typeof animBucket === 'object' && !Array.isArray(animBucket)) {
-        // The node's STATIC transform composes under the animated one — merged in FIRST, so the
-        // flattener sees complete keyframe values. Flattening bakes `rotate` into every sample
-        // (tangent + the keyframe's own), so a static `rotate` the keyframes do not repeat had to
-        // be in those values by now: merged afterwards, as it used to be, it was overridden by the
-        // baked samples and lost — the native engine played 30° off from the js engine, which
-        // merges before it evaluates. The later merge in `normalizeBindings` is then a no-op.
-        const animDef = mergeStaticTransformIntoAnimDef(animBucket, node.transform) as Record<string, PxPropertyAnimation>;
-        const transformAnim = animDef.transform;
-        if (transformAnim && typeof transformAnim === 'object' && propAnimIsMotionPath(transformAnim)) {
-            const materialized = materializeMotionPathInPropAnim(transformAnim, opts);
-            if (materialized !== transformAnim) {
-                newAnimate = { ...animDef, transform: materialized };
-            }
-        }
-    }
-
-    if (!newChildren && !newAnimate) return null;
-    const cloned: PxNode = { ...node };
-    if (newChildren) cloned.children = newChildren;
-    if (newAnimate)  cloned.animate  = newAnimate as PxNode['animate'];
-    return cloned;
 }

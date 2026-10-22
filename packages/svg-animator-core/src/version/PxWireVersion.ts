@@ -248,6 +248,18 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         // nothing to restore: every 1.5 document is a valid 1.4 one (the key was optional)
         down: () => {},
     },
+    {
+        from: '1.5',
+        to: '1.6',
+        reason: 'An `animate` entry may be COMPILED — `{ kind, keyframes }` with explicit values typed by '
+            + '`kind`, no `loop`, no named easing — the low layer the player lowers a document to before '
+            + 'playing it (dev-docs/plans/compiled-animation-layer.md). Authored entries are unchanged.',
+        kind: PxWireStepKind.converted,
+        // a 1.5 document has no compiled entries: nothing to convert
+        up: () => {},
+        // No `down`: 1.6 can express compiled animation 1.5 could not — an older player reads a
+        // compiled entry as an authored one and plays it wrong.
+    },
 ];
 
 /** 1.4 → 1.5: `animator.debugGlobalName` dropped, at either animator address. */

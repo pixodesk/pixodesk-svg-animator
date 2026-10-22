@@ -166,6 +166,31 @@ export const PxAlongPathMode = {
 
 export type PxAlongPathMode = typeof PxAlongPathMode[keyof typeof PxAlongPathMode];
 
+/** A compiled animation's `kind` — how its values are represented, blended and written. @public @advanced */
+export const PxValueKind = {
+    /** A number — opacity, r, stroke width, … (with an optional `unit`). */
+    number: 'number',
+    /** A 0..1 number written as a percentage — `offset-distance`. */
+    percent: 'percent',
+    /** RGBA 0..1 — fill, stroke, stop-color, … */
+    color: 'color',
+    /** Bezier paths — `d`. */
+    path: 'path',
+    /** A transform parts record — `transform` (a motion path keeps its tangents for the frame loop). */
+    transform: 'transform',
+    /** A number list — `stroke-dasharray`. */
+    numberList: 'numberList',
+    /** The per-part channels, written into `transform`. */
+    translate: 'translate',
+    scale: 'scale',
+    rotate: 'rotate',
+    skew: 'skew',
+    /** Anything else (`url(#…)`, `none`, a string that is no number or colour): switches, never blends. */
+    discrete: 'discrete',
+} as const;
+
+export type PxValueKind = typeof PxValueKind[keyof typeof PxValueKind];
+
 /** WIRE `timeline.engine` — who runs the animation. `auto` (default) prefers the
  *  platform's animation API and falls back to JS when the document needs something it
  *  cannot express; `native` DEMANDS that API (WAAPI — and, for scroll/view timelines,

@@ -449,7 +449,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                         "type": "g",
                         "children": [
                           {
-                            "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":500,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1500,\\"value\\":{\\"translate\\":[100,0]}}]}}",
+                            "animate": "{\\"transform\\":{\\"kind\\":\\"transform\\",\\"keyframes\\":[{\\"time\\":500,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1500,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                             "fill": "#3399e6",
                             "id": "__GEN_1__",
                             "rx": "16",
@@ -480,7 +480,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                         "type": "g",
                         "children": [
                           {
-                            "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":250,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1250,\\"value\\":{\\"translate\\":[100,0]}}]}}",
+                            "animate": "{\\"transform\\":{\\"kind\\":\\"transform\\",\\"keyframes\\":[{\\"time\\":250,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1250,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                             "fill": "#3399e6",
                             "id": "__GEN_4__",
                             "rx": "16",
@@ -528,7 +528,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                         "type": "g",
                         "children": [
                           {
-                            "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":0,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1000,\\"value\\":{\\"translate\\":[100,0]}}]}}",
+                            "animate": "{\\"transform\\":{\\"kind\\":\\"transform\\",\\"keyframes\\":[{\\"time\\":0,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1000,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                             "fill": "#3399e6",
                             "id": "ball",
                             "rx": "16",
@@ -577,7 +577,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                                 "type": "g",
                                 "children": [
                                   {
-                                    "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":500,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1500,\\"value\\":{\\"translate\\":[100,0]}}]}}",
+                                    "animate": "{\\"transform\\":{\\"kind\\":\\"transform\\",\\"keyframes\\":[{\\"time\\":500,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1500,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                                     "fill": "#3399e6",
                                     "id": "__GEN_2__",
                                     "rx": "16",
@@ -615,7 +615,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                                 "type": "g",
                                 "children": [
                                   {
-                                    "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":250,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1250,\\"value\\":{\\"translate\\":[100,0]}}]}}",
+                                    "animate": "{\\"transform\\":{\\"kind\\":\\"transform\\",\\"keyframes\\":[{\\"time\\":250,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1250,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                                     "fill": "#3399e6",
                                     "id": "__GEN_5__",
                                     "rx": "16",
@@ -645,7 +645,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                         "type": "g",
                         "children": [
                           {
-                            "animate": "{\\"transform\\":{\\"keyframes\\":[{\\"time\\":0,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1000,\\"value\\":{\\"translate\\":[100,0]}}]}}",
+                            "animate": "{\\"transform\\":{\\"kind\\":\\"transform\\",\\"keyframes\\":[{\\"time\\":0,\\"value\\":{\\"translate\\":[0,0]}},{\\"time\\":1000,\\"value\\":{\\"translate\\":[100,0]}}]}}",
                             "fill": "#3399e6",
                             "id": "ball",
                             "rx": "16",

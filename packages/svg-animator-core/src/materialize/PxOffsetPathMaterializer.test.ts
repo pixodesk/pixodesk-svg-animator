@@ -30,10 +30,10 @@ describe('offset-path materializer (lightweight JSON → player)', () => {
         expect(n.style.offsetRotate).toBe('0deg');
         expect(n.style.offsetDistance).toBe('0%');
         expect(n.animate.transform).toBeUndefined();
-        const dist = n.animate.offsetDistance as { keyframes: Array<{ t: number; v: number }> };
-        expect(dist.keyframes.map(k => k.t)).toEqual([0, 1000]);
-        expect(dist.keyframes[0].v).toBe(0);
-        expect(dist.keyframes[1].v).toBe(1);
+        const dist = n.animate.offsetDistance as { keyframes: Array<{ time: number; value: number }> };
+        expect(dist.keyframes.map(k => k.time)).toEqual([0, 1000]);
+        expect(dist.keyframes[0].value).toBe(0);
+        expect(dist.keyframes[1].value).toBe(1);
         // The static translate must NOT survive — position now comes from the path.
         expect(n.transform).toBeUndefined();
     });
@@ -51,9 +51,9 @@ describe('offset-path materializer (lightweight JSON → player)', () => {
                 ],
             } } as never,
         } as never));
-        const n = out.children![0] as never as { style: Record<string, string>; animate: { offsetDistance: { keyframes: Array<{ t: number; v: number }> } } };
+        const n = out.children![0] as never as { style: Record<string, string>; animate: { offsetDistance: { keyframes: Array<{ time: number; value: number }> } } };
         expect(n.style.offsetRotate).toBe('auto');
-        const vs = n.animate.offsetDistance.keyframes.map(k => k.v);
+        const vs = n.animate.offsetDistance.keyframes.map(k => k.value);
         expect(vs[0]).toBe(0);
         expect(vs[1]).toBeGreaterThan(0.2);
         expect(vs[1]).toBeLessThan(0.3);   // ≈100/400 by length, NOT 0.5 by time

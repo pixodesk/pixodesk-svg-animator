@@ -10,7 +10,7 @@
 // pipeline applies is a rule the two engines disagree about.
 
 import { TRANSFORM_ATTR } from '../format/PxAnimatorConstants';
-import { PxTransformPartsSchema, type PxAnimationDefinition, type PxKeyframeValue, type PxPropertyAnimation, type PxTransformParts } from '../format/PxAnimatorTypes';
+import { isCompiledAnimation, PxTransformPartsSchema, type PxAnimationDefinition, type PxKeyframeValue, type PxPropertyAnimation, type PxTransformParts } from '../format/PxAnimatorTypes';
 import { parseTransformParts, PX_TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
 
 
@@ -27,6 +27,7 @@ import { parseTransformParts, PX_TRANSFORM_FN_NAMES } from '../util/PxAnimatorUt
  *      `transform` channel — the channel is REWRITTEN as a unified `transform` channel
  *      whose values carry the static parts: the rect stays rotated 45° AND slides.
  *
+ * Authored entries only: a compiled one took its static parts when it was compiled.
  * The static transform may be a parts record or an attribute string (parsed by the
  * conservative {@link parseTransformParts} — unparseable strings skip the merge).
  * NOT merged (documented limitations): several individual channels animated at once
@@ -51,7 +52,8 @@ export function mergeStaticTransformIntoAnimDef(
 
     const transformAnim = animDef[TRANSFORM_ATTR];
     if (transformAnim && typeof transformAnim === 'object') {
-        const anim = transformAnim as PxPropertyAnimation;
+        if (isCompiledAnimation(transformAnim)) return animDef;
+        const anim = transformAnim;
         if (Array.isArray(anim.keyframes)) {
             const out: PxPropertyAnimation = {
                 ...anim,
@@ -66,8 +68,8 @@ export function mergeStaticTransformIntoAnimDef(
     const channels = Object.keys(animDef).filter(k => PX_TRANSFORM_FN_NAMES.has(k));
     if (channels.length !== 1) return animDef; // several channels: unchanged (documented)
     const ch = channels[0];
-    const chAnim = animDef[ch] as PxPropertyAnimation;
-    if (!chAnim || typeof chAnim !== 'object' || !Array.isArray(chAnim.keyframes)) return animDef;
+    const chAnim = animDef[ch];
+    if (!chAnim || typeof chAnim !== 'object' || isCompiledAnimation(chAnim) || !Array.isArray(chAnim.keyframes)) return animDef;
     const lifted: PxPropertyAnimation = {
         ...chAnim,
         keyframes: chAnim.keyframes.map(kf => ({ ...kf, value: { ...staticParts, [ch]: kf.value } })),

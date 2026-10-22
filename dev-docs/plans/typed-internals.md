@@ -47,6 +47,7 @@ from the format, `doc` compared by content in React, Vue and React Native — se
   only in the engine (the tree step goes; check the motion-path sampling order); (c) keep, but type the
   `plain` tree as its own node type. 2a makes the conversion the single boundary that accepts both forms,
   so it does not depend on this choice.
+  **Decided 2026-10-22:** a public compiled-animation layer of the format — [compiled-animation-layer.md](./compiled-animation-layer.md).
 
 ## Plan (tick as implemented)
 
@@ -75,7 +76,7 @@ from the format, `doc` compared by content in React, Vue and React Native — se
 |---|---|
 | Object builders state their result once (`asBuilt`) | a loop building an object key by key cannot prove it equals the mapped type `InferShape<S>` |
 | The union factories state their members' type once (`asMembersOf`) | TypeScript cannot follow `UnionMembers<T>` (a mapped type) back to the tuple it came from |
-| The plain tree still holds converted keyframes | 2b, decided separately |
+| The plain tree still holds converted keyframes | 2b — [compiled-animation-layer.md](./compiled-animation-layer.md) |
 | A legacy `[x, y]` skew (the pre-1.3 per-part channel) | a parts record's `skew` is ONE number (skewX): the malformed part is dropped, the rest of the record plays |
 | A `transform` channel of strings (`"translate(…)"`) | `discrete` — the frames engine switches at half; WAAPI hands the strings to the browser, which interpolates them |
 | A colour channel with a value `parseColor` cannot read (`red`, `url(#g)`, `none`) | `discrete` in the frames engine; WAAPI passes the value on (the browser blends named colours) |

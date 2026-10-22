@@ -24,7 +24,6 @@
 
 import { OFFSET_DISTANCE_ATTR, TRANSFORM_ATTR, TRANSFORM_PART } from '../format/PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxKeyframe, PxNode, PxPropertyAnimation } from '../format/PxAnimatorTypes';
-import { keyframeTime, keyframeValue, keyframeEasing, keyframeTangentIn, keyframeTangentOut } from '../format/PxAnimatorTypes';
 
 type PxVec2 = [number, number];
 
@@ -60,7 +59,7 @@ const fmt = (n: number): string => {
  * express) — the caller then leaves the binding for the ordinary pipeline.
  */
 function buildOffsetPath(propAnim: PxPropertyAnimation): {
-    pathStr: string; distanceKfs: Array<PxKeyframe>; autoOrient: boolean; anchor: PxVec2; keyframesCarryRotate: boolean;
+    pathStr: string; distanceKfs: Array<PxKeyframe<number>>; autoOrient: boolean; anchor: PxVec2; keyframesCarryRotate: boolean;
 } | undefined {
     if ((propAnim as { alongPathMode?: string }).alongPathMode !== 'offsetPath') return undefined;
 
@@ -79,14 +78,14 @@ function buildOffsetPath(propAnim: PxPropertyAnimation): {
     // `offset-anchor` pins the element's own origin point (o, in its box) to the path.
     // Anchoring 0 0 on the raw translates put the element's CORNER on a corner-trajectory
     // and pivoted rotation about the corner — visibly off the path for centered origins.
-    const first = keyframeValue(kfs[0]) as { origin?: PxVec2 } | undefined;
+    const first = kfs[0].value as { origin?: PxVec2 } | undefined;
     const anchor: PxVec2 = first?.origin && first.origin.length >= 2
         ? [first.origin[0], first.origin[1]] : [0, 0];
 
     const points: Array<PxVec2> = [];
     let keyframesCarryRotate = false;
     for (const kf of kfs) {
-        const v = keyframeValue(kf) as { translate?: PxVec2; origin?: PxVec2; rotate?: unknown } | undefined;
+        const v = kf.value as { translate?: PxVec2; origin?: PxVec2; rotate?: unknown } | undefined;
         const tr = v?.translate;
         if (!tr || tr.length < 2) return undefined;
         const parts = Object.keys(v as object);
@@ -103,15 +102,15 @@ function buildOffsetPath(propAnim: PxPropertyAnimation): {
     }
     // No tangent anywhere ⇒ straight lines ⇒ a plain translate animation renders this
     // everywhere with no support floor; the offset encoding buys nothing.
-    if (!kfs.some(kf => keyframeTangentIn(kf) || keyframeTangentOut(kf))) return undefined;
+    if (!kfs.some(kf => kf.tangentIn || kf.tangentOut)) return undefined;
 
     // Path string + per-segment arc lengths, in one pass.
     let d = 'M' + fmt(points[0][0]) + ',' + fmt(points[0][1]);
     const segLens: Array<number> = [];
     for (let i = 0; i < points.length - 1; i++) {
         const p0 = points[i], p1 = points[i + 1];
-        const to = keyframeTangentOut(kfs[i]) ?? [0, 0];
-        const ti = keyframeTangentIn(kfs[i + 1]) ?? [0, 0];
+        const to = kfs[i].tangentOut ?? [0, 0];
+        const ti = kfs[i + 1].tangentIn ?? [0, 0];
         const c1: PxVec2 = [p0[0] + to[0], p0[1] + to[1]];
         const c2: PxVec2 = [p1[0] + ti[0], p1[1] + ti[1]];
         d += 'C' + fmt(c1[0]) + ',' + fmt(c1[1]) + ',' + fmt(c2[0]) + ',' + fmt(c2[1]) + ',' + fmt(p1[0]) + ',' + fmt(p1[1]);
@@ -122,13 +121,13 @@ function buildOffsetPath(propAnim: PxPropertyAnimation): {
 
     // `offset-distance` percentages are ARC-LENGTH fractions — each keyframe lands at its
     // cumulative share of the path length (mirrors the Editor's `segments.endPct`).
-    const distanceKfs: Array<PxKeyframe> = [];
+    const distanceKfs: Array<PxKeyframe<number>> = [];
     let cum = 0;
     for (let i = 0; i < kfs.length; i++) {
         if (i > 0) cum += segLens[i - 1];
-        const out: PxKeyframe = { t: keyframeTime(kfs[i]), v: cum / total } as never;
-        const e = keyframeEasing(kfs[i]);
-        if (e !== undefined) (out as { e?: unknown }).e = e;
+        const out: PxKeyframe<number> = { time: kfs[i].time ?? 0, value: cum / total };
+        const e = kfs[i].easing;
+        if (e !== undefined) out.easing = e;
         distanceKfs.push(out);
     }
 
@@ -151,7 +150,7 @@ export function materializeOffsetPathsInTree(root: PxAnimatedSvgDocument): PxAni
             if (built) {
                 const newAnimate: Record<string, PxPropertyAnimation> = { ...anim };
                 delete newAnimate[TRANSFORM_ATTR];
-                const distance: PxPropertyAnimation = { keyframes: built.distanceKfs as never } as never;
+                const distance: PxPropertyAnimation = { keyframes: built.distanceKfs };
                 if (transform.loop !== undefined) distance.loop = transform.loop;
                 newAnimate[OFFSET_DISTANCE_ATTR] = distance;
 
