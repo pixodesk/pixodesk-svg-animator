@@ -1,7 +1,7 @@
 # First-use review — the API, the schema and the docs through a newcomer's eyes
 
 Status **2026-10-15** (two passes the same day: the exports and schemas, then every guide in
-`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4), §14 (onReady + getDuration), §15 (one validateDocument → { valid, errors, findings }), §16 (one public PX_WIRE_VERSION; the string is internal), §17 (guide says "materializing"; no rename), §17a (prepareDocument pipeline, no WeakMaps; `resolveAnimatorTimeline` internal). Pending: §17b WeakMap audit, §17c `as any` audit. — each closes with a **Done** note.
+`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4), §14 (onReady + getDuration), §15 (one validateDocument → { valid, errors, findings }), §16 (one public PX_WIRE_VERSION; the string is internal), §17 (guide says "materializing"; no rename), §17a (prepareDocument pipeline, no WeakMaps; `resolveAnimatorTimeline` internal). §17b (no WeakMaps or global caches: motion-path segment tables owned per animator / per pass). Pending: §17c `as any` audit. — each closes with a **Done** note.
 
 Read as a first-time user would: the five packages' exports, the wire schemas, the component
 props, then the guides end to end — `README.md`, `docs/library/*`, `docs/format/README.md`,
@@ -728,7 +728,7 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
     a transition shim). Costs: internal signatures change (branded types), the editor must strip
     stamps at its mutable-edit choke point, and the stamp must be version-guarded.
 
-### 17b. Audit every WeakMap in the library ⏳
+### 17b. Audit every WeakMap in the library ✅
 
 - **Trigger:** the `flattenMemo` WeakMap in §17a looked suspicious to the owner — audit the rest.
 - **Instances today (non-test), `packages/*/src`:**
@@ -742,6 +742,51 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
   mutated input object can serve a stale value, and whether the cache belongs at module scope
   at all (cross-document leaks of correctness, not memory — WeakMap handles memory). Decide
   keep / scope-down / replace with an explicit field on the owning object.
+- **Done (2026-10-22):** no `WeakMap` / `WeakSet` / `WeakRef` and no module-level cache left in the player.
+  - Motion-path segments: `createMotionPathSegments()` makes a table its OWNER keeps — each frame-loop
+    animator (`createAdapterSvgAnimator`), each `materializeMotionPathInPropAnim` call, each rest-pose pass,
+    each React Native track compile — passed down via `calcAnimationValues(def, ms, segments?)` and
+    `evaluateMotionPathSegment(…, segments?)`; without a table nothing is cached. The module `WeakMap` and the
+    dead `_resetMotionPathSegmentCache` are gone; no type gained a field.
+  - The two function-local weak structures are a plain `Map` / `Set`.
+  - React Native: `ANIMATED_SVG_COMPONENTS`, a constant table built once at load (non-host tags excluded).
+  - Guards: `noGlobalCaches.test.ts` (no weak structure in any package source — seen red on the 4 old sites);
+    owner-table tests in `motionPathSegmentCache.test.ts` (fill once per pair + reuse — seen red when the table
+    stops storing; a pre-start frame does not poison it). Note: `getKeyframesPair` now only returns ADJACENT
+    pairs, so the pair key is defensive — the poisoning guard proper is that function's.
+- **Investigation (2026-10-22) — what is left after §17a, and can it go the same way?**
+  | Where | Scope | Verdict |
+  |---|---|---|
+  | `wireViewMemo`, `flattenMemo` | module | **gone** (§17a: the prepare pipeline's stamp) |
+  | `materialize/PxMotionPath.ts` `_segmentCache` | **module** | the one real global left — see below |
+  | `svg-animator-rn/src/SvgAnimator.tsx` `animatedComponentCache` (a `Map`, not weak) | module | not document data — see below |
+  | `materialize/PxAnimatorUseMaterializer.ts` `cache` | one call | fine (local; could be a plain `Map`) |
+  | `svg-animator-react/src/Utils.ts` `seen` (`WeakSet`) | one call | fine (cycle guard inside `deepEquals`) |
+  All other module-level `Set`s are constant lookup tables (attribute names, tag lists), not caches.
+  - **`_segmentCache`** — the arc-length table of one motion-path Bezier segment, keyed by the
+    keyframe PAIR. Two users: the frame loop evaluates it EVERY FRAME (`calcPropertyValue` →
+    `evaluateMotionPathSegment`), so the cache is real speed; the native-engine materializer asks for
+    the same segment 2–3 times during one pass. The cached value is a pure function of the two
+    keyframes (positions come from their own values), so it is sound — just global.
+  - **The stamp is not the right tool here.** The stamp exists because a DOCUMENT is user input we
+    must not add fields to. The keyframes this cache is keyed on are objects the LIBRARY creates
+    (`normalizeBindings` builds the frame loop's normalized animations once per animator; the
+    materializer works on its own copies). Library-made objects can simply carry an explicit,
+    typed field — no hidden symbol needed.
+  - **Proposed, fully local:**
+    1. Frame loop: the normalized property animation (made once per animator) gets a typed
+       segment table (`segments`), filled lazily per keyframe pair and passed into
+       `evaluateMotionPathSegment`. It lives and dies with the animator.
+    2. Materializer: one local table per `materializeMotionPathInPropAnim` call, passed down to
+       its helpers (`materializeSegment`, the sharp-corner and first-angle helpers).
+    3. Delete the module `WeakMap` and the dead no-op `_resetMotionPathSegmentCache`.
+    Keeps the pair-keying that `motionPathSegmentCache.test.ts` guards (a first→last lookup before
+    the first keyframe must not poison the real first segment).
+  - **`animatedComponentCache` (React Native)** — memoizes `Animated.createAnimatedComponent(C)` per
+    react-native-svg component CLASS. It must be shared: a fresh wrapper per instance or render would
+    be a new React component type and remount the subtree. Bounded by the ~20 svg element kinds, keyed
+    by constants, holds no document data. Options: keep as is, or build it EAGERLY at module load from
+    the known element map — a constant table like the attribute `Set`s, no lazy mutation.
 
 ### 17c. Audit every `as any` in the library ⏳
 

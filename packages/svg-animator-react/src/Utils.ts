@@ -12,8 +12,8 @@ export function deepEquals(a: any, b: any): boolean {
     if (a == null || b == null) return false;
     if (typeof a !== 'object' || typeof b !== 'object') return false;
 
-    // Check for cycles using WeakSet
-    const seen = new WeakSet();
+    // Cycle guard for this one comparison
+    const seen = new Set<object>();
 
     function equals(x: any, y: any): boolean {
         // Primitive/null check

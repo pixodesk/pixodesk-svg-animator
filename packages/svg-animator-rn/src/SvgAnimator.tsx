@@ -23,6 +23,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { compileTracks, sampleProps, type PxCompiledTracks, type PxElementTracks } from './PxRnTracks';
 import { renderRnNode, type RenderRnNodeOptions } from './PxRnRender';
+import { RN_SVG_COMPONENTS } from './PxRnTypeMap';
 import { PxRnErrorBoundary } from './PxRnErrorBoundary';
 import { openClosedTextPathTargets } from './PxRnSafety';
 
@@ -97,15 +98,10 @@ export interface SvgAnimatorProps
  */
 const NATIVE_SVG_VIEWS = Platform.OS !== 'web';
 
-const animatedComponentCache = new Map<ComponentType<any>, ComponentType<any>>();
-
+/** The animated twin of an element component — from the constant table built at load (below). A
+ *  component outside the table gets a fresh twin; the caller memoizes it per element instance. */
 function getAnimatedComponent(Component: ComponentType<any>): ComponentType<any> {
-    let cached = animatedComponentCache.get(Component);
-    if (!cached) {
-        cached = Animated.createAnimatedComponent(Component as any);
-        animatedComponentCache.set(Component, cached);
-    }
-    return cached;
+    return ANIMATED_SVG_COMPONENTS.get(Component) ?? Animated.createAnimatedComponent(Component as any);
 }
 
 /** One animated element: static props + UI-thread sampled animated props. */
@@ -147,6 +143,14 @@ function AnimatedPxElement({
  * "Cannot find host instance for this component".
  */
 const NON_HOST_TAGS = new Set(['stop', 'feMergeNode']);
+
+/** Every host element component → its reanimated twin, built ONCE at load: a constant table like the
+ *  attribute sets, never filled lazily. Shared by design — a new twin per render would be a new React
+ *  component type and remount the subtree. */
+const ANIMATED_SVG_COMPONENTS: ReadonlyMap<ComponentType<any>, ComponentType<any>> = new Map(
+    [...new Set(Object.entries(RN_SVG_COMPONENTS).filter(([tag]) => !NON_HOST_TAGS.has(tag)).map(([, C]) => C))]
+        .map(C => [C, Animated.createAnimatedComponent(C as any) as ComponentType<any>]),
+);
 
 /**
  * Definition elements — they describe paint/geometry for something else rather

@@ -49,6 +49,7 @@
 // examples do exactly this) otherwise sat at the identity until played.
 
 import { calcAnimationValues, normalizeBindings } from '../animation/PxDefinitions';
+import { createMotionPathSegments, type MotionPathSegments } from './PxMotionPath';
 import { getAnimatorConfig, type PxTimelineEngine } from '../format/PxAnimatorConstants';
 import type { PxAnimatedSvgDocument, PxAnimationDefinition, PxNode, PxTransformParts } from '../format/PxAnimatorTypes';
 import { parseTransformParts, PX_DEFAULT_DURATION_MS, PX_TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
@@ -86,6 +87,7 @@ export function materializeRestPosesInTree(root: PxAnimatedSvgDocument, engine: 
 
     const nodes = animatedNodes(out);
     if (!nodes.size) return out;
+    const segments = createMotionPathSegments();   // this pass's own: frames are sampled many times
 
     const before = bindingsOf(out, engine);
     const added = new Map<string, Array<string>>();
@@ -97,7 +99,7 @@ export function materializeRestPosesInTree(root: PxAnimatedSvgDocument, engine: 
         for (const channel of channels) {
             if (PX_TRANSFORM_FN_NAMES.has(channel)) continue;   // the family is handled once, below
             if (!mayCarryRestPose(node, channel)) continue;
-            const value = firstFrameValue(animate, channel, firstFrameTime);
+            const value = firstFrameValue(animate, channel, firstFrameTime, segments);
             if (value === undefined) continue;
             node[channel] = value;
             added.set(key, [...(added.get(key) ?? []), channel]);
@@ -105,7 +107,7 @@ export function materializeRestPosesInTree(root: PxAnimatedSvgDocument, engine: 
         // The individual channels: what the engine writes to `transform` at the first frame,
         // stored as the canonical static parts record.
         if (channels.some(channel => PX_TRANSFORM_FN_NAMES.has(channel)) && mayCarryTransformRestPose(node)) {
-            const parts = firstFrameTransformParts(animate, firstFrameTime);
+            const parts = firstFrameTransformParts(animate, firstFrameTime, segments);
             if (parts) {
                 node[TRANSFORM_CHANNEL] = parts;
                 added.set(key, [...(added.get(key) ?? []), TRANSFORM_CHANNEL]);
@@ -117,7 +119,7 @@ export function materializeRestPosesInTree(root: PxAnimatedSvgDocument, engine: 
     if (added.size) {
         const after = bindingsOf(out, engine);
         for (const [key, channels] of added) {
-            if (writesTheSameFrames(before.get(key), after.get(key), duration)) continue;
+            if (writesTheSameFrames(before.get(key), after.get(key), duration, segments)) continue;
             const node = nodes.get(key);
             if (node) for (const channel of channels) delete node[channel];
         }
@@ -143,8 +145,8 @@ function mayCarryTransformRestPose(node: PxNode): boolean {
 }
 
 /** Rule 1: exactly what the engine writes for this channel at the first frame. */
-function firstFrameValue(animate: PxAnimationDefinition, channel: string, timeMs: number): string | undefined {
-    const values = Object.values(calcAnimationValues({ [channel]: animate[channel] }, timeMs));
+function firstFrameValue(animate: PxAnimationDefinition, channel: string, timeMs: number, segments: MotionPathSegments): string | undefined {
+    const values = Object.values(calcAnimationValues({ [channel]: animate[channel] }, timeMs, segments));
     return values.length === 1 && values[0] !== '' ? values[0] : undefined;
 }
 
@@ -154,10 +156,10 @@ function firstFrameValue(animate: PxAnimationDefinition, channel: string, timeMs
  * back into a parts record. The engine's string carries CSS units (`translate(139px,163px)`,
  * `rotate(30deg)`); the static record has none. Unparseable → no pose, never a guess.
  */
-function firstFrameTransformParts(animate: PxAnimationDefinition, timeMs: number): PxTransformParts | undefined {
+function firstFrameTransformParts(animate: PxAnimationDefinition, timeMs: number, segments: MotionPathSegments): PxTransformParts | undefined {
     const family: PxAnimationDefinition = {};
     for (const channel of Object.keys(animate)) if (PX_TRANSFORM_FN_NAMES.has(channel)) family[channel] = animate[channel];
-    const written = calcAnimationValues(family, timeMs)[TRANSFORM_CHANNEL];
+    const written = calcAnimationValues(family, timeMs, segments)[TRANSFORM_CHANNEL];
     if (!written) return undefined;
     const parts = parseTransformParts(written.replace(/(px|deg)\b/g, ''));
     return parts && Object.keys(parts).length ? parts : undefined;
@@ -169,10 +171,10 @@ function firstFrameTransformParts(animate: PxAnimationDefinition, timeMs: number
  * written, not by structure — see the header. Whitespace is ignored: `translate(1px, 2px)` and
  * `translate(1px,2px)` are one value.
  */
-function writesTheSameFrames(a: PxAnimationDefinition | undefined, b: PxAnimationDefinition | undefined, durationMs: number): boolean {
+function writesTheSameFrames(a: PxAnimationDefinition | undefined, b: PxAnimationDefinition | undefined, durationMs: number, segments: MotionPathSegments): boolean {
     if (!a || !b) return a === b;
     const frame = (animate: PxAnimationDefinition, t: number): string =>
-        JSON.stringify(calcAnimationValues(animate, t)).replace(/\s+/g, '');
+        JSON.stringify(calcAnimationValues(animate, t, segments)).replace(/\s+/g, '');
     return VERIFY_SAMPLE_FRACTIONS.every(fraction => frame(a, fraction * durationMs) === frame(b, fraction * durationMs));
 }
 

@@ -31,6 +31,9 @@ export { carryPrep } from './format/PxAnimatorConstants';
 // Wire `timeline` → runtime view (review §17a: renamed from flattenAnimatorTimeline, demoted from the
 // main entry) — public code reads the view through `getAnimatorConfig` / `prepareDocument`.
 export { resolveAnimatorTimeline } from './format/PxAnimatorConstants';
+// A motion-path segment table — owned by whoever evaluates segments repeatedly (an animator, a compile).
+export { createMotionPathSegments } from './materialize/PxMotionPath';
+export type { MotionPathSegments } from './materialize/PxMotionPath';
 // The bump-site string (review §16): public code reads `PX_WIRE_VERSION` / `formatWireVersion`.
 export { PX_WIRE_SCHEMA_VERSION } from './version/PxSchemaVersion';
 // The narrow document checkers (review §15): `validateDocument` on the MAIN entry is the one

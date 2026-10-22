@@ -5,6 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { calcAnimationValues, getAnimatorConfig, normalizeBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxAnimationDefinition } from '@pixodesk/svg-animator-core';
+import { createMotionPathSegments } from '@pixodesk/svg-animator-core/internal';
 import { PX_DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
 import { toRnPropName, toRnPropValue } from './PxRnPropNames';
 
@@ -99,6 +100,7 @@ export function compileTracks(doc: PxAnimatedSvgDocument, opts?: CompileTracksOp
     indexTags(doc);
 
     const bindings = normalizeBindings(doc, PxTimelineEngine.js) || [];
+    const segments = createMotionPathSegments();   // this compile's own: every element is sampled many times
 
     const elements: Array<PxElementTracks> = [];
     for (const binding of bindings) {
@@ -108,7 +110,7 @@ export function compileTracks(doc: PxAnimatedSvgDocument, opts?: CompileTracksOp
         const props: Record<string, Array<string | number | Array<number>>> = {};
         for (let i = 0; i < sampleCount; i++) {
             const t = i === sampleCount - 1 ? duration : i * stepMs;
-            const values = calcAnimationValues(animDef as PxAnimationDefinition, t);
+            const values = calcAnimationValues(animDef as PxAnimationDefinition, t, segments);
             for (const [attr, value] of Object.entries(values)) {
                 const rnProp = toRnPropName(attr);
                 if (!rnProp) continue;

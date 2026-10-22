@@ -8,7 +8,7 @@ import { type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxBezierPa
 import { getBindings, getDefinitions, TRANSFORM_ATTR } from '../format/PxAnimatorConstants';
 import { getAnimatorConfig, PxTimelineEngine, PxLoopDirection, PxLoopRepeatAt } from '../format/PxAnimatorConstants';
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, PX_COLOR_ATTR_NAMES, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, parseTransformParts, PX_PCT_BASED_ATTR_NAMES, remap, reverseEasing, splitEasing, toRGBA, PX_TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
-import { evaluateMotionPathSegment, materializeMotionPathInPropAnim, propAnimIsMotionPath } from '../materialize/PxMotionPath';
+import { evaluateMotionPathSegment, materializeMotionPathInPropAnim, propAnimIsMotionPath, type MotionPathSegments } from '../materialize/PxMotionPath';
 import { mergeStaticTransformIntoAnimDef } from './PxStaticTransformMerge';
 
 // Declared in its own leaf module so the motion-path flattener can use it too, without importing
@@ -1064,7 +1064,7 @@ function getKeyframesPair(keyframes: PxNormalizedKeyframe[], progress: number) {
     // instead would invent a segment that exists nowhere in the animation: for keyframes
     // that start part-way into the timeline, the pre-start frames used to interpolate
     // straight from the first to the LAST keyframe — skipping everything between, and
-    // handing motion-path evaluation a chord it then cached (see `getSegmentCache`).
+    // handing motion-path evaluation a chord it then cached (see `segmentOf` in PxMotionPath).
     const last = keyframes.length - 1;
     let prevKf = keyframes[0];
     let nextKf = keyframes[last > 0 ? 1 : 0];
@@ -1093,7 +1093,8 @@ function getKeyframesPair(keyframes: PxNormalizedKeyframe[], progress: number) {
 function calcPropertyValue(
     propName: string,
     propAnim: PxPropertyAnimation,
-    progress: number
+    progress: number,
+    segments: MotionPathSegments | undefined,
 ): { k: string, v: string } | null {
     const keyframes = propAnim.keyframes || [];
     if (keyframes.length === 0) return null;
@@ -1181,6 +1182,7 @@ function calcPropertyValue(
                     [+nextTr[0], +nextTr[1]],
                     localProgress,
                     !!propAnim.autoOrient,
+                    segments,
                 );
                 partsResult.translate = [sample.translate[0], sample.translate[1]];
                 // ADD the tangent angle to the element's own rotation, already interpolated into
@@ -1238,17 +1240,20 @@ function calcPropertyValue(
  * Calculates interpolated attribute values for an animation definition.
  * @param animDef The animation definition (with resolved refs and normalized times)
  * @param progress The current animation progress (0-1)
+ * @param segments Optional motion-path segment table owned by the caller (an animator keeps one for its
+ *   whole life) — repeated evaluations then build each Bezier segment once; without it nothing is cached.
  * @returns Object with computed attribute name/value pairs
  * @public @advanced
  */
 export function calcAnimationValues(
     animDef: PxAnimationDefinition,
-    progress: number
+    progress: number,
+    segments?: MotionPathSegments,
 ): Record<string, string> {
     const result: Record<string, string> = {};
 
     for (const [propName, propAnim] of Object.entries(animDef)) {        
-        const computed = calcPropertyValue(propName, propAnim, progress);
+        const computed = calcPropertyValue(propName, propAnim, progress, segments);
         if (computed) {
             result[computed.k] = computed.v;
         }

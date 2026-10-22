@@ -120,7 +120,7 @@ function buildIdMap(root: PxNode): Map<string, PxNode> {
  *  `<use>`-referenced sub-subtrees) contains at least one `animate` bucket.
  *  Uses a per-walk `visited` set to avoid infinite recursion on `<use>` cycles. */
 function computeAnimatedSubtreeIds(root: PxNode, idMap: Map<string, PxNode>): Set<string> {
-    const cache = new WeakMap<PxNode, boolean>();
+    const cache = new Map<PxNode, boolean>();   // this walk's own
     const result = new Set<string>();
 
     const hasAnim = (n: PxNode, visiting: Set<PxNode>): boolean => {

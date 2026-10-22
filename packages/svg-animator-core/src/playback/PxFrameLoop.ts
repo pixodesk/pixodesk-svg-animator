@@ -10,6 +10,7 @@ import { getAnimatorConfig, PX_DEFAULT_ITERATIONS, PxTimelineEngine } from '../f
 import { PxTimeTimelineSchema } from '../format/PxAnimatorTypes';
 import { camelCaseToKebabWordIfNeeded, clamp, PX_DEFAULT_DURATION_MS, PX_STYLE_ATTR_NAMES } from '../util/PxAnimatorUtil';
 import { calcAnimationValues, normalizeBindings } from '../animation/PxDefinitions';
+import { createMotionPathSegments } from '../materialize/PxMotionPath';
 import { clampSeekMs, isValidPlaybackRate, progressToTimeMs, PX_RATE_REJECTED, timeToProgress } from './PxPlaybackTime';
 
 
@@ -59,6 +60,8 @@ export function createAdapterSvgAnimator(
     const config = getAnimatorConfig(doc) || {};
 
     const bindings = normalizeBindings(doc, PxTimelineEngine.js);
+    // this animator's own motion-path segment table: each Bezier segment is built once, for its life
+    const segments = createMotionPathSegments();
 
     // iterations: either number or Infinity
     const _iterations = config.iterations;
@@ -197,7 +200,7 @@ export function createAdapterSvgAnimator(
             }
 
             // Calculate interpolated values for this binding's animation
-            const computedValues = calcAnimationValues(animDef, effectiveProgress * duration);
+            const computedValues = calcAnimationValues(animDef, effectiveProgress * duration, segments);
 
             // Apply each computed attribute
             for (const [attrName, value] of Object.entries(computedValues)) {

@@ -20,6 +20,7 @@ import { createAdapterSvgAnimator, type PxPlatformAdapter } from '../playback/Px
 import { calcAnimationValues, normalizeBindings } from './PxDefinitions';
 import type { PxAnimatedSvgDocument } from '../format/PxAnimatorTypes';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
+import { createMotionPathSegments } from '../materialize/PxMotionPath';
 
 const START: [number, number] = [124.7115, 74.3754];
 const APEX: [number, number] = [154.5315, 12.1887];
@@ -125,5 +126,30 @@ describe('frames motion-path — a pre-start frame must not poison the segment c
             api.setCurrentTime(384);
             expect(xy(transform())[1], 'y at 384 is on the arc').toBeLessThan(50);
         });
+    });
+});
+
+// Review §17b: the segment table belongs to its owner (an animator, a materialize call) and is passed
+// in — the same pre-start poisoning must not happen THROUGH a table either.
+describe('frames motion-path — an owner-held segment table', () => {
+
+    it('a pre-start frame does not poison the table: mid-segment stays on the arc', () => {
+        const animDef = normalizeBindings(mkDoc(), PxTimelineEngine.js)[0].animate as never;
+        const segments = createMotionPathSegments();
+        calcAnimationValues(animDef, 0, segments);
+        const [, y] = xy(calcAnimationValues(animDef, 384, segments).transform);
+        expect(y, 'mid-first-segment must be up on the arc, not on the START→END chord').toBeLessThan(50);
+    });
+
+    it('fills once per keyframe pair, reuses it, and matches uncached evaluation', () => {
+        const animDef = normalizeBindings(mkDoc(), PxTimelineEngine.js)[0].animate as never;
+        const segments = createMotionPathSegments();
+        const times = [260, 300, 384, 450, 520, 600, 700, 740];
+        const cached = times.map(t => calcAnimationValues(animDef, t, segments).transform);
+        const pairs = () => [...segments.values()].reduce((n, m) => n + m.size, 0);
+        expect(pairs()).toBe(2);                                   // kf0→kf1, kf1→kf2 — built once each
+        times.forEach(t => calcAnimationValues(animDef, t, segments));
+        expect(pairs()).toBe(2);                                   // re-evaluation reuses, never adds
+        expect(cached).toEqual(times.map(t => calcAnimationValues(animDef, t).transform));
     });
 });

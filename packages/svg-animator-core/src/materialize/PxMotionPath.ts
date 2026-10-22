@@ -78,9 +78,9 @@ export function propAnimIsMotionPath(anim: PxPropertyAnimation): boolean {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
-//  Segment cache — shared by `evaluateMotionPathSegment` (frames-mode kernel)
-//  and the materializer. Keyed by FROM-keyframe identity (WeakMap), so cache
-//  entries vanish automatically when keyframes are replaced.
+//  Segment tables — the arc-length LUT of a segment is costly, so whoever evaluates
+//  segments repeatedly OWNS a table and passes it in: an animator instance for its
+//  whole life (frame loop), one materialize call. No module-level cache (review §17b).
 // ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -93,19 +93,25 @@ interface MotionPathSegmentCache {
     readonly totalArc: number;
 }
 
-// Keyed on the PAIR, not on `prevKf` alone: one keyframe can start different segments
-// across evaluations (a lookup that falls outside the keyframe range answers with a
-// first→last pair), and a `prevKf`-only key let that bogus segment's Bezier be served
-// for every later evaluation of the real `prevKf`→next segment.
-const _segmentCache = new WeakMap<PxAnyKeyframe, WeakMap<PxAnyKeyframe, MotionPathSegmentCache>>();
+/** Computed segments of one owner, keyed on the keyframe PAIR — not `prevKf` alone: one keyframe can
+ *  start different segments across evaluations (a lookup outside the keyframe range answers with a
+ *  first→last pair), and a `prevKf`-only key served that bogus segment for the real one. @internal */
+export type MotionPathSegments = Map<PxAnyKeyframe, Map<PxAnyKeyframe, MotionPathSegmentCache>>;
 
-function getSegmentCache(
+/** A fresh, empty segment table — one per owner (an animator, a materialize call). @internal */
+export function createMotionPathSegments(): MotionPathSegments {
+    return new Map();
+}
+
+/** The segment prevKf → nextKf: from `segments` when given (computed once per pair), else computed fresh. */
+function segmentOf(
     prevKf: PxAnyKeyframe,
     nextKf: PxAnyKeyframe,
     prevPos: Point2,
     nextPos: Point2,
+    segments: MotionPathSegments | undefined,
 ): MotionPathSegmentCache {
-    let byNext = _segmentCache.get(prevKf);
+    let byNext = segments?.get(prevKf);
     const existing = byNext?.get(nextKf);
     if (existing) return existing;
     const to = keyframeTangentOut(prevKf);
@@ -118,15 +124,11 @@ function getSegmentCache(
         lut,
         totalArc: lut.ds[lut.ds.length - 1],
     };
-    if (!byNext) { byNext = new WeakMap<PxAnyKeyframe, MotionPathSegmentCache>(); _segmentCache.set(prevKf, byNext); }
-    byNext.set(nextKf, entry);
+    if (segments) {
+        if (!byNext) { byNext = new Map(); segments.set(prevKf, byNext); }
+        byNext.set(nextKf, entry);
+    }
     return entry;
-}
-
-/** Test helper. No-op in production (WeakMap; entries self-evict). Tests
- *  should use fresh keyframe objects to force cache misses. */
-export function _resetMotionPathSegmentCache(): void {
-    // Intentionally empty — kept for backwards-compat with any callers.
 }
 
 
@@ -149,7 +151,7 @@ export interface MotionPathSample {
 /**
  * Evaluates the motion-path position (and optional auto-orient rotation) for a
  * single segment kf[i] → kf[i+1], given local progress already remapped to
- * `[0, 1]` and eased. Builds (or reuses cached) Bezier control points
+ * `[0, 1]` and eased. Builds (or reuses from `segments`) Bezier control points
  * `P1 = P0 + tangentOut`, `P2 = P3 + tangentIn`, maps `localProgress` to arc
  * length, then to curve parameter `t` via the arc-length LUT.
  * @internal
@@ -161,8 +163,9 @@ export function evaluateMotionPathSegment(
     nextPos: Point2,
     localProgress: number,
     autoOrient: boolean,
+    segments?: MotionPathSegments,
 ): MotionPathSample {
-    const seg = getSegmentCache(prevKf, nextKf, prevPos, nextPos);
+    const seg = segmentOf(prevKf, nextKf, prevPos, nextPos, segments);
     const t = seg.totalArc === 0
         ? localProgress
         : tFromArcFraction(seg.lut, localProgress);
@@ -245,13 +248,14 @@ export function materializeMotionPathInPropAnim(
     const maxSamples   = opts?.maxSamplesPerSegment ?? DEFAULT_MAX_SAMPLES;
 
     const out: Array<PxNormalizedKeyframe> = [];
+    const segments = createMotionPathSegments();   // this call's own: each segment is asked for 2–3 times
 
     // First output kf — translate from input; rotate from segment-0 derivative
     // at t=0 if autoOrient. All other transform parts (`origin`, `scale`, an
     // explicit `rotate` when `autoOrient` is false, …) come from kfs[0].value.
     const firstPos = getKfTranslate(kfs[0]);
     if (!firstPos) return anim;
-    const firstRotate = autoOrient ? derivAngleForFirstKf(kfs[0], kfs[1]) : undefined;
+    const firstRotate = autoOrient ? derivAngleForFirstKf(kfs[0], kfs[1], segments) : undefined;
     out.push(makeOutKf(
         getKfTime(kfs[0]),
         buildOutKfValue(getKfValueParts(kfs[0]), getKfValueParts(kfs[0]), 0, firstPos, firstRotate, autoOrient),
@@ -282,10 +286,10 @@ export function materializeMotionPathInPropAnim(
         // on the prior kf, the engines render an instant step boundary then
         // constant rotation through the segment.
         if (autoOrient && i > 0) {
-            insertSharpCornerStepKfIfNeeded(out, prevKf, nextKf, prevPos, nextPos, rotationTol);
+            insertSharpCornerStepKfIfNeeded(out, prevKf, nextKf, prevPos, nextPos, rotationTol, segments);
         }
 
-        materializeSegment(out, prevKf, nextKf, prevPos, nextPos, autoOrient, flatnessTol, rotationTol, maxSamples);
+        materializeSegment(out, prevKf, nextKf, prevPos, nextPos, autoOrient, flatnessTol, rotationTol, maxSamples, segments);
     }
 
     // The very last out-kf inherits the original last kf's `easing` (which
@@ -417,11 +421,11 @@ function explicitRotateAt(
 /** Derivative angle at t=0 of segment kf[0] → kf[1]. Used to seed the first
  *  output kf's rotation; without this the very first frame would render with
  *  no rotation while every subsequent sample has one. */
-function derivAngleForFirstKf(kf0: PxAnyKeyframe, kf1: PxAnyKeyframe): number {
+function derivAngleForFirstKf(kf0: PxAnyKeyframe, kf1: PxAnyKeyframe, segments: MotionPathSegments): number {
     const p0 = getKfTranslate(kf0);
     const p1 = getKfTranslate(kf1);
     if (!p0 || !p1) return 0;
-    const seg = getSegmentCache(kf0, kf1, p0, p1);
+    const seg = segmentOf(kf0, kf1, p0, p1, segments);
     const tan = bezier2D_derivativeAt(seg.P0, seg.P1, seg.P2, seg.P3, 0);
     return Math.atan2(tan[1], tan[0]) * 180 / Math.PI;
 }
@@ -455,6 +459,7 @@ function insertSharpCornerStepKfIfNeeded(
     prevKf: PxAnyKeyframe, nextKf: PxAnyKeyframe,
     prevPos: Point2, nextPos: Point2,
     rotationTol: number,
+    segments: MotionPathSegments,
 ): void {
     const lastKf = out[out.length - 1];
     const lastV = keyframeValue(lastKf) as { rotate?: number } | undefined;
@@ -467,7 +472,7 @@ function insertSharpCornerStepKfIfNeeded(
     const boundaryV = getKfValueParts(prevKf);
     const prevExitTangent = prevExit - explicitRotateAt(boundaryV, boundaryV, 0);
 
-    const seg = getSegmentCache(prevKf, nextKf, prevPos, nextPos);
+    const seg = segmentOf(prevKf, nextKf, prevPos, nextPos, segments);
     const tanAtStart = bezier2D_derivativeAt(seg.P0, seg.P1, seg.P2, seg.P3, 0);
     const nextEntry = Math.atan2(tanAtStart[1], tanAtStart[0]) * 180 / Math.PI;
     const delta = wrappedAngleDelta(nextEntry, prevExitTangent);
@@ -504,8 +509,9 @@ function materializeSegment(
     prevPos: Point2, nextPos: Point2,
     autoOrient: boolean,
     flatnessTol: number, rotationTol: number, maxSamples: number,
+    segments: MotionPathSegments,
 ): void {
-    const seg = getSegmentCache(prevKf, nextKf, prevPos, nextPos);
+    const seg = segmentOf(prevKf, nextKf, prevPos, nextPos, segments);
     const prevTime = getKfTime(prevKf);
     const nextTime = getKfTime(nextKf);
     const prevEasing = getKfEasing(prevKf);
