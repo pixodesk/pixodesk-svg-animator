@@ -1,3 +1,4 @@
+// @px-area engine
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -70,6 +71,7 @@ export function finaliseAnimator(
     return res;
 }
 
+// @px-importance important
 /**
  * Picks the engine the way the full player does, from `timeline.engine`: `player` pins the
  * frame loop; otherwise waapi, with a frames fallback for unsupported attrs unless

@@ -1,3 +1,4 @@
+// @px-area materialize
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -215,6 +216,7 @@ const DEFAULT_ROTATION_TOL = 5;
 const DEFAULT_MAX_SAMPLES  = 32;
 
 
+// @px-importance important
 /**
  * Converts ONE animated property to sampled transform kfs.
  *
@@ -694,6 +696,7 @@ function perpDist(q: Point2, pA: Point2, pB: Point2): number {
 // ─────────────────────────────────────────────────────────────────────────────
 
 
+// @px-importance important
 /** @internal */
 export function materializeMotionPathsInTree(
     root: PxNode,

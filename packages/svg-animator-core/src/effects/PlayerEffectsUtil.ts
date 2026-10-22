@@ -1,3 +1,4 @@
+// @px-area effects
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -79,6 +80,7 @@ export function materializeNodeEffects(root: PxNode): ApplyResult {
     return { root: out, defs: ctx.defs, warnings: ctx.warnings, errors: ctx.errors };
 }
 
+// @px-importance important
 /**
  * Pass 1 — materialize every effect except retime. Retime is preserved on the
  * original (now wrapped-inner) node so pass 2 can find and apply it.

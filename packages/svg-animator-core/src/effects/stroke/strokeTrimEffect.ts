@@ -1,3 +1,4 @@
+// @px-area effects
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -12,6 +13,7 @@ import { ReadKind, readAnimatable, writeAnimatableChannel, type ReadPart } from 
 import type { ApplyContext } from '../shared/types';
 
 
+// @px-importance important
 /**
  * Applies a `strokeTrim` effect: collects every descendant shape leaf, slices each
  * leaf's `d` into sub-paths, measures each in px, and converts the parametric

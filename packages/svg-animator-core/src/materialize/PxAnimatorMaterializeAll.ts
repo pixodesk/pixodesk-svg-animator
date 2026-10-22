@@ -1,3 +1,4 @@
+// @px-area pipeline
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -123,6 +124,7 @@ export function materializeAllInTree(
 }
 
 
+// @px-importance important
 /**
  * The document exactly as the web player RENDERS it: materialized for the engine the document
  * resolves to, then with fresh ids.

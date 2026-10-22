@@ -1,3 +1,4 @@
+// @px-area effects
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -134,6 +135,7 @@ export function extendedPathForBrowser(pathD: string, opts: ExtendPathOptions): 
 }
 
 
+// @px-importance important
 /**
  * `effects.textPath` materializer (browser-font / non-glyph path).
  *

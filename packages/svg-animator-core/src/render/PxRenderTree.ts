@@ -1,3 +1,4 @@
+// @px-area render
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -80,6 +81,7 @@ const DEFAULT_HTML_TAG = 'div';
 const SVG_TAG = 'svg';
 
 
+// @px-importance important
 /**
  * Renders a `PxNode` tree through `factory`. Returns `null` for a missing node or a blocked
  * root tag; blocked descendants are dropped and reported.

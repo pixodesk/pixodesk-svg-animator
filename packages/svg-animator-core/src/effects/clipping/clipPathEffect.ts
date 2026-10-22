@@ -1,3 +1,4 @@
+// @px-area effects
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -11,6 +12,7 @@ import type { ApplyContext } from '../shared/types';
 import { genId } from '../shared/util';
 
 
+// @px-importance important
 /**
  * CLIP-PATH → a `<clipPath>` in defs holding a single `<path>` built from the effect's
  * `d`, referenced via `clip-path="url(#…)"` on the host element.

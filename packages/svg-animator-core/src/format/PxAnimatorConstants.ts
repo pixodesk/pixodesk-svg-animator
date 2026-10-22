@@ -1,3 +1,4 @@
+// @px-area config
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -225,6 +226,7 @@ export const PxTimelineEngineSetting = {
 
 export type PxTimelineEngineSetting = typeof PxTimelineEngineSetting[keyof typeof PxTimelineEngineSetting];
 
+// @px-area engine
 /** What a requested engine resolves to BEFORE the runtime probes support: `js` pins the frame
  *  loop, anything else starts at `native`. NOTE this is only the STARTING point — `auto` still
  *  falls back to `js` per document when the platform API declines an attribute, which happens at
@@ -234,11 +236,13 @@ export function resolveTimelineEngine(engine: PxTimelineEngineSetting | undefine
     return engine === PxTimelineEngineSetting.js ? PxTimelineEngine.js : PxTimelineEngine.native;
 }
 
+// @px-area engine
 /** `native` is a demand, not a preference: no JS fallback when the platform API declines an attribute. @public @advanced */
 export function isNativeForced(engine: PxTimelineEngineSetting | undefined): boolean {
     return engine === PxTimelineEngineSetting.native;
 }
 
+// @px-area engine
 /** May the browser's ScrollTimeline/ViewTimeline drive a scroll/view timeline?
  *  `auto` tries it first (falling back to the player's own measurement), `native`
  *  asks for it, `js` never uses it. * @public @advanced
@@ -349,6 +353,7 @@ export interface PxResolvedControlMode {
     readonly warnings: ReadonlyArray<string>;
 }
 
+// @px-area control
 /**
  * Picks the control mode from the props a component was given.
  *
@@ -387,6 +392,7 @@ export function resolveControlMode(props: PxControlProps): PxResolvedControlMode
     return { mode: PxControlMode.static, warnings };
 }
 
+// @px-area control
 /**
  * True when the component must take the document's trigger over, by forcing
  * `start: 'none'` into its config patch.
@@ -402,6 +408,7 @@ export function controlModeTakesOverTrigger(mode: PxControlMode): boolean {
     return mode !== PxControlMode.playAsSaved;
 }
 
+// @px-area control
 /** A document's trigger with the defaults filled in. (`finish` is not a start/stop decision:
  *  it reaches the engines as the runtime view's `resetOnFinish`.) * @public @advanced
  */
@@ -632,6 +639,7 @@ export type PxGradientType = typeof PxGradientType[keyof typeof PxGradientType];
 // HELPER FUNCTIONS
 // ============================================================================
 
+// @px-area validation
 /** The cheap shallow gate — "is this a Pixodesk document at all?". With `validateDocument`,
  *  the whole public checking surface (review §15). @public */
 export function isPxDocument(doc: any): doc is PxAnimatedSvgDocument {
@@ -670,6 +678,7 @@ export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorRuntime
     return trusted ? trusted.view : deriveRuntimeView(doc);
 }
 
+// @px-area pipeline
 /** `prep` re-pointed at `doc`: its view is reused while `doc` holds the same animator config object, else re-derived. @internal */
 export function prepFor(doc: PxAnimatedSvgDocument, prep: PxDocPrep): PxDocPrep {
     if (!stageAtLeast(prep.stage, PxDocStage.resolved)) return prep;
@@ -677,6 +686,7 @@ export function prepFor(doc: PxAnimatedSvgDocument, prep: PxDocPrep): PxDocPrep 
     return cfg === prep.viewOf ? prep : { ...prep, view: deriveRuntimeView(doc), viewOf: cfg };
 }
 
+// @px-area pipeline
 /** Stamps `to` (a doc the caller derived from `from`, e.g. by id regeneration) with `from`'s stage —
  *  the view re-derived when `to`'s animator config is a new object. Returns `to`. @internal */
 export function carryPrep<T extends PxAnimatedSvgDocument>(from: PxAnimatedSvgDocument, to: T): T {
@@ -685,6 +695,7 @@ export function carryPrep<T extends PxAnimatedSvgDocument>(from: PxAnimatedSvgDo
     return to;
 }
 
+// @px-importance important
 /** The runtime view derived from the wire form — what `prepareDocument` attaches at `resolved`. @internal */
 export function deriveRuntimeView(doc: PxAnimatedSvgDocument): PxAnimatorRuntimeConfig | undefined {
     const cfg = doc?.animator || doc?.meta?.animator;
@@ -766,6 +777,7 @@ export function maxKeyframeTimeOf(doc: PxAnimatedSvgDocument): number | undefine
     return max;
 }
 
+// @px-importance important
 /**
  * Resolves `cfg.timeline` (the wire spelling) into the runtime-view fields the engines consume.
  * Returns `cfg` unchanged when there is nothing to resolve. Pure: never mutates, never caches.

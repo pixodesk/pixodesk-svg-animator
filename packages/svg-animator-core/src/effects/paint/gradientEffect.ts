@@ -1,3 +1,4 @@
+// @px-area effects
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -12,6 +13,7 @@ import { genId } from '../shared/util';
 import { keyframeTime, keyframeValue, keyframeEasing } from '../../format/PxAnimatorTypes';
 
 
+// @px-importance important
 /**
  * `effects.fillGradient` / `effects.strokeGradient` materializer.
  *
@@ -42,6 +44,7 @@ export function applyFillGradientEffect(node: PxNode, fx: PxFillGradientEffect |
     return applyGradient(node, fx, ctx, 'fill');
 }
 
+// @px-importance important
 export function applyStrokeGradientEffect(node: PxNode, fx: PxStrokeGradientEffect | undefined, ctx: ApplyContext): PxNode {
     return applyGradient(node, fx, ctx, 'stroke');
 }

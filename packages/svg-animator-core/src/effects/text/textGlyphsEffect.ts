@@ -1,3 +1,4 @@
+// @px-area effects
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -234,6 +235,7 @@ function missingGlyphBoxEm(advanceEm: number, ascentEm: number): string {
 
 // ── HORIZONTAL ──────────────────────────────────────────────────────────────
 
+// @px-importance important
 /** @internal */
 export function materializeGlyphTextHorizontal<E = any>(node: PxNode, opts: GlyphMaterializeOptions<E>): E {
     const { glyphs, create = jsonElementFactory as PxCreateElement<E>, warnings } = opts;
@@ -324,6 +326,7 @@ export interface PxGlyphCharBox {
  */
 export interface GlyphCharBoxAlongPath { pathD?: string; startOffset?: PxAnimatable<number>; textLength?: PxAnimatable<number>; pathOverflow?: string; }
 
+// @px-importance important
 /** Per-character layout boxes for a glyph text, in reading/DOM order INCLUDING spaces
  *  (a space has no glyph but advances the pen) AND one zero-width filler box per EMPTY
  *  line — the editor's edit canvas renders a zero-width filler char for an empty line
@@ -552,6 +555,7 @@ function alongPathNodeOffsets(node: PxNode): { along: number; perp: number } {
     };
 }
 
+// @px-importance important
 /** @internal */
 export function materializeGlyphTextAlongPath<E = any>(
     node: PxNode,

@@ -1,3 +1,4 @@
+// @px-area materialize
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -25,6 +26,7 @@ import { applyUseOffsetToG, deepClonePxNode, regenerateIdsAndRewriteRefs } from 
 import type { PxNode } from '../format/PxAnimatorTypes';
 
 
+// @px-importance important
 /**
  * Walks `root`. For every `<use>` whose `href` target subtree contains any
  * `animate` bucket (recursively, following further `<use>` chains and

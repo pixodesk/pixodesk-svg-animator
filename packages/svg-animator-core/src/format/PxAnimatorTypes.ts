@@ -1,3 +1,4 @@
+// @px-area validation
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -213,8 +214,10 @@ const anyKf = (kf: PxAnyKeyframe) => kf as _PxKeyframe & _PxNormalizedKeyframe;
 
 /** Time in ms, whichever spelling the keyframe is in. @internal */
 export const keyframeTime = (kf: PxAnyKeyframe): number => anyKf(kf).time ?? anyKf(kf).t ?? 0;
+// @px-area keyframes
 /** Value, whichever spelling. @internal */
 export const keyframeValue = (kf: PxAnyKeyframe): any => anyKf(kf).value ?? anyKf(kf).v;
+// @px-area keyframes
 /** Easing — resolved on a normalized keyframe, possibly a NAME on a wire one. @internal */
 export const keyframeEasing = (kf: PxAnyKeyframe): PxEasingOrRef | undefined => anyKf(kf).easing ?? anyKf(kf).e;
 /** Incoming spatial tangent, whichever spelling. @internal */
@@ -2024,6 +2027,7 @@ export function validateDocument(doc: unknown, options?: { strict?: boolean }): 
     return { valid: errors.length === 0, errors, findings };
 }
 
+// @px-importance important
 /** The one validator behind {@link validateDocument} and {@link isValidPxDocument}: every problem
  *  as a line AND a finding, each mistake once. */
 function collectDocumentProblems(doc: unknown, options?: { strict?: boolean }): { errors: Array<string>; findings: Array<PxValidationFinding> } {
@@ -2215,6 +2219,7 @@ type PxWidenJsonImport<T> =
  */
 export type PxDocumentInput = PxWidenJsonImport<PxAnimatedSvgDocument>;
 
+// @px-area schema
 /**
  * Names the one type-level narrowing from {@link PxDocumentInput} (what a JSON import is typed
  * as) to {@link PxAnimatedSvgDocument} (the wire type the internals speak). Not a check: the
@@ -2240,6 +2245,7 @@ export function toAnimatedSvgDocument(doc: PxDocumentInput): PxAnimatedSvgDocume
 // The diagnostics rule (`onError` = this instance will not play; `onWarn` = it plays, but
 // something was ignored, degraded or misspelled) is written on `PxDiagnosticsConfig`.
 
+// @px-area engine
 /**
  * The callbacks an ENGINE takes — the frame loop, WAAPI, React Native's sampler: the playback
  * lifecycle plus the diagnostics channel. Public surfaces take `PxAnimatorCallbacks`.
@@ -2267,6 +2273,7 @@ export interface PxEngineCallbacks extends PxDiagnosticsConfig {
     onDestroy?: () => void;
 }
 
+// @px-area entry
 /**
  * What every PUBLIC surface takes, inline and under the same names — `createSvgAnimator({ onFinish })`,
  * `loadTagSvgAnimators`, the pre-rendered entries, and `<SvgAnimator onFinish />` on React,
@@ -2340,6 +2347,7 @@ const _ck_PxBezierPath: KeysMatch<PxBezierPath, _PxBezierPath> = true; // the ke
  * React Native player to its own view handle. Defaults to `unknown`.
  * @public
  */
+// @px-area entry
 /**
  * The full programmatic control interface for an animation.
  *

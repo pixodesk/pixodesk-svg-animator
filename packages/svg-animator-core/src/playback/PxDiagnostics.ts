@@ -1,3 +1,4 @@
+// @px-area validation
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -150,6 +151,7 @@ function errorIn(data: ReadonlyArray<unknown>): Error | undefined {
     return data.find((d): d is Error => d instanceof Error);
 }
 
+// @px-importance important
 /**
  * Builds the channel a player reports through.
  *

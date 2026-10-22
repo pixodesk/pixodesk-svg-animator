@@ -1,3 +1,4 @@
+// @px-area render
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -38,6 +39,7 @@ function forEachNode(node: PxNode | undefined, visit: (n: PxNode, parent?: PxNod
     for (const child of (node.children ?? [])) forEachNode(child, visit, node);
 }
 
+// @px-importance important
 /**
  * Gives every `<textPath>` that follows a CLOSED path its own OPEN copy of it.
  *

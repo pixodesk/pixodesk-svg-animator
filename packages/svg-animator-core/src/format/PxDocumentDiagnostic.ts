@@ -1,3 +1,4 @@
+// @px-area validation
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -46,6 +47,7 @@ export function diagnoseDocument(doc: unknown): PxDocumentDiagnosis {
     }
 }
 
+// @px-importance important
 /**
  * Runs the diagnosis and reports it on the console, naming property mangling as the likely cause
  * — a bare "unexpected extra key" leaves the reader no wiser, which is the whole point.

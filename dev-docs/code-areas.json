@@ -1,0 +1,131 @@
+{
+    "$comment": [
+        "Code areas: which process a function belongs to. Read by the dev-monitor function explorer",
+        "(kf/dev-process-monitor › Player fns), which groups each area visually.",
+        "Tag in the code with a line comment holding the area NAME:",
+        "  - first line of a file: `// @px-area <name>` — the whole file;",
+        "  - directly above a function or interface: the same comment — that declaration only (overrides the file).",
+        "Closures inherit the area of the function they are defined in.",
+        "`order` = reading order of the legend (roughly: outside in, then down the pipeline).",
+        "Importance — `// @px-importance <name>`, placed and resolved like `@px-area` (no closure inheritance).",
+        "Untagged: `@public` / `@public @advanced` (the documented API — docs-check enforces it) read as `major`, everything else as `minor`;",
+        "so in practice only `important` is ever written, plus any deliberate override."
+    ],
+    "areas": [
+        {
+            "name": "entry",
+            "order": 1,
+            "color": "#8250df",
+            "label": "Entry points & components",
+            "description": "createSvgAnimator, the React / Vue / React Native components, the registry, the handle and callback facade"
+        },
+        {
+            "name": "control",
+            "order": 2,
+            "color": "#bf3989",
+            "label": "Triggers & play control",
+            "description": "start triggers, the visibility gate, declarative play / pause, who drives playback"
+        },
+        {
+            "name": "pipeline",
+            "order": 3,
+            "color": "#0969da",
+            "label": "Prepare pipeline",
+            "description": "prepareDocument, the stage stamp, the materialize orchestrator — the order the steps below run in"
+        },
+        {
+            "name": "version",
+            "order": 4,
+            "color": "#1b7c83",
+            "label": "Versioning & migration",
+            "description": "the wire version stamp, version steps up and down, schema release planning"
+        },
+        {
+            "name": "config",
+            "order": 5,
+            "color": "#0550ae",
+            "label": "Animator config",
+            "description": "the runtime view of the animator config, overrides and patches, document accessors"
+        },
+        {
+            "name": "effects",
+            "order": 6,
+            "color": "#2da44e",
+            "label": "Effects → plain nodes",
+            "description": "node.effects (masks, gradients, repeaters, text, references…) expanded into plain elements and animation"
+        },
+        {
+            "name": "materialize",
+            "order": 7,
+            "color": "#4ac26b",
+            "label": "Materialize passes",
+            "description": "the passes after effects: animated <use>, motion paths, offset paths, rest poses"
+        },
+        {
+            "name": "keyframes",
+            "order": 8,
+            "color": "#bf8700",
+            "label": "Keyframes & interpolation",
+            "description": "bindings normalized to keyframes, values at a time, interpolation maths"
+        },
+        {
+            "name": "engine",
+            "order": 9,
+            "color": "#cf222e",
+            "label": "Playback engines & time",
+            "description": "Web Animations, the frame loop, clocks and seeking, scroll timelines, React Native tracks"
+        },
+        {
+            "name": "render",
+            "order": 10,
+            "color": "#953800",
+            "label": "Rendering",
+            "description": "document tree → DOM / React Native elements, props and attribute mapping"
+        },
+        {
+            "name": "schema",
+            "order": 11,
+            "color": "#6639ba",
+            "label": "Format & schema",
+            "description": "the schema DSL and the document's type-level shape"
+        },
+        {
+            "name": "validation",
+            "order": 12,
+            "color": "#57606a",
+            "label": "Validation & diagnostics",
+            "description": "validateDocument and its checkers, document diagnostics, the warning / error channel"
+        },
+        {
+            "name": "util",
+            "order": 13,
+            "color": "#8c959f",
+            "label": "Shared utilities",
+            "description": "id regeneration, deep cloning, small helpers used everywhere"
+        },
+        {
+            "name": "testkit",
+            "order": 14,
+            "color": "#d0d7de",
+            "label": "Test support",
+            "description": "helpers that exist for the test suites"
+        }
+    ],
+    "importance": [
+        {
+            "name": "major",
+            "label": "Major — documented API",
+            "description": "the functions the public docs describe; default for @public / @public @advanced"
+        },
+        {
+            "name": "important",
+            "label": "Important",
+            "description": "the internal steps that carry a process — orchestrators, each effect's entry point, the engines"
+        },
+        {
+            "name": "minor",
+            "label": "Minor",
+            "description": "helpers; default for everything not documented and not tagged"
+        }
+    ]
+}

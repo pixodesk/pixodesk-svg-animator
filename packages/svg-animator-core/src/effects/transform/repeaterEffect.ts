@@ -1,3 +1,4 @@
+// @px-area effects
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -11,6 +12,7 @@ import type { ApplyContext } from '../shared/types';
 import { clone } from '../shared/util';
 
 
+// @px-importance important
 /**
  * REPEATER — "clone this element N times, each copy stepped by a rule".
  * Named `repeater`, not `repeat`: the repetition is SPATIAL, while in an animation

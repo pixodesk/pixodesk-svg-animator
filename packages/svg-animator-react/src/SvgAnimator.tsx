@@ -1,3 +1,4 @@
+// @px-area entry
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -144,6 +145,7 @@ export interface SvgAnimatorProps extends PxPlaybackOverride, PxControlProps, Px
 
 // -- Inner component (memoised, never re-renders) ---------------------------
 
+// @px-importance important
 const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
     className, style, doc, compMode, apiHolderRef, callbacksRef, diagRef
 }) => {

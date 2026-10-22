@@ -1,3 +1,4 @@
+// @px-area entry
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -35,6 +36,7 @@ function createAnimatorFromConfig(
 }
 
 
+// @px-importance important
 /**
  * Creates an animator instance from an AnimatedSvgDocument.
  *

@@ -1,3 +1,4 @@
+// @px-area keyframes
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -326,6 +327,7 @@ function resolveElementAnimation(
 // LOOP EXPANSION: Duplicate keyframe segments to fill gaps in the timeline
 // ============================================================================
 
+// @px-importance important
 /**
  * Interpolates between two keyframe values based on property type.
  * Returns the raw interpolated value (not a CSS string).
@@ -679,6 +681,7 @@ function expandLoopKeyframes(
 // KEYFRAME NORMALIZATION
 // ============================================================================
 
+// @px-importance important
 /**
  * Normalizes keyframes from the new API format (time in ms) to internal format (time as 0-1 fraction).
  * Resolves easing references, normalizes times, and converts path strings for 'd' attribute.
@@ -783,6 +786,7 @@ function mergeAnimationDefinitions(
 // ─────────────────────────────────────────────────────────────────────────────
 
 
+// @px-importance important
 /**
  * Replaces `propAnim.loop` with explicit repeated keyframes via
  * `expandLoopKeyframes`. Returns the input by reference when no loop is
@@ -832,6 +836,7 @@ export function materializeInternalLoopsInPropAnim(
 }
 
 
+// @px-importance important
 /**
  * Walks `root` and materializes every animated property's `loop` via
  * `materializeInternalLoopsInPropAnim`. Immutable — returns the input by
@@ -1081,6 +1086,7 @@ function getKeyframesPair(keyframes: PxNormalizedKeyframe[], progress: number) {
     return { prevKf, nextKf };
 }
 
+// @px-importance important
 /**
  * Calculates interpolated value for a single property animation.
  */

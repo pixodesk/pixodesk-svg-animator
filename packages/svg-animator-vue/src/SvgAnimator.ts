@@ -1,3 +1,4 @@
+// @px-area entry
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -44,6 +45,7 @@ const VUE_PROP = { ref: 'ref', style: 'style' } as const;
  */
 type DocOverrideProps = PxPlaybackOverride & Pick<PxControlProps, 'progress' | 'time'>;
 
+// @px-importance important
 function applyDocOverrides(
     doc: PxAnimatedSvgDocument,
     props: DocOverrideProps,

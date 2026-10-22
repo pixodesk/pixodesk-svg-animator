@@ -1,3 +1,4 @@
+// @px-area engine
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -214,6 +215,7 @@ export interface PxWebApiScrollTimeline {
     rangeEnd?: Record<string, unknown>;
 }
 
+// @px-importance important
 /** @internal */
 export function createWebApiAnimator(
     doc: PxAnimatedSvgDocument,

@@ -1,3 +1,4 @@
+// @px-area engine
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -65,6 +66,7 @@ export interface CompileTracksOptions {
 
 
 
+// @px-importance important
 /**
  * Compiles a MATERIALIZED document (run `prepareDocument(doc, { engine: 'native', freshIds: true })`
  * first) into densely sampled per-element tracks.

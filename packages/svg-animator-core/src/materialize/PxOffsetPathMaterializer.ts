@@ -1,3 +1,4 @@
+// @px-area materialize
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -134,6 +135,7 @@ function buildOffsetPath(propAnim: PxPropertyAnimation): {
     return { pathStr: d, distanceKfs, autoOrient: !!propAnim.autoOrient, anchor, keyframesCarryRotate };
 }
 
+// @px-importance important
 /**
  * Walks the tree and rewrites every `offsetPath`-marked transform binding into
  * offset-path styles + an `offsetDistance` binding. Non-candidates are left untouched.

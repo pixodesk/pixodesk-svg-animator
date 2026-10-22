@@ -1,3 +1,4 @@
+// @px-area render
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -53,6 +54,7 @@ export function toRnProps(props: Record<string, any>, warnings?: Array<string>, 
     return out;
 }
 
+// @px-importance important
 /**
  * Renders a (materialized) PxNode tree to react-native-svg elements.
  * Mirrors the web `renderNode` contract: unsupported/dangerous tags are

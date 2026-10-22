@@ -1,3 +1,4 @@
+// @px-area engine
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -44,6 +45,7 @@ function escapeCssId(id: string): string {
 
 
 
+// @px-importance important
 /**
  * Creates an animator instance that uses a requestAnimationFrame loop for animations.
  * This is the browser DOM-specific version.

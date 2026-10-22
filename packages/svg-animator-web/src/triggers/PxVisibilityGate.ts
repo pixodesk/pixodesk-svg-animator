@@ -1,3 +1,4 @@
+// @px-area control
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -96,6 +97,7 @@ function isGated(offScreen: PxGateTrigger['offScreen']): boolean {
     return offScreen !== PxOffScreenAction.continue;
 }
 
+// @px-importance important
 /** Builds the gate for one document. Returns an always-open one when visibility does not govern
  *  it, or when nothing can measure. @internal */
 export function createVisibilityGate(root: Element, trigger: PxGateTrigger, host: PxGateHost): PxVisibilityGate {

@@ -1,3 +1,4 @@
+// @px-area entry
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -233,6 +234,7 @@ const EMPTY_TRACKS: PxCompiledTracks = {
     fill: 'forwards', resetOnFinish: false, stepMs: 1, sampleCount: 2, elements: [],
 };
 
+// @px-importance important
 /**
  * Materializes + compiles a document. Extracted from the component so the
  * whole thing sits behind one try/catch, and so it can be tested directly.

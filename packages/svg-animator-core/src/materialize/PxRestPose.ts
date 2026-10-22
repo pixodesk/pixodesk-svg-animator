@@ -1,3 +1,4 @@
+// @px-area materialize
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -66,6 +67,7 @@ const VERIFY_SAMPLE_FRACTIONS: ReadonlyArray<number> = [0, 0.25, 0.5, 0.75, 1];
 const SCRATCH_ID_PREFIX = '__px_rest_';
 
 
+// @px-importance important
 /**
  * Returns a copy of `root` in which every animated property that has no static value carries
  * the value of the first frame. `root` is not mutated. Idempotent.

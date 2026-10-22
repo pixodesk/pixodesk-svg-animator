@@ -1,3 +1,4 @@
+// @px-area effects
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -118,6 +119,7 @@ function clearCloneRetime(n: PxNode): void {
 }
 
 
+// @px-importance important
 /** Pass-2 driver. Re-indexes ids (pass-1 generates new ones like `_lw_inner_0`),
  *  then materializes retime at every site. Order-independent: each site
  *  recursively expands its own chain via the original retime layout. */

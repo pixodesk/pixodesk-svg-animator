@@ -1,3 +1,4 @@
+// @px-area effects
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -10,6 +11,7 @@ import type { ApplyContext, MaskAncestorTransform } from '../shared/types';
 import { genId, stripHash } from '../shared/util';
 
 
+// @px-importance important
 /**
  * MASKED-BY → a `<mask>` in defs holding the source `<use>` wrapped in
  *   (forward of mask source's ancestors) · (inverse of masked element's full

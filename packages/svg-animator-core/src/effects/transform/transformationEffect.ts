@@ -1,3 +1,4 @@
+// @px-area effects
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -9,6 +10,7 @@ import type { PxAnimatable, PxNode, PxTransformByEffect, PxVec2 } from '../../fo
 import type { ApplyContext } from '../shared/types';
 
 
+// @px-importance important
 /**
  * TRANSFORMATION → one `<g>` wrapper per part (translate/rotate/scale/skew),
  * with origin emitted as SEPARATE `+origin` / `-origin` wrappers flanking the

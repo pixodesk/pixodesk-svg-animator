@@ -1,3 +1,4 @@
+// @px-area pipeline
 // ============================================================================
 // prepareDocument — ONE staged, immutable lowering pipeline
 // (dev-docs/plans/prepare-document-pipeline.md; first-use review §17a).

@@ -1,3 +1,4 @@
+// @px-area effects
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -56,6 +57,7 @@ export function applyRefHref(
     node.href = '#' + targetId;
 }
 
+// @px-importance important
 export function applyRefAndTransformationEffect(
     node: PxNode,
     clone: PxCloneEffect | undefined,

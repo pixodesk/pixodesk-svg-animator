@@ -1,3 +1,4 @@
+// @px-area engine
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -40,6 +41,7 @@ function nativeRangeOffset(point: { phase?: string; fraction?: number } | undefi
     return view ? { rangeName: point?.phase ?? 'cover', offset: pct } : { offset: pct };
 }
 
+// @px-importance important
 /**
  * Build the browser-native timeline (`mode: 'native'` / `auto`), or `null` when the platform
  * doesn't support scroll-driven WAAPI timelines — the caller then falls back to the
@@ -186,6 +188,7 @@ export function resolveScrollSubject(svgRoot: Element, subject: string | undefin
     return found;
 }
 
+// @px-importance important
 /**
  * Attach a scroll driver for `subject` (the animation's root `<svg>`).
  * Emits `onProgress(0..1)` — clamped, range-mapped — on attach and on every

@@ -14,6 +14,7 @@ than folded away. When a record and the code disagree, the code (and its tests) 
 | [README](../README.md) | project overview, packages, how to build and test |
 | [versioning.md](versioning.md) | library vs schema versions — when and how to bump each, the release CLI, the guards |
 | [backlog.md](backlog.md) | deferred items, collected when finished plans and reports were retired |
+| [code-areas.json](code-areas.json) | the code areas (processes) a function belongs to — tagged in the source as `// @px-area <name>` (file line 1, or right above a declaration); read by the dev-monitor function explorer, which groups each area |
 | [tools/docs-check](../tools/docs-check/README.md) | how the public docs are checked against the code on every build — the markers, the audience tags |
 
 ## Format and schema

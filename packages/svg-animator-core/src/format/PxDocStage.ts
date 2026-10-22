@@ -1,3 +1,4 @@
+// @px-area pipeline
 // ============================================================================
 // THE DOCUMENT STAGE STAMP (dev-docs/plans/prepare-document-pipeline.md)
 //
