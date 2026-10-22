@@ -426,7 +426,7 @@ export function resolveTrigger(trigger: PxTrigger | undefined): PxResolvedTrigge
 // V3 — every closed value list is a NAMED const + a strict `px.enum` slot, so a
 // typo is a schema ERROR instead of silently shipping. Plain `px.string()` stays
 // ONLY where SVG itself is open-ended (`gradientTransform`, `viewBox`, `path` d,
-// ids/refs, `debugGlobalName`).
+// ids/refs).
 
 /** `loop.repeatAt` — WHICH END of the keyframe sequence the repeated segment is taken
  *  from, and therefore which side of the timeline the repetition fills. A named

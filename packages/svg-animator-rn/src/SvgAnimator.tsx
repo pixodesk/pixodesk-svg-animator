@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createIterationStopWatcher, createRunClock, toAnimatedSvgDocument, type PxDocumentInput, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, PxPlayMode, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, resolveTrigger, PxTimelineEngine, PxControlMode, resolveControlMode, PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
-import { carryPrep, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
+import { carryPrep, deepEquals, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
 import { Dimensions, Platform, Pressable, View } from 'react-native';
@@ -323,6 +323,11 @@ export function SvgAnimator({
     // CONTENT instead — the override is small, the document is not.
     const timelineKey = typeof timeline === 'string' ? timeline : JSON.stringify(timeline ?? null);
 
+    // A re-created `doc` with the same content keeps the compiled tracks (core `deepEquals`, as in React and Vue).
+    const docRef = useRef(doc);
+    if (docRef.current !== doc && !deepEquals(docRef.current, doc)) docRef.current = doc;
+    const stableDoc = docRef.current;
+
 
     /**
      * The diagnostics channel, built from the CURRENT props each time (API review §5).
@@ -341,7 +346,7 @@ export function SvgAnimator({
     const compiled = useMemo((): Compiled => {
         try {
             return compileDocument(
-                toAnimatedSvgDocument(doc),
+                toAnimatedSvgDocument(stableDoc),
                 { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, offScreen: offScreenProp, mouseOut: mouseOutProp, visibilityThreshold: visibilityThresholdProp, visibilityDebounce: visibilityDebounceProp },
                 compMode === PxControlMode.play,
                 makeDiag(),
@@ -355,7 +360,7 @@ export function SvgAnimator({
         }
         // `timeline` is an object prop, so a fresh literal each render would recompile the whole
         // document. Key on its CONTENT — the override is small, unlike the document.
-    }, [doc, timelineKey, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, offScreenProp, mouseOutProp, visibilityThresholdProp, visibilityDebounceProp, compMode]);
+    }, [stableDoc, timelineKey, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, offScreenProp, mouseOutProp, visibilityThresholdProp, visibilityDebounceProp, compMode]);
 
     const tracks: PxCompiledTracks = compiled.tracks;
     // The span `progress` 0–1 covers (ONE iteration when endless) — NOT the seek ceiling.

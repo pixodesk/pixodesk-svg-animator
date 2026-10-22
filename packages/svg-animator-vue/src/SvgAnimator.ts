@@ -8,7 +8,7 @@ import type { PxAnimatedSvgDocument, PxAnimatorApi, PxTimelineEngineSetting, PxT
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimator, PxDiagnosticKind, type PxPlaybackOverride, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, applyDeclarativeAction, createIterationStopWatcher, foldTimelineOverride, toAnimatedSvgDocument, type PxDocumentInput, type PxMouseOutAction, type PxOffScreenAction, getAnimatorConfig, PxDeclarativeAction, type PxDeclarativeProps, PxDiagnosticCode, PxControlMode, PxFillMode, PxPlaybackWorld, PxPlayMode, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorConfigPatch, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
-import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
+import { createDiagnostics, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
     watch,
@@ -221,13 +221,18 @@ const SvgAnimator = defineComponent({
 
         // -- Prepare the document with overrides --------------------------------
 
+        // A re-created `doc` with the same content keeps the animator (core `deepEquals`, as in React
+        // and React Native); an in-place change to a reactive doc still recomputes — read through below.
+        const docInput = shallowRef(props.doc);
+        watch(() => props.doc, next => { if (!deepEquals(docInput.value, next)) docInput.value = next; });
+
         const resolvedDoc = computed(() => {
             // Overrides FIRST: they can change `timeline.engine` and `duration`, and
             // materialization reads both (the engine picks the stages, the duration sizes loop
             // expansion). Then render what the web player renders — materialized, fresh ids.
             // Rendering the raw document dropped every `effects` bucket, so a document painted
             // by `effects` alone came out as an empty canvas.
-            const doc = applyDocOverrides(toAnimatedSvgDocument(props.doc), props, compMode.value, makeDiag());
+            const doc = applyDocOverrides(toAnimatedSvgDocument(docInput.value), props, compMode.value, makeDiag());
             // The checked stage repairs what does not match the schema and says what it repaired.
             return prepareDocumentForRender(doc, ps => reportDocumentProblems(ps, makeDiag()));
         });

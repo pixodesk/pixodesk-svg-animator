@@ -508,6 +508,36 @@ describe("SvgAnimator (React)", () => {
             vi.advanceTimersByTime(128);
             expect(rect?.getAttribute("transform")).toMatch("translate(100,0)");
         });
+
+        it("keeps the animator when a re-created doc has the same content", () => {
+            const { container, rerender } = render(<SvgAnimator doc={getTestJson()} playAsSaved />);
+            const firstRootId = container.querySelector("svg")?.getAttribute("id");
+
+            rerender(<SvgAnimator doc={getTestJson()} playAsSaved />);
+
+            // ids are regenerated per animator: the same id means no remount
+            expect(container.querySelector("svg")?.getAttribute("id")).toBe(firstRootId);
+        });
+
+        // The old comparison took a second visit to one object for a cycle and threw during render.
+        it("a re-created doc that reuses one object in two places is compared, not a crash", () => {
+            const sharedJson = (): PxAnimatedSvgDocument => {
+                const fade = { keyframes: [{ time: 0, value: 0 }, { time: 500, value: 1 }] };
+                return {
+                    type: "svg", id: "_px_shared", viewBox: "0 0 100 100",
+                    children: [
+                        { type: "rect", id: "a", animate: { opacity: fade } },
+                        { type: "rect", id: "b", animate: { opacity: fade } },
+                    ],
+                } as PxAnimatedSvgDocument;
+            };
+            const { container, rerender } = render(<SvgAnimator doc={sharedJson()} playAsSaved />);
+            const firstRootId = container.querySelector("svg")?.getAttribute("id");
+
+            rerender(<SvgAnimator doc={sharedJson()} playAsSaved />);
+
+            expect(container.querySelector("svg")?.getAttribute("id")).toBe(firstRootId);
+        });
     });
 
     // -- Playback override (`timeline` / shortcuts) -----------------------------

@@ -4,8 +4,8 @@ Owner decision (2026-10-22): after the document was earned as a type (`schema-ca
 remaining `any` must go by giving each place its REAL type — not by swapping `any` for `unknown` + casts.
 A handful of commented casts is fine where TypeScript genuinely cannot express the fact; scattered ones
 are not. In scope: the schema framework (§1), the engine's runtime values (§2a), the glyph text
-materializer (§3). Out of scope here: platform edges (§4 — two owner decisions pending: `debugGlobalName`,
-React `doc` comparison) and tests (§5 — a later iteration).
+materializer (§3). Out of scope here: platform edges (§4 — owner decisions 2026-10-22: `debugGlobalName` removed
+from the format, `doc` compared by content in React, Vue and React Native — see the log) and tests (§5 — a later iteration).
 
 ## Where the remaining `any` comes from (shipped source, 126)
 
@@ -66,7 +66,7 @@ React `doc` comparison) and tests (§5 — a later iteration).
        `calcAnimationValues`, `convertToWebApiKeyframes`, `compileTracks`, the rest pose on channels;
        `_PxNormalizedKeyframe.v` typed. Editor touch points: `PxNormalizedPropertyAnimation` (its model
        implements it), `MotionPathSampler`. Gate: oracles byte-identical, engine-parity + visual specs.
-- [ ] 4. Guards + batteries: lower the any budget; five suites, docs-check, kf typecheck + relevant specs;
+- [x] 4. Guards + batteries: lower the any budget; five suites, docs-check, kf typecheck + relevant specs;
        docs; review card; stage both repos.
 
 ## Accepted limits
@@ -117,3 +117,9 @@ React `doc` comparison) and tests (§5 — a later iteration).
   | kf `gradient.stop.offset.animated` | `offset: "20%"` → `"80%"` parsed as `NaN` | blends and keeps the unit: `20%`, `35%`, … |
   | kf `skew.x+y` (1.2.1, legacy `[x, y]` skew) | `translate(120,75)skewX(NaN)` | `translate(120,75)` (see accepted limits) |
   All other corpus output byte-identical (core 620/628, web 308/314, rn 310/314 — the rest are the rows above).
+- 2026-10-22 — platform decisions (owner). `debugGlobalName` REMOVED from the format (schema 1.5, step `up` drops it,
+  `down` is a no-op): a file wrote any `window` property of the page playing it. Console / page access is the
+  registry's job — `PX_ANIMATOR_REGISTRY_GLOBAL` (`__pixodeskSvgAnimators`) is now exported; the editor's preview
+  transport and render-diff page find the file's animator there. `doc` comparison: core `deepEquals` (typed; an object
+  reused in two places no longer reads as a cycle — the old guard threw during render); React keeps deep compare, Vue
+  (`docInput` + watch) and React Native (`docRef`) now match it. Budgets: web 4 → 3, react 8 → 0.

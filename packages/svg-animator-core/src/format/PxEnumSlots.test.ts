@@ -9,7 +9,7 @@
 // same class of mistake caught in one slot and missed in the next.
 //
 // Plain `px.string()` is kept ONLY where SVG itself is open-ended: `gradientTransform`,
-// `viewBox`, textPath `pathData` (a `d`), ids/refs, `debugGlobalName`.
+// `viewBox`, textPath `pathData` (a `d`), ids/refs.
 
 import { describe, expect, it } from 'vitest';
 import {

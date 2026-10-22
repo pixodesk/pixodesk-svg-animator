@@ -196,7 +196,7 @@ describe('animator.timeline spelling compat', () => {
         expect(nestAnimatorTimeline({ engine: 'auto' } as any)).toEqual({ timeline: { engine: 'auto' } });
         expect(nestAnimatorTimeline({ frameRate: 60 } as any)).toEqual({ timeline: { frameRate: 60 } });
         // Only the non-playback keys stay on `animator` itself.
-        expect(nestAnimatorTimeline({ debugGlobalName: 'hero' } as any)).toEqual({ debugGlobalName: 'hero' });
+        expect(nestAnimatorTimeline({ version: '1.5' } as any)).toEqual({ version: '1.5' });
         const already = { duration: 1, timeline: { delay: 2 } } as any;
         expect(nestAnimatorTimeline(already)).toBe(already);
     });

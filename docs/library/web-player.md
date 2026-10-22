@@ -382,6 +382,10 @@ interface PxAnimatorRegistry {
 every animator appear (`add`), start (`play`), pause, cancel, finish and go (`remove`); an
 animator's own `onPlay` / `onPause` / … callbacks run first. It returns the unsubscribe.
 
+Code that cannot import the library — a page script next to a pre-rendered SVG, whose embedded
+player keeps its animator to itself, or a tool's iframe — reaches the same registry by name:
+`window.__pixodeskSvgAnimators.getAll()` (the name is exported as `PX_ANIMATOR_REGISTRY_GLOBAL`).
+
 ```js
 import { getAllSvgAnimators, onSvgAnimatorsChange } from '@pixodesk/svg-animator-web';
 
@@ -479,9 +483,8 @@ function bindSvgAnimator(options: PxPrerenderedAnimatorOptions): PxAnimatorApi;
 **Globals.** Importing the player writes nothing to `window`. `<script>` pages reach the player's
 functions through `Pixodesk.SvgAnimator.*` on the UMD build — `createSvgAnimator` is the member `create`
 there and `bindSvgAnimator` the member `bind`; ESM and CJS consumers import what they need. A tool that writes a script for those pages (an
-exporter) builds the call from `PX_PLAYER_GLOBAL`, `PX_PLAYER_CREATE` and `PX_PLAYER_BIND` instead of spelling it. Separately, a document with `animator.debugGlobalName: "heroBanner"` makes the player
-assign its API object to `window.heroBanner`, so a live instance can be driven from the console —
-opt-in per document; see [Playback & triggers → Debug handle](./playback-and-triggers.md#debug-handle--debugglobalname).
+exporter) builds the call from `PX_PLAYER_GLOBAL`, `PX_PLAYER_CREATE` and `PX_PLAYER_BIND` instead of spelling it. To drive a live instance from the console, use the page registry —
+[Every animator on the page](#every-animator-on-the-page-experimental).
 
 **Everything else this package exports** — ● user-facing · ○ advanced · ▪ internal, as in
 [the API at a glance](./README.md#the-api-at-a-glance):
@@ -490,7 +493,7 @@ opt-in per document; see [Playback & triggers → Debug handle](./playback-and-t
 | Identifier | Audience · what it is for |
 |---|---|
 | `createSvgAnimator(options)`, `bindSvgAnimator(options)`, `loadTagSvgAnimators(options?)`, `setupAnimationTriggers(api, trigger, diag?)` | ● the player — above |
-| `getAllSvgAnimators()`, `onSvgAnimatorsChange(listener)`, `PxAnimatorRegistry`, `PxAnimatorsEvent`, `PxAnimatorsListener` | ● **experimental** — [every animator on the page](#every-animator-on-the-page-experimental): the window-wide registry, also `globalThis.__pixodeskSvgAnimators`; not settled, may change without a major version |
+| `getAllSvgAnimators()`, `onSvgAnimatorsChange(listener)`, `PxAnimatorRegistry`, `PxAnimatorsEvent`, `PxAnimatorsListener`, `PX_ANIMATOR_REGISTRY_GLOBAL` | ● **experimental** — [every animator on the page](#every-animator-on-the-page-experimental): the window-wide registry, also `globalThis.__pixodeskSvgAnimators` (that name: `PX_ANIMATOR_REGISTRY_GLOBAL`); not settled, may change without a major version |
 | `createAdapterSvgAnimator(doc, adapter, callbacks?)` | ○ the frame-loop engine against a custom `PxPlatformAdapter` — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
 | `PxInternalAnimatorOptions` | ▪ `PxAnimatorOptions` plus `adapter` — the frame loop's custom render target (`PxPlatformAdapter`: `isConnected()` + `setAttribute(id, name, value)`). What the React and Vue components build the player with, so writes go to the elements they rendered; not an option of the public API, because a page has a DOM to write to |
 | `renderNode(node, defs?, diag?)` → `toDomProps(props)` | ○ render one wire node to a DOM element / resolve a node's attributes. `diag` is optional — without it a blocked tag is reported on the console |

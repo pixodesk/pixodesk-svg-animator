@@ -46,11 +46,12 @@ interface RegistryStore extends PxAnimatorRegistry {
 }
 
 const STORE_KEY = Symbol.for('@pixodesk/svg-animator-web:animators');
-/** The by-name handle for tooling that cannot import the library. */
-const GLOBAL_NAME = '__pixodeskSvgAnimators';
+/** The `globalThis` name the registry is also reachable by — for code that cannot import the library
+ *  (a page script next to a pre-rendered SVG, a tool's iframe). Experimental — may change. @public */
+export const PX_ANIMATOR_REGISTRY_GLOBAL = '__pixodeskSvgAnimators';
 
 /** The one store of this window, created on first use. `globalThis` carries it under a
- *  symbol (shared across bundle copies) and, for discoverability, under {@link GLOBAL_NAME}. */
+ *  symbol (shared across bundle copies) and, for discoverability, under {@link PX_ANIMATOR_REGISTRY_GLOBAL}. */
 function store(): RegistryStore {
     // `globalThis` has no declared slot for either key — this is exactly the ad-hoc global
     // a cross-bundle registry needs, so it is typed as the record it is used as.
@@ -69,7 +70,7 @@ function store(): RegistryStore {
             },
         };
         g[STORE_KEY] = s;
-        if (g[GLOBAL_NAME] === undefined) g[GLOBAL_NAME] = s;
+        if (g[PX_ANIMATOR_REGISTRY_GLOBAL] === undefined) g[PX_ANIMATOR_REGISTRY_GLOBAL] = s;
     }
     return s;
 }

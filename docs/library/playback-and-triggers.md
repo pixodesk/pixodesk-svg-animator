@@ -72,7 +72,7 @@ means a time-driven timeline with every default.
 
 Timing, the playback dynamics, how the animated attributes get updated and at what rate ALL live in the
 timeline. `animator` itself keeps only what is not playback: the lookup tables
-(`definitions`, `bindings`) and the `debugGlobalName` handle.
+(`definitions`, `bindings`).
 
 <!-- px-check schema PxAnimatorConfigSchema partial -->
 | Field | Values | Default | Meaning |
@@ -306,13 +306,6 @@ true for every mode except `playAsSaved`.
 > **Mangled builds.** `timeline` also accepts a **JSON string** —
 > `timeline='{"outTime":2000}'` — which survives a build that renames object keys.
 > See [Minification](./minification.md).
-
-## Debug handle — `debugGlobalName`
-
-`"animator": { "debugGlobalName": "heroBanner" }` makes the player publish its API object as
-`window.heroBanner`, so you can drive a live instance from the browser console —
-`heroBanner.pause()`, `heroBanner.setCurrentTime(500)`, and so on. Purely a debugging
-convenience; remove it (or leave it — it has no other effect) for production files.
 
 ## Scroll-driven playback (in development)
 

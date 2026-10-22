@@ -55,5 +55,14 @@
    "animator.timeline|time.trigger.finish"
   ],
   "note": "What is shown after the end was decided in two places (first-use review §13): `trigger.finish` moves OUT of the trigger — the only trigger key about neither starting nor running — and next to `fillMode` as `timeline.finish`, because the two answer the same question and must document how they combine."
+ },
+ {
+  "version": "1.5",
+  "date": "2026-10-22",
+  "added": [],
+  "removed": [
+   "animator.debugGlobalName"
+  ],
+  "note": "`animator.debugGlobalName` is removed: it let a FILE write any `window` property of the page playing it (`fetch`, `location`, …). Reaching a live animator from the console is the page registry's job — `getAllSvgAnimators()`."
  }
 ]

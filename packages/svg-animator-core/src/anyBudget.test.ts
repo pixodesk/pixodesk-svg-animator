@@ -14,8 +14,8 @@ const PACKAGES = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
  *  the element-factory generic, platform globals (DOM, React components), the effects test kit. */
 const BUDGET: ReadonlyArray<{ pkg: string; max: number }> = [
     { pkg: 'svg-animator-core', max: 13 },
-    { pkg: 'svg-animator-web', max: 4 },
-    { pkg: 'svg-animator-react', max: 8 },
+    { pkg: 'svg-animator-web', max: 3 },
+    { pkg: 'svg-animator-react', max: 0 },
     { pkg: 'svg-animator-vue', max: 0 },
     { pkg: 'svg-animator-rn', max: 15 },
 ];

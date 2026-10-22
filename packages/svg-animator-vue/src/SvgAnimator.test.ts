@@ -324,6 +324,16 @@ describe("SvgAnimator (Vue)", () => {
             expect(api.value!.getCurrentTime()).toBe(128);
             expect(firstApi!.isPlaying()).toBe(false);
         });
+
+        it("keeps the animator when a re-created doc has the same content", async () => {
+            const { container, rerender } = renderWithApi(getTestJson());
+            const firstRootId = container.querySelector("svg")?.getAttribute("id");
+
+            await rerender({ doc: getTestJson() });
+
+            // ids are regenerated whenever the document is prepared again: the same id means no rebuild
+            expect(container.querySelector("svg")?.getAttribute("id")).toBe(firstRootId);
+        });
     });
 });
 

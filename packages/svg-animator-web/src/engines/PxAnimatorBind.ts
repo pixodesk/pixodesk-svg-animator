@@ -64,10 +64,6 @@ export function finaliseAnimator(
         setEngineRate(factor);
     }
 
-    if (animatorConfig.debugGlobalName) {
-        (window as any)[animatorConfig.debugGlobalName] = res; // Exposing as global variable for debug
-    }
-
     return res;
 }
 

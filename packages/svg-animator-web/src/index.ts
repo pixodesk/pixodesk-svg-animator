@@ -81,7 +81,7 @@ export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 
 // The page-wide registry — every live animator in the window, whoever made it, plus its
 // play / pause / cancel / finish announcements (also `globalThis.__pixodeskSvgAnimators`).
-export { getAllSvgAnimators, onSvgAnimatorsChange } from './registry/PxAnimatorRegistry';
+export { getAllSvgAnimators, onSvgAnimatorsChange, PX_ANIMATOR_REGISTRY_GLOBAL } from './registry/PxAnimatorRegistry';
 export type { PxAnimatorRegistry, PxAnimatorsEvent, PxAnimatorsListener } from './registry/PxAnimatorRegistry';
 
 // Normalization utilities

@@ -2058,9 +2058,6 @@
             "additionalProperties": false
           }
         },
-        "debugGlobalName": {
-          "type": "string"
-        },
         "version": {
           "type": "string"
         }

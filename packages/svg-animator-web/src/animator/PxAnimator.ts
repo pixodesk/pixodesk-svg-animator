@@ -22,7 +22,7 @@ export { generateNewIds };
  * Creates an animator instance from a normalized player config.
  * This is the internal implementation that both engines use.
  *
- * The engine choice plus the `resetOnFinish` / `debugGlobalName` handling live in
+ * The engine choice plus the `resetOnFinish` handling live in
  * `PxAnimatorBind` so the pre-rendered builds share them verbatim — one code path, no
  * parallel pipeline. See dev-docs/plans/prerendered-player-builds.md.
  */

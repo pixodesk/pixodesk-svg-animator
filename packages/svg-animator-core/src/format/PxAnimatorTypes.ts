@@ -1131,9 +1131,6 @@ export interface _PxAnimatorConfig {
      *  are the internal runtime view `resolveAnimatorTimeline` produces from it. */
     timeline?: PxTimeline;
 
-    /** Debug helper: exposes the animator instance as `window[debugGlobalName]`. */
-    debugGlobalName?: string;
-
     /**
      * WIRE FORMAT VERSION, `"a.b.c"` — the layering, not a build number:
      *   `a.b`  the PLAYER schema. A reader at `a.b` reads any file at `a.[b' <= b]`.
@@ -1195,7 +1192,6 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
     timeline: PxTimelineSchema.optional(),
     definitions: PxDefinitionsSchema.optional(),
     bindings: px.array(PxBindingSchema).optional(),
-    debugGlobalName: px.string().optional(),
     // Declared HERE because this is a closed object: an undeclared key would be stripped by
     // `sanitize` and flagged by strict validation on our own files.
     version: px.string().optional(),
@@ -1203,7 +1199,7 @@ export const PxAnimatorConfigSchema = implementsInterface<_PxAnimatorConfig>()(p
 
 /**
  * The document's `animator` block as written in a file: `timeline`, `definitions`, `bindings`,
- * `debugGlobalName`, `version` — the playback dynamics live inside `timeline` (review §2.1).
+ * `version` — the playback dynamics live inside `timeline` (review §2.1).
  * A flat key (`duration`, `trigger`, …) does not type-check here: the player drops it.
  * @public
  */

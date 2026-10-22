@@ -237,7 +237,24 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         up: upFinishToTimeline,
         down: downFinishToTrigger,
     },
+    {
+        from: '1.4',
+        to: '1.5',
+        reason: '`animator.debugGlobalName` is removed: it let a FILE write any `window` property of '
+            + 'the page playing it (`fetch`, `location`, …). Reaching a live animator from the '
+            + 'console is the page registry\'s job — `getAllSvgAnimators()`.',
+        kind: PxWireStepKind.converted,
+        up: upDropDebugGlobalName,
+        // nothing to restore: every 1.5 document is a valid 1.4 one (the key was optional)
+        down: () => {},
+    },
 ];
+
+/** 1.4 → 1.5: `animator.debugGlobalName` dropped, at either animator address. */
+function upDropDebugGlobalName(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    if (animator) delete animator['debugGlobalName'];
+}
 
 /** 1.3 → 1.4: `timeline.trigger.finish` → `timeline.finish`, at either animator address. */
 function upFinishToTimeline(doc: Record<string, unknown>): void {

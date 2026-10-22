@@ -40,7 +40,8 @@ reach on a small viewport. Inside an `<iframe>`, visibility is measured relative
 ## React
 
 **The animation restarts when the parent re-renders.** The animator is recreated only when the
-`doc` *content* changes (the comparison is deep), so a re-created but identical object is fine.
+`doc` *content* changes (the comparison is deep — Vue and React Native compare the same way), so a
+re-created but identical object is fine.
 Restarts usually come from a `doc` that really is different each render — for example built
 inline with a changing value. Build the document once (module level or `useMemo`).
 

@@ -46,7 +46,7 @@ const EXEMPT: Record<string, string> = {
         'proves a flat key no longer type-checks — the wrong spelling is the subject (review §3)',
 };
 
-/** Keys that belong inside `timeline`. `debugGlobalName` and the lookup tables do not.
+/** Keys that belong inside `timeline`. The lookup tables do not.
  *  `frameRate` joined them on 2026-09-09 — it parameterises the engine `timeline.engine` selects,
  *  so keeping it at the animator root split one decision across two levels. */
 const PLAYBACK_KEYS = new Set<string>([
