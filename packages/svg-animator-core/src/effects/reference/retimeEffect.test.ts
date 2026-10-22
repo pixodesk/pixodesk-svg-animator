@@ -19,8 +19,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { materializeNodeEffects } from '../PlayerEffectsUtil';
-import { collectByType, materializeEngine, normalizeGeneratedIds, PxTimelineEngine } from '../effectTestKit';
-import { PxCloneEffectSchema, type PxNode } from '../../format/PxAnimatorTypes';
+import { authoredEntry, collectByType, compiledEntry, entryOf, materializeEngine, normalizeGeneratedIds, PxTimelineEngine, untyped } from '../effectTestKit';
+import { PxCloneEffectSchema, type PxNode, type PxRetimeEffect } from '../../format/PxAnimatorTypes';
 import type { PxValidationContext } from '../../schema/PxSchema';
 
 /** The nested content-ref retime wire (== case 4 input): ell1 ← use1(+250) ← use2(+250). */
@@ -32,7 +32,7 @@ function nestedContentRefWire(): PxNode {
             { type: 'use', id: 'use1', href: '#ell1', y: '100', effects: { clone: { without: 'translate', source: 'ell1', retime: { start: 250 } } } },
             { type: 'g', id: 'ell1', children: [animatedBall('ball')] },
         ],
-    } as unknown as PxNode;
+    };
 }
 
 
@@ -48,7 +48,7 @@ function animatedBall(id: string): PxNode {
                 ],
             },
         },
-    } as unknown as PxNode;
+    };
 }
 
 /** Every transform-keyframe `time` array in the tree, sorted for stable compare.
@@ -56,8 +56,8 @@ function animatedBall(id: string): PxNode {
 function transformKfTimes(root: PxNode): Array<Array<number>> {
     const out: Array<Array<number>> = [];
     const walk = (n: PxNode): void => {
-        const kfs = (n.animate as any)?.transform?.keyframes;
-        if (Array.isArray(kfs)) out.push(kfs.map((k: any) => k.time));
+        const kfs: ReadonlyArray<{ readonly time?: number }> | undefined = entryOf(n, 'transform')?.keyframes;
+        if (Array.isArray(kfs)) out.push(kfs.map(k => k.time ?? 0));
         n.children?.forEach(walk);
     };
     walk(root);
@@ -69,7 +69,8 @@ function transformKfTimes(root: PxNode): Array<Array<number>> {
 function danglingRetimeCount(root: PxNode): number {
     let n = 0;
     const walk = (node: PxNode): void => {
-        if (node.type === 'use' && (node.effects as any)?.retime) n++;
+        const effects = node.effects;
+        if (node.type === 'use' && effects && 'retime' in effects && effects.retime) n++;
         node.children?.forEach(walk);
     };
     walk(root);
@@ -91,7 +92,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                 { type: 'g', id: 'src', children: [animatedBall('ball')] },
                 { type: 'use', href: '#src', effects: { clone: { retime: { start: 250 } } } },
             ],
-        } as unknown as PxNode;
+        };
 
         const out = materialize(input);
         expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
@@ -151,7 +152,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                 { type: 'g', id: 'src', children: [animatedBall('ball')] },
                 { type: 'use', href: '#src', effects: { clone: { retime: { start: 250, stretch: 0.5 } } } },
             ],
-        } as unknown as PxNode;
+        };
 
         const out = materialize(input);
         expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
@@ -212,7 +213,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                 { type: 'use', id: 'u1', href: '#src', effects: { clone: { retime: { start: 250 } } } },
                 { type: 'use', href: '#u1', effects: { clone: { retime: { start: 250 } } } },
             ],
-        } as unknown as PxNode;
+        };
 
         const out = materialize(input);
         expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
@@ -305,7 +306,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                 },
                 { type: 'g', id: 'ell1', children: [animatedBall('ball')] },
             ],
-        } as unknown as PxNode;
+        };
 
         const out = materialize(input);
         expect(normalizeGeneratedIds(out)).toMatchInlineSnapshot(`
@@ -679,7 +680,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
     // of +500. Site ordering is by reachability now (outer-most first), which must make
     // this layout equivalent to case 3.
     it('case 6 — inner retimed use INSIDE the referenced template, template serialized first → still composes to +500', () => {
-        const wire = {
+        const wire: PxNode = {
             type: 'svg', viewBox: '0 0 400 400',
             children: [
                 // the template (with its retimed inner use) comes FIRST in document order
@@ -690,7 +691,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
                 // the OUTER site references the template
                 { type: 'use', href: '#tpl1', effects: { clone: { without: 'translate', source: 'tpl1', retime: { start: 250 } } } },
             ],
-        } as unknown as PxNode;
+        };
         const { root } = materializeNodeEffects(wire);
         const times = transformKfTimes(root).map(t => t.join(','));
         expect(times, 'the outer chain composes: +250 (template render) AND +500 (retimed chain)')
@@ -719,24 +720,25 @@ describe('retime is PURE TIMING — no own source ref (review §4.3)', () => {
                     animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } } }] },
                 { type: 'use', href: '#src', effects: { clone: { retime: { start: 250 } } } },
             ],
-        } as unknown as PxNode);
-        const rects: Array<any> = collectByType(out, 'rect') as Array<any>;
-        const retimed = rects.find(r => r.animate?.opacity?.keyframes?.[0]?.time === 250);
+        });
+        const rects: Array<PxNode> = collectByType(out, 'rect');
+        const retimed = rects.find(r => entryOf(r, 'opacity')?.keyframes?.[0]?.time === 250);
         expect(retimed, 'a clone with +250-shifted keyframes exists').toBeTruthy();
-        expect(retimed.animate.opacity.keyframes.map((k: any) => k.time)).toEqual([250, 1250]);
+        expect(authoredEntry(retimed, 'opacity').keyframes?.map(k => k.time)).toEqual([250, 1250]);
     });
 
     it('a STRAY legacy retime.source changes nothing — materialization follows href, not it', () => {
-        const build = (retime: object) => normalizeGeneratedIds(materialize({
+        const build = (retime: PxRetimeEffect) => normalizeGeneratedIds(materialize({
             type: 'svg',
             children: [
                 { type: 'g', id: 'src', children: [{ type: 'rect', width: 10, height: 10 }] },
                 { type: 'g', id: 'decoy', children: [{ type: 'ellipse', rx: 5, ry: 5 }] },
                 { type: 'use', href: '#src', effects: { clone: { source: '#src', retime } } },
             ],
-        } as unknown as PxNode));
+        }));
         // Same output whether the removed key is absent or points somewhere else entirely.
-        expect(build({ start: 250, source: '#decoy' } as object)).toEqual(build({ start: 250 }));
+        // `source` is the removed key — not a retime field any more, on purpose.
+        expect(build(untyped<PxRetimeEffect>({ start: 250, source: '#decoy' }))).toEqual(build({ start: 250 }));
     });
 
     it('the schema gives the removed key no slot — strict validation flags it', () => {
@@ -759,42 +761,42 @@ describe('retime is PURE TIMING — no own source ref (review §4.3)', () => {
 
 describe('retime.timeCrop — visibility window', () => {
 
-    const cropDoc = (timeCrop: [number, number], useExtra: Record<string, unknown> = {}): PxNode => ({
+    const cropDoc = (timeCrop: [number, number], useExtra: Partial<PxNode> = {}): PxNode => ({
         type: 'svg', animator: { timeline: { duration: 2000 } },
         children: [
             { type: 'rect', id: 'src', width: 10, height: 10,
               animate: { opacity: { keyframes: [{ time: 0, value: 1 }, { time: 2000, value: 0 }] } } },
             { type: 'use', href: '#src', ...useExtra, effects: { clone: { retime: { start: 0, timeCrop } } } },
         ],
-    } as unknown as PxNode);
+    });
 
     /** The wrapper `<g>` the crop is applied to (the `<use>` lives inside it). */
-    const cropWrapper = (out: PxNode): any =>
-        collectByType(out, 'g').find(g => (g as any).animate?.opacity);
+    const cropWrapper = (out: PxNode): PxNode | undefined =>
+        collectByType(out, 'g').find(g => entryOf(g, 'opacity'));
 
     it('wraps the <use> in a <g> whose opacity gates the window', () => {
         const out = materializeEngine(cropDoc([500, 1500]), PxTimelineEngine.js);
         const g = cropWrapper(out);
         expect(g, 'a crop wrapper was generated').toBeDefined();
-        expect(g.animate.opacity.keyframes).toEqual([
+        expect(compiledEntry(g, 'opacity').keyframes).toEqual([
             { time: 499, value: 0 },   // hidden right up to the edge…
             { time: 500, value: 1 },   // …visible AT the boundary
             { time: 1500, value: 1 },  // …still visible AT the far boundary
             { time: 1501, value: 0 },  // …hidden immediately after
         ]);
         // The `<use>` itself is untouched inside the wrapper.
-        expect(g.children).toHaveLength(1);
+        expect(g?.children).toHaveLength(1);
     });
 
     it('a window starting at 0 emits no leading hidden keyframe', () => {
         const g = cropWrapper(materializeEngine(cropDoc([0, 800]), PxTimelineEngine.js));
-        expect(g.animate.opacity.keyframes[0]).toEqual({ time: 0, value: 1 });
+        expect(compiledEntry(g, 'opacity').keyframes[0]).toEqual({ time: 0, value: 1 });
     });
 
     it('an EMPTY window (end <= start) hides the instance outright', () => {
         // Lottie layers with ip >= op are exactly this — they must never show.
         const g = cropWrapper(materializeEngine(cropDoc([900, 900]), PxTimelineEngine.js));
-        expect(g.animate.opacity.keyframes).toEqual([{ time: 0, value: 0 }]);
+        expect(compiledEntry(g, 'opacity').keyframes).toEqual([{ time: 0, value: 0 }]);
     });
 
     it('an authored opacity on the <use> survives — the crop rides on the wrapper', () => {
@@ -802,8 +804,8 @@ describe('retime.timeCrop — visibility window', () => {
         const g = cropWrapper(out);
         // The wrapper's only opacity is the CROP's own — its rest pose, the first frame: hidden,
         // since the window opens at 100ms. The authored 0.25 must never land on it.
-        expect(Number(g.opacity), 'wrapper carries only the crop (hidden until its window opens)').toBe(0);
-        expect(g.children[0].opacity, 'the instance keeps its own opacity').toBe(0.25);
+        expect(Number(g?.opacity), 'wrapper carries only the crop (hidden until its window opens)').toBe(0);
+        expect(g?.children?.[0].opacity, 'the instance keeps its own opacity').toBe(0.25);
     });
 
     it('no timeCrop → no wrapper at all', () => {
@@ -813,7 +815,7 @@ describe('retime.timeCrop — visibility window', () => {
                 { type: 'rect', id: 'src', width: 10, height: 10 },
                 { type: 'use', href: '#src', effects: { clone: { retime: { start: 250 } } } },
             ],
-        } as unknown as PxNode, PxTimelineEngine.js);
+        }, PxTimelineEngine.js);
         expect(cropWrapper(out)).toBeUndefined();
     });
 });

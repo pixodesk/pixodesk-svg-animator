@@ -11,22 +11,22 @@
 // `animate.transform.keyframes` with kf values scaled by the same rule.
 
 import { describe, expect, it } from 'vitest';
-import type { PxNode } from '../../format/PxAnimatorTypes';
-import { collectByType, materialize, materializeRaw, noEffectsRemain, normalizeGeneratedIds, transformKfTimes } from '../effectTestKit';
+import { PxTransformPartsSchema, PxTransformValueWrapperSchema, type PxNode, type PxRepeaterEffect, type PxTransformParts } from '../../format/PxAnimatorTypes';
+import { collectByType, entryOf, materialize, materializeRaw, noEffectsRemain, normalizeGeneratedIds, transformKfTimes } from '../effectTestKit';
 
-const rect = (): PxNode => ({ type: 'rect', id: 'r', width: 20, height: 20 } as unknown as PxNode);
-const wrap = (repeater: any): PxNode =>
-    ({ type: 'svg', children: [{ ...rect(), effects: { repeater } }] } as unknown as PxNode);
+const rect = (): PxNode => ({ type: 'rect', id: 'r', width: 20, height: 20 });
+const wrap = (repeater: PxRepeaterEffect): PxNode =>
+    ({ type: 'svg', children: [{ ...rect(), effects: { repeater } }] });
 
 /** Static `{value}` part records on `<g>` wrappers. */
-const staticParts = (out: PxNode): Array<any> =>
-    collectByType(out, 'g').map(g => (g as any).transform).filter(t => t && typeof t === 'object').map(t => t.value);
+const staticParts = (out: PxNode): Array<PxTransformParts> =>
+    collectByType(out, 'g').map(g => PxTransformValueWrapperSchema.castOrNull(g.transform)?.value).filter(parts => parts !== undefined);
 /** Last-keyframe `translate` value of every animated `<g>` (per-copy end pose). */
-const animTranslateEnds = (out: PxNode): Array<any> =>
+const animTranslateEnds = (out: PxNode): Array<PxTransformParts['translate']> =>
     collectByType(out, 'g')
-        .map(g => (g as any).animate?.transform?.keyframes)
-        .filter(Array.isArray)
-        .map((kfs: Array<any>) => kfs[kfs.length - 1].value.translate);
+        .map(g => entryOf(g, 'transform')?.keyframes)
+        .filter(kfs => kfs !== undefined)
+        .map(kfs => PxTransformPartsSchema.cast(kfs[kfs.length - 1].value).translate);
 
 
 describe('repeaterEffect — per-copy transform synthesis', () => {
@@ -334,9 +334,9 @@ describe('repeaterEffect — per-copy transform synthesis', () => {
                     repeater: { copies: 4, translate: [18, 0] },
                 },
             }],
-        } as unknown as PxNode);
+        });
 
-        const ellipses = collectByType(out, 'ellipse') as Array<any>;
+        const ellipses = collectByType(out, 'ellipse');
         expect(ellipses, 'one ellipse per copy').toHaveLength(4);
         for (const [i, e] of ellipses.entries()) {
             expect(Array.isArray(e.strokeDasharray), `copy ${i}: dash pattern`).toBe(true);

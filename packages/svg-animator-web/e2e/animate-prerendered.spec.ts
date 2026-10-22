@@ -4,6 +4,15 @@
  *---------------------------------------------------------------------------------------*/
 
 import { expect, test } from '@playwright/test';
+import type { PxAnimatorApi } from '../src/index';
+import type * as Prerendered from '../src/index.prerendered';
+import type * as PrerenderedWaapi from '../src/index.prerendered-waapi';
+
+/** The fixture page's globals: the player it bound (`pxApi`) and the pre-rendered UMD global. */
+type PxFixtureWindow = Window & {
+    pxApi?: PxAnimatorApi;
+    Pixodesk?: { SvgAnimator: typeof Prerendered | typeof PrerenderedWaapi };
+};
 
 /**
  * Smoke coverage for the PRE-RENDERED bundles, run against the MINIFIED artifact.
@@ -22,7 +31,9 @@ import { expect, test } from '@playwright/test';
 /** Seek, then let the compositor apply it before reading back. */
 async function seekAndRead(page: import('@playwright/test').Page, timeMs: number) {
     return page.evaluate(async (t) => {
-        const api = (window as any).pxApi;
+        const win: PxFixtureWindow = window;
+        const api = win.pxApi;
+        if (!api) throw new Error('fixture page: window.pxApi is not set');
         api.setCurrentTime(t);
         await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
         const el = document.getElementById('box')!;
@@ -35,7 +46,10 @@ test.describe('pre-rendered bundle (minified)', () => {
 
     test.beforeEach(async ({ page }) => {
         await page.goto('/animate-prerendered.html');
-        await page.waitForFunction(() => !!(window as any).pxApi);
+        await page.waitForFunction(() => {
+            const win: PxFixtureWindow = window;
+            return !!win.pxApi;
+        });
     });
 
     test('binds animations to an already-rendered SVG', async ({ page }) => {
@@ -65,7 +79,11 @@ test.describe('pre-rendered bundle (minified)', () => {
     });
 
     test('exposes only the pre-rendered surface', async ({ page }) => {
-        const keys = await page.evaluate(() => Object.keys((window as any).Pixodesk.SvgAnimator).sort());
+        const keys = await page.evaluate(() => {
+            const win: PxFixtureWindow = window;
+            if (!win.Pixodesk) throw new Error('fixture page: no Pixodesk global');
+            return Object.keys(win.Pixodesk.SvgAnimator).sort();
+        });
         expect(keys).toContain('bind');
         // `create` renders a document into a container: the full build only (first-use review §8)
         expect(keys).not.toContain('create');

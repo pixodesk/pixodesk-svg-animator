@@ -8,7 +8,7 @@ import { PxDiagnosticCode } from '@pixodesk/svg-animator-core';
 import { cleanup, render } from "@testing-library/vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, ref } from "vue";
-import type { PxAnimatorHandle } from '@pixodesk/svg-animator-core';
+import type { PxAnimatorCallbacks, PxAnimatorHandle } from '@pixodesk/svg-animator-core';
 import SvgAnimator from './SvgAnimator';
 
 
@@ -18,12 +18,12 @@ import SvgAnimator from './SvgAnimator';
  * emitted events via `onX` listener props. The host forwards its `doc` prop so
  * `rerender({ doc })` reaches the animator.
  */
-function renderWithApi(doc: PxAnimatedSvgDocument, listeners: Record<string, (...args: any[]) => void> = {}) {
+function renderWithApi(doc: PxAnimatedSvgDocument, listeners: PxAnimatorCallbacks = {}) {
     const api = ref<PxAnimatorHandle | null>(null);
     const utils = render(defineComponent({
         props: { doc: { type: Object, required: true } },
         setup(props) {
-            return () => h(SvgAnimator, { doc: props.doc as PxAnimatedSvgDocument, ref: api as any, ...listeners });
+            return () => h(SvgAnimator, { doc: props.doc as PxAnimatedSvgDocument, ref: api, ...listeners });
         },
     }), {
         props: { doc },
@@ -105,7 +105,9 @@ describe("SvgAnimator (Vue)", () => {
             const ellipse = svg?.querySelector("ellipse");
             const renderedEllipseId = ellipse?.getAttribute("id");
             expect(renderedEllipseId).toBeTruthy();
-            expect(renderedEllipseId).not.toBe((doc.children![0] as any).id);
+            const sourceEllipse = doc.children?.[0];
+            if (!sourceEllipse) throw new Error('the fixture has no ellipse');
+            expect(renderedEllipseId).not.toBe(sourceEllipse.id);
         });
 
         it("applies a node's inline `style` — `display: none` hides the element, like the web player", () => {
@@ -736,7 +738,7 @@ function getRectJson(): PxAnimatedSvgDocument {
 describe('SvgAnimator (Vue) — timeline override', () => {
 
     /** A WIRE-format document; the flat props this replaced were discarded on this shape. */
-    const wireJson = (): any => ({
+    const wireJson = (): PxAnimatedSvgDocument => ({
         type: 'svg', id: '_px_wire', viewBox: '0 0 100 100',
         animator: { timeline: { engine: 'js', outTime: 1000, trigger: { start: 'load' } } },
         children: [{

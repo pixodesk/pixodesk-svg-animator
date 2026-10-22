@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { svgTransformToMatrix } from './PxRnMatrix';
 import { toRnPropValue } from './PxRnPropNames';
-import { sampleProps } from './PxRnTracks';
+import { sampleProps, type PxElementTracks } from './PxRnTracks';
 
 /** Reference values cross-checked against react-native-svg's own `parse()`. */
 describe('svgTransformToMatrix', () => {
@@ -70,13 +70,13 @@ describe('toRnPropValue transform handling', () => {
 });
 
 describe('native prop naming (animated path)', () => {
-    const tracks = {
+    const tracks: PxElementTracks = {
         id: 'x',
         props: {
-            transform: [[1, 0, 0, 1, 0, 0], [1, 0, 0, 1, 9, 9]] as Array<Array<number>>,
+            transform: [[1, 0, 0, 1, 0, 0], [1, 0, 0, 1, 9, 9]],
             opacity: [1, 0],
         },
-    } as any;
+    };
 
     it('renames transform → matrix for the reanimated path', () => {
         // The native view declares `matrix`; a `transform` prop is silently

@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { PxEffectsSchema, validateNodeEffects } from './PxAnimatorTypes';
+import { PxEffectsSchema, validateNodeEffects, type PxAnimatedSvgDocument, type PxKeyframe, type PxKeyframeValue, type PxNode, type PxTimeline } from './PxAnimatorTypes';
 import { PxTimelineEngine } from './PxAnimatorConstants';
 import type { PxValidationContext } from '../schema/PxSchema';
 import { materializeAllInTree } from '../materialize/PxAnimatorMaterializeAll';
 import { calcAnimationValues, normalizeBindings } from '../animation/PxDefinitions';
 import { generateNewIds } from '../util/PxIdUtil';
+import { untyped } from '../effects/effectTestKit';
 
 describe('validateNodeEffects', () => {
     it('returns no warnings for empty tree', () => {
-        expect(validateNodeEffects({ type: 'svg' } as any)).toEqual([]);
+        expect(validateNodeEffects({ type: 'svg' })).toEqual([]);
     });
     it('returns no warnings for valid effects', () => {
         expect(validateNodeEffects({
@@ -17,23 +18,23 @@ describe('validateNodeEffects', () => {
                 type: 'rect',
                 effects: { transformBy: { translate: [10, 20], rotate: 45 } },
             }],
-        } as any)).toEqual([]);
+        })).toEqual([]);
     });
     it('reports warnings for malformed effects (wrong type)', () => {
-        const warnings = validateNodeEffects({
+        const warnings = validateNodeEffects(untyped<PxNode>({
             type: 'svg',
             children: [{
                 type: 'rect',
                 effects: { transformBy: { translate: 'not-a-vec2' } },
             }],
-        } as any);
+        }));
         expect(warnings.length).toBeGreaterThan(0);
     });
     it('flags unknown top-level effect key in strict mode', () => {
-        const warnings = validateNodeEffects({
+        const warnings = validateNodeEffects(untyped<PxNode>({
             type: 'svg',
             children: [{ type: 'rect', effects: { madeUpEffect: { foo: 1 } } }],
-        } as any, { strict: true });
+        }), { strict: true });
         expect(warnings.length).toBeGreaterThan(0);
         expect(warnings.join('\n')).toContain('madeUpEffect');
     });
@@ -44,14 +45,19 @@ describe('validateNodeEffects', () => {
 // ---------------------------------------------------------------------------
 
 describe('effect keyframes accept the short wire aliases', () => {
-    const D = (children: Array<any>): any => ({
-        type: 'svg', viewBox: '0 0 100 100', animator: { timeline: { duration: 1000 } }, children,
+    /** Two keyframes, at 0 and 1000 ms, in one of the two spellings. */
+    type KeyframePair = (a: PxKeyframeValue, b: PxKeyframeValue) => Array<PxKeyframe<PxKeyframeValue>>;
+
+    const D = (children: Array<PxNode>): PxAnimatedSvgDocument => ({
+        // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
+        type: 'svg', viewBox: '0 0 100 100', animator: { timeline: untyped<PxTimeline>({ duration: 1000 }) }, children,
     });
-    const long = (a: any, b: any) => [{ time: 0, value: a }, { time: 1000, value: b }];
-    const short = (a: any, b: any) => [{ t: 0, v: a }, { t: 1000, v: b }];
+    const long: KeyframePair = (a, b) => [{ time: 0, value: a }, { time: 1000, value: b }];
+    // the retired short `{t, v}` spelling: not in the type, still read by effect slots
+    const short: KeyframePair = (a, b) => untyped<Array<PxKeyframe<PxKeyframeValue>>>([{ t: 0, v: a }, { t: 1000, v: b }]);
 
     /** Values the frames engine would write at t=0 and t=duration. */
-    const sample = (doc: any) => {
+    const sample = (doc: PxAnimatedSvgDocument) => {
         const m = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
         const bindings = normalizeBindings(m, PxTimelineEngine.js) || [];
         return bindings.map(b => [
@@ -60,7 +66,7 @@ describe('effect keyframes accept the short wire aliases', () => {
         ]);
     };
 
-    const cases: Array<[string, (k: (a: any, b: any) => any) => any]> = [
+    const cases: Array<[string, (k: KeyframePair) => PxAnimatedSvgDocument]> = [
         ['transformBy.translate', k => D([{ type: 'rect', id: 'a', width: 9, height: 9,
             effects: { transformBy: { translate: { keyframes: k([0, 0], [9, 9]) } } } }])],
         ['transformBy.rotate', k => D([{ type: 'rect', id: 'a', width: 9, height: 9,
@@ -89,8 +95,9 @@ describe('effect keyframes accept the short wire aliases', () => {
 // ---------------------------------------------------------------------------
 
 describe('gradient geometry animation', () => {
-    const linearDoc = (): any => ({
-        type: 'svg', viewBox: '0 0 200 200', animator: { timeline: { duration: 1000 } },
+    const linearDoc = (): PxAnimatedSvgDocument => ({
+        // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
+        type: 'svg', viewBox: '0 0 200 200', animator: { timeline: untyped<PxTimeline>({ duration: 1000 }) },
         children: [{
             type: 'ellipse', id: 'a', rx: 50, ry: 50, transform: 'translate(100,100)',
             effects: {
@@ -107,7 +114,7 @@ describe('gradient geometry animation', () => {
 
     it('is accepted by STRICT effects validation', () => {
         const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
-        const ok = PxEffectsSchema.isValid(linearDoc().children[0].effects, ctx, ['n.effects']);
+        const ok = PxEffectsSchema.isValid(linearDoc().children?.[0].effects, ctx, ['n.effects']);
         expect(ctx.errors).toEqual([]);
         expect(ok).toBe(true);
     });
@@ -131,8 +138,9 @@ describe('gradient geometry animation', () => {
     });
 
     it('maps every radial channel onto its SVG attribute', () => {
-        const doc: any = {
-            type: 'svg', viewBox: '0 0 200 200', animator: { timeline: { duration: 1000 } },
+        const doc: PxAnimatedSvgDocument = {
+            // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
+            type: 'svg', viewBox: '0 0 200 200', animator: { timeline: untyped<PxTimeline>({ duration: 1000 }) },
             children: [{
                 type: 'ellipse', id: 'a', rx: 50, ry: 50,
                 effects: {
@@ -147,7 +155,7 @@ describe('gradient geometry animation', () => {
             }],
         };
         const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
-        expect(PxEffectsSchema.isValid(doc.children[0].effects, ctx, ['n.effects'])).toBe(true);
+        expect(PxEffectsSchema.isValid(doc.children?.[0].effects, ctx, ['n.effects'])).toBe(true);
 
         const m = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
         const bindings = normalizeBindings(m, PxTimelineEngine.js) || [];

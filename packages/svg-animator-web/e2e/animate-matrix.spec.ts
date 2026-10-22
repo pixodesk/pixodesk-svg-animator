@@ -13,7 +13,11 @@
  */
 
 import { expect, Page, test } from "@playwright/test";
-import type { PxAnimatedSvgDocument } from "../src/index";
+import type { PxAnimatedSvgDocument, PxAnimatorApi } from "../src/index";
+import type { PX_ANIM_ATTR_NAME } from "../src/index.player";
+
+/** A `data-px-animation-src` element with the player `loadTagSvgAnimators` keeps on it. */
+type PxTagElement = Element & Partial<Record<typeof PX_ANIM_ATTR_NAME, PxAnimatorApi>>;
 
 
 const START_TIME = 100000000;
@@ -322,14 +326,15 @@ test.describe("animate-matrix (waapi, seek-driven)", () => {
 
             // Wait until loadTagSvgAnimators has attached a ready animator.
             await page.waitForFunction(() => {
-                const el = document.querySelector('[data-px-animation-src]') as any;
+                const el: PxTagElement | null = document.querySelector('[data-px-animation-src]');
                 return el && el._px_animator && el._px_animator.isReady();
             });
 
             const seek = async (timeMs: number) => {
                 await page.evaluate((t) => {
-                    const el = document.querySelector('[data-px-animation-src]') as any;
-                    const api = el._px_animator;
+                    const el: PxTagElement | null = document.querySelector('[data-px-animation-src]');
+                    const api = el?._px_animator;
+                    if (!api) throw new Error('no animator on the [data-px-animation-src] element');
                     api.setCurrentTime(t);
                     api.pause();
                 }, timeMs);

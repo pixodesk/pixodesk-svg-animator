@@ -14,8 +14,8 @@
 // `animate` key is simply ignored by the applier and flagged by strict validation.
 
 import { describe, expect, it } from 'vitest';
-import { materialize } from '../effectTestKit';
-import type { PxNode } from '../../format/PxAnimatorTypes';
+import { entryOf, materialize, untyped } from '../effectTestKit';
+import type { PxFillGradientEffect, PxNode } from '../../format/PxAnimatorTypes';
 
 
 function findDef(root: PxNode, type: string): PxNode | undefined {
@@ -29,12 +29,12 @@ function findDef(root: PxNode, type: string): PxNode | undefined {
 }
 
 function applied(node: PxNode): PxNode {
-    return materialize({ type: 'svg', children: [node] } as unknown as PxNode);
+    return materialize({ type: 'svg', children: [node] });
 }
 
 describe('gradient geometry animation (frames engine)', () => {
     it('linear: animated endpoints land as y1/y2 animate blocks on the def', () => {
-        const node = {
+        const node: PxNode = {
             type: 'ellipse', rx: 64, ry: 64,
             effects: {
                 fillGradient: {
@@ -45,21 +45,21 @@ describe('gradient geometry animation (frames engine)', () => {
                     gradientUnits: 'userSpaceOnUse',
                 },
             },
-        } as unknown as PxNode;
+        };
 
-        const def = findDef(applied(node), 'linearGradient') as any;
+        const def = findDef(applied(node), 'linearGradient');
         expect(def).toBeTruthy();
         // Static base geometry still present…
-        expect(def.x1).toBe('-45');
-        expect(def.y1).toBe('-45');
+        expect(def?.x1).toBe('-45');
+        expect(def?.y1).toBe('-45');
         // …and the animation split per axis onto the REAL attr names.
-        expect(def.animate?.y1?.keyframes).toEqual([{ time: 0, value: -45 }, { time: 1000, value: 45 }]);
-        expect(def.animate?.y2?.keyframes).toEqual([{ time: 0, value: 45 }, { time: 1000, value: -45 }]);
-        expect(def.animate?.x1?.keyframes).toEqual([{ time: 0, value: -45 }, { time: 1000, value: -45 }]);
+        expect(entryOf(def, 'y1')?.keyframes).toEqual([{ time: 0, value: -45 }, { time: 1000, value: 45 }]);
+        expect(entryOf(def, 'y2')?.keyframes).toEqual([{ time: 0, value: 45 }, { time: 1000, value: -45 }]);
+        expect(entryOf(def, 'x1')?.keyframes).toEqual([{ time: 0, value: -45 }, { time: 1000, value: -45 }]);
     });
 
     it('radial: animated focal point lands as fx/fy animate blocks on the def', () => {
-        const node = {
+        const node: PxNode = {
             type: 'ellipse', rx: 64, ry: 64,
             effects: {
                 fillGradient: {
@@ -69,28 +69,29 @@ describe('gradient geometry animation (frames engine)', () => {
                     gradientUnits: 'userSpaceOnUse',
                 },
             },
-        } as unknown as PxNode;
+        };
 
-        const def = findDef(applied(node), 'radialGradient') as any;
+        const def = findDef(applied(node), 'radialGradient');
         expect(def).toBeTruthy();
-        expect(def.fx).toBe('-30');
-        expect(def.animate?.fx?.keyframes).toEqual([{ time: 0, value: -30 }, { time: 1000, value: 30 }]);
-        expect(def.animate?.fy?.keyframes).toEqual([{ time: 0, value: -30 }, { time: 1000, value: 30 }]);
+        expect(def?.fx).toBe('-30');
+        expect(entryOf(def, 'fx')?.keyframes).toEqual([{ time: 0, value: -30 }, { time: 1000, value: 30 }]);
+        expect(entryOf(def, 'fy')?.keyframes).toEqual([{ time: 0, value: -30 }, { time: 1000, value: 30 }]);
     });
 
     it('REMOVED legacy `animate.gradientY1…` channels are ignored (no def animation)', () => {
-        const node = {
+        const node: PxNode = {
             type: 'ellipse',
             effects: {
-                fillGradient: {
+                // `animate` is the REMOVED legacy channel key — not a gradient field, on purpose.
+                fillGradient: untyped<PxFillGradientEffect>({
                     type: 'linear', start: [0, 0], end: [10, 10],
                     stops: [{ offset: 0, color: '#000' }, { offset: 1, color: '#fff' }],
                     animate: { gradientY1: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 10 }] } },
-                },
+                }),
             },
-        } as unknown as PxNode;
-        const def = findDef(applied(node), 'linearGradient') as any;
-        expect(def.animate).toBeUndefined();   // statics only — legacy channels dropped
-        expect(def.x1).toBe('0');
+        };
+        const def = findDef(applied(node), 'linearGradient');
+        expect(def?.animate).toBeUndefined();   // statics only — legacy channels dropped
+        expect(def?.x1).toBe('0');
     });
 });

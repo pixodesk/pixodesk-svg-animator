@@ -10,8 +10,9 @@
 
 import { describe, expect, it } from 'vitest';
 import { resolveAnimatorTimeline, getAnimatorConfig, nestAnimatorTimeline } from './PxAnimatorConstants';
-import { PxAnimatorConfigSchema } from './PxAnimatorTypes';
+import { PxAnimatorConfigSchema, type PxAnimatedSvgDocument, type PxAnimatorConfig, type PxAnimatorRuntimeConfig, type PxTimeline, type PxTrigger } from './PxAnimatorTypes';
 import type { PxValidationContext } from '../schema/PxSchema';
+import { untyped } from '../effects/effectTestKit';
 
 describe('animator.timeline spelling compat', () => {
 
@@ -19,12 +20,12 @@ describe('animator.timeline spelling compat', () => {
         const cfg = getAnimatorConfig({
             type: 'svg',
             animator: { timeline: { inTime: 500, outTime: 2500, playDuration: 4000 } },
-        } as any) as any;
-        expect(cfg.duration).toBe(2000);        // outTime − inTime: the engines' one length
-        expect(cfg.inTime).toBe(500);           // the sampling shift
-        expect(cfg.playDuration).toBe(4000);    // the wall remap, applied as a rate factor
+        });
+        expect(cfg?.duration).toBe(2000);        // outTime − inTime: the engines' one length
+        expect(cfg?.inTime).toBe(500);           // the sampling shift
+        expect(cfg?.playDuration).toBe(4000);    // the wall remap, applied as a rate factor
         // …and the round trip writes the window back as its two points
-        expect((nestAnimatorTimeline({ inTime: 500, duration: 2000, playDuration: 4000 } as any) as any).timeline)
+        expect(nestAnimatorTimeline({ inTime: 500, duration: 2000, playDuration: 4000 }).timeline)
             .toEqual({ inTime: 500, outTime: 2500, playDuration: 4000 });
     });
 
@@ -33,10 +34,10 @@ describe('animator.timeline spelling compat', () => {
             type: 'svg',
             animator: {},
             children: [{ type: 'rect', animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 3200, value: 1 }] } } }],
-        } as any) as any;
-        expect(withKfs.duration).toBe(3200);
-        const bare = getAnimatorConfig({ type: 'svg', animator: {} } as any) as any;
-        expect(bare.duration).toBe(1000);       // PX_DEFAULT_DURATION_MS
+        });
+        expect(withKfs?.duration).toBe(3200);
+        const bare = getAnimatorConfig({ type: 'svg', animator: {} });
+        expect(bare?.duration).toBe(1000);       // PX_DEFAULT_DURATION_MS
     });
 
     // ── flatten: nested → the flat view every engine consumes ────────────────
@@ -45,17 +46,19 @@ describe('animator.timeline spelling compat', () => {
         const flat = resolveAnimatorTimeline({
             timeline: {
                 type: 'time', outTime: 4000,
-                trigger: { start: 'click', mouseOut: 'pause', finish: 'reset' },
+                // `trigger.finish` is the pre-1.4 spelling: not in the type, still read for old files
+                trigger: untyped<PxTrigger>({ start: 'click', mouseOut: 'pause', finish: 'reset' }),
                 delay: 250, iterations: 'infinite', direction: 'alternate', fillMode: 'both'
             }
-        } as any) as any;
+        });
         expect(flat.timeline).toBeUndefined();
         expect(flat).toMatchObject({
             duration: 4000, delay: 250, iterations: 'infinite', direction: 'alternate',
             fill: 'both', resetOnFinish: true,
             trigger: { start: 'click', mouseOut: 'pause' }
         });
-        expect(flat.trigger.finish).toBeUndefined(); // folded into resetOnFinish
+        const trigger = flat.trigger;
+        expect(trigger && 'finish' in trigger ? trigger.finish : undefined).toBeUndefined(); // folded into resetOnFinish
     });
 
     it("flattens 'view' and 'scroll' timelines to timelineSource:'scroll' + scroll.kind, pin object → pin flags; engine is shared", () => {
@@ -65,7 +68,7 @@ describe('animator.timeline spelling compat', () => {
                 smoothing: 120, pin: { align: 'center', offset: 24, distance: 600 },
                 range: { start: { phase: 'entry', fraction: 0.1 } }
             }
-        } as any) as any;
+        });
         expect(flat.timelineSource).toBe('scroll');
         expect(flat.engine).toBe('js');
         expect(flat.scroll).toEqual({
@@ -73,25 +76,25 @@ describe('animator.timeline spelling compat', () => {
             pin: true, pinAlign: 'center', pinOffset: 24, pinDistance: 600,
             range: { start: { phase: 'entry', fraction: 0.1 } }
         });
-        expect(resolveAnimatorTimeline({ timeline: { type: 'scroll', pin: true } } as any))
+        expect(resolveAnimatorTimeline({ timeline: { type: 'scroll', pin: true } }))
             .toMatchObject({ timelineSource: 'scroll', scroll: { kind: 'scroll', pin: true } });
     });
 
     it('finite iterations survive a scroll timeline in both directions (D4); infinite does not nest', () => {
         // No `scroll` block, so the kind sits at its default — `'view'` (see the kind-default
         // case below); `timelineSource: 'scroll'` names the FAMILY, not the member.
-        expect(nestAnimatorTimeline({ duration: 1, timelineSource: 'scroll', iterations: 3 } as any))
+        expect(nestAnimatorTimeline({ duration: 1, timelineSource: 'scroll', iterations: 3 }))
             .toEqual({ timeline: { type: 'view', outTime: 1, iterations: 3 } });
-        expect(nestAnimatorTimeline({ duration: 1, timelineSource: 'scroll', iterations: 'infinite' } as any))
+        expect(nestAnimatorTimeline({ duration: 1, timelineSource: 'scroll', iterations: 'infinite' }))
             .toEqual({ timeline: { type: 'view', outTime: 1 } });
-        expect(resolveAnimatorTimeline({ timeline: { type: 'view', iterations: 2 } } as any))
+        expect(resolveAnimatorTimeline({ timeline: { type: 'view', iterations: 2 } }))
             .toMatchObject({ timelineSource: 'scroll', iterations: 2 });
     });
 
     it('is identity for a flat runtime-view config and pure for a nested one', () => {
-        const flat = { duration: 1000, trigger: { start: 'load' } } as any;
+        const flat: PxAnimatorRuntimeConfig = { duration: 1000, trigger: { start: 'load' } };
         expect(resolveAnimatorTimeline(flat)).toBe(flat);            // nothing to fold → same object
-        const nested = { timeline: { delay: 5 } } as any;   // no `type` = time-driven
+        const nested: PxAnimatorRuntimeConfig = { timeline: { delay: 5 } };   // no `type` = time-driven
         // no memo since the prepare-document pipeline: an equal answer every call, not the same object
         expect(resolveAnimatorTimeline(nested)).toEqual(resolveAnimatorTimeline(nested));
     });
@@ -99,35 +102,37 @@ describe('animator.timeline spelling compat', () => {
     it('getAnimatorConfig serves the flat view (engines never see `timeline`)', () => {
         const cfg = getAnimatorConfig({
             type: 'svg',
-            animator: { timeline: { duration: 500, delay: 42 } }
-        } as any) as any;
-        expect(cfg.timeline).toBeUndefined();
-        expect(cfg.duration).toBe(500);   // LEGACY (pre-1.3) wire `timeline.duration` still reads as the window
-        expect(cfg.delay).toBe(42);
+            // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
+            animator: { timeline: untyped<PxTimeline>({ duration: 500, delay: 42 }) }
+        });
+        expect(cfg?.timeline).toBeUndefined();
+        expect(cfg?.duration).toBe(500);   // LEGACY (pre-1.3) wire `timeline.duration` still reads as the window
+        expect(cfg?.delay).toBe(42);
     });
 
     it('getAnimatorConfig DROPS flat playback keys found on a document — the wire states playback only inside `timeline`', () => {
         const cfg = getAnimatorConfig({
             type: 'svg',
-            animator: { duration: 9999, trigger: { start: 'load' }, fill: 'both', resetOnFinish: true },
-        } as any) as any;
+            animator: untyped<PxAnimatorConfig>({ duration: 9999, trigger: { start: 'load' }, fill: 'both', resetOnFinish: true }),
+        });
 
         // the stray value never wins: the window resolves to the DEFAULT, not the dropped 9999
-        expect(cfg.duration).toBe(1000);
-        expect(cfg.trigger).toBeUndefined();
-        expect(cfg.fill).toBeUndefined();
-        expect(cfg.resetOnFinish).toBeUndefined();
+        expect(cfg?.duration).toBe(1000);
+        expect(cfg?.trigger).toBeUndefined();
+        expect(cfg?.fill).toBeUndefined();
+        expect(cfg?.resetOnFinish).toBeUndefined();
     });
 
     it('a stray flat key never shadows the timeline, and the lookup tables still come through', () => {
-        const doc = {
+        const doc: PxAnimatedSvgDocument = {
             type: 'svg',
-            animator: { duration: 9, timeline: { duration: 500 }, definitions: { easings: {} } },
-        } as any;
-        const cfg = getAnimatorConfig(doc) as any;
+            // the stray flat `duration` and the pre-1.3 `timeline.duration`: neither is in the type, both still read
+            animator: untyped<PxAnimatorConfig>({ duration: 9, timeline: { duration: 500 }, definitions: { easings: {} } }),
+        };
+        const cfg = getAnimatorConfig(doc);
 
-        expect(cfg.duration).toBe(500);                  // the timeline wins — the stray key is gone
-        expect(cfg.definitions).toEqual({ easings: {} }); // content keys are untouched
+        expect(cfg?.duration).toBe(500);                  // the timeline wins — the stray key is gone
+        expect(cfg?.definitions).toEqual({ easings: {} }); // content keys are untouched
         // a RAW doc derives fresh: equal every call (same-object identity holds for PREPARED docs — PxPrepareDocument.test)
         expect(getAnimatorConfig(doc)).toEqual(cfg);
     });
@@ -139,7 +144,7 @@ describe('animator.timeline spelling compat', () => {
             duration: 4000, engine: 'auto',
             trigger: { start: 'click' }, delay: 250, iterations: 3,
             direction: 'reverse', fill: 'none', resetOnFinish: true
-        } as any) as any;
+        });
         expect(nested).toEqual({
             timeline: {
                 engine: 'auto',
@@ -158,7 +163,7 @@ describe('animator.timeline spelling compat', () => {
             engine: 'native',
             scroll: { kind: 'view', axis: 'block', smoothing: 120,
                       pin: true, pinAlign: 'center', pinOffset: 24 }
-        } as any) as any;
+        });
         expect(nested).toEqual({
             timeline: {
                 type: 'view', engine: 'native', outTime: 4000, axis: 'block', smoothing: 120,
@@ -171,17 +176,17 @@ describe('animator.timeline spelling compat', () => {
         // REGRESSION. `scroll.kind` defaults to `'view'` (`_PxScroll.kind`), and the editor
         // omits it at that default — so nesting it as `'scroll'` rewrote the commonest scroll
         // document there is: "element enters the viewport" was saved as "container scrolled".
-        expect((nestAnimatorTimeline({ timelineSource: 'scroll', scroll: {} } as any) as any).timeline.type)
+        expect(nestAnimatorTimeline({ timelineSource: 'scroll', scroll: {} }).timeline?.type)
             .toBe('view');
-        expect((nestAnimatorTimeline({ timelineSource: 'scroll' } as any) as any).timeline.type)
+        expect(nestAnimatorTimeline({ timelineSource: 'scroll' }).timeline?.type)
             .toBe('view');
         // Only the explicit spelling selects the scroller member.
-        expect((nestAnimatorTimeline({ timelineSource: 'scroll', scroll: { kind: 'scroll' } } as any) as any).timeline.type)
+        expect(nestAnimatorTimeline({ timelineSource: 'scroll', scroll: { kind: 'scroll' } }).timeline?.type)
             .toBe('scroll');
 
         // …and the whole trip is stable: a kind, once written, comes back as itself.
         for (const kind of ['view', 'scroll'] as const) {
-            const flat = { timelineSource: 'scroll', scroll: { kind } } as any;
+            const flat: PxAnimatorRuntimeConfig = { timelineSource: 'scroll', scroll: { kind } };
             expect(resolveAnimatorTimeline(nestAnimatorTimeline(flat)))
                 .toMatchObject({ timelineSource: 'scroll', scroll: { kind } });
         }
@@ -189,24 +194,24 @@ describe('animator.timeline spelling compat', () => {
 
     it('omits an empty time timeline entirely, and passes a config that already has one through unchanged', () => {
         // §4: a set window now forces the timeline block (it lives there on the wire)…
-        expect(nestAnimatorTimeline({ duration: 1000, engine: 'auto' } as any))
+        expect(nestAnimatorTimeline({ duration: 1000, engine: 'auto' }))
             .toEqual({ timeline: { engine: 'auto', outTime: 1000 } });
         // …`engine` lives in the timeline too, and so does `frameRate` — it parameterises the
         // engine chosen there, so the two sit at the same level.
-        expect(nestAnimatorTimeline({ engine: 'auto' } as any)).toEqual({ timeline: { engine: 'auto' } });
-        expect(nestAnimatorTimeline({ frameRate: 60 } as any)).toEqual({ timeline: { frameRate: 60 } });
+        expect(nestAnimatorTimeline({ engine: 'auto' })).toEqual({ timeline: { engine: 'auto' } });
+        expect(nestAnimatorTimeline({ frameRate: 60 })).toEqual({ timeline: { frameRate: 60 } });
         // Only the non-playback keys stay on `animator` itself.
-        expect(nestAnimatorTimeline({ version: '1.5' } as any)).toEqual({ version: '1.5' });
-        const already = { duration: 1, timeline: { delay: 2 } } as any;
+        expect(nestAnimatorTimeline({ version: '1.5' })).toEqual({ version: '1.5' });
+        const already: PxAnimatorRuntimeConfig = { duration: 1, timeline: { delay: 2 } };
         expect(nestAnimatorTimeline(already)).toBe(already);
     });
 
     it('round-trips: flatten(nest(flat)) reproduces the flat form', () => {
-        const flat = {
+        const flat: PxAnimatorRuntimeConfig = {
             duration: 4000, frameRate: 60, engine: 'auto',
             trigger: { start: 'click', mouseOut: 'pause' }, delay: 250,
             iterations: 'infinite', direction: 'alternate', fill: 'both', resetOnFinish: true
-        } as any;
+        };
         expect(resolveAnimatorTimeline(nestAnimatorTimeline(flat))).toEqual(flat);
     });
 

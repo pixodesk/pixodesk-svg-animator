@@ -33,11 +33,12 @@ describe('bindings — #id-spelled targets (review §3.2, 2.12)', () => {
     });
 
     it('generateNewIds rewrites a hashed target and keeps its spelling', () => {
-        const out: any = generateNewIds(doc());
-        expect(out.animator.bindings).toHaveLength(1);
-        const target: string = out.animator.bindings[0].target;
+        const out = generateNewIds(doc());
+        const bindings = out.animator?.bindings ?? [];
+        expect(bindings).toHaveLength(1);
+        const target: string = bindings[0].target;
         expect(target.startsWith('#')).toBe(true);
-        expect(target.slice(1)).toBe(out.children[0].id); // still points at the (renamed) element
-        expect(out.animator.bindings[0].animateWith).toEqual(['fadeIn']);
+        expect(target.slice(1)).toBe(out.children?.[0].id); // still points at the (renamed) element
+        expect(bindings[0].animateWith).toEqual(['fadeIn']);
     });
 });

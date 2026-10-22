@@ -37,13 +37,13 @@ type IOEntry = { isIntersecting: boolean; intersectionRatio: number };
 function stubIntersectionObserver() {
     const captured: {
         callback: ((entries: Array<IOEntry>) => void) | null;
-        options: any;
+        options: IntersectionObserverInit | undefined | null;
         observed: Element | null;
         disconnected: number;
     } = { callback: null, options: null, observed: null, disconnected: 0 };
 
     vi.stubGlobal('IntersectionObserver', class {
-        constructor(cb: (entries: Array<IOEntry>) => void, options: any) {
+        constructor(cb: (entries: Array<IOEntry>) => void, options?: IntersectionObserverInit) {
             captured.callback = cb;
             captured.options = options;
         }
@@ -193,9 +193,9 @@ describe('setupAnimationTriggers', () => {
             // target taller than the viewport can never reach a high ratio, so registering the raw
             // threshold would mean the callback never fires. The author's value is applied to a
             // NORMALIZED ratio inside the callback instead (asserted by the behavior tests below).
-            expect(Array.isArray(io.options.threshold)).toBe(true);
-            expect(io.options.threshold).toContain(0);
-            expect(io.options.threshold).toContain(1);
+            expect(Array.isArray(io.options?.threshold)).toBe(true);
+            expect(io.options?.threshold).toContain(0);
+            expect(io.options?.threshold).toContain(1);
 
             // Keep in sync with the editor model's default (TSvgSvgAnimationAttr).
             io.callback!([{ isIntersecting: true, intersectionRatio: 0.01 }]);
@@ -224,7 +224,7 @@ describe('setupAnimationTriggers', () => {
 
             // See the note above: the registration is a granular list; the 0.8 gate is applied to
             // the normalized ratio in the callback, which the assertions below exercise.
-            expect(Array.isArray(io.options.threshold)).toBe(true);
+            expect(Array.isArray(io.options?.threshold)).toBe(true);
 
             io.callback!([{ isIntersecting: true, intersectionRatio: 0.6 }]);
             expect(api.play).not.toHaveBeenCalled();

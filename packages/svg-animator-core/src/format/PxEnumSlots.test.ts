@@ -16,12 +16,12 @@ import {
     PxCloneEffectSchema, PxFillGradientEffectSchema, PxMaskedByEffectSchema, PxNodeSchema,
     PxTextPathEffectSchema,
 } from './PxAnimatorTypes';
-import type { PxValidationContext } from '../schema/PxSchema';
+import type { PxAnySchema, PxValidationContext } from '../schema/PxSchema';
 
 const ctx = (): PxValidationContext => ({ errors: [], warnings: [] });
 
 /** [schema, slot, a VALID value, a TYPO that must now be rejected] */
-const CASES: Array<[any, string, unknown, unknown, Record<string, unknown>]> = [
+const CASES: Array<[PxAnySchema, string, unknown, unknown, Record<string, unknown>]> = [
     [PxMaskedByEffectSchema, 'maskType', 'luminance', 'lumnance', {}],
     [PxMaskedByEffectSchema, 'maskUnits', 'objectBoundingBox', 'objectBoundingBoxx', {}],
     [PxMaskedByEffectSchema, 'maskContentUnits', 'userSpaceOnUse', 'userSpace', {}],

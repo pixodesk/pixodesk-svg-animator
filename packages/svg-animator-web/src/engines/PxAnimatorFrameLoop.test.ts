@@ -5,7 +5,10 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAdapterSvgAnimator, type PxPlatformAdapter } from './PxAnimatorFrameLoop';
-import type { PxAnimatedSvgDocument, PxEngineCallbacks } from '@pixodesk/svg-animator-core';
+import type { PxAnimatedSvgDocument, PxEngineCallbacks, PxInfer, PxTimeTimelineSchema } from '@pixodesk/svg-animator-core';
+
+/** The time-driven member of the wire `timeline` — what every override below patches. */
+type PxTimeTimeline = PxInfer<typeof PxTimeTimelineSchema>;
 
 
 // Under vi.useFakeTimers() the faked requestAnimationFrame fires every 16ms and
@@ -21,7 +24,7 @@ const DUR = 320;
  * knob. `frameRate` used to be the one exception, routed back out to `animator`; since it moved
  * into the timeline (2026-09-09) there is no exception left to carve out.
  */
-function makeDoc(timeline: Record<string, any> = {}): PxAnimatedSvgDocument {
+function makeDoc(timeline: PxTimeTimeline = {}): PxAnimatedSvgDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
@@ -62,7 +65,7 @@ function createMockAdapter() {
     return { adapter, calls, opacity };
 }
 
-function setup(timeline: Record<string, any> = {}, callbacks?: PxEngineCallbacks) {
+function setup(timeline: PxTimeTimeline = {}, callbacks?: PxEngineCallbacks) {
     const mock = createMockAdapter();
     const api = createAdapterSvgAnimator(makeDoc(timeline), mock.adapter, callbacks);
     return { api, ...mock };
@@ -204,7 +207,7 @@ describe('createAdapterSvgAnimator', () => {
         expect(onFinish).not.toHaveBeenCalled();
     });
 
-    it.each([
+    it.each<{ name: string; timeline: PxTimeTimeline; at: number; expected: number }>([
         { name: "direction 'reverse' mirrors progress", timeline: { direction: 'reverse' }, at: 80, expected: 0.75 },
         { name: "direction 'alternate' plays iteration 0 forward", timeline: { direction: 'alternate', iterations: 2 }, at: 80, expected: 0.25 },
         { name: "direction 'alternate' mirrors iteration 1", timeline: { direction: 'alternate', iterations: 2 }, at: DUR + 80, expected: 0.75 },

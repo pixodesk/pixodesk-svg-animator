@@ -14,9 +14,10 @@ import { resolveAnimatorTimeline, getAnimatorConfig, PX_DEFAULT_DURATION_MS, PX_
 import {
     PxAnimatedSvgDocumentSchema, PxAnimatorConfigSchema, PxCloneEffectSchema, PxFillGradientEffectSchema, PxGlyphFontSchema, PxLoopSchema, PxMaskedByEffectSchema,
     PxPropertyAnimationSchema, PxScrollRangePointSchema, PxScrollSchema, PxStrokeTrimEffectSchema, PxTextPathEffectSchema, PxTimelineSchema,
-    PxTimeTimelineSchema, PxTriggerSchema, type PxAnimatedSvgDocument,
+    PxTimeTimelineSchema, PxTriggerSchema, type PxAnimatedSvgDocument, type PxTrigger,
 } from '../format/PxAnimatorTypes';
-import { px, schemaKeys, type PxSchema } from './PxSchema';
+import { describeSchema, px, schemaKeys, type PxAnySchema } from './PxSchema';
+import { untyped } from '../effects/effectTestKit';
 
 describe('schema.defaults — what an absent field means', () => {
 
@@ -48,24 +49,25 @@ describe('schema.defaults — what an absent field means', () => {
         const unstated: Array<string> = [];
         // `_optional` is a compile-time phantom (declared, never set) — an Optional is recognised by
         // the wrapped schema it carries at runtime.
-        const innerOf = (field: PxSchema<any, any>) => (field as { inner?: PxSchema<any, any> }).inner;
-        const isChoice = (schema: PxSchema<any, any>) => 'values' in schema;
-        const visit = (name: string, schema: PxSchema<any, any>) => {
-            const shape = (schema as { _shape?: Record<string, PxSchema<any, any>> })._shape;
-            if (!shape) return;
-            for (const [key, field] of Object.entries(shape)) {
+        const innerOf = (field: PxAnySchema) => { const desc = describeSchema(field); return desc.kind === 'optional' ? desc.inner : undefined; };
+        const isChoice = (schema: PxAnySchema) => 'values' in schema;
+        const visit = (name: string, schema: PxAnySchema) => {
+            const desc = describeSchema(schema);
+            if (desc.kind !== 'shape') return;
+            for (const [key, field] of Object.entries(desc.shape)) {
                 const path = `${name}.${key}`;
                 const inner = innerOf(field);
                 if (inner && isChoice(inner) && field.absentDefault() === undefined && !ABSENT_MEANS_UNSET.has(path)) unstated.push(path);
             }
         };
         let visited = 0;
-        const visitCounting = (name: string, schema: PxSchema<any, any>) => { visited++; visit(name, schema); };
+        const visitCounting = (name: string, schema: PxAnySchema) => { visited++; visit(name, schema); };
         visitCounting('loop', PxLoopSchema);
         visitCounting('propertyAnimation', PxPropertyAnimationSchema);
         visitCounting('trigger', PxTriggerSchema);
         // Every member of the timeline union — time, scroll and view have fields of their own.
-        for (const member of (PxTimelineSchema as unknown as { _schemas: Array<PxSchema<any, any>> })._schemas) visitCounting('timeline', member);
+        const timeline = describeSchema(PxTimelineSchema);
+        for (const member of timeline.kind === 'discriminatedUnion' ? timeline.members : []) visitCounting('timeline', member);
         visitCounting('scroll', PxScrollSchema);
         visitCounting('scrollRangePoint', PxScrollRangePointSchema);
         visitCounting('maskedBy', PxMaskedByEffectSchema);
@@ -90,7 +92,7 @@ describe('schema.defaults — what an absent field means', () => {
         const flat = resolveAnimatorTimeline({ timeline: { trigger: { start: PxTriggerStart.load } } });
         expect(flat.resetOnFinish).toBeFalsy();
         expect(resolveAnimatorTimeline({ timeline: { finish: PxFinishAction.reset } }).resetOnFinish).toBe(true);
-        expect(resolveAnimatorTimeline({ timeline: { trigger: { finish: PxFinishAction.reset } } } as any).resetOnFinish).toBe(true);
+        expect(resolveAnimatorTimeline({ timeline: { trigger: untyped<PxTrigger>({ finish: PxFinishAction.reset }) } }).resetOnFinish).toBe(true);
     });
 
     it('the timeline numbers the runtime falls back to are the schema\'s', () => {

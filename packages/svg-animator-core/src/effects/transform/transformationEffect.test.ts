@@ -12,19 +12,26 @@
 // (150 = 150%) and converts to 1.0-units (1.5); skew is static-only.
 
 import { describe, expect, it } from 'vitest';
-import type { PxNode } from '../../format/PxAnimatorTypes';
-import { collectByType, materialize, materializeEngine, noEffectsRemain, normalizeGeneratedIds, PxTimelineEngine, transformKfTimes } from '../effectTestKit';
+import { PxValueKind } from '../../format/PxAnimatorConstants';
+import { PxTransformValueWrapperSchema, type PxCompiledAnimation, type PxNode, type PxTransformByEffect, type PxTransformParts } from '../../format/PxAnimatorTypes';
+import { collectByType, compiledEntry, entryOf, materialize, materializeEngine, noEffectsRemain, normalizeGeneratedIds, PxTimelineEngine, transformKfTimes } from '../effectTestKit';
 
-const rect = (): PxNode => ({ type: 'rect', id: 'r', width: 100, height: 50 } as unknown as PxNode);
-const wrap = (transformBy: any): PxNode =>
-    ({ type: 'svg', children: [{ ...rect(), effects: { transformBy } }] } as unknown as PxNode);
+const rect = (): PxNode => ({ type: 'rect', id: 'r', width: 100, height: 50 });
+const wrap = (transformBy: PxTransformByEffect): PxNode =>
+    ({ type: 'svg', children: [{ ...rect(), effects: { transformBy } }] });
 
 /** Static `{value:{part:…}}` records carried by `<g>` wrappers. */
-const staticParts = (out: PxNode): Array<any> =>
-    collectByType(out, 'g').map(g => (g as any).transform).filter(t => t && typeof t === 'object').map(t => t.value);
+const staticParts = (out: PxNode): Array<PxTransformParts> =>
+    collectByType(out, 'g').map(g => PxTransformValueWrapperSchema.castOrNull(g.transform)?.value).filter(parts => parts !== undefined);
 /** String transforms (skew). */
 const stringTransforms = (out: PxNode): Array<string> =>
-    collectByType(out, 'g').map(g => (g as any).transform).filter(t => typeof t === 'string');
+    collectByType(out, 'g').map(g => g.transform).filter(t => typeof t === 'string');
+/** The first animated `<g>`'s compiled `transform` entry (full pipeline) — throws unless it is the transform kind. */
+const compiledTransform = (out: PxNode): Extract<PxCompiledAnimation, { kind: typeof PxValueKind.transform }> => {
+    const entry = compiledEntry(collectByType(out, 'g').find(g => entryOf(g, 'transform')), 'transform');
+    if (entry.kind !== PxValueKind.transform) throw new Error('no transform-kind `transform` entry');
+    return entry;
+};
 
 
 describe('transformationEffect — wrappers, static & animated parts', () => {
@@ -271,7 +278,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
     // The effect pass itself is engine-agnostic; the WAAPI-vs-frames difference
     // is the waapi-only MOTION-PATH flatten. An autoOrient translate (curved,
     // with tangent handles) is the transformation case that exercises it.
-    const AUTO_ORIENT = {
+    const AUTO_ORIENT: PxTransformByEffect = {
         translate: {
             autoOrient: true,
             keyframes: [
@@ -304,7 +311,7 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
           }"
         `);
         // frames keeps the raw motion-path form — autoOrient flag + only the 2 authored kfs
-        const animated = collectByType(out, 'g').map(g => (g as any).animate?.transform).find(Boolean) as any;
+        const animated = compiledTransform(out);
         expect(animated.autoOrient).toBe(true);
         expect(animated.keyframes).toHaveLength(2);
     });
@@ -332,13 +339,13 @@ describe('transformationEffect — wrappers, static & animated parts', () => {
             ]
           }"
         `);
-        const animated = collectByType(out, 'g').map(g => (g as any).animate?.transform).find(Boolean) as any;
+        const animated = compiledTransform(out);
         // waapi flattens to the SHORT kf form (`kfs` with `t`/`v` aliases): autoOrient
         // consumed, many SAMPLED kfs, each value carries a baked `rotate` (path tangent).
         const kfs = animated.keyframes;
         expect(animated.autoOrient).toBeUndefined();
         expect(kfs.length).toBeGreaterThan(2);
-        expect(kfs.some((k: any) => { const v = k.v ?? k.value; return v && typeof v.rotate === 'number'; })).toBe(true);
+        expect(kfs.some(k => typeof k.value.rotate === 'number')).toBe(true);
         // and the two engines genuinely diverge
         expect(JSON.stringify(out)).not.toEqual(JSON.stringify(framesOut));
     });
@@ -352,12 +359,12 @@ describe('transformationEffect — id ownership (B4/A1)', () => {
     // live `<use href>` in the DOM resolves to the full transformed result.
     it('the outermost wrapper takes the element id; the core loses it', () => {
         const out = materialize(wrap({ translate: [30, 30], rotate: 45 }));
-        const outermost: any = (out as any).children[0];
-        expect(outermost.type).toBe('g');
-        expect(outermost.id).toBe('r');
+        const outermost = out.children?.[0];
+        expect(outermost?.type).toBe('g');
+        expect(outermost?.id).toBe('r');
         const rects = collectByType(out, 'rect');
         expect(rects).toHaveLength(1);
-        expect((rects[0] as any).id).toBeUndefined();
+        expect(rects[0].id).toBeUndefined();
     });
 
     it('a <use> of a transformed element resolves to the FULL unit (id not on the bare core)', () => {
@@ -367,19 +374,19 @@ describe('transformationEffect — id ownership (B4/A1)', () => {
                 { ...rect(), effects: { transformBy: { translate: [30, 30], rotate: 45 } } },
                 { type: 'use', href: '#r' },
             ],
-        } as unknown as PxNode;
-        const out: any = materialize(doc);
+        };
+        const out = materialize(doc);
         // The use stays live and its target id now sits on the wrapper that
         // carries the translate — the browser clones the transformed unit.
-        expect(out.children[1]).toEqual({ type: 'use', href: '#r' });
-        const target: any = collectByType(out, 'g').find(g => (g as any).id === 'r');
+        expect(out.children?.[1]).toEqual({ type: 'use', href: '#r' });
+        const target = collectByType(out, 'g').find(g => g.id === 'r');
         expect(target).toBeDefined();
-        expect(target.transform).toEqual({ value: { translate: [30, 30] } });
+        expect(target?.transform).toEqual({ value: { translate: [30, 30] } });
     });
 
     it('no wrappers generated (empty effect) → the id stays on the element', () => {
-        const out: any = materialize(wrap({}));
-        expect(out.children[0].type).toBe('rect');
-        expect(out.children[0].id).toBe('r');
+        const out = materialize(wrap({}));
+        expect(out.children?.[0].type).toBe('rect');
+        expect(out.children?.[0].id).toBe('r');
     });
 });

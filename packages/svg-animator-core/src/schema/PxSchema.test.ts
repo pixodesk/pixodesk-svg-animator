@@ -85,7 +85,7 @@ const PxNodeSchema: PxSchema<{
 }> = px.lazy(
     () => px.object({
         type:     px.string('unknown'),
-        children: px.array(PxNodeSchema as any).optional(),
+        children: px.array(PxNodeSchema).optional(),
         animate:  PxElementAnimationSchema.optional(),
         style:    px.union([
             px.string(),
@@ -109,7 +109,7 @@ const PxAnimatedSvgDocumentSchema = px.object({
     animator: PxAnimatorConfigSchema.optional(),
     definitions:     PxDefinitionsSchema.optional(),
     bindings: px.array(PxBindingSchema).optional(),
-    children: px.array(PxNodeSchema as any).optional(),
+    children: px.array(PxNodeSchema).optional(),
 });
 
 // Type inferred automatically from the schema — no separate interface needed.

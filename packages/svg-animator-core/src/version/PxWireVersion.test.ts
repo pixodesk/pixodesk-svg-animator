@@ -13,12 +13,26 @@ import {
     parseWireVersion, PX_WIRE_STEPS, PX_WIRE_VERSION, readWireVersion, wireVersionAdvice,
     PxWireStepKind, PxWireVersionRelation, type PxWireVersionStep,
 } from './PxWireVersion';
+import { isRecord } from '../schema/PxSchema';
 
 const doc = (version?: string) => ({
     type: 'svg',
     animator: { timeline: { duration: 1000 }, ...(version === undefined ? {} : { version }) },
     children: [{ type: 'rect', width: 10, height: 10 }],
 });
+
+/** A document's raw `animator` record — throws when there is none (a failed expectation). */
+function rawAnimator(doc: unknown): Record<string, unknown> {
+    if (!isRecord(doc) || !isRecord(doc.animator)) throw new Error('no animator');
+    return doc.animator;
+}
+
+/** A document's raw `animator.timeline` record — what the self-test steps rename keys in. */
+function rawTimeline(doc: unknown): Record<string, unknown> {
+    const animator = rawAnimator(doc);
+    if (!isRecord(animator.timeline)) throw new Error('no animator.timeline');
+    return animator.timeline;
+}
 
 describe('wire version — parsing and comparison', () => {
 
@@ -164,12 +178,12 @@ describe('the step table', () => {
         });
 
         // the copy moved forward…
-        const out = r.doc as Record<string, any>;
+        const out = r.doc;
         expect(r.applied).toHaveLength(1);
-        expect(out.animator.timeline.durationMs).toBe(1000);
-        expect(out.animator.timeline.duration).toBeUndefined();
-        expect(out.animator.version).toBe('1.2.1');            // `c` preserved, `a.b` moved
-        expect(out.meta.editorOnly).toBe('must survive');       // player steps never touch meta.*
+        expect(rawTimeline(out).durationMs).toBe(1000);
+        expect(rawTimeline(out).duration).toBeUndefined();
+        expect(rawAnimator(out).version).toBe('1.2.1');            // `c` preserved, `a.b` moved
+        expect(isRecord(out) && isRecord(out.meta) ? out.meta.editorOnly : undefined).toBe('must survive');   // player steps never touch meta.*
         // …and the caller's object did not.
         expect(JSON.stringify(original)).toBe(before);
         expect(r.doc).not.toBe(original);
@@ -234,8 +248,8 @@ describe('down-conversion (task 6.7) — all or nothing', () => {
     const undoable = (from: string, to: string): PxWireVersionStep => ({
         from, to, kind: PxWireStepKind.converted,
         reason: 'spec only — renames timeline.duration ⇄ durationMs',
-        up: (d) => { const t = (d.animator as any).timeline; t.durationMs = t.duration; delete t.duration; },
-        down: (d) => { const t = (d.animator as any).timeline; t.duration = t.durationMs; delete t.durationMs; },
+        up: (d) => { const t = rawTimeline(d); t.durationMs = t.duration; delete t.duration; },
+        down: (d) => { const t = rawTimeline(d); t.duration = t.durationMs; delete t.durationMs; },
     });
     const oneWay = (from: string, to: string): PxWireVersionStep => ({
         from, to, kind: PxWireStepKind.converted, reason: 'spec only — the shape rework: no way back',
@@ -251,10 +265,10 @@ describe('down-conversion (task 6.7) — all or nothing', () => {
         });
         expect(r.ok).toBe(true);
         if (!r.ok) return;
-        const out = r.doc as any;
-        expect(out.animator.timeline.duration).toBe(1000);
-        expect(out.animator.timeline.durationMs).toBeUndefined();
-        expect(out.animator.version).toBe('1.1.0');
+        const out = r.doc;
+        expect(rawTimeline(out).duration).toBe(1000);
+        expect(rawTimeline(out).durationMs).toBeUndefined();
+        expect(rawAnimator(out).version).toBe('1.1.0');
         expect(JSON.stringify(original)).toBe(before);       // caller's document untouched
     });
 
@@ -311,7 +325,7 @@ describe('T3 — conversion is idempotent', () => {
         const step: PxWireVersionStep = {
             from: '1.1', to: '1.2', kind: PxWireStepKind.converted,
             reason: 'spec only — renames timeline.duration to durationMs',
-            up: (d) => { const t = (d.animator as any).timeline; t.durationMs = t.duration; delete t.duration; },
+            up: (d) => { const t = rawTimeline(d); t.durationMs = t.duration; delete t.duration; },
         };
         const cfg = { steps: [step], target: { a: 1, b: 2, c: 0 }, readerReadsEditorPart: false };
         const once = applyWireSteps(doc('1.1.0'), cfg);

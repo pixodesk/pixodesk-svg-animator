@@ -15,10 +15,38 @@ import { toDomProps } from '../util/PxNodeProps';
 import { materializeNodeEffects } from './PlayerEffectsUtil';
 import { materializeAllInTree } from '../materialize/PxAnimatorMaterializeAll';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
-import type { PxAnimatedSvgDocument, PxEffects, PxNode } from '../format/PxAnimatorTypes';
+import { isCompiledAnimation, type PxAnimatedSvgDocument, type PxAnyPropertyAnimation, type PxCompiledAnimation, type PxEffects, type PxNode, type PxPropertyAnimation } from '../format/PxAnimatorTypes';
 import { isRecord } from '../schema/PxSchema';
 
 export { PxTimelineEngine };
+
+/**
+ * A deliberately ill-typed input — what a JS caller or a hand-edited file may hand an API — typed as what the
+ * API declares. The ONE cast the tests use, and only for input that is MEANT to be wrong (robustness tests).
+ */
+export function untyped<T>(value: unknown): T {
+    return value as T;
+}
+
+/** A node's inline `animate` entry for `property`, in either form. */
+export function entryOf(node: PxNode | undefined, property: string): PxAnyPropertyAnimation | undefined {
+    const animate = node?.animate;
+    return isRecord(animate) ? animate[property] : undefined;
+}
+
+/** A node's AUTHORED `animate` entry for `property` — throws when it is absent or compiled (a failed expectation). */
+export function authoredEntry(node: PxNode | undefined, property: string): PxPropertyAnimation {
+    const entry = entryOf(node, property);
+    if (!entry || isCompiledAnimation(entry)) throw new Error('no authored `' + property + '` entry');
+    return entry;
+}
+
+/** A node's COMPILED `animate` entry for `property` — throws when it is absent or authored (a failed expectation). */
+export function compiledEntry(node: PxNode | undefined, property: string): PxCompiledAnimation {
+    const entry = entryOf(node, property);
+    if (!entry || !isCompiledAnimation(entry)) throw new Error('no compiled `' + property + '` entry');
+    return entry;
+}
 
 /** Run the real player-effect pipeline; throw on any materialization error. */
 export function materialize(input: PxNode): PxNode {

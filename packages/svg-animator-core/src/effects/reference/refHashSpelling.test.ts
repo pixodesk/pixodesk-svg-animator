@@ -9,7 +9,7 @@
 // materialize identically.
 
 import { describe, expect, it } from 'vitest';
-import type { PxNode } from '../../format/PxAnimatorTypes';
+import type { PxAnimatedSvgDocument } from '../../format/PxAnimatorTypes';
 import { generateNewIds } from '../../util/PxIdUtil';
 import { collectByType, materialize } from '../effectTestKit';
 
@@ -27,10 +27,10 @@ describe('ref spelling — #id canonical, bare legacy', () => {
                     { type: 'rect', id: 'src', width: 10, height: 10 },
                     { type: 'use', href: '#whatever', effects: { clone: { without: 'translate', source: form.ref('src') } } },
                 ],
-            } as unknown as PxNode);
-            const use = collectByType(out, 'use')[0] as any;
+            });
+            const use = collectByType(out, 'use')[0];
             // content-ref rewrites href to the allocated inner-content id of `src`
-            expect(use.href.startsWith('#')).toBe(true);
+            expect(typeof use.href === 'string' && use.href.startsWith('#')).toBe(true);
             expect(use.href).not.toBe('#whatever');
         });
 
@@ -40,36 +40,36 @@ describe('ref spelling — #id canonical, bare legacy', () => {
                     { type: 'circle', id: 'msrc', r: 5 },
                     { type: 'rect', width: 10, height: 10, effects: { maskedBy: { source: form.ref('msrc') } } },
                 ],
-            } as unknown as PxNode);
-            const mask = collectByType(out, 'mask')[0] as any;
-            const use = collectByType(mask, 'use')[0] as any;
+            });
+            const mask = collectByType(out, 'mask')[0];
+            const use = collectByType(mask, 'use')[0];
             expect(use.href).toBe('#msrc');
         });
     }
 
     it('generateNewIds rewrites a #id source preserving the hash spelling', () => {
-        const doc = {
+        const doc: PxAnimatedSvgDocument = {
             type: 'svg', children: [
                 { type: 'rect', id: 'src', width: 10, height: 10 },
                 { type: 'use', href: '#src', effects: { clone: { source: '#src' } } },
             ],
-        } as any;
-        const regenerated = generateNewIds(doc) as any;
-        const use = regenerated.children[1];
-        const newSrcId = regenerated.children[0].id;
+        };
+        const regenerated = generateNewIds(doc);
+        const use = regenerated.children?.[1];
+        const newSrcId = regenerated.children?.[0].id;
         expect(newSrcId).not.toBe('src');
-        expect(use.effects.clone.source).toBe('#' + newSrcId);
+        expect(use?.effects?.clone?.source).toBe('#' + newSrcId);
     });
 
     it('generateNewIds keeps rewriting a legacy bare source (spelling preserved)', () => {
-        const doc = {
+        const doc: PxAnimatedSvgDocument = {
             type: 'svg', children: [
                 { type: 'rect', id: 'src', width: 10, height: 10 },
                 { type: 'use', href: '#src', effects: { clone: { source: 'src' } } },
             ],
-        } as any;
-        const regenerated = generateNewIds(doc) as any;
-        const newSrcId = regenerated.children[0].id;
-        expect(regenerated.children[1].effects.clone.source).toBe(newSrcId);
+        };
+        const regenerated = generateNewIds(doc);
+        const newSrcId = regenerated.children?.[0].id;
+        expect(regenerated.children?.[1].effects?.clone?.source).toBe(newSrcId);
     });
 });

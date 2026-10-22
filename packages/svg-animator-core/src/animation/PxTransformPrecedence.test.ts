@@ -11,7 +11,15 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeBindings, mergeStaticTransformIntoAnimDef } from './PxDefinitions';
 import { parseTransformParts } from '../util/PxAnimatorUtil';
-import type { PxAnimatedSvgDocument, PxAnimationDefinition } from '../format/PxAnimatorTypes';
+import { untyped } from '../effects/effectTestKit';
+import { isCompiledAnimation, PxTransformPartsSchema, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxAttrValue, type PxPropertyAnimation, type PxTimeline } from '../format/PxAnimatorTypes';
+
+/** The merged `transform` entry — the merge keeps it authored; throws when absent or compiled. */
+function authoredTransform(def: PxAnimationDefinition): PxPropertyAnimation {
+    const entry = def.transform;
+    if (!entry || isCompiledAnimation(entry)) throw new Error('no authored `transform` entry');
+    return entry;
+}
 
 describe('parseTransformParts — conservative inverse of composeTransformParts', () => {
 
@@ -44,7 +52,7 @@ describe('mergeStaticTransformIntoAnimDef — the merge rules', () => {
                 { time: 1000, value: { translate: [80, 0], rotate: 90 } },
             ] },
         }, { rotate: 45, scale: [2, 2] });
-        const kfs: any = (out.transform as any).keyframes;
+        const kfs = authoredTransform(out).keyframes ?? [];
         expect(kfs[0].value).toEqual({ rotate: 45, scale: [2, 2], translate: [0, 0] });
         expect(kfs[1].value).toEqual({ rotate: 90, scale: [2, 2], translate: [80, 0] }); // kf rotate wins
     });
@@ -53,7 +61,7 @@ describe('mergeStaticTransformIntoAnimDef — the merge rules', () => {
         const out = mergeStaticTransformIntoAnimDef({
             transform: { keyframes: [{ time: 0, value: { translate: [1, 1] } }] },
         }, 'rotate(45)');
-        expect((out.transform as any).keyframes[0].value).toEqual({ rotate: 45, translate: [1, 1] });
+        expect(authoredTransform(out).keyframes?.[0].value).toEqual({ rotate: 45, translate: [1, 1] });
     });
 
     it('ONE individual channel lifts into a unified transform channel carrying the static parts', () => {
@@ -65,7 +73,7 @@ describe('mergeStaticTransformIntoAnimDef — the merge rules', () => {
             opacity: { keyframes: [{ time: 0, value: 1 }] },   // untouched bystander
         }, { rotate: 45 });
         expect(out.translate).toBeUndefined();
-        const kfs: any = (out.transform as any).keyframes;
+        const kfs = authoredTransform(out).keyframes ?? [];
         expect(kfs[0].value).toEqual({ rotate: 45, translate: [0, 0] });
         expect(kfs[1].value).toEqual({ rotate: 45, translate: [80, 0] });
         expect(out.opacity).toBeDefined();
@@ -91,27 +99,28 @@ describe('mergeStaticTransformIntoAnimDef — the merge rules', () => {
                 keyframes: [{ time: 0, value: { translate: [0, 0] }, tangentOut: [10, 0] }],
             },
         }, { rotate: 45 });
-        const anim: any = out.transform;
+        const anim = authoredTransform(out);
         expect(anim.autoOrient).toBe(true);
         expect(anim.loop).toBe(true);
-        expect(anim.keyframes[0].tangentOut).toEqual([10, 0]);
-        expect(anim.keyframes[0].value.rotate).toBe(45);
+        expect(anim.keyframes?.[0].tangentOut).toEqual([10, 0]);
+        expect(PxTransformPartsSchema.cast(anim.keyframes?.[0].value).rotate).toBe(45);
     });
 });
 
 describe('end-to-end — normalizeBindings composes the static transform under the animation', () => {
 
-    const docWith = (animate: object, staticTransform: unknown): PxAnimatedSvgDocument => ({
+    const docWith = (animate: PxAnimationDefinition, staticTransform: PxAttrValue): PxAnimatedSvgDocument => ({
         type: 'svg',
-        animator: { timeline: { duration: 1000 } },
+        // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
+        animator: { timeline: untyped<PxTimeline>({ duration: 1000 }) },
         children: [{ type: 'rect', id: 'r', width: 10, height: 10, transform: staticTransform, animate }],
-    } as unknown as PxAnimatedSvgDocument);
+    });
 
     it('the §0.4 worked example: rect rotated 45° slides AND stays rotated', () => {
         const bindings = normalizeBindings(docWith({
             translate: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [80, 0] }] },
         }, { rotate: 45 }));
-        const anim: any = bindings[0].channels;
+        const anim = bindings[0].channels;
         expect(anim.translate).toBeUndefined();                       // lifted into transform
         const kfs = anim.transform.keyframes;
         expect(kfs[0].value).toEqual({ rotate: 45, translate: [0, 0] });
@@ -125,7 +134,7 @@ describe('end-to-end — normalizeBindings composes the static transform under t
                 { time: 1000, value: { translate: [80, 0] } },
             ] },
         }, 'translate(10,10)rotate(45)'));
-        const kfs: any = (bindings[0].channels as any).transform.keyframes;
+        const kfs = bindings[0].channels.transform.keyframes;
         expect(kfs[0].value).toEqual({ translate: [0, 0], rotate: 45 }); // kf translate wins; rotate inherited
         expect(kfs[1].value).toEqual({ translate: [80, 0], rotate: 45 });
     });

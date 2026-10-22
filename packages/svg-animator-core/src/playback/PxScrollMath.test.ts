@@ -112,7 +112,7 @@ describe('scrollResolveAxis', () => {
         ['x', 'vertical-rl', 'x'],              // physical wins over writing mode
         ['y', 'horizontal-tb', 'y'],
     ] as const)('axis=%s writingMode=%s → %s', (axis, wm, expected) => {
-        expect(scrollResolveAxis(axis as any, wm)).toBe(expected);
+        expect(scrollResolveAxis(axis, wm)).toBe(expected);
     });
 });
 

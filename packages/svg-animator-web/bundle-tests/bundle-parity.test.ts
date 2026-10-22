@@ -16,7 +16,14 @@
 import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { BUNDLE_PAIRS, bundleText, framesDoc, loadBundle } from './bundleHarness';
+import { BUNDLE_PAIRS, bundleText, framesDoc, loadBundle, type PxPlayerGlobal } from './bundleHarness';
+import { untyped } from './testKit';
+import type { PxAnimatorOptions } from '../src/animator/PxAnimator';
+import type { PxPrerenderedAnimatorOptions } from '../src/engines/PxAnimatorBind';
+
+
+/** What a call through `create` or `bind` must satisfy — both entries' options at once. */
+type PxEntryOptions = PxAnimatorOptions & PxPrerenderedAnimatorOptions;
 
 /**
  * Names that MUST survive minification, with what breaks when they do not.
@@ -80,7 +87,7 @@ describe('shipped bundles: boundary names survive minification', () => {
 describe('shipped bundles: behavior is identical minified and unminified', () => {
 
     /** Runs one scenario against both flavors and returns the two observations. */
-    function ab(pair: typeof BUNDLE_PAIRS[number], scenario: (px: any, win: any) => unknown) {
+    function ab(pair: typeof BUNDLE_PAIRS[number], scenario: (px: PxPlayerGlobal, win: Window) => unknown) {
         const a = loadBundle(pair.unmin);
         const b = loadBundle(pair.min);
         return { unmin: scenario(a.px, a.window), min: scenario(b.px, b.window) };
@@ -88,12 +95,17 @@ describe('shipped bundles: behavior is identical minified and unminified', () =>
 
     for (const pair of BUNDLE_PAIRS) {
         // the full build renders (`create`); the pre-rendered builds bind markup already on the page (`bind`)
-        const enter = (px: any) => (pair.renders ? px.create : px.bind);
+        const enter = (px: PxPlayerGlobal) => {
+            if (!pair.renders) return px.bind;
+            if (!('create' in px)) throw new Error(`${pair.name}: the global has no create()`);
+            return px.create;
+        };
 
         it(`[${pair.name}] lifecycle callbacks fire`, () => {
-            const scenario = (px: any, win: any) => {
+            const scenario = (px: PxPlayerGlobal, win: Window) => {
                 const fired: string[] = [];
-                const api = enter(px)({
+                // stale option shape: `data` and a `callbacks` bag predate `doc` and inline callbacks
+                const api = enter(px)(untyped<PxEntryOptions>({
                     data: framesDoc(),
                     container: win.document.getElementById('stage'),
                     callbacks: {
@@ -101,7 +113,7 @@ describe('shipped bundles: behavior is identical minified and unminified', () =>
                         onPause: () => fired.push('onPause'),
                         onCancel: () => fired.push('onCancel'),
                     },
-                });
+                }));
                 api.play();
                 api.pause();
                 api.cancel();
@@ -113,16 +125,17 @@ describe('shipped bundles: behavior is identical minified and unminified', () =>
         });
 
         it(`[${pair.name}] a custom adapter is used`, () => {
-            const scenario = (px: any, win: any) => {
+            const scenario = (px: PxPlayerGlobal, win: Window) => {
                 let calls = 0;
-                const api = enter(px)({
+                // stale option shape: `data` predates `doc`; `adapter` is not a public option of either entry
+                const api = enter(px)(untyped<PxEntryOptions>({
                     data: framesDoc(),
                     container: win.document.getElementById('stage'),
                     adapter: {
                         isConnected: () => true,
                         setAttribute: () => { calls++; },
                     },
-                });
+                }));
                 api.play();
                 api.setCurrentTime(160);
                 return calls > 0;
@@ -133,15 +146,16 @@ describe('shipped bundles: behavior is identical minified and unminified', () =>
 
         if (pair.renders) {
             it(`[${pair.name}] domType becomes a real "type" attribute`, () => {
-                const scenario = (px: any, win: any) => {
-                    enter(px)({
+                const scenario = (px: PxPlayerGlobal, win: Window) => {
+                    // stale option shape: `data` predates `doc`
+                    enter(px)(untyped<PxEntryOptions>({
                         data: {
                             type: 'svg',
                             viewBox: '0 0 10 10',
                             children: [{ type: 'feTurbulence', id: 'turb', domType: 'fractalNoise', baseFrequency: 0.05 }],
                         },
                         container: win.document.getElementById('stage'),
-                    });
+                    }));
                     // `generateNewIds` rewrites authored ids, so find it by tag.
                     const el = win.document.querySelector('feTurbulence');
                     return el ? `${el.getAttribute('type')}|${el.hasAttribute('dom-type')}` : 'no-element';

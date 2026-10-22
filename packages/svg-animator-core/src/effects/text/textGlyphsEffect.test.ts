@@ -12,12 +12,12 @@
 //   H: width 700, box 100×700   i: width 300, box 50×500   ' ': width 250, no outline
 
 import { describe, expect, it } from 'vitest';
-import { PxGlyphFontSchema, type PxAnimationDefinition, type PxNode } from '../../format/PxAnimatorTypes';
+import { PxGlyphFontSchema, PxTransformPartsSchema, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxGlyphFont, type PxKeyframe, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTextEffect, type PxTextPathEffect, type PxTransformParts } from '../../format/PxAnimatorTypes';
 import { PxTimelineEngine } from '../../format/PxAnimatorConstants';
-import { collectByType, engineFirstFrame, materializeEngine, materializeRaw, staticAttr } from '../effectTestKit';
+import { authoredEntry, collectByType, engineFirstFrame, entryOf, materializeEngine, materializeRaw, staticAttr } from '../effectTestKit';
 import { glyphNodeFactory, glyphTextNodeOf, layoutGlyphTextChars, materializeGlyphText, type GlyphFactory } from './textGlyphsEffect';
 
-const glyphs = {
+const glyphs: Record<string, PxGlyphFont> = {
     F: {
         fontFamily: 'F', fontStyle: '', ascent: 800, unitsPerEm: 1000,
         glyphs: {
@@ -29,7 +29,7 @@ const glyphs = {
 };
 
 /** svg root carrying the glyph defs + one <text> host. */
-function scene(text: any, textAttrs: any = {}, tspans?: Array<any>): PxNode {
+function scene(text: PxTextEffect, textAttrs: Partial<PxNode> = {}, tspans?: Array<PxNode>): PxAnimatedSvgDocument {
     return {
         type: 'svg',
         animator: { definitions: { fonts: glyphs } },
@@ -38,10 +38,10 @@ function scene(text: any, textAttrs: any = {}, tspans?: Array<any>): PxNode {
             children: tspans ?? [{ type: 'tspan', textContent: 'Hi', fontFamily: 'F', fontSize: '100px' }],
             effects: { text },
         }],
-    } as unknown as PxNode;
+    };
 }
 
-const run = (text: any, textAttrs?: any, tspans?: Array<any>) => materializeRaw(scene(text, textAttrs, tspans));
+const run = (text: PxTextEffect, textAttrs?: Partial<PxNode>, tspans?: Array<PxNode>) => materializeRaw(scene(text, textAttrs, tspans));
 const paths = (root: PxNode) => collectByType(root, 'path');
 
 
@@ -123,10 +123,10 @@ describe('textGlyphsEffect — <text> → baked <path> outlines', () => {
     });
 
     it('warns and leaves native text when no glyphs are defined', () => {
-        const input = {
+        const input: PxNode = {
             type: 'svg',
             children: [{ type: 'text', id: 't', children: [{ type: 'tspan', textContent: 'Hi', fontFamily: 'F' }], effects: { text: { useGlyphs: true } } }],
-        } as unknown as PxNode;
+        };
         const { root, warnings } = materializeRaw(input);
         expect(collectByType(root, 'text')).toHaveLength(1);
         expect(warnings.join(' ')).toContain('no definitions.fonts');
@@ -137,8 +137,8 @@ describe('textGlyphsEffect — <text> → baked <path> outlines', () => {
 describe('textGlyphsEffect — along-path', () => {
 
     // svg root with a glyph text running along an INLINE path (textPath.pathData).
-    function alongScene(pathD: string, startOffset?: number, text = 'Hi', pathOverflow?: string): PxNode {
-        const textPath: any = { pathData: pathD };
+    function alongScene(pathD: string, startOffset?: number, text = 'Hi', pathOverflow?: PxTextPathEffect['pathOverflow']): PxAnimatedSvgDocument {
+        const textPath: PxTextPathEffect = { pathData: pathD };
         if (startOffset !== undefined) textPath.startOffset = startOffset;
         if (pathOverflow !== undefined) textPath.pathOverflow = pathOverflow;
         return {
@@ -151,7 +151,7 @@ describe('textGlyphsEffect — along-path', () => {
                     effects: { text: { useGlyphs: true }, textPath },
                 },
             ],
-        } as unknown as PxNode;
+        };
     }
 
     // Glyph paths only (exclude the guide <path id=curve>).
@@ -186,9 +186,10 @@ describe('textGlyphsEffect — along-path', () => {
     // y is IGNORED. Same 'H' as the startOffset test → identical baked coords when the
     // net along-path distance is 100.
     const alongWith = (attrs: Record<string, number>, text = 'H') => {
-        const scene = alongScene('M0 0L1000 0', undefined, text) as any;
-        Object.assign(scene.children[0], attrs);
-        return scene as PxNode;
+        const scene = alongScene('M0 0L1000 0', undefined, text);
+        const textNode = scene.children?.[0];
+        if (textNode) Object.assign(textNode, attrs);
+        return scene;
     };
 
     it('x is an offset ALONG the path (like startOffset)', () => {
@@ -244,8 +245,8 @@ describe('textGlyphsEffect — along-path', () => {
 
 describe('textGlyphsEffect — along-path animated (sliding startOffset)', () => {
 
-    function animScene(pathD: string, kfs: Array<any>, text = 'H', loop?: unknown): PxNode {
-        const startOffset: any = { keyframes: kfs };
+    function animScene(pathD: string, kfs: Array<PxKeyframe<number>>, text = 'H', loop?: PxPropertyAnimation['loop']): PxAnimatedSvgDocument {
+        const startOffset: PxPropertyAnimation = { keyframes: kfs };
         if (loop !== undefined) startOffset.loop = loop;
         return {
             type: 'svg',
@@ -257,7 +258,7 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
                     effects: { text: { useGlyphs: true }, textPath: { pathData: pathD, startOffset } },
                 },
             ],
-        } as unknown as PxNode;
+        };
     }
 
     const glyphPaths = (root: PxNode) =>
@@ -271,14 +272,14 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
         // Outline baked centered on mid-advance (scale only, no position/rotation).
         expect(p[0].d).toBe('M-35 0L-25 0L-25-70Z');
 
-        const kfs = (p[0].animate as any).transform.keyframes;
+        const kfs = authoredEntry(p[0], 'transform').keyframes ?? [];
         expect(kfs.length).toBeGreaterThan(2); // sub-sampled, not just the 2 endpoints
         expect(kfs[0].time).toBe(0);
-        expect(kfs[0].value.translate[0]).toBeCloseTo(35, 2);  // mid at dist 0+35
-        expect(kfs[0].value.rotate).toBeCloseTo(0, 3);
+        expect(PxTransformPartsSchema.cast(kfs[0].value).translate?.[0]).toBeCloseTo(35, 2);  // mid at dist 0+35
+        expect(PxTransformPartsSchema.cast(kfs[0].value).rotate).toBeCloseTo(0, 3);
         const last = kfs[kfs.length - 1];
         expect(last.time).toBe(1000);
-        expect(last.value.translate[0]).toBeCloseTo(135, 2);   // mid at dist 100+35
+        expect(PxTransformPartsSchema.cast(last.value).translate?.[0]).toBeCloseTo(135, 2);   // mid at dist 100+35
     });
 
     it('at REST every glyph sits where the engine starts it — not stacked on the origin', () => {
@@ -305,11 +306,12 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
     it('a clip-mode glyph that starts OFF the path rests hidden, not flashed at full opacity', () => {
         // `pathOverflow: 'clip'` on an open 100-long path; the glyph starts at 500 — far off it.
         const scene = animScene('M0 0L100 0', [{ time: 0, value: 500 }, { time: 1000, value: 0 }], 'H');
-        ((scene.children?.[0].effects as any).textPath).pathOverflow = 'clip';
+        const textPath = scene.children?.[0].effects?.textPath;
+        if (textPath) textPath.pathOverflow = 'clip';
         (scene.animator as { timeline?: unknown }).timeline = { outTime: 1000, engine: 'js' };
         const p = glyphPaths(materializeEngine(scene, PxTimelineEngine.js));
 
-        expect((p[0].animate as any).opacity, 'the scene must actually produce a visibility track').toBeDefined();
+        expect(entryOf(p[0], 'opacity'), 'the scene must actually produce a visibility track').toBeDefined();
         expect(Number(p[0].opacity)).toBe(0);
     });
 
@@ -317,23 +319,23 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
         const { root } = materializeRaw(animScene('M0 0L1000 0', [{ time: 0, value: 0 }, { time: 1000, value: 100 }], 'Hi'));
         const p = glyphPaths(root);
         expect(p).toHaveLength(2);
-        expect((p[0].animate as any).transform.keyframes.length).toBeGreaterThan(1);
-        expect((p[1].animate as any).transform.keyframes.length).toBeGreaterThan(1);
+        expect(authoredEntry(p[0], 'transform').keyframes?.length).toBeGreaterThan(1);
+        expect(authoredEntry(p[1], 'transform').keyframes?.length).toBeGreaterThan(1);
     });
 
     it('sub-samples so glyphs follow a curve (intermediate points off the chord)', () => {
         // Quarter-circle-ish path; a 2-kf straight interp would cut the corner.
         const { root } = materializeRaw(animScene('M0 0Q100 0 100 100', [{ time: 0, value: 0 }, { time: 1000, value: 140 }], 'H'));
-        const kfs = (glyphPaths(root)[0].animate as any).transform.keyframes;
+        const kfs = authoredEntry(glyphPaths(root)[0], 'transform').keyframes ?? [];
         expect(kfs.length).toBeGreaterThan(3);
         // rotation changes along the curve (not constant like a straight path)
-        const rots = kfs.map((k: any) => k.value.rotate);
+        const rots = kfs.map(k => PxTransformPartsSchema.cast(k.value).rotate ?? NaN);
         expect(Math.max(...rots) - Math.min(...rots)).toBeGreaterThan(10);
     });
 
     it('propagates loop to animate.transform', () => {
         const { root } = materializeRaw(animScene('M0 0L1000 0', [{ time: 0, value: 0 }, { time: 1000, value: 100 }], 'H', true));
-        expect((glyphPaths(root)[0].animate as any).transform.loop).toBe(true);
+        expect(authoredEntry(glyphPaths(root)[0], 'transform').loop).toBe(true);
     });
 
     it('treats a single startOffset keyframe as static (merged, no animation)', () => {
@@ -348,10 +350,10 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
 describe('textGlyphsEffect — along-path animated (moving path)', () => {
 
     /** A `textPath` whose GEOMETRY is keyframed; `startOffset` optional. */
-    function movingScene(pathKfs: Array<{ time: number; d: string }>, extra: { startOffset?: unknown; pathLoop?: unknown; text?: string } = {}): PxNode {
-        const pathData: any = { keyframes: pathKfs.map(kf => ({ time: kf.time, value: { pathData: kf.d } })) };
+    function movingScene(pathKfs: Array<{ time: number; d: string }>, extra: { startOffset?: PxTextPathEffect['startOffset']; pathLoop?: PxPropertyAnimation['loop']; text?: string } = {}): PxAnimatedSvgDocument {
+        const pathData: PxPropertyAnimation = { keyframes: pathKfs.map(kf => ({ time: kf.time, value: { pathData: kf.d } })) };
         if (extra.pathLoop !== undefined) pathData.loop = extra.pathLoop;
-        const textPath: any = { pathData };
+        const textPath: PxTextPathEffect = { pathData };
         if (extra.startOffset !== undefined) textPath.startOffset = extra.startOffset;
         return {
             type: 'svg',
@@ -361,11 +363,16 @@ describe('textGlyphsEffect — along-path animated (moving path)', () => {
                 children: [{ type: 'tspan', textContent: extra.text ?? 'H', fontFamily: 'F', fontSize: '100px' }],
                 effects: { text: { useGlyphs: true }, textPath },
             }],
-        } as unknown as PxNode;
+        };
     }
     const glyphPaths = (root: PxNode) =>
         ((collectByType(root, 'g').find(n => n.id === 't')?.children) ?? []).filter(n => n.type === 'path');
-    const transformKfs = (p: PxNode): Array<any> => (p.animate as any).transform.keyframes;
+    /** A glyph's authored `transform` keyframes as sampled: a `time` each, the value read as transform parts. */
+    const transformKfs = (p: PxNode): Array<{ time: number; value: PxTransformParts }> =>
+        (authoredEntry(p, 'transform').keyframes ?? []).map(kf => {
+            if (kf.time === undefined) throw new Error('a sampled keyframe without `time`');
+            return { time: kf.time, value: PxTransformPartsSchema.cast(kf.value) };
+        });
 
     const STRAIGHT = 'M0 0L1000 0';
     const SHIFTED = 'M0 100L1000 100';          // the same line, 100 down
@@ -394,8 +401,8 @@ describe('textGlyphsEffect — along-path animated (moving path)', () => {
 
         const mid = kfs.find(kf => kf.time > 400 && kf.time < 600);
         expect(mid, 'a sample in the middle of the move').toBeDefined();
-        expect(mid.value.translate[1]).toBeGreaterThan(0);          // lifted off y=0 by the half-bent arch
-        expect(Math.abs(mid.value.rotate)).toBeGreaterThan(0);      // and tilted along its tangent
+        expect(mid?.value.translate?.[1]).toBeGreaterThan(0);          // lifted off y=0 by the half-bent arch
+        expect(Math.abs(mid?.value.rotate ?? NaN)).toBeGreaterThan(0);      // and tilted along its tangent
         // Monotone in time, endpoints at the keyframes.
         expect(kfs[0].time).toBe(0);
         expect(kfs[kfs.length - 1].time).toBe(1000);
@@ -413,22 +420,22 @@ describe('textGlyphsEffect — along-path animated (moving path)', () => {
         expect(kfs[0].value.translate).toEqual([35, 0]);
         // At 500 ms: slid to dist 100+35 on a line half-way down (y=50).
         const at500 = kfs[times.indexOf(500)];
-        expect(at500.value.translate[0]).toBeCloseTo(135, 6);
-        expect(at500.value.translate[1]).toBeCloseTo(50, 6);
+        expect(at500.value.translate?.[0]).toBeCloseTo(135, 6);
+        expect(at500.value.translate?.[1]).toBeCloseTo(50, 6);
         expect(kfs[kfs.length - 1].value.translate).toEqual([135, 100]);
     });
 
     it('the loop: the path\'s when it has one, else the other drivers\' as before', () => {
-        const loopA = { direction: 'alternate' };
+        const loopA: PxLoop = { direction: 'alternate' };
         const withPathLoop = materializeRaw(movingScene([{ time: 0, d: STRAIGHT }, { time: 1000, d: SHIFTED }], { pathLoop: loopA })).root;
-        expect((glyphPaths(withPathLoop)[0].animate as any).transform.loop).toEqual(loopA);
+        expect(authoredEntry(glyphPaths(withPathLoop)[0], 'transform').loop).toEqual(loopA);
 
-        const loopB = { repeatAt: 'start' };
+        const loopB: PxLoop = { repeatAt: 'start' };
         const pathNoLoop = materializeRaw(movingScene(
             [{ time: 0, d: STRAIGHT }, { time: 1000, d: SHIFTED }],
             { startOffset: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 50 }], loop: loopB } },
         )).root;
-        expect((glyphPaths(pathNoLoop)[0].animate as any).transform.loop).toEqual(loopB);
+        expect(authoredEntry(glyphPaths(pathNoLoop)[0], 'transform').loop).toEqual(loopB);
     });
 
     it('a single-keyframe path is static — glyphs bake and merge as for a plain string', () => {
@@ -437,7 +444,7 @@ describe('textGlyphsEffect — along-path animated (moving path)', () => {
             type: 'svg', animator: { definitions: { fonts: glyphs } },
             children: [{ type: 'text', id: 't', children: [{ type: 'tspan', textContent: 'H', fontFamily: 'F', fontSize: '100px' }],
                 effects: { text: { useGlyphs: true }, textPath: { pathData: STRAIGHT } } }],
-        } as unknown as PxNode).root;
+        }).root;
         expect(JSON.stringify(glyphPaths(animated))).toBe(JSON.stringify(glyphPaths(plain)));
     });
 });
@@ -454,7 +461,7 @@ describe('materializeGlyphText — injected element factory (editor reuse)', () 
     const textNode = (): PxNode => ({
         type: 'text', id: 't', transform: 'translate(10,50)',
         children: [{ type: 'tspan', textContent: 'Hi', fontFamily: 'F', fontSize: '100px', fill: '#f00' }],
-    } as unknown as PxNode);
+    });
 
     it('builds the group + paths via the caller-supplied factory (not JSON nodes)', () => {
         const g = materializeGlyphText(glyphTextNodeOf(textNode()), { glyphs, create: fakeFactory });
@@ -495,7 +502,7 @@ describe('layoutGlyphTextChars — per-char caret/hit boxes', () => {
             { type: 'tspan', x: 0, y: 120,             fontFamily: 'F', fontSize: '100px' },
             { type: 'tspan', x: 0, y: 240, textContent: 'H',  fontFamily: 'F', fontSize: '100px' },
         ],
-    } as unknown as PxNode);
+    });
 
     it('emits one zero-width filler box for an empty line, in DOM order', () => {
         const boxes = layoutGlyphTextChars(glyphTextNodeOf(threeLinesMiddleEmpty()), { glyphs });
@@ -519,13 +526,13 @@ describe('layoutGlyphTextChars — per-char caret/hit boxes', () => {
     it('a whitespace-only line is NOT empty — the space itself is the box', () => {
         // A space is a real editable char: it advances the pen and gets its own box,
         // so no filler is added (adding one would DESYNC the DOM char indexing).
-        const node = {
+        const node: PxNode = {
             type: 'text', id: 't',
             children: [
                 { type: 'tspan', x: 0, y: 0,   textContent: 'H', fontFamily: 'F', fontSize: '100px' },
                 { type: 'tspan', x: 0, y: 120, textContent: ' ', fontFamily: 'F', fontSize: '100px' },
             ],
-        } as unknown as PxNode;
+        };
         const boxes = layoutGlyphTextChars(glyphTextNodeOf(node), { glyphs });
         expect(boxes).toHaveLength(2);
         expect(boxes[1].width).toBe(25); // space advance 250 × 0.1 — a real box, not a filler
@@ -564,7 +571,7 @@ describe('textGlyphsEffect — span opacity folds into the baked paint', () => {
         ]);
         const p = paths(root);
         expect(p).toHaveLength(1);
-        expect((p[0].animate as any)?.opacity).toStrictEqual(anim);   // opaque pass-through (pipeline clones nodes)
+        expect(entryOf(p[0], 'opacity')).toStrictEqual(anim);   // opaque pass-through (pipeline clones nodes)
     });
 
     it('nested span opacity: NEAREST wins — the collapsed-line fold duplicates it on two levels', () => {
@@ -648,11 +655,10 @@ describe('textGlyphsEffect — full span paint folds into the baked paths', () =
         }]);
         const p = paths(root);
         expect(p).toHaveLength(1);
-        const animate = p[0].animate as any;
-        expect(animate?.fill).toStrictEqual(fillAnim);
-        expect(animate?.strokeDashoffset).toStrictEqual(dashAnim);
-        expect(animate?.fontSize).toBeUndefined();
-        expect(animate?.x).toBeUndefined();
+        expect(entryOf(p[0], 'fill')).toStrictEqual(fillAnim);
+        expect(entryOf(p[0], 'strokeDashoffset')).toStrictEqual(dashAnim);
+        expect(entryOf(p[0], 'fontSize')).toBeUndefined();
+        expect(entryOf(p[0], 'x')).toBeUndefined();
     });
 
     it('TEXT-level paint props stay off the paths (they ride the <g> and inherit)', () => {
@@ -690,7 +696,7 @@ describe('textGlyphsEffect — span filter ref folds into the baked paint', () =
 // `font-family` holds the FACE name the author picked (`F-Bold`), and that is exactly the
 // `definitions.fonts` key — so the lookup is a direct one. Two faces of one family are two
 // separate entries, and the CSS `font-weight` / `font-style` attrs never pick between them.
-const faceGlyphs = {
+const faceGlyphs: Record<string, PxGlyphFont> = {
     // Same char, a DIFFERENT outline per face — so the assertions can tell them apart.
     F: {
         fontFamily: 'F', fontStyle: '', ascent: 800, unitsPerEm: 1000,
@@ -703,7 +709,7 @@ const faceGlyphs = {
 };
 
 /** One <text> whose span carries the given attrs, against the two-face defs. */
-function faceScene(spanAttrs: Record<string, unknown>): PxNode {
+function faceScene(spanAttrs: Partial<PxNode>): PxAnimatedSvgDocument {
     return {
         type: 'svg',
         animator: { definitions: { fonts: faceGlyphs } },
@@ -712,7 +718,7 @@ function faceScene(spanAttrs: Record<string, unknown>): PxNode {
             children: [{ type: 'tspan', textContent: 'H', fontFamily: 'F', fontSize: '100px', ...spanAttrs }],
             effects: { text: { useGlyphs: true } },
         }],
-    } as unknown as PxNode;
+    };
 }
 
 describe('textGlyphsEffect — the face name IS the lookup key', () => {
@@ -736,7 +742,7 @@ describe('textGlyphsEffect — the face name IS the lookup key', () => {
 
 
 /** One glyph text — horizontal, or along `pathData` — against the given font. */
-function unitsScene(font: Record<string, unknown>, pathData?: string): PxNode {
+function unitsScene(font: PxGlyphFont, pathData?: string): PxAnimatedSvgDocument {
     return {
         type: 'svg',
         animator: { definitions: { fonts: { F: font } } },
@@ -745,7 +751,7 @@ function unitsScene(font: Record<string, unknown>, pathData?: string): PxNode {
             children: [{ type: 'tspan', textContent: 'H?', fontFamily: 'F', fontSize: '100px' }],
             effects: pathData ? { text: { useGlyphs: true }, textPath: { pathData } } : { text: { useGlyphs: true } },
         }],
-    } as unknown as PxNode;
+    };
 }
 
 describe('textGlyphsEffect — unitsPerEm is optional', () => {

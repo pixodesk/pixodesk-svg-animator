@@ -11,13 +11,15 @@
 // loop materialization. These tests pin that contract per applier.
 
 import { describe, expect, it } from 'vitest';
-import type { PxNode } from '../format/PxAnimatorTypes';
-import { collectByType, materialize, materializeEngine, PxTimelineEngine } from './effectTestKit';
+import { PxTransformPartsSchema, type PxAnimatedSvgDocument, type PxClipPathEffect, type PxFillGradientEffect, type PxKeyframe, type PxKeyframeValue, type PxNode, type PxTimeline } from '../format/PxAnimatorTypes';
+import { authoredEntry, collectByType, compiledEntry, entryOf, materialize, materializeEngine, PxTimelineEngine, untyped } from './effectTestKit';
 
-const doc = (child: Record<string, unknown>): PxNode =>
-    ({ type: 'svg', animator: { timeline: { duration: 2000 } }, children: [child] } as unknown as PxNode);
+const doc = (child: PxNode): PxAnimatedSvgDocument =>
+    // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
+    ({ type: 'svg', animator: { timeline: untyped<PxTimeline>({ duration: 2000 }) }, children: [child] });
 
-const anim = (n: PxNode | undefined): Record<string, any> => ((n as any)?.animate ?? {});
+/** Short `{t, v}` keyframes — not in the type, still read by effect slots (`readAnimatable`). */
+const shortKfs = (kfs: Array<{ t: number; v: PxKeyframeValue }>): Array<PxKeyframe<PxKeyframeValue>> => untyped(kfs);
 
 
 describe('unified animatable grammar — loop / value base in effect slots', () => {
@@ -34,29 +36,29 @@ describe('unified animatable grammar — loop / value base in effect slots', () 
         // Effects-only: the synthesized channel carries the loop verbatim.
         const out = materialize(input);
         const path = collectByType(out, 'path')[0];
-        expect(anim(path).strokeDashoffset.loop).toBe(true);
+        expect(authoredEntry(path, 'strokeDashoffset').loop).toBe(true);
 
         // Full pipeline: the compile step that expands node.animate loops
         // consumes it — loop gone, kfs fill the 2000ms doc.
         const full = materializeEngine(input, PxTimelineEngine.js);
         const fullPath = collectByType(full, 'path')[0];
-        const block = anim(fullPath).strokeDashoffset;
+        const block = compiledEntry(fullPath, 'strokeDashoffset');
         const kfs = block.keyframes;
-        expect(block.loop).toBeUndefined();
+        expect('loop' in block).toBe(false);
         expect(kfs.length).toBeGreaterThan(2);
-        expect(kfs[kfs.length - 1].t ?? kfs[kfs.length - 1].time).toBe(2000);
+        expect(kfs[kfs.length - 1].time).toBe(2000);
     });
 
     it('transformBy.rotate — short-form keyframes + loop are read in an effect slot', () => {
         const out = materialize(doc({
             type: 'rect', width: 100, height: 50,
             effects: { transformBy: {
-                rotate: { keyframes: [{ t: 0, v: 0 }, { t: 1000, v: 90 }], loop: { direction: 'alternate' } },
+                rotate: { keyframes: shortKfs([{ t: 0, v: 0 }, { t: 1000, v: 90 }]), loop: { direction: 'alternate' } },
             } },
         }));
         const wrapper = collectByType(out, 'g')[0];
-        const tr = anim(wrapper).transform;
-        expect(tr.keyframes.map((k: any) => k.value.rotate)).toEqual([0, 90]);
+        const tr = authoredEntry(wrapper, 'transform');
+        expect(tr.keyframes?.map(k => PxTransformPartsSchema.cast(k.value).rotate)).toEqual([0, 90]);
         expect(tr.loop).toEqual({ direction: 'alternate' });
     });
 
@@ -65,12 +67,12 @@ describe('unified animatable grammar — loop / value base in effect slots', () 
             type: 'text', children: [{ type: 'tspan', textContent: 'hi' }],
             effects: { textPath: {
                 pathData: 'M0,0 L100,0', pathOverflow: 'clip',
-                startOffset: { keyframes: [{ t: 0, v: 5 }, { t: 1000, v: 50 }], loop: true },
+                startOffset: { keyframes: shortKfs([{ t: 0, v: 5 }, { t: 1000, v: 50 }]), loop: true },
             } },
         }));
-        const tp = collectByType(out, 'textPath')[0] as any;
-        expect(tp.animate.startOffset.keyframes.map((k: any) => k.value)).toEqual([5, 50]);
-        expect(tp.animate.startOffset.loop).toBe(true);
+        const tp = collectByType(out, 'textPath')[0];
+        expect(authoredEntry(tp, 'startOffset').keyframes?.map(k => k.value)).toEqual([5, 50]);
+        expect(authoredEntry(tp, 'startOffset').loop).toBe(true);
         expect(tp.startOffset).toBe('5'); // pre-tick baseline, shared writer
     });
 
@@ -79,13 +81,13 @@ describe('unified animatable grammar — loop / value base in effect slots', () 
             type: 'rect', width: 10, height: 10,
             effects: { repeater: {
                 copies: 3,
-                translate: { keyframes: [{ t: 0, v: [0, 0] }, { t: 1000, v: [10, 0] }] },
+                translate: { keyframes: shortKfs([{ t: 0, v: [0, 0] }, { t: 1000, v: [10, 0] }]) },
             } },
         }));
         // Copies 1..2 are wrapped with a per-copy transformation; copy 2 moves ×2.
-        const wrappers = collectByType(out, 'g').filter(g => anim(g).transform);
-        const lastCopy = anim(wrappers[wrappers.length - 1]).transform;
-        expect(lastCopy.keyframes.map((k: any) => k.value.translate)).toEqual([[0, 0], [20, 0]]);
+        const wrappers = collectByType(out, 'g').filter(g => entryOf(g, 'transform'));
+        const lastCopy = authoredEntry(wrappers[wrappers.length - 1], 'transform');
+        expect(lastCopy.keyframes?.map(k => PxTransformPartsSchema.cast(k.value).translate)).toEqual([[0, 0], [20, 0]]);
     });
 
     it('gradient stops — {value: […]} structured static and keyframes both read', () => {
@@ -94,16 +96,16 @@ describe('unified animatable grammar — loop / value base in effect slots', () 
             type: 'rect', width: 10, height: 10,
             effects: { fillGradient: { type: 'linear', start: [0, 0], end: [10, 0], stops: { value: stops } } },
         }));
-        expect(collectByType(staticOut, 'stop').map((s: any) => s.stopColor)).toEqual(['#f00', '#00f']);
+        expect(collectByType(staticOut, 'stop').map(s => s.stopColor)).toEqual(['#f00', '#00f']);
 
         const animOut = materialize(doc({
             type: 'rect', width: 10, height: 10,
             effects: { fillGradient: { type: 'linear', start: [0, 0], end: [10, 0],
-                stops: { keyframes: [{ t: 0, v: stops }, { t: 1000, v: [{ offset: 0, color: '#0f0' }, { offset: 1, color: '#00f' }] }], loop: true } } },
+                stops: { keyframes: shortKfs([{ t: 0, v: stops }, { t: 1000, v: [{ offset: 0, color: '#0f0' }, { offset: 1, color: '#00f' }] }]), loop: true } } },
         }));
         const stopNodes = collectByType(animOut, 'stop');
-        expect(anim(stopNodes[0]).stopColor.keyframes.map((k: any) => k.value)).toEqual(['#f00', '#0f0']);
-        expect(anim(stopNodes[0]).stopColor.loop).toBe(true);
+        expect(authoredEntry(stopNodes[0], 'stopColor').keyframes?.map(k => k.value)).toEqual(['#f00', '#0f0']);
+        expect(authoredEntry(stopNodes[0], 'stopColor').loop).toBe(true);
     });
 });
 
@@ -115,8 +117,8 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
             type: 'rect', width: 10, height: 10,
             effects: { clipPath: { pathData: 'M0,0 L10,0 L10,10 Z' } },
         }));
-        const clipPath = collectByType(out, 'clipPath')[0] as any;
-        expect(clipPath.children[0].d).toBe('M0,0 L10,0 L10,10 Z');
+        const clipPath = collectByType(out, 'clipPath')[0];
+        expect(clipPath.children?.[0].d).toBe('M0,0 L10,0 L10,10 Z');
     });
 
     it('clipPath.d — animated slot ({path} kf values) + baseline d', () => {
@@ -126,10 +128,10 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
                 { time: 0, value: { pathData: 'M0,0 L10,0 L10,10 Z' } },
                 { time: 1000, value: { pathData: 'M0,0 L20,0 L20,20 Z' } } ], loop: true } } },
         }));
-        const path = (collectByType(out, 'clipPath')[0] as any).children[0];
-        expect(path.animate.d.keyframes).toHaveLength(2);
-        expect(path.animate.d.loop).toBe(true);
-        expect(path.d).toBe('M0,0 L10,0 L10,10 Z'); // baseline unwrapped from {path}
+        const path = collectByType(out, 'clipPath')[0].children?.[0];
+        expect(authoredEntry(path, 'd').keyframes).toHaveLength(2);
+        expect(authoredEntry(path, 'd').loop).toBe(true);
+        expect(path?.d).toBe('M0,0 L10,0 L10,10 Z'); // baseline unwrapped from {path}
     });
 
     it('clipPath — the legacy sibling `animate` key is GONE (removed outright, read included)', () => {
@@ -140,11 +142,11 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
             { time: 1000, value: { pathData: 'M0,0 L20,0 L20,20 Z' } } ] };
         const out = materialize(doc({
             type: 'rect', width: 10, height: 10,
-            effects: { clipPath: { pathData: 'M0,0 L10,0 L10,10 Z', animate: legacyBlock } as any },
+            effects: { clipPath: untyped<PxClipPathEffect>({ pathData: 'M0,0 L10,0 L10,10 Z', animate: legacyBlock }) },
         }));
-        const path = (collectByType(out, 'clipPath')[0] as any).children[0];
-        expect(path.animate).toBeUndefined();          // NOT folded any more
-        expect(path.d).toBe('M0,0 L10,0 L10,10 Z');    // static clip still applies
+        const path = collectByType(out, 'clipPath')[0].children?.[0];
+        expect(path?.animate).toBeUndefined();          // NOT folded any more
+        expect(path?.d).toBe('M0,0 L10,0 L10,10 Z');    // static clip still applies
     });
 
     it('gradient start/radius — animated slots split into the def\'s axis channels + baselines', () => {
@@ -159,12 +161,12 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
                 stops: [{ offset: 0, color: '#f00' }, { offset: 1, color: '#00f' }],
             } },
         }));
-        const def = collectByType(out, 'radialGradient')[0] as any;
-        expect(def.animate.cx.keyframes.map((k: any) => k.value)).toEqual([50, 10]);
-        expect(def.animate.cy.keyframes.map((k: any) => k.value)).toEqual([40, 0]);
-        expect(def.animate.cx.keyframes[0].easing).toEqual([0.4, 0, 0.6, 1]); // easing preserved per axis
-        expect(def.animate.cx.loop).toBe(true);
-        expect(def.animate.r.keyframes.map((k: any) => k.value)).toEqual([5, 50]);
+        const def = collectByType(out, 'radialGradient')[0];
+        expect(authoredEntry(def, 'cx').keyframes?.map(k => k.value)).toEqual([50, 10]);
+        expect(authoredEntry(def, 'cy').keyframes?.map(k => k.value)).toEqual([40, 0]);
+        expect(authoredEntry(def, 'cx').keyframes?.[0].easing).toEqual([0.4, 0, 0.6, 1]); // easing preserved per axis
+        expect(authoredEntry(def, 'cx').loop).toBe(true);
+        expect(authoredEntry(def, 'r').keyframes?.map(k => k.value)).toEqual([5, 50]);
         expect(def.cx).toBe('50'); // static baselines from the first kf
         expect(def.cy).toBe('40');
         expect(def.r).toBe('5');
@@ -173,13 +175,13 @@ describe('grammar-1 geometry slots (were sibling `animate` buckets)', () => {
     it('gradient — REMOVED legacy per-scalar animate channels are ignored', () => {
         const out = materialize(doc({
             type: 'rect', width: 10, height: 10,
-            effects: { fillGradient: {
+            effects: { fillGradient: untyped<PxFillGradientEffect>({
                 type: 'linear', start: [0, 40], end: [200, 40],
                 animate: { gradientY1: { keyframes: [{ time: 0, value: 40 }, { time: 1000, value: 0 }] } },
                 stops: [{ offset: 0, color: '#f00' }, { offset: 1, color: '#00f' }],
-            } },
+            }) },
         }));
-        const def = collectByType(out, 'linearGradient')[0] as any;
+        const def = collectByType(out, 'linearGradient')[0];
         expect(def.animate).toBeUndefined(); // legacy channels dropped — statics only
         expect(def.x1).toBe('0');
     });

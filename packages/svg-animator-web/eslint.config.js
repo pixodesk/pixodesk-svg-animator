@@ -30,5 +30,13 @@ export default tseslint.config(
         rules: {
             'no-restricted-syntax': 'off',
         },
+    },
+    {
+        // No `any`, source or test (first-use review §17c): give the value its real type. A fact TypeScript
+        // cannot follow is stated once, by a named cast (`asBuilt`, `drivenByDocument`, the tests' `untyped`).
+        files: ['src/**/*.{ts,tsx}', 'e2e/**/*.ts', 'bundle-tests/**/*.ts'],
+        languageOptions: { parser: tseslint.parser },
+        plugins: { '@typescript-eslint': tseslint.plugin },
+        rules: { '@typescript-eslint/no-explicit-any': 'error' },
     }
 );

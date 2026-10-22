@@ -12,14 +12,15 @@
 // the structural contract (collapse vs split, static vs animated, hide).
 
 import { describe, expect, it } from 'vitest';
-import type { PxNode } from '../../format/PxAnimatorTypes';
-import { collectByType, materialize, normalizeGeneratedIds } from '../effectTestKit';
+import type { PxNode, PxStrokeTrimEffect } from '../../format/PxAnimatorTypes';
+import { px } from '../../schema/PxSchema';
+import { authoredEntry, collectByType, materialize, normalizeGeneratedIds } from '../effectTestKit';
 
 /** A stroked leaf `<path>` (straight line, length≈100) carrying a trim effect. */
-const linePath = (strokeTrim: any, d = 'M0,0 L100,0'): PxNode =>
-    ({ type: 'svg', children: [{ type: 'path', id: 'p', d, stroke: '#000', strokeWidth: 4, fill: 'none', effects: { strokeTrim } }] } as unknown as PxNode);
+const linePath = (strokeTrim: PxStrokeTrimEffect, d = 'M0,0 L100,0'): PxNode =>
+    ({ type: 'svg', children: [{ type: 'path', id: 'p', d, stroke: '#000', strokeWidth: 4, fill: 'none', effects: { strokeTrim } }] });
 
-const animKeys = (n: PxNode): Array<string> => Object.keys((n as any).animate || {});
+const animKeys = (n: PxNode): Array<string> => Object.keys(n.animate || {});
 const thePath = (out: PxNode): PxNode => collectByType(out, 'path')[0];
 
 
@@ -49,7 +50,7 @@ describe('strokeTrimEffect — dasharray/dashoffset materialization', () => {
             ]
           }"
         `);
-        const p = thePath(out) as any;
+        const p = thePath(out);
         expect(collectByType(out, 'g')).toHaveLength(0);        // collapsed, no split wrapper
         expect(Array.isArray(p.strokeDasharray)).toBe(true);    // dash pattern emitted
         expect(typeof p.strokeDashoffset).toBe('number');
@@ -85,9 +86,9 @@ describe('strokeTrimEffect — dasharray/dashoffset materialization', () => {
             ]
           }"
         `);
-        const p = thePath(out) as any;
+        const p = thePath(out);
         expect(animKeys(p)).toContain('strokeDasharray');                   // animated
-        expect(p.animate.strokeDasharray.keyframes).toHaveLength(2);
+        expect(authoredEntry(p, 'strokeDasharray').keyframes).toHaveLength(2);
         expect(Array.isArray(p.strokeDasharray)).toBe(true);                // static baseline (first kf)
     });
 
@@ -121,9 +122,9 @@ describe('strokeTrimEffect — dasharray/dashoffset materialization', () => {
             ]
           }"
         `);
-        const p = thePath(out) as any;
+        const p = thePath(out);
         expect(animKeys(p)).toContain('strokeDashoffset');
-        expect(p.animate.strokeDashoffset.keyframes).toHaveLength(2);
+        expect(authoredEntry(p, 'strokeDashoffset').keyframes).toHaveLength(2);
     });
 
     it('case 4 — empty static range [0,0] → stroke-opacity 0 (hidden), fill untouched', () => {
@@ -151,7 +152,7 @@ describe('strokeTrimEffect — dasharray/dashoffset materialization', () => {
             ]
           }"
         `);
-        const p = thePath(out) as any;
+        const p = thePath(out);
         expect(p.strokeOpacity).toBe(0);
     });
 
@@ -198,7 +199,7 @@ describe('strokeTrimEffect — dasharray/dashoffset materialization', () => {
         expect(collectByType(out, 'g')).toHaveLength(1);        // split wrapper
         const paths = collectByType(out, 'path');
         expect(paths).toHaveLength(2);                           // one bare path per subpath
-        for (const p of paths as Array<any>) {
+        for (const p of paths) {
             expect(Array.isArray(p.strokeDasharray)).toBe(true);
             expect(p.d).toBeTruthy();
         }
@@ -215,9 +216,9 @@ describe('strokeTrimEffect — dasharray/dashoffset materialization', () => {
                 type: 'ellipse', id: 'e', rx: 6, ry: 6, stroke: '#2673f2', strokeWidth: 3, fill: 'none',
                 effects: { strokeTrim: { range: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [0, 1] }] } } },
             }],
-        } as unknown as PxNode);
+        });
 
-        const e = collectByType(out, 'ellipse')[0] as any;
+        const e = collectByType(out, 'ellipse')[0];
         expect(e, 'the ellipse survives as an <ellipse> — trim rides on its own stroke attrs').toBeTruthy();
         expect(e.id).toBe('e');
         expect(e.effects, 'effect consumed').toBeUndefined();
@@ -227,8 +228,8 @@ describe('strokeTrimEffect — dasharray/dashoffset materialization', () => {
         // The dash pattern must be built from the ELLIPSE's real circumference
         // (r=6 → 2πr ≈ 37.7), not from some zero/te fallback.
         const circumference = 2 * Math.PI * 6;
-        const kfs = (e.animate.strokeDasharray.keyframes as Array<any>);
-        const longest = Math.max(...kfs.flatMap(kf => kf.value as Array<number>));
+        const kfs = authoredEntry(e, 'strokeDasharray').keyframes ?? [];
+        const longest = Math.max(...kfs.flatMap(kf => px.array(px.number()).cast(kf.value)));
         expect(longest).toBeGreaterThan(circumference * 0.95);
         expect(longest).toBeLessThan(circumference * 1.1);
     });
@@ -239,12 +240,12 @@ describe('strokeTrimEffect — dasharray/dashoffset materialization', () => {
                 type: 'circle', id: 'c', r: 10, cx: 50, cy: 50, stroke: '#000', strokeWidth: 2, fill: 'none',
                 effects: { strokeTrim: { range: [0, 0.5] } },
             }],
-        } as unknown as PxNode);
+        });
 
-        const c = collectByType(out, 'circle')[0] as any;
+        const c = collectByType(out, 'circle')[0];
         expect(c, 'the circle survives as a <circle>').toBeTruthy();
         expect(Array.isArray(c.strokeDasharray)).toBe(true);
         // Half of 2π·10 ≈ 31.4 is the visible dash.
-        expect(c.strokeDasharray.some((v: number) => v > 30 && v < 33)).toBe(true);
+        expect(px.array(px.number()).cast(c.strokeDasharray).some(v => v > 30 && v < 33)).toBe(true);
     });
 });

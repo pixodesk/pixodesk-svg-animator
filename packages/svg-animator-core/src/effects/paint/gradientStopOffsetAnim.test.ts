@@ -14,6 +14,7 @@
 import { describe, expect, it } from 'vitest';
 import { materializeNodeEffects } from '../PlayerEffectsUtil';
 import type { PxNode } from '../../format/PxAnimatorTypes';
+import { authoredEntry, entryOf } from '../effectTestKit';
 
 
 /** The user's exact `strokeGradient` stops timeline (offsets move in last seg). */
@@ -43,7 +44,7 @@ function buildStrokeGradientNode(): PxNode {
                 },
             },
         ],
-    } as unknown as PxNode;
+    };
 }
 
 
@@ -70,14 +71,15 @@ describe('animated gradient stop offset', () => {
 
         // Stop 0: offset goes 0 → 0 → 0 → 0.713  ⇒ MUST animate.
         // Stop 1: offset goes 0.512 → 0.512 → 0.512 → 0.895 ⇒ MUST animate.
-        const stop0Anim = (stops[0].animate as any)?.offset;
-        const stop1Anim = (stops[1].animate as any)?.offset;
+        const stop0Anim = entryOf(stops[0], 'offset');
+        const stop1Anim = entryOf(stops[1], 'offset');
 
         expect(stop0Anim, 'stop[0] offset is not animated').toBeTruthy();
         expect(stop1Anim, 'stop[1] offset is not animated').toBeTruthy();
 
         // And the offset keyframes must carry the moved value at the last kf.
-        const lastKf = stop1Anim.keyframes[stop1Anim.keyframes.length - 1];
-        expect(lastKf.value).toBeCloseTo(0.895, 3);
+        const stop1Kfs = authoredEntry(stops[1], 'offset').keyframes;
+        const lastKf = stop1Kfs?.[stop1Kfs.length - 1];
+        expect(lastKf?.value).toBeCloseTo(0.895, 3);
     });
 });

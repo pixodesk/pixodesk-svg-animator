@@ -132,3 +132,10 @@ from the format, `doc` compared by content in React, Vue and React Native — se
   | web tag loader (2) | `element as any` expando | `PxTagElement` — the player kept ON the element under its typed key |
   | web frame loop (1) | `style[attr as any]` | `style.setProperty(kebab, value)` on an `SVGElement` / `HTMLElement` |
   | React Native (15) | `ComponentType<any>`, `Record<string, any>` | `RnSvgProps` / `RnSvgComponent`; ONE named cast, `drivenByDocument` — react-native-svg types each component for its own props, the renderer drives them with props the document decides at run time |
+- 2026-10-23 — tests: 373 `any` in 43 files → 0 (owner: "do it"). Real types first (annotated fixtures, typed helpers, the
+  kit's `entryOf` / `authoredEntry` / `compiledEntry`, `isRecord`, schema casts); 49 `as unknown as` fixture casts went too.
+  Deliberately wrong input goes through ONE named cast, `untyped<T>(value)` (core `effectTestKit`, web `bundle-tests/testKit`),
+  each use commented: legacy spellings still read (`timeline.duration`, `trigger.finish`, short `{t, v}` keyframes), removed
+  keys, malformed values, the flat runtime spelling. Guard: ESLint `@typescript-eslint/no-explicit-any: error` in all five
+  packages (`src/**`, plus web `e2e/` and `bundle-tests/`; React Native `.ts` only — its `.tsx` carry react-hooks
+  directives its config does not load, and the `any` budget test holds them at 0).

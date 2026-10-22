@@ -10,7 +10,8 @@
 
 import { describe, expect, it } from 'vitest';
 import { materializeNodeEffects } from './PlayerEffectsUtil';
-import type { PxNode } from '../format/PxAnimatorTypes';
+import { isCompiledAnimation, PxTransformPartsSchema, type PxNode, type PxTransformParts } from '../format/PxAnimatorTypes';
+import { authoredEntry, entryOf } from './effectTestKit';
 
 /**
  * Replaces every auto-allocated id (`_lw_*`) with `__GEN_<N>__` in encounter
@@ -51,8 +52,8 @@ function normalizeGeneratedIds(tree: PxNode): PxNode {
         }
         for (const k of Object.keys(n)) {
             if (k === 'children' || k === 'effects' || k === 'meta' || k === 'id' || k === 'href') continue;
-            const v = (n as any)[k];
-            if (typeof v === 'string' && v.indexOf('url(#') !== -1) (n as any)[k] = rewriteUrl(v);
+            const v = n[k];
+            if (typeof v === 'string' && v.indexOf('url(#') !== -1) n[k] = rewriteUrl(v);
         }
         n.children?.forEach(walkRewrite);
     };
@@ -376,10 +377,11 @@ describe('materializeNodeEffects — materialization etalons', () => {
         // For each copy i≥1, dive into the per-copy wrapper subtree and find
         // the translate-bearing <g> whose animate.transform.keyframes carry the
         // EXPECTED scaled values (translate × i, rotate × i).
-        const findKfsForPart = (n: PxNode, part: 'translate' | 'rotate'): Array<{ time?: number; value?: any }> | undefined => {
-            const kfs = (n.animate as any)?.transform?.keyframes;
-            if (Array.isArray(kfs) && kfs.length && kfs[0].value && (kfs[0].value as any)[part] !== undefined) {
-                return kfs.map(kf => ({ time: kf.time, value: (kf.value as any)[part] }));
+        const findKfsForPart = (n: PxNode, part: 'translate' | 'rotate'): Array<{ time?: number; value?: PxTransformParts[typeof part] }> | undefined => {
+            const entry = entryOf(n, 'transform');
+            const kfs = entry && !isCompiledAnimation(entry) ? entry.keyframes : undefined;
+            if (Array.isArray(kfs) && kfs.length && kfs[0].value && PxTransformPartsSchema.castOrNull(kfs[0].value)?.[part] !== undefined) {
+                return kfs.map(kf => ({ time: kf.time, value: PxTransformPartsSchema.cast(kf.value)[part] }));
             }
             for (const c of n.children || []) {
                 const found = findKfsForPart(c, part);
@@ -429,10 +431,11 @@ describe('materializeNodeEffects — materialization etalons', () => {
         const parent = result.children![0];
         expect(parent.children?.length).toBe(3);
 
-        const findScaleKfs = (n: PxNode): Array<{ time?: number; value?: any }> | undefined => {
-            const kfs = (n.animate as any)?.transform?.keyframes;
-            if (Array.isArray(kfs) && kfs.length && kfs[0].value && (kfs[0].value as any).scale !== undefined) {
-                return kfs.map(kf => ({ time: kf.time, value: (kf.value as any).scale }));
+        const findScaleKfs = (n: PxNode): Array<{ time?: number; value?: PxTransformParts['scale'] }> | undefined => {
+            const entry = entryOf(n, 'transform');
+            const kfs = entry && !isCompiledAnimation(entry) ? entry.keyframes : undefined;
+            if (Array.isArray(kfs) && kfs.length && kfs[0].value && PxTransformPartsSchema.castOrNull(kfs[0].value)?.scale !== undefined) {
+                return kfs.map(kf => ({ time: kf.time, value: PxTransformPartsSchema.cast(kf.value).scale }));
             }
             for (const c of n.children || []) {
                 const found = findScaleKfs(c);
@@ -524,9 +527,9 @@ describe('materializeNodeEffects — materialization etalons', () => {
         const animatedTranslate = outer.children![0];
         expect(animatedTranslate.type).toBe('g');
         // animated translate carries autoOrient + tangent metadata
-        expect((animatedTranslate.animate as any)?.transform.autoOrient).toBe(true);
-        expect((animatedTranslate.animate as any)?.transform.keyframes[0].tangentOut).toEqual([40, 0]);
-        expect((animatedTranslate.animate as any)?.transform.keyframes[1].tangentIn).toEqual([-40, 0]);
+        expect(authoredEntry(animatedTranslate, 'transform').autoOrient).toBe(true);
+        expect(authoredEntry(animatedTranslate, 'transform').keyframes?.[0].tangentOut).toEqual([40, 0]);
+        expect(authoredEntry(animatedTranslate, 'transform').keyframes?.[1].tangentIn).toEqual([-40, 0]);
         // -origin = translate(-10,-10) inside the animated translate wrapper
         const negOrigin = animatedTranslate.children![0];
         expect(negOrigin.type).toBe('g');

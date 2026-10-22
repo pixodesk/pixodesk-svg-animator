@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { describe, expect, it } from 'vitest';
-import { generateNewIds, materializeAllInTree, PxTimelineEngine, type PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import { generateNewIds, materializeAllInTree, PxTimelineEngine, type PxAnimatedSvgDocument, type PxNode } from '@pixodesk/svg-animator-core';
 import { compileTracks, sampleProps } from './PxRnTracks';
 import { toRnPropName } from './PxRnPropNames';
 
@@ -182,8 +182,8 @@ describe('animated <use> flattening (waapi materialization)', () => {
             ],
         };
         const materialized = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
-        const countUse = (n: any): number =>
-            (n.type === 'use' ? 1 : 0) + (n.children || []).reduce((s: number, c: any) => s + countUse(c), 0);
+        const countUse = (n: PxNode): number =>
+            (n.type === 'use' ? 1 : 0) + (n.children || []).reduce((s: number, c: PxNode) => s + countUse(c), 0);
         expect(countUse(materialized)).toBe(0);
 
         const tracks = compileTracks(materialized);

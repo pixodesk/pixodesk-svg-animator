@@ -1,7 +1,7 @@
 # First-use review — the API, the schema and the docs through a newcomer's eyes
 
 Status **2026-10-15** (two passes the same day: the exports and schemas, then every guide in
-`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4), §14 (onReady + getDuration), §15 (one validateDocument → { valid, errors, findings }), §16 (one public PX_WIRE_VERSION; the string is internal), §17 (guide says "materializing"; no rename), §17a (prepareDocument pipeline, no WeakMaps; `resolveAnimatorTimeline` internal). §17b (no WeakMaps or global caches: motion-path segment tables owned per animator / per pass). §17c (documents earned as types: schema casts + type stamps + the `checked` stage; shipped `any` 319 → 0, ratchet guard at 0 — tests are the next track). — each closes with a **Done** note.
+`docs/`). Done so far: §1+2, §3, §4, §5, §6, §7, §8, §9 (types + docs; apiRef kept), §10 (play/pause/playMode/completeIteration + playOnce), §11 (onDestroy pairs destroy; onStop documented), §12 (flat trigger shortcuts everywhere), §13 (finish lives next to fillMode; wire 1.4), §14 (onReady + getDuration), §15 (one validateDocument → { valid, errors, findings }), §16 (one public PX_WIRE_VERSION; the string is internal), §17 (guide says "materializing"; no rename), §17a (prepareDocument pipeline, no WeakMaps; `resolveAnimatorTimeline` internal). §17b (no WeakMaps or global caches: motion-path segment tables owned per animator / per pass). §17c (documents earned as types: schema casts + type stamps + the `checked` stage; `any` 319 → 0 in shipped source and 373 → 0 in tests; ESLint `no-explicit-any` forbids it). — each closes with a **Done** note.
 
 Read as a first-time user would: the five packages' exports, the wire schemas, the component
 props, then the guides end to end — `README.md`, `docs/library/*`, `docs/format/README.md`,
@@ -788,7 +788,7 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
     by constants, holds no document data. Options: keep as is, or build it EAGERLY at module load from
     the known element map — a constant table like the attribute `Set`s, no lazy mutation.
 
-### 17c. Audit every `as any` in the library ✅ (shipped source: 0 — 2026-10-23; tests are a later track)
+### 17c. Audit every `as any` in the library ✅ (shipped source and tests: 0 — 2026-10-23; ESLint `no-explicit-any`)
 
 - **Done (2026-10-22)** — plan and log: `dev-docs/plans/schema-cast-and-stamps.md`. Shipped `any` 319 → 126.
   - ONE mechanism bound to the schema framework: every schema has `is` / `cast` / `castOrNull` / `castOrFix`;

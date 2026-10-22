@@ -11,22 +11,23 @@
 
 import { describe, expect, it } from 'vitest';
 import { PxTimelineEngine } from '../../format/PxAnimatorConstants';
-import type { PxNode, PxVec2 } from '../../format/PxAnimatorTypes';
+import { PxTransformPartsSchema, type PxEffects, type PxMaskedByEffect, type PxNode, type PxVec2 } from '../../format/PxAnimatorTypes';
+import { isRecord } from '../../schema/PxSchema';
 import { staticTransformParts } from '../shared/transformParts';
-import { collectByType, countNodes, engineFirstFrame, materialize, materializeEngine, materializeRaw, normalizeGeneratedIds, staticAttr } from '../effectTestKit';
+import { collectByType, countNodes, engineFirstFrame, entryOf, materialize, materializeEngine, materializeRaw, normalizeGeneratedIds, staticAttr } from '../effectTestKit';
 
 /** A mask SOURCE shape + a TARGET rect masked by it. `extraEffects` merge
  *  alongside `maskedBy` on the target (e.g. add a `transformBy`). */
-const scene = (maskedBy: any, extraEffects: any = {}): PxNode => ({
+const scene = (maskedBy: PxMaskedByEffect, extraEffects: PxEffects = {}): PxNode => ({
     type: 'svg',
     children: [
         { type: 'g', id: 'src', children: [{ type: 'circle', id: 'c', r: 30 }] },
         { type: 'rect', id: 'target', width: 100, height: 100, effects: { maskedBy, ...extraEffects } },
     ],
-} as unknown as PxNode);
+});
 
 const maskNode = (out: PxNode): PxNode | undefined => collectByType(out, 'mask')[0];
-const target = (out: PxNode): PxNode => collectByType(out, 'rect').find(r => (r as any).id === 'target')!;
+const target = (out: PxNode): PxNode | undefined => collectByType(out, 'rect').find(r => r.id === 'target');
 
 
 describe('maskedByEffect — <mask> def + mask attr', () => {
@@ -79,7 +80,7 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
         // mask content references the source via <use href=#src>
         expect(countNodes(mask, n => n.type === 'use' && n.href === '#src')).toBe(1);
         // target carries the mask attr pointing at the generated id
-        expect((target(out) as any).mask).toMatch(/^url\(#.+\)$/);
+        expect(target(out)?.mask).toMatch(/^url\(#.+\)$/);
         // no transforms to compensate → bare <use>, no inverse wrappers
         expect(countNodes(mask, n => n.type === 'g')).toBe(0);
     });
@@ -131,10 +132,10 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
             ]
           }"
         `);
-        const mask = maskNode(out)! as any;
-        expect(mask.maskType).toBe('alpha');
-        expect(mask.maskUnits).toBe('userSpaceOnUse');
-        expect(mask.maskContentUnits).toBe('objectBoundingBox');
+        const mask = maskNode(out);
+        expect(mask?.maskType).toBe('alpha');
+        expect(mask?.maskUnits).toBe('userSpaceOnUse');
+        expect(mask?.maskContentUnits).toBe('objectBoundingBox');
     });
 
     it('case 3 — masked element with own transformBy → mask source gets the INVERSE translate', () => {
@@ -210,7 +211,7 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
         const mask = maskNode(out)!;
         // inverse translate wrapper inside the mask
         const inverseParts = collectByType(mask, 'g')
-            .map(g => (g as any).transform).filter(t => t && typeof t === 'object').map(t => t.value);
+            .map(g => g.transform).filter(isRecord).map(t => PxTransformPartsSchema.cast(t.value));
         // `-0 === 0` so this tolerates the negated-zero y the inverter produces.
         expect(inverseParts.some(p => p.translate && p.translate[0] === -60 && p.translate[1] === 0)).toBe(true);
     });
@@ -236,14 +237,14 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
                     effects: { maskedBy: { source: '#src' } },
                 },
             ],
-        } as unknown as PxNode;
+        };
 
         const out = materializeEngine(scene, PxTimelineEngine.js);
         const engine = engineFirstFrame(out);
         const mask = collectByType(out, 'mask')[0];
         expect(mask).toBeDefined();
 
-        const animatedWrappers = collectByType(mask, 'g').filter(g => (g.animate as any)?.transform?.keyframes?.length);
+        const animatedWrappers = collectByType(mask, 'g').filter(g => entryOf(g, 'transform')?.keyframes?.length);
         // The scene must actually produce animated wrappers, or the loop below checks nothing.
         expect(animatedWrappers.length).toBeGreaterThan(0);
         for (const g of animatedWrappers) {

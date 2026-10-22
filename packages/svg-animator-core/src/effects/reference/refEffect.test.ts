@@ -11,20 +11,20 @@
 //    EXCLUDING the source's own translate.
 
 import { describe, expect, it } from 'vitest';
-import type { PxNode } from '../../format/PxAnimatorTypes';
+import type { PxEffects, PxNode } from '../../format/PxAnimatorTypes';
 import { collectByType, materialize, normalizeGeneratedIds } from '../effectTestKit';
 
 /** A `<rect id=src>` source + a `<use>` referencing it. */
-const scene = (srcExtra: any, useEffects: any): PxNode => ({
+const scene = (srcExtra: Partial<PxNode>, useEffects: PxEffects): PxNode => ({
     type: 'svg',
     children: [
         { type: 'rect', id: 'src', width: 40, height: 40, ...srcExtra },
         { type: 'use', effects: useEffects },
     ],
-} as unknown as PxNode);
+});
 
-const useNode = (out: PxNode): any => collectByType(out, 'use')[0];
-const gById = (out: PxNode, id: string): any => collectByType(out, 'g').find(g => (g as any).id === id);
+const useNode = (out: PxNode): PxNode => collectByType(out, 'use')[0];
+const gById = (out: PxNode, id: string): PxNode | undefined => collectByType(out, 'g').find(g => g.id === id);
 
 
 describe('refEffect — whole-element ref & content-ref split', () => {
@@ -85,11 +85,11 @@ describe('refEffect — whole-element ref & content-ref split', () => {
         `);
         const outer = gById(out, 'src');
         expect(outer).toBeTruthy();                               // outer keeps the original id
-        const innerId = outer.children[0].id;
+        const innerId = outer?.children?.[0].id;
         expect(innerId).not.toBe('src');                          // inner has a fresh id
         expect(useNode(out).href).toBe('#' + innerId);           // use targets the INNER layer
         // bare element lost its id (outer owns it now) so there's no duplicate #src
-        const bareRect = collectByType(out, 'rect')[0] as any;
+        const bareRect = collectByType(out, 'rect')[0];
         expect(bareRect.id).toBeUndefined();
     });
 
@@ -126,10 +126,10 @@ describe('refEffect — whole-element ref & content-ref split', () => {
         `);
         // the source's own translate moved to the outer wrapper; the bare element
         // is translate-free, so a <use> of the inner layer ignores the source's position
-        const bareRect = collectByType(out, 'rect')[0] as any;
+        const bareRect = collectByType(out, 'rect')[0];
         expect(bareRect.transform).toBeUndefined();
         const outer = gById(out, 'src');
         expect(JSON.stringify(outer)).toContain('translate');     // outer carries the translate
-        expect(useNode(out).href).toBe('#' + outer.children[0].id);
+        expect(useNode(out).href).toBe('#' + outer?.children?.[0].id);
     });
 });

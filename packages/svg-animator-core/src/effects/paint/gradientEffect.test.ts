@@ -10,15 +10,15 @@
 // stop timeline is SLICED per-index into each `<stop>`'s `animate.stopColor.keyframes`.
 
 import { describe, expect, it } from 'vitest';
-import type { PxNode } from '../../format/PxAnimatorTypes';
-import { collectByType, materialize, normalizeGeneratedIds } from '../effectTestKit';
+import type { PxEffects, PxNode } from '../../format/PxAnimatorTypes';
+import { authoredEntry, collectByType, materialize, normalizeGeneratedIds } from '../effectTestKit';
 
 const STOPS = [{ offset: 0, color: '#ff0000' }, { offset: 1, color: '#0000ff' }];
-const rect = (effects: any): PxNode =>
-    ({ type: 'svg', children: [{ type: 'rect', id: 'r', width: 100, height: 100, fill: '#000', effects }] } as unknown as PxNode);
+const rect = (effects: PxEffects): PxNode =>
+    ({ type: 'svg', children: [{ type: 'rect', id: 'r', width: 100, height: 100, fill: '#000', effects }] });
 
-const theRect = (out: PxNode): any => collectByType(out, 'rect')[0];
-const stopsOf = (def: PxNode): Array<any> => collectByType(def, 'stop');
+const theRect = (out: PxNode): PxNode => collectByType(out, 'rect')[0];
+const stopsOf = (def: PxNode): Array<PxNode> => collectByType(def, 'stop');
 
 
 describe('gradientEffect — linear/radial def + stops, static & animated', () => {
@@ -66,7 +66,7 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
         `);
         const defs = collectByType(out, 'linearGradient');
         expect(defs).toHaveLength(1);
-        const def = defs[0] as any;
+        const def = defs[0];
         expect([def.x1, def.y1, def.x2, def.y2]).toEqual(['0', '0', '100', '0']);
         const stops = stopsOf(def);
         expect(stops).toHaveLength(2);
@@ -117,7 +117,7 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
             ]
           }"
         `);
-        const def = collectByType(out, 'radialGradient')[0] as any;
+        const def = collectByType(out, 'radialGradient')[0];
         expect([def.cx, def.cy, def.r, def.fx, def.fy]).toEqual(['50', '50', '40', '50', '50']);
         expect(stopsOf(def)).toHaveLength(2);
     });
@@ -175,11 +175,11 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
             ]
           }"
         `);
-        const stops = stopsOf(collectByType(out, 'linearGradient')[0]) as Array<any>;
+        const stops = stopsOf(collectByType(out, 'linearGradient')[0]);
         expect(stops).toHaveLength(2);
         // stop 0 animates #ff0000 → #00ff00 ; stop 1 animates #0000ff → #ffff00
-        expect(stops[0].animate.stopColor.keyframes.map((k: any) => k.value)).toEqual(['#ff0000', '#00ff00']);
-        expect(stops[1].animate.stopColor.keyframes.map((k: any) => k.value)).toEqual(['#0000ff', '#ffff00']);
+        expect(authoredEntry(stops[0], 'stopColor').keyframes?.map(k => k.value)).toEqual(['#ff0000', '#00ff00']);
+        expect(authoredEntry(stops[1], 'stopColor').keyframes?.map(k => k.value)).toEqual(['#0000ff', '#ffff00']);
     });
 
     it('case 4 — strokeGradient rewrites STROKE (not fill)', () => {
@@ -275,7 +275,7 @@ describe('gradientEffect — linear/radial def + stops, static & animated', () =
             ]
           }"
         `);
-        const def = collectByType(out, 'linearGradient')[0] as any;
+        const def = collectByType(out, 'linearGradient')[0];
         expect(def.gradientUnits).toBe('userSpaceOnUse');
         expect(def.spreadMethod).toBe('reflect');
     });

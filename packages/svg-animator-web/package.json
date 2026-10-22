@@ -39,8 +39,8 @@
   ],
   "scripts": {
     "prepare": "npm run build",
-    "lint": "eslint src/",
-    "lint:fix": "eslint src/ --fix",
+    "lint": "eslint src/ e2e/ bundle-tests/",
+    "lint:fix": "eslint src/ e2e/ bundle-tests/ --fix",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "build": "eslint src/ && node ../../scripts/collect-identifiers.mjs && tsup",
     "start": "node dist/index.cjs",

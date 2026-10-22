@@ -17,13 +17,15 @@
 // which drives the editor writer end-to-end rather than hand-authoring).
 
 import { describe, expect, it } from 'vitest';
-import type { PxNode } from '../format/PxAnimatorTypes';
-import { collectByType, materialize } from './effectTestKit';
+import { PxTransformPartsSchema, PxTransformValueWrapperSchema, type PxAnimatedSvgDocument, type PxKeyframe, type PxKeyframeValue, type PxNode, type PxTimeline, type PxTransformParts } from '../format/PxAnimatorTypes';
+import { authoredEntry, collectByType, entryOf, materialize, untyped } from './effectTestKit';
 
-const doc = (child: Record<string, unknown>): PxNode =>
-    ({ type: 'svg', animator: { timeline: { duration: 2000 } }, children: [child] } as unknown as PxNode);
+const doc = (child: PxNode): PxAnimatedSvgDocument =>
+    // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
+    ({ type: 'svg', animator: { timeline: untyped<PxTimeline>({ duration: 2000 }) }, children: [child] });
 
-const anim = (n: PxNode | undefined): Record<string, any> => ((n as any)?.animate ?? {});
+/** A per-copy wrapper's structured static `transform: {value: parts}` — its parts. */
+const staticParts = (g: PxNode): PxTransformParts | undefined => PxTransformValueWrapperSchema.castOrNull(g.transform)?.value;
 
 
 describe('repeater.skew — per-copy skew increment ×i', () => {
@@ -33,8 +35,8 @@ describe('repeater.skew — per-copy skew increment ×i', () => {
             type: 'rect', width: 10, height: 10,
             effects: { repeater: { copies: 3, skew: 4 } },
         }));
-        const wrappers = collectByType(out, 'g').filter(g => (g as any).transform?.value);
-        const skews = wrappers.map(g => (g as any).transform.value.skew);
+        const wrappers = collectByType(out, 'g').filter(g => staticParts(g));
+        const skews = wrappers.map(g => staticParts(g)?.skew);
         expect(skews).toEqual([4, 8]);   // copies 1 and 2 (copy 0 is the unmodified base)
     });
 
@@ -43,12 +45,13 @@ describe('repeater.skew — per-copy skew increment ×i', () => {
             type: 'rect', width: 10, height: 10,
             effects: { repeater: {
                 copies: 3,
-                skew: { keyframes: [{ t: 0, v: 0 }, { t: 1000, v: 5 }], loop: true },
+                // short `{t, v}` keyframes: not in the type, still read by effect slots (`readAnimatable`)
+                skew: { keyframes: untyped<Array<PxKeyframe<PxKeyframeValue>>>([{ t: 0, v: 0 }, { t: 1000, v: 5 }]), loop: true },
             } },
         }));
-        const wrappers = collectByType(out, 'g').filter(g => anim(g).transform);
-        const lastCopy = anim(wrappers[wrappers.length - 1]).transform;
-        expect(lastCopy.keyframes.map((k: any) => k.value.skew)).toEqual([0, 10]);
+        const wrappers = collectByType(out, 'g').filter(g => entryOf(g, 'transform'));
+        const lastCopy = authoredEntry(wrappers[wrappers.length - 1], 'transform');
+        expect(lastCopy.keyframes?.map(k => PxTransformPartsSchema.cast(k.value).skew)).toEqual([0, 10]);
         expect(lastCopy.loop).toBe(true);
     });
 });
@@ -64,7 +67,7 @@ describe('maskedBy viewport (x/y/width/height) — explicit mask region', () => 
                 x: -20, y: -20, width: 240, height: 240,
             } },
         }));
-        const mask = collectByType(out, 'mask')[0] as any;
+        const mask = collectByType(out, 'mask')[0];
         expect(mask.x).toBe('-20');
         expect(mask.y).toBe('-20');
         expect(mask.width).toBe('240');
@@ -77,7 +80,7 @@ describe('maskedBy viewport (x/y/width/height) — explicit mask region', () => 
             type: 'rect', width: 100, height: 100,
             effects: { maskedBy: { source: '#msrc' } },
         }));
-        const mask = collectByType(out, 'mask')[0] as any;
+        const mask = collectByType(out, 'mask')[0];
         expect(mask.x).toBeUndefined();
         expect(mask.width).toBeUndefined();
     });

@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { convertWireDocument } from './PxWireVersion';
+import { isRecord } from '../schema/PxSchema';
 
 /** A 1.1 document carrying `trigger`, stamped so the step is due. */
 function doc11(trigger: Record<string, unknown>): Record<string, unknown> {
@@ -19,8 +20,15 @@ function doc11(trigger: Record<string, unknown>): Record<string, unknown> {
     };
 }
 
-const triggerOf = (converted: unknown): Record<string, unknown> =>
-    ((converted as any).animator.timeline.trigger) as Record<string, unknown>;
+/** A document's raw `animator.timeline` record — throws when there is none (a failed expectation). */
+function timelineOf(doc: unknown): Record<string, unknown> {
+    const animator = isRecord(doc) ? doc.animator : undefined;
+    const timeline = isRecord(animator) ? animator.timeline : undefined;
+    if (!isRecord(timeline)) throw new Error('no animator.timeline');
+    return timeline;
+}
+
+const triggerOf = (converted: unknown): unknown => timelineOf(converted).trigger;
 
 describe('wire step 1.1 → 1.2 — the trigger block', () => {
 
@@ -58,7 +66,7 @@ describe('wire step 1.1 → 1.2 — the trigger block', () => {
 
     it('finishAction becomes finish — and the 1.4 step then moves it next to fillMode (§13)', () => {
         const out = convertWireDocument(doc11({ startOn: 'load', finishAction: 'reset' }));
-        expect((out.doc as any).animator.timeline.finish).toBe('reset');
+        expect(timelineOf(out.doc).finish).toBe('reset');
         const trigger = triggerOf(out.doc);
         if (trigger !== undefined) {
             expect(trigger).not.toHaveProperty('finish');
@@ -69,12 +77,12 @@ describe('wire step 1.1 → 1.2 — the trigger block', () => {
     it('never mutates the caller’s document', () => {
         const original = doc11({ startOn: 'scrollIntoView', outAction: 'pause' });
         convertWireDocument(original);
-        expect((original as any).animator.timeline.trigger).toEqual({ startOn: 'scrollIntoView', outAction: 'pause' });
+        expect(timelineOf(original).trigger).toEqual({ startOn: 'scrollIntoView', outAction: 'pause' });
     });
 
     it('a document with no trigger is left alone', () => {
         const input = { type: 'svg', animator: { version: '1.1.1', timeline: { duration: 1000 } }, children: [] };
         const out = convertWireDocument(input);
-        expect((out.doc as any).animator.timeline).toEqual({ outTime: 1000 });   // the 1.2 → 1.3 step renames the length
+        expect(timelineOf(out.doc)).toEqual({ outTime: 1000 });   // the 1.2 → 1.3 step renames the length
     });
 });

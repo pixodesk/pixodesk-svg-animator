@@ -10,20 +10,26 @@
 // static → string attr on `<textPath>`; `{keyframes}` → `<textPath>.animate.<attr>`.
 
 import { describe, expect, it } from 'vitest';
-import type { PxNode } from '../../format/PxAnimatorTypes';
-import { collectByType, materialize } from '../effectTestKit';
+import type { PxLoop, PxNode, PxTextPathEffect } from '../../format/PxAnimatorTypes';
+import { authoredEntry, collectByType, entryOf, materialize } from '../effectTestKit';
 
 /** A `<text>` host with an inline-path textPath effect. */
-const scene = (textPath: any): PxNode => ({
+const scene = (textPath: PxTextPathEffect): PxNode => ({
     type: 'svg',
     children: [
         { type: 'text', id: 't', children: [{ type: 'tspan', textContent: 'Hi' }], effects: { textPath } },
     ],
-} as unknown as PxNode);
+});
 
-const textNode = (out: PxNode): any => collectByType(out, 'text')[0];
-const textPathNode = (out: PxNode): any => collectByType(out, 'textPath')[0];
-const pathDef = (out: PxNode): any => collectByType(out, 'path')[0];
+const textNode = (out: PxNode): PxNode => collectByType(out, 'text')[0];
+const textPathNode = (out: PxNode): PxNode => collectByType(out, 'textPath')[0];
+const pathDef = (out: PxNode): PxNode => collectByType(out, 'path')[0];
+/** The generated `<path>` def's `d` — throws unless it is a string. */
+const pathDefD = (out: PxNode): string => {
+    const d = pathDef(out).d;
+    if (typeof d !== 'string') throw new Error('generated <path> has no string `d`');
+    return d;
+};
 
 
 describe('textPathEffect — inline path → <path> def + <textPath> wrap', () => {
@@ -58,7 +64,7 @@ describe('textPathEffect — inline path → <path> def + <textPath> wrap', () =
             startOffset: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 100 }] },
         }));
         const tp = textPathNode(out);
-        expect(tp.animate.startOffset.keyframes.map((k: any) => k.value)).toEqual([0, 100]);
+        expect(authoredEntry(tp, 'startOffset').keyframes?.map(k => k.value)).toEqual([0, 100]);
         // Animated ALSO writes the first-kf value as the static baseline attr —
         // the shared `writeAnimatableChannel` emit path (pre-tick DOM renders the
         // kf-at-time-0 state, same as strokeTrim's dasharray baseline).
@@ -80,8 +86,8 @@ describe('textPathEffect — inline path → <path> def + <textPath> wrap', () =
 
     it('case 6 — pathOverflow:extend extends the generated <path> along the tangent; clip leaves it', () => {
         const short = 'M0,0 L100,0';
-        const extendD = pathDef(materialize(scene({ pathData: short, pathOverflow: 'extend', textLength: 500 }))).d;
-        const clipD = pathDef(materialize(scene({ pathData: short, pathOverflow: 'clip' }))).d;
+        const extendD = pathDefD(materialize(scene({ pathData: short, pathOverflow: 'extend', textLength: 500 })));
+        const clipD = pathDefD(materialize(scene({ pathData: short, pathOverflow: 'clip' })));
 
         expect(clipD).toBe(short);                          // clip → browser drops overflow, path unchanged
         expect(extendD.length).toBeGreaterThan(short.length); // extend → straight tangent tail appended
@@ -91,7 +97,7 @@ describe('textPathEffect — inline path → <path> def + <textPath> wrap', () =
 
     it('case 7 — default overflow (undefined) extends (extend is the default)', () => {
         const short = 'M0,0 L100,0';
-        const d = pathDef(materialize(scene({ pathData: short, textLength: 500 }))).d;
+        const d = pathDefD(materialize(scene({ pathData: short, textLength: 500 })));
         expect(d.length).toBeGreaterThan(short.length);
     });
 });
@@ -101,13 +107,13 @@ describe('textPathEffect — animated pathData (a moving path, browser-font)', (
 
     const A = 'M0 0L100 0';
     const B = 'M0 50L100 50';
-    const animated = (extra: any = {}) => scene({ pathData: { keyframes: [{ time: 0, value: { pathData: A } }, { time: 1000, value: { pathData: B } }] }, ...extra });
+    const animated = (extra: Omit<PxTextPathEffect, 'pathData'> = {}) => scene({ pathData: { keyframes: [{ time: 0, value: { pathData: A } }, { time: 1000, value: { pathData: B } }] }, ...extra });
 
     it('keeps the keyframes on the generated def as `animate.d`; the body `d` is the first keyframe\'s path', () => {
         const out = materialize(animated());
         const def = pathDef(out);
         expect(def.d).toBe(A);                                     // a string, not the `{pathData}` baseline object
-        expect((def.animate as any).d.keyframes).toEqual([
+        expect(authoredEntry(def, 'd').keyframes).toEqual([
             { time: 0, value: { pathData: A } },
             { time: 1000, value: { pathData: B } },
         ]);
@@ -124,12 +130,12 @@ describe('textPathEffect — animated pathData (a moving path, browser-font)', (
     it('a `{value}` static form unwraps like a plain string', () => {
         const out = materialize(scene({ pathData: { value: A } }));
         expect(pathDef(out).d).toBe(A);
-        expect((pathDef(out).animate as any)?.d).toBeUndefined();
+        expect(entryOf(pathDef(out), 'd')).toBeUndefined();
     });
 
     it('carries the loop onto the def\'s `animate.d`', () => {
-        const loop = { direction: 'alternate' };
+        const loop: PxLoop = { direction: 'alternate' };
         const out = materialize(scene({ pathData: { keyframes: [{ time: 0, value: { pathData: A } }, { time: 1000, value: { pathData: B } }], loop } }));
-        expect((pathDef(out).animate as any).d.loop).toEqual(loop);
+        expect(authoredEntry(pathDef(out), 'd').loop).toEqual(loop);
     });
 });

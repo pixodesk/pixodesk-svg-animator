@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimator, generateNewIds, loadTagSvgAnimators } from './PxAnimator';
 import { PX_ANIM_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { PxDiagnosticCode, type PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
 
 
 const DUR = 320; // multiple of the 16ms fake-timer rAF step
@@ -45,6 +46,16 @@ function stubFetch(json: unknown) {
     const fetchMock = vi.fn(() => Promise.resolve({ json: () => Promise.resolve(json) }));
     vi.stubGlobal('fetch', fetchMock);
     return fetchMock;
+}
+
+/** A tag element with the player `loadTagSvgAnimators` keeps on it (the source's `PxTagElement` is not exported). */
+type PxTagElement = Element & { [PX_ANIM_ATTR_NAME]?: PxAnimatorApi };
+
+/** The fixture element `#id`, typed as a tag element. */
+function tagElement(id: string): PxTagElement {
+    const el = document.getElementById(id);
+    if (!el) throw new Error('fixture element #' + id + ' is missing');
+    return el;
 }
 
 function container(): Element {
@@ -334,11 +345,11 @@ describe('loadTagSvgAnimators', () => {
 
         loadTagSvgAnimators();
 
-        const host = document.getElementById('host') as any;
-        const plain = document.getElementById('plain') as any;
+        const host = tagElement('host');
+        const plain = tagElement('plain');
         const instance = host[PX_ANIM_ATTR_NAME];
         expect(instance).toBeDefined();
-        expect(typeof instance.play).toBe('function');
+        expect(typeof instance?.play).toBe('function');
         expect(plain[PX_ANIM_ATTR_NAME]).toBeUndefined();
         expect(fetchMock).toHaveBeenCalledWith('anim.json');
 
@@ -349,7 +360,7 @@ describe('loadTagSvgAnimators', () => {
 
         // Once the document loads, the svg is rendered into the tag element.
         await flushMicrotasks();
-        expect(instance.isReady()).toBe(true);
+        expect(instance?.isReady()).toBe(true);
         expect(host.querySelector('svg')).not.toBeNull();
     });
 
@@ -365,14 +376,14 @@ describe('loadTagSvgAnimators', () => {
         await flushMicrotasks();
 
         const instances = Array.from(document.querySelectorAll('[data-px-animation-src]'))
-            .map((el: any) => el[PX_ANIM_ATTR_NAME]);
+            .map((el: PxTagElement) => el[PX_ANIM_ATTR_NAME]);
         expect(instances).toHaveLength(2);
         for (const instance of instances) {
-            expect(instance.isReady()).toBe(true);
-            expect(instance.isPlaying()).toBe(false);   // the override reached it
+            expect(instance?.isReady()).toBe(true);
+            expect(instance?.isPlaying()).toBe(false);   // the override reached it
         }
 
-        instances[0].play();
+        instances[0]?.play();
         expect(onPlay).toHaveBeenCalledTimes(1);        // the callback reached it
     });
 });

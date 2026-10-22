@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimator } from './index';
-import type { PxAnimatedSvgDocument, PxRuntimeAnimation } from '@pixodesk/svg-animator-core';
+import { isCompiledAnimation, type PxAnimatedSvgDocument, type PxRuntimeAnimation } from '@pixodesk/svg-animator-core';
 import { PX_LOOP_JUMP_SHIFT_MS, cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from '@pixodesk/svg-animator-core/internal';
 import { calcAnimationValues, normalizeBindings } from '@pixodesk/svg-animator-core';
 import { materializeAllInTree } from '@pixodesk/svg-animator-core';
@@ -48,7 +48,9 @@ describe('animateBackground', () => {
         // sibling is silently overwritten by `timeline.duration` when the config is flattened.
         json.animator!.timeline!.outTime = 256;
         // Add loop:true to the translate property (the ellipse's binding animates with `a0`)
-        (json.animator!.definitions!.animations as any)['a0']['translate'].loop = true;
+        const translate = json.animator?.definitions?.animations?.['a0']['translate'];
+        if (!translate || isCompiledAnimation(translate)) throw new Error('fixture: a0.translate must be an authored animation');
+        translate.loop = true;
 
         createSvgAnimator({ doc: json, container: '#svg-container', playAsSaved: true });
 
@@ -260,7 +262,7 @@ describe('Loop expansion', () => {
     }
 
     /** Helper: extract translate [x,y] at a given progress (0-1) from the animation definition */
-    function translateAt(animDef: Record<string, any>, progress: number): string {
+    function translateAt(animDef: PxRuntimeAnimation, progress: number): string {
         const values = calcAnimationValues(animDef, progress);
         return values['transform'] || '';
     }
@@ -780,10 +782,10 @@ describe('Color attribute normalization (frames-mode parity)', () => {
                                     { time: 1000, value: '#00ff00' },
                                 ],
                             },
-                        } as Record<string, unknown>,
-                    } as any,
+                        },
+                    },
                 ],
-            } as PxAnimatedSvgDocument;
+            };
             const animDef = getBindings(doc);
             for (const t of [0, 500, 1000]) {
                 expectNoNaN(calcAnimationValues(animDef, t));
@@ -818,9 +820,9 @@ describe('Color attribute normalization (frames-mode parity)', () => {
                             ],
                         },
                     },
-                } as any,
+                },
             ],
-        } as PxAnimatedSvgDocument;
+        };
 
         // Run the same pipeline the player uses — for BOTH engines.
         for (const engine of [PxTimelineEngine.js, PxTimelineEngine.native]) {
@@ -851,9 +853,9 @@ describe('Color attribute normalization (frames-mode parity)', () => {
                 { type: 'rect', id: 'r', animate: { opacity: {
                     loop: true,
                     keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }],
-                } } } as any,
+                } } },
             ],
-        } as PxAnimatedSvgDocument;
+        };
         for (const engine of [PxTimelineEngine.js, PxTimelineEngine.native]) {
             const animDef = getBindings(materializeAllInTree(doc, engine));
             for (const t of [0, 500, 1100, 1400]) {
@@ -880,9 +882,9 @@ describe('Color attribute normalization (frames-mode parity)', () => {
                         { time: 0,    value: { translate: [0, 0],   rotate: 0  } },
                         { time: 1000, value: { translate: [50, 50], rotate: 90 } },
                     ],
-                } } } as any,
+                } } },
             ],
-        } as PxAnimatedSvgDocument;
+        };
         for (const engine of [PxTimelineEngine.js, PxTimelineEngine.native]) {
             const animDef = getBindings(materializeAllInTree(doc, engine));
             for (const t of [0, 500, 1100, 1500, 1700]) {
@@ -910,9 +912,9 @@ describe('Color attribute normalization (frames-mode parity)', () => {
                         { time: 0,    value: 'M0,0L10,10' },
                         { time: 1000, value: 'M0,0L20,20' },
                     ],
-                } } } as any,
+                } } },
             ],
-        } as PxAnimatedSvgDocument;
+        };
         for (const engine of [PxTimelineEngine.js, PxTimelineEngine.native]) {
             const animDef = getBindings(materializeAllInTree(doc, engine));
             for (const t of [0, 500, 1100, 1400]) {
@@ -939,10 +941,10 @@ describe('Color attribute normalization (frames-mode parity)', () => {
                                 { time: 1000, value: '#000000' },
                             ],
                         },
-                    } as Record<string, unknown>,
-                } as any,
+                    },
+                },
             ],
-        } as PxAnimatedSvgDocument;
+        };
         const animDef = getBindings(doc);
         for (const t of [0, 500, 1000]) {
             expectNoNaN(calcAnimationValues(animDef, t));

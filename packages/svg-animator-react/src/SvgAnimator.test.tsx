@@ -84,7 +84,9 @@ describe("SvgAnimator (React)", () => {
             const ellipse = svg?.querySelector("ellipse");
             const renderedEllipseId = ellipse?.getAttribute("id");
             expect(renderedEllipseId).toBeTruthy();
-            expect(renderedEllipseId).not.toBe((doc.children![0] as any).id);
+            const sourceEllipse = doc.children?.[0];
+            if (!sourceEllipse) throw new Error('the fixture has no ellipse');
+            expect(renderedEllipseId).not.toBe(sourceEllipse.id);
         });
 
         it("applies a node's inline `style` — `display: none` hides the element, like the web player", () => {

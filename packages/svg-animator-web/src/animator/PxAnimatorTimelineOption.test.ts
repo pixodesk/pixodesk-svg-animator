@@ -13,7 +13,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createSvgAnimator } from './PxAnimator';
 import { resolveTimelineOption } from './PxAnimator';
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import type { PxAnimatedSvgDocument, PxAnimatorConfigPatch, PxTimelinePatch } from '@pixodesk/svg-animator-core';
 
 /** A WIRE-format document (nested `timeline`) — the spelling every writer emits. */
 function wireDoc(): PxAnimatedSvgDocument {
@@ -30,7 +30,16 @@ function wireDoc(): PxAnimatedSvgDocument {
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
         }],
-    } as any;
+    };
+}
+
+/** The fold writes the `timeline` slot as a plain object (or `null`). */
+const isTimelinePatch = (v: unknown): v is PxTimelinePatch => typeof v === 'object' && !Array.isArray(v);
+
+/** A resolved patch's `timeline` block. */
+function timelineOf(patch: PxAnimatorConfigPatch | undefined): PxTimelinePatch | undefined {
+    const timeline = patch?.timeline;
+    return isTimelinePatch(timeline) ? timeline : undefined;
 }
 
 const stage = () => {
@@ -42,39 +51,39 @@ const stage = () => {
 describe('resolveTimelineOption — shortcuts and the string form', () => {
 
     it('folds the four shortcuts into the timeline patch', () => {
-        const out = resolveTimelineOption({ outTime: 500, delay: 20, iterations: 'infinite', start: 'click' } as any);
+        const out = resolveTimelineOption({ outTime: 500, delay: 20, iterations: 'infinite', start: 'click' });
         expect(out).toEqual({ timeline: { outTime: 500, delay: 20, iterations: 'infinite', trigger: { start: 'click' } } });
     });
 
     it('a shortcut WINS over the same key inside timeline', () => {
-        const out = resolveTimelineOption({ timeline: { outTime: 1 }, outTime: 999 } as any);
-        expect((out as any).timeline.outTime).toBe(999);
+        const out = resolveTimelineOption({ timeline: { outTime: 1 }, outTime: 999 });
+        expect(timelineOf(out)?.outTime).toBe(999);
     });
 
     it('a shortcut merges INTO timeline rather than replacing it', () => {
-        const out = resolveTimelineOption({ timeline: { fillMode: 'both' }, outTime: 42 } as any);
-        expect((out as any).timeline).toEqual({ fillMode: 'both', outTime: 42 });
+        const out = resolveTimelineOption({ timeline: { fillMode: 'both' }, outTime: 42 });
+        expect(timelineOf(out)).toEqual({ fillMode: 'both', outTime: 42 });
     });
 
     it('start merges into an existing trigger', () => {
-        const out = resolveTimelineOption({ timeline: { trigger: { mouseOut: 'pause' } }, start: 'click' } as any);
-        expect((out as any).timeline.trigger).toEqual({ mouseOut: 'pause', start: 'click' });
+        const out = resolveTimelineOption({ timeline: { trigger: { mouseOut: 'pause' } }, start: 'click' });
+        expect(timelineOf(out)?.trigger).toEqual({ mouseOut: 'pause', start: 'click' });
     });
 
     it('accepts the JSON STRING form — the mangling-proof spelling', () => {
-        const out = resolveTimelineOption({ timeline: '{"duration":333}' } as any);
-        expect((out as any).timeline.duration).toBe(333);
+        const out = resolveTimelineOption({ timeline: '{"duration":333}' });
+        expect(timelineOf(out)?.duration).toBe(333);
     });
 
     it('a malformed JSON string warns and is ignored, never throws', () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-        expect(() => resolveTimelineOption({ timeline: '{not json' } as any)).not.toThrow();
+        expect(() => resolveTimelineOption({ timeline: '{not json' })).not.toThrow();
         expect(warn).toHaveBeenCalled();
         warn.mockRestore();
     });
 
     it('no timeline and no shortcuts is undefined — nothing to apply', () => {
-        expect(resolveTimelineOption({} as any)).toBeUndefined();
+        expect(resolveTimelineOption({})).toBeUndefined();
     });
 });
 
