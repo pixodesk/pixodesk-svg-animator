@@ -82,10 +82,14 @@ describe('HTML root around SVG content', () => {
 });
 
 
-// Owner rule 2026-10-23: the player plays ANY root element — an SVG element (`rect`, `g`, …) too,
-// not only `svg` or an HTML wrapper. The editor, which needs an <svg> root, warns and offers to wrap.
-describe('an SVG element as the root', () => {
-    beforeEach(() => { document.body.innerHTML = '<div id="stage"></div>'; vi.useFakeTimers(); });
+// Owner rule 2026-10-23: the player renders the tree AS IS and never adds an <svg> around the root. Outside an
+// <svg> every element is HTML, from <svg> down SVG — so a bare `rect` root is an HTML element (accepted: such
+// documents are hand-made only; refine later). The editor opens only an <svg> root and says so otherwise.
+describe('an SVG element as the root — rendered as is, never wrapped', () => {
+    beforeEach(() => {
+        document.body.innerHTML = '<div id="html-stage"></div><svg id="page"><g id="svg-stage"></g></svg>';
+        vi.useFakeTimers();
+    });
     afterEach(() => { vi.useRealTimers(); });
 
     /** A bare animated `<rect>` — no `<svg>` around it. */
@@ -95,19 +99,36 @@ describe('an SVG element as the root', () => {
         animate: { x: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 100 }] } },
     } as PxDocument);
 
+    /** The container's one rendered child — asserting nothing else was added. */
+    const onlyChild = (stage: string): Element => {
+        const el = document.getElementById(stage);
+        assert(el, '#' + stage + ' is missing');
+        expect(el.children).toHaveLength(1);
+        expect(el.querySelector('svg')).toBeNull();   // no <svg> added
+        const child = el.firstElementChild;
+        assert(child, '#' + stage + ' rendered nothing');
+        return child;
+    };
+
     it('a <rect> root is a document', () => {
         expect(isPxDocument(rectRoot())).toBe(true);
     });
 
-    // Pending: today the renderer switches to the SVG namespace only at an `svg` tag, so a bare
-    // `rect` root becomes an HTML element and draws nothing. Enable with the player support.
-    it.skip('renders as SVG inside an <svg> viewport, and its animation plays', () => {
-        const api = createSvgAnimator({ doc: rectRoot(), container: '#stage' });
-        const rect = document.querySelector('#stage rect');
-        expect(rect?.namespaceURI).toBe(SVG_NS);
-        expect(rect?.closest('svg')).not.toBeNull();   // an SVG element draws only inside an <svg>
+    it('in an HTML container the <rect> is the only element — nothing is wrapped around it', () => {
+        const api = createSvgAnimator({ doc: rectRoot(), container: '#html-stage' });
+        expect(onlyChild('html-stage').localName).toBe('rect');
+        api.destroy();
+    });
+
+    // NOT PLANNED (owner 2026-10-23: render as is, refine later) — what a later refinement could add: a bare
+    // SVG-element root created as SVG when its container is SVG. Today it is an HTML element and draws nothing.
+    it.skip('in an SVG container it is an SVG <rect> — it draws, and its animation plays', () => {
+        const api = createSvgAnimator({ doc: rectRoot(), container: '#svg-stage' });
+        const rect = onlyChild('svg-stage');
+        expect(rect.localName).toBe('rect');
+        expect(rect.namespaceURI).toBe(SVG_NS);
         api.setCurrentTime(500);
-        expect(Number(rect?.getAttribute('x'))).toBeCloseTo(50, 0);
+        expect(Number(rect.getAttribute('x'))).toBeCloseTo(50, 0);
         api.destroy();
     });
 });
