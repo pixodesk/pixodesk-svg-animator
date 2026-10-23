@@ -9,7 +9,7 @@
 // materialize identically.
 
 import { describe, expect, it } from 'vitest';
-import type { PxAnimatedSvgDocument } from '../../format/PxAnimatorTypes';
+import type { PxDocument } from '../../format/PxAnimatorTypes';
 import { generateNewIds } from '../../util/PxIdUtil';
 import { collectByType, materialize } from '../effectTestKit';
 
@@ -48,7 +48,7 @@ describe('ref spelling — #id canonical, bare legacy', () => {
     }
 
     it('generateNewIds rewrites a #id source preserving the hash spelling', () => {
-        const doc: PxAnimatedSvgDocument = {
+        const doc: PxDocument = {
             type: 'svg', children: [
                 { type: 'rect', id: 'src', width: 10, height: 10 },
                 { type: 'use', href: '#src', effects: { clone: { source: '#src' } } },
@@ -62,7 +62,7 @@ describe('ref spelling — #id canonical, bare legacy', () => {
     });
 
     it('generateNewIds keeps rewriting a legacy bare source (spelling preserved)', () => {
-        const doc: PxAnimatedSvgDocument = {
+        const doc: PxDocument = {
             type: 'svg', children: [
                 { type: 'rect', id: 'src', width: 10, height: 10 },
                 { type: 'use', href: '#src', effects: { clone: { source: 'src' } } },

@@ -65,7 +65,7 @@ Then load it with a relative path, like any other script of yours:
 <script>
 
   // declarative
-  Pixodesk.SvgAnimator.loadTagSvgAnimators(); 
+  Pixodesk.SvgAnimator.createSvgAnimatorsFromPage(); 
 
   // programmatic
   const a = Pixodesk.SvgAnimator.create({ src: '/bouncing-ball.json', container: '#box', playAsSaved: true });
@@ -99,15 +99,15 @@ import animation from './animation.json';
 ```
 
 Importing a `.json` file at all requires `"resolveJsonModule": true` in your `tsconfig.json`,
-under `compilerOptions`. Every package also exports the strict `PxAnimatedSvgDocument` — the
+under `compilerOptions`. Every package also exports the strict `PxDocument` — the
 type to use when you BUILD a document in code (literal unions, autocomplete) — and
-`toAnimatedSvgDocument(animation)`, which names the one narrowing from a JSON import to that
+`toPxDocument(animation)`, which names the one narrowing from a JSON import to that
 strict type when an advanced API asks for it (values are validated at runtime); import it
 from the one you installed.
 
 Other types you may want by name:
 
-- `PxTagAnimatorOptions` — the options `loadTagSvgAnimators` takes.
+- `PxPageAnimatorOptions` — the options `createSvgAnimatorsFromPage` takes.
 - `PxPrerenderedAnimatorOptions` — the options the pre-rendered builds take.
 - `PxAnimatorHandle` — the handle the components give you through `apiRef` (every framework
   package exports this one name).

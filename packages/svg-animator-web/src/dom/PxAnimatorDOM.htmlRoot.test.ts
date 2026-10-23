@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import type { PxDocument } from '@pixodesk/svg-animator-core';
 import { PxTimelineEngine } from '@pixodesk/svg-animator-core';
 import { isPxDocument } from '@pixodesk/svg-animator-core';
 import { createSvgAnimator } from '../index';
@@ -13,7 +13,7 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const HTML_NS = 'http://www.w3.org/1999/xhtml';
 
 /** A page, not just a drawing: HTML around an animated SVG. */
-const page = (): PxAnimatedSvgDocument => ({
+const page = (): PxDocument => ({
     type: 'div',
     style: { textAlign: 'center' },
     animator: { timeline: { outTime: 1000, engine: PxTimelineEngine.js } },
@@ -25,7 +25,7 @@ const page = (): PxAnimatedSvgDocument => ({
                 animate: { cy: { keyframes: [{ time: 0, value: 60 }, { time: 1000, value: 320 }] } } }],
         },
     ],
-} as PxAnimatedSvgDocument);
+} as PxDocument);
 
 describe('HTML root around SVG content', () => {
     beforeEach(() => { document.body.innerHTML = '<div id="stage"></div>'; vi.useFakeTimers(); });
@@ -49,13 +49,13 @@ describe('HTML root around SVG content', () => {
     });
 
     it('an untyped child is a div outside <svg> and a g inside it', () => {
-        const root = renderNode({ type: 'div', children: [{}, { type: 'svg', children: [{}] }] } as PxAnimatedSvgDocument);
+        const root = renderNode({ type: 'div', children: [{}, { type: 'svg', children: [{}] }] } as PxDocument);
         expect(root!.children[0].tagName).toBe('DIV');
         expect(root!.querySelector('svg')!.children[0].tagName).toBe('g');
     });
 
     it('blocked tags stay blocked outside <svg>', () => {
-        const root = renderNode({ type: 'div', children: [{ type: 'iframe', src: 'https://example.com' }, { type: 'script' }, { type: 'p' }] } as PxAnimatedSvgDocument);
+        const root = renderNode({ type: 'div', children: [{ type: 'iframe', src: 'https://example.com' }, { type: 'script' }, { type: 'p' }] } as PxDocument);
         expect(root!.querySelector('iframe')).toBeNull();
         expect(root!.querySelector('script')).toBeNull();
         expect(root!.querySelector('p')).not.toBeNull();

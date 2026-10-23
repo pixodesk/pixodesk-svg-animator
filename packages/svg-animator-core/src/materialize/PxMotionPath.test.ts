@@ -17,7 +17,7 @@
 
 
 import { describe, expect, it } from 'vitest';
-import { isCompiledAnimation, type PxAnimatedSvgDocument, type PxAnyPropertyAnimation, type PxCompiledAnimation, type PxKeyframe, type PxNode, type PxPropertyAnimation } from '../format/PxAnimatorTypes';
+import { isCompiledAnimation, type PxDocument, type PxAnyPropertyAnimation, type PxCompiledAnimation, type PxKeyframe, type PxNode, type PxPropertyAnimation } from '../format/PxAnimatorTypes';
 import { PxTimelineEngine, PxValueKind } from '../format/PxAnimatorConstants';
 import { invertEasing } from '../util/PxAnimatorUtil';
 import { compileAnimation, compileAnimationsInTree, type PxCompileContext } from '../animation/PxDefinitions';
@@ -374,7 +374,7 @@ describe('compileAnimationsInTree — a motion path (native engine)', () => {
 
     const NATIVE: PxCompileContext = { windowStart: 0, windowEnd: 1020, engine: PxTimelineEngine.native };
 
-    function makeTreeWithMotionPath(): PxAnimatedSvgDocument {
+    function makeTreeWithMotionPath(): PxDocument {
         return {
             type: 'svg',
             animator: { timeline: { duration: 1020 } },
@@ -393,16 +393,16 @@ describe('compileAnimationsInTree — a motion path (native engine)', () => {
                     },
                 } as PxNode,
             ],
-        } as PxAnimatedSvgDocument;
+        } as PxDocument;
     }
 
     it('returns the input by reference when the tree has no animations', () => {
-        const tree: PxAnimatedSvgDocument = {
+        const tree: PxDocument = {
             type: 'svg',
             children: [
                 { type: 'rect', id: 'static', width: 10, height: 10 } as PxNode,
             ],
-        } as PxAnimatedSvgDocument;
+        } as PxDocument;
         const out = compileAnimationsInTree(tree, NATIVE);
         expect(out).toBe(tree);
     });
@@ -511,20 +511,20 @@ describe('compileAnimationsInTree — loops', () => {
         (tree.children?.[0].animate as Record<string, PxAnyPropertyAnimation> | undefined)?.opacity;
 
     it('lowers every entry — a loop-less one too, to its own keyframes', () => {
-        const tree: PxAnimatedSvgDocument = {
+        const tree: PxDocument = {
             type: 'svg',
             children: [
                 { type: 'rect', id: 'r', animate: { opacity: { keyframes: [
                     { time: 0, value: 0 }, { time: 1000, value: 1 },
                 ] } } } as PxNode,
             ],
-        } as PxAnimatedSvgDocument;
+        } as PxDocument;
         const entry = entryOf(compileAnimationsInTree(tree, { windowStart: 0, windowEnd: 1000, engine: PxTimelineEngine.native }));
         expect(entry && isCompiledAnimation(entry) ? entry.keyframes.map(kf => kf.time) : undefined).toEqual([0, 1000]);
     });
 
     it('returns a new tree when at least one propAnim has a loop', () => {
-        const tree: PxAnimatedSvgDocument = {
+        const tree: PxDocument = {
             type: 'svg',
             children: [
                 { type: 'rect', id: 'r', animate: { opacity: {
@@ -532,7 +532,7 @@ describe('compileAnimationsInTree — loops', () => {
                     keyframes: [{ time: 0, value: 0 }, { time: 500, value: 1 }],
                 } } } as PxNode,
             ],
-        } as PxAnimatedSvgDocument;
+        } as PxDocument;
         const out = compileAnimationsInTree(tree, { windowStart: 0, windowEnd: 2000, engine: PxTimelineEngine.native });
         expect(out).not.toBe(tree);
     });

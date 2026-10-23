@@ -6,7 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, cleanup } from "@testing-library/vue";
 import SvgAnimator from './SvgAnimator';
-import { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
+import { PxDocument } from '@pixodesk/svg-animator-web';
 
 
 describe("VueAnimator", () => {
@@ -44,7 +44,7 @@ describe("VueAnimator", () => {
 
 ////////////////////////////////////////////////////////////////
 
-function getTestJson(): PxAnimatedSvgDocument {
+function getTestJson(): PxDocument {
     return {
         type: "svg",
         id: "_px_2p4d44pl",

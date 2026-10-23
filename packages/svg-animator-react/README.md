@@ -14,10 +14,10 @@ React component for rendering and controlling Pixodesk SVG animations.
 
 ```tsx
 import { SvgAnimator } from '@pixodesk/svg-animator-react';
-import { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
+import { PxDocument } from '@pixodesk/svg-animator-web';
 import _animation from './animation.json';
 
-const animation: PxAnimatedSvgDocument = _animation;
+const animation: PxDocument = _animation;
 ```
 
 ### Autoplay

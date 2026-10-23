@@ -52,7 +52,7 @@ runtime crash on a non-browser platform.
 <!-- px-check exports @pixodesk/svg-animator-core partial -->
 | Area | Exports |
 |---|---|
-| **Schema & types** | `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxEffectsSchema`, … plus every `Px*` TypeScript type and the `px` schema builder |
+| **Schema & types** | `PxDocumentSchema`, `PxNodeSchema`, `PxEffectsSchema`, … plus every `Px*` TypeScript type and the `px` schema builder |
 | **Validation** | `validateDocument` (the whole document, strict), `isPxDocument`, `isValidPxDocument`, `validateNodeEffects` |
 | **Materializers** | `materializeAllInTree`, `materializeNodeEffects` |
 | **Interpolation** | `calcAnimationValues`, `normalizeBindings` (typed runtime channels: `PxRuntimeAnimation`, `PxValueKind`) |
@@ -69,10 +69,10 @@ runtime crash on a non-browser platform.
 `isValid` with a context:
 
 ```ts
-import { PxAnimatedSvgDocumentSchema, type PxValidationContext } from '@pixodesk/svg-animator-core';
+import { PxDocumentSchema, type PxValidationContext } from '@pixodesk/svg-animator-core';
 
 const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
-const ok = PxAnimatedSvgDocumentSchema.isValid(doc, ctx, []);
+const ok = PxDocumentSchema.isValid(doc, ctx, []);
 if (!ok) console.error(ctx.errors);   // ["children[0].effects.strokeTrim.range: …", …]
 ```
 

@@ -12,7 +12,7 @@ import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import * as core from '../packages/svg-animator-core/dist/index.js';
 
-const { describeSchema, PxAnimatedSvgDocumentSchema } = core;
+const { describeSchema, PxDocumentSchema } = core;
 
 // Named, reusable definitions: recursive/shared schemas become `$ref`s.
 const NAMED = new Map([
@@ -91,7 +91,7 @@ function build(schema) {
 // detect by the presence of the property rather than its value.
 function isOpen(schema) { return Object.prototype.hasOwnProperty.call(schema, '_openSchema'); }
 
-const root = convert(PxAnimatedSvgDocumentSchema);
+const root = convert(PxDocumentSchema);
 const out = {
   $schema: 'https://json-schema.org/draft/2020-12/schema',
   $id: 'https://pixodesk.com/schema/svg-animator-document.json',

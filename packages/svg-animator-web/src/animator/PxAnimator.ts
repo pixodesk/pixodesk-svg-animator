@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, suppressTriggerStart, toAnimatedSvgDocument, type PxDocumentInput, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, suppressTriggerStart, toPxDocument, type PxDocumentInput, foldTimelineOverride, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, resolveTimelineEngine, type PxTimelineEngine, type PxDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { reportDocumentDiagnostics, createDiagnostics, isScrollTimeline, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
@@ -27,7 +27,7 @@ export { generateNewIds };
  * parallel pipeline. See dev-docs/plans/prerendered-player-builds.md.
  */
 function createAnimatorFromConfig(
-    doc: PxAnimatedSvgDocument,
+    doc: PxDocument,
     adapter?: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks,
     rootElement?: Element | null
@@ -38,7 +38,7 @@ function createAnimatorFromConfig(
 
 // @px-importance important
 /**
- * Creates an animator instance from an AnimatedSvgDocument.
+ * Creates an animator instance from a `PxDocument`.
  *
  * This function serves as the main entry point for the animation library. The engine comes from
  * `timeline.engine`: `auto` tries the browser's Web Animations API and falls back to the frame
@@ -51,7 +51,7 @@ function createAnimatorFromConfig(
  * @returns An PxAnimatorApi instance to programmatically control the animation.
  */
 function createAnimatorImpl(
-    doc: PxAnimatedSvgDocument,
+    doc: PxDocument,
     adapter?: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks,
     containerElement?: string | Element,
@@ -290,7 +290,7 @@ export function createSvgAnimator(options: PxAnimatorOptions): PxAnimatorApi {
     };
     // Building the player threw: a broken document past validation, or a player bug — never a
     // throw at the caller, which would land inside a fetch callback where no one can catch it.
-    const build = (document: PxAnimatedSvgDocument): void => {
+    const build = (document: PxDocument): void => {
         try {
             ready(createAnimatorImpl(document, adapter, callbacks, container, patch, resetTimeline, providedRoot, options.playAsSaved));
         } catch (e) {
@@ -327,7 +327,7 @@ export function createSvgAnimator(options: PxAnimatorOptions): PxAnimatorApi {
     registerAnimator(proxy);
 
     if (doc !== undefined) {
-        build(toAnimatedSvgDocument(doc));
+        build(toPxDocument(doc));
     } else {
         fetch(src!).then(res => res.json()).then(json => {
             if (destroyed) return; // destroy() was called before the document loaded
@@ -343,26 +343,23 @@ export function createSvgAnimator(options: PxAnimatorOptions): PxAnimatorApi {
 }
 
 /**
- * Scan and load for tags, e.g.
- *  <div data-px-animation-src="animation.json"></div>
- */
-/**
  * Everything `createSvgAnimator` takes except the three the tag supplies (`src`, `container`) or
  * forbids (`data`): callbacks, the diagnostics channel, a playback override and its shortcuts.
  * @public
  */
-export type PxTagAnimatorOptions = Omit<PxAnimatorOptions, 'src' | 'doc' | 'container' | 'playAsSaved'>;
+export type PxPageAnimatorOptions = Omit<PxAnimatorOptions, 'src' | 'doc' | 'container' | 'playAsSaved'>;
 
 /**
  * Scan the page for `<div data-px-animation-src="animation.json">` and create one player per
- * match, rendered into that element and stored on it. Safe to call repeatedly: elements that
- * already carry a player are skipped.
+ * match, rendered into that element. Safe to call repeatedly: elements that already carry a
+ * player are skipped. Returns the players THIS call created; {@link getSvgAnimator} finds one later.
  *
  * `options` applies to EVERY player this call creates (review §15) — the same callbacks, the
  * same override. Omit it for the zero-config path.
  * @public
  */
-export function loadTagSvgAnimators(options?: PxTagAnimatorOptions) {
+export function createSvgAnimatorsFromPage(options?: PxPageAnimatorOptions): Array<PxAnimatorApi> {
+    const created: Array<PxAnimatorApi> = [];
     const elements = document.querySelectorAll('[' + PX_ANIM_SRC_ATTR_NAME + ']');
     for (let i = 0; i < elements.length; i++) {
         const element: PxTagElement = elements[i];
@@ -370,19 +367,31 @@ export function loadTagSvgAnimators(options?: PxTagAnimatorOptions) {
             const src = element.getAttribute(PX_ANIM_SRC_ATTR_NAME);
             if (src) {
                 // A tag embeds a finished file: the file IS the driver, so `playAsSaved` is not an option here.
-                element[PX_ANIM_ATTR_NAME] = createSvgAnimator({ ...options, src, container: element, playAsSaved: true });
+                const api = createSvgAnimator({ ...options, src, container: element, playAsSaved: true });
+                element[PX_ANIM_ATTR_NAME] = api;
+                created.push(api);
             }
         }
     }
+    return created;
 }
 
-/** A `data-px-animation-src` element: the player `loadTagSvgAnimators` created is kept ON it, so a second call skips it. */
+/**
+ * The player {@link createSvgAnimatorsFromPage} created in `element`, or `undefined` when it has none.
+ * @public
+ */
+export function getSvgAnimator(element: Element): PxAnimatorApi | undefined {
+    const tagged: PxTagElement = element;
+    return tagged[PX_ANIM_ATTR_NAME];
+}
+
+/** A `data-px-animation-src` element: the player `createSvgAnimatorsFromPage` created is kept ON it, so a second call skips it. */
 interface PxTagElement extends Element {
     [PX_ANIM_ATTR_NAME]?: PxAnimatorApi;
 }
 
 // No module-level globals (API review §4). This file used to end by assigning
-// `window.createSvgAnimator` / `loadTagSvgAnimators` / `setupAnimationTriggers` whenever it loaded —
+// `window.createSvgAnimator` / `loadTagSvgAnimators` (now `createSvgAnimatorsFromPage`) / `setupAnimationTriggers` whenever it loaded —
 // for every ESM and CJS consumer too, not just `<script>` pages. That could overwrite a page's
 // own `createSvgAnimator`, and the side effect made the whole module untree-shakable.
 //

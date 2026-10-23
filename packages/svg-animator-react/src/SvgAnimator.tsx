@@ -4,11 +4,11 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxAnimatedSvgDocument, PxAnimatorApi, PxTimelineEngineSetting, PxTrigger } from '@pixodesk/svg-animator-web';
+import type { PxDocument, PxAnimatorApi, PxTimelineEngineSetting, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
 import type { PxMouseOutAction } from '@pixodesk/svg-animator-core';
 import { createSvgAnimator, PxDiagnosticKind, type PxAnimatorCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, applyDeclarativeAction, createIterationStopWatcher, foldTimelineOverride, toAnimatedSvgDocument, type PxDocumentInput, getAnimatorConfig, PxDeclarativeAction, type PxDeclarativeProps, PxDiagnosticCode, PxControlMode, PxFillMode, PxPlaybackWorld, PxPlayMode, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorConfigPatch, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, applyDeclarativeAction, createIterationStopWatcher, foldTimelineOverride, toPxDocument, type PxDocumentInput, getAnimatorConfig, PxDeclarativeAction, type PxDeclarativeProps, PxDiagnosticCode, PxControlMode, PxFillMode, PxPlaybackWorld, PxPlayMode, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorConfigPatch, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import type { CSSProperties, FC, ReactElement } from 'react';
 import React, { createElement, useEffect, useImperativeHandle, useRef } from 'react';
@@ -70,7 +70,7 @@ function toReactPropName(attr: string): string {
 export interface SvgAnimatorImplProps {
     className?: string;
     style?: CSSProperties;
-    doc: PxAnimatedSvgDocument;
+    doc: PxDocument;
     compMode: PxControlMode;
 
     /** Imperative API handle populated by the inner component. */
@@ -282,7 +282,7 @@ const SvgAnimator: FC<SvgAnimatorProps> = ({
 }) => {
     // ONE type-level narrowing from the JSON-import shape (§5); the runtime validates values.
     // `let`: the timeline overrides below replace it with the patched copy.
-    let doc = toAnimatedSvgDocument(docInput);
+    let doc = toPxDocument(docInput);
 
     // ONE control-mode rule, decided in core and shared with Vue and React Native
     // (API review §1/§7). `apiRef` is deliberately NOT an input: the handle is populated in

@@ -11,14 +11,14 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimator } from './PxAnimator';
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import type { PxDocument } from '@pixodesk/svg-animator-core';
 
 
 const DUR = 320; // multiple of the 16ms fake-timer rAF step
 
 /** Minimal frames-mode doc: one rect whose opacity animates 0 → 1 over DUR ms.
  *  The override is a `timeline` partial — the wire address of the playback knobs. */
-function makeDoc(timeline: Record<string, unknown> = {}): PxAnimatedSvgDocument {
+function makeDoc(timeline: Record<string, unknown> = {}): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
@@ -38,7 +38,7 @@ function makeDoc(timeline: Record<string, unknown> = {}): PxAnimatedSvgDocument 
                 },
             },
         ],
-    } as unknown as PxAnimatedSvgDocument;
+    } as unknown as PxDocument;
 }
 
 function renderedOpacity(): string | null {

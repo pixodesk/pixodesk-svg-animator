@@ -15,11 +15,11 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { PxAnimatedSvgDocumentSchema } from '../format/PxAnimatorTypes';
+import { PxDocumentSchema } from '../format/PxAnimatorTypes';
 import { schemaFieldUniverse } from './PxSchemaFieldUniverse';
 
 const SNAPSHOT = resolve(__dirname, 'schema-field-universe.player.json');
-const live = schemaFieldUniverse(PxAnimatedSvgDocumentSchema);
+const live = schemaFieldUniverse(PxDocumentSchema);
 
 /** Explicit opt-in, so a normal run never rewrites the baseline it is checked against. */
 const shouldRegenerate = (): boolean => process.env.PX_REGEN_FIELD_UNIVERSE === '1';

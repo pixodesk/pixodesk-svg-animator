@@ -10,13 +10,13 @@
 
 import { describe, expect, it } from 'vitest';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
-import type { PxAnimatedSvgDocument } from '../format/PxAnimatorTypes';
+import type { PxDocument } from '../format/PxAnimatorTypes';
 import { createAdapterSvgAnimator } from '../playback/PxFrameLoop';
 import { materializeAllInTree } from './PxAnimatorMaterializeAll';
 
 
 /** A rect following a curve that starts heading DOWN (tangent 90°) and ends heading RIGHT (0°). */
-function curveDoc(engine: 'js' | 'native', rotate: { from?: number; to?: number }, autoOrient: boolean, staticRotate?: number): PxAnimatedSvgDocument {
+function curveDoc(engine: 'js' | 'native', rotate: { from?: number; to?: number }, autoOrient: boolean, staticRotate?: number): PxDocument {
     const value = (translate: [number, number], r: number | undefined) => (r === undefined ? { translate } : { translate, rotate: r });
     return {
         type: 'svg', viewBox: '0 0 200 200',
@@ -33,7 +33,7 @@ function curveDoc(engine: 'js' | 'native', rotate: { from?: number; to?: number 
 }
 
 /** `{x, y, rotate}` the engine writes for the rect at `timeMs`. */
-function poseAt(doc: PxAnimatedSvgDocument, engine: PxTimelineEngine, timeMs: number): { x: number; y: number; rotate: number } {
+function poseAt(doc: PxDocument, engine: PxTimelineEngine, timeMs: number): { x: number; y: number; rotate: number } {
     let written = '';
     const api = createAdapterSvgAnimator(materializeAllInTree(doc, engine), {
         isConnected: () => true,

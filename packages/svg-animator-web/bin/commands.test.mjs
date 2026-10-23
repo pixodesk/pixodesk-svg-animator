@@ -37,7 +37,7 @@ describe('copy-player-library', () => {
             '',
             'Load it in your page:',
             `  <script src="${PLAYER_LIBRARY_FILE}"></script>`,
-            '  <script>Pixodesk.SvgAnimator.loadTagSvgAnimators();</script>',
+            '  <script>Pixodesk.SvgAnimator.createSvgAnimatorsFromPage();</script>',
         ]);
     });
 

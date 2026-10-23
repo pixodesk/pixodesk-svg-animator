@@ -189,7 +189,7 @@ export type PxInfer<S> = S extends PxSchema<infer T, boolean> ? T : never;
  * Useful for strict property-access checking on types that have an open `[key: string]: unknown`.
  *
  * @example
- * type Strict = PxRemoveIndex<PxAnimatedSvgDocument>;
+ * type Strict = PxRemoveIndex<PxDocument>;
  * Strict['animator']   // PxAnimatorConfig | undefined  ✓
  * Strict['anything']   // compile error  ✓
  * @public @advanced

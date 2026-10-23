@@ -19,7 +19,7 @@ import { carryPrep, deriveRuntimeView, resolveTimelineEngine, PxTimelineEngine }
 import { animatorOf, prepOf, stampPrep, stageAtLeast, trustedView, PxDocStage, type PxDocPrep, type PxPreparedDocument } from '../format/PxDocStage';
 import { materializeAllInTree } from '../materialize/PxAnimatorMaterializeAll';
 import { generateNewIds } from '../util/PxIdUtil';
-import { PxAnimatedSvgDocumentSchema, type PxAnimatedSvgDocument } from '../format/PxAnimatorTypes';
+import { PxDocumentSchema, type PxDocument } from '../format/PxAnimatorTypes';
 import type { PxValidationFinding } from '../schema/PxSchema';
 
 /** Options of {@link prepareDocument}. @public @advanced */
@@ -40,7 +40,7 @@ export interface PxPrepareOptions {
  * comes back unchanged, so calling this "just in case" costs nothing.
  * @public @advanced
  */
-export function prepareDocument(doc: PxAnimatedSvgDocument, options?: PxPrepareOptions): PxPreparedDocument {
+export function prepareDocument(doc: PxDocument, options?: PxPrepareOptions): PxPreparedDocument {
     const target = options?.stage ?? PxDocStage.plain;
     // A stamp whose view no longer belongs to the doc (its config was swapped in place — a breach of
     // the immutability convention) is not trusted at all: the doc is lowered afresh.
@@ -57,17 +57,17 @@ export function prepareDocument(doc: PxAnimatedSvgDocument, options?: PxPrepareO
 
     // current — version-migrate. `convertWireDocument` may return the input by reference
     // (nothing to apply); the stamp must then go on a shallow copy, never on the input.
-    let cur: PxAnimatedSvgDocument;
+    let cur: PxDocument;
     if (existing) cur = doc;
     else {
-        const converted = convertWireDocument(doc).doc as PxAnimatedSvgDocument;
+        const converted = convertWireDocument(doc).doc as PxDocument;
         cur = stampPrep(converted === doc ? { ...doc } : converted, { stage: PxDocStage.current });
     }
     if (target === PxDocStage.current) return cur as PxPreparedDocument;
 
     // checked — one visit: a repaired, type-stamped copy (stamped subtrees are reused, not rebuilt).
     if (!existing || !stageAtLeast(existing.stage, PxDocStage.checked)) {
-        const { value, problems } = PxAnimatedSvgDocumentSchema.castOrFix(cur);
+        const { value, problems } = PxDocumentSchema.castOrFix(cur);
         if (problems.length) options?.onProblems?.(problems);
         cur = stampPrep(value, { stage: PxDocStage.checked });
     }
@@ -108,9 +108,9 @@ export function prepareDocument(doc: PxAnimatedSvgDocument, options?: PxPrepareO
  * @internal
  */
 export function prepareDocumentForRender(
-    doc: PxAnimatedSvgDocument,
+    doc: PxDocument,
     onProblems?: PxPrepareOptions['onProblems'],
-): PxAnimatedSvgDocument {
+): PxDocument {
     // checked → resolved → plain (for the engine the document resolves to) → fresh ids
     return prepareDocument(doc, { freshIds: true, onProblems });
 }

@@ -706,16 +706,18 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
     highest stage it reached, nothing else. Branded types (`PxDocAt<'plain'>`) make the trust
     compile-time checkable for internal signatures.
   - **Stamp vs WeakMap, by aspect:**
-    | Aspect | Symbol stamp on the result | WeakMap side table (today) |
-    |---|---|---|
-    | Locality | travels WITH the object; visible in a debugger | global module state; invisible |
-    | Input mutation | never (stamp only on new objects) | never |
-    | Stale-trust hazard | in-place mutation keeps a wrong stamp — strippable at the editor's edit choke point | in-place mutation serves a stale view — nothing to strip |
-    | Serialization | symbol drops on JSON/clone → safe re-verify (a STRING key would leak into files — unacceptable) | nothing to leak |
-    | Two copies of the lib on one page | stamp crosses copies → must carry `coreVersion` and distrust foreign stamps | each copy re-derives — safe, slightly wasteful |
-    | Perf | caller must KEEP the prepared doc (that's the point); re-preparing a raw doc re-pays the cost | caches implicitly even for unplumbed call graphs |
-    | Type safety | pairs with branded stage types | none possible |
-    | API | one explicit pipeline entry + stage param | zero API, zero visibility |
+
+| Aspect | Symbol stamp on the result | WeakMap side table (today) |
+|---|---|---|
+| Locality | travels WITH the object; visible in a debugger | global module state; invisible |
+| Input mutation | never (stamp only on new objects) | never |
+| Stale-trust hazard | in-place mutation keeps a wrong stamp — strippable at the editor's edit choke point | in-place mutation serves a stale view — nothing to strip |
+| Serialization | symbol drops on JSON/clone → safe re-verify (a STRING key would leak into files — unacceptable) | nothing to leak |
+| Two copies of the lib on one page | stamp crosses copies → must carry `coreVersion` and distrust foreign stamps | each copy re-derives — safe, slightly wasteful |
+| Perf | caller must KEEP the prepared doc (that's the point); re-preparing a raw doc re-pays the cost | caches implicitly even for unplumbed call graphs |
+| Type safety | pairs with branded stage types | none possible |
+| API | one explicit pipeline entry + stage param | zero API, zero visibility |
+
   - **IMPLEMENTED 2026-10-21** — plan + log: `dev-docs/plans/prepare-document-pipeline.md`.
     `prepareDocument` / `documentStage` / `PxDocStage` public; both WeakMaps (`wireViewMemo`,
     `flattenMemo`) deleted; `getAnimatorConfig` = stamp read (while the doc holds the same config
@@ -732,12 +734,14 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
 
 - **Trigger:** the `flattenMemo` WeakMap in §17a looked suspicious to the owner — audit the rest.
 - **Instances today (non-test), `packages/*/src`:**
-  | Where | What it memoises |
-  |---|---|
-  | `format/PxAnimatorConstants.ts:695` `wireViewMemo` | `getAnimatorConfig` result per document config — identity contract (callers compare/cache by identity) |
-  | `format/PxAnimatorConstants.ts:712` `flattenMemo` | `flattenAnimatorTimeline` result per config — same identity contract (§17a) |
-  | `materialize/PxMotionPath.ts:99` `_segmentCache` | per keyframe-PAIR sampled motion-path segments (nested WeakMap, module-level) |
-  | `materialize/PxAnimatorUseMaterializer.ts:121` `cache` | function-LOCAL per-node boolean during one materialize pass (harmless scope) |
+
+| Where | What it memoises |
+|---|---|
+| `format/PxAnimatorConstants.ts:695` `wireViewMemo` | `getAnimatorConfig` result per document config — identity contract (callers compare/cache by identity) |
+| `format/PxAnimatorConstants.ts:712` `flattenMemo` | `flattenAnimatorTimeline` result per config — same identity contract (§17a) |
+| `materialize/PxMotionPath.ts:99` `_segmentCache` | per keyframe-PAIR sampled motion-path segments (nested WeakMap, module-level) |
+| `materialize/PxAnimatorUseMaterializer.ts:121` `cache` | function-LOCAL per-node boolean during one materialize pass (harmless scope) |
+
 - **Do:** for each module-level one, establish who relies on the cached identity, whether a
   mutated input object can serve a stale value, and whether the cache belongs at module scope
   at all (cross-document leaks of correctness, not memory — WeakMap handles memory). Decide
@@ -755,13 +759,15 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
     stops storing; a pre-start frame does not poison it). Note: `getKeyframesPair` now only returns ADJACENT
     pairs, so the pair key is defensive — the poisoning guard proper is that function's.
 - **Investigation (2026-10-22) — what is left after §17a, and can it go the same way?**
-  | Where | Scope | Verdict |
-  |---|---|---|
-  | `wireViewMemo`, `flattenMemo` | module | **gone** (§17a: the prepare pipeline's stamp) |
-  | `materialize/PxMotionPath.ts` `_segmentCache` | **module** | the one real global left — see below |
-  | `svg-animator-rn/src/SvgAnimator.tsx` `animatedComponentCache` (a `Map`, not weak) | module | not document data — see below |
-  | `materialize/PxAnimatorUseMaterializer.ts` `cache` | one call | fine (local; could be a plain `Map`) |
-  | `svg-animator-react/src/Utils.ts` `seen` (`WeakSet`) | one call | fine (cycle guard inside `deepEquals`) |
+
+| Where | Scope | Verdict |
+|---|---|---|
+| `wireViewMemo`, `flattenMemo` | module | **gone** (§17a: the prepare pipeline's stamp) |
+| `materialize/PxMotionPath.ts` `_segmentCache` | **module** | the one real global left — see below |
+| `svg-animator-rn/src/SvgAnimator.tsx` `animatedComponentCache` (a `Map`, not weak) | module | not document data — see below |
+| `materialize/PxAnimatorUseMaterializer.ts` `cache` | one call | fine (local; could be a plain `Map`) |
+| `svg-animator-react/src/Utils.ts` `seen` (`WeakSet`) | one call | fine (cycle guard inside `deepEquals`) |
+
   All other module-level `Set`s are constant lookup tables (attribute names, tag lists), not caches.
   - **`_segmentCache`** — the arc-length table of one motion-path Bezier segment, keyed by the
     keyframe PAIR. Two users: the frame loop evaluates it EVERY FRAME (`calcPropertyValue` →
@@ -809,14 +815,16 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
   and reading it through `any` throws that away. Audit the rest.
 - **Real numbers (2026-10-22, TypeScript AST — every `any` type node, not text matches).** The earlier
   "63" counted only non-test lines with the literal `as any` — it hid most of it.
-  | | `any` nodes, shipped source | in tests | literal `as any` (src / tests) |
-  |---|---|---|---|
-  | core | **277** | 299 | 51 / 192 |
-  | web | 8 | 27 | 7 / 21 |
-  | react | 9 | 1 | 0 / 1 |
-  | vue | 1 | 4 | 0 / 2 |
-  | rn | 24 | 36 | 10 / 1 |
-  | **total** | **319** | **367** | 68 / 217 |
+
+| | `any` nodes, shipped source | in tests | literal `as any` (src / tests) |
+|---|---|---|---|
+| core | **277** | 299 | 51 / 192 |
+| web | 8 | 27 | 7 / 21 |
+| react | 9 | 1 | 0 / 1 |
+| vue | 1 | 4 | 0 / 2 |
+| rn | 24 | 36 | 10 / 1 |
+| **total** | **319** | **367** | 68 / 217 |
+
 - **Silent multipliers — not in any count, but they spread `any` everywhere:**
   1. `PxNode` (public) has `[camelCaseDomKey: string]: any` — every attribute read on a node is `any`.
   2. `PxKeyframe<T = any>` (44 bare uses) and `keyframeValue(): any` (20 call sites).
@@ -824,16 +832,18 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
   Measured by switching each to `unknown`: PxNode index → 0 source errors (1 test); `keyframeValue` → 0;
   `PxKeyframe` default → 8 errors in 4 files. The holes are nearly free to close.
 - **Why it exists — shipped source by cause:**
-  | Cause | Nodes | Where |
-  |---|---|---|
-  | A. Schema DSL generics — `PxSchema<any, any>` in `infer` / mapped types | 79 | `PxSchema.ts`, `PxSchemaFieldUniverse.ts` |
-  | B. Animated values whose type depends on the attribute — keyframes, animatables, interpolation | ~100 | `maskedByEffect`, `contentRefSplit`, `transformParts`, `visualModel`, `retime`, `PxDefinitions` |
-  | D. Open JSON records — `Record<string, any>` | 50 | config patches, node/raw objects |
-  | G. Platform boundaries — React / RN / DOM / WAAPI | 42 | web, react, rn |
-  | I. Reading an already-VALIDATED doc through `any` (`(cfg as any).timeline`) | 14 | `PxAnimatorConstants`, `PxAnimatorTypes` |
-  | F. Paint/style property bags (`fill?: any`) | 13 | `textGlyphsEffect` |
-  | E. Generic defaults (`<E = any>`) | 8 | glyph element factory |
-  | H. Test kit shipped in `src` | 9 | `effectTestKit` |
+
+| Cause | Nodes | Where |
+|---|---|---|
+| A. Schema DSL generics — `PxSchema<any, any>` in `infer` / mapped types | 79 | `PxSchema.ts`, `PxSchemaFieldUniverse.ts` |
+| B. Animated values whose type depends on the attribute — keyframes, animatables, interpolation | ~100 | `maskedByEffect`, `contentRefSplit`, `transformParts`, `visualModel`, `retime`, `PxDefinitions` |
+| D. Open JSON records — `Record<string, any>` | 50 | config patches, node/raw objects |
+| G. Platform boundaries — React / RN / DOM / WAAPI | 42 | web, react, rn |
+| I. Reading an already-VALIDATED doc through `any` (`(cfg as any).timeline`) | 14 | `PxAnimatorConstants`, `PxAnimatorTypes` |
+| F. Paint/style property bags (`fill?: any`) | 13 | `textGlyphsEffect` |
+| E. Generic defaults (`<E = any>`) | 8 | glyph element factory |
+| H. Test kit shipped in `src` | 9 | `effectTestKit` |
+
   Tests (367): typed-`any` helpers 150, reading results `(x as any).prop` 90, fixture literals `{…} as any` 63,
   invalid input on purpose / mocks 58.
 - **Ranked plan (easiest × biggest effect first):**
@@ -859,65 +869,157 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
 
 ## 🟡 Smaller
 
+Each item: what it is, where it shows up, why it trips a newcomer, the options, and a
+**Suggested** solution (a proposal, not a decision). None of them changes behaviour; the fixes
+are docs, type names, or wire renames. Names were checked against the
+source on 2026-10-23 (where the review's first draft used an older spelling, it says so).
+
 ### 18. "Animator" is both the file block and the player instance
 
-`animator.timeline.trigger.finish` (the file) and `animator.setPlaybackRate(-1)` (the instance
-`createAnimator` returned) sit a paragraph apart in troubleshooting. Cheapest fix is in the docs:
-name the instance variable `player` everywhere. The block's name is a wire rename and not worth it.
+- **What:** two different things share one word.
+  - `animator` in the document is the root block that holds `timeline`, `bindings` and `definitions`.
+  - The object `createSvgAnimator()` returns (type `PxAnimatorApi`) is also called `animator` in most code samples.
+- **Where:** the samples in `docs/library/get-started.md` (§ "returns the player… `animator.play()`"),
+  `web-player.md`, `vue.md` and `troubleshooting.md`. `react.md` calls the same object `api`, a third name.
+- **Why it trips:** in `troubleshooting.md` › Playback behavior, `timeline.finish: "reset"` (a path
+  in the file) and `animator.setPlaybackRate(-1)` (a method call) are a paragraph apart. A reader
+  takes `animator.` as the file block and looks for `setPlaybackRate` in the schema.
+- **Options:**
+  1. Docs only: call the instance `player` in every sample and prose line (`const player =
+     createSvgAnimator(…)`, React `playerRef`). No API change.
+  2. Rename the block. This is a wire rename plus a version step, and it would break every saved file, so it is not worth it.
+- **Suggested:** 1 — `player` in every web/Vue/troubleshooting sample, `playerRef` in React (replacing `api`), and one sentence in get-started: "the file's `animator` block configures playback; the object you get back is the player".
 
-### 19. `PxAnimatedSvgDocument`
+### 19. `PxAnimatedSvgDocument` → `PxDocument` ✅
 
-Long, and not always SVG — the root may be an HTML element. The functions already say "Px
-document" (`isPxDocument`, `validateDocument`, `diagnoseDocument`); `PxDocument` would match them.
+- **What:** the TypeScript type of the whole document (`format/PxAnimatorTypes.ts`, `interface PxAnimatedSvgDocument`).
+- **Why it trips:**
+  - It is long: a user types it in every typed fixture and every function signature.
+  - "Svg" is not always true. The root `type` may be an HTML element that wraps SVG (`div`, …), and `isPxDocument` accepts that.
+  - "Animated" is not always true either: a static document is valid.
+  - The functions around it already say "Px document": `isPxDocument`, `validateDocument`, `diagnoseDocument`, `prepareDocument`, and the result type is `PxPreparedDocument`. Only the main type breaks the pattern.
+- **Options:**
+  1. Rename to `PxDocument`. It is a type-only rename: no wire change and no runtime effect. It touches 7 docs files and every consumer's imports.
+  2. Keep the name and explain it in the type's TSDoc. That costs nothing, but the name stays wrong for `div` roots.
+- **Suggested:** 1, as a clean break in one release (the no-aliases rule of the 2026-09 API rename). `PxAnimatedSvgDocumentSchema` → `PxDocumentSchema` in the same change, so the type and its schema keep one name.
+- **Done (2026-10-23):** `PxDocument`, `PxDocumentSchema`, and `toAnimatedSvgDocument` → `toPxDocument`, in all five packages, the docs, the examples and the editor (whose `PxAnimatedSvgDocumentSchemaExtra` / `…Keys` became `PxDocumentSchemaExtra` / `PxDocumentSchemaKeys`). No aliases. Dated plans and reviews keep the old name.
 
-### 20. `loadTagAnimators`
+### 20. `loadTagSvgAnimators` and the `_px_animator` handle ✅
 
-"Tag animators" is our jargon. `createAnimatorsFromPage()` reuses the verb of `createAnimator` and
-says where it looks; `PxTagAnimatorOptions` follows. Its handle is documented as
-`element._px_animator` — an underscore property as public API.
+- **What:** the zero-code embed. `loadTagSvgAnimators(options?)` (web, `animator/PxAnimator.ts`)
+  finds every `<div data-px-animation-src="file.json">` on the page and creates a player inside
+  each one. (The first draft of this review called it `loadTagAnimators`.)
+- **Why it trips:**
+  - "Tag animators" is our word for "players made from data attributes". A newcomer searching for "create players for the page" won't find it.
+  - The verb `load` hides that it **creates** players. The programmatic call is `createSvgAnimator`, so the pair reads as two unrelated features.
+  - The options type `PxTagAnimatorOptions` carries the same jargon.
+  - The function returns `void`. The only way to get a player back is the property it sets on the element, `element._px_animator`. It is documented in `web-player.md` and in `README.md` step 7.
+    - A leading underscore reads as "private, don't touch".
+    - A TypeScript user has to cast the element to read it.
+- **Options:**
+  - Rename to `createSvgAnimatorsFromPage(options?)`, which shares the verb of `createSvgAnimator` and says where it looks. The options type becomes `PxPageAnimatorOptions`.
+  - Return the created players: `Array<PxAnimatorApi>`, only the new ones, since repeat calls skip elements that already have a player.
+  - Add an accessor `getSvgAnimator(element): PxAnimatorApi | undefined` and document that instead of the property. The property stays as the implementation detail.
+- **Suggested:** all three in one change:
+  1. `createSvgAnimatorsFromPage(options?: PxPageAnimatorOptions): Array<PxAnimatorApi>`, returning the players this call created.
+  2. `getSvgAnimator(element)` for finding one later.
+  3. The docs drop `element._px_animator`.
+- **Done (2026-10-23):** all three, also on the `<script>` global (`Pixodesk.SvgAnimator.createSvgAnimatorsFromPage()` / `.getSvgAnimator(el)`). The property stays as the implementation (`PX_ANIM_ATTR_NAME`), so a repeat call still skips a tagged element. Test: `PxAnimator.test.ts` › *returns the players THIS call created* (seen failing with the return value removed).
 
 ### 21. Trigger words
 
-- `offScreen` (the action) and `visibilityThreshold` / `visibilityDebounce` (its parameters) use
-  two words for one concept.
-- `mouseOver` / `mouseOut` name a mouse for something that also works with touch and pen. The docs'
-  own prose says "hover" throughout, CSS says `:hover` (which the SVG + CSS export uses) and
-  LottieFiles interactivity says `hover`.
-- `start: 'none'` reads as "never"; the editor's label for it is "Manually from JS" — `manual`.
+`timeline.trigger` (`PxTriggerSchema`) has five keys: `start` (`load | mouseOver | click | none`),
+`offScreen` (`pause | continue | reset`), `mouseOut` (`continue | pause | reset | reverse`),
+`visibilityThreshold` and `visibilityDebounce`. Three of these names are off:
 
-Cheapest before release; each is a wire rename plus a version step afterwards.
+| Now | Problem | Possible name |
+|---|---|---|
+| `offScreen` + `visibilityThreshold` / `visibilityDebounce` | one concept (how much of the animation is on screen) under two words; a reader looks for `offScreenThreshold` and doesn't find it | `offScreen` + `offScreenThreshold` / `offScreenDebounce`, or one `visibility` word for all three |
+| `mouseOver` / `mouseOut` | names a mouse, but it works with touch and pen too; the docs' prose says "hover", the SVG + CSS export uses CSS `:hover`, LottieFiles interactivity says `hover` | `start: 'hover'`, `hoverEnd` (or `onHoverEnd`) for the out action |
+| `start: 'none'` | reads as "never starts"; it means "waits for `play()`"; the editor's own label is "Manually from JS" | `start: 'manual'` |
+
+- **Cost:** each row is a wire rename. That means:
+  - a schema step: `PX_WIRE_STEPS` entry plus `up`;
+  - the enum (`PxTriggerStart` / `PxMouseOutAction`);
+  - the React/Vue prop types (see §24);
+  - the docs;
+  - the editor's writer.
+
+  The renames are cheapest before the first publish, because afterwards every saved file needs the conversion step.
+- **Suggested:** all three rows in ONE schema step, before the first publish:
+  - `offScreenThreshold` / `offScreenDebounce`. This keeps `offScreen` (already the action's name) and makes the parameters visibly belong to it.
+  - `start: 'hover'` with `hoverEnd` for the out action, which also reads naturally on React Native, where the start value stays unavailable.
+  - `start: 'manual'`.
+
+  The `up` step converts old files, so nothing a user saved breaks.
 
 ### 22. `loop` means something else here
 
-Everywhere else `loop` repeats the whole animation; in the format it repeats one property's
-keyframe segment, and whole repeats are `iterations`. A React user who writes `loop` gets a type
-error; a Vue user gets a silent `loop` attribute on the `<svg>`, because Vue's `PixodeskSvgAnimator`
-keeps the default attribute fallthrough (the CSS component sets `inheritAttrs: false`). Worth one
-line in the component guides, and perhaps a dev warning for a `loop` prop.
+- **What:** in the format, `loop` belongs to ONE property's animation: `animate.<prop>.loop: true | { segmentCount, repeatAt, direction }` (`PxLoopSchema`). It repeats a segment of that property's keyframes to fill the timeline. Repeating the whole animation is `timeline.iterations` (a number or `'infinite'`).
+- **Why it trips:** everywhere else `loop` repeats the whole thing: `<video loop>`, lottie-web `loop: true`, the `loop` prop of the Lottie React players. So a user's first try is `loop` on the component:
+  - **React:** `<SvgAnimator loop />` is a type error. That is correct, but the error doesn't point to `iterations`.
+  - **Vue:** `<SvgAnimator loop>` raises no error. Vue's default attribute fallthrough puts a dead `loop=""` attribute on the rendered root element. `SvgAnimator` (`svg-animator-vue/src/SvgAnimator.ts`) keeps the fallthrough; `SvgCssAnimator` sets `inheritAttrs: false`.
+- **Options (no wire rename):**
+  - One line in the React and Vue guides: "repeat the whole animation: `timeline={{ iterations: 'infinite' }}`".
+  - A dev-only console warning when a `loop` prop/attribute reaches either component.
+  - Optionally, `inheritAttrs: false` on Vue `SvgAnimator`, forwarding `class`/`style`/`aria-*` explicitly.
+- **Suggested:** the guide line and the dev warning, in both React and Vue.
+  - The warning text names the fix: "`loop` is not a prop — to repeat the whole animation pass `timeline={{ iterations: 'infinite' }}`".
+  - Skip `inheritAttrs: false`. Fallthrough of `class`/`style` is what Vue users expect, and the warning already covers the one confusing attribute.
 
 ### 23. The core entry is very wide
 
-Engine internals — `createRunClock`, `seekCeilingMs`, `clampSeekMs`, `PX_RATE_REJECTED`,
-`foldTimelineOverride`, `downgradeWireDocument` — are tagged `@public @advanced` and appear in
-autocomplete next to the document types (raised in api-surface-review §3).
+- **What:** `@pixodesk/svg-animator-core`'s entry exports engine plumbing that the sibling packages (web, React, Vue, React Native) share. Each piece is tagged `@public @advanced`:
 
-### 24. Vue's `start` prop restates the trigger values
+| Export | Lives in | What it is for |
+|---|---|---|
+| `createRunClock`, `seekCeilingMs`, `clampSeekMs`, `PX_RATE_REJECTED` | `playback/PxPlaybackTime.ts` | the one time contract every engine implements |
+| `foldTimelineOverride` | `playback/PxAnimatorConfigPatch.ts` | merging a mount's timeline override into the file's |
+| `downgradeWireDocument` | `version/PxWireVersion.ts` | writing a document for an older schema |
 
-`start: { type: String as PropType<'load' | 'mouseOver' | 'click' | 'none'> }`
-(`svg-animator-vue/src/PixodeskSvgAnimator.ts`) instead of `PxTriggerStart` — a second copy of the
-list that will drift.
+- **Why it trips:** `import { … } from '@pixodesk/svg-animator-core'` lists these in autocomplete next to the document types and `validateDocument`. A newcomer cannot tell what is for them and what is engine wiring. Raised before as api-surface-review §3.
+- **Options:**
+  1. Move them to a subpath entry, e.g. `@pixodesk/svg-animator-core/engine` (`exports` map). The sibling packages import from there, and the main entry is left with the user-facing set.
+  2. Re-tag as `@internal` and strip them from the published `.d.ts`. This does not work while the sibling packages, which are separate npm packages, need the types.
+  3. Keep them, but group them under one "For player authors" heading in the API reference.
+- **Suggested:** 1, plus 3 for the docs.
+
+### 24. Vue `SvgAnimator`'s `start` prop restates the trigger values
+
+- **What:** `SvgAnimator.ts` declares `start: { type: String as PropType<'load' | 'mouseOver' | 'click' | 'none'> }`. That is a hand-written copy of `PxTriggerStart`. Its sibling `SvgCssAnimator.ts` already uses `PropType<PxTriggerStart>`. (The first draft named the old component `PixodeskSvgAnimator`.)
+- **Why it matters:** the copy drifts silently. If §21 renames `'none'` → `'manual'`, Vue keeps accepting and type-checking the old word, and nothing fails.
+- **Suggested:** a one-line change to `PropType<PxTriggerStart>`. Keep no `default`: an absent prop means "the file's own value".
+  - Also check the other Vue/React trigger props (`mouseOut`, `offScreen`) for the same hand-written lists while there.
+  - Do it before §21, so the §21 renames reach Vue with no extra edit.
 
 ### 25. Enum value spelling follows an unwritten rule
 
-Our own values are camelCase (`mouseOver`, `offsetPath`); values borrowed from CSS keep CSS's
-kebab-case (`alternate-reverse`, `entry-crossing`). Fair, but stated nowhere — one sentence in the
-format guide's principles.
+- **What:** two spellings meet in the value lists.
+  - Our own values are camelCase: `mouseOver`, `offsetPath` (`alongPathMode`), `continue`.
+  - Values borrowed from CSS keep CSS's kebab-case: `direction: 'alternate-reverse'` (CSS `animation-direction`) and the scroll phases `'entry-crossing'` / `'exit-crossing'` (CSS view-timeline ranges).
+- **Why it trips:** a user who has seen `mouseOver` writes `'alternateReverse'`, and gets a validation error with no hint why. The format guide (`docs/format/README.md`) states the rule for attribute NAMES (camelCase DOM names), but none for VALUES.
+- **Suggested:** one sentence in the format guide's principles: "a value we invented is camelCase; a value taken from CSS keeps its CSS spelling". Add the full list of kebab-case values (today: `alternate-reverse`, `entry-crossing`, `exit-crossing`).
+  - Optionally, the validator's enum error can name the closest valid value ("did you mean `alternate-reverse`?"). That catches the typo at the moment it happens.
+  - No wire change.
 
 ### 26. Effect names mix two patterns
 
-`maskedBy` / `transformBy` ("this element is … by") beside `clipPath` / `repeater` / `strokeTrim`
-(the thing itself). The difference partly mirrors reference vs inline geometry, but a newcomer sees
-no rule.
+- **What:** the `effects` keys (`PxEffectsSchema`):
+  - two are passive, "this element is … by": `maskedBy`, `transformBy`;
+  - eight name the thing they add: `clipPath`, `repeater`, `strokeTrim`, `clone`, `fillGradient`, `strokeGradient`, `textPath`, `text`.
+- **Why it trips:** a newcomer looks for a rule and none fits all ten:
+  - "…By = points at another element" fails: `maskedBy` has a `source`, but `transformBy` (its own parts) doesn't, and `clone` has a `source` without the suffix.
+  - "…By = avoids clashing with an SVG attribute" fails too: `effects.clipPath` lives in its own namespace next to the `clipPath` attribute, so `effects.transform` / `effects.mask` could have done the same.
+- **A rule that almost fits:** "an effect is named for what it adds. When that noun is already an attribute the same node can carry, it takes `…By`, so the two never share a word."
+  - `transform` and `mask` are SVG attributes, hence `transformBy` and `maskedBy`.
+  - `repeater`, `strokeTrim`, `clone`, `fillGradient`, `strokeGradient`, `textPath` and `text` are not attributes, so they keep the bare noun.
+  - The one exception is `clipPath`: it is the camelCase name of the `clip-path` attribute, yet it has no suffix.
+- **Options:**
+  1. Keep the names and document them as a fixed list. No rule is claimed, and nothing changes.
+  2. Rename the two outliers to nouns, `effects.mask` and `effects.transform`. Every key then names what it adds. The cost is three `transform`s on one node (the attribute, `animate.transform`, `effects.transform`) and two `mask`s. This is a wire rename plus a schema step.
+  3. Rename the others to the passive pattern (`clippedBy`, …). This is worse: eight renames to fix two.
+  4. Adopt the rule above and rename only `clipPath` → `clippedBy`. One wire rename, and the rule then holds for all ten.
+- **Suggested:** 4, in the same schema step as §21. Write the rule in the format guide's principles next to §25's value rule.
 
 ---
 
@@ -941,13 +1043,13 @@ same shapes are written out in many places — which is how they drifted (Part 3
   cannot drift apart".
 - Internal functions named in user guides, to prove a single implementation:
 
-  | Name | Mentions in `docs/library` + `docs/format` |
-  |---|---|
-  | `resolveControlMode` | 4 |
-  | `PX_ANIMATOR_DOC_KEY` | 4 |
-  | `controlModeTakesOverTrigger`, `applyAnimatorConfig` | 3 each |
-  | `foldTimelineOverride`, `mergeAnimatorConfig`, `resolveTrigger`, `PX_TRIGGER_DEFAULTS`, `prepareDocumentForRender` | 2 each |
-  | `PxInternalAnimatorOptions`, `createVisibilityGate`, `diffInEffect`, `planSchemaRelease` | 1 each |
+| Name | Mentions in `docs/library` + `docs/format` |
+|---|---|
+| `resolveControlMode` | 4 |
+| `PX_ANIMATOR_DOC_KEY` | 4 |
+| `controlModeTakesOverTrigger`, `applyAnimatorConfig` | 3 each |
+| `foldTimelineOverride`, `mergeAnimatorConfig`, `resolveTrigger`, `PX_TRIGGER_DEFAULTS`, `prepareDocumentForRender` | 2 each |
+| `PxInternalAnimatorOptions`, `createVisibilityGate`, `diffInEffect`, `planSchemaRelease` | 1 each |
 
 - ▪ internal exports are listed in the user guides' "Everything else this package exports" tables,
   some with paragraph-long rationale (`PxInternalAnimatorOptions`) or as editor tooling ("the

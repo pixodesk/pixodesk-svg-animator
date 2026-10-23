@@ -37,7 +37,7 @@ A lightweight JavaScript library for playing SVG animations in the browser. Pixo
 
 ### Declarative (HTML)
 
-Add a `data-px-animation-src` attribute to any element pointing to your animation JSON file, then call `loadTagSvgAnimators()`:
+Add a `data-px-animation-src` attribute to any element pointing to your animation JSON file, then call `createSvgAnimatorsFromPage()`:
 
 ```html
 <div data-px-animation-src="/animation.json"></div>
@@ -45,11 +45,11 @@ Add a `data-px-animation-src` attribute to any element pointing to your animatio
 <!-- UMD -->
 <script src="pixodesk-svg-animator.umd.js"></script>
 <script>
-  Pixodesk.SvgAnimator.loadTagSvgAnimators();
+  Pixodesk.SvgAnimator.createSvgAnimatorsFromPage();
 </script>
 ```
 
-Each element gets an animator instance stored on `element._px_animator`, which you can use for playback control.
+Each element gets its own animator: `createSvgAnimatorsFromPage()` returns the ones it created, and `getSvgAnimator(element)` finds an element's later — use it for playback control.
 
 ### Programmatic
 

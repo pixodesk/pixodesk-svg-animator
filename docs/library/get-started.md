@@ -178,7 +178,7 @@ the page, plays from disk.
 <div data-px-animation-src="animation.json" style="width: 300px; height: 300px"></div>
 
 <script src="js/pixodesk-svg-animator.umd.min.js"></script>
-<script>Pixodesk.SvgAnimator.loadTagSvgAnimators();</script>
+<script>Pixodesk.SvgAnimator.createSvgAnimatorsFromPage();</script>
 ```
 
 ### From code — the player fetches the file

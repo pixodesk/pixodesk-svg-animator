@@ -8,7 +8,7 @@
  * Single-call materialization pipeline.
  *
  * Runs the full sequence of document-level transformations that turn the
- * wire-format `PxAnimatedSvgDocument` into a flat tree any renderer can
+ * wire-format `PxDocument` into a flat tree any renderer can
  * consume. The player itself calls this from `createAnimatorImpl`; the same
  * function is exported for the Editor (or any external caller) so the
  * Editor's flat-export path is GUARANTEED to be byte-identical to what the
@@ -40,7 +40,7 @@ import { materializeOffsetPathsInTree } from './PxOffsetPathMaterializer';
 import type { MotionPathMaterializationOptions } from './PxMotionPath';
 import { carryPrep, deriveRuntimeView, getAnimatorConfig, prepFor, PxTimelineEngine, resolveTimelineEngine } from '../format/PxAnimatorConstants';
 import { animatorOf, prepOf, stampPrep, trustedView, PxDocStage, type PxDocPrep } from '../format/PxDocStage';
-import type { PxAnimatedSvgDocument, PxNode } from '../format/PxAnimatorTypes';
+import type { PxDocument, PxNode } from '../format/PxAnimatorTypes';
 import { materializeAnimatedUseInstances } from './PxAnimatorUseMaterializer';
 import { generateNewIds } from '../util/PxIdUtil';
 import { materializeRestPosesInTree } from './PxRestPose';
@@ -58,10 +58,10 @@ export interface PxMaterializeAllOptions {
 
 /** @public @advanced */
 export function materializeAllInTree(
-    doc: PxAnimatedSvgDocument,
+    doc: PxDocument,
     engine: PxTimelineEngine,
     options?: PxMaterializeAllOptions,
-): PxAnimatedSvgDocument {
+): PxDocument {
     // Resolve the runtime view ONCE and carry it on every intermediate root, so the
     // `getAnimatorConfig` reads below (and inside the stages) are plain property reads.
     // The input is never stamped — only roots this function created.
@@ -71,10 +71,10 @@ export function materializeAllInTree(
     // output (getAnimatorConfig then derives afresh) — exactly when the old memo missed.
     const carry: PxDocPrep = { stage: PxDocStage.resolved, view, viewOf: animatorOf(doc) };
     // A stage may hand back its input by reference — never stamp the caller's document.
-    const own = (r: PxAnimatedSvgDocument): PxAnimatedSvgDocument => (r === doc ? { ...r } : r);
+    const own = (r: PxDocument): PxDocument => (r === doc ? { ...r } : r);
 
     // 1. Effects → structural materialization. Always runs; returns a fresh root.
-    let root: PxAnimatedSvgDocument = stampPrep(own(materializeNodeEffects(doc).root as PxAnimatedSvgDocument), carry);
+    let root: PxDocument = stampPrep(own(materializeNodeEffects(doc).root as PxDocument), carry);
 
     // 1b. `alongPathMode: 'offsetPath'` transforms → CSS Motion Path (offset-path style
     //     + `offsetDistance` binding). Both engines: frames drives `offset-distance` per
@@ -140,7 +140,7 @@ export function materializeAllInTree(
  * are never touched. Mutates `root` in place — safe, as it's a freshly
  * materialized tree owned by {@link materializeAllInTree}.
  */
-function pruneUnreferencedDefs(root: PxAnimatedSvgDocument): PxAnimatedSvgDocument {
+function pruneUnreferencedDefs(root: PxDocument): PxDocument {
     const stripHash = (h: string): string => (h.startsWith('#') ? h.slice(1) : h);
     const walk = (n: PxNode, fn: (n: PxNode) => void): void => { fn(n); n.children?.forEach(c => walk(c, fn)); };
 

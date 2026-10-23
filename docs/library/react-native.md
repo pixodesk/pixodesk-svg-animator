@@ -263,7 +263,7 @@ interface SvgAnimatorProps {
 ```
 
 The package exports the component, its props (`SvgAnimatorProps`), its handle
-(`PxAnimatorHandle`) and the document types `PxDocumentInput` / `PxAnimatedSvgDocument` (a JSON import —
+(`PxAnimatorHandle`) and the document types `PxDocumentInput` / `PxDocument` (a JSON import —
 [TypeScript](./installation.md#typescript)); nothing else.
 
 With none of `playAsSaved` / `play` / `pause` / `progress` / `time` set, the first frame renders

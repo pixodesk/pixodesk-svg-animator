@@ -490,7 +490,7 @@ function checkSchemaTable(doc: MdDoc, m: Marker, ctx: Ctx): Array<Finding> {
 // ---- schema-block: a TypeScript block that spells the wire format ↔ the runtime schemas --------
 
 /**
- * Marker: `<!-- px-check schema-block SVG_JSON=PxAnimatedSvgDocumentSchema NODE=PxNodeSchema -->`.
+ * Marker: `<!-- px-check schema-block SVG_JSON=PxDocumentSchema NODE=PxNodeSchema -->`.
  * Every interface named in the map is walked against its schema: keys, optionality, nested object
  * literals (through arrays, records and discriminated unions), and references to other mapped
  * names. `skip=a.b,c` leaves paths alone; the map is shared by every schema-block marker in a file.

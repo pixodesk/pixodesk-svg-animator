@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimator } from './index';
-import { isCompiledAnimation, type PxAnimatedSvgDocument, type PxRuntimeAnimation } from '@pixodesk/svg-animator-core';
+import { isCompiledAnimation, type PxDocument, type PxRuntimeAnimation } from '@pixodesk/svg-animator-core';
 import { PX_LOOP_JUMP_SHIFT_MS, cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from '@pixodesk/svg-animator-core/internal';
 import { calcAnimationValues, normalizeBindings } from '@pixodesk/svg-animator-core';
 import { materializeAllInTree } from '@pixodesk/svg-animator-core';
@@ -255,7 +255,7 @@ describe('animateBackground', () => {
 describe('Loop expansion', () => {
 
     /** Helper: get normalized binding's animate definition for translate */
-    function getTranslateAnim(doc: PxAnimatedSvgDocument): PxRuntimeAnimation {
+    function getTranslateAnim(doc: PxDocument): PxRuntimeAnimation {
         const bindings = normalizeBindings(doc);
         expect(bindings.length).toBeGreaterThan(0);
         return bindings[0].channels;
@@ -269,7 +269,7 @@ describe('Loop expansion', () => {
 
     // FIXME
     // it('loop:true (default cycle) extends keyframes to fill duration', () => {
-    //     const doc: PxAnimatedSvgDocument = {
+    //     const doc: PxDocument = {
     //         type: 'svg',
     //         animator: { timeline: { outTime: 200 } },
     //         bindings: [{
@@ -313,7 +313,7 @@ describe('Loop expansion', () => {
 
     // FIXME
     // it('loop with alternate (pingpong) reverses direction each rep', () => {
-    //     const doc: PxAnimatedSvgDocument = {
+    //     const doc: PxDocument = {
     //         type: 'svg',
     //         animator: { timeline: { outTime: 300 } },
     //         bindings: [{
@@ -347,7 +347,7 @@ describe('Loop expansion', () => {
 
     // FIXME
     // it("loop.repeatAt:'start' extends keyframes before the first keyframe", () => {
-    //     const doc: PxAnimatedSvgDocument = {
+    //     const doc: PxDocument = {
     //         type: 'svg',
     //         animator: { timeline: { outTime: 200 } },
     //         bindings: [{
@@ -382,7 +382,7 @@ describe('Loop expansion', () => {
     // FIXME
     // it('loop with segmentCount uses only specified intervals', () => {
     //     // 3 keyframes (2 intervals), segmentCount=1 → loop only the last interval
-    //     const doc: PxAnimatedSvgDocument = {
+    //     const doc: PxDocument = {
     //         type: 'svg',
     //         animator: { timeline: { outTime: 400 } },
     //         bindings: [{
@@ -424,7 +424,7 @@ describe('Loop expansion', () => {
     // it('loop with partial repetition interpolates at cut point', () => {
     //     // Duration=250, keyframes span 0→100. Fill: 100→250 = 150ms, seg=100ms.
     //     // 1 full rep (100→200) + 0.5 partial rep (200→250, cut at 50% of segment).
-    //     const doc: PxAnimatedSvgDocument = {
+    //     const doc: PxDocument = {
     //         type: 'svg',
     //         animator: { timeline: { outTime: 250 } },
     //         bindings: [{
@@ -451,7 +451,7 @@ describe('Loop expansion', () => {
     // });
 
     it('no gap: loop is no-op when keyframes span full duration', () => {
-        const doc: PxAnimatedSvgDocument = {
+        const doc: PxDocument = {
             type: 'svg',
             animator: {
                 definitions: { animations: { a0: {
@@ -486,7 +486,7 @@ describe('Loop expansion', () => {
     // loopIn `f0` bug. (Linear easing → exact midpoints.) Asserts on the materialized
     // keyframe list since this path keeps kf times in ms (not normalized 0-1).
     it("loop.repeatAt:'start' with partial rep tiles backward from the first keyframe", () => {
-        const doc: PxAnimatedSvgDocument = {
+        const doc: PxDocument = {
             type: 'svg',
             animator: {
                 definitions: { animations: { a0: {
@@ -528,7 +528,7 @@ describe('Loop expansion', () => {
 
     // FIXME
     // it('translate with loop:true cycles correctly', () => {
-    //     const doc: PxAnimatedSvgDocument = {
+    //     const doc: PxDocument = {
     //         type: 'svg',
     //         animator: { timeline: { outTime: 256 } },
     //         bindings: [{
@@ -724,14 +724,14 @@ describe('Color attribute normalization (frames-mode parity)', () => {
         }
     }
 
-    function getBindings(doc: PxAnimatedSvgDocument): PxRuntimeAnimation {
+    function getBindings(doc: PxDocument): PxRuntimeAnimation {
         const bindings = normalizeBindings(doc);
         expect(bindings.length).toBeGreaterThan(0);
         return bindings[0].channels;
     }
 
     it('camelCase `stopColor` is parsed (regression: frames-mode produced rgba(NaN,NaN,NaN,…))', () => {
-        const doc: PxAnimatedSvgDocument = {
+        const doc: PxDocument = {
             type: 'svg',
             animator: { timeline: { outTime: 1000 } },
             children: [
@@ -751,7 +751,7 @@ describe('Color attribute normalization (frames-mode parity)', () => {
                     },
                 },
             ],
-        } as PxAnimatedSvgDocument;
+        } as PxDocument;
 
         const animDef = getBindings(doc);
         // Sample at several intermediate times. Each must produce a clean
@@ -768,7 +768,7 @@ describe('Color attribute normalization (frames-mode parity)', () => {
 
     it('camelCase `floodColor` and `lightingColor` are also normalized', () => {
         for (const prop of ['floodColor', 'lightingColor']) {
-            const doc: PxAnimatedSvgDocument = {
+            const doc: PxDocument = {
                 type: 'svg',
                 animator: { timeline: { outTime: 1000 } },
                 children: [
@@ -804,7 +804,7 @@ describe('Color attribute normalization (frames-mode parity)', () => {
         // Goes through `materializeAllInTree` to mirror the player's actual
         // pipeline — the bug surfaced specifically there (raw kfs reach the
         // loop expansion before the binding pipeline's `parseColor` step).
-        const doc: PxAnimatedSvgDocument = {
+        const doc: PxDocument = {
             type: 'svg',
             animator: { timeline: { outTime: 1500 } },  // wider than the kfs range → loop fills tail
             children: [
@@ -846,7 +846,7 @@ describe('Color attribute normalization (frames-mode parity)', () => {
     // and stays that way past the seam.
 
     it('loop on a NUMERIC `opacity` animation — no NaN at the seam', () => {
-        const doc: PxAnimatedSvgDocument = {
+        const doc: PxDocument = {
             type: 'svg',
             animator: { timeline: { outTime: 1500 } },
             children: [
@@ -872,7 +872,7 @@ describe('Color attribute normalization (frames-mode parity)', () => {
         // `calcPropertyValue`'s defensive fallback absorbs the NaN (no visible
         // "NaN" string) but the seam SNAPS to the initial value instead of
         // interpolating — visually wrong even though no NaN.
-        const doc: PxAnimatedSvgDocument = {
+        const doc: PxDocument = {
             type: 'svg',
             animator: { timeline: { outTime: 1700 } },  // 700ms past the kfs range → forces partial-cut
             children: [
@@ -902,7 +902,7 @@ describe('Color attribute normalization (frames-mode parity)', () => {
     });
 
     it('loop on a PATH `d` animation — no NaN / no empty paths at the seam', () => {
-        const doc: PxAnimatedSvgDocument = {
+        const doc: PxDocument = {
             type: 'svg',
             animator: { timeline: { outTime: 1500 } },
             children: [
@@ -927,7 +927,7 @@ describe('Color attribute normalization (frames-mode parity)', () => {
     });
 
     it('kebab-case `stop-color` still works (no regression)', () => {
-        const doc: PxAnimatedSvgDocument = {
+        const doc: PxDocument = {
             type: 'svg',
             animator: { timeline: { outTime: 1000 } },
             children: [
@@ -955,7 +955,7 @@ describe('Color attribute normalization (frames-mode parity)', () => {
 
 ////////////////////////////////////////////////////////////////
 
-function getTestJson(): PxAnimatedSvgDocument {
+function getTestJson(): PxDocument {
     return {
         type: 'svg',
         id: '_px_2p4d44pl',

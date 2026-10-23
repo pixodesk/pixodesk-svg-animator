@@ -14,7 +14,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimator } from '../animator/PxAnimator';
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import type { PxDocument } from '@pixodesk/svg-animator-core';
 
 const DUR = 1000;
 
@@ -40,7 +40,7 @@ class StubAnimation {
     finish(): void { this.playState = 'finished'; }
 }
 
-function doc(timeline: Record<string, unknown> = {}): PxAnimatedSvgDocument {
+function doc(timeline: Record<string, unknown> = {}): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',

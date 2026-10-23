@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createSvgAnimator, PxAnimatedSvgDocument, type PxNode } from '@pixodesk/svg-animator-web';
+import { createSvgAnimator, PxDocument, type PxNode } from '@pixodesk/svg-animator-web';
 import { PxDiagnosticCode } from '@pixodesk/svg-animator-core';
 import { cleanup, render } from "@testing-library/react";
 import { createRef } from "react";
@@ -90,7 +90,7 @@ describe("SvgAnimator (React)", () => {
         });
 
         it("applies a node's inline `style` — `display: none` hides the element, like the web player", () => {
-            const doc: PxAnimatedSvgDocument = {
+            const doc: PxDocument = {
                 type: 'svg', viewBox: '0 0 2880 1800',
                 children: [
                     { type: 'ellipse', fill: '#ff0000', rx: 197.5, ry: 206.5 },
@@ -105,7 +105,7 @@ describe("SvgAnimator (React)", () => {
         });
 
         it("merges the root node's inline `style` with the component's `style` prop (the prop wins)", () => {
-            const doc: PxAnimatedSvgDocument = { type: 'svg', viewBox: '0 0 100 100', style: { display: 'block', opacity: '0.5' }, children: [] };
+            const doc: PxDocument = { type: 'svg', viewBox: '0 0 100 100', style: { display: 'block', opacity: '0.5' }, children: [] };
             const { container } = render(<SvgAnimator doc={doc} style={{ opacity: 1 }} />);
 
             const svg = container.querySelector("svg") as SVGSVGElement;
@@ -523,7 +523,7 @@ describe("SvgAnimator (React)", () => {
 
         // The old comparison took a second visit to one object for a cycle and threw during render.
         it("a re-created doc that reuses one object in two places is compared, not a crash", () => {
-            const sharedJson = (): PxAnimatedSvgDocument => {
+            const sharedJson = (): PxDocument => {
                 const fade = { keyframes: [{ time: 0, value: 0 }, { time: 500, value: 1 }] };
                 return {
                     type: "svg", id: "_px_shared", viewBox: "0 0 100 100",
@@ -531,7 +531,7 @@ describe("SvgAnimator (React)", () => {
                         { type: "rect", id: "a", animate: { opacity: fade } },
                         { type: "rect", id: "b", animate: { opacity: fade } },
                     ],
-                } as PxAnimatedSvgDocument;
+                } as PxDocument;
             };
             const { container, rerender } = render(<SvgAnimator doc={sharedJson()} playAsSaved />);
             const firstRootId = container.querySelector("svg")?.getAttribute("id");
@@ -548,7 +548,7 @@ describe("SvgAnimator (React)", () => {
 
         /** A WIRE-format document — nested `timeline`, the spelling every writer emits.
          *  The flat props this replaced were silently discarded on exactly this shape. */
-        function wireJson(): PxAnimatedSvgDocument {
+        function wireJson(): PxDocument {
             return {
                 type: "svg", id: "_px_wire", viewBox: "0 0 100 100",
                 animator: {
@@ -558,7 +558,7 @@ describe("SvgAnimator (React)", () => {
                     type: "rect", id: "r1", opacity: 0,
                     animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
                 }],
-            } as PxAnimatedSvgDocument;
+            } as PxDocument;
         }
 
         // The observable is the rendered attribute at a controlled time, the same way the
@@ -760,7 +760,7 @@ describe("SvgAnimator (React)", () => {
                 // as unsafe and the two renders differ for a reason that is not the name.
                 rect[kebabToCamel(kebab)] = REFERENCE_ATTRIBUTES.has(kebab) ? "url(#r)" : "1";
             }
-            const doc: PxAnimatedSvgDocument = { type: "svg", viewBox: "0 0 10 10", animator: { timeline: { outTime: 100, engine: "js" } }, children: [rect] };
+            const doc: PxDocument = { type: "svg", viewBox: "0 0 10 10", animator: { timeline: { outTime: 100, engine: "js" } }, children: [rect] };
 
             const host = document.createElement("div");
             document.body.appendChild(host);
@@ -853,7 +853,7 @@ function tagCensus(root: Element | null): Record<string, number> {
 ////////////////////////////////////////////////////////////////
 
 /** Frames-mode doc: single ellipse, translate 100 → 200 over 128ms. */
-function getTestJson(): PxAnimatedSvgDocument {
+function getTestJson(): PxDocument {
     return {
         type: "svg",
         id: "_px_2p4d44pl",
@@ -894,7 +894,7 @@ function getTestJson(): PxAnimatedSvgDocument {
 }
 
 /** Same as getTestJson but with duration 1000ms (for progress / time semantics). */
-function getTestJson1000(): PxAnimatedSvgDocument {
+function getTestJson1000(): PxDocument {
     return {
         type: "svg",
         id: "_px_2p4d44pl",
@@ -936,7 +936,7 @@ function getTestJson1000(): PxAnimatedSvgDocument {
 
 /** Doc with text: a leaf <text>, a <text> with two <tspan>s, and a line <tspan> carrying BOTH its
  *  folded text and a styled child span (the shape the editor writes for a one-span line). */
-function getTextJson(): PxAnimatedSvgDocument {
+function getTextJson(): PxDocument {
     return {
         type: "svg",
         viewBox: "0 0 200 150",
@@ -961,7 +961,7 @@ function getTextJson(): PxAnimatedSvgDocument {
 }
 
 /** Doc with a few children (ellipse + g > rect) for tag-tree rendering tests. */
-function getTreeJson(): PxAnimatedSvgDocument {
+function getTreeJson(): PxDocument {
     return {
         type: "svg",
         id: "_px_root_tree",
@@ -1017,7 +1017,7 @@ function getTreeJson(): PxAnimatedSvgDocument {
 }
 
 /** A different doc (animated rect) used to exercise doc-swap remounting. */
-function getRectJson(): PxAnimatedSvgDocument {
+function getRectJson(): PxDocument {
     return {
         type: "svg",
         id: "_px_root_b",
@@ -1064,7 +1064,7 @@ function getRectJson(): PxAnimatedSvgDocument {
  * played it. Root `fill: none`; both shapes filled by `effects.fillGradient` (radial); the
  * ellipse `effects.maskedBy` the rect (alpha); a mouse-over trigger with a looping transform.
  */
-function getEffectsOnlyJson(): PxAnimatedSvgDocument {
+function getEffectsOnlyJson(): PxDocument {
     return {
         type: "svg", fill: "none", preserveAspectRatio: "xMaxYMax ", viewBox: "0 0 500 500",
         animator: {
@@ -1129,7 +1129,7 @@ function getEffectsOnlyJson(): PxAnimatedSvgDocument {
  * magenta mask ellipse let only ~28% of the blue rect through (dark). The ellipse starts at the
  * rect's corner, so a quarter of it overlaps (quarter-circle).
  */
-function getMaskedLoadJson(): PxAnimatedSvgDocument {
+function getMaskedLoadJson(): PxDocument {
     return {
         type: "svg", fill: "none", preserveAspectRatio: "xMaxYMax ", viewBox: "0 0 500 500",
         animator: {

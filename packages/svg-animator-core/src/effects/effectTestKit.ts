@@ -15,7 +15,7 @@ import { toDomProps } from '../util/PxNodeProps';
 import { materializeNodeEffects } from './PlayerEffectsUtil';
 import { materializeAllInTree } from '../materialize/PxAnimatorMaterializeAll';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
-import { isCompiledAnimation, type PxAnimatedSvgDocument, type PxAnyPropertyAnimation, type PxCompiledAnimation, type PxEffects, type PxNode, type PxPropertyAnimation } from '../format/PxAnimatorTypes';
+import { isCompiledAnimation, type PxDocument, type PxAnyPropertyAnimation, type PxCompiledAnimation, type PxEffects, type PxNode, type PxPropertyAnimation } from '../format/PxAnimatorTypes';
 import { isRecord } from '../schema/PxSchema';
 
 export { PxTimelineEngine };
@@ -62,7 +62,7 @@ export function materialize(input: PxNode): PxNode {
  * — the plain {@link materialize} (effects only) is engine-agnostic.
  */
 export function materializeEngine(input: PxNode, engine: PxTimelineEngine): PxNode {
-    return materializeAllInTree(input as PxAnimatedSvgDocument, engine) as unknown as PxNode;
+    return materializeAllInTree(input as PxDocument, engine) as unknown as PxNode;
 }
 
 /** Same as {@link materialize} but returns warnings/errors too (for negative tests). */
@@ -179,7 +179,7 @@ export function noEffectsRemain(root: PxNode): boolean {
  */
 export function engineFirstFrame(materialized: PxNode): Map<string, Map<string, string>> {
     const written = new Map<string, Map<string, string>>();
-    const api = createAdapterSvgAnimator(materialized as PxAnimatedSvgDocument, {
+    const api = createAdapterSvgAnimator(materialized as PxDocument, {
         isConnected: () => true,
         setAttribute: (id, attr, value) => {
             const attrs = written.get(id) ?? new Map<string, string>();

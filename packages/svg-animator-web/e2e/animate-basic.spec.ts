@@ -2,9 +2,9 @@ import { expect, Page, test } from "@playwright/test";
 // Type-only import: value imports from ../src would make Playwright's babel
 // transpile the whole library at spec-load time (and choke on TS `declare`
 // class fields in PxSchema.ts). The format check is inlined instead.
-import type { PxAnimatedSvgDocument } from "../src/index";
+import type { PxDocument } from "../src/index";
 
-function isPxDocument(json: unknown): json is PxAnimatedSvgDocument {
+function isPxDocument(json: unknown): json is PxDocument {
     return !!json && typeof json === "object" && !Array.isArray(json) &&
         (("type" in json && json.type === "svg") || ("tagName" in json && json.tagName === "svg"));
 }
@@ -13,14 +13,14 @@ import _animatedAttributeJson from "./03-animated-attribute.json" with { type: "
 
 
 if (!isPxDocument(_bouncingBallJson)) {
-    throw new Error("Animation does not match PxAnimatedSvgDocument format");
+    throw new Error("Animation does not match PxDocument format");
 }
-const bouncingBallJson: PxAnimatedSvgDocument = _bouncingBallJson;
+const bouncingBallJson: PxDocument = _bouncingBallJson;
 
 if (!isPxDocument(_animatedAttributeJson)) {
-    throw new Error("Animation does not match PxAnimatedSvgDocument format");
+    throw new Error("Animation does not match PxDocument format");
 }
-const animatedAttributeJson: PxAnimatedSvgDocument = _animatedAttributeJson;
+const animatedAttributeJson: PxDocument = _animatedAttributeJson;
 
 
 const START_TIME = 100000000;
@@ -55,7 +55,7 @@ test.describe("animate-basic", () => {
         await page.clock.setFixedTime(START_TIME);
     });
 
-    function testAnimation(name: string, animationJson: PxAnimatedSvgDocument) {
+    function testAnimation(name: string, animationJson: PxDocument) {
         test(name, async ({ page }) => {
 
             // Intercept animation.json requests before navigating

@@ -21,7 +21,7 @@
 import { describe, expect, it } from 'vitest';
 import { calcAnimationValues, normalizeBindings } from '../animation/PxDefinitions';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
-import type { PxAnimatedSvgDocument, PxKeyframe, PxNode } from '../format/PxAnimatorTypes';
+import type { PxDocument, PxKeyframe, PxNode } from '../format/PxAnimatorTypes';
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ function parseTransformString(s: string): Mat {
 // ─────────────────────────────────────────────────────────────────────────────
 
 
-function evaluateAt(doc: PxAnimatedSvgDocument, engine: PxTimelineEngine, time: number): Record<string, string> | undefined {
+function evaluateAt(doc: PxDocument, engine: PxTimelineEngine, time: number): Record<string, string> | undefined {
     const bindings = normalizeBindings(doc, engine);
     if (bindings.length === 0) return undefined;
     // Find the binding whose id matches the animated rect/ellipse in the fixture.
@@ -106,7 +106,7 @@ function evaluateAt(doc: PxAnimatedSvgDocument, engine: PxTimelineEngine, time: 
  *  point in the element's local coordinate space) after applying the animated
  *  transform at `time`. Engine is the comparison axis. */
 function worldPos(
-    doc: PxAnimatedSvgDocument,
+    doc: PxDocument,
     engine: PxTimelineEngine,
     time: number,
     localPoint: [number, number],
@@ -131,7 +131,7 @@ function worldPos(
  *  the wrap-around bug.
  */
 function expectParity(
-    doc: PxAnimatedSvgDocument,
+    doc: PxDocument,
     opts: {
         duration: number;
         samples?: number;          // default 40 — coarse uniform sweep
@@ -187,7 +187,7 @@ function expectParity(
 /** Rect orbiting a closed path (4 kfs + closing kf), autoOrient
  *  on, every kf carries a static `origin` of [59.0992, 27.1254]. Reproduces
  *  the WAAPI bug where the materializer dropped non-translate parts. */
-const closedLoopOrbitFixture = (): PxAnimatedSvgDocument => ({
+const closedLoopOrbitFixture = (): PxDocument => ({
     type: 'svg',
     viewBox: '0 0 1080 1080',
     animator: { timeline: { duration: 2836, engine: 'auto', direction: 'normal' } },
@@ -211,11 +211,11 @@ const closedLoopOrbitFixture = (): PxAnimatedSvgDocument => ({
             },
         } as PxNode,
     ],
-} as PxAnimatedSvgDocument);
+} as PxDocument);
 
 
 /** Simple horseshoe — no origin, no autoOrient. Sanity baseline. */
-const horseshoeNoOriginFixture = (): PxAnimatedSvgDocument => ({
+const horseshoeNoOriginFixture = (): PxDocument => ({
     type: 'svg',
     animator: { timeline: { duration: 1000 } },
     children: [
@@ -232,12 +232,12 @@ const horseshoeNoOriginFixture = (): PxAnimatedSvgDocument => ({
             },
         } as PxNode,
     ],
-} as PxAnimatedSvgDocument);
+} as PxDocument);
 
 
 /** Horseshoe + autoOrient + static origin. The static origin should be
  *  preserved on every materialized sub-kf. */
-const horseshoeAutoOrientStaticOriginFixture = (): PxAnimatedSvgDocument => ({
+const horseshoeAutoOrientStaticOriginFixture = (): PxDocument => ({
     type: 'svg',
     animator: { timeline: { duration: 1000 } },
     children: [
@@ -255,13 +255,13 @@ const horseshoeAutoOrientStaticOriginFixture = (): PxAnimatedSvgDocument => ({
             },
         } as PxNode,
     ],
-} as PxAnimatedSvgDocument);
+} as PxDocument);
 
 
 /** S-curve with autoOrient AND an ANIMATED origin (changes between kfs).
  *  Materialized sub-kfs need to interpolate origin per-sample at the EASED
  *  progress, matching frames-mode behavior. */
-const sCurveAnimatedOriginFixture = (): PxAnimatedSvgDocument => ({
+const sCurveAnimatedOriginFixture = (): PxDocument => ({
     type: 'svg',
     animator: { timeline: { duration: 1000 } },
     children: [
@@ -280,12 +280,12 @@ const sCurveAnimatedOriginFixture = (): PxAnimatedSvgDocument => ({
             },
         } as PxNode,
     ],
-} as PxAnimatedSvgDocument);
+} as PxDocument);
 
 
 /** Motion path + animated SCALE (non-identity scale changes per kf).
  *  Tests that scale is interpolated correctly on sampled sub-kfs. */
-const animatedScaleAlongPathFixture = (): PxAnimatedSvgDocument => ({
+const animatedScaleAlongPathFixture = (): PxDocument => ({
     type: 'svg',
     animator: { timeline: { duration: 1000 } },
     children: [
@@ -303,12 +303,12 @@ const animatedScaleAlongPathFixture = (): PxAnimatedSvgDocument => ({
             },
         } as PxNode,
     ],
-} as PxAnimatedSvgDocument);
+} as PxDocument);
 
 
 /** Motion path with EXPLICIT rotate kfs and autoOrient FALSE. The rotate
  *  values should be interpolated normally (not overridden). */
-const motionPathExplicitRotateFixture = (): PxAnimatedSvgDocument => ({
+const motionPathExplicitRotateFixture = (): PxDocument => ({
     type: 'svg',
     animator: { timeline: { duration: 1000 } },
     children: [
@@ -325,7 +325,7 @@ const motionPathExplicitRotateFixture = (): PxAnimatedSvgDocument => ({
             },
         } as PxNode,
     ],
-} as PxAnimatedSvgDocument);
+} as PxDocument);
 
 
 /** Rectangular path with autoOrient and NO tangents — sharp 90° corners at
@@ -338,7 +338,7 @@ const motionPathExplicitRotateFixture = (): PxAnimatedSvgDocument => ({
  *  carrying the next-segment entry angle, otherwise engines linearly interp
  *  toward the next-segment end angle and the element rotates wrongly through
  *  the next segment. */
-const rectanglePathSharpCornersFixture = (): PxAnimatedSvgDocument => ({
+const rectanglePathSharpCornersFixture = (): PxDocument => ({
     type: 'svg',
     viewBox: '0 0 400 400',
     animator: { timeline: { duration: 4000, engine: 'auto', direction: 'normal' } },
@@ -361,12 +361,12 @@ const rectanglePathSharpCornersFixture = (): PxAnimatedSvgDocument => ({
             },
         } as PxNode,
     ],
-} as PxAnimatedSvgDocument);
+} as PxDocument);
 
 
 /** 180° U-turn: go right, then come back along the same line going left.
  *  Sharp corner at the midpoint with exactly opposite tangents. */
-const uTurnFixture = (): PxAnimatedSvgDocument => ({
+const uTurnFixture = (): PxDocument => ({
     type: 'svg',
     animator: { timeline: { duration: 2000 } },
     children: [
@@ -386,12 +386,12 @@ const uTurnFixture = (): PxAnimatedSvgDocument => ({
             },
         } as PxNode,
     ],
-} as PxAnimatedSvgDocument);
+} as PxDocument);
 
 
 /** Equilateral triangle path — 3 sharp corners with 60° interior angles
  *  (geometric heading change at each corner: 120° turn). */
-const triangleFixture = (): PxAnimatedSvgDocument => ({
+const triangleFixture = (): PxDocument => ({
     type: 'svg',
     animator: { timeline: { duration: 3000 } },
     children: [
@@ -412,13 +412,13 @@ const triangleFixture = (): PxAnimatedSvgDocument => ({
             },
         } as PxNode,
     ],
-} as PxAnimatedSvgDocument);
+} as PxDocument);
 
 
 /** Mixed: smooth curve into a sharp corner into another smooth curve.
  *  Tests that the corner-step logic doesn't insert false steps on smooth
  *  segment transitions (curve → curve, when tangents line up). */
-const curveSharpCurveFixture = (): PxAnimatedSvgDocument => ({
+const curveSharpCurveFixture = (): PxDocument => ({
     type: 'svg',
     animator: { timeline: { duration: 3000 } },
     children: [
@@ -442,7 +442,7 @@ const curveSharpCurveFixture = (): PxAnimatedSvgDocument => ({
             },
         } as PxNode,
     ],
-} as PxAnimatedSvgDocument);
+} as PxDocument);
 
 
 // ─────────────────────────────────────────────────────────────────────────────

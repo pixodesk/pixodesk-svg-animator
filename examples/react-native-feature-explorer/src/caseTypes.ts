@@ -6,7 +6,7 @@
 /**
  * A feature-explorer fixture, as written by the editor.
  *
- * Deliberately looser than `PxAnimatedSvgDocument`: these files are DATA exported from another
+ * Deliberately looser than `PxDocument`: these files are DATA exported from another
  * system and still carry a few keys the player's schema does not declare (animated-gradient
  * -geometry payloads). Typing them strictly would mean hand-editing 122 fixtures, which defeats
  * the point of copying them verbatim. The player validates at runtime anyway —

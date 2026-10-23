@@ -19,7 +19,7 @@ export const GROUPS = [
 export const CASES = [
   // -- Web player -------------------------------------------------------------
   { group: 'web', id: 'declarative',   title: 'Declarative — data-px-animation-src', anchor: 'declarative--data-px-animation-src',
-    summary: 'Point an element at the JSON and call loadTagSvgAnimators() once.' },
+    summary: 'Point an element at the JSON and call createSvgAnimatorsFromPage() once.' },
   { group: 'web', id: 'programmatic',  title: 'Programmatic — createSvgAnimator + playback API', anchor: 'programmatic--createsvganimatoroptions',
     summary: 'createSvgAnimator({ src, container }) and every method of the returned API.' },
   { group: 'web', id: 'callbacks',     title: 'Callbacks', anchor: 'callbacks',
@@ -29,7 +29,7 @@ export const CASES = [
   { group: 'web', id: 'engine-modes',  title: 'Playback modes — native vs player', anchor: 'playback-modes',
     summary: 'The same document driven by each engine, side by side.' },
   { group: 'web', id: 'several',       title: 'Loading several animations', anchor: 'loading-several-animations',
-    summary: 'Three elements, one loadTagSvgAnimators() call.' },
+    summary: 'Three elements, one createSvgAnimatorsFromPage() call.' },
   { group: 'web', id: 'cleanup',       title: 'Cleaning up — destroy()', anchor: 'cleaning-up',
     summary: 'destroy() stops playback and removes the SVG from the container.' },
 

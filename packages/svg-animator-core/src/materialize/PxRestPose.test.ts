@@ -6,7 +6,7 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeBindings } from '../animation/PxDefinitions';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
-import type { PxAnimatedSvgDocument, PxNode } from '../format/PxAnimatorTypes';
+import type { PxDocument, PxNode } from '../format/PxAnimatorTypes';
 import { createAdapterSvgAnimator } from '../playback/PxFrameLoop';
 import { toDomProps } from '../util/PxNodeProps';
 import { PX_TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
@@ -16,12 +16,12 @@ import { materializeRestPosesInTree } from './PxRestPose';
 
 const JS = PxTimelineEngine.js;
 const kf = <V>(time: number, value: V): { time: number; value: V } => ({ time, value });
-const docOf = (children: Array<PxNode>, timeline: Record<string, unknown> = {}): PxAnimatedSvgDocument =>
+const docOf = (children: Array<PxNode>, timeline: Record<string, unknown> = {}): PxDocument =>
     ({ type: 'svg', viewBox: '0 0 100 100', animator: { timeline: { outTime: 1000, engine: 'js', ...timeline } }, children });
-const first = (doc: PxAnimatedSvgDocument): PxNode => (doc.children ?? [])[0];
+const first = (doc: PxDocument): PxNode => (doc.children ?? [])[0];
 
 /** What the ENGINE writes at its first frame — `id` → attribute → value. The reference. */
-function engineFirstFrame(doc: PxAnimatedSvgDocument): Map<string, Map<string, string>> {
+function engineFirstFrame(doc: PxDocument): Map<string, Map<string, string>> {
     const written = new Map<string, Map<string, string>>();
     const api = createAdapterSvgAnimator(doc, {
         isConnected: () => true,

@@ -24,7 +24,7 @@
  */
 import { PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS, PxTriggerStart } from '../format/PxAnimatorConstants';
 import type { PxMouseOutAction, PxOffScreenAction } from '../format/PxAnimatorConstants';
-import type { PxAnimatedSvgDocument, PxAnimatorConfig } from '../format/PxAnimatorTypes';
+import type { PxDocument, PxAnimatorConfig } from '../format/PxAnimatorTypes';
 import { legacyAnimatorOf } from '../format/PxDocStage';
 
 /** A deep-partial of the WIRE animator config; `null` at any slot deletes it. @public */
@@ -296,10 +296,10 @@ function mergeConfigRecord(base: unknown, patch: JsonRecord, warn: (m: string) =
  * @public
  */
 export function applyAnimatorConfig(
-    doc: PxAnimatedSvgDocument,
+    doc: PxDocument,
     patch: PxAnimatorConfigPatch,
     options?: { resetTimeline?: boolean },
-): { doc: PxAnimatedSvgDocument; warnings: Array<string> } {
+): { doc: PxDocument; warnings: Array<string> } {
     const reset = !!options?.resetTimeline;
     if (!doc || (patch === undefined || (!reset && (patch === null || !isPlainObject(patch) || !Object.keys(patch).length)))) {
         return { doc, warnings: [] };

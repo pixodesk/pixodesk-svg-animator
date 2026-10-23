@@ -62,7 +62,7 @@ function copyPlayerLibrary(args, io, packageDir) {
     io.out('');
     io.out('Load it in your page:');
     io.out(`  <script src="${src}"></script>`);
-    io.out('  <script>Pixodesk.SvgAnimator.loadTagSvgAnimators();</script>');
+    io.out('  <script>Pixodesk.SvgAnimator.createSvgAnimatorsFromPage();</script>');
     return 0;
 }
 

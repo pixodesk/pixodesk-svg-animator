@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { calcAnimationValues, getAnimatorConfig, normalizeBindings, PxTimelineEngine, type PxAnimatedSvgDocument, type PxNode } from '@pixodesk/svg-animator-core';
+import { calcAnimationValues, getAnimatorConfig, normalizeBindings, PxTimelineEngine, type PxDocument, type PxNode } from '@pixodesk/svg-animator-core';
 import { createMotionPathSegments } from '@pixodesk/svg-animator-core/internal';
 import { PX_DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
 import { toRnPropName, toRnPropValue } from './PxRnPropNames';
@@ -73,7 +73,7 @@ export interface CompileTracksOptions {
  * first) into densely sampled per-element tracks.
  * @internal
  */
-export function compileTracks(doc: PxAnimatedSvgDocument, opts?: CompileTracksOptions): PxCompiledTracks {
+export function compileTracks(doc: PxDocument, opts?: CompileTracksOptions): PxCompiledTracks {
     const config = getAnimatorConfig(doc) || {};
 
     const duration = +(config.duration || PX_DEFAULT_DURATION_MS);

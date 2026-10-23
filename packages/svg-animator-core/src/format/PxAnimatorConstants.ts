@@ -22,7 +22,7 @@
 // ============================================================================
 
 import type { PxPlayMode } from '../playback/PxDeclarativePlayback';
-import type { PxAnimatedSvgDocument, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBinding, PxDefinitions, PxNode, PxScroll, PxTimeline, PxTrigger, _PxScrollishTimelineShape, _PxTimeTimeline } from './PxAnimatorTypes';
+import type { PxDocument, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBinding, PxDefinitions, PxNode, PxScroll, PxTimeline, PxTrigger, _PxScrollishTimelineShape, _PxTimeTimeline } from './PxAnimatorTypes';
 // (TYPES only from PxAnimatorTypes: it reads this module's constants while it loads.)
 import { animatorOf, prepOf, stageAtLeast, stampPrep, trustedView, PxDocStage, type PxDocPrep } from './PxDocStage';
 
@@ -668,7 +668,7 @@ export type PxGradientType = typeof PxGradientType[keyof typeof PxGradientType];
 // @px-area validation
 /** The cheap shallow gate — "is this a Pixodesk document at all?". With `validateDocument`,
  *  the whole public checking surface (review §15). @public */
-export function isPxDocument(doc: unknown): doc is PxAnimatedSvgDocument {
+export function isPxDocument(doc: unknown): doc is PxDocument {
     if (!doc || typeof doc !== 'object' || Array.isArray(doc)) return false;
 
     // `type` is the root tag, and the ONLY discriminator: `svg`, or an HTML element that wraps
@@ -689,7 +689,7 @@ export function isPxDocument(doc: unknown): doc is PxAnimatedSvgDocument {
  * them and they were never in the schema.
  * @public @advanced
  */
-export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorRuntimeConfig | undefined {
+export function getAnimatorConfig(doc: PxDocument): PxAnimatorRuntimeConfig | undefined {
     // A PREPARED document (stage ≥ resolved) carries its runtime view in the stamp — a plain
     // property read, same object every time, while the doc still holds the config object the view
     // came from. Anything else derives FRESH on every call: no module state, no caches
@@ -700,7 +700,7 @@ export function getAnimatorConfig(doc: PxAnimatedSvgDocument): PxAnimatorRuntime
 
 // @px-area pipeline
 /** `prep` re-pointed at `doc`: its view is reused while `doc` holds the same animator config object, else re-derived. @internal */
-export function prepFor(doc: PxAnimatedSvgDocument, prep: PxDocPrep): PxDocPrep {
+export function prepFor(doc: PxDocument, prep: PxDocPrep): PxDocPrep {
     if (!stageAtLeast(prep.stage, PxDocStage.resolved)) return prep;
     const cfg = animatorOf(doc);
     return cfg === prep.viewOf ? prep : { ...prep, view: deriveRuntimeView(doc), viewOf: cfg };
@@ -709,15 +709,15 @@ export function prepFor(doc: PxAnimatedSvgDocument, prep: PxDocPrep): PxDocPrep 
 // @px-area pipeline
 /** Stamps `to` (a doc the caller derived from `from`, e.g. by id regeneration) with `from`'s stage —
  *  the view re-derived when `to`'s animator config is a new object. Returns `to`. @internal */
-export function carryPrep<T extends PxAnimatedSvgDocument>(from: PxAnimatedSvgDocument, to: T): T {
+export function carryPrep<T extends PxDocument>(from: PxDocument, to: T): T {
     const prep = prepOf(from);
-    if (prep && to !== (from as PxAnimatedSvgDocument)) stampPrep(to, prepFor(to, prep));
+    if (prep && to !== (from as PxDocument)) stampPrep(to, prepFor(to, prep));
     return to;
 }
 
 // @px-importance important
 /** The runtime view derived from the wire form — what `prepareDocument` attaches at `resolved`. @internal */
-export function deriveRuntimeView(doc: PxAnimatedSvgDocument): PxAnimatorRuntimeConfig | undefined {
+export function deriveRuntimeView(doc: PxDocument): PxAnimatorRuntimeConfig | undefined {
     const cfg = animatorOf(doc);
     if (!cfg) return undefined;
 
@@ -771,7 +771,7 @@ function foldWindow(timeline: PxTimeline, flat: PxAnimatorRuntimeConfig): void {
  *  named `definitions.animations` — before loop expansion (loops fill TO the window). What an
  *  absent `outTime` means; `undefined` when there are no keyframe times to take it from.
  *  @internal */
-export function maxKeyframeTimeOf(doc: PxAnimatedSvgDocument): number | undefined {
+export function maxKeyframeTimeOf(doc: PxDocument): number | undefined {
     let max: number | undefined;
     const scanAnimation = (animation: unknown): void => {
         if (!animation || typeof animation !== 'object') return;
@@ -938,19 +938,19 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
 
 
 /** @public @advanced */
-export function getDefinitions(doc: PxAnimatedSvgDocument): PxDefinitions | undefined {
+export function getDefinitions(doc: PxDocument): PxDefinitions | undefined {
     if (!doc) return undefined;
     return getAnimatorConfig(doc)?.definitions;
 }
 
 /** The bind-by-id document's `animator.bindings`, as written — `target` keeps its `#`. @public @advanced */
-export function getBindings(doc: PxAnimatedSvgDocument): PxBinding[] | undefined {
+export function getBindings(doc: PxDocument): PxBinding[] | undefined {
     if (!doc) return undefined;
     return getAnimatorConfig(doc)?.bindings;
 }
 
 
 /** @public @advanced */
-export function getChildren(doc: PxAnimatedSvgDocument): PxNode[] | undefined {
+export function getChildren(doc: PxDocument): PxNode[] | undefined {
     return doc?.children;
 }

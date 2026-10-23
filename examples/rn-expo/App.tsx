@@ -7,12 +7,12 @@ import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-rn';
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import type { PxDocument } from '@pixodesk/svg-animator-core';
 
 // -- Sample documents ---------------------------------------------------------
 
 /** Static tree — no animation; exercises the renderer only. */
-const staticDoc: PxAnimatedSvgDocument = {
+const staticDoc: PxDocument = {
     type: 'svg', viewBox: '0 0 300 200',
     children: [
         { type: 'rect', x: 20, y: 20, width: 80, height: 60, rx: 8, fill: '#6366f1' },
@@ -26,7 +26,7 @@ const staticDoc: PxAnimatedSvgDocument = {
 };
 
 /** Transforms + color + opacity + geometry — the core animated-attr set. */
-const animatedDoc: PxAnimatedSvgDocument = {
+const animatedDoc: PxDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         timeline: { outTime: 2000, iterations: 'infinite', direction: 'alternate', trigger: { start: 'load', offScreen: 'continue' } },
@@ -63,7 +63,7 @@ const animatedDoc: PxAnimatedSvgDocument = {
 };
 
 /** Motion along a curved path with auto-orient — materialized by core sampling. */
-const motionPathDoc: PxAnimatedSvgDocument = {
+const motionPathDoc: PxDocument = {
     type: 'svg', viewBox: '0 0 300 200',
     animator: { timeline: { outTime: 3000, iterations: 'infinite', trigger: { start: 'load', offScreen: 'continue' } } },
     children: [
@@ -84,7 +84,7 @@ const motionPathDoc: PxAnimatedSvgDocument = {
     ],
 };
 
-const DEMOS: Array<{ name: string; doc: PxAnimatedSvgDocument; playAsSaved: boolean }> = [
+const DEMOS: Array<{ name: string; doc: PxDocument; playAsSaved: boolean }> = [
     { name: 'Animated', doc: animatedDoc, playAsSaved: true },
     { name: 'Motion path', doc: motionPathDoc, playAsSaved: true },
     { name: 'Static', doc: staticDoc, playAsSaved: false },

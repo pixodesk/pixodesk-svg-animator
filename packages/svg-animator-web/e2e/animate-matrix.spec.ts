@@ -13,10 +13,10 @@
  */
 
 import { expect, Page, test } from "@playwright/test";
-import type { PxAnimatedSvgDocument, PxAnimatorApi } from "../src/index";
+import type { PxDocument, PxAnimatorApi } from "../src/index";
 import type { PX_ANIM_ATTR_NAME } from "../src/index.player";
 
-/** A `data-px-animation-src` element with the player `loadTagSvgAnimators` keeps on it. */
+/** A `data-px-animation-src` element with the player `createSvgAnimatorsFromPage` keeps on it. */
 type PxTagElement = Element & Partial<Record<typeof PX_ANIM_ATTR_NAME, PxAnimatorApi>>;
 
 
@@ -64,7 +64,7 @@ function animator(mode: 'auto' | 'native' | 'player') {
 // ---------------------------------------------------------------------------
 
 /** Numeric + color + position attributes: opacity, fill, cx/cy, r. */
-function basicAttrsDoc(mode: 'native' | 'frames'): PxAnimatedSvgDocument {
+function basicAttrsDoc(mode: 'native' | 'frames'): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
         animator: animator(mode),
@@ -90,7 +90,7 @@ function basicAttrsDoc(mode: 'native' | 'frames'): PxAnimatedSvgDocument {
 }
 
 /** Transform parts: translate + rotate + scale (nested, one fn per level). */
-function transformDoc(mode: 'native' | 'frames'): PxAnimatedSvgDocument {
+function transformDoc(mode: 'native' | 'frames'): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
         animator: animator(mode),
@@ -111,7 +111,7 @@ function transformDoc(mode: 'native' | 'frames'): PxAnimatedSvgDocument {
 }
 
 /** Path morph (`d`) + stroke-dasharray draw-on. Frames-only (WAAPI can't morph). */
-function shapeDoc(): PxAnimatedSvgDocument {
+function shapeDoc(): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
         animator: animator('frames'),
@@ -144,7 +144,7 @@ function shapeDoc(): PxAnimatedSvgDocument {
 // Player-effect docs (materialized by the player at runtime; mode auto)
 // ---------------------------------------------------------------------------
 
-function transformByEffectDoc(mode: 'native' | 'frames'): PxAnimatedSvgDocument {
+function transformByEffectDoc(mode: 'native' | 'frames'): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
         animator: animator(mode),
@@ -160,7 +160,7 @@ function transformByEffectDoc(mode: 'native' | 'frames'): PxAnimatedSvgDocument 
     };
 }
 
-function repeaterEffectDoc(): PxAnimatedSvgDocument {
+function repeaterEffectDoc(): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
         animator: animator('frames'),
@@ -172,7 +172,7 @@ function repeaterEffectDoc(): PxAnimatedSvgDocument {
     };
 }
 
-function trimPathEffectDoc(): PxAnimatedSvgDocument {
+function trimPathEffectDoc(): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
         animator: animator('frames'),
@@ -188,7 +188,7 @@ function trimPathEffectDoc(): PxAnimatedSvgDocument {
     };
 }
 
-function gradientEffectDoc(): PxAnimatedSvgDocument {
+function gradientEffectDoc(): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
         animator: animator('frames'),
@@ -210,7 +210,7 @@ function gradientEffectDoc(): PxAnimatedSvgDocument {
     };
 }
 
-function maskedByEffectDoc(): PxAnimatedSvgDocument {
+function maskedByEffectDoc(): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
         animator: animator('frames'),
@@ -230,7 +230,7 @@ function maskedByEffectDoc(): PxAnimatedSvgDocument {
     };
 }
 
-function cloneRetimeEffectDoc(): PxAnimatedSvgDocument {
+function cloneRetimeEffectDoc(): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
         animator: animator('frames'),
@@ -259,7 +259,7 @@ function cloneRetimeEffectDoc(): PxAnimatedSvgDocument {
 // ---------------------------------------------------------------------------
 
 /** Serves `doc` as /animation.json and opens the generic fixture page. */
-async function openWithDoc(page: Page, doc: PxAnimatedSvgDocument) {
+async function openWithDoc(page: Page, doc: PxDocument) {
     await page.route('**/animation.json', async route => {
         await route.fulfill({
             status: 200,
@@ -281,7 +281,7 @@ test.describe("animate-matrix (frames, clock-driven)", () => {
         await page.clock.setFixedTime(START_TIME);
     });
 
-    function screenshotTest(name: string, doc: PxAnimatedSvgDocument) {
+    function screenshotTest(name: string, doc: PxDocument) {
         test(name, async ({ page }) => {
             await openWithDoc(page, doc);
 
@@ -320,11 +320,11 @@ test.describe("animate-matrix (waapi, seek-driven)", () => {
         page.on('console', msg => console.log('BROWSER:', msg.text()));
     });
 
-    function seekScreenshotTest(name: string, doc: PxAnimatedSvgDocument) {
+    function seekScreenshotTest(name: string, doc: PxDocument) {
         test(name, async ({ page }) => {
             await openWithDoc(page, doc);
 
-            // Wait until loadTagSvgAnimators has attached a ready animator.
+            // Wait until createSvgAnimatorsFromPage has attached a ready animator.
             await page.waitForFunction(() => {
                 const el: PxTagElement | null = document.querySelector('[data-px-animation-src]');
                 return el && el._px_animator && el._px_animator.isReady();

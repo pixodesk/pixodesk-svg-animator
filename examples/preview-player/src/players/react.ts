@@ -1,13 +1,13 @@
 import { createElement } from 'react';
 import { createRoot } from 'react-dom/client';
 import { SvgAnimator, type ReactAnimatorApi } from '@pixodesk/svg-animator-react';
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
+import type { PxDocument } from '@pixodesk/svg-animator-web';
 import { applyTriggerOverride, shouldAutoplayForTrigger, type PlayerHandle, type PlayerOptions } from './types';
 
 /** Mounts the React `<SvgAnimator/>` component into `container`. */
 export function createReactPlayer(
   container: HTMLElement,
-  doc: PxAnimatedSvgDocument,
+  doc: PxDocument,
   opts?: PlayerOptions,
 ): PlayerHandle {
   // `apiRef.current` is populated by the component's `useImperativeHandle` after

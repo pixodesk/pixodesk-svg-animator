@@ -5,7 +5,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAdapterSvgAnimator, type PxPlatformAdapter } from './PxAnimatorFrameLoop';
-import type { PxAnimatedSvgDocument, PxEngineCallbacks, PxInfer, PxTimeTimelineSchema } from '@pixodesk/svg-animator-core';
+import type { PxDocument, PxEngineCallbacks, PxInfer, PxTimeTimelineSchema } from '@pixodesk/svg-animator-core';
 
 /** The time-driven member of the wire `timeline` — what every override below patches. */
 type PxTimeTimeline = PxInfer<typeof PxTimeTimelineSchema>;
@@ -24,7 +24,7 @@ const DUR = 320;
  * knob. `frameRate` used to be the one exception, routed back out to `animator`; since it moved
  * into the timeline (2026-09-09) there is no exception left to carve out.
  */
-function makeDoc(timeline: PxTimeTimeline = {}): PxAnimatedSvgDocument {
+function makeDoc(timeline: PxTimeTimeline = {}): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',

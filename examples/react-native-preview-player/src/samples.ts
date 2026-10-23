@@ -6,13 +6,13 @@
  * through the real core pipeline (`materializeAllInTree` + track compilation)
  * so the demo only ships shapes the RN player can actually render.
  */
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import type { PxDocument } from '@pixodesk/svg-animator-core';
 
 export interface Sample {
     name: string;
     /** One-line description of what the example demonstrates. */
     note: string;
-    doc: PxAnimatedSvgDocument;
+    doc: PxDocument;
 }
 
 // ---------------------------------------------------------------------------
@@ -22,7 +22,7 @@ export interface Sample {
 const EASE_OUT: [number, number, number, number] = [0.33, 0, 0.67, 0.33];
 const EASE_IN: [number, number, number, number] = [0.33, 0.67, 0.67, 1];
 
-const bouncingBall: PxAnimatedSvgDocument = {
+const bouncingBall: PxDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         timeline: {
@@ -164,7 +164,7 @@ function shiftedLetters() {
     });
 }
 
-const textAlongPath: PxAnimatedSvgDocument = {
+const textAlongPath: PxDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         timeline: {
@@ -193,7 +193,7 @@ const textAlongPath: PxAnimatedSvgDocument = {
 // 3. Trim path — draw-on stroke via the strokeTrim effect
 // ---------------------------------------------------------------------------
 
-const strokeTrim: PxAnimatedSvgDocument = {
+const strokeTrim: PxDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         timeline: {
@@ -244,7 +244,7 @@ const strokeTrim: PxAnimatedSvgDocument = {
 // 4. Repeater + transform stack
 // ---------------------------------------------------------------------------
 
-const repeater: PxAnimatedSvgDocument = {
+const repeater: PxDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         timeline: {
@@ -289,7 +289,7 @@ const repeater: PxAnimatedSvgDocument = {
 // 5. Animated gradient
 // ---------------------------------------------------------------------------
 
-const gradient: PxAnimatedSvgDocument = {
+const gradient: PxDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         timeline: {
@@ -331,7 +331,7 @@ const gradient: PxAnimatedSvgDocument = {
 // 6. Path morph (shape interpolation)
 // ---------------------------------------------------------------------------
 
-const morph: PxAnimatedSvgDocument = {
+const morph: PxDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         timeline: {

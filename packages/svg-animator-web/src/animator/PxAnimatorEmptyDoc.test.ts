@@ -13,18 +13,18 @@
 
 import { beforeEach, describe, expect, it } from 'vitest';
 import { createSvgAnimator } from './PxAnimator';
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import type { PxDocument } from '@pixodesk/svg-animator-core';
 
-const emptyDoc = (): PxAnimatedSvgDocument => ({
+const emptyDoc = (): PxDocument => ({
     type: 'svg',
     viewBox: '0 0 200 200',
     animator: { timeline: { outTime: 1000, engine: 'auto' } },
-} as unknown as PxAnimatedSvgDocument);
+} as unknown as PxDocument);
 
-const docWithChild = (): PxAnimatedSvgDocument => ({
+const docWithChild = (): PxDocument => ({
     ...emptyDoc(),
     children: [{ type: 'rect', x: 10, y: 10, width: 20, height: 20 }],
-} as unknown as PxAnimatedSvgDocument);
+} as unknown as PxDocument);
 
 
 describe('createSvgAnimator — a document with no children', () => {

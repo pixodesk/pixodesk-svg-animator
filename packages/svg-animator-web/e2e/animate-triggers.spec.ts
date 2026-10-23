@@ -2,9 +2,9 @@ import { expect, test } from "@playwright/test";
 // Type-only import: value imports from ../src would make Playwright's babel
 // transpile the whole library at spec-load time (and choke on TS `declare`
 // class fields in PxSchema.ts). The format check is inlined instead.
-import type { PxAnimatedSvgDocument } from "../src/index";
+import type { PxDocument } from "../src/index";
 
-function isPxDocument(json: unknown): json is PxAnimatedSvgDocument {
+function isPxDocument(json: unknown): json is PxDocument {
     return !!json && typeof json === "object" && !Array.isArray(json) &&
         (("type" in json && json.type === "svg") || ("tagName" in json && json.tagName === "svg"));
 }
@@ -12,12 +12,12 @@ import _animationJson from "./falling-ball-svga.json" with { type: "json" };
 
 
 if (!isPxDocument(_animationJson)) {
-    throw new Error("Animation does not match PxAnimatedSvgDocument format");
+    throw new Error("Animation does not match PxDocument format");
 }
-const animationJson: PxAnimatedSvgDocument = _animationJson;
+const animationJson: PxDocument = _animationJson;
 
 if (!isPxDocument(_animationJson)) {
-    throw new Error("Animation does not match PxAnimatedSvgDocument format");
+    throw new Error("Animation does not match PxDocument format");
 }
 
 async function sleep(t: number): Promise<void> {

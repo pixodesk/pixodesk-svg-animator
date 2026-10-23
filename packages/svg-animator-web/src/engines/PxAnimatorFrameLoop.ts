@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createAdapterSvgAnimator, getAnimatorConfig, PxDiagnosticCode, PxDiagnosticKind, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxDiagnostics, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { createAdapterSvgAnimator, getAnimatorConfig, PxDiagnosticCode, PxDiagnosticKind, type PxDocument, type PxEngineCallbacks, type PxDiagnostics, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { camelCaseToKebabWordIfNeeded, createDiagnostics, isScrollTimeline, PX_STYLE_ATTR_NAMES } from '@pixodesk/svg-animator-core/internal';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
 import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
@@ -56,7 +56,7 @@ function escapeCssId(id: string): string {
  * @internal
  */
 export function createFrameLoopAnimator(
-    doc: PxAnimatedSvgDocument,
+    doc: PxDocument,
     adapter?: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks,
     rootElement?: Element | null

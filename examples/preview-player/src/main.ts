@@ -1,5 +1,5 @@
 import './style.css';
-import { type PxAnimatedSvgDocument, type PxTrigger } from '@pixodesk/svg-animator-web';
+import { type PxDocument, type PxTrigger } from '@pixodesk/svg-animator-web';
 import { getAnimatorConfig, isPxDocument, PxOffScreenAction, PxTriggerStart } from '@pixodesk/svg-animator-core';
 
 import { createWebPlayer } from './players/web';
@@ -97,9 +97,9 @@ btnTheme.addEventListener('click', () => {
 
 // The JSON import is inferred as a wide literal type; route through `unknown`
 // to adopt the document type (as TypeScript recommends for this conversion).
-const demoDoc = sample as unknown as PxAnimatedSvgDocument;
+const demoDoc = sample as unknown as PxDocument;
 
-let currentDoc: PxAnimatedSvgDocument | null = null;
+let currentDoc: PxDocument | null = null;
 let currentKind: PlayerKind = 'web';
 let currentLoop: LoopMode = 'auto';
 // Trigger controls: when `useTrigger` is on, the document's trigger — from the file or a
@@ -110,7 +110,7 @@ let handle: PlayerHandle | null = null;
 let duration = 0;
 let scrubbing = false;
 
-function readDuration(doc: PxAnimatedSvgDocument): number {
+function readDuration(doc: PxDocument): number {
   return getAnimatorConfig(doc)?.duration ?? 1000;
 }
 
@@ -118,7 +118,7 @@ function readDuration(doc: PxAnimatedSvgDocument): number {
  * Resolves the animation's canvas dimensions from the document: prefer the
  * `viewBox` (last two numbers), fall back to `width`/`height`, then 400×400.
  */
-function readCanvasSize(doc: PxAnimatedSvgDocument): { w: number; h: number } {
+function readCanvasSize(doc: PxDocument): { w: number; h: number } {
   const vb = doc.viewBox?.trim().split(/[\s,]+/).map(Number);
   if (vb && vb.length === 4 && vb[2] > 0 && vb[3] > 0 && vb.every((n) => Number.isFinite(n))) {
     return { w: vb[2], h: vb[3] };
@@ -154,7 +154,7 @@ function fitCanvas(): void {
 }
 
 /** Reads the document's canvas size, updates the label, and fits the box. */
-function applyCanvasSize(doc: PxAnimatedSvgDocument): void {
+function applyCanvasSize(doc: PxDocument): void {
   const { w, h } = readCanvasSize(doc);
   canvasW = w;
   canvasH = h;
@@ -337,7 +337,7 @@ function remount(): void {
 }
 
 /** Adopts a validated document and (re)mounts the current player. */
-function loadDocument(doc: PxAnimatedSvgDocument, sourceLabel: string): void {
+function loadDocument(doc: PxDocument, sourceLabel: string): void {
   currentDoc = doc;
   filenameEl.textContent = sourceLabel;
   // Auto-detect the trigger mode from the loaded file: a REAL trigger turns "Use trigger" ON
@@ -441,7 +441,7 @@ function loadFile(file: File): void {
         showError(`"${file.name}" is not a Pixodesk SVG animation document.`);
         return;
       }
-      loadDocument(json as PxAnimatedSvgDocument, file.name);
+      loadDocument(json as PxDocument, file.name);
     })
     .catch((err) => showError(`Could not read "${file.name}": ${String(err)}`));
 }

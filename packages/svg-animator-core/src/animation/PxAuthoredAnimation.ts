@@ -12,11 +12,11 @@
  */
 
 import { PxValueKind } from '../format/PxAnimatorConstants';
-import { PxAnimatedSvgDocumentSchema, PxAnimatorConfigSchema, PxCompiledAnimationSchema, PxDefinitionsSchema, type PxCompiledAnimation, type PxCompiledKeyframe, type PxKeyframe, type PxKeyframeValue, type PxPropertyAnimation } from '../format/PxAnimatorTypes';
+import { PxDocumentSchema, PxAnimatorConfigSchema, PxCompiledAnimationSchema, PxDefinitionsSchema, type PxCompiledAnimation, type PxCompiledKeyframe, type PxKeyframe, type PxKeyframeValue, type PxPropertyAnimation } from '../format/PxAnimatorTypes';
 import { isRecord, schemaKeys } from '../schema/PxSchema';
 import { bezierToSvgPath, toRGBA } from '../util/PxAnimatorUtil';
 
-const DOC = schemaKeys(PxAnimatedSvgDocumentSchema);
+const DOC = schemaKeys(PxDocumentSchema);
 const ANIMATOR = schemaKeys(PxAnimatorConfigSchema);
 const DEFS = schemaKeys(PxDefinitionsSchema);
 

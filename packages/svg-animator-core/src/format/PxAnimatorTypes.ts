@@ -2014,13 +2014,13 @@ function collectEasingRefProblems(root: PxNode, easings: { [name: string]: unkno
  * An ABSENT stamp is legal and silent: only a present-but-unparseable one is reported.
  */
 /** @internal — folded into `validateDocument`; on the `/internal` entry for the editor. */
-export function validateVersionStamp(doc: PxAnimatedSvgDocument): Array<string> {
+export function validateVersionStamp(doc: PxDocument): Array<string> {
     const ctx = newCollectingContext(false);
     collectVersionStampProblems(doc, ctx);
     return ctx.errors;
 }
 
-function collectVersionStampProblems(doc: PxAnimatedSvgDocument, ctx: PxValidationContext): void {
+function collectVersionStampProblems(doc: PxDocument, ctx: PxValidationContext): void {
     const version = getAnimatorConfig(doc)?.version;
     if (version === undefined) return;
     if (parseWireVersion(version) !== undefined) return;
@@ -2054,13 +2054,13 @@ function collectDocumentProblems(doc: unknown, options?: { strict?: boolean }): 
     // wants: an unknown key usually means a newer writer — worth a warning, never a refusal.
     const strict = options?.strict !== false;
     const ctx = newCollectingContext(strict);
-    PxAnimatedSvgDocumentSchema.isValid(doc, ctx, [PX_VALIDATION_ROOT_SEGMENT]);
+    PxDocumentSchema.isValid(doc, ctx, [PX_VALIDATION_ROOT_SEGMENT]);
     if (doc && typeof doc === 'object') {
         collectNodeEffectProblems(doc as PxNode, ctx, true);
-        const defs = getAnimatorConfig(doc as PxAnimatedSvgDocument)?.definitions;
+        const defs = getAnimatorConfig(doc as PxDocument)?.definitions;
         collectGlyphFontRefProblems(doc as PxNode, defs?.fonts, ctx);
         collectEasingRefProblems(doc as PxNode, defs?.easings, ctx);
-        collectVersionStampProblems(doc as PxAnimatedSvgDocument, ctx);
+        collectVersionStampProblems(doc as PxDocument, ctx);
     }
     return { errors: ctx.errors, findings: ctx.findings };
 }
@@ -2200,7 +2200,7 @@ export interface PxSvgNode extends PxNode, PxInfer<typeof PxSvgNodeRootSchema> {
  *    [svgAttr]: string|number|PxPropertyAnimation }`
  * @public @advanced
  */
-export const PxAnimatedSvgDocumentSchema = px.openObject({
+export const PxDocumentSchema = px.openObject({
     ...PxNodeBaseSchema._shape,
     ...PxSvgNodeRootSchema._shape,
     type: px.string(),           // the root tag: `svg`, or an HTML element wrapping SVG content (`div`, …)
@@ -2212,7 +2212,7 @@ export const PxAnimatedSvgDocumentSchema = px.openObject({
  * This is the root type for the entire file format.
  * @public
  */
-export interface PxAnimatedSvgDocument extends PxSvgNode {
+export interface PxDocument extends PxSvgNode {
 }
 
 /** What a `.json` import produces from a given wire type: every string literal is widened to
@@ -2227,25 +2227,25 @@ type PxWidenJsonImport<T> =
     T;
 
 /**
- * The document as a `.json` IMPORT types it — {@link PxAnimatedSvgDocument} with every literal
+ * The document as a `.json` IMPORT types it — {@link PxDocument} with every literal
  * union widened to `string` and tuples widened to arrays, so
  * `import animation from './animation.json'` passes straight into `doc` with no cast
  * (first-use review §5). Every player entry point takes this type and validates the values at
- * runtime as always; use `PxAnimatedSvgDocument` when BUILDING a document in code, for the
+ * runtime as always; use `PxDocument` when BUILDING a document in code, for the
  * narrow literal types and autocomplete.
  * @public
  */
-export type PxDocumentInput = PxWidenJsonImport<PxAnimatedSvgDocument>;
+export type PxDocumentInput = PxWidenJsonImport<PxDocument>;
 
 // @px-area schema
 /**
  * Names the one type-level narrowing from {@link PxDocumentInput} (what a JSON import is typed
- * as) to {@link PxAnimatedSvgDocument} (the wire type the internals speak). Not a check: the
+ * as) to {@link PxDocument} (the wire type the internals speak). Not a check: the
  * runtime validates and diagnoses real value mismatches on every create/bind path as before.
  * @public @advanced
  */
-export function toAnimatedSvgDocument(doc: PxDocumentInput): PxAnimatedSvgDocument {
-    return doc as PxAnimatedSvgDocument;
+export function toPxDocument(doc: PxDocumentInput): PxDocument {
+    return doc as PxDocument;
 }
 
 
@@ -2294,7 +2294,7 @@ export interface PxEngineCallbacks extends PxDiagnosticsConfig {
 // @px-area entry
 /**
  * What every PUBLIC surface takes, inline and under the same names — `createSvgAnimator({ onFinish })`,
- * `loadTagSvgAnimators`, the pre-rendered entries, and `<SvgAnimator onFinish />` on React,
+ * `createSvgAnimatorsFromPage`, the pre-rendered entries, and `<SvgAnimator onFinish />` on React,
  * Vue and React Native (review §9, §24): the engine's callbacks plus `onStop`, which fires after
  * any of `onPause` / `onCancel` / `onFinish` / `onDestroy` — for callers who only care that
  * playback is no longer running, whatever the reason.

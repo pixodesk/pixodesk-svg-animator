@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { applyAnimatorConfig, mergeAnimatorConfig, foldTimelineOverride, type PxAnimatorConfigPatch } from './PxAnimatorConfigPatch';
-import { PxAnimatorConfigSchema, type PxAnimatedSvgDocument, type PxAnimatorConfig, type PxTimeline } from '../format/PxAnimatorTypes';
+import { PxAnimatorConfigSchema, type PxDocument, type PxAnimatorConfig, type PxTimeline } from '../format/PxAnimatorTypes';
 import { isRecord } from '../schema/PxSchema';
 import { untyped } from '../effects/effectTestKit';
 
@@ -53,7 +53,7 @@ function scrollTimelineOf(config: PxAnimatorConfig | undefined) {
 }
 
 /** The document's root `animator` — throws when there is none. */
-function animatorOf(doc: PxAnimatedSvgDocument): PxAnimatorConfig {
+function animatorOf(doc: PxDocument): PxAnimatorConfig {
     if (!doc.animator) throw new Error('no animator');
     return doc.animator;
 }
@@ -226,7 +226,7 @@ describe('foldTimelineOverride — flat trigger shortcuts (review §12)', () => 
 
 describe('applyAnimatorConfig — document level', () => {
 
-    const doc = (): PxAnimatedSvgDocument => ({ type: 'svg', animator: { timeline: { outTime: 1000 } }, children: [{ type: 'rect' }] });
+    const doc = (): PxDocument => ({ type: 'svg', animator: { timeline: { outTime: 1000 } }, children: [{ type: 'rect' }] });
 
     it('returns a NEW document that shares untouched subtrees', () => {
         const d = doc();
@@ -238,14 +238,14 @@ describe('applyAnimatorConfig — document level', () => {
     });
 
     it('patches `doc.meta.animator` when that is where the config lives', () => {
-        const d: PxAnimatedSvgDocument = { type: 'svg', meta: { animator: { timeline: { outTime: 500 } } } };
+        const d: PxDocument = { type: 'svg', meta: { animator: { timeline: { outTime: 500 } } } };
         const { doc: out } = applyAnimatorConfig(d, { timeline: { outTime: 900 } });
         expect(out.meta).toMatchObject({ animator: { timeline: { outTime: 900 } } });
         expect(out.animator).toBeUndefined();   // never invents the other address
     });
 
     it('warns when both addresses exist, and patches the one that wins', () => {
-        const d: PxAnimatedSvgDocument = { type: 'svg', animator: { timeline: { outTime: 1 } }, meta: { animator: { timeline: { outTime: 2 } } } };
+        const d: PxDocument = { type: 'svg', animator: { timeline: { outTime: 1 } }, meta: { animator: { timeline: { outTime: 2 } } } };
         const { doc: out, warnings } = applyAnimatorConfig(d, { timeline: { outTime: 9 } });
         expect(animatorOf(out).timeline?.outTime).toBe(9);
         expect(isRecord(out.meta) ? PxAnimatorConfigSchema.cast(out.meta.animator).timeline?.outTime : undefined).toBe(2);
@@ -258,7 +258,7 @@ describe('applyAnimatorConfig — document level', () => {
     });
 
     it('resetTimeline ignores the document playback but KEEPS the content tables', () => {
-        const d: PxAnimatedSvgDocument = {
+        const d: PxDocument = {
             type: 'svg',
             // root `frameRate` is the flat runtime spelling and the font is cut down — neither fits the wire type
             animator: untyped<PxAnimatorConfig>({
@@ -277,7 +277,7 @@ describe('applyAnimatorConfig — document level', () => {
     });
 
     it('resetTimeline with NO patch means "play it with vanilla settings"', () => {
-        const d: PxAnimatedSvgDocument = { type: 'svg', animator: { timeline: { outTime: 1000, iterations: 4 } } };
+        const d: PxDocument = { type: 'svg', animator: { timeline: { outTime: 1000, iterations: 4 } } };
         const { doc: out } = applyAnimatorConfig(d, {}, { resetTimeline: true });
         expect(animatorOf(out).timeline).toBeUndefined();
     });

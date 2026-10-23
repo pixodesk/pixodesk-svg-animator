@@ -7,8 +7,8 @@
 // get-started snippet. The `doc` inputs take `PxDocumentInput` (the widened shape) instead and
 // the runtime validates values as always. The type half runs in `pnpm typecheck`.
 import { describe, expect, it } from 'vitest';
-import type { PxAnimatedSvgDocument, PxDocumentInput } from '../index';
-import { getAnimatorConfig, toAnimatedSvgDocument } from '../index';
+import type { PxDocument, PxDocumentInput } from '../index';
+import { getAnimatorConfig, toPxDocument } from '../index';
 
 /** Exactly how TypeScript types a JSON import of this document: literals widened, tuples → arrays —
  *  an anonymous object TYPE (a JSON module is never an interface). */
@@ -33,9 +33,9 @@ describe('the doc inputs take what a JSON import produces (§5)', () => {
     it('a JSON import is a PxDocumentInput with no cast; the strict type stays for authors in code', () => {
         const input: PxDocumentInput = fromJsonImport;    // the get-started line — no cast
         // @ts-expect-error — the strict wire type still rejects widened strings (that was §5's trap)
-        const strict: PxAnimatedSvgDocument = fromJsonImport;
+        const strict: PxDocument = fromJsonImport;
         expect(strict).toBe(fromJsonImport);
         // one named type-level narrowing to the internals, runtime-validated as before
-        expect(getAnimatorConfig(toAnimatedSvgDocument(input))?.duration).toBe(1200);
+        expect(getAnimatorConfig(toPxDocument(input))?.duration).toBe(1200);
     });
 });

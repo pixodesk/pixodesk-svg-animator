@@ -11,12 +11,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimator } from '../animator/PxAnimator';
 import { getAllSvgAnimators, onSvgAnimatorsChange, type PxAnimatorRegistry, type PxAnimatorsEvent } from './PxAnimatorRegistry';
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import type { PxDocument } from '@pixodesk/svg-animator-core';
 import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
 
 const DUR = 320;
 
-function makeDoc(): PxAnimatedSvgDocument {
+function makeDoc(): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',

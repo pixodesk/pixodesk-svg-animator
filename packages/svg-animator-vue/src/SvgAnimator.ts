@@ -4,10 +4,10 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxAnimatedSvgDocument, PxAnimatorApi, PxTimelineEngineSetting, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
+import type { PxDocument, PxAnimatorApi, PxTimelineEngineSetting, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimator, PxDiagnosticKind, type PxPlaybackOverride, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, applyDeclarativeAction, createIterationStopWatcher, foldTimelineOverride, toAnimatedSvgDocument, type PxDocumentInput, type PxMouseOutAction, type PxOffScreenAction, getAnimatorConfig, PxDeclarativeAction, type PxDeclarativeProps, PxDiagnosticCode, PxControlMode, PxFillMode, PxPlaybackWorld, PxPlayMode, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorConfigPatch, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, applyDeclarativeAction, createIterationStopWatcher, foldTimelineOverride, toPxDocument, type PxDocumentInput, type PxMouseOutAction, type PxOffScreenAction, getAnimatorConfig, PxDeclarativeAction, type PxDeclarativeProps, PxDiagnosticCode, PxControlMode, PxFillMode, PxPlaybackWorld, PxPlayMode, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorConfigPatch, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
@@ -47,11 +47,11 @@ type DocOverrideProps = PxPlaybackOverride & Pick<PxControlProps, 'progress' | '
 
 // @px-importance important
 function applyDocOverrides(
-    doc: PxAnimatedSvgDocument,
+    doc: PxDocument,
     props: DocOverrideProps,
     compMode: PxControlMode,
     diag: PxDiagnostics,
-): PxAnimatedSvgDocument {
+): PxDocument {
 
     // ONE patch, applied ONCE: the props, plus the component's own need to take the trigger
     // over in the non-playAsSaved control modes.
@@ -87,7 +87,7 @@ function applyDocOverrides(
  * endless); `time` is absolute. Applied through the animator API
  * (setCurrentTime) so scrubbing does NOT recreate the animator.
  */
-function calcSeekMs(doc: PxAnimatedSvgDocument, props: DocOverrideProps): number | undefined {
+function calcSeekMs(doc: PxDocument, props: DocOverrideProps): number | undefined {
     let seekMs: number | undefined;
     // The FLAT runtime view, so this works on a wire-format document too — reading
     // `doc.animator.duration` directly finds nothing there.
@@ -232,7 +232,7 @@ const SvgAnimator = defineComponent({
             // expansion). Then render what the web player renders — materialized, fresh ids.
             // Rendering the raw document dropped every `effects` bucket, so a document painted
             // by `effects` alone came out as an empty canvas.
-            const doc = applyDocOverrides(toAnimatedSvgDocument(docInput.value), props, compMode.value, makeDiag());
+            const doc = applyDocOverrides(toPxDocument(docInput.value), props, compMode.value, makeDiag());
             // The checked stage repairs what does not match the schema and says what it repaired.
             return prepareDocumentForRender(doc, ps => reportDocumentProblems(ps, makeDiag()));
         });

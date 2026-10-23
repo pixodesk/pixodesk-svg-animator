@@ -10,7 +10,7 @@
 // jsdom has no Web Animations API: the two classes are stubbed and counted (as in PxAnimatorWebApiTime.test.ts).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimator } from '../animator/PxAnimator';
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import type { PxDocument } from '@pixodesk/svg-animator-core';
 
 const DUR = 1000;
 let effects = 0;
@@ -33,7 +33,7 @@ class StubAnimation {
 }
 
 /** Two rects whose width grows 4 → 16, plus an opacity the browser does accept. */
-function doc(engine: string): PxAnimatedSvgDocument {
+function doc(engine: string): PxDocument {
     const rect = (id: string) => ({
         type: 'rect', id, width: 4, height: 4,
         animate: {
@@ -45,7 +45,7 @@ function doc(engine: string): PxAnimatedSvgDocument {
         type: 'svg', viewBox: '0 0 100 100',
         animator: { timeline: { engine, outTime: DUR, trigger: { start: 'none' } } },
         children: [rect('a'), rect('b')],
-    } as PxAnimatedSvgDocument;
+    } as PxDocument;
 }
 
 beforeEach(() => {

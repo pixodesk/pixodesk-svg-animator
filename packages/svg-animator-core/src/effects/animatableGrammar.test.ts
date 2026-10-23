@@ -11,10 +11,10 @@
 // loop materialization. These tests pin that contract per applier.
 
 import { describe, expect, it } from 'vitest';
-import { PxTransformPartsSchema, type PxAnimatedSvgDocument, type PxClipPathEffect, type PxFillGradientEffect, type PxKeyframe, type PxKeyframeValue, type PxNode, type PxTimeline } from '../format/PxAnimatorTypes';
+import { PxTransformPartsSchema, type PxDocument, type PxClipPathEffect, type PxFillGradientEffect, type PxKeyframe, type PxKeyframeValue, type PxNode, type PxTimeline } from '../format/PxAnimatorTypes';
 import { authoredEntry, collectByType, compiledEntry, entryOf, materialize, materializeEngine, PxTimelineEngine, untyped } from './effectTestKit';
 
-const doc = (child: PxNode): PxAnimatedSvgDocument =>
+const doc = (child: PxNode): PxDocument =>
     // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
     ({ type: 'svg', animator: { timeline: untyped<PxTimeline>({ duration: 2000 }) }, children: [child] });
 

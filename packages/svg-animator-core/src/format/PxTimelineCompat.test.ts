@@ -10,7 +10,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { resolveAnimatorTimeline, getAnimatorConfig, nestAnimatorTimeline } from './PxAnimatorConstants';
-import { PxAnimatorConfigSchema, type PxAnimatedSvgDocument, type PxAnimatorConfig, type PxAnimatorRuntimeConfig, type PxTimeline, type PxTrigger } from './PxAnimatorTypes';
+import { PxAnimatorConfigSchema, type PxDocument, type PxAnimatorConfig, type PxAnimatorRuntimeConfig, type PxTimeline, type PxTrigger } from './PxAnimatorTypes';
 import type { PxValidationContext } from '../schema/PxSchema';
 import { untyped } from '../effects/effectTestKit';
 
@@ -124,7 +124,7 @@ describe('animator.timeline spelling compat', () => {
     });
 
     it('a stray flat key never shadows the timeline, and the lookup tables still come through', () => {
-        const doc: PxAnimatedSvgDocument = {
+        const doc: PxDocument = {
             type: 'svg',
             // the stray flat `duration` and the pre-1.3 `timeline.duration`: neither is in the type, both still read
             animator: untyped<PxAnimatorConfig>({ duration: 9, timeline: { duration: 500 }, definitions: { easings: {} } }),

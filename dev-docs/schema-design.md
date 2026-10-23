@@ -5,7 +5,7 @@ the editor's unit contract, the corpus that pins it all, and the history of ever
 §I is the two-page version; everything after it is the full treatment.
 
 Sources of truth:
-- **Player schema**: `packages/svg-animator-core/src/format/PxAnimatorTypes.ts` (`PxAnimatedSvgDocumentSchema`) +
+- **Player schema**: `packages/svg-animator-core/src/format/PxAnimatorTypes.ts` (`PxDocumentSchema`) +
   the wire enums in `PxAnimatorConstants.ts`
 - **Editor schema** (extensions): `kf/app/src/svgeditor/model/serialization/schema/PxSchemaUtil.ts`
 - **Empirical corpus**: the feature-explorer cases (`featureexplorer/cases/*.json`, 117 at the last census — §6)
@@ -60,6 +60,10 @@ in the tree — **zero structure**. One clock (`animator`), one reusable-definit
 ```json
 { "type": "rect", "opacity": 1, "animate": { "opacity": { "keyframes": [] } } }
 ```
+
+An entry may also be in its **compiled** form (schema 1.6) — `{ kind, keyframes }` with explicit values,
+the low-level variant the player lowers every entry to. Same address and keys; per entry all authored or
+all compiled (format guide › *Compiled animation — the low layer*).
 
 ### L3 · Player effects — `node.effects`
 
@@ -302,12 +306,17 @@ aliases were deleted 2026-09; `tangent*` = motion-along-path, `autoOrient` rotat
 per-property `loop {segmentCount?, repeatAt?, direction?}` extends keyframes to the document duration.
 
 ### R3 · One clock: root `animator`
-`{duration/delay (ms), mode: auto|waapi|frames, iterations, direction, fill, frameRate,
-resetOnFinish, trigger {startOn, outAction}}` — everything temporal that is not per-property.
+`animator.timeline` — one discriminated object (`type`: `time`, omitted, · `scroll` · `view`). Time:
+`{engine: auto|native|js, frameRate, inTime/outTime (content ms), playDuration, delay, iterations,
+fillMode, finish, direction, trigger {start, offScreen, mouseOut, visibilityThreshold,
+visibilityDebounce}}` — everything temporal that is not per-property. (The flat 2026-08 spelling
+below — `duration`, `mode`, `fill`, `resetOnFinish`, `trigger.startOn` — is the history it replaced.)
 `iterations: number | "infinite"` is the ONE sanctioned string-in-number union (CSS
 `animation-iteration-count` familiarity — S10); do not add more mixed unions.
 
-**Mode-specific trigger params stay FLAT and PREFIXED (S7 closed)**: `scrollIntoViewThreshold` sits
+*(Since 2026-09-18 — `plans/trigger-model.md` — `scrollIntoView` is not a start mode; the visibility gate's
+parameters are `visibilityThreshold` / `visibilityDebounce`, flat beside `start` / `offScreen`, the same
+house style.)* **Mode-specific trigger params stay FLAT and PREFIXED (S7 closed)**: `scrollIntoViewThreshold` sits
 beside `startOn`, not nested under it. Nesting (`trigger.scrollIntoView:{threshold}`) would repeat
 the mode name — once as the enum VALUE, once as the KEY — and be asymmetric, since most modes
 (`load`, `click`, `hover`, `programmatic`) carry no params at all. A generic `threshold`
@@ -316,7 +325,9 @@ ever needed one. Flat+prefixed is also the house style of the vocabulary this fo
 `patternUnits`, `maskUnits`, `gradientUnits`, `markerUnits`, `filterUnits`, `primitiveUnits`.
 Revisit only if one mode ever needs several params at once.
 
-**What ADVANCES the clock: `timelineSource` (+ `scroll`) — N10, implemented 2026-08.**
+*(Since 2026-09 the parameters below sit on the `timeline` object itself: `type: 'scroll' | 'view'` replaces
+`timelineSource` + `scroll.kind`, `engine` replaces `scroll.driver`, and `pin` takes `{align, offset, distance}`;
+the meanings stand.)* **What ADVANCES the clock: `timelineSource` (+ `scroll`) — N10, implemented 2026-08.**
 `trigger.startOn` says what STARTS the animation; `timelineSource` says what MOVES the playhead
 afterwards: `'time'` (the wall clock — default, **omitted from the wire**) or `'scroll'`
 (scroll-linked "scrubbing", the CSS scroll-driven-animations model). With `'scroll'`, `trigger`
@@ -542,7 +553,7 @@ wrapper rule exists but rarely fires.
 
 | quantity | unit |
 |---|---|
-| time (`time`, `duration`, `delay`, `retime.start`) | **ms** (editor UI thinks in 10 ms frames; wire is ms) |
+| time (`time`, `inTime` / `outTime` / `playDuration`, `delay`, `retime.start`) | **ms** (editor UI thinks in 10 ms frames; wire is ms) |
 | lengths / coords / px `fontSize` | user units, unitless (non-px `fontSize` — `em`/`%`/`pt` — is the one place a suffix appears) |
 | `rotate`, `skew` | **degrees** |
 | `opacity`, trim `range/offset`, stop `offset`, `scrollIntoViewThreshold` | fraction **0–1** |
@@ -1397,8 +1408,8 @@ appear); `pathIndex` defaults to 0 and is omitted for single-path shapes.
 ## 6 · Corpus & verification — what pins the format
 
 *Method (2026-08 audit): three probes over the feature-explorer corpus, all deleted afterwards.
-(1) validate every case against BOTH `PxAnimatedSvgDocumentSchema` (lib) and
-`PxAnimatedSvgDocumentSchemaExtra` (editor), in default AND strict mode; (2) diff every
+(1) validate every case against BOTH `PxDocumentSchema` (lib) and
+`PxDocumentSchemaExtra` (editor), in default AND strict mode; (2) diff every
 schema-DECLARED key path against every key path actually WRITTEN across the corpus; (3) serialize
 all cases to the pre-rendered SVG form and parse every `data-px-meta` blob. Counts are REAL — read
 off generated output, not off declarations.*

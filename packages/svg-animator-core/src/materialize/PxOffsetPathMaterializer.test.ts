@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { materializeOffsetPathsInTree } from './PxOffsetPathMaterializer';
-import type { PxAnimatedSvgDocument, PxNode } from '../format/PxAnimatorTypes';
+import type { PxDocument, PxNode } from '../format/PxAnimatorTypes';
 
-const doc = (node: PxNode): PxAnimatedSvgDocument => ({
+const doc = (node: PxNode): PxDocument => ({
     type: 'svg', viewBox: '0 0 200 200',
     animator: { timeline: { duration: 1000 } },
     children: [node],

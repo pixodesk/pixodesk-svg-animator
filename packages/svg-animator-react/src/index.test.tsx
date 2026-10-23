@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
+import { PxDocument } from '@pixodesk/svg-animator-web';
 import { cleanup, render } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import SvgAnimator from './SvgAnimator';
@@ -39,7 +39,7 @@ describe("ReactAnimator", () => {
 
 ////////////////////////////////////////////////////////////////
 
-function getTestJson(): PxAnimatedSvgDocument {
+function getTestJson(): PxDocument {
     return {
         type: "svg",
         id: "_px_2p4d44pl",

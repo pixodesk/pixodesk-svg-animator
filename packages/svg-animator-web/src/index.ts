@@ -14,12 +14,12 @@
 
 // `createAnimatorImpl` is no longer exported (review §11): six positional parameters, marked
 // internal, and nothing outside this file ever called it — `createSvgAnimator` is the door.
-export { createSvgAnimator, generateNewIds, loadTagSvgAnimators } from './animator/PxAnimator';
+export { createSvgAnimator, createSvgAnimatorsFromPage, generateNewIds, getSvgAnimator } from './animator/PxAnimator';
 // A pre-rendered SVG already on the page: the function the SVG + JS export calls (`bind` on the `<script>` global).
 export { createPrerenderedAnimator as bindSvgAnimator } from './engines/PxAnimatorBind';
 // The `<script>` builds' global and its two members, for tools that emit or reach the global (the Editor's exporter).
 export { PX_PLAYER_BIND, PX_PLAYER_CREATE, PX_PLAYER_GLOBAL } from './shared/PxPlayerGlobal';
-export type { PxTagAnimatorOptions } from './animator/PxAnimator';
+export type { PxPageAnimatorOptions } from './animator/PxAnimator';
 // The options of `bindSvgAnimator` (`bind` on the `<script>` builds).
 export type { PxPrerenderedAnimatorOptions } from './engines/PxAnimatorBind';
 
@@ -43,7 +43,7 @@ export {
 export type {
     PxFillMode,
     PxPlaybackDirection,
-    PxAnimatedSvgDocument,
+    PxDocument,
     PxEngineCallbacks,
     PxAnimatorConfig,
     PxBinding,

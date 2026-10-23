@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createIterationStopWatcher, createRunClock, toAnimatedSvgDocument, type PxDocumentInput, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, PxPlayMode, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, resolveTrigger, PxTimelineEngine, PxControlMode, resolveControlMode, PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxAnimatedSvgDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
+import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createIterationStopWatcher, createRunClock, toPxDocument, type PxDocumentInput, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, PxPlayMode, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, resolveTrigger, PxTimelineEngine, PxControlMode, resolveControlMode, PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
 import { carryPrep, deepEquals, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
@@ -230,7 +230,7 @@ type ConfigOverrides = PxPlaybackOverride;
 
 interface Compiled {
     /** Materialized document, or null when compilation failed. */
-    doc: PxAnimatedSvgDocument | null;
+    doc: PxDocument | null;
     tracks: PxCompiledTracks;
     error: Error | null;
 }
@@ -247,7 +247,7 @@ const EMPTY_TRACKS: PxCompiledTracks = {
  * Materializes + compiles a document. Extracted from the component so the
  * whole thing sits behind one try/catch, and so it can be tested directly.
  */
-function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides, pinPoseFill: boolean, diag: PxDiagnostics): Compiled {
+function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFill: boolean, diag: PxDiagnostics): Compiled {
     const { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce } = overrides;
     // Migrate + check ONCE — the same `checked` stage and reporting as the web player's entry.
     const onProblems = (problems: Parameters<typeof reportDocumentProblems>[0]) => reportDocumentProblems(problems, diag);
@@ -282,14 +282,14 @@ function compileDocument(doc: PxAnimatedSvgDocument, overrides: ConfigOverrides,
     // attribute writes through `<use>` shadow trees. react-native-svg has
     // no such live propagation, so an animated `<use>` would render frozen.
     // Through the shared staged pipeline: version-migrated → resolved → plain.
-    let prepared: PxAnimatedSvgDocument = prepareDocument(doc, { engine: PxTimelineEngine.native, onProblems });   // only the override's own values can still need repair
+    let prepared: PxDocument = prepareDocument(doc, { engine: PxTimelineEngine.native, onProblems });   // only the override's own values can still need repair
 
     // Sidestep a react-native-svg NATIVE crash (see PxRnSafety). Guarded on
     // the platform because the DOM renders this case correctly and the web
     // document must stay exactly as the core pipeline produced it.
     // It edits textPath targets only — the animator config is untouched, so the stamp carries over.
     if (NATIVE_SVG_VIEWS) {
-        prepared = carryPrep(prepared, openClosedTextPathTargets(prepared as PxNode) as PxAnimatedSvgDocument);
+        prepared = carryPrep(prepared, openClosedTextPathTargets(prepared as PxNode) as PxDocument);
     }
 
     prepared = prepareDocument(prepared, { engine: PxTimelineEngine.native, freshIds: true });
@@ -350,7 +350,7 @@ export function SvgAnimator({
     const compiled = useMemo((): Compiled => {
         try {
             return compileDocument(
-                toAnimatedSvgDocument(stableDoc),
+                toPxDocument(stableDoc),
                 { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, offScreen: offScreenProp, mouseOut: mouseOutProp, visibilityThreshold: visibilityThresholdProp, visibilityDebounce: visibilityDebounceProp },
                 compMode === PxControlMode.play,
                 makeDiag(),

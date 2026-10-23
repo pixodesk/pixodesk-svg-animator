@@ -23,7 +23,7 @@
 // arc-length-fraction keyframe values, easing and loop carried over.
 
 import { OFFSET_DISTANCE_ATTR, TRANSFORM_ATTR, TRANSFORM_PART } from '../format/PxAnimatorConstants';
-import type { PxAnimatedSvgDocument, PxKeyframe, PxNode, PxPropertyAnimation } from '../format/PxAnimatorTypes';
+import type { PxDocument, PxKeyframe, PxNode, PxPropertyAnimation } from '../format/PxAnimatorTypes';
 
 type PxVec2 = [number, number];
 
@@ -140,7 +140,7 @@ function buildOffsetPath(propAnim: PxPropertyAnimation): {
  * offset-path styles + an `offsetDistance` binding. Non-candidates are left untouched.
  * Runs BEFORE loop expansion so a carried `loop` expands on the new binding.
  */
-export function materializeOffsetPathsInTree(root: PxAnimatedSvgDocument): PxAnimatedSvgDocument {
+export function materializeOffsetPathsInTree(root: PxDocument): PxDocument {
     const walk = (node: PxNode): PxNode => {
         let out = node;
         const anim = node.animate as Record<string, PxPropertyAnimation> | undefined;
@@ -190,5 +190,5 @@ export function materializeOffsetPathsInTree(root: PxAnimatedSvgDocument): PxAni
         }
         return out;
     };
-    return walk(root) as PxAnimatedSvgDocument;
+    return walk(root) as PxDocument;
 }

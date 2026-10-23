@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { type PxAnimatedSvgDocument, type PxAnimatorApi, type PxEngineAnimatorApi, type PxEngineCallbacks } from '../format/PxAnimatorTypes';
+import { type PxDocument, type PxAnimatorApi, type PxEngineAnimatorApi, type PxEngineCallbacks } from '../format/PxAnimatorTypes';
 import { composeApiExtras } from './PxDeclarativePlayback';
 import { getAnimatorConfig, PX_DEFAULT_ITERATIONS, PxTimelineEngine } from '../format/PxAnimatorConstants';
 import { PxTimeTimelineSchema } from '../format/PxAnimatorTypes';
@@ -61,7 +61,7 @@ export interface PxPlatformAdapter {
  * @public @advanced
  */
 export function createAdapterSvgAnimator(
-    doc: PxAnimatedSvgDocument,
+    doc: PxDocument,
     adapter: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks
 ): PxAnimatorApi {

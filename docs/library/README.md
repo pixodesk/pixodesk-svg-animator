@@ -57,7 +57,7 @@ the two disagree:
 
 Every way to create a player, side by side, so a prop added or renamed in one place can be
 checked against the others. The columns are the web player's `createSvgAnimator` (**Web**), the
-HTML tag read by `loadTagSvgAnimators` (**Tag**), the pre-rendered player's `createSvgAnimator`
+HTML tag read by `createSvgAnimatorsFromPage` (**Tag**), the pre-rendered player's `createSvgAnimator`
 (**Pre**), **React**, **Vue** and React Native (**RN**).
 
 A cell is **✓** when that player takes the name as it is, **—** when it does not have it, and
@@ -121,7 +121,7 @@ a number when it differs — the note with that number, under the table, says ho
 5. Every player takes every `PxTriggerStart` value; React Native ignores `'mouseOver'`, which
    has no touch equivalent.
 6. The handle is what `createSvgAnimator` returns, a `PxAnimatorApi`.
-7. The handle is on the element, as `element._px_animator`.
+7. `createSvgAnimatorsFromPage` returns the handles it created; `getSvgAnimator(element)` finds one later.
 8. The handle is the component's template ref, a `PxAnimatorHandle`.
 9. Written `class`; like `style`, it falls through to the root `<svg>`.
 10. The tag always plays as saved — embedding a finished file IS choosing its behaviour — so it

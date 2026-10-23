@@ -51,7 +51,7 @@
 import { calcAnimationValues, normalizeBindings } from '../animation/PxDefinitions';
 import { createMotionPathSegments, type MotionPathSegments } from './PxMotionPath';
 import { getAnimatorConfig, type PxTimelineEngine } from '../format/PxAnimatorConstants';
-import type { PxAnimatedSvgDocument, PxNode, PxTransformParts } from '../format/PxAnimatorTypes';
+import type { PxDocument, PxNode, PxTransformParts } from '../format/PxAnimatorTypes';
 import type { PxRuntimeAnimation } from '../animation/PxRuntimeChannel';
 import { parseTransformParts, PX_DEFAULT_DURATION_MS, PX_TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
 import { deepClone } from '../util/PxIdUtil';
@@ -75,8 +75,8 @@ const SCRATCH_ID_PREFIX = '__px_rest_';
  * the value of the first frame. `root` is not mutated. Idempotent.
  * @internal
  */
-export function materializeRestPosesInTree(root: PxAnimatedSvgDocument, engine: PxTimelineEngine): PxAnimatedSvgDocument {
-    const out: PxAnimatedSvgDocument = deepClone(root);
+export function materializeRestPosesInTree(root: PxDocument, engine: PxTimelineEngine): PxDocument {
+    const out: PxDocument = deepClone(root);
 
     // The same first-frame time the frame loop renders: 0, or the end of the iteration when the
     // timeline runs backwards.
@@ -190,8 +190,8 @@ function writesTheSameFrames(a: PxRuntimeAnimation | undefined, b: PxRuntimeAnim
  * ids; the same traversal over the real tree (`animatedNodes`) yields the same keys, and the
  * output document gains no ids it did not have.
  */
-function bindingsOf(tree: PxAnimatedSvgDocument, engine: PxTimelineEngine): Map<string, PxRuntimeAnimation> {
-    const scratch: PxAnimatedSvgDocument = deepClone(tree);
+function bindingsOf(tree: PxDocument, engine: PxTimelineEngine): Map<string, PxRuntimeAnimation> {
+    const scratch: PxDocument = deepClone(tree);
     const keyById = new Map<string, string>();
     for (const [key, node] of animatedNodes(scratch)) {
         if (node.id === undefined) node.id = SCRATCH_ID_PREFIX + key;
@@ -206,7 +206,7 @@ function bindingsOf(tree: PxAnimatedSvgDocument, engine: PxTimelineEngine): Map<
 }
 
 /** Every node below the root that carries an `animate` bucket, keyed by traversal order. */
-function animatedNodes(tree: PxAnimatedSvgDocument): Map<string, PxNode> {
+function animatedNodes(tree: PxDocument): Map<string, PxNode> {
     const out = new Map<string, PxNode>();
     let counter = 0;
     const visit = (node: PxNode): void => {

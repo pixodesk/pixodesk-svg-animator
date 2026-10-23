@@ -15,7 +15,7 @@
 // A failure here means a rule was added to one player only. Fix the shared renderer, not the test.
 
 import { prepareDocumentForRender } from '@pixodesk/svg-animator-core/internal';
-import { renderNode, type PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
+import { renderNode, type PxDocument } from '@pixodesk/svg-animator-web';
 import { cleanup, render } from "@testing-library/react";
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
@@ -62,7 +62,7 @@ describe('parity with the web player', () => {
     });
 
     it.each(corpus)('renders $name exactly as the web player does', ({ file }) => {
-        const doc: PxAnimatedSvgDocument = JSON.parse(readFileSync(file, 'utf8'));
+        const doc: PxDocument = JSON.parse(readFileSync(file, 'utf8'));
         // jsdom has no WAAPI, so building the player reports it — not what is under test here.
         const quiet = [vi.spyOn(console, 'error').mockImplementation(() => { }), vi.spyOn(console, 'warn').mockImplementation(() => { })];
 

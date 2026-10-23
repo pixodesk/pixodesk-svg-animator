@@ -31,7 +31,7 @@ const apply = args.includes('--apply');
 const libAt = args.indexOf('--lib-version');
 const libVersion = libAt >= 0 ? args[libAt + 1] : undefined;
 
-const live = coreInternal.schemaFieldUniverse(core.PxAnimatedSvgDocumentSchema);
+const live = coreInternal.schemaFieldUniverse(core.PxDocumentSchema);
 const snapshot = JSON.parse(readFileSync(SNAPSHOT, 'utf8'));
 const releases = JSON.parse(readFileSync(RELEASES, 'utf8'));
 const last = releases[releases.length - 1];

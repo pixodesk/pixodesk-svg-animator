@@ -4,16 +4,16 @@
  *---------------------------------------------------------------------------------------*/
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSvgAnimator, generateNewIds, loadTagSvgAnimators } from './PxAnimator';
+import { createSvgAnimator, createSvgAnimatorsFromPage, generateNewIds, getSvgAnimator } from './PxAnimator';
 import { PX_ANIM_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
-import { PxDiagnosticCode, type PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import { PxDiagnosticCode, type PxDocument } from '@pixodesk/svg-animator-core';
 import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
 
 
 const DUR = 320; // multiple of the 16ms fake-timer rAF step
 
 /** Minimal frames-mode doc: one rect whose opacity animates 0 → 1 over DUR ms. */
-function makeDoc(): PxAnimatedSvgDocument {
+function makeDoc(): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
@@ -48,7 +48,7 @@ function stubFetch(json: unknown) {
     return fetchMock;
 }
 
-/** A tag element with the player `loadTagSvgAnimators` keeps on it (the source's `PxTagElement` is not exported). */
+/** A tag element with the player `createSvgAnimatorsFromPage` keeps on it (the source's `PxTagElement` is not exported). */
 type PxTagElement = Element & { [PX_ANIM_ATTR_NAME]?: PxAnimatorApi };
 
 /** The fixture element `#id`, typed as a tag element. */
@@ -258,7 +258,7 @@ describe('createSvgAnimator', () => {
 
 describe('generateNewIds', () => {
 
-    function makeRefDoc(): PxAnimatedSvgDocument {
+    function makeRefDoc(): PxDocument {
         return {
             type: 'svg',
             id: 'root1',
@@ -327,7 +327,7 @@ describe('generateNewIds', () => {
 });
 
 
-describe('loadTagSvgAnimators', () => {
+describe('createSvgAnimatorsFromPage', () => {
     beforeEach(() => {
         vi.useFakeTimers({
             toFake: ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'Date', 'performance', 'requestAnimationFrame', 'cancelAnimationFrame'],
@@ -343,7 +343,7 @@ describe('loadTagSvgAnimators', () => {
         document.body.innerHTML = '<div id="host" data-px-animation-src="anim.json"></div><div id="plain"></div>';
         const fetchMock = stubFetch(makeDoc());
 
-        loadTagSvgAnimators();
+        createSvgAnimatorsFromPage();
 
         const host = tagElement('host');
         const plain = tagElement('plain');
@@ -354,7 +354,7 @@ describe('loadTagSvgAnimators', () => {
         expect(fetchMock).toHaveBeenCalledWith('anim.json');
 
         // A second scan must not replace the existing animator.
-        loadTagSvgAnimators();
+        createSvgAnimatorsFromPage();
         expect(host[PX_ANIM_ATTR_NAME]).toBe(instance);
         expect(fetchMock).toHaveBeenCalledTimes(1);
 
@@ -372,7 +372,7 @@ describe('loadTagSvgAnimators', () => {
 
         // A timeline override that cancels the playAsSaved, plus an inline callback — both must reach
         // both players. The zero-config path (no argument at all) is unchanged.
-        loadTagSvgAnimators({ timeline: { trigger: { start: 'none' } }, onPlay });
+        createSvgAnimatorsFromPage({ timeline: { trigger: { start: 'none' } }, onPlay });
         await flushMicrotasks();
 
         const instances = Array.from(document.querySelectorAll('[data-px-animation-src]'))
@@ -385,6 +385,24 @@ describe('loadTagSvgAnimators', () => {
 
         instances[0]?.play();
         expect(onPlay).toHaveBeenCalledTimes(1);        // the callback reached it
+    });
+
+    it('returns the players THIS call created; getSvgAnimator finds each one (review §20)', () => {
+        document.body.innerHTML = '<div id="a" data-px-animation-src="a.json"></div><div id="plain"></div>';
+        stubFetch(makeDoc());
+
+        const first = createSvgAnimatorsFromPage();
+        expect(first).toHaveLength(1);
+        expect(getSvgAnimator(tagElement('a'))).toBe(first[0]);
+        expect(getSvgAnimator(tagElement('plain'))).toBeUndefined();
+
+        // A later scan returns only the new element's player, not the one already there.
+        document.body.insertAdjacentHTML('beforeend', '<div id="b" data-px-animation-src="b.json"></div>');
+        const second = createSvgAnimatorsFromPage();
+        expect(second).toHaveLength(1);
+        expect(getSvgAnimator(tagElement('b'))).toBe(second[0]);
+        expect(second[0]).not.toBe(first[0]);
+        expect(createSvgAnimatorsFromPage()).toEqual([]);
     });
 });
 

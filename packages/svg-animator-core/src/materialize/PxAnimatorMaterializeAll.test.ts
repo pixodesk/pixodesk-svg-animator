@@ -12,7 +12,7 @@
 import { describe, expect, it } from 'vitest';
 import { materializeAllInTree } from './PxAnimatorMaterializeAll';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
-import type { PxAnimatedSvgDocument, PxNode, PxPropertyAnimation } from '../format/PxAnimatorTypes';
+import type { PxDocument, PxNode, PxPropertyAnimation } from '../format/PxAnimatorTypes';
 
 
 function deepFind(node: PxNode, predicate: (n: PxNode) => boolean): PxNode | undefined {
@@ -49,7 +49,7 @@ describe('materializeAllInTree', () => {
     // One fixture covering all four stages: it has a node.effects (retime), an
     // animation with a loop, a tangented `transform` (motion-along-path), and
     // a <use> referencing an animated subtree.
-    function fixture(): PxAnimatedSvgDocument {
+    function fixture(): PxDocument {
         return {
             type: 'svg',
             animator: { timeline: { duration: 1000 } },
@@ -81,7 +81,7 @@ describe('materializeAllInTree', () => {
                     effects: { clone: { retime: { start: 0, stretch: 0.5 } } },
                 } as PxNode,
             ],
-        } as PxAnimatedSvgDocument;
+        } as PxDocument;
     }
 
 

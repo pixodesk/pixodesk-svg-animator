@@ -8,7 +8,7 @@
 // Web Animations API, so the two classes the engine constructs are stubbed with the bare minimum.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimator } from '../animator/PxAnimator';
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import type { PxDocument } from '@pixodesk/svg-animator-core';
 
 class StubKeyframeEffect {
     constructor(readonly target: Element, readonly keyframes: unknown, private readonly timing: EffectTiming) {}
@@ -29,7 +29,7 @@ class StubAnimation {
     finish(): void { this.playState = 'finished'; }
 }
 
-function doc(trigger?: { start: 'none' }): PxAnimatedSvgDocument {
+function doc(trigger?: { start: 'none' }): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',

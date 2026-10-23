@@ -4,11 +4,11 @@
  *---------------------------------------------------------------------------------------*/
 
 import { describe, expect, it } from 'vitest';
-import { generateNewIds, materializeAllInTree, PxTimelineEngine, type PxAnimatedSvgDocument, type PxNode } from '@pixodesk/svg-animator-core';
+import { generateNewIds, materializeAllInTree, PxTimelineEngine, type PxDocument, type PxNode } from '@pixodesk/svg-animator-core';
 import { compileTracks, sampleProps } from './PxRnTracks';
 import { toRnPropName } from './PxRnPropNames';
 
-function makeDoc(): PxAnimatedSvgDocument {
+function makeDoc(): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 200 200',
@@ -148,7 +148,7 @@ describe('toRnPropName', () => {
 
 describe('length-list props (stroke-dasharray)', () => {
     it('compiles stroke-dasharray into number arrays (rn-svg native shape)', () => {
-        const doc: PxAnimatedSvgDocument = {
+        const doc: PxDocument = {
             type: 'svg', viewBox: '0 0 100 100',
             animator: { timeline: { engine: 'js', outTime: 1000 } },
             children: [{
@@ -169,7 +169,7 @@ describe('length-list props (stroke-dasharray)', () => {
 
 describe('animated <use> flattening (waapi materialization)', () => {
     it('inlines animated <use> clones so no live references remain', () => {
-        const doc: PxAnimatedSvgDocument = {
+        const doc: PxDocument = {
             type: 'svg', viewBox: '0 0 300 200',
             animator: { timeline: { engine: 'js', outTime: 2000 } },
             children: [

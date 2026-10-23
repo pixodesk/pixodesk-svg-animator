@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { px, PxInfer, PxSchema } from './PxSchema';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Schema declarations for PxAnimatedSvgDocument and its nested types.
+// Schema declarations for PxDocument and its nested types.
 // Each declaration both defines the schema and infers the TypeScript type.
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -101,7 +101,7 @@ const PxBindingSchema = px.object({
 });
 
 // Root document schema.
-const PxAnimatedSvgDocumentSchema = px.object({
+const PxDocumentSchema = px.object({
     type:     px.string('svg'),
     width:    px.number().optional(),
     height:   px.number().optional(),
@@ -113,7 +113,7 @@ const PxAnimatedSvgDocumentSchema = px.object({
 });
 
 // Type inferred automatically from the schema — no separate interface needed.
-type PxAnimatedSvgDocument = PxInfer<typeof PxAnimatedSvgDocumentSchema>;
+type PxDocument = PxInfer<typeof PxDocumentSchema>;
 
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -131,7 +131,7 @@ const EMPTY_TRIGGER = {};
 
 const EMPTY_CONFIG = {};
 
-const EMPTY_DOC: PxAnimatedSvgDocument = { type: 'svg' };
+const EMPTY_DOC: PxDocument = { type: 'svg' };
 
 // NOTE: px.object() strips keys not declared in the schema shape.
 // For PxNode this means SVG attributes (fill, cx, cy, r, stroke, …) are dropped.
@@ -392,12 +392,12 @@ describe('PxAnimatorConfigSchema', () => {
 });
 
 
-describe('PxAnimatedSvgDocumentSchema', () => {
+describe('PxDocumentSchema', () => {
 
     it('valid document passes isValid', () => {
         // Note: isValid ignores unknown keys (fill, cx etc.) so this passes
         // even though sanitize would strip them.
-        expect(PxAnimatedSvgDocumentSchema.isValid({
+        expect(PxDocumentSchema.isValid({
             type: 'svg',
             animator: { duration: 500 },
             children: [{ type: 'rect', fill: '#f00' }],
@@ -405,12 +405,12 @@ describe('PxAnimatedSvgDocumentSchema', () => {
     });
 
     it('sanitizes null to a minimum document with type default', () => {
-        expect(PxAnimatedSvgDocumentSchema.sanitize(null)).toStrictEqual(EMPTY_DOC);
+        expect(PxDocumentSchema.sanitize(null)).toStrictEqual(EMPTY_DOC);
     });
 
     it('sanitizes: strips unknown top-level keys; SVG node attributes also stripped', () => {
         // px.object() only preserves declared fields — SVG attributes like fill are dropped.
-        expect(PxAnimatedSvgDocumentSchema.sanitize({
+        expect(PxDocumentSchema.sanitize({
             type: 'svg',
             animator: { duration: 500 },
             children: [{ type: 'rect', fill: '#f00' }],
@@ -423,7 +423,7 @@ describe('PxAnimatedSvgDocumentSchema', () => {
     });
 
     it('sanitizes: invalid type replaced with default, valid fields kept, partial animator repaired', () => {
-        expect(PxAnimatedSvgDocumentSchema.sanitize({
+        expect(PxDocumentSchema.sanitize({
             type: 99,             // invalid — replaced by default 'svg'
             width: 400,
             animator: { mode: 'bad-mode', duration: 300 }, // mode dropped, duration kept
@@ -436,7 +436,7 @@ describe('PxAnimatedSvgDocumentSchema', () => {
     });
 
     it('sanitizes: missing required binding field gets default, binding objects are never filtered', () => {
-        expect(PxAnimatedSvgDocumentSchema.sanitize({
+        expect(PxDocumentSchema.sanitize({
             type: 'svg',
             bindings: [
                 { id: 'el1', animate: 'fadeIn' },
@@ -455,7 +455,7 @@ describe('PxAnimatedSvgDocumentSchema', () => {
 
     it('sanitizes: deeply nested children repaired recursively, non-node items filtered', () => {
         // Note: SVG attributes (cx, cy) on child nodes are stripped by the schema.
-        expect(PxAnimatedSvgDocumentSchema.sanitize({
+        expect(PxDocumentSchema.sanitize({
             type: 'svg',
             children: [
                 {

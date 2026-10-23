@@ -3,7 +3,7 @@
 // on that tree answers from the stamp without walking it.
 import { describe, expect, it } from 'vitest';
 import { px, PxSchemaCastError } from './PxSchema';
-import { PxAnimatedSvgDocumentSchema, PxAnimationDefinitionSchema, PxKeyframeSchema, PxTransformPartsSchema } from '../format/PxAnimatorTypes';
+import { PxDocumentSchema, PxAnimationDefinitionSchema, PxKeyframeSchema, PxTransformPartsSchema } from '../format/PxAnimatorTypes';
 
 const Point = px.object({ x: px.number(), y: px.number() });
 const Shape = px.object({ name: px.string(), at: Point, tags: px.array(px.string()).optional() });
@@ -99,7 +99,7 @@ describe('castOrFix on real document schemas', () => {
     };
 
     it('a valid document comes out deep-equal, new, and stamped all the way down', () => {
-        const { value, problems } = PxAnimatedSvgDocumentSchema.castOrFix(doc);
+        const { value, problems } = PxDocumentSchema.castOrFix(doc);
         expect(problems).toEqual([]);
         expect(value).toEqual(doc);
         expect(value).not.toBe(doc);
@@ -131,9 +131,9 @@ describe('castOrFix — stamps are never a lie', () => {
 describe('castOrFix — incremental: stamped subtrees are reused, never rebuilt', () => {
     it('re-checking an edited copy rebuilds only what changed', () => {
         const doc = { type: 'svg', children: [{ type: 'rect', id: 'r' }], animator: { timeline: { outTime: 500 } } };
-        const first = PxAnimatedSvgDocumentSchema.castOrFix(doc).value as typeof doc;
+        const first = PxDocumentSchema.castOrFix(doc).value as typeof doc;
         const edited = { ...first, animator: { timeline: { outTime: 900 } } };   // a new root, as a config override makes
-        const second = PxAnimatedSvgDocumentSchema.castOrFix(edited).value as typeof doc;
+        const second = PxDocumentSchema.castOrFix(edited).value as typeof doc;
         expect(second).not.toBe(edited);
         expect(second.children).toBe(first.children);                          // the stamped subtree was reused as is
         expect(second.animator.timeline.outTime).toBe(900);

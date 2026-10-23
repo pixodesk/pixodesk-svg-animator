@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { PxEffectsSchema, validateNodeEffects, type PxAnimatedSvgDocument, type PxKeyframe, type PxKeyframeValue, type PxNode, type PxTimeline } from './PxAnimatorTypes';
+import { PxEffectsSchema, validateNodeEffects, type PxDocument, type PxKeyframe, type PxKeyframeValue, type PxNode, type PxTimeline } from './PxAnimatorTypes';
 import { PxTimelineEngine } from './PxAnimatorConstants';
 import type { PxValidationContext } from '../schema/PxSchema';
 import { materializeAllInTree } from '../materialize/PxAnimatorMaterializeAll';
@@ -48,7 +48,7 @@ describe('effect keyframes accept the short wire aliases', () => {
     /** Two keyframes, at 0 and 1000 ms, in one of the two spellings. */
     type KeyframePair = (a: PxKeyframeValue, b: PxKeyframeValue) => Array<PxKeyframe<PxKeyframeValue>>;
 
-    const D = (children: Array<PxNode>): PxAnimatedSvgDocument => ({
+    const D = (children: Array<PxNode>): PxDocument => ({
         // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
         type: 'svg', viewBox: '0 0 100 100', animator: { timeline: untyped<PxTimeline>({ duration: 1000 }) }, children,
     });
@@ -57,7 +57,7 @@ describe('effect keyframes accept the short wire aliases', () => {
     const short: KeyframePair = (a, b) => untyped<Array<PxKeyframe<PxKeyframeValue>>>([{ t: 0, v: a }, { t: 1000, v: b }]);
 
     /** Values the frames engine would write at t=0 and t=duration. */
-    const sample = (doc: PxAnimatedSvgDocument) => {
+    const sample = (doc: PxDocument) => {
         const m = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
         const bindings = normalizeBindings(m, PxTimelineEngine.js) || [];
         return bindings.map(b => [
@@ -66,7 +66,7 @@ describe('effect keyframes accept the short wire aliases', () => {
         ]);
     };
 
-    const cases: Array<[string, (k: KeyframePair) => PxAnimatedSvgDocument]> = [
+    const cases: Array<[string, (k: KeyframePair) => PxDocument]> = [
         ['transformBy.translate', k => D([{ type: 'rect', id: 'a', width: 9, height: 9,
             effects: { transformBy: { translate: { keyframes: k([0, 0], [9, 9]) } } } }])],
         ['transformBy.rotate', k => D([{ type: 'rect', id: 'a', width: 9, height: 9,
@@ -95,7 +95,7 @@ describe('effect keyframes accept the short wire aliases', () => {
 // ---------------------------------------------------------------------------
 
 describe('gradient geometry animation', () => {
-    const linearDoc = (): PxAnimatedSvgDocument => ({
+    const linearDoc = (): PxDocument => ({
         // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
         type: 'svg', viewBox: '0 0 200 200', animator: { timeline: untyped<PxTimeline>({ duration: 1000 }) },
         children: [{
@@ -138,7 +138,7 @@ describe('gradient geometry animation', () => {
     });
 
     it('maps every radial channel onto its SVG attribute', () => {
-        const doc: PxAnimatedSvgDocument = {
+        const doc: PxDocument = {
             // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
             type: 'svg', viewBox: '0 0 200 200', animator: { timeline: untyped<PxTimeline>({ duration: 1000 }) },
             children: [{

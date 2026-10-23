@@ -12,7 +12,7 @@
 //   H: width 700, box 100×700   i: width 300, box 50×500   ' ': width 250, no outline
 
 import { describe, expect, it } from 'vitest';
-import { PxGlyphFontSchema, PxTransformPartsSchema, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxGlyphFont, type PxKeyframe, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTextEffect, type PxTextPathEffect, type PxTransformParts } from '../../format/PxAnimatorTypes';
+import { PxGlyphFontSchema, PxTransformPartsSchema, type PxDocument, type PxAnimationDefinition, type PxGlyphFont, type PxKeyframe, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTextEffect, type PxTextPathEffect, type PxTransformParts } from '../../format/PxAnimatorTypes';
 import { PxTimelineEngine } from '../../format/PxAnimatorConstants';
 import { authoredEntry, collectByType, engineFirstFrame, entryOf, materializeEngine, materializeRaw, staticAttr } from '../effectTestKit';
 import { glyphNodeFactory, glyphTextNodeOf, layoutGlyphTextChars, materializeGlyphText, type GlyphFactory } from './textGlyphsEffect';
@@ -29,7 +29,7 @@ const glyphs: Record<string, PxGlyphFont> = {
 };
 
 /** svg root carrying the glyph defs + one <text> host. */
-function scene(text: PxTextEffect, textAttrs: Partial<PxNode> = {}, tspans?: Array<PxNode>): PxAnimatedSvgDocument {
+function scene(text: PxTextEffect, textAttrs: Partial<PxNode> = {}, tspans?: Array<PxNode>): PxDocument {
     return {
         type: 'svg',
         animator: { definitions: { fonts: glyphs } },
@@ -137,7 +137,7 @@ describe('textGlyphsEffect — <text> → baked <path> outlines', () => {
 describe('textGlyphsEffect — along-path', () => {
 
     // svg root with a glyph text running along an INLINE path (textPath.pathData).
-    function alongScene(pathD: string, startOffset?: number, text = 'Hi', pathOverflow?: PxTextPathEffect['pathOverflow']): PxAnimatedSvgDocument {
+    function alongScene(pathD: string, startOffset?: number, text = 'Hi', pathOverflow?: PxTextPathEffect['pathOverflow']): PxDocument {
         const textPath: PxTextPathEffect = { pathData: pathD };
         if (startOffset !== undefined) textPath.startOffset = startOffset;
         if (pathOverflow !== undefined) textPath.pathOverflow = pathOverflow;
@@ -245,7 +245,7 @@ describe('textGlyphsEffect — along-path', () => {
 
 describe('textGlyphsEffect — along-path animated (sliding startOffset)', () => {
 
-    function animScene(pathD: string, kfs: Array<PxKeyframe<number>>, text = 'H', loop?: PxPropertyAnimation['loop']): PxAnimatedSvgDocument {
+    function animScene(pathD: string, kfs: Array<PxKeyframe<number>>, text = 'H', loop?: PxPropertyAnimation['loop']): PxDocument {
         const startOffset: PxPropertyAnimation = { keyframes: kfs };
         if (loop !== undefined) startOffset.loop = loop;
         return {
@@ -350,7 +350,7 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
 describe('textGlyphsEffect — along-path animated (moving path)', () => {
 
     /** A `textPath` whose GEOMETRY is keyframed; `startOffset` optional. */
-    function movingScene(pathKfs: Array<{ time: number; d: string }>, extra: { startOffset?: PxTextPathEffect['startOffset']; pathLoop?: PxPropertyAnimation['loop']; text?: string } = {}): PxAnimatedSvgDocument {
+    function movingScene(pathKfs: Array<{ time: number; d: string }>, extra: { startOffset?: PxTextPathEffect['startOffset']; pathLoop?: PxPropertyAnimation['loop']; text?: string } = {}): PxDocument {
         const pathData: PxPropertyAnimation = { keyframes: pathKfs.map(kf => ({ time: kf.time, value: { pathData: kf.d } })) };
         if (extra.pathLoop !== undefined) pathData.loop = extra.pathLoop;
         const textPath: PxTextPathEffect = { pathData };
@@ -709,7 +709,7 @@ const faceGlyphs: Record<string, PxGlyphFont> = {
 };
 
 /** One <text> whose span carries the given attrs, against the two-face defs. */
-function faceScene(spanAttrs: Partial<PxNode>): PxAnimatedSvgDocument {
+function faceScene(spanAttrs: Partial<PxNode>): PxDocument {
     return {
         type: 'svg',
         animator: { definitions: { fonts: faceGlyphs } },
@@ -742,7 +742,7 @@ describe('textGlyphsEffect — the face name IS the lookup key', () => {
 
 
 /** One glyph text — horizontal, or along `pathData` — against the given font. */
-function unitsScene(font: PxGlyphFont, pathData?: string): PxAnimatedSvgDocument {
+function unitsScene(font: PxGlyphFont, pathData?: string): PxDocument {
     return {
         type: 'svg',
         animator: { definitions: { fonts: { F: font } } },

@@ -18,7 +18,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { createAdapterSvgAnimator, type PxPlatformAdapter } from '../playback/PxFrameLoop';
 import { calcAnimationValues, normalizeBindings } from './PxDefinitions';
-import type { PxAnimatedSvgDocument } from '../format/PxAnimatorTypes';
+import type { PxDocument } from '../format/PxAnimatorTypes';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
 import { createMotionPathSegments } from '../materialize/PxMotionPath';
 
@@ -27,7 +27,7 @@ const APEX: [number, number] = [154.5315, 12.1887];
 const END: [number, number] = [189.172, 75.1807];
 
 /** Keyframes start at 250ms — deliberately NOT at 0, which is what exposes the bug. */
-const mkDoc = (): PxAnimatedSvgDocument => ({
+const mkDoc = (): PxDocument => ({
     type: 'svg', viewBox: '0 0 200 200',
     animator: {
         definitions: { animations: { a0: { transform: { autoOrient: true, keyframes: [
@@ -42,7 +42,7 @@ const mkDoc = (): PxAnimatedSvgDocument => ({
         },
     },
     children: [{ type: 'ellipse', id: 'el1', rx: 9.641, ry: 9.641 }],
-} as unknown as PxAnimatedSvgDocument);
+} as unknown as PxDocument);
 
 function xy(transform: string | undefined): [number, number] {
     const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(transform || '');

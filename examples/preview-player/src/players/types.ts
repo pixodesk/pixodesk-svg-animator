@@ -1,5 +1,5 @@
 import { applyAnimatorConfig } from '@pixodesk/svg-animator-core';
-import type { PxAnimatedSvgDocument, PxTrigger } from '@pixodesk/svg-animator-web';
+import type { PxDocument, PxTrigger } from '@pixodesk/svg-animator-web';
 
 /**
  * A framework-agnostic handle over a mounted animation player.
@@ -78,9 +78,9 @@ export function shouldAutoplayForTrigger(opts?: PlayerOptions): boolean {
  *  - a config object         → replace the trigger with the user's custom config.
  */
 export function applyTriggerOverride(
-  doc: PxAnimatedSvgDocument,
+  doc: PxDocument,
   opts?: PlayerOptions,
-): PxAnimatedSvgDocument {
+): PxDocument {
   const t = opts?.trigger;
   if (t === 'file') return doc;                       // leave the document's own trigger alone
   // Through the shared merge, so this reaches the WIRE spelling (`animator.timeline.trigger`).
@@ -105,6 +105,6 @@ export function loopModeToIterations(mode: LoopMode): number | 'infinite' | unde
 /** Factory signature shared by all three player adapters. */
 export type PlayerFactory = (
   container: HTMLElement,
-  doc: PxAnimatedSvgDocument,
+  doc: PxDocument,
   opts?: PlayerOptions,
 ) => PlayerHandle;

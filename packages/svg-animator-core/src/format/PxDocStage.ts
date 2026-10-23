@@ -16,7 +16,7 @@
 //   - `Symbol()` (not `Symbol.for`) is per-module-instance: a second copy of this library on
 //     the page cannot read (or wrongly trust) stamps made by another copy or version.
 // ============================================================================
-import type { PxAnimatedSvgDocument, PxAnimatorRuntimeConfig } from './PxAnimatorTypes';
+import type { PxDocument, PxAnimatorRuntimeConfig } from './PxAnimatorTypes';
 import type { PxTimelineEngine } from './PxAnimatorConstants';
 
 /** How far a document has been lowered — see the module note. @public @advanced */
@@ -49,40 +49,40 @@ export interface PxDocPrep {
 }
 
 /** The animator config object of a document, at either of its two addresses. @internal */
-export function animatorOf(doc: PxAnimatedSvgDocument | undefined): object | undefined {
+export function animatorOf(doc: PxDocument | undefined): object | undefined {
     return doc?.animator || legacyAnimatorOf(doc);
 }
 
 /** `doc.meta.animator` — the pre-rendered SVG's address (`meta` is otherwise the editor's, opaque). @internal */
-export function legacyAnimatorOf(doc: PxAnimatedSvgDocument | undefined): object | undefined {
+export function legacyAnimatorOf(doc: PxDocument | undefined): object | undefined {
     const meta = doc?.meta;
     const legacy = typeof meta === 'object' && meta !== null && 'animator' in meta ? meta.animator : undefined;
     return typeof legacy === 'object' && legacy !== null ? legacy : undefined;
 }
 
 /** The stamped view, when it still belongs to `doc`'s current animator config. @internal */
-export function trustedView(doc: PxAnimatedSvgDocument, prep: PxDocPrep | undefined): { view: PxAnimatorRuntimeConfig | undefined } | undefined {
+export function trustedView(doc: PxDocument, prep: PxDocPrep | undefined): { view: PxAnimatorRuntimeConfig | undefined } | undefined {
     if (!prep || !stageAtLeast(prep.stage, PxDocStage.resolved) || prep.viewOf !== animatorOf(doc)) return undefined;
     return { view: prep.view };
 }
 
 /** A document that passed through `prepareDocument` — carries the stage stamp. @public @advanced */
-export interface PxPreparedDocument extends PxAnimatedSvgDocument {
+export interface PxPreparedDocument extends PxDocument {
     readonly [PX_DOC_PREP]: PxDocPrep;
 }
 
 /** The stamp of a document, if it carries one. @internal */
-export function prepOf(doc: PxAnimatedSvgDocument | undefined): PxDocPrep | undefined {
+export function prepOf(doc: PxDocument | undefined): PxDocPrep | undefined {
     return doc ? (doc as Partial<PxPreparedDocument>)[PX_DOC_PREP] : undefined;
 }
 
 /** Writes the stamp onto `doc` — which must be an object the CALLER created, never user input. @internal */
-export function stampPrep(doc: PxAnimatedSvgDocument, prep: PxDocPrep): PxPreparedDocument {
+export function stampPrep(doc: PxDocument, prep: PxDocPrep): PxPreparedDocument {
     Object.defineProperty(doc, PX_DOC_PREP, { value: Object.freeze({ ...prep }), enumerable: false, configurable: true });
     return doc as PxPreparedDocument;
 }
 
 /** The stage a document was prepared to, or undefined for a raw document. @public @advanced */
-export function documentStage(doc: PxAnimatedSvgDocument): PxDocStage | undefined {
+export function documentStage(doc: PxDocument): PxDocStage | undefined {
     return prepOf(doc)?.stage;
 }

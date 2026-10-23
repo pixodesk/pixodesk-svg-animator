@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { isCompiledAnimation, PxNormalizedPathValueSchema, PxPathDataValueSchema, PxTransformPartsSchema, type PxAnimatedSvgDocument, type PxAnimationDefinition, type PxBezierPath, type PxCompiledAnimation, type PxCompiledKeyframe, type PxCubicBezier, type PxDefinitions, type PxElementAnimation, type PxKeyframe, type PxLoop, type PxNode, type PxPathValue, type PxPropertyAnimation, type PxRgba, type PxTransformParts } from '../format/PxAnimatorTypes';
+import { isCompiledAnimation, PxNormalizedPathValueSchema, PxPathDataValueSchema, PxTransformPartsSchema, type PxDocument, type PxAnimationDefinition, type PxBezierPath, type PxCompiledAnimation, type PxCompiledKeyframe, type PxCubicBezier, type PxDefinitions, type PxElementAnimation, type PxKeyframe, type PxLoop, type PxNode, type PxPathValue, type PxPropertyAnimation, type PxRgba, type PxTransformParts } from '../format/PxAnimatorTypes';
 import { getBindings, getDefinitions, PxAlongPathMode, PxValueKind, TRANSFORM_ATTR } from '../format/PxAnimatorConstants';
 import { getAnimatorConfig, PxTimelineEngine, PxLoopDirection, PxLoopRepeatAt } from '../format/PxAnimatorConstants';
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformParts, cubicBezier, interpolateBeziers, interpolateColor, interpolateNum, interpolateVec, isCamelCaseWord, parseColor, remap, reverseEasing, splitEasing, toRGBA } from '../util/PxAnimatorUtil';
@@ -813,14 +813,14 @@ export function resetElementIdCounter(): void {
 }
 
 /**
- * Normalizes a PxAnimatedSvgDocument to a PxAnimatorConfig for the animation engines.
+ * Normalizes a PxDocument to a PxAnimatorConfig for the animation engines.
  * This is the main entry point for converting the new API format to internal format.
  * Resolves animation/easing references. `engine` controls motion-along-path
  * handling — see {@link PxTimelineEngine}.
  * @public @advanced
  */
 export function normalizeBindings(
-    doc: PxAnimatedSvgDocument,
+    doc: PxDocument,
     engine: PxTimelineEngine = PxTimelineEngine.native,
 ): PxNormalizedBinding[] {
     const animatorConfig = getAnimatorConfig(doc) || {};

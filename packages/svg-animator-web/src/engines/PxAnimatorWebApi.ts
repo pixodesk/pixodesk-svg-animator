@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, normalizeBindings, PxTimelineEngine, PxValueKind, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxCompiledAnimation, type PxCompiledKeyframe, type PxRuntimeAnimation, clampSeekMs, isValidPlaybackRate, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, normalizeBindings, PxTimelineEngine, PxValueKind, type PxDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxCompiledAnimation, type PxCompiledKeyframe, type PxRuntimeAnimation, clampSeekMs, isValidPlaybackRate, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core';
 import { PX_DEFAULT_ITERATIONS, mapChannelKeyframes, type PxChannelLerp } from '@pixodesk/svg-animator-core/internal';
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformParts, cubicBezier, kebabToCamelCaseWord, splitEasing, toRGBA, createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import { getSelector } from './PxAnimatorFrameLoop';
@@ -185,7 +185,7 @@ export interface PxWebApiScrollTimeline {
 // @px-importance important
 /** @internal */
 export function createWebApiAnimator(
-    doc: PxAnimatedSvgDocument,
+    doc: PxDocument,
     callbacks?: PxEngineCallbacks,
     rootElement?: Element | null,
     forceEvenIfHasUnsupportedAttrs?: boolean,

@@ -7,10 +7,10 @@
 // timers, like index.test.ts.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimator } from '../index';
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-core';
+import type { PxDocument } from '@pixodesk/svg-animator-core';
 
 /** Opacity 0 → 1 over content 500…1500 ms; keyframes also exist OUTSIDE the window below. */
-function windowDoc(extra: Record<string, unknown> = {}): PxAnimatedSvgDocument {
+function windowDoc(extra: Record<string, unknown> = {}): PxDocument {
     return {
         type: 'svg', viewBox: '0 0 10 10',
         animator: { timeline: { engine: 'js', inTime: 500, outTime: 1500, ...extra } },
@@ -22,7 +22,7 @@ function windowDoc(extra: Record<string, unknown> = {}): PxAnimatedSvgDocument {
                 { time: 1500, value: 1 },
             ] } },
         }],
-    } as unknown as PxAnimatedSvgDocument;
+    } as unknown as PxDocument;
 }
 
 const opacity = () => Number(document.querySelector('rect')?.getAttribute('opacity'));

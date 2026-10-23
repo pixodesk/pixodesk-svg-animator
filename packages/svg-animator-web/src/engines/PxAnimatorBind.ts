@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, composeApiExtras, getAnimatorConfig, toAnimatedSvgDocument, type PxDocumentInput, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, suppressTriggerStart, type PxAnimatedSvgDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, composeApiExtras, getAnimatorConfig, toPxDocument, type PxDocumentInput, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, suppressTriggerStart, type PxDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
@@ -74,7 +74,7 @@ export function finaliseAnimator(
  * `native` demands waapi.
  */
 export function bindWithEngineChoice(
-    doc: PxAnimatedSvgDocument,
+    doc: PxDocument,
     adapter?: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks,
     rootElement?: Element | null
@@ -187,17 +187,17 @@ export interface PxPrerenderedAnimatorOptions extends PxAnimatorCallbacks {
 
 /** The no-driver rule, on the bind path: nothing starts itself unless `playAsSaved` says so.
  *  Scroll-driven documents are exempt — scroll IS their named driver (same rule as `createSvgAnimator`). */
-function docToPlay(options: PxPrerenderedAnimatorOptions): PxAnimatedSvgDocument {
+function docToPlay(options: PxPrerenderedAnimatorOptions): PxDocument {
     const doc = requireDoc(options);
     if (options.playAsSaved || isScrollTimeline(getAnimatorConfig(doc))) return doc;
     return applyAnimatorConfig(doc, suppressTriggerStart()).doc;
 }
 
-function requireDoc(options: PxPrerenderedAnimatorOptions): PxAnimatedSvgDocument {
+function requireDoc(options: PxPrerenderedAnimatorOptions): PxDocument {
     // A wrong CALL throws (a bug at the call site); a document that cannot play is reported
     // through `onError` below — the rule in core's `PxDiagnostics` (review §25.1).
     if (!options?.doc) throw new Error('createSvgAnimator: `doc` is required');
-    return toAnimatedSvgDocument(options.doc);
+    return toPxDocument(options.doc);
 }
 
 /**

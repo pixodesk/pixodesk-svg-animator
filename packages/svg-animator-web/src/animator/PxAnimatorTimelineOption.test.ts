@@ -13,10 +13,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createSvgAnimator } from './PxAnimator';
 import { resolveTimelineOption } from './PxAnimator';
-import type { PxAnimatedSvgDocument, PxAnimatorConfigPatch, PxTimelinePatch } from '@pixodesk/svg-animator-core';
+import type { PxDocument, PxAnimatorConfigPatch, PxTimelinePatch } from '@pixodesk/svg-animator-core';
 
 /** A WIRE-format document (nested `timeline`) — the spelling every writer emits. */
-function wireDoc(): PxAnimatedSvgDocument {
+function wireDoc(): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',

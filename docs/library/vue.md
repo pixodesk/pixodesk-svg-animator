@@ -335,13 +335,13 @@ Everything is spelled out above: `SvgAnimator` under [Props](#props) and [Events
 the handle under [Imperative API](#imperative-api-template-ref), `SvgCssAnimator` under
 [CSS-flavor SVGs](#css-flavor-svgs--svgcssanimator). Modes, highest priority wins:
 `progress` / `time` → `play` / `pause` → `playAsSaved` → static — the same rule as React and React
-Native, conflicts warned the same way; any change to `doc` or to an override prop re-creates the
-player. The callbacks and diagnostics are the shape every player shares —
+Native, conflicts warned the same way; a change to `doc`'s content (compared deeply) or to an override
+prop re-creates the player. The callbacks and diagnostics are the shape every player shares —
 [the API at a glance](./README.md#the-api-at-a-glance).
 
 <!-- px-check exports @pixodesk/svg-animator-vue -->
 The package exports the components, the handle type `PxAnimatorHandle`, and the document type
-`PxAnimatedSvgDocument` (for casting a JSON import — [TypeScript](./installation.md#typescript));
+`PxDocument` (for casting a JSON import — [TypeScript](./installation.md#typescript));
 nothing else.
 
 ## Example

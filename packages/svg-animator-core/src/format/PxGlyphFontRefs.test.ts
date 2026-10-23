@@ -9,7 +9,7 @@
 // SHAPE, never that the two agree.
 
 import { describe, expect, it } from 'vitest';
-import { validateDocument, type PxAnimatedSvgDocument } from './PxAnimatorTypes';
+import { validateDocument, type PxDocument } from './PxAnimatorTypes';
 
 const FACE = { fontFamily: 'Roboto', fontStyle: 'Regular', ascent: 750, unitsPerEm: 1000,
     glyphs: { H: { width: 700, pathData: 'M0 0L100 0L100 -700Z' } } };
@@ -46,7 +46,7 @@ describe('validateDocument — glyph-mode text must name an embedded face (§2.5
     it('catches a family declared on the <text> itself, reporting it ONCE', () => {
         // The family sits on the <text>; the span carrying the characters inherits it. The
         // problem belongs to the node that declares the name — not to every descendant too.
-        const d: PxAnimatedSvgDocument = doc({ 'Roboto-Regular': FACE }, {});
+        const d: PxDocument = doc({ 'Roboto-Regular': FACE }, {});
         const [text] = d.children ?? [];
         text.fontFamily = 'Roboto-Bold';
         const problems = validateDocument(d).errors;

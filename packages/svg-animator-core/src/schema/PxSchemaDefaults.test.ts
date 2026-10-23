@@ -12,9 +12,9 @@
 import { describe, expect, it } from 'vitest';
 import { resolveAnimatorTimeline, getAnimatorConfig, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_TRIGGER_DEFAULTS, PxFinishAction, PxTriggerStart, resolveTrigger } from '../format/PxAnimatorConstants';
 import {
-    PxAnimatedSvgDocumentSchema, PxAnimatorConfigSchema, PxCloneEffectSchema, PxFillGradientEffectSchema, PxGlyphFontSchema, PxLoopSchema, PxMaskedByEffectSchema,
+    PxDocumentSchema, PxAnimatorConfigSchema, PxCloneEffectSchema, PxFillGradientEffectSchema, PxGlyphFontSchema, PxLoopSchema, PxMaskedByEffectSchema,
     PxPropertyAnimationSchema, PxScrollRangePointSchema, PxScrollSchema, PxStrokeTrimEffectSchema, PxTextPathEffectSchema, PxTimelineSchema,
-    PxTimeTimelineSchema, PxTriggerSchema, type PxAnimatedSvgDocument, type PxTrigger,
+    PxTimeTimelineSchema, PxTriggerSchema, type PxDocument, type PxTrigger,
 } from '../format/PxAnimatorTypes';
 import { describeSchema, px, schemaKeys, type PxAnySchema } from './PxSchema';
 import { untyped } from '../effects/effectTestKit';
@@ -118,7 +118,7 @@ describe('schema.defaults — what an absent field means', () => {
             type: 'svg', viewBox: '0 0 400 400',
             animator: { timeline: { duration: 1000, iterations: 1, trigger: { start: 'mouseOver' } } },
             children: [],
-        } as unknown as PxAnimatedSvgDocument;
+        } as unknown as PxDocument;
         expect(resolveTrigger(getAnimatorConfig(doc)?.trigger).mouseOut).toBe(PxTriggerSchema.defaults.mouseOut);
         expect(PxTriggerSchema.defaults.mouseOut).toBe('pause');
     });
@@ -126,7 +126,7 @@ describe('schema.defaults — what an absent field means', () => {
     it('the document and config roots state no scalar defaults of their own (nothing to drift)', () => {
         // Structural roots: their fields are objects / free values; a sanity check that the query
         // works on them without inventing values.
-        expect(PxAnimatedSvgDocumentSchema.defaults).not.toHaveProperty(schemaKeys(PxAnimatedSvgDocumentSchema).animator);
+        expect(PxDocumentSchema.defaults).not.toHaveProperty(schemaKeys(PxDocumentSchema).animator);
         expect(PxAnimatorConfigSchema.defaults).not.toHaveProperty(schemaKeys(PxAnimatorConfigSchema).timeline);
         expect(PxTimelineSchema).toBeTruthy();
     });

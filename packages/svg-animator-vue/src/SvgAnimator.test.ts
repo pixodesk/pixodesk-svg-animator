@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createSvgAnimator, PxAnimatedSvgDocument, type PxNode } from '@pixodesk/svg-animator-web';
+import { createSvgAnimator, PxDocument, type PxNode } from '@pixodesk/svg-animator-web';
 import { PxDiagnosticCode } from '@pixodesk/svg-animator-core';
 import { cleanup, render } from "@testing-library/vue";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,12 +18,12 @@ import SvgAnimator from './SvgAnimator';
  * emitted events via `onX` listener props. The host forwards its `doc` prop so
  * `rerender({ doc })` reaches the animator.
  */
-function renderWithApi(doc: PxAnimatedSvgDocument, listeners: PxAnimatorCallbacks = {}) {
+function renderWithApi(doc: PxDocument, listeners: PxAnimatorCallbacks = {}) {
     const api = ref<PxAnimatorHandle | null>(null);
     const utils = render(defineComponent({
         props: { doc: { type: Object, required: true } },
         setup(props) {
-            return () => h(SvgAnimator, { doc: props.doc as PxAnimatedSvgDocument, ref: api, ...listeners });
+            return () => h(SvgAnimator, { doc: props.doc as PxDocument, ref: api, ...listeners });
         },
     }), {
         props: { doc },
@@ -111,7 +111,7 @@ describe("SvgAnimator (Vue)", () => {
         });
 
         it("applies a node's inline `style` — `display: none` hides the element, like the web player", () => {
-            const doc: PxAnimatedSvgDocument = {
+            const doc: PxDocument = {
                 type: 'svg', viewBox: '0 0 2880 1800',
                 children: [
                     { type: 'ellipse', fill: '#ff0000', rx: 197.5, ry: 206.5 },
@@ -452,7 +452,7 @@ describe("SvgAnimator (Vue) — attribute names", () => {
             // unsafe and the two renders differ for a reason that is not the name.
             rect[kebabToCamel(kebab)] = REFERENCE_ATTRIBUTES.has(kebab) ? "url(#r)" : "1";
         }
-        const doc: PxAnimatedSvgDocument = { type: "svg", viewBox: "0 0 10 10", animator: { timeline: { outTime: 100, engine: "js" } }, children: [rect] };
+        const doc: PxDocument = { type: "svg", viewBox: "0 0 10 10", animator: { timeline: { outTime: 100, engine: "js" } }, children: [rect] };
 
         const host = document.createElement("div");
         document.body.appendChild(host);
@@ -498,7 +498,7 @@ function attributeNames(el: Element | null): Array<string> {
 }
 
 /** Renders and returns the root `<svg>`, failing the test if there is none. */
-function renderSvg(doc: PxAnimatedSvgDocument): SVGSVGElement {
+function renderSvg(doc: PxDocument): SVGSVGElement {
     const svg = render(SvgAnimator, { props: { doc } }).container.querySelector("svg");
     if (!svg) throw new Error("no <svg> rendered");
     return svg;
@@ -530,7 +530,7 @@ function tagCensus(root: Element | null): Record<string, number> {
 ////////////////////////////////////////////////////////////////
 
 /** Frames-mode doc: single ellipse, translate 100 → 200 over 128ms. */
-function getTestJson(): PxAnimatedSvgDocument {
+function getTestJson(): PxDocument {
     return {
         type: "svg",
         id: "_px_2p4d44pl",
@@ -571,7 +571,7 @@ function getTestJson(): PxAnimatedSvgDocument {
 }
 
 /** Same as getTestJson but with duration 1000ms (for progress / time semantics). */
-function getTestJson1000(): PxAnimatedSvgDocument {
+function getTestJson1000(): PxDocument {
     return {
         type: "svg",
         id: "_px_2p4d44pl",
@@ -613,7 +613,7 @@ function getTestJson1000(): PxAnimatedSvgDocument {
 
 /** Doc with text: a leaf <text>, a <text> with two <tspan>s, and a line <tspan> carrying BOTH its
  *  folded text and a styled child span (the shape the editor writes for a one-span line). */
-function getTextJson(): PxAnimatedSvgDocument {
+function getTextJson(): PxDocument {
     return {
         type: "svg",
         viewBox: "0 0 200 150",
@@ -638,7 +638,7 @@ function getTextJson(): PxAnimatedSvgDocument {
 }
 
 /** Doc with a few children (ellipse + g > rect) for tag-tree rendering tests. */
-function getTreeJson(): PxAnimatedSvgDocument {
+function getTreeJson(): PxDocument {
     return {
         type: "svg",
         id: "_px_root_tree",
@@ -694,7 +694,7 @@ function getTreeJson(): PxAnimatedSvgDocument {
 }
 
 /** A different doc (animated rect) used to exercise doc-swap remounting. */
-function getRectJson(): PxAnimatedSvgDocument {
+function getRectJson(): PxDocument {
     return {
         type: "svg",
         id: "_px_root_b",
@@ -738,7 +738,7 @@ function getRectJson(): PxAnimatedSvgDocument {
 describe('SvgAnimator (Vue) — timeline override', () => {
 
     /** A WIRE-format document; the flat props this replaced were discarded on this shape. */
-    const wireJson = (): PxAnimatedSvgDocument => ({
+    const wireJson = (): PxDocument => ({
         type: 'svg', id: '_px_wire', viewBox: '0 0 100 100',
         animator: { timeline: { engine: 'js', outTime: 1000, trigger: { start: 'load' } } },
         children: [{
@@ -779,7 +779,7 @@ describe('SvgAnimator (Vue) — timeline override', () => {
  * ellipse `effects.maskedBy` the rect (alpha); a mouse-over trigger with a looping transform.
  * Same document as the React spec's fixture of the same name.
  */
-function getEffectsOnlyJson(): PxAnimatedSvgDocument {
+function getEffectsOnlyJson(): PxDocument {
     return {
         type: "svg", fill: "none", preserveAspectRatio: "xMaxYMax ", viewBox: "0 0 500 500",
         animator: {
@@ -843,7 +843,7 @@ function getEffectsOnlyJson(): PxAnimatedSvgDocument {
  * DOM as camelCase, so the mask fell back to luminance and let ~28% of the blue rect through
  * (dark). Same document as the React spec's fixture of the same name.
  */
-function getMaskedLoadJson(): PxAnimatedSvgDocument {
+function getMaskedLoadJson(): PxDocument {
     return {
         type: "svg", fill: "none", preserveAspectRatio: "xMaxYMax ", viewBox: "0 0 500 500",
         animator: {

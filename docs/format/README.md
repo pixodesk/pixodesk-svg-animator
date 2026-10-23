@@ -137,7 +137,7 @@ write or transform documents in TypeScript rather than by hand:
 <!-- px-check off the TypeScript spelling of the blocks below, prose -->
 | Import this | to type this part of the document |
 |---|---|
-| `PxAnimatedSvgDocument` | the whole file |
+| `PxDocument` | the whole file |
 | `PxNode` | any element in `children`; `PxSvgNode` is the root `<svg>`, which adds the document keys |
 | `PxAnimatorConfig` | the `animator` block as a whole |
 | `PxTimeline` | `animator.timeline` — what advances the playhead |
@@ -155,9 +155,9 @@ write or transform documents in TypeScript rather than by hand:
 | `PxAlongPathMode` · `PxLoopRepeatAt` · `PxLoopDirection` | a property animation's `alongPathMode`, and its `loop.repeatAt` / `loop.direction` |
 | `PxStrokeTrimSubPaths` · `PxCloneWithout` · `PxMaskType` · `PxUnits` · `PxGradientType` · `PxGradientSpreadMethod` · `PxPathOverflow` · `PxLengthAdjust` · `PxTextPathMethod` · `PxTextPathSpacing` | the effects' selectors: `strokeTrim.subPaths`, `clone.without`, `maskedBy.maskType`, the mask and gradient units, a gradient's `type` and `spreadMethod`, and `textPath`'s `pathOverflow` / `lengthAdjust` / `method` / `spacing` |
 
-<!-- px-check schema-block SVG_JSON=PxAnimatedSvgDocumentSchema NODE=PxNodeSchema ANIMATE=PxPropertyAnimationSchema EFFECTS=PxEffectsSchema GRADIENT=PxFillGradientEffectSchema -->
+<!-- px-check schema-block SVG_JSON=PxDocumentSchema NODE=PxNodeSchema ANIMATE=PxPropertyAnimationSchema EFFECTS=PxEffectsSchema GRADIENT=PxFillGradientEffectSchema -->
 ```typescript
-// PxAnimatedSvgDocument
+// PxDocument
 // Self-contained document: has children — player renders SVG tree and animates it
 // Bind-by-id document: no children — player animates a pre-existing SVG DOM via animator.bindings
 // The root <svg> is a NODE too (every node key applies), plus:
@@ -369,7 +369,7 @@ never rendered.
 
 ### The document root
 
-<!-- px-check schema PxAnimatedSvgDocumentSchema -->
+<!-- px-check schema PxDocumentSchema -->
 | Field | Type | Meaning |
 |---|---|---|
 | `type` | string — usually `"svg"` | required — the root element's tag. `"svg"` for a drawing; an HTML tag such as `"div"` for a page that wraps one or more `svg` children (see [HTML around SVG](#html-around-svg)) |
@@ -1534,8 +1534,8 @@ The calls above, and the rest of what you would call directly, in signature form
 ```typescript
 // ○ The one lowering pipeline — current → resolved → plain — stamped on the result; a document
 //   that already reached the stage comes back unchanged (see Preparing a document).
-function prepareDocument(doc: PxAnimatedSvgDocument, options?: PxPrepareOptions): PxPreparedDocument;
-function documentStage(doc: PxAnimatedSvgDocument): PxDocStage | undefined;   // undefined = a raw document
+function prepareDocument(doc: PxDocument, options?: PxPrepareOptions): PxPreparedDocument;
+function documentStage(doc: PxDocument): PxDocStage | undefined;   // undefined = a raw document
 
 interface PxPrepareOptions {
     stage?: PxDocStage;          // 'current' | 'checked' | 'resolved' | 'plain' (the default)
@@ -1550,17 +1550,17 @@ interface PxPrepareOptions {
 //   to feed a renderer that has no effects support. `resolveTimelineEngine`
 //   turns a document's `timeline.engine` into this argument.
 function materializeAllInTree(
-    doc: PxAnimatedSvgDocument,
+    doc: PxDocument,
     engine: 'native' | 'js',
     options?: { motionPath?: MotionPathMaterializationOptions },
-): PxAnimatedSvgDocument;
+): PxDocument;
 
 // ○ One stage of it: `node.effects` → plain renderable nodes (+ generated defs).
 function materializeNodeEffects(root: PxNode): ApplyResult;
 
 // ● The cheap shallow gate — "is this a Pixodesk document at all?" (a type guard). With
 //   `validateDocument` below, the whole public checking surface (review §15).
-function isPxDocument(doc: unknown): boolean;   // a type guard: true narrows to PxAnimatedSvgDocument
+function isPxDocument(doc: unknown): boolean;   // a type guard: true narrows to PxDocument
 
 // ● THE whole-document check (review §15 — the ONE public answer): the wire schema (undeclared
 //   keys included under strict), every `effects` bucket, the glyph-font and easing references
@@ -1598,10 +1598,10 @@ function validateDocument(doc: unknown, options?: { strict?: boolean }): PxValid
 //   untouched subtree by reference. Warnings say what could not be applied
 //   (e.g. clock-only keys aimed at a scroll timeline).
 function applyAnimatorConfig(
-    doc: PxAnimatedSvgDocument,
+    doc: PxDocument,
     patch: PxAnimatorConfigPatch,
     options?: { resetTimeline?: boolean },   // start from the player's defaults; keeps
-): { doc: PxAnimatedSvgDocument; warnings: Array<string> };   // definitions/bindings
+): { doc: PxDocument; warnings: Array<string> };   // definitions/bindings
 
 // ○ The same merge one level down, on the config object itself.
 function mergeAnimatorConfig(
@@ -1626,11 +1626,11 @@ function downgradeWireDocument(doc: unknown, target: PxWireVersion): PxWireDowng
 
 // ○ Deep-clone a document with fresh ids and internal references rewritten —
 //   what you need before putting the same animation on a page twice.
-function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocument;
+function generateNewIds(doc: PxDocument): PxDocument;
 
 // ○ Playback on a non-DOM target: implement the adapter, get the frame-loop engine.
 function createAdapterSvgAnimator(
-    doc: PxAnimatedSvgDocument,
+    doc: PxDocument,
     adapter: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks,
 ): PxAnimatorApi;
@@ -1663,7 +1663,7 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 <!-- px-check exports @pixodesk/svg-animator-core -->
 | Group | Identifiers | Audience · what it is for |
 |---|---|---|
-| Wire types | `PxAnimatedSvgDocument`, `PxDocumentInput`, `toAnimatedSvgDocument(doc)` (○), `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTimeline`, `PxTrigger`, `PxElementAnimation`, `PxPropertyAnimation`, `PxKeyframe`, `PxLoop`, `PxBinding`, `PxDefinitions`, `PxEffects`, `PxTransformParts`, `PxBezierPath`, `PxGlyph`, `PxGlyphFont`, `PxAnimationDefinition`, `PxScroll`, `PxScrollRangePoint`, `PxVec2`, `PxTransformValue` | ● the shapes in [Schema at a glance](#schema-at-a-glance) |
+| Wire types | `PxDocument`, `PxDocumentInput`, `toPxDocument(doc)` (○), `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTimeline`, `PxTrigger`, `PxElementAnimation`, `PxPropertyAnimation`, `PxKeyframe`, `PxLoop`, `PxBinding`, `PxDefinitions`, `PxEffects`, `PxTransformParts`, `PxBezierPath`, `PxGlyph`, `PxGlyphFont`, `PxAnimationDefinition`, `PxScroll`, `PxScrollRangePoint`, `PxVec2`, `PxTransformValue` | ● the shapes in [Schema at a glance](#schema-at-a-glance) |
 | Player API types | `PxAnimatorApi<TRoot>`, `PxEngineAnimatorApi<TRoot>` (○), `PxEngineCallbacks`, `PxPlatformAdapter` | ● platform-neutral; the web fixes `TRoot` to `Element`. `PxEngineCallbacks` is what an engine takes — the lifecycle on top of `PxDiagnosticsConfig` |
 | Component contract | `PxAnimatorHandle`, `PxAnimatorCallbacks`, `PxControlProps`, `PxControlMode`, `resolveControlMode(props)`, `controlModeTakesOverTrigger(mode)`, `PxPlayMode`, `resolveDeclarativePlayback(args)` (○), `PxDeclarativeAction` (○), `PxDeclarativeProps` (○), `PxDeclarativeArgs` (○), `PxDeclarativeTarget` (○), `PxDeclarativeRunContext` (○), `applyDeclarativeAction(api, action, ctx)` (○), `createIterationStopWatcher(api, passMs, raf, onStopped?)` (○), `resolvePlaybackWorld(iterations)` (○), `PxPlaybackWorld` (○), `composeApiExtras(api, cfg, raf)` (○), `PxPlayOnceConfig` (○), `PxPlayOnceTarget` (○), `prepareDocumentForRender(doc)` (▪), `renderPxTree(node, factory)` (▪), `PxElementFactory` (▪), `PxElementSpec` (▪) | ● what the React / Vue / React Native components share: the imperative handle, the callback set, the props that pick a mode and the one rule that picks it — [the API at a glance](../library/README.md#the-api-at-a-glance). `renderPxTree` is THE renderer of every DOM player: it makes each decision about a document — tags, attribute names and values, sanitization, styles, text — and a player supplies only a `PxElementFactory`, "create an element from this finished `PxElementSpec`" (a DOM node, a React element, a Vue vnode). `prepareDocumentForRender` is the document it is given: materialized, then fresh ids |
 | Engine rules | `resolveTimelineEngine(engine)`, `isNativeForced(engine)`, `mayUseNativeScrollTimeline(engine)` | ○ how a `timeline.engine` resolves to an engine / to the browser's ScrollTimeline — the players' own decision helpers |
@@ -1682,7 +1682,7 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 | No-driver patch | `suppressTriggerStart(patch?)` | ○ `trigger.start` forced to `'none'` on top of a caller's override — what every player applies when `playAsSaved` is absent (the components' non-`playAsSaved` control modes use the same helper) |
 | Compiled animation | `PxCompiledAnimation`, `PxCompiledKeyframe`, `PxAnyPropertyAnimation`, `isCompiledAnimation(entry)`, `PxCompiledAnimationSchema`, `PxAnyPropertyAnimationSchema`, `PxRgba`, `PxRgbaSchema`, `PxCubicBezier`, `PxCubicBezierSchema`, `PxPathValue` | ○ the format's low layer — [Compiled animation](#compiled-animation--the-low-layer). `compileAnimation`, `compileAnimationDefinition`, `compileAnimationsInTree`, `PxCompileContext` (▪) lower authored entries to it; `toAuthoredAnimation`, `authorCompiledAnimations` (▪) read it back as the authored form (the editor's read path); `anyPropertyAnimationSchemaOf` (▪) builds the entry union around a widened authored schema (the editor's); `PxNormalizedPathValueSchema` (▪) casts a compiled `d` value (`{paths}`) |
 | Runtime channels | `PxNormalizedBinding`, `PxRuntimeAnimation`, `PxValueKind` | ○ what `normalizeBindings` hands the engines: compiled animations in window ms — see [Materializing a document](#materializing-a-document). `channelKindOf` (▪) is the one place a property's value kind is decided; `mapChannelKeyframes` (▪) runs keyframe work with the blend of the channel's kind (`PxChannelLerp` ▪); `movesAlongPath` (▪) says whether a compiled `transform` is a motion path the frame loop evaluates |
-| Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxAnimatedSvgDocumentSchema`, `PxNodeSchema`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTimeTimelineSchema`, `PxTriggerSchema`, `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxLoopSchema`, `PxDefinitionsSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxTransformValueSchema` | ○ the validator the format is written in |
+| Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxDocumentSchema`, `PxNodeSchema`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTimeTimelineSchema`, `PxTriggerSchema`, `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxLoopSchema`, `PxDefinitionsSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxTransformValueSchema` | ○ the validator the format is written in |
 | Pipeline stages | `normalizeBindings` (○), `calcAnimationValues` (○), `materializeMotionPathInPropAnim`, `mergeStaticTransformIntoAnimDef` | ▪ stages of `materializeAllInTree`; call the pipeline instead. `calcAnimationValues(channels, ms, segments?)` takes an optional motion-path segment table (`createMotionPathSegments`, `MotionPathSegments` ▪) that its owner — an animator, one pass — keeps, so each curve segment is built once; there is no module-level cache |
 | Effect harness | `diffInEffect` | ▪ the editor's "equal in effect" comparison |
 | Text & paths | `materializeGlyphText`, `layoutGlyphTextChars`, `createPathSampler`, `extendedPathForBrowser`, `materializeGlyphTextAlongPath` | ▪ glyph-text and text-on-path materialization |

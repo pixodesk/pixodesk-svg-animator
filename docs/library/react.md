@@ -285,7 +285,7 @@ interface SvgAnimatorProps {
     onCancel?: () => void;   // stopped and back at the start state
     onFinish?: () => void;   // reached the end — every iteration played, or finish() was called;
                              //   not when stopped early
-    onDestroy?: () => void;   // the player was destroyed — unmount, or a new `doc` re-created it
+    onDestroy?: () => void;   // the player was destroyed — unmount, or new `doc` content re-created it
     onStop?: () => void;     // "no longer playing, whatever the reason" — after any of onPause /
                              //   onCancel / onFinish / onDestroy; the one to use
                              //   when you only care that it is no longer playing
@@ -370,7 +370,7 @@ the shape every player shares — [the API at a glance](./README.md#the-api-at-a
 
 <!-- px-check exports @pixodesk/svg-animator-react -->
 Also exported: **●** `SvgAnimatorProps`, `PxAnimatorHandle`,
-`SvgAnimatorCallbacks` (the `on*` props as a standalone type), and `PxAnimatedSvgDocument`
+`SvgAnimatorCallbacks` (the `on*` props as a standalone type), and `PxDocument`
 (the document type, for casting a JSON import — [TypeScript](./installation.md#typescript)).
 
 [← Web player](./web-player.md) · [Contents](../../README.md#documentation) · Next: [Next.js →](./nextjs.md)

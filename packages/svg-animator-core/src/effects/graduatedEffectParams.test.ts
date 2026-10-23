@@ -17,10 +17,10 @@
 // which drives the editor writer end-to-end rather than hand-authoring).
 
 import { describe, expect, it } from 'vitest';
-import { PxTransformPartsSchema, PxTransformValueWrapperSchema, type PxAnimatedSvgDocument, type PxKeyframe, type PxKeyframeValue, type PxNode, type PxTimeline, type PxTransformParts } from '../format/PxAnimatorTypes';
+import { PxTransformPartsSchema, PxTransformValueWrapperSchema, type PxDocument, type PxKeyframe, type PxKeyframeValue, type PxNode, type PxTimeline, type PxTransformParts } from '../format/PxAnimatorTypes';
 import { authoredEntry, collectByType, entryOf, materialize, untyped } from './effectTestKit';
 
-const doc = (child: PxNode): PxAnimatedSvgDocument =>
+const doc = (child: PxNode): PxDocument =>
     // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
     ({ type: 'svg', animator: { timeline: untyped<PxTimeline>({ duration: 2000 }) }, children: [child] });
 

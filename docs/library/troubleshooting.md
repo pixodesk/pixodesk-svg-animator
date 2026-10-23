@@ -24,7 +24,7 @@ or `time` the trigger is ignored. Passing `apiRef` does **not** change the mode.
 nothing. Add `playAsSaved`. `apiRef` on its own is such a case: the ref is a handle, not an
 instruction, so nothing moves until you call `play()` on it.
 
-**`loadTagSvgAnimators()` ran before the elements existed.** Call it after the DOM is ready (end of
+**`createSvgAnimatorsFromPage()` ran before the elements existed.** Call it after the DOM is ready (end of
 `<body>`, `DOMContentLoaded`), and call it again after inserting content dynamically — it only
 creates animators for elements that do not have an animator yet.
 
@@ -58,7 +58,7 @@ component — add `'use client'` at the top of the file that renders it.
 
 **A JSON import is flagged on `doc`.** It shouldn't be: `doc` is typed `PxDocumentInput`,
 which is exactly the shape a JSON import produces — so first enable `"resolveJsonModule"` in
-`tsconfig.json` and update the player packages. Only `PxAnimatedSvgDocument` (the strict type,
+`tsconfig.json` and update the player packages. Only `PxDocument` (the strict type,
 for documents built in code) rejects a JSON import's widened strings.
 
 ## React Native

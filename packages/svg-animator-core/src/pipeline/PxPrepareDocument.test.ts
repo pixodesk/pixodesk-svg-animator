@@ -4,11 +4,11 @@
 import { describe, expect, it } from 'vitest';
 import { prepareDocument, type PxPrepareOptions } from './PxPrepareDocument';
 import { PxDocStage, documentStage } from '../format/PxDocStage';
-import { getAnimatorConfig, materializeAllInTree, PxTimelineEngine, validateDocument, convertWireDocument, type PxAnimatedSvgDocument } from '../index';
+import { getAnimatorConfig, materializeAllInTree, PxTimelineEngine, validateDocument, convertWireDocument, type PxDocument } from '../index';
 import { PxAnimationDefinitionSchema, PxKeyframeSchema } from '../format/PxAnimatorTypes';
 
 /** A small but real document: an animated rect plus a gradient effect to materialize. */
-function makeDoc(): PxAnimatedSvgDocument {
+function makeDoc(): PxDocument {
     return JSON.parse(JSON.stringify({
         type: 'svg',
         viewBox: '0 0 100 100',
@@ -18,9 +18,9 @@ function makeDoc(): PxAnimatedSvgDocument {
             effects: { fillGradient: { type: 'linear', stops: [{ offset: 0, color: '#000' }, { offset: 1, color: '#fff' }] } },
         }],
         animator: { version: '1.6.0', timeline: { outTime: 800 } },
-    })) as PxAnimatedSvgDocument;
+    })) as PxDocument;
 }
-const prep = (doc: PxAnimatedSvgDocument, options?: PxPrepareOptions) => prepareDocument(doc, options);
+const prep = (doc: PxDocument, options?: PxPrepareOptions) => prepareDocument(doc, options);
 
 describe('prepareDocument', () => {
     it('lowers to plain by default, stamps the result, and leaves the input untouched', () => {
@@ -50,7 +50,7 @@ describe('prepareDocument', () => {
         const doc = makeDoc();
         const out = prep(doc, { stage: PxDocStage.resolved });
         expect(Object.keys(out).sort()).toEqual(Object.keys(doc).sort());
-        const reparsed = JSON.parse(JSON.stringify(out)) as PxAnimatedSvgDocument;
+        const reparsed = JSON.parse(JSON.stringify(out)) as PxDocument;
         expect(documentStage(reparsed)).toBeUndefined();     // a round-tripped doc is raw again
         expect(validateDocument(out, { strict: false }).errors).toEqual([]);
     });
@@ -73,7 +73,7 @@ describe('prepareDocument', () => {
     it('plain output equals the composed legacy calls (convert + materialize)', () => {
         const doc = makeDoc();
         const viaPipeline = prep(doc, { engine: PxTimelineEngine.native });
-        const legacy = materializeAllInTree(convertWireDocument(makeDoc()).doc as PxAnimatedSvgDocument, PxTimelineEngine.native);
+        const legacy = materializeAllInTree(convertWireDocument(makeDoc()).doc as PxDocument, PxTimelineEngine.native);
         expect(JSON.parse(JSON.stringify(viaPipeline))).toEqual(JSON.parse(JSON.stringify(legacy)));
     });
 
@@ -106,7 +106,7 @@ describe('prepareDocument', () => {
     });
 
     it('a stamp is only trusted while the document holds the SAME animator config object', () => {
-        const res = prep(makeDoc(), { stage: PxDocStage.resolved }) as PxAnimatedSvgDocument;
+        const res = prep(makeDoc(), { stage: PxDocStage.resolved }) as PxDocument;
         const before = getAnimatorConfig(res);
         (res as { animator?: unknown }).animator = { timeline: { outTime: 250 } };   // a convention breach
         expect(getAnimatorConfig(res)).not.toBe(before);
@@ -115,7 +115,7 @@ describe('prepareDocument', () => {
 
     it('freshIds mints new ids on the plain output', () => {
         const doc = makeDoc();
-        const out = prep(doc, { freshIds: true }) as PxAnimatedSvgDocument;
+        const out = prep(doc, { freshIds: true }) as PxDocument;
         const ids = JSON.stringify(out).match(/"id":"[^"]+"/g) || [];
         expect(ids.length).toBeGreaterThan(0);
         expect(JSON.stringify(out)).not.toContain('"id":"r1"');

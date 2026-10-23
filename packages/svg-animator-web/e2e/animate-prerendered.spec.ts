@@ -18,7 +18,7 @@ type PxFixtureWindow = Window & {
  * Smoke coverage for the PRE-RENDERED bundles, run against the MINIFIED artifact.
  *
  * Why this exists separately from the other e2e specs: those bootstrap through
- * `loadTagSvgAnimators()` + `data-px-animation-src`, a path the pre-rendered builds
+ * `createSvgAnimatorsFromPage()` + `data-px-animation-src`, a path the pre-rendered builds
  * deliberately do not contain. This fixture instead mirrors the Editor's SVG+JS export —
  * an already-rendered SVG plus a bindings-only payload.
  *
@@ -89,7 +89,7 @@ test.describe('pre-rendered bundle (minified)', () => {
         expect(keys).not.toContain('create');
         // The external-JSON bootstrap belongs to the full build only; its absence is what
         // lets the effects pipeline and schema layer tree-shake away.
-        expect(keys).not.toContain('loadTagSvgAnimators');
+        expect(keys).not.toContain('createSvgAnimatorsFromPage');
     });
 
 });

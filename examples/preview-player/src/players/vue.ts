@@ -1,12 +1,12 @@
 import { createApp, h, onMounted, ref } from 'vue';
 import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-vue';
-import type { PxAnimatedSvgDocument } from '@pixodesk/svg-animator-web';
+import type { PxDocument } from '@pixodesk/svg-animator-web';
 import { applyTriggerOverride, shouldAutoplayForTrigger, type PlayerHandle, type PlayerOptions } from './types';
 
 /** Mounts the Vue `<SvgAnimator/>` component into `container`. */
 export function createVuePlayer(
   container: HTMLElement,
-  doc: PxAnimatedSvgDocument,
+  doc: PxDocument,
   opts?: PlayerOptions,
 ): PlayerHandle {
   // The component `expose()`s its imperative API; a template ref captures it.

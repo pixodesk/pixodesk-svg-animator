@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxAnimatedSvgDocument, PxNode } from '../format/PxAnimatorTypes';
+import type { PxDocument, PxNode } from '../format/PxAnimatorTypes';
 
 
 /**
@@ -53,9 +53,9 @@ export function deepClone<T>(value: T): T {
  * @returns A new document with regenerated IDs
  * @public @advanced
  */
-export function generateNewIds(doc: PxAnimatedSvgDocument): PxAnimatedSvgDocument {
+export function generateNewIds(doc: PxDocument): PxDocument {
     // Deep clone the document
-    const cloned: PxAnimatedSvgDocument = deepClone(doc);
+    const cloned: PxDocument = deepClone(doc);
 
     // Map of old ID → new ID
     const idMap = new Map<string, string>();

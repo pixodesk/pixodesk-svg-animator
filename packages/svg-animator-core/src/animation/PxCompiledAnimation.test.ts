@@ -10,11 +10,11 @@
 import { describe, expect, it } from 'vitest';
 import { prepareDocument } from '../pipeline/PxPrepareDocument';
 import { getAnimatorConfig, PxTimelineEngine, PxValueKind } from '../format/PxAnimatorConstants';
-import { isCompiledAnimation, PxAnyPropertyAnimationSchema, validateDocument, type PxAnimatedSvgDocument, type PxAnyPropertyAnimation, type PxNode } from '../format/PxAnimatorTypes';
+import { isCompiledAnimation, PxAnyPropertyAnimationSchema, validateDocument, type PxDocument, type PxAnyPropertyAnimation, type PxNode } from '../format/PxAnimatorTypes';
 import { calcAnimationValues, normalizeBindings } from './PxDefinitions';
 import { authorCompiledAnimations } from './PxAuthoredAnimation';
 
-const doc = (inTime = 0): PxAnimatedSvgDocument => JSON.parse(JSON.stringify({
+const doc = (inTime = 0): PxDocument => JSON.parse(JSON.stringify({
     type: 'svg',
     animator: { timeline: { inTime, outTime: inTime + 1000 }, definitions: { easings: { smooth: [0.42, 0, 0.58, 1] } } },
     children: [
@@ -35,14 +35,14 @@ const doc = (inTime = 0): PxAnimatedSvgDocument => JSON.parse(JSON.stringify({
 }));
 
 /** The `animate` entry `prop` of the child `id`. */
-const entryOf = (d: PxAnimatedSvgDocument, id: string, prop: string): PxAnyPropertyAnimation | undefined => {
+const entryOf = (d: PxDocument, id: string, prop: string): PxAnyPropertyAnimation | undefined => {
     const node = (d.children ?? []).find((n: PxNode) => n.id === id);
     const animate = node?.animate;
     return animate && typeof animate === 'object' && !Array.isArray(animate) ? animate[prop] : undefined;
 };
 
 /** What the engine writes, at nine times of the window. */
-const framesOf = (d: PxAnimatedSvgDocument, engine: PxTimelineEngine): string => {
+const framesOf = (d: PxDocument, engine: PxTimelineEngine): string => {
     const duration = getAnimatorConfig(d)?.duration ?? 1000;
     const frames: Array<unknown> = [];
     for (const b of normalizeBindings(d, engine)) for (let i = 0; i <= 8; i++) frames.push([b.id, calcAnimationValues(b.channels, duration * i / 8)]);
@@ -92,7 +92,7 @@ describe('a prepared document is a valid document', () => {
     for (const engine of [PxTimelineEngine.native, PxTimelineEngine.js]) {
         it('copied through JSON (stamps lost), it re-prepares with no problems and plays the same — ' + engine, () => {
             const plain = prepareDocument(doc(), { engine });
-            const copy: PxAnimatedSvgDocument = JSON.parse(JSON.stringify(plain));
+            const copy: PxDocument = JSON.parse(JSON.stringify(plain));
             // strict: every key of the lowered document is one the schema declares
             expect(validateDocument(copy).errors).toEqual([]);
             const problems: Array<unknown> = [];
@@ -121,8 +121,8 @@ describe('an entry is all authored or all compiled', () => {
 describe('reading a compiled document back as its authored form', () => {
 
     it('no `kind` is left, and the authored document plays the same', () => {
-        const plain: PxAnimatedSvgDocument = JSON.parse(JSON.stringify(prepareDocument(doc(), { engine: PxTimelineEngine.js })));
-        const authored = authorCompiledAnimations(plain) as PxAnimatedSvgDocument;
+        const plain: PxDocument = JSON.parse(JSON.stringify(prepareDocument(doc(), { engine: PxTimelineEngine.js })));
+        const authored = authorCompiledAnimations(plain) as PxDocument;
         expect(JSON.stringify(authored)).not.toContain('"kind"');
         const fill = entryOf(authored, 'box', 'fill');
         expect(fill && !isCompiledAnimation(fill) ? fill.keyframes?.[0].value : undefined).toBe('rgba(255,0,0,1)');
