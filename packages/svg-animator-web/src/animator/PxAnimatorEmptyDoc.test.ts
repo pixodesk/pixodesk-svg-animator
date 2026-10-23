@@ -19,12 +19,12 @@ const emptyDoc = (): PxDocument => ({
     type: 'svg',
     viewBox: '0 0 200 200',
     animator: { timeline: { outTime: 1000, engine: 'auto' } },
-} as unknown as PxDocument);
+});
 
 const docWithChild = (): PxDocument => ({
     ...emptyDoc(),
     children: [{ type: 'rect', x: 10, y: 10, width: 20, height: 20 }],
-} as unknown as PxDocument);
+});
 
 
 describe('createSvgAnimator — a document with no children', () => {

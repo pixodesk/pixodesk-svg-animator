@@ -31,7 +31,8 @@ function createMockApi(overrides: Partial<PxEngineAnimatorApi> = {}) {
     return { api, root };
 }
 
-type IOEntry = { isIntersecting: boolean; intersectionRatio: number };
+// the entry fields the gate reads; the heights only matter for a target taller than the viewport
+type IOEntry = { isIntersecting: boolean; intersectionRatio: number; boundingClientRect?: { height: number }; intersectionRect?: { height: number }; rootBounds?: { height: number } };
 
 /** Stubs global IntersectionObserver; returns captured callback/options/observed. */
 function stubIntersectionObserver() {
@@ -308,7 +309,7 @@ describe('setupAnimationTriggers', () => {
                 boundingClientRect: { height: 2000 },
                 intersectionRect: { height: 400 },
                 rootBounds: { height: 800 },
-            } as unknown as IOEntry]);
+            }]);
 
             expect(api.play).toHaveBeenCalledTimes(1);
         });

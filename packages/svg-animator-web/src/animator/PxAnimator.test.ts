@@ -8,6 +8,7 @@ import { createSvgAnimator, createSvgAnimatorsFromPage, generateNewIds, getSvgAn
 import { PX_ANIM_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { PxDiagnosticCode, type PxDocument } from '@pixodesk/svg-animator-core';
 import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
+import { untyped } from '../../bundle-tests/testKit';
 
 
 const DUR = 320; // multiple of the 16ms fake-timer rAF step
@@ -236,7 +237,7 @@ describe('createSvgAnimator', () => {
     it('doc path: a player that cannot be built reports onError and stays inert — it never throws', () => {
         const onError = vi.fn();
         // A container whose `replaceChildren` throws stands in for anything breaking mid-construction.
-        const broken = { replaceChildren: () => { throw new Error('boom'); } } as unknown as Element;
+        const broken = untyped<Element>({ replaceChildren: () => { throw new Error('boom'); } });   // an Element stub with one throwing method, on purpose
 
         const api = createSvgAnimator({ doc: makeDoc(), container: broken, onError });
 
@@ -253,7 +254,7 @@ describe('createSvgAnimator', () => {
 
     it('muteError switches the console fallback off for such a failure', () => {
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => { /* silence */ });
-        const broken = { replaceChildren: () => { throw new Error('boom'); } } as unknown as Element;
+        const broken = untyped<Element>({ replaceChildren: () => { throw new Error('boom'); } });   // an Element stub with one throwing method, on purpose
 
         createSvgAnimator({ doc: makeDoc(), container: broken });
         expect(errorSpy).toHaveBeenCalledTimes(1);             // the console is the fallback…

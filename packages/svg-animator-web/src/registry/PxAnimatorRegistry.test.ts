@@ -125,7 +125,8 @@ describe('the page-wide animator registry', () => {
     });
 
     it('is reachable by name — globalThis.__pixodeskSvgAnimators is the same store', () => {
-        const byName = (globalThis as unknown as { __pixodeskSvgAnimators?: PxAnimatorRegistry }).__pixodeskSvgAnimators;
+        // globalThis declares no slot for the name, so it is read through Reflect and given the registry type
+        const byName: PxAnimatorRegistry | undefined = Reflect.get(globalThis, '__pixodeskSvgAnimators');
         expect(byName).toBeDefined();
         const api = make();
         expect(byName?.getAll()).toContain(api);

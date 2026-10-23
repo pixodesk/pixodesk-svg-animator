@@ -38,11 +38,11 @@ const mkDoc = (): PxDocument => ({
         bindings: [{ target: '#el1', animateWith: ['a0'] }],
         timeline: {
             engine: 'js',
-            duration: 1000,
+            outTime: 1000,
         },
     },
     children: [{ type: 'ellipse', id: 'el1', rx: 9.641, ry: 9.641 }],
-} as unknown as PxDocument);
+});
 
 function xy(transform: string | undefined): [number, number] {
     const m = /translate\(([-\d.]+),([-\d.]+)\)/.exec(transform || '');

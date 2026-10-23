@@ -38,7 +38,7 @@ function makeDoc(timeline: Record<string, unknown> = {}): PxDocument {
                 },
             },
         ],
-    } as unknown as PxDocument;
+    };
 }
 
 function renderedOpacity(): string | null {

@@ -2,6 +2,8 @@ import tseslint from 'typescript-eslint';
 
 // No `as never` (first-use review §17c): give the value its real type — in tests, `untyped<T>()` for input that is wrong on purpose.
 const NO_AS_NEVER = { selector: 'TSAsExpression > TSNeverKeyword', message: 'No `as never`: give the value its real type (tests: `untyped<T>()` for deliberately wrong input).' };
+// Tests only (shipped source keeps a few on purpose): give the value its real type, or `untyped<T>()` for deliberately wrong input.
+const NO_AS_UNKNOWN_AS = { selector: 'TSAsExpression > TSAsExpression[typeAnnotation.type="TSUnknownKeyword"]', message: 'No `as unknown as` in tests: give the value its real type, or `untyped<T>()` for deliberately wrong input.' };
 
 export default tseslint.config(
     {
@@ -29,10 +31,10 @@ export default tseslint.config(
         },
     },
     {
-        // Tests (and scripts) may use template literals; `as never` stays forbidden
-        files: ['**/*.test.ts', 'scripts/**/*.ts'],
+        // Tests (and scripts) may use template literals; `as never` and `as unknown as` stay forbidden
+        files: ['**/*.test.ts', 'src/effects/effectTestKit.ts', 'scripts/**/*.ts'],
         rules: {
-            'no-restricted-syntax': ['error', NO_AS_NEVER],
+            'no-restricted-syntax': ['error', NO_AS_NEVER, NO_AS_UNKNOWN_AS],
         },
     },
     {

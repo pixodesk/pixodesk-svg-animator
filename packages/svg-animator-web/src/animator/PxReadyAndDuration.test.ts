@@ -9,14 +9,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimator } from '../index';
 import type { PxDocumentInput } from '@pixodesk/svg-animator-core';
 
-const DOC = {
+const DOC: PxDocumentInput = {
     type: 'svg', viewBox: '0 0 10 10',
     animator: { timeline: { engine: 'js', inTime: 200, outTime: 1200 } },
     children: [{
         type: 'rect', id: 'r', width: 10, height: 10,
         animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1200, value: 1 }] } },
     }],
-} as unknown as PxDocumentInput;
+};
 
 describe('onReady + getDuration (§14)', () => {
     beforeEach(() => { document.body.innerHTML = '<div id="box"></div>'; vi.useFakeTimers(); });

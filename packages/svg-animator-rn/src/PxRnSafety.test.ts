@@ -94,7 +94,7 @@ describe('openClosedTextPathTargets', () => {
     });
 
     it('returns the very same object when there is no textPath at all', () => {
-        const doc = { type: 'svg', children: [{ type: 'rect' }] } as unknown as PxNode;
+        const doc: PxNode = { type: 'svg', children: [{ type: 'rect' }] };
         expect(openClosedTextPathTargets(doc)).toBe(doc);
     });
 

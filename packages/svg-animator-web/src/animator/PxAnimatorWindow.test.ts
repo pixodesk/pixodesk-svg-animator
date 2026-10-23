@@ -22,7 +22,7 @@ function windowDoc(extra: Record<string, unknown> = {}): PxDocument {
                 { time: 1500, value: 1 },
             ] } },
         }],
-    } as unknown as PxDocument;
+    };
 }
 
 const opacity = () => Number(document.querySelector('rect')?.getAttribute('opacity'));

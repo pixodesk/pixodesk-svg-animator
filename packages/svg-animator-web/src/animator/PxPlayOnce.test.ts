@@ -17,7 +17,7 @@ function doc(extra: Record<string, unknown> = {}): PxDocumentInput {
             type: 'rect', id: 'r', width: 10, height: 10,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
         }],
-    } as unknown as PxDocumentInput;
+    };
 }
 
 const opacity = () => Number(document.querySelector('rect')?.getAttribute('opacity'));

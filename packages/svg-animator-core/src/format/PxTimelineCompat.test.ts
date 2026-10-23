@@ -10,9 +10,11 @@
 
 import { describe, expect, it } from 'vitest';
 import { resolveAnimatorTimeline, getAnimatorConfig, nestAnimatorTimeline } from './PxAnimatorConstants';
-import { PxAnimatorConfigSchema, type PxDocument, type PxAnimatorConfig, type PxAnimatorRuntimeConfig, type PxTimeline, type PxTrigger } from './PxAnimatorTypes';
+import { PxAnimatorConfigSchema, type PxDocument, type PxAnimatorConfig, type PxAnimatorRuntimeConfig } from './PxAnimatorTypes';
 import type { PxValidationContext } from '../schema/PxSchema';
 import { untyped } from '../effects/effectTestKit';
+import { prepareDocument } from '../pipeline/PxPrepareDocument';
+import { PxDocStage } from './PxDocStage';
 
 describe('animator.timeline spelling compat', () => {
 
@@ -42,12 +44,11 @@ describe('animator.timeline spelling compat', () => {
 
     // ── flatten: nested → the flat view every engine consumes ────────────────
 
-    it('flattens a time timeline to the flat runtime keys (trigger.finish → resetOnFinish, fillMode → fill)', () => {
+    it('flattens a time timeline to the flat runtime keys (timeline.finish → resetOnFinish, fillMode → fill)', () => {
         const flat = resolveAnimatorTimeline({
             timeline: {
                 type: 'time', outTime: 4000,
-                // `trigger.finish` is the pre-1.4 spelling: not in the type, still read for old files
-                trigger: untyped<PxTrigger>({ start: 'click', mouseOut: 'pause', finish: 'reset' }),
+                trigger: { start: 'click', mouseOut: 'pause' }, finish: 'reset',
                 delay: 250, iterations: 'infinite', direction: 'alternate', fillMode: 'both'
             }
         });
@@ -57,8 +58,20 @@ describe('animator.timeline spelling compat', () => {
             fill: 'both', resetOnFinish: true,
             trigger: { start: 'click', mouseOut: 'pause' }
         });
-        const trigger = flat.trigger;
-        expect(trigger && 'finish' in trigger ? trigger.finish : undefined).toBeUndefined(); // folded into resetOnFinish
+    });
+
+    it('the pre-1.3 `timeline.duration` and the pre-1.4 `trigger.finish` are NOT read — the wire steps convert stamped documents', () => {
+        // both old spellings, unstamped — not in the type, on purpose
+        const old = (version?: string) => untyped<PxDocument>({
+            type: 'svg', animator: { ...(version ? { version } : {}), timeline: { duration: 500, trigger: { start: 'click', finish: 'reset' } } },
+        });
+        const unstamped = getAnimatorConfig(old());
+        expect(unstamped?.duration).toBe(1000);             // no keyframes: the default window, not the old 500
+        expect(unstamped?.resetOnFinish).toBeUndefined();
+        // stamped 1.2: converted on the way in (1.2 → 1.3 → 1.4), so both survive
+        const stamped = getAnimatorConfig(prepareDocument(old('1.2'), { stage: PxDocStage.current }));
+        expect(stamped?.duration).toBe(500);
+        expect(stamped?.resetOnFinish).toBe(true);
     });
 
     it("flattens 'view' and 'scroll' timelines to timelineSource:'scroll' + scroll.kind, pin object → pin flags; engine is shared", () => {
@@ -102,11 +115,10 @@ describe('animator.timeline spelling compat', () => {
     it('getAnimatorConfig serves the flat view (engines never see `timeline`)', () => {
         const cfg = getAnimatorConfig({
             type: 'svg',
-            // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
-            animator: { timeline: untyped<PxTimeline>({ duration: 500, delay: 42 }) }
+            animator: { timeline: { outTime: 500, delay: 42 } }
         });
         expect(cfg?.timeline).toBeUndefined();
-        expect(cfg?.duration).toBe(500);   // LEGACY (pre-1.3) wire `timeline.duration` still reads as the window
+        expect(cfg?.duration).toBe(500);   // the window
         expect(cfg?.delay).toBe(42);
     });
 
@@ -126,8 +138,8 @@ describe('animator.timeline spelling compat', () => {
     it('a stray flat key never shadows the timeline, and the lookup tables still come through', () => {
         const doc: PxDocument = {
             type: 'svg',
-            // the stray flat `duration` and the pre-1.3 `timeline.duration`: neither is in the type, both still read
-            animator: untyped<PxAnimatorConfig>({ duration: 9, timeline: { duration: 500 }, definitions: { easings: {} } }),
+            // the stray flat `duration` is not in the type, on purpose
+            animator: untyped<PxAnimatorConfig>({ duration: 9, timeline: { outTime: 500 }, definitions: { easings: {} } }),
         };
         const cfg = getAnimatorConfig(doc);
 

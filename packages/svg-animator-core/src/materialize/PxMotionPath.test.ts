@@ -378,7 +378,7 @@ describe('compileAnimationsInTree — a motion path (native engine)', () => {
     function makeTreeWithMotionPath(): PxDocument {
         return {
             type: 'svg',
-            animator: { timeline: { duration: 1020 } },
+            animator: { timeline: { outTime: 1020 } },
             children: [
                 {
                     type: 'rect',

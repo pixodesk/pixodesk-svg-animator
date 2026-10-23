@@ -190,7 +190,7 @@ function expectParity(
 const closedLoopOrbitFixture = (): PxDocument => ({
     type: 'svg',
     viewBox: '0 0 1080 1080',
-    animator: { timeline: { duration: 2836, engine: 'auto', direction: 'normal' } },
+    animator: { timeline: { outTime: 2836, engine: 'auto', direction: 'normal' } },
     children: [
         {
             type: 'rect',
@@ -217,7 +217,7 @@ const closedLoopOrbitFixture = (): PxDocument => ({
 /** Simple horseshoe — no origin, no autoOrient. Sanity baseline. */
 const horseshoeNoOriginFixture = (): PxDocument => ({
     type: 'svg',
-    animator: { timeline: { duration: 1000 } },
+    animator: { timeline: { outTime: 1000 } },
     children: [
         {
             type: 'rect',
@@ -239,7 +239,7 @@ const horseshoeNoOriginFixture = (): PxDocument => ({
  *  preserved on every materialized sub-kf. */
 const horseshoeAutoOrientStaticOriginFixture = (): PxDocument => ({
     type: 'svg',
-    animator: { timeline: { duration: 1000 } },
+    animator: { timeline: { outTime: 1000 } },
     children: [
         {
             type: 'rect',
@@ -263,7 +263,7 @@ const horseshoeAutoOrientStaticOriginFixture = (): PxDocument => ({
  *  progress, matching frames-mode behavior. */
 const sCurveAnimatedOriginFixture = (): PxDocument => ({
     type: 'svg',
-    animator: { timeline: { duration: 1000 } },
+    animator: { timeline: { outTime: 1000 } },
     children: [
         {
             type: 'rect',
@@ -287,7 +287,7 @@ const sCurveAnimatedOriginFixture = (): PxDocument => ({
  *  Tests that scale is interpolated correctly on sampled sub-kfs. */
 const animatedScaleAlongPathFixture = (): PxDocument => ({
     type: 'svg',
-    animator: { timeline: { duration: 1000 } },
+    animator: { timeline: { outTime: 1000 } },
     children: [
         {
             type: 'rect',
@@ -310,7 +310,7 @@ const animatedScaleAlongPathFixture = (): PxDocument => ({
  *  values should be interpolated normally (not overridden). */
 const motionPathExplicitRotateFixture = (): PxDocument => ({
     type: 'svg',
-    animator: { timeline: { duration: 1000 } },
+    animator: { timeline: { outTime: 1000 } },
     children: [
         {
             type: 'rect',
@@ -341,7 +341,7 @@ const motionPathExplicitRotateFixture = (): PxDocument => ({
 const rectanglePathSharpCornersFixture = (): PxDocument => ({
     type: 'svg',
     viewBox: '0 0 400 400',
-    animator: { timeline: { duration: 4000, engine: 'auto', direction: 'normal' } },
+    animator: { timeline: { outTime: 4000, engine: 'auto', direction: 'normal' } },
     children: [
         {
             type: 'rect',
@@ -368,7 +368,7 @@ const rectanglePathSharpCornersFixture = (): PxDocument => ({
  *  Sharp corner at the midpoint with exactly opposite tangents. */
 const uTurnFixture = (): PxDocument => ({
     type: 'svg',
-    animator: { timeline: { duration: 2000 } },
+    animator: { timeline: { outTime: 2000 } },
     children: [
         {
             type: 'rect',
@@ -393,7 +393,7 @@ const uTurnFixture = (): PxDocument => ({
  *  (geometric heading change at each corner: 120° turn). */
 const triangleFixture = (): PxDocument => ({
     type: 'svg',
-    animator: { timeline: { duration: 3000 } },
+    animator: { timeline: { outTime: 3000 } },
     children: [
         {
             type: 'rect',
@@ -420,7 +420,7 @@ const triangleFixture = (): PxDocument => ({
  *  segment transitions (curve → curve, when tangents line up). */
 const curveSharpCurveFixture = (): PxDocument => ({
     type: 'svg',
-    animator: { timeline: { duration: 3000 } },
+    animator: { timeline: { outTime: 3000 } },
     children: [
         {
             type: 'rect',

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { afterEach, assert, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest';
 import { convertToWebApiKeyframes } from './PxAnimatorWebApi';
 import { PxValueKind, type PxAnimatorRuntimeConfig, type PxBezierPath, type PxRuntimeAnimation } from '@pixodesk/svg-animator-core';
 
@@ -27,12 +27,12 @@ const CONFIG: PxAnimatorRuntimeConfig = { duration: 320 };   // the FLAT view ke
 /** jsdom has no CSS.supports; stub a REALIZTIC one — `d` is supported only as `path("…")`, so the
  *  old "[object Object]" value would (correctly) be reported unsupported. */
 beforeEach(() => {
-    (globalThis as unknown as { CSS: { supports: (k: string, v: string) => boolean } }).CSS = {
+    vi.stubGlobal('CSS', {
         supports: (k: string, v: string) => (k === 'd' ? /^path\(".*"\)$/.test(v) : true),
-    };
+    });
 });
 afterEach(() => {
-    delete (globalThis as unknown as { CSS?: unknown }).CSS;
+    vi.unstubAllGlobals();
 });
 
 describe('convertToWebApiKeyframes — animated `d` path', () => {
@@ -50,7 +50,7 @@ describe('convertToWebApiKeyframes — animated `d` path', () => {
         assert(kfs, 'no `d` keyframes were built');
         expect(kfs.length).toBeGreaterThan(0);
         for (const kf of kfs) {
-            const d = (kf as unknown as { d: string }).d;
+            const d = kf.d;
             expect(typeof d).toBe('string');
             expect(d).toMatch(/^path\("M/);          // proper CSS `d` syntax
             expect(d).not.toContain('[object Object]');
@@ -60,8 +60,8 @@ describe('convertToWebApiKeyframes — animated `d` path', () => {
     it('carries the actual interpolated geometry (both keyframes distinct)', () => {
         const kfs = build().get('d');
         assert(kfs, 'no `d` keyframes were built');
-        const first = (kfs[0] as unknown as { d: string }).d;
-        const last = (kfs[kfs.length - 1] as unknown as { d: string }).d;
+        const first = kfs[0].d;
+        const last = kfs[kfs.length - 1].d;
         expect(first).toContain('M0,0');             // triangle(0)
         expect(last).toContain('M20,0');             // triangle(20)
     });
@@ -77,7 +77,7 @@ describe('convertToWebApiKeyframes — animated `d` path', () => {
         };
         const kfs = convertToWebApiKeyframes(animDef, new Set<string>(), CONFIG).get('d');
         assert(kfs, 'no `d` keyframes were built');
-        const seqs = new Set(kfs.map(kf => ((kf as unknown as { d: string }).d).replace(/[^MLCZmlcz]/g, '')));
+        const seqs = new Set(kfs.map(kf => String(kf.d).replace(/[^MLCZmlcz]/g, '')));
         expect([...seqs]).toHaveLength(1);
         expect([...seqs][0]).not.toContain('L');
     });

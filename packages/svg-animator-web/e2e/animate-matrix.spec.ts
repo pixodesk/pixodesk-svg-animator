@@ -13,7 +13,7 @@
  */
 
 import { expect, Page, test } from "@playwright/test";
-import type { PxDocument, PxAnimatorApi } from "../src/index";
+import { PxTimelineEngineSetting, type PxAnimatorConfig, type PxDocument, type PxAnimatorApi } from "../src/index";
 import type { PX_ANIM_ATTR_NAME } from "../src/index.player";
 
 /** A `data-px-animation-src` element with the player `createSvgAnimatorsFromPage` keeps on it. */
@@ -42,19 +42,18 @@ async function advanceTimeIncrementally(
 
 /** Shared animator config: 1s timeline, hold final state.
  *
- * Frames docs start on load and are driven by the mocked page clock.
- * WAAPI runs on the compositor timeline, which `page.clock` does NOT control —
- * so waapi docs use `start: 'none'` and the test drives them
+ * Frame-loop (`js`) docs start on load and are driven by the mocked page clock.
+ * WAAPI (`native`) runs on the compositor timeline, which `page.clock` does NOT control —
+ * so native docs use `start: 'none'` and the test drives them
  * deterministically by seeking via the animator API instead. */
-function animator(mode: 'auto' | 'native' | 'player') {
-    const programmatic = mode === 'native';
+function animator(engine: PxTimelineEngineSetting): PxAnimatorConfig {
+    const programmatic = engine === PxTimelineEngineSetting.native;
     return {
-        outTime: 1000,
-        mode,
-        fill: 'forwards' as const,
-        trigger: {
-            start: (programmatic ? 'none' : 'load') as 'none' | 'load',
-            offScreen: 'continue' as const,
+        timeline: {
+            outTime: 1000,
+            engine,
+            fillMode: 'forwards',
+            trigger: { start: programmatic ? 'none' : 'load', offScreen: 'continue' },
         },
     };
 }
@@ -64,10 +63,10 @@ function animator(mode: 'auto' | 'native' | 'player') {
 // ---------------------------------------------------------------------------
 
 /** Numeric + color + position attributes: opacity, fill, cx/cy, r. */
-function basicAttrsDoc(mode: 'native' | 'frames'): PxDocument {
+function basicAttrsDoc(engine: PxTimelineEngineSetting): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
-        animator: animator(mode),
+        animator: animator(engine),
         children: [
             { // opacity (numeric)
                 type: 'rect', id: '_px_op', x: 10, y: 10, width: 50, height: 50, fill: '#6366f1',
@@ -90,10 +89,10 @@ function basicAttrsDoc(mode: 'native' | 'frames'): PxDocument {
 }
 
 /** Transform parts: translate + rotate + scale (nested, one fn per level). */
-function transformDoc(mode: 'native' | 'frames'): PxDocument {
+function transformDoc(engine: PxTimelineEngineSetting): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
-        animator: animator(mode),
+        animator: animator(engine),
         children: [{
             type: 'g', id: '_px_tr',
             animate: { translate: { keyframes: [{ time: 0, value: [50, 50] }, { time: 1000, value: [150, 150] }] } },
@@ -114,7 +113,7 @@ function transformDoc(mode: 'native' | 'frames'): PxDocument {
 function shapeDoc(): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
-        animator: animator('frames'),
+        animator: animator(PxTimelineEngineSetting.js),
         children: [
             {
                 type: 'path', id: '_px_morph', fill: '#ec4899', transform: 'translate(60, 60)',
@@ -141,13 +140,13 @@ function shapeDoc(): PxDocument {
 }
 
 // ---------------------------------------------------------------------------
-// Player-effect docs (materialized by the player at runtime; mode auto)
+// Player-effect docs (materialized by the player at runtime)
 // ---------------------------------------------------------------------------
 
-function transformByEffectDoc(mode: 'native' | 'frames'): PxDocument {
+function transformByEffectDoc(engine: PxTimelineEngineSetting): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
-        animator: animator(mode),
+        animator: animator(engine),
         children: [{
             type: 'rect', id: '_px_r', x: -20, y: -20, width: 40, height: 40, fill: '#10b981',
             effects: {
@@ -163,7 +162,7 @@ function transformByEffectDoc(mode: 'native' | 'frames'): PxDocument {
 function repeaterEffectDoc(): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
-        animator: animator('frames'),
+        animator: animator(PxTimelineEngineSetting.js),
         children: [{
             type: 'rect', id: '_px_r', x: 10, y: 85, width: 24, height: 24, fill: '#6366f1',
             animate: { opacity: { keyframes: [{ time: 0, value: 1 }, { time: 1000, value: 0.3 }] } },
@@ -175,7 +174,7 @@ function repeaterEffectDoc(): PxDocument {
 function trimPathEffectDoc(): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
-        animator: animator('frames'),
+        animator: animator(PxTimelineEngineSetting.js),
         children: [{
             type: 'path', id: '_px_p', stroke: '#0ea5e9', 'stroke-width': 5, fill: 'none',
             d: 'M 20 100 C 60 20 140 180 180 100',
@@ -191,12 +190,12 @@ function trimPathEffectDoc(): PxDocument {
 function gradientEffectDoc(): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
-        animator: animator('frames'),
+        animator: animator(PxTimelineEngineSetting.js),
         children: [{
             type: 'rect', id: '_px_g', x: 20, y: 20, width: 160, height: 160,
             effects: {
                 fillGradient: {
-                    type: 'linear', p1: [20, 20], p2: [180, 20],
+                    type: 'linear', start: [20, 20], end: [180, 20],
                     gradientUnits: 'userSpaceOnUse',
                     stops: {
                         keyframes: [
@@ -213,7 +212,7 @@ function gradientEffectDoc(): PxDocument {
 function maskedByEffectDoc(): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
-        animator: animator('frames'),
+        animator: animator(PxTimelineEngineSetting.js),
         children: [
             {
                 type: 'defs',
@@ -233,7 +232,7 @@ function maskedByEffectDoc(): PxDocument {
 function cloneRetimeEffectDoc(): PxDocument {
     return {
         type: 'svg', id: '_px_root', viewBox: '0 0 200 200', width: 200, height: 200,
-        animator: animator('frames'),
+        animator: animator(PxTimelineEngineSetting.js),
         children: [
             {
                 type: 'defs',
@@ -297,12 +296,12 @@ test.describe("animate-matrix (frames, clock-driven)", () => {
         });
     }
 
-    screenshotTest('attrs-frames', basicAttrsDoc('frames'));
-    screenshotTest('transform-frames', transformDoc('frames'));
+    screenshotTest('attrs-frames', basicAttrsDoc(PxTimelineEngineSetting.js));
+    screenshotTest('transform-frames', transformDoc(PxTimelineEngineSetting.js));
     screenshotTest('shape-frames', shapeDoc());
 
     // Player effects (materialized at runtime)
-    screenshotTest('effect-transformBy', transformByEffectDoc('frames'));
+    screenshotTest('effect-transformBy', transformByEffectDoc(PxTimelineEngineSetting.js));
     screenshotTest('effect-repeater', repeaterEffectDoc());
     screenshotTest('effect-trimpath', trimPathEffectDoc());
     screenshotTest('effect-gradient', gradientEffectDoc());
@@ -362,7 +361,7 @@ test.describe("animate-matrix (waapi, seek-driven)", () => {
         });
     }
 
-    seekScreenshotTest('attrs-waapi', basicAttrsDoc('waapi'));
-    seekScreenshotTest('transform-waapi', transformDoc('waapi'));
-    seekScreenshotTest('effect-transformBy-waapi', transformByEffectDoc('waapi'));
+    seekScreenshotTest('attrs-waapi', basicAttrsDoc(PxTimelineEngineSetting.native));
+    seekScreenshotTest('transform-waapi', transformDoc(PxTimelineEngineSetting.native));
+    seekScreenshotTest('effect-transformBy-waapi', transformByEffectDoc(PxTimelineEngineSetting.native));
 });

@@ -87,12 +87,12 @@ describe('schema.defaults — what an absent field means', () => {
         expect(PxTriggerSchema.defaults).toEqual(PX_TRIGGER_DEFAULTS);
         expect(resolveTrigger(undefined)).toEqual(PX_TRIGGER_DEFAULTS);
         // `timeline.finish` reaches the engines as the runtime view's `resetOnFinish`,
-        // where absent = hold = not set. The PRE-1.4 `trigger.finish` spelling is still read.
+        // where absent = hold = not set. The PRE-1.4 `trigger.finish` spelling is no longer read.
         expect(PxTimeTimelineSchema.defaults.finish).toBe(PxFinishAction.hold);
         const flat = resolveAnimatorTimeline({ timeline: { trigger: { start: PxTriggerStart.load } } });
         expect(flat.resetOnFinish).toBeFalsy();
         expect(resolveAnimatorTimeline({ timeline: { finish: PxFinishAction.reset } }).resetOnFinish).toBe(true);
-        expect(resolveAnimatorTimeline({ timeline: { trigger: untyped<PxTrigger>({ finish: PxFinishAction.reset }) } }).resetOnFinish).toBe(true);
+        expect(resolveAnimatorTimeline({ timeline: { trigger: untyped<PxTrigger>({ finish: PxFinishAction.reset }) } }).resetOnFinish).toBeUndefined();
     });
 
     it('the timeline numbers the runtime falls back to are the schema\'s', () => {
@@ -114,11 +114,11 @@ describe('schema.defaults — what an absent field means', () => {
     });
 
     it('the reported document: an omitted mouseOut means `pause`, on hover', () => {
-        const doc = {
+        const doc: PxDocument = {
             type: 'svg', viewBox: '0 0 400 400',
-            animator: { timeline: { duration: 1000, iterations: 1, trigger: { start: 'mouseOver' } } },
+            animator: { timeline: { outTime: 1000, iterations: 1, trigger: { start: 'mouseOver' } } },
             children: [],
-        } as unknown as PxDocument;
+        };
         expect(resolveTrigger(getAnimatorConfig(doc)?.trigger).mouseOut).toBe(PxTriggerSchema.defaults.mouseOut);
         expect(PxTriggerSchema.defaults.mouseOut).toBe('pause');
     });

@@ -1,12 +1,11 @@
 import { assert, describe, expect, it } from 'vitest';
 import { materializeOffsetPathsInTree } from './PxOffsetPathMaterializer';
-import type { PxDocument, PxNode, PxPropertyAnimation, PxTimeline } from '../format/PxAnimatorTypes';
-import { authoredEntry, entryOf, untyped } from '../effects/effectTestKit';
+import type { PxDocument, PxNode, PxPropertyAnimation } from '../format/PxAnimatorTypes';
+import { authoredEntry, entryOf } from '../effects/effectTestKit';
 
 const doc = (node: PxNode): PxDocument => ({
     type: 'svg', viewBox: '0 0 200 200',
-    // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
-    animator: { timeline: untyped<PxTimeline>({ duration: 1000 }) },
+    animator: { timeline: { outTime: 1000 } },
     children: [node],
 });
 

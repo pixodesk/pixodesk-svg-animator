@@ -15,7 +15,7 @@ describe('renderNode — text content', () => {
     });
 
     it('`text` is not a text-content key — nothing is rendered from it', () => {
-        const el = renderNode({ type: 'text', text: 'Hello' } as unknown as PxNode) as SVGElement;
+        const el = renderNode({ type: 'text', text: 'Hello' }) as SVGElement;
         expect(el.textContent).toBe('');
     });
 
@@ -44,7 +44,7 @@ describe('renderNode — feFunc type attribute', () => {
     // attribute (identity/table/…) travels under `domType` and must be restored
     // onto the real `type` attribute — otherwise a feComponentTransfer can't invert.
     it('restores feFuncA `domType` onto the `type` attribute', () => {
-        const node = { type: 'feFuncA', domType: 'table', tableValues: '1.0 0.0' } as unknown as PxNode;
+        const node: PxNode = { type: 'feFuncA', domType: 'table', tableValues: '1.0 0.0' };
         const el = renderNode(node) as SVGElement;
 
         expect(el.tagName.toLowerCase()).toBe('fefunca');
@@ -54,13 +54,13 @@ describe('renderNode — feFunc type attribute', () => {
     });
 
     it('renders a full feComponentTransfer alpha-invert filter', () => {
-        const node = {
+        const node: PxNode = {
             type: 'filter', id: 'f1',
             children: [{
                 type: 'feComponentTransfer', in: 'SourceGraphic',
                 children: [{ type: 'feFuncA', domType: 'table', tableValues: '1 0' }],
             }],
-        } as unknown as PxNode;
+        };
         const el = renderNode(node) as SVGElement;
 
         const feFuncA = el.querySelector('feFuncA');

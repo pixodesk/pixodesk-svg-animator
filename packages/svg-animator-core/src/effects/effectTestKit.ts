@@ -62,7 +62,8 @@ export function materialize(input: PxNode): PxNode {
  * — the plain {@link materialize} (effects only) is engine-agnostic.
  */
 export function materializeEngine(input: PxNode, engine: PxTimelineEngine): PxNode {
-    return materializeAllInTree(input as PxDocument, engine) as unknown as PxNode;
+    // PxDocument extends PxNode and adds only optional fields, so a node passes in and the document comes back as a node
+    return materializeAllInTree(input, engine);
 }
 
 /** Same as {@link materialize} but returns warnings/errors too (for negative tests). */

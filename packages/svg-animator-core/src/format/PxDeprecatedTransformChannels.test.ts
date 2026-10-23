@@ -20,7 +20,7 @@ describe('deprecated per-key transform channels (§6)', () => {
                 { type: 'rect', id: 'a', animate: { translate: kfs, rotate: { keyframes: [{ time: 0, value: 0 }] } } },
                 { type: 'g', children: [{ type: 'circle', id: 'b', animate: { scale: kfs } }] },
             ],
-        } as unknown as PxNode;
+        };
         const warnings = validateDeprecatedTransformChannels(doc);
         expect(warnings).toHaveLength(2);
         expect(warnings[0]).toContain('translate');
@@ -38,7 +38,7 @@ describe('deprecated per-key transform channels (§6)', () => {
                 animate: { transform: { keyframes: [{ time: 0, value: { translate: [0, 0] } }] }, opacity: { keyframes: [{ time: 0, value: 1 }] } },
                 effects: { transformBy: { translate: kfs }, repeater: { copies: 2, rotate: { keyframes: [{ time: 0, value: 0 }] } } },
             }],
-        } as unknown as PxNode;
+        };
         expect(validateDeprecatedTransformChannels(doc)).toEqual([]);
     });
 });

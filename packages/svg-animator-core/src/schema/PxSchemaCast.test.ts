@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { px, PxSchemaCastError } from './PxSchema';
 import { PxDocumentSchema, PxAnimationDefinitionSchema, PxKeyframeSchema, PxTransformPartsSchema } from '../format/PxAnimatorTypes';
+import { untyped } from '../effects/effectTestKit';
 
 const Point = px.object({ x: px.number(), y: px.number() });
 const Shape = px.object({ name: px.string(), at: Point, tags: px.array(px.string()).optional() });
@@ -51,7 +52,7 @@ describe('castOrFix — one visit, a new stamped tree', () => {
 
     it('a copy loses the stamp and is checked again', () => {
         const { value } = Shape.castOrFix({ name: 'a', at: { x: 1, y: 2 } });
-        const copy = { ...value, at: { ...value.at, x: 'broken' as unknown as number } };
+        const copy = { ...value, at: { ...value.at, x: untyped<number>('broken') } };   // a string where a number belongs, on purpose
         expect(Shape.is(copy)).toBe(false);
     });
 

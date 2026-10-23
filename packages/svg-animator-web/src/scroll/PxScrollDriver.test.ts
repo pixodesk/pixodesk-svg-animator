@@ -29,7 +29,7 @@ afterEach(() => {
     document.body.removeAttribute('style');
     for (const el of [document.body, document.documentElement] as Array<Element>) {
         for (const prop of ['scrollHeight', 'clientHeight']) {
-            if (Object.getOwnPropertyDescriptor(el, prop)) delete (el as unknown as Record<string, unknown>)[prop];
+            if (Object.getOwnPropertyDescriptor(el, prop)) Reflect.deleteProperty(el, prop);
         }
     }
 });

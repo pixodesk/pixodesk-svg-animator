@@ -81,7 +81,7 @@ function createAnimatorImpl(
     reportDocumentDiagnostics(doc, '[PxAnimator] createSvgAnimator');
 
     // The per-instance override, applied BEFORE anything reads the config. Everything below
-    // depends on the final values: `timeline.engine` picks the engine, `duration` drives loop
+    // depends on the final values: `timeline.engine` picks the engine, the content window drives loop
     // expansion and motion-path sampling in `materializeAllInTree`, and `generateNewIds`
     // rewrites binding targets — a late patch would be read by none of them.
     if (patch !== undefined || resetTimeline) {
@@ -107,8 +107,8 @@ function createAnimatorImpl(
     const resolved = prepareDocument(doc, { stage: PxDocStage.resolved, onProblems });   // only the override's own values can still need repair
     const engine: PxTimelineEngine = resolveTimelineEngine(getAnimatorConfig(resolved)?.engine);
 
-    // `plain`: effects → loops → motion-path (native only) → animated-use (native only) → rest
-    // poses. The exact same pipeline is exported for the Editor — no parallel pipeline.
+    // `plain`: effects → offset-path → compiled animations (loops, motion paths) → animated-use + prune
+    // (native only) → rest poses. The exact same pipeline is exported for the Editor — no parallel pipeline.
     doc = prepareDocument(resolved, { engine });
 
     let rootElement: Element | null = null;

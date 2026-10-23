@@ -757,12 +757,10 @@ export function deriveRuntimeView(doc: PxDocument): PxAnimatorRuntimeConfig | un
 // ============================================================================
 
 /** Wire window → flat view: `duration` = window length, `inTime` = the sampling shift.
- *  `timeline.duration` is the PRE-1.3 spelling (≡ `outTime` with `inTime` 0) — read for old
- *  files, never written; `convertWireDocument` renames it in stamped documents. */
+ *  The pre-1.3 `timeline.duration` is NOT read: `convertWireDocument` renames it in stamped documents. */
 function foldWindow(timeline: PxTimeline, flat: PxAnimatorRuntimeConfig): void {
     const inTime = typeof timeline.inTime === 'number' ? timeline.inTime : 0;
-    const legacyDuration = 'duration' in timeline && typeof timeline.duration === 'number' ? timeline.duration : undefined;
-    const outTime = timeline.outTime !== undefined ? timeline.outTime : legacyDuration;
+    const outTime = timeline.outTime;
     if (inTime !== 0) flat.inTime = inTime;
     if (outTime !== undefined) flat.duration = outTime - inTime;
 }
@@ -839,18 +837,8 @@ export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
     } else { // 'time', absent, or unknown — the time-driven timeline is the default
         foldWindow(timeline, flat);
         if (timeline.playDuration !== undefined) flat.playDuration = timeline.playDuration;
-        if (timeline.trigger !== undefined) {
-            // `trigger.finish` is the PRE-1.4 spelling (review §13) — read for old unstamped
-            // files; stamped ones were converted by the wire step before this runs.
-            const trigger = timeline.trigger;
-            if ('finish' in trigger) {
-                const { finish: legacyFinish, ...restTrigger } = trigger;
-                if (Object.keys(restTrigger).length) flat.trigger = restTrigger;
-                if (legacyFinish !== undefined) flat.resetOnFinish = legacyFinish === PxFinishAction.reset;
-            } else if (Object.keys(trigger).length) {
-                flat.trigger = { ...trigger };
-            }
-        }
+        // The pre-1.4 `trigger.finish` is NOT read: stamped documents were converted by the wire step.
+        if (timeline.trigger !== undefined && Object.keys(timeline.trigger).length) flat.trigger = { ...timeline.trigger };
         if (timeline.finish !== undefined) flat.resetOnFinish = timeline.finish === PxFinishAction.reset;
         if (timeline.delay !== undefined) flat.delay = timeline.delay;
         if (timeline.iterations !== undefined) flat.iterations = timeline.iterations;

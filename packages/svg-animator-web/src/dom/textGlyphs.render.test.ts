@@ -35,7 +35,7 @@ function scene(): PxNode {
             children: [{ type: 'tspan', textContent: 'Hi', fontFamily: 'F', fontSize: '100px', fill: '#f00' }],
             effects: { text: { useGlyphs: true } },
         }],
-    } as unknown as PxNode;
+    };
 }
 
 describe('glyph text — materialize → renderNode → serialize (static SVG)', () => {
