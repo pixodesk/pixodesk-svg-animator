@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PX_TRIGGER_DEFAULTS, PxMouseOutAction, PxOffScreenAction, PxTriggerStart } from '@pixodesk/svg-animator-core';
+import { PX_TRIGGER_DEFAULTS, PxHoverEndAction, PxOutOfViewAction, PxTriggerStart } from '@pixodesk/svg-animator-core';
 import { createVisibilityGate } from '@pixodesk/svg-animator-web/internal';
 import { CSSProperties, FC, ReactNode, useEffect, useRef, useState } from "react";
 
@@ -21,7 +21,7 @@ type AnimState = 'idle' | 'paused' | 'playing';
  * ```tsx
  * import AnimationSvg from './animation.svg?react'; // SVGR
  *
- * <SvgCssAnimationPlayer start="mouseOver" mouseOut="pause">
+ * <SvgCssAnimationPlayer start="hover" hoverEnd="pause">
  *   <AnimationSvg />
  * </SvgCssAnimationPlayer>
  * ```
@@ -31,7 +31,7 @@ type AnimState = 'idle' | 'paused' | 'playing';
  * - `px-anim-enabled`      — started but paused
  * - `px-anim-enabled px-anim-playing` — actively playing
  *
- * TWO AXES, the same two the JSON player has: `start` says what STARTS it, `offScreen` says
+ * TWO AXES, the same two the JSON player has: `start` says what STARTS it, `outOfView` says
  * whether it may RUN. Visibility is not a start trigger, so an animation started by a click is
  * paused off screen too. The gate itself is the player's (`createVisibilityGate`), so the
  * threshold, the dwell, the hysteresis and the hidden-tab rule cannot drift between the two.
@@ -39,26 +39,26 @@ type AnimState = 'idle' | 'paused' | 'playing';
  * @param children  - The SVGR-imported SVG component to animate.
  * @param start     - What starts the animation:
  *   - `'load'`      — plays as soon as it is visible enough (default)
- *   - `'mouseOver'` — plays on hover
+ *   - `'hover'` — plays on hover
  *   - `'click'`     — plays on click, toggles on second click
- *   - `'none'`      — **not supported here.** This wrapper exposes no `play()`, so there is
+ *   - `'manual'`      — **not supported here.** This wrapper exposes no `play()`, so there is
  *                     nothing to wait for and the animation never starts. The prop keeps the
  *                     shared `PxTriggerStart` type (one enum per wire key), so the value
  *                     type-checks — it simply has no effect. Use `SvgAnimationPlayer` (the JSON
  *                     player) when you need to start an animation from code.
- * @param offScreen - What happens while none of it is on screen:
+ * @param outOfView - What happens while none of it is on screen:
  *   - `'pause'`    — pauses at the current frame (default); resumes when it comes back
  *   - `'continue'` — keeps playing, and starts without waiting to be seen
  *   - `'reset'`    — back to the beginning, so it replays on the next entry
- * @param mouseOut  - What happens when the pointer leaves, for `start: 'mouseOver'`:
+ * @param hoverEnd  - What happens when the pointer leaves, for `start: 'hover'`:
  *   - `'pause'`    — pauses at the current frame (default)
  *   - `'continue'` — keeps playing
  *   - `'reset'`    — resets to the beginning
  *   - `'reverse'`  — **acts as `'continue'` here.** A CSS class toggle cannot run keyframes
- *                    backwards. Accepted so the prop keeps the shared `PxMouseOutAction` type.
- * @param visibilityThreshold - How much of the element must be on screen (0–1) before it may
+ *                    backwards. Accepted so the prop keeps the shared `PxHoverEndAction` type.
+ * @param inViewThreshold - How much of the element must be on screen (0–1) before it may
  *   run. Defaults to the wire default (`0.5`), the same as the JSON player.
- * @param visibilityDebounce  - How long that must hold, in ms, before it starts — so scrolling
+ * @param inViewDebounce  - How long that must hold, in ms, before it starts — so scrolling
  *   straight past starts nothing. Defaults to the wire default (`150`).
  * @param className - Additional CSS class names to apply to the wrapper div.
  * @param style     - Inline styles for the wrapper div (e.g. `{ width: 400, height: 400 }`).
@@ -69,17 +69,17 @@ const SvgCssAnimationPlayer: FC<{
     style?: CSSProperties;
     children: ReactNode;
     start?: PxTriggerStart;
-    offScreen?: PxOffScreenAction;
-    mouseOut?: PxMouseOutAction;
-    visibilityThreshold?: number;
-    visibilityDebounce?: number;
+    outOfView?: PxOutOfViewAction;
+    hoverEnd?: PxHoverEndAction;
+    inViewThreshold?: number;
+    inViewDebounce?: number;
 }> = ({
     className, style, children,
     start = PX_TRIGGER_DEFAULTS.start,
-    offScreen = PX_TRIGGER_DEFAULTS.offScreen,
-    mouseOut = PX_TRIGGER_DEFAULTS.mouseOut,
-    visibilityThreshold = PX_TRIGGER_DEFAULTS.visibilityThreshold,
-    visibilityDebounce = PX_TRIGGER_DEFAULTS.visibilityDebounce,
+    outOfView = PX_TRIGGER_DEFAULTS.outOfView,
+    hoverEnd = PX_TRIGGER_DEFAULTS.hoverEnd,
+    inViewThreshold = PX_TRIGGER_DEFAULTS.inViewThreshold,
+    inViewDebounce = PX_TRIGGER_DEFAULTS.inViewDebounce,
 }) => {
 
     const [state, setState] = useState<AnimState>('idle');
@@ -97,7 +97,7 @@ const SvgCssAnimationPlayer: FC<{
         const gate = createVisibilityGate(
             el,
             {
-                start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce,
+                start, outOfView, hoverEnd, inViewThreshold, inViewDebounce,
             },
             {
                 isPlaying: () => stateRef.current === 'playing',
@@ -112,17 +112,17 @@ const SvgCssAnimationPlayer: FC<{
             gate.dispose();
             gateRef.current = null;
         };
-    }, [start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce]);
+    }, [start, outOfView, hoverEnd, inViewThreshold, inViewDebounce]);
 
     const requestStart = () => gateRef.current?.requestStart(true) ?? setState('playing');
 
     const goOut = () => setState(
-        mouseOut === PxMouseOutAction.reset ? 'idle' :
-            mouseOut === PxMouseOutAction.pause ? 'paused' : 'playing'
+        hoverEnd === PxHoverEndAction.reset ? 'idle' :
+            hoverEnd === PxHoverEndAction.pause ? 'paused' : 'playing'
     );
 
     const handlers =
-        start === PxTriggerStart.mouseOver ? { onMouseEnter: requestStart, onMouseLeave: goOut } :
+        start === PxTriggerStart.hover ? { onMouseEnter: requestStart, onMouseLeave: goOut } :
             start === PxTriggerStart.click
                 ? { onClick: () => state === 'playing' ? setState('paused') : requestStart() }
                 : {};

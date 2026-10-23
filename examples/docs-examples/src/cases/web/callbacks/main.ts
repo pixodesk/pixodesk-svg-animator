@@ -4,7 +4,7 @@ const log = document.getElementById('log')!;
 const say = (line: string) => { log.textContent += line + '\n'; };
 
 const animator = createSvgAnimationPlayer({
-    playAsSaved: true,
+    playOnTrigger: true,
   src: '../../../../animation.json',
   container: '#box',
   onPlay:   () => say('onPlay'),    // started or resumed

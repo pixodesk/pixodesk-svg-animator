@@ -13,15 +13,15 @@ is not here, go to [Still stuck?](#still-stuck) at the end.
 ## Nothing plays
 
 **The trigger is not "on load".** Check `animator.timeline.trigger.start` in the file (or the *Start*
-setting in the editor). `click` and `mouseOver` wait for the user; `none` waits for you to call
+setting in the editor). `click` and `hover` wait for the user; `manual` waits for you to call
 `play()`. Even `load` waits until enough of the animation is on screen, and pauses while it is
-scrolled out of view (`offScreen: 'pause'`, the default). In React/Vue/React Native, remember that
-`playAsSaved` is the only mode that uses the document's trigger — with `play`, `pause`, `progress`
+scrolled out of view (`outOfView: 'pause'`, the default). In React/Vue/React Native, remember that
+`playOnTrigger` is the only mode that uses the document's trigger — with `play`, `pause`, `progress`
 or `time` the trigger is ignored. Passing `apiRef` does **not** change the mode.
 
-**React / Vue component with no control prop.** With none of `playAsSaved` / `play` / `pause` /
+**React / Vue component with no control prop.** With none of `playOnTrigger` / `play` / `pause` /
 `progress` / `time` set, the component deliberately renders the first frame and does
-nothing. Add `playAsSaved`. `apiRef` on its own is such a case: the ref is a handle, not an
+nothing. Add `playOnTrigger`. `apiRef` on its own is such a case: the ref is a handle, not an
 instruction, so nothing moves until you call `play()` on it.
 
 **`createSvgAnimationPlayersFromPage()` ran before the elements existed.** Call it after the DOM is ready (end of
@@ -34,7 +34,7 @@ creates players for elements that do not have a player yet.
 not lost — a network or CORS error is the usual cause.
 
 **Scroll trigger never fires.** The element may already be fully in view at load (then it
-starts immediately), or `visibilityThreshold` may be higher than the element can ever
+starts immediately), or `inViewThreshold` may be higher than the element can ever
 reach on a small viewport. Inside an `<iframe>`, visibility is measured relative to the iframe.
 
 ## React
@@ -74,7 +74,7 @@ there and replaced by `fallback` (nothing by default).
 works around on device; if you hit it, keep `startOffset` at 0 on closed paths or use an open
 path. Details in [React Native → Feature support](./react-native.md#motion-timing-references).
 
-**Hover does nothing.** `mouseOver` has no touch equivalent; use `click` or drive `play`
+**Hover does nothing.** `hover` has no touch equivalent; use `click` or drive `play`
 yourself.
 
 ## Playback behavior
@@ -90,7 +90,7 @@ alone and let `fillMode` (default `forwards`) hold it
 For one mount only, pass the same thing as an override: `timeline={{ finish: 'reset' }}`.
 
 **How do I play backwards?** `player.setPlaybackRate(-1); player.play();` — also as a
-trigger out action (`mouseOut: 'reverse'`).
+trigger out action (`hoverEnd: 'reverse'`).
 
 **Jumping to a time while playing.** `setCurrentTime(ms)` works while playing (the animation
 continues from the new point) and while paused (it shows that frame and stays there).

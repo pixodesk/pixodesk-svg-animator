@@ -79,12 +79,12 @@ a number when it differs — the note with that number, under the table, says ho
 | `delay` | ✓ | — | — | ✓ | ✓ | ✓ |
 | `iterations` | ✓ | — | — | ✓ | ✓ | ✓ |
 | `start` | ✓ | — | — | ✓ | ✓ | 5 |
-| `offScreen` | ✓ | — | — | ✓ | ✓ | ✓ |
-| `mouseOut` | ✓ | — | — | ✓ | ✓ | ✓ |
-| `visibilityThreshold` | ✓ | — | — | ✓ | ✓ | ✓ |
-| `visibilityDebounce` | ✓ | — | — | ✓ | ✓ | ✓ |
-| **Play as saved** | | | | | | |
-| `playAsSaved` | ✓ | 10 | ✓ | ✓ | ✓ | ✓ |
+| `outOfView` | ✓ | — | — | ✓ | ✓ | ✓ |
+| `hoverEnd` | ✓ | — | — | ✓ | ✓ | ✓ |
+| `inViewThreshold` | ✓ | — | — | ✓ | ✓ | ✓ |
+| `inViewDebounce` | ✓ | — | — | ✓ | ✓ | ✓ |
+| **Play on trigger** | | | | | | |
+| `playOnTrigger` | ✓ | 10 | ✓ | ✓ | ✓ | ✓ |
 | **Declarative control** | | | | | | |
 | `play` | — | — | — | ✓ | ✓ | ✓ |
 | `pause` | — | — | — | ✓ | ✓ | ✓ |
@@ -118,14 +118,14 @@ a number when it differs — the note with that number, under the table, says ho
    already in the page.
 3. The tag is the container: the player renders into the element that carries the attribute.
 4. React Native ignores `timeline.engine`.
-5. Every player takes every `PxTriggerStart` value; React Native ignores `'mouseOver'`, which
+5. Every player takes every `PxTriggerStart` value; React Native ignores `'hover'`, which
    has no touch equivalent.
 6. The handle is what `createSvgAnimationPlayer` returns, a `PxAnimationPlayerApi`.
 7. `createSvgAnimationPlayersFromPage` returns the handles it created; `getSvgAnimationPlayer(element)` finds one later.
 8. The handle is the component's template ref, a `PxAnimationPlayerHandle`.
 9. Written `class`; like `style`, it falls through to the root `<svg>`.
-10. The tag always plays as saved — embedding a finished file IS choosing its behaviour — so it
-    takes no `playAsSaved` option.
+10. The tag always plays on the file's own trigger — embedding a finished file IS choosing its behaviour — so it
+    takes no `playOnTrigger` option.
 
 What some of the names mean:
 
@@ -137,8 +137,8 @@ What some of the names mean:
   is also part of the export format: every SVG + JS file the editor exports calls
   `createSvgAnimationPlayer({"doc": …})` (`PX_ANIMATOR_DOC_KEY`), so it is never renamed by a minifier.
 - **`container`** left out means: animate an SVG that is already in the page.
-- **`playAsSaved`** means "play the way the document says". The HTML tag always works this way;
-  the web player takes it as an option (`createSvgAnimationPlayer({ …, playAsSaved: true })`) — without
+- **`playOnTrigger`** means "play the way the document says". The HTML tag always works this way;
+  the web player takes it as an option (`createSvgAnimationPlayer({ …, playOnTrigger: true })`) — without
   it, nothing starts and the returned api drives playback.
 - **`play`** set to `false` holds the current frame; **`pause`** holds it too, and setting it
   back to `false` resumes.
@@ -164,18 +164,18 @@ The pre-rendered SVG + CSS wrappers toggle class names instead of creating a pla
 |---|---|---|
 | the SVG | `children` | default slot | <!-- px name=children vue=~ -->
 | `start` | ✓ default `'load'` | ✓ same |
-| `offScreen` | ✓ default `'pause'` | ✓ same |
-| `mouseOut` | ✓ default `'pause'` | ✓ same |
-| `visibilityThreshold` | ✓ default `0.5` | ✓ same |
-| `visibilityDebounce` | ✓ default `150` ms | ✓ same |
+| `outOfView` | ✓ default `'pause'` | ✓ same |
+| `hoverEnd` | ✓ default `'pause'` | ✓ same |
+| `inViewThreshold` | ✓ default `0.5` | ✓ same |
+| `inViewDebounce` | ✓ default `150` ms | ✓ same |
 | `className` | ✓ on the wrapper div | `class`, on the wrapper div | <!-- px vue=~ -->
 | `style` | ✓ on the wrapper div | ✓ on the wrapper div | <!-- px vue=~ -->
 
-- `start: 'none'` does nothing here: a wrapper has no `play()` to call.
-- `offScreen: 'pause'` means an animation nobody can see does not run, whatever started it.
-- `mouseOut: 'reverse'` acts like `'continue'`: a class toggle cannot run keyframes backwards.
-- `visibilityThreshold` is how much of the SVG (0 to 1) must be on screen before it may run;
-  `visibilityDebounce` is how long it must stay that way first, so scrolling straight past starts
+- `start: 'manual'` does nothing here: a wrapper has no `play()` to call.
+- `outOfView: 'pause'` means an animation nobody can see does not run, whatever started it.
+- `hoverEnd: 'reverse'` acts like `'continue'`: a class toggle cannot run keyframes backwards.
+- `inViewThreshold` is how much of the SVG (0 to 1) must be on screen before it may run;
+  `inViewDebounce` is how long it must stay that way first, so scrolling straight past starts
   nothing. The defaults are the same as the JSON player's.
 
 ### Control modes — one rule
@@ -190,13 +190,13 @@ core (`resolveControlMode`), so they always pick the same winner:
 |---|---|---|---|
 | 1 | controlled time | `progress` or `time` | switched off; the player seeks and holds |
 | 2 | play / pause | `play` or `pause` | switched off; `play` plays, `pause` holds, `play={false}` holds too |
-| 3 | playAsSaved | `playAsSaved` | used, after the override |
+| 3 | playOnTrigger | `playOnTrigger` | used, after the override |
 | 4 | static | none of the above | switched off; the first frame renders and nothing plays |
 
 `apiRef` is not in the table: the handle is filled in **every** mode and never changes it, so
-`<SvgAnimationPlayer doc={doc} playAsSaved apiRef={playerRef} />` autoplays and gives you the handle.
-`playAsSaved: false` is not a control prop and claims nothing; `play: false` is one, and holds.
-The HTML tag is always in playAsSaved mode; the web player's `playAsSaved: true` option is the same mode.
+`<SvgAnimationPlayer doc={doc} playOnTrigger apiRef={playerRef} />` autoplays and gives you the handle.
+`playOnTrigger: false` is not a control prop and claims nothing; `play: false` is one, and holds.
+The HTML tag is always in playOnTrigger mode; the web player's `playOnTrigger: true` option is the same mode.
 
 ### Callbacks and diagnostics — one shape
 

@@ -23,14 +23,14 @@
     <script src="player.js"></script>
     <script>
         window.pxApi = Pixodesk.SvgAnimator.bind({
-            playAsSaved: true,
+            playOnTrigger: true,
             "doc": {
                 "type": "svg",
                 "id": "root",
                 "animator": {
                     "duration": 1000,
                     "mode": "waapi",
-                    "trigger": { "start": "load", "offScreen": "continue" },
+                    "trigger": { "start": "load", "outOfView": "continue" },
                     "definitions": {
                         "animations": {
                             "a0": {

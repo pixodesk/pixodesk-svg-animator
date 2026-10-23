@@ -1,6 +1,6 @@
 // The case browser. Reads the manifest, renders the sidebar, and shows the
 // selected case in an iframe. The selection lives in the URL hash —
-// `#react/play-as-saved` — so every case has an address the docs can link to, and
+// `#react/play-on-trigger` — so every case has an address the docs can link to, and
 // the page can be reloaded or shared on that case.
 import { CASES, GROUPS, casePath } from '../cases.mjs';
 

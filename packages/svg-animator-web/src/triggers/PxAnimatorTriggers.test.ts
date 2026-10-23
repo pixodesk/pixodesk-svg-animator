@@ -99,9 +99,9 @@ describe('setupAnimationTriggers', () => {
         expect(api.setPlaybackRate).not.toHaveBeenCalled();
     });
 
-    it("start 'mouseOver': mouseenter plays", () => {
+    it("start 'hover': mouseenter plays", () => {
         const { api, root } = createMockApi();
-        setupAnimationTriggers(api, { start: 'mouseOver' });
+        setupAnimationTriggers(api, { start: 'hover' });
 
         expect(api.play).not.toHaveBeenCalled();
         root.dispatchEvent(new Event('mouseenter'));
@@ -109,13 +109,13 @@ describe('setupAnimationTriggers', () => {
     });
 
     it.each([
-        { mouseOut: 'pause' as const, expected: { pause: 1, cancel: 0, setPlaybackRate: 0, play: 1 } },
-        { mouseOut: 'reset' as const, expected: { pause: 0, cancel: 1, setPlaybackRate: 0, play: 1 } },
-        { mouseOut: 'reverse' as const, expected: { pause: 0, cancel: 0, setPlaybackRate: 1, play: 2 } },
-        { mouseOut: 'continue' as const, expected: { pause: 0, cancel: 0, setPlaybackRate: 0, play: 1 } },
-    ])("start 'mouseOver': mouseleave with mouseOut '$mouseOut'", ({ mouseOut, expected }) => {
+        { hoverEnd: 'pause' as const, expected: { pause: 1, cancel: 0, setPlaybackRate: 0, play: 1 } },
+        { hoverEnd: 'reset' as const, expected: { pause: 0, cancel: 1, setPlaybackRate: 0, play: 1 } },
+        { hoverEnd: 'reverse' as const, expected: { pause: 0, cancel: 0, setPlaybackRate: 1, play: 2 } },
+        { hoverEnd: 'continue' as const, expected: { pause: 0, cancel: 0, setPlaybackRate: 0, play: 1 } },
+    ])("start 'hover': mouseleave with hoverEnd '$hoverEnd'", ({ hoverEnd, expected }) => {
         const { api, root } = createMockApi();
-        setupAnimationTriggers(api, { start: 'mouseOver', mouseOut });
+        setupAnimationTriggers(api, { start: 'hover', hoverEnd });
 
         root.dispatchEvent(new Event('mouseenter'));
         root.dispatchEvent(new Event('mouseleave'));
@@ -124,7 +124,7 @@ describe('setupAnimationTriggers', () => {
         expect(api.cancel).toHaveBeenCalledTimes(expected.cancel);
         expect(api.setPlaybackRate).toHaveBeenCalledTimes(expected.setPlaybackRate);
         expect(api.play).toHaveBeenCalledTimes(expected.play);
-        if (mouseOut === 'reverse') {
+        if (hoverEnd === 'reverse') {
             expect(api.setPlaybackRate).toHaveBeenCalledWith(-1);
         }
     });
@@ -168,9 +168,9 @@ describe('setupAnimationTriggers', () => {
         expect(order).toEqual(['play', 'pause', 'play']);
     });
 
-    it("start 'none': nothing auto-starts and no listeners react", () => {
+    it("start 'manual': nothing auto-starts and no listeners react", () => {
         const { api, root } = createMockApi();
-        setupAnimationTriggers(api, { start: 'none' });
+        setupAnimationTriggers(api, { start: 'manual' });
 
         root.dispatchEvent(new Event('click'));
         root.dispatchEvent(new Event('mouseenter'));
@@ -187,7 +187,7 @@ describe('setupAnimationTriggers', () => {
         it('observes the root; the DEFAULT threshold is 0.5 — a barely-visible element waits', () => {
             const io = stubIntersectionObserver();
             const { api, root } = createMockApi();
-            setupAnimationTriggers(api, { visibilityDebounce: 0 });
+            setupAnimationTriggers(api, { inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             expect(io.observed).toBe(root);
@@ -207,10 +207,10 @@ describe('setupAnimationTriggers', () => {
             expect(api.play).toHaveBeenCalledTimes(1);
         });
 
-        it('leaving the viewport runs the offScreen action', () => {
+        it('leaving the viewport runs the outOfView action', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
-            setupAnimationTriggers(api, { offScreen: 'pause', visibilityDebounce: 0 });
+            setupAnimationTriggers(api, { outOfView: 'pause', inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -220,10 +220,10 @@ describe('setupAnimationTriggers', () => {
             expect(api.pause).toHaveBeenCalledTimes(1);
         });
 
-        it('honors visibilityThreshold: intersecting below the threshold does not play', () => {
+        it('honors inViewThreshold: intersecting below the threshold does not play', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setupAnimationTriggers(api, { visibilityThreshold: 0.8, visibilityDebounce: 0 });
+            setupAnimationTriggers(api, { inViewThreshold: 0.8, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             // See the note above: the registration is a granular list; the 0.8 gate is applied to
@@ -237,10 +237,10 @@ describe('setupAnimationTriggers', () => {
             expect(api.play).toHaveBeenCalledTimes(1);
         });
 
-        it('visibilityThreshold 0 means ANY visible pixel — zero visibility still keeps it shut', () => {
+        it('inViewThreshold 0 means ANY visible pixel — zero visibility still keeps it shut', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setupAnimationTriggers(api, { visibilityThreshold: 0, visibilityDebounce: 0 });
+            setupAnimationTriggers(api, { inViewThreshold: 0, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             // Not intersecting at all: a threshold of 0 is "any pixel", not "no pixels".
@@ -255,7 +255,7 @@ describe('setupAnimationTriggers', () => {
         it('HYSTERESIS: once open it stays open until zero, so a graphic on the boundary cannot flap', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
-            setupAnimationTriggers(api, { visibilityThreshold: 0.5, visibilityDebounce: 0 });
+            setupAnimationTriggers(api, { inViewThreshold: 0.5, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 0.6 }]);   // opens
@@ -269,10 +269,10 @@ describe('setupAnimationTriggers', () => {
             expect(api.pause).toHaveBeenCalledTimes(1);
         });
 
-        it("offScreen 'reset' replays from the start on the next entry", () => {
+        it("outOfView 'reset' replays from the start on the next entry", () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
-            setupAnimationTriggers(api, { offScreen: 'reset', visibilityDebounce: 0 });
+            setupAnimationTriggers(api, { outOfView: 'reset', inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -284,10 +284,10 @@ describe('setupAnimationTriggers', () => {
             expect(api.play).toHaveBeenCalledTimes(2);   // the replay
         });
 
-        it("offScreen 'continue' observes nothing at all and starts unseen", () => {
+        it("outOfView 'continue' observes nothing at all and starts unseen", () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setupAnimationTriggers(api, { offScreen: 'continue' });
+            setupAnimationTriggers(api, { outOfView: 'continue' });
 
             // "Run wherever it is" also means "do not wait to be seen before starting".
             expect(io.observed).toBeNull();
@@ -297,7 +297,7 @@ describe('setupAnimationTriggers', () => {
         it('a target TALLER than the viewport is normalized, so a 0.5 threshold is reachable', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setupAnimationTriggers(api, { visibilityThreshold: 0.5, visibilityDebounce: 0 });
+            setupAnimationTriggers(api, { inViewThreshold: 0.5, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             // 2000px graphic, 800px viewport: the raw ratio can never exceed 0.4, so an
@@ -317,7 +317,7 @@ describe('setupAnimationTriggers', () => {
         it('a hidden TAB counts as off screen', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
-            setupAnimationTriggers(api, { visibilityDebounce: 0 });
+            setupAnimationTriggers(api, { inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -343,10 +343,10 @@ describe('setupAnimationTriggers', () => {
             expect(api.play).toHaveBeenCalledTimes(1);
         });
 
-        it("start 'none' is gated too, so an API-started animation pauses off screen", () => {
+        it("start 'manual' is gated too, so an API-started animation pauses off screen", () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
-            setupAnimationTriggers(api, { start: 'none', visibilityDebounce: 0 });
+            setupAnimationTriggers(api, { start: 'manual', inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             // Was "creates NO IntersectionObserver": the gate is about permission to RUN, which
@@ -359,7 +359,7 @@ describe('setupAnimationTriggers', () => {
 
     // ── the debounce ────────────────────────────────────────────────────────────────
 
-    describe('visibilityDebounce', () => {
+    describe('inViewDebounce', () => {
 
         beforeEach(() => { vi.useFakeTimers(); });
         afterEach(() => { vi.useRealTimers(); });
@@ -396,7 +396,7 @@ describe('setupAnimationTriggers', () => {
         it('falling back BELOW the threshold abandons a pending start', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setupAnimationTriggers(api, { visibilityThreshold: 0.5 });
+            setupAnimationTriggers(api, { inViewThreshold: 0.5 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 0.9 }]);
@@ -409,7 +409,7 @@ describe('setupAnimationTriggers', () => {
         it('0 plays the moment the threshold is met', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setupAnimationTriggers(api, { visibilityDebounce: 0 });
+            setupAnimationTriggers(api, { inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -448,13 +448,13 @@ describe('setupAnimationTriggers', () => {
         expect(api.setPlaybackRate).not.toHaveBeenCalled();
     });
 
-    it("mouseOver·reverse: re-enter during reverse playback restores FORWARD playback before play", () => {
+    it("hover·reverse: re-enter during reverse playback restores FORWARD playback before play", () => {
         const order: Array<string> = [];
         const { api, root } = createMockApi({
             play: vi.fn(() => order.push('play')),
             setPlaybackRate: vi.fn((rate: number) => order.push('rate:' + rate)),
         });
-        setupAnimationTriggers(api, { start: 'mouseOver', mouseOut: 'reverse' });
+        setupAnimationTriggers(api, { start: 'hover', hoverEnd: 'reverse' });
 
         root.dispatchEvent(new Event('mouseenter'));   // start (forward, no rate call)
         root.dispatchEvent(new Event('mouseleave'));   // reverse: rate -1, play
@@ -465,7 +465,7 @@ describe('setupAnimationTriggers', () => {
 
     it('a plain (never-reversed) restart never touches the playback rate — custom API rates survive', () => {
         const { api, root } = createMockApi();
-        setupAnimationTriggers(api, { start: 'mouseOver', mouseOut: 'pause' });
+        setupAnimationTriggers(api, { start: 'hover', hoverEnd: 'pause' });
 
         root.dispatchEvent(new Event('mouseenter'));
         root.dispatchEvent(new Event('mouseleave'));
@@ -474,10 +474,10 @@ describe('setupAnimationTriggers', () => {
         expect(api.setPlaybackRate).not.toHaveBeenCalled();
     });
 
-    it("offScreen 'pause' then returning resumes from where it paused", () => {
+    it("outOfView 'pause' then returning resumes from where it paused", () => {
         const io = stubIntersectionObserver();
         const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
-        setupAnimationTriggers(api, { offScreen: 'pause', visibilityDebounce: 0 });
+        setupAnimationTriggers(api, { outOfView: 'pause', inViewDebounce: 0 });
         assert(io.callback, 'the gate created no IntersectionObserver');
 
         io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -517,7 +517,7 @@ describe('setupAnimationTriggers', () => {
 
     it('the disposer detaches every listener it attached (review §14)', () => {
         const { api, root } = createMockApi();
-        const dispose = setupAnimationTriggers(api, { start: 'mouseOver' });
+        const dispose = setupAnimationTriggers(api, { start: 'hover' });
 
         root.dispatchEvent(new Event('mouseenter'));
         expect(api.play).toHaveBeenCalledTimes(1);

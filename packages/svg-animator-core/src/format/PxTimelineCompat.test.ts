@@ -48,7 +48,7 @@ describe('animator.timeline spelling compat', () => {
         const flat = resolveAnimatorTimeline({
             timeline: {
                 type: 'time', outTime: 4000,
-                trigger: { start: 'click', mouseOut: 'pause' }, finish: 'reset',
+                trigger: { start: 'click', hoverEnd: 'pause' }, finish: 'reset',
                 delay: 250, iterations: 'infinite', direction: 'alternate', fillMode: 'both'
             }
         });
@@ -56,7 +56,7 @@ describe('animator.timeline spelling compat', () => {
         expect(flat).toMatchObject({
             duration: 4000, delay: 250, iterations: 'infinite', direction: 'alternate',
             fill: 'both', resetOnFinish: true,
-            trigger: { start: 'click', mouseOut: 'pause' }
+            trigger: { start: 'click', hoverEnd: 'pause' }
         });
     });
 
@@ -221,7 +221,7 @@ describe('animator.timeline spelling compat', () => {
     it('round-trips: flatten(nest(flat)) reproduces the flat form', () => {
         const flat: PxAnimatorRuntimeConfig = {
             duration: 4000, frameRate: 60, engine: 'auto',
-            trigger: { start: 'click', mouseOut: 'pause' }, delay: 250,
+            trigger: { start: 'click', hoverEnd: 'pause' }, delay: 250,
             iterations: 'infinite', direction: 'alternate', fill: 'both', resetOnFinish: true
         };
         expect(resolveAnimatorTimeline(nestAnimatorTimeline(flat))).toEqual(flat);

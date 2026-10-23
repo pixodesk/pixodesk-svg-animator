@@ -23,7 +23,7 @@
  * on the nested form is the only place those values mean what they say.
  */
 import { PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS, PxTriggerStart } from '../format/PxAnimatorConstants';
-import type { PxMouseOutAction, PxOffScreenAction } from '../format/PxAnimatorConstants';
+import type { PxHoverEndAction, PxOutOfViewAction } from '../format/PxAnimatorConstants';
 import type { PxDocument, PxAnimatorConfig } from '../format/PxAnimatorTypes';
 import { legacyAnimatorOf } from '../format/PxDocStage';
 
@@ -134,17 +134,17 @@ export interface PxTimelineShortcuts {
     iterations?: number | 'infinite';
     /**
      * Shortcut for `timeline.trigger.start`. Typed from the WIRE, so it includes
-     * `'none'` — "nothing starts this but a `play()` call".
+     * `'manual'` — "nothing starts this but a `play()` call".
      */
     start?: PxTriggerStart;
-    /** Shortcut for `timeline.trigger.offScreen` — what happens while none of it is on screen. */
-    offScreen?: PxOffScreenAction;
-    /** Shortcut for `timeline.trigger.mouseOut` — what the pointer leaving does, for `start: 'mouseOver'`. */
-    mouseOut?: PxMouseOutAction;
-    /** Shortcut for `timeline.trigger.visibilityThreshold` — how much must be on screen (0–1). */
-    visibilityThreshold?: number;
-    /** Shortcut for `timeline.trigger.visibilityDebounce` — ms the visibility must hold. */
-    visibilityDebounce?: number;
+    /** Shortcut for `timeline.trigger.outOfView` — what happens while none of it is on screen. */
+    outOfView?: PxOutOfViewAction;
+    /** Shortcut for `timeline.trigger.hoverEnd` — what the pointer leaving does, for `start: 'hover'`. */
+    hoverEnd?: PxHoverEndAction;
+    /** Shortcut for `timeline.trigger.inViewThreshold` — how much must be on screen (0–1). */
+    inViewThreshold?: number;
+    /** Shortcut for `timeline.trigger.inViewDebounce` — ms the visibility must hold. */
+    inViewDebounce?: number;
 }
 
 /**
@@ -201,11 +201,11 @@ export function foldTimelineOverride(
         base = timeline ?? undefined;
     }
 
-    const { inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce } = shortcuts;
+    const { inTime, outTime, playDuration, delay, iterations, start, outOfView, hoverEnd, inViewThreshold, inViewDebounce } = shortcuts;
     if (inTime === undefined && outTime === undefined && playDuration === undefined
         && delay === undefined && iterations === undefined && start === undefined
-        && offScreen === undefined && mouseOut === undefined
-        && visibilityThreshold === undefined && visibilityDebounce === undefined) {
+        && outOfView === undefined && hoverEnd === undefined
+        && inViewThreshold === undefined && inViewDebounce === undefined) {
         return base === undefined ? undefined : { timeline: base };
     }
 
@@ -218,25 +218,25 @@ export function foldTimelineOverride(
     // the trigger shortcuts — the SAME flat names the CSS component takes (review §12)
     const trigger: JsonRecord = isPlainObject(out.trigger) ? { ...out.trigger } : {};
     if (start !== undefined) trigger.start = start;
-    if (offScreen !== undefined) trigger.offScreen = offScreen;
-    if (mouseOut !== undefined) trigger.mouseOut = mouseOut;
-    if (visibilityThreshold !== undefined) trigger.visibilityThreshold = visibilityThreshold;
-    if (visibilityDebounce !== undefined) trigger.visibilityDebounce = visibilityDebounce;
+    if (outOfView !== undefined) trigger.outOfView = outOfView;
+    if (hoverEnd !== undefined) trigger.hoverEnd = hoverEnd;
+    if (inViewThreshold !== undefined) trigger.inViewThreshold = inViewThreshold;
+    if (inViewDebounce !== undefined) trigger.inViewDebounce = inViewDebounce;
     if (Object.keys(trigger).length) out.trigger = trigger;
     return { timeline: out };
 }
 
 /**
- * The "nobody named a driver" patch (first-use review §1+2): forces `trigger.start: 'none'` ON TOP
+ * The "nobody named a driver" patch (first-use review §1+2): forces `trigger.start: 'manual'` ON TOP
  * of the caller's own override, so the document cannot start itself. One spelling for the web
- * player's missing `playAsSaved` option and the components' non-`playAsSaved` control modes.
+ * player's missing `playOnTrigger` option and the components' non-`playOnTrigger` control modes.
  * @public @advanced
  */
 export function suppressTriggerStart(patch?: PxAnimatorConfigPatch): PxAnimatorConfigPatch {
     const base = patch ?? {};
     const timeline = isPlainObject(base.timeline) ? base.timeline : {};
     const trigger = isPlainObject(timeline.trigger) ? timeline.trigger : {};
-    return { ...base, timeline: { ...timeline, trigger: { ...trigger, start: PxTriggerStart.none } } };
+    return { ...base, timeline: { ...timeline, trigger: { ...trigger, start: PxTriggerStart.manual } } };
 }
 
 /**

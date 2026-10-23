@@ -66,8 +66,8 @@ describe('resolveTimelineOption — shortcuts and the string form', () => {
     });
 
     it('start merges into an existing trigger', () => {
-        const out = resolveTimelineOption({ timeline: { trigger: { mouseOut: 'pause' } }, start: 'click' });
-        expect(timelineOf(out)?.trigger).toEqual({ mouseOut: 'pause', start: 'click' });
+        const out = resolveTimelineOption({ timeline: { trigger: { hoverEnd: 'pause' } }, start: 'click' });
+        expect(timelineOf(out)?.trigger).toEqual({ hoverEnd: 'pause', start: 'click' });
     });
 
     it('accepts the JSON STRING form — the mangling-proof spelling', () => {
@@ -89,21 +89,21 @@ describe('resolveTimelineOption — shortcuts and the string form', () => {
 
 describe('createSvgAnimationPlayer — the override reaches the running animation', () => {
 
-    // The observable: the document's `start: 'load'` makes it playAsSaved. If the override
+    // The observable: the document's `start: 'load'` makes it playOnTrigger. If the override
     // reaches the engine, the animation is NOT playing. Chosen because it is unambiguous —
     // keyframe times are absolute, so a duration override changes when playback ENDS, not the
     // value at a given instant, which makes opacity a poor witness.
 
     it('baseline: the document autoplays, so a change here is visible', () => {
-        const api = createSvgAnimationPlayer({ playAsSaved: true, doc: wireDoc(), container: stage() });
+        const api = createSvgAnimationPlayer({ playOnTrigger: true, doc: wireDoc(), container: stage() });
         expect(api.isPlaying()).toBe(true);
         api.destroy();
     });
 
     it('timeline (object) overrides the trigger on a WIRE document — the case flat props silently lost', () => {
         const api = createSvgAnimationPlayer({
-            playAsSaved: true, doc: wireDoc(), container: stage(),
-            timeline: { trigger: { start: 'none' } },
+            playOnTrigger: true, doc: wireDoc(), container: stage(),
+            timeline: { trigger: { start: 'manual' } },
         });
         expect(api.isPlaying()).toBe(false);
         api.destroy();
@@ -111,15 +111,15 @@ describe('createSvgAnimationPlayer — the override reaches the running animatio
 
     it('timeline as a JSON STRING works identically', () => {
         const api = createSvgAnimationPlayer({
-            playAsSaved: true, doc: wireDoc(), container: stage(),
-            timeline: '{"trigger":{"start":"none"}}',
+            playOnTrigger: true, doc: wireDoc(), container: stage(),
+            timeline: '{"trigger":{"start":"manual"}}',
         });
         expect(api.isPlaying()).toBe(false);
         api.destroy();
     });
 
     it('the start SHORTCUT does the same thing', () => {
-        const api = createSvgAnimationPlayer({ playAsSaved: true, doc: wireDoc(), container: stage(), start: 'none' });
+        const api = createSvgAnimationPlayer({ playOnTrigger: true, doc: wireDoc(), container: stage(), start: 'manual' });
         expect(api.isPlaying()).toBe(false);
         api.destroy();
     });
@@ -129,9 +129,9 @@ describe('createSvgAnimationPlayer — the override reaches the running animatio
         // falls back to `auto`, which probes WAAPI and is unavailable under jsdom.
         // Since review §2.1 a MISSING trigger resolves to `start: 'load'`, so dropping the
         // document's trigger no longer means "nothing starts" — it means the default applies.
-        // To get "nothing autostarts", ask for it: see the `start: 'none'` test above.
+        // To get "nothing autostarts", ask for it: see the `start: 'manual'` test above.
         const api = createSvgAnimationPlayer({
-            playAsSaved: true, doc: wireDoc(), container: stage(),
+            playOnTrigger: true, doc: wireDoc(), container: stage(),
             resetTimeline: true, timeline: { engine: 'js', outTime: 4000 },
         });
         expect(api.isPlaying()).toBe(true);
@@ -141,7 +141,7 @@ describe('createSvgAnimationPlayer — the override reaches the running animatio
     it('does not mutate the caller document', () => {
         const doc = wireDoc();
         const before = JSON.stringify(doc);
-        const api = createSvgAnimationPlayer({ playAsSaved: true, doc, container: stage(), timeline: { outTime: 9999 } });
+        const api = createSvgAnimationPlayer({ playOnTrigger: true, doc, container: stage(), timeline: { outTime: 9999 } });
         expect(JSON.stringify(doc)).toBe(before);
         api.destroy();
     });

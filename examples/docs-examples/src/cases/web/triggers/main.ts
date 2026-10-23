@@ -8,8 +8,8 @@ const doc = {
   ...animation,
   animator: {
     ...animation.animator,
-    timeline: { ...animation.animator.timeline, trigger: { start: 'click', offScreen: 'continue' } },
+    timeline: { ...animation.animator.timeline, trigger: { start: 'click', outOfView: 'continue' } },
   },
 };
 
-createSvgAnimationPlayer({ doc: doc as any, container: '#box', playAsSaved: true });
+createSvgAnimationPlayer({ doc: doc as any, container: '#box', playOnTrigger: true });

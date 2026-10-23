@@ -16,7 +16,7 @@
             "outTime": 1000,
             "trigger": {
               "start": "load",
-              "offScreen": "continue"
+              "outOfView": "continue"
             },
             "iterations": "infinite",
             "direction": "alternate"
@@ -68,7 +68,7 @@
     <script src="js/pixodesk-svg-animator.umd.min.js"></script>
     <script>
       const doc = JSON.parse(document.getElementById('hero-animation').textContent);
-      Pixodesk.SvgAnimator.create({ doc, container: '#hero', playAsSaved: true });
+      Pixodesk.SvgAnimator.create({ doc, container: '#hero', playOnTrigger: true });
     </script>
   </body>
 </html>

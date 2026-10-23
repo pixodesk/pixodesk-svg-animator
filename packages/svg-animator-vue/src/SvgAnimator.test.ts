@@ -144,9 +144,9 @@ describe("SvgAnimationPlayer (Vue)", () => {
     // -- 2. Animation smoke ----------------------------------------------------
 
     describe("animation", () => {
-        it("renders and animates with playAsSaved", () => {
+        it("renders and animates with playOnTrigger", () => {
             render(SvgAnimationPlayer, {
-                props: { doc: getTestJson(), playAsSaved: true },
+                props: { doc: getTestJson(), playOnTrigger: true },
             });
 
             const ellipse = document.querySelector("ellipse");
@@ -422,7 +422,7 @@ describe("SvgAnimationPlayer (Vue) — root element", () => {
     it("a `load` trigger plays when the document's root has no id", () => {
         const onWarn = vi.fn();
         const { container } = render(SvgAnimationPlayer, {
-            props: { doc: getMaskedLoadJson(), playAsSaved: true, onWarn, timeline: { engine: "js" } },
+            props: { doc: getMaskedLoadJson(), playOnTrigger: true, onWarn, timeline: { engine: "js" } },
         });
 
         const moving = container.querySelector("mask ellipse");
@@ -798,7 +798,7 @@ function getEffectsOnlyJson(): PxDocument {
         animator: {
             timeline: {
                 outTime: 1000,
-                trigger: { start: "mouseOver", offScreen: "pause", mouseOut: "pause", visibilityThreshold: 0.5, visibilityDebounce: 150 },
+                trigger: { start: "hover", outOfView: "pause", hoverEnd: "pause", inViewThreshold: 0.5, inViewDebounce: 150 },
                 iterations: "infinite", direction: "normal",
             },
             version: "1.2.1",
@@ -862,7 +862,7 @@ function getMaskedLoadJson(): PxDocument {
         animator: {
             timeline: {
                 outTime: 1000,
-                trigger: { start: "load", offScreen: "pause", visibilityThreshold: 0.5, visibilityDebounce: 150 },
+                trigger: { start: "load", outOfView: "pause", inViewThreshold: 0.5, inViewDebounce: 150 },
                 iterations: "infinite", direction: "normal",
             },
             version: "1.2.1",

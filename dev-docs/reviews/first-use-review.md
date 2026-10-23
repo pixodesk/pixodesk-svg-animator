@@ -974,32 +974,104 @@ the PRODUCT name.*
   3. The docs drop `element._px_animator`.
 - **Done (2026-10-23):** all three, also on the `<script>` global (`Pixodesk.SvgAnimator.createSvgAnimatorsFromPage()` / `.getSvgAnimator(el)`). The property stays as the implementation (`PX_ANIM_ATTR_NAME`), so a repeat call still skips a tagged element. Test: `PxAnimator.test.ts` › *returns the players THIS call created* (seen failing with the return value removed).
 
-### 21. Trigger words
+### 21. Trigger words ✅
 
 `timeline.trigger` (`PxTriggerSchema`) has five keys: `start` (`load | mouseOver | click | none`),
 `offScreen` (`pause | continue | reset`), `mouseOut` (`continue | pause | reset | reverse`),
-`visibilityThreshold` and `visibilityDebounce`. Three of these names are off:
+`visibilityThreshold` and `visibilityDebounce`.
 
-| Now | Problem | Possible name |
-|---|---|---|
-| `offScreen` + `visibilityThreshold` / `visibilityDebounce` | one concept (how much of the animation is on screen) under two words; a reader looks for `offScreenThreshold` and doesn't find it | `offScreen` + `offScreenThreshold` / `offScreenDebounce`, or one `visibility` word for all three |
-| `mouseOver` / `mouseOut` | names a mouse, but it works with touch and pen too; the docs' prose says "hover", the SVG + CSS export uses CSS `:hover`, LottieFiles interactivity says `hover` | `start: 'hover'`, `hoverEnd` (or `onHoverEnd`) for the out action |
-| `start: 'none'` | reads as "never starts"; it means "waits for `play()`"; the editor's own label is "Manually from JS" | `start: 'manual'` |
+**Decided (owner, 2026-10-23)**
+- **The structure stays.** The timeline drives the playhead (`timeline.type`: the clock, `scroll`, `view` —
+  WAAPI's timelines); the trigger says when a CLOCK timeline plays. Scroll-driven playback is a timeline type,
+  not a trigger — the same line CSS draws between `animation-timeline` (scroll-driven) and `animation-trigger`
+  (scroll-triggered).
+- **`playAsSaved` → `playOnTrigger`** (and `PxControlMode.playAsSaved` → `playOnTrigger`). The prop said where
+  the setting came from ("as the editor saved it"); the new name says what it does — the file's trigger runs —
+  and shares its words with `timeline.trigger` and the `play` / `playMode` props. For a scroll timeline the
+  scroll drives in every mode, so the prop only ever concerns the trigger.
 
-- **Cost:** each row is a wire rename. That means:
-  - a schema step: `PX_WIRE_STEPS` entry plus `up`;
-  - the enum (`PxTriggerStart` / `PxMouseOutAction`);
-  - the React/Vue prop types (see §24);
-  - the docs;
-  - the editor's writer.
+**Open:** the names INSIDE the trigger — below: the visibility gate, then all trigger keys under one pattern.
 
-  The renames are cheapest before the first publish, because afterwards every saved file needs the conversion step.
-- **Suggested:** all three rows in ONE schema step, before the first publish:
-  - `offScreenThreshold` / `offScreenDebounce`. This keeps `offScreen` (already the action's name) and makes the parameters visibly belong to it.
-  - `start: 'hover'` with `hoverEnd` for the out action, which also reads naturally on React Native, where the start value stays unavailable.
-  - `start: 'manual'`.
+#### The visibility gate: becoming visible vs becoming hidden
 
-  The `up` step converts old files, so nothing a user saved breaks.
+- **What the player does** (`PxVisibilityGate`): one gate, two edges.
+
+| Edge | When | Settings | Then |
+|---|---|---|---|
+| **becomes visible** (the gate OPENS) | at least `visibilityThreshold` of it is on screen (default 0.5) for `visibilityDebounce` ms (default 150) | `visibilityThreshold`, `visibilityDebounce` | a `start: 'load'` animation that was waiting starts; a paused one resumes |
+| **becomes hidden** (the gate CLOSES) | NONE of it is on screen (zero visibility), or the tab is hidden | `offScreen` | `pause` (default), `continue`, or `reset` |
+
+  Two different thresholds on purpose: open at half, close only at zero, so a graphic resting on the boundary
+  cannot flap between playing and paused.
+- **So today's names are not "two words for one concept":** each names its own edge — the threshold and the
+  debounce belong to becoming VISIBLE, the action to becoming HIDDEN. (The first pass suggested
+  `offScreenThreshold` — that would be wrong: it reads as "pauses when half is hidden", but nothing happens at
+  the threshold on the way out.)
+- **How people think about it — visible-first:**
+  - The tools state the rule positively: IntersectionObserver's `threshold` and Framer Motion's
+    `viewport.amount` are "how much is VISIBLE"; Framer's `whileInView`, Webflow's "Scroll into view" and AOS
+    all start from "comes into view". Nobody configures "how much must be hidden".
+  - The hidden side is the exception handler — "and when it scrolls away?" (Webflow "Scroll out of view",
+    GSAP ScrollTrigger's `onLeave` action) — and its answer is usually "stop".
+  - This format's own history: `startOn: 'scrollIntoView'` + `scrollIntoViewThreshold` before schema 1.2.
+- **The dominant state:** below the fold most graphics are HIDDEN at load, and the default rule makes their
+  running state follow visibility — run while visible, pause while hidden. `start: 'load'` behind the default
+  gate therefore means "start when it comes into view" in practice, which is how the guide already
+  explains it ("Starts once half of it is on screen; pauses when it scrolls away").
+
+**Options** (re-ranked, 2026-10-23: nothing is released, so a step that only renames is cheap, and the goal is
+one consistent vocabulary)
+
+| | Names | Pros | Cons |
+|---|---|---|---|
+| **1. One "view" family, in / out** | `inViewThreshold`, `inViewDebounce`, `outOfView` (`pause` / `continue` / `reset`) | One word for the whole gate, symmetric edges, visible-first like the tools people know ("scroll into view / out of view", `whileInView`); no clash with CSS `visibility`; the same "what + edge" pattern as hover (below) | A schema step for three keys; longer keys |
+| **2. Keep the names, explain the two edges** | `visibilityThreshold`, `visibilityDebounce`, `offScreen` | Each name is accurate for its edge; no step | Two root words hide that it is ONE gate; `visibility` also names the CSS property; does not share a pattern with hover |
+| **3. Group the gate in one object** | `inView: { threshold, debounce, out: 'pause' }` | Says "one gate" structurally | Breaks the flat-and-prefixed rule (schema-design S7); the common override gets longer |
+| ~~Hidden-first~~ | ~~`offScreenThreshold` / `offScreenDebounce`~~ | — | Wrong: describes the opening edge with the closing edge's word |
+
+#### All trigger keys under one pattern: what + edge
+
+- **The pattern:** the trigger talks about EVENTS. `start` names the event that starts the run; every other key
+  is an event's edge — `<what><edge>` — whose value is the action, or a setting of that edge.
+- **What other tools call them:**
+
+| Tool | Hover | On screen | Started by code |
+|---|---|---|---|
+| Framer Motion | `whileHover`, `onHoverStart` / `onHoverEnd` | `whileInView`, `onViewportEnter` / `onViewportLeave`, `viewport.amount` | (no start event — `animate` controls) |
+| dotLottie (state machines) | PointerEnter / PointerExit ("hover start/end") | — | events fired from code |
+| SVGator (export panel) | "on mouse over", and an action on mouse out (freeze / reverse / restart) | "scroll into view" + a view percentage | — |
+| Webflow interactions | hover in / hover out | scroll into view / out of view | — |
+| GSAP ScrollTrigger | — | `onEnter` / `onLeave` (+ `…Back`), `toggleActions` | `paused: true` |
+| DOM / CSS | `pointerenter` / `pointerleave`, `:hover` | IntersectionObserver `threshold` | — |
+| Lottie / Rive players | `hover` attribute (lottie-player), Pointer Enter / Exit (Rive listeners) | — | `autoplay: false` |
+
+- **Edge words — three ways to make it consistent:**
+
+| | Hover | View | Verdict |
+|---|---|---|---|
+| **A. Each pair in its own idiom** | `start: 'hover'`, `hoverEnd` | `inViewThreshold`, `inViewDebounce`, `outOfView` | **pick** — hovers *start and end* (Framer, dotLottie); things come *into* and go *out of* view (Webflow, SVGator, `whileInView`). Reads like English: `{ start: 'hover', hoverEnd: 'reverse' }`, `{ inViewThreshold: 0.5, outOfView: 'pause' }` |
+| B. Enter / leave for both | `hoverLeave` | `viewEnterThreshold`, `viewEnterDebounce`, `viewLeave` | mechanically parallel (DOM, GSAP), but `hoverLeave` and `viewEnterThreshold` read awkwardly |
+| C. In / out for both | `hoverOut` | `inViewThreshold`, `inViewDebounce`, `outOfView` | close to A; "hover out" is a known phrase (Webflow), but less common than "hover end" |
+
+- **`start` values:** `load` and `click` stay (every tool uses them). `mouseOver` → `hover` (works with touch and
+  pen; the docs, CSS `:hover` and the tools above say hover). `none` → `manual` (it waits for your code; the
+  editor's label is "Manually from JS"; `programmatic`, this format's 1.1 spelling and SVGator's word, is longer
+  and reads as jargon). The value stays `hover`, not `hoverStart`: the key already says "start".
+- **The whole proposal:**
+
+| Now | Becomes |
+|---|---|
+| `start: 'load' \| 'mouseOver' \| 'click' \| 'none'` | `start: 'load' \| 'hover' \| 'click' \| 'manual'` |
+| `mouseOut` | `hoverEnd` |
+| `visibilityThreshold` / `visibilityDebounce` | `inViewThreshold` / `inViewDebounce` |
+| `offScreen` | `outOfView` |
+
+- **Cost:** one schema step (the renamed keys and the two `start` values; `up` converts old files); the enums;
+  the components' flat shortcut props (same names as the keys); the editor's writer and labels (*On Hover*,
+  *Manually*, *Hover end*, *In-view threshold*, *In-view delay*, *Out of view*); the docs. Cheapest before the
+  first publish — do it together with `playOnTrigger`.
+- **Suggested:** visibility option 1 + edge words A, in one schema step with `playOnTrigger`.
+- **Done (2026-10-23):** the proposal as written, as wire 1.7 — the 1.6 → 1.7 step renames old files on read (and back down); `playAsSaved` → `playOnTrigger` on the components, the web / `bind` option and `PxControlMode`. Editor labels *On Hover*, *Manually*, *Hover End*, *Out of View*, *In-View Threshold*, *In-View Delay* (title case, like the panel's other labels). Docs, examples, the editor (kf) and the website's code samples follow; unstamped example and fixture JSON was migrated with the step as the oracle; the website's data files stay (the site's own older players read them). Test: `PxWireTriggerStep.test.ts` › *wire step 1.6 → 1.7* (seen failing with the step's tables broken). Dated plans and reviews keep the old words.
 
 ### 22. `loop` means something else here
 

@@ -58,7 +58,7 @@ function createAnimatorImpl(
     patch?: PxAnimatorConfigPatch,
     resetTimeline?: boolean,
     providedRoot?: Element,
-    playAsSaved?: boolean
+    playOnTrigger?: boolean
 ): PxAnimationPlayerApi {
 
     // Everything this player has to say goes through one channel (API review §5): the caller's
@@ -90,12 +90,12 @@ function createAnimatorImpl(
         doc = patched.doc;
     }
 
-    // The no-driver rule (first-use review §1+2): without `playAsSaved` the document must not
-    // start itself — `start: 'none'` goes on AFTER the caller's own override, so nothing re-arms
+    // The no-driver rule (first-use review §1+2): without `playOnTrigger` the document must not
+    // start itself — `start: 'manual'` goes on AFTER the caller's own override, so nothing re-arms
     // it; the same rule the components' control modes apply. Scroll-driven documents are exempt:
     // scroll IS their named driver, and a clock trigger pushed into a scroll timeline would only
     // be reported as an ignored override.
-    if (!playAsSaved && !isScrollTimeline(getAnimatorConfig(doc))) {
+    if (!playOnTrigger && !isScrollTimeline(getAnimatorConfig(doc))) {
         doc = applyAnimatorConfig(doc, suppressTriggerStart()).doc;
     }
 
@@ -169,10 +169,10 @@ export interface PxAnimationPlayerOptions extends PxPlaybackOverride, PxAnimatio
     /**
      * Play the way the editor saved it: the document's own `timeline.trigger` starts (and gates)
      * playback. WITHOUT it the player builds still — the first frame is shown, `trigger.start`
-     * is forced to `'none'` — and the returned api (`play()`, `setCurrentTime()`) drives it
+     * is forced to `'manual'` — and the returned api (`play()`, `setCurrentTime()`) drives it
      * (first-use review §1+2: nothing plays until a line names the driver).
      */
-    playAsSaved?: boolean;
+    playOnTrigger?: boolean;
     /** URL to fetch the animation document from. Provide either this or `doc`, not both. */
     src?: string;
     /** The animation document, inline (see docs/format/README.md) — typed as a JSON import
@@ -221,8 +221,8 @@ function isInternalOptions(options: PxAnimationPlayerOptions): options is PxInte
  * component packages and the plain-JS entry cannot drift).
  */
 export function resolveTimelineOption(options: PxAnimationPlayerOptions): PxAnimatorConfigPatch | undefined {
-    const { timeline, inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce } = options;
-    return foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce });
+    const { timeline, inTime, outTime, playDuration, delay, iterations, start, outOfView, hoverEnd, inViewThreshold, inViewDebounce } = options;
+    return foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start, outOfView, hoverEnd, inViewThreshold, inViewDebounce });
 }
 
 /**
@@ -292,7 +292,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     // throw at the caller, which would land inside a fetch callback where no one can catch it.
     const build = (document: PxDocument): void => {
         try {
-            ready(createAnimatorImpl(document, adapter, callbacks, container, patch, resetTimeline, providedRoot, options.playAsSaved));
+            ready(createAnimatorImpl(document, adapter, callbacks, container, patch, resetTimeline, providedRoot, options.playOnTrigger));
         } catch (e) {
             const err = asThrownError(e);
             failed(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, err);
@@ -347,7 +347,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
  * forbids (`data`): callbacks, the diagnostics channel, a playback override and its shortcuts.
  * @public
  */
-export type PxPageAnimationPlayerOptions = Omit<PxAnimationPlayerOptions, 'src' | 'doc' | 'container' | 'playAsSaved'>;
+export type PxPageAnimationPlayerOptions = Omit<PxAnimationPlayerOptions, 'src' | 'doc' | 'container' | 'playOnTrigger'>;
 
 /**
  * Scan the page for `<div data-px-animation-src="animation.json">` and create one player per
@@ -366,8 +366,8 @@ export function createSvgAnimationPlayersFromPage(options?: PxPageAnimationPlaye
         if (!element[PX_ANIM_ATTR_NAME]) {
             const src = element.getAttribute(PX_ANIM_SRC_ATTR_NAME);
             if (src) {
-                // A tag embeds a finished file: the file IS the driver, so `playAsSaved` is not an option here.
-                const api = createSvgAnimationPlayer({ ...options, src, container: element, playAsSaved: true });
+                // A tag embeds a finished file: the file IS the driver, so `playOnTrigger` is not an option here.
+                const api = createSvgAnimationPlayer({ ...options, src, container: element, playOnTrigger: true });
                 element[PX_ANIM_ATTR_NAME] = api;
                 created.push(api);
             }

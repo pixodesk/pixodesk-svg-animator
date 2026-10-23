@@ -222,7 +222,7 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
         // REGRESSION: the wrappers that undo the masked element's animated transform carry
         // `animate.transform` only. Until a player applied a frame they were identity, so the
         // mask source sat in the wrong place and the masked element was simply not visible —
-        // which, under a `mouseOver` / `none` trigger, is the frame the user is looking at.
+        // which, under a `hover` / `none` trigger, is the frame the user is looking at.
         // The keyframes start BEFORE 0, as converted documents' do.
         const scene: PxNode = {
             type: 'svg',

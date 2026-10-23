@@ -27,7 +27,7 @@ comments, so a real file has none.)
       "iterations": "infinite",
       "direction": "alternate",
       // Starts once half of it is on screen; pauses when it scrolls away
-      "trigger": { "start": "load", "offScreen": "pause", "visibilityThreshold": 0.5 }
+      "trigger": { "start": "load", "outOfView": "pause", "inViewThreshold": 0.5 }
     }
   },
   "children": [
@@ -123,39 +123,39 @@ The `trigger` block — inside the clock timeline — answers two independent qu
 player honors both:
 
 - **What STARTS it** — `start`.
-- **Whether it may RUN** — `offScreen`, `visibilityThreshold` and `visibilityDebounce`. An
+- **Whether it may RUN** — `outOfView`, `inViewThreshold` and `inViewDebounce`. An
   animation nobody can see does not play, whatever started it.
 
 They are kept separate so that every combination is possible: start on click *and* pause when
 scrolled away. The editor writes the block from its **Start** setting.
 
 ```json
-"timeline": { "trigger": { "start": "mouseOver", "mouseOut": "reset" } }
+"timeline": { "trigger": { "start": "hover", "hoverEnd": "reset" } }
 ```
 
 <!-- px-check values PxTriggerStart pkg=core -->
 | `start` | Starts when… | Editor label |
 |---|---|---|
-| `load` (default) | the animation is displayed *and* visible enough — see `visibilityThreshold` | *On load* |
-| `mouseOver` | the pointer enters the element | *On mouse over* |
-| `click` | the element is clicked; a second click pauses | *On click* |
-| `none` | never by itself — you call `play()` | *Manually from JS* |
+| `load` (default) | the animation is displayed *and* visible enough — see `inViewThreshold` | *On Load* |
+| `hover` | the pointer enters the element | *On Hover* |
+| `click` | the element is clicked; a second click pauses | *On Click* |
+| `manual` | never by itself — you call `play()` | *Manually* |
 
-A document with no `trigger`, or a `trigger` without `start`, starts on load. Use `none` when
+A document with no `trigger`, or a `trigger` without `start`, starts on load. Use `manual` when
 your own code should start it.
 
 **To start an animation when it scrolls into view**, use `start: 'load'` with
-`offScreen: 'pause'`. Both are the defaults, so a document with no `trigger` at all already
+`outOfView: 'pause'`. Both are the defaults, so a document with no `trigger` at all already
 behaves this way:
 
 1. The animation waits on its first frame until enough of it is on screen
-   (`visibilityThreshold`, half by default).
+   (`inViewThreshold`, half by default).
 2. Then it plays.
 3. When it scrolls out of view, it pauses.
 4. When it comes back, it carries on from where it paused.
 
 `start: 'load'` only says "nobody has to click or hover". Whether it may actually run is decided
-by `offScreen`, described next.
+by `outOfView`, described next.
 
 The defaults are the `PX_TRIGGER_DEFAULTS` constant, and `resolveTrigger` fills them into a
 trigger that leaves fields out. Every player uses this same function, so they all read a
@@ -163,8 +163,8 @@ missing field the same way.
 
 ### Whether it may run
 
-<!-- px-check values PxOffScreenAction pkg=core -->
-| `offScreen` | Effect while none of it is on screen |
+<!-- px-check values PxOutOfViewAction pkg=core -->
+| `outOfView` | Effect while none of it is on screen |
 |---|---|
 | `pause` (default) | pause where it is; it resumes when the element comes back |
 | `continue` | keep playing — and start without waiting to be seen at all |
@@ -173,20 +173,20 @@ missing field the same way.
 <!-- px-check off two plain numbers, not a closed value list — the schema block in the format guide carries their types -->
 | Field | Default | Meaning |
 |---|---|---|
-| `visibilityThreshold` | `0.5` | how much of the element must be on screen before it may run: `0` any part, `0.5` half of it, `1` all of it. Playback stops only at **zero** visibility, so an element resting on the boundary cannot flicker |
-| `visibilityDebounce` | `150` | and for how long, in ms. Scrolling straight past an animation therefore starts nothing; `0` starts the moment the threshold is met |
+| `inViewThreshold` | `0.5` | how much of the element must be on screen before it may run: `0` any part, `0.5` half of it, `1` all of it. Playback stops only at **zero** visibility, so an element resting on the boundary cannot flicker |
+| `inViewDebounce` | `150` | and for how long, in ms. Scrolling straight past an animation therefore starts nothing; `0` starts the moment the threshold is met |
 
-A hidden browser tab counts as off screen. An element taller than the screen counts as fully
+A hidden browser tab counts as out of view. An element taller than the screen counts as fully
 visible once it fills the screen, so a threshold of `0.5` or `1` can always be met. Where nothing
 can measure visibility — a server render, a test environment without `IntersectionObserver` —
 the animation plays as if fully visible, rather than silently never playing.
 
 ### When the pointer leaves
 
-`mouseOut` is read only for `start: 'mouseOver'`:
+`hoverEnd` is read only for `start: 'hover'`:
 
-<!-- px-check values PxMouseOutAction pkg=core -->
-| `mouseOut` | Effect |
+<!-- px-check values PxHoverEndAction pkg=core -->
+| `hoverEnd` | Effect |
 |---|---|
 | `pause` (default) | pause where it is; re-entering resumes |
 | `continue` | keep playing |
@@ -196,10 +196,10 @@ the animation plays as if fully visible, rather than silently never playing.
 Where triggers work:
 
 - **Every player** — web, React, Vue and React Native — supports all of them, with one
-  exception: React Native has no `mouseOver`, because there is no hover on a touch screen.
+  exception: React Native has no `hover`, because there is no hover on a touch screen.
 - **Pre-rendered SVG + CSS animation + JS triggers** supports all of them too. The editor
   writes a few lines of script into the file for this; no library is involved.
-- **Pre-rendered SVG + CSS animation** (no script at all) supports `load`, and `mouseOver`
+- **Pre-rendered SVG + CSS animation** (no script at all) supports `load`, and `hover`
   through CSS `:hover`. `click` and the visibility gate cannot be done in pure CSS, so in that
   flavor the animation starts as soon as it is shown. See
   [Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg/on-the-web#flavour-1--svg--css-animation).
@@ -226,7 +226,7 @@ import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 const a = createSvgAnimationPlayer({
   src: '/bouncing-ball.json',
   container: '#box',
-  timeline: { iterations: 'infinite' },   // no `playAsSaved`: nothing starts until a.play()
+  timeline: { iterations: 'infinite' },   // no `playOnTrigger`: nothing starts until a.play()
 });
 a.play();
 ```
@@ -234,8 +234,8 @@ a.play();
 **React / Vue / React Native** — the same object, as a prop:
 
 ```jsx
-<SvgAnimationPlayer doc={doc} playAsSaved
-  timeline={{ iterations: 'infinite', trigger: { start: 'none' } }} />
+<SvgAnimationPlayer doc={doc} playOnTrigger
+  timeline={{ iterations: 'infinite', trigger: { start: 'manual' } }} />
 ```
 
 ### How the merge works
@@ -269,10 +269,10 @@ The keys people reach for most also exist as plain props / options, because
 | `delay` | `timeline.delay` |
 | `iterations` | `timeline.iterations` |
 | `start` | `timeline.trigger.start` |
-| `offScreen` | `timeline.trigger.offScreen` |
-| `mouseOut` | `timeline.trigger.mouseOut` |
-| `visibilityThreshold` | `timeline.trigger.visibilityThreshold` |
-| `visibilityDebounce` | `timeline.trigger.visibilityDebounce` |
+| `outOfView` | `timeline.trigger.outOfView` |
+| `hoverEnd` | `timeline.trigger.hoverEnd` |
+| `inViewThreshold` | `timeline.trigger.inViewThreshold` |
+| `inViewDebounce` | `timeline.trigger.inViewDebounce` |
 
 A shortcut wins over the same key inside `timeline`, the way an inline style beats a stylesheet.
 
@@ -292,8 +292,8 @@ itself, not playback settings.
 ### A note on the components' control props
 
 When you control a component with `play`, `pause`, `progress` or `time`, the component ignores
-the trigger saved in the file (it acts as if `start` were `'none'` — core's `suppressTriggerStart`,
-the same patch the web player applies when `playAsSaved` is absent). Only `playAsSaved` mode follows
+the trigger saved in the file (it acts as if `start` were `'manual'` — core's `suppressTriggerStart`,
+the same patch the web player applies when `playOnTrigger` is absent). Only `playOnTrigger` mode follows
 the file's trigger. `apiRef` is not a control prop: the handle is filled in every mode and never
 changes which one you are in.
 
@@ -301,7 +301,7 @@ React, Vue and React Native decide this with the same core function, so they alw
 `resolveControlMode` looks at the control props you passed (`PxControlProps`) and returns the
 mode that wins (`PxControlMode`), plus a ready-made warning if you passed props from more than
 one mode. `controlModeTakesOverTrigger` then says whether that mode ignores the file's trigger —
-true for every mode except `playAsSaved`.
+true for every mode except `playOnTrigger`.
 
 > **Mangled builds.** `timeline` also accepts a **JSON string** —
 > `timeline='{"outTime":2000}'` — which survives a build that renames object keys.

@@ -11,7 +11,7 @@ import { implementsInterface, px, PxValidationFindingKind, reportValidationError
 export * from './PxAnimatorConstants';
 import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_TRANSFORM_PART_KEYS, PX_TRIGGER_DEFAULTS, PxTimelineEngineSetting, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits,
     // Wire enums named in review §2.7 — used as VALUES by the schemas below.
-    PxAlongPathMode, PxFillMode, PxFinishAction, PxMouseOutAction, PxOffScreenAction, PxPinAlign, PxPlaybackDirection,
+    PxAlongPathMode, PxFillMode, PxFinishAction, PxHoverEndAction, PxOutOfViewAction, PxPinAlign, PxPlaybackDirection,
     PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxTriggerStart, PxValueKind } from './PxAnimatorConstants';
 import type { PxTimelineEngine, PxTransformPartKey } from './PxAnimatorConstants';
 // Version stamps are parsed by the reader's own parser (review §2.10) so the validator and the
@@ -585,44 +585,44 @@ export type PxElementAnimation = PxInfer<typeof PxElementAnimationSchema>;
 export interface _PxTrigger {
 
     /** What starts the animation. Default `'load'` — a document is designed to play;
-     *  `'none'` waits for `play()`. Starting is one axis; whether it may RUN is the other
-     *  (`offScreen` below), so every combination is sayable. */
+     *  `'manual'` waits for `play()`. Starting is one axis; whether it may RUN is the other
+     *  (`outOfView` below), so every combination is sayable. */
     start?: PxTriggerStart;
 
     /** What happens while none of the graphic is on screen, whatever started it.
      *  Default `'pause'` — an animation nobody can see does not run. */
-    offScreen?: PxOffScreenAction;
+    outOfView?: PxOutOfViewAction;
 
-    /** What happens when the pointer leaves. Read only when `start` is `'mouseOver'`.
+    /** What happens when the pointer leaves. Read only when `start` is `'hover'`.
      *  Default `'continue'`. */
-    mouseOut?: PxMouseOutAction;
+    hoverEnd?: PxHoverEndAction;
 
     /** How much of the graphic must be on screen before it may run, as a fraction of its own
      *  area (0–1, default 0.5). The gate OPENS here and closes only at zero visibility, so one
      *  value serves two edges and a graphic resting on the boundary cannot flap. */
-    visibilityThreshold?: number;
+    inViewThreshold?: number;
 
-    /** How long, in ms, `visibilityThreshold` must hold before playback actually starts
+    /** How long, in ms, `inViewThreshold` must hold before playback actually starts
      *  (default 150). Scrolling straight past a graphic therefore starts nothing. `0` starts
      *  the moment the threshold is met. */
-    visibilityDebounce?: number;
+    inViewDebounce?: number;
 
 }
 
-// `{ start?:'load'|'mouseOver'|'click'|'none', offScreen?:…, mouseOut?:…, visibilityThreshold?:number,
-//    visibilityDebounce?:number }`
+// `{ start?:'load'|'hover'|'click'|'manual', outOfView?:…, hoverEnd?:…, inViewThreshold?:number,
+//    inViewDebounce?:number }`
 // An absent field means its PX_TRIGGER_DEFAULTS entry — the table every player resolves through.
 // Keys are bare because the parent says `trigger`; the two that name a measured QUANTITY rather
 // than an occasion keep their subject word (plan: trigger-model.md D6).
 /** @public @advanced */
 export const PxTriggerSchema = implementsInterface<_PxTrigger>()(px.object({
-    start: px.enum([PxTriggerStart.load, PxTriggerStart.mouseOver, PxTriggerStart.click, PxTriggerStart.none] as const, PX_TRIGGER_DEFAULTS.start).optional(),
-    offScreen: px.enum([PxOffScreenAction.pause, PxOffScreenAction.continue, PxOffScreenAction.reset] as const, PX_TRIGGER_DEFAULTS.offScreen).optional(),
-    mouseOut: px.enum([PxMouseOutAction.continue, PxMouseOutAction.pause, PxMouseOutAction.reset, PxMouseOutAction.reverse] as const, PX_TRIGGER_DEFAULTS.mouseOut).optional(),
+    start: px.enum([PxTriggerStart.load, PxTriggerStart.hover, PxTriggerStart.click, PxTriggerStart.manual] as const, PX_TRIGGER_DEFAULTS.start).optional(),
+    outOfView: px.enum([PxOutOfViewAction.pause, PxOutOfViewAction.continue, PxOutOfViewAction.reset] as const, PX_TRIGGER_DEFAULTS.outOfView).optional(),
+    hoverEnd: px.enum([PxHoverEndAction.continue, PxHoverEndAction.pause, PxHoverEndAction.reset, PxHoverEndAction.reverse] as const, PX_TRIGGER_DEFAULTS.hoverEnd).optional(),
     // `finish` moved OUT of the trigger and next to `fillMode` (review §13, wire 1.4): it is the
     // only question about neither starting nor running, and it combines with `fillMode`.
-    visibilityThreshold: px.number(PX_TRIGGER_DEFAULTS.visibilityThreshold).optional(),
-    visibilityDebounce: px.number(PX_TRIGGER_DEFAULTS.visibilityDebounce).optional(),
+    inViewThreshold: px.number(PX_TRIGGER_DEFAULTS.inViewThreshold).optional(),
+    inViewDebounce: px.number(PX_TRIGGER_DEFAULTS.inViewDebounce).optional(),
 }));
 
 /** Defines when and how an animation should be triggered. @public */

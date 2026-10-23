@@ -64,40 +64,40 @@ export const PX_ANIM_SRC_ATTR_NAME = 'data-px-animation-src';
 /** @internal */
 export const PX_ANIM_ATTR_NAME = '_px_animator';
 
-/** `trigger.start` — what starts the animation. `none` waits for `play()`.
+/** `trigger.start` — what starts the animation. `manual` waits for `play()`.
  *
  *  There is no `scrollIntoView` member: visibility is not a trigger but a permission, and it is
- *  governed by `offScreen` + `visibilityThreshold` whatever starts the animation. `start: 'load'`
+ *  governed by `outOfView` + `inViewThreshold` whatever starts the animation. `start: 'load'`
  *  behind the default gate is what `startOn: 'scrollIntoView'` used to mean. @public */
 export const PxTriggerStart = {
-    load:      'load',
-    mouseOver: 'mouseOver',
-    click:     'click',
-    none:      'none',
+    load:   'load',
+    hover:  'hover',
+    click:  'click',
+    manual: 'manual',
 } as const;
 
 export type PxTriggerStart = typeof PxTriggerStart[keyof typeof PxTriggerStart];
 
-/** `trigger.offScreen` — what happens while none of the graphic is on screen. No `reverse`:
- *  nobody can watch an animation play backwards off screen. @public */
-export const PxOffScreenAction = {
+/** `trigger.outOfView` — what happens once none of the graphic is on screen (the gate's closing edge;
+ *  it opens at `inViewThreshold`). No `reverse`: nobody can watch an animation play backwards off screen. @public */
+export const PxOutOfViewAction = {
     pause:    'pause',
     continue: 'continue',
     reset:    'reset',
 } as const;
 
-export type PxOffScreenAction = typeof PxOffScreenAction[keyof typeof PxOffScreenAction];
+export type PxOutOfViewAction = typeof PxOutOfViewAction[keyof typeof PxOutOfViewAction];
 
-/** `trigger.mouseOut` — what happens when the pointer leaves. Read only when
- *  `start` is `mouseOver`. @public */
-export const PxMouseOutAction = {
+/** `trigger.hoverEnd` — what happens when the hover ends (the pointer leaves). Read only when
+ *  `start` is `hover`. @public */
+export const PxHoverEndAction = {
     continue: 'continue',
     pause:    'pause',
     reset:    'reset',
     reverse:  'reverse',
 } as const;
 
-export type PxMouseOutAction = typeof PxMouseOutAction[keyof typeof PxMouseOutAction];
+export type PxHoverEndAction = typeof PxHoverEndAction[keyof typeof PxHoverEndAction];
 
 /** `timeline.finish` — what happens after a NATURAL finish (§13: next to `fillMode`). @public */
 export const PxFinishAction = {
@@ -282,18 +282,18 @@ export function mayUseNativeScrollTimeline(engine: PxTimelineEngineSetting | und
  * `PxTriggerSchema` and applied by {@link resolveTrigger}, which every player calls (the web's
  * `setupAnimationTriggers`, the React Native component) — so a file behaves the same everywhere:
  *   - `start` 'load' — a document is designed to play
- *   - `offScreen` 'pause' — an animation nobody can see does not run
- *   - `mouseOut` 'pause' — leaving the element pauses what hovering started
- *   - `visibilityThreshold` 0.5 — half of it must be on screen before it may run
- *   - `visibilityDebounce` 150 — and stay that way this long, so a fast scroll past starts nothing
+ *   - `outOfView` 'pause' — an animation nobody can see does not run
+ *   - `hoverEnd` 'pause' — ending the hover pauses what hovering started
+ *   - `inViewThreshold` 0.5 — half of it must be on screen before it may run
+ *   - `inViewDebounce` 150 — and stay that way this long, so a fast scroll past starts nothing
  * @public @advanced
  */
 export const PX_TRIGGER_DEFAULTS = {
     start: 'load',
-    offScreen: 'pause',
-    mouseOut: 'pause',
-    visibilityThreshold: 0.5,
-    visibilityDebounce: 150,
+    outOfView: 'pause',
+    hoverEnd: 'pause',
+    inViewThreshold: 0.5,
+    inViewDebounce: 150,
 } as const;
 
 /**
@@ -308,17 +308,17 @@ export const PX_DEFAULT_UNITS_PER_EM = 1000;
 /** A trigger with every default filled in. @public @advanced */
 export interface PxResolvedTrigger {
     readonly start: NonNullable<PxTrigger['start']>;
-    readonly offScreen: NonNullable<PxTrigger['offScreen']>;
-    readonly mouseOut: NonNullable<PxTrigger['mouseOut']>;
-    readonly visibilityThreshold: number;
-    readonly visibilityDebounce: number;
+    readonly outOfView: NonNullable<PxTrigger['outOfView']>;
+    readonly hoverEnd: NonNullable<PxTrigger['hoverEnd']>;
+    readonly inViewThreshold: number;
+    readonly inViewDebounce: number;
 }
 
-// ── CONTROL MODE (API review §1 / §7; `autoplay` renamed `playAsSaved`: first-use review §1+2) ──
+// ── CONTROL MODE (API review §1 / §7; `autoplay` renamed `playOnTrigger`: first-use review §1+2) ──
 // Which set of props drives playback. Every component picked its own order, so
-// `playAsSaved` + `progress={0.5}` played on React and Vue but seeked on React Native, and
-// React let a REF choose the mode — `<SvgAnimationPlayer playAsSaved apiRef={api} />` never
-// started, because the imperative branch forced `start: 'none'`.
+// `playOnTrigger` + `progress={0.5}` played on React and Vue but seeked on React Native, and
+// React let a REF choose the mode — `<SvgAnimationPlayer playOnTrigger apiRef={api} />` never
+// started, because the imperative branch forced `start: 'manual'`.
 //
 // One order, decided once, used by react / vue / rn. This module owns the LOGIC and the
 // WARNING TEXT only; each component keeps its own `console.warn` wiring.
@@ -333,8 +333,8 @@ export const PxControlMode = {
     fixedTime: 'fixedTime',
     /** `play` / `pause` — the host drives playback with booleans. */
     play:      'play',
-    /** `playAsSaved` — plays the way the editor saved it: the document's own trigger decides. */
-    playAsSaved: 'playAsSaved',
+    /** `playOnTrigger` — plays the way the editor saved it: the document's own trigger decides. */
+    playOnTrigger: 'playOnTrigger',
 } as const;
 
 export type PxControlMode = typeof PxControlMode[keyof typeof PxControlMode];
@@ -368,7 +368,7 @@ export interface PxControlProps {
     /** Loop world only: `play: false` first finishes the CURRENT iteration, then rests. */
     completeIteration?: boolean;
     /** Play the way the editor saved it — the document's own `trigger` block decides. */
-    playAsSaved?: boolean;
+    playOnTrigger?: boolean;
 }
 
 /** The chosen mode plus any conflict warnings — ready-made sentences, so three components
@@ -386,11 +386,11 @@ export interface PxResolvedControlMode {
  * PRECEDENCE, most specific first:
  *   1. `progress` / `time`  — an explicit position is the most precise instruction there is
  *   2. `play` / `pause`     — explicit playback state
- *   3. `playAsSaved`        — defer to the document's trigger
+ *   3. `playOnTrigger`        — defer to the document's trigger
  *   4. otherwise `static`   — nothing plays; the trigger is taken over
  *
  * `apiRef` is absent on purpose. A ref is a handle, not an instruction: it is populated in
- * every mode, so `playAsSaved` + `apiRef` autostarts AND gives you the handle.
+ * every mode, so `playOnTrigger` + `apiRef` autostarts AND gives you the handle.
  *
  * A warning is produced only when props from two different tiers are set together — the
  * lower tier is then ignored, and silence about that is what made this hard to debug.
@@ -399,7 +399,7 @@ export interface PxResolvedControlMode {
 export function resolveControlMode(props: PxControlProps): PxResolvedControlMode {
     const hasFixedTime = props.progress !== undefined || props.time !== undefined;
     const hasPlayPause = props.play !== undefined || props.pause !== undefined;
-    const hasPlayAsSaved = !!props.playAsSaved;
+    const hasPlayAsSaved = !!props.playOnTrigger;
 
     const warnings: Array<string> = [];
     const named = (a: string, b: string, winner: string): string =>
@@ -407,31 +407,31 @@ export function resolveControlMode(props: PxControlProps): PxResolvedControlMode
 
     if (hasFixedTime) {
         if (hasPlayPause) warnings.push(named('progress/time', 'play/pause', 'progress/time'));
-        if (hasPlayAsSaved) warnings.push(named('progress/time', 'playAsSaved', 'progress/time'));
+        if (hasPlayAsSaved) warnings.push(named('progress/time', 'playOnTrigger', 'progress/time'));
         return { mode: PxControlMode.fixedTime, warnings };
     }
     if (hasPlayPause) {
-        if (hasPlayAsSaved) warnings.push(named('play/pause', 'playAsSaved', 'play/pause'));
+        if (hasPlayAsSaved) warnings.push(named('play/pause', 'playOnTrigger', 'play/pause'));
         return { mode: PxControlMode.play, warnings };
     }
-    if (hasPlayAsSaved) return { mode: PxControlMode.playAsSaved, warnings };
+    if (hasPlayAsSaved) return { mode: PxControlMode.playOnTrigger, warnings };
     return { mode: PxControlMode.static, warnings };
 }
 
 // @px-area control
 /**
  * True when the component must take the document's trigger over, by forcing
- * `start: 'none'` into its config patch.
+ * `start: 'manual'` into its config patch.
  *
- * Every mode except `playAsSaved` — INCLUDING `static`. A component given no control props at
+ * Every mode except `playOnTrigger` — INCLUDING `static`. A component given no control props at
  * all must not start on its own: `<SvgAnimationPlayer doc={…} />` renders the first frame and waits.
- * `playAsSaved` is the one mode that says "let the document's trigger decide" — and since the
+ * `playOnTrigger` is the one mode that says "let the document's trigger decide" — and since the
  * first-use review §1+2 the web `createSvgAnimationPlayer` follows the same rule through its
- * `playAsSaved` option.
+ * `playOnTrigger` option.
  * @public
  */
 export function controlModeTakesOverTrigger(mode: PxControlMode): boolean {
-    return mode !== PxControlMode.playAsSaved;
+    return mode !== PxControlMode.playOnTrigger;
 }
 
 // @px-area control
@@ -441,10 +441,10 @@ export function controlModeTakesOverTrigger(mode: PxControlMode): boolean {
 export function resolveTrigger(trigger: PxTrigger | undefined): PxResolvedTrigger {
     return {
         start: trigger?.start ?? PX_TRIGGER_DEFAULTS.start,
-        offScreen: trigger?.offScreen ?? PX_TRIGGER_DEFAULTS.offScreen,
-        mouseOut: trigger?.mouseOut ?? PX_TRIGGER_DEFAULTS.mouseOut,
-        visibilityThreshold: trigger?.visibilityThreshold ?? PX_TRIGGER_DEFAULTS.visibilityThreshold,
-        visibilityDebounce: trigger?.visibilityDebounce ?? PX_TRIGGER_DEFAULTS.visibilityDebounce,
+        outOfView: trigger?.outOfView ?? PX_TRIGGER_DEFAULTS.outOfView,
+        hoverEnd: trigger?.hoverEnd ?? PX_TRIGGER_DEFAULTS.hoverEnd,
+        inViewThreshold: trigger?.inViewThreshold ?? PX_TRIGGER_DEFAULTS.inViewThreshold,
+        inViewDebounce: trigger?.inViewDebounce ?? PX_TRIGGER_DEFAULTS.inViewDebounce,
     };
 }
 

@@ -27,7 +27,7 @@ const bouncingBall: PxDocument = {
     animator: {
         timeline: {
             outTime: 1400, iterations: 'infinite',
-            trigger: { start: 'load', offScreen: 'continue' },
+            trigger: { start: 'load', outOfView: 'continue' },
         },
     },
     children: [
@@ -169,7 +169,7 @@ const textAlongPath: PxDocument = {
     animator: {
         timeline: {
             outTime: TEXT_DURATION, iterations: 'infinite',
-            trigger: { start: 'load', offScreen: 'continue' },
+            trigger: { start: 'load', outOfView: 'continue' },
         },
     },
     children: [
@@ -198,7 +198,7 @@ const strokeTrim: PxDocument = {
     animator: {
         timeline: {
             outTime: 2600, iterations: 'infinite',
-            trigger: { start: 'load', offScreen: 'continue' },
+            trigger: { start: 'load', outOfView: 'continue' },
         },
     },
     children: [
@@ -249,7 +249,7 @@ const repeater: PxDocument = {
     animator: {
         timeline: {
             outTime: 2000, iterations: 'infinite', direction: 'alternate',
-            trigger: { start: 'load', offScreen: 'continue' },
+            trigger: { start: 'load', outOfView: 'continue' },
         },
     },
     children: [
@@ -294,7 +294,7 @@ const gradient: PxDocument = {
     animator: {
         timeline: {
             outTime: 3000, iterations: 'infinite', direction: 'alternate',
-            trigger: { start: 'load', offScreen: 'continue' },
+            trigger: { start: 'load', outOfView: 'continue' },
         },
     },
     children: [
@@ -336,7 +336,7 @@ const morph: PxDocument = {
     animator: {
         timeline: {
             outTime: 2400, iterations: 'infinite', direction: 'alternate',
-            trigger: { start: 'load', offScreen: 'continue' },
+            trigger: { start: 'load', outOfView: 'continue' },
         },
     },
     children: [

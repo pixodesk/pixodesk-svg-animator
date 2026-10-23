@@ -182,14 +182,14 @@ export interface PxPrerenderedAnimationPlayerOptions extends PxAnimationPlayerCa
      * Editor's SVG + JS export passes it). WITHOUT it the binding is still: `trigger.start` is
      * forced to `'none'` and the returned api drives it (first-use review §1+2).
      */
-    playAsSaved?: boolean;
+    playOnTrigger?: boolean;
 }
 
-/** The no-driver rule, on the bind path: nothing starts itself unless `playAsSaved` says so.
+/** The no-driver rule, on the bind path: nothing starts itself unless `playOnTrigger` says so.
  *  Scroll-driven documents are exempt — scroll IS their named driver (same rule as `createSvgAnimationPlayer`). */
 function docToPlay(options: PxPrerenderedAnimationPlayerOptions): PxDocument {
     const doc = requireDoc(options);
-    if (options.playAsSaved || isScrollTimeline(getAnimatorConfig(doc))) return doc;
+    if (options.playOnTrigger || isScrollTimeline(getAnimatorConfig(doc))) return doc;
     return applyAnimatorConfig(doc, suppressTriggerStart()).doc;
 }
 

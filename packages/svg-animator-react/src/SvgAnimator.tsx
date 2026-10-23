@@ -6,7 +6,7 @@
 
 import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
-import type { PxMouseOutAction } from '@pixodesk/svg-animator-core';
+import type { PxHoverEndAction } from '@pixodesk/svg-animator-core';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, applyDeclarativeAction, createIterationStopWatcher, foldTimelineOverride, toPxDocument, type PxDocumentInput, getAnimatorConfig, PxDeclarativeAction, type PxDeclarativeProps, PxDiagnosticCode, PxControlMode, PxFillMode, PxPlaybackWorld, PxPlayMode, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorConfigPatch, type PxAnimationPlayerHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
@@ -127,7 +127,7 @@ export interface SvgAnimationPlayerProps extends PxPlaybackOverride, PxControlPr
 
     /**
      * Ref populated with the imperative playback API. Filled in EVERY mode and never picks one
-     * (review §1): `playAsSaved` next to it still autoplays.
+     * (review §1): `playOnTrigger` next to it still autoplays.
      */
     apiRef?: React.RefObject<PxAnimationPlayerHandle | null>;
 }
@@ -137,7 +137,7 @@ export interface SvgAnimationPlayerProps extends PxPlaybackOverride, PxControlPr
 
 // The control mode is core's `PxControlMode`, shared with Vue and React Native (API review
 // §1/§7). The local enum is gone — and with it `imperativeApi`, which existed only to make a
-// REF pick a mode and so silently disabled `playAsSaved`.
+// REF pick a mode and so silently disabled `playOnTrigger`.
 
 
 // FIXME: add model validation (e.g. isElementFileJson check)
@@ -202,7 +202,7 @@ const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
             doc,
             // The component resolved its control mode and patched `doc` above — the web player
             // must not add its own no-driver suppression on top (first-use review §1+2).
-            playAsSaved: true,
+            playOnTrigger: true,
             // Refs are attached during commit, before this effect runs, so the root exists here.
             rootElement: rootRef.current ?? undefined,
             onReady:  cb('onReady'),
@@ -245,7 +245,7 @@ const SvgAnimatorImplOnce = React.memo(
  *
  * 1. **Autoplay** – uses triggers from the animation document.
  *    ```tsx
- *    <SvgAnimationPlayer doc={animation} playAsSaved />
+ *    <SvgAnimationPlayer doc={animation} playOnTrigger />
  *    ```
  *
  * 2. **Declarative play/pause** – controlled via boolean props.
@@ -269,11 +269,11 @@ const SvgAnimatorImplOnce = React.memo(
  */
 const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     className, style,
-    doc: docInput, playAsSaved, play, pause, playMode, completeIteration, progress, time, apiRef,
+    doc: docInput, playOnTrigger, play, pause, playMode, completeIteration, progress, time, apiRef,
 
     // Overrides
     timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start,
-    offScreen, mouseOut, visibilityThreshold, visibilityDebounce,
+    outOfView, hoverEnd, inViewThreshold, inViewDebounce,
 
     onReady, onPlay, onStop, onPause, onCancel, onFinish, onDestroy,
 
@@ -286,10 +286,10 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
 
     // ONE control-mode rule, decided in core and shared with Vue and React Native
     // (API review §1/§7). `apiRef` is deliberately NOT an input: the handle is populated in
-    // every mode, so `<SvgAnimationPlayer playAsSaved apiRef={api} />` now autostarts AND gives
-    // you the handle, instead of the ref silently forcing `start: 'none'`.
+    // every mode, so `<SvgAnimationPlayer playOnTrigger apiRef={api} />` now autostarts AND gives
+    // you the handle, instead of the ref silently forcing `start: 'manual'`.
     const { mode: compMode, warnings: modeWarnings } =
-        resolveControlMode({ progress, time, play, pause, playAsSaved });
+        resolveControlMode({ progress, time, play, pause, playOnTrigger });
 
     /**
      * The diagnostics channel, built from the CURRENT props each time (API review §5).
@@ -309,14 +309,14 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     }, [modeWarnings.join('|')]);
 
     // ONE patch, applied ONCE: the props, plus the component's own need to take the trigger
-    // over in the non-playAsSaved control modes.
+    // over in the non-playOnTrigger control modes.
     //
     // This replaces three hand-rolled spread blocks that wrote the FLAT runtime keys
     // (`animator.duration`, `animator.trigger`). On a wire-format document — `animator.timeline.…`,
     // which is what every writer emits — `resolveAnimatorTimeline` overwrites those flat keys from
     // `timeline` immediately afterwards, so every one of those overrides was silently discarded.
     // See dev-docs/plans/playback-override.md §1.1.
-    const patch = foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce });
+    const patch = foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start, outOfView, hoverEnd, inViewThreshold, inViewDebounce });
     const takeOverTrigger = controlModeTakesOverTrigger(compMode);
     const fullPatch: PxAnimatorConfigPatch | undefined = takeOverTrigger ? suppressTriggerStart(patch) : patch;
 

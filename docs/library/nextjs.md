@@ -13,7 +13,7 @@ import { SvgAnimationPlayer } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export default function Hero() {
-  return <SvgAnimationPlayer doc={animation} playAsSaved />;
+  return <SvgAnimationPlayer doc={animation} playOnTrigger />;
 }
 ```
 

@@ -131,7 +131,7 @@ export interface PxSchema<T, IsOptional extends boolean = false, StatesDefault e
      * What the field means when a document LEAVES IT OUT — the value every reader must fall back
      * to (the player normalises to it, the Editor's model defaults to it). `undefined` when the
      * schema states none: absent then simply means unset. Readers ask the OBJECT schema instead:
-     * `PxTriggerSchema.defaults.mouseOut` is typed, and only stated fields are keys of it.
+     * `PxTriggerSchema.defaults.hoverEnd` is typed, and only stated fields are keys of it.
      */
     absentDefault(): T | undefined;
     /** Returns a new schema that marks this field as optional (?: in object shapes). */

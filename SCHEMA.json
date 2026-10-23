@@ -2276,19 +2276,19 @@
         "start": {
           "enum": [
             "load",
-            "mouseOver",
+            "hover",
             "click",
-            "none"
+            "manual"
           ]
         },
-        "offScreen": {
+        "outOfView": {
           "enum": [
             "pause",
             "continue",
             "reset"
           ]
         },
-        "mouseOut": {
+        "hoverEnd": {
           "enum": [
             "continue",
             "pause",
@@ -2296,10 +2296,10 @@
             "reverse"
           ]
         },
-        "visibilityThreshold": {
+        "inViewThreshold": {
           "type": "number"
         },
-        "visibilityDebounce": {
+        "inViewDebounce": {
           "type": "number"
         }
       },

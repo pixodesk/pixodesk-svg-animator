@@ -5,7 +5,7 @@
 Use this in a React or Next.js app: drop in the component, pass it the JSON, and it renders
 the animation and controls its playback. It wraps the [web player](./web-player.md)
 and renders the SVG with React itself, so it is SSR-safe and works in Next.js. Control it the
-way that suits your code — playAsSaved, declarative props, an imperative ref, or controlled time.
+way that suits your code — playOnTrigger, declarative props, an imperative ref, or controlled time.
 
 ```bash
 npm install @pixodesk/svg-animator-react
@@ -16,7 +16,7 @@ import { SvgAnimationPlayer } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Logo() {
-  return <SvgAnimationPlayer doc={animation} playAsSaved />;
+  return <SvgAnimationPlayer doc={animation} playOnTrigger />;
 }
 ```
 
@@ -26,7 +26,7 @@ by sizing the parent (the SVG keeps its `viewBox`).
 ## Control modes
 
 Several control modes, plus a handle that is not one. Set more than one control prop and the
-highest-priority one wins — `progress` / `time` → `play` / `pause` → `playAsSaved` — and the
+highest-priority one wins — `progress` / `time` → `play` / `pause` → `playOnTrigger` — and the
 component warns, naming both props and the winner. `apiRef` is filled in **every** mode and never
 changes which one you are in, so you can always call `play()` / `pause()` yourself; `apiRef` with
 no control prop beside it is simply the static mode, where nothing plays until you say so. React,
@@ -86,7 +86,7 @@ interface PxAnimationPlayerHandle {
 
 ### Autoplay
 
-> **Example:** [`react/play-as-saved`](../../examples/docs-examples/src/cases/react/play-as-saved/) — `pnpm example:docs`, then open `#react/play-as-saved`.
+> **Example:** [`react/play-on-trigger`](../../examples/docs-examples/src/cases/react/play-on-trigger/) — `pnpm example:docs`, then open `#react/play-on-trigger`.
 
 The simplest mode: the component starts the animation the way the file says it should — on
 load, on hover, on click, or when scrolled into view.
@@ -96,7 +96,7 @@ import { SvgAnimationPlayer } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Intro() {
-  return <SvgAnimationPlayer doc={animation} playAsSaved />;
+  return <SvgAnimationPlayer doc={animation} playOnTrigger />;
 }
 ```
 
@@ -187,7 +187,7 @@ switch) — and the Vue and React Native components share this component's rule
 cannot drift. A misplaced modifier (`playMode` on a loop, `completeIteration` on a one-shot,
 `pause` without `play`) warns and changes nothing.
 
-With none of `playAsSaved` / `progress` / `time` / `play` / `pause` set, the component renders the
+With none of `playOnTrigger` / `progress` / `time` / `play` / `pause` set, the component renders the
 first frame statically — `apiRef` on its own is such a case, so playback waits for your call
 (`playOnce()` for the one-shot ping). A WRITE call on the ref while `play`/`pause` or
 `progress`/`time` own playback warns ([PX1503](../diagnostics.md)) and is applied; the next prop
@@ -205,7 +205,7 @@ shaped exactly like the file's own `animator` block and deep-merges it over what
 // The file loops twice and starts on load; here it loops forever and waits for play().
 <SvgAnimationPlayer
   doc={animation}
-  timeline={{ iterations: 'infinite', trigger: { start: 'none' } }}
+  timeline={{ iterations: 'infinite', trigger: { start: 'manual' } }}
   apiRef={apiRef}
 />
 ```
@@ -214,7 +214,7 @@ Objects merge key by key, values replace, and `null` **deletes** a key so the de
 absence means comes back:
 
 ```tsx
-<SvgAnimationPlayer doc={animation} playAsSaved timeline={{ delay: null }} />
+<SvgAnimationPlayer doc={animation} playOnTrigger timeline={{ delay: null }} />
 ```
 
 `inTime`, `outTime`, `playDuration`, `delay`, `iterations` and `start` are also plain props,
@@ -242,7 +242,7 @@ interface SvgAnimationPlayerProps {
     // Playback override — one object, shaped exactly like the file's `timeline` block,
     // deep-merged over it. `null` at a slot DELETES that key — see Playback overrides above:
     //   timeline={{ engine, frameRate, fillMode, direction,
-    //              finish, trigger: { mouseOut, visibilityThreshold } }}
+    //              finish, trigger: { hoverEnd, inViewThreshold } }}
     timeline?: PxTimelinePatch | string;  // a JSON string is accepted too
     resetTimeline?: boolean;              // start from the player's defaults, `timeline` on top
 
@@ -253,16 +253,16 @@ interface SvgAnimationPlayerProps {
     delay?: number;                       // ▸ timeline.delay (ms). Negative skips ahead: -500 starts
                                           //   at once from the frame at 0.5 s
     iterations?: number | 'infinite';     // ▸ timeline.iterations; 'infinite' never stops
-    start?: PxTriggerStart;                  // ▸ timeline.trigger.start: 'load' | 'mouseOver' | 'click' |
-                                          //   'none' (only a play() from code)
-    offScreen?: PxOffScreenAction;        // ▸ timeline.trigger.offScreen — while none of it is on screen
-    mouseOut?: PxMouseOutAction;          // ▸ timeline.trigger.mouseOut — for start: 'mouseOver'
-    visibilityThreshold?: number;         // ▸ timeline.trigger.visibilityThreshold — 0–1 on screen
-    visibilityDebounce?: number;          // ▸ timeline.trigger.visibilityDebounce — ms it must hold
+    start?: PxTriggerStart;                  // ▸ timeline.trigger.start: 'load' | 'hover' | 'click' |
+                                          //   'manual' (only a play() from code)
+    outOfView?: PxOutOfViewAction;        // ▸ timeline.trigger.outOfView — while none of it is on screen
+    hoverEnd?: PxHoverEndAction;          // ▸ timeline.trigger.hoverEnd — for start: 'hover'
+    inViewThreshold?: number;         // ▸ timeline.trigger.inViewThreshold — 0–1 on screen
+    inViewDebounce?: number;          // ▸ timeline.trigger.inViewDebounce — ms it must hold
 
     // Control — the HIGHEST-priority one that is set picks the mode (Control modes, above)
     apiRef?: React.RefObject<PxAnimationPlayerHandle | null>;   // never a mode: filled in every mode
-    playAsSaved?: boolean;                   // obey the document's own trigger — the Start setting from the editor
+    playOnTrigger?: boolean;                   // obey the document's own trigger — the Start setting from the editor
     progress?: number;                    // controlled: 0–1 of duration × iterations
                                           //   (one iteration when iterations is 'infinite')
     time?: number;                        // controlled: ms from the start
@@ -324,7 +324,7 @@ import AnimationSvg from './animation.svg?react';   // vite-plugin-svgr
 
 export function HoverLogo() {
   return (
-    <SvgCssAnimationPlayer start="mouseOver" mouseOut="pause" style={{ width: 400, height: 400 }}>
+    <SvgCssAnimationPlayer start="hover" hoverEnd="pause" style={{ width: 400, height: 400 }}>
       <AnimationSvg />
     </SvgCssAnimationPlayer>
   );
@@ -337,15 +337,15 @@ export function HoverLogo() {
 // started, plus `px-anim-playing` while running.
 const SvgCssAnimationPlayer: FC<{
     children: ReactNode;                  // the SVGR-imported SVG component
-    start?: PxTriggerStart;               // 'load' (default) | 'mouseOver' | 'click'
-                                          //   — 'none' does nothing here (no play())
-    offScreen?: PxOffScreenAction;        // 'pause' (default) | 'continue' | 'reset' — what happens
+    start?: PxTriggerStart;               // 'load' (default) | 'hover' | 'click'
+                                          //   — 'manual' does nothing here (no play())
+    outOfView?: PxOutOfViewAction;        // 'pause' (default) | 'continue' | 'reset' — what happens
                                           //   while nobody can see it, whatever started it
-    mouseOut?: PxMouseOutAction;          // 'continue' (default) | 'pause' | 'reset'
+    hoverEnd?: PxHoverEndAction;          // 'continue' (default) | 'pause' | 'reset'
                                           //   — 'reverse' is accepted but acts as 'continue': a class
                                           //   toggle cannot run CSS keyframes backwards
-    visibilityThreshold?: number;         // 0–1 of the SVG on screen before it may run; default 0.5; 0 = any visible pixel
-    visibilityDebounce?: number;          // ms it must hold first; default 150
+    inViewThreshold?: number;         // 0–1 of the SVG on screen before it may run; default 0.5; 0 = any visible pixel
+    inViewDebounce?: number;          // ms it must hold first; default 150
     className?: string;                   // on the wrapper div
     style?: CSSProperties;                // on the wrapper div
 }>;

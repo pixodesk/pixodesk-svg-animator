@@ -29,7 +29,7 @@ const staticDoc: PxDocument = {
 const animatedDoc: PxDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
-        timeline: { outTime: 2000, iterations: 'infinite', direction: 'alternate', trigger: { start: 'load', offScreen: 'continue' } },
+        timeline: { outTime: 2000, iterations: 'infinite', direction: 'alternate', trigger: { start: 'load', outOfView: 'continue' } },
     },
     children: [
         {
@@ -65,7 +65,7 @@ const animatedDoc: PxDocument = {
 /** Motion along a curved path with auto-orient — materialized by core sampling. */
 const motionPathDoc: PxDocument = {
     type: 'svg', viewBox: '0 0 300 200',
-    animator: { timeline: { outTime: 3000, iterations: 'infinite', trigger: { start: 'load', offScreen: 'continue' } } },
+    animator: { timeline: { outTime: 3000, iterations: 'infinite', trigger: { start: 'load', outOfView: 'continue' } } },
     children: [
         { type: 'path', d: 'M 30 150 C 100 30 200 30 270 150', stroke: '#0087ff44', 'stroke-width': 2, fill: 'none' },
         {
@@ -84,10 +84,10 @@ const motionPathDoc: PxDocument = {
     ],
 };
 
-const DEMOS: Array<{ name: string; doc: PxDocument; playAsSaved: boolean }> = [
-    { name: 'Animated', doc: animatedDoc, playAsSaved: true },
-    { name: 'Motion path', doc: motionPathDoc, playAsSaved: true },
-    { name: 'Static', doc: staticDoc, playAsSaved: false },
+const DEMOS: Array<{ name: string; doc: PxDocument; playOnTrigger: boolean }> = [
+    { name: 'Animated', doc: animatedDoc, playOnTrigger: true },
+    { name: 'Motion path', doc: motionPathDoc, playOnTrigger: true },
+    { name: 'Static', doc: staticDoc, playOnTrigger: false },
 ];
 
 export default function AppPlayer() {
@@ -112,7 +112,7 @@ export default function AppPlayer() {
                 <SvgAnimationPlayer
                     key={demo}
                     doc={current.doc}
-                    playAsSaved={current.playAsSaved}
+                    playOnTrigger={current.playOnTrigger}
                     apiRef={api}
                 />
             </View>

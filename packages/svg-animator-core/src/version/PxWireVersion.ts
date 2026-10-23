@@ -260,6 +260,18 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         // No `down`: 1.6 can express compiled animation 1.5 could not — an older player reads a
         // compiled entry as an authored one and plays it wrong.
     },
+    {
+        from: '1.6',
+        to: '1.7',
+        reason: 'Trigger words name the event each key is about (first-use review §21): `start: \'mouseOver\'` '
+            + 'becomes `\'hover\'` and `\'none\'` becomes `\'manual\'`; `mouseOut` becomes `hoverEnd`; the visibility '
+            + 'gate is one "view" family — `visibilityThreshold` / `visibilityDebounce` (its opening edge) become '
+            + '`inViewThreshold` / `inViewDebounce`, and `offScreen` (its closing edge) becomes `outOfView`.',
+        kind: PxWireStepKind.converted,
+        up: upTriggerWords,
+        // an exact rename: every 1.7 trigger has a 1.6 spelling
+        down: downTriggerWords,
+    },
 ];
 
 /** 1.4 → 1.5: `animator.debugGlobalName` dropped, at either animator address. */
@@ -278,6 +290,34 @@ function upFinishToTimeline(doc: Record<string, unknown>): void {
     delete trigger['finish'];
     if (Object.keys(trigger).length === 0) delete timeline['trigger'];
 }
+
+/** 1.6 ↔ 1.7 trigger words: `[1.6, 1.7]` key pairs and `start` values — renamed exactly, both ways. */
+const TRIGGER_KEYS_1_7: ReadonlyArray<readonly [string, string]> = [
+    ['mouseOut', 'hoverEnd'], ['offScreen', 'outOfView'], ['visibilityThreshold', 'inViewThreshold'], ['visibilityDebounce', 'inViewDebounce'],
+];
+const TRIGGER_STARTS_1_7: ReadonlyArray<readonly [string, string]> = [['mouseOver', 'hover'], ['none', 'manual']];
+
+function renameTriggerWords(doc: Record<string, unknown>, up: boolean): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    const trigger = timeline ? readObjectProp(timeline, 'trigger') : undefined;
+    if (!trigger) return;
+    for (const [older, newer] of TRIGGER_KEYS_1_7) {
+        const [from, to] = up ? [older, newer] : [newer, older];
+        if (trigger[from] === undefined) continue;
+        trigger[to] = trigger[from];
+        delete trigger[from];
+    }
+    for (const [older, newer] of TRIGGER_STARTS_1_7) {
+        if (trigger['start'] === (up ? older : newer)) trigger['start'] = up ? newer : older;
+    }
+}
+
+/** 1.6 → 1.7: the trigger words (see the step's `reason`). */
+function upTriggerWords(doc: Record<string, unknown>): void { renameTriggerWords(doc, true); }
+
+/** 1.7 → 1.6: the exact inverse. */
+function downTriggerWords(doc: Record<string, unknown>): void { renameTriggerWords(doc, false); }
 
 /** 1.4 → 1.3: the exact inverse — the move loses nothing either way. */
 function downFinishToTrigger(doc: Record<string, unknown>): void {

@@ -17,7 +17,7 @@ const timeBase = untyped<PxAnimatorConfig>({
         iterations: 2,
         fillMode: 'both',
         direction: 'normal',
-        trigger: { start: 'load', offScreen: 'pause' },
+        trigger: { start: 'load', outOfView: 'pause' },
     },
 });
 
@@ -69,7 +69,7 @@ describe('mergeAnimatorConfig — RFC 7386 base semantics', () => {
 
     it('merges nested objects rather than replacing them', () => {
         const { config } = merge(timeBase, { timeline: { trigger: { start: 'click' } } });
-        expect(timeTimelineOf(config).trigger).toEqual({ start: 'click', offScreen: 'pause' });
+        expect(timeTimelineOf(config).trigger).toEqual({ start: 'click', outOfView: 'pause' });
     });
 
     it('replaces primitives and arrays wholesale', () => {
@@ -113,7 +113,7 @@ describe('mergeAnimatorConfig — the timeline union', () => {
     it('RULE 2: an explicit `time` against an ABSENT type is a match, not a type change', () => {
         // The trap: `timelineTypeOf` must normalize absent -> 'time', or this replaces.
         const { config } = merge(timeBase, { timeline: { type: 'time', outTime: 3000 } });
-        expect(timeTimelineOf(config).trigger).toEqual({ start: 'load', offScreen: 'pause' });
+        expect(timeTimelineOf(config).trigger).toEqual({ start: 'load', outOfView: 'pause' });
     });
 
     it('RULE 2: a patch that does not mention `type` never changes it', () => {
@@ -209,19 +209,19 @@ describe('mergeAnimatorConfig — guards', () => {
 describe('foldTimelineOverride — flat trigger shortcuts (review §12)', () => {
     it('folds the four trigger shortcuts into `timeline.trigger`, same as the CSS component takes', () => {
         const patch = foldTimelineOverride(undefined, {
-            start: 'mouseOver', offScreen: 'continue', mouseOut: 'reverse',
-            visibilityThreshold: 0.25, visibilityDebounce: 300,
+            start: 'hover', outOfView: 'continue', hoverEnd: 'reverse',
+            inViewThreshold: 0.25, inViewDebounce: 300,
         });
         expect(patch).toEqual({ timeline: { trigger: {
-            start: 'mouseOver', offScreen: 'continue', mouseOut: 'reverse',
-            visibilityThreshold: 0.25, visibilityDebounce: 300,
+            start: 'hover', outOfView: 'continue', hoverEnd: 'reverse',
+            inViewThreshold: 0.25, inViewDebounce: 300,
         } } });
     });
 
     it('a shortcut wins over the same key inside the `timeline` patch', () => {
-        const patch = foldTimelineOverride({ trigger: { mouseOut: 'pause', finish: 'reset' } }, { mouseOut: 'reverse' });
+        const patch = foldTimelineOverride({ trigger: { hoverEnd: 'pause', finish: 'reset' } }, { hoverEnd: 'reverse' });
         const timeline = patch?.timeline;
-        expect(isRecord(timeline) ? timeline.trigger : undefined).toEqual({ mouseOut: 'reverse', finish: 'reset' });
+        expect(isRecord(timeline) ? timeline.trigger : undefined).toEqual({ hoverEnd: 'reverse', finish: 'reset' });
     });
 });
 

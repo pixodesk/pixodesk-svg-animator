@@ -25,7 +25,7 @@ const animation: PxDocument = _animation;
 Uses triggers defined in the animation document (load, click, hover, scroll):
 
 ```tsx
-<SvgAnimationPlayer doc={animation} playAsSaved />
+<SvgAnimationPlayer doc={animation} playOnTrigger />
 ```
 
 ### Declarative play/pause
@@ -89,7 +89,7 @@ const [time, setTime] = useState(0);
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxDocumentInput` | The animation document to render (required); a `.json` import passes as-is |
-| `playAsSaved` | `boolean` | Use triggers from the document |
+| `playOnTrigger` | `boolean` | Use triggers from the document |
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
 | `playMode` | `'none' \| 'forwards' \| 'backwards' \| 'both'` | One-shot documents: which pose changes PLAY vs snap (default `forwards` — plays there, snaps back) |
@@ -103,11 +103,11 @@ const [time, setTime] = useState(0);
 | `playDuration` | `number` | Shortcut for `timeline.playDuration` — the window in wall ms |
 | `delay` | `number` | Shortcut for `timeline.delay` (ms) |
 | `iterations` | `number \| 'infinite'` | Shortcut for `timeline.iterations` |
-| `start` | `'load' \| 'mouseOver' \| 'click' \| 'none'` | Shortcut for `timeline.trigger.start` |
-| `offScreen` | `PxOffScreenAction` | Shortcut for `timeline.trigger.offScreen` |
-| `mouseOut` | `PxMouseOutAction` | Shortcut for `timeline.trigger.mouseOut` |
-| `visibilityThreshold` | `number` | Shortcut for `timeline.trigger.visibilityThreshold` |
-| `visibilityDebounce` | `number` | Shortcut for `timeline.trigger.visibilityDebounce` |
+| `start` | `'load' \| 'hover' \| 'click' \| 'manual'` | Shortcut for `timeline.trigger.start` |
+| `outOfView` | `PxOutOfViewAction` | Shortcut for `timeline.trigger.outOfView` |
+| `hoverEnd` | `PxHoverEndAction` | Shortcut for `timeline.trigger.hoverEnd` |
+| `inViewThreshold` | `number` | Shortcut for `timeline.trigger.inViewThreshold` |
+| `inViewDebounce` | `number` | Shortcut for `timeline.trigger.inViewDebounce` |
 | `onReady` | `() => void` | The player exists and the SVG is rendered — once, async |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
@@ -122,6 +122,6 @@ const [time, setTime] = useState(0);
 | `className` | `string` | CSS class applied to the rendered root `<svg>` |
 | `style` | `CSSProperties` | Inline styles applied to the rendered root `<svg>` |
 
-With none of `playAsSaved` / `play` / `pause` / `apiRef` / `progress` / `time` set, the component renders the animation statically (initial state, no playback).
+With none of `playOnTrigger` / `play` / `pause` / `apiRef` / `progress` / `time` set, the component renders the animation statically (initial state, no playback).
 
 Note: passing a different `doc` (or unmounting) throws the old player away and builds a new one; the old instance emits `onCancel`, `onDestroy`, and `onStop` on its way out. Changing `progress` / `time` does **not** recreate the animator — it just jumps the existing one to the new time.

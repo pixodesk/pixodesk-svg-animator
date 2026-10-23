@@ -15,25 +15,25 @@ describe('trigger defaults', () => {
 
     it('a missing trigger starts on load and does NOT run while nobody can see it', () => {
         const expected = {
-            start: 'load', offScreen: 'pause', mouseOut: 'pause',
-            visibilityThreshold: 0.5, visibilityDebounce: 150,
+            start: 'load', outOfView: 'pause', hoverEnd: 'pause',
+            inViewThreshold: 0.5, inViewDebounce: 150,
         };
         expect(resolveTrigger(undefined)).toEqual(expected);
         expect(resolveTrigger({})).toEqual(expected);
     });
 
     it('fills only what is missing', () => {
-        expect(resolveTrigger({ offScreen: 'reset' }))
+        expect(resolveTrigger({ outOfView: 'reset' }))
             .toEqual({
-                start: 'load', offScreen: 'reset', mouseOut: 'pause',
-                visibilityThreshold: 0.5, visibilityDebounce: 150,
+                start: 'load', outOfView: 'reset', hoverEnd: 'pause',
+                inViewThreshold: 0.5, inViewDebounce: 150,
             });
     });
 
-    it("keeps every value the document states, 'none' included", () => {
+    it("keeps every value the document states, 'manual' included", () => {
         const stated = {
-            start: 'none', offScreen: 'continue', mouseOut: 'reverse',
-            visibilityThreshold: 0.8, visibilityDebounce: 0,
+            start: 'manual', outOfView: 'continue', hoverEnd: 'reverse',
+            inViewThreshold: 0.8, inViewDebounce: 0,
         } as const;
         expect(resolveTrigger(stated)).toEqual(stated);
     });
@@ -46,11 +46,11 @@ describe('trigger defaults', () => {
         expect(start.inner._default).toBe(PX_TRIGGER_DEFAULTS.start);
     });
 
-    it('the schema declares the same offScreen default — the one that makes `load` safe', () => {
+    it('the schema declares the same outOfView default — the one that makes `load` safe', () => {
         const trigger = describeSchema(PxTriggerSchema);
         if (trigger.kind !== 'shape') throw new Error('PxTriggerSchema is not an object schema');
-        const offScreen = describeSchema(trigger.shape.offScreen);
-        if (offScreen.kind !== 'optional') throw new Error('trigger.offScreen is not optional');
-        expect(offScreen.inner._default).toBe(PX_TRIGGER_DEFAULTS.offScreen);
+        const outOfView = describeSchema(trigger.shape.outOfView);
+        if (outOfView.kind !== 'optional') throw new Error('trigger.outOfView is not optional');
+        expect(outOfView.inner._default).toBe(PX_TRIGGER_DEFAULTS.outOfView);
     });
 });

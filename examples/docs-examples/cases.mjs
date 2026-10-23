@@ -25,7 +25,7 @@ export const CASES = [
   { group: 'web', id: 'callbacks',     title: 'Callbacks', anchor: 'callbacks',
     summary: 'onPlay / onPause / onCancel / onFinish / onRemove, logged as they fire.' },
   { group: 'web', id: 'triggers',      title: 'Triggers — start on click', anchor: 'triggers',
-    summary: 'The document says startOn: "click"; the player wires the event for you.' },
+    summary: 'The document says start: "click"; the player wires the event for you.' },
   { group: 'web', id: 'engine-modes',  title: 'Playback modes — native vs player', anchor: 'playback-modes',
     summary: 'The same document driven by each engine, side by side.' },
   { group: 'web', id: 'several',       title: 'Loading several animations', anchor: 'loading-several-animations',
@@ -36,7 +36,7 @@ export const CASES = [
   // -- React ------------------------------------------------------------------
   { group: 'react', id: 'imperative',      title: 'Imperative API (apiRef)', anchor: 'imperative-api-apiref',
     summary: 'play / pause / cancel / finish through a ref.' },
-  { group: 'react', id: 'play-as-saved',   title: 'Play as saved', anchor: 'play-as-saved',
+  { group: 'react', id: 'play-on-trigger', title: 'Play on trigger', anchor: 'autoplay',
     summary: 'The component honors the document\'s own trigger.' },
   { group: 'react', id: 'controlled-time', title: 'Controlled time (time)', anchor: 'controlled-time-progress--time',
     summary: 'A slider drives time (ms); the component renders that exact frame.' },
@@ -46,7 +46,7 @@ export const CASES = [
     summary: 'A pre-rendered SVG imported as a component, with a click trigger added by the wrapper.' },
 
   // -- Vue --------------------------------------------------------------------
-  { group: 'vue', id: 'play-as-saved',   title: 'Play as saved', anchor: 'play-as-saved',
+  { group: 'vue', id: 'play-on-trigger', title: 'Play on trigger', anchor: 'autoplay',
     summary: 'The component honors the document\'s own trigger.' },
   { group: 'vue', id: 'controlled-time', title: 'Controlled time (time)', anchor: 'controlled-time-progress--time',
     summary: 'A slider drives time (ms); the component renders that exact frame.' },

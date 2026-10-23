@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxDiagnosticCode, PxDiagnosticKind, PxMouseOutAction, PxTriggerStart, resolveTrigger,
+import { PxDiagnosticCode, PxDiagnosticKind, PxHoverEndAction, PxTriggerStart, resolveTrigger,
     type PxDiagnostics, type PxTrigger } from '@pixodesk/svg-animator-core';
 import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import type { PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
@@ -15,17 +15,17 @@ import { createVisibilityGate } from './PxVisibilityGate';
  * Wires a document's trigger block to its root element.
  *
  * TWO INDEPENDENT AXES, which is why there is no `scrollIntoView` here:
- *  - `start` — what STARTS the animation: 'load' (default), 'mouseOver', 'click', or 'none'
+ *  - `start` — what STARTS the animation: 'load' (default), 'hover', 'click', or 'manual'
  *    (nothing but the API does).
- *  - `offScreen` + `visibilityThreshold` + `visibilityDebounce` — whether it may RUN, whatever
+ *  - `outOfView` + `inViewThreshold` + `inViewDebounce` — whether it may RUN, whatever
  *    started it. Owned by {@link createVisibilityGate}, wired for every document.
  *
  * `start: 'load'` behind the default gate is what `startOn: 'scrollIntoView'` used to mean: hold
  * at frame 0 until enough is on screen, play, pause when it leaves, resume when it returns. The
  * difference is that the same gate now also applies to a document started by a click or a hover.
  *
- * `mouseOut` is what happens when the pointer LEAVES ('pause' by default, or continue / reset /
- * reverse); it is read only for `start: 'mouseOver'`. A `click` document is a plain play/pause
+ * `hoverEnd` is what happens when the pointer LEAVES ('pause' by default, or continue / reset /
+ * reverse); it is read only for `start: 'hover'`. A `click` document is a plain play/pause
  * toggle with nothing to configure.
  *
  * @param api The player API to wire the trigger to.
@@ -48,9 +48,9 @@ export function setupAnimationTriggers(
     const cleanups: Array<() => void> = [];
     const dispose = (): void => { for (const undo of cleanups.splice(0)) undo(); };
     // The defaults come from core's one table, shared with every player (`PX_TRIGGER_DEFAULTS`):
-    // no `start` = 'load', no `offScreen` = 'pause', no `mouseOut` = 'pause', no threshold
+    // no `start` = 'load', no `outOfView` = 'pause', no `hoverEnd` = 'pause', no threshold
     // = 0.5, no debounce = 150ms. The threshold default must match the editor model's
-    // (TSvgSvgAnimationAttr.visibilityThreshold), which OMITS the value on the wire when it equals it.
+    // (TSvgSvgAnimationAttr.inViewThreshold), which OMITS the value on the wire when it equals it.
     const resolved = resolveTrigger(trigger);
 
     const root = api.getRootElement();
@@ -82,22 +82,22 @@ export function setupAnimationTriggers(
     });
     cleanups.push(() => gate.dispose());
 
-    /** What to do when the pointer leaves — `start: 'mouseOver'` only. */
+    /** What to do when the pointer leaves — `start: 'hover'` only. */
     const handleMouseOut = (): void => {
-        switch (resolved.mouseOut) {
-            case PxMouseOutAction.pause:
+        switch (resolved.hoverEnd) {
+            case PxHoverEndAction.pause:
                 api.pause();
                 break;
-            case PxMouseOutAction.reset:
+            case PxHoverEndAction.reset:
                 api.cancel();
                 break;
-            case PxMouseOutAction.reverse:
+            case PxHoverEndAction.reverse:
                 // Play the animation backwards from its current position.
                 reversed = true;
                 api.setPlaybackRate(-1);
                 api.play();
                 break;
-            case PxMouseOutAction.continue:
+            case PxHoverEndAction.continue:
             default:
                 // Do nothing
                 break;
@@ -120,10 +120,10 @@ export function setupAnimationTriggers(
             break;
         }
 
-        case PxTriggerStart.mouseOver: {
+        case PxTriggerStart.hover: {
             // An OUT may only follow an IN. A `mouseleave` with no preceding `mouseenter` happens
             // when the pointer is already over the element at load and then moves away — and for
-            // `mouseOut: 'reverse'` the out action PLAYS (`setPlaybackRate(-1); play()`), so an
+            // `hoverEnd: 'reverse'` the out action PLAYS (`setPlaybackRate(-1); play()`), so an
             // untriggered leave would start the animation running backwards.
             let enteredOnce = false;
             const mouseOverHandler = () => { enteredOnce = true; gate.requestStart(true); };
@@ -149,7 +149,7 @@ export function setupAnimationTriggers(
             break;
         }
 
-        case PxTriggerStart.none:
+        case PxTriggerStart.manual:
             // No auto-start; external code must call play(). The gate still applies afterwards,
             // so an API-started animation pauses when it scrolls out of view.
             break;

@@ -131,7 +131,7 @@ describe('materializeRestPosesInTree — the static document IS the first frame'
         const out = materializeRestPosesInTree(docOf([
             { type: 'ellipse', id: 'e', rx: 64, ry: 64,
               animate: { translate: { keyframes: [kf(0, [139, 163]), kf(1000, [139, 310])] } } },
-        ], { trigger: { start: 'none' } }), JS);
+        ], { trigger: { start: 'manual' } }), JS);
         // The pose is the canonical static form the editor writes, rendered like it.
         expect(first(out).transform).toEqual({ translate: [139, 163] });
         expect(staticAttr(first(out), 'transform')).toBe('translate(139,163)');

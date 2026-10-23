@@ -129,7 +129,7 @@ document that animates — everything not written in it is a default:
 
 No `animator` block at all means: a time-driven timeline (no `type` needed), one iteration of
 1000 ms, **starting on load** and holding the final state. To have your own code start it
-instead, say `"animator": { "timeline": { "trigger": { "start": "none" } } }`.
+instead, say `"animator": { "timeline": { "trigger": { "start": "manual" } } }`.
 
 Every block below also has a name you can import from `@pixodesk/svg-animator-core`, for when you
 write or transform documents in TypeScript rather than by hand:
@@ -150,7 +150,7 @@ write or transform documents in TypeScript rather than by hand:
 | `PxBezierPath` | a path outline as bezier segments |
 | `PxScroll` | a scroll-driven timeline; `PxScrollRangePoint` is one end of its range |
 | `PxTimelineEngineSetting` · `PxTimelineEngine` · `PxFillMode` · `PxPlaybackDirection` | the timeline's `engine` (as written: `auto` · `native` · `js`; as resolved: `native` · `js`), `fillMode` and `direction`. Every two-or-more-way wire selector is a named constant like these — a const namespace AND the string type of the same name, so `PxTriggerStart.click` and `start?: PxTriggerStart` come from one import |
-| `PxTriggerStart` · `PxMouseOutAction` · `PxFinishAction` | the trigger's `start`, `mouseOut` and `finish` |
+| `PxTriggerStart` · `PxHoverEndAction` · `PxFinishAction` | the trigger's `start`, `hoverEnd` and `finish` |
 | `PxScrollKind` · `PxScrollAxis` · `PxScrollSource` · `PxScrollPhase` · `PxPinAlign` | a scroll timeline's `type`, `axis`, `source`, a range point's `phase`, and `pin.align` |
 | `PxAlongPathMode` · `PxLoopRepeatAt` · `PxLoopDirection` | a property animation's `alongPathMode`, and its `loop.repeatAt` / `loop.direction` |
 | `PxStrokeTrimSubPaths` · `PxCloneWithout` · `PxMaskType` · `PxUnits` · `PxGradientType` · `PxGradientSpreadMethod` · `PxPathOverflow` · `PxLengthAdjust` · `PxTextPathMethod` · `PxTextPathSpacing` | the effects' selectors: `strokeTrim.subPaths`, `clone.without`, `maskedBy.maskType`, the mask and gradient units, a gradient's `type` and `spreadMethod`, and `textPath`'s `pathOverflow` / `lengthAdjust` / `method` / `spacing` |
@@ -197,11 +197,11 @@ interface SVG_JSON extends NODE {
                                                    // named for its occasion, and to stay clear of the onFinish CALLBACK
                 direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';  // default 'normal'
                 trigger?: {
-                    start?: 'load' | 'mouseOver' | 'click' | 'none';       // what STARTS it; default 'load'; 'none' waits for play()
-                    offScreen?: 'pause' | 'continue' | 'reset';            // while nobody can see it; default 'pause'
-                    mouseOut?: 'continue' | 'pause' | 'reset' | 'reverse'; // when the pointer leaves; default 'continue'; read for start 'mouseOver'
-                    visibilityThreshold?: number;     // how much must be on screen before it may run: 0 = any part, 1 = all of it; default 0.5
-                    visibilityDebounce?: number;      // and for how long, ms; default 150, so scrolling straight past starts nothing
+                    start?: 'load' | 'hover' | 'click' | 'manual';       // what STARTS it; default 'load'; 'manual' waits for play()
+                    outOfView?: 'pause' | 'continue' | 'reset';            // while nobody can see it; default 'pause'
+                    hoverEnd?: 'continue' | 'pause' | 'reset' | 'reverse'; // when the pointer leaves; default 'continue'; read for start 'hover'
+                    inViewThreshold?: number;     // how much must be on screen before it may run: 0 = any part, 1 = all of it; default 0.5
+                    inViewDebounce?: number;      // and for how long, ms; default 150, so scrolling straight past starts nothing
                 };
               }
             | {
@@ -779,7 +779,7 @@ each property has one fixed unit that is always understood:
 | time (`time`, `timeline.inTime` / `outTime` / `playDuration`, `timeline.delay`, `retime.start`) | milliseconds |
 | lengths, coordinates, `fontSize` in px | plain numbers in the drawing's coordinates (the `viewBox` space) — no unit is written |
 | `rotate`, `skew`, angles | degrees |
-| `opacity`, trim `range` / `offset`, stop `offset`, `visibilityThreshold` | a share of the whole, from `0` (none) to `1` (all) |
+| `opacity`, trim `range` / `offset`, stop `offset`, `inViewThreshold` | a share of the whole, from `0` (none) to `1` (all) |
 | every `scale` | a multiplier: `1` = unchanged, `2` = double, `0.5` = half |
 | `retime.stretch` | a multiplier of duration: `2` = twice as long (half speed), `0.5` = half as long (double speed) |
 | `frameRate` | frames per second |
@@ -1645,7 +1645,7 @@ interface PxPlatformAdapter {
 //   wins:
 //     1. `progress` or `time` set  → you control the position
 //     2. `play` or `pause` set     → you control playing and pausing
-//     3. `playAsSaved` set            → the document's own trigger
+//     3. `playOnTrigger` set            → the document's own trigger
 //     4. nothing set               → static: the first frame, nothing plays
 //   If you set props from more than one line, the result includes a ready-made
 //   warning to show. `apiRef` never changes the result: it is a handle for calling
@@ -1653,8 +1653,8 @@ interface PxPlatformAdapter {
 function resolveControlMode(props: PxControlProps): PxResolvedControlMode;
 
 // ● True when that mode has to take the document's own trigger over — every mode
-//   except `playAsSaved`, INCLUDING `static`: a component given no control props at
-//   all renders the first frame and waits, so it forces `start: 'none'`.
+//   except `playOnTrigger`, INCLUDING `static`: a component given no control props at
+//   all renders the first frame and waits, so it forces `start: 'manual'`.
 function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 ```
 
@@ -1667,10 +1667,10 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 | Player API types | `PxAnimationPlayerApi<TRoot>`, `PxEngineAnimationPlayerApi<TRoot>` (○), `PxEngineCallbacks`, `PxPlatformAdapter` | ● platform-neutral; the web fixes `TRoot` to `Element`. `PxEngineCallbacks` is what an engine takes — the lifecycle on top of `PxDiagnosticsConfig` |
 | Component contract | `PxAnimationPlayerHandle`, `PxAnimationPlayerCallbacks`, `PxControlProps`, `PxControlMode`, `resolveControlMode(props)`, `controlModeTakesOverTrigger(mode)`, `PxPlayMode`, `resolveDeclarativePlayback(args)` (○), `PxDeclarativeAction` (○), `PxDeclarativeProps` (○), `PxDeclarativeArgs` (○), `PxDeclarativeTarget` (○), `PxDeclarativeRunContext` (○), `applyDeclarativeAction(api, action, ctx)` (○), `createIterationStopWatcher(api, passMs, raf, onStopped?)` (○), `resolvePlaybackWorld(iterations)` (○), `PxPlaybackWorld` (○), `composeApiExtras(api, cfg, raf)` (○), `PxPlayOnceConfig` (○), `PxPlayOnceTarget` (○), `prepareDocumentForRender(doc)` (▪), `renderPxTree(node, factory)` (▪), `PxElementFactory` (▪), `PxElementSpec` (▪) | ● what the React / Vue / React Native components share: the imperative handle, the callback set, the props that pick a mode and the one rule that picks it — [the API at a glance](../library/README.md#the-api-at-a-glance). `renderPxTree` is THE renderer of every DOM player: it makes each decision about a document — tags, attribute names and values, sanitization, styles, text — and a player supplies only a `PxElementFactory`, "create an element from this finished `PxElementSpec`" (a DOM node, a React element, a Vue vnode). `prepareDocumentForRender` is the document it is given: materialized, then fresh ids |
 | Engine rules | `resolveTimelineEngine(engine)`, `isNativeForced(engine)`, `mayUseNativeScrollTimeline(engine)` | ○ how a `timeline.engine` resolves to an engine / to the browser's ScrollTimeline — the players' own decision helpers |
-| Trigger defaults | `PX_TRIGGER_DEFAULTS`, `resolveTrigger(trigger)`| ○ what a missing trigger field means (`start` 'load', `offScreen` 'pause', `mouseOut` 'pause', threshold 0.5, debounce 150 ms) — the one resolution every player uses |
+| Trigger defaults | `PX_TRIGGER_DEFAULTS`, `resolveTrigger(trigger)`| ○ what a missing trigger field means (`start` 'load', `outOfView` 'pause', `hoverEnd` 'pause', threshold 0.5, debounce 150 ms) — the one resolution every player uses |
 | Time contract | `seekCeilingMs`, `progressSpanMs`, `clampSeekMs`, `timeToProgress`, `progressToTimeMs`, `isValidPlaybackRate`, `PX_RATE_REJECTED`, `createRunClock` + | ○ the one meaning of time, seeking and rate that every engine implements — see `PxAnimationPlayerApi` |
 | Diagnostics | `createDiagnostics(config?, prefix?)` (▪) → `PxDiagnostics`, `PxDiagnosticCode`, `PxDiagnosticKind` + `PxDiagnostic`, `PxDiagnosticsConfig` | ● the one channel every player reports through: `onWarn` / `onError` with a `code` saying what happened and a `kind` saying who can act, falling back to the console — see `PxEngineCallbacks`. The text is not shipped: `PxDiagnosticCode` is a number, described on the [codes page](../diagnostics.md) |
-| Enum values | `PxTimelineEngineSetting`, `PxTimelineEngine`, `PxGradientType`, `PxUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout` (`clone.without` → `'translate'`), `PxMaskType`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing`, `PxFillMode`, `PxPlaybackDirection`, `PxTriggerStart`, `PxOffScreenAction`, `PxMouseOutAction`, `PxFinishAction`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings — each is a const namespace AND the type derived from it, so `PxTriggerStart.click` and `start?: PxTriggerStart` come from one import |
+| Enum values | `PxTimelineEngineSetting`, `PxTimelineEngine`, `PxGradientType`, `PxUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout` (`clone.without` → `'translate'`), `PxMaskType`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing`, `PxFillMode`, `PxPlaybackDirection`, `PxTriggerStart`, `PxOutOfViewAction`, `PxHoverEndAction`, `PxFinishAction`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings — each is a const namespace AND the type derived from it, so `PxTriggerStart.click` and `start?: PxTriggerStart` come from one import |
 | Schema version | `PX_WIRE_VERSION`, `PX_WIRE_BASELINE_VERSION`, `PX_WIRE_STEPS`, `PX_WIRE_VERSION_KEY`, `PxWireVersionRelation`, `parseWireVersion`, `formatWireVersion`, `readWireVersion`, `compareWireVersion`, `wireVersionAdvice`, `convertWireDocument`, `downgradeWireDocument`, `applyWireSteps`, + `PxWireVersion`, `PxWireVersionStep`, `PxWireConversionResult`, `PxWireStepKind`, `PxWireConversionOptions` | ○ read, compare and convert a document's `animator.version` — [Versioning](#versioning). `PX_WIRE_SCHEMA_VERSION` (▪) is the bump-site string behind `PX_WIRE_VERSION`, moved to `/internal` (review §16) |
 | Schema release | `schemaFieldUniverse`, `diffFieldUniverse`, `planSchemaRelease`, `releaseLogProblems` | ▪ the field inventory and bump rule behind `scripts/schema-release.mjs` |
 | Diagnostics | `diagnoseDocument(doc)` → (`{ problems }`), `reportDocumentDiagnostics(doc, where)`, `PX_UNKNOWN_KEY_ERROR`, `PX_VALIDATION_ROOT_SEGMENT` | ▪ the load-time check every player runs; call `validateDocument` instead |
@@ -1679,7 +1679,7 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 | Timeline shape | `nestAnimatorTimeline`, `PxAnimatorRuntimeConfig` | ○ the runtime view (`PxAnimatorRuntimeConfig`, what `getAnimatorConfig` returns) → the nested `timeline` object. The other direction, `resolveAnimatorTimeline` (▪), moved to `/internal` (review §17a): read the view through `getAnimatorConfig` / `prepareDocument` |
 | Preparing | `prepareDocument`, `documentStage`, `PxDocStage`, + `PxPrepareOptions`, `PxPreparedDocument` | ○ the one lowering pipeline, current → checked → resolved → plain, stamped on the result — [Preparing a document](#preparing-a-document). `carryPrep` (▪) re-stamps a doc a player derived from a prepared one; `reportDocumentProblems` (▪) turns what `checked` repaired into a player's warnings (`effectsShape` inside `effects`, else `documentRepaired`) |
 | Playback override | `PxTimelinePatch`, `PxPlaybackOverride`, `PxAnimatorConfigPatch`, `PxAnimatorConfigMergeResult`, `PxTimelineShortcuts` | ● the `timeline` override as every player takes it, and the companion types of the three merge functions above |
-| No-driver patch | `suppressTriggerStart(patch?)` | ○ `trigger.start` forced to `'none'` on top of a caller's override — what every player applies when `playAsSaved` is absent (the components' non-`playAsSaved` control modes use the same helper) |
+| No-driver patch | `suppressTriggerStart(patch?)` | ○ `trigger.start` forced to `'manual'` on top of a caller's override — what every player applies when `playOnTrigger` is absent (the components' non-`playOnTrigger` control modes use the same helper) |
 | Compiled animation | `PxCompiledAnimation`, `PxCompiledKeyframe`, `PxAnyPropertyAnimation`, `isCompiledAnimation(entry)`, `PxCompiledAnimationSchema`, `PxAnyPropertyAnimationSchema`, `PxRgba`, `PxRgbaSchema`, `PxCubicBezier`, `PxCubicBezierSchema`, `PxPathValue` | ○ the format's low layer — [Compiled animation](#compiled-animation--the-low-layer). `compileAnimation`, `compileAnimationDefinition`, `compileAnimationsInTree`, `PxCompileContext` (▪) lower authored entries to it; `toAuthoredAnimation`, `authorCompiledAnimations` (▪) read it back as the authored form (the editor's read path); `anyPropertyAnimationSchemaOf` (▪) builds the entry union around a widened authored schema (the editor's); `PxNormalizedPathValueSchema` (▪) casts a compiled `d` value (`{paths}`) |
 | Runtime channels | `PxNormalizedBinding`, `PxRuntimeAnimation`, `PxValueKind` | ○ what `normalizeBindings` hands the engines: compiled animations in window ms — see [Materializing a document](#materializing-a-document). `channelKindOf` (▪) is the one place a property's value kind is decided; `mapChannelKeyframes` (▪) runs keyframe work with the blend of the channel's kind (`PxChannelLerp` ▪); `movesAlongPath` (▪) says whether a compiled `transform` is a motion path the frame loop evaluates |
 | Schema toolkit | `px`, `schemaKeys`, `describeSchema` — plus one schema value per wire type: `PxDocumentSchema`, `PxNodeSchema`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTimelineSchema`, `PxTimeTimelineSchema`, `PxTriggerSchema`, `PxElementAnimationSchema`, `PxPropertyAnimationSchema`, `PxKeyframeSchema`, `PxKeyframeValueSchema`, `PxAttrValueSchema`, `PxTransformPartsSchema`, `PxBezierPathSchema`, `PxLoopSchema`, `PxDefinitionsSchema`, `PxEffectsSchema`, `PxClipPathEffectSchema`, `PxCloneEffectSchema`, `PxRepeaterEffectSchema`, `PxRetimeEffectSchema`, `PxMaskedByEffectSchema`, `PxTransformByEffectSchema`, `PxTextEffectSchema`, `PxTextPathEffectSchema`, `PxStrokeTrimEffectSchema`, `PxFillGradientEffectSchema`, `PxGradientStopSchema`, `PxScrollSchema`, `PxScrollRangeSchema`, `PxScrollRangePointSchema`, `PxTransformValueSchema` | ○ the validator the format is written in |

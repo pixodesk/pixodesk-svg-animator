@@ -15,7 +15,7 @@ export const elemEllipse: SvgaCaseJson = {
             "outTime": 1000,
             "trigger": {
                 "start": "load",
-                "offScreen": "continue"
+                "outOfView": "continue"
             },
             "direction": "normal"
         }

@@ -111,7 +111,7 @@ describe('createSvgAnimationPlayer', () => {
     it('takes the callbacks INLINE, and fires onStop after pause / finish (the same names as the components)', () => {
         const onPlay = vi.fn(), onPause = vi.fn(), onFinish = vi.fn(), onStop = vi.fn();
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', outTime: DUR, trigger: { start: 'none' } } };
+        doc.animator = { timeline: { engine: 'js', outTime: DUR, trigger: { start: 'manual' } } };
         const api = createSvgAnimationPlayer({ doc, container: '#svg-container', onPlay, onPause, onFinish, onStop });
 
         api.play();
@@ -127,13 +127,13 @@ describe('createSvgAnimationPlayer', () => {
         expect(onStop).toHaveBeenCalledTimes(2);   // ...and after finish
     });
 
-    it('playAsSaved: a document with no trigger starts on load — start defaults to load', () => {
-        const api = createSvgAnimationPlayer({ doc: makeDoc(), container: '#svg-container', playAsSaved: true });
+    it('playOnTrigger: a document with no trigger starts on load — start defaults to load', () => {
+        const api = createSvgAnimationPlayer({ doc: makeDoc(), container: '#svg-container', playOnTrigger: true });
         expect(api.isPlaying()).toBe(true);
     });
 
     // The no-driver rule (first-use review §1+2): nothing plays until a line names the driver.
-    it('without playAsSaved the same document builds still, and the api drives it', () => {
+    it('without playOnTrigger the same document builds still, and the api drives it', () => {
         const api = createSvgAnimationPlayer({ doc: makeDoc(), container: '#svg-container' });
         expect(api.isPlaying()).toBe(false);
         api.play();
@@ -142,7 +142,7 @@ describe('createSvgAnimationPlayer', () => {
 
     it('an explicit programmatic trigger still waits for play()', () => {
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', outTime: DUR, trigger: { start: 'none' } } };
+        doc.animator = { timeline: { engine: 'js', outTime: DUR, trigger: { start: 'manual' } } };
         const api = createSvgAnimationPlayer({ doc: doc, container: '#svg-container' });
         expect(api.isPlaying()).toBe(false);
     });
@@ -152,7 +152,7 @@ describe('createSvgAnimationPlayer', () => {
         // load, which would fire `onPlay` a second time and hide this test's subject — that a
         // control call made before the fetch resolves is queued and replayed exactly once.
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', outTime: DUR, trigger: { start: 'none' } } };
+        doc.animator = { timeline: { engine: 'js', outTime: DUR, trigger: { start: 'manual' } } };
         const fetchMock = stubFetch(doc);
         const onPlay = vi.fn();
 
@@ -388,12 +388,12 @@ describe('createSvgAnimationPlayersFromPage', () => {
     it('passes the same options createSvgAnimationPlayer takes to EVERY player it creates (review §15)', async () => {
         document.body.innerHTML =
             '<div data-px-animation-src="a.json"></div><div data-px-animation-src="b.json"></div>';
-        stubFetch(makeDoc());   // a document that would playAsSaved on load
+        stubFetch(makeDoc());   // a document that would playOnTrigger on load
         const onPlay = vi.fn();
 
-        // A timeline override that cancels the playAsSaved, plus an inline callback — both must reach
+        // A timeline override that cancels the playOnTrigger, plus an inline callback — both must reach
         // both players. The zero-config path (no argument at all) is unchanged.
-        createSvgAnimationPlayersFromPage({ timeline: { trigger: { start: 'none' } }, onPlay });
+        createSvgAnimationPlayersFromPage({ timeline: { trigger: { start: 'manual' } }, onPlay });
         await flushMicrotasks();
 
         const instances = Array.from(document.querySelectorAll('[data-px-animation-src]'))

@@ -18,7 +18,7 @@ import animation from './animation.json';
 </script>
 
 <template>
-  <SvgAnimationPlayer :doc="animation" playAsSaved />
+  <SvgAnimationPlayer :doc="animation" playOnTrigger />
 </template>
 ```
 
@@ -29,14 +29,14 @@ component itself — see the props table); the SVG keeps its proportions.
 ## Control modes
 
 Several control modes, plus a template ref that is not one. Set more than one control prop and the
-highest-priority one wins — `progress` / `time` → `play` / `pause` → `playAsSaved` — and the
+highest-priority one wins — `progress` / `time` → `play` / `pause` → `playOnTrigger` — and the
 component warns, naming both props and the winner. The ref is available in every mode and never
 changes which one you are in. React, Vue and React Native all resolve this the same way, from one
 rule in core.
 
 ### Autoplay
 
-> **Example:** [`vue/play-as-saved`](../../examples/docs-examples/src/cases/vue/play-as-saved/) — `pnpm example:docs`, then open `#vue/play-as-saved`.
+> **Example:** [`vue/play-on-trigger`](../../examples/docs-examples/src/cases/vue/play-on-trigger/) — `pnpm example:docs`, then open `#vue/play-on-trigger`.
 
 The simplest mode: the component starts the animation the way the file says it should — on
 load, on hover, on click, or when scrolled into view.
@@ -48,7 +48,7 @@ import animation from './animation.json';
 </script>
 
 <template>
-  <SvgAnimationPlayer :doc="animation" playAsSaved />
+  <SvgAnimationPlayer :doc="animation" playOnTrigger />
 </template>
 ```
 
@@ -158,7 +158,7 @@ interface PxAnimationPlayerHandle {
 }
 ```
 
-With none of `playAsSaved` / `progress` / `time` / `play` / `pause` set, the first frame renders
+With none of `playOnTrigger` / `progress` / `time` / `play` / `pause` set, the first frame renders
 statically and the ref is your only control.
 
 ## Playback overrides
@@ -172,7 +172,7 @@ shaped exactly like the file's own `animator` block and deep-merges it over what
   <!-- The file loops twice and starts on load; here it loops forever and waits for play(). -->
   <SvgAnimationPlayer
     :doc="animation"
-    :timeline="{ iterations: 'infinite', trigger: { start: 'none' } }"
+    :timeline="{ iterations: 'infinite', trigger: { start: 'manual' } }"
     ref="anim"
   />
 </template>
@@ -210,14 +210,14 @@ const SvgAnimationPlayer: DefineComponent<{
     playDuration?: number;                // ▸ timeline.playDuration — the window in wall ms (slower / faster)
     delay?: number;                       // ▸ timeline.delay — the wait before the first pass, ms
     iterations?: number | 'infinite';     // 'infinite' never stops
-    start?: 'load' | 'mouseOver' | 'click' | 'none';
-    offScreen?: PxOffScreenAction;        // ▸ timeline.trigger.offScreen
-    mouseOut?: PxMouseOutAction;          // ▸ timeline.trigger.mouseOut (for start: 'mouseOver')
-    visibilityThreshold?: number;         // ▸ timeline.trigger.visibilityThreshold (0–1)
-    visibilityDebounce?: number;          // ▸ timeline.trigger.visibilityDebounce (ms)
+    start?: 'load' | 'hover' | 'click' | 'manual';
+    outOfView?: PxOutOfViewAction;        // ▸ timeline.trigger.outOfView
+    hoverEnd?: PxHoverEndAction;          // ▸ timeline.trigger.hoverEnd (for start: 'hover')
+    inViewThreshold?: number;         // ▸ timeline.trigger.inViewThreshold (0–1)
+    inViewDebounce?: number;          // ▸ timeline.trigger.inViewDebounce (ms)
 
     // Control — the highest-priority one that is set picks the mode (Control modes above)
-    playAsSaved?: boolean;                   // start the way the file says — the editor's Start setting
+    playOnTrigger?: boolean;                   // start the way the file says — the editor's Start setting
     play?: boolean; pause?: boolean;      // the STATE (one-shot: which pose; loop: running) / freeze now
     playMode?: PxPlayMode | `${PxPlayMode}`; // one-shot: which pose changes PLAY vs snap —
                                           //   'forwards' (default) | 'backwards' | 'both' | 'none'
@@ -270,7 +270,7 @@ const onStop = () => console.log('stopped');
 </script>
 
 <template>
-  <SvgAnimationPlayer :doc="animation" playAsSaved @finish="onDone" @stop="onStop" />
+  <SvgAnimationPlayer :doc="animation" playOnTrigger @finish="onDone" @stop="onStop" />
 </template>
 ```
 
@@ -294,7 +294,7 @@ import AnimationSvg from './animation.svg';   // vite-svg-loader
 </script>
 
 <template>
-  <SvgCssAnimationPlayer start="mouseOver" mouseOut="pause" style="width: 400px; height: 400px">
+  <SvgCssAnimationPlayer start="hover" hoverEnd="pause" style="width: 400px; height: 400px">
     <AnimationSvg />
   </SvgCssAnimationPlayer>
 </template>
@@ -304,18 +304,18 @@ import AnimationSvg from './animation.svg';   // vite-svg-loader
 ```typescript
 // The SVG goes in the default slot; every other attribute (class, style, …) lands on the wrapper div.
 const SvgCssAnimationPlayer: DefineComponent<{
-    start?: PxTriggerStart;               // 'load' (default) | 'mouseOver' | 'click'
-    offScreen?: PxOffScreenAction;        // ▸ timeline.trigger.offScreen
-    mouseOut?: PxMouseOutAction;          // ▸ timeline.trigger.mouseOut (for start: 'mouseOver')
-    visibilityThreshold?: number;         // ▸ timeline.trigger.visibilityThreshold (0–1)
-    visibilityDebounce?: number;          // ▸ timeline.trigger.visibilityDebounce (ms)
-                                          //   — 'none' does nothing here (no play())
-    offScreen?: PxOffScreenAction;        // 'pause' (default) | 'continue' | 'reset' — what happens
+    start?: PxTriggerStart;               // 'load' (default) | 'hover' | 'click'
+    outOfView?: PxOutOfViewAction;        // ▸ timeline.trigger.outOfView
+    hoverEnd?: PxHoverEndAction;          // ▸ timeline.trigger.hoverEnd (for start: 'hover')
+    inViewThreshold?: number;         // ▸ timeline.trigger.inViewThreshold (0–1)
+    inViewDebounce?: number;          // ▸ timeline.trigger.inViewDebounce (ms)
+                                          //   — 'manual' does nothing here (no play())
+    outOfView?: PxOutOfViewAction;        // 'pause' (default) | 'continue' | 'reset' — what happens
                                           //   while nobody can see it, whatever started it
-    mouseOut?: PxMouseOutAction;          // 'continue' (default) | 'pause' | 'reset' — 'reverse' is
+    hoverEnd?: PxHoverEndAction;          // 'continue' (default) | 'pause' | 'reset' — 'reverse' is
                                           //   accepted but acts as 'continue'
-    visibilityThreshold?: number;         // 0–1 of the SVG on screen before it may run; default 0.5; 0 = any visible pixel
-    visibilityDebounce?: number;          // ms it must hold first; default 150
+    inViewThreshold?: number;         // 0–1 of the SVG on screen before it may run; default 0.5; 0 = any visible pixel
+    inViewDebounce?: number;          // ms it must hold first; default 150
 }>;
 ```
 
@@ -334,7 +334,7 @@ scripts should be inlined as raw HTML, or use JSON.
 Everything is spelled out above: `SvgAnimationPlayer` under [Props](#props) and [Events](#events),
 the handle under [Imperative API](#imperative-api-template-ref), `SvgCssAnimationPlayer` under
 [CSS-flavor SVGs](#css-flavor-svgs--svgcssanimationplayer). Modes, highest priority wins:
-`progress` / `time` → `play` / `pause` → `playAsSaved` → static — the same rule as React and React
+`progress` / `time` → `play` / `pause` → `playOnTrigger` → static — the same rule as React and React
 Native, conflicts warned the same way; a change to `doc`'s content (compared deeply) or to an override
 prop re-creates the player. The callbacks and diagnostics are the shape every player shares —
 [the API at a glance](./README.md#the-api-at-a-glance).
@@ -351,6 +351,6 @@ Every section above links to its running example in
 page, and they are all collected in one app: a list of every example down the side, with the
 selected one running next to it. Run `pnpm example:docs` from the repository root to open it,
 then pick an example from the list — or jump straight to one by its address in the URL, like
-`#vue/play-as-saved`. Each example has a test that runs on every build.
+`#vue/play-on-trigger`. Each example has a test that runs on every build.
 
 [← Next.js](./nextjs.md) · [Contents](../../README.md#documentation) · Next: [Nuxt →](./nuxt.md)

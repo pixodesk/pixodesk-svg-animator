@@ -14,7 +14,7 @@ Paths below are under core `src/` unless they start with `web:`.
 
 - **`createAnimatorImpl(doc)`** — `web: animator/PxAnimator.ts`
   - `prepareDocument(doc, { stage: checked })` — version-migrate, then ONE repaired, type-stamped copy; repairs reported (`effectsShape`, `documentRepaired`)
-  - apply the per-instance override (`applyAnimatorConfig`), then the no-driver rule (`start: 'none'` without `playAsSaved`)
+  - apply the per-instance override (`applyAnimatorConfig`), then the no-driver rule (`start: 'manual'` without `playOnTrigger`)
   - `prepareDocument(doc, { stage: resolved })` → engine = `resolveTimelineEngine(timeline.engine)` *(auto/native → native, js → frames)*
   - **`prepareDocument(doc, { engine })`** = the `plain` stage → **`materializeAllInTree(doc, engine)`** — `materialize/PxAnimatorMaterializeAll.ts` *(also used by the Editor — one shared pipeline, no drift)*
     - **1. `materializeNodeEffects(doc)`** — `effects/PlayerEffectsUtil.ts` · **both engines** · materializes `node.effects` into wrappers/defs/clones

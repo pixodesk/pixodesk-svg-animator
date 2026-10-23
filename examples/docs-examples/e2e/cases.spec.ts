@@ -96,7 +96,7 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
     await expectFrozen(page);                       // start: 'click' — nothing until clicked
     await page.click('#box svg');
     await expectAnimating(page);
-    await page.click('#box svg');                   // mouseOut: 'pause'
+    await page.click('#box svg');                   // hoverEnd: 'pause'
     await expectFrozen(page);
   },
 

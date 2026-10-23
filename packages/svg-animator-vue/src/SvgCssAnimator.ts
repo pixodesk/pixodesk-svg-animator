@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PX_TRIGGER_DEFAULTS, PxMouseOutAction, PxOffScreenAction, PxTriggerStart } from '@pixodesk/svg-animator-core';
+import { PX_TRIGGER_DEFAULTS, PxHoverEndAction, PxOutOfViewAction, PxTriggerStart } from '@pixodesk/svg-animator-core';
 import { createVisibilityGate, type PxVisibilityGate } from '@pixodesk/svg-animator-web/internal';
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch, type PropType } from 'vue';
 
@@ -24,7 +24,7 @@ type AnimState = 'idle' | 'paused' | 'playing';
  * </script>
  *
  * <template>
- *   <SvgCssAnimationPlayer start="mouseOver" mouseOut="pause">
+ *   <SvgCssAnimationPlayer start="hover" hoverEnd="pause">
  *     <AnimationSvg />
  *   </SvgCssAnimationPlayer>
  * </template>
@@ -35,32 +35,32 @@ type AnimState = 'idle' | 'paused' | 'playing';
  * - `px-anim-enabled`      — started but paused
  * - `px-anim-enabled px-anim-playing` — actively playing
  *
- * TWO AXES, the same two the JSON player has: `start` says what STARTS it, `offScreen` says
+ * TWO AXES, the same two the JSON player has: `start` says what STARTS it, `outOfView` says
  * whether it may RUN. The gate itself is the player's (`createVisibilityGate`), so the threshold,
  * the dwell, the hysteresis and the hidden-tab rule cannot drift between the two.
  *
  * @prop start     - What starts the animation:
  *   - `'load'`      — plays as soon as it is visible enough (default)
- *   - `'mouseOver'` — plays on hover
+ *   - `'hover'` — plays on hover
  *   - `'click'`     — plays on click, toggles on second click
- *   - `'none'`      — **not supported here.** This wrapper exposes no `play()`, so there is
+ *   - `'manual'`      — **not supported here.** This wrapper exposes no `play()`, so there is
  *                     nothing to wait for and the animation never starts. The prop keeps the
  *                     shared `PxTriggerStart` type (one enum per wire key), so the value
  *                     type-checks — it simply has no effect. Use `SvgAnimationPlayer` (the JSON
  *                     player) when you need to start an animation from code.
- * @prop offScreen - What happens while none of it is on screen:
+ * @prop outOfView - What happens while none of it is on screen:
  *   - `'pause'`    — pauses at the current frame (default); resumes when it comes back
  *   - `'continue'` — keeps playing, and starts without waiting to be seen
  *   - `'reset'`    — back to the beginning, so it replays on the next entry
- * @prop mouseOut  - What happens when the pointer leaves, for `start: 'mouseOver'`:
+ * @prop hoverEnd  - What happens when the pointer leaves, for `start: 'hover'`:
  *   - `'pause'`    — pauses at the current frame (default)
  *   - `'continue'` — keeps playing
  *   - `'reset'`    — resets to the beginning
  *   - `'reverse'`  — **acts as `'continue'` here.** A CSS class toggle cannot run keyframes
- *                    backwards. Accepted so the prop keeps the shared `PxMouseOutAction` type.
- * @prop visibilityThreshold - How much of the element must be on screen (0–1) before it may run.
+ *                    backwards. Accepted so the prop keeps the shared `PxHoverEndAction` type.
+ * @prop inViewThreshold - How much of the element must be on screen (0–1) before it may run.
  *   Defaults to the wire default (`0.5`), the same as the JSON player.
- * @prop visibilityDebounce  - How long that must hold, in ms, before it starts. Defaults to the
+ * @prop inViewDebounce  - How long that must hold, in ms, before it starts. Defaults to the
  *   wire default (`150`).
  * @public
  */
@@ -71,10 +71,10 @@ const SvgCssAnimationPlayer = defineComponent({
     inheritAttrs: false,
     props: {
         start:     { type: String as PropType<PxTriggerStart>,    default: PX_TRIGGER_DEFAULTS.start },
-        offScreen: { type: String as PropType<PxOffScreenAction>, default: PX_TRIGGER_DEFAULTS.offScreen },
-        mouseOut:  { type: String as PropType<PxMouseOutAction>,  default: PX_TRIGGER_DEFAULTS.mouseOut },
-        visibilityThreshold: { type: Number, default: PX_TRIGGER_DEFAULTS.visibilityThreshold },
-        visibilityDebounce:  { type: Number, default: PX_TRIGGER_DEFAULTS.visibilityDebounce },
+        outOfView: { type: String as PropType<PxOutOfViewAction>, default: PX_TRIGGER_DEFAULTS.outOfView },
+        hoverEnd:  { type: String as PropType<PxHoverEndAction>,  default: PX_TRIGGER_DEFAULTS.hoverEnd },
+        inViewThreshold: { type: Number, default: PX_TRIGGER_DEFAULTS.inViewThreshold },
+        inViewDebounce:  { type: Number, default: PX_TRIGGER_DEFAULTS.inViewDebounce },
     },
     setup(props, { slots, attrs }) {
         const state = ref<AnimState>('idle');
@@ -83,8 +83,8 @@ const SvgCssAnimationPlayer = defineComponent({
 
         const goOut = (): void => {
             state.value =
-                props.mouseOut === PxMouseOutAction.reset ? 'idle' :
-                props.mouseOut === PxMouseOutAction.pause ? 'paused' : 'playing';
+                props.hoverEnd === PxHoverEndAction.reset ? 'idle' :
+                props.hoverEnd === PxHoverEndAction.pause ? 'paused' : 'playing';
         };
 
         const attach = (): void => {
@@ -94,10 +94,10 @@ const SvgCssAnimationPlayer = defineComponent({
             if (!node) return;
             gate = createVisibilityGate(node, {
                 start: props.start,
-                offScreen: props.offScreen,
-                mouseOut: props.mouseOut,
-                visibilityThreshold: props.visibilityThreshold,
-                visibilityDebounce: props.visibilityDebounce,
+                outOfView: props.outOfView,
+                hoverEnd: props.hoverEnd,
+                inViewThreshold: props.inViewThreshold,
+                inViewDebounce: props.inViewDebounce,
             }, {
                 isPlaying: () => state.value === 'playing',
                 play: () => { state.value = 'playing'; },
@@ -109,7 +109,7 @@ const SvgCssAnimationPlayer = defineComponent({
         };
 
         onMounted(attach);
-        watch(() => [props.start, props.offScreen, props.mouseOut, props.visibilityThreshold, props.visibilityDebounce], attach);
+        watch(() => [props.start, props.outOfView, props.hoverEnd, props.inViewThreshold, props.inViewDebounce], attach);
         onBeforeUnmount(() => { gate?.dispose(); gate = null; });
 
         const requestStart = (): void => {
@@ -123,7 +123,7 @@ const SvgCssAnimationPlayer = defineComponent({
         );
 
         const handlers = computed(() =>
-            props.start === PxTriggerStart.mouseOver
+            props.start === PxTriggerStart.hover
                 ? { onMouseenter: requestStart, onMouseleave: goOut }
                 : props.start === PxTriggerStart.click
                     ? { onClick: () => { if (state.value === 'playing') state.value = 'paused'; else requestStart(); } }

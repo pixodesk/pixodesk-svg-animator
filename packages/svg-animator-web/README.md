@@ -84,7 +84,7 @@ player.destroy();             // cleanup
 <!-- px-check props PxAnimationPlayerOptions pkg=web -->
 | Option | Type | Description |
 | ----------- | ------------------------- | -------------------------------------------------- |
-| `playAsSaved` | `boolean`               | play the way the editor saved it — the document's own trigger starts it; without it nothing starts and the returned api drives playback |
+| `playOnTrigger` | `boolean`               | play the way the editor saved it — the document's own trigger starts it; without it nothing starts and the returned api drives playback |
 | `src`       | `string`                  | URL to fetch the animation document from (provide either `src` or `doc`) |
 | `doc`       | `PxDocumentInput`         | Inline animation document object (a `.json` import passes as-is) |
 | `container` | `string \| Element`       | CSS selector or element to render the SVG into      |
@@ -94,10 +94,10 @@ player.destroy();             // cleanup
 | `inTime` · `outTime` · `playDuration` · `delay` | `number`        | Shortcuts for the content window (`timeline.inTime` / `.outTime`), its wall-time remap and the start delay (ms) | <!-- px names=inTime,outTime,playDuration,delay -->
 | `iterations` | `number \| 'infinite'`   | Shortcut for `timeline.iterations` |
 | `start`     | `PxTriggerStart`          | Shortcut for `timeline.trigger.start` |
-| `offScreen` | `PxOffScreenAction`       | Shortcut for `timeline.trigger.offScreen` |
-| `mouseOut`  | `PxMouseOutAction`        | Shortcut for `timeline.trigger.mouseOut` |
-| `visibilityThreshold` | `number`       | Shortcut for `timeline.trigger.visibilityThreshold` |
-| `visibilityDebounce` | `number`        | Shortcut for `timeline.trigger.visibilityDebounce` |
+| `outOfView` | `PxOutOfViewAction`       | Shortcut for `timeline.trigger.outOfView` |
+| `hoverEnd`  | `PxHoverEndAction`        | Shortcut for `timeline.trigger.hoverEnd` |
+| `inViewThreshold` | `number`       | Shortcut for `timeline.trigger.inViewThreshold` |
+| `inViewDebounce` | `number`        | Shortcut for `timeline.trigger.inViewDebounce` |
 
 The document plays the way it was designed with no configuration at all; `timeline` is for when
 one page needs it to play differently — the same file mounted twice at two speeds, or a file
@@ -107,7 +107,7 @@ that autostarts everywhere except inside your own transport UI:
 const player = createSvgAnimationPlayer({
   src: '/animation.json',
   container: '#box',
-  timeline: { iterations: 'infinite', trigger: { start: 'none' } },
+  timeline: { iterations: 'infinite', trigger: { start: 'manual' } },
 });
 player.play();
 ```

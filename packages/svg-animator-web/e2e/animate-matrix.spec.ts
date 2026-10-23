@@ -44,7 +44,7 @@ async function advanceTimeIncrementally(
  *
  * Frame-loop (`js`) docs start on load and are driven by the mocked page clock.
  * WAAPI (`native`) runs on the compositor timeline, which `page.clock` does NOT control —
- * so native docs use `start: 'none'` and the test drives them
+ * so native docs use `start: 'manual'` and the test drives them
  * deterministically by seeking via the animator API instead. */
 function animator(engine: PxTimelineEngineSetting): PxAnimatorConfig {
     const programmatic = engine === PxTimelineEngineSetting.native;
@@ -53,7 +53,7 @@ function animator(engine: PxTimelineEngineSetting): PxAnimatorConfig {
             outTime: 1000,
             engine,
             fillMode: 'forwards',
-            trigger: { start: programmatic ? 'none' : 'load', offScreen: 'continue' },
+            trigger: { start: programmatic ? 'manual' : 'load', outOfView: 'continue' },
         },
     };
 }

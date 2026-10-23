@@ -58,12 +58,12 @@ export interface PlayerOptions {
 }
 
 /**
- * Whether a component player must be told to `playAsSaved`.
+ * Whether a component player must be told to `playOnTrigger`.
  *
- * The components take the document's trigger OVER unless `playAsSaved` is set — with no control
+ * The components take the document's trigger OVER unless `playOnTrigger` is set — with no control
  * props, `<SvgAnimationPlayer doc />` renders the first frame and waits (core's
- * `controlModeTakesOverTrigger`). So "Use trigger" has to pass `playAsSaved`, or the trigger that
- * `applyTriggerOverride` just wrote into the document is replaced by `start: 'none'` and the
+ * `controlModeTakesOverTrigger`). So "Use trigger" has to pass `playOnTrigger`, or the trigger that
+ * `applyTriggerOverride` just wrote into the document is replaced by `start: 'manual'` and the
  * React / Vue players sit still while the web player — which has no such rule — runs.
  */
 export function shouldAutoplayForTrigger(opts?: PlayerOptions): boolean {
@@ -85,7 +85,7 @@ export function applyTriggerOverride(
   if (t === 'file') return doc;                       // leave the document's own trigger alone
   // Through the shared merge, so this reaches the WIRE spelling (`animator.timeline.trigger`).
   // Writing `animator.trigger` directly used to be discarded on any modern document.
-  const trigger = t && typeof t === 'object' ? t : { start: 'none' };
+  const trigger = t && typeof t === 'object' ? t : { start: 'manual' };
   return applyAnimatorConfig(doc, { timeline: { trigger } }).doc;
 }
 

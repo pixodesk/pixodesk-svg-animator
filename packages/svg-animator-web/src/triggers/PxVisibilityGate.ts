@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PX_TRIGGER_DEFAULTS, PxOffScreenAction, resolveTrigger } from '@pixodesk/svg-animator-core';
+import { PX_TRIGGER_DEFAULTS, PxOutOfViewAction, resolveTrigger } from '@pixodesk/svg-animator-core';
 
 /**
  * THE VISIBILITY GATE — permission to run, separate from whatever starts the animation.
@@ -14,9 +14,9 @@ import { PX_TRIGGER_DEFAULTS, PxOffScreenAction, resolveTrigger } from '@pixodes
  * document says neither and gets both defaults: start on load, pause off screen.
  *
  * Three rules decide everything here:
- *  - OPEN at `visibilityThreshold`, CLOSE only at zero visibility. One value, two edges, so a
+ *  - OPEN at `inViewThreshold`, CLOSE only at zero visibility. One value, two edges, so a
  *    graphic resting on the boundary cannot flap between playing and paused.
- *  - A pending open waits `visibilityDebounce` ms and is cancelled if visibility falls back below
+ *  - A pending open waits `inViewDebounce` ms and is cancelled if visibility falls back below
  *    the threshold, so scrolling straight past a graphic starts nothing.
  *  - A hidden TAB is off screen. `IntersectionObserver` never fires for a hidden tab, so
  *    `visibilitychange` feeds the same state.
@@ -50,9 +50,9 @@ export interface PxVisibilityGate {
 /** The gate's own half of `PX_TRIGGER_DEFAULTS`, for a caller that has props rather than a
  *  document (the CSS-only React and Vue wrappers). @internal */
 export const PLAY_WHEN_VISIBLE_DEFAULTS = {
-    offScreen: PX_TRIGGER_DEFAULTS.offScreen,
-    visibilityThreshold: PX_TRIGGER_DEFAULTS.visibilityThreshold,
-    visibilityDebounce: PX_TRIGGER_DEFAULTS.visibilityDebounce,
+    outOfView: PX_TRIGGER_DEFAULTS.outOfView,
+    inViewThreshold: PX_TRIGGER_DEFAULTS.inViewThreshold,
+    inViewDebounce: PX_TRIGGER_DEFAULTS.inViewDebounce,
 } as const;
 
 /** Granular steps, so the callback fires often enough to notice the threshold being crossed.
@@ -83,7 +83,7 @@ function effectiveRatio(entry: IntersectionObserverEntry): number {
     return denom > 0 ? visible.height / denom : entry.intersectionRatio;
 }
 
-/** A gate that is always open and observes nothing — `offScreen: 'continue'`, or no way to measure. */
+/** A gate that is always open and observes nothing — `outOfView: 'continue'`, or no way to measure. */
 function openGate(host: PxGateHost): PxVisibilityGate {
     return {
         requestStart: () => host.play(),
@@ -93,19 +93,19 @@ function openGate(host: PxGateHost): PxVisibilityGate {
 
 /** Whether visibility governs this document at all. `continue` means "run wherever it is",
  *  which also means it must not WAIT to be seen before starting (review: plan §4 example G). */
-function isGated(offScreen: PxGateTrigger['offScreen']): boolean {
-    return offScreen !== PxOffScreenAction.continue;
+function isGated(outOfView: PxGateTrigger['outOfView']): boolean {
+    return outOfView !== PxOutOfViewAction.continue;
 }
 
 // @px-importance important
 /** Builds the gate for one document. Returns an always-open one when visibility does not govern
  *  it, or when nothing can measure. @internal */
 export function createVisibilityGate(root: Element, trigger: PxGateTrigger, host: PxGateHost): PxVisibilityGate {
-    if (!isGated(trigger.offScreen)) return openGate(host);
+    if (!isGated(trigger.outOfView)) return openGate(host);
     if (typeof IntersectionObserver === 'undefined') return openGate(host);
 
-    const threshold = trigger.visibilityThreshold;
-    const debounceMs = trigger.visibilityDebounce;
+    const threshold = trigger.inViewThreshold;
+    const debounceMs = trigger.inViewDebounce;
 
     /** Enough of it is on screen AND the dwell has elapsed. `undefined` until the first
      *  measurement arrives, so that measurement always counts as a transition — an animation the
@@ -146,7 +146,7 @@ export function createVisibilityGate(root: Element, trigger: PxGateTrigger, host
         // Only act on something that is actually running — including an animation the HOST
         // started through the API, which is why this asks rather than tracking its own flag.
         if (!host.isPlaying()) return;
-        if (trigger.offScreen === PxOffScreenAction.reset) {
+        if (trigger.outOfView === PxOutOfViewAction.reset) {
             host.cancel();   // progress back to 0; the next open replays from the start
         } else {
             host.pause();

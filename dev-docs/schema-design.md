@@ -308,14 +308,14 @@ per-property `loop {segmentCount?, repeatAt?, direction?}` extends keyframes to 
 ### R3 · One clock: root `animator`
 `animator.timeline` — one discriminated object (`type`: `time`, omitted, · `scroll` · `view`). Time:
 `{engine: auto|native|js, frameRate, inTime/outTime (content ms), playDuration, delay, iterations,
-fillMode, finish, direction, trigger {start, offScreen, mouseOut, visibilityThreshold,
-visibilityDebounce}}` — everything temporal that is not per-property. (The flat 2026-08 spelling
+fillMode, finish, direction, trigger {start, outOfView, hoverEnd, inViewThreshold,
+inViewDebounce}}` — everything temporal that is not per-property. (The flat 2026-08 spelling
 below — `duration`, `mode`, `fill`, `resetOnFinish`, `trigger.startOn` — is the history it replaced.)
 `iterations: number | "infinite"` is the ONE sanctioned string-in-number union (CSS
 `animation-iteration-count` familiarity — S10); do not add more mixed unions.
 
 *(Since 2026-09-18 — `plans/trigger-model.md` — `scrollIntoView` is not a start mode; the visibility gate's
-parameters are `visibilityThreshold` / `visibilityDebounce`, flat beside `start` / `offScreen`, the same
+parameters are `inViewThreshold` / `inViewDebounce`, flat beside `start` / `outOfView`, the same
 house style.)* **Mode-specific trigger params stay FLAT and PREFIXED (S7 closed)**: `scrollIntoViewThreshold` sits
 beside `startOn`, not nested under it. Nesting (`trigger.scrollIntoView:{threshold}`) would repeat
 the mode name — once as the enum VALUE, once as the KEY — and be asymmetric, since most modes

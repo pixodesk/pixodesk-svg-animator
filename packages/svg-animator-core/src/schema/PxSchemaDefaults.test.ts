@@ -6,7 +6,7 @@
 // WHAT AN OMITTED FIELD MEANS is stated ONCE, by the schema, and every reader takes it from there:
 // the player when it normalises a document, the Editor when it defaults its model. These pin
 // (1) the query itself, (2) that every optional choice in the wire format STATES its default
-// (an implied "first value" is exactly how `mouseOut` came to mean `continue` to the player and
+// (an implied "first value" is exactly how `hoverEnd` came to mean `continue` to the player and
 // `pause` to the Editor), (3) that the runtime's own fallbacks are the schema's.
 
 import { describe, expect, it } from 'vitest';
@@ -113,14 +113,14 @@ describe('schema.defaults — what an absent field means', () => {
         expect(PxGlyphFontSchema.isValid({ ...font, unitsPerEm: 2048 })).toBe(true);
     });
 
-    it('the reported document: an omitted mouseOut means `pause`, on hover', () => {
+    it('the reported document: an omitted hoverEnd means `pause`, on hover', () => {
         const doc: PxDocument = {
             type: 'svg', viewBox: '0 0 400 400',
-            animator: { timeline: { outTime: 1000, iterations: 1, trigger: { start: 'mouseOver' } } },
+            animator: { timeline: { outTime: 1000, iterations: 1, trigger: { start: 'hover' } } },
             children: [],
         };
-        expect(resolveTrigger(getAnimatorConfig(doc)?.trigger).mouseOut).toBe(PxTriggerSchema.defaults.mouseOut);
-        expect(PxTriggerSchema.defaults.mouseOut).toBe('pause');
+        expect(resolveTrigger(getAnimatorConfig(doc)?.trigger).hoverEnd).toBe(PxTriggerSchema.defaults.hoverEnd);
+        expect(PxTriggerSchema.defaults.hoverEnd).toBe('pause');
     });
 
     it('the document and config roots state no scalar defaults of their own (nothing to drift)', () => {

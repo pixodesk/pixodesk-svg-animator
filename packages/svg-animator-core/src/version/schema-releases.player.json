@@ -136,5 +136,22 @@
   ],
   "removed": [],
   "note": "An `animate` entry may be COMPILED — `{ kind, keyframes }` with explicit values typed by `kind`, no `loop`, no named easing — the low layer the player lowers a document to before playing it (dev-docs/plans/compiled-animation-layer.md). Authored entries are unchanged."
+ },
+ {
+  "version": "1.7",
+  "date": "2026-10-23",
+  "added": [
+   "animator.timeline|time.trigger.hoverEnd",
+   "animator.timeline|time.trigger.inViewDebounce",
+   "animator.timeline|time.trigger.inViewThreshold",
+   "animator.timeline|time.trigger.outOfView"
+  ],
+  "removed": [
+   "animator.timeline|time.trigger.mouseOut",
+   "animator.timeline|time.trigger.offScreen",
+   "animator.timeline|time.trigger.visibilityDebounce",
+   "animator.timeline|time.trigger.visibilityThreshold"
+  ],
+  "note": "Trigger words name the event each key is about (first-use review §21): `start: 'mouseOver'` becomes `'hover'` and `'none'` becomes `'manual'`; `mouseOut` becomes `hoverEnd`; the visibility gate is one \"view\" family — `visibilityThreshold` / `visibilityDebounce` (its opening edge) become `inViewThreshold` / `inViewDebounce`, and `offScreen` (its closing edge) becomes `outOfView`."
  }
 ]

@@ -9,7 +9,7 @@
       "outTime": 1000,
       "trigger": {
         "start": "load",
-        "offScreen": "continue"
+        "outOfView": "continue"
       },
       "iterations": 2,
       "direction": "normal"

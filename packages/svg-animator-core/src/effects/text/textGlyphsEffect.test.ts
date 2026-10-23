@@ -286,7 +286,7 @@ describe('textGlyphsEffect — along-path animated (sliding startOffset)', () =>
     it('at REST every glyph sits where the engine starts it — not stacked on the origin', () => {
         // REGRESSION: the glyphs carry `animate.transform` only. Until a player applied a frame
         // they all sat at the group's origin — every letter stacked on one spot — and under a
-        // `mouseOver` / `none` trigger that is what the user looks at. The pipeline's last stage
+        // `hover` / `manual` trigger that is what the user looks at. The pipeline's last stage
         // gives them their first-frame pose; the startOffset track starts BEFORE 0 here, as
         // converted documents' do, so "the first keyframe" would be the wrong answer.
         const scene = animScene('M0 0L1000 0', [{ time: -500, value: 0 }, { time: 1000, value: 300 }], 'Hi');

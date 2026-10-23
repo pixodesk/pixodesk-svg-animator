@@ -51,10 +51,10 @@ const PxElementAnimationSchema: PxSchema<string | Array<string> | Record<string,
 ]);
 
 const PxTriggerSchema = px.object({
-    start:                px.enum(['load', 'mouseOver', 'click', 'none'] as const).optional(),
-    offScreen:            px.enum(['pause', 'continue', 'reset'] as const).optional(),
-    mouseOut:             px.enum(['continue', 'pause', 'reset', 'reverse'] as const).optional(),
-    visibilityThreshold:  px.number().optional(),
+    start:                px.enum(['load', 'hover', 'click', 'manual'] as const).optional(),
+    outOfView:            px.enum(['pause', 'continue', 'reset'] as const).optional(),
+    hoverEnd:             px.enum(['continue', 'pause', 'reset', 'reverse'] as const).optional(),
+    inViewThreshold:  px.number().optional(),
 });
 
 const PxAnimatorConfigSchema = px.object({
@@ -360,19 +360,19 @@ describe('PxAnimatorConfigSchema', () => {
 
     it('sanitizes: nested trigger repaired, unknown trigger keys stripped', () => {
         expect(PxAnimatorConfigSchema.sanitize({
-            trigger: { offScreen: 'pause', visibilityThreshold: 0.5, garbage: true },
+            trigger: { outOfView: 'pause', inViewThreshold: 0.5, garbage: true },
         })).toStrictEqual({
             ...EMPTY_CONFIG,
             trigger: {
-                offScreen: 'pause',
-                visibilityThreshold: 0.5,
+                outOfView: 'pause',
+                inViewThreshold: 0.5,
                 // garbage stripped
             },
         });
     });
 
     it('sanitizes: unknown trigger start dropped', () => {
-        expect(PxAnimatorConfigSchema.sanitize({ trigger: { start: 'hover' } })).toStrictEqual({
+        expect(PxAnimatorConfigSchema.sanitize({ trigger: { start: 'mouseOver' } })).toStrictEqual({   // the pre-1.7 spelling
             ...EMPTY_CONFIG,
             trigger: EMPTY_TRIGGER,
         });

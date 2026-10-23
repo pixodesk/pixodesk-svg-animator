@@ -22,7 +22,7 @@ native SVG, driven on the UI thread.
 
 - **One prop to render:** put the `.json` next to your component, import it, pass
   it as `doc`.
-- **Playback control:** declarative props (`playAsSaved`, `play`, `pause`,
+- **Playback control:** declarative props (`playOnTrigger`, `play`, `pause`,
   `time`) or an imperative ref (`play()`, `pause()`, `setCurrentTime()`, …).
 - **No size of its own:** it fills whatever `View` you put it in — give that `View` a `width` and `height`.
 
@@ -38,7 +38,7 @@ import animation from './animation.json';
 export function Logo() {
     return (
         <View style={{ width: 200, height: 200 }}>
-            <SvgAnimationPlayer doc={animation} playAsSaved />
+            <SvgAnimationPlayer doc={animation} playOnTrigger />
         </View>
     );
 }
@@ -51,10 +51,10 @@ document says so.
 
 ```tsx
 // Play once when a screen opens, then hold the last frame
-<SvgAnimationPlayer doc={doc} playAsSaved iterations={1} timeline={{ fillMode: 'forwards' }} />
+<SvgAnimationPlayer doc={doc} playOnTrigger iterations={1} timeline={{ fillMode: 'forwards' }} />
 
 // Loop forever regardless of what the document says
-<SvgAnimationPlayer doc={doc} playAsSaved iterations="infinite" />
+<SvgAnimationPlayer doc={doc} playOnTrigger iterations="infinite" />
 
 // Static — first frame only, no playback
 <SvgAnimationPlayer doc={doc} />
@@ -66,10 +66,10 @@ document says so.
 <SvgAnimationPlayer doc={doc} time={scrollProgress} />
 
 // Override the document's timing (window end in ms, delay before start)
-<SvgAnimationPlayer doc={doc} playAsSaved outTime={4000} delay={500} />
+<SvgAnimationPlayer doc={doc} playOnTrigger outTime={4000} delay={500} />
 
 // Do something when it finishes
-<SvgAnimationPlayer doc={doc} playAsSaved onFinish={() => setDone(true)} />
+<SvgAnimationPlayer doc={doc} playOnTrigger onFinish={() => setDone(true)} />
 ```
 
 TypeScript: `doc` accepts `import animation from './animation.json'` as-is (it is typed
@@ -113,7 +113,7 @@ Four ways to drive playback. Pick one — they are mutually exclusive.
 Uses the trigger defined in the animation document (`start: 'load'` plays once it is on screen):
 
 ```tsx
-<SvgAnimationPlayer doc={doc} playAsSaved />
+<SvgAnimationPlayer doc={doc} playOnTrigger />
 ```
 
 ### Declarative play/pause
@@ -166,7 +166,7 @@ const [time, setTime] = useState(0);
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxDocumentInput` | The animation document to render (required); a `.json` import passes as-is |
-| `playAsSaved` | `boolean` | Use the trigger from the document |
+| `playOnTrigger` | `boolean` | Use the trigger from the document |
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
 | `playMode` | `'none' \| 'forwards' \| 'backwards' \| 'both'` | One-shot documents: which pose changes PLAY vs snap (default `forwards`) |
@@ -180,11 +180,11 @@ const [time, setTime] = useState(0);
 | `playDuration` | `number` | Shortcut for `timeline.playDuration` — the window in wall ms |
 | `delay` | `number` | Shortcut for `timeline.delay` (ms) |
 | `iterations` | `number \| 'infinite'` | Shortcut for `timeline.iterations` |
-| `start` | `PxTriggerStart` | Shortcut for `timeline.trigger.start`. `mouseOver` has no touch equivalent and is ignored |
-| `offScreen` | `PxOffScreenAction` | Shortcut for `timeline.trigger.offScreen` |
-| `mouseOut` | `PxMouseOutAction` | Shortcut for `timeline.trigger.mouseOut` (second tap, for `start: 'click'`) |
-| `visibilityThreshold` | `number` | Shortcut for `timeline.trigger.visibilityThreshold` |
-| `visibilityDebounce` | `number` | Shortcut for `timeline.trigger.visibilityDebounce` |
+| `start` | `PxTriggerStart` | Shortcut for `timeline.trigger.start`. `hover` has no touch equivalent and is ignored |
+| `outOfView` | `PxOutOfViewAction` | Shortcut for `timeline.trigger.outOfView` |
+| `hoverEnd` | `PxHoverEndAction` | Shortcut for `timeline.trigger.hoverEnd` (second tap, for `start: 'click'`) |
+| `inViewThreshold` | `number` | Shortcut for `timeline.trigger.inViewThreshold` |
+| `inViewDebounce` | `number` | Shortcut for `timeline.trigger.inViewDebounce` |
 | `onReady` | `() => void` | The player exists and the tree is rendered — once, async |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
@@ -198,7 +198,7 @@ const [time, setTime] = useState(0);
 | `muteError` | `boolean` | the same switch for `console.error` |
 | `fallback` | `(error) => ReactElement \| null` | Rendered in place of a failed animation (default: nothing) |
 
-With none of `playAsSaved` / `play` / `pause` / `progress` / `time` set, the component
+With none of `playOnTrigger` / `play` / `pause` / `progress` / `time` set, the component
 renders the animation statically (initial state, no playback).
 
 ### Failure handling
@@ -211,7 +211,7 @@ Error), exactly as on the web — and shows `fallback` while the surrounding scr
 ```tsx
 <SvgAnimationPlayer
     doc={doc}
-    playAsSaved
+    playOnTrigger
     onError={d => console.warn('animation failed:', d.message)}
     fallback={() => <Text>could not play this animation</Text>}
 />
@@ -228,7 +228,7 @@ renderer never reaches JavaScript and cannot be caught — see
 |---|---|
 | `timeline.engine` | Accepted inside `timeline` but ignored. There is no Web Animations API on React Native; playback is always native-driven. |
 | `timeline.frameRate` | Ignored. The screen's own refresh rate is used. The player does not compute values frame by frame: when the document loads it works out the animated values in advance, as a list of snapshots (60 per second of animation), and each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, which the player fixes at 60. |
-| `start: 'mouseOver'` | Has no touch equivalent, so it is not honored. The other three values (`load`, `click`, `none`) work as they do on the web, from the file or from the `start` prop. |
+| `start: 'hover'` | Has no touch equivalent, so it is not honored. The other three values (`load`, `click`, `manual`) work as they do on the web, from the file or from the `start` prop. |
 | `className` / `style` | Not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height`. Styling *inside* the document (`style` on an element in the JSON) is supported. |
 | `onDestroy` | Never called. On the web it tells you the player was thrown away; here there is nothing to tell — when the component leaves the screen, React removes it and everything it created. To run code at that moment, use a `useEffect` cleanup function in your own component. |
 
@@ -336,8 +336,8 @@ player sees plain nodes. **All are supported:**
 | `setPlaybackRate` — faster, slower and **reverse** (negative) | ✅ | composes with `direction` |
 | Trigger `load` / `programmatic` | ✅ | |
 | Trigger `click` | ✅ | wrapped in a `Pressable`; a second tap pauses |
-| Visibility gate | ✅ | visibility sampled by measuring against the window (React Native has no `IntersectionObserver`); honors `visibilityThreshold` and `offScreen` |
-| Trigger `mouseOver` | ❌ | no touch equivalent — use `click`, or drive `play` yourself |
+| Visibility gate | ✅ | visibility sampled by measuring against the window (React Native has no `IntersectionObserver`); honors `inViewThreshold` and `outOfView` |
+| Trigger `hover` | ❌ | no touch equivalent — use `click`, or drive `play` yourself |
 | `timeline.frameRate` | n/a | reanimated runs at the display refresh rate; the player prepares 60 snapshots per second of animation |
 | `timeline.engine` (`auto` / `native` / `js`) | n/a | there is no Web Animations API on React Native — playback is always native-driven |
 
@@ -350,7 +350,7 @@ player sees plain nodes. **All are supported:**
   iOS/Android.
 - **animated `gradientTransform`** is unimplemented
   in the core, so they are unavailable here too.
-- **`mouseOver`** has no touch analogue and will not be implemented.
+- **`hover`** has no touch analogue and will not be implemented.
 - **Text on a closed path is worked around, not fixed.** react-native-svg's
   native text-on-path layout crashes the app (an `NSRangeException` on iOS) when
   a `<textPath>` has a non-zero `startOffset` on a *closed* path: it bounds

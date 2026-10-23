@@ -31,7 +31,7 @@ than folded away. When a record and the code disagree, the code (and its tests) 
 |---|---|
 | [reviews/api-schema-review.md](reviews/api-schema-review.md) | the player API review (2026-09-08 → 2026-09-13), 25 items, all closed: one control-mode rule, one diagnostics channel, one meaning of time, `doc` / `timeline` / inline callbacks |
 | [reviews/api-surface-review.md](reviews/api-surface-review.md) | the export surface (2026-09-13), all closed: audience tags on every export, who consumes what, the `/internal` entries, the renames (§26 and §6), the checks that keep "public" meaning "documented" |
-| [reviews/first-use-review.md](reviews/first-use-review.md) | the API, the schema and the docs read as a newcomer would (2026-10-15): §1–§17c done (one start rule, `playAsSaved`, the content window, typed documents, one pipeline, no WeakMaps, no `any`); §18 ("SVG animation player" names), §19 (`PxDocument`) and §20 (`createSvgAnimationPlayersFromPage`) done; open: §21–26, 6 on how the guides read, 12 wrong statements in the docs |
+| [reviews/first-use-review.md](reviews/first-use-review.md) | the API, the schema and the docs read as a newcomer would (2026-10-15): §1–§17c done (one start rule, `playOnTrigger`, the content window, typed documents, one pipeline, no WeakMaps, no `any`); §18 ("SVG animation player" names), §19 (`PxDocument`), §20 (`createSvgAnimationPlayersFromPage`) and §21 (trigger words, wire 1.7) done; open: §22–26, 6 on how the guides read, 12 wrong statements in the docs |
 
 ## Code layout and architecture
 
@@ -55,7 +55,7 @@ than folded away. When a record and the code disagree, the code (and its tests) 
 
 | doc | what it is |
 |---|---|
-| [plans/trigger-model.md](plans/trigger-model.md) | **implemented 2026-09-18** — the `timeline.trigger` block rewritten: bare keys (`start`, `offScreen`, `mouseOut`, `finish`, plus `visibilityThreshold` and `visibilityDebounce`), `scrollIntoView` retired as a trigger, defaults that do not play off screen, schema 1.1 → 1.2 with a conversion step. One open defect in §11. (`finish` later moved to `timeline.finish`, schema 1.4) |
+| [plans/trigger-model.md](plans/trigger-model.md) | **implemented 2026-09-18**, keys renamed in wire 1.7 (first-use review §21) — the `timeline.trigger` block rewritten: bare keys (`start`, `offScreen`, `mouseOut`, `finish`, plus `visibilityThreshold` and `visibilityDebounce`), `scrollIntoView` retired as a trigger, defaults that do not play off screen, schema 1.1 → 1.2 with a conversion step. One open defect in §11. (`finish` later moved to `timeline.finish`, schema 1.4) |
 | [plans/playback-override.md](plans/playback-override.md) | per-instance playback override and two prop renames — implemented 2026-09-09; steps 7–8 dropped by decision D6 |
 | [plans/rn-core.md](plans/rn-core.md) | the split that produced today's layout: the platform-neutral `svg-animator-core`, and `svg-animator-rn` built on it |
 | [plans/prepare-document-pipeline.md](plans/prepare-document-pipeline.md) | **implemented 2026-10-21** — one staged pipeline `prepareDocument` (`current` → `checked` → `resolved` → `plain`) with a stamp on each result; the module-level WeakMaps deleted |

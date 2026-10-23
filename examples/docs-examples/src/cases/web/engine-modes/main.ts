@@ -7,5 +7,5 @@ const withEngine = (engine: 'native' | 'js') => ({
   animator: { ...animation.animator, timeline: { ...animation.animator.timeline, engine, iterations: 'infinite' } },
 });
 
-createSvgAnimationPlayer({ doc: withEngine('native') as any, container: '#waapi', playAsSaved: true });
-createSvgAnimationPlayer({ doc: withEngine('js') as any, container: '#frames', playAsSaved: true });
+createSvgAnimationPlayer({ doc: withEngine('native') as any, container: '#waapi', playOnTrigger: true });
+createSvgAnimationPlayer({ doc: withEngine('js') as any, container: '#frames', playOnTrigger: true });

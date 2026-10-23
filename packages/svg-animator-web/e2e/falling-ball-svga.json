@@ -11,7 +11,7 @@
       "outTime": 1000,
       "trigger": {
         "start": "click",
-        "offScreen": "continue"
+        "outOfView": "continue"
       },
       "iterations": 1,
       "direction": "normal"

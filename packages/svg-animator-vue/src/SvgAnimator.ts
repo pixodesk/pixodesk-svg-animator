@@ -7,7 +7,7 @@
 import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxPlaybackOverride, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, applyDeclarativeAction, createIterationStopWatcher, foldTimelineOverride, toPxDocument, type PxDocumentInput, type PxMouseOutAction, type PxOffScreenAction, getAnimatorConfig, PxDeclarativeAction, type PxDeclarativeProps, PxDiagnosticCode, PxControlMode, PxFillMode, PxPlaybackWorld, PxPlayMode, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorConfigPatch, type PxAnimationPlayerHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, applyDeclarativeAction, createIterationStopWatcher, foldTimelineOverride, toPxDocument, type PxDocumentInput, type PxHoverEndAction, type PxOutOfViewAction, getAnimatorConfig, PxDeclarativeAction, type PxDeclarativeProps, PxDiagnosticCode, PxControlMode, PxFillMode, PxPlaybackWorld, PxPlayMode, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorConfigPatch, type PxAnimationPlayerHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
@@ -54,14 +54,14 @@ function applyDocOverrides(
 ): PxDocument {
 
     // ONE patch, applied ONCE: the props, plus the component's own need to take the trigger
-    // over in the non-playAsSaved control modes.
+    // over in the non-playOnTrigger control modes.
     //
     // This replaces three hand-rolled spread blocks that wrote the FLAT runtime keys. On a
     // wire-format document — which is what every writer emits — `resolveAnimatorTimeline`
     // overwrote them from `timeline` immediately afterwards, so the overrides were silently
     // discarded. See dev-docs/plans/playback-override.md §1.1.
-    const { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce } = props;
-    const patch = foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce });
+    const { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, outOfView, hoverEnd, inViewThreshold, inViewDebounce } = props;
+    const patch = foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start, outOfView, hoverEnd, inViewThreshold, inViewDebounce });
     const fullPatch: PxAnimatorConfigPatch | undefined = controlModeTakesOverTrigger(compMode) ? suppressTriggerStart(patch) : patch;
 
     if (fullPatch !== undefined || resetTimeline) {
@@ -116,7 +116,7 @@ function calcSeekMs(doc: PxDocument, props: DocOverrideProps): number | undefine
  *
  * 1. **Autoplay** – uses triggers from the animation document.
  *    ```vue
- *    <SvgAnimationPlayer :doc="animation" playAsSaved />
+ *    <SvgAnimationPlayer :doc="animation" playOnTrigger />
  *    ```
  *
  * 2. **Declarative play/pause** – controlled via boolean props.
@@ -153,14 +153,14 @@ const SvgAnimationPlayer = defineComponent({
         playDuration: { type: Number },
         delay: { type: Number },
         iterations: { type: [Number, String] as PropType<number | 'infinite'> },
-        start: { type: String as PropType<'load' | 'mouseOver' | 'click' | 'none'> },
-        offScreen: { type: String as PropType<PxOffScreenAction> },
-        mouseOut: { type: String as PropType<PxMouseOutAction> },
-        visibilityThreshold: { type: Number },
-        visibilityDebounce: { type: Number },
+        start: { type: String as PropType<'load' | 'hover' | 'click' | 'manual'> },
+        outOfView: { type: String as PropType<PxOutOfViewAction> },
+        hoverEnd: { type: String as PropType<PxHoverEndAction> },
+        inViewThreshold: { type: Number },
+        inViewDebounce: { type: Number },
 
         // -- Declarative control
-        playAsSaved: { type: Boolean, default: undefined },
+        playOnTrigger: { type: Boolean, default: undefined },
         play: { type: Boolean, default: undefined },
         pause: { type: Boolean, default: undefined },
         playMode: { type: String as PropType<PxPlayMode | `${PxPlayMode}`> },
@@ -208,7 +208,7 @@ const SvgAnimationPlayer = defineComponent({
         // input: it is exposed in every mode and never changes which one is chosen.
         const resolvedMode = computed(() => resolveControlMode({
             progress: props.progress, time: props.time,
-            play: props.play, pause: props.pause, playAsSaved: props.playAsSaved,
+            play: props.play, pause: props.pause, playOnTrigger: props.playOnTrigger,
         }));
         const compMode = computed<PxControlMode>(() => resolvedMode.value.mode);
 
@@ -266,7 +266,7 @@ const SvgAnimationPlayer = defineComponent({
                 doc,
                 // The component resolved its control mode and patched `doc` above — the web player
                 // must not add its own no-driver suppression on top (first-use review §1+2).
-                playAsSaved: true,
+                playOnTrigger: true,
                 // Mounted (or `flush: 'post'`) by the time this runs, so the root exists.
                 rootElement: rootElement ?? undefined,
                 onReady:  () => emit('ready'),
@@ -370,7 +370,7 @@ const SvgAnimationPlayer = defineComponent({
         // Recreate the animator when the resolved doc changes.
         // `flush: 'post'` — the animator must be created AFTER the DOM is
         // patched, otherwise the new root element isn't in the document yet
-        // and trigger setup fails (playAsSaved would never resume after a doc swap).
+        // and trigger setup fails (playOnTrigger would never resume after a doc swap).
         watch(resolvedDoc, () => createApi(), { flush: 'post' });
 
         // Sync declarative play/pause props with the animator.

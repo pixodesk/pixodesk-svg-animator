@@ -94,12 +94,12 @@ import animationDoc from './bouncing-ball.json';
 const player = createSvgAnimationPlayer({
   src: '/bouncing-ball.json',
   container: '#hero',
-  playAsSaved: true,            // play the way the editor saved it; without it, nothing starts
+  playOnTrigger: true,            // play the way the editor saved it; without it, nothing starts
   onFinish: () => console.log('done'),
 });
 
 // or from a document object you already have — imported, fetched, or built in code
-const player2 = createSvgAnimationPlayer({ doc: animationDoc, container: document.getElementById('hero'), playAsSaved: true });
+const player2 = createSvgAnimationPlayer({ doc: animationDoc, container: document.getElementById('hero'), playOnTrigger: true });
 
 player.play();
 ```
@@ -116,7 +116,7 @@ player.play();
 function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxAnimationPlayerApi;
 
 interface PxAnimationPlayerOptions {
-    playAsSaved?: boolean;                 // play the way the editor saved it — the document's own
+    playOnTrigger?: boolean;                 // play the way the editor saved it — the document's own
                                            //   trigger starts and gates playback. WITHOUT it the
                                            //   player builds still (trigger start forced to
                                            //   'none') and the returned api drives it
@@ -148,13 +148,13 @@ interface PxAnimationPlayerOptions {
     playDuration?: number;                // ▸ timeline.playDuration — the window in wall ms (slower / faster)
     delay?: number;                        // ▸ timeline.delay, ms; negative skips ahead
     iterations?: number | 'infinite';      // ▸ timeline.iterations
-    start?: 'load' | 'mouseOver' | 'click' | 'none';
+    start?: 'load' | 'hover' | 'click' | 'manual';
                                            // ▸ timeline.trigger.start — a shortcut wins over
                                            //   the same key in `timeline`
-    offScreen?: PxOffScreenAction;         // ▸ timeline.trigger.offScreen
-    mouseOut?: PxMouseOutAction;           // ▸ timeline.trigger.mouseOut (for start: 'mouseOver')
-    visibilityThreshold?: number;          // ▸ timeline.trigger.visibilityThreshold (0–1)
-    visibilityDebounce?: number;           // ▸ timeline.trigger.visibilityDebounce (ms)
+    outOfView?: PxOutOfViewAction;         // ▸ timeline.trigger.outOfView
+    hoverEnd?: PxHoverEndAction;           // ▸ timeline.trigger.hoverEnd (for start: 'hover')
+    inViewThreshold?: number;          // ▸ timeline.trigger.inViewThreshold (0–1)
+    inViewDebounce?: number;           // ▸ timeline.trigger.inViewDebounce (ms)
 }
 ```
 
@@ -163,7 +163,7 @@ what starts the animation and the engine from the `animator` block inside the JS
 settings you chose in the editor. So a file plays the way it was designed.
 
 `timeline` is there for when one page needs it to play differently — the same file mounted twice
-at two speeds. For your own transport UI there is nothing to override: just leave `playAsSaved`
+at two speeds. For your own transport UI there is nothing to override: just leave `playOnTrigger`
 out, and nothing starts until you say so:
 
 ```js
@@ -272,7 +272,7 @@ import doc from './bouncing-ball.json';
 createSvgAnimationPlayer({
   doc: doc,
   container: '#box',
-  playAsSaved: true,
+  playOnTrigger: true,
   onPlay:   () => {},   // started or resumed
   onPause:  () => {},   // paused
   onCancel: () => {},   // canceled (reset)
@@ -290,10 +290,10 @@ createSvgAnimationPlayer({
 
 > **Example:** [`web/triggers`](../../examples/docs-examples/src/cases/web/triggers/) — `pnpm example:docs`, then open `#web/triggers`.
 
-If the document says `trigger.start: 'click'` (or `'mouseOver'`), the player listens for that
-event on the rendered SVG for you, and `mouseOut` (pause / continue / reset / reverse) is
-honored. With `'load'` it starts as soon as enough of it is on screen (`visibilityThreshold`),
-and with the default `offScreen: 'pause'` it pauses while scrolled out of view. With `'none'`
+If the document says `trigger.start: 'click'` (or `'hover'`), the player listens for that
+event on the rendered SVG for you, and `hoverEnd` (pause / continue / reset / reverse) is
+honored. With `'load'` it starts as soon as enough of it is on screen (`inViewThreshold`),
+and with the default `outOfView: 'pause'` it pauses while scrolled out of view. With `'none'`
 nothing happens until you call `play()`.
 
 `setupAnimationTriggers(api, triggerConfig)` is exported for one rare case: you have replaced
@@ -347,8 +347,8 @@ the second copy fresh ids yourself:
 // Two copies of one animation on a page (ids must stay unique)
 import { createSvgAnimationPlayer, generateNewIds } from '@pixodesk/svg-animator-web';
 
-createSvgAnimationPlayer({ doc: doc, container: '#first', playAsSaved: true });
-createSvgAnimationPlayer({ doc: generateNewIds(doc), container: '#second', playAsSaved: true });
+createSvgAnimationPlayer({ doc: doc, container: '#first', playOnTrigger: true });
+createSvgAnimationPlayer({ doc: generateNewIds(doc), container: '#second', playOnTrigger: true });
 ```
 
 ## Every player on the page (experimental)
@@ -446,19 +446,19 @@ function getSvgAnimationPlayer(element: Element): PxAnimationPlayerApi | undefin
 // with the old elements). To change the trigger, use `timeline`. Returns a DISPOSER that
 // detaches everything this call attached — call it before re-arming an element you
 // wired by hand, or the old listeners stay live next to the new ones. Reads `start` /
-// `mouseOut` / `visibilityThreshold`; `finish` is the player's, not the
+// `hoverEnd` / `inViewThreshold`; `finish` is the player's, not the
 // trigger wiring's. `diag` is optional: omit it and anything this has to say goes to
 // the console.
 function setupAnimationTriggers(api: PxEngineAnimationPlayerApi, trigger: PxTrigger,
                                 diag?: PxDiagnostics): () => void;
 
 interface PxTrigger {                                  // also a wire type — the JSON format page
-    start?: 'load' | 'mouseOver' | 'click' | 'none';   // what STARTS it; default 'load';
-                                                       //   'none' waits for play()
-    offScreen?: 'pause' | 'continue' | 'reset';        // while nobody can see it; default 'pause'
-    mouseOut?: 'continue' | 'pause' | 'reset' | 'reverse'; // pointer leaves; default 'continue'
-    visibilityThreshold?: number;                      // 0–1 visible ratio; default 0.5; 0 = any visible pixel
-    visibilityDebounce?: number;                       // ms it must hold first; default 150
+    start?: 'load' | 'hover' | 'click' | 'manual';   // what STARTS it; default 'load';
+                                                       //   'manual' waits for play()
+    outOfView?: 'pause' | 'continue' | 'reset';        // while nobody can see it; default 'pause'
+    hoverEnd?: 'continue' | 'pause' | 'reset' | 'reverse'; // pointer leaves; default 'continue'
+    inViewThreshold?: number;                      // 0–1 visible ratio; default 0.5; 0 = any visible pixel
+    inViewDebounce?: number;                       // ms it must hold first; default 150
 }
 ```
 
@@ -505,7 +505,7 @@ exporter) builds the call from `PX_PLAYER_GLOBAL`, `PX_PLAYER_CREATE` and `PX_PL
 | `generateNewIds` | ○ document tooling — see [the core library](../format/README.md#core-library--pixodesksvg-animator-core) |
 | `PX_ANIMATOR_DOC_KEY` | ▪ attribute and property names the player writes |
 | `PX_PLAYER_GLOBAL`, `PX_PLAYER_CREATE`, `PX_PLAYER_BIND` | ○ the `<script>` builds' global (`'Pixodesk.SvgAnimator'`) and its two members, `'create'` and `'bind'` — for tools that emit a call to it |
-| `createVisibilityGate(root, trigger, host)`, `PLAY_WHEN_VISIBLE_DEFAULTS`, `PxVisibilityGate`, `PxGateHost`, `PxGateTrigger` | ▪ the gate `setupAnimationTriggers` wires for every document — it opens at `visibilityThreshold`, closes only at zero visibility, waits out `visibilityDebounce` and treats a hidden tab as off screen. Exported so the CSS-only React and Vue wrappers gate on the same rules rather than each growing their own observer |
+| `createVisibilityGate(root, trigger, host)`, `PLAY_WHEN_VISIBLE_DEFAULTS`, `PxVisibilityGate`, `PxGateHost`, `PxGateTrigger` | ▪ the gate `setupAnimationTriggers` wires for every document — it opens at `inViewThreshold`, closes only at zero visibility, waits out `inViewDebounce` and treats a hidden tab as off screen. Exported so the CSS-only React and Vue wrappers gate on the same rules rather than each growing their own observer |
 | `px`, `PxNodeBaseSchema`, `PxSvgNodeRootSchema`, `PxAnimatorConfigSchema`, `PxTriggerSchema`, `PxScrollSchema`, `PxDefinitionsSchema`, `PxSchema`, `PxInfer`, `PxValidationContext` | ○ the schema toolkit, re-exported from core — the schema values and the types to build on them |
 | `PxDiagnosticsConfig`, `PxDiagnostic`, `PxDiagnosticKind` | ● the diagnostics every player shares — re-exported for the React and Vue components; spelled out in [the API at a glance](./README.md#the-api-at-a-glance) |
 | `PxTimelineEngineSetting`, `PxFillMode`, `PxPlaybackDirection`, `PxTriggerStart` | ● named wire values — one const per wire enum, with the string type derived from it under the same name. `PxTimelineEngineSetting` is what `timeline.engine` accepts (`auto` · `native` · `js`); `PxTimelineEngine` is the resolved engine (`native` · `js`), the argument of `materializeAllInTree`, never an option. `PxUnits` covers `gradientUnits` and the mask units alike |

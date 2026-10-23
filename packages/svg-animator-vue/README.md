@@ -25,7 +25,7 @@ Uses triggers defined in the animation document (load, click, hover, scroll):
 
 ```vue
 <template>
-  <SvgAnimationPlayer :doc="animationDoc" playAsSaved />
+  <SvgAnimationPlayer :doc="animationDoc" playOnTrigger />
 </template>
 ```
 
@@ -84,7 +84,7 @@ Render a single frame — by time in milliseconds, or by fraction of the whole t
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxDocumentInput` | The animation document to render (required); a `.json` import passes as-is |
-| `playAsSaved` | `boolean` | Use triggers from the document |
+| `playOnTrigger` | `boolean` | Use triggers from the document |
 | `play` | `boolean` | Start playback, ignoring document triggers |
 | `pause` | `boolean` | Pause current playback |
 | `playMode` | `'none' \| 'forwards' \| 'backwards' \| 'both'` | One-shot documents: which pose changes PLAY vs snap (default `forwards`) |
@@ -97,17 +97,17 @@ Render a single frame — by time in milliseconds, or by fraction of the whole t
 | `playDuration` | `number` | Shortcut for `timeline.playDuration` — the window in wall ms |
 | `delay` | `number` | Shortcut for `timeline.delay` (ms) |
 | `iterations` | `number \| 'infinite'` | Shortcut for `timeline.iterations` |
-| `start` | `'load' \| 'mouseOver' \| 'click' \| 'none'` | Shortcut for `timeline.trigger.start` |
-| `offScreen` | `PxOffScreenAction` | Shortcut for `timeline.trigger.offScreen` |
-| `mouseOut` | `PxMouseOutAction` | Shortcut for `timeline.trigger.mouseOut` |
-| `visibilityThreshold` | `number` | Shortcut for `timeline.trigger.visibilityThreshold` |
-| `visibilityDebounce` | `number` | Shortcut for `timeline.trigger.visibilityDebounce` |
+| `start` | `'load' \| 'hover' \| 'click' \| 'manual'` | Shortcut for `timeline.trigger.start` |
+| `outOfView` | `PxOutOfViewAction` | Shortcut for `timeline.trigger.outOfView` |
+| `hoverEnd` | `PxHoverEndAction` | Shortcut for `timeline.trigger.hoverEnd` |
+| `inViewThreshold` | `number` | Shortcut for `timeline.trigger.inViewThreshold` |
+| `inViewDebounce` | `number` | Shortcut for `timeline.trigger.inViewDebounce` |
 | `onWarn` | `(diagnostic) => void` | it plays, but something was ignored, degraded or misspelled; without it → `console.warn` (a prop, not an event — see below) |
 | `onError` | `(diagnostic) => void` | this instance will not play — failed to load, parse or build, or the render threw; without it → `console.error` |
 | `muteWarn` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarn`, if you gave it, still fires: mute is about the console, not about you |
 | `muteError` | `boolean` | the same switch for `console.error` |
 
-With none of `playAsSaved` / `play` / `pause` / `progress` / `time` set, the component renders the animation statically (initial state, no playback); use the template ref for imperative control.
+With none of `playOnTrigger` / `play` / `pause` / `progress` / `time` set, the component renders the animation statically (initial state, no playback); use the template ref for imperative control.
 
 Note: passing a different `doc` (or unmounting) throws the old player away and builds a new one; the old instance emits `cancel`, `destroy`, and `stop` on its way out. Changing `progress` / `time` does **not** recreate the animator — it just jumps the existing one to the new time.
 

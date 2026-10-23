@@ -1,6 +1,6 @@
 import './style.css';
 import { type PxDocument, type PxTrigger } from '@pixodesk/svg-animator-web';
-import { getAnimatorConfig, isPxDocument, PxOffScreenAction, PxTriggerStart } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, isPxDocument, PxOutOfViewAction, PxTriggerStart } from '@pixodesk/svg-animator-core';
 
 import { createWebPlayer } from './players/web';
 import { createReactPlayer } from './players/react';
@@ -55,11 +55,11 @@ const chkUseTrigger = $<HTMLInputElement>('chk-use-trigger');
 const triggerConfigEl = $('trigger-config');
 const chkFileConfig = $<HTMLInputElement>('chk-file-config');
 const selStartOn = $<HTMLSelectElement>('sel-start-on');
-const selOutAction = $<HTMLSelectElement>('sel-out-action');
-const selOffScreen = $<HTMLSelectElement>('sel-off-screen');
+const selHoverEnd = $<HTMLSelectElement>('sel-hover-end');
+const selOutOfView = $<HTMLSelectElement>('sel-out-of-view');
 const inpThreshold = $<HTMLInputElement>('inp-threshold');
 const inpDebounce = $<HTMLInputElement>('inp-debounce');
-const mouseOutField = $('out-action-field');
+const hoverEndField = $('hover-end-field');
 const thresholdField = $('threshold-field');
 const debounceField = $('debounce-field');
 
@@ -187,12 +187,12 @@ function currentTriggerOption(): PlayerOptions['trigger'] {
   if (useFileConfig) return 'file';
   // TWO AXES: what STARTS it, and whether it may RUN.
   const start = selStartOn.value as PxTrigger['start'];
-  const offScreen = selOffScreen.value as PxTrigger['offScreen'];
-  const trigger: PxTrigger = { start, offScreen };
-  if (start === 'mouseOver') trigger.mouseOut = selOutAction.value as PxTrigger['mouseOut'];
-  if (offScreen !== 'continue') {
-    trigger.visibilityThreshold = Number(inpThreshold.value);
-    trigger.visibilityDebounce = Number(inpDebounce.value);
+  const outOfView = selOutOfView.value as PxTrigger['outOfView'];
+  const trigger: PxTrigger = { start, outOfView };
+  if (start === 'hover') trigger.hoverEnd = selHoverEnd.value as PxTrigger['hoverEnd'];
+  if (outOfView !== 'continue') {
+    trigger.inViewThreshold = Number(inpThreshold.value);
+    trigger.inViewDebounce = Number(inpDebounce.value);
   }
   return trigger;
 }
@@ -208,24 +208,24 @@ function syncTriggerUi(): void {
     // Show the file's config, read-only.
     const fileTrigger = currentDoc ? getAnimatorConfig(currentDoc)?.trigger : undefined;
     selStartOn.value =
-      fileTrigger?.start && fileTrigger.start !== 'none' ? fileTrigger.start : 'load';
-    selOffScreen.value = fileTrigger?.offScreen ?? 'pause';
-    selOutAction.value = fileTrigger?.mouseOut ?? 'continue';
-    if (fileTrigger?.visibilityThreshold != null) {
-      inpThreshold.value = String(fileTrigger.visibilityThreshold);
+      fileTrigger?.start && fileTrigger.start !== 'manual' ? fileTrigger.start : 'load';
+    selOutOfView.value = fileTrigger?.outOfView ?? 'pause';
+    selHoverEnd.value = fileTrigger?.hoverEnd ?? 'continue';
+    if (fileTrigger?.inViewThreshold != null) {
+      inpThreshold.value = String(fileTrigger.inViewThreshold);
     }
-    if (fileTrigger?.visibilityDebounce != null) {
-      inpDebounce.value = String(fileTrigger.visibilityDebounce);
+    if (fileTrigger?.inViewDebounce != null) {
+      inpDebounce.value = String(fileTrigger.inViewDebounce);
     }
   }
   // "From file" → fields are read-only; custom → editable.
-  for (const el of [selStartOn, selOffScreen, selOutAction, inpThreshold, inpDebounce]) {
+  for (const el of [selStartOn, selOutOfView, selHoverEnd, inpThreshold, inpDebounce]) {
     el.disabled = useFileConfig;
   }
 
-  // `mouseOut` is read only for a hover start; the visibility pair only while there IS a gate.
-  mouseOutField.hidden = selStartOn.value !== 'mouseOver';
-  const gated = selOffScreen.value !== 'continue';
+  // `hoverEnd` is read only for a hover start; the visibility pair only while there IS a gate.
+  hoverEndField.hidden = selStartOn.value !== 'hover';
+  const gated = selOutOfView.value !== 'continue';
   thresholdField.hidden = !gated;
   debounceField.hidden = !gated;
 }
@@ -249,10 +249,10 @@ type UserAction = keyof typeof USER_ACTION_HINTS;
 
 function userActionForTrigger(trigger: PxTrigger | undefined): UserAction | undefined {
   switch (trigger?.start ?? PxTriggerStart.load) {
-    case PxTriggerStart.mouseOver: return 'hover';
+    case PxTriggerStart.hover: return 'hover';
     case PxTriggerStart.click: return 'click';
-    case PxTriggerStart.none: return 'play';
-    case PxTriggerStart.load: return trigger?.offScreen === PxOffScreenAction.continue ? undefined : 'scrollIntoView';
+    case PxTriggerStart.manual: return 'play';
+    case PxTriggerStart.load: return trigger?.outOfView === PxOutOfViewAction.continue ? undefined : 'scrollIntoView';
   }
 }
 
@@ -341,10 +341,10 @@ function loadDocument(doc: PxDocument, sourceLabel: string): void {
   currentDoc = doc;
   filenameEl.textContent = sourceLabel;
   // Auto-detect the trigger mode from the loaded file: a REAL trigger turns "Use trigger" ON
-  // and reads its config from the file; `none` (or no trigger at all) leaves it OFF so the
+  // and reads its config from the file; `manual` (or no trigger at all) leaves it OFF so the
   // transport buttons drive playback.
   const fileStart = getAnimatorConfig(doc)?.trigger?.start;
-  useTrigger = !!fileStart && fileStart !== 'none';
+  useTrigger = !!fileStart && fileStart !== 'manual';
   useFileConfig = true;
   remount();
 }
@@ -401,7 +401,7 @@ chkFileConfig.addEventListener('change', () => {
   remount();
 });
 // Editing a custom trigger config re-creates the animator with it.
-for (const el of [selStartOn, selOutAction, inpThreshold]) {
+for (const el of [selStartOn, selHoverEnd, inpThreshold]) {
   el.addEventListener('change', () => {
     if (useTrigger && !useFileConfig) remount();
   });

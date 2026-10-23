@@ -29,7 +29,7 @@ class StubAnimation {
     finish(): void { this.playState = 'finished'; }
 }
 
-function doc(trigger?: { start: 'none' }): PxDocument {
+function doc(trigger?: { start: 'manual' }): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
@@ -55,12 +55,12 @@ afterEach(() => {
 describe('WAAPI engine — trigger wiring', () => {
 
     it('a document with no trigger starts on load', () => {
-        const api = createSvgAnimationPlayer({ playAsSaved: true, doc: doc(), container: '#stage' });
+        const api = createSvgAnimationPlayer({ playOnTrigger: true, doc: doc(), container: '#stage' });
         expect(api.isPlaying()).toBe(true);
     });
 
     it('an explicit programmatic trigger still waits for play()', () => {
-        const api = createSvgAnimationPlayer({ playAsSaved: true, doc: doc({ start: 'none' }), container: '#stage' });
+        const api = createSvgAnimationPlayer({ playOnTrigger: true, doc: doc({ start: 'manual' }), container: '#stage' });
         expect(api.isPlaying()).toBe(false);
         api.play();
         expect(api.isPlaying()).toBe(true);

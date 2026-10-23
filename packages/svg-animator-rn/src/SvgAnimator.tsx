@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createIterationStopWatcher, createRunClock, toPxDocument, type PxDocumentInput, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, PxPlayMode, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, resolveTrigger, PxTimelineEngine, PxControlMode, resolveControlMode, PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
+import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createIterationStopWatcher, createRunClock, toPxDocument, type PxDocumentInput, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, PxPlayMode, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, resolveTrigger, PxTimelineEngine, PxControlMode, resolveControlMode, PxFillMode, type PxHoverEndAction, type PxPlaybackDirection, type PxDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
 import { carryPrep, deepEquals, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
@@ -66,7 +66,7 @@ export interface SvgAnimationPlayerProps
 
     /**
      * Ref populated with the imperative playback API. Filled in EVERY mode and never picks one
-     * (review §1): `playAsSaved` next to it still autoplays.
+     * (review §1): `playOnTrigger` next to it still autoplays.
      */
     apiRef?: React.RefObject<PxAnimationPlayerHandle | null>;
 
@@ -248,7 +248,7 @@ const EMPTY_TRACKS: PxCompiledTracks = {
  * whole thing sits behind one try/catch, and so it can be tested directly.
  */
 function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFill: boolean, diag: PxDiagnostics): Compiled {
-    const { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce } = overrides;
+    const { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, outOfView, hoverEnd, inViewThreshold, inViewDebounce } = overrides;
     // Migrate + check ONCE — the same `checked` stage and reporting as the web player's entry.
     const onProblems = (problems: Parameters<typeof reportDocumentProblems>[0]) => reportDocumentProblems(problems, diag);
     doc = prepareDocument(doc, { stage: PxDocStage.checked, onProblems });
@@ -260,7 +260,7 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
     // The per-instance override, applied to the WIRE document BEFORE anything reads the
     // config — `materializeAllInTree` samples motion paths against `duration`, so a later
     // patch would be read by none of the pipeline. Same call, same rules, on every surface.
-    const patch = foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start, offScreen, mouseOut, visibilityThreshold, visibilityDebounce });
+    const patch = foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start, outOfView, hoverEnd, inViewThreshold, inViewDebounce });
     if (patch !== undefined || resetTimeline) {
         const applied = applyAnimatorConfig(doc, patch ?? {}, { resetTimeline: !!resetTimeline });
         for (const w of applied.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
@@ -315,8 +315,8 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
 export function SvgAnimationPlayer({
     doc, timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start,
     // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
-    playAsSaved, play, pause, playMode, completeIteration, apiRef, progress: progressProp, time,
-    offScreen: offScreenProp, mouseOut: mouseOutProp, visibilityThreshold: visibilityThresholdProp, visibilityDebounce: visibilityDebounceProp,
+    playOnTrigger, play, pause, playMode, completeIteration, apiRef, progress: progressProp, time,
+    outOfView: offScreenProp, hoverEnd: mouseOutProp, inViewThreshold: visibilityThresholdProp, inViewDebounce: visibilityDebounceProp,
     onReady, onPlay, onStop, onPause, onCancel, onFinish, onDestroy, onError, fallback, onWarn, muteWarn, muteError,
 }: SvgAnimationPlayerProps): ReactElement | null {
 
@@ -350,13 +350,13 @@ export function SvgAnimationPlayer({
     // ONE control-mode rule, decided in core and shared with React and Vue (API review §1/§7) —
     // resolved BEFORE compilation, because the play tier's pose contract pins `fillMode` there.
     const { mode: compMode, warnings: modeWarnings } =
-        resolveControlMode({ progress: progressProp, time, play, pause, playAsSaved });
+        resolveControlMode({ progress: progressProp, time, play, pause, playOnTrigger });
 
     const compiled = useMemo((): Compiled => {
         try {
             return compileDocument(
                 toPxDocument(stableDoc),
-                { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, offScreen: offScreenProp, mouseOut: mouseOutProp, visibilityThreshold: visibilityThresholdProp, visibilityDebounce: visibilityDebounceProp },
+                { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, outOfView: offScreenProp, hoverEnd: mouseOutProp, inViewThreshold: visibilityThresholdProp, inViewDebounce: visibilityDebounceProp },
                 compMode === PxControlMode.play,
                 makeDiag(),
             );
@@ -570,12 +570,12 @@ export function SvgAnimationPlayer({
     // The EFFECTIVE trigger, read back off the COMPILED document — so it already reflects the
     // `timeline` override and the `start` shortcut, both merged in before compilation.
     // Resolved through core's one table, so a document means the same here as on the web:
-    // no `start` = 'load', no `offScreen` = 'pause'.
+    // no `start` = 'load', no `outOfView` = 'pause'.
     const trigger = resolveTrigger(compiled.doc ? getAnimatorConfig(compiled.doc)?.trigger : undefined);
     const effectiveStart = trigger.start;
-    const effectiveOffScreen = trigger.offScreen;
+    const effectiveOutOfView = trigger.outOfView;
     /** Whether visibility governs this document. `continue` means "run wherever it is". */
-    const gated = effectiveOffScreen !== 'continue';
+    const gated = effectiveOutOfView !== 'continue';
 
     useEffect(() => {
         const diag = makeDiag();
@@ -632,21 +632,21 @@ export function SvgAnimationPlayer({
         }
         // 'click' starts from its own handler below, and a GATED document starts from the
         // visibility poll — calling play() here as well would defeat the gate.
-        if (compMode === PxControlMode.playAsSaved && effectiveStart === 'load' && !gated) {
+        if (compMode === PxControlMode.playOnTrigger && effectiveStart === 'load' && !gated) {
             api.play();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compiled, compMode, playAsSaved, play, pause, progressProp, time]);
+    }, [compiled, compMode, playOnTrigger, play, pause, progressProp, time]);
 
     // THE VISIBILITY GATE — permission to run, whatever started the animation, exactly as on the
     // web (`PxVisibilityGate`). React Native has no IntersectionObserver, so visibility is sampled
     // by measuring the view against the window box. The poll is cheap (a native measure every
-    // 200ms) and only runs while the gate is active, which `offScreen: 'continue'` turns off.
+    // 200ms) and only runs while the gate is active, which `outOfView: 'continue'` turns off.
     const scrollRef = useRef<View | null>(null);
     const inViewRef = useRef(false);
     useEffect(() => {
-        if (!playAsSaved || !gated) return;
-        const threshold = trigger.visibilityThreshold;
+        if (!playOnTrigger || !gated) return;
+        const threshold = trigger.inViewThreshold;
         inViewRef.current = false;
 
         const check = () => {
@@ -663,7 +663,7 @@ export function SvgAnimationPlayer({
                 if (isIn) {
                     if (rateRef.current < 0) api.setPlaybackRate(Math.abs(rateRef.current));
                     api.play();
-                } else if (effectiveOffScreen === 'reset') api.cancel();
+                } else if (effectiveOutOfView === 'reset') api.cancel();
                 else api.pause();   // 'continue' never reaches here — the poll does not run
             });
         };
@@ -672,7 +672,7 @@ export function SvgAnimationPlayer({
         const id = setInterval(check, 200);
         return () => clearInterval(id);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compiled, playAsSaved, gated, effectiveOffScreen]);
+    }, [compiled, playOnTrigger, gated, effectiveOutOfView]);
 
     // Stop cleanly on unmount / doc swap — and say so, the way the web's destroy() does (§18):
     // both are "the animator was thrown away", so `onDestroy` fires, and `onStop` with it.
@@ -768,11 +768,11 @@ export function SvgAnimationPlayer({
     if (failure) return fallback ? fallback(failure) : null;
 
     // `start: 'click'` — the touch analogue of the web player's click trigger: a plain toggle,
-    // tap to play and tap again to pause. Hover (`mouseOver`) has no touch equivalent, so it is
+    // tap to play and tap again to pause. Hover (`hover`) has no touch equivalent, so it is
     // left to the host app.
     let content: ReactElement | null = root;
 
-    if (playAsSaved && effectiveStart === 'click' && root) {
+    if (playOnTrigger && effectiveStart === 'click' && root) {
         content = (
             <Pressable
                 onPress={() => {
@@ -791,7 +791,7 @@ export function SvgAnimationPlayer({
 
     // The gate measures the view, so it must survive in the native tree:
     // `collapsable={false}` keeps it there.
-    if (playAsSaved && gated && content) {
+    if (playOnTrigger && gated && content) {
         content = <View ref={scrollRef} collapsable={false}>{content}</View>;
     }
 

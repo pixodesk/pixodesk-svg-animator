@@ -35,7 +35,7 @@ describe('the content window (§4)', () => {
     afterEach(() => vi.useRealTimers());
 
     it('inTime/outTime: the window is the playing slice — the first frame is the content AT inTime', () => {
-        const api = createSvgAnimationPlayer({ doc: windowDoc(), container: '#box', playAsSaved: true });
+        const api = createSvgAnimationPlayer({ doc: windowDoc(), container: '#box', playOnTrigger: true });
         expect(opacity()).toBe(0);                      // content 500, not content 0
         api.pause();
         api.setCurrentTime(500);                        // window midpoint = content 1000
@@ -48,7 +48,7 @@ describe('the content window (§4)', () => {
 
     it('playDuration: the window remapped to wall ms — rate factor under the api, time space unchanged', () => {
         // window 1000 ms played over 2000 wall ms → factor 0.5: after 500 wall ms, content time 250
-        const api = createSvgAnimationPlayer({ doc: windowDoc({ playDuration: 2000 }), container: '#box', playAsSaved: true });
+        const api = createSvgAnimationPlayer({ doc: windowDoc({ playDuration: 2000 }), container: '#box', playOnTrigger: true });
         vi.advanceTimersByTime(500);
         expect(api.getCurrentTime()).toBeCloseTo(250, -1);   // CONTENT ms of the window, not wall
         // the caller's own rate stays in its own units: 2 means 2 × the file's pacing
