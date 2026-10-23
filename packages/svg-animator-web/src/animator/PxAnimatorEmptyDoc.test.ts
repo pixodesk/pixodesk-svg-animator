@@ -6,13 +6,13 @@
 // A document with NO children is still a document: it carries a viewBox and a timeline,
 // and rendering it should produce an empty `<svg>`, not nothing at all.
 //
-// `createSvgAnimator` used to gate the whole render on `doc.children`, so a childless
+// `createSvgAnimationPlayer` used to gate the whole render on `doc.children`, so a childless
 // document left `getRootElement()` answering `null`. Consumers can't tell that apart from
 // "the render failed" — the editor's visual harness threw `animator root is not an <svg>
 // element` on an empty fixture, which reads as a broken player rather than an empty case.
 
 import { beforeEach, describe, expect, it } from 'vitest';
-import { createSvgAnimator } from './PxAnimator';
+import { createSvgAnimationPlayer } from './PxAnimator';
 import type { PxDocument } from '@pixodesk/svg-animator-core';
 
 const emptyDoc = (): PxDocument => ({
@@ -27,14 +27,14 @@ const docWithChild = (): PxDocument => ({
 });
 
 
-describe('createSvgAnimator — a document with no children', () => {
+describe('createSvgAnimationPlayer — a document with no children', () => {
 
     beforeEach(() => {
         document.body.innerHTML = '<div id="c"></div>';
     });
 
     it('still renders its root <svg>', () => {
-        const api = createSvgAnimator({ doc: emptyDoc(), container: '#c' });
+        const api = createSvgAnimationPlayer({ doc: emptyDoc(), container: '#c' });
         const root = api.getRootElement();
 
         expect(root, 'an empty document renders an empty <svg>, not null').not.toBeNull();
@@ -44,13 +44,13 @@ describe('createSvgAnimator — a document with no children', () => {
     });
 
     it('keeps the root attributes that make it a viewport', () => {
-        const api = createSvgAnimator({ doc: emptyDoc(), container: '#c' });
+        const api = createSvgAnimationPlayer({ doc: emptyDoc(), container: '#c' });
         expect((api.getRootElement() as Element).getAttribute('viewBox')).toBe('0 0 200 200');
         api.destroy();
     });
 
     it('a document WITH children is unaffected', () => {
-        const api = createSvgAnimator({ doc: docWithChild(), container: '#c' });
+        const api = createSvgAnimationPlayer({ doc: docWithChild(), container: '#c' });
         expect((api.getRootElement() as Element)?.tagName?.toLowerCase()).toBe('svg');
         expect(document.querySelector('#c rect'), 'children still render').not.toBeNull();
         api.destroy();

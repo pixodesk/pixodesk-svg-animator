@@ -4,14 +4,14 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createAdapterSvgAnimator, getAnimatorConfig, PxDiagnosticCode, PxDiagnosticKind, type PxDocument, type PxEngineCallbacks, type PxDiagnostics, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { createAdapterSvgAnimationPlayer, getAnimatorConfig, PxDiagnosticCode, PxDiagnosticKind, type PxDocument, type PxEngineCallbacks, type PxDiagnostics, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { camelCaseToKebabWordIfNeeded, createDiagnostics, isScrollTimeline, PX_STYLE_ATTR_NAMES } from '@pixodesk/svg-animator-core/internal';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
-import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
+import type { PxAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
 
 // Re-export the platform-neutral pieces from their historical home so the
 // package surface is unchanged by the core extraction.
-export { createAdapterSvgAnimator };
+export { createAdapterSvgAnimationPlayer };
 export type { PxPlatformAdapter };
 
 /**
@@ -52,7 +52,7 @@ function escapeCssId(id: string): string {
  *
  * @param {PxEngineCallbacks=} callbacks Optional lifecycle callbacks.
  * @param {Element=} rootElement Optional pre-rendered root element.
- * @returns {PxAnimatorApi} A PxAnimatorApi instance.
+ * @returns {PxAnimationPlayerApi} A PxAnimationPlayerApi instance.
  * @internal
  */
 export function createFrameLoopAnimator(
@@ -60,7 +60,7 @@ export function createFrameLoopAnimator(
     adapter?: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks,
     rootElement?: Element | null
-): PxAnimatorApi {
+): PxAnimationPlayerApi {
 
     const config = getAnimatorConfig(doc) || {};
 
@@ -78,14 +78,14 @@ export function createFrameLoopAnimator(
         }
     }
 
-    const basicApi = createAdapterSvgAnimator(
+    const basicApi = createAdapterSvgAnimationPlayer(
         doc,
         adapter || createDomAdapter(rootElement, diag),
         callbacks
     );
 
     // Specialize the platform-neutral API to the DOM: the root is an Element.
-    const api: PxAnimatorApi = {
+    const api: PxAnimationPlayerApi = {
         ...basicApi,
         "getRootElement": () => rootElement || null
     };

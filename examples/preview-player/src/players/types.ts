@@ -61,7 +61,7 @@ export interface PlayerOptions {
  * Whether a component player must be told to `playAsSaved`.
  *
  * The components take the document's trigger OVER unless `playAsSaved` is set — with no control
- * props, `<SvgAnimator doc />` renders the first frame and waits (core's
+ * props, `<SvgAnimationPlayer doc />` renders the first frame and waits (core's
  * `controlModeTakesOverTrigger`). So "Use trigger" has to pass `playAsSaved`, or the trigger that
  * `applyTriggerOverride` just wrote into the document is replaced by `start: 'none'` and the
  * React / Vue players sit still while the web player — which has no such rule — runs.

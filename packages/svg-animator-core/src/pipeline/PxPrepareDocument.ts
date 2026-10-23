@@ -99,7 +99,7 @@ export function prepareDocument(doc: PxDocument, options?: PxPrepareOptions): Px
  * - **Order matters.** Ids are regenerated AFTER materializing, because materialization mints
  *   its def ids from a counter that starts at zero on every call — two instances on one page
  *   would otherwise share them, and `url(#…)` resolves document-wide to the first match.
- * - **Safe to hand on to `createSvgAnimator`.** Materialization consumes `node.effects` and
+ * - **Safe to hand on to `createSvgAnimationPlayer`.** Materialization consumes `node.effects` and
  *   flattens loops, so the player's own pass over the result changes nothing, and the ids it
  *   binds to are the ids that were rendered.
  *

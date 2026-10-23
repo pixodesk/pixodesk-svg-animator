@@ -9,7 +9,7 @@ share. (Playing a **pre-rendered SVG** needs no library — see
 
 1. [Get started with the player library](./get-started.md) — the shortest path, end to end: save a JSON, put it next to your component, install one package, render it; a complete example project per stack
 2. [Installing the players](./installation.md) — npm packages, the UMD build for pages without a bundler, TypeScript
-3. [Web player (`@pixodesk/svg-animator-web`)](./web-player.md) — `createSvgAnimator`, the playback API, callbacks, triggers, the API reference
+3. [Web player (`@pixodesk/svg-animator-web`)](./web-player.md) — `createSvgAnimationPlayer`, the playback API, callbacks, triggers, the API reference
 4. [React (`@pixodesk/svg-animator-react`)](./react.md) — the player component, its props, control modes
 5. [Next.js](./nextjs.md) — the React component in a Next.js app
 6. [Vue (`@pixodesk/svg-animator-vue`)](./vue.md) — the player component, props, events
@@ -34,13 +34,13 @@ file needs no package at all.
 <!-- px-check off quick-start jobs, prose -->
 | Job | Call |
 |---|---|
-| Play a JSON file in a page | `createSvgAnimator({ src, container })` (web) |
-| Play it in React / Vue | `<SvgAnimator :doc … />` |
-| Play it in React Native | `<SvgAnimator doc={…} />` (rn) |
+| Play a JSON file in a page | `createSvgAnimationPlayer({ src, container })` (web) |
+| Play it in React / Vue | `<SvgAnimationPlayer :doc … />` |
+| Play it in React Native | `<SvgAnimationPlayer doc={…} />` (rn) |
 | Check a generated document before shipping it | `validateDocument(doc)` |
 | Show the same JSON animation twice on one page | `generateNewIds(doc)` for the second copy |
 | Feed a renderer of your own | `materializeAllInTree(doc, 'native')` (core) |
-| See or drive every animator on the page — 🧪 experimental | [`getAllSvgAnimators()` / `onSvgAnimatorsChange()`](./web-player.md#every-animator-on-the-page-experimental) (web) |
+| See or drive every player on the page — 🧪 experimental | [`getAllSvgAnimationPlayers()` / `onSvgAnimationPlayersChange()`](./web-player.md#every-player-on-the-page-experimental) (web) |
 
 Every export is marked by audience, in the guides and in the code itself — the mark mirrors the
 release tag on the declaration, which is what your IDE shows on hover, and the build fails when
@@ -56,14 +56,14 @@ the two disagree:
 ### Props and options across players
 
 Every way to create a player, side by side, so a prop added or renamed in one place can be
-checked against the others. The columns are the web player's `createSvgAnimator` (**Web**), the
-HTML tag read by `createSvgAnimatorsFromPage` (**Tag**), the pre-rendered player's `createSvgAnimator`
+checked against the others. The columns are the web player's `createSvgAnimationPlayer` (**Web**), the
+HTML tag read by `createSvgAnimationPlayersFromPage` (**Tag**), the pre-rendered player's `createSvgAnimationPlayer`
 (**Pre**), **React**, **Vue** and React Native (**RN**).
 
 A cell is **✓** when that player takes the name as it is, **—** when it does not have it, and
 a number when it differs — the note with that number, under the table, says how.
 
-<!-- px-check matrix web=web:PxAnimatorOptions tag=~ prerendered=web:PxPrerenderedAnimatorOptions react=react:SvgAnimatorProps vue=vue:SvgAnimator rn=rn:SvgAnimatorProps -->
+<!-- px-check matrix web=web:PxAnimationPlayerOptions tag=~ prerendered=web:PxPrerenderedAnimationPlayerOptions react=react:SvgAnimationPlayerProps vue=vue:SvgAnimationPlayer rn=rn:SvgAnimationPlayerProps -->
 | Name | Web | Tag | Pre | React | Vue | RN |
 |---|---|---|---|---|---|---|
 | **Document** | | | | | | |
@@ -120,9 +120,9 @@ a number when it differs — the note with that number, under the table, says ho
 4. React Native ignores `timeline.engine`.
 5. Every player takes every `PxTriggerStart` value; React Native ignores `'mouseOver'`, which
    has no touch equivalent.
-6. The handle is what `createSvgAnimator` returns, a `PxAnimatorApi`.
-7. `createSvgAnimatorsFromPage` returns the handles it created; `getSvgAnimator(element)` finds one later.
-8. The handle is the component's template ref, a `PxAnimatorHandle`.
+6. The handle is what `createSvgAnimationPlayer` returns, a `PxAnimationPlayerApi`.
+7. `createSvgAnimationPlayersFromPage` returns the handles it created; `getSvgAnimationPlayer(element)` finds one later.
+8. The handle is the component's template ref, a `PxAnimationPlayerHandle`.
 9. Written `class`; like `style`, it falls through to the root `<svg>`.
 10. The tag always plays as saved — embedding a finished file IS choosing its behaviour — so it
     takes no `playAsSaved` option.
@@ -135,10 +135,10 @@ What some of the names mean:
   state to manage.
 - **`doc`** is the document itself, under the same name on every player. On the web the name
   is also part of the export format: every SVG + JS file the editor exports calls
-  `createSvgAnimator({"doc": …})` (`PX_ANIMATOR_DOC_KEY`), so it is never renamed by a minifier.
+  `createSvgAnimationPlayer({"doc": …})` (`PX_ANIMATOR_DOC_KEY`), so it is never renamed by a minifier.
 - **`container`** left out means: animate an SVG that is already in the page.
 - **`playAsSaved`** means "play the way the document says". The HTML tag always works this way;
-  the web player takes it as an option (`createSvgAnimator({ …, playAsSaved: true })`) — without
+  the web player takes it as an option (`createSvgAnimationPlayer({ …, playAsSaved: true })`) — without
   it, nothing starts and the returned api drives playback.
 - **`play`** set to `false` holds the current frame; **`pause`** holds it too, and setting it
   back to `false` resumes.
@@ -159,8 +159,8 @@ What some of the names mean:
 
 The pre-rendered SVG + CSS wrappers toggle class names instead of creating a player:
 
-<!-- px-check matrix react=react:SvgCssAnimator vue=vue:SvgCssAnimator -->
-| Name | React `SvgCssAnimator` | Vue `SvgCssAnimator` |
+<!-- px-check matrix react=react:SvgCssAnimationPlayer vue=vue:SvgCssAnimationPlayer -->
+| Name | React `SvgCssAnimationPlayer` | Vue `SvgCssAnimationPlayer` |
 |---|---|---|
 | the SVG | `children` | default slot | <!-- px name=children vue=~ -->
 | `start` | ✓ default `'load'` | ✓ same |
@@ -194,26 +194,26 @@ core (`resolveControlMode`), so they always pick the same winner:
 | 4 | static | none of the above | switched off; the first frame renders and nothing plays |
 
 `apiRef` is not in the table: the handle is filled in **every** mode and never changes it, so
-`<SvgAnimator doc={doc} playAsSaved apiRef={api} />` autoplays and gives you the handle.
+`<SvgAnimationPlayer doc={doc} playAsSaved apiRef={playerRef} />` autoplays and gives you the handle.
 `playAsSaved: false` is not a control prop and claims nothing; `play: false` is one, and holds.
 The HTML tag is always in playAsSaved mode; the web player's `playAsSaved: true` option is the same mode.
 
 ### Callbacks and diagnostics — one shape
 
 The callbacks have the same names on every player: you pass them as options on the web
-(`createSvgAnimator({ onFinish })`) and as props in React and React Native. Vue takes the playback
+(`createSvgAnimationPlayer({ onFinish })`) and as props in React and React Native. Vue takes the playback
 ones as events (`@play`) but `onWarn` and `onError` as props — with an event, Vue would always
 count the message as handled, and nobody would see it in the console. All of them are defined
-once in core, as `PxAnimatorCallbacks`:
+once in core, as `PxAnimationPlayerCallbacks`:
 
 <!-- px-check signature pkg=core -->
 ```typescript
 // Every lifecycle callback is optional and takes no arguments. The types build on each other:
 // `PxDiagnosticsConfig` (the diagnostics fields) → `PxEngineCallbacks` (+ the lifecycle; what an
-// engine such as `createAdapterSvgAnimator` takes) → `PxAnimatorCallbacks` (+ `onStop`; what every
+// engine such as `createAdapterSvgAnimationPlayer` takes) → `PxAnimationPlayerCallbacks` (+ `onStop`; what every
 // player takes).
-interface PxAnimatorCallbacks {
-    onReady?: () => void;   // the animator exists and the SVG is rendered — once, async;
+interface PxAnimationPlayerCallbacks {
+    onReady?: () => void;   // the player exists and the SVG is rendered — once, async;
                             //   the push twin of isReady()
     onPlay?: () => void;    // started or resumed
     onPause?: () => void;
@@ -272,7 +272,7 @@ per kind.
 
 ### Time — one contract
 
-Every engine on every player implements the same meaning of time, written on `PxAnimatorApi`
+Every engine on every player implements the same meaning of time, written on `PxAnimationPlayerApi`
 and implemented once in core:
 
 - time is **ms from the start of the whole run**, iterations included — so a slider built on

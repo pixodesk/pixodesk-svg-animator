@@ -16,7 +16,7 @@ built on `react-native-svg` and `react-native-reanimated`. Props mirror
 
 ## What it does
 
-`<SvgAnimator doc={…} />` takes an animation document exported from the
+`<SvgAnimationPlayer doc={…} />` takes an animation document exported from the
 Pixodesk editor — the **same `.json` the web player uses** — and renders it as
 native SVG, driven on the UI thread.
 
@@ -32,13 +32,13 @@ Drop `animation.json` next to your component and render it:
 
 ```tsx
 import { View } from 'react-native';
-import { SvgAnimator } from '@pixodesk/svg-animator-rn';
+import { SvgAnimationPlayer } from '@pixodesk/svg-animator-rn';
 import animation from './animation.json';
 
 export function Logo() {
     return (
         <View style={{ width: 200, height: 200 }}>
-            <SvgAnimator doc={animation} playAsSaved />
+            <SvgAnimationPlayer doc={animation} playAsSaved />
         </View>
     );
 }
@@ -51,25 +51,25 @@ document says so.
 
 ```tsx
 // Play once when a screen opens, then hold the last frame
-<SvgAnimator doc={doc} playAsSaved iterations={1} timeline={{ fillMode: 'forwards' }} />
+<SvgAnimationPlayer doc={doc} playAsSaved iterations={1} timeline={{ fillMode: 'forwards' }} />
 
 // Loop forever regardless of what the document says
-<SvgAnimator doc={doc} playAsSaved iterations="infinite" />
+<SvgAnimationPlayer doc={doc} playAsSaved iterations="infinite" />
 
 // Static — first frame only, no playback
-<SvgAnimator doc={doc} />
+<SvgAnimationPlayer doc={doc} />
 
 // Toggle from your own state
-<SvgAnimator doc={doc} play={isPlaying} />
+<SvgAnimationPlayer doc={doc} play={isPlaying} />
 
 // Tie progress to a gesture / slider (no playback, just a frame)
-<SvgAnimator doc={doc} time={scrollProgress} />
+<SvgAnimationPlayer doc={doc} time={scrollProgress} />
 
 // Override the document's timing (window end in ms, delay before start)
-<SvgAnimator doc={doc} playAsSaved outTime={4000} delay={500} />
+<SvgAnimationPlayer doc={doc} playAsSaved outTime={4000} delay={500} />
 
 // Do something when it finishes
-<SvgAnimator doc={doc} playAsSaved onFinish={() => setDone(true)} />
+<SvgAnimationPlayer doc={doc} playAsSaved onFinish={() => setDone(true)} />
 ```
 
 TypeScript: `doc` accepts `import animation from './animation.json'` as-is (it is typed
@@ -113,7 +113,7 @@ Four ways to drive playback. Pick one — they are mutually exclusive.
 Uses the trigger defined in the animation document (`start: 'load'` plays once it is on screen):
 
 ```tsx
-<SvgAnimator doc={doc} playAsSaved />
+<SvgAnimationPlayer doc={doc} playAsSaved />
 ```
 
 ### Declarative play/pause
@@ -124,7 +124,7 @@ Control playback with boolean props:
 const [play, setPlay] = useState(false);
 const [pause, setPause] = useState(false);
 
-<SvgAnimator doc={doc} play={play} pause={pause} />
+<SvgAnimationPlayer doc={doc} play={play} pause={pause} />
 <Button title={play ? 'Play (on)' : 'Play (off)'} onPress={() => setPlay(p => !p)} />
 <Button title={pause ? 'Pause (on)' : 'Pause (off)'} onPress={() => setPause(p => !p)} />
 ```
@@ -135,18 +135,18 @@ Use a ref for full programmatic control:
 
 ```tsx
 import { useRef } from 'react';
-import type { PxAnimatorHandle } from '@pixodesk/svg-animator-rn';
+import type { PxAnimationPlayerHandle } from '@pixodesk/svg-animator-rn';
 
-const api = useRef<PxAnimatorHandle>(null);
+const playerRef = useRef<PxAnimationPlayerHandle>(null);
 
-<SvgAnimator doc={doc} apiRef={api} />
-<Button title="Play"   onPress={() => api.current?.play()} />
-<Button title="Pause"  onPress={() => api.current?.pause()} />
-<Button title="Cancel" onPress={() => api.current?.cancel()} />
-<Button title="Finish" onPress={() => api.current?.finish()} />
+<SvgAnimationPlayer doc={doc} apiRef={playerRef} />
+<Button title="Play"   onPress={() => playerRef.current?.play()} />
+<Button title="Pause"  onPress={() => playerRef.current?.pause()} />
+<Button title="Cancel" onPress={() => playerRef.current?.cancel()} />
+<Button title="Finish" onPress={() => playerRef.current?.finish()} />
 ```
 
-`PxAnimatorHandle` methods: `play()`, `pause()`, `cancel()`, `finish()`,
+`PxAnimationPlayerHandle` methods: `play()`, `pause()`, `cancel()`, `finish()`,
 `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`.
 
 ### Controlled time
@@ -156,13 +156,13 @@ Move through the animation with a slider, or show one fixed frame:
 ```tsx
 const [time, setTime] = useState(0);
 
-<SvgAnimator doc={doc} time={time} />
+<SvgAnimationPlayer doc={doc} time={time} />
 <Slider minimumValue={0} maximumValue={2000} value={time} onValueChange={setTime} />
 ```
 
 ## Props
 
-<!-- px-check props SvgAnimatorProps pkg=rn -->
+<!-- px-check props SvgAnimationPlayerProps pkg=rn -->
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxDocumentInput` | The animation document to render (required); a `.json` import passes as-is |
@@ -171,7 +171,7 @@ const [time, setTime] = useState(0);
 | `pause` | `boolean` | Pause current playback |
 | `playMode` | `'none' \| 'forwards' \| 'backwards' \| 'both'` | One-shot documents: which pose changes PLAY vs snap (default `forwards`) |
 | `completeIteration` | `boolean` | Looping documents: `play={false}` finishes the current iteration, then rests |
-| `apiRef` | `RefObject<PxAnimatorHandle>` | Ref for imperative control |
+| `apiRef` | `RefObject<PxAnimationPlayerHandle>` | Ref for imperative control |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
 | `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
@@ -185,12 +185,12 @@ const [time, setTime] = useState(0);
 | `mouseOut` | `PxMouseOutAction` | Shortcut for `timeline.trigger.mouseOut` (second tap, for `start: 'click'`) |
 | `visibilityThreshold` | `number` | Shortcut for `timeline.trigger.visibilityThreshold` |
 | `visibilityDebounce` | `number` | Shortcut for `timeline.trigger.visibilityDebounce` |
-| `onReady` | `() => void` | The animator exists and the tree is rendered — once, async |
+| `onReady` | `() => void` | The player exists and the tree is rendered — once, async |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
 | `onFinish` | `() => void` | Called when the animation reaches its end — every iteration played, or `finish()` was called |
 | `onCancel` | `() => void` | Called on cancel |
-| `onDestroy` | `() => void` | Called when the animator is thrown away — the component unmounted, or a new `doc` replaced it |
+| `onDestroy` | `() => void` | Called when the player is thrown away — the component unmounted, or a new `doc` replaced it |
 | `onStop` | `() => void` | "No longer playing, whatever the reason" — fires after any of pause / cancel / finish / destroy |
 | `onError` | `(diagnostic) => void` | this instance will not play — the document could not be compiled or rendered; `fallback` shows instead. `diagnostic.error` is the Error, `diagnostic.detail.componentStack` when the error boundary caught it |
 | `onWarn` | `(diagnostic) => void` | it plays, but something was ignored, degraded or misspelled; without it → `console.warn` |
@@ -209,7 +209,7 @@ so a failure is reported through `onError` — the shared diagnostic (`diagnosti
 Error), exactly as on the web — and shows `fallback` while the surrounding screen keeps working.
 
 ```tsx
-<SvgAnimator
+<SvgAnimationPlayer
     doc={doc}
     playAsSaved
     onError={d => console.warn('animation failed:', d.message)}
@@ -230,7 +230,7 @@ renderer never reaches JavaScript and cannot be caught — see
 | `timeline.frameRate` | Ignored. The screen's own refresh rate is used. The player does not compute values frame by frame: when the document loads it works out the animated values in advance, as a list of snapshots (60 per second of animation), and each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, which the player fixes at 60. |
 | `start: 'mouseOver'` | Has no touch equivalent, so it is not honored. The other three values (`load`, `click`, `none`) work as they do on the web, from the file or from the `start` prop. |
 | `className` / `style` | Not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height`. Styling *inside* the document (`style` on an element in the JSON) is supported. |
-| `onDestroy` | Never called. On the web it tells you the animator was thrown away; here there is nothing to tell — when the component leaves the screen, React removes it and everything it created. To run code at that moment, use a `useEffect` cleanup function in your own component. |
+| `onDestroy` | Never called. On the web it tells you the player was thrown away; here there is nothing to tell — when the component leaves the screen, React removes it and everything it created. To run code at that moment, use a `useEffect` cleanup function in your own component. |
 
 ## How playback works
 

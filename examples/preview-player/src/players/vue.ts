@@ -1,16 +1,16 @@
 import { createApp, h, onMounted, ref } from 'vue';
-import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-vue';
+import { SvgAnimationPlayer, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-vue';
 import type { PxDocument } from '@pixodesk/svg-animator-web';
 import { applyTriggerOverride, shouldAutoplayForTrigger, type PlayerHandle, type PlayerOptions } from './types';
 
-/** Mounts the Vue `<SvgAnimator/>` component into `container`. */
+/** Mounts the Vue `<SvgAnimationPlayer/>` component into `container`. */
 export function createVuePlayer(
   container: HTMLElement,
   doc: PxDocument,
   opts?: PlayerOptions,
 ): PlayerHandle {
   // The component `expose()`s its imperative API; a template ref captures it.
-  let api: PxAnimatorHandle | null = null;
+  let api: PxAnimationPlayerHandle | null = null;
 
   const app = createApp({
     setup() {
@@ -19,7 +19,7 @@ export function createVuePlayer(
         api = animRef.value;
       });
       return () =>
-        h(SvgAnimator as any, {
+        h(SvgAnimationPlayer as any, {
           // Trigger handling (programmatic / from-file / custom) applied to the doc.
           doc: applyTriggerOverride(doc, opts),
           ref: animRef,

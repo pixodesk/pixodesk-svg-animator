@@ -1,10 +1,10 @@
 import { createRoot } from 'react-dom/client';
 import { useRef } from 'react';
-import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-react';
+import { SvgAnimationPlayer, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-react';
 import animation from '../../../fixtures/animation.json';
 
 function App() {
-  const api = useRef<PxAnimatorHandle | null>(null);
+  const api = useRef<PxAnimationPlayerHandle | null>(null);
   return (
     <>
       <div className="controls">
@@ -14,7 +14,7 @@ function App() {
         <button onClick={() => api.current?.finish()}>finish()</button>
       </div>
       <div className="stage">
-        <SvgAnimator doc={animation as any} apiRef={api} />
+        <SvgAnimationPlayer doc={animation as any} apiRef={api} />
       </div>
     </>
   );

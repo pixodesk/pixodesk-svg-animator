@@ -9,7 +9,7 @@
 //
 // jsdom has no Web Animations API: the two classes are stubbed and counted (as in PxAnimatorWebApiTime.test.ts).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSvgAnimator } from '../animator/PxAnimator';
+import { createSvgAnimationPlayer } from '../animator/PxAnimator';
 import type { PxDocument } from '@pixodesk/svg-animator-core';
 
 const DUR = 1000;
@@ -62,7 +62,7 @@ afterEach(() => {
 
 describe('WAAPI engine — values the browser rejects', () => {
     it('steps aside for the frame loop without building a single KeyframeEffect', () => {
-        const api = createSvgAnimator({ doc: doc('auto'), container: '#stage', muteWarn: true });
+        const api = createSvgAnimationPlayer({ doc: doc('auto'), container: '#stage', muteWarn: true });
         expect(effects).toBe(0);
         // ...and the frame loop it fell back to animates the width
         api.setCurrentTime(DUR);
@@ -71,7 +71,7 @@ describe('WAAPI engine — values the browser rejects', () => {
     });
 
     it('still builds the effects when the native engine is forced', () => {
-        createSvgAnimator({ doc: doc('native'), container: '#stage', muteWarn: true });
+        createSvgAnimationPlayer({ doc: doc('native'), container: '#stage', muteWarn: true });
         expect(effects).toBeGreaterThan(0);
     });
 });

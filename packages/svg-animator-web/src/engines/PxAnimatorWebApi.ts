@@ -9,7 +9,7 @@ import { PX_DEFAULT_ITERATIONS, mapChannelKeyframes, type PxChannelLerp } from '
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformParts, cubicBezier, kebabToCamelCaseWord, splitEasing, toRGBA, createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
-import type { PxEngineAnimatorApi } from '../shared/PxAnimatorWebTypes';
+import type { PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
 
 
 /** One WAAPI keyframe's CSS: the property it writes and the value, before the `offset` / `easing`. */
@@ -172,7 +172,7 @@ export function convertToWebApiKeyframes(
  * @param callbacks Optional lifecycle callbacks.
  * @param rootElement Root element.
  * @param forceEvenIfHasUnsupportedAttrs If true, an animator will be created even if some CSS properties are not supported.
- * @returns An PxAnimatorApi instance, or null if unsupported features are used and not forced.
+ * @returns An PxAnimationPlayerApi instance, or null if unsupported features are used and not forced.
  */
 /** Native scroll-timeline payload (`timeline.engine: 'native'` / `auto`; see PxScrollDriver.createNativeScrollTimeline): the
  *  browser-native timeline every Animation attaches to, plus optional range offsets. */
@@ -187,19 +187,19 @@ export interface PxWebApiScrollTimeline {
 export function createWebApiAnimator(
     doc: PxDocument, callbacks: PxEngineCallbacks | undefined, rootElement: Element | null | undefined,
     forceEvenIfHasUnsupportedAttrs: true, scrollTimeline?: PxWebApiScrollTimeline,
-): PxEngineAnimatorApi<Element>;
+): PxEngineAnimationPlayerApi<Element>;
 /** @internal */
 export function createWebApiAnimator(
     doc: PxDocument, callbacks?: PxEngineCallbacks, rootElement?: Element | null,
     forceEvenIfHasUnsupportedAttrs?: boolean, scrollTimeline?: PxWebApiScrollTimeline,
-): PxEngineAnimatorApi<Element> | null;
+): PxEngineAnimationPlayerApi<Element> | null;
 export function createWebApiAnimator(
     doc: PxDocument,
     callbacks?: PxEngineCallbacks,
     rootElement?: Element | null,
     forceEvenIfHasUnsupportedAttrs?: boolean,
     scrollTimeline?: PxWebApiScrollTimeline
-): PxEngineAnimatorApi<Element> | null {
+): PxEngineAnimationPlayerApi<Element> | null {
 
     const config = getAnimatorConfig(doc) || {};
 
@@ -347,7 +347,7 @@ export function createWebApiAnimator(
 
     ////////////////////////////////////////////////////////////////
 
-    const api: PxEngineAnimatorApi<Element> = {
+    const api: PxEngineAnimationPlayerApi<Element> = {
 
         "isReady": () => true,
 

@@ -7,7 +7,7 @@
 import { PxDiagnosticCode, PxDiagnosticKind, PxMouseOutAction, PxTriggerStart, resolveTrigger,
     type PxDiagnostics, type PxTrigger } from '@pixodesk/svg-animator-core';
 import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
-import type { PxEngineAnimatorApi } from '../shared/PxAnimatorWebTypes';
+import type { PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
 import { createVisibilityGate } from './PxVisibilityGate';
 
 
@@ -28,16 +28,16 @@ import { createVisibilityGate } from './PxVisibilityGate';
  * reverse); it is read only for `start: 'mouseOver'`. A `click` document is a plain play/pause
  * toggle with nothing to configure.
  *
- * @param api The animator API instance to control.
+ * @param api The player API to wire the trigger to.
  * @param trigger The trigger configuration. `finish` now LIVES on the timeline next to `fillMode` (review §13) — it was never this wiring's (what happens after a
  *   natural end), not to the trigger wiring, and is not read here.
  * @returns A disposer that detaches every listener, observer and timer this call attached
- *   (review §14). `createSvgAnimator` ties it to `destroy()`. Call it yourself before re-arming an
+ *   (review §14). `createSvgAnimationPlayer` ties it to `destroy()`. Call it yourself before re-arming an
  *   element you wired by hand — otherwise the old listeners stay live next to the new ones.
  * @public
  */
 export function setupAnimationTriggers(
-    api: PxEngineAnimatorApi,
+    api: PxEngineAnimationPlayerApi,
     trigger: PxTrigger,
     diag?: PxDiagnostics
 ): () => void {

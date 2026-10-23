@@ -4,12 +4,12 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxEngineCallbacks, PxAnimatorCallbacks } from '@pixodesk/svg-animator-core';
-import type { PxAnimatorApi } from './PxAnimatorWebTypes';
+import type { PxEngineCallbacks, PxAnimationPlayerCallbacks } from '@pixodesk/svg-animator-core';
+import type { PxAnimationPlayerApi } from './PxAnimatorWebTypes';
 
 /**
  * The engines take ONE callbacks object; every public surface takes the callbacks INLINE —
- * `createSvgAnimator({ onFinish })`, `createSvgAnimatorsFromPage({ onFinish })`, `<SvgAnimator
+ * `createSvgAnimationPlayer({ onFinish })`, `createSvgAnimationPlayersFromPage({ onFinish })`, `<SvgAnimationPlayer
  * onFinish />`. This builds the one from the other, and adds `onStop`: it fires after any of
  * pause / cancel / finish / remove, for callers who only care that playback is no longer
  * running. Defined HERE, once, so the web player and the components cannot disagree on when.
@@ -17,7 +17,7 @@ import type { PxAnimatorApi } from './PxAnimatorWebTypes';
  * A wrapper is only made when there is something to call — an engine tests
  * `callbacks?.onFinish` for presence, so an always-present function would change its behaviour.
  */
-export function toEngineCallbacks(inline: PxAnimatorCallbacks | undefined): PxEngineCallbacks {
+export function toEngineCallbacks(inline: PxAnimationPlayerCallbacks | undefined): PxEngineCallbacks {
     const { onPlay, onPause, onCancel, onFinish, onDestroy, onStop, onWarn, onError, muteWarn, muteError } = inline ?? {};
     const withStop = (own: (() => void) | undefined): (() => void) | undefined =>
         own || onStop ? () => { own?.(); onStop?.(); } : undefined;
@@ -36,7 +36,7 @@ export function toEngineCallbacks(inline: PxAnimatorCallbacks | undefined): PxEn
  * call is a no-op, every getter answers "not ready". Returned instead of throwing, after the
  * failure has been reported through `onError`.
  */
-export function createInertAnimator(): PxAnimatorApi {
+export function createInertAnimator(): PxAnimationPlayerApi {
     return {
         isReady: () => false,
         getRootElement: () => null,

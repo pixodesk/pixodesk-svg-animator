@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createAdapterSvgAnimator, type PxPlatformAdapter } from './PxAnimatorFrameLoop';
+import { createAdapterSvgAnimationPlayer, type PxPlatformAdapter } from './PxAnimatorFrameLoop';
 import type { PxDocument, PxEngineCallbacks, PxInfer, PxTimeTimelineSchema } from '@pixodesk/svg-animator-core';
 
 /** The time-driven member of the wire `timeline` — what every override below patches. */
@@ -67,12 +67,12 @@ function createMockAdapter() {
 
 function setup(timeline: PxTimeTimeline = {}, callbacks?: PxEngineCallbacks) {
     const mock = createMockAdapter();
-    const api = createAdapterSvgAnimator(makeDoc(timeline), mock.adapter, callbacks);
+    const api = createAdapterSvgAnimationPlayer(makeDoc(timeline), mock.adapter, callbacks);
     return { api, ...mock };
 }
 
 
-describe('createAdapterSvgAnimator', () => {
+describe('createAdapterSvgAnimationPlayer', () => {
     beforeEach(() => {
         // 'performance' must be faked alongside requestAnimationFrame: with the
         // default toFake set, jsdom's rAF stops firing from the second test in

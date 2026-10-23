@@ -81,7 +81,7 @@ function render(codes) {
     rows.push('diagnostic a stable identity you can switch on in code and search for.');
     rows.push('');
     rows.push('```js');
-    rows.push('createSvgAnimator({');
+    rows.push('createSvgAnimationPlayer({');
     rows.push('  src: \'/animation.json\',');
     rows.push('  container: \'#stage\',');
     rows.push('  onWarn:  d => console.log(d.code, d.data),   // 1204, [\'#missing\']');

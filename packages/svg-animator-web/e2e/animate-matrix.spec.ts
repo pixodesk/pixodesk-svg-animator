@@ -13,11 +13,11 @@
  */
 
 import { expect, Page, test } from "@playwright/test";
-import { PxTimelineEngineSetting, type PxAnimatorConfig, type PxDocument, type PxAnimatorApi } from "../src/index";
+import { PxTimelineEngineSetting, type PxAnimatorConfig, type PxDocument, type PxAnimationPlayerApi } from "../src/index";
 import type { PX_ANIM_ATTR_NAME } from "../src/index.player";
 
-/** A `data-px-animation-src` element with the player `createSvgAnimatorsFromPage` keeps on it. */
-type PxTagElement = Element & Partial<Record<typeof PX_ANIM_ATTR_NAME, PxAnimatorApi>>;
+/** A `data-px-animation-src` element with the player `createSvgAnimationPlayersFromPage` keeps on it. */
+type PxTagElement = Element & Partial<Record<typeof PX_ANIM_ATTR_NAME, PxAnimationPlayerApi>>;
 
 
 const START_TIME = 100000000;
@@ -323,7 +323,7 @@ test.describe("animate-matrix (waapi, seek-driven)", () => {
         test(name, async ({ page }) => {
             await openWithDoc(page, doc);
 
-            // Wait until createSvgAnimatorsFromPage has attached a ready animator.
+            // Wait until createSvgAnimationPlayersFromPage has attached a ready animator.
             await page.waitForFunction(() => {
                 const el: PxTagElement | null = document.querySelector('[data-px-animation-src]');
                 return el && el._px_animator && el._px_animator.isReady();

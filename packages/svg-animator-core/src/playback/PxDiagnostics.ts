@@ -18,7 +18,7 @@
 //   - `onError`: THIS INSTANCE WILL NOT PLAY. Nothing is rendered, `isReady()` stays false,
 //     the component shows its `fallback`. The player reports it and stays inert rather than
 //     throwing at the caller — a throw would land in a fetch callback or a render, where no
-//     one can catch it. (A wrong CALL — `createSvgAnimator()` with neither `src` nor `doc` — still
+//     one can catch it. (A wrong CALL — `createSvgAnimationPlayer()` with neither `src` nor `doc` — still
 //     throws: that is a bug at the call site, found the moment the line runs.)
 //   - `onWarn`: IT PLAYS, but something was ignored, degraded or misspelled — an unknown
 //     easing, an override that could not apply, an attribute the platform will not animate.
@@ -99,7 +99,7 @@ export interface PxDiagnostic {
  * Where a player sends what it wants to say. Every field is optional.
  *
  * The SHARED base of every callbacks object (dev-docs/reviews/api-surface-review.md §26.1): `createDiagnostics` reads it directly,
- * `PxEngineCallbacks` extends it with the playback lifecycle, `PxAnimatorCallbacks` adds `onStop`
+ * `PxEngineCallbacks` extends it with the playback lifecycle, `PxAnimationPlayerCallbacks` adds `onStop`
  * on top — so the four diagnostics fields are spelled once, here.
  * @public
  */
@@ -155,7 +155,7 @@ function errorIn(data: ReadonlyArray<unknown>): Error | undefined {
 /**
  * Builds the channel a player reports through.
  *
- * `prefix` labels the console fallback (e.g. `'[SvgAnimator]'`) and is NOT added to the
+ * `prefix` labels the console fallback (e.g. `'[SvgAnimationPlayer]'`) and is NOT added to the
  * diagnostic handed to a handler — a caller that wants to prefix its own log can, and one
  * feeding a UI should not have to strip ours.
  * @internal

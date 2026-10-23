@@ -10,7 +10,7 @@
 // assert the materialized tree. NOT a test file (no `.test` suffix) so vitest
 // skips it and tsup never bundles it (entry is index.ts only).
 
-import { createAdapterSvgAnimator } from '../playback/PxFrameLoop';
+import { createAdapterSvgAnimationPlayer } from '../playback/PxFrameLoop';
 import { toDomProps } from '../util/PxNodeProps';
 import { materializeNodeEffects } from './PlayerEffectsUtil';
 import { materializeAllInTree } from '../materialize/PxAnimatorMaterializeAll';
@@ -180,7 +180,7 @@ export function noEffectsRemain(root: PxNode): boolean {
  */
 export function engineFirstFrame(materialized: PxNode): Map<string, Map<string, string>> {
     const written = new Map<string, Map<string, string>>();
-    const api = createAdapterSvgAnimator(materialized as PxDocument, {
+    const api = createAdapterSvgAnimationPlayer(materialized as PxDocument, {
         isConnected: () => true,
         setAttribute: (id, attr, value) => {
             const attrs = written.get(id) ?? new Map<string, string>();

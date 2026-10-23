@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSvgAnimator } from './index';
+import { createSvgAnimationPlayer } from './index';
 import { isCompiledAnimation, type PxDocument, type PxRuntimeAnimation } from '@pixodesk/svg-animator-core';
 import { PX_LOOP_JUMP_SHIFT_MS, cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from '@pixodesk/svg-animator-core/internal';
 import { calcAnimationValues, normalizeBindings } from '@pixodesk/svg-animator-core';
@@ -24,7 +24,7 @@ describe('animateBackground', () => {
 
     it('Simple test', async () => {
 
-        createSvgAnimator({ doc: getTestJson(), container: '#svg-container', playAsSaved: true });
+        createSvgAnimationPlayer({ doc: getTestJson(), container: '#svg-container', playAsSaved: true });
 
         const svg = document.querySelector('svg');
         expect(svg).not.toBeNull();
@@ -53,7 +53,7 @@ describe('animateBackground', () => {
         if (!translate || isCompiledAnimation(translate)) throw new Error('fixture: a0.translate must be an authored animation');
         translate.loop = true;
 
-        createSvgAnimator({ doc: json, container: '#svg-container', playAsSaved: true });
+        createSvgAnimationPlayer({ doc: json, container: '#svg-container', playAsSaved: true });
 
         const ellipse = document.querySelector('ellipse');
         expect(ellipse).not.toBeNull();
@@ -89,7 +89,7 @@ describe('animateBackground', () => {
 
     it('Remove <script> tag', async () => {
 
-        createSvgAnimator({
+        createSvgAnimationPlayer({
             doc: {
                 type: 'svg',
                 children: [
@@ -108,7 +108,7 @@ describe('animateBackground', () => {
 
     it('In-place property animation on element body (Mode A)', async () => {
 
-        createSvgAnimator({
+        createSvgAnimationPlayer({
             doc: {
                 type: 'svg',
                 viewBox: '0 0 400 400',
@@ -156,7 +156,7 @@ describe('animateBackground', () => {
 
     it('frames: play() after natural end rewinds to start (regression)', async () => {
 
-        const api = createSvgAnimator({
+        const api = createSvgAnimationPlayer({
             doc: {
                 type: 'svg',
                 viewBox: '0 0 400 400',
@@ -209,7 +209,7 @@ describe('animateBackground', () => {
 
     it('Animated path `d` accepts both bare string and { path } (Mode A)', async () => {
 
-        createSvgAnimator({
+        createSvgAnimationPlayer({
             doc: {
                 type: 'svg',
                 viewBox: '0 0 400 400',

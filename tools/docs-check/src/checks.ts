@@ -74,7 +74,7 @@ function resolveType(ctx: Ctx, name: string, preferred: Pkg | undefined): { pkg:
 
 function checkProps(doc: MdDoc, m: Marker, ctx: Ctx): Array<Finding> {
     if (m.block?.kind !== 'table') return [need(m, 'a table')];
-    if (!m.target) return [{ line: m.line, message: 'px-check props needs the type name: <!-- px-check props PxAnimatorOptions -->' }];
+    if (!m.target) return [{ line: m.line, message: 'px-check props needs the type name: <!-- px-check props PxAnimationPlayerOptions -->' }];
     const loc = resolveType(ctx, m.target, defaultPkg(doc, m));
     if (!loc) return [{ line: m.line, message: `"${m.target}" is not exported by any package` }];
     // a Vue component answers with its props (names + required); types are not compared then
@@ -292,7 +292,7 @@ function checkExports(doc: MdDoc, m: Marker, ctx: Ctx): Array<Finding> {
 function checkMatrix(doc: MdDoc, m: Marker, ctx: Ctx): Array<Finding> {
     if (m.block?.kind !== 'table') return [need(m, 'a table')];
     const cols = Object.entries(m.opts).filter(([k]) => !['pkg'].includes(k));
-    if (!cols.length) return [{ line: m.line, message: 'px-check matrix needs column targets: <!-- px-check matrix web=web:PxAnimatorOptions react=react:Props vue=~ -->' }];
+    if (!cols.length) return [{ line: m.line, message: 'px-check matrix needs column targets: <!-- px-check matrix web=web:PxAnimationPlayerOptions react=react:Props vue=~ -->' }];
     const out: Array<Finding> = [];
     // column i+1 of the table ↔ cols[i]; a trailing Notes column is ignored
     const targets = cols.map(([key, spec]) => {

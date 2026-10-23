@@ -28,7 +28,7 @@ browser consumer stays self-contained.
 The web player ships in several builds, and your tooling picks the right one by itself:
 
 - **ESM** — for a bundler (Vite, webpack, Rollup, esbuild) or any modern setup:
-  `import { createSvgAnimator } from '@pixodesk/svg-animator-web'`. Nothing to configure after
+  `import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web'`. Nothing to configure after
   `npm install`; this is what the React and Vue packages use internally, and what every snippet
   in [Web player](./web-player.md) assumes.
 - **CJS** — for Node.js and older tooling that uses `require()`. Selected automatically through
@@ -65,7 +65,7 @@ Then load it with a relative path, like any other script of yours:
 <script>
 
   // declarative
-  Pixodesk.SvgAnimator.createSvgAnimatorsFromPage(); 
+  Pixodesk.SvgAnimator.createSvgAnimationPlayersFromPage(); 
 
   // programmatic
   const a = Pixodesk.SvgAnimator.create({ src: '/bouncing-ball.json', container: '#box', playAsSaved: true });
@@ -94,7 +94,7 @@ Every package ships types, and `doc` accepts a `.json` import as-is:
 
 ```ts
 import animation from './animation.json';
-// <SvgAnimator doc={animation} /> — no cast: `doc` is typed `PxDocumentInput`,
+// <SvgAnimationPlayer doc={animation} /> — no cast: `doc` is typed `PxDocumentInput`,
 // the shape a JSON import produces; values are validated at runtime.
 ```
 
@@ -107,13 +107,13 @@ from the one you installed.
 
 Other types you may want by name:
 
-- `PxPageAnimatorOptions` — the options `createSvgAnimatorsFromPage` takes.
-- `PxPrerenderedAnimatorOptions` — the options the pre-rendered builds take.
-- `PxAnimatorHandle` — the handle the components give you through `apiRef` (every framework
+- `PxPageAnimationPlayerOptions` — the options `createSvgAnimationPlayersFromPage` takes.
+- `PxPrerenderedAnimationPlayerOptions` — the options the pre-rendered builds take.
+- `PxAnimationPlayerHandle` — the handle the components give you through `apiRef` (every framework
   package exports this one name).
 - `PxPlaybackOverride` — the playback override every player accepts.
 
-Hearing back from it: `PxAnimatorCallbacks` is the single callback shape — the playback lifecycle
+Hearing back from it: `PxAnimationPlayerCallbacks` is the single callback shape — the playback lifecycle
 plus `onWarn` / `onError` — and `PxDiagnosticsConfig` is the diagnostics half of it on its own. A
 handler receives a `PxDiagnostic`, whose `kind` is a `PxDiagnosticKind` saying who can act on it,
 and `PxDiagnostics` is the channel object a player reports through.

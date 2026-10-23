@@ -1,5 +1,5 @@
 import { createApp, h, ref } from 'vue';
-import { SvgAnimator } from '@pixodesk/svg-animator-vue';
+import { SvgAnimationPlayer } from '@pixodesk/svg-animator-vue';
 import animation from '../../../fixtures/animation.json';
 
 createApp({
@@ -13,7 +13,7 @@ createApp({
           ' ', h('span', { id: 'ms' }, String(time.value)), ' ms']),
       ]),
       h('div', { class: 'stage' }, [
-        h(SvgAnimator as any, { doc: animation, time: time.value }),
+        h(SvgAnimationPlayer as any, { doc: animation, time: time.value }),
       ]),
     ];
   },

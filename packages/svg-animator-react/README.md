@@ -13,7 +13,7 @@ React component for rendering and controlling Pixodesk SVG animations.
 ## Usage
 
 ```tsx
-import { SvgAnimator } from '@pixodesk/svg-animator-react';
+import { SvgAnimationPlayer } from '@pixodesk/svg-animator-react';
 import { PxDocument } from '@pixodesk/svg-animator-web';
 import _animation from './animation.json';
 
@@ -25,7 +25,7 @@ const animation: PxDocument = _animation;
 Uses triggers defined in the animation document (load, click, hover, scroll):
 
 ```tsx
-<SvgAnimator doc={animation} playAsSaved />
+<SvgAnimationPlayer doc={animation} playAsSaved />
 ```
 
 ### Declarative play/pause
@@ -36,7 +36,7 @@ Control playback with boolean props:
 const [play, setPlay] = useState(false);
 const [pause, setPause] = useState(false);
 
-<SvgAnimator doc={animation} play={play} pause={pause} />
+<SvgAnimationPlayer doc={animation} play={play} pause={pause} />
 <button onClick={() => setPlay(p => !p)}>
   {play ? 'Play (on)' : 'Play (off)'}
 </button>
@@ -51,19 +51,19 @@ Use a ref for full programmatic control:
 
 ```tsx
 import { useRef } from 'react';
-import type { PxAnimatorHandle } from '@pixodesk/svg-animator-react';
+import type { PxAnimationPlayerHandle } from '@pixodesk/svg-animator-react';
 
-const api = useRef<PxAnimatorHandle>(null);
+const playerRef = useRef<PxAnimationPlayerHandle>(null);
 
-<SvgAnimator doc={animation} apiRef={api} />
-<button onClick={() => api.current?.play()}>Play</button>
-<button onClick={() => api.current?.pause()}>Pause</button>
-<button onClick={() => api.current?.cancel()}>Cancel</button>
-<button onClick={() => api.current?.finish()}>Finish</button>
+<SvgAnimationPlayer doc={animation} apiRef={playerRef} />
+<button onClick={() => playerRef.current?.play()}>Play</button>
+<button onClick={() => playerRef.current?.pause()}>Pause</button>
+<button onClick={() => playerRef.current?.cancel()}>Cancel</button>
+<button onClick={() => playerRef.current?.finish()}>Finish</button>
 ```
 
-<!-- px-check members PxAnimatorHandle pkg=react -->
-`PxAnimatorHandle` methods: `getDuration()` (one pass, ms — the slider maximum), `play()`, `pause()`, `cancel()`, `finish()`, `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
+<!-- px-check members PxAnimationPlayerHandle pkg=react -->
+`PxAnimationPlayerHandle` methods: `getDuration()` (one pass, ms — the slider maximum), `play()`, `pause()`, `cancel()`, `finish()`, `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
 
 ### Controlled time
 
@@ -72,7 +72,7 @@ Move through the animation with a slider, or show one fixed frame:
 ```tsx
 const [time, setTime] = useState(0);
 
-<SvgAnimator doc={animation} time={time} />
+<SvgAnimationPlayer doc={animation} time={time} />
 <input
   type="range"
   min={0}
@@ -85,7 +85,7 @@ const [time, setTime] = useState(0);
 
 ## Props
 
-<!-- px-check props SvgAnimatorProps pkg=react -->
+<!-- px-check props SvgAnimationPlayerProps pkg=react -->
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxDocumentInput` | The animation document to render (required); a `.json` import passes as-is |
@@ -94,7 +94,7 @@ const [time, setTime] = useState(0);
 | `pause` | `boolean` | Pause current playback |
 | `playMode` | `'none' \| 'forwards' \| 'backwards' \| 'both'` | One-shot documents: which pose changes PLAY vs snap (default `forwards` — plays there, snaps back) |
 | `completeIteration` | `boolean` | Looping documents: `play={false}` finishes the current iteration, then rests |
-| `apiRef` | `RefObject<PxAnimatorHandle>` | Ref for imperative control |
+| `apiRef` | `RefObject<PxAnimationPlayerHandle>` | Ref for imperative control |
 | `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `time` | `number` | show the frame at that time, in milliseconds from the start |
 | `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
@@ -108,7 +108,7 @@ const [time, setTime] = useState(0);
 | `mouseOut` | `PxMouseOutAction` | Shortcut for `timeline.trigger.mouseOut` |
 | `visibilityThreshold` | `number` | Shortcut for `timeline.trigger.visibilityThreshold` |
 | `visibilityDebounce` | `number` | Shortcut for `timeline.trigger.visibilityDebounce` |
-| `onReady` | `() => void` | The animator exists and the SVG is rendered — once, async |
+| `onReady` | `() => void` | The player exists and the SVG is rendered — once, async |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
 | `onFinish` | `() => void` | Called when the animation reaches its end — every iteration played, or `finish()` was called |
@@ -124,4 +124,4 @@ const [time, setTime] = useState(0);
 
 With none of `playAsSaved` / `play` / `pause` / `apiRef` / `progress` / `time` set, the component renders the animation statically (initial state, no playback).
 
-Note: passing a different `doc` (or unmounting) throws the old animator away and builds a new one; the old instance emits `onCancel`, `onDestroy`, and `onStop` on its way out. Changing `progress` / `time` does **not** recreate the animator — it just jumps the existing one to the new time.
+Note: passing a different `doc` (or unmounting) throws the old player away and builds a new one; the old instance emits `onCancel`, `onDestroy`, and `onStop` on its way out. Changing `progress` / `time` does **not** recreate the animator — it just jumps the existing one to the new time.

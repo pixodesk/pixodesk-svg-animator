@@ -12,11 +12,11 @@ npm install @pixodesk/svg-animator-react
 ```
 
 ```tsx
-import { SvgAnimator } from '@pixodesk/svg-animator-react';
+import { SvgAnimationPlayer } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Logo() {
-  return <SvgAnimator doc={animation} playAsSaved />;
+  return <SvgAnimationPlayer doc={animation} playAsSaved />;
 }
 ```
 
@@ -41,29 +41,29 @@ any button, timer or effect in your app can start, pause, or jump to any point i
 
 ```tsx
 import { useRef } from 'react';
-import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-react';
+import { SvgAnimationPlayer, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Player() {
-  const api = useRef<PxAnimatorHandle>(null);
+  const playerRef = useRef<PxAnimationPlayerHandle>(null);
   return (
     <>
-      <SvgAnimator doc={animation} apiRef={api} />
-      <button onClick={() => api.current?.play()}>Play</button>
-      <button onClick={() => api.current?.pause()}>Pause</button>
-      <button onClick={() => api.current?.setPlaybackRate(-1)}>Reverse</button>
+      <SvgAnimationPlayer doc={animation} apiRef={playerRef} />
+      <button onClick={() => playerRef.current?.play()}>Play</button>
+      <button onClick={() => playerRef.current?.pause()}>Pause</button>
+      <button onClick={() => playerRef.current?.setPlaybackRate(-1)}>Reverse</button>
     </>
   );
 }
 ```
 
 What `apiRef.current` gives you — the web API minus `destroy` / `getRootElement` / `isReady`,
-because the component owns the element's lifetime. It is core's `PxAnimatorHandle`, under that
+because the component owns the element's lifetime. It is core's `PxAnimationPlayerHandle`, under that
 one name in every framework package, so the three cannot drift apart:
 
 <!-- px-check signature pkg=react -->
 ```typescript
-interface PxAnimatorHandle {
+interface PxAnimationPlayerHandle {
     isPlaying(): boolean;                  // true while running; false when paused, finished or not started
     play(): void;                          // start, or resume from the current time
     pause(): void;                         // hold the current frame
@@ -92,11 +92,11 @@ The simplest mode: the component starts the animation the way the file says it s
 load, on hover, on click, or when scrolled into view.
 
 ```tsx
-import { SvgAnimator } from '@pixodesk/svg-animator-react';
+import { SvgAnimationPlayer } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Intro() {
-  return <SvgAnimator doc={animation} playAsSaved />;
+  return <SvgAnimationPlayer doc={animation} playAsSaved />;
 }
 ```
 
@@ -109,22 +109,22 @@ Uses the trigger saved in the document — on load, on hover, on click, when scr
 
 > **Example:** [`react/controlled-time`](../../examples/docs-examples/src/cases/react/controlled-time/) — `pnpm example:docs`, then open `#react/controlled-time`.
 
-Render one frame, and move through the animation by changing the prop. The animator is **not** recreated on change —
+Render one frame, and move through the animation by changing the prop. The player is **not** recreated on change —
 it just jumps to the new time.
 
 ```tsx
 import { useRef, useState } from 'react';
-import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-react';
+import { SvgAnimationPlayer, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Scrubber() {
-  const api = useRef<PxAnimatorHandle>(null);
+  const playerRef = useRef<PxAnimationPlayerHandle>(null);
   const [time, setTime] = useState(0);
   const [max, setMax] = useState(0);
   return (
     <>
-      <SvgAnimator doc={animation} time={time} apiRef={api}
-                   onReady={() => setMax(api.current?.getDuration() ?? 0)} />
+      <SvgAnimationPlayer doc={animation} time={time} apiRef={playerRef}
+                   onReady={() => setMax(playerRef.current?.getDuration() ?? 0)} />
       <input type="range" min={0} max={max} value={time} onChange={e => setTime(+e.target.value)} />
     </>
   );
@@ -161,23 +161,23 @@ The everyday recipes:
 ```tsx
 // Hover icon (trash-can lid): rests at start · hover → plays forward · rests at end ·
 // unhover → plays BACK from wherever it is · rests. One boolean, playMode="both".
-<SvgAnimator doc={doc} play={isHovered} playMode="both" />
+<SvgAnimationPlayer doc={doc} play={isHovered} playMode="both" />
 
 // Splash / stamp — zero config: plays forward, off SNAPS back to clean.
 // A REPEAT splash needs the off edge — re-arm on finish (or use apiRef + playOnce()):
-<SvgAnimator doc={doc} play={isSplashing} onFinish={() => setIsSplashing(false)} />
+<SvgAnimationPlayer doc={doc} play={isSplashing} onFinish={() => setIsSplashing(false)} />
 
 // Overlay art: appears instantly, retreats animated
-<SvgAnimator doc={doc} play={isOpen} playMode="backwards" />
+<SvgAnimationPlayer doc={doc} play={isOpen} playMode="backwards" />
 
 // Spinner: spins while busy, off snaps to rest
-<SvgAnimator doc={doc} play={isBusy} iterations="infinite" />
+<SvgAnimationPlayer doc={doc} play={isBusy} iterations="infinite" />
 
 // Heartbeat: finishes the current beat, then rests
-<SvgAnimator doc={doc} play={isBeating} iterations="infinite" completeIteration />
+<SvgAnimationPlayer doc={doc} play={isBeating} iterations="infinite" completeIteration />
 
 // Doorbell — click plays once, start to finish; there is no "off", so it is a ref verb:
-<SvgAnimator doc={doc} apiRef={api} />  /* + onClick={() => api.current?.playOnce()} */
+<SvgAnimationPlayer doc={doc} apiRef={playerRef} />  /* + onClick={() => playerRef.current?.playOnce()} */
 ```
 
 The same two switches drive a pre-rendered SVG+CSS export as class names on its root —
@@ -203,7 +203,7 @@ shaped exactly like the file's own `animator` block and deep-merges it over what
 
 ```tsx
 // The file loops twice and starts on load; here it loops forever and waits for play().
-<SvgAnimator
+<SvgAnimationPlayer
   doc={animation}
   timeline={{ iterations: 'infinite', trigger: { start: 'none' } }}
   apiRef={apiRef}
@@ -214,7 +214,7 @@ Objects merge key by key, values replace, and `null` **deletes** a key so the de
 absence means comes back:
 
 ```tsx
-<SvgAnimator doc={animation} playAsSaved timeline={{ delay: null }} />
+<SvgAnimationPlayer doc={animation} playAsSaved timeline={{ delay: null }} />
 ```
 
 `inTime`, `outTime`, `playDuration`, `delay`, `iterations` and `start` are also plain props,
@@ -232,9 +232,9 @@ the SVG; the player drives its attributes.
 
 <!-- px-check signature pkg=react -->
 ```typescript
-const SvgAnimator: FC<SvgAnimatorProps>;
+const SvgAnimationPlayer: FC<SvgAnimationPlayerProps>;
 
-interface SvgAnimatorProps {
+interface SvgAnimationPlayerProps {
     doc: PxDocumentInput;                 // the animation document (a .json import passes as-is); no URL form
     className?: string;                   // added to the root <svg>
     style?: CSSProperties;                // set on the root <svg>
@@ -261,7 +261,7 @@ interface SvgAnimatorProps {
     visibilityDebounce?: number;          // ▸ timeline.trigger.visibilityDebounce — ms it must hold
 
     // Control — the HIGHEST-priority one that is set picks the mode (Control modes, above)
-    apiRef?: React.RefObject<PxAnimatorHandle | null>;   // never a mode: filled in every mode
+    apiRef?: React.RefObject<PxAnimationPlayerHandle | null>;   // never a mode: filled in every mode
     playAsSaved?: boolean;                   // obey the document's own trigger — the Start setting from the editor
     progress?: number;                    // controlled: 0–1 of duration × iterations
                                           //   (one iteration when iterations is 'infinite')
@@ -278,7 +278,7 @@ interface SvgAnimatorProps {
                                           //   iteration, then rests
 
     // Lifecycle — no arguments
-    onReady?: () => void;    // the animator exists and the SVG is rendered — fires once, async;
+    onReady?: () => void;    // the player exists and the SVG is rendered — fires once, async;
                              //   the push twin of isReady()
     onPlay?: () => void;     // started, or resumed after a pause
     onPause?: () => void;    // paused: the `pause` prop, the API's pause(), or a trigger's out action
@@ -305,28 +305,28 @@ can route rather than just log — surface `document` problems in a build check,
 you know what a document has to say and tolerate it, `muteWarn` keeps it out of the console.
 
 Passing a different `doc` (or changing `className` / `style` / the control mode) throws the
-old animator away and builds a new one; the old instance emits `onCancel`, `onDestroy` and
+old player away and builds a new one; the old instance emits `onCancel`, `onDestroy` and
 `onStop` on its way out. Changing `progress` / `time` does not recreate anything.
 
-## CSS-flavor SVGs — `SvgCssAnimator`
+## CSS-flavor SVGs — `SvgCssAnimationPlayer`
 
 > **Example:** [`react/css-svgr`](../../examples/docs-examples/src/cases/react/css-svgr/) — `pnpm example:docs`, then open `#react/css-svgr`.
 
 For a **pre-rendered SVG + CSS animation** file imported as a component with
 [SVGR](https://react-svgr.com/) (`@svgr/webpack`, `vite-plugin-svgr`), this small wrapper adds
 the hover / click / scroll triggers. It renders a `<div>` of its own around your SVG component —
-that is what `SvgCssAnimator` becomes on the page — and starts, pauses or resets the
+that is what `SvgCssAnimationPlayer` becomes on the page — and starts, pauses or resets the
 animation by switching the file's CSS classes on that `<div>`:
 
 ```tsx
-import { SvgCssAnimator } from '@pixodesk/svg-animator-react';
+import { SvgCssAnimationPlayer } from '@pixodesk/svg-animator-react';
 import AnimationSvg from './animation.svg?react';   // vite-plugin-svgr
 
 export function HoverLogo() {
   return (
-    <SvgCssAnimator start="mouseOver" mouseOut="pause" style={{ width: 400, height: 400 }}>
+    <SvgCssAnimationPlayer start="mouseOver" mouseOut="pause" style={{ width: 400, height: 400 }}>
       <AnimationSvg />
-    </SvgCssAnimator>
+    </SvgCssAnimationPlayer>
   );
 }
 ```
@@ -335,7 +335,7 @@ export function HoverLogo() {
 ```typescript
 // Wraps the SVG in a div and drives it by toggling class names — `px-anim-enabled` once
 // started, plus `px-anim-playing` while running.
-const SvgCssAnimator: FC<{
+const SvgCssAnimationPlayer: FC<{
     children: ReactNode;                  // the SVGR-imported SVG component
     start?: PxTriggerStart;               // 'load' (default) | 'mouseOver' | 'click'
                                           //   — 'none' does nothing here (no play())
@@ -352,7 +352,7 @@ const SvgCssAnimator: FC<{
 ```
 
 > ⚠️ **Don't put the SAME SVG file on a page twice.** You can have as many
-> `<SvgCssAnimator>` on a page as you like, each with a *different* file. What does not
+> `<SvgCssAnimationPlayer>` on a page as you like, each with a *different* file. What does not
 > work is the *same* file twice: the imported component is the file's markup, element ids
 > included, so two copies share the same ids and their masks and gradients cross over. To show
 > one animation several times, use the JSON component instead — the player gives every copy
@@ -363,14 +363,14 @@ SVGR strips `<script>` tags, so only the pure CSS flavor works this way. Files w
 
 ## API reference
 
-Everything is spelled out above: `SvgAnimator` and its props under [Props](#props), the
-handle under [Imperative API](#imperative-api-apiref), `SvgCssAnimator` under
-[CSS-flavor SVGs](#css-flavor-svgs--svgcssanimator). The callbacks and diagnostics are
+Everything is spelled out above: `SvgAnimationPlayer` and its props under [Props](#props), the
+handle under [Imperative API](#imperative-api-apiref), `SvgCssAnimationPlayer` under
+[CSS-flavor SVGs](#css-flavor-svgs--svgcssanimationplayer). The callbacks and diagnostics are
 the shape every player shares — [the API at a glance](./README.md#the-api-at-a-glance).
 
 <!-- px-check exports @pixodesk/svg-animator-react -->
-Also exported: **●** `SvgAnimatorProps`, `PxAnimatorHandle`,
-`SvgAnimatorCallbacks` (the `on*` props as a standalone type), and `PxDocument`
+Also exported: **●** `SvgAnimationPlayerProps`, `PxAnimationPlayerHandle`,
+`SvgAnimationPlayerCallbacks` (the `on*` props as a standalone type), and `PxDocument`
 (the document type, for casting a JSON import — [TypeScript](./installation.md#typescript)).
 
 [← Web player](./web-player.md) · [Contents](../../README.md#documentation) · Next: [Next.js →](./nextjs.md)

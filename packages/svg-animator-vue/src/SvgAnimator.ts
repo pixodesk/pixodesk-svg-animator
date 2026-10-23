@@ -4,10 +4,10 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxDocument, PxAnimatorApi, PxTimelineEngineSetting, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
-import type { PxInternalAnimatorOptions } from '@pixodesk/svg-animator-web/internal';
-import { createSvgAnimator, PxDiagnosticKind, type PxPlaybackOverride, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, applyDeclarativeAction, createIterationStopWatcher, foldTimelineOverride, toPxDocument, type PxDocumentInput, type PxMouseOutAction, type PxOffScreenAction, getAnimatorConfig, PxDeclarativeAction, type PxDeclarativeProps, PxDiagnosticCode, PxControlMode, PxFillMode, PxPlaybackWorld, PxPlayMode, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorConfigPatch, type PxAnimatorHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
+import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
+import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
+import { createSvgAnimationPlayer, PxDiagnosticKind, type PxPlaybackOverride, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
+import { applyAnimatorConfig, applyDeclarativeAction, createIterationStopWatcher, foldTimelineOverride, toPxDocument, type PxDocumentInput, type PxMouseOutAction, type PxOffScreenAction, getAnimatorConfig, PxDeclarativeAction, type PxDeclarativeProps, PxDiagnosticCode, PxControlMode, PxFillMode, PxPlaybackWorld, PxPlayMode, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxAnimatorConfigPatch, type PxAnimationPlayerHandle, type PxControlProps } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
@@ -21,7 +21,7 @@ import {
 const VUE_PROP = { ref: 'ref', style: 'style' } as const;
 
 /**
- * The imperative handle the template ref exposes — core's `PxAnimatorHandle` under this
+ * The imperative handle the template ref exposes — core's `PxAnimationPlayerHandle` under this
  * package's name (review §9). One definition for React, Vue and React Native.
  * @public
  */
@@ -84,8 +84,8 @@ function applyDocOverrides(
 /**
  * Controlled-time mode: absolute seek target in ms. `progress` is a fraction
  * (0–1) of the WHOLE timeline (duration × iterations — ONE iteration when
- * endless); `time` is absolute. Applied through the animator API
- * (setCurrentTime) so scrubbing does NOT recreate the animator.
+ * endless); `time` is absolute. Applied through the player API
+ * (setCurrentTime) so scrubbing does NOT recreate the player.
  */
 function calcSeekMs(doc: PxDocument, props: DocOverrideProps): number | undefined {
     let seekMs: number | undefined;
@@ -116,29 +116,29 @@ function calcSeekMs(doc: PxDocument, props: DocOverrideProps): number | undefine
  *
  * 1. **Autoplay** – uses triggers from the animation document.
  *    ```vue
- *    <SvgAnimator :doc="animation" playAsSaved />
+ *    <SvgAnimationPlayer :doc="animation" playAsSaved />
  *    ```
  *
  * 2. **Declarative play/pause** – controlled via boolean props.
  *    ```vue
- *    <SvgAnimator :doc="animation" play :pause="false" />
+ *    <SvgAnimationPlayer :doc="animation" play :pause="false" />
  *    ```
  *
  * 3. **Imperative** – exposes a ref-based API for full programmatic control.
  *    ```vue
- *    <SvgAnimator :doc="animation" ref="animator" />
- *    <button @click="$refs.animator.play()">Play</button>
+ *    <SvgAnimationPlayer :doc="animation" ref="player" />
+ *    <button @click="$refs.player.play()">Play</button>
  *    ```
  *
  * 4. **Controlled time** – renders a single frame at a given time.
  *    ```vue
- *    <SvgAnimator :doc="animation" :progress="0.5" />
- *    <SvgAnimator :doc="animation" :time="500" />
+ *    <SvgAnimationPlayer :doc="animation" :progress="0.5" />
+ *    <SvgAnimationPlayer :doc="animation" :time="500" />
  *    ```
  * @public
  */
-const SvgAnimator = defineComponent({
-    name: 'SvgAnimator',
+const SvgAnimationPlayer = defineComponent({
+    name: 'SvgAnimationPlayer',
 
     props: {
         // -- Source
@@ -189,7 +189,7 @@ const SvgAnimator = defineComponent({
         // The `<svg>` this component rendered — handed to the player, which attaches its
         // triggers to it and writes animated values to the elements under it.
         let rootElement: Element | null = null;
-        const apiRef = shallowRef<PxAnimatorApi | null>(null);
+        const apiRef = shallowRef<PxAnimationPlayerApi | null>(null);
 
         /**
          * The diagnostics channel, built from the CURRENT props each time (API review §5).
@@ -199,7 +199,7 @@ const SvgAnimator = defineComponent({
          */
         const makeDiag = (): PxDiagnostics => createDiagnostics(
             { onWarn: props.onWarn, onError: props.onError, muteWarn: props.muteWarn, muteError: props.muteError },
-            '[SvgAnimator]',
+            '[SvgAnimationPlayer]',
         );
 
         // -- Determine control mode ---------------------------------------------
@@ -262,7 +262,7 @@ const SvgAnimator = defineComponent({
             // playback — that is the PLAYER's rule, so `onStop` is passed through, not re-derived.
             // No `adapter`: the web player's OWN writer drives the elements Vue rendered, found by
             // id under the root. A second writer here was a second place for rules to go missing.
-            const options: PxInternalAnimatorOptions = {
+            const options: PxInternalAnimationPlayerOptions = {
                 doc,
                 // The component resolved its control mode and patched `doc` above — the web player
                 // must not add its own no-driver suppression on top (first-use review §1+2).
@@ -282,7 +282,7 @@ const SvgAnimator = defineComponent({
                 muteWarn:  props.muteWarn,
                 muteError: props.muteError,
             };
-            apiRef.value = createSvgAnimator(options);
+            apiRef.value = createSvgAnimationPlayer(options);
 
             // (Re)apply the declarative control state to the fresh animator —
             // covers both the initial mount (e.g. `:play="true"` from the
@@ -393,7 +393,7 @@ const SvgAnimator = defineComponent({
                 makeDiag().warn(PxDiagnosticKind.usage, PxDiagnosticCode.imperativeOverDeclarative, call);
             }
         };
-        const publicApi: PxAnimatorHandle = {
+        const publicApi: PxAnimationPlayerHandle = {
             isPlaying: () => apiRef.value?.isPlaying() || false,
             play: () => { guardWrite('play()'); apiRef.value?.play(); },
             pause: () => { guardWrite('pause()'); apiRef.value?.pause(); },
@@ -419,4 +419,4 @@ const SvgAnimator = defineComponent({
     },
 });
 
-export default SvgAnimator;
+export default SvgAnimationPlayer;

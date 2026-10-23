@@ -7,7 +7,7 @@
 // trigger starts on load (`start` defaults to 'load' — SCHEMA-NAMING-REVIEW §2.1). jsdom has no
 // Web Animations API, so the two classes the engine constructs are stubbed with the bare minimum.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSvgAnimator } from '../animator/PxAnimator';
+import { createSvgAnimationPlayer } from '../animator/PxAnimator';
 import type { PxDocument } from '@pixodesk/svg-animator-core';
 
 class StubKeyframeEffect {
@@ -55,12 +55,12 @@ afterEach(() => {
 describe('WAAPI engine — trigger wiring', () => {
 
     it('a document with no trigger starts on load', () => {
-        const api = createSvgAnimator({ playAsSaved: true, doc: doc(), container: '#stage' });
+        const api = createSvgAnimationPlayer({ playAsSaved: true, doc: doc(), container: '#stage' });
         expect(api.isPlaying()).toBe(true);
     });
 
     it('an explicit programmatic trigger still waits for play()', () => {
-        const api = createSvgAnimator({ playAsSaved: true, doc: doc({ start: 'none' }), container: '#stage' });
+        const api = createSvgAnimationPlayer({ playAsSaved: true, doc: doc({ start: 'none' }), container: '#stage' });
         expect(api.isPlaying()).toBe(false);
         api.play();
         expect(api.isPlaying()).toBe(true);

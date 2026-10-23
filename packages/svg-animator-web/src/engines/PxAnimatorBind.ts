@@ -4,12 +4,12 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, composeApiExtras, getAnimatorConfig, toPxDocument, type PxDocumentInput, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, suppressTriggerStart, type PxDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxAnimatorCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, composeApiExtras, getAnimatorConfig, toPxDocument, type PxDocumentInput, isNativeForced, mayUseNativeScrollTimeline, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, suppressTriggerStart, type PxDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
-import type { PxAnimatorApi, PxEngineAnimatorApi } from '../shared/PxAnimatorWebTypes';
+import type { PxAnimationPlayerApi, PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
 import { createWebApiAnimator } from './PxAnimatorWebApi';
 import { applyScrollPin, createNativeScrollTimeline, createScrollDriver } from '../scroll/PxScrollDriver';
 
@@ -34,10 +34,10 @@ import { applyScrollPin, createNativeScrollTimeline, createScrollDriver } from '
 export function finaliseAnimator(
     animatorConfig: PxAnimatorRuntimeConfig,
     callbacks: PxEngineCallbacks | undefined,
-    make: (effectiveCallbacks?: PxEngineCallbacks) => PxEngineAnimatorApi<Element>
-): PxAnimatorApi {
+    make: (effectiveCallbacks?: PxEngineCallbacks) => PxEngineAnimationPlayerApi<Element>
+): PxAnimationPlayerApi {
 
-    let apiRef: PxAnimatorApi | undefined;
+    let apiRef: PxAnimationPlayerApi | undefined;
     let effectiveCallbacks = callbacks;
     if (animatorConfig.resetOnFinish) {
         effectiveCallbacks = {
@@ -50,7 +50,7 @@ export function finaliseAnimator(
     }
 
     // `playOnce` is composed ON TOP of the engine — the one shared one-pass rule (review §10)
-    const res: PxAnimatorApi = composeApiExtras(make(effectiveCallbacks), animatorConfig, (cb) => { window.requestAnimationFrame(cb); });
+    const res: PxAnimationPlayerApi = composeApiExtras(make(effectiveCallbacks), animatorConfig, (cb) => { window.requestAnimationFrame(cb); });
     apiRef = res;
 
     // `playDuration` (§4): the window remapped to wall ms, implemented as an initial rate factor.
@@ -78,7 +78,7 @@ export function bindWithEngineChoice(
     adapter?: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks,
     rootElement?: Element | null
-): PxAnimatorApi {
+): PxAnimationPlayerApi {
     const animatorConfig = getAnimatorConfig(doc) || {};
     // One channel for everything this binder and the scroll driver have to say (review §5).
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
@@ -165,12 +165,12 @@ export function bindWithEngineChoice(
 }
 
 /**
- * Options accepted by the pre-rendered entry points — a subset of `PxAnimatorOptions`: the
+ * Options accepted by the pre-rendered entry points — a subset of `PxAnimationPlayerOptions`: the
  * document and the callbacks INLINE under the same names every surface uses (review §9). No
  * `adapter`: a pre-rendered SVG is by definition already in the DOM (review §25.14).
  * @public
  */
-export interface PxPrerenderedAnimatorOptions extends PxAnimatorCallbacks {
+export interface PxPrerenderedAnimationPlayerOptions extends PxAnimationPlayerCallbacks {
     /**
      * The animation document. For a pre-rendered SVG this carries `animator.definitions`
      * and `animator.bindings` only — no `children`, because the elements are already
@@ -186,17 +186,17 @@ export interface PxPrerenderedAnimatorOptions extends PxAnimatorCallbacks {
 }
 
 /** The no-driver rule, on the bind path: nothing starts itself unless `playAsSaved` says so.
- *  Scroll-driven documents are exempt — scroll IS their named driver (same rule as `createSvgAnimator`). */
-function docToPlay(options: PxPrerenderedAnimatorOptions): PxDocument {
+ *  Scroll-driven documents are exempt — scroll IS their named driver (same rule as `createSvgAnimationPlayer`). */
+function docToPlay(options: PxPrerenderedAnimationPlayerOptions): PxDocument {
     const doc = requireDoc(options);
     if (options.playAsSaved || isScrollTimeline(getAnimatorConfig(doc))) return doc;
     return applyAnimatorConfig(doc, suppressTriggerStart()).doc;
 }
 
-function requireDoc(options: PxPrerenderedAnimatorOptions): PxDocument {
+function requireDoc(options: PxPrerenderedAnimationPlayerOptions): PxDocument {
     // A wrong CALL throws (a bug at the call site); a document that cannot play is reported
     // through `onError` below — the rule in core's `PxDiagnostics` (review §25.1).
-    if (!options?.doc) throw new Error('createSvgAnimator: `doc` is required');
+    if (!options?.doc) throw new Error('createSvgAnimationPlayer: `doc` is required');
     return toPxDocument(options.doc);
 }
 
@@ -204,7 +204,7 @@ function requireDoc(options: PxPrerenderedAnimatorOptions): PxDocument {
  * Builds the player; when that throws, reports "this instance will not play" through the
  * diagnostics channel and returns an inert API instead of throwing at the caller.
  */
-function buildOrReport(options: PxPrerenderedAnimatorOptions, build: () => PxAnimatorApi): PxAnimatorApi {
+function buildOrReport(options: PxPrerenderedAnimationPlayerOptions, build: () => PxAnimationPlayerApi): PxAnimationPlayerApi {
     try {
         return build();
     } catch (e) {
@@ -223,18 +223,18 @@ function buildOrReport(options: PxPrerenderedAnimatorOptions, build: () => PxAni
  * no-ops for this document shape — and none of them reads `animator.bindings`.
  * @public
  */
-export function createPrerenderedAnimator(options: PxPrerenderedAnimatorOptions): PxAnimatorApi {
+export function createPrerenderedAnimator(options: PxPrerenderedAnimationPlayerOptions): PxAnimationPlayerApi {
     const doc = docToPlay(options);
     return registered(options, callbacks => buildOrReport(options, () => bindWithEngineChoice(doc, undefined, callbacks, null)));
 }
 
 /**
- * The page-wide registry (`getAllSvgAnimators()`) for the pre-rendered builds: the returned
+ * The page-wide registry (`getAllSvgAnimationPlayers()`) for the pre-rendered builds: the returned
  * API is enrolled — a build that failed (the inert API, `isReady()` false) is not — and hears
  * play / pause / cancel / finish through the callbacks the engine is given.
  */
-function registered(options: PxPrerenderedAnimatorOptions, build: (callbacks: PxEngineCallbacks) => PxAnimatorApi): PxAnimatorApi {
-    let apiRef: PxAnimatorApi | undefined;
+function registered(options: PxPrerenderedAnimationPlayerOptions, build: (callbacks: PxEngineCallbacks) => PxAnimationPlayerApi): PxAnimationPlayerApi {
+    let apiRef: PxAnimationPlayerApi | undefined;
     const api = build(withRegistryEvents(toEngineCallbacks(options), () => apiRef));
     if (api.isReady()) {
         apiRef = api;
@@ -251,7 +251,7 @@ function registered(options: PxPrerenderedAnimatorOptions, build: (callbacks: Px
  * forced; it only warns about unsupported attrs).
  * @public
  */
-export function createPrerenderedWaapiAnimator(options: PxPrerenderedAnimatorOptions): PxAnimatorApi {
+export function createPrerenderedWaapiAnimator(options: PxPrerenderedAnimationPlayerOptions): PxAnimationPlayerApi {
     const doc = docToPlay(options);
     return registered(options, callbacks => buildOrReport(options, () => {
         const animatorConfig = getAnimatorConfig(doc) || {};

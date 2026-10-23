@@ -7,7 +7,7 @@ animation in the editor, save it as a JSON file, put the file next to your code,
 package, render the file with it. Nothing to configure.
 
 ```text
-the editor  ──save──▶  animation.json  ──import──▶  <SvgAnimator doc={animation} />
+the editor  ──save──▶  animation.json  ──import──▶  <SvgAnimationPlayer doc={animation} />
 ```
 
 Everything on this page has a longer version — the [library documentation](./README.md)
@@ -86,13 +86,13 @@ npm install @pixodesk/svg-animator-react
 
 ```tsx
 // src/components/Hero.tsx
-import { SvgAnimator } from '@pixodesk/svg-animator-react';
+import { SvgAnimationPlayer } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export function Hero() {
   return (
     <div style={{ width: 300, height: 300 }}>
-      <SvgAnimator doc={animation} playAsSaved />
+      <SvgAnimationPlayer doc={animation} playAsSaved />
     </div>
   );
 }
@@ -115,13 +115,13 @@ npm install @pixodesk/svg-animator-vue
 ```vue
 <!-- src/components/Hero.vue -->
 <script setup lang="ts">
-import { SvgAnimator } from '@pixodesk/svg-animator-vue';
+import { SvgAnimationPlayer } from '@pixodesk/svg-animator-vue';
 import animation from './animation.json';
 </script>
 
 <template>
   <div style="width: 300px; height: 300px">
-    <SvgAnimator :doc="animation" playAsSaved />
+    <SvgAnimationPlayer :doc="animation" playAsSaved />
   </div>
 </template>
 ```
@@ -146,10 +146,10 @@ npm install @pixodesk/svg-animator-web
 
 ```js
 // src/main.js — animation.json sits next to it
-import { createSvgAnimator } from '@pixodesk/svg-animator-web';
+import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 import animation from './animation.json';
 
-createSvgAnimator({ doc: animation, container: '#hero', playAsSaved: true });
+createSvgAnimationPlayer({ doc: animation, container: '#hero', playAsSaved: true });
 ```
 
 ### Without a build step
@@ -178,14 +178,14 @@ the page, plays from disk.
 <div data-px-animation-src="animation.json" style="width: 300px; height: 300px"></div>
 
 <script src="js/pixodesk-svg-animator.umd.min.js"></script>
-<script>Pixodesk.SvgAnimator.createSvgAnimatorsFromPage();</script>
+<script>Pixodesk.SvgAnimator.createSvgAnimationPlayersFromPage();</script>
 ```
 
 ### From code — the player fetches the file
 
 > **Example:** [`examples/get-started/html-create-animator`](https://github.com/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-create-animator) — the complete project · [Open in StackBlitz](https://stackblitz.com/github/pixodesk/pixodesk-svg-animator/tree/main/examples/get-started/html-create-animator?startScript=start&title=Get%20started%20%C2%B7%20From%20code%2C%20the%20player%20fetches%20the%20file)
 
-`createSvgAnimator` returns the player, so you can call `animator.play()`, `animator.pause()` and
+`createSvgAnimationPlayer` returns the player, so you can call `player.play()`, `player.pause()` and
 the rest ([the playback API](./web-player.md#the-playback-api)). With `src` it fetches
 the file itself:
 
@@ -194,7 +194,7 @@ the file itself:
 
 <script src="js/pixodesk-svg-animator.umd.min.js"></script>
 <script>
-  const animator = Pixodesk.SvgAnimator.create({ src: 'animation.json', container: '#hero', playAsSaved: true });
+  const player = Pixodesk.SvgAnimator.create({ src: 'animation.json', container: '#hero', playAsSaved: true });
 </script>
 ```
 
@@ -255,13 +255,13 @@ Reanimated needs its Babel plugin — one line in `babel.config.js`, spelled out
 ```tsx
 // components/Hero.tsx
 import { View } from 'react-native';
-import { SvgAnimator } from '@pixodesk/svg-animator-rn';
+import { SvgAnimationPlayer } from '@pixodesk/svg-animator-rn';
 import animation from './animation.json';
 
 export function Hero() {
   return (
     <View style={{ width: 300, height: 300 }}>
-      <SvgAnimator doc={animation} playAsSaved />
+      <SvgAnimationPlayer doc={animation} playAsSaved />
     </View>
   );
 }

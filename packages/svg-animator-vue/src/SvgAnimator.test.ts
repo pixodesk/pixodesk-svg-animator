@@ -3,13 +3,13 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { createSvgAnimator, PxDocument, type PxNode } from '@pixodesk/svg-animator-web';
+import { createSvgAnimationPlayer, PxDocument, type PxNode } from '@pixodesk/svg-animator-web';
 import { PxDiagnosticCode } from '@pixodesk/svg-animator-core';
 import { cleanup, render } from "@testing-library/vue";
 import { afterEach, assert, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, ref } from "vue";
-import type { PxAnimatorCallbacks, PxAnimatorHandle } from '@pixodesk/svg-animator-core';
-import SvgAnimator from './SvgAnimator';
+import type { PxAnimationPlayerCallbacks, PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
+import SvgAnimationPlayer from './SvgAnimator';
 
 
 /**
@@ -18,12 +18,12 @@ import SvgAnimator from './SvgAnimator';
  * emitted events via `onX` listener props. The host forwards its `doc` prop so
  * `rerender({ doc })` reaches the animator.
  */
-function renderWithApi(doc: PxDocument, listeners: PxAnimatorCallbacks = {}) {
-    const api = ref<PxAnimatorHandle | null>(null);
+function renderWithApi(doc: PxDocument, listeners: PxAnimationPlayerCallbacks = {}) {
+    const api = ref<PxAnimationPlayerHandle | null>(null);
     const utils = render(defineComponent({
         props: { doc: { type: Object, required: true } },
         setup(props) {
-            return () => h(SvgAnimator, { doc: props.doc as PxDocument, ref: api, ...listeners });
+            return () => h(SvgAnimationPlayer, { doc: props.doc as PxDocument, ref: api, ...listeners });
         },
     }), {
         props: { doc },
@@ -31,7 +31,7 @@ function renderWithApi(doc: PxDocument, listeners: PxAnimatorCallbacks = {}) {
     return { api, ...utils };
 }
 
-describe("SvgAnimator (Vue)", () => {
+describe("SvgAnimationPlayer (Vue)", () => {
     beforeEach(() => {
         vi.useFakeTimers();
     });
@@ -52,7 +52,7 @@ describe("SvgAnimator (Vue)", () => {
 
     describe("rendering", () => {
         it("renders the SVG tag tree with attributes", () => {
-            const { container } = render(SvgAnimator, {
+            const { container } = render(SvgAnimationPlayer, {
                 props: { doc: getTreeJson() },
             });
 
@@ -76,7 +76,7 @@ describe("SvgAnimator (Vue)", () => {
         });
 
         it("renders text content — a leaf <text> and its <tspan> children carry `textContent`", () => {
-            const { container } = render(SvgAnimator, { props: { doc: getTextJson() } });
+            const { container } = render(SvgAnimationPlayer, { props: { doc: getTextJson() } });
 
             const [leaf, spans] = Array.from(container.querySelectorAll("svg > text"));
             expect(leaf?.textContent).toBe("Leaf");
@@ -87,7 +87,7 @@ describe("SvgAnimator (Vue)", () => {
         });
 
         it("a node with child nodes renders its children, not its own `textContent` too", () => {
-            const { container } = render(SvgAnimator, { props: { doc: getTextJson() } });
+            const { container } = render(SvgAnimationPlayer, { props: { doc: getTextJson() } });
 
             // the line <tspan> carries BOTH its folded text and the styled child span
             expect(container.querySelector("tspan > tspan")?.parentElement?.textContent).toBe("Hi");
@@ -95,7 +95,7 @@ describe("SvgAnimator (Vue)", () => {
 
         it("regenerates ids (rendered id differs from doc id)", () => {
             const doc = getTreeJson();
-            const { container } = render(SvgAnimator, { props: { doc } });
+            const { container } = render(SvgAnimationPlayer, { props: { doc } });
 
             const svg = container.querySelector("svg");
             const renderedRootId = svg?.getAttribute("id");
@@ -118,7 +118,7 @@ describe("SvgAnimator (Vue)", () => {
                     { type: 'ellipse', fill: '#007fff', rx: 200, ry: 202.5, style: { display: 'none' } },
                 ],
             };
-            const { container } = render(SvgAnimator, { props: { doc } });
+            const { container } = render(SvgAnimationPlayer, { props: { doc } });
 
             const [visible, hidden] = Array.from(container.querySelectorAll("ellipse")) as Array<SVGElement>;
             expect(visible.style.display).toBe("");
@@ -145,7 +145,7 @@ describe("SvgAnimator (Vue)", () => {
 
     describe("animation", () => {
         it("renders and animates with playAsSaved", () => {
-            render(SvgAnimator, {
+            render(SvgAnimationPlayer, {
                 props: { doc: getTestJson(), playAsSaved: true },
             });
 
@@ -264,7 +264,7 @@ describe("SvgAnimator (Vue)", () => {
 
     describe("controlled time", () => {
         it("renders mid-animation state with time (absolute milliseconds)", () => {
-            render(SvgAnimator, {
+            render(SvgAnimationPlayer, {
                 props: { doc: getTestJson1000(), time: 500 },
             });
             const ellipse = document.querySelector("ellipse");
@@ -272,7 +272,7 @@ describe("SvgAnimator (Vue)", () => {
         });
 
         it("treats `progress` as a fraction of duration (progress=0.5, duration=1000 → 500ms)", () => {
-            render(SvgAnimator, {
+            render(SvgAnimationPlayer, {
                 props: { doc: getTestJson1000(), progress: 0.5 },
             });
             const ellipse = document.querySelector("ellipse");
@@ -280,7 +280,7 @@ describe("SvgAnimator (Vue)", () => {
         });
 
         it("does not advance on its own in fixed-time mode", () => {
-            render(SvgAnimator, {
+            render(SvgAnimationPlayer, {
                 props: { doc: getTestJson1000(), time: 500 },
             });
             const ellipse = document.querySelector("ellipse");
@@ -293,7 +293,7 @@ describe("SvgAnimator (Vue)", () => {
 
     describe("attrs fallthrough", () => {
         it("passes class and style through to the root svg", () => {
-            const { container } = render(SvgAnimator, {
+            const { container } = render(SvgAnimationPlayer, {
                 props: { doc: getTestJson() },
                 attrs: { class: 'my-class', style: 'width: 123px;' },
             });
@@ -357,8 +357,8 @@ describe("SvgAnimator (Vue)", () => {
 // their fill from `effects.fillGradient`, and the ellipse is `effects.maskedBy` the rect. The web
 // player plays it. Vue rendered an EMPTY canvas, because it built its vnodes from the raw
 // document — `effects` never became <radialGradient>/<mask> defs, so every shape inherited
-// `fill: none`. `createSvgAnimator` did materialize, but only its own copy, after Vue had rendered.
-describe("SvgAnimator (Vue) — effects", () => {
+// `fill: none`. `createSvgAnimationPlayer` did materialize, but only its own copy, after Vue had rendered.
+describe("SvgAnimationPlayer (Vue) — effects", () => {
     afterEach(() => cleanup());
 
     it("renders the gradients and the mask that `effects` describe", () => {
@@ -383,7 +383,7 @@ describe("SvgAnimator (Vue) — effects", () => {
         // The web player is the reference: it plays this document.
         const host = document.createElement("div");
         document.body.appendChild(host);
-        const web = createSvgAnimator({ doc: getEffectsOnlyJson(), container: host });
+        const web = createSvgAnimationPlayer({ doc: getEffectsOnlyJson(), container: host });
         const webSvg = host.querySelector("svg");
         expect(webSvg).not.toBeNull();
 
@@ -397,8 +397,8 @@ describe("SvgAnimator (Vue) — effects", () => {
     it("two instances on one page do not share def ids", () => {
         // Materialization numbers its defs from zero; ids must be regenerated AFTER it, as the
         // web player does, or two instances mint the same `url(#…)` targets.
-        const a = render(SvgAnimator, { props: { doc: getEffectsOnlyJson() } });
-        const b = render(SvgAnimator, { props: { doc: getEffectsOnlyJson() } });
+        const a = render(SvgAnimationPlayer, { props: { doc: getEffectsOnlyJson() } });
+        const b = render(SvgAnimationPlayer, { props: { doc: getEffectsOnlyJson() } });
 
         const ids = [a.container, b.container].flatMap(c =>
             Array.from(c.querySelectorAll("radialGradient, mask")).map(el => el.id));
@@ -411,7 +411,7 @@ describe("SvgAnimator (Vue) — effects", () => {
 // Both engines find the root as `#` + the document's root id, so a document whose root `<svg>`
 // has no id had NO root here, and `setupAnimationTriggers` returned before wiring anything
 // (PX1201): a `load` trigger never fired. The component now hands over the `<svg>` it rendered.
-describe("SvgAnimator (Vue) — root element", () => {
+describe("SvgAnimationPlayer (Vue) — root element", () => {
     beforeEach(() => { vi.useFakeTimers(); });
     afterEach(() => {
         vi.advanceTimersByTime(32); // drain a pending rAF before real timers come back
@@ -421,7 +421,7 @@ describe("SvgAnimator (Vue) — root element", () => {
 
     it("a `load` trigger plays when the document's root has no id", () => {
         const onWarn = vi.fn();
-        const { container } = render(SvgAnimator, {
+        const { container } = render(SvgAnimationPlayer, {
             props: { doc: getMaskedLoadJson(), playAsSaved: true, onWarn, timeline: { engine: "js" } },
         });
 
@@ -441,7 +441,7 @@ describe("SvgAnimator (Vue) — root element", () => {
 // Vue has no camelCase-to-attribute mapping at all, so it wrote EVERY camelCase name verbatim —
 // `stopColor`, `strokeWidth`, `fillOpacity`, `maskType` — and SVG ignores that form: gradients
 // lost their colours, strokes their widths, masks their `alpha` mode.
-describe("SvgAnimator (Vue) — attribute names", () => {
+describe("SvgAnimationPlayer (Vue) — attribute names", () => {
     afterEach(() => cleanup());
 
     it("`maskType` reaches the DOM as `mask-type`", () => {
@@ -469,7 +469,7 @@ describe("SvgAnimator (Vue) — attribute names", () => {
 
         const host = document.createElement("div");
         document.body.appendChild(host);
-        const web = createSvgAnimator({ doc, container: host });
+        const web = createSvgAnimationPlayer({ doc, container: host });
         const webNames = attributeNames(host.querySelector("rect"));
 
         expect(attributeNames(renderSvg(doc).querySelector("rect"))).toEqual(webNames);
@@ -512,7 +512,7 @@ function attributeNames(el: Element | null): Array<string> {
 
 /** Renders and returns the root `<svg>`, failing the test if there is none. */
 function renderSvg(doc: PxDocument): SVGSVGElement {
-    const svg = render(SvgAnimator, { props: { doc } }).container.querySelector("svg");
+    const svg = render(SvgAnimationPlayer, { props: { doc } }).container.querySelector("svg");
     if (!svg) throw new Error("no <svg> rendered");
     return svg;
 }
@@ -748,7 +748,7 @@ function getRectJson(): PxDocument {
     };
 }
 
-describe('SvgAnimator (Vue) — timeline override', () => {
+describe('SvgAnimationPlayer (Vue) — timeline override', () => {
 
     /** A WIRE-format document; the flat props this replaced were discarded on this shape. */
     const wireJson = (): PxDocument => ({
@@ -765,22 +765,22 @@ describe('SvgAnimator (Vue) — timeline override', () => {
     const opacityIn = (container: Element) => Number(container.querySelector('rect')?.getAttribute('opacity'));
 
     it("baseline: progress=0.5 of the document's own 1000ms lands mid-animation", () => {
-        const { container } = render(SvgAnimator, { props: { doc: wireJson(), progress: 0.5 } });
+        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), progress: 0.5 } });
         expect(opacityIn(container)).toBeCloseTo(0.5, 1);
     });
 
     it('timeline overrides duration ON A WIRE DOCUMENT (the flat props never did)', () => {
-        const { container } = render(SvgAnimator, { props: { doc: wireJson(), progress: 0.5, timeline: { outTime: 4000 } } });
+        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), progress: 0.5, timeline: { outTime: 4000 } } });
         expect(opacityIn(container)).toBe(1);
     });
 
     it('the outTime SHORTCUT does the same thing', () => {
-        const { container } = render(SvgAnimator, { props: { doc: wireJson(), progress: 0.5, outTime: 4000 } });
+        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), progress: 0.5, outTime: 4000 } });
         expect(opacityIn(container)).toBe(1);
     });
 
     it('accepts the JSON-string form of timeline', () => {
-        const { container } = render(SvgAnimator, { props: { doc: wireJson(), progress: 0.5, timeline: '{"outTime":4000}' } });
+        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), progress: 0.5, timeline: '{"outTime":4000}' } });
         expect(opacityIn(container)).toBe(1);
     });
 });

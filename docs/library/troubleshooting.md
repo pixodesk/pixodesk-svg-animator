@@ -24,12 +24,12 @@ or `time` the trigger is ignored. Passing `apiRef` does **not** change the mode.
 nothing. Add `playAsSaved`. `apiRef` on its own is such a case: the ref is a handle, not an
 instruction, so nothing moves until you call `play()` on it.
 
-**`createSvgAnimatorsFromPage()` ran before the elements existed.** Call it after the DOM is ready (end of
+**`createSvgAnimationPlayersFromPage()` ran before the elements existed.** Call it after the DOM is ready (end of
 `<body>`, `DOMContentLoaded`), and call it again after inserting content dynamically — it only
-creates animators for elements that do not have an animator yet.
+creates players for elements that do not have a player yet.
 
-**`createSvgAnimator({ src })` — the file did not load.** Look in the console: the player logs
-`createSvgAnimator: failed to load "…"` or `invalid animation document format`. The JSON must have
+**`createSvgAnimationPlayer({ src })` — the file did not load.** Look in the console: the player logs
+`createSvgAnimationPlayer: failed to load "…"` or `invalid animation document format`. The JSON must have
 `"type": "svg"` at the root. Calls made before the load finishes are queued, so `play()` is
 not lost — a network or CORS error is the usual cause.
 
@@ -39,7 +39,7 @@ reach on a small viewport. Inside an `<iframe>`, visibility is measured relative
 
 ## React
 
-**The animation restarts when the parent re-renders.** The animator is recreated only when the
+**The animation restarts when the parent re-renders.** The player is recreated only when the
 `doc` *content* changes (the comparison is deep — Vue and React Native compare the same way), so a
 re-created but identical object is fine.
 Restarts usually come from a `doc` that really is different each render — for example built
@@ -49,7 +49,7 @@ inline with a changing value. Build the document once (module level or `useMemo`
 late frame after teardown. Safe to ignore.
 
 **`onCancel` / `onDestroy` / `onStop` fire when I pass a different `doc`.** Expected: a new
-document means a new animator; the old one is thrown away and reports it on its way out.
+document means a new player; the old one is thrown away and reports it on its way out.
 
 **Next.js: "useRef is not a function" / hooks error.** The component must be used from a client
 component — add `'use client'` at the top of the file that renders it.
@@ -89,7 +89,7 @@ alone and let `fillMode` (default `forwards`) hold it
 (see [Playback settings](./playback-and-triggers.md#timing)).
 For one mount only, pass the same thing as an override: `timeline={{ finish: 'reset' }}`.
 
-**How do I play backwards?** `animator.setPlaybackRate(-1); animator.play();` — also as a
+**How do I play backwards?** `player.setPlaybackRate(-1); player.play();` — also as a
 trigger out action (`mouseOut: 'reverse'`).
 
 **Jumping to a time while playing.** `setCurrentTime(ms)` works while playing (the animation

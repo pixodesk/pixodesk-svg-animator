@@ -741,9 +741,9 @@ of **bindings**, each saying which element (`target`, by `#id`) plays which of t
 (`animateWith`). You will normally never write such a document yourself; the editor generates it.
 
 ```js
-import { createSvgAnimator } from '@pixodesk/svg-animator-web';
+import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 
-createSvgAnimator({ container: '#box', doc: {   // an empty <div id="box"> on the page
+createSvgAnimationPlayer({ container: '#box', doc: {   // an empty <div id="box"> on the page
   type: 'svg', id: '_px_root',
   animator: {
     timeline: { outTime: 2000 },
@@ -1501,12 +1501,12 @@ halfway point instead of blending. Easings are resolved (`PxCubicBezier`); each 
 
 ### Writing your own player
 
-Implement `PxPlatformAdapter` and hand it to `createAdapterSvgAnimator`; the engine
+Implement `PxPlatformAdapter` and hand it to `createAdapterSvgAnimationPlayer`; the engine
 handles timing, delay, direction, iterations, fill, playback rate and the lifecycle callbacks,
 then calls you with plain attribute writes:
 
 ```ts
-import { createAdapterSvgAnimator, materializeAllInTree, generateNewIds,
+import { createAdapterSvgAnimationPlayer, materializeAllInTree, generateNewIds,
          PxTimelineEngine, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 import doc from './bouncing-ball.json';
 
@@ -1517,7 +1517,7 @@ const adapter: PxPlatformAdapter = {
   setAttribute: (id, attrName, value) => { /* apply to your element */ },
 };
 
-const api = createAdapterSvgAnimator(flatDoc, adapter, { onFinish: () => console.log('done') });
+const api = createAdapterSvgAnimationPlayer(flatDoc, adapter, { onFinish: () => console.log('done') });
 api.play();
 ```
 
@@ -1588,7 +1588,7 @@ function validateDocument(doc: unknown, options?: { strict?: boolean }): PxValid
 //   executes one action with the boundary guards; `createIterationStopWatcher` lands a loop's
 //   deferred stop (`completeIteration`) on the iteration boundary; and
 //   `composeApiExtras(api: PxPlayOnceTarget, cfg: PxPlayOnceConfig, raf)` completes any engine
-//   or handle with the COMPOSED members — the one-pass `playOnce()` and `getDuration()`. `PxEngineAnimatorApi` is what an engine
+//   or handle with the COMPOSED members — the one-pass `playOnce()` and `getDuration()`. `PxEngineAnimationPlayerApi` is what an engine
 //   constructs — the full api minus the composed `playOnce`.
 
 // ● Per-instance playback override, shared by every player. `patch` is a
@@ -1629,11 +1629,11 @@ function downgradeWireDocument(doc: unknown, target: PxWireVersion): PxWireDowng
 function generateNewIds(doc: PxDocument): PxDocument;
 
 // ○ Playback on a non-DOM target: implement the adapter, get the frame-loop engine.
-function createAdapterSvgAnimator(
+function createAdapterSvgAnimationPlayer(
     doc: PxDocument,
     adapter: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks,
-): PxAnimatorApi;
+): PxAnimationPlayerApi;
 
 interface PxPlatformAdapter {
     isConnected(): boolean;                                     // is the target still mounted
@@ -1664,11 +1664,11 @@ function controlModeTakesOverTrigger(mode: PxControlMode): boolean;
 | Group | Identifiers | Audience · what it is for |
 |---|---|---|
 | Wire types | `PxDocument`, `PxDocumentInput`, `toPxDocument(doc)` (○), `PxNode`, `PxSvgNode`, `PxAnimatorConfig`, `PxTimeline`, `PxTrigger`, `PxElementAnimation`, `PxPropertyAnimation`, `PxKeyframe`, `PxLoop`, `PxBinding`, `PxDefinitions`, `PxEffects`, `PxTransformParts`, `PxBezierPath`, `PxGlyph`, `PxGlyphFont`, `PxAnimationDefinition`, `PxScroll`, `PxScrollRangePoint`, `PxVec2`, `PxTransformValue` | ● the shapes in [Schema at a glance](#schema-at-a-glance) |
-| Player API types | `PxAnimatorApi<TRoot>`, `PxEngineAnimatorApi<TRoot>` (○), `PxEngineCallbacks`, `PxPlatformAdapter` | ● platform-neutral; the web fixes `TRoot` to `Element`. `PxEngineCallbacks` is what an engine takes — the lifecycle on top of `PxDiagnosticsConfig` |
-| Component contract | `PxAnimatorHandle`, `PxAnimatorCallbacks`, `PxControlProps`, `PxControlMode`, `resolveControlMode(props)`, `controlModeTakesOverTrigger(mode)`, `PxPlayMode`, `resolveDeclarativePlayback(args)` (○), `PxDeclarativeAction` (○), `PxDeclarativeProps` (○), `PxDeclarativeArgs` (○), `PxDeclarativeTarget` (○), `PxDeclarativeRunContext` (○), `applyDeclarativeAction(api, action, ctx)` (○), `createIterationStopWatcher(api, passMs, raf, onStopped?)` (○), `resolvePlaybackWorld(iterations)` (○), `PxPlaybackWorld` (○), `composeApiExtras(api, cfg, raf)` (○), `PxPlayOnceConfig` (○), `PxPlayOnceTarget` (○), `prepareDocumentForRender(doc)` (▪), `renderPxTree(node, factory)` (▪), `PxElementFactory` (▪), `PxElementSpec` (▪) | ● what the React / Vue / React Native components share: the imperative handle, the callback set, the props that pick a mode and the one rule that picks it — [the API at a glance](../library/README.md#the-api-at-a-glance). `renderPxTree` is THE renderer of every DOM player: it makes each decision about a document — tags, attribute names and values, sanitization, styles, text — and a player supplies only a `PxElementFactory`, "create an element from this finished `PxElementSpec`" (a DOM node, a React element, a Vue vnode). `prepareDocumentForRender` is the document it is given: materialized, then fresh ids |
+| Player API types | `PxAnimationPlayerApi<TRoot>`, `PxEngineAnimationPlayerApi<TRoot>` (○), `PxEngineCallbacks`, `PxPlatformAdapter` | ● platform-neutral; the web fixes `TRoot` to `Element`. `PxEngineCallbacks` is what an engine takes — the lifecycle on top of `PxDiagnosticsConfig` |
+| Component contract | `PxAnimationPlayerHandle`, `PxAnimationPlayerCallbacks`, `PxControlProps`, `PxControlMode`, `resolveControlMode(props)`, `controlModeTakesOverTrigger(mode)`, `PxPlayMode`, `resolveDeclarativePlayback(args)` (○), `PxDeclarativeAction` (○), `PxDeclarativeProps` (○), `PxDeclarativeArgs` (○), `PxDeclarativeTarget` (○), `PxDeclarativeRunContext` (○), `applyDeclarativeAction(api, action, ctx)` (○), `createIterationStopWatcher(api, passMs, raf, onStopped?)` (○), `resolvePlaybackWorld(iterations)` (○), `PxPlaybackWorld` (○), `composeApiExtras(api, cfg, raf)` (○), `PxPlayOnceConfig` (○), `PxPlayOnceTarget` (○), `prepareDocumentForRender(doc)` (▪), `renderPxTree(node, factory)` (▪), `PxElementFactory` (▪), `PxElementSpec` (▪) | ● what the React / Vue / React Native components share: the imperative handle, the callback set, the props that pick a mode and the one rule that picks it — [the API at a glance](../library/README.md#the-api-at-a-glance). `renderPxTree` is THE renderer of every DOM player: it makes each decision about a document — tags, attribute names and values, sanitization, styles, text — and a player supplies only a `PxElementFactory`, "create an element from this finished `PxElementSpec`" (a DOM node, a React element, a Vue vnode). `prepareDocumentForRender` is the document it is given: materialized, then fresh ids |
 | Engine rules | `resolveTimelineEngine(engine)`, `isNativeForced(engine)`, `mayUseNativeScrollTimeline(engine)` | ○ how a `timeline.engine` resolves to an engine / to the browser's ScrollTimeline — the players' own decision helpers |
 | Trigger defaults | `PX_TRIGGER_DEFAULTS`, `resolveTrigger(trigger)`| ○ what a missing trigger field means (`start` 'load', `offScreen` 'pause', `mouseOut` 'pause', threshold 0.5, debounce 150 ms) — the one resolution every player uses |
-| Time contract | `seekCeilingMs`, `progressSpanMs`, `clampSeekMs`, `timeToProgress`, `progressToTimeMs`, `isValidPlaybackRate`, `PX_RATE_REJECTED`, `createRunClock` + | ○ the one meaning of time, seeking and rate that every engine implements — see `PxAnimatorApi` |
+| Time contract | `seekCeilingMs`, `progressSpanMs`, `clampSeekMs`, `timeToProgress`, `progressToTimeMs`, `isValidPlaybackRate`, `PX_RATE_REJECTED`, `createRunClock` + | ○ the one meaning of time, seeking and rate that every engine implements — see `PxAnimationPlayerApi` |
 | Diagnostics | `createDiagnostics(config?, prefix?)` (▪) → `PxDiagnostics`, `PxDiagnosticCode`, `PxDiagnosticKind` + `PxDiagnostic`, `PxDiagnosticsConfig` | ● the one channel every player reports through: `onWarn` / `onError` with a `code` saying what happened and a `kind` saying who can act, falling back to the console — see `PxEngineCallbacks`. The text is not shipped: `PxDiagnosticCode` is a number, described on the [codes page](../diagnostics.md) |
 | Enum values | `PxTimelineEngineSetting`, `PxTimelineEngine`, `PxGradientType`, `PxUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout` (`clone.without` → `'translate'`), `PxMaskType`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing`, `PxFillMode`, `PxPlaybackDirection`, `PxTriggerStart`, `PxOffScreenAction`, `PxMouseOutAction`, `PxFinishAction`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings — each is a const namespace AND the type derived from it, so `PxTriggerStart.click` and `start?: PxTriggerStart` come from one import |
 | Schema version | `PX_WIRE_VERSION`, `PX_WIRE_BASELINE_VERSION`, `PX_WIRE_STEPS`, `PX_WIRE_VERSION_KEY`, `PxWireVersionRelation`, `parseWireVersion`, `formatWireVersion`, `readWireVersion`, `compareWireVersion`, `wireVersionAdvice`, `convertWireDocument`, `downgradeWireDocument`, `applyWireSteps`, + `PxWireVersion`, `PxWireVersionStep`, `PxWireConversionResult`, `PxWireStepKind`, `PxWireConversionOptions` | ○ read, compare and convert a document's `animator.version` — [Versioning](#versioning). `PX_WIRE_SCHEMA_VERSION` (▪) is the bump-site string behind `PX_WIRE_VERSION`, moved to `/internal` (review §16) |

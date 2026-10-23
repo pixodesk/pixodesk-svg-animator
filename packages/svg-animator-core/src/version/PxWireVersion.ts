@@ -242,7 +242,7 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         to: '1.5',
         reason: '`animator.debugGlobalName` is removed: it let a FILE write any `window` property of '
             + 'the page playing it (`fetch`, `location`, …). Reaching a live animator from the '
-            + 'console is the page registry\'s job — `getAllSvgAnimators()`.',
+            + 'console is the page registry\'s job — `getAllSvgAnimationPlayers()`.',
         kind: PxWireStepKind.converted,
         up: upDropDebugGlobalName,
         // nothing to restore: every 1.5 document is a valid 1.4 one (the key was optional)

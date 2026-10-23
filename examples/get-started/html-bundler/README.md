@@ -1,6 +1,6 @@
 # Get started — Plain HTML — with a bundler
 
-The [Plain HTML — with a bundler](https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/library/get-started.md#with-a-bundler-vite-webpack) section of the *Get started with the player library* guide as a project of its own: `src/main.js` imports `src/animation.json`, the file next to it, and calls `createSvgAnimator({ doc, container })`; Vite bundles the two.
+The [Plain HTML — with a bundler](https://github.com/pixodesk/pixodesk-svg-animator/blob/main/docs/library/get-started.md#with-a-bundler-vite-webpack) section of the *Get started with the player library* guide as a project of its own: `src/main.js` imports `src/animation.json`, the file next to it, and calls `createSvgAnimationPlayer({ doc, container })`; Vite bundles the two.
 
 ```bash
 npm install

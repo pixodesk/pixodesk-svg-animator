@@ -1,4 +1,4 @@
-import { createSvgAnimator } from '@pixodesk/svg-animator-web';
+import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 import animation from '../../../fixtures/animation.json';
 
 // A trigger is part of the document, inside `animator.timeline`. Here it is set in
@@ -12,4 +12,4 @@ const doc = {
   },
 };
 
-createSvgAnimator({ doc: doc as any, container: '#box', playAsSaved: true });
+createSvgAnimationPlayer({ doc: doc as any, container: '#box', playAsSaved: true });

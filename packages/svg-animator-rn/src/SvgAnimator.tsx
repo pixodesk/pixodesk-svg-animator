@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createIterationStopWatcher, createRunClock, toPxDocument, type PxDocumentInput, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, PxPlayMode, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimatorHandle, type PxAnimatorCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, resolveTrigger, PxTimelineEngine, PxControlMode, resolveControlMode, PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
+import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createIterationStopWatcher, createRunClock, toPxDocument, type PxDocumentInput, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, PxPlayMode, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, resolveTrigger, PxTimelineEngine, PxControlMode, resolveControlMode, PxFillMode, type PxMouseOutAction, type PxPlaybackDirection, type PxDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
 import { carryPrep, deepEquals, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
@@ -32,7 +32,7 @@ import { openClosedTextPathTargets } from './PxRnSafety';
 // -- Public types -----------------------------------------------------------
 
 /**
- * The imperative handle `apiRef` is filled with — core's `PxAnimatorHandle` under this package's
+ * The imperative handle `apiRef` is filled with — core's `PxAnimationPlayerHandle` under this package's
  * name (review §9). It no longer "mirrors" the React one by hand: the local copy had already
  * drifted (its `setPlaybackRate` comment lost "negative plays backwards"). One definition.
  * @public
@@ -41,12 +41,12 @@ import { openClosedTextPathTargets } from './PxRnSafety';
 /**
  * The component's props. The playback override, the control props and the callbacks are core's
  * shared shapes (review §9) — `PxPlaybackOverride`, `PxControlProps` and
- * `PxAnimatorCallbacks` — so React, Vue and React Native cannot drift apart. Only what differs
+ * `PxAnimationPlayerCallbacks` — so React, Vue and React Native cannot drift apart. Only what differs
  * on this platform is declared here: `fallback`, which has no web counterpart.
  * @public
  */
-export interface SvgAnimatorProps
-    extends PxPlaybackOverride, PxControlProps, PxAnimatorCallbacks {
+export interface SvgAnimationPlayerProps
+    extends PxPlaybackOverride, PxControlProps, PxAnimationPlayerCallbacks {
 
     // -- Source ---------------------------------------------------------------
 
@@ -68,7 +68,7 @@ export interface SvgAnimatorProps
      * Ref populated with the imperative playback API. Filled in EVERY mode and never picks one
      * (review §1): `playAsSaved` next to it still autoplays.
      */
-    apiRef?: React.RefObject<PxAnimatorHandle | null>;
+    apiRef?: React.RefObject<PxAnimationPlayerHandle | null>;
 
     // -- Failure handling -----------------------------------------------------
     // A document that cannot be compiled or rendered is reported through `onError` — the same
@@ -255,7 +255,7 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
     // §6: per-key transform channels still play (old migrated files), but are named as deprecated
     for (const w of validateDeprecatedTransformChannels(doc)) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.deprecatedTransformChannel, w);
     // The whole-document boundary diagnostic — see the note in the web player's entry.
-    reportDocumentDiagnostics(doc, '[SvgAnimator]');
+    reportDocumentDiagnostics(doc, '[SvgAnimationPlayer]');
 
     // The per-instance override, applied to the WIRE document BEFORE anything reads the
     // config — `materializeAllInTree` samples motion paths against `duration`, so a later
@@ -312,13 +312,13 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
  * indexing the precompiled tracks. No JS-thread frame loop.
  * @public
  */
-export function SvgAnimator({
+export function SvgAnimationPlayer({
     doc, timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start,
     // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
     playAsSaved, play, pause, playMode, completeIteration, apiRef, progress: progressProp, time,
     offScreen: offScreenProp, mouseOut: mouseOutProp, visibilityThreshold: visibilityThresholdProp, visibilityDebounce: visibilityDebounceProp,
     onReady, onPlay, onStop, onPause, onCancel, onFinish, onDestroy, onError, fallback, onWarn, muteWarn, muteError,
-}: SvgAnimatorProps): ReactElement | null {
+}: SvgAnimationPlayerProps): ReactElement | null {
 
     // -- Compile the document (once per doc/override change) ------------------
 
@@ -345,7 +345,7 @@ export function SvgAnimator({
      */
     const latest = useRef({ onReady, onPlay, onPause, onCancel, onFinish, onStop, onDestroy, onWarn, onError, muteWarn, muteError });
     latest.current = { onReady, onPlay, onPause, onCancel, onFinish, onStop, onDestroy, onWarn, onError, muteWarn, muteError };
-    const makeDiag = (): PxDiagnostics => createDiagnostics(latest.current, '[SvgAnimator]');
+    const makeDiag = (): PxDiagnostics => createDiagnostics(latest.current, '[SvgAnimationPlayer]');
 
     // ONE control-mode rule, decided in core and shared with React and Vue (API review §1/§7) —
     // resolved BEFORE compilation, because the play tier's pose contract pins `fillMode` there.
@@ -451,7 +451,7 @@ export function SvgAnimator({
         playingRef.current = true;
     };
 
-    const api: PxAnimatorHandle = {
+    const api: PxAnimationPlayerHandle = {
         isPlaying: () => playingRef.current,
         play: () => {
             // `startFrom` rewinds to the opposite end when the playhead is
@@ -528,7 +528,7 @@ export function SvgAnimator({
         setCurrentProgress: (p: number) => {
             api.setCurrentTime(progressToTimeMs(p, tracks.duration, tracks.iterations));
         },
-    } as PxAnimatorHandle;
+    } as PxAnimationPlayerHandle;
     // `playOnce` — the one shared one-pass rule (review §10), same composer as the web engines
     composeApiExtras(api, { duration: tracks.duration, iterations: tracks.iterations === Infinity ? 'infinite' : tracks.iterations, resetOnFinish: tracks.resetOnFinish }, (cb) => { requestAnimationFrame(cb); });
 
@@ -805,4 +805,4 @@ export function SvgAnimator({
     );
 }
 
-export default SvgAnimator;
+export default SvgAnimationPlayer;

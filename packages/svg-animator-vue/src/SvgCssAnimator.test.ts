@@ -6,16 +6,16 @@
 import { cleanup, fireEvent, render } from "@testing-library/vue";
 import { afterEach, describe, expect, it } from "vitest";
 import { nextTick } from "vue";
-import SvgCssAnimator from './SvgCssAnimator';
+import SvgCssAnimationPlayer from './SvgCssAnimator';
 
 
-describe("SvgCssAnimator (Vue)", () => {
+describe("SvgCssAnimationPlayer (Vue)", () => {
     afterEach(() => {
         cleanup();
     });
 
     it("renders slot content inside the wrapper div", () => {
-        const { container } = render(SvgCssAnimator, {
+        const { container } = render(SvgCssAnimationPlayer, {
             slots: { default: '<svg class="inner-svg"></svg>' },
         });
         const div = container.firstElementChild as HTMLElement;
@@ -24,7 +24,7 @@ describe("SvgCssAnimator (Vue)", () => {
     });
 
     it("plays with the default start='load' once the gate has measured", async () => {
-        const { container } = render(SvgCssAnimator, {
+        const { container } = render(SvgCssAnimationPlayer, {
             slots: { default: '<svg></svg>' },
         });
         // The visibility gate decides after mount — it has to measure before it can allow
@@ -35,7 +35,7 @@ describe("SvgCssAnimator (Vue)", () => {
     });
 
     it("joins a fallthrough class correctly ('foo px-anim-enabled px-anim-playing')", async () => {
-        const { container } = render(SvgCssAnimator, {
+        const { container } = render(SvgCssAnimationPlayer, {
             attrs: { class: 'foo' },
             slots: { default: '<svg></svg>' },
         });
@@ -45,7 +45,7 @@ describe("SvgCssAnimator (Vue)", () => {
     });
 
     it("has no 'undefined' prefix when no class is passed", async () => {
-        const { container } = render(SvgCssAnimator, {
+        const { container } = render(SvgCssAnimationPlayer, {
             slots: { default: '<svg></svg>' },
         });
         await nextTick();
@@ -55,7 +55,7 @@ describe("SvgCssAnimator (Vue)", () => {
     });
 
     it("applies fallthrough style to the wrapper div", () => {
-        const { container } = render(SvgCssAnimator, {
+        const { container } = render(SvgCssAnimationPlayer, {
             attrs: { style: 'width: 123px;' },
             slots: { default: '<svg></svg>' },
         });
@@ -64,7 +64,7 @@ describe("SvgCssAnimator (Vue)", () => {
     });
 
     it("toggles classes for start='mouseOver' + mouseOut='pause'", async () => {
-        const { container } = render(SvgCssAnimator, {
+        const { container } = render(SvgCssAnimationPlayer, {
             props: { start: 'mouseOver', mouseOut: 'pause' },
             slots: { default: '<svg></svg>' },
         });
@@ -83,7 +83,7 @@ describe("SvgCssAnimator (Vue)", () => {
     });
 
     it("resets to idle on mouse-out when mouseOut='reset'", async () => {
-        const { container } = render(SvgCssAnimator, {
+        const { container } = render(SvgCssAnimationPlayer, {
             props: { start: 'mouseOver', mouseOut: 'reset' },
             slots: { default: '<svg></svg>' },
         });

@@ -1,5 +1,5 @@
 import { createRoot } from 'react-dom/client';
-import { SvgAnimator } from '@pixodesk/svg-animator-react';
+import { SvgAnimationPlayer } from '@pixodesk/svg-animator-react';
 import animation from '../../../fixtures/animation.json';
 
 // One object, spelled like the file's own `animator` block. `iterations` has a flat
@@ -7,7 +7,7 @@ import animation from '../../../fixtures/animation.json';
 // inside `timeline`.
 createRoot(document.getElementById('root')!).render(
   <div className="stage">
-    <SvgAnimator
+    <SvgAnimationPlayer
       doc={animation as any}
       playAsSaved
       iterations="infinite"

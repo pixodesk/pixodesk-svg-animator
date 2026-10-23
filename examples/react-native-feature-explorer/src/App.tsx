@@ -6,7 +6,7 @@
  * so only on-screen rows are mounted, and only rows actually visible are
  * *playing* — see `visibleIds` below.
  */
-import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-rn';
+import { SvgAnimationPlayer, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-rn';
 import { StatusBar } from 'expo-status-bar';
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -54,7 +54,7 @@ const CaseRow = memo(function CaseRow({
     /** Reports a failure up to the app-wide error log. */
     onError: (caseId: string, error: Error) => void;
 }) {
-    const api = useRef<PxAnimatorHandle | null>(null);
+    const api = useRef<PxAnimationPlayerHandle | null>(null);
     const active = visible && playing;
     const [error, setError] = useState<Error | null>(null);
 
@@ -90,7 +90,7 @@ const CaseRow = memo(function CaseRow({
             )}
 
             <View style={[styles.stage, { backgroundColor: t.stage, borderColor: t.border }]}>
-                {!loadError && !!doc && <SvgAnimator
+                {!loadError && !!doc && <SvgAnimationPlayer
                     // Remounting on `active` restarts cleanly when a row scrolls
                     // back into view, and leaves off-screen rows completely idle.
                     key={(active ? 'play' : 'idle') + (loop ? '-loop' : '')}

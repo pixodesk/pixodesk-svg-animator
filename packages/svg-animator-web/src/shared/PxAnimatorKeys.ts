@@ -7,7 +7,7 @@
  * Wire keys shared by every entry point.
  *
  * These live here rather than in `PxAnimator.ts` on purpose: that module used to end with a
- * top-level `if (typeof window !== 'undefined')` block publishing `createSvgAnimator` /
+ * top-level `if (typeof window !== 'undefined')` block publishing `createSvgAnimationPlayer` /
  * `loadTagSvgAnimators` as globals. A module-level side effect cannot be tree-shaken, so
  * importing ANY symbol from `PxAnimator.ts` pulled the entire full player in with it —
  * which silently made the pre-rendered builds the same size as the full one until this
@@ -18,14 +18,14 @@
  */
 
 /**
- * Key under which `createSvgAnimator` options carry the inline animation document. The editor
- * writes it into every exported SVG+JS — `createSvgAnimator({"doc": …})` — so it is part of the
+ * Key under which `createSvgAnimationPlayer` options carry the inline animation document. The editor
+ * writes it into every exported SVG+JS — `createSvgAnimationPlayer({"doc": …})` — so it is part of the
  * export format, which is why it is a named constant and not a literal.
  * @internal
  */
 export const PX_ANIMATOR_DOC_KEY = 'doc';
 
-/** Key under which `createSvgAnimator` options carry the per-instance `timeline` override. */
+/** Key under which `createSvgAnimationPlayer` options carry the per-instance `timeline` override. */
 export const PX_ANIMATOR_TIMELINE_KEY = 'timeline';
 
 /** Key that makes the override start from the player's default timeline instead of the document's. */

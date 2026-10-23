@@ -14,7 +14,7 @@ Vue component for rendering and controlling Pixodesk SVG animations.
 
 ```vue
 <script setup lang="ts">
-import { SvgAnimator } from '@pixodesk/svg-animator-vue';
+import { SvgAnimationPlayer } from '@pixodesk/svg-animator-vue';
 import animationDoc from './animation.json';
 </script>
 ```
@@ -25,7 +25,7 @@ Uses triggers defined in the animation document (load, click, hover, scroll):
 
 ```vue
 <template>
-  <SvgAnimator :doc="animationDoc" playAsSaved />
+  <SvgAnimationPlayer :doc="animationDoc" playAsSaved />
 </template>
 ```
 
@@ -40,7 +40,7 @@ const paused = ref(false);
 </script>
 
 <template>
-  <SvgAnimator :doc="animationDoc" play :pause="paused" />
+  <SvgAnimationPlayer :doc="animationDoc" play :pause="paused" />
   <button @click="paused = !paused">Toggle</button>
 </template>
 ```
@@ -52,20 +52,20 @@ Use a template ref for full programmatic control:
 ```vue
 <script setup lang="ts">
 import { ref } from 'vue';
-import type { PxAnimatorHandle } from '@pixodesk/svg-animator-vue';
+import type { PxAnimationPlayerHandle } from '@pixodesk/svg-animator-vue';
 
-const animator = ref<PxAnimatorHandle | null>(null);
+const player = ref<PxAnimationPlayerHandle | null>(null);
 </script>
 
 <template>
-  <SvgAnimator :doc="animationDoc" ref="animator" />
-  <button @click="animator?.play()">Play</button>
-  <button @click="animator?.pause()">Pause</button>
+  <SvgAnimationPlayer :doc="animationDoc" ref="player" />
+  <button @click="player?.play()">Play</button>
+  <button @click="player?.pause()">Pause</button>
 </template>
 ```
 
-<!-- px-check members PxAnimatorHandle pkg=vue -->
-`PxAnimatorHandle` methods: `getDuration()` (one pass, ms — the slider maximum), `play()`, `pause()`, `cancel()`, `finish()`, `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
+<!-- px-check members PxAnimationPlayerHandle pkg=vue -->
+`PxAnimationPlayerHandle` methods: `getDuration()` (one pass, ms — the slider maximum), `play()`, `pause()`, `cancel()`, `finish()`, `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
 
 ### Controlled time
 
@@ -73,14 +73,14 @@ Render a single frame — by time in milliseconds, or by fraction of the whole t
 
 ```vue
 <template>
-  <SvgAnimator :doc="animationDoc" :time="500" />      <!-- 500 ms in -->
-  <SvgAnimator :doc="animationDoc" :progress="0.5" />  <!-- halfway through -->
+  <SvgAnimationPlayer :doc="animationDoc" :time="500" />      <!-- 500 ms in -->
+  <SvgAnimationPlayer :doc="animationDoc" :progress="0.5" />  <!-- halfway through -->
 </template>
 ```
 
 ## Props
 
-<!-- px-check props SvgAnimator pkg=vue -->
+<!-- px-check props SvgAnimationPlayer pkg=vue -->
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxDocumentInput` | The animation document to render (required); a `.json` import passes as-is |
@@ -109,17 +109,17 @@ Render a single frame — by time in milliseconds, or by fraction of the whole t
 
 With none of `playAsSaved` / `play` / `pause` / `progress` / `time` set, the component renders the animation statically (initial state, no playback); use the template ref for imperative control.
 
-Note: passing a different `doc` (or unmounting) throws the old animator away and builds a new one; the old instance emits `cancel`, `destroy`, and `stop` on its way out. Changing `progress` / `time` does **not** recreate the animator — it just jumps the existing one to the new time.
+Note: passing a different `doc` (or unmounting) throws the old player away and builds a new one; the old instance emits `cancel`, `destroy`, and `stop` on its way out. Changing `progress` / `time` does **not** recreate the animator — it just jumps the existing one to the new time.
 
 ## Events
 
-<!-- px-check emits SvgAnimator pkg=vue -->
+<!-- px-check emits SvgAnimationPlayer pkg=vue -->
 | Event | Description |
 |---|---|
-| `ready` | The animator exists and the SVG is rendered (once, async) |
+| `ready` | The player exists and the SVG is rendered (once, async) |
 | `play` | Animation started or resumed |
 | `pause` | Animation paused |
 | `cancel` | Animation canceled |
 | `finish` | Animation reached its end — every iteration played, or `finish()` was called |
-| `destroy` | The animator was torn down (e.g. on unmount) |
+| `destroy` | The player was torn down (e.g. on unmount) |
 | `stop` | "No longer playing, whatever the reason" — fired alongside `pause` / `cancel` / `finish` / `destroy` |

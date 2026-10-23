@@ -15,12 +15,12 @@
 // against the published package until it moves across. The next release drops them from there.
 // ============================================================================
 
-// The key the editor writes into every exported SVG+JS (`createSvgAnimator({"doc": …})`), so the
+// The key the editor writes into every exported SVG+JS (`createSvgAnimationPlayer({"doc": …})`), so the
 // two sides cannot disagree about its spelling.
 export { PX_ANIMATOR_DOC_KEY } from './shared/PxAnimatorKeys';
 
 // The public options plus `adapter` — what the React and Vue components build the player with.
-export type { PxInternalAnimatorOptions } from './animator/PxAnimator';
+export type { PxInternalAnimationPlayerOptions } from './animator/PxAnimator';
 
 // The visibility gate the JSON player wires for every document, so the CSS-only React and Vue
 // wrappers gate on exactly the same rules (threshold, dwell, hysteresis, hidden tab) instead of

@@ -20,6 +20,6 @@ export { PX_ANIMATOR_DOC_KEY } from './shared/PxAnimatorKeys';
 
 export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 
-export type { PxPrerenderedAnimatorOptions } from './engines/PxAnimatorBind';
-export type { PxAnimatorApi } from './shared/PxAnimatorWebTypes';
+export type { PxPrerenderedAnimationPlayerOptions } from './engines/PxAnimatorBind';
+export type { PxAnimationPlayerApi } from './shared/PxAnimatorWebTypes';
 export type { PxDocument, PxEngineCallbacks } from '@pixodesk/svg-animator-core';

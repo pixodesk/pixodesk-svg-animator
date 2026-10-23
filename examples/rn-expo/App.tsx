@@ -6,7 +6,7 @@
 import { StatusBar } from 'expo-status-bar';
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
-import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-rn';
+import { SvgAnimationPlayer, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-rn';
 import type { PxDocument } from '@pixodesk/svg-animator-core';
 
 // -- Sample documents ---------------------------------------------------------
@@ -92,7 +92,7 @@ const DEMOS: Array<{ name: string; doc: PxDocument; playAsSaved: boolean }> = [
 
 export default function AppPlayer() {
     const [demo, setDemo] = useState(0);
-    const api = useRef<PxAnimatorHandle | null>(null);
+    const api = useRef<PxAnimationPlayerHandle | null>(null);
     const current = DEMOS[demo];
 
     return (
@@ -109,7 +109,7 @@ export default function AppPlayer() {
             </View>
 
             <View style={styles.svgContainer}>
-                <SvgAnimator
+                <SvgAnimationPlayer
                     key={demo}
                     doc={current.doc}
                     playAsSaved={current.playAsSaved}

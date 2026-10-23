@@ -317,7 +317,7 @@ export interface PxResolvedTrigger {
 // ── CONTROL MODE (API review §1 / §7; `autoplay` renamed `playAsSaved`: first-use review §1+2) ──
 // Which set of props drives playback. Every component picked its own order, so
 // `playAsSaved` + `progress={0.5}` played on React and Vue but seeked on React Native, and
-// React let a REF choose the mode — `<SvgAnimator playAsSaved apiRef={api} />` never
+// React let a REF choose the mode — `<SvgAnimationPlayer playAsSaved apiRef={api} />` never
 // started, because the imperative branch forced `start: 'none'`.
 //
 // One order, decided once, used by react / vue / rn. This module owns the LOGIC and the
@@ -424,9 +424,9 @@ export function resolveControlMode(props: PxControlProps): PxResolvedControlMode
  * `start: 'none'` into its config patch.
  *
  * Every mode except `playAsSaved` — INCLUDING `static`. A component given no control props at
- * all must not start on its own: `<SvgAnimator doc={…} />` renders the first frame and waits.
+ * all must not start on its own: `<SvgAnimationPlayer doc={…} />` renders the first frame and waits.
  * `playAsSaved` is the one mode that says "let the document's trigger decide" — and since the
- * first-use review §1+2 the web `createSvgAnimator` follows the same rule through its
+ * first-use review §1+2 the web `createSvgAnimationPlayer` follows the same rule through its
  * `playAsSaved` option.
  * @public
  */

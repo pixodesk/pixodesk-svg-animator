@@ -21,9 +21,9 @@ type AnimState = 'idle' | 'paused' | 'playing';
  * ```tsx
  * import AnimationSvg from './animation.svg?react'; // SVGR
  *
- * <SvgCssAnimator start="mouseOver" mouseOut="pause">
+ * <SvgCssAnimationPlayer start="mouseOver" mouseOut="pause">
  *   <AnimationSvg />
- * </SvgCssAnimator>
+ * </SvgCssAnimationPlayer>
  * ```
  *
  * The wrapper div carries one of three animation states via CSS class names:
@@ -44,7 +44,7 @@ type AnimState = 'idle' | 'paused' | 'playing';
  *   - `'none'`      — **not supported here.** This wrapper exposes no `play()`, so there is
  *                     nothing to wait for and the animation never starts. The prop keeps the
  *                     shared `PxTriggerStart` type (one enum per wire key), so the value
- *                     type-checks — it simply has no effect. Use `SvgAnimator` (the JSON
+ *                     type-checks — it simply has no effect. Use `SvgAnimationPlayer` (the JSON
  *                     player) when you need to start an animation from code.
  * @param offScreen - What happens while none of it is on screen:
  *   - `'pause'`    — pauses at the current frame (default); resumes when it comes back
@@ -64,7 +64,7 @@ type AnimState = 'idle' | 'paused' | 'playing';
  * @param style     - Inline styles for the wrapper div (e.g. `{ width: 400, height: 400 }`).
  * @public
  */
-const SvgCssAnimator: FC<{
+const SvgCssAnimationPlayer: FC<{
     className?: string;
     style?: CSSProperties;
     children: ReactNode;
@@ -142,4 +142,4 @@ const SvgCssAnimator: FC<{
         </div>
     );
 };
-export default SvgCssAnimator;
+export default SvgCssAnimationPlayer;

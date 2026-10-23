@@ -59,7 +59,7 @@ runtime crash on a non-browser platform.
 | **Sampling / geometry** | `createPathSampler`, bezier helpers, `cubicBezier`, `splitEasing` |
 | **Text** | `materializeGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
 | **Node helpers** | `toDomProps`, `sanitizeAttributeValue`, `generateNewIds` |
-| **Playback engine** | `createAdapterSvgAnimator` + the `PxPlatformAdapter` interface |
+| **Playback engine** | `createAdapterSvgAnimationPlayer` + the `PxPlatformAdapter` interface |
 | **Wire enums** | `PxTimelineEngine` / `PxTimelineEngineSetting`, `PxTriggerStart`, `PxOffScreenAction`, `PxMouseOutAction`, `PxFinishAction`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneWithout`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxTriggerStart.click` and `start?: PxTriggerStart` come from one import |
 
 ### Validating a document
@@ -169,19 +169,19 @@ numbers.
 
 ## Writing your own player
 
-Implement `PxPlatformAdapter` and hand it to `createAdapterSvgAnimator`; the
+Implement `PxPlatformAdapter` and hand it to `createAdapterSvgAnimationPlayer`; the
 engine handles timing, delay, direction, iterations, fill, playback rate and the
 lifecycle callbacks, then calls you with plain attribute writes.
 
 ```ts
-import { createAdapterSvgAnimator, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { createAdapterSvgAnimationPlayer, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 
 const adapter: PxPlatformAdapter = {
     isConnected: () => true,
     setAttribute: (id, attrName, value) => { /* apply to your element */ },
 };
 
-const api = createAdapterSvgAnimator(flatDoc, adapter, {
+const api = createAdapterSvgAnimationPlayer(flatDoc, adapter, {
     onFinish: () => console.log('done'),
 });
 api.play();

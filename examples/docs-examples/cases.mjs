@@ -19,9 +19,9 @@ export const GROUPS = [
 export const CASES = [
   // -- Web player -------------------------------------------------------------
   { group: 'web', id: 'declarative',   title: 'Declarative — data-px-animation-src', anchor: 'declarative--data-px-animation-src',
-    summary: 'Point an element at the JSON and call createSvgAnimatorsFromPage() once.' },
-  { group: 'web', id: 'programmatic',  title: 'Programmatic — createSvgAnimator + playback API', anchor: 'programmatic--createsvganimatoroptions',
-    summary: 'createSvgAnimator({ src, container }) and every method of the returned API.' },
+    summary: 'Point an element at the JSON and call createSvgAnimationPlayersFromPage() once.' },
+  { group: 'web', id: 'programmatic',  title: 'Programmatic — createSvgAnimationPlayer + playback API', anchor: 'programmatic--createsvganimationplayeroptions',
+    summary: 'createSvgAnimationPlayer({ src, container }) and every method of the returned API.' },
   { group: 'web', id: 'callbacks',     title: 'Callbacks', anchor: 'callbacks',
     summary: 'onPlay / onPause / onCancel / onFinish / onRemove, logged as they fire.' },
   { group: 'web', id: 'triggers',      title: 'Triggers — start on click', anchor: 'triggers',
@@ -29,7 +29,7 @@ export const CASES = [
   { group: 'web', id: 'engine-modes',  title: 'Playback modes — native vs player', anchor: 'playback-modes',
     summary: 'The same document driven by each engine, side by side.' },
   { group: 'web', id: 'several',       title: 'Loading several animations', anchor: 'loading-several-animations',
-    summary: 'Three elements, one createSvgAnimatorsFromPage() call.' },
+    summary: 'Three elements, one createSvgAnimationPlayersFromPage() call.' },
   { group: 'web', id: 'cleanup',       title: 'Cleaning up — destroy()', anchor: 'cleaning-up',
     summary: 'destroy() stops playback and removes the SVG from the container.' },
 
@@ -42,7 +42,7 @@ export const CASES = [
     summary: 'A slider drives time (ms); the component renders that exact frame.' },
   { group: 'react', id: 'declarative',     title: 'Declarative play / pause', anchor: 'declarative-play--pause',
     summary: 'Boolean play and pause props.' },
-  { group: 'react', id: 'css-svgr',        title: 'CSS-flavor SVG — SvgCssAnimator + SVGR', anchor: 'css-flavor-svgs--svgcssanimator',
+  { group: 'react', id: 'css-svgr',        title: 'CSS-flavor SVG — SvgCssAnimationPlayer + SVGR', anchor: 'css-flavor-svgs--svgcssanimationplayer',
     summary: 'A pre-rendered SVG imported as a component, with a click trigger added by the wrapper.' },
 
   // -- Vue --------------------------------------------------------------------
@@ -54,12 +54,12 @@ export const CASES = [
     summary: 'Boolean play and pause props.' },
   { group: 'vue', id: 'imperative',      title: 'Imperative API (template ref)', anchor: 'imperative-api-template-ref',
     summary: 'play / pause / cancel / finish through a template ref.' },
-  { group: 'vue', id: 'css-loader',      title: 'CSS-flavor SVG — SvgCssAnimator + vite-svg-loader', anchor: 'css-flavor-svgs--svgcssanimator',
+  { group: 'vue', id: 'css-loader',      title: 'CSS-flavor SVG — SvgCssAnimationPlayer + vite-svg-loader', anchor: 'css-flavor-svgs--svgcssanimationplayer',
     summary: 'A pre-rendered SVG imported as a component, with a click trigger added by the wrapper.' },
 
   // -- Playback settings & triggers ---------------------------------------------
   { group: 'playback', id: 'override-web',   title: 'Overriding from the web player', anchor: 'overriding-from-a-player',
-    summary: 'A `timeline` patch on createSvgAnimator: infinite iterations, programmatic trigger.' },
+    summary: 'A `timeline` patch on createSvgAnimationPlayer: infinite iterations, programmatic trigger.' },
   { group: 'playback', id: 'override-react', title: 'Overriding from component props', anchor: 'overriding-from-a-player',
     summary: 'The `timeline` prop plus the `iterations` shortcut replace the document\'s values.' },
 

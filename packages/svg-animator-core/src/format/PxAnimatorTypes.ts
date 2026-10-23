@@ -2257,7 +2257,7 @@ export function toPxDocument(doc: PxDocumentInput): PxDocument {
 //
 //   PxDiagnosticsConfig   onWarn / onError / muteWarn / muteError   — what `createDiagnostics` reads
 //   PxEngineCallbacks     + onPlay / onPause / onCancel / onFinish / onDestroy — what an ENGINE takes
-//   PxAnimatorCallbacks   + onStop                                  — what every PUBLIC surface takes
+//   PxAnimationPlayerCallbacks   + onStop                                  — what every PUBLIC surface takes
 //
 // Each level extends the one above, so a field is spelled once and the surfaces cannot drift.
 // The diagnostics rule (`onError` = this instance will not play; `onWarn` = it plays, but
@@ -2266,7 +2266,7 @@ export function toPxDocument(doc: PxDocumentInput): PxDocument {
 // @px-area engine
 /**
  * The callbacks an ENGINE takes — the frame loop, WAAPI, React Native's sampler: the playback
- * lifecycle plus the diagnostics channel. Public surfaces take `PxAnimatorCallbacks`.
+ * lifecycle plus the diagnostics channel. Public surfaces take `PxAnimationPlayerCallbacks`.
  * @public
  */
 export interface PxEngineCallbacks extends PxDiagnosticsConfig {
@@ -2286,15 +2286,15 @@ export interface PxEngineCallbacks extends PxDiagnosticsConfig {
      */
     onFinish?: () => void;
 
-    /** `destroy()`'s pair (review §11): the animator was torn down — an unmount, a document
+    /** `destroy()`'s pair (review §11): the player was torn down — an unmount, a document
      *  swap, or an explicit `destroy()` call. */
     onDestroy?: () => void;
 }
 
 // @px-area entry
 /**
- * What every PUBLIC surface takes, inline and under the same names — `createSvgAnimator({ onFinish })`,
- * `createSvgAnimatorsFromPage`, the pre-rendered entries, and `<SvgAnimator onFinish />` on React,
+ * What every PUBLIC surface takes, inline and under the same names — `createSvgAnimationPlayer({ onFinish })`,
+ * `createSvgAnimationPlayersFromPage`, the pre-rendered entries, and `<SvgAnimationPlayer onFinish />` on React,
  * Vue and React Native (review §9, §24): the engine's callbacks plus `onStop`, which fires after
  * any of `onPause` / `onCancel` / `onFinish` / `onDestroy` — for callers who only care that
  * playback is no longer running, whatever the reason.
@@ -2303,8 +2303,8 @@ export interface PxEngineCallbacks extends PxDiagnosticsConfig {
  * names, which is how their comments had already started to drift.
  * @public
  */
-export interface PxAnimatorCallbacks extends PxEngineCallbacks {
-    /** The animator exists and the SVG is rendered (review §14) — the push twin of `isReady()`.
+export interface PxAnimationPlayerCallbacks extends PxEngineCallbacks {
+    /** The player exists and the SVG is rendered (review §14) — the push twin of `isReady()`.
      *  Fires ONCE, always asynchronously (so the create call has returned): with `doc`
      *  effectively immediately, with `src` after the fetch. */
     onReady?: () => void;
@@ -2357,11 +2357,11 @@ const _ck_PxBezierPath: KeysMatch<PxBezierPath, _PxBezierPath> = true; // the ke
 
 
 // ============================================================================
-// ANIMATOR API
+// ANIMATION PLAYER API
 // ============================================================================
 
 /**
- * Basic animation controls common to all animator types.
+ * Basic animation controls common to every animation player.
  *
  * Generic over the platform's root-element type (`TRoot`) so this package stays
  * platform-neutral: the web player specializes it to the DOM `Element`, a
@@ -2387,7 +2387,7 @@ const _ck_PxBezierPath: KeysMatch<PxBezierPath, _PxBezierPath> = true; // the ke
  * rather than one per engine.
  * @public
  */
-export interface PxAnimatorApi<TRoot = unknown> {
+export interface PxAnimationPlayerApi<TRoot = unknown> {
 
     isReady(): boolean;
 
@@ -2456,17 +2456,17 @@ export interface PxAnimatorApi<TRoot = unknown> {
  * `getRootElement` (the framework renders it) and `destroy` (unmounting does it).
  *
  * ONE definition and ONE name (review §9): every framework package re-exports
- * `PxAnimatorHandle` itself — the per-package aliases (`ReactAnimatorApi`, …) are gone, so the
+ * `PxAnimationPlayerHandle` itself — the per-package aliases (`ReactAnimatorApi`, …) are gone, so the
  * three cannot drift (React Native's `setPlaybackRate` comment had already lost
  * "negative plays backwards").
  * @public
  */
-export type PxAnimatorHandle = Omit<PxAnimatorApi, 'isReady' | 'getRootElement' | 'destroy'>;
+export type PxAnimationPlayerHandle = Omit<PxAnimationPlayerApi, 'isReady' | 'getRootElement' | 'destroy'>;
 
 /** What an ENGINE constructs: the full api minus `playOnce`, which is composed ONCE on top of
  *  any engine (`finaliseAnimator` on the web, the handle builder on React Native) so the
  *  one-pass rule cannot drift between engines. @public @advanced */
-export type PxEngineAnimatorApi<TRoot = unknown> = Omit<PxAnimatorApi<TRoot>, 'playOnce' | 'getDuration'>;
+export type PxEngineAnimationPlayerApi<TRoot = unknown> = Omit<PxAnimationPlayerApi<TRoot>, 'playOnce' | 'getDuration'>;
 
 
 // ============================================================================

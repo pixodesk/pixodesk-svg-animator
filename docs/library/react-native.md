@@ -7,7 +7,7 @@
 > [Feature support](#feature-support). Use it to evaluate and prototype; expect to adjust your
 > code as new versions come out.
 
-Use this in a React Native or Expo app. Give `<SvgAnimator doc={…} />` the **same
+Use this in a React Native or Expo app. Give `<SvgAnimationPlayer doc={…} />` the **same
 JSON the web player uses** and it renders native SVG (`react-native-svg`), driven on the UI
 thread by `react-native-reanimated`. There is no JavaScript frame loop: once a document is
 compiled, the JS thread stays idle while it plays, so your app stays responsive. The props are
@@ -53,13 +53,13 @@ The whole common case — an animation that plays on mount and loops if the docu
 
 ```tsx
 import { View } from 'react-native';
-import { SvgAnimator } from '@pixodesk/svg-animator-rn';
+import { SvgAnimationPlayer } from '@pixodesk/svg-animator-rn';
 import animation from './animation.json';
 
 export function Logo() {
   return (
     <View style={{ width: 200, height: 200 }}>
-      <SvgAnimator doc={animation} playAsSaved />
+      <SvgAnimationPlayer doc={animation} playAsSaved />
     </View>
   );
 }
@@ -68,30 +68,30 @@ export function Logo() {
 The component has no size of its own: it fills whatever `View` you put it in. To set its size,
 give that `View` a `width` and `height`, as in the example above.
 
-Common variations. Each line is the `<SvgAnimator>` element inside a component like
+Common variations. Each line is the `<SvgAnimationPlayer>` element inside a component like
 `Logo` above; `isPlaying`, `scrollProgress` and `setDone` stand for your own state:
 
 ```tsx
 // Play once when a screen opens, then hold the last frame
-<SvgAnimator doc={doc} playAsSaved iterations={1} timeline={{ fillMode: 'forwards' }} />
+<SvgAnimationPlayer doc={doc} playAsSaved iterations={1} timeline={{ fillMode: 'forwards' }} />
 
 // Loop forever regardless of what the document says
-<SvgAnimator doc={doc} playAsSaved iterations="infinite" />
+<SvgAnimationPlayer doc={doc} playAsSaved iterations="infinite" />
 
 // Static — first frame only
-<SvgAnimator doc={doc} />
+<SvgAnimationPlayer doc={doc} />
 
 // Toggle from your own state
-<SvgAnimator doc={doc} play={isPlaying} />
+<SvgAnimationPlayer doc={doc} play={isPlaying} />
 
 // Tie progress to a gesture / slider (no playback, just a frame)
-<SvgAnimator doc={doc} time={scrollProgress} />
+<SvgAnimationPlayer doc={doc} time={scrollProgress} />
 
 // Override the document's timing
-<SvgAnimator doc={doc} playAsSaved outTime={4000} delay={500} />
+<SvgAnimationPlayer doc={doc} playAsSaved outTime={4000} delay={500} />
 
 // Do something when it finishes
-<SvgAnimator doc={doc} playAsSaved onFinish={() => setDone(true)} />
+<SvgAnimationPlayer doc={doc} playAsSaved onFinish={() => setDone(true)} />
 ```
 
 TypeScript: `doc` accepts `import animation from './animation.json'` as-is (it is typed
@@ -110,11 +110,11 @@ and React Native all resolve this the same way, from one rule in core.
 window; `click` wraps the animation in a `Pressable`):
 
 ```tsx
-import { SvgAnimator } from '@pixodesk/svg-animator-rn';
+import { SvgAnimationPlayer } from '@pixodesk/svg-animator-rn';
 import doc from './animation.json';
 
 export function Intro() {
-  return <SvgAnimator doc={doc} playAsSaved />;
+  return <SvgAnimationPlayer doc={doc} playAsSaved />;
 }
 ```
 
@@ -129,7 +129,7 @@ and a mount renders the pose without animating). Looping document: `play` is a R
 ```tsx
 import { useState } from 'react';
 import { Button, View } from 'react-native';
-import { SvgAnimator } from '@pixodesk/svg-animator-rn';
+import { SvgAnimationPlayer } from '@pixodesk/svg-animator-rn';
 import doc from './animation.json';
 
 export function Controlled() {
@@ -137,7 +137,7 @@ export function Controlled() {
   const [frozen, setFrozen] = useState(false);
   return (
     <View>
-      <SvgAnimator doc={doc} play={on} playMode="both" pause={frozen} />
+      <SvgAnimationPlayer doc={doc} play={on} playMode="both" pause={frozen} />
       <Button title={on ? 'Back to start' : 'Play'} onPress={() => setOn(!on)} />
       <Button title={frozen ? 'Resume' : 'Freeze'} onPress={() => setFrozen(!frozen)} />
     </View>
@@ -150,22 +150,22 @@ export function Controlled() {
 ```tsx
 import { useRef } from 'react';
 import { Button, View } from 'react-native';
-import { SvgAnimator, type PxAnimatorHandle } from '@pixodesk/svg-animator-rn';
+import { SvgAnimationPlayer, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-rn';
 import doc from './animation.json';
 
 export function Imperative() {
-  const api = useRef<PxAnimatorHandle>(null);
+  const playerRef = useRef<PxAnimationPlayerHandle>(null);
   return (
     <View>
-      <SvgAnimator doc={doc} apiRef={api} />
-      <Button title="Play" onPress={() => api.current?.play()} />
-      <Button title="Pause" onPress={() => api.current?.pause()} />
+      <SvgAnimationPlayer doc={doc} apiRef={playerRef} />
+      <Button title="Play" onPress={() => playerRef.current?.play()} />
+      <Button title="Pause" onPress={() => playerRef.current?.pause()} />
     </View>
   );
 }
 ```
 
-`PxAnimatorHandle`: `play()`, `pause()`, `cancel()`, `finish()`, `playOnce()` (ONE fresh pass
+`PxAnimationPlayerHandle`: `play()`, `pause()`, `cancel()`, `finish()`, `playOnce()` (ONE fresh pass
 from the start, whatever `iterations` say — the "plays once on click" verb), `isPlaying()`,
 `setPlaybackRate(rate)` (negative = reverse; `0` is rejected with a warning — use `pause()`),
 `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)` —
@@ -181,14 +181,14 @@ repeats.
 import { useState } from 'react';
 import { View } from 'react-native';
 import Slider from '@react-native-community/slider';   // any slider works — this one is `npm install @react-native-community/slider`
-import { SvgAnimator } from '@pixodesk/svg-animator-rn';
+import { SvgAnimationPlayer } from '@pixodesk/svg-animator-rn';
 import doc from './animation.json';
 
 export function Scrubber() {
   const [time, setTime] = useState(0);
   return (
     <View>
-      <SvgAnimator doc={doc} time={time} />
+      <SvgAnimationPlayer doc={doc} time={time} />
       <Slider minimumValue={0} maximumValue={2000} value={time} onValueChange={setTime} />
     </View>
   );
@@ -209,9 +209,9 @@ every element, and playback runs on the UI thread. No CSS-flavor component, no
 <!-- px-check signature pkg=rn -->
 ```typescript
 // The component — a plain function, also the default export.
-function SvgAnimator(props: SvgAnimatorProps): ReactElement | null;
+function SvgAnimationPlayer(props: SvgAnimationPlayerProps): ReactElement | null;
 
-interface SvgAnimatorProps {
+interface SvgAnimationPlayerProps {
     doc: PxDocumentInput;                 // required — the animation; a .json import passes as-is
 
     // Playback override — the same object as React (Playback overrides below). `timeline.engine`
@@ -242,7 +242,7 @@ interface SvgAnimatorProps {
     progress?: number;                    // 0–1 of duration × iterations (one iteration when 'infinite')
     time?: number;                        // ms from the start
 
-    apiRef?: React.RefObject<PxAnimatorHandle | null>;   // the same methods as on the web components, and the
+    apiRef?: React.RefObject<PxAnimationPlayerHandle | null>;   // the same methods as on the web components, and the
                                           //   same meanings: whole-run time, clamped seeks, rate 0 rejected
 
     // Lifecycle — no arguments; the same meanings as on the web
@@ -262,8 +262,8 @@ interface SvgAnimatorProps {
 }
 ```
 
-The package exports the component, its props (`SvgAnimatorProps`), its handle
-(`PxAnimatorHandle`) and the document types `PxDocumentInput` / `PxDocument` (a JSON import —
+The package exports the component, its props (`SvgAnimationPlayerProps`), its handle
+(`PxAnimationPlayerHandle`) and the document types `PxDocumentInput` / `PxDocument` (a JSON import —
 [TypeScript](./installation.md#typescript)); nothing else.
 
 With none of `playAsSaved` / `play` / `pause` / `progress` / `time` set, the first frame renders
@@ -277,7 +277,7 @@ you passed is never modified.
 
 ```tsx
 // The file loops twice and starts on mount; here it loops forever and holds the last frame.
-<SvgAnimator
+<SvgAnimationPlayer
   doc={doc}
   playAsSaved
   timeline={{ iterations: 'infinite', fillMode: 'forwards' }}
@@ -312,12 +312,12 @@ keeps working. It is reported once, as an error; nothing else is logged for it.
 
 ```tsx
 import { Text } from 'react-native';
-import { SvgAnimator } from '@pixodesk/svg-animator-rn';
+import { SvgAnimationPlayer } from '@pixodesk/svg-animator-rn';
 import doc from './animation.json';
 
 export function Safe() {
   return (
-    <SvgAnimator
+    <SvgAnimationPlayer
       doc={doc}
       playAsSaved
       onError={d => console.warn('animation failed:', d.message)}

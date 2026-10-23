@@ -47,7 +47,7 @@ export class PxRnErrorBoundary extends Component<PxRnErrorBoundaryProps, State> 
     }
 
     override componentDidCatch(error: Error, info: ErrorInfo): void {
-        (this.props.diag ?? createDiagnostics(undefined, '[SvgAnimator]'))
+        (this.props.diag ?? createDiagnostics(undefined, '[SvgAnimationPlayer]'))
             .error(PxDiagnosticKind.internal, PxDiagnosticCode.rnBoundaryCaught, error, info?.componentStack ?? undefined);
     }
 

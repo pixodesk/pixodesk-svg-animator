@@ -16,7 +16,7 @@
 // freezes the clock only and is forcibly lifted by `play: false`.
 // ============================================================================
 
-import type { PxAnimatorApi, PxEngineAnimatorApi } from '../format/PxAnimatorTypes';
+import type { PxAnimationPlayerApi, PxEngineAnimationPlayerApi } from '../format/PxAnimatorTypes';
 
 /** Which pose changes PLAY (animate) vs snap — `fillMode`'s value spellings and side-mapping
  *  (`forwards` is the toward-END side, `backwards` the toward-START side), applied to a
@@ -47,7 +47,7 @@ export function resolvePlaybackWorld(iterations: number | 'infinite' | undefined
     return PxPlaybackWorld.oneShot;
 }
 
-/** One step a component takes against the animator api — see {@link applyDeclarativeAction}.
+/** One step a component takes against the player api — see {@link applyDeclarativeAction}.
  *  @public @advanced */
 export enum PxDeclarativeAction {
     /** Silent mount pose: show the FINISH pose with no motion (a seek, no lifecycle events). */
@@ -86,14 +86,14 @@ export interface PxDeclarativeArgs {
     /** True only when the `playMode` prop was explicitly written — the default never warns. */
     playModeExplicit: boolean;
     completeIteration: boolean;
-    /** The previous render's props; `undefined` on mount or when the animator was recreated. */
+    /** The previous render's props; `undefined` on mount or when the player was recreated. */
     prev?: PxDeclarativeProps;
     next: PxDeclarativeProps;
 }
 
 /**
  * ONE rule for the declarative playback props (review §10). Pure: returns the ordered actions to
- * apply against the animator plus the usage warnings to emit. Contract breaches warn and never
+ * apply against the player plus the usage warnings to emit. Contract breaches warn and never
  * alter playback; warnings fire on mount or when the offending prop changes, so they do not
  * repeat on unrelated renders.
  * @public @advanced
@@ -166,7 +166,7 @@ export function resolveDeclarativePlayback(args: PxDeclarativeArgs): {
 
 /** The slice of the api the declarative executor drives — structural, so the components'
  *  HANDLE qualifies as well as a full engine api. @public @advanced */
-export type PxDeclarativeTarget = Pick<PxAnimatorApi,
+export type PxDeclarativeTarget = Pick<PxAnimationPlayerApi,
     'play' | 'pause' | 'cancel' | 'finish' | 'setPlaybackRate' | 'getCurrentTime' | 'setCurrentTime' | 'isPlaying'>;
 
 /** What {@link applyDeclarativeAction} needs beside the api: the run's geometry. @public @advanced */
@@ -180,7 +180,7 @@ export interface PxDeclarativeRunContext {
 const SNAP_EPSILON_MS = 1;
 
 /**
- * Executes one {@link PxDeclarativeAction} against the animator api — the mechanical half of the
+ * Executes one {@link PxDeclarativeAction} against the player api — the mechanical half of the
  * shared rule, with the boundary guards that keep `play()`'s rewind-at-the-boundary behaviour
  * from turning an idempotent re-apply into a surprise replay. Engine-agnostic: only the public
  * api is used.
@@ -242,7 +242,7 @@ export interface PxPlayOnceConfig {
 
 /** The slice of the api `composePlayOnce` drives — structural, so the components' HANDLE
  *  (which has no `destroy`) qualifies as well as a full engine api. @public @advanced */
-export type PxPlayOnceTarget = Pick<PxAnimatorApi, 'play' | 'pause' | 'cancel' | 'setPlaybackRate' | 'getCurrentTime' | 'setCurrentTime'> & { destroy?: () => void };
+export type PxPlayOnceTarget = Pick<PxAnimationPlayerApi, 'play' | 'pause' | 'cancel' | 'setPlaybackRate' | 'getCurrentTime' | 'setCurrentTime'> & { destroy?: () => void };
 
 /**
  * Completes an api with the COMPOSED members — `playOnce()` (review §10) and `getDuration()`

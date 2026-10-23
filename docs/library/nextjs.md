@@ -4,16 +4,16 @@
 
 The [React component](./react.md) in a Next.js app.
 
-The component renders real SVG markup on the server and starts the animator in an effect on
+The component renders real SVG markup on the server and starts the player in an effect on
 the client, so it works in the App Router — mark the file that uses it as a client component:
 
 ```tsx
 'use client';
-import { SvgAnimator } from '@pixodesk/svg-animator-react';
+import { SvgAnimationPlayer } from '@pixodesk/svg-animator-react';
 import animation from './animation.json';
 
 export default function Hero() {
-  return <SvgAnimator doc={animation} playAsSaved />;
+  return <SvgAnimationPlayer doc={animation} playAsSaved />;
 }
 ```
 

@@ -5,19 +5,19 @@
 
 import { cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
-import SvgCssAnimator from './SvgCssAnimator';
+import SvgCssAnimationPlayer from './SvgCssAnimator';
 
 
-describe("SvgCssAnimator (React)", () => {
+describe("SvgCssAnimationPlayer (React)", () => {
     afterEach(() => {
         cleanup();
     });
 
     it("renders children inside the wrapper div", () => {
         const { container } = render(
-            <SvgCssAnimator>
+            <SvgCssAnimationPlayer>
                 <svg data-testid="inner-svg" />
-            </SvgCssAnimator>
+            </SvgCssAnimationPlayer>
         );
         const div = container.firstElementChild as HTMLElement;
         expect(div.tagName).toBe("DIV");
@@ -26,9 +26,9 @@ describe("SvgCssAnimator (React)", () => {
 
     it("plays immediately with the default start='load'", () => {
         const { container } = render(
-            <SvgCssAnimator>
+            <SvgCssAnimationPlayer>
                 <svg />
-            </SvgCssAnimator>
+            </SvgCssAnimationPlayer>
         );
         const div = container.firstElementChild as HTMLElement;
         expect(div.className).toBe("px-anim-enabled px-anim-playing");
@@ -36,9 +36,9 @@ describe("SvgCssAnimator (React)", () => {
 
     it("joins className correctly ('foo px-anim-enabled px-anim-playing')", () => {
         const { container } = render(
-            <SvgCssAnimator className="foo">
+            <SvgCssAnimationPlayer className="foo">
                 <svg />
-            </SvgCssAnimator>
+            </SvgCssAnimationPlayer>
         );
         const div = container.firstElementChild as HTMLElement;
         expect(div.className).toBe("foo px-anim-enabled px-anim-playing");
@@ -46,9 +46,9 @@ describe("SvgCssAnimator (React)", () => {
 
     it("has no 'undefined' prefix when className is absent", () => {
         const { container } = render(
-            <SvgCssAnimator>
+            <SvgCssAnimationPlayer>
                 <svg />
-            </SvgCssAnimator>
+            </SvgCssAnimationPlayer>
         );
         const div = container.firstElementChild as HTMLElement;
         expect(div.className).not.toContain("undefined");
@@ -57,9 +57,9 @@ describe("SvgCssAnimator (React)", () => {
 
     it("applies style to the wrapper div", () => {
         const { container } = render(
-            <SvgCssAnimator style={{ width: '123px' }}>
+            <SvgCssAnimationPlayer style={{ width: '123px' }}>
                 <svg />
-            </SvgCssAnimator>
+            </SvgCssAnimationPlayer>
         );
         const div = container.firstElementChild as HTMLElement;
         expect(div.style.width).toBe("123px");
@@ -67,9 +67,9 @@ describe("SvgCssAnimator (React)", () => {
 
     it("toggles classes for start='mouseOver' + mouseOut='pause'", () => {
         const { container } = render(
-            <SvgCssAnimator start="mouseOver" mouseOut="pause">
+            <SvgCssAnimationPlayer start="mouseOver" mouseOut="pause">
                 <svg />
-            </SvgCssAnimator>
+            </SvgCssAnimationPlayer>
         );
         const div = container.firstElementChild as HTMLElement;
 
@@ -87,9 +87,9 @@ describe("SvgCssAnimator (React)", () => {
 
     it("resets to idle on mouse-out when mouseOut='reset'", () => {
         const { container } = render(
-            <SvgCssAnimator start="mouseOver" mouseOut="reset">
+            <SvgCssAnimationPlayer start="mouseOver" mouseOut="reset">
                 <svg />
-            </SvgCssAnimator>
+            </SvgCssAnimationPlayer>
         );
         const div = container.firstElementChild as HTMLElement;
 

@@ -5,50 +5,50 @@
  *---------------------------------------------------------------------------------------*/
 
 import type { PxEngineCallbacks } from '@pixodesk/svg-animator-core';
-import type { PxAnimatorApi } from '../shared/PxAnimatorWebTypes';
+import type { PxAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
 
 /**
- * THE PAGE-WIDE REGISTRY — every live animator in the window, whoever created it.
+ * THE PAGE-WIDE REGISTRY — every live player in the window, whoever created it.
  *
  * Like lottie-web's `getRegisteredAnimations()`: a dev tool, a test, or a "pause everything
- * while the tab is hidden" can reach every player without holding on to each `createSvgAnimator`
- * result. An animator joins when it is built and leaves on `destroy()`; play / pause / cancel /
+ * while the tab is hidden" can reach every player without holding on to each `createSvgAnimationPlayer`
+ * result. A player joins when it is built and leaves on `destroy()`; play / pause / cancel /
  * finish are announced to subscribers.
  *
  * ONE registry per window, whatever the bundling: the store hangs off `globalThis` under a
  * `Symbol.for` key, so the ESM build in one script and the UMD build in another share it. It
- * is also reachable by NAME — `globalThis.__pixodeskSvgAnimators` — for tooling that does not
+ * is also reachable by NAME — `globalThis.__pixodeskSvgAnimationPlayers` — for tooling that does not
  * import the library (a devtools panel reading a page it did not build). Web only: React
  * Native players never touch it.
  *
  * EXPERIMENTAL (2026-09): not settled — the event names, what `getAll()` includes and the
  * global's name may change without a major version. Documented as such in
- * docs/library/web-player.md ("Every animator on the page").
+ * docs/library/web-player.md ("Every player on the page").
  */
 
-/** What changed for an animator in the page-wide registry. Experimental — may change. @public */
-export type PxAnimatorsEvent = 'add' | 'remove' | 'play' | 'pause' | 'cancel' | 'finish';
+/** What changed for a player in the page-wide registry. Experimental — may change. @public */
+export type PxAnimationPlayersEvent = 'add' | 'remove' | 'play' | 'pause' | 'cancel' | 'finish';
 
-/** Called for every {@link PxAnimatorsEvent} of every animator in the window. Experimental — may change. @public */
-export type PxAnimatorsListener = (event: PxAnimatorsEvent, animator: PxAnimatorApi) => void;
+/** Called for every {@link PxAnimationPlayersEvent} of every player in the window. Experimental — may change. @public */
+export type PxAnimationPlayersListener = (event: PxAnimationPlayersEvent, animator: PxAnimationPlayerApi) => void;
 
-/** The store itself — what `globalThis.__pixodeskSvgAnimators` holds. Experimental — may change. @public */
-export interface PxAnimatorRegistry {
-    /** Every live animator, in creation order. */
-    getAll(): ReadonlyArray<PxAnimatorApi>;
+/** The store itself — what `globalThis.__pixodeskSvgAnimationPlayers` holds. Experimental — may change. @public */
+export interface PxAnimationPlayerRegistry {
+    /** Every live player, in creation order. */
+    getAll(): ReadonlyArray<PxAnimationPlayerApi>;
     /** Announcements of add / remove / play / pause / cancel / finish; returns the unsubscribe. */
-    subscribe(listener: PxAnimatorsListener): () => void;
+    subscribe(listener: PxAnimationPlayersListener): () => void;
 }
 
-interface RegistryStore extends PxAnimatorRegistry {
-    readonly animators: Set<PxAnimatorApi>;
-    readonly listeners: Set<PxAnimatorsListener>;
+interface RegistryStore extends PxAnimationPlayerRegistry {
+    readonly animators: Set<PxAnimationPlayerApi>;
+    readonly listeners: Set<PxAnimationPlayersListener>;
 }
 
 const STORE_KEY = Symbol.for('@pixodesk/svg-animator-web:animators');
 /** The `globalThis` name the registry is also reachable by — for code that cannot import the library
  *  (a page script next to a pre-rendered SVG, a tool's iframe). Experimental — may change. @public */
-export const PX_ANIMATOR_REGISTRY_GLOBAL = '__pixodeskSvgAnimators';
+export const PX_ANIMATION_PLAYER_REGISTRY_GLOBAL = '__pixodeskSvgAnimationPlayers';
 
 /** A store some bundle copy of this library left on `globalThis` (which declares no slot for it). */
 function isRegistryStore(value: unknown): value is RegistryStore {
@@ -58,13 +58,13 @@ function isRegistryStore(value: unknown): value is RegistryStore {
 }
 
 /** The one store of this window, created on first use. `globalThis` carries it under a
- *  symbol (shared across bundle copies) and, for discoverability, under {@link PX_ANIMATOR_REGISTRY_GLOBAL}. */
+ *  symbol (shared across bundle copies) and, for discoverability, under {@link PX_ANIMATION_PLAYER_REGISTRY_GLOBAL}. */
 function store(): RegistryStore {
     const found: unknown = Reflect.get(globalThis, STORE_KEY);
     let s = isRegistryStore(found) ? found : undefined;
     if (!s) {
-        const animators = new Set<PxAnimatorApi>();
-        const listeners = new Set<PxAnimatorsListener>();
+        const animators = new Set<PxAnimationPlayerApi>();
+        const listeners = new Set<PxAnimationPlayersListener>();
         s = {
             animators,
             listeners,
@@ -75,31 +75,31 @@ function store(): RegistryStore {
             },
         };
         Reflect.set(globalThis, STORE_KEY, s);
-        if (Reflect.get(globalThis, PX_ANIMATOR_REGISTRY_GLOBAL) === undefined) Reflect.set(globalThis, PX_ANIMATOR_REGISTRY_GLOBAL, s);
+        if (Reflect.get(globalThis, PX_ANIMATION_PLAYER_REGISTRY_GLOBAL) === undefined) Reflect.set(globalThis, PX_ANIMATION_PLAYER_REGISTRY_GLOBAL, s);
     }
     return s;
 }
 
-/** Every live animator in this window, in creation order. Experimental — may change. @public */
-export function getAllSvgAnimators(): ReadonlyArray<PxAnimatorApi> {
+/** Every live player in this window, in creation order. Experimental — may change. @public */
+export function getAllSvgAnimationPlayers(): ReadonlyArray<PxAnimationPlayerApi> {
     return store().getAll();
 }
 
-/** Hear every animator in this window start, pause, cancel, finish, appear or go — returns
+/** Hear every player in this window start, pause, cancel, finish, appear or go — returns
  *  the unsubscribe. Experimental — may change. @public */
-export function onSvgAnimatorsChange(listener: PxAnimatorsListener): () => void {
+export function onSvgAnimationPlayersChange(listener: PxAnimationPlayersListener): () => void {
     return store().subscribe(listener);
 }
 
 /** A listener must never break playback: its error surfaces on its own, asynchronously. */
-function notify(event: PxAnimatorsEvent, animator: PxAnimatorApi): void {
+function notify(event: PxAnimationPlayersEvent, animator: PxAnimationPlayerApi): void {
     for (const listener of store().listeners) {
         try { listener(event, animator); } catch (e) { setTimeout(() => { throw e; }, 0); }
     }
 }
 
 /** @internal Adds a freshly built animator; `destroy()` on the returned API removes it again. */
-export function registerAnimator(animator: PxAnimatorApi): void {
+export function registerAnimator(animator: PxAnimationPlayerApi): void {
     const s = store();
     if (s.animators.has(animator)) return;
     s.animators.add(animator);
@@ -116,8 +116,8 @@ export function registerAnimator(animator: PxAnimatorApi): void {
  * handlers still runs first. `api()` resolves the animator lazily — the callbacks are built
  * before it exists.
  */
-export function withRegistryEvents(callbacks: PxEngineCallbacks | undefined, api: () => PxAnimatorApi | undefined): PxEngineCallbacks {
-    const fire = (event: PxAnimatorsEvent): void => { const a = api(); if (a) notify(event, a); };
+export function withRegistryEvents(callbacks: PxEngineCallbacks | undefined, api: () => PxAnimationPlayerApi | undefined): PxEngineCallbacks {
+    const fire = (event: PxAnimationPlayersEvent): void => { const a = api(); if (a) notify(event, a); };
     return {
         ...callbacks,
         onPlay: () => { callbacks?.onPlay?.(); fire('play'); },

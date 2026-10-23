@@ -1,6 +1,6 @@
-import { createSvgAnimatorsFromPage } from '@pixodesk/svg-animator-web';
+import { createSvgAnimationPlayersFromPage } from '@pixodesk/svg-animator-web';
 
-createSvgAnimatorsFromPage();
+createSvgAnimationPlayersFromPage();
 
 // Calling it again is safe: only elements without an animator are picked up.
-createSvgAnimatorsFromPage();
+createSvgAnimationPlayersFromPage();

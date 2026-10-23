@@ -50,7 +50,7 @@ export type { PxDeclarativeProps, PxDeclarativeArgs, PxDeclarativeRunContext, Px
 export type { PxControlProps } from './format/PxAnimatorConstants';
 
 // Document / model types
-export type { PxEngineAnimatorApi, PxDocument, PxDocumentInput, PxAnimationDefinition, PxAnimatorApi, PxEngineCallbacks, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBezierPath, PxBinding, PxDefinitions, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxAnyPropertyAnimation, PxCompiledAnimation, PxCompiledKeyframe, PxCubicBezier, PxPathValue, PxRgba, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTransformParts, PxTrigger, PxTransformValue } from './format/PxAnimatorTypes';
+export type { PxEngineAnimationPlayerApi, PxDocument, PxDocumentInput, PxAnimationDefinition, PxAnimationPlayerApi, PxEngineCallbacks, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBezierPath, PxBinding, PxDefinitions, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxAnyPropertyAnimation, PxCompiledAnimation, PxCompiledKeyframe, PxCubicBezier, PxPathValue, PxRgba, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTransformParts, PxTrigger, PxTransformValue } from './format/PxAnimatorTypes';
 // VALUE exports, not `export type`: each wire enum is a const namespace AND the string type
 // derived from it under the same name (review §2.7), so a consumer gets both `PxTriggerStart.click`
 // and `start?: PxTriggerStart` from one import.
@@ -93,7 +93,7 @@ export { PxDocStage, documentStage } from './format/PxDocStage';
 export type { PxPreparedDocument } from './format/PxDocStage';
 
 // Adapter-driven frame-loop engine (platform-neutral playback)
-export { createAdapterSvgAnimator } from './playback/PxFrameLoop';
+export { createAdapterSvgAnimationPlayer } from './playback/PxFrameLoop';
 export type { PxPlatformAdapter } from './playback/PxFrameLoop';
 
 // The ONE time contract every engine implements (review §3)
@@ -114,7 +114,7 @@ export { PxDiagnosticKind } from './playback/PxDiagnostics';
 export type { PxDiagnostic, PxDiagnostics, PxDiagnosticsConfig } from './playback/PxDiagnostics';
 
 // The shapes every framework component shares (review §9) — one definition, three aliases.
-export type { PxAnimatorHandle, PxAnimatorCallbacks } from './format/PxAnimatorTypes';
+export type { PxAnimationPlayerHandle, PxAnimationPlayerCallbacks } from './format/PxAnimatorTypes';
 export type { PxPlaybackOverride } from './playback/PxAnimatorConfigPatch';
 
 // Element-creation factory + glyph-text materializer

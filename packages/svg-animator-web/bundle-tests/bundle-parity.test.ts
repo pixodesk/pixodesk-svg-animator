@@ -17,12 +17,12 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { BUNDLE_PAIRS, bundleText, framesDoc, loadBundle, type PxPlayerGlobal } from './bundleHarness';
-import type { PxAnimatorOptions, PxInternalAnimatorOptions } from '../src/animator/PxAnimator';
-import type { PxPrerenderedAnimatorOptions } from '../src/engines/PxAnimatorBind';
+import type { PxAnimationPlayerOptions, PxInternalAnimationPlayerOptions } from '../src/animator/PxAnimator';
+import type { PxPrerenderedAnimationPlayerOptions } from '../src/engines/PxAnimatorBind';
 
 
 /** What a call through `create` or `bind` must satisfy — both entries' options at once. */
-type PxEntryOptions = PxAnimatorOptions & PxPrerenderedAnimatorOptions;
+type PxEntryOptions = PxAnimationPlayerOptions & PxPrerenderedAnimationPlayerOptions;
 
 /** The `#stage` element every loaded bundle page has. */
 function stageOf(win: Window): HTMLElement {
@@ -37,7 +37,7 @@ function stageOf(win: Window): HTMLElement {
  */
 const BOUNDARY_NAMES: Array<{ name: string; why: string; createOnly?: boolean }> = [
     { name: 'doc',            why: 'create / bind option — the document is dropped' },
-    { name: 'adapter',        why: 'createSvgAnimator option — custom render targets are ignored', createOnly: true },
+    { name: 'adapter',        why: 'createSvgAnimationPlayer option — custom render targets are ignored', createOnly: true },
     { name: 'onPlay',         why: 'documented lifecycle callback' },
     { name: 'onPause',        why: 'documented lifecycle callback' },
     { name: 'onCancel',       why: 'documented lifecycle callback' },
@@ -135,7 +135,7 @@ describe('shipped bundles: behavior is identical minified and unminified', () =>
             it(`[${pair.name}] a custom adapter is used`, () => {
                 const scenario = (px: PxPlayerGlobal, win: Window) => {
                     let calls = 0;
-                    const options: PxInternalAnimatorOptions = {
+                    const options: PxInternalAnimationPlayerOptions = {
                         doc: framesDoc(),
                         container: stageOf(win),
                         adapter: {

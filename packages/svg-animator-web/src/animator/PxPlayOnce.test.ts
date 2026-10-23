@@ -6,7 +6,7 @@
 // the one-shot verb behind "plays once on click". Frame-loop engine under fake timers, like
 // PxAnimatorWindow.test.ts.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createSvgAnimator } from '../index';
+import { createSvgAnimationPlayer } from '../index';
 import type { PxDocumentInput } from '@pixodesk/svg-animator-core';
 
 function doc(extra: Record<string, unknown> = {}): PxDocumentInput {
@@ -27,7 +27,7 @@ describe('playOnce (§10)', () => {
     afterEach(() => vi.useRealTimers());
 
     it('plays one fresh pass mid-flight — re-entrant restart', () => {
-        const api = createSvgAnimator({ doc: doc(), container: '#box' });
+        const api = createSvgAnimationPlayer({ doc: doc(), container: '#box' });
         api.playOnce();
         vi.advanceTimersByTime(500);
         expect(api.getCurrentTime()).toBeCloseTo(500, -2);
@@ -38,7 +38,7 @@ describe('playOnce (§10)', () => {
     });
 
     it('caps a loop-configured document at ONE pass and holds the pass-end pose', () => {
-        const api = createSvgAnimator({ doc: doc({ iterations: 'infinite' }), container: '#box' });
+        const api = createSvgAnimationPlayer({ doc: doc({ iterations: 'infinite' }), container: '#box' });
         api.playOnce();
         vi.advanceTimersByTime(1400);                     // well past one pass; watcher settles it
         vi.advanceTimersByTime(200);
@@ -48,7 +48,7 @@ describe('playOnce (§10)', () => {
     });
 
     it("a loop document with finish 'reset' snaps to rest after the pass", () => {
-        const api = createSvgAnimator({ doc: doc({ iterations: 'infinite', trigger: { start: 'none' }, finish: 'reset' }), container: '#box' });
+        const api = createSvgAnimationPlayer({ doc: doc({ iterations: 'infinite', trigger: { start: 'none' }, finish: 'reset' }), container: '#box' });
         api.playOnce();
         vi.advanceTimersByTime(1600);
         expect(api.isPlaying()).toBe(false);

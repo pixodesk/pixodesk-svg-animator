@@ -17,7 +17,7 @@
             "order": 1,
             "color": "#8250df",
             "label": "Entry points & components",
-            "description": "createSvgAnimator, the React / Vue / React Native components, the registry, the handle and callback facade"
+            "description": "createSvgAnimationPlayer, the React / Vue / React Native components, the registry, the handle and callback facade"
         },
         {
             "name": "control",

@@ -221,9 +221,9 @@ block, deep-merged over what the file says. The file on disk is never modified.
 ```
 
 ```js
-import { createSvgAnimator } from '@pixodesk/svg-animator-web';
+import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 
-const a = createSvgAnimator({
+const a = createSvgAnimationPlayer({
   src: '/bouncing-ball.json',
   container: '#box',
   timeline: { iterations: 'infinite' },   // no `playAsSaved`: nothing starts until a.play()
@@ -234,7 +234,7 @@ a.play();
 **React / Vue / React Native** — the same object, as a prop:
 
 ```jsx
-<SvgAnimator doc={doc} playAsSaved
+<SvgAnimationPlayer doc={doc} playAsSaved
   timeline={{ iterations: 'infinite', trigger: { start: 'none' } }} />
 ```
 
@@ -282,7 +282,7 @@ A shortcut wins over the same key inside `timeline`, the way an inline style bea
 player's own defaults, add `resetTimeline`:
 
 ```jsx
-<SvgAnimator doc={doc} resetTimeline timeline={{ outTime: 3000 }} />
+<SvgAnimationPlayer doc={doc} resetTimeline timeline={{ outTime: 3000 }} />
 ```
 
 That plays for 3 s with default timing whatever the file declares. Fonts and the per-element

@@ -23,7 +23,7 @@ export default defineConfig({
     vue(),
     svgr({
       // SVGO's inlineStyles would move the class-based rules out of <style> onto the
-      // elements, which breaks the class toggling SvgCssAnimator relies on.
+      // elements, which breaks the class toggling SvgCssAnimationPlayer relies on.
       svgrOptions: { svgo: false },
     }),
     svgLoader({ defaultImport: 'url', svgo: false }),

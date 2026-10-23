@@ -1,6 +1,6 @@
 # React Native Preview Player
 
-Expo app that plays Pixodesk animator documents with
+Expo app that plays Pixodesk animation documents with
 [`@pixodesk/svg-animator-rn`](../../packages/svg-animator-rn). It mirrors the
 web [preview player](../preview-player) — same transport, timeline, loop and
 rate controls — but instead of drag-and-drop it ships a set of embedded

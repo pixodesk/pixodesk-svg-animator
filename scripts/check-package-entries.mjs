@@ -13,7 +13,7 @@
 // WHY THIS EXISTS
 // The UMD/IIFE bundle is for a `<script>` tag: it takes React / Vue / the web player from
 // `window.*` and assigns one global. It exports nothing a bundler can read. So a bundler that
-// picks it gets an EMPTY module — `import { SvgAnimator }` is then `undefined`, and the
+// picks it gets an EMPTY module — `import { SvgAnimationPlayer }` is then `undefined`, and the
 // app fails at render with a bare "element type is invalid", far from the cause.
 //
 // `browser` is the trap. It is meant for swapping a Node-only file for a browser-safe one, but

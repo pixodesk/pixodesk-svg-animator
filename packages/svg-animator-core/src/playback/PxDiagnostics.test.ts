@@ -43,20 +43,20 @@ describe('createDiagnostics — warnings', () => {
 
     it('labels the console fallback with the prefix AND the kind', () => {
         const warn = warnSpy();
-        createDiagnostics(undefined, '[SvgAnimator]').warn(PxDiagnosticKind.host, PxDiagnosticCode.noRootElement);
+        createDiagnostics(undefined, '[SvgAnimationPlayer]').warn(PxDiagnosticKind.host, PxDiagnosticCode.noRootElement);
 
         const line = String(warn.mock.calls[0][0]);
-        expect(line).toContain('[SvgAnimator]');
+        expect(line).toContain('[SvgAnimationPlayer]');
         expect(line).toContain('host');
     });
 
     it('does NOT prefix the message handed to a handler', () => {
         // A caller feeding this into its own UI should not have to strip our tag.
         const onWarn = vi.fn();
-        createDiagnostics({ onWarn }, '[SvgAnimator]').warn(PxDiagnosticKind.host, PxDiagnosticCode.noRootElement);
+        createDiagnostics({ onWarn }, '[SvgAnimationPlayer]').warn(PxDiagnosticKind.host, PxDiagnosticCode.noRootElement);
 
         const d = onWarn.mock.calls[0][0] as PxDiagnostic;
-        expect(d.message).not.toContain('[SvgAnimator]');
+        expect(d.message).not.toContain('[SvgAnimationPlayer]');
         expect(d.kind).toBe(PxDiagnosticKind.host);
     });
 

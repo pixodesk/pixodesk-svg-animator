@@ -37,7 +37,7 @@ A lightweight JavaScript library for playing SVG animations in the browser. Pixo
 
 ### Declarative (HTML)
 
-Add a `data-px-animation-src` attribute to any element pointing to your animation JSON file, then call `createSvgAnimatorsFromPage()`:
+Add a `data-px-animation-src` attribute to any element pointing to your animation JSON file, then call `createSvgAnimationPlayersFromPage()`:
 
 ```html
 <div data-px-animation-src="/animation.json"></div>
@@ -45,43 +45,43 @@ Add a `data-px-animation-src` attribute to any element pointing to your animatio
 <!-- UMD -->
 <script src="pixodesk-svg-animator.umd.js"></script>
 <script>
-  Pixodesk.SvgAnimator.createSvgAnimatorsFromPage();
+  Pixodesk.SvgAnimator.createSvgAnimationPlayersFromPage();
 </script>
 ```
 
-Each element gets its own animator: `createSvgAnimatorsFromPage()` returns the ones it created, and `getSvgAnimator(element)` finds an element's later — use it for playback control.
+Each element gets its own player: `createSvgAnimationPlayersFromPage()` returns the ones it created, and `getSvgAnimationPlayer(element)` finds an element's later — use it for playback control.
 
 ### Programmatic
 
-Use `createSvgAnimator` for full control:
+Use `createSvgAnimationPlayer` for full control:
 
 ```js
-import { createSvgAnimator } from '@pixodesk/svg-animator-web';
+import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 
 // From a URL — returns a proxy immediately; control calls made before the
 // document loads are queued and replayed once it's ready
-const animator = createSvgAnimator({
+const player = createSvgAnimationPlayer({
   src: '/animation.json',
   container: '#container',
   onFinish: () => console.log('done'),
 });
 
 // Or from an already-loaded document object
-const fromObject = createSvgAnimator({ doc: animationDoc, container: '#container' });
+const fromObject = createSvgAnimationPlayer({ doc: animationDoc, container: '#container' });
 
-animator.play();
-animator.pause();
-animator.setCurrentTime(500);   // jump to 0.5 s from the start
-animator.setPlaybackRate(2);    // 2x speed (-1 plays in reverse)
-animator.finish();              // jump to end
-animator.destroy();             // cleanup
+player.play();
+player.pause();
+player.setCurrentTime(500);   // jump to 0.5 s from the start
+player.setPlaybackRate(2);    // 2x speed (-1 plays in reverse)
+player.finish();              // jump to end
+player.destroy();             // cleanup
 ```
 
 ### API
 
-`createSvgAnimator(options)` takes a single options object:
+`createSvgAnimationPlayer(options)` takes a single options object:
 
-<!-- px-check props PxAnimatorOptions pkg=web -->
+<!-- px-check props PxAnimationPlayerOptions pkg=web -->
 | Option | Type | Description |
 | ----------- | ------------------------- | -------------------------------------------------- |
 | `playAsSaved` | `boolean`               | play the way the editor saved it — the document's own trigger starts it; without it nothing starts and the returned api drives playback |
@@ -104,17 +104,17 @@ one page needs it to play differently — the same file mounted twice at two spe
 that autostarts everywhere except inside your own transport UI:
 
 ```js
-const animator = createSvgAnimator({
+const player = createSvgAnimationPlayer({
   src: '/animation.json',
   container: '#box',
   timeline: { iterations: 'infinite', trigger: { start: 'none' } },
 });
-animator.play();
+player.play();
 ```
 
-It returns a `PxAnimatorApi`:
+It returns a `PxAnimationPlayerApi`:
 
-<!-- px-check props PxAnimatorApi pkg=web -->
+<!-- px-check props PxAnimationPlayerApi pkg=web -->
 | Method                  | Description                                                       |
 | ----------------------- | ----------------------------------------------------------------- |
 | `play()`                | Start or resume playback                                          |
@@ -136,7 +136,7 @@ It returns a `PxAnimatorApi`:
 ### Callbacks
 
 ```js
-createSvgAnimator({
+createSvgAnimationPlayer({
   doc: doc,
   container: '#container',
   onPlay:   () => { /* started/resumed */ },
@@ -157,7 +157,7 @@ createSvgAnimator({
 
 ### Document format & effects
 
-The `doc` passed to `createSvgAnimator` is the animation document (`type: 'svg'`), the
+The `doc` passed to `createSvgAnimationPlayer` is the animation document (`type: 'svg'`), the
 same shape as the JSON export. It comes in two modes:
 
 - **Self-contained document** — has `children`: the player renders the SVG tree and animates it.

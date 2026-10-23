@@ -21,34 +21,34 @@
 // runtime. Anything the Editor imports belongs in `index.ts`.
 // ============================================================================
 
-// The player itself. On the global, `createSvgAnimator` is the member `create` (PX_PLAYER_CREATE): a document
-// into a container. `bindSvgAnimator` is `bind` (PX_PLAYER_BIND): a pre-rendered SVG already on the page — what
+// The player itself. On the global, `createSvgAnimationPlayer` is the member `create` (PX_PLAYER_CREATE): a document
+// into a container. `bindSvgAnimationPlayer` is `bind` (PX_PLAYER_BIND): a pre-rendered SVG already on the page — what
 // the Editor's SVG+JS export calls, so an export that leaves the player to the page works with this build too.
-// `createSvgAnimatorsFromPage` is the declarative `data-px-animation-src` bootstrap; `getSvgAnimator` finds its player.
+// `createSvgAnimationPlayersFromPage` is the declarative `data-px-animation-src` bootstrap; `getSvgAnimationPlayer` finds its player.
 export { createPrerenderedAnimator as bind } from './engines/PxAnimatorBind';
 export {
-    createSvgAnimator as create,
-    createSvgAnimatorsFromPage,
+    createSvgAnimationPlayer as create,
+    createSvgAnimationPlayersFromPage,
     generateNewIds,
-    getSvgAnimator,
+    getSvgAnimationPlayer,
     PX_ANIMATOR_DOC_KEY,
 } from './animator/PxAnimator';
 
 // Trigger wiring — `create` uses it internally; exposed so a page can
 // re-arm triggers after swapping document content.
 export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
-export { getAllSvgAnimators, onSvgAnimatorsChange } from './registry/PxAnimatorRegistry';
-export type { PxAnimatorRegistry, PxAnimatorsEvent, PxAnimatorsListener } from './registry/PxAnimatorRegistry';
+export { getAllSvgAnimationPlayers, onSvgAnimationPlayersChange } from './registry/PxAnimatorRegistry';
+export type { PxAnimationPlayerRegistry, PxAnimationPlayersEvent, PxAnimationPlayersListener } from './registry/PxAnimatorRegistry';
 
-// Config enums a caller needs to build `PxAnimatorOptions` by hand.
+// Config enums a caller needs to build `PxAnimationPlayerOptions` by hand.
 export { PxTimelineEngine, PxTimelineEngineSetting, validateDocument } from '@pixodesk/svg-animator-core';
 
 // Attribute names used by the declarative bootstrap.
 export { PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 
 // Types are erased at build time — zero bytes, kept for editor tooling.
-export type { PxAnimatorOptions } from './animator/PxAnimator';
-export type { PxAnimatorApi } from './shared/PxAnimatorWebTypes';
+export type { PxAnimationPlayerOptions } from './animator/PxAnimator';
+export type { PxAnimationPlayerApi } from './shared/PxAnimatorWebTypes';
 export type {
     PxDocument,
     PxEngineCallbacks,

@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { type PxDocument, type PxAnimatorApi, type PxEngineAnimatorApi, type PxEngineCallbacks } from '../format/PxAnimatorTypes';
+import { type PxDocument, type PxAnimationPlayerApi, type PxEngineAnimationPlayerApi, type PxEngineCallbacks } from '../format/PxAnimatorTypes';
 import { composeApiExtras } from './PxDeclarativePlayback';
 import { getAnimatorConfig, PX_DEFAULT_ITERATIONS, PxTimelineEngine } from '../format/PxAnimatorConstants';
 import { PxTimeTimelineSchema } from '../format/PxAnimatorTypes';
@@ -52,19 +52,19 @@ export interface PxPlatformAdapter {
 }
 
 /**
- * Creates an animator instance that uses a frame loop for animations.
+ * Creates an animation player that drives the animation with a frame loop.
  * This is the abstract/platform-agnostic version.
  *
  * @param adapter Platform adapter for DOM/environment operations.
  * @param callbacks Optional lifecycle callbacks.
- * @returns A PxAnimatorApi instance.
+ * @returns A PxAnimationPlayerApi instance.
  * @public @advanced
  */
-export function createAdapterSvgAnimator(
+export function createAdapterSvgAnimationPlayer(
     doc: PxDocument,
     adapter: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks
-): PxAnimatorApi {
+): PxAnimationPlayerApi {
 
     const config = getAnimatorConfig(doc) || {};
 
@@ -435,7 +435,7 @@ export function createAdapterSvgAnimator(
 
     ////////////////////////////////////////////////////////////////
 
-    const api: PxEngineAnimatorApi = {
+    const api: PxEngineAnimationPlayerApi = {
 
         "isReady": () => true,
 

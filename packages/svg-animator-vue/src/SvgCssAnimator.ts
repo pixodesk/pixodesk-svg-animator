@@ -24,9 +24,9 @@ type AnimState = 'idle' | 'paused' | 'playing';
  * </script>
  *
  * <template>
- *   <SvgCssAnimator start="mouseOver" mouseOut="pause">
+ *   <SvgCssAnimationPlayer start="mouseOver" mouseOut="pause">
  *     <AnimationSvg />
- *   </SvgCssAnimator>
+ *   </SvgCssAnimationPlayer>
  * </template>
  * ```
  *
@@ -46,7 +46,7 @@ type AnimState = 'idle' | 'paused' | 'playing';
  *   - `'none'`      — **not supported here.** This wrapper exposes no `play()`, so there is
  *                     nothing to wait for and the animation never starts. The prop keeps the
  *                     shared `PxTriggerStart` type (one enum per wire key), so the value
- *                     type-checks — it simply has no effect. Use `SvgAnimator` (the JSON
+ *                     type-checks — it simply has no effect. Use `SvgAnimationPlayer` (the JSON
  *                     player) when you need to start an animation from code.
  * @prop offScreen - What happens while none of it is on screen:
  *   - `'pause'`    — pauses at the current frame (default); resumes when it comes back
@@ -64,8 +64,8 @@ type AnimState = 'idle' | 'paused' | 'playing';
  *   wire default (`150`).
  * @public
  */
-const SvgCssAnimator = defineComponent({
-    name: 'SvgCssAnimator',
+const SvgCssAnimationPlayer = defineComponent({
+    name: 'SvgCssAnimationPlayer',
     // The wrapper spreads `attrs` itself and merges `class` by hand, so Vue must not ALSO
     // apply them — otherwise a host class lands on the div twice.
     inheritAttrs: false,
@@ -138,4 +138,4 @@ const SvgCssAnimator = defineComponent({
         }, slots.default?.());
     },
 });
-export default SvgCssAnimator;
+export default SvgCssAnimationPlayer;

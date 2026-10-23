@@ -3,13 +3,13 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import SvgAnimator from './SvgAnimator';
-export type { SvgAnimatorCallbacks, SvgAnimatorProps } from './SvgAnimator';
-export type { PxAnimatorHandle } from '@pixodesk/svg-animator-core';
-export { SvgAnimator };
+import SvgAnimationPlayer from './SvgAnimator';
+export type { SvgAnimationPlayerCallbacks, SvgAnimationPlayerProps } from './SvgAnimator';
+export type { PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
+export { SvgAnimationPlayer };
 
-import SvgCssAnimator from './SvgCssAnimator';
-export { SvgCssAnimator };
+import SvgCssAnimationPlayer from './SvgCssAnimator';
+export { SvgCssAnimationPlayer };
 
 // The document type, so a TypeScript user can cast a JSON import without a second package.
 export type { PxDocument } from '@pixodesk/svg-animator-web';

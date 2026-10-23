@@ -8,12 +8,12 @@ this package adds the DOM: building the SVG, driving it with an engine, and wiri
 | `index.ts` | the npm entry (esm + cjs) — the full public surface |
 | `index.player.ts` | the UMD / iife entry — the playback surface only |
 | `index.prerendered.ts` · `index.prerendered-waapi.ts` | UMD entries for pre-rendered SVG (both engines · WAAPI only, the smallest build) |
-| `animator/` | `PxAnimator` — `createSvgAnimator` and the control API (play, pause, seek, destroy) |
+| `animator/` | `PxAnimator` — `createSvgAnimationPlayer` and the control API (play, pause, seek, destroy) |
 | `engines/` | how attributes get updated: `PxAnimatorWebApi` (WAAPI), `PxAnimatorFrameLoop` (the player's own frame loop), and `PxAnimatorBind`, which picks and builds the engine for the full and pre-rendered builds alike |
 | `scroll/` | `PxScrollDriver` — the DOM half of scroll/view timelines: measures scroller and subject, feeds core's scroll math |
 | `triggers/` | `PxAnimatorTriggers` — what STARTS an animation (load, click, hover) — and `PxVisibilityGate`, whether it may run while off screen |
 | `dom/` | `PxAnimatorDOM` — the DOM element factory for core's `renderPxTree` (the renderer itself is shared with React and Vue) |
-| `registry/` | `PxAnimatorRegistry` — the page-wide registry of live animators (`getAllSvgAnimators`) |
+| `registry/` | `PxAnimatorRegistry` — the page-wide registry of live players (`getAllSvgAnimationPlayers`) |
 | `shared/` | `PxAnimatorKeys` (wire keys every entry reads), `PxAnimatorWebTypes` (DOM specializations of core's types), `PxAnimatorCallbacks`, `PxPlayerGlobal` (the script-tag global) |
 
 Conventions:

@@ -11,7 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
 import type { PxDocument } from '../format/PxAnimatorTypes';
-import { createAdapterSvgAnimator } from '../playback/PxFrameLoop';
+import { createAdapterSvgAnimationPlayer } from '../playback/PxFrameLoop';
 import { materializeAllInTree } from './PxAnimatorMaterializeAll';
 
 
@@ -35,7 +35,7 @@ function curveDoc(engine: 'js' | 'native', rotate: { from?: number; to?: number 
 /** `{x, y, rotate}` the engine writes for the rect at `timeMs`. */
 function poseAt(doc: PxDocument, engine: PxTimelineEngine, timeMs: number): { x: number; y: number; rotate: number } {
     let written = '';
-    const api = createAdapterSvgAnimator(materializeAllInTree(doc, engine), {
+    const api = createAdapterSvgAnimationPlayer(materializeAllInTree(doc, engine), {
         isConnected: () => true,
         setAttribute: (_id, attr, v) => { if (attr === 'transform') written = String(v); },
     });

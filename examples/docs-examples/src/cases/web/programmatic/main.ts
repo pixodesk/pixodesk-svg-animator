@@ -1,6 +1,6 @@
-import { createSvgAnimator } from '@pixodesk/svg-animator-web';
+import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 
-const animator = createSvgAnimator({
+const animator = createSvgAnimationPlayer({
   src: '../../../../animation.json',
   container: '#box',
 });

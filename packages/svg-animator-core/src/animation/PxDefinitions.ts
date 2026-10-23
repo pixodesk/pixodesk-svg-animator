@@ -1026,7 +1026,7 @@ function calcPropertyValue(
  * The attribute values the frames engine writes for an element's channels at `progress` (ms).
  * @param channels The element's runtime channels (`normalizeBindings`)
  * @param progress The current time in window ms
- * @param segments Optional motion-path segment table owned by the caller (an animator keeps one for its
+ * @param segments Optional motion-path segment table owned by the caller (a player keeps one for its
  *   whole life) — repeated evaluations then build each Bezier segment once; without it nothing is cached.
  * @returns Object with computed attribute name/value pairs
  * @public @advanced

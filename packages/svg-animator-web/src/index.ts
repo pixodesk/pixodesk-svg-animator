@@ -13,22 +13,22 @@
 // ============================================================================
 
 // `createAnimatorImpl` is no longer exported (review §11): six positional parameters, marked
-// internal, and nothing outside this file ever called it — `createSvgAnimator` is the door.
-export { createSvgAnimator, createSvgAnimatorsFromPage, generateNewIds, getSvgAnimator } from './animator/PxAnimator';
+// internal, and nothing outside this file ever called it — `createSvgAnimationPlayer` is the door.
+export { createSvgAnimationPlayer, createSvgAnimationPlayersFromPage, generateNewIds, getSvgAnimationPlayer } from './animator/PxAnimator';
 // A pre-rendered SVG already on the page: the function the SVG + JS export calls (`bind` on the `<script>` global).
-export { createPrerenderedAnimator as bindSvgAnimator } from './engines/PxAnimatorBind';
+export { createPrerenderedAnimator as bindSvgAnimationPlayer } from './engines/PxAnimatorBind';
 // The `<script>` builds' global and its two members, for tools that emit or reach the global (the Editor's exporter).
 export { PX_PLAYER_BIND, PX_PLAYER_CREATE, PX_PLAYER_GLOBAL } from './shared/PxPlayerGlobal';
-export type { PxPageAnimatorOptions } from './animator/PxAnimator';
-// The options of `bindSvgAnimator` (`bind` on the `<script>` builds).
-export type { PxPrerenderedAnimatorOptions } from './engines/PxAnimatorBind';
+export type { PxPageAnimationPlayerOptions } from './animator/PxAnimator';
+// The options of `bindSvgAnimationPlayer` (`bind` on the `<script>` builds).
+export type { PxPrerenderedAnimationPlayerOptions } from './engines/PxAnimatorBind';
 
 export { px } from '@pixodesk/svg-animator-core';
 export type { PxInfer, PxSchema, PxValidationContext } from '@pixodesk/svg-animator-core';
 
-// `PxInternalAnimatorOptions` = the public options + `adapter`, for the React and Vue packages only
+// `PxInternalAnimationPlayerOptions` = the public options + `adapter`, for the React and Vue packages only
 // (review §25.14) — a type so they can name what they pass; not an option of the public API.
-export type { PxAnimatorOptions } from './animator/PxAnimator';
+export type { PxAnimationPlayerOptions } from './animator/PxAnimator';
 export type { PxTimelinePatch } from '@pixodesk/svg-animator-core';
 export {
     PxAnimatorConfigSchema,
@@ -55,7 +55,7 @@ export type {
 } from '@pixodesk/svg-animator-core';
 
 // DOM specializations — on the web `getRootElement()` returns a DOM Element.
-export type { PxAnimatorApi } from './shared/PxAnimatorWebTypes';
+export type { PxAnimationPlayerApi } from './shared/PxAnimatorWebTypes';
 
 // ONE control-mode rule for every component (API review §1, §7). React and Vue reach core
 // through this package, so the resolver is forwarded here; React Native imports core directly.
@@ -65,7 +65,7 @@ export { PxDiagnosticKind } from '@pixodesk/svg-animator-core';
 export type { PxDiagnostic, PxDiagnostics, PxDiagnosticsConfig } from '@pixodesk/svg-animator-core';
 
 // The shapes every framework component shares (review §9) — one definition, three aliases.
-export type { PxAnimatorCallbacks, PxPlaybackOverride } from '@pixodesk/svg-animator-core';
+export type { PxAnimationPlayerCallbacks, PxPlaybackOverride } from '@pixodesk/svg-animator-core';
 
 // The time contract (review §3) and the trigger defaults, so the components map `progress` and
 // thresholds with core's rule instead of re-deriving it.
@@ -79,10 +79,10 @@ export {
 // Triggers
 export { setupAnimationTriggers } from './triggers/PxAnimatorTriggers';
 
-// The page-wide registry — every live animator in the window, whoever made it, plus its
-// play / pause / cancel / finish announcements (also `globalThis.__pixodeskSvgAnimators`).
-export { getAllSvgAnimators, onSvgAnimatorsChange, PX_ANIMATOR_REGISTRY_GLOBAL } from './registry/PxAnimatorRegistry';
-export type { PxAnimatorRegistry, PxAnimatorsEvent, PxAnimatorsListener } from './registry/PxAnimatorRegistry';
+// The page-wide registry — every live player in the window, whoever made it, plus its
+// play / pause / cancel / finish announcements (also `globalThis.__pixodeskSvgAnimationPlayers`).
+export { getAllSvgAnimationPlayers, onSvgAnimationPlayersChange, PX_ANIMATION_PLAYER_REGISTRY_GLOBAL } from './registry/PxAnimatorRegistry';
+export type { PxAnimationPlayerRegistry, PxAnimationPlayersEvent, PxAnimationPlayersListener } from './registry/PxAnimatorRegistry';
 
 // Normalization utilities
 
@@ -113,7 +113,7 @@ export { toDomProps, renderNode } from './dom/PxAnimatorDOM';
 // pipeline), DOM, or the editor's React/px elements — the editor calls
 // `materializeGlyphText` with its own `createPxElement` for Step 3 (static SVG
 // with baked glyph outlines). See textGlyphsEffect / elementFactory.
-export { createAdapterSvgAnimator } from './engines/PxAnimatorFrameLoop';
+export { createAdapterSvgAnimationPlayer } from './engines/PxAnimatorFrameLoop';
 export type { PxPlatformAdapter } from '@pixodesk/svg-animator-core';
 
 // Player-effects materializer — turns `node.effects` (the lightweight design format

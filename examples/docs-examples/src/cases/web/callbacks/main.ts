@@ -1,9 +1,9 @@
-import { createSvgAnimator } from '@pixodesk/svg-animator-web';
+import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 
 const log = document.getElementById('log')!;
 const say = (line: string) => { log.textContent += line + '\n'; };
 
-const animator = createSvgAnimator({
+const animator = createSvgAnimationPlayer({
     playAsSaved: true,
   src: '../../../../animation.json',
   container: '#box',

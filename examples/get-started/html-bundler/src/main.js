@@ -1,4 +1,4 @@
-import { createSvgAnimator } from '@pixodesk/svg-animator-web';
+import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 import animation from './animation.json';
 
-createSvgAnimator({ doc: animation, container: '#hero', playAsSaved: true });
+createSvgAnimationPlayer({ doc: animation, container: '#hero', playAsSaved: true });

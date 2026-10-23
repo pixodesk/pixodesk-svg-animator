@@ -874,21 +874,69 @@ Each item: what it is, where it shows up, why it trips a newcomer, the options, 
 are docs, type names, or wire renames. Names were checked against the
 source on 2026-10-23 (where the review's first draft used an older spelling, it says so).
 
-### 18. "Animator" is both the file block and the player instance
+### 18. "SVG Animator" names the editor, the library and the player ✅
 
-- **What:** two different things share one word.
-  - `animator` in the document is the root block that holds `timeline`, `bindings` and `definitions`.
-  - The object `createSvgAnimator()` returns (type `PxAnimatorApi`) is also called `animator` in most code samples.
-- **Where:** the samples in `docs/library/get-started.md` (§ "returns the player… `animator.play()`"),
-  `web-player.md`, `vue.md` and `troubleshooting.md`. `react.md` calls the same object `api`, a third name.
-- **Why it trips:** in `troubleshooting.md` › Playback behavior, `timeline.finish: "reset"` (a path
-  in the file) and `animator.setPlaybackRate(-1)` (a method call) are a paragraph apart. A reader
-  takes `animator.` as the file block and looks for `setPlaybackRate` in the schema.
+*Re-analysed 2026-10-23 (owner): the file's `animator` block against the runtime object is not
+the problem — one is the document's playback configuration, the other the running instance, an
+ordinary config-vs-instance split (like a `<video>`'s attributes and the element). The clash is
+the PRODUCT name.*
+
+- **What:** one name, three things.
+  - **The product:** "Pixodesk SVG Animator" is the paid editor app (`com.pixodesk.svg.animator`).
+  - **The library:** the repo `pixodesk-svg-animator` and the packages `@pixodesk/svg-animator-core|web|react|vue|rn`.
+  - **The runtime API:** `createSvgAnimator()`, `<SvgAnimator>`, `bindSvgAnimator`, `createSvgAnimatorsFromPage`,
+    `getSvgAnimator`, `getAllSvgAnimators`, the types `PxAnimatorApi` / `PxAnimatorHandle`, the global `Pixodesk.SvgAnimator`.
+  - The docs' prose meanwhile calls the runtime object **"the player"** (~55 times; the README: "The player
+    runs the animation…"). The samples name the variable `animator`; React names it `api`.
+- **Why it trips:**
+  - `npm install @pixodesk/svg-animator-react` → `<SvgAnimator doc={…} />` reads as embedding the editor, not
+    playing a file made with it.
+  - The API word ("animator") and the docs word ("player") differ for the same object.
+  - Search: "SVG Animator" finds the app; library questions and app questions share one name.
 - **Options:**
-  1. Docs only: call the instance `player` in every sample and prose line (`const player =
-     createSvgAnimator(…)`, React `playerRef`). No API change.
-  2. Rename the block. This is a wire rename plus a version step, and it would break every saved file, so it is not worth it.
-- **Suggested:** 1 — `player` in every web/Vue/troubleshooting sample, `playerRef` in React (replacing `api`), and one sentence in get-started: "the file's `animator` block configures playback; the object you get back is the player".
+
+| | What changes | Pros | Cons |
+|---|---|---|---|
+| **A. Keep the names, teach the split** | Docs only: "SVG Animator" = the editor; the library is "the SVG Animator player"; samples name the instance `player` (React `playerRef`) | No break; the name keeps the link to where the files come from | API and prose still use different words; `<SvgAnimator>` still reads as the editor; search overlap stays |
+| **B. Player in the API; library names stay** | `createSvgPlayer`, `<SvgPlayer>`, `bindSvgPlayer`, `createSvgPlayersFromPage`, `getSvgPlayer`, `getAllSvgPlayers`, `PxPlayerApi` / `PxPlayerHandle`. Packages stay `@pixodesk/svg-animator-*`; the global namespace stays `Pixodesk.SvgAnimator` (members `create` / `bind`) | API and prose say the same word; clearly separate from the editor; the common convention (`lottie-player`, `dotlottie-player`); keeping the global means the editor's SVG + JS exports keep working | A second rename of the same surface (it became "SvgAnimator" this month); breaks every consumer (no-aliases rule); package `svg-animator` vs API `SvgPlayer` reads like two products |
+| **C. Player everywhere, packages too** | B, plus `@pixodesk/svg-player-*`, repo `pixodesk-svg-player`, global `Pixodesk.SvgPlayer` | Fully consistent; the free library has its own name, distinct from the paid app | Most expensive: new npm packages + deprecating the old ones, website / links / docs sync, editor exports that call the global need a new global; loses the brand link to the app |
+| **D. Types only** | Keep `createSvgAnimator` / `<SvgAnimator>` (named after the library); rename the types of what you hold: `PxPlayerApi`, `PxPlayerHandle`; prose "player" | A TypeScript-only break — plain JS users are unaffected | Half-way: the factory says "animator", what it returns says "player"; the product overlap in the component name stays |
+| **E. Name the library as a product** | A, plus the library gets its own product name everywhere it is introduced — README, website, package descriptions: "SVG Animator Player" | No code change; one clear sentence a newcomer can repeat: the editor makes, the Player plays | The identifiers still say `SvgAnimator`, so the code reads one level less precise than the docs |
+
+- **F. "SVG animation player" in the API — CHOSEN (owner, 2026-10-23), to implement.** The identifiers say
+  what the thing does; the brand stays where it identifies the library: the package names (they serve the
+  editor too, not only the player), the `<script>` global `Pixodesk.SvgAnimator` (`.create` / `.bind` — so
+  the editor's SVG + JS exports keep working) and the source file names. Types match the functions word for word (`PxAnimationPlayer…`).
+  - **Pros:** plain English and the README's own words ("playing SVG animations created with the Pixodesk
+    SVG Animator editor"); `<SvgAnimationPlayer>` cannot be read as embedding the editor; "animation"
+    already names the content in the format; no package move.
+  - **Cons:** a second rename of the same surface this month (no aliases); generic — it plays Pixodesk
+    documents, not any animated SVG, which the docs' first line and the `doc` prop make clear.
+  - **Unchanged:** the packages, the `Pixodesk.SvgAnimator` global, and the document's `animator` block
+    with its config names (`PxAnimatorConfig`, `getAnimatorConfig`, `applyAnimatorConfig`, …) — they
+    configure the animation, not the player.
+  - **Renames (by meaning, not by text):**
+
+| Now | Becomes | What it is |
+|---|---|---|
+| `createSvgAnimator` | `createSvgAnimationPlayer` | web: a player from a document |
+| `bindSvgAnimator` | `bindSvgAnimationPlayer` | web: a player bound to a pre-rendered SVG already on the page |
+| `createSvgAnimatorsFromPage` | `createSvgAnimationPlayersFromPage` | web: one player per `data-px-animation-src` element |
+| `getSvgAnimator` | `getSvgAnimationPlayer` | web: the player an element carries |
+| `getAllSvgAnimators` / `onSvgAnimatorsChange` | `getAllSvgAnimationPlayers` / `onSvgAnimationPlayersChange` | web: the page-wide registry |
+| `createAdapterSvgAnimator` | `createAdapterSvgAnimationPlayer` | core / web: the frame loop against a custom adapter |
+| `<SvgAnimator>`, `SvgAnimatorProps`, `SvgAnimatorCallbacks` | `<SvgAnimationPlayer>`, `SvgAnimationPlayerProps`, `SvgAnimationPlayerCallbacks` | React / Vue / React Native component |
+| `<SvgCssAnimator>` | `<SvgCssAnimationPlayer>` | React / Vue: the CSS-flavour SVG component |
+| `PxAnimatorApi` / `PxAnimatorHandle` / `PxEngineAnimatorApi` | `PxAnimationPlayerApi` / `PxAnimationPlayerHandle` / `PxEngineAnimationPlayerApi` | what a player gives you: the API, the component handle, the engine's API |
+| `PxAnimatorOptions`, `PxInternalAnimatorOptions`, `PxPageAnimatorOptions`, `PxPrerenderedAnimatorOptions` | `PxAnimationPlayerOptions`, `PxInternalAnimationPlayerOptions`, `PxPageAnimationPlayerOptions`, `PxPrerenderedAnimationPlayerOptions` | options of the entries above |
+| `PxAnimatorCallbacks` | `PxAnimationPlayerCallbacks` | the lifecycle callbacks every player shares |
+| `PxAnimatorRegistry`, `PxAnimatorsEvent`, `PxAnimatorsListener`, `PX_ANIMATOR_REGISTRY_GLOBAL` (`'__pixodeskSvgAnimators'`) | `PxAnimationPlayerRegistry`, `PxAnimationPlayersEvent`, `PxAnimationPlayersListener`, `PX_ANIMATION_PLAYER_REGISTRY_GLOBAL` (`'__pixodeskSvgAnimationPlayers'`) | the registry's types and its global |
+
+  - Prose follows: the docs call the running object "the player" (they mostly do already); samples name the
+    variable `player` (React `playerRef`).
+
+- **Suggested:** F (chosen).
+- **Done (2026-10-23):** F across the five packages, docs, examples, the editor (kf) and the website's code samples; renamed by meaning — the `Pixodesk.SvgAnimator` global, the package and source-file names, and the document's `animator` config stay. The registry global is `__pixodeskSvgAnimationPlayers`. Dated plans and reviews keep the old names.
 
 ### 19. `PxAnimatedSvgDocument` → `PxDocument` ✅
 
