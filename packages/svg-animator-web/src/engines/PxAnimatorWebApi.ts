@@ -312,9 +312,9 @@ export function createWebApiAnimator(
                         // per-Animation in WAAPI.
                         const anim = new Animation(effect, scrollTimeline ? scrollTimeline.timeline : document.timeline);
                         if (scrollTimeline) {
-                            const a = anim as unknown as { rangeStart?: unknown; rangeEnd?: unknown };
-                            if (scrollTimeline.rangeStart) a.rangeStart = scrollTimeline.rangeStart;
-                            if (scrollTimeline.rangeEnd) a.rangeEnd = scrollTimeline.rangeEnd;
+                            // `rangeStart` / `rangeEnd` are newer WAAPI members the DOM typings lack
+                            if (scrollTimeline.rangeStart) Object.assign(anim, { rangeStart: scrollTimeline.rangeStart });
+                            if (scrollTimeline.rangeEnd) Object.assign(anim, { rangeEnd: scrollTimeline.rangeEnd });
                         }
 
                         if (callbacks?.onFinish) anim.onfinish = () => {

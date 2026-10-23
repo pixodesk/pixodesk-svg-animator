@@ -26,8 +26,8 @@ const createDomElement: PxElementFactory<Element> = ({ tag, attrs, style, childr
     for (const name of Object.keys(attrs)) element.setAttribute(name, attrs[name]);
 
     if (style) {
-        const target = element.style as unknown as Record<string, string>;
-        for (const prop of Object.keys(style)) target[prop] = style[prop];
+        // camelCase property names, set the way `style.textAlign = …` sets them
+        for (const prop of Object.keys(style)) Reflect.set(element.style, prop, style[prop]);
     }
 
     // Children, or the node's own text — never both (assigning `textContent` would REPLACE

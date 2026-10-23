@@ -81,7 +81,7 @@ export function openClosedTextPathTargets(doc: PxNode, warnings?: Array<string>)
     let defs = (result.children ?? []).find(c => String(c.type) === 'defs');
     const ensureDefs = (): PxNode => {
         if (!defs) {
-            defs = { type: 'defs', children: [] } as unknown as PxNode;
+            defs = { type: 'defs', children: [] };
             (result.children ??= []).unshift(defs);
         }
         return defs;

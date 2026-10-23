@@ -1084,18 +1084,23 @@ class Lazy<T> extends Base<T> {
 type TupleItems<T extends ReadonlyArray<PxAnySchema>> =
     { -readonly [K in keyof T]: T[K] extends PxSchema<infer U, boolean> ? U : never };
 
+/** Positional items, built one per schema of `T` — the tuple TypeScript cannot follow through `map`. */
+function asTupleItems<T extends ReadonlyArray<PxAnySchema>>(items: Array<unknown>): TupleItems<T> {
+    return items as TupleItems<T>;
+}
+
 /** Fixed-length array schema; validates element count and each position individually. */
 class Tuple<T extends ReadonlyArray<PxAnySchema>> extends Base<TupleItems<T>> {
     readonly _default: TupleItems<T>;
 
     constructor(private readonly schemas: T) {
         super(false);
-        this._default = schemas.map(s => s._default) as unknown as TupleItems<T>;
+        this._default = asTupleItems<T>(schemas.map(s => s._default));
     }
 
     sanitize(raw: unknown): TupleItems<T> {
         if (!Array.isArray(raw) || raw.length !== this.schemas.length) return this._default;
-        return this.schemas.map((s, i) => s.sanitize((raw as unknown[])[i])) as unknown as TupleItems<T>;
+        return asTupleItems<T>(this.schemas.map((s, i) => s.sanitize(raw[i])));
     }
 
     override _fix(raw: unknown, run: PxFixRun): TupleItems<T> {
@@ -1103,7 +1108,7 @@ class Tuple<T extends ReadonlyArray<PxAnySchema>> extends Base<TupleItems<T>> {
         if (!Array.isArray(raw) || raw.length !== this.schemas.length) { run.repairs++; return this._default; }
         const before = run.repairs;
         const out = this.schemas.map((s, i) => s._fix(raw[i], run));
-        return this._seal(out, run.repairs === before) as unknown as TupleItems<T>;
+        return asTupleItems<T>(this._seal(out, run.repairs === before));
     }
 
     isValid(raw: unknown, ctx?: PxValidationContext, path?: Array<string>): boolean {

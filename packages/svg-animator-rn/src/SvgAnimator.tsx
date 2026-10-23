@@ -338,9 +338,14 @@ export function SvgAnimator({
      * Deliberately not hoisted into a wrapper closure: `(m, d) => onWarn?.(m, d)` would always
      * be a function, so the channel would believe a handler exists and the console fallback
      * would never fire for anyone who passed nothing.
+     *
+     * The handle, the worklet's finish callback and the unmount cleanup outlive the render that
+     * built them, so callbacks and diagnostics are read through `latest` — refreshed every render
+     * (as React's `callbacksRef`) — never the props they closed over.
      */
-    const makeDiag = (): PxDiagnostics => createDiagnostics(
-        { onWarn, onError, muteWarn, muteError }, '[SvgAnimator]');
+    const latest = useRef({ onReady, onPlay, onPause, onCancel, onFinish, onStop, onDestroy, onWarn, onError, muteWarn, muteError });
+    latest.current = { onReady, onPlay, onPause, onCancel, onFinish, onStop, onDestroy, onWarn, onError, muteWarn, muteError };
+    const makeDiag = (): PxDiagnostics => createDiagnostics(latest.current, '[SvgAnimator]');
 
     // ONE control-mode rule, decided in core and shared with React and Vue (API review §1/§7) —
     // resolved BEFORE compilation, because the play tier's pose contract pins `fillMode` there.
@@ -402,8 +407,8 @@ export function SvgAnimator({
         runClock.seek(Number.isFinite(seekCeiling) ? seekCeiling : tracks.duration);
         runClock.stop();
         progress.value = restingPosition();
-        onFinish?.();
-        onStop?.();
+        latest.current.onFinish?.();
+        latest.current.onStop?.();
     };
 
     const startFrom = (fromMs: number) => {
@@ -456,14 +461,14 @@ export function SvgAnimator({
             if (Number.isFinite(seekCeiling) && runClock.now() >= seekCeiling) runClock.seek(0);
             runClock.start(rateRef.current);
             startFrom(progress.value);
-            onPlay?.();
+            latest.current.onPlay?.();
         },
         pause: () => {
             cancelAnimation(progress);
             playingRef.current = false;
             runClock.stop();
-            onPause?.();
-            onStop?.();
+            latest.current.onPause?.();
+            latest.current.onStop?.();
         },
         cancel: () => {
             cancelAnimation(progress);
@@ -471,8 +476,8 @@ export function SvgAnimator({
             playingRef.current = false;
             runClock.seek(0);
             runClock.stop();
-            onCancel?.();
-            onStop?.();
+            latest.current.onCancel?.();
+            latest.current.onStop?.();
         },
         finish: () => {
             cancelAnimation(progress);
@@ -480,8 +485,8 @@ export function SvgAnimator({
             runClock.seek(Number.isFinite(seekCeiling) ? seekCeiling : tracks.duration);
             runClock.stop();
             progress.value = restingPosition();
-            onFinish?.();
-            onStop?.();
+            latest.current.onFinish?.();
+            latest.current.onStop?.();
         },
         setPlaybackRate: (rate: number) => {
             if (!isValidPlaybackRate(rate)) {
@@ -530,8 +535,7 @@ export function SvgAnimator({
     // `onReady` (review §14): the animator exists and the tree is rendered — once per compiled
     // instance, asynchronously like the web player fires it.
     useEffect(() => {
-        if (!compiled.error) queueMicrotask(() => onReady?.());
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+        if (!compiled.error) queueMicrotask(() => latest.current.onReady?.());
     }, [compiled]);
 
     /** The last APPLIED declarative props, per compiled animator (§10). */
@@ -558,6 +562,7 @@ export function SvgAnimator({
             setCurrentTime: (t: number) => { guardWrite('setCurrentTime()'); api.setCurrentTime(t); },
             setCurrentProgress: (p: number) => { guardWrite('setCurrentProgress()'); api.setCurrentProgress(p); },
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- `api` / `makeDiag` read callbacks and diagnostics through `latest`; the rest changes only with `compiled`
     }, [compiled, compMode]);
 
     // -- Declarative control --------------------------------------------------
@@ -675,8 +680,8 @@ export function SvgAnimator({
         return () => {
             cancelAnimation(progress);
             playingRef.current = false;
-            onDestroy?.();
-            onStop?.();
+            latest.current.onDestroy?.();
+            latest.current.onStop?.();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [compiled]);
@@ -755,7 +760,6 @@ export function SvgAnimator({
         // `platform`: these come from the react-native-svg prop mapper — shapes this renderer
         // cannot express, rather than anything wrong with the file.
         for (const w of warningsRef.current) diag.warn(PxDiagnosticKind.platform, PxDiagnosticCode.rnUnsupported, w);
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [root]);
 
     // A compile/render failure was reported where it was caught (once, as an error); here it

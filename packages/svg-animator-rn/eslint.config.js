@@ -3,8 +3,8 @@ import reactHooksPlugin from 'eslint-plugin-react-hooks';
 
 // No `as never` (first-use review §17c): give the value its real type — in tests, `untyped<T>()` for input that is wrong on purpose.
 const NO_AS_NEVER = { selector: 'TSAsExpression > TSNeverKeyword', message: 'No `as never`: give the value its real type (tests: `untyped<T>()` for deliberately wrong input).' };
-// Tests only (shipped source keeps a few on purpose): give the value its real type, or `untyped<T>()` for deliberately wrong input.
-const NO_AS_UNKNOWN_AS = { selector: 'TSAsExpression > TSAsExpression[typeAnnotation.type="TSUnknownKeyword"]', message: 'No `as unknown as` in tests: give the value its real type, or `untyped<T>()` for deliberately wrong input.' };
+// No `as unknown as`, source or test: the real type, a named cast helper (`asTupleItems`, `isTimelineCtor`, …), or `untyped<T>()` in tests.
+const NO_AS_UNKNOWN_AS = { selector: 'TSAsExpression > TSAsExpression[typeAnnotation.type="TSUnknownKeyword"]', message: 'No `as unknown as`: give the value its real type — or a named cast helper where TypeScript cannot follow (tests: `untyped<T>()`).' };
 
 export default tseslint.config(
     {
@@ -33,6 +33,7 @@ export default tseslint.config(
                     message: 'Template literals are not allowed. Use string concatenation instead.',
                 },
                 NO_AS_NEVER,
+                NO_AS_UNKNOWN_AS,
             ],
         },
     },

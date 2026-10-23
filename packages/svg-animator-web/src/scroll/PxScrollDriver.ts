@@ -26,6 +26,11 @@ import { createDiagnostics, isScrollTimeline, scrollOffsetProgress, scrollResolv
 
 interface NativeTimelineCtor { new(options: Record<string, unknown>): AnimationTimeline }
 
+/** A browser timeline constructor (`ScrollTimeline` / `ViewTimeline`) — absent where unsupported, and not in the DOM typings. */
+function isTimelineCtor(value: unknown): value is NativeTimelineCtor {
+    return typeof value === 'function';
+}
+
 interface PxNativeScrollTimeline {
     timeline: AnimationTimeline;
     /** WAAPI `Animation.rangeStart/rangeEnd` values (TimelineRangeOffset-shaped). */
@@ -66,10 +71,9 @@ export function createNativeScrollTimeline(
         return null;
     }
 
-    const g = globalThis as unknown as { ScrollTimeline?: NativeTimelineCtor; ViewTimeline?: NativeTimelineCtor };
     const view = kind === 'view';
-    const Ctor = view ? g.ViewTimeline : g.ScrollTimeline;
-    if (typeof Ctor !== 'function') return null;
+    const Ctor: unknown = Reflect.get(globalThis, view ? 'ViewTimeline' : 'ScrollTimeline');
+    if (!isTimelineCtor(Ctor)) return null;
 
     const axis = scroll.axis ?? 'block';
     let timeline: AnimationTimeline;

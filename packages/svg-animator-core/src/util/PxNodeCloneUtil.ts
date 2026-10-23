@@ -28,7 +28,10 @@ import type { PxNode } from '../format/PxAnimatorTypes';
  */
 export function deepClonePxNode<T>(value: T): T {
     if (value === null || typeof value !== 'object') return value;
-    if (Array.isArray(value)) return value.map(deepClonePxNode) as unknown as T;
+    if (Array.isArray(value)) {
+        const items: Array<unknown> = value.map(deepClonePxNode);
+        return items as T;
+    }
     const out: { [k: string]: unknown } = {};
     for (const k of Object.keys(value as object)) out[k] = deepClonePxNode((value as { [k: string]: unknown })[k]);
     return out as T;

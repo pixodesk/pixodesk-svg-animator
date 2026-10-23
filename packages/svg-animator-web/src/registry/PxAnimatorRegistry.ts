@@ -50,13 +50,18 @@ const STORE_KEY = Symbol.for('@pixodesk/svg-animator-web:animators');
  *  (a page script next to a pre-rendered SVG, a tool's iframe). Experimental — may change. @public */
 export const PX_ANIMATOR_REGISTRY_GLOBAL = '__pixodeskSvgAnimators';
 
+/** A store some bundle copy of this library left on `globalThis` (which declares no slot for it). */
+function isRegistryStore(value: unknown): value is RegistryStore {
+    return typeof value === 'object' && value !== null
+        && 'animators' in value && value.animators instanceof Set
+        && 'listeners' in value && value.listeners instanceof Set;
+}
+
 /** The one store of this window, created on first use. `globalThis` carries it under a
  *  symbol (shared across bundle copies) and, for discoverability, under {@link PX_ANIMATOR_REGISTRY_GLOBAL}. */
 function store(): RegistryStore {
-    // `globalThis` has no declared slot for either key — this is exactly the ad-hoc global
-    // a cross-bundle registry needs, so it is typed as the record it is used as.
-    const g = globalThis as unknown as Record<string | symbol, RegistryStore | undefined>;
-    let s = g[STORE_KEY];
+    const found: unknown = Reflect.get(globalThis, STORE_KEY);
+    let s = isRegistryStore(found) ? found : undefined;
     if (!s) {
         const animators = new Set<PxAnimatorApi>();
         const listeners = new Set<PxAnimatorsListener>();
@@ -69,8 +74,8 @@ function store(): RegistryStore {
                 return () => { listeners.delete(listener); };
             },
         };
-        g[STORE_KEY] = s;
-        if (g[PX_ANIMATOR_REGISTRY_GLOBAL] === undefined) g[PX_ANIMATOR_REGISTRY_GLOBAL] = s;
+        Reflect.set(globalThis, STORE_KEY, s);
+        if (Reflect.get(globalThis, PX_ANIMATOR_REGISTRY_GLOBAL) === undefined) Reflect.set(globalThis, PX_ANIMATOR_REGISTRY_GLOBAL, s);
     }
     return s;
 }
