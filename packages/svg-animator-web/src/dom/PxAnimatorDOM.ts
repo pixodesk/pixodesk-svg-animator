@@ -4,7 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { toDomProps, type PxDefinitions, type PxDiagnostics, type PxNode } from '@pixodesk/svg-animator-core';
+import { type PxDefinitions, type PxDiagnostics, type PxNode } from '@pixodesk/svg-animator-core';
+import { toDomProps } from '@pixodesk/svg-animator-core/engine';
 import { renderPxTree, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 
 // Re-export from the historical home so the package surface is unchanged.

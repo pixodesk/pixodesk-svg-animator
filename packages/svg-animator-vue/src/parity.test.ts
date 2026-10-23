@@ -15,7 +15,8 @@
 // A failure here means a rule was added to one player only. Fix the shared renderer, not the test.
 
 import { prepareDocumentForRender } from '@pixodesk/svg-animator-core/internal';
-import { renderNode, type PxDocument } from '@pixodesk/svg-animator-web';
+import { type PxDocument } from '@pixodesk/svg-animator-web';
+import { renderNode } from '@pixodesk/svg-animator-web/engine';
 import { cleanup, render } from "@testing-library/vue";
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';

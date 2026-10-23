@@ -18,7 +18,6 @@ export { createSvgAnimationPlayer, createSvgAnimationPlayersFromPage, generateNe
 // A pre-rendered SVG already on the page: the function the SVG + JS export calls (`bind` on the `<script>` global).
 export { createPrerenderedAnimator as bindSvgAnimationPlayer } from './engines/PxAnimatorBind';
 // The `<script>` builds' global and its two members, for tools that emit or reach the global (the Editor's exporter).
-export { PX_PLAYER_BIND, PX_PLAYER_CREATE, PX_PLAYER_GLOBAL } from './shared/PxPlayerGlobal';
 export type { PxPageAnimationPlayerOptions } from './animator/PxAnimator';
 // The options of `bindSvgAnimationPlayer` (`bind` on the `<script>` builds).
 export type { PxPrerenderedAnimationPlayerOptions } from './engines/PxAnimatorBind';
@@ -105,16 +104,8 @@ export type { PxAnimationPlayerRegistry, PxAnimationPlayersEvent, PxAnimationPla
 // flat-export path uses the EXACT same function — guarantees no pipeline
 // drift between in-player and out-of-player paths.
 
-// Low-level APIs (for advanced usage)
-export { toDomProps, renderNode } from './dom/PxAnimatorDOM';
-
-// Element-creation factory + glyph-text materializer. The materializer emits
-// via an injected factory so the SAME layout produces plain wire nodes (effects
-// pipeline), DOM, or the editor's React/px elements — the editor calls
-// `materializeGlyphText` with its own `createPxElement` for Step 3 (static SVG
-// with baked glyph outlines). See textGlyphsEffect / elementFactory.
-export { createAdapterSvgAnimationPlayer } from './engines/PxAnimatorFrameLoop';
-export type { PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+// Low-level APIs for player authors — renderNode, toDomProps, createAdapterSvgAnimationPlayer — are on
+// `@pixodesk/svg-animator-web/engine` (src/engine.ts).
 
 // Player-effects materializer — turns `node.effects` (the lightweight design format
 // emitted by the Editor) into a plain renderable node tree. Called automatically by

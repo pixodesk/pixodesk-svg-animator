@@ -1087,7 +1087,7 @@ one consistent vocabulary)
   - The warning text names the fix: "`loop` is not a prop — to repeat the whole animation pass `timeline={{ iterations: 'infinite' }}`".
   - Skip `inheritAttrs: false`. Fallthrough of `class`/`style` is what Vue users expect, and the warning already covers the one confusing attribute.
 
-### 23. The core entry is very wide
+### 23. The core entry is very wide ✅
 
 - **What:** `@pixodesk/svg-animator-core`'s entry exports engine plumbing that the sibling packages (web, React, Vue, React Native) share. Each piece is tagged `@public @advanced`:
 
@@ -1103,6 +1103,7 @@ one consistent vocabulary)
   2. Re-tag as `@internal` and strip them from the published `.d.ts`. This does not work while the sibling packages, which are separate npm packages, need the types.
   3. Keep them, but group them under one "For player authors" heading in the API reference.
 - **Suggested:** 1, plus 3 for the docs.
+- **Done (2026-10-24):** option 1, wider than the table — every name that exists for the sibling packages moved to `@pixodesk/svg-animator-core/engine` (40: the whole time contract, `foldTimelineOverride` / `suppressTriggerStart`, the component control rules, the runtime form, the trigger / engine resolvers, the platform adapter, `toDomProps`). `downgradeWireDocument` stays on the main entry beside `convertWireDocument`: it is document tooling. Web the same: `@pixodesk/svg-animator-web/engine` (`renderNode`, `toDomProps`, `createAdapterSvgAnimationPlayer`, `PxPlatformAdapter`); the editor-only `PX_PLAYER_*` names moved to web's `/internal`. Both packages carry `typesVersions` for `engine`, so `moduleResolution: node` still finds the types. The export indexes mark `/engine` names (no separate heading). Guards: `engineEntry.test.ts` in core and web (no name on both entries), and docs-check checks a doc's import against the entry it names — both seen failing.
 
 ### 24. Vue `SvgAnimator`'s `start` prop restates the trigger values
 

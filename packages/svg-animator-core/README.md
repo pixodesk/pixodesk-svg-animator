@@ -55,11 +55,11 @@ runtime crash on a non-browser platform.
 | **Schema & types** | `PxDocumentSchema`, `PxNodeSchema`, `PxEffectsSchema`, … plus every `Px*` TypeScript type and the `px` schema builder |
 | **Validation** | `validateDocument` (the whole document, strict), `isPxDocument`, `isValidPxDocument`, `validateNodeEffects` |
 | **Materializers** | `materializeAllInTree`, `materializeNodeEffects` |
-| **Interpolation** | `calcAnimationValues`, `normalizeBindings` (typed runtime channels: `PxRuntimeAnimation`, `PxValueKind`) |
+| **Interpolation** (`/engine`) | `calcAnimationValues`, `normalizeBindings` (typed runtime channels: `PxRuntimeAnimation`, `PxValueKind`) |
 | **Sampling / geometry** | `createPathSampler`, bezier helpers, `cubicBezier`, `splitEasing` |
 | **Text** | `materializeGlyphText`, `layoutGlyphTextChars`, `extendedPathForBrowser` |
-| **Node helpers** | `toDomProps`, `sanitizeAttributeValue`, `generateNewIds` |
-| **Playback engine** | `createAdapterSvgAnimationPlayer` + the `PxPlatformAdapter` interface |
+| **Node helpers** | `toDomProps` (`/engine`), `sanitizeAttributeValue`, `generateNewIds` |
+| **Playback engine** (`/engine`) | `createAdapterSvgAnimationPlayer` + the `PxPlatformAdapter` interface, the time contract, the component control rules |
 | **Wire enums** | `PxTimelineEngine` / `PxTimelineEngineSetting`, `PxTriggerStart`, `PxOutOfViewAction`, `PxHoverEndAction`, `PxFinishAction`, `PxFillMode`, `PxPlaybackDirection`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxMaskType`, `PxCloneWithout`, `PxUnits`, `PxGradientType`, `PxGradientSpreadMethod`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing` — every two-or-more-way wire selector is a named enum, not a bare string. Each is a const namespace AND the string type derived from it under the same name, so `PxTriggerStart.click` and `start?: PxTriggerStart` come from one import |
 
 ### Validating a document
@@ -148,10 +148,8 @@ without live `<use>` propagation** — that includes `react-native-svg` — and
 `js` only for the DOM, which resolves `<use>` references natively.
 
 ```ts
-import {
-    materializeAllInTree, generateNewIds, calcAnimationValues,
-    normalizeBindings, PxTimelineEngine,
-} from '@pixodesk/svg-animator-core';
+import { materializeAllInTree, generateNewIds, PxTimelineEngine } from '@pixodesk/svg-animator-core';
+import { calcAnimationValues, normalizeBindings } from '@pixodesk/svg-animator-core/engine';
 
 // Flatten once …
 const flat = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
@@ -169,12 +167,12 @@ numbers.
 
 ## Writing your own player
 
-Implement `PxPlatformAdapter` and hand it to `createAdapterSvgAnimationPlayer`; the
-engine handles timing, delay, direction, iterations, fill, playback rate and the
+Implement `PxPlatformAdapter` and hand it to `createAdapterSvgAnimationPlayer` — both from
+`@pixodesk/svg-animator-core/engine`, the entry for player authors; the engine handles timing, delay, direction, iterations, fill, playback rate and the
 lifecycle callbacks, then calls you with plain attribute writes.
 
 ```ts
-import { createAdapterSvgAnimationPlayer, type PxPlatformAdapter } from '@pixodesk/svg-animator-core';
+import { createAdapterSvgAnimationPlayer, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 
 const adapter: PxPlatformAdapter = {
     isConnected: () => true,
@@ -191,8 +189,8 @@ Frame scheduling resolves `requestAnimationFrame` from `globalThis` at call time
 and falls back to `setTimeout`, so the engine works in browsers, React Native and
 test environments with faked timers.
 
-Every player agrees on one meaning of time, and the helpers that define it are exported so a player
-of your own cannot drift from it. `seekCeilingMs` is the highest time you can seek to and
+Every player agrees on one meaning of time, and the helpers that define it are exported from
+`/engine` so a player of your own cannot drift from it. `seekCeilingMs` is the highest time you can seek to and
 `progressSpanMs` the span a `0`–`1` progress maps onto; `clampSeekMs` holds a seek inside that span,
 and `timeToProgress` / `progressToTimeMs` convert between the two. `isValidPlaybackRate` says
 whether a rate can be used, and `PX_RATE_REJECTED` is what a setter reports when it cannot.

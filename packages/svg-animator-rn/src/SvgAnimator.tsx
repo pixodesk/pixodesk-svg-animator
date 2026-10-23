@@ -4,7 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createIterationStopWatcher, createRunClock, toPxDocument, type PxDocumentInput, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, PxPlayMode, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, PxDiagnosticCode, PxDiagnosticKind, seekCeilingMs, timeToProgress, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxControlProps, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, resolveTrigger, PxTimelineEngine, PxControlMode, resolveControlMode, PxFillMode, type PxHoverEndAction, type PxPlaybackDirection, type PxDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig, foldTimelineOverride } from '@pixodesk/svg-animator-core';
+import { toPxDocument, type PxDocumentInput, PxPlayMode, PxDiagnosticCode, PxDiagnosticKind, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, PxTimelineEngine, PxFillMode, type PxHoverEndAction, type PxPlaybackDirection, type PxDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig } from '@pixodesk/svg-animator-core';
+import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createIterationStopWatcher, createRunClock, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, seekCeilingMs, timeToProgress, type PxControlProps, resolveTrigger, PxControlMode, resolveControlMode, foldTimelineOverride } from '@pixodesk/svg-animator-core/engine';
 import { carryPrep, deepEquals, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
@@ -316,7 +317,7 @@ export function SvgAnimationPlayer({
     doc, timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start,
     // (`progress` prop aliased — the name is taken by the internal reanimated SharedValue)
     playOnTrigger, play, pause, playMode, completeIteration, apiRef, progress: progressProp, time,
-    outOfView: offScreenProp, hoverEnd: mouseOutProp, inViewThreshold: visibilityThresholdProp, inViewDebounce: visibilityDebounceProp,
+    outOfView: outOfViewProp, hoverEnd: hoverEndProp, inViewThreshold: inViewThresholdProp, inViewDebounce: inViewDebounceProp,
     onReady, onPlay, onStop, onPause, onCancel, onFinish, onDestroy, onError, fallback, onWarn, muteWarn, muteError,
 }: SvgAnimationPlayerProps): ReactElement | null {
 
@@ -356,7 +357,7 @@ export function SvgAnimationPlayer({
         try {
             return compileDocument(
                 toPxDocument(stableDoc),
-                { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, outOfView: offScreenProp, hoverEnd: mouseOutProp, inViewThreshold: visibilityThresholdProp, inViewDebounce: visibilityDebounceProp },
+                { timeline, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, outOfView: outOfViewProp, hoverEnd: hoverEndProp, inViewThreshold: inViewThresholdProp, inViewDebounce: inViewDebounceProp },
                 compMode === PxControlMode.play,
                 makeDiag(),
             );
@@ -370,7 +371,7 @@ export function SvgAnimationPlayer({
         // `timeline` is an object prop, so a fresh literal each render would recompile the whole
         // document. Key on its CONTENT — the override is small, unlike the document.
         // eslint-disable-next-line react-hooks/exhaustive-deps -- `timelineKey` stands for `timeline`; `makeDiag` is rebuilt per render on purpose (above)
-    }, [stableDoc, timelineKey, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, offScreenProp, mouseOutProp, visibilityThresholdProp, visibilityDebounceProp, compMode]);
+    }, [stableDoc, timelineKey, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, outOfViewProp, hoverEndProp, inViewThresholdProp, inViewDebounceProp, compMode]);
 
     const tracks: PxCompiledTracks = compiled.tracks;
     // The span `progress` 0–1 covers (ONE iteration when endless) — NOT the seek ceiling.

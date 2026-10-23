@@ -5,7 +5,8 @@
 
 import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest';
 import { convertToWebApiKeyframes } from './PxAnimatorWebApi';
-import { PxValueKind, type PxAnimatorRuntimeConfig, type PxBezierPath, type PxRuntimeAnimation } from '@pixodesk/svg-animator-core';
+import { type PxAnimatorRuntimeConfig, type PxBezierPath } from '@pixodesk/svg-animator-core';
+import { PxValueKind, type PxRuntimeAnimation } from '@pixodesk/svg-animator-core/engine';
 
 // Regression for the WAAPI `d` (animated path) builder.
 //

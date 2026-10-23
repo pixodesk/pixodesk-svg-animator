@@ -19,6 +19,9 @@
 // two sides cannot disagree about its spelling.
 export { PX_ANIMATOR_DOC_KEY } from './shared/PxAnimatorKeys';
 
+// The `<script>` builds' global and its two members — the editor's SVG + JS export builds its call from them.
+export { PX_PLAYER_BIND, PX_PLAYER_CREATE, PX_PLAYER_GLOBAL } from './shared/PxPlayerGlobal';
+
 // The public options plus `adapter` — what the React and Vue components build the player with.
 export type { PxInternalAnimationPlayerOptions } from './animator/PxAnimator';
 

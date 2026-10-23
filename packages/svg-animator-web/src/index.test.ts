@@ -5,9 +5,10 @@
 
 import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimationPlayer } from './index';
-import { isCompiledAnimation, type PxDocument, type PxRuntimeAnimation } from '@pixodesk/svg-animator-core';
+import { isCompiledAnimation, type PxDocument } from '@pixodesk/svg-animator-core';
+import { type PxRuntimeAnimation } from '@pixodesk/svg-animator-core/engine';
 import { PX_LOOP_JUMP_SHIFT_MS, cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from '@pixodesk/svg-animator-core/internal';
-import { calcAnimationValues, normalizeBindings } from '@pixodesk/svg-animator-core';
+import { calcAnimationValues, normalizeBindings } from '@pixodesk/svg-animator-core/engine';
 import { materializeAllInTree } from '@pixodesk/svg-animator-core';
 import { PxTimelineEngine } from '@pixodesk/svg-animator-core';
 

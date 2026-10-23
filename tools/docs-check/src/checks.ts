@@ -415,7 +415,9 @@ function checkUsage(b: MdCode, ctx: Ctx): Array<Finding> {
     for (const imp of docImports(b.text)) {
         const pkg = pkgFromText(imp.pkg);
         if (!pkg) continue;
-        const exp = ctx.facts.exportNames(pkg);
+        // checked against the ENTRY imported from — an engine name imported from the main entry fails
+        const exp = ctx.facts.entryExportNames(pkg, imp.pkg.split('/')[2] ?? '');
+        if (!exp) { out.push({ line: b.line + imp.line - 1, message: `imports from ${imp.pkg}, which is not an entry of the package` }); continue; }
         for (const n of imp.names) if (!exp.has(n)) out.push({ line: b.line + imp.line - 1, message: `imports "${n}" from ${imp.pkg}, which does not export it` });
     }
     return out;

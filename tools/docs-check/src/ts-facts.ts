@@ -78,6 +78,15 @@ export class TsFacts {
 
     exportNames(pkg: Pkg): Set<string> { return new Set(this.exports(pkg).keys()); }
 
+    /** The names ONE entry exports — `''` the main entry, else its subpath (`engine`, `internal`); undefined when the package has no such entry. */
+    entryExportNames(pkg: Pkg, subpath: string): Set<string> | undefined {
+        const file = `/${subpath || 'index'}.d.ts`;
+        const sf = this.entries.get(pkg)!.find(f => f.fileName.endsWith(file));
+        if (!sf) return undefined;
+        const moduleSym = this.checker.getSymbolAtLocation(sf) ?? (sf as unknown as { symbol?: ts.Symbol }).symbol;
+        return new Set(moduleSym ? this.checker.getExportsOfModule(moduleSym).map(s => s.name) : []);
+    }
+
     /** Where a name is exported from: the preferred package first, then the others. */
     locate(name: string, preferred?: Pkg): Pkg | undefined {
         const order = preferred ? [preferred, ...ALL_PKGS.filter(p => p !== preferred)] : ALL_PKGS;
@@ -340,7 +349,7 @@ function nameOf(name: ts.PropertyName, sf: ts.SourceFile): string {
 /** `import { a, b, type C } from '@pixodesk/svg-animator-x'` statements in a usage snippet. */
 export function docImports(text: string): Array<{ pkg: string; names: Array<string>; line: number }> {
     const out: Array<{ pkg: string; names: Array<string>; line: number }> = [];
-    const re = /import\s+(?:type\s+)?\{([^}]*)\}\s*from\s*['"](@pixodesk\/svg-animator-[a-z]+)['"]/g;
+    const re = /import\s+(?:type\s+)?\{([^}]*)\}\s*from\s*['"](@pixodesk\/svg-animator-[a-z]+(?:\/[a-z]+)?)['"]/g;
     let m: RegExpExecArray | null;
     while ((m = re.exec(text))) {
         const names = m[1].split(',').map(s => s.trim().replace(/^type\s+/, '').replace(/\s+as\s+.*$/, '')).filter(Boolean);

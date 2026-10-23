@@ -170,7 +170,7 @@ Elements may also carry a `node.effects` bucket (structural effects such as
 runtime before any other normalization.
 
 When you want the markup without a player — a static first frame, a thumbnail, a snapshot —
-`renderNode` is that one step on its own: hand it a node and it returns the DOM element for it, or
+`renderNode` (from `@pixodesk/svg-animator-web/engine`) is that one step on its own: hand it a node and it returns the DOM element for it, or
 `null` when the node renders to nothing. Give it the document's `animator.definitions` as the
 second argument so named fonts resolve, and a diagnostics channel as the third to hear about
 anything it skips. It renders; it does not animate. `toDomProps(props)` is the attribute half of

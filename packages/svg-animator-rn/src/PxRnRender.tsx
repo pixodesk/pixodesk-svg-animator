@@ -4,7 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { toDomProps, type PxDefinitions, type PxNode } from '@pixodesk/svg-animator-core';
+import { type PxDefinitions, type PxNode } from '@pixodesk/svg-animator-core';
+import { toDomProps } from '@pixodesk/svg-animator-core/engine';
 import { sanitizeAttributeValue, PX_DISALLOWED_SVG_TAGS_LOWER, PX_TEXT_CONTENT_ATTR } from '@pixodesk/svg-animator-core/internal';
 import { createElement, type ReactElement, type ReactNode } from 'react';
 import { RN_SVG_COMPONENTS, type RnSvgComponent, type RnSvgProps } from './PxRnTypeMap';

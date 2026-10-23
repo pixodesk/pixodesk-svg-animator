@@ -399,7 +399,7 @@ export interface PxResolvedControlMode {
 export function resolveControlMode(props: PxControlProps): PxResolvedControlMode {
     const hasFixedTime = props.progress !== undefined || props.time !== undefined;
     const hasPlayPause = props.play !== undefined || props.pause !== undefined;
-    const hasPlayAsSaved = !!props.playOnTrigger;
+    const hasPlayOnTrigger = !!props.playOnTrigger;
 
     const warnings: Array<string> = [];
     const named = (a: string, b: string, winner: string): string =>
@@ -407,14 +407,14 @@ export function resolveControlMode(props: PxControlProps): PxResolvedControlMode
 
     if (hasFixedTime) {
         if (hasPlayPause) warnings.push(named('progress/time', 'play/pause', 'progress/time'));
-        if (hasPlayAsSaved) warnings.push(named('progress/time', 'playOnTrigger', 'progress/time'));
+        if (hasPlayOnTrigger) warnings.push(named('progress/time', 'playOnTrigger', 'progress/time'));
         return { mode: PxControlMode.fixedTime, warnings };
     }
     if (hasPlayPause) {
-        if (hasPlayAsSaved) warnings.push(named('play/pause', 'playOnTrigger', 'play/pause'));
+        if (hasPlayOnTrigger) warnings.push(named('play/pause', 'playOnTrigger', 'play/pause'));
         return { mode: PxControlMode.play, warnings };
     }
-    if (hasPlayAsSaved) return { mode: PxControlMode.playOnTrigger, warnings };
+    if (hasPlayOnTrigger) return { mode: PxControlMode.playOnTrigger, warnings };
     return { mode: PxControlMode.static, warnings };
 }
 

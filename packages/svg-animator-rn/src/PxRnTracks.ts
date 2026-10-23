@@ -4,7 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { calcAnimationValues, getAnimatorConfig, normalizeBindings, PxTimelineEngine, type PxDocument, type PxNode } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, PxTimelineEngine, type PxDocument, type PxNode } from '@pixodesk/svg-animator-core';
+import { calcAnimationValues, normalizeBindings } from '@pixodesk/svg-animator-core/engine';
 import { createMotionPathSegments } from '@pixodesk/svg-animator-core/internal';
 import { PX_DEFAULT_DURATION_MS } from '@pixodesk/svg-animator-core/internal';
 import { toRnPropName, toRnPropValue } from './PxRnPropNames';

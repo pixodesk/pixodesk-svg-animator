@@ -5,8 +5,10 @@
 
 import type {
     PxAnimationPlayerApi as PxAnimatorAPICore,
-    PxEngineAnimationPlayerApi as PxEngineAnimatorApiCore,
 } from '@pixodesk/svg-animator-core';
+import type {
+    PxEngineAnimationPlayerApi as PxEngineAnimatorApiCore,
+} from '@pixodesk/svg-animator-core/engine';
 
 /**
  * DOM specializations of the platform-neutral player API types.

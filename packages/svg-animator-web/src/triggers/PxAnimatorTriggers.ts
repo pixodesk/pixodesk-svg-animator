@@ -4,8 +4,17 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxDiagnosticCode, PxDiagnosticKind, PxHoverEndAction, PxTriggerStart, resolveTrigger,
-    type PxDiagnostics, type PxTrigger } from '@pixodesk/svg-animator-core';
+import {
+    PxDiagnosticCode,
+    PxDiagnosticKind,
+    PxHoverEndAction,
+    PxTriggerStart,
+    type PxDiagnostics,
+    type PxTrigger,
+} from '@pixodesk/svg-animator-core';
+import {
+    resolveTrigger,
+} from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import type { PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
 import { createVisibilityGate } from './PxVisibilityGate';
@@ -83,7 +92,7 @@ export function setupAnimationTriggers(
     cleanups.push(() => gate.dispose());
 
     /** What to do when the pointer leaves — `start: 'hover'` only. */
-    const handleMouseOut = (): void => {
+    const handleHoverEnd = (): void => {
         switch (resolved.hoverEnd) {
             case PxHoverEndAction.pause:
                 api.pause();
@@ -126,14 +135,14 @@ export function setupAnimationTriggers(
             // `hoverEnd: 'reverse'` the out action PLAYS (`setPlaybackRate(-1); play()`), so an
             // untriggered leave would start the animation running backwards.
             let enteredOnce = false;
-            const mouseOverHandler = () => { enteredOnce = true; gate.requestStart(true); };
-            const mouseOutHandler = () => { if (enteredOnce) handleMouseOut(); };
+            const hoverHandler = () => { enteredOnce = true; gate.requestStart(true); };
+            const hoverEndHandler = () => { if (enteredOnce) handleHoverEnd(); };
 
-            root.addEventListener('mouseenter', mouseOverHandler);
-            root.addEventListener('mouseleave', mouseOutHandler);
+            root.addEventListener('mouseenter', hoverHandler);
+            root.addEventListener('mouseleave', hoverEndHandler);
             cleanups.push(() => {
-                root.removeEventListener('mouseenter', mouseOverHandler);
-                root.removeEventListener('mouseleave', mouseOutHandler);
+                root.removeEventListener('mouseenter', hoverHandler);
+                root.removeEventListener('mouseleave', hoverEndHandler);
             });
             break;
         }

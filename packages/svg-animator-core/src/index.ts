@@ -42,15 +42,11 @@ export { PxValidationFindingKind } from './schema/PxSchema';
 
 // Wire-format schemas
 export { toPxDocument, isCompiledAnimation, PxDocumentSchema, PxAnimatorConfigSchema, PxAnyPropertyAnimationSchema, PxAttrValueSchema, PxBezierPathSchema, PxCompiledAnimationSchema, PxCubicBezierSchema, PxRgbaSchema, PxDefinitionsSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBaseSchema, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeRootSchema, PxTransformPartsSchema, PxTriggerSchema, PxTimelineSchema, PxTimeTimelineSchema, PxTransformValueSchema } from './format/PxAnimatorTypes';
-export { resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline, PxTimelineEngine, PxCloneWithout, PxTimelineEngineSetting, PX_TRIGGER_DEFAULTS, resolveTrigger, PX_TRANSFORM_PART_KEYS } from './format/PxAnimatorConstants';
-// ONE control-mode rule for react / vue / rn (API review §1, §7) — logic + warning text.
-export { PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from './format/PxAnimatorConstants';
-export { PxPlayMode, PxPlaybackWorld, PxDeclarativeAction, resolvePlaybackWorld, resolveDeclarativePlayback, applyDeclarativeAction, createIterationStopWatcher, composeApiExtras } from './playback/PxDeclarativePlayback';
-export type { PxDeclarativeProps, PxDeclarativeArgs, PxDeclarativeRunContext, PxDeclarativeTarget, PxPlayOnceConfig, PxPlayOnceTarget } from './playback/PxDeclarativePlayback';
-export type { PxControlProps } from './format/PxAnimatorConstants';
+export { PxTimelineEngine, PxCloneWithout, PxTimelineEngineSetting, PX_TRIGGER_DEFAULTS, PX_TRANSFORM_PART_KEYS } from './format/PxAnimatorConstants';
+export { PxPlayMode } from './playback/PxDeclarativePlayback';
 
 // Document / model types
-export type { PxEngineAnimationPlayerApi, PxDocument, PxDocumentInput, PxAnimationDefinition, PxAnimationPlayerApi, PxEngineCallbacks, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBezierPath, PxBinding, PxDefinitions, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxAnyPropertyAnimation, PxCompiledAnimation, PxCompiledKeyframe, PxCubicBezier, PxPathValue, PxRgba, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTransformParts, PxTrigger, PxTransformValue } from './format/PxAnimatorTypes';
+export type { PxDocument, PxDocumentInput, PxAnimationDefinition, PxAnimationPlayerApi, PxEngineCallbacks, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBezierPath, PxBinding, PxDefinitions, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxAnyPropertyAnimation, PxCompiledAnimation, PxCompiledKeyframe, PxCubicBezier, PxPathValue, PxRgba, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTransformParts, PxTrigger, PxTransformValue } from './format/PxAnimatorTypes';
 // VALUE exports, not `export type`: each wire enum is a const namespace AND the string type
 // derived from it under the same name (review §2.7), so a consumer gets both `PxTriggerStart.click`
 // and `start?: PxTriggerStart` from one import.
@@ -63,21 +59,6 @@ export { getAnimatorConfig, isPxDocument, nestAnimatorTimeline } from './format/
 
 // Document id regeneration (fresh ids + rewritten internal refs)
 export { generateNewIds } from './util/PxIdUtil';
-
-// Node props normalization + attribute/tag sanitization (platform-neutral —
-// renderers on every platform share the same security and normalization rules)
-export {
-    toDomProps,
-} from './util/PxNodeProps';
-
-// Normalization / interpolation
-export {
-    calcAnimationValues,
-    normalizeBindings,
-} from './animation/PxDefinitions';
-// The engine's runtime form those two speak — one typed channel per animated property
-export { PxValueKind } from './format/PxAnimatorConstants';
-export type { PxNormalizedBinding, PxRuntimeAnimation } from './animation/PxRuntimeChannel';
 
 // Motion-along-path materializer (sampling)
 
@@ -92,21 +73,8 @@ export type { PxPrepareOptions } from './pipeline/PxPrepareDocument';
 export { PxDocStage, documentStage } from './format/PxDocStage';
 export type { PxPreparedDocument } from './format/PxDocStage';
 
-// Adapter-driven frame-loop engine (platform-neutral playback)
-export { createAdapterSvgAnimationPlayer } from './playback/PxFrameLoop';
-export type { PxPlatformAdapter } from './playback/PxFrameLoop';
-
-// The ONE time contract every engine implements (review §3)
-export {
-    clampSeekMs,
-    createRunClock,
-    isValidPlaybackRate,
-    progressSpanMs,
-    progressToTimeMs,
-    PX_RATE_REJECTED,
-    seekCeilingMs,
-    timeToProgress,
-} from './playback/PxPlaybackTime';
+// Engine wiring for player authors — the time contract, control rules, runtime form, adapter — is on
+// `@pixodesk/svg-animator-core/engine` (src/engine.ts).
 
 // The ONE diagnostics channel every player reports through (review §5)
 export { PxDiagnosticCode } from './playback/PxDiagnosticCode';
@@ -141,7 +109,7 @@ export {
     PxStrokeTrimEffectSchema,
     validateDocument,
 } from './format/PxAnimatorTypes';
-export { applyAnimatorConfig, foldTimelineOverride, mergeAnimatorConfig, suppressTriggerStart } from './playback/PxAnimatorConfigPatch';
+export { applyAnimatorConfig, mergeAnimatorConfig } from './playback/PxAnimatorConfigPatch';
 export type { PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxTimelineShortcuts, PxTimelinePatch } from './playback/PxAnimatorConfigPatch';
 export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxUnits, PxMaskType, PxPathOverflow, PxLengthAdjust, PxTextPathMethod, PxTextPathSpacing } from './format/PxAnimatorConstants';
 // The remaining wire enums (review §2.7). `PxFillMode` / `PxOutOfViewAction` / `PxHoverEndAction` /

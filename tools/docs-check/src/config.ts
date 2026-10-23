@@ -21,8 +21,9 @@ export const PKG_NPM_NAME: Record<Pkg, string> = {
  * The declaration files each package ships — the source of truth for the API docs.
  *
  * The MAIN entry comes first: type text is printed against it. A package may ship further entry
- * points — `@pixodesk/svg-animator-core/internal`, which carries the `@internal` names the editor
- * and the sibling packages need (dev-docs/reviews/api-surface-review.md §4) — and the exports of ALL of them are
+ * points — `/engine`, the engine wiring for player authors (first-use review §23), and `/internal`,
+ * which carries the `@internal` names the editor and the sibling packages need
+ * (dev-docs/reviews/api-surface-review.md §4) — and the exports of ALL of them are
  * what the package exports, so the reference may still document an internal name and the audience
  * checks still see its tag.
  */
@@ -30,8 +31,8 @@ const dts = (pkg: string, entry: string): string =>
     resolve(REPO_ROOT, `packages/svg-animator-${pkg}/dist/${entry}.d.ts`);
 
 export const PKG_DTS: Record<Pkg, ReadonlyArray<string>> = {
-    core: [dts('core', 'index'), dts('core', 'internal')],
-    web: [dts('web', 'index'), dts('web', 'internal')],
+    core: [dts('core', 'index'), dts('core', 'engine'), dts('core', 'internal')],
+    web: [dts('web', 'index'), dts('web', 'engine'), dts('web', 'internal')],
     react: [dts('react', 'index')],
     vue: [dts('vue', 'index')],
     rn: [dts('rn', 'index')],

@@ -21,12 +21,24 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./engine": {
+      "types": "./dist/engine.d.ts",
+      "import": "./dist/engine.js",
+      "require": "./dist/engine.cjs"
+    },
     "./internal": {
       "types": "./dist/internal.d.ts",
       "import": "./dist/internal.js",
       "require": "./dist/internal.cjs"
     },
     "./mangle-reserved.json": "./mangle-reserved.json"
+  },
+  "typesVersions": {
+    "*": {
+      "engine": [
+        "dist/engine.d.ts"
+      ]
+    }
   },
   "bin": {
     "svg-animator-web": "bin/svg-animator-web.mjs"

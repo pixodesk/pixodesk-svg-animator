@@ -4,7 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PX_TRIGGER_DEFAULTS, PxOutOfViewAction, resolveTrigger } from '@pixodesk/svg-animator-core';
+import { PX_TRIGGER_DEFAULTS, PxOutOfViewAction } from '@pixodesk/svg-animator-core';
+import { resolveTrigger } from '@pixodesk/svg-animator-core/engine';
 
 /**
  * THE VISIBILITY GATE — permission to run, separate from whatever starts the animation.

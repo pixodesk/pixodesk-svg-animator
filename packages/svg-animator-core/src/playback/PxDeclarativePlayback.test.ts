@@ -9,8 +9,14 @@
 // components.
 import { describe, expect, it } from 'vitest';
 import {
-    PxDeclarativeAction, PxPlaybackWorld, PxPlayMode, resolveDeclarativePlayback, resolvePlaybackWorld,
+    PxPlayMode,
 } from '../index';
+import {
+    PxDeclarativeAction,
+    PxPlaybackWorld,
+    resolveDeclarativePlayback,
+    resolvePlaybackWorld,
+} from '../engine';
 
 const oneShot = (next: { play?: boolean; pause?: boolean }, prev?: { play?: boolean; pause?: boolean },
     playMode: PxPlayMode = PxPlayMode.forwards, playModeExplicit = false) =>
