@@ -1105,13 +1105,14 @@ one consistent vocabulary)
 - **Suggested:** 1, plus 3 for the docs.
 - **Done (2026-10-24):** option 1, wider than the table — every name that exists for the sibling packages moved to `@pixodesk/svg-animator-core/engine` (40: the whole time contract, `foldTimelineOverride` / `suppressTriggerStart`, the component control rules, the runtime form, the trigger / engine resolvers, the platform adapter, `toDomProps`). `downgradeWireDocument` stays on the main entry beside `convertWireDocument`: it is document tooling. Web the same: `@pixodesk/svg-animator-web/engine` (`renderNode`, `toDomProps`, `createAdapterSvgAnimationPlayer`, `PxPlatformAdapter`); the editor-only `PX_PLAYER_*` names moved to web's `/internal`. Both packages carry `typesVersions` for `engine`, so `moduleResolution: node` still finds the types. The export indexes mark `/engine` names (no separate heading). Guards: `engineEntry.test.ts` in core and web (no name on both entries), and docs-check checks a doc's import against the entry it names — both seen failing.
 
-### 24. Vue `SvgAnimator`'s `start` prop restates the trigger values
+### 24. Vue `SvgAnimator`'s `start` prop restates the trigger values ✅
 
 - **What:** `SvgAnimator.ts` declares `start: { type: String as PropType<'load' | 'mouseOver' | 'click' | 'none'> }`. That is a hand-written copy of `PxTriggerStart`. Its sibling `SvgCssAnimator.ts` already uses `PropType<PxTriggerStart>`. (The first draft named the old component `PixodeskSvgAnimator`.)
 - **Why it matters:** the copy drifts silently. If §21 renames `'none'` → `'manual'`, Vue keeps accepting and type-checking the old word, and nothing fails.
 - **Suggested:** a one-line change to `PropType<PxTriggerStart>`. Keep no `default`: an absent prop means "the file's own value".
   - Also check the other Vue/React trigger props (`mouseOut`, `offScreen`) for the same hand-written lists while there.
   - Do it before §21, so the §21 renames reach Vue with no extra edit.
+- **Done (2026-10-24):** `start: { type: String as PropType<PxTriggerStart> }`, no default. (§21 had already renamed the copy's words; it now cannot drift.) The other trigger props were clean: Vue's `outOfView` / `hoverEnd` use `PxOutOfViewAction` / `PxHoverEndAction`, and React and React Native take all of them from core's `PxTimelineShortcuts`.
 
 ### 25. Enum value spelling follows an unwritten rule
 

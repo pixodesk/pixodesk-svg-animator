@@ -7,7 +7,7 @@
 import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxPlaybackOverride, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, type PxHoverEndAction, type PxOutOfViewAction, getAnimatorConfig, PxDiagnosticCode, PxFillMode, PxPlayMode, type PxAnimatorConfigPatch, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, type PxHoverEndAction, type PxOutOfViewAction, type PxTriggerStart, getAnimatorConfig, PxDiagnosticCode, PxFillMode, PxPlayMode, type PxAnimatorConfigPatch, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
 import { applyDeclarativeAction, createIterationStopWatcher, foldTimelineOverride, PxDeclarativeAction, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, suppressTriggerStart, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
@@ -154,7 +154,7 @@ const SvgAnimationPlayer = defineComponent({
         playDuration: { type: Number },
         delay: { type: Number },
         iterations: { type: [Number, String] as PropType<number | 'infinite'> },
-        start: { type: String as PropType<'load' | 'hover' | 'click' | 'manual'> },
+        start: { type: String as PropType<PxTriggerStart> },
         outOfView: { type: String as PropType<PxOutOfViewAction> },
         hoverEnd: { type: String as PropType<PxHoverEndAction> },
         inViewThreshold: { type: Number },
