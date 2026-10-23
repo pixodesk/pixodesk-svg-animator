@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import { applyAnimatorConfig, mergeAnimatorConfig, foldTimelineOverride, type PxAnimatorConfigPatch } from './PxAnimatorConfigPatch';
 import { PxAnimatorConfigSchema, type PxDocument, type PxAnimatorConfig, type PxTimeline } from '../format/PxAnimatorTypes';
 import { isRecord } from '../schema/PxSchema';
@@ -62,7 +62,8 @@ describe('mergeAnimatorConfig — RFC 7386 base semantics', () => {
 
     it('merges objects per level, leaving untouched siblings alone', () => {
         const { config } = merge(timeBase, { timeline: { outTime: 5000 } });
-        expect(config!.timeline).toMatchObject({ outTime: 5000, iterations: 2, fillMode: 'both' });
+        assert(config, 'the merge yields a config');
+        expect(config.timeline).toMatchObject({ outTime: 5000, iterations: 2, fillMode: 'both' });
         expect(config && 'frameRate' in config ? config.frameRate : undefined).toBe(60);
     });
 

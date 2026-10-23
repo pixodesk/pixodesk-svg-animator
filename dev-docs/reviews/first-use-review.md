@@ -794,7 +794,7 @@ bare `[]`), and reaches `validateDocument` — the one the library README recomm
     by constants, holds no document data. Options: keep as is, or build it EAGERLY at module load from
     the known element map — a constant table like the attribute `Set`s, no lazy mutation.
 
-### 17c. Audit every `as any` in the library ✅ (shipped source and tests: 0 — 2026-10-23; ESLint `no-explicit-any`)
+### 17c. Audit every `as any` in the library ✅ (shipped source and tests: 0 — 2026-10-23; ESLint `no-explicit-any`, then `no-non-null-assertion` and no `as never`)
 
 - **Done (2026-10-22)** — plan and log: `dev-docs/plans/schema-cast-and-stamps.md`. Shipped `any` 319 → 126.
   - ONE mechanism bound to the schema framework: every schema has `is` / `cast` / `castOrNull` / `castOrFix`;

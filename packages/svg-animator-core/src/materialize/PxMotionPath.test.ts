@@ -16,7 +16,7 @@
 //   - `compileAnimation` + `compileAnimationsInTree` — loop expansion
 
 
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import { isCompiledAnimation, type PxDocument, type PxAnyPropertyAnimation, type PxCompiledAnimation, type PxKeyframe, type PxNode, type PxPropertyAnimation } from '../format/PxAnimatorTypes';
 import { PxTimelineEngine, PxValueKind } from '../format/PxAnimatorConstants';
 import { invertEasing } from '../util/PxAnimatorUtil';
@@ -133,7 +133,7 @@ describe('evaluateMotionPathSegment', () => {
         expect(evaluateMotionPathSegment(kfs[0], kfs[1], [60, 190], [60, 360], 0.5, false).rotateDeg).toBeUndefined();
         const s = evaluateMotionPathSegment(kfs[0], kfs[1], [60, 190], [60, 360], 0.5, true);
         expect(s.rotateDeg).toBeDefined();
-        expect(Number.isFinite(s.rotateDeg!)).toBe(true);
+        expect(Number.isFinite(s.rotateDeg)).toBe(true);
     });
 
     it('atan2(tan.y, tan.x) gives 0° along +X and 90° along +Y', () => {
@@ -160,7 +160,7 @@ describe('evaluateMotionPathSegment', () => {
         const s = evaluateMotionPathSegment(kfs[0], kfs[1], [42, 42], [42, 42], 0.5, true);
         expect(s.translate[0]).toBeCloseTo(42, 5);
         expect(s.translate[1]).toBeCloseTo(42, 5);
-        expect(Number.isFinite(s.rotateDeg!)).toBe(true);
+        expect(Number.isFinite(s.rotateDeg)).toBe(true);
     });
 });
 
@@ -248,7 +248,7 @@ describe('materializeMotionPathInPropAnim', () => {
         const materialized = materializeMotionPathInPropAnim({ autoOrient: true, keyframes: horseshoeKfs() } as PxPropertyAnimation);
         for (const kf of getKfs(materialized)) {
             expect(kfRotate(kf)).toBeDefined();
-            expect(Number.isFinite(kfRotate(kf)!)).toBe(true);
+            expect(Number.isFinite(kfRotate(kf))).toBe(true);
         }
     });
 
@@ -269,7 +269,7 @@ describe('materializeMotionPathInPropAnim', () => {
         ] as Array<PxKeyframe>;
         const materialized = materializeMotionPathInPropAnim({ autoOrient: true, keyframes } as PxPropertyAnimation);
         for (const kf of getKfs(materialized)) {
-            expect(kfRotate(kf)!).toBeCloseTo(135, 4);
+            expect(kfRotate(kf)).toBeCloseTo(135, 4);
         }
     });
 
@@ -283,8 +283,8 @@ describe('materializeMotionPathInPropAnim', () => {
         ] as Array<PxKeyframe>;
         const materialized = materializeMotionPathInPropAnim({ autoOrient: true, keyframes } as PxPropertyAnimation);
         const out = getKfs(materialized);
-        expect(kfRotate(out[0])!).toBeCloseTo(0, 4);
-        expect(kfRotate(out[out.length - 1])!).toBeCloseTo(90, 4);
+        expect(kfRotate(out[0])).toBeCloseTo(0, 4);
+        expect(kfRotate(out[out.length - 1])).toBeCloseTo(90, 4);
     });
 
     it('rotation deltas between adjacent samples are bounded by rotationTolerance (autoOrient)', () => {
@@ -294,8 +294,9 @@ describe('materializeMotionPathInPropAnim', () => {
         );
         const kfs = getKfs(materialized);
         for (let i = 1; i < kfs.length; i++) {
-            const a = kfRotate(kfs[i - 1])!;
-            const b = kfRotate(kfs[i])!;
+            const a = kfRotate(kfs[i - 1]);
+            const b = kfRotate(kfs[i]);
+            assert(a !== undefined && b !== undefined, 'every sample carries a rotate');
             let delta = Math.abs(a - b);
             if (delta > 180) delta = 360 - delta;
             // Allow generous slack — the cap is the rotationTolerance but the
@@ -415,15 +416,17 @@ describe('compileAnimationsInTree — a motion path (native engine)', () => {
 
     it('shares un-animated sub-trees by reference', () => {
         const tree = makeTreeWithMotionPath();
-        const staticChild = tree.children![0];
+        const staticChild = tree.children?.[0];
+        assert(staticChild, 'the fixture has a static child');
         const out = compileAnimationsInTree(tree, NATIVE);
-        expect(out.children![0]).toBe(staticChild);
+        expect(out.children?.[0]).toBe(staticChild);
     });
 
     it('materializes the motion-path node\'s animate.transform (no tangents, no autoOrient on output)', () => {
         const tree = makeTreeWithMotionPath();
         const out = compileAnimationsInTree(tree, NATIVE);
-        const movingOut = out.children![1] as PxNode;
+        const movingOut = out.children?.[1];
+        assert(movingOut, 'the moving child survives');
         const anim = compiledTransform((movingOut.animate as Record<string, PxAnyPropertyAnimation>).transform);
         expect(anim.autoOrient).toBeUndefined();
         for (const kf of anim.keyframes) {

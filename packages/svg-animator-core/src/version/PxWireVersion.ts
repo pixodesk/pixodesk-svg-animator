@@ -405,13 +405,13 @@ export function applyWireSteps(doc: unknown, cfg: PxWireConversionOptions): PxWi
     // Which steps this document actually needs, decided BEFORE anything is copied so the common
     // "older but nothing to do" case costs nothing. A step is due when the FILE is older than
     // what that step produces — the same comparison the reader itself uses.
-    const due: Array<PxWireVersionStep> = [];
+    const due: Array<{ step: PxWireVersionStep; up: NonNullable<PxWireVersionStep['up']> }> = [];
     for (const step of cfg.steps) {
         const stepTo = parseWireVersion(step.to);
         if (!stepTo) continue;
         if (compareWireVersion(from, stepTo, cfg.readerReadsEditorPart) !== PxWireVersionRelation.older) continue;
         if (!step.up) continue;   // additive, or one-way with no code
-        due.push(step);
+        due.push({ step, up: step.up });
     }
     if (!due.length || !doc || typeof doc !== 'object') return { doc, from, relation, applied: [] };
 
@@ -419,10 +419,10 @@ export function applyWireSteps(doc: unknown, cfg: PxWireConversionOptions): PxWi
     // half-migrated, and callers routinely hold the parsed file for other purposes.
     const target = clonePlain(doc) as Record<string, unknown>;
     const applied: Array<PxWireVersionStep> = [];
-    for (const step of due) {
+    for (const { step, up } of due) {
         // One bad step degrades to "that step did not happen" — never to a failed open.
         try {
-            step.up!(target);
+            up(target);
             applied.push(step);
         } catch {
             break;   // stop at the first failure: later steps assume this one ran

@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import { materializeNodeEffects } from '../PlayerEffectsUtil';
-import type { PxFillGradientEffect, PxNode } from '../../format/PxAnimatorTypes';
+import type { PxFillGradientEffect, PxGlyphFont, PxNode } from '../../format/PxAnimatorTypes';
 
-const glyphs = { F: { fontFamily: 'F', style: '', ascent: 800, unitsPerEm: 1000,
+const glyphs: { [family: string]: PxGlyphFont } = { F: { fontFamily: 'F', fontStyle: '', ascent: 800, unitsPerEm: 1000,
     glyphs: { H: { width: 700, pathData: 'M0 0L100 0L100 -700Z' } } } };
 const grad: PxFillGradientEffect = { type: 'linear', start: [-100, 0], end: [100, 0], gradientUnits: 'userSpaceOnUse',
     stops: [{ offset: 0, color: '#007fff' }, { offset: 1, color: '#ff0000' }] };

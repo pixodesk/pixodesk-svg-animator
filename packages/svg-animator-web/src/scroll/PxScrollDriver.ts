@@ -272,10 +272,12 @@ export function createScrollDriver(
             lastFrameMs = nowMs;
             const goal = compute();          // re-measure: the user may still be scrolling
             const k = 1 - Math.exp(-dtSec / smoothingSec);
-            smoothed = smoothed! + (goal - smoothed!) * k;
-            if (Math.abs(goal - smoothed!) < SETTLE_EPSILON) smoothed = goal;   // land exactly
-            onProgress(smoothed!);
-            if (smoothed !== goal) smoothRaf = requestAnimationFrame(step);
+            const from = smoothed ?? goal;   // set before the first chase starts
+            let next = from + (goal - from) * k;
+            if (Math.abs(goal - next) < SETTLE_EPSILON) next = goal;   // land exactly
+            smoothed = next;
+            onProgress(next);
+            if (next !== goal) smoothRaf = requestAnimationFrame(step);
         };
         smoothRaf = requestAnimationFrame(step);
     };

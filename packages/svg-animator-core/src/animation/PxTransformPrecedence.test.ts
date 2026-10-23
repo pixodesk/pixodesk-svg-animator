@@ -11,8 +11,7 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeBindings, mergeStaticTransformIntoAnimDef } from './PxDefinitions';
 import { parseTransformParts } from '../util/PxAnimatorUtil';
-import { untyped } from '../effects/effectTestKit';
-import { isCompiledAnimation, PxTransformPartsSchema, type PxDocument, type PxAnimationDefinition, type PxAttrValue, type PxPropertyAnimation, type PxTimeline } from '../format/PxAnimatorTypes';
+import { isCompiledAnimation, PxTransformPartsSchema, type PxDocument, type PxAnimationDefinition, type PxAttrValue, type PxPropertyAnimation } from '../format/PxAnimatorTypes';
 
 /** The merged `transform` entry — the merge keeps it authored; throws when absent or compiled. */
 function authoredTransform(def: PxAnimationDefinition): PxPropertyAnimation {
@@ -111,8 +110,7 @@ describe('end-to-end — normalizeBindings composes the static transform under t
 
     const docWith = (animate: PxAnimationDefinition, staticTransform: PxAttrValue): PxDocument => ({
         type: 'svg',
-        // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
-        animator: { timeline: untyped<PxTimeline>({ duration: 1000 }) },
+        animator: { timeline: { outTime: 1000 } },
         children: [{ type: 'rect', id: 'r', width: 10, height: 10, transform: staticTransform, animate }],
     });
 

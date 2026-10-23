@@ -10,7 +10,7 @@
 // font-free SVG string (Step 3). Verifies glyph <text> becomes real <path>
 // geometry in the serialized output.
 
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import { materializeNodeEffects } from '@pixodesk/svg-animator-core';
 import type { PxNode } from '@pixodesk/svg-animator-core';
 import { renderNode } from './PxAnimatorDOM';
@@ -44,7 +44,8 @@ describe('glyph text — materialize → renderNode → serialize (static SVG)',
         const { root } = materializeNodeEffects(scene());
         const el = renderNode(root);
         expect(el).toBeTruthy();
-        const svg = new XMLSerializer().serializeToString(el!);
+        assert(el, 'nothing was rendered');
+        const svg = new XMLSerializer().serializeToString(el);
 
         expect(svg).toContain('<svg');
         expect(svg).toContain('<path');

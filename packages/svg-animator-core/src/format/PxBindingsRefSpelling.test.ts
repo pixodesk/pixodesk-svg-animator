@@ -10,15 +10,16 @@ import { describe, expect, it } from 'vitest';
 import { getBindings } from './PxAnimatorConstants';
 import { normalizeBindings } from '../animation/PxDefinitions';
 import { generateNewIds } from '../util/PxIdUtil';
+import type { PxDocument } from './PxAnimatorTypes';
 
-const doc = () => ({
+const doc = (): PxDocument => ({
     type: 'svg',
     children: [{ type: 'rect', id: 'ball' }],
     animator: {
         definitions: { animations: { fadeIn: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } } } },
         bindings: [{ target: '#ball', animateWith: ['fadeIn'] }],
     },
-} as never);
+});
 
 describe('bindings — #id-spelled targets (review §3.2, 2.12)', () => {
 

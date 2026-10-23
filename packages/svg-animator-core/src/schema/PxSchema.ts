@@ -545,15 +545,15 @@ class Union<T, D extends boolean> extends Base<T, false, D> {
         // ONE finding for the union, with the member diagnosis NESTED under it: those findings
         // describe this malformed value, and must never read as the document's own (an "extra
         // key" inside a tried member is not a newer writer).
-        const descended = !!best && bestDepth > basePath.length;
+        const descended = best && bestDepth > basePath.length ? best : undefined;
         reportValidationError(ctx, basePath, PxValidationFindingKind.unionMismatch,
             'no union member matched for value ' + (JSON.stringify(raw) ?? '').slice(0, 240),
-            descended ? { memberFindings: best!.findings.slice(0, UNION_MEMBER_ERROR_LIMIT) } : undefined);
+            descended ? { memberFindings: descended.findings.slice(0, UNION_MEMBER_ERROR_LIMIT) } : undefined);
 
         if (descended) {
             // One member reached inside the value — its lines ARE the diagnosis (text only here;
             // the structured form sits on the headline finding).
-            for (const e of best!.errors.slice(0, UNION_MEMBER_ERROR_LIMIT)) {
+            for (const e of descended.errors.slice(0, UNION_MEMBER_ERROR_LIMIT)) {
                 if (!ctx.errors.includes(e)) ctx.errors.push(e);
             }
         } else if (leafExpectations.length) {

@@ -140,7 +140,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
     n = applyMaskedByEffect(n, maskedBy, transformBy, ctx);          // mask sits on inner element
     n = applyClipPathEffect(n, clipPath, ctx);                         // clip-path ref on the element
 
-    if (innerIdForContentRef) {
+    if (innerIdForContentRef && originalId) {
         // This node is the SOURCE of a content-ref `<use>` → split into
         // outer-translate + inner-rest + bare element so the use can target the
         // inner layer. But it may ALSO be a content-ref CONSUMER itself (a
@@ -148,7 +148,7 @@ function applyPlayerEffects_exceptRetime(node: PxNode, ctx: ApplyContext): PxNod
         // case): rewrite its OWN ref href first so the split moves a resolved
         // body inward, not the dangling editor-side content id.
         applyRefHref(n, cloneFx, ctx);
-        n = splitForContentRef(n, transformBy, originalId!, innerIdForContentRef, ctx);
+        n = splitForContentRef(n, transformBy, originalId, innerIdForContentRef, ctx);
     } else {
         n = applyRefAndTransformationEffect(n, cloneFx, transformBy, ctx);
     }

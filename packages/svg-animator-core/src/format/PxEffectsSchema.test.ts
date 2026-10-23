@@ -1,5 +1,5 @@
-import { describe, expect, it } from 'vitest';
-import { PxEffectsSchema, validateNodeEffects, type PxDocument, type PxKeyframe, type PxKeyframeValue, type PxNode, type PxTimeline } from './PxAnimatorTypes';
+import { assert, describe, expect, it } from 'vitest';
+import { PxEffectsSchema, validateNodeEffects, type PxDocument, type PxKeyframe, type PxKeyframeValue, type PxNode } from './PxAnimatorTypes';
 import { PxTimelineEngine } from './PxAnimatorConstants';
 import type { PxValidationContext } from '../schema/PxSchema';
 import { materializeAllInTree } from '../materialize/PxAnimatorMaterializeAll';
@@ -44,16 +44,16 @@ describe('validateNodeEffects', () => {
 // Keyframe short aliases inside EFFECT payloads
 // ---------------------------------------------------------------------------
 
-describe('effect keyframes accept the short wire aliases', () => {
+// The short aliases were removed in 2026-09 (the schema rejects them); effect slots read the long spelling only.
+describe('effect keyframes read the long spelling only — the short aliases are gone', () => {
     /** Two keyframes, at 0 and 1000 ms, in one of the two spellings. */
     type KeyframePair = (a: PxKeyframeValue, b: PxKeyframeValue) => Array<PxKeyframe<PxKeyframeValue>>;
 
     const D = (children: Array<PxNode>): PxDocument => ({
-        // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
-        type: 'svg', viewBox: '0 0 100 100', animator: { timeline: untyped<PxTimeline>({ duration: 1000 }) }, children,
+        type: 'svg', viewBox: '0 0 100 100', animator: { timeline: { outTime: 1000 } }, children,
     });
     const long: KeyframePair = (a, b) => [{ time: 0, value: a }, { time: 1000, value: b }];
-    // the retired short `{t, v}` spelling: not in the type, still read by effect slots
+    // the removed short `{t, v}` spelling — not in the type, on purpose
     const short: KeyframePair = (a, b) => untyped<Array<PxKeyframe<PxKeyframeValue>>>([{ t: 0, v: a }, { t: 1000, v: b }]);
 
     /** Values the frames engine would write at t=0 and t=duration. */
@@ -81,12 +81,10 @@ describe('effect keyframes accept the short wire aliases', () => {
             effects: { strokeTrim: { range: { keyframes: k([0, 0], [0, 1]) } } } }])],
     ];
 
-    it.each(cases)('%s: {t,v} behaves exactly like {time,value}', (_name, build) => {
-        const withLong = sample(build(long));
-        const withShort = sample(build(short));
-        expect(withShort).toEqual(withLong);
-        // and it must actually move — a frozen animation would trivially "match"
-        expect(withLong.some(([a, b]) => JSON.stringify(a) !== JSON.stringify(b))).toBe(true);
+    it.each(cases)('%s: {time,value} animates, {t,v} is not read', (_name, build) => {
+        const moves = (samples: ReturnType<typeof sample>) => samples.some(([a, b]) => JSON.stringify(a) !== JSON.stringify(b));
+        expect(moves(sample(build(long)))).toBe(true);
+        expect(moves(sample(build(short)))).toBe(false);
     });
 });
 
@@ -96,8 +94,7 @@ describe('effect keyframes accept the short wire aliases', () => {
 
 describe('gradient geometry animation', () => {
     const linearDoc = (): PxDocument => ({
-        // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
-        type: 'svg', viewBox: '0 0 200 200', animator: { timeline: untyped<PxTimeline>({ duration: 1000 }) },
+        type: 'svg', viewBox: '0 0 200 200', animator: { timeline: { outTime: 1000 } },
         children: [{
             type: 'ellipse', id: 'a', rx: 50, ry: 50, transform: 'translate(100,100)',
             effects: {
@@ -128,7 +125,8 @@ describe('gradient geometry animation', () => {
         expect(geom).toBeDefined();
 
         const at = (t: number) => {
-            const b = bindings.find(x => 'y1' in calcAnimationValues(x.channels, 0))!;
+            const b = bindings.find(x => 'y1' in calcAnimationValues(x.channels, 0));
+            assert(b, 'a binding drives y1');
             return calcAnimationValues(b.channels, t);
         };
         expect(+at(0).y1).toBeCloseTo(-45, 3);
@@ -139,8 +137,7 @@ describe('gradient geometry animation', () => {
 
     it('maps every radial channel onto its SVG attribute', () => {
         const doc: PxDocument = {
-            // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
-            type: 'svg', viewBox: '0 0 200 200', animator: { timeline: untyped<PxTimeline>({ duration: 1000 }) },
+            type: 'svg', viewBox: '0 0 200 200', animator: { timeline: { outTime: 1000 } },
             children: [{
                 type: 'ellipse', id: 'a', rx: 50, ry: 50,
                 effects: {
@@ -159,7 +156,8 @@ describe('gradient geometry animation', () => {
 
         const m = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
         const bindings = normalizeBindings(m, PxTimelineEngine.js) || [];
-        const end = bindings.map(b => calcAnimationValues(b.channels, 1000)).find(v => 'r' in v)!;
+        const end = bindings.map(b => calcAnimationValues(b.channels, 1000)).find(v => 'r' in v);
+        assert(end, 'a binding drives r');
         expect(end).toMatchObject({ cx: '20', cy: '30', fx: '10', fy: '15', r: '90' });
     });
 });

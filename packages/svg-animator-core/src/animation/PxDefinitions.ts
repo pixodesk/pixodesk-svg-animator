@@ -86,7 +86,8 @@ function parsePathCommands(d: string): Array<PathCommand> {
  */
 export function parseSvgPathToBezier(d: string): Array<PxBezierPath> {
     const res: Array<PxBezierPath> = [];
-    let currentPath: PxBezierPath | undefined;
+    // While parsing, every path carries its in/out handle arrays.
+    let currentPath: Required<PxBezierPath> | undefined;
 
     const commands = parsePathCommands(d);
 
@@ -122,8 +123,8 @@ export function parseSvgPathToBezier(d: string): Array<PxBezierPath> {
             const x = values[0] || 0;
             const y = values[1] || 0;
             currentPath.v.push([x, y]);
-            currentPath.i!.push([x, y]);
-            currentPath.o!.push([x, y]);
+            currentPath.i.push([x, y]);
+            currentPath.o.push([x, y]);
 
         } else if (type === 'C') {
             const outX = values[0] || 0;
@@ -134,12 +135,12 @@ export function parseSvgPathToBezier(d: string): Array<PxBezierPath> {
             const y2 = values[5] || 0;
 
             // Update out-point of previous vertex
-            currentPath.o![currentPath.o!.length - 1] = [outX, outY];
+            currentPath.o[currentPath.o.length - 1] = [outX, outY];
 
             // Add new vertex with its in-point
             currentPath.v.push([x2, y2]);
-            currentPath.i!.push([inX2, inY2]);
-            currentPath.o!.push([x2, y2]);
+            currentPath.i.push([inX2, inY2]);
+            currentPath.o.push([x2, y2]);
 
         } else if (type === 'Z' || type === 'z') {
             currentPath.c = true;

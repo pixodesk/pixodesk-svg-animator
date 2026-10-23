@@ -12,10 +12,10 @@
 //        UNSTAMPED — the document loses the diagnostic that says which schema wrote it.
 
 import { describe, expect, it } from 'vitest';
-import { validateDocument } from './PxAnimatorTypes';
+import { validateDocument, type PxAnimatorConfig, type PxCubicBezier, type PxDocument, type PxEasingOrRef } from './PxAnimatorTypes';
 
 /** A one-rect document with the given animator block. */
-function doc(animator?: Record<string, unknown>) {
+function doc(animator?: PxAnimatorConfig): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
@@ -24,11 +24,11 @@ function doc(animator?: Record<string, unknown>) {
             type: 'rect', id: 'r',
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
         }],
-    } as never;
+    };
 }
 
 /** The same document, with `easing` set on its second keyframe. */
-function withEasing(easing: unknown, easings?: Record<string, unknown>) {
+function withEasing(easing: PxEasingOrRef, easings?: Record<string, PxCubicBezier>): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
@@ -40,7 +40,7 @@ function withEasing(easing: unknown, easings?: Record<string, unknown>) {
             type: 'rect', id: 'r',
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1, easing }] } },
         }],
-    } as never;
+    };
 }
 
 describe('validateDocument — a named easing must be defined (§2.9)', () => {

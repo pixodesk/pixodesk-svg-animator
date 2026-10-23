@@ -5,13 +5,14 @@
 
 // Arc-length + tangent sampling for an SVG path `d` (backing along-path glyphs).
 
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import { createPathSampler } from './pathSampler';
 
 describe('pathSampler', () => {
 
     it('measures a straight horizontal line and samples point + angle', () => {
-        const s = createPathSampler('M0 0L100 0')!;
+        const s = createPathSampler('M0 0L100 0');
+        assert(s, 'the path parses');
         expect(s.totalLength).toBeCloseTo(100, 4);
         const p = s.sampleAtDistance(50);
         expect(p.x).toBeCloseTo(50, 4);
@@ -20,12 +21,14 @@ describe('pathSampler', () => {
     });
 
     it('angle follows a vertical line (down = +y ⇒ +90°)', () => {
-        const s = createPathSampler('M0 0L0 100')!;
+        const s = createPathSampler('M0 0L0 100');
+        assert(s, 'the path parses');
         expect(s.sampleAtDistance(50).angle).toBeCloseTo(Math.PI / 2, 3);
     });
 
     it('concatenates multiple segments by arc length', () => {
-        const s = createPathSampler('M0 0L100 0L100 100')!; // 100 across + 100 down
+        const s = createPathSampler('M0 0L100 0L100 100'); // 100 across + 100 down
+        assert(s, 'the path parses');
         expect(s.totalLength).toBeCloseTo(200, 3);
         const p = s.sampleAtDistance(150); // 50 into the vertical leg
         expect(p.x).toBeCloseTo(100, 2);
@@ -33,25 +36,29 @@ describe('pathSampler', () => {
     });
 
     it('up-converts quadratics', () => {
-        const s = createPathSampler('M0 0Q50 0 100 0')!; // control on the axis → straight, len 100
+        const s = createPathSampler('M0 0Q50 0 100 0'); // control on the axis → straight, len 100
+        assert(s, 'the path parses');
         expect(s.totalLength).toBeCloseTo(100, 2);
     });
 
     it('extrapolates past the ends of an OPEN path (straight line along the tangent)', () => {
-        const s = createPathSampler('M0 0L100 0')!; // open horizontal line, tangent = +x
+        const s = createPathSampler('M0 0L100 0'); // open horizontal line, tangent = +x
+        assert(s, 'the path parses');
         expect(s.sampleAtDistance(-10).x).toBeCloseTo(-10, 4); // before start
         expect(s.sampleAtDistance(999).x).toBeCloseTo(999, 4); // past end — keeps going
     });
 
     it('clamps past the ends of a CLOSED path (loops back — no run-off)', () => {
-        const s = createPathSampler('M0 0L100 0L100 100L0 100Z')!; // closed square
+        const s = createPathSampler('M0 0L100 0L100 100L0 100Z'); // closed square
+        assert(s, 'the path parses');
         const p = s.sampleAtDistance(9999);
         expect(Math.abs(p.x)).toBeLessThanOrEqual(101);
         expect(Math.abs(p.y)).toBeLessThanOrEqual(101);
     });
 
     it('wraps out-of-range distances around a CLOSED path (negative startOffset does not pile up)', () => {
-        const s = createPathSampler('M0 0L100 0L100 100L0 100Z')!; // closed square, perimeter 400
+        const s = createPathSampler('M0 0L100 0L100 100L0 100Z'); // closed square, perimeter 400
+        assert(s, 'the path parses');
         expect(s.totalLength).toBeCloseTo(400, 3);
         // -10 wraps to 390 → 90 down the left leg (from (0,100) toward (0,0)) = (0,10).
         const before = s.sampleAtDistance(-10);

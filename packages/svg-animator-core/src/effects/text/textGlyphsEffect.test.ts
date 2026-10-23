@@ -11,7 +11,7 @@
 // Font `F`: unitsPerEm 1000, so fontSize 100 → scale 0.1 (integer-clean bakes).
 //   H: width 700, box 100×700   i: width 300, box 50×500   ' ': width 250, no outline
 
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import { PxGlyphFontSchema, PxTransformPartsSchema, type PxDocument, type PxAnimationDefinition, type PxGlyphFont, type PxKeyframe, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTextEffect, type PxTextPathEffect, type PxTransformParts } from '../../format/PxAnimatorTypes';
 import { PxTimelineEngine } from '../../format/PxAnimatorConstants';
 import { authoredEntry, collectByType, engineFirstFrame, entryOf, materializeEngine, materializeRaw, staticAttr } from '../effectTestKit';
@@ -53,8 +53,9 @@ describe('textGlyphsEffect — <text> → baked <path> outlines', () => {
         expect(collectByType(root, 'text')).toHaveLength(0);
         const g = collectByType(root, 'g').find(n => n.id === 't');
         expect(g).toBeTruthy();
-        expect(g!.fontSize).toBeUndefined();   // text attrs dropped
-        expect(g!.fontFamily).toBeUndefined();
+        assert(g, 'the <text> became a <g>');
+        expect(g.fontSize).toBeUndefined();   // text attrs dropped
+        expect(g.fontFamily).toBeUndefined();
 
         const p = paths(root);
         expect(p).toHaveLength(1);
@@ -466,20 +467,22 @@ describe('materializeGlyphText — injected element factory (editor reuse)', () 
     it('builds the group + paths via the caller-supplied factory (not JSON nodes)', () => {
         const g = materializeGlyphText(glyphTextNodeOf(textNode()), { glyphs, create: fakeFactory });
         expect(g).toBeTruthy();
-        expect(g!.tag).toBe('g');
-        expect(g!.attrs.id).toBe('t');
-        expect(g!.attrs.transform).toBe('translate(10,50)');
-        expect(g!.attrs.fontFamily).toBeUndefined(); // text attrs dropped
-        expect(g!.kids).toHaveLength(1);
-        expect(g!.kids[0].tag).toBe('path');
-        expect(g!.kids[0].attrs.d).toBe('M0 0L10 0L10-70ZM70 0L75 0L75-50Z');
-        expect(g!.kids[0].attrs.fill).toBe('#f00');
+        assert(g, 'the factory built a group');
+        expect(g.tag).toBe('g');
+        expect(g.attrs.id).toBe('t');
+        expect(g.attrs.transform).toBe('translate(10,50)');
+        expect(g.attrs.fontFamily).toBeUndefined(); // text attrs dropped
+        expect(g.kids).toHaveLength(1);
+        expect(g.kids[0].tag).toBe('path');
+        expect(g.kids[0].attrs.d).toBe('M0 0L10 0L10-70ZM70 0L75 0L75-50Z');
+        expect(g.kids[0].attrs.fill).toBe('#f00');
     });
 
     it('the player\'s factory builds plain wire nodes', () => {
         const g = materializeGlyphText(glyphTextNodeOf(textNode()), { glyphs, create: glyphNodeFactory });
-        expect(g!.type).toBe('g');
-        expect((g!.children as Array<PxNode>)[0].type).toBe('path');
+        assert(g, 'the factory built a group');
+        expect(g.type).toBe('g');
+        expect((g.children as Array<PxNode>)[0].type).toBe('path');
     });
 });
 
@@ -601,7 +604,8 @@ describe('textGlyphsEffect — span opacity folds into the baked paint', () => {
     it('TEXT-level opacity stays on the <g> (toGroup) — NOT doubled into the paths', () => {
         const { root } = run({ useGlyphs: true }, { opacity: 0.35 });
         const g = collectByType(root, 'g').find(n => n.id === 't');
-        expect(g!.opacity).toBe(0.35);
+        assert(g, 'the <text> became a <g>');
+        expect(g.opacity).toBe(0.35);
         const p = paths(root);
         expect(p[0].opacity).toBeUndefined();
     });
@@ -664,7 +668,8 @@ describe('textGlyphsEffect — full span paint folds into the baked paths', () =
     it('TEXT-level paint props stay off the paths (they ride the <g> and inherit)', () => {
         const { root } = run({ useGlyphs: true }, { fillOpacity: 0.5, strokeDashoffset: 3 });
         const g = collectByType(root, 'g').find(n => n.id === 't');
-        expect(g!.fillOpacity).toBe(0.5);          // toGroup carried it
+        assert(g, 'the <text> became a <g>');
+        expect(g.fillOpacity).toBe(0.5);          // toGroup carried it
         const p = paths(root);
         expect(p[0].fillOpacity).toBeUndefined();  // not doubled into the paint
         expect(p[0].strokeDashoffset).toBeUndefined();
@@ -687,7 +692,8 @@ describe('textGlyphsEffect — span filter ref folds into the baked paint', () =
     it('TEXT-level filter stays on the <g> (toGroup) — not doubled into the paths', () => {
         const { root } = run({ useGlyphs: true }, { filter: 'url(#blur1)' });
         const g = collectByType(root, 'g').find(n => n.id === 't');
-        expect(g!.filter).toBe('url(#blur1)');
+        assert(g, 'the <text> became a <g>');
+        expect(g.filter).toBe('url(#blur1)');
         expect(paths(root)[0].filter).toBeUndefined();
     });
 });

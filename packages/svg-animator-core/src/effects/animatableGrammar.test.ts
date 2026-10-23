@@ -11,15 +11,12 @@
 // loop materialization. These tests pin that contract per applier.
 
 import { describe, expect, it } from 'vitest';
-import { PxTransformPartsSchema, type PxDocument, type PxClipPathEffect, type PxFillGradientEffect, type PxKeyframe, type PxKeyframeValue, type PxNode, type PxTimeline } from '../format/PxAnimatorTypes';
+import { PxTransformPartsSchema, type PxDocument, type PxClipPathEffect, type PxFillGradientEffect, type PxNode } from '../format/PxAnimatorTypes';
 import { authoredEntry, collectByType, compiledEntry, entryOf, materialize, materializeEngine, PxTimelineEngine, untyped } from './effectTestKit';
 
 const doc = (child: PxNode): PxDocument =>
-    // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
-    ({ type: 'svg', animator: { timeline: untyped<PxTimeline>({ duration: 2000 }) }, children: [child] });
+    ({ type: 'svg', animator: { timeline: { outTime: 2000 } }, children: [child] });
 
-/** Short `{t, v}` keyframes — not in the type, still read by effect slots (`readAnimatable`). */
-const shortKfs = (kfs: Array<{ t: number; v: PxKeyframeValue }>): Array<PxKeyframe<PxKeyframeValue>> => untyped(kfs);
 
 
 describe('unified animatable grammar — loop / value base in effect slots', () => {
@@ -53,7 +50,7 @@ describe('unified animatable grammar — loop / value base in effect slots', () 
         const out = materialize(doc({
             type: 'rect', width: 100, height: 50,
             effects: { transformBy: {
-                rotate: { keyframes: shortKfs([{ t: 0, v: 0 }, { t: 1000, v: 90 }]), loop: { direction: 'alternate' } },
+                rotate: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 90 }], loop: { direction: 'alternate' } },
             } },
         }));
         const wrapper = collectByType(out, 'g')[0];
@@ -67,7 +64,7 @@ describe('unified animatable grammar — loop / value base in effect slots', () 
             type: 'text', children: [{ type: 'tspan', textContent: 'hi' }],
             effects: { textPath: {
                 pathData: 'M0,0 L100,0', pathOverflow: 'clip',
-                startOffset: { keyframes: shortKfs([{ t: 0, v: 5 }, { t: 1000, v: 50 }]), loop: true },
+                startOffset: { keyframes: [{ time: 0, value: 5 }, { time: 1000, value: 50 }], loop: true },
             } },
         }));
         const tp = collectByType(out, 'textPath')[0];
@@ -81,7 +78,7 @@ describe('unified animatable grammar — loop / value base in effect slots', () 
             type: 'rect', width: 10, height: 10,
             effects: { repeater: {
                 copies: 3,
-                translate: { keyframes: shortKfs([{ t: 0, v: [0, 0] }, { t: 1000, v: [10, 0] }]) },
+                translate: { keyframes: [{ time: 0, value: [0, 0] }, { time: 1000, value: [10, 0] }] },
             } },
         }));
         // Copies 1..2 are wrapped with a per-copy transformation; copy 2 moves ×2.
@@ -101,7 +98,7 @@ describe('unified animatable grammar — loop / value base in effect slots', () 
         const animOut = materialize(doc({
             type: 'rect', width: 10, height: 10,
             effects: { fillGradient: { type: 'linear', start: [0, 0], end: [10, 0],
-                stops: { keyframes: shortKfs([{ t: 0, v: stops }, { t: 1000, v: [{ offset: 0, color: '#0f0' }, { offset: 1, color: '#00f' }] }]), loop: true } } },
+                stops: { keyframes: [{ time: 0, value: stops }, { time: 1000, value: [{ offset: 0, color: '#0f0' }, { offset: 1, color: '#00f' }] }], loop: true } } },
         }));
         const stopNodes = collectByType(animOut, 'stop');
         expect(authoredEntry(stopNodes[0], 'stopColor').keyframes?.map(k => k.value)).toEqual(['#f00', '#0f0']);

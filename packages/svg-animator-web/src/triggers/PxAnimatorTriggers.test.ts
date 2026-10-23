@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
 import type { PxEngineAnimatorApi } from '../shared/PxAnimatorWebTypes';
 
@@ -187,6 +187,7 @@ describe('setupAnimationTriggers', () => {
             const io = stubIntersectionObserver();
             const { api, root } = createMockApi();
             setupAnimationTriggers(api, { visibilityDebounce: 0 });
+            assert(io.callback, 'the gate created no IntersectionObserver');
 
             expect(io.observed).toBe(root);
             // The observer registers a GRANULAR threshold list, not the author's raw value: a
@@ -198,10 +199,10 @@ describe('setupAnimationTriggers', () => {
             expect(io.options?.threshold).toContain(1);
 
             // Keep in sync with the editor model's default (TSvgSvgAnimationAttr).
-            io.callback!([{ isIntersecting: true, intersectionRatio: 0.01 }]);
+            io.callback([{ isIntersecting: true, intersectionRatio: 0.01 }]);
             expect(api.play).not.toHaveBeenCalled();
 
-            io.callback!([{ isIntersecting: true, intersectionRatio: 0.6 }]);
+            io.callback([{ isIntersecting: true, intersectionRatio: 0.6 }]);
             expect(api.play).toHaveBeenCalledTimes(1);
         });
 
@@ -209,9 +210,10 @@ describe('setupAnimationTriggers', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
             setupAnimationTriggers(api, { offScreen: 'pause', visibilityDebounce: 0 });
+            assert(io.callback, 'the gate created no IntersectionObserver');
 
-            io.callback!([{ isIntersecting: true, intersectionRatio: 1 }]);
-            io.callback!([{ isIntersecting: false, intersectionRatio: 0 }]);
+            io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
+            io.callback([{ isIntersecting: false, intersectionRatio: 0 }]);
 
             expect(api.play).toHaveBeenCalledTimes(1);
             expect(api.pause).toHaveBeenCalledTimes(1);
@@ -221,15 +223,16 @@ describe('setupAnimationTriggers', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
             setupAnimationTriggers(api, { visibilityThreshold: 0.8, visibilityDebounce: 0 });
+            assert(io.callback, 'the gate created no IntersectionObserver');
 
             // See the note above: the registration is a granular list; the 0.8 gate is applied to
             // the normalized ratio in the callback, which the assertions below exercise.
             expect(Array.isArray(io.options?.threshold)).toBe(true);
 
-            io.callback!([{ isIntersecting: true, intersectionRatio: 0.6 }]);
+            io.callback([{ isIntersecting: true, intersectionRatio: 0.6 }]);
             expect(api.play).not.toHaveBeenCalled();
 
-            io.callback!([{ isIntersecting: true, intersectionRatio: 0.9 }]);
+            io.callback([{ isIntersecting: true, intersectionRatio: 0.9 }]);
             expect(api.play).toHaveBeenCalledTimes(1);
         });
 
@@ -237,13 +240,14 @@ describe('setupAnimationTriggers', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
             setupAnimationTriggers(api, { visibilityThreshold: 0, visibilityDebounce: 0 });
+            assert(io.callback, 'the gate created no IntersectionObserver');
 
             // Not intersecting at all: a threshold of 0 is "any pixel", not "no pixels".
-            io.callback!([{ isIntersecting: false, intersectionRatio: 0 }]);
+            io.callback([{ isIntersecting: false, intersectionRatio: 0 }]);
             expect(api.play).not.toHaveBeenCalled();
 
             // The first visible pixel opens it.
-            io.callback!([{ isIntersecting: true, intersectionRatio: 0.01 }]);
+            io.callback([{ isIntersecting: true, intersectionRatio: 0.01 }]);
             expect(api.play).toHaveBeenCalledTimes(1);
         });
 
@@ -251,15 +255,16 @@ describe('setupAnimationTriggers', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
             setupAnimationTriggers(api, { visibilityThreshold: 0.5, visibilityDebounce: 0 });
+            assert(io.callback, 'the gate created no IntersectionObserver');
 
-            io.callback!([{ isIntersecting: true, intersectionRatio: 0.6 }]);   // opens
-            io.callback!([{ isIntersecting: true, intersectionRatio: 0.4 }]);   // below → still open
-            io.callback!([{ isIntersecting: true, intersectionRatio: 0.6 }]);   // back up → no re-play
+            io.callback([{ isIntersecting: true, intersectionRatio: 0.6 }]);   // opens
+            io.callback([{ isIntersecting: true, intersectionRatio: 0.4 }]);   // below → still open
+            io.callback([{ isIntersecting: true, intersectionRatio: 0.6 }]);   // back up → no re-play
 
             expect(api.play).toHaveBeenCalledTimes(1);
             expect(api.pause).not.toHaveBeenCalled();
 
-            io.callback!([{ isIntersecting: false, intersectionRatio: 0 }]);    // gone → closes
+            io.callback([{ isIntersecting: false, intersectionRatio: 0 }]);    // gone → closes
             expect(api.pause).toHaveBeenCalledTimes(1);
         });
 
@@ -267,13 +272,14 @@ describe('setupAnimationTriggers', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
             setupAnimationTriggers(api, { offScreen: 'reset', visibilityDebounce: 0 });
+            assert(io.callback, 'the gate created no IntersectionObserver');
 
-            io.callback!([{ isIntersecting: true, intersectionRatio: 1 }]);
-            io.callback!([{ isIntersecting: false, intersectionRatio: 0 }]);
+            io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
+            io.callback([{ isIntersecting: false, intersectionRatio: 0 }]);
             expect(api.cancel).toHaveBeenCalledTimes(1);
             expect(api.pause).not.toHaveBeenCalled();
 
-            io.callback!([{ isIntersecting: true, intersectionRatio: 1 }]);
+            io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
             expect(api.play).toHaveBeenCalledTimes(2);   // the replay
         });
 
@@ -291,11 +297,12 @@ describe('setupAnimationTriggers', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
             setupAnimationTriggers(api, { visibilityThreshold: 0.5, visibilityDebounce: 0 });
+            assert(io.callback, 'the gate created no IntersectionObserver');
 
             // 2000px graphic, 800px viewport: the raw ratio can never exceed 0.4, so an
             // un-normalized gate would never open. Normalized by what COULD be visible, 400px
             // showing is 0.5 and the gate opens.
-            io.callback!([{
+            io.callback([{
                 isIntersecting: true,
                 intersectionRatio: 0.2,
                 boundingClientRect: { height: 2000 },
@@ -310,8 +317,9 @@ describe('setupAnimationTriggers', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
             setupAnimationTriggers(api, { visibilityDebounce: 0 });
+            assert(io.callback, 'the gate created no IntersectionObserver');
 
-            io.callback!([{ isIntersecting: true, intersectionRatio: 1 }]);
+            io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
             expect(api.play).toHaveBeenCalledTimes(1);
 
             const hidden = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
@@ -338,11 +346,12 @@ describe('setupAnimationTriggers', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
             setupAnimationTriggers(api, { start: 'none', visibilityDebounce: 0 });
+            assert(io.callback, 'the gate created no IntersectionObserver');
 
             // Was "creates NO IntersectionObserver": the gate is about permission to RUN, which
             // applies however playback started — including a bare `play()` from the host.
             expect(io.observed).not.toBeNull();
-            io.callback!([{ isIntersecting: false, intersectionRatio: 0 }]);
+            io.callback([{ isIntersecting: false, intersectionRatio: 0 }]);
             expect(api.pause).toHaveBeenCalledTimes(1);
         });
     });
@@ -358,12 +367,13 @@ describe('setupAnimationTriggers', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
             setupAnimationTriggers(api, {});   // default 150ms
+            assert(io.callback, 'the gate created no IntersectionObserver');
 
-            io.callback!([{ isIntersecting: true, intersectionRatio: 1 }]);
+            io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
             vi.advanceTimersByTime(100);
             expect(api.play).not.toHaveBeenCalled();
 
-            io.callback!([{ isIntersecting: false, intersectionRatio: 0 }]);
+            io.callback([{ isIntersecting: false, intersectionRatio: 0 }]);
             vi.advanceTimersByTime(1000);
             expect(api.play).not.toHaveBeenCalled();
         });
@@ -372,8 +382,9 @@ describe('setupAnimationTriggers', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
             setupAnimationTriggers(api, {});
+            assert(io.callback, 'the gate created no IntersectionObserver');
 
-            io.callback!([{ isIntersecting: true, intersectionRatio: 1 }]);
+            io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
             vi.advanceTimersByTime(149);
             expect(api.play).not.toHaveBeenCalled();
 
@@ -385,9 +396,10 @@ describe('setupAnimationTriggers', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
             setupAnimationTriggers(api, { visibilityThreshold: 0.5 });
+            assert(io.callback, 'the gate created no IntersectionObserver');
 
-            io.callback!([{ isIntersecting: true, intersectionRatio: 0.9 }]);
-            io.callback!([{ isIntersecting: true, intersectionRatio: 0.2 }]);   // still visible, not enough
+            io.callback([{ isIntersecting: true, intersectionRatio: 0.9 }]);
+            io.callback([{ isIntersecting: true, intersectionRatio: 0.2 }]);   // still visible, not enough
             vi.advanceTimersByTime(1000);
 
             expect(api.play).not.toHaveBeenCalled();
@@ -397,8 +409,9 @@ describe('setupAnimationTriggers', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
             setupAnimationTriggers(api, { visibilityDebounce: 0 });
+            assert(io.callback, 'the gate created no IntersectionObserver');
 
-            io.callback!([{ isIntersecting: true, intersectionRatio: 1 }]);
+            io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
             expect(api.play).toHaveBeenCalledTimes(1);
         });
 
@@ -464,10 +477,11 @@ describe('setupAnimationTriggers', () => {
         const io = stubIntersectionObserver();
         const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
         setupAnimationTriggers(api, { offScreen: 'pause', visibilityDebounce: 0 });
+        assert(io.callback, 'the gate created no IntersectionObserver');
 
-        io.callback!([{ isIntersecting: true, intersectionRatio: 1 }]);
-        io.callback!([{ isIntersecting: false, intersectionRatio: 0 }]);
-        io.callback!([{ isIntersecting: true, intersectionRatio: 1 }]);
+        io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
+        io.callback([{ isIntersecting: false, intersectionRatio: 0 }]);
+        io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
 
         expect(api.pause).toHaveBeenCalledTimes(1);
         expect(api.cancel).not.toHaveBeenCalled();   // resume, never restart

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimator, createSvgAnimatorsFromPage, generateNewIds, getSvgAnimator } from './PxAnimator';
 import { PX_ANIM_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { PxDiagnosticCode, type PxDocument } from '@pixodesk/svg-animator-core';
@@ -59,7 +59,9 @@ function tagElement(id: string): PxTagElement {
 }
 
 function container(): Element {
-    return document.querySelector('#svg-container')!;
+    const el = document.querySelector('#svg-container');
+    assert(el, 'fixture element #svg-container is missing');
+    return el;
 }
 
 
@@ -93,12 +95,15 @@ describe('createSvgAnimator', () => {
 
         expect(api.isReady()).toBe(true);
         expect(container().querySelector('svg')).not.toBeNull();
-        const rect = container().querySelector('rect')!;
+        const rect = container().querySelector('rect');
         expect(rect).not.toBeNull();
+        assert(rect, 'no <rect> was rendered');
 
         api.play();
         vi.advanceTimersByTime(DUR / 2);
-        expect(parseFloat(rect.getAttribute('opacity')!)).toBeCloseTo(0.5, 5);
+        const opacity = rect.getAttribute('opacity');
+        assert(opacity !== null, 'the rect has no opacity');
+        expect(parseFloat(opacity)).toBeCloseTo(0.5, 5);
         expect(api.getCurrentTime()).toBe(DUR / 2);
     });
 
@@ -173,8 +178,11 @@ describe('createSvgAnimator', () => {
 
         // The replayed play() left the animation running from t=160.
         vi.advanceTimersByTime(80);
-        const rect = container().querySelector('rect')!;
-        expect(parseFloat(rect.getAttribute('opacity')!)).toBeCloseTo(240 / DUR, 5);
+        const rect = container().querySelector('rect');
+        assert(rect, 'no <rect> was rendered');
+        const opacity = rect.getAttribute('opacity');
+        assert(opacity !== null, 'the rect has no opacity');
+        expect(parseFloat(opacity)).toBeCloseTo(240 / DUR, 5);
     });
 
     it('URL path: destroy() before load prevents creation', async () => {
@@ -289,38 +297,50 @@ describe('generateNewIds', () => {
         expect(out).not.toBe(doc);
         // Original untouched.
         expect(doc.id).toBe('root1');
-        expect(doc.children![1].id).toBe('rect1');
-        expect(doc.animator!.bindings![0].target).toBe('#rect1');
+        assert(doc.children, 'the fixture has children');
+        assert(doc.animator?.bindings, 'the fixture has bindings');
+        expect(doc.children[1].id).toBe('rect1');
+        expect(doc.animator.bindings[0].target).toBe('#rect1');
 
         // All ids regenerated with the _px_ prefix.
-        const newRectId = out.children![1].id as string;
-        const newGradId = out.children![0].children![0].id as string;
+        assert(out.children, 'the copy has children');
+        const defs = out.children[0];
+        assert(defs.children, 'the copy keeps the defs children');
+        const newRectId = out.children[1].id as string;
+        const newGradId = defs.children[0].id as string;
         expect(out.id).not.toBe('root1');
         expect(newRectId).not.toBe('rect1');
         expect(newRectId).toMatch(/^_px_/);
         expect(newGradId).not.toBe('grad1');
         expect(newGradId).toMatch(/^_px_/);
         // Repeated calls produce different ids.
-        expect(generateNewIds(doc).children![1].id).not.toBe(newRectId);
+        const again = generateNewIds(doc).children;
+        assert(again, 'the second copy has children');
+        expect(again[1].id).not.toBe(newRectId);
     });
 
     it('updates href="#id" and url(#id) references to the new ids', () => {
         const out = generateNewIds(makeRefDoc());
+        assert(out.children, 'the copy has children');
+        const defs = out.children[0];
+        assert(defs.children, 'the copy keeps the defs children');
 
-        const newRectId = out.children![1].id as string;
-        const newGradId = out.children![0].children![0].id as string;
+        const newRectId = out.children[1].id as string;
+        const newGradId = defs.children[0].id as string;
 
-        expect(out.children![2].href).toBe('#' + newRectId);
-        expect(out.children![1].fill).toBe('url(#' + newGradId + ')');
+        expect(out.children[2].href).toBe('#' + newRectId);
+        expect(out.children[1].fill).toBe('url(#' + newGradId + ')');
     });
 
     it('re-points animator.bindings targets at the new ids', () => {
         const out = generateNewIds(makeRefDoc());
+        assert(out.children, 'the copy has children');
+        assert(out.animator, 'the copy has an animator');
 
-        const newRectId = out.children![1].id as string;
-        expect(out.animator!.bindings).toEqual([{ target: '#' + newRectId, animateWith: ['fade'] }]);
+        const newRectId = out.children[1].id as string;
+        expect(out.animator.bindings).toEqual([{ target: '#' + newRectId, animateWith: ['fade'] }]);
         // the named animation itself is untouched
-        expect(out.animator!.definitions!.animations!.fade).toEqual({
+        expect(out.animator.definitions?.animations?.fade).toEqual({
             opacity: { keyframes: [{ time: 0, value: 0 }, { time: 100, value: 1 }] },
         });
     });

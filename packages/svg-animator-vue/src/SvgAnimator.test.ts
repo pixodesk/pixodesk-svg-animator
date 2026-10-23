@@ -6,7 +6,7 @@
 import { createSvgAnimator, PxDocument, type PxNode } from '@pixodesk/svg-animator-web';
 import { PxDiagnosticCode } from '@pixodesk/svg-animator-core';
 import { cleanup, render } from "@testing-library/vue";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from "vitest";
 import { defineComponent, h, ref } from "vue";
 import type { PxAnimatorCallbacks, PxAnimatorHandle } from '@pixodesk/svg-animator-core';
 import SvgAnimator from './SvgAnimator';
@@ -170,31 +170,33 @@ describe("SvgAnimator (Vue)", () => {
             const { api } = renderWithApi(getTestJson());
 
             expect(api.value).not.toBeNull();
+            const handle = api.value;
+            assert(handle, "template ref is set after render");
 
             // Not playing until told to
-            expect(api.value!.isPlaying()).toBe(false);
+            expect(handle.isPlaying()).toBe(false);
 
-            api.value!.play();
-            expect(api.value!.isPlaying()).toBe(true);
+            handle.play();
+            expect(handle.isPlaying()).toBe(true);
 
             vi.advanceTimersByTime(32);
-            api.value!.pause();
-            expect(api.value!.isPlaying()).toBe(false);
-            expect(api.value!.getCurrentTime()).toBe(32);
+            handle.pause();
+            expect(handle.isPlaying()).toBe(false);
+            expect(handle.getCurrentTime()).toBe(32);
 
             // setCurrentTime / getCurrentTime round-trip
-            api.value!.setCurrentTime(64);
-            expect(api.value!.getCurrentTime()).toBe(64);
+            handle.setCurrentTime(64);
+            expect(handle.getCurrentTime()).toBe(64);
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
 
             // setPlaybackRate exists and is callable
-            expect(typeof api.value!.setPlaybackRate).toBe("function");
-            expect(() => api.value!.setPlaybackRate(2)).not.toThrow();
+            expect(typeof handle.setPlaybackRate).toBe("function");
+            expect(() => handle.setPlaybackRate(2)).not.toThrow();
 
             // cancel / finish are also exposed
-            expect(typeof api.value!.cancel).toBe("function");
-            expect(typeof api.value!.finish).toBe("function");
+            expect(typeof handle.cancel).toBe("function");
+            expect(typeof handle.finish).toBe("function");
         });
     });
 
@@ -212,31 +214,39 @@ describe("SvgAnimator (Vue)", () => {
 
         it("emits 'play' when playback starts", () => {
             const { api, spies } = renderWithListeners();
-            api.value!.play();
+            const handle = api.value;
+            assert(handle, "template ref is set after render");
+            handle.play();
             expect(spies.onPlay).toHaveBeenCalledTimes(1);
             expect(spies.onStop).not.toHaveBeenCalled();
         });
 
         it("emits 'pause' and 'stop' when paused", () => {
             const { api, spies } = renderWithListeners();
-            api.value!.play();
-            api.value!.pause();
+            const handle = api.value;
+            assert(handle, "template ref is set after render");
+            handle.play();
+            handle.pause();
             expect(spies.onPause).toHaveBeenCalledTimes(1);
             expect(spies.onStop).toHaveBeenCalledTimes(1);
         });
 
         it("emits 'cancel' and 'stop' when canceled", () => {
             const { api, spies } = renderWithListeners();
-            api.value!.play();
-            api.value!.cancel();
+            const handle = api.value;
+            assert(handle, "template ref is set after render");
+            handle.play();
+            handle.cancel();
             expect(spies.onCancel).toHaveBeenCalledTimes(1);
             expect(spies.onStop).toHaveBeenCalledTimes(1);
         });
 
         it("emits 'finish' and 'stop' when finished", () => {
             const { api, spies } = renderWithListeners();
-            api.value!.play();
-            api.value!.finish();
+            const handle = api.value;
+            assert(handle, "template ref is set after render");
+            handle.play();
+            handle.finish();
             expect(spies.onFinish).toHaveBeenCalledTimes(1);
             expect(spies.onStop).toHaveBeenCalledTimes(1);
         });
@@ -317,14 +327,17 @@ describe("SvgAnimator (Vue)", () => {
             // The animator is recreated with `flush: 'post'` (after the DOM is
             // patched) so the new root element is found and triggers re-attach.
             // Drive the swapped animator imperatively to prove the swap happened:
-            api.value!.play();
+            const swappedApi = api.value;
+            assert(swappedApi, "template ref is set after the doc swap");
+            swappedApi.play();
             vi.advanceTimersByTime(128);
             expect(rect?.getAttribute("transform")).toMatch("translate(100,0)");
 
             // The exposed API is backed by the new animator instance state
             // (finished, not the old animator's idle state).
-            expect(api.value!.getCurrentTime()).toBe(128);
-            expect(firstApi!.isPlaying()).toBe(false);
+            expect(swappedApi.getCurrentTime()).toBe(128);
+            assert(firstApi, "template ref was set before the doc swap");
+            expect(firstApi.isPlaying()).toBe(false);
         });
 
         it("keeps the animator when a re-created doc has the same content", async () => {

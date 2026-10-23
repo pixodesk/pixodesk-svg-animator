@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import { generateNewIds, materializeAllInTree, PxTimelineEngine, type PxDocument, type PxNode } from '@pixodesk/svg-animator-core';
 import { compileTracks, sampleProps } from './PxRnTracks';
 import { toRnPropName } from './PxRnPropNames';
@@ -59,7 +59,8 @@ describe('compileTracks', () => {
 
     it('samples numeric props with endpoint accuracy (opacity 1 → 0)', () => {
         const tracks = compile();
-        const rect = tracks.elements.find(e => 'opacity' in e.props)!;
+        const rect = tracks.elements.find(e => 'opacity' in e.props);
+        assert(rect, 'an element animates opacity');
         const op = rect.props.opacity;
         expect(op[0]).toBe(1);
         expect(op[op.length - 1]).toBe(0);
@@ -69,7 +70,8 @@ describe('compileTracks', () => {
 
     it('converts attr names to react-native-svg prop names (stroke-width → strokeWidth)', () => {
         const tracks = compile();
-        const rect = tracks.elements.find(e => 'opacity' in e.props)!;
+        const rect = tracks.elements.find(e => 'opacity' in e.props);
+        assert(rect, 'an element animates opacity');
         expect(rect.props.strokeWidth).toBeDefined();
         expect(rect.props['stroke-width']).toBeUndefined();
         expect(+rect.props.strokeWidth[0]).toBe(1);
@@ -78,7 +80,8 @@ describe('compileTracks', () => {
 
     it('samples color props as rgba strings', () => {
         const tracks = compile();
-        const rect = tracks.elements.find(e => 'fill' in e.props)!;
+        const rect = tracks.elements.find(e => 'fill' in e.props);
+        assert(rect, 'an element animates fill');
         expect(String(rect.props.fill[0])).toMatch(/^rgba\(/);
         expect(String(rect.props.fill[rect.props.fill.length - 1])).toMatch(/^rgba\(/);
         expect(rect.props.fill[0]).not.toBe(rect.props.fill[rect.props.fill.length - 1]);
@@ -89,7 +92,8 @@ describe('compileTracks', () => {
         // render — a step reanimated's animated-props path skips. Feeding the
         // matrix directly is what makes animated transforms work on device.
         const tracks = compile(makeDoc(), { native: true });
-        const g = tracks.elements.find(e => 'transform' in e.props)!;
+        const g = tracks.elements.find(e => 'transform' in e.props);
+        assert(g, 'an element animates transform');
         const first = g.props.transform[0] as Array<number>;
         const last = g.props.transform[g.props.transform.length - 1] as Array<number>;
 
@@ -121,7 +125,8 @@ describe('compileTracks', () => {
 describe('sampleProps', () => {
     it('indexes the nearest sample and clamps at both ends', () => {
         const tracks = compile();
-        const rect = tracks.elements.find(e => 'opacity' in e.props)!;
+        const rect = tracks.elements.find(e => 'opacity' in e.props);
+        assert(rect, 'an element animates opacity');
         const { stepMs, sampleCount } = tracks;
 
         expect(sampleProps(rect, 0, stepMs, sampleCount).opacity).toBe(1);
@@ -158,8 +163,9 @@ describe('length-list props (stroke-dasharray)', () => {
         };
         const materialized = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));
         const tracks = compileTracks(materialized);
-        const el = tracks.elements.find(e => 'strokeDasharray' in e.props)!;
+        const el = tracks.elements.find(e => 'strokeDasharray' in e.props);
         expect(el).toBeDefined();
+        assert(el, 'an element animates strokeDasharray');
         const first = el.props.strokeDasharray[0];
         expect(Array.isArray(first)).toBe(true);
         expect((first as number[]).every(n => typeof n === 'number' && Number.isFinite(n))).toBe(true);
@@ -200,7 +206,8 @@ describe('compileTracks platform gating', () => {
      *  behavior; native is the one that has to opt in. */
     it('samples transforms as SVG STRINGS by default', () => {
         const tracks = compile();
-        const g = tracks.elements.find(e => 'transform' in e.props)!;
+        const g = tracks.elements.find(e => 'transform' in e.props);
+        assert(g, 'an element animates transform');
 
         expect(typeof g.props.transform[0]).toBe('string');
         expect(String(g.props.transform[g.props.transform.length - 1]))
@@ -211,7 +218,8 @@ describe('compileTracks platform gating', () => {
      *  agree, and neither is observable without a device — hence the test. */
     it('compile+sample delivers an animated `matrix` of numbers on native', () => {
         const tracks = compile(makeDoc(), { native: true });
-        const g = tracks.elements.find(e => 'transform' in e.props)!;
+        const g = tracks.elements.find(e => 'transform' in e.props);
+        assert(g, 'an element animates transform');
 
         const start = sampleProps(g, 0, tracks.stepMs, tracks.sampleCount, true);
         const end = sampleProps(g, tracks.duration, tracks.stepMs, tracks.sampleCount, true);
@@ -224,7 +232,8 @@ describe('compileTracks platform gating', () => {
     /** …and the same compile targeted at the DOM must never emit `matrix`. */
     it('compile+sample delivers an animated `transform` string on web', () => {
         const tracks = compile();
-        const g = tracks.elements.find(e => 'transform' in e.props)!;
+        const g = tracks.elements.find(e => 'transform' in e.props);
+        assert(g, 'an element animates transform');
 
         const end = sampleProps(g, tracks.duration, tracks.stepMs, tracks.sampleCount, false);
         expect(end.matrix).toBeUndefined();

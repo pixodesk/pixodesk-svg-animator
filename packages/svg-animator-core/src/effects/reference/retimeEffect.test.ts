@@ -69,8 +69,7 @@ function transformKfTimes(root: PxNode): Array<Array<number>> {
 function danglingRetimeCount(root: PxNode): number {
     let n = 0;
     const walk = (node: PxNode): void => {
-        const effects = node.effects;
-        if (node.type === 'use' && effects && 'retime' in effects && effects.retime) n++;
+        if (node.type === 'use' && node.effects?.clone?.retime) n++;   // retime lives under `clone`
         node.children?.forEach(walk);
     };
     walk(root);
@@ -84,6 +83,10 @@ function materialize(input: PxNode): PxNode {
 }
 
 describe('retimeEffect — keyframe time-shift & composition', () => {
+
+    it('the dangling-retime guard counts an unconsumed `clone.retime`', () => {
+        expect(danglingRetimeCount({ type: 'svg', children: [{ type: 'use', href: '#src', effects: { clone: { retime: { start: 250 } } } }] })).toBe(1);
+    });
 
     it('case 1 — single retime via bare href (start only) shifts the clone +250', () => {
         const input: PxNode = {

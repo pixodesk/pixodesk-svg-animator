@@ -10,11 +10,11 @@ import { PxChannelNumberSchema, PxPathValueSchema, PxVec2Schema } from '../../fo
 import { ReadKind, readAnimatable, staticTransformParts } from './transformParts';
 
 describe('readAnimatable — values cast with the slot grammar', () => {
-    it('reads the three forms: bare, {value} and keyframes (short spellings normalized)', () => {
+    it('reads the three forms: bare, {value} and keyframes (long spelling only — a short {t, v} keyframe is skipped)', () => {
         expect(readAnimatable([1, 2], PxVec2Schema)).toEqual({ kind: ReadKind.Static, value: [1, 2] });
         expect(readAnimatable({ value: [1, 2] }, PxVec2Schema)).toEqual({ kind: ReadKind.Static, value: [1, 2] });
         const read = readAnimatable({ keyframes: [{ time: 0, value: [0, 0] }, { t: 500, v: [5, 5] }], value: [1, 1] }, PxVec2Schema);
-        expect(read.kind === ReadKind.Animated && read.keyframes.map(k => [k.time, k.value])).toEqual([[0, [0, 0]], [500, [5, 5]]]);
+        expect(read.kind === ReadKind.Animated && read.keyframes.map(k => [k.time, k.value])).toEqual([[0, [0, 0]]]);
         expect(read.kind === ReadKind.Animated && read.base).toEqual([1, 1]);
     });
 

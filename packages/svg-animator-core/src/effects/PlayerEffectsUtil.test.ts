@@ -8,7 +8,7 @@
 // EXPECTED materialized tree as a full JSON etalon. Deep-equality is checked
 // after normalizing auto-allocated `_lw_*` ids → stable `__GEN_N__` slugs.
 
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import { materializeNodeEffects } from './PlayerEffectsUtil';
 import { isCompiledAnimation, PxTransformPartsSchema, type PxNode, type PxTransformParts } from '../format/PxAnimatorTypes';
 import { authoredEntry, entryOf } from './effectTestKit';
@@ -338,12 +338,13 @@ describe('materializeNodeEffects — materialization etalons', () => {
         // Repeater emits N copies wrapped in a parent <g>. Exact structure varies;
         // assert key invariants: 3 children. Copies 1..N have per-copy `transform`
         // (translate × i, rotate × i). Copy 0 is the identity baseline (no transform).
-        const parent = result.children![0];
+        const parent = result.children?.[0];
+        assert(parent?.children, 'the repeater emitted a parent <g> with copies');
         expect(parent.type).toBe('g');
         expect(parent.children?.length).toBe(3);
         // Copies 1 and 2 carry transforms (copy 0 is the identity baseline).
-        expect(parent.children![1].transform).toBeDefined();
-        expect(parent.children![2].transform).toBeDefined();
+        expect(parent.children[1].transform).toBeDefined();
+        expect(parent.children[2].transform).toBeDefined();
     });
 
 
@@ -370,7 +371,8 @@ describe('materializeNodeEffects — materialization etalons', () => {
             ],
         };
         const result = materialize(input);
-        const parent = result.children![0];
+        const parent = result.children?.[0];
+        assert(parent?.children, 'the repeater emitted a parent <g> with copies');
         expect(parent.type).toBe('g');
         expect(parent.children?.length).toBe(3);
 
@@ -391,7 +393,7 @@ describe('materializeNodeEffects — materialization etalons', () => {
         };
 
         for (const i of [1, 2]) {
-            const copy = parent.children![i];
+            const copy = parent.children[i];
             const translateKfs = findKfsForPart(copy, 'translate');
             const rotateKfs = findKfsForPart(copy, 'rotate');
             expect(translateKfs).toEqual([
@@ -428,7 +430,8 @@ describe('materializeNodeEffects — materialization etalons', () => {
             ],
         };
         const result = materialize(input);
-        const parent = result.children![0];
+        const parent = result.children?.[0];
+        assert(parent?.children, 'the repeater emitted a parent <g> with copies');
         expect(parent.children?.length).toBe(3);
 
         const findScaleKfs = (n: PxNode): Array<{ time?: number; value?: PxTransformParts['scale'] }> | undefined => {
@@ -445,12 +448,12 @@ describe('materializeNodeEffects — materialization etalons', () => {
         };
 
         // Copy 1: 2^1=2, 1^1=1 → kfs are [2,2] then [1,1].
-        expect(findScaleKfs(parent.children![1])).toEqual([
+        expect(findScaleKfs(parent.children[1])).toEqual([
             { time: 0, value: [2, 2] },
             { time: 1000, value: [1, 1] },
         ]);
         // Copy 2: 2^2=4, 1^2=1 → kfs are [4,4] then [1,1].
-        expect(findScaleKfs(parent.children![2])).toEqual([
+        expect(findScaleKfs(parent.children[2])).toEqual([
             { time: 0, value: [4, 4] },
             { time: 1000, value: [1, 1] },
         ]);
@@ -482,17 +485,21 @@ describe('materializeNodeEffects — materialization etalons', () => {
         // <defs> contains the cloned symbol with a fresh id; inner rect has a regenerated id
         const defs = result.children?.find(c => c.type === 'defs');
         expect(defs).toBeDefined();
-        expect(defs!.children?.length).toBe(1);
-        const cloneRoot = defs!.children![0];
+        assert(defs, 'a <defs> was generated');
+        expect(defs.children?.length).toBe(1);
+        const cloneRoot = defs.children?.[0];
+        assert(cloneRoot, '<defs> holds the clone');
         expect(cloneRoot.id).toMatch(/^__GEN_\d+__$/);  // fresh id
         // Inner rect under the clone also has a regenerated id (not the original `inner`)
         const innerInClone = cloneRoot.children?.find(c => c.type === 'rect');
         expect(innerInClone).toBeDefined();
-        expect(innerInClone!.id).toMatch(/^__GEN_\d+__$/);
-        expect(innerInClone!.id).not.toBe('inner');
+        assert(innerInClone, 'the clone holds the inner rect');
+        expect(innerInClone.id).toMatch(/^__GEN_\d+__$/);
+        expect(innerInClone.id).not.toBe('inner');
         // Use's href points to the cloned root
         const use = result.children?.find(c => c.type === 'use');
-        expect(use!.href).toBe('#' + cloneRoot.id);
+        assert(use, 'the <use> survives');
+        expect(use.href).toBe('#' + cloneRoot.id);
     });
 
 
@@ -520,18 +527,21 @@ describe('materializeNodeEffects — materialization etalons', () => {
         const result = materialize(input);
         // Outermost should be +origin translate, then animated translate with autoOrient,
         // then -origin translate, then rect.
-        const outer = result.children![0];
+        const outer = result.children?.[0];
+        assert(outer, 'an outer <g> wraps the rect');
         expect(outer.type).toBe('g');
         // +origin = translate(10,10)
         expect(outer.transform).toEqual({ value: { translate: [10, 10] } });
-        const animatedTranslate = outer.children![0];
+        const animatedTranslate = outer.children?.[0];
+        assert(animatedTranslate, 'the animated translate wrapper exists');
         expect(animatedTranslate.type).toBe('g');
         // animated translate carries autoOrient + tangent metadata
         expect(authoredEntry(animatedTranslate, 'transform').autoOrient).toBe(true);
         expect(authoredEntry(animatedTranslate, 'transform').keyframes?.[0].tangentOut).toEqual([40, 0]);
         expect(authoredEntry(animatedTranslate, 'transform').keyframes?.[1].tangentIn).toEqual([-40, 0]);
         // -origin = translate(-10,-10) inside the animated translate wrapper
-        const negOrigin = animatedTranslate.children![0];
+        const negOrigin = animatedTranslate.children?.[0];
+        assert(negOrigin, 'the -origin wrapper exists');
         expect(negOrigin.type).toBe('g');
         expect(negOrigin.transform).toEqual({ value: { translate: [-10, -10] } });
     });

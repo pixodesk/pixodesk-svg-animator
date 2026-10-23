@@ -9,13 +9,13 @@
 // SHAPE, never that the two agree.
 
 import { describe, expect, it } from 'vitest';
-import { validateDocument, type PxDocument } from './PxAnimatorTypes';
+import { validateDocument, type PxDocument, type PxGlyphFont, type PxNode } from './PxAnimatorTypes';
 
-const FACE = { fontFamily: 'Roboto', fontStyle: 'Regular', ascent: 750, unitsPerEm: 1000,
+const FACE: PxGlyphFont = { fontFamily: 'Roboto', fontStyle: 'Regular', ascent: 750, unitsPerEm: 1000,
     glyphs: { H: { width: 700, pathData: 'M0 0L100 0L100 -700Z' } } };
 
 /** A document whose one <text> is in glyph mode, with the given fonts + span attrs. */
-function doc(fonts: Record<string, unknown> | undefined, span: Record<string, unknown>, useGlyphs = true) {
+function doc(fonts: Record<string, PxGlyphFont> | undefined, span: Partial<PxNode>, useGlyphs = true): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
@@ -26,7 +26,7 @@ function doc(fonts: Record<string, unknown> | undefined, span: Record<string, un
             effects: { text: { useGlyphs } },
             children: [{ type: 'tspan', textContent: 'H', fontSize: 16, ...span }],
         }],
-    } as never;
+    };
 }
 
 describe('validateDocument — glyph-mode text must name an embedded face (§2.5)', () => {

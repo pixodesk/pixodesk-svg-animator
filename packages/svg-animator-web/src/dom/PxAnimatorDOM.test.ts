@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import { renderNode } from './PxAnimatorDOM';
 import type { PxNode } from '@pixodesk/svg-animator-core';
 
@@ -33,7 +33,8 @@ describe('renderNode — text content', () => {
 
         const inner = el.querySelector('tspan > tspan');
         expect(inner).not.toBeNull();
-        expect(inner!.getAttribute('fill')).toBe('#ff0000');
+        assert(inner, 'no nested <tspan> was rendered');
+        expect(inner.getAttribute('fill')).toBe('#ff0000');
         expect(el.textContent).toBe('Hi');
     });
 });
@@ -64,7 +65,8 @@ describe('renderNode — feFunc type attribute', () => {
 
         const feFuncA = el.querySelector('feFuncA');
         expect(feFuncA).toBeTruthy();
-        expect(feFuncA!.getAttribute('type')).toBe('table');
-        expect(feFuncA!.getAttribute('tableValues')).toBe('1 0');
+        assert(feFuncA, 'no <feFuncA> was rendered');
+        expect(feFuncA.getAttribute('type')).toBe('table');
+        expect(feFuncA.getAttribute('tableValues')).toBe('1 0');
     });
 });

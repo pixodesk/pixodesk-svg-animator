@@ -14,7 +14,7 @@
  * rewritten internal refs); both engines then animate the clone directly.
  */
 
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import { materializeAnimatedUseInstances } from './PxAnimatorUseMaterializer';
 import type { PxNode } from '../format/PxAnimatorTypes';
 
@@ -34,6 +34,13 @@ function deepCountByType(node: PxNode, type: string): number {
     let n = node.type === type ? 1 : 0;
     if (node.children) for (const ch of node.children) n += deepCountByType(ch, type);
     return n;
+}
+
+/** `node.children[index]` — fails the test when it is absent. */
+function childAt(node: PxNode | undefined, index: number): PxNode {
+    const child = node?.children?.[index];
+    assert(child, 'no child #' + index + ' under <' + node?.type + '>');
+    return child;
 }
 
 
@@ -80,14 +87,14 @@ describe('materializeAnimatedUseInstances', () => {
         expect(out).not.toBe(tree);
 
         // The <use> child must now be a <g> with the cloned content.
-        const useReplacement = out.children![1];
+        const useReplacement = childAt(out, 1);
         expect(useReplacement.type).toBe('g');
         expect((useReplacement as PxNode).href).toBeUndefined();
         expect(useReplacement.children).toBeDefined();
-        expect(useReplacement.children!.length).toBe(1);
+        expect(useReplacement.children?.length).toBe(1);
 
         // The cloned child is a rect with a FRESH id and the same animation.
-        const clonedRect = useReplacement.children![0];
+        const clonedRect = childAt(useReplacement, 0);
         expect(clonedRect.type).toBe('rect');
         expect(clonedRect.id).not.toBe('animated-rect');
         expect(typeof clonedRect.id).toBe('string');
@@ -116,13 +123,13 @@ describe('materializeAnimatedUseInstances', () => {
         };
 
         const out = materializeAnimatedUseInstances(tree);
-        const useReplacement = out.children![1];
+        const useReplacement = childAt(out, 1);
         expect(useReplacement.type).toBe('g');
 
         // The clone preserves the structure of the wrapper.
-        const clonedWrapper = useReplacement.children![0];
+        const clonedWrapper = childAt(useReplacement, 0);
         expect(clonedWrapper.type).toBe('g');
-        const clonedInner = clonedWrapper.children![0];
+        const clonedInner = childAt(clonedWrapper, 0);
         expect(clonedInner.type).toBe('ellipse');
         expect(clonedInner.id).not.toBe('inner');
         expect((clonedInner as PxNode).animate).toBeDefined();
@@ -141,7 +148,7 @@ describe('materializeAnimatedUseInstances', () => {
             ],
         };
         const out = materializeAnimatedUseInstances(tree);
-        const useReplacement = out.children![1];
+        const useReplacement = childAt(out, 1);
         expect(useReplacement.transform).toBe('translate(50,100)');
     });
 
@@ -168,17 +175,18 @@ describe('materializeAnimatedUseInstances', () => {
         };
 
         const out = materializeAnimatedUseInstances(tree);
-        const cloneRoot = out.children![1].children![0];
+        const cloneRoot = childAt(childAt(out, 1), 0);
         const clonedRect = deepFind(cloneRoot, n => n.type === 'rect');
         const clonedGrad = deepFind(cloneRoot, n => n.type === 'linearGradient');
         expect(clonedRect).toBeDefined();
         expect(clonedGrad).toBeDefined();
+        assert(clonedGrad, 'the gradient was cloned');
         // The clone's rect.fill should reference the cloned gradient, not the original.
-        expect((clonedRect as PxNode).fill).toBe('url(#' + clonedGrad!.id + ')');
+        expect((clonedRect as PxNode).fill).toBe('url(#' + clonedGrad.id + ')');
         // The original sibling rect / gradient are untouched.
-        const originalGrad = tree.children![0].children![1];
+        const originalGrad = childAt(childAt(tree, 0), 1);
         expect(originalGrad.id).toBe('localGrad');
-        expect((tree.children![0].children![0] as PxNode).fill).toBe('url(#localGrad)');
+        expect(childAt(childAt(tree, 0), 0).fill).toBe('url(#localGrad)');
     });
 
     it('reproduces the user bug: <use> nested in a <mask>, target is the animated rect', () => {
@@ -223,7 +231,7 @@ describe('materializeAnimatedUseInstances', () => {
         // Find the use's replacement inside the mask.
         const replacement = deepFind(out, n => n.type === 'g' && Array.isArray(n.children) && n.children.length === 1 && n.children[0].type === 'rect');
         expect(replacement).toBeDefined();
-        const clonedRect = replacement!.children![0];
+        const clonedRect = childAt(replacement, 0);
         expect(clonedRect.id).not.toBe('anim-rect');
         expect((clonedRect as PxNode).animate).toBeDefined();
     });
@@ -306,16 +314,16 @@ describe('materializeAnimatedUseInstances', () => {
 
         const out = materializeAnimatedUseInstances(tree);
         // The original <symbol> is untouched.
-        expect(out.children![0].type).toBe('symbol');
+        expect(childAt(out, 0).type).toBe('symbol');
         // The <use>'s replacement is a <g>, with NO <symbol> inside the cloned
         // subtree — every clone-root symbol gets rewritten.
-        const replacement = out.children![1];
+        const replacement = childAt(out, 1);
         expect(replacement.type).toBe('g');
         expect(deepCountByType(replacement, 'symbol')).toBe(0);
         // The cloned content's structure: replacement <g> → inner <g> with
         // viewport-fitting transform (translate(xOff,yOff) scale(s) translate(-vbX,-vbY))
         // and a clip-path ref → the cloned <rect> (still animated).
-        const cloneRoot = replacement.children![0];
+        const cloneRoot = childAt(replacement, 0);
         expect(cloneRoot.type).toBe('g');
         expect(typeof cloneRoot.transform).toBe('string');
         // Use sizes to the symbol's own viewBox (100×50) → scale=1, no centering →
@@ -325,14 +333,15 @@ describe('materializeAnimatedUseInstances', () => {
         expect(cloneRoot.transform).not.toContain('scale');
         expect(typeof (cloneRoot as PxNode & { clipPath?: string }).clipPath).toBe('string');
         // The clipPath defs entry should exist somewhere in the tree.
-        const clipPathRef = (cloneRoot as PxNode & { clipPath?: string }).clipPath!;
+        const clipPathRef = (cloneRoot as PxNode & { clipPath?: string }).clipPath;
+        assert(clipPathRef, 'the clone root carries a clip-path');
         const clipPathId = clipPathRef.match(/url\(#([^)]+)\)/)?.[1];
         expect(clipPathId).toBeTruthy();
         const clipPathNode = deepFind(out, n => n.type === 'clipPath' && n.id === clipPathId);
         expect(clipPathNode).toBeDefined();
         // The clipPath must contain a <rect> matching the viewBox dimensions
         // (in symbol coords — the surrounding transform maps it to viewport).
-        const clipRect = clipPathNode!.children![0];
+        const clipRect = childAt(clipPathNode, 0);
         expect(clipRect.type).toBe('rect');
         expect(clipRect.x).toBe(10);
         expect(clipRect.y).toBe(20);
@@ -366,9 +375,9 @@ describe('materializeAnimatedUseInstances', () => {
             ],
         };
         const out = materializeAnimatedUseInstances(tree);
-        const replacement = out.children![1];
+        const replacement = childAt(out, 1);
         expect(replacement.type).toBe('g');
-        const cloneRoot = replacement.children![0];
+        const cloneRoot = childAt(replacement, 0);
         expect(cloneRoot.type).toBe('g');
         // No viewBox → no transform / clip needed.
         expect(cloneRoot.transform).toBeUndefined();

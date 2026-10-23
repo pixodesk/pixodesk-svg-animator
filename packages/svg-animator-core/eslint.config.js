@@ -1,5 +1,8 @@
 import tseslint from 'typescript-eslint';
 
+// No `as never` (first-use review §17c): give the value its real type — in tests, `untyped<T>()` for input that is wrong on purpose.
+const NO_AS_NEVER = { selector: 'TSAsExpression > TSNeverKeyword', message: 'No `as never`: give the value its real type (tests: `untyped<T>()` for deliberately wrong input).' };
+
 export default tseslint.config(
     {
         files: ['src/**/*.ts'],
@@ -21,14 +24,15 @@ export default tseslint.config(
                     selector: 'TemplateLiteral',
                     message: 'Template literals are not allowed. Use string concatenation instead.',
                 },
+                NO_AS_NEVER,
             ],
         },
     },
     {
-        // Exclude test files and scripts from this rule
+        // Tests (and scripts) may use template literals; `as never` stays forbidden
         files: ['**/*.test.ts', 'scripts/**/*.ts'],
         rules: {
-            'no-restricted-syntax': 'off',
+            'no-restricted-syntax': ['error', NO_AS_NEVER],
         },
     },
     {
@@ -37,6 +41,6 @@ export default tseslint.config(
         files: ['src/**/*.{ts,tsx}'],
         languageOptions: { parser: tseslint.parser },
         plugins: { '@typescript-eslint': tseslint.plugin },
-        rules: { '@typescript-eslint/no-explicit-any': 'error' },
+        rules: { '@typescript-eslint/no-explicit-any': 'error', '@typescript-eslint/no-non-null-assertion': 'error' },
     }
 );

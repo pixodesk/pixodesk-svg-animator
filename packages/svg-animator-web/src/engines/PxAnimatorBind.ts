@@ -255,6 +255,6 @@ export function createPrerenderedWaapiAnimator(options: PxPrerenderedAnimatorOpt
     const doc = docToPlay(options);
     return registered(options, callbacks => buildOrReport(options, () => {
         const animatorConfig = getAnimatorConfig(doc) || {};
-        return finaliseAnimator(animatorConfig, callbacks, cb => createWebApiAnimator(doc, cb, null, true)!);
+        return finaliseAnimator(animatorConfig, callbacks, cb => createWebApiAnimator(doc, cb, null, true));
     }));
 }

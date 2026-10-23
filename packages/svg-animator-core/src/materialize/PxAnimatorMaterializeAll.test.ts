@@ -9,7 +9,7 @@
  * stages runs in the right order, and that engine gating is honored.
  */
 
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import { materializeAllInTree } from './PxAnimatorMaterializeAll';
 import { PxTimelineEngine } from '../format/PxAnimatorConstants';
 import type { PxDocument, PxNode, PxPropertyAnimation } from '../format/PxAnimatorTypes';
@@ -94,8 +94,9 @@ describe('materializeAllInTree', () => {
 
     it('waapi: motion-path materialized — tangents and autoOrient removed from `src`', () => {
         const out = materializeAllInTree(fixture(), PxTimelineEngine.native);
-        const src = deepFind(out, n => n.id === 'src')!;
-        const anim = getTransformAnim(src)!;
+        const src = deepFind(out, n => n.id === 'src');
+        const anim = getTransformAnim(src);
+        assert(anim, '`src` keeps a transform animation');
         expect(anim.autoOrient).toBeUndefined();
         const kfs = anim.keyframes as Array<{ tangentIn?: unknown; tangentOut?: unknown }>;
         for (const kf of kfs) {
@@ -108,8 +109,9 @@ describe('materializeAllInTree', () => {
 
     it('waapi: loop materialized — `loop` field consumed', () => {
         const out = materializeAllInTree(fixture(), PxTimelineEngine.native);
-        const src = deepFind(out, n => n.id === 'src')!;
-        const anim = getTransformAnim(src)!;
+        const src = deepFind(out, n => n.id === 'src');
+        const anim = getTransformAnim(src);
+        assert(anim, '`src` keeps a transform animation');
         expect(anim.loop).toBeUndefined();
     });
 
@@ -133,15 +135,17 @@ describe('materializeAllInTree', () => {
 
     it('frames: loop materialized — same as waapi (both engines need flat kfs)', () => {
         const out = materializeAllInTree(fixture(), PxTimelineEngine.js);
-        const src = deepFind(out, n => n.id === 'src')!;
-        const anim = getTransformAnim(src)!;
+        const src = deepFind(out, n => n.id === 'src');
+        const anim = getTransformAnim(src);
+        assert(anim, '`src` keeps a transform animation');
         expect(anim.loop).toBeUndefined();
     });
 
     it('frames: motion-path KEPT parametric — tangents + autoOrient intact', () => {
         const out = materializeAllInTree(fixture(), PxTimelineEngine.js);
-        const src = deepFind(out, n => n.id === 'src')!;
-        const anim = getTransformAnim(src)!;
+        const src = deepFind(out, n => n.id === 'src');
+        const anim = getTransformAnim(src);
+        assert(anim, '`src` keeps a transform animation');
         expect(anim.autoOrient).toBe(true);
         const kfs = anim.keyframes as Array<{ tangentIn?: unknown; tangentOut?: unknown }>;
         const hasAnyTangent = kfs.some(kf => kf.tangentIn || kf.tangentOut);

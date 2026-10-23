@@ -183,7 +183,16 @@ export interface PxWebApiScrollTimeline {
 }
 
 // @px-importance important
+/** @internal Forced: never `null` (only an unforced call steps aside for unsupported attrs). */
+export function createWebApiAnimator(
+    doc: PxDocument, callbacks: PxEngineCallbacks | undefined, rootElement: Element | null | undefined,
+    forceEvenIfHasUnsupportedAttrs: true, scrollTimeline?: PxWebApiScrollTimeline,
+): PxEngineAnimatorApi<Element>;
 /** @internal */
+export function createWebApiAnimator(
+    doc: PxDocument, callbacks?: PxEngineCallbacks, rootElement?: Element | null,
+    forceEvenIfHasUnsupportedAttrs?: boolean, scrollTimeline?: PxWebApiScrollTimeline,
+): PxEngineAnimatorApi<Element> | null;
 export function createWebApiAnimator(
     doc: PxDocument,
     callbacks?: PxEngineCallbacks,

@@ -328,8 +328,8 @@ export function createSvgAnimator(options: PxAnimatorOptions): PxAnimatorApi {
 
     if (doc !== undefined) {
         build(toPxDocument(doc));
-    } else {
-        fetch(src!).then(res => res.json()).then(json => {
+    } else if (src !== undefined) {   // neither is a thrown call error above
+        fetch(src).then(res => res.json()).then(json => {
             if (destroyed) return; // destroy() was called before the document loaded
             if (isPxDocument(json)) build(json);
             else failed(PxDiagnosticKind.document, PxDiagnosticCode.invalidDocumentAtSrc, src);

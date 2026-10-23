@@ -17,12 +17,11 @@
 // which drives the editor writer end-to-end rather than hand-authoring).
 
 import { describe, expect, it } from 'vitest';
-import { PxTransformPartsSchema, PxTransformValueWrapperSchema, type PxDocument, type PxKeyframe, type PxKeyframeValue, type PxNode, type PxTimeline, type PxTransformParts } from '../format/PxAnimatorTypes';
-import { authoredEntry, collectByType, entryOf, materialize, untyped } from './effectTestKit';
+import { PxTransformPartsSchema, PxTransformValueWrapperSchema, type PxDocument, type PxNode, type PxTransformParts } from '../format/PxAnimatorTypes';
+import { authoredEntry, collectByType, entryOf, materialize } from './effectTestKit';
 
 const doc = (child: PxNode): PxDocument =>
-    // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
-    ({ type: 'svg', animator: { timeline: untyped<PxTimeline>({ duration: 2000 }) }, children: [child] });
+    ({ type: 'svg', animator: { timeline: { outTime: 2000 } }, children: [child] });
 
 /** A per-copy wrapper's structured static `transform: {value: parts}` — its parts. */
 const staticParts = (g: PxNode): PxTransformParts | undefined => PxTransformValueWrapperSchema.castOrNull(g.transform)?.value;
@@ -45,8 +44,7 @@ describe('repeater.skew — per-copy skew increment ×i', () => {
             type: 'rect', width: 10, height: 10,
             effects: { repeater: {
                 copies: 3,
-                // short `{t, v}` keyframes: not in the type, still read by effect slots (`readAnimatable`)
-                skew: { keyframes: untyped<Array<PxKeyframe<PxKeyframeValue>>>([{ t: 0, v: 0 }, { t: 1000, v: 5 }]), loop: true },
+                skew: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 5 }], loop: true },
             } },
         }));
         const wrappers = collectByType(out, 'g').filter(g => entryOf(g, 'transform'));

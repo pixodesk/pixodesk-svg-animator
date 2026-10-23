@@ -9,7 +9,7 @@
 // the mask source paints at its original world position), then sets
 // `node.mask = url(#maskId)`. `maskType`/`maskUnits`/`maskContentUnits` pass through.
 
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import { PxTimelineEngine } from '../../format/PxAnimatorConstants';
 import { PxTransformPartsSchema, type PxEffects, type PxMaskedByEffect, type PxNode, type PxVec2 } from '../../format/PxAnimatorTypes';
 import { isRecord } from '../../schema/PxSchema';
@@ -74,8 +74,9 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
             ]
           }"
         `);
-        const mask = maskNode(out)!;
+        const mask = maskNode(out);
         expect(mask).toBeTruthy();
+        assert(mask, 'a <mask> was generated');
         expect(collectByType(out, 'mask')).toHaveLength(1);
         // mask content references the source via <use href=#src>
         expect(countNodes(mask, n => n.type === 'use' && n.href === '#src')).toBe(1);
@@ -208,7 +209,8 @@ describe('maskedByEffect — <mask> def + mask attr', () => {
             ]
           }"
         `);
-        const mask = maskNode(out)!;
+        const mask = maskNode(out);
+        assert(mask, 'a <mask> was generated');
         // inverse translate wrapper inside the mask
         const inverseParts = collectByType(mask, 'g')
             .map(g => g.transform).filter(isRecord).map(t => PxTransformPartsSchema.cast(t.value));

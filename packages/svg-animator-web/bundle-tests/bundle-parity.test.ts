@@ -17,21 +17,27 @@ import { describe, expect, it } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { BUNDLE_PAIRS, bundleText, framesDoc, loadBundle, type PxPlayerGlobal } from './bundleHarness';
-import { untyped } from './testKit';
-import type { PxAnimatorOptions } from '../src/animator/PxAnimator';
+import type { PxAnimatorOptions, PxInternalAnimatorOptions } from '../src/animator/PxAnimator';
 import type { PxPrerenderedAnimatorOptions } from '../src/engines/PxAnimatorBind';
 
 
 /** What a call through `create` or `bind` must satisfy — both entries' options at once. */
 type PxEntryOptions = PxAnimatorOptions & PxPrerenderedAnimatorOptions;
 
+/** The `#stage` element every loaded bundle page has. */
+function stageOf(win: Window): HTMLElement {
+    const stage = win.document.getElementById('stage');
+    if (!stage) throw new Error('the bundle page has no #stage');
+    return stage;
+}
+
 /**
  * Names that MUST survive minification, with what breaks when they do not.
  * See dev-docs/plans/minification-boundary.md §1.1 — all twelve were verified broken on 2026-09-08.
  */
-const BOUNDARY_NAMES: Array<{ name: string; why: string }> = [
-    { name: 'callbacks',      why: 'createSvgAnimator option — the whole callbacks bag is dropped' },
-    { name: 'adapter',        why: 'createSvgAnimator option — custom render targets are ignored' },
+const BOUNDARY_NAMES: Array<{ name: string; why: string; createOnly?: boolean }> = [
+    { name: 'doc',            why: 'create / bind option — the document is dropped' },
+    { name: 'adapter',        why: 'createSvgAnimator option — custom render targets are ignored', createOnly: true },
     { name: 'onPlay',         why: 'documented lifecycle callback' },
     { name: 'onPause',        why: 'documented lifecycle callback' },
     { name: 'onCancel',       why: 'documented lifecycle callback' },
@@ -70,8 +76,10 @@ describe('the mangle filter and the published contract cannot disagree', () => {
 
 describe('shipped bundles: boundary names survive minification', () => {
     for (const pair of BUNDLE_PAIRS) {
-        for (const { name, why } of BOUNDARY_NAMES) {
+        for (const { name, why, createOnly } of BOUNDARY_NAMES) {
             it(`[${pair.name}] keeps "${name}" — ${why}`, () => {
+                // An option of `create` alone: in a bind-only build the word is at most a local, which terser rightly renames.
+                if (createOnly && !pair.renders) return;
                 const min = bundleText(pair.min);
                 const unmin = bundleText(pair.unmin);
                 // Only assert on names the unminified bundle actually contains: each build is a
@@ -103,17 +111,15 @@ describe('shipped bundles: behavior is identical minified and unminified', () =>
 
         it(`[${pair.name}] lifecycle callbacks fire`, () => {
             const scenario = (px: PxPlayerGlobal, win: Window) => {
-                const fired: string[] = [];
-                // stale option shape: `data` and a `callbacks` bag predate `doc` and inline callbacks
-                const api = enter(px)(untyped<PxEntryOptions>({
-                    data: framesDoc(),
-                    container: win.document.getElementById('stage'),
-                    callbacks: {
-                        onPlay: () => fired.push('onPlay'),
-                        onPause: () => fired.push('onPause'),
-                        onCancel: () => fired.push('onCancel'),
-                    },
-                }));
+                const fired: Array<string> = [];
+                const options: PxEntryOptions = {
+                    doc: framesDoc(),
+                    container: stageOf(win),
+                    onPlay: () => fired.push('onPlay'),
+                    onPause: () => fired.push('onPause'),
+                    onCancel: () => fired.push('onCancel'),
+                };
+                const api = enter(px)(options);
                 api.play();
                 api.pause();
                 api.cancel();
@@ -124,38 +130,40 @@ describe('shipped bundles: behavior is identical minified and unminified', () =>
             expect(min, 'callbacks are dropped by the minified bundle').toBe(unmin);
         });
 
-        it(`[${pair.name}] a custom adapter is used`, () => {
-            const scenario = (px: PxPlayerGlobal, win: Window) => {
-                let calls = 0;
-                // stale option shape: `data` predates `doc`; `adapter` is not a public option of either entry
-                const api = enter(px)(untyped<PxEntryOptions>({
-                    data: framesDoc(),
-                    container: win.document.getElementById('stage'),
-                    adapter: {
-                        isConnected: () => true,
-                        setAttribute: () => { calls++; },
-                    },
-                }));
-                api.play();
-                api.setCurrentTime(160);
-                return calls > 0;
-            };
-            const { unmin, min } = ab(pair, scenario);
-            expect(min, 'the adapter is ignored by the minified bundle').toBe(unmin);
-        });
-
         if (pair.renders) {
+            // `adapter` is an internal option of `create` (the React / Vue components use it); `bind` has none
+            it(`[${pair.name}] a custom adapter is used`, () => {
+                const scenario = (px: PxPlayerGlobal, win: Window) => {
+                    let calls = 0;
+                    const options: PxInternalAnimatorOptions = {
+                        doc: framesDoc(),
+                        container: stageOf(win),
+                        adapter: {
+                            isConnected: () => true,
+                            setAttribute: () => { calls++; },
+                        },
+                    };
+                    const api = enter(px)(options);
+                    api.play();
+                    api.setCurrentTime(160);
+                    return calls > 0;
+                };
+                const { unmin, min } = ab(pair, scenario);
+                expect(unmin, 'the unminified bundle should use the adapter at all').toBe(true);
+                expect(min, 'the adapter is ignored by the minified bundle').toBe(unmin);
+            });
+
             it(`[${pair.name}] domType becomes a real "type" attribute`, () => {
                 const scenario = (px: PxPlayerGlobal, win: Window) => {
-                    // stale option shape: `data` predates `doc`
-                    enter(px)(untyped<PxEntryOptions>({
-                        data: {
+                    const options: PxEntryOptions = {
+                        doc: {
                             type: 'svg',
                             viewBox: '0 0 10 10',
                             children: [{ type: 'feTurbulence', id: 'turb', domType: 'fractalNoise', baseFrequency: 0.05 }],
                         },
-                        container: win.document.getElementById('stage'),
-                    }));
+                        container: stageOf(win),
+                    };
+                    enter(px)(options);
                     // `generateNewIds` rewrites authored ids, so find it by tag.
                     const el = win.document.querySelector('feTurbulence');
                     return el ? `${el.getAttribute('type')}|${el.hasAttribute('dom-type')}` : 'no-element';

@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import { svgTransformToMatrix } from './PxRnMatrix';
 import { toRnPropValue } from './PxRnPropNames';
 import { sampleProps, type PxElementTracks } from './PxRnTracks';
@@ -19,14 +19,16 @@ describe('svgTransformToMatrix', () => {
         ['matrix(1,2,3,4,5,6)', [1, 2, 3, 4, 5, 6]],
         ['translate(5,5) translate(-5,-5)', [1, 0, 0, 1, 0, 0]],
     ] as Array<[string, Array<number>]>)('%s', (input, expected) => {
-        const m = svgTransformToMatrix(input)!;
+        const m = svgTransformToMatrix(input);
+        assert(m, 'transform parses to a matrix');
         expect(m).toHaveLength(6);
         m.forEach((v, i) => expect(v).toBeCloseTo(expected[i], 9));
     });
 
     it('composes a list left-to-right (translate then rotate)', () => {
         // translate(10,0) rotate(90) maps local (1,0) → (10,1)
-        const m = svgTransformToMatrix('translate(10,0)rotate(90)')!;
+        const m = svgTransformToMatrix('translate(10,0)rotate(90)');
+        assert(m, 'transform parses to a matrix');
         const x = m[0] * 1 + m[2] * 0 + m[4];
         const y = m[1] * 1 + m[3] * 0 + m[5];
         expect(x).toBeCloseTo(10, 9);
@@ -35,7 +37,8 @@ describe('svgTransformToMatrix', () => {
 
     it('honors a rotation center', () => {
         // rotate(180, 5, 0) maps (0,0) → (10,0)
-        const m = svgTransformToMatrix('rotate(180,5,0)')!;
+        const m = svgTransformToMatrix('rotate(180,5,0)');
+        assert(m, 'transform parses to a matrix');
         expect(m[0] * 0 + m[2] * 0 + m[4]).toBeCloseTo(10, 9);
         expect(m[1] * 0 + m[3] * 0 + m[5]).toBeCloseTo(0, 9);
     });

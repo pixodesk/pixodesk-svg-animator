@@ -11,9 +11,9 @@
  * masked-by effects (the latter builds INVERSE parts).
  */
 
-import { px, type PxSchema } from '../../schema/PxSchema';
+import type { PxSchema } from '../../schema/PxSchema';
 import {
-    isCompiledAnimation, PxEasingOrRefSchema, PxKeyframeValueSchema, PxPropertyAnimationSchema, PxTransformPartsSchema, PxTransformValueWrapperSchema, PxVec2Schema,
+    isCompiledAnimation, PxPropertyAnimationSchema, PxTransformPartsSchema, PxTransformValueWrapperSchema, PxVec2Schema,
     type PxAnimationDefinition, type PxAnyPropertyAnimation, type PxKeyframe, type PxKeyframeValue, type PxLoop, type PxNode, type PxPropertyAnimation, type PxTransformParts, type PxVec2,
 } from '../../format/PxAnimatorTypes';
 import type { ApplyContext } from './types';
@@ -61,15 +61,6 @@ export type ReadPart<T> =
     | { kind: ReadKind.Static; value: T }
     | { kind: ReadKind.Animated; keyframes: Array<ValueKeyframe<T>>; autoOrient?: boolean; loop?: PxLoop | boolean; base?: T };
 
-/** The retired short spellings (`t`/`v`/`e`/`to`/`ti`) — still read inside effect payloads. */
-const ShortSpellingSchema = px.object({
-    t: px.number().optional(),
-    v: PxKeyframeValueSchema.optional(),
-    e: PxEasingOrRefSchema.optional(),
-    to: PxVec2Schema.optional(),
-    ti: PxVec2Schema.optional(),
-});
-
 /** The element's inline animation definition (`node.animate` as an object), if any. */
 export function inlineAnimate(node: PxNode): PxAnimationDefinition | undefined {
     const animate = node.animate;
@@ -107,13 +98,10 @@ export function staticTransformParts(transform: unknown): PxTransformParts | und
 export function readAnimatable<T>(raw: unknown, valueSchema: PxSchema<T>): ReadPart<T> {
     if (raw === undefined) return { kind: ReadKind.Absent };
     const anim = PxPropertyAnimationSchema.castOrNull(raw);
-    const short = anim ? ShortSpellingSchema.castOrNull(raw) : null;
-    const wrapped = anim ? anim.value ?? short?.v : undefined;
+    const wrapped = anim ? anim.value : undefined;
     if (anim?.keyframes) {
-        // Normalize the wire's short aliases ONCE, here, so every consumer
-        // downstream (transformation, repeater, …) only ever sees the long
-        // form. Without this a keyframe authored `{t, v}` lost both its time
-        // and its value and the animation silently froze at frame 0.
+        // Long spelling only: the short aliases (`t`/`v`/`e`/`to`/`ti`) were removed from the
+        // format in 2026-09, and the schema rejects them — no tolerant reader keeps them alive.
         const keyframes: Array<ValueKeyframe<T>> = [];
         for (const kf of anim.keyframes) {
             const k = normalizeKeyframe(kf, valueSchema);
@@ -160,21 +148,11 @@ export function writeAnimatableChannel<T extends PxKeyframeValue>(
     if (baseline !== undefined) node[attrName] = toOut(baseline);
 }
 
-/** Rewrites a keyframe's short aliases (`t`/`v`/`e`/`to`/`ti`) to their long
- *  names and casts its value with `valueSchema` — undefined when the value does
- *  not match. Long names win when both are present, matching `PxMotionPath`'s
- *  `tangentIn ?? ti` precedence. */
+/** Casts a keyframe's value with `valueSchema` — undefined when the value does not match. */
 export function normalizeKeyframe<T>(kf: PxKeyframe, valueSchema: PxSchema<T>): ValueKeyframe<T> | undefined {
-    const short = ShortSpellingSchema.castOrNull(kf);
-    const value = valueSchema.castOrNull(kf.value ?? short?.v);
+    const value = valueSchema.castOrNull(kf.value);
     if (value === null) return undefined;
-    const out: ValueKeyframe<T> = { ...kf, value };
-    if (!short) return out;
-    if (out.time === undefined && short.t !== undefined) out.time = short.t;
-    if (out.easing === undefined && short.e !== undefined) out.easing = short.e;
-    if (out.tangentOut === undefined && short.to !== undefined) out.tangentOut = short.to;
-    if (out.tangentIn === undefined && short.ti !== undefined) out.tangentIn = short.ti;
-    return out;
+    return { ...kf, value };
 }
 
 /** Origin used inside rotate/scale records. Animated origin falls back to frame 0. */

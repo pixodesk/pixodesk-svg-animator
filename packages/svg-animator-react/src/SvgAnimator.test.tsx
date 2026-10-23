@@ -7,7 +7,7 @@ import { createSvgAnimator, PxDocument, type PxNode } from '@pixodesk/svg-animat
 import { PxDiagnosticCode } from '@pixodesk/svg-animator-core';
 import { cleanup, render } from "@testing-library/react";
 import { createRef } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PxAnimatorHandle } from '@pixodesk/svg-animator-core';
 import SvgAnimator, { REACT_CAMEL_CASED_SVG_ATTRS } from './SvgAnimator';
 
@@ -166,7 +166,9 @@ describe("SvgAnimator (React)", () => {
 
             // ...and the handle is still live in the same mode.
             expect(apiRef.current).not.toBeNull();
-            expect(apiRef.current!.isPlaying()).toBe(true);
+            const api = apiRef.current;
+            assert(api, "apiRef.current is set after render");
+            expect(api.isPlaying()).toBe(true);
         });
 
         it("warns when two control tiers are set, naming both and the winner", () => {
@@ -369,31 +371,32 @@ describe("SvgAnimator (React)", () => {
 
             const api = apiRef.current;
             expect(api).not.toBeNull();
+            assert(api, "apiRef.current is set after render");
 
             // Not playing until told to
-            expect(api!.isPlaying()).toBe(false);
+            expect(api.isPlaying()).toBe(false);
 
-            api!.play();
-            expect(api!.isPlaying()).toBe(true);
+            api.play();
+            expect(api.isPlaying()).toBe(true);
 
             vi.advanceTimersByTime(32);
-            api!.pause();
-            expect(api!.isPlaying()).toBe(false);
-            expect(api!.getCurrentTime()).toBe(32);
+            api.pause();
+            expect(api.isPlaying()).toBe(false);
+            expect(api.getCurrentTime()).toBe(32);
 
             // setCurrentTime / getCurrentTime round-trip
-            api!.setCurrentTime(64);
-            expect(api!.getCurrentTime()).toBe(64);
+            api.setCurrentTime(64);
+            expect(api.getCurrentTime()).toBe(64);
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
 
             // setPlaybackRate exists and is callable
-            expect(typeof api!.setPlaybackRate).toBe("function");
-            expect(() => api!.setPlaybackRate(2)).not.toThrow();
+            expect(typeof api.setPlaybackRate).toBe("function");
+            expect(() => api.setPlaybackRate(2)).not.toThrow();
 
             // cancel / finish are also exposed
-            expect(typeof api!.cancel).toBe("function");
-            expect(typeof api!.finish).toBe("function");
+            expect(typeof api.cancel).toBe("function");
+            expect(typeof api.finish).toBe("function");
         });
     });
 
@@ -412,31 +415,39 @@ describe("SvgAnimator (React)", () => {
 
         it("fires onPlay when playback starts", () => {
             const { apiRef, spies } = renderWithCallbacks();
-            apiRef.current!.play();
+            const api = apiRef.current;
+            assert(api, "apiRef.current is set after render");
+            api.play();
             expect(spies.onPlay).toHaveBeenCalledTimes(1);
             expect(spies.onStop).not.toHaveBeenCalled();
         });
 
         it("fires onPause and onStop when paused", () => {
             const { apiRef, spies } = renderWithCallbacks();
-            apiRef.current!.play();
-            apiRef.current!.pause();
+            const api = apiRef.current;
+            assert(api, "apiRef.current is set after render");
+            api.play();
+            api.pause();
             expect(spies.onPause).toHaveBeenCalledTimes(1);
             expect(spies.onStop).toHaveBeenCalledTimes(1);
         });
 
         it("fires onCancel and onStop when canceled", () => {
             const { apiRef, spies } = renderWithCallbacks();
-            apiRef.current!.play();
-            apiRef.current!.cancel();
+            const api = apiRef.current;
+            assert(api, "apiRef.current is set after render");
+            api.play();
+            api.cancel();
             expect(spies.onCancel).toHaveBeenCalledTimes(1);
             expect(spies.onStop).toHaveBeenCalledTimes(1);
         });
 
         it("fires onFinish and onStop when finished", () => {
             const { apiRef, spies } = renderWithCallbacks();
-            apiRef.current!.play();
-            apiRef.current!.finish();
+            const api = apiRef.current;
+            assert(api, "apiRef.current is set after render");
+            api.play();
+            api.finish();
             expect(spies.onFinish).toHaveBeenCalledTimes(1);
             expect(spies.onStop).toHaveBeenCalledTimes(1);
         });

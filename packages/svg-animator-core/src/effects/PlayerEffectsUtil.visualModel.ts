@@ -85,11 +85,11 @@ function parseTransformString(s: string): Mat {
 function partsToMatrix(p: Parts): Mat {
     let m = IDENTITY;
     if (p.translate) m = mul(m, translateM(p.translate[0], p.translate[1]));
-    const pivot = p.origin && (p.rotate !== undefined || p.scale);
-    if (pivot) m = mul(m, translateM(p.origin![0], p.origin![1]));
+    const pivot = p.rotate !== undefined || p.scale ? p.origin : undefined;
+    if (pivot) m = mul(m, translateM(pivot[0], pivot[1]));
     if (p.rotate !== undefined) m = mul(m, rotateM(p.rotate));
     if (p.scale) m = mul(m, scaleM(p.scale[0], p.scale[1]));
-    if (pivot) m = mul(m, translateM(-p.origin![0], -p.origin![1]));
+    if (pivot) m = mul(m, translateM(-pivot[0], -pivot[1]));
     return m;
 }
 

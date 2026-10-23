@@ -184,9 +184,10 @@ export function materializeOffsetPathsInTree(root: PxDocument): PxDocument {
                 else delete (out as { transform?: unknown }).transform;
             }
         }
-        if (out.children?.length) {
-            const children = out.children.map(walk);
-            if (children.some((c, i) => c !== out.children![i])) out = { ...out, children };
+        const before = out.children;
+        if (before?.length) {
+            const children = before.map(walk);
+            if (children.some((c, i) => c !== before[i])) out = { ...out, children };
         }
         return out;
     };

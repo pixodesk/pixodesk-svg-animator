@@ -36,7 +36,8 @@ async function seekAndRead(page: import('@playwright/test').Page, timeMs: number
         if (!api) throw new Error('fixture page: window.pxApi is not set');
         api.setCurrentTime(t);
         await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-        const el = document.getElementById('box')!;
+        const el = document.getElementById('box');
+        if (!el) throw new Error('fixture page: #box is missing');
         const cs = getComputedStyle(el);
         return { opacity: parseFloat(cs.opacity), transform: cs.transform || el.getAttribute('transform') || '' };
     }, timeMs);

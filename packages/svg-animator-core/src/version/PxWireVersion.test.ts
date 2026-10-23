@@ -6,7 +6,7 @@
 // The PLAYER's half of the version scheme: read the stamp, compare it, convert forward, and say
 // something useful when the gap cannot be closed. The editor extends this — it never re-implements it.
 
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import { PX_WIRE_SCHEMA_VERSION } from './PxSchemaVersion';
 import {
     applyWireSteps, applyWireStepsDown, PX_WIRE_BASELINE_VERSION, downgradeWireDocument, compareWireVersion, convertWireDocument, formatWireVersion,
@@ -46,8 +46,9 @@ describe('wire version — parsing and comparison', () => {
     });
 
     it('compares numerically, not lexically — 1.10 is NEWER than 1.9', () => {
-        const nine = parseWireVersion('1.9')!;
-        const ten = parseWireVersion('1.10')!;
+        const nine = parseWireVersion('1.9');
+        const ten = parseWireVersion('1.10');
+        assert(nine && ten, 'both versions parse');
         expect(compareWireVersion(ten, nine, false)).toBe(PxWireVersionRelation.newer);
         expect(compareWireVersion(nine, ten, false)).toBe(PxWireVersionRelation.older);
     });
@@ -127,8 +128,9 @@ describe('the step table', () => {
             if (step.kind === PxWireStepKind.converted) expect(step.up).toBeTypeOf('function');
             else expect(step.up).toBeUndefined();
             expect(step.reason.length).toBeGreaterThan(10);
-            const from = parseWireVersion(step.from)!;
-            const to = parseWireVersion(step.to)!;
+            const from = parseWireVersion(step.from);
+            const to = parseWireVersion(step.to);
+            assert(from && to, 'step ' + step.from + ' → ' + step.to + ' parses');
             expect(to.a).toBe(from.a);          // a `b` step never changes the generation
             expect(to.b).toBeGreaterThan(from.b);
         }
@@ -152,7 +154,8 @@ describe('the step table', () => {
             meta: { editorOnly: 'must survive untouched' },
         };
         // Apply it the way `convertWireDocument` does, then assert all three obligations.
-        step.up!(d);
+        assert(step.up, 'a converted step carries `up`');
+        step.up(d);
         const timeline = (d.animator as Record<string, unknown>).timeline as Record<string, unknown>;
         expect(timeline.durationMs).toBe(1000);
         expect(timeline.duration).toBeUndefined();
@@ -233,7 +236,9 @@ describe('wireVersionAdvice', () => {
 
     it('formats back to the spelling it parsed', () => {
         expect(formatWireVersion({ a: 1, b: 1, c: 1 })).toBe('1.1.1');
-        expect(formatWireVersion(parseWireVersion('1.2')!)).toBe('1.2.0');
+        const parsed = parseWireVersion('1.2');
+        assert(parsed, '1.2 parses');
+        expect(formatWireVersion(parsed)).toBe('1.2.0');
     });
 });
 

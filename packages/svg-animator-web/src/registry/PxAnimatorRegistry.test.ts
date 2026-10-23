@@ -8,7 +8,7 @@
 // the same store is reachable by name for tooling that does not import the library.
 // Through the public `createSvgAnimator` (frames mode — jsdom has no WAAPI).
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimator } from '../animator/PxAnimator';
 import { getAllSvgAnimators, onSvgAnimatorsChange, type PxAnimatorRegistry, type PxAnimatorsEvent } from './PxAnimatorRegistry';
 import type { PxDocument } from '@pixodesk/svg-animator-core';
@@ -131,7 +131,8 @@ describe('the page-wide animator registry', () => {
         expect(byName?.getAll()).toContain(api);
         expect(byName?.getAll()).toEqual(getAllSvgAnimators());
         const events: Array<string> = [];
-        const off = byName!.subscribe(event => { events.push(event); });
+        assert(byName, 'the registry is not reachable by name');
+        const off = byName.subscribe(event => { events.push(event); });
         api.pause();
         off();
         expect(events).toEqual(['pause']);

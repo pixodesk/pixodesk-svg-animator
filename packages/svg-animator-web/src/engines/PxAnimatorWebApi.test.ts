@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, assert, beforeEach, describe, expect, it } from 'vitest';
 import { convertToWebApiKeyframes } from './PxAnimatorWebApi';
 import { PxValueKind, type PxAnimatorRuntimeConfig, type PxBezierPath, type PxRuntimeAnimation } from '@pixodesk/svg-animator-core';
 
@@ -47,8 +47,9 @@ describe('convertToWebApiKeyframes — animated `d` path', () => {
     it('emits a real `path("…")` string, not "[object Object]"', () => {
         const kfs = build().get('d');
         expect(kfs).toBeDefined();
-        expect(kfs!.length).toBeGreaterThan(0);
-        for (const kf of kfs!) {
+        assert(kfs, 'no `d` keyframes were built');
+        expect(kfs.length).toBeGreaterThan(0);
+        for (const kf of kfs) {
             const d = (kf as unknown as { d: string }).d;
             expect(typeof d).toBe('string');
             expect(d).toMatch(/^path\("M/);          // proper CSS `d` syntax
@@ -57,7 +58,8 @@ describe('convertToWebApiKeyframes — animated `d` path', () => {
     });
 
     it('carries the actual interpolated geometry (both keyframes distinct)', () => {
-        const kfs = build().get('d')!;
+        const kfs = build().get('d');
+        assert(kfs, 'no `d` keyframes were built');
         const first = (kfs[0] as unknown as { d: string }).d;
         const last = (kfs[kfs.length - 1] as unknown as { d: string }).d;
         expect(first).toContain('M0,0');             // triangle(0)
@@ -73,7 +75,8 @@ describe('convertToWebApiKeyframes — animated `d` path', () => {
         const animDef: PxRuntimeAnimation = {
             d: { kind: PxValueKind.path, keyframes: [{ time: 0, value: { paths: [straight] } }, { time: 320, value: { paths: [curved] } }] },
         };
-        const kfs = convertToWebApiKeyframes(animDef, new Set<string>(), CONFIG).get('d')!;
+        const kfs = convertToWebApiKeyframes(animDef, new Set<string>(), CONFIG).get('d');
+        assert(kfs, 'no `d` keyframes were built');
         const seqs = new Set(kfs.map(kf => ((kf as unknown as { d: string }).d).replace(/[^MLCZmlcz]/g, '')));
         expect([...seqs]).toHaveLength(1);
         expect([...seqs][0]).not.toContain('L');

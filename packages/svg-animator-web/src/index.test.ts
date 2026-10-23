@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimator } from './index';
 import { isCompiledAnimation, type PxDocument, type PxRuntimeAnimation } from '@pixodesk/svg-animator-core';
 import { PX_LOOP_JUMP_SHIFT_MS, cubicBezier, reverseEasing, splitEasing, subdivideCubicBezier } from '@pixodesk/svg-animator-core/internal';
@@ -46,7 +46,8 @@ describe('animateBackground', () => {
         // Double the duration so keyframes occupy first half → loop fills second half.
         // Through `timeline`, which is where the wire format keeps it: a flat `animator.duration`
         // sibling is silently overwritten by `timeline.duration` when the config is flattened.
-        json.animator!.timeline!.outTime = 256;
+        assert(json.animator?.timeline, 'fixture: the animator has a timeline');
+        json.animator.timeline.outTime = 256;
         // Add loop:true to the translate property (the ellipse's binding animates with `a0`)
         const translate = json.animator?.definitions?.animations?.['a0']['translate'];
         if (!translate || isCompiledAnimation(translate)) throw new Error('fixture: a0.translate must be an authored animation');
@@ -639,13 +640,14 @@ describe('splitEasing', () => {
 
         expect(left).toBeDefined();
         expect(right).toBeDefined();
+        assert(left && right, 'the split produced both halves');
 
         // Both halves should have control points in [0,1] range (approximately)
-        for (const cp of left!) {
+        for (const cp of left) {
             expect(cp).toBeGreaterThanOrEqual(-0.01);
             expect(cp).toBeLessThanOrEqual(1.01);
         }
-        for (const cp of right!) {
+        for (const cp of right) {
             expect(cp).toBeGreaterThanOrEqual(-0.01);
             expect(cp).toBeLessThanOrEqual(1.01);
         }
@@ -681,7 +683,8 @@ describe('reverseEasing', () => {
 
     it('reverses a cubic-bezier correctly', () => {
         const easing: [number, number, number, number] = [0.42, 0, 0.58, 1];
-        const reversed = reverseEasing(easing)!;
+        const reversed = reverseEasing(easing);
+        assert(reversed, 'the easing did not reverse');
 
         expect(reversed[0]).toBeCloseTo(1 - 0.58);
         expect(reversed[1]).toBeCloseTo(1 - 1);
@@ -691,7 +694,8 @@ describe('reverseEasing', () => {
 
     it('double-reverse returns original easing', () => {
         const easing: [number, number, number, number] = [0.25, 0.1, 0.25, 1];
-        const doubleReversed = reverseEasing(reverseEasing(easing)!)!;
+        const doubleReversed = reverseEasing(reverseEasing(easing));
+        assert(doubleReversed, 'the easing did not reverse back');
 
         expect(doubleReversed[0]).toBeCloseTo(easing[0], 10);
         expect(doubleReversed[1]).toBeCloseTo(easing[1], 10);
@@ -701,7 +705,8 @@ describe('reverseEasing', () => {
 
     it('reversed easing at x produces 1 - original(1-x)', () => {
         const easing: [number, number, number, number] = [0.42, 0, 0.58, 1];
-        const reversed = reverseEasing(easing)!;
+        const reversed = reverseEasing(easing);
+        assert(reversed, 'the easing did not reverse');
 
         const originalFn = cubicBezier(easing);
         const reversedFn = cubicBezier(reversed);

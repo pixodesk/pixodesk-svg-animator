@@ -1,21 +1,23 @@
-import { describe, expect, it } from 'vitest';
+import { assert, describe, expect, it } from 'vitest';
 import { materializeOffsetPathsInTree } from './PxOffsetPathMaterializer';
-import type { PxDocument, PxNode } from '../format/PxAnimatorTypes';
+import type { PxDocument, PxNode, PxPropertyAnimation, PxTimeline } from '../format/PxAnimatorTypes';
+import { authoredEntry, entryOf, untyped } from '../effects/effectTestKit';
 
 const doc = (node: PxNode): PxDocument => ({
     type: 'svg', viewBox: '0 0 200 200',
-    animator: { timeline: { duration: 1000 } },
+    // `timeline.duration` is the pre-1.3 spelling: not in the type, still read for old files
+    animator: { timeline: untyped<PxTimeline>({ duration: 1000 }) },
     children: [node],
-} as never);
+});
 
-const curvedTransform = (extra?: object) => ({
+const curvedTransform = (extra?: PxPropertyAnimation): PxPropertyAnimation => ({
     alongPathMode: 'offsetPath',
     keyframes: [
         { time: 0, value: { translate: [20, 120] }, tangentOut: [28, -48] },
         { time: 1000, value: { translate: [80, 120] } },
     ],
     ...extra,
-} as never);
+});
 
 describe('offset-path materializer (lightweight JSON → player)', () => {
 
@@ -24,16 +26,18 @@ describe('offset-path materializer (lightweight JSON → player)', () => {
             type: 'rect', width: 26, height: 8,
             transform: { translate: [20, 120] },
             animate: { transform: curvedTransform() },
-        } as never));
-        const n = out.children![0] as never as { style: Record<string, string>; animate: Record<string, unknown>; transform?: unknown };
-        expect(n.style.offsetPath).toBe("path('M20,120C48,72,80,120,80,120')");
-        expect(n.style.offsetRotate).toBe('0deg');
-        expect(n.style.offsetDistance).toBe('0%');
-        expect(n.animate.transform).toBeUndefined();
-        const dist = n.animate.offsetDistance as { keyframes: Array<{ time: number; value: number }> };
-        expect(dist.keyframes.map(k => k.time)).toEqual([0, 1000]);
-        expect(dist.keyframes[0].value).toBe(0);
-        expect(dist.keyframes[1].value).toBe(1);
+        }));
+        const n = out.children?.[0];
+        assert(n, 'the node survives');
+        expect(n.style?.offsetPath).toBe("path('M20,120C48,72,80,120,80,120')");
+        expect(n.style?.offsetRotate).toBe('0deg');
+        expect(n.style?.offsetDistance).toBe('0%');
+        expect(entryOf(n, 'transform')).toBeUndefined();
+        const dist = authoredEntry(n, 'offsetDistance').keyframes;
+        assert(dist, 'offsetDistance carries keyframes');
+        expect(dist.map(k => k.time)).toEqual([0, 1000]);
+        expect(dist[0].value).toBe(0);
+        expect(dist[1].value).toBe(1);
         // The static translate must NOT survive — position now comes from the path.
         expect(n.transform).toBeUndefined();
     });
@@ -49,11 +53,13 @@ describe('offset-path materializer (lightweight JSON → player)', () => {
                     // second segment is ~3x the first — the value fraction must reflect LENGTH, not time
                     { time: 1000, value: { translate: [400, 0] }, tangentIn: [-10, 0] },
                 ],
-            } } as never,
-        } as never));
-        const n = out.children![0] as never as { style: Record<string, string>; animate: { offsetDistance: { keyframes: Array<{ time: number; value: number }> } } };
-        expect(n.style.offsetRotate).toBe('auto');
-        const vs = n.animate.offsetDistance.keyframes.map(k => k.value);
+            } },
+        }));
+        const n = out.children?.[0];
+        assert(n, 'the node survives');
+        expect(n.style?.offsetRotate).toBe('auto');
+        const vs = authoredEntry(n, 'offsetDistance').keyframes?.map(k => k.value);
+        assert(vs, 'offsetDistance carries keyframes');
         expect(vs[0]).toBe(0);
         expect(vs[1]).toBeGreaterThan(0.2);
         expect(vs[1]).toBeLessThan(0.3);   // ≈100/400 by length, NOT 0.5 by time
@@ -61,21 +67,22 @@ describe('offset-path materializer (lightweight JSON → player)', () => {
     });
 
     it('leaves non-candidates alone: no mode, straight lines, or extra animated parts', () => {
-        const unmarked = { keyframes: [
+        const unmarked: PxPropertyAnimation = { keyframes: [
             { time: 0, value: { translate: [0, 0] }, tangentOut: [5, 5] },
             { time: 1000, value: { translate: [10, 10] } }] };
-        const straight = { alongPathMode: 'offsetPath', keyframes: [
+        const straight: PxPropertyAnimation = { alongPathMode: 'offsetPath', keyframes: [
             { time: 0, value: { translate: [0, 0] } },
             { time: 1000, value: { translate: [10, 10] } }] };
-        const rotating = { alongPathMode: 'offsetPath', keyframes: [
+        const rotating: PxPropertyAnimation = { alongPathMode: 'offsetPath', keyframes: [
             { time: 0, value: { translate: [0, 0], rotate: 0 }, tangentOut: [5, 5] },
             { time: 1000, value: { translate: [10, 10], rotate: 90 } }] };
         for (const transform of [unmarked, straight, rotating]) {
-            const out = materializeOffsetPathsInTree(doc({ type: 'rect', animate: { transform } } as never));
-            const n = out.children![0] as never as { style?: unknown; animate: Record<string, unknown> };
-            expect(n.animate.transform).toBeDefined();
-            expect(n.animate.offsetDistance).toBeUndefined();
-            expect((n.style as Record<string, unknown> | undefined)?.offsetPath).toBeUndefined();
+            const out = materializeOffsetPathsInTree(doc({ type: 'rect', animate: { transform } }));
+            const n = out.children?.[0];
+            assert(n, 'the node survives');
+            expect(entryOf(n, 'transform')).toBeDefined();
+            expect(entryOf(n, 'offsetDistance')).toBeUndefined();
+            expect(n.style?.offsetPath).toBeUndefined();
         }
     });
 
@@ -93,12 +100,13 @@ describe('offset-path materializer (lightweight JSON → player)', () => {
                     { time: 0, value: { translate: [20, 120], rotate: 0 }, tangentOut: [28, -48] },
                     { time: 1000, value: { translate: [80, 120], rotate: 0 } },
                 ],
-            } } as never,
-        } as never));
-        const n = out.children![0] as never as { style: Record<string, string>; animate: Record<string, unknown>; transform?: unknown };
-        expect(n.style.offsetRotate).toBe('auto');
-        expect(n.animate.transform).toBeUndefined();
-        expect(n.animate.offsetDistance).toBeDefined();
+            } },
+        }));
+        const n = out.children?.[0];
+        assert(n, 'the node survives');
+        expect(n.style?.offsetRotate).toBe('auto');
+        expect(entryOf(n, 'transform')).toBeUndefined();
+        expect(entryOf(n, 'offsetDistance')).toBeDefined();
         expect(n.transform).toBeUndefined();
 
         // A static rotate the keyframes do NOT override is a real design rotation — it survives.
@@ -106,26 +114,25 @@ describe('offset-path materializer (lightweight JSON → player)', () => {
             type: 'rect',
             transform: { translate: [20, 120], rotate: 30 },
             animate: { transform: curvedTransform() },
-        } as never));
-        expect((kept.children![0] as never as { transform?: unknown }).transform).toEqual({ rotate: 30 });
+        }));
+        expect(kept.children?.[0].transform).toEqual({ rotate: 30 });
 
         // A NON-zero rotate in a keyframe is an animated part — not a candidate.
         const turning = materializeOffsetPathsInTree(doc({
             type: 'rect',
             animate: { transform: { alongPathMode: 'offsetPath', keyframes: [
                 { time: 0, value: { translate: [0, 0], rotate: 0 }, tangentOut: [5, 5] },
-                { time: 1000, value: { translate: [10, 10], rotate: 10 } }] } } as never,
-        } as never));
-        expect((turning.children![0] as never as { animate: Record<string, unknown> }).animate.transform).toBeDefined();
+                { time: 1000, value: { translate: [10, 10], rotate: 10 } }] } },
+        }));
+        expect(entryOf(turning.children?.[0], 'transform')).toBeDefined();
     });
 
     it('carries loop and easing onto the offsetDistance binding', () => {
         const out = materializeOffsetPathsInTree(doc({
             type: 'rect',
             animate: { transform: curvedTransform({ loop: true }) },
-        } as never));
-        const n = out.children![0] as never as { animate: { offsetDistance: { loop?: unknown; keyframes: Array<{ e?: unknown }> } } };
-        expect(n.animate.offsetDistance.loop).toBe(true);
+        }));
+        expect(authoredEntry(out.children?.[0], 'offsetDistance').loop).toBe(true);
     });
 
 });

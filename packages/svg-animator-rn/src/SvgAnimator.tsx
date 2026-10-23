@@ -364,6 +364,7 @@ export function SvgAnimator({
         }
         // `timeline` is an object prop, so a fresh literal each render would recompile the whole
         // document. Key on its CONTENT — the override is small, unlike the document.
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- `timelineKey` stands for `timeline`; `makeDiag` is rebuilt per render on purpose (above)
     }, [stableDoc, timelineKey, resetTimeline, inTime, outTime, playDuration, delay, iterations, start, offScreenProp, mouseOutProp, visibilityThresholdProp, visibilityDebounceProp, compMode]);
 
     const tracks: PxCompiledTracks = compiled.tracks;

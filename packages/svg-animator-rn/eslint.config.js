@@ -1,8 +1,12 @@
 import tseslint from 'typescript-eslint';
+import reactHooksPlugin from 'eslint-plugin-react-hooks';
+
+// No `as never` (first-use review §17c): give the value its real type — in tests, `untyped<T>()` for input that is wrong on purpose.
+const NO_AS_NEVER = { selector: 'TSAsExpression > TSNeverKeyword', message: 'No `as never`: give the value its real type (tests: `untyped<T>()` for deliberately wrong input).' };
 
 export default tseslint.config(
     {
-        files: ['src/**/*.ts'],
+        files: ['src/**/*.{ts,tsx}'],
         languageOptions: {
             parser: tseslint.parser,
             parserOptions: {
@@ -11,8 +15,13 @@ export default tseslint.config(
         },
         plugins: {
             '@typescript-eslint': tseslint.plugin,
+            'react-hooks': reactHooksPlugin,
         },
         rules: {
+            // React Hooks (as in the React package)
+            'react-hooks/rules-of-hooks': 'error',
+            'react-hooks/exhaustive-deps': 'warn',
+
             // Forbid template literals (e.g., `string ${value}`)
             // Use string concatenation instead: 'string ' + value
             'no-restricted-syntax': [
@@ -21,24 +30,23 @@ export default tseslint.config(
                     selector: 'TemplateLiteral',
                     message: 'Template literals are not allowed. Use string concatenation instead.',
                 },
+                NO_AS_NEVER,
             ],
         },
     },
     {
-        // Exclude test files and scripts from this rule
-        files: ['**/*.test.ts', 'scripts/**/*.ts'],
+        // Tests (and scripts) may use template literals; `as never` stays forbidden
+        files: ['**/*.test.{ts,tsx}', 'scripts/**/*.ts'],
         rules: {
-            'no-restricted-syntax': 'off',
+            'no-restricted-syntax': ['error', NO_AS_NEVER],
         },
     },
     {
         // No `any`, source or test (first-use review §17c): give the value its real type. A fact TypeScript
         // cannot follow is stated once, by a named cast (`asBuilt`, `drivenByDocument`, the tests' `untyped`).
-        // `.ts` only, like this package's lint: its `.tsx` names react-hooks rules the config does not load
-        // (the `any` budget test still holds the `.tsx` at 0).
-        files: ['src/**/*.ts'],
+        files: ['src/**/*.{ts,tsx}'],
         languageOptions: { parser: tseslint.parser },
         plugins: { '@typescript-eslint': tseslint.plugin },
-        rules: { '@typescript-eslint/no-explicit-any': 'error' },
+        rules: { '@typescript-eslint/no-explicit-any': 'error', '@typescript-eslint/no-non-null-assertion': 'error' },
     }
 );

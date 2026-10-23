@@ -7,7 +7,7 @@
 // `PxScrollMath.test.ts`): attach/emit/coalesce/teardown, scroller resolution, and the
 // `kind: 'scroll'` offset path. jsdom has no layout, so sizes/rects are stubbed.
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest';
 import { applyScrollPin, createNativeScrollTimeline, createScrollDriver, resolveScrollSubject } from './PxScrollDriver';
 
 
@@ -71,8 +71,9 @@ describe('createScrollDriver', () => {
             subject,
             { timelineSource: 'scroll', scroll: { kind: 'scroll' } },
             p => seen.push(p),
-        )!;
+        );
         expect(driver).toBeTruthy();
+        assert(driver, 'no scroll driver was created');
         expect(seen).toEqual([0]);                       // initial emit at current position
 
         scroller.scrollTop = 250;
@@ -299,7 +300,8 @@ describe('createScrollDriver', () => {
             box.append(svg);
 
             const unpin = applyScrollPin(svg, { pin: true, pinDistance: 3 });
-            const wrapper = svg.parentElement!;
+            const wrapper = svg.parentElement;
+            assert(wrapper, 'the canvas has no parent');
             expect(wrapper).not.toBe(box);
             expect(wrapper.style.height).toBe('300vh');
             expect(wrapper.parentElement).toBe(box);

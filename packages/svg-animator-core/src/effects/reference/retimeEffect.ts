@@ -112,11 +112,12 @@ function readCloneRetime(n: PxNode): PxRetimeEffect | undefined {
 
 /** Removes the retime slice and prunes now-empty `clone` / `effects` buckets. */
 function clearCloneRetime(n: PxNode): void {
-    const clone = n.effects?.clone;
-    if (!clone) return;
+    const effects = n.effects;
+    const clone = effects?.clone;
+    if (!effects || !clone) return;
     delete clone.retime;
-    if (Object.keys(clone).length === 0) delete n.effects!.clone;
-    if (n.effects && Object.keys(n.effects).length === 0) delete n.effects;
+    if (Object.keys(clone).length === 0) delete effects.clone;
+    if (Object.keys(effects).length === 0) delete n.effects;
 }
 
 
@@ -192,7 +193,8 @@ function materializeRetime(useNode: PxNode, retime: Retime, ctx: ApplyContext): 
     if (!chainRootId) return;
 
     if (RETIME_MATERIALIZATION_MODE_INLINE_G) {
-        const cloneNode = ctx.idMap.get(chainRootId)!;
+        const cloneNode = ctx.idMap.get(chainRootId);
+        if (!cloneNode) { ctx.errors.push('retime: clone ' + chainRootId + ' was not registered'); return; }
         useNode.type = 'g';
         delete useNode.href;
         useNode.children = [cloneNode];
