@@ -63,10 +63,10 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 |---|---|---|
 | <a id="px1301"></a>**1301** | `smoothing` needs the player's own driver, so the browser's scroll timeline was not used. | — |
 | <a id="px1302"></a>**1302** | The browser refused to build a native scroll timeline; the player measures progress itself. | — |
-| <a id="px1303"></a>**1303** | `scroll.subject` is not a valid CSS selector, so the SVG itself is measured instead. | the subject |
-| <a id="px1304"></a>**1304** | `scroll.subject` matched no element, so the SVG itself is measured instead. | the subject |
+| <a id="px1303"></a>**1303** | `timeline.subject` is not a valid CSS selector, so the SVG itself is measured instead. | the subject |
+| <a id="px1304"></a>**1304** | `timeline.subject` matched no element, so the SVG itself is measured instead. | the subject |
 | <a id="px1305"></a>**1305** | There is no root element to observe, so a scroll-driven animation stays on its first frame. | — |
-| <a id="px1306"></a>**1306** | `animator.trigger` does not apply to a scroll timeline — the scrollbar is the playhead. | — |
+| <a id="px1306"></a>**1306** | `timeline.trigger` does not apply to a scroll timeline — the scrollbar is the playhead. | — |
 
 ## Playback control
 

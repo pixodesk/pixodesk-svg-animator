@@ -1073,7 +1073,7 @@ one consistent vocabulary)
 - **Suggested:** visibility option 1 + edge words A, in one schema step with `playOnTrigger`.
 - **Done (2026-10-23):** the proposal as written, as wire 1.7 — the 1.6 → 1.7 step renames old files on read (and back down); `playAsSaved` → `playOnTrigger` on the components, the web / `bind` option and `PxControlMode`. Editor labels *On Hover*, *Manually*, *Hover End*, *Out of View*, *In-View Threshold*, *In-View Delay* (title case, like the panel's other labels). Docs, examples, the editor (kf) and the website's code samples follow; unstamped example and fixture JSON was migrated with the step as the oracle; the website's data files stay (the site's own older players read them). Test: `PxWireTriggerStep.test.ts` › *wire step 1.6 → 1.7* (seen failing with the step's tables broken). Dated plans and reviews keep the old words.
 
-### 22. `loop` means something else here
+### 22. `loop` means something else here ✅
 
 - **What:** in the format, `loop` belongs to ONE property's animation: `animate.<prop>.loop: true | { segmentCount, repeatAt, direction }` (`PxLoopSchema`). It repeats a segment of that property's keyframes to fill the timeline. Repeating the whole animation is `timeline.iterations` (a number or `'infinite'`).
 - **Why it trips:** everywhere else `loop` repeats the whole thing: `<video loop>`, lottie-web `loop: true`, the `loop` prop of the Lottie React players. So a user's first try is `loop` on the component:
@@ -1086,6 +1086,7 @@ one consistent vocabulary)
 - **Suggested:** the guide line and the dev warning, in both React and Vue.
   - The warning text names the fix: "`loop` is not a prop — to repeat the whole animation pass `timeline={{ iterations: 'infinite' }}`".
   - Skip `inheritAttrs: false`. Fallthrough of `class`/`style` is what Vue users expect, and the warning already covers the one confusing attribute.
+- **Done (2026-10-24), docs only (owner):** one line in the React, Vue and React Native guides — repeat the whole animation with `iterations="infinite"` (every player already takes it as a plain prop since §12, so the `timeline={{ … }}` form above is not needed); a `loop` inside a file repeats part of one property's keyframes. No dev warning: TypeScript rejects `loop` on the React component; only Vue templates (fallthrough attributes are legal) and plain-JS users would see it, and the guide covers them. No `loop` alias on the components (ambiguous `loop={false}`, a second spelling, players would differ) and no rename of the per-property `loop` (clear in its place; the After Effects `loopOut` term).
 
 ### 23. The core entry is very wide ✅
 
@@ -1125,7 +1126,7 @@ one consistent vocabulary)
   - No wire change.
 - **Done (2026-10-24), differently from the suggestion (owner):** the format is ours, so its values follow its own rule, not CSS's — the three kebab-case values became camelCase in wire 1.8: `timeline.direction: 'alternateReverse'`, scroll range phases `'entryCrossing'` / `'exitCrossing'` (the 1.7 → 1.8 step converts old files and back). Each value now equals its const name. The players spell them the browser's way only where they hand them over — `cssPlaybackDirection` / `cssScrollPhase` (core `/internal`) at the Web Animations `direction`, the native view-timeline `rangeName` and the editor's CSS export; the two web call sites are typed so a raw value no longer compiles (seen failing). The format guide now states the rule for values next to the one for names. The validator already listed the valid values in its error, so no "did you mean". Tests: `PxWireCamelCaseValuesStep.test.ts` (seen failing with the step broken), `PxCssSpelling.test.ts`.
 
-### 26. Effect names mix two patterns
+### 26. Effect names mix two patterns ✅
 
 - **What:** the `effects` keys (`PxEffectsSchema`):
   - two are passive, "this element is … by": `maskedBy`, `transformBy`;
@@ -1143,6 +1144,7 @@ one consistent vocabulary)
   3. Rename the others to the passive pattern (`clippedBy`, …). This is worse: eight renames to fix two.
   4. Adopt the rule above and rename only `clipPath` → `clippedBy`. One wire rename, and the rule then holds for all ten.
 - **Suggested:** 4, in the same schema step as §21. Write the rule in the format guide's principles next to §25's value rule.
+- **Closed (2026-10-24), no rename (owner):** the names follow the stance already recorded in `dev-docs/schema-design.md` (effect naming, N6) — each name chosen for meaning, not one grammatical form. This item misread it: `transformBy` is not passive (verb + `By` = the MEANS, like `sortBy`; it builds wrapper groups, one timeline per part, so it is not the element's own `transform`); `-edBy` marks the DIRECTION of a reference (`maskedBy: { source }` = "masked by #x", where a bare `mask` would read "this element IS a mask"), and `clone` needs no suffix because the noun already points the right way; `clipPath` carries its own `d` and lowers to exactly the element's `clip-path`, so sharing that word is accurate — `clippedBy` (option 4) would wrongly signal a reference to another element.
 
 ---
 
@@ -1253,6 +1255,10 @@ Each checked against the code on 2026-10-15.
 | E10 | get-started §3 React and React Native snippets | `doc={animation}` straight from a JSON import | does not type-check under TypeScript without the cast the note below it describes (item 5) |
 | E11 | web-player › Options; playback-and-triggers › Overriding from a player | the override lets "the same file … play at two speeds" | no override key changes speed (item 4) |
 | E12 | format › Animating — Keyframes | "Every key has exactly one spelling — there are no short aliases" | transforms have two spellings; path values, transform strings and kebab-case attribute names are also accepted (item 6) |
+
+**Done (2026-10-24)** — each statement checked against the code before changing it:
+- **Fixed:** E1 (`hoverEnd` defaults to `'pause'` — react.md, vue.md, web-player.md, format), E2 (`PxTrigger` = `animator.timeline.trigger`), E3 (`definitions.fonts`), E4 (`pathData`; both examples validate), E5 (the override is shaped like `animator.timeline` — react, vue, react-native, playback-and-triggers), E6 (every player gives each render fresh ids; `generateNewIds` is for a renderer of your own — library README, web-player, format reference), E8 (troubleshooting names `PX1003` / `PX1002`), E9 (the enum's texts say `timeline.subject` / `timeline.trigger`; diagnostics.md regenerated), E12 (the sentence is about keyframe keys — now says so; `t` / `v` are rejected).
+- **Already right:** E7 (`PxPlaybackApi` is gone), E10 (get-started says no cast is needed — a JSON import compiles against `doc`), E11 (`playDuration` in the override does play one file at two speeds).
 
 ---
 

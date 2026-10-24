@@ -38,7 +38,7 @@ file needs no package at all.
 | Play it in React / Vue | `<SvgAnimationPlayer :doc … />` |
 | Play it in React Native | `<SvgAnimationPlayer doc={…} />` (rn) |
 | Check a generated document before shipping it | `validateDocument(doc)` |
-| Show the same JSON animation twice on one page | `generateNewIds(doc)` for the second copy |
+| Show the same JSON animation twice on one page | nothing extra — every player gives each render fresh ids (`generateNewIds(doc)` is for a renderer of your own) |
 | Feed a renderer of your own | `materializeAllInTree(doc, 'native')` (core) |
 | See or drive every player on the page — 🧪 experimental | [`getAllSvgAnimationPlayers()` / `onSvgAnimationPlayersChange()`](./web-player.md#every-player-on-the-page-experimental) (web) |
 

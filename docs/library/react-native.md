@@ -272,7 +272,7 @@ statically.
 ### Playback overrides
 
 The same document can play differently on each screen. `timeline` takes an object shaped exactly
-like the file's own `animator` block and deep-merges it over what the file says — the document
+like the file's own `animator.timeline` block and deep-merges it over what the file says — the document
 you passed is never modified.
 
 ```tsx
@@ -288,6 +288,10 @@ Objects merge key by key, values replace, and `null` **deletes** a key so the de
 absence means comes back. `inTime`, `outTime`, `playDuration`, `delay`, `iterations` and `start` are also plain props,
 and win over the same key inside `timeline`. To ignore the file's playback settings entirely,
 add `resetTimeline`.
+
+**To repeat the whole animation**, pass `iterations="infinite"` — there is no `loop` prop. A `loop` inside a
+file means something narrower: it repeats part of one property's keyframes
+([per-property loops](../format/README.md#per-property-loops)).
 
 Other playback settings go inside `timeline` —
 `{ timeline: { fillMode, finish, direction, trigger: { hoverEnd } } }`. Full merge rules

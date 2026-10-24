@@ -164,7 +164,7 @@ statically and the ref is your only control.
 ## Playback overrides
 
 The same document can play differently in each place you mount it. `timeline` takes an object
-shaped exactly like the file's own `animator` block and deep-merges it over what the file says
+shaped exactly like the file's own `animator.timeline` block and deep-merges it over what the file says
 — the document you passed is never modified.
 
 ```vue
@@ -184,6 +184,10 @@ absence means comes back (`:timeline="{ delay: null }"`).
 `inTime`, `outTime`, `playDuration`, `delay`, `iterations` and `start` are also plain props, because `:out-time="2000"`
 reads better than a nested object; a prop wins over the same key inside `timeline`. To ignore the
 file's playback settings entirely and start from the player's defaults, add `resetTimeline`.
+
+**To repeat the whole animation**, pass `iterations="infinite"` — there is no `loop` prop. A `loop` inside a
+file means something narrower: it repeats part of one property's keyframes
+([per-property loops](../format/README.md#per-property-loops)).
 
 Full merge rules — including what happens when the override changes the kind of timeline — are
 in [Playback & triggers → Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
@@ -312,7 +316,7 @@ const SvgCssAnimationPlayer: DefineComponent<{
                                           //   — 'manual' does nothing here (no play())
     outOfView?: PxOutOfViewAction;        // 'pause' (default) | 'continue' | 'reset' — what happens
                                           //   while nobody can see it, whatever started it
-    hoverEnd?: PxHoverEndAction;          // 'continue' (default) | 'pause' | 'reset' — 'reverse' is
+    hoverEnd?: PxHoverEndAction;          // 'pause' (default) | 'continue' | 'reset' — 'reverse' is
                                           //   accepted but acts as 'continue'
     inViewThreshold?: number;         // 0–1 of the SVG on screen before it may run; default 0.5; 0 = any visible pixel
     inViewDebounce?: number;          // ms it must hold first; default 150

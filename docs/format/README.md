@@ -141,7 +141,7 @@ write or transform documents in TypeScript rather than by hand:
 | `PxNode` | any element in `children`; `PxSvgNode` is the root `<svg>`, which adds the document keys |
 | `PxAnimatorConfig` | the `animator` block as a whole |
 | `PxTimeline` | `animator.timeline` — what advances the playhead |
-| `PxTrigger` | `animator.trigger` — what starts it |
+| `PxTrigger` | `animator.timeline.trigger` — what starts it |
 | `PxElementAnimation` | one element's `animate` map; `PxKeyframe` is one entry of a property's `keyframes`, and `PxLoop` that property's `loop` |
 | `PxBinding` | one entry of `animator.bindings`, in a bind-by-id document |
 | `PxDefinitions` | `animator.definitions`; `PxAnimationDefinition` is one named animation in it, `PxGlyphFont` one embedded face and `PxGlyph` one letter outline in that face |
@@ -199,7 +199,7 @@ interface SVG_JSON extends NODE {
                 trigger?: {
                     start?: 'load' | 'hover' | 'click' | 'manual';       // what STARTS it; default 'load'; 'manual' waits for play()
                     outOfView?: 'pause' | 'continue' | 'reset';            // while nobody can see it; default 'pause'
-                    hoverEnd?: 'continue' | 'pause' | 'reset' | 'reverse'; // when the pointer leaves; default 'continue'; read for start 'hover'
+                    hoverEnd?: 'continue' | 'pause' | 'reset' | 'reverse'; // when the pointer leaves; default 'pause'; read for start 'hover'
                     inViewThreshold?: number;     // how much must be on screen before it may run: 0 = any part, 1 = all of it; default 0.5
                     inViewDebounce?: number;      // and for how long, ms; default 150, so scrolling straight past starts nothing
                 };
@@ -524,7 +524,7 @@ shorthand forms, all built on **named animations** — animations defined once i
 | `easing` | `[x1, y1, x2, y2]` or a name | how the value moves **from this keyframe to the next one**: a cubic-bezier curve, or the name of a curve defined in `definitions.easings` |
 | `tangentOut` · `tangentIn` | `[dx, dy]` | spatial tangents for motion along a path (translate only), relative to this keyframe's position | <!-- px names=tangentOut,tangentIn -->
 
-Every key has exactly one spelling — there are no short aliases.
+Every keyframe key has exactly one spelling — there are no short aliases such as `t` / `v`.
 
 ##### Keyframe values
 
@@ -990,7 +990,7 @@ and no font file needs to be installed or loaded.
     "definitions": {
       // The outlines the text is drawn from — one entry per letter used
       // (paths shortened here; the editor writes the real ones)
-      "glyphs": {
+      "fonts": {
         "Roboto": { "fontFamily": "Roboto", "fontStyle": "", "ascent": 928, "unitsPerEm": 1000,
                     "glyphs": { "H": { "width": 722, "pathData": "M…" }, "e": { "width": 556, "pathData": "M…" },
                                 "l": { "width": 222, "pathData": "M…" }, "o": { "width": 556, "pathData": "M…" } } }
@@ -1037,7 +1037,7 @@ re-placed on the path as it bends. Browser text follows it only with the frame l
 { "type": "text", "fill": "#111", "fontSize": 18,
   // Lay the text along the curve, and slide it 260 units along the path over 2 s
   "effects": { "textPath": {
-    "path": "M20,100 Q150,20 280,100",
+    "pathData": "M20,100 Q150,20 280,100",
     "startOffset": { "keyframes": [ { "time": 0, "value": 0 }, { "time": 2000, "value": 260 } ] }
   } },
   "children": [ { "type": "tspan", "textContent": "animated text on a path" } ] }
@@ -1631,8 +1631,8 @@ function readWireVersion(doc: unknown): PxWireVersion | undefined;          // a
 function convertWireDocument(doc: unknown): PxWireConversionResult;     // up to this schema; never refuses, never mutates
 function downgradeWireDocument(doc: unknown, target: PxWireVersion): PxWireDowngradeResult;   // all or nothing
 
-// ○ Deep-clone a document with fresh ids and internal references rewritten —
-//   what you need before putting the same animation on a page twice.
+// ○ Deep-clone a document with fresh ids and internal references rewritten — for a renderer
+//   of your own; every player already does this for each render.
 function generateNewIds(doc: PxDocument): PxDocument;
 
 // ○ (from `/engine`) Playback on a non-DOM target: implement the adapter, get the frame-loop engine.

@@ -340,15 +340,15 @@ createSvgAnimationPlayersFromPage();
 ```
 
 Showing the same JSON file twice is safe here, unlike inlining the same pre-rendered SVG twice:
-each instance gives the document fresh element ids, so the copies do not clash. From code, give
-the second copy fresh ids yourself:
+each instance gives the document fresh element ids, so the copies do not clash. The same holds
+from code — `createSvgAnimationPlayer` with a `container` always renders with fresh ids:
 
 ```js
-// Two copies of one animation on a page (ids must stay unique)
-import { createSvgAnimationPlayer, generateNewIds } from '@pixodesk/svg-animator-web';
+// Two copies of one animation on a page — no id handling needed
+import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 
 createSvgAnimationPlayer({ doc: doc, container: '#first', playOnTrigger: true });
-createSvgAnimationPlayer({ doc: generateNewIds(doc), container: '#second', playOnTrigger: true });
+createSvgAnimationPlayer({ doc: doc, container: '#second', playOnTrigger: true });
 ```
 
 ## Every player on the page (experimental)
@@ -456,7 +456,7 @@ interface PxTrigger {                                  // also a wire type — t
     start?: 'load' | 'hover' | 'click' | 'manual';   // what STARTS it; default 'load';
                                                        //   'manual' waits for play()
     outOfView?: 'pause' | 'continue' | 'reset';        // while nobody can see it; default 'pause'
-    hoverEnd?: 'continue' | 'pause' | 'reset' | 'reverse'; // pointer leaves; default 'continue'
+    hoverEnd?: 'continue' | 'pause' | 'reset' | 'reverse'; // pointer leaves; default 'pause'
     inViewThreshold?: number;                      // 0–1 visible ratio; default 0.5; 0 = any visible pixel
     inViewDebounce?: number;                       // ms it must hold first; default 150
 }

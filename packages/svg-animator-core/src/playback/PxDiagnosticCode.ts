@@ -160,13 +160,13 @@ export enum PxDiagnosticCode {
     scrollNativeUnavailable = 1302,
 
     /**
-     * `scroll.subject` is not a valid CSS selector, so the SVG itself is measured instead.
+     * `timeline.subject` is not a valid CSS selector, so the SVG itself is measured instead.
      * @data the subject
      */
     scrollSubjectInvalid = 1303,
 
     /**
-     * `scroll.subject` matched no element, so the SVG itself is measured instead.
+     * `timeline.subject` matched no element, so the SVG itself is measured instead.
      * @data the subject
      */
     scrollSubjectNoMatch = 1304,
@@ -174,7 +174,7 @@ export enum PxDiagnosticCode {
     /** There is no root element to observe, so a scroll-driven animation stays on its first frame. */
     scrollNoRootToObserve = 1305,
 
-    /** `animator.trigger` does not apply to a scroll timeline — the scrollbar is the playhead. */
+    /** `timeline.trigger` does not apply to a scroll timeline — the scrollbar is the playhead. */
     scrollTriggerIgnored = 1306,
 
     // ── 1400 · playback control ──────────────────────────────────────────────────────────────

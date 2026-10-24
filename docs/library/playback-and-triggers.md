@@ -211,7 +211,7 @@ Where triggers work:
 
 One document can play differently in each place you use it — the same file shown twice at two
 speeds, or a file that starts by itself everywhere except inside your own play/pause UI. Every player
-takes the **same** override: a `timeline` object shaped exactly like the document's `animator`
+takes the **same** override: a `timeline` object shaped exactly like the document's `animator.timeline`
 block, deep-merged over what the file says. The file on disk is never modified.
 
 **Web player**

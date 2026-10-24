@@ -29,9 +29,10 @@ instruction, so nothing moves until you call `play()` on it.
 creates players for elements that do not have a player yet.
 
 **`createSvgAnimationPlayer({ src })` — the file did not load.** Look in the console: the player logs
-`createSvgAnimationPlayer: failed to load "…"` or `invalid animation document format`. The JSON must have
-`"type": "svg"` at the root. Calls made before the load finishes are queued, so `play()` is
-not lost — a network or CORS error is the usual cause.
+`PX1003` when the request failed — a network or CORS error is the usual cause — or `PX1002` when the
+file loaded but is not an animation document: the JSON must have `"type": "svg"` at the root (both on
+[the codes page](../diagnostics.md#building-a-player)). Calls made before the load finishes are
+queued, so `play()` is not lost.
 
 **Scroll trigger never fires.** The element may already be fully in view at load (then it
 starts immediately), or `inViewThreshold` may be higher than the element can ever
