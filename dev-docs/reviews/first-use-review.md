@@ -16,7 +16,7 @@ Where an item reopens a decided question, it says so.
 
 - **Part 1** — the API and the schema (items 1–26)
 - **Part 2** — how they read in the docs: sleek or clumsy (D1–D6)
-- **Part 3** — statements in the docs that are wrong today (E1–E12, each checked against the code)
+- **Part 3** — statements in the docs that are wrong today (E1–E12, each checked against the code) ✅ fixed 2026-10-24
 
 🔴 the user's expectation and the behavior disagree · 🟠 inconsistent surface — users will trip on
 it · 🟡 smaller
@@ -1237,7 +1237,7 @@ step of `materializeAllInTree`, `PxInternalAnimatorOptions`). In a guide they bu
 
 ---
 
-# Part 3 — statements in the docs that are wrong today
+# Part 3 — statements in the docs that are wrong today ✅
 
 Each checked against the code on 2026-10-15.
 
@@ -1264,7 +1264,7 @@ Each checked against the code on 2026-10-15.
 
 ## Suggested order
 
-1. **Part 3** — wrong statements; docs-only, no behavior change (E9 needs the enum's text).
+1. **Part 3** — wrong statements; docs-only, no behavior change (E9 needs the enum's text). ✅
 2. **§3, §5** — types that reject what users write, or accept what the player drops.
 3. **§1 + §2 together, then §4, §6, §14** — the first-run experience.
 4. **D1–D5** — restructure the guides once the API settles, so the rewrite happens once.
