@@ -56,6 +56,34 @@ const sh = (cmd, cwd) => execSync(cmd, { cwd, stdio: 'inherit', env: { ...proces
 const readJson = p => JSON.parse(readFileSync(p, 'utf8'));
 const work = mkdtempSync(join(tmpdir(), 'get-started-check-'));
 
+// ---- published mode: only answerable for a version the registry actually has -----------------
+//
+// These projects track the WORKSPACE API. Between an API change and its release the workspace is
+// ahead of the registry, so they cannot build against `latest` — nothing is broken, the version
+// they need does not exist yet. Skip instead of failing: `--local` still checks them against the
+// release about to ship, which is what `pnpm build` runs.
+const semver = v => String(v).split('-')[0].split('.').map(Number);
+const newer = (a, b) => {
+    const [x, y] = [semver(a), semver(b)];
+    for (let i = 0; i < 3; i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0);
+    return false;
+};
+if (!LOCAL) {
+    const local = readJson(join(PACKAGES, 'svg-animator-web', 'package.json')).version;
+    let published;
+    try {
+        published = execSync(`npm view ${PKG_PREFIX}web version`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    } catch {
+        console.log('could not reach the npm registry — running the check against `latest` anyway');
+    }
+    if (published && newer(local, published)) {
+        console.log(`\nSKIPPED — the workspace is at ${local}; the registry's latest is ${published}.`);
+        console.log('These projects follow the workspace API, so they can only be checked against a published version.');
+        console.log(`Publish ${local}, or check the release about to ship with:  pnpm check:get-started --local`);
+        process.exit(0);
+    }
+}
+
 // ---- --local: pack the workspace packages ---------------------------------------------------
 
 /** short name → { version, tarball } */
