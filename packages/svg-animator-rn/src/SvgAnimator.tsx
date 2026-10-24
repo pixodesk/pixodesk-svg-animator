@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { toPxDocument, type PxDocumentInput, PxPlayMode, PxDiagnosticCode, PxDiagnosticKind, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, PxTimelineEngine, PxFillMode, type PxHoverEndAction, type PxPlaybackDirection, type PxDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig } from '@pixodesk/svg-animator-core';
+import { toPxDocument, type PxDocumentInput, PxPlayMode, PxDiagnosticCode, PxDiagnosticKind, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, PxTimelineEngine, PxFillMode, type PxHoverEndAction, PxPlaybackDirection, type PxDocument, type PxTimelinePatch, type PxNode, applyAnimatorConfig } from '@pixodesk/svg-animator-core';
 import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createIterationStopWatcher, createRunClock, isValidPlaybackRate, PxDeclarativeAction, type PxDeclarativeProps, PxPlaybackWorld, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, seekCeilingMs, timeToProgress, type PxControlProps, resolveTrigger, PxControlMode, resolveControlMode, foldTimelineOverride } from '@pixodesk/svg-animator-core/engine';
 import { carryPrep, deepEquals, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
@@ -419,9 +419,9 @@ export function SvgAnimationPlayer({
         const speed = Math.abs(rate);
         // `direction` decides which end a leg runs toward; a negative playback
         // rate flips it again (the two compose, as in the Web Animations API).
-        const directionReversed = tracks.direction === 'reverse' || tracks.direction === 'alternate-reverse';
+        const directionReversed = tracks.direction === PxPlaybackDirection.reverse || tracks.direction === PxPlaybackDirection.alternateReverse;
         const reversedStart = backwards ? !directionReversed : directionReversed;
-        const alternates = tracks.direction === 'alternate' || tracks.direction === 'alternate-reverse';
+        const alternates = tracks.direction === PxPlaybackDirection.alternate || tracks.direction === PxPlaybackDirection.alternateReverse;
         const from = Math.max(0, Math.min(fromMs, dur));
 
         const legTarget = reversedStart ? 0 : dur;

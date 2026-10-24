@@ -195,7 +195,7 @@ interface SVG_JSON extends NODE {
                                                    // says); 'reset' cancels back to the start state, overriding fillMode.
                                                    // Next to fillMode because both answer "what is shown after the end" (§13);
                                                    // named for its occasion, and to stay clear of the onFinish CALLBACK
-                direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';  // default 'normal'
+                direction?: 'normal' | 'reverse' | 'alternate' | 'alternateReverse';  // default 'normal'
                 trigger?: {
                     start?: 'load' | 'hover' | 'click' | 'manual';       // what STARTS it; default 'load'; 'manual' waits for play()
                     outOfView?: 'pause' | 'continue' | 'reset';            // while nobody can see it; default 'pause'
@@ -226,7 +226,7 @@ interface SVG_JSON extends NODE {
                                                    // default { start: {phase:'cover', fraction:0}, end: {phase:'cover', fraction:1} }
                     start?: { phase?: PHASE; fraction?: number };  // fraction: 0..1 within the phase
                     end?:   { phase?: PHASE; fraction?: number };
-                };  // PHASE = 'cover' | 'contain' | 'entry' | 'exit' | 'entry-crossing' | 'exit-crossing'
+                };  // PHASE = 'cover' | 'contain' | 'entry' | 'exit' | 'entryCrossing' | 'exitCrossing'
               };
 
         // reusable definitions, resolved at runtime — materialize (inline) every ref before
@@ -414,6 +414,11 @@ child elements), `animate` (its animation) and `effects` (its effects):
 example here uses. The player renders them to the standard SVG attribute (`stroke-width`), and
 accepts that kebab spelling on the way in as well. `style` keys follow the same rule — camelCase CSS
 property names, as in React's `style` prop (`whiteSpace`, `pointerEvents`, `mixBlendMode`).
+
+**Values the format defines are camelCase too** — `alternateReverse`, `entryCrossing`, `offsetPath`,
+`userSpaceOnUse` — even the ones taken from CSS or Web Animations: the players spell them the
+browser's way only where they hand them over. Attribute and `style` *values* are not the format's own
+words; they are written as the DOM takes them (`fill: 'none'`, `whiteSpace: 'pre-wrap'`).
 
 **Static values** are typed: numbers (`opacity: 0.5`), number lists (`strokeDasharray: [16,
 16]`), strings (`fill: "#33b366"`, `viewBox`), a transform written as an **object with one key per part** (`transform:
@@ -1677,6 +1682,7 @@ adapter. You need it only to build a player; everything else is on the main entr
 | Time contract | `seekCeilingMs`, `progressSpanMs`, `clampSeekMs`, `timeToProgress`, `progressToTimeMs`, `isValidPlaybackRate`, `PX_RATE_REJECTED`, `createRunClock` + | ○ **`/engine`** · the one meaning of time, seeking and rate that every engine implements — see `PxAnimationPlayerApi` |
 | Diagnostics | `createDiagnostics(config?, prefix?)` (▪) → `PxDiagnostics`, `PxDiagnosticCode`, `PxDiagnosticKind` + `PxDiagnostic`, `PxDiagnosticsConfig` | ● the one channel every player reports through: `onWarn` / `onError` with a `code` saying what happened and a `kind` saying who can act, falling back to the console — see `PxEngineCallbacks`. The text is not shipped: `PxDiagnosticCode` is a number, described on the [codes page](../diagnostics.md) |
 | Enum values | `PxTimelineEngineSetting`, `PxTimelineEngine`, `PxGradientType`, `PxUnits`, `PxGradientSpreadMethod`, `PxLoopRepeatAt`, `PxLoopDirection`, `PxStrokeTrimSubPaths`, `PxCloneWithout` (`clone.without` → `'translate'`), `PxMaskType`, `PxPathOverflow`, `PxLengthAdjust`, `PxTextPathMethod`, `PxTextPathSpacing`, `PxFillMode`, `PxPlaybackDirection`, `PxTriggerStart`, `PxOutOfViewAction`, `PxHoverEndAction`, `PxFinishAction`, `PxScrollKind`, `PxScrollAxis`, `PxScrollSource`, `PxScrollPhase`, `PxPinAlign`, `PxAlongPathMode`, `PX_TRANSFORM_PART_KEYS` | ● named values instead of bare strings — each is a const namespace AND the type derived from it, so `PxTriggerStart.click` and `start?: PxTriggerStart` come from one import |
+| Browser spelling | `cssPlaybackDirection(direction)`, `cssScrollPhase(phase)`, `PxCssPlaybackDirection`, `PxCssScrollPhase` | ▪ a camelCase format value spelled the way CSS / Web Animations take it (`alternateReverse` → `'alternate-reverse'`), where a player or the editor's CSS export hands it to the browser |
 | Schema version | `PX_WIRE_VERSION`, `PX_WIRE_BASELINE_VERSION`, `PX_WIRE_STEPS`, `PX_WIRE_VERSION_KEY`, `PxWireVersionRelation`, `parseWireVersion`, `formatWireVersion`, `readWireVersion`, `compareWireVersion`, `wireVersionAdvice`, `convertWireDocument`, `downgradeWireDocument`, `applyWireSteps`, + `PxWireVersion`, `PxWireVersionStep`, `PxWireConversionResult`, `PxWireStepKind`, `PxWireConversionOptions` | ○ read, compare and convert a document's `animator.version` — [Versioning](#versioning). `PX_WIRE_SCHEMA_VERSION` (▪) is the bump-site string behind `PX_WIRE_VERSION`, moved to `/internal` (review §16) |
 | Schema release | `schemaFieldUniverse`, `diffFieldUniverse`, `planSchemaRelease`, `releaseLogProblems` | ▪ the field inventory and bump rule behind `scripts/schema-release.mjs` |
 | Diagnostics | `diagnoseDocument(doc)` → (`{ problems }`), `reportDocumentDiagnostics(doc, where)`, `PX_UNKNOWN_KEY_ERROR`, `PX_VALIDATION_ROOT_SEGMENT` | ▪ the load-time check every player runs; call `validateDocument` instead |

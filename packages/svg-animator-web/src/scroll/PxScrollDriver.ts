@@ -16,8 +16,8 @@
 // without a scroll. TODO (optimization, deliberate v1 omission): an IntersectionObserver
 // gate to park the listeners entirely while the subject is far outside its range.
 
-import { PxDiagnosticCode, PxDiagnosticKind, type PxAnimatorRuntimeConfig, type PxDiagnostics, type PxScroll } from '@pixodesk/svg-animator-core';
-import { createDiagnostics, isScrollTimeline, scrollOffsetProgress, scrollResolveAxis, scrollViewProgress } from '@pixodesk/svg-animator-core/internal';
+import { PxDiagnosticCode, PxDiagnosticKind, PxScrollPhase, type PxAnimatorRuntimeConfig, type PxDiagnostics, type PxScroll, type PxScrollRangePoint } from '@pixodesk/svg-animator-core';
+import { createDiagnostics, cssScrollPhase, isScrollTimeline, type PxCssScrollPhase, scrollOffsetProgress, scrollResolveAxis, scrollViewProgress } from '@pixodesk/svg-animator-core/internal';
 
 
 // ── Native timeline support (`timeline.engine: 'native'`, tried first by `auto`) ────────────────────────────────────────
@@ -38,12 +38,14 @@ interface PxNativeScrollTimeline {
     rangeEnd?: Record<string, unknown>;
 }
 
-function nativeRangeOffset(point: { phase?: string; fraction?: number } | undefined, defaultFraction: number, view: boolean): Record<string, unknown> | undefined {
+function nativeRangeOffset(point: PxScrollRangePoint | undefined, defaultFraction: number, view: boolean): Record<string, unknown> | undefined {
     const fraction = typeof point?.fraction === 'number' ? point.fraction : defaultFraction;
     const pct = (globalThis as { CSS?: { percent?: (n: number) => unknown } }).CSS?.percent?.(fraction * 100);
     if (pct === undefined) return undefined;
-    // Named phases exist only on VIEW timelines; a scroll timeline takes a bare offset.
-    return view ? { rangeName: point?.phase ?? 'cover', offset: pct } : { offset: pct };
+    // Named phases exist only on VIEW timelines (the CSS range name); a scroll timeline takes a bare offset.
+    if (!view) return { offset: pct };
+    const named: { rangeName: PxCssScrollPhase; offset: unknown } = { rangeName: cssScrollPhase(point?.phase ?? PxScrollPhase.cover), offset: pct };
+    return named;
 }
 
 // @px-importance important

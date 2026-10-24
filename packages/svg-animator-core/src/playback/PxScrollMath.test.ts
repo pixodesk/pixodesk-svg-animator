@@ -21,8 +21,8 @@ describe('scrollPhaseInterval — the design-doc table', () => {
         ['entry', [0, 100]],
         ['contain', [100, 400]],
         ['exit', [400, 500]],
-        ['entry-crossing', [0, 100]],
-        ['exit-crossing', [400, 500]],
+        ['entryCrossing', [0, 100]],
+        ['exitCrossing', [400, 500]],
     ] as const)('small subject: %s → %j', (phase, expected) => {
         expect(scrollPhaseInterval(phase, 100, 400)).toEqual(expected);
     });
@@ -34,8 +34,8 @@ describe('scrollPhaseInterval — the design-doc table', () => {
         ['entry', [0, 400]],
         ['contain', [400, 1000]],
         ['exit', [1000, 1400]],
-        ['entry-crossing', [0, 1000]],
-        ['exit-crossing', [400, 1400]],
+        ['entryCrossing', [0, 1000]],
+        ['exitCrossing', [400, 1400]],
     ] as const)('large subject: %s → %j', (phase, expected) => {
         expect(scrollPhaseInterval(phase, 1000, 400)).toEqual(expected);
     });

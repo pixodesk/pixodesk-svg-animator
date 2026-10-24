@@ -211,7 +211,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
         { name: "direction 'reverse' mirrors progress", timeline: { direction: 'reverse' }, at: 80, expected: 0.75 },
         { name: "direction 'alternate' plays iteration 0 forward", timeline: { direction: 'alternate', iterations: 2 }, at: 80, expected: 0.25 },
         { name: "direction 'alternate' mirrors iteration 1", timeline: { direction: 'alternate', iterations: 2 }, at: DUR + 80, expected: 0.75 },
-        { name: "direction 'alternate-reverse' mirrors iteration 0", timeline: { direction: 'alternate-reverse', iterations: 2 }, at: 80, expected: 0.75 },
+        { name: "direction 'alternateReverse' mirrors iteration 0", timeline: { direction: 'alternateReverse', iterations: 2 }, at: 80, expected: 0.75 },
     ])('$name', ({ timeline, at, expected }) => {
         const { api, opacity } = setup(timeline);
         api.play();

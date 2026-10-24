@@ -47,15 +47,26 @@ export const PxFillMode = {
 
 export type PxFillMode = typeof PxFillMode[keyof typeof PxFillMode];
 
-/** WAAPI `direction` — which way each iteration runs. @public */
+/** Which way each iteration runs — WAAPI `direction`, in the format's camelCase (review §25). @public */
 export const PxPlaybackDirection = {
     normal:            'normal',
     reverse:           'reverse',
     alternate:         'alternate',
-    alternateReverse:  'alternate-reverse',
+    alternateReverse:  'alternateReverse',
 } as const;
 
 export type PxPlaybackDirection = typeof PxPlaybackDirection[keyof typeof PxPlaybackDirection];
+
+/** The browser's spelling of a direction — CSS `animation-direction` / WAAPI `direction`. @internal */
+export type PxCssPlaybackDirection = 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';
+
+/** A direction as the browser takes it (`alternateReverse` → `'alternate-reverse'`). @internal */
+export function cssPlaybackDirection(direction: PxPlaybackDirection): PxCssPlaybackDirection {
+    switch (direction) {
+        case PxPlaybackDirection.alternateReverse: return 'alternate-reverse';
+        default: return direction;   // the one-word values are spelled the same
+    }
+}
 
 
 /** @internal */
@@ -152,11 +163,23 @@ export const PxScrollPhase = {
     contain:       'contain',
     entry:         'entry',
     exit:          'exit',
-    entryCrossing: 'entry-crossing',
-    exitCrossing:  'exit-crossing',
+    entryCrossing: 'entryCrossing',
+    exitCrossing:  'exitCrossing',
 } as const;
 
 export type PxScrollPhase = typeof PxScrollPhase[keyof typeof PxScrollPhase];
+
+/** The browser's spelling of a phase — a CSS view-timeline range name. @internal */
+export type PxCssScrollPhase = 'cover' | 'contain' | 'entry' | 'exit' | 'entry-crossing' | 'exit-crossing';
+
+/** A phase as the browser takes it (`entryCrossing` → `'entry-crossing'`). @internal */
+export function cssScrollPhase(phase: PxScrollPhase): PxCssScrollPhase {
+    switch (phase) {
+        case PxScrollPhase.entryCrossing: return 'entry-crossing';
+        case PxScrollPhase.exitCrossing: return 'exit-crossing';
+        default: return phase;   // the one-word values are spelled the same
+    }
+}
 
 /** `alongPathMode` — how a value is sampled along a motion path. @public */
 export const PxAlongPathMode = {

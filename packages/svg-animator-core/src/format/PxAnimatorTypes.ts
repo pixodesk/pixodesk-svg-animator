@@ -944,7 +944,7 @@ export interface _PxTimeTimeline {
      *  CALLBACK on `PxEngineCallbacks`. */
     finish?: PxFinishAction;
     /** Forward, backward, or turning around each iteration. */
-    direction?: 'normal' | 'reverse' | 'alternate' | 'alternate-reverse';
+    direction?: PxPlaybackDirection;
 }
 
 /** The time-driven member of {@link PxTimelineSchema} — what an absent `type` selects. Exported

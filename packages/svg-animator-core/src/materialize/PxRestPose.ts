@@ -50,7 +50,7 @@
 
 import { calcAnimationValues, normalizeBindings } from '../animation/PxDefinitions';
 import { createMotionPathSegments, type MotionPathSegments } from './PxMotionPath';
-import { getAnimatorConfig, type PxTimelineEngine } from '../format/PxAnimatorConstants';
+import { getAnimatorConfig, PxPlaybackDirection, type PxTimelineEngine } from '../format/PxAnimatorConstants';
 import type { PxDocument, PxNode, PxTransformParts } from '../format/PxAnimatorTypes';
 import type { PxRuntimeAnimation } from '../animation/PxRuntimeChannel';
 import { parseTransformParts, PX_DEFAULT_DURATION_MS, PX_TRANSFORM_FN_NAMES } from '../util/PxAnimatorUtil';
@@ -60,7 +60,7 @@ import { deepClone } from '../util/PxIdUtil';
 const TRANSFORM_CHANNEL = 'transform';
 
 /** Timeline directions whose FIRST frame is the END of an iteration. */
-const REVERSED_DIRECTIONS: ReadonlySet<string> = new Set(['reverse', 'alternate-reverse']);
+const REVERSED_DIRECTIONS: ReadonlySet<string> = new Set([PxPlaybackDirection.reverse, PxPlaybackDirection.alternateReverse]);
 
 /** Where along an iteration rule 2 samples the engine's writes — the ends and three points between. */
 const VERIFY_SAMPLE_FRACTIONS: ReadonlyArray<number> = [0, 0.25, 0.5, 0.75, 1];

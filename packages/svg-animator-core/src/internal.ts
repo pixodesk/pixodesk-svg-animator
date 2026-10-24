@@ -33,6 +33,8 @@ export { carryPrep } from './format/PxAnimatorConstants';
 // Wire `timeline` → runtime view (review §17a: renamed from flattenAnimatorTimeline, demoted from the
 // main entry) — public code reads the view through `getAnimatorConfig` / `prepareDocument`.
 export { resolveAnimatorTimeline } from './format/PxAnimatorConstants';
+// Our camelCase values spelled the browser's way, where a player hands them to CSS / WAAPI (review §25).
+export { cssPlaybackDirection, cssScrollPhase, type PxCssPlaybackDirection, type PxCssScrollPhase } from './format/PxAnimatorConstants';
 // A motion-path segment table — owned by whoever evaluates segments repeatedly (an animator, a compile).
 export { createMotionPathSegments } from './materialize/PxMotionPath';
 export { PxNormalizedPathValueSchema } from './format/PxAnimatorTypes';

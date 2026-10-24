@@ -84,7 +84,7 @@ timeline. `animator` itself keeps only what is not playback: the lookup tables
 | `timeline.engine` | `auto` · `native` · `js` | `auto` | how the animated attributes get updated — [Engine](#engine) |
 | `timeline.delay` | ms | `0` | wait this long, then start. A **negative** value skips ahead instead: `-500` starts right away from the frame at 0.5 s, as if the animation had already been running for half a second |
 | `timeline.iterations` | number · `"infinite"` | `1` | how many times the whole document timeline repeats |
-| `timeline.direction` | `normal` · `reverse` · `alternate` · `alternate-reverse` | `normal` | `alternate` ping-pongs on every other iteration |
+| `timeline.direction` | `normal` · `reverse` · `alternate` · `alternateReverse` | `normal` | `alternate` ping-pongs on every other iteration |
 | `timeline.fillMode` | `forwards` · `backwards` · `both` · `none` | `forwards` | what is shown *outside* the active time: `forwards` holds the last frame after the end; `backwards` shows the first frame during the delay; `none` reverts to the static SVG. Combines with `finish` below: `reset` there wins at the natural end |
 | `timeline.finish` | `hold` · `reset` | `hold` | after a natural finish: `hold` keeps the end showing whatever `fillMode` says; `reset` CANCELS back to the start state, overriding `fillMode`. Its sibling on purpose — both answer "what is shown after the end" |
 
@@ -340,7 +340,7 @@ object tunes it:
 | `axis` | `block` (default) · `inline` · `x` · `y` | which axis; `block` = vertical in normal writing mode |
 | `source` | `nearest` (default) · `root` | for `type: scroll` — the nearest scrollable ancestor, or the document |
 | `subject` | `parent` · `scroller` · a CSS selector | for `type: view` — **whose** journey is measured (default: the `<svg>` itself). `parent` is what makes a *pinned* section work |
-| `range.start` / `range.end` | `{ phase, fraction }` | the slice of the journey mapped to 0–100 %; `phase` ∈ `cover` (default) · `contain` · `entry` · `exit` · `entry-crossing` · `exit-crossing`; `fraction` is a position within that phase, `0` = its start, `1` = its end |
+| `range.start` / `range.end` | `{ phase, fraction }` | the slice of the journey mapped to 0–100 %; `phase` ∈ `cover` (default) · `contain` · `entry` · `exit` · `entryCrossing` · `exitCrossing`; `fraction` is a position within that phase, `0` = its start, `1` = its end |
 | `iterations` | number | the animation repeats this many times across the range (finite only — `"infinite"` cannot map onto a range) |
 | `smoothing` | ms | catch-up lag — the playhead eases toward the scroll position instead of snapping (smoother under momentum scrolling) |
 | `pin` | `true` · `{ align, offset, distance }` | hold the canvas still on screen while scrolling moves the animation forward and back (`position: sticky`); `align` ∈ `top`/`center`/`bottom`, `offset` in px from the aligned position, `distance` in viewport heights creates the scroll travel |

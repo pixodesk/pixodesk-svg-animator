@@ -153,5 +153,12 @@
    "animator.timeline|time.trigger.visibilityThreshold"
   ],
   "note": "Trigger words name the event each key is about (first-use review §21): `start: 'mouseOver'` becomes `'hover'` and `'none'` becomes `'manual'`; `mouseOut` becomes `hoverEnd`; the visibility gate is one \"view\" family — `visibilityThreshold` / `visibilityDebounce` (its opening edge) become `inViewThreshold` / `inViewDebounce`, and `offScreen` (its closing edge) becomes `outOfView`."
+ },
+ {
+  "version": "1.8",
+  "date": "2026-10-24",
+  "added": [],
+  "removed": [],
+  "note": "Every value the format defines is camelCase (first-use review §25): `timeline.direction: 'alternate-reverse'` becomes `'alternateReverse'`, and the scroll range phases `'entry-crossing'` / `'exit-crossing'` become `'entryCrossing'` / `'exitCrossing'`. The players spell them the CSS way only where they hand them to the browser."
  }
 ]

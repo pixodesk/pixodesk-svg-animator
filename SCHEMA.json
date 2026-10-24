@@ -2367,7 +2367,7 @@
                 "normal",
                 "reverse",
                 "alternate",
-                "alternate-reverse"
+                "alternateReverse"
               ]
             }
           },
@@ -2456,8 +2456,8 @@
                         "contain",
                         "entry",
                         "exit",
-                        "entry-crossing",
-                        "exit-crossing"
+                        "entryCrossing",
+                        "exitCrossing"
                       ]
                     },
                     "fraction": {
@@ -2475,8 +2475,8 @@
                         "contain",
                         "entry",
                         "exit",
-                        "entry-crossing",
-                        "exit-crossing"
+                        "entryCrossing",
+                        "exitCrossing"
                       ]
                     },
                     "fraction": {
@@ -2577,8 +2577,8 @@
                         "contain",
                         "entry",
                         "exit",
-                        "entry-crossing",
-                        "exit-crossing"
+                        "entryCrossing",
+                        "exitCrossing"
                       ]
                     },
                     "fraction": {
@@ -2596,8 +2596,8 @@
                         "contain",
                         "entry",
                         "exit",
-                        "entry-crossing",
-                        "exit-crossing"
+                        "entryCrossing",
+                        "exitCrossing"
                       ]
                     },
                     "fraction": {

@@ -1114,7 +1114,7 @@ one consistent vocabulary)
   - Do it before §21, so the §21 renames reach Vue with no extra edit.
 - **Done (2026-10-24):** `start: { type: String as PropType<PxTriggerStart> }`, no default. (§21 had already renamed the copy's words; it now cannot drift.) The other trigger props were clean: Vue's `outOfView` / `hoverEnd` use `PxOutOfViewAction` / `PxHoverEndAction`, and React and React Native take all of them from core's `PxTimelineShortcuts`.
 
-### 25. Enum value spelling follows an unwritten rule
+### 25. Enum value spelling follows an unwritten rule ✅
 
 - **What:** two spellings meet in the value lists.
   - Our own values are camelCase: `mouseOver`, `offsetPath` (`alongPathMode`), `continue`.
@@ -1123,6 +1123,7 @@ one consistent vocabulary)
 - **Suggested:** one sentence in the format guide's principles: "a value we invented is camelCase; a value taken from CSS keeps its CSS spelling". Add the full list of kebab-case values (today: `alternate-reverse`, `entry-crossing`, `exit-crossing`).
   - Optionally, the validator's enum error can name the closest valid value ("did you mean `alternate-reverse`?"). That catches the typo at the moment it happens.
   - No wire change.
+- **Done (2026-10-24), differently from the suggestion (owner):** the format is ours, so its values follow its own rule, not CSS's — the three kebab-case values became camelCase in wire 1.8: `timeline.direction: 'alternateReverse'`, scroll range phases `'entryCrossing'` / `'exitCrossing'` (the 1.7 → 1.8 step converts old files and back). Each value now equals its const name. The players spell them the browser's way only where they hand them over — `cssPlaybackDirection` / `cssScrollPhase` (core `/internal`) at the Web Animations `direction`, the native view-timeline `rangeName` and the editor's CSS export; the two web call sites are typed so a raw value no longer compiles (seen failing). The format guide now states the rule for values next to the one for names. The validator already listed the valid values in its error, so no "did you mean". Tests: `PxWireCamelCaseValuesStep.test.ts` (seen failing with the step broken), `PxCssSpelling.test.ts`.
 
 ### 26. Effect names mix two patterns
 

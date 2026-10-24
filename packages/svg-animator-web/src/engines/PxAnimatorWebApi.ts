@@ -6,7 +6,7 @@
 
 import { getAnimatorConfig, PxTimelineEngine, type PxDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxCompiledAnimation, type PxCompiledKeyframe, PxDiagnosticCode, PxDiagnosticKind } from '@pixodesk/svg-animator-core';
 import { normalizeBindings, PxValueKind, type PxRuntimeAnimation, clampSeekMs, isValidPlaybackRate, progressToTimeMs, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core/engine';
-import { PX_DEFAULT_ITERATIONS, mapChannelKeyframes, type PxChannelLerp } from '@pixodesk/svg-animator-core/internal';
+import { cssPlaybackDirection, PX_DEFAULT_ITERATIONS, mapChannelKeyframes, type PxChannelLerp } from '@pixodesk/svg-animator-core/internal';
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformParts, cubicBezier, kebabToCamelCaseWord, splitEasing, toRGBA, createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
@@ -297,7 +297,7 @@ export function createWebApiAnimator(
             // Without this, seeking to the last frame reverts elements to their
             // pre-animation state (the Web Animations API "after" phase with fill:'none').
             fill: config.fill ?? 'forwards',
-            direction: config.direction,
+            direction: config.direction ? cssPlaybackDirection(config.direction) : undefined,
             iterations: iterations
         };
 

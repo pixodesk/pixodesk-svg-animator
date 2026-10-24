@@ -272,6 +272,18 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         // an exact rename: every 1.7 trigger has a 1.6 spelling
         down: downTriggerWords,
     },
+    {
+        from: '1.7',
+        to: '1.8',
+        reason: 'Every value the format defines is camelCase (first-use review §25): `timeline.direction: '
+            + '\'alternate-reverse\'` becomes `\'alternateReverse\'`, and the scroll range phases `\'entry-crossing\'` / '
+            + '`\'exit-crossing\'` become `\'entryCrossing\'` / `\'exitCrossing\'`. The players spell them the CSS way '
+            + 'only where they hand them to the browser.',
+        kind: PxWireStepKind.converted,
+        up: upCamelCaseValues,
+        // an exact rename: every 1.8 value has a 1.7 spelling
+        down: downCamelCaseValues,
+    },
 ];
 
 /** 1.4 → 1.5: `animator.debugGlobalName` dropped, at either animator address. */
@@ -318,6 +330,34 @@ function upTriggerWords(doc: Record<string, unknown>): void { renameTriggerWords
 
 /** 1.7 → 1.6: the exact inverse. */
 function downTriggerWords(doc: Record<string, unknown>): void { renameTriggerWords(doc, false); }
+
+const DIRECTIONS_1_8: ReadonlyArray<readonly [string, string]> = [['alternate-reverse', 'alternateReverse']];
+const PHASES_1_8: ReadonlyArray<readonly [string, string]> = [['entry-crossing', 'entryCrossing'], ['exit-crossing', 'exitCrossing']];
+
+/** Swaps `rec[key]` along `pairs` (`[older, newer]`): up older → newer, down newer → older. */
+function swapValue(rec: Record<string, unknown>, key: string, pairs: ReadonlyArray<readonly [string, string]>, up: boolean): void {
+    for (const [older, newer] of pairs) {
+        if (rec[key] === (up ? older : newer)) { rec[key] = up ? newer : older; return; }
+    }
+}
+
+function renameCamelCaseValues(doc: Record<string, unknown>, up: boolean): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    if (!timeline) return;
+    swapValue(timeline, 'direction', DIRECTIONS_1_8, up);
+    const range = readObjectProp(timeline, 'range');
+    for (const end of ['start', 'end']) {
+        const point = range ? readObjectProp(range, end) : undefined;
+        if (point) swapValue(point, 'phase', PHASES_1_8, up);
+    }
+}
+
+/** 1.7 → 1.8: the three kebab-case values (see the step's `reason`). */
+function upCamelCaseValues(doc: Record<string, unknown>): void { renameCamelCaseValues(doc, true); }
+
+/** 1.8 → 1.7: the exact inverse. */
+function downCamelCaseValues(doc: Record<string, unknown>): void { renameCamelCaseValues(doc, false); }
 
 /** 1.4 → 1.3: the exact inverse — the move loses nothing either way. */
 function downFinishToTrigger(doc: Record<string, unknown>): void {

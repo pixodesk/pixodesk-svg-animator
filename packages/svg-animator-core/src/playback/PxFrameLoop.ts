@@ -6,7 +6,7 @@
 
 import { type PxDocument, type PxAnimationPlayerApi, type PxEngineAnimationPlayerApi, type PxEngineCallbacks } from '../format/PxAnimatorTypes';
 import { composeApiExtras } from './PxDeclarativePlayback';
-import { getAnimatorConfig, PX_DEFAULT_ITERATIONS, PxTimelineEngine } from '../format/PxAnimatorConstants';
+import { getAnimatorConfig, PX_DEFAULT_ITERATIONS, PxPlaybackDirection, PxTimelineEngine } from '../format/PxAnimatorConstants';
 import { PxTimeTimelineSchema } from '../format/PxAnimatorTypes';
 import { camelCaseToKebabWordIfNeeded, clamp, PX_DEFAULT_DURATION_MS, PX_STYLE_ATTR_NAMES } from '../util/PxAnimatorUtil';
 import { calcAnimationValues, normalizeBindings } from '../animation/PxDefinitions';
@@ -86,7 +86,7 @@ export function createAdapterSvgAnimationPlayer(
 
     // direction handling
     // What an omitted field means is the SCHEMA's statement — read, not restated here.
-    const direction = config.direction || PxTimeTimelineSchema.defaults.direction; // 'normal' | 'reverse' | 'alternate' | 'alternate-reverse'
+    const direction = config.direction || PxTimeTimelineSchema.defaults.direction; // a PxPlaybackDirection
 
     // fill handling — mirrors the Web Animations API `fill` semantics as closely
     // as a frame-writer can. Default 'forwards' (hold final state) matches the
@@ -182,15 +182,15 @@ export function createAdapterSvgAnimationPlayer(
             // - normal: as is
             // - reverse: progress = 1 - baseProgress
             // - alternate: reverse on odd iterations
-            // - alternate-reverse: reverse on even iterations
+            // - alternateReverse: reverse on even iterations
             const dir = direction || 'normal';
             let effectiveProgress = baseProgress;
             if (dir === 'reverse') {
                 effectiveProgress = 1 - baseProgress;
             } else if (dir === 'alternate') {
                 if (iteration % 2 === 1) effectiveProgress = 1 - baseProgress;
-            } else if (dir === 'alternate-reverse') {
-                // alternate-reverse: start reversed on iteration 0
+            } else if (dir === PxPlaybackDirection.alternateReverse) {
+                // alternateReverse: start reversed on iteration 0
                 if (iteration % 2 === 0) effectiveProgress = 1 - baseProgress;
             } // else 'normal' -> keep
             return effectiveProgress;

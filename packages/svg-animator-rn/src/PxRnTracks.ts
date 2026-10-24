@@ -33,7 +33,7 @@ export interface PxCompiledTracks {
     duration: number;
     /** Iteration count (Infinity for 'infinite'). */
     iterations: number;
-    /** 'normal' | 'reverse' | 'alternate' | 'alternate-reverse' */
+    /** a PxPlaybackDirection */
     direction: string;
     /** Delay before start, ms (positive = wait). */
     delay: number;

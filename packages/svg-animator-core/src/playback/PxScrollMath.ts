@@ -11,7 +11,8 @@
 // §4) documents the same formulas — keep them in sync.
 
 import { clamp, PX_DEFAULT_DURATION_MS } from '../util/PxAnimatorUtil';
-import type { PxAnimatorRuntimeConfig, PxScroll, PxScrollPhase, PxScrollRangePoint } from '../format/PxAnimatorTypes';
+import type { PxAnimatorRuntimeConfig, PxScroll, PxScrollRangePoint } from '../format/PxAnimatorTypes';
+import { PxScrollPhase } from '../format/PxAnimatorConstants';
 
 
 /** Is this document scroll-driven? (`animator.timelineSource === 'scroll'`) @internal */
@@ -53,8 +54,8 @@ export function scrollPhaseInterval(
         case 'entry': return [0, Math.min(s, vp)];
         case 'contain': return [Math.min(s, vp), Math.max(s, vp)];
         case 'exit': return [Math.max(s, vp), s + vp];
-        case 'entry-crossing': return [0, s];
-        case 'exit-crossing': return [vp, s + vp];
+        case PxScrollPhase.entryCrossing: return [0, s];
+        case PxScrollPhase.exitCrossing: return [vp, s + vp];
     }
 }
 

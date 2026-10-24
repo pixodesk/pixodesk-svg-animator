@@ -63,7 +63,7 @@ const PxAnimatorConfigSchema = px.object({
     delay:         px.number().optional(),
     iterations:    px.union([px.number(), px.literal('infinite')]).optional(),
     fill:          px.enum(['forwards', 'backwards', 'both', 'none'] as const).optional(),
-    direction:     px.enum(['normal', 'reverse', 'alternate', 'alternate-reverse'] as const).optional(),
+    direction:     px.enum(['normal', 'reverse', 'alternate', 'alternateReverse'] as const).optional(),
     frameRate:     px.number().optional(),
     trigger:       PxTriggerSchema.optional(),
     debugGlobalName: px.string().optional(),

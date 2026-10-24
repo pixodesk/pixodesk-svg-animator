@@ -81,7 +81,7 @@ describe('materializeRestPosesInTree — the static document IS the first frame'
     });
 
     it('a reversed timeline rests on the END of the iteration', () => {
-        for (const direction of ['reverse', 'alternate-reverse']) {
+        for (const direction of ['reverse', 'alternateReverse']) {
             const out = materializeRestPosesInTree(docOf([
                 { type: 'rect', id: 'r', animate: { opacity: { keyframes: [kf(0, 0.1), kf(1000, 0.9)] } } },
             ], { direction }), JS);
