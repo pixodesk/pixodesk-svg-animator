@@ -84,7 +84,7 @@ interface PxAnimationPlayerHandle {
 }
 ```
 
-### Autoplay
+### Play on trigger (`playOnTrigger`)
 
 > **Example:** [`react/play-on-trigger`](../../examples/docs-examples/src/cases/react/play-on-trigger/) — `pnpm example:docs`, then open `#react/play-on-trigger`.
 

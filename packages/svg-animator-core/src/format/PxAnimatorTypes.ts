@@ -2217,13 +2217,14 @@ export interface PxDocument extends PxSvgNode {
 
 /** What a `.json` import produces from a given wire type: every string literal is widened to
  *  `string` and every tuple to a plain array, because TypeScript types an imported JSON file
- *  structurally. Objects and optionality are preserved. */
+ *  structurally. Objects and optionality are preserved; a record (index signature) also takes
+ *  `undefined`, because elements that differ in keys get each missing one as `key?: undefined`. */
 type PxWidenJsonImport<T> =
     T extends string ? string :
     T extends number ? number :
     T extends boolean ? boolean :
     T extends Array<infer U> ? Array<PxWidenJsonImport<U>> :
-    T extends object ? { [K in keyof T]: PxWidenJsonImport<T[K]> } :
+    T extends object ? { [K in keyof T]: PxWidenJsonImport<T[K]> | (string extends K ? undefined : never) } :
     T;
 
 /**

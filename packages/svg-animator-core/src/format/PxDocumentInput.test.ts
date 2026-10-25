@@ -29,6 +29,16 @@ const fromJsonImport: AsJsonImport = {
     }],
 };
 
+/** Elements animating different properties: TypeScript adds each missing key as `?: undefined`
+ *  (`transform?: undefined` on the fading one) — an unannotated literal is typed like the JSON import. */
+const mixedJsonImport = {
+    type: 'svg',
+    children: [
+        { type: 'rect', animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 500, value: 1 }] } } },
+        { type: 'g', animate: { transform: { keyframes: [{ time: 0, value: { translate: [0, 0] } }, { time: 500, value: { translate: [0, 80] } }] } } },
+    ],
+};
+
 describe('the doc inputs take what a JSON import produces (§5)', () => {
     it('a JSON import is a PxDocumentInput with no cast; the strict type stays for authors in code', () => {
         const input: PxDocumentInput = fromJsonImport;    // the get-started line — no cast
@@ -37,5 +47,10 @@ describe('the doc inputs take what a JSON import produces (§5)', () => {
         expect(strict).toBe(fromJsonImport);
         // one named type-level narrowing to the internals, runtime-validated as before
         expect(getAnimatorConfig(toPxDocument(input))?.duration).toBe(1200);
+    });
+
+    it('elements animating different properties fit too — the `?: undefined` keys are accepted', () => {
+        const input: PxDocumentInput = mixedJsonImport;    // no cast
+        expect(toPxDocument(input).children).toHaveLength(2);
     });
 });

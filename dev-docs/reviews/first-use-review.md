@@ -223,6 +223,10 @@ timeline: { inTime: 500, outTime: 2500, playDuration: 4000 }  // …remapped to 
   build-a-document-in-code type. Guard: `PxDocumentInput.test.ts` (core) assigns the exact
   JSON-import shape with no cast and keeps a `@ts-expect-error` proving the strict type still
   rejects it.
+- **Follow-up (2026-10-25):** a JSON whose elements animate different properties still failed —
+  TypeScript adds each missing key as `key?: undefined`, which a record (`animate`, the open
+  attributes) rejected. `PxWidenJsonImport` now lets a record's values be `undefined`; guards: a
+  second case in `PxDocumentInput.test.ts`, and kf's `videoProjects.spec.ts` (the soccer-ball projects).
 
 ### 6. Transforms have two spellings, and one of them has a trap ✅
 
