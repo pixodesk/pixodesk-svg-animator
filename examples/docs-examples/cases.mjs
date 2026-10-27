@@ -24,8 +24,8 @@ export const CASES = [
     summary: 'createSvgAnimationPlayer({ src, container }) and every method of the returned API.' },
   { group: 'web', id: 'callbacks',     title: 'Callbacks', anchor: 'callbacks',
     summary: 'onPlay / onPause / onCancel / onFinish / onRemove, logged as they fire.' },
-  { group: 'web', id: 'triggers',      title: 'Triggers — start on click', anchor: 'triggers',
-    summary: 'The document says start: "click"; the player wires the event for you.' },
+  { group: 'web', id: 'triggers',      title: 'Triggers — play on click', anchor: 'triggers',
+    summary: 'The document lists click under playOn and pauseOn; the player wires the event for you.' },
   { group: 'web', id: 'engine-modes',  title: 'Playback modes — native vs player', anchor: 'playback-modes',
     summary: 'The same document driven by each engine, side by side.' },
   { group: 'web', id: 'several',       title: 'Loading several animations', anchor: 'loading-several-animations',
@@ -34,12 +34,12 @@ export const CASES = [
     summary: 'destroy() stops playback and removes the SVG from the container.' },
 
   // -- React ------------------------------------------------------------------
-  { group: 'react', id: 'imperative',      title: 'Imperative API (apiRef)', anchor: 'imperative-api-apiref',
+  { group: 'react', id: 'imperative',      title: 'Imperative API (playerRef)', anchor: 'imperative-api-playerref',
     summary: 'play / pause / cancel / finish through a ref.' },
   { group: 'react', id: 'play-on-trigger', title: 'Play on trigger', anchor: 'autoplay',
     summary: 'The component honors the document\'s own trigger.' },
-  { group: 'react', id: 'controlled-time', title: 'Controlled time (time)', anchor: 'controlled-time-progress--time',
-    summary: 'A slider drives time (ms); the component renders that exact frame.' },
+  { group: 'react', id: 'controlled-time', title: 'Controlled time (playCurrentTime)', anchor: 'controlled-time-playcurrentprogress--playcurrenttime',
+    summary: 'A slider drives playCurrentTime (ms); the component renders that exact frame.' },
   { group: 'react', id: 'declarative',     title: 'Declarative play / pause', anchor: 'declarative-play--pause',
     summary: 'Boolean play and pause props.' },
   { group: 'react', id: 'css-svgr',        title: 'CSS-flavor SVG — SvgCssAnimationPlayer + SVGR', anchor: 'css-flavor-svgs--svgcssanimationplayer',
@@ -48,8 +48,8 @@ export const CASES = [
   // -- Vue --------------------------------------------------------------------
   { group: 'vue', id: 'play-on-trigger', title: 'Play on trigger', anchor: 'autoplay',
     summary: 'The component honors the document\'s own trigger.' },
-  { group: 'vue', id: 'controlled-time', title: 'Controlled time (time)', anchor: 'controlled-time-progress--time',
-    summary: 'A slider drives time (ms); the component renders that exact frame.' },
+  { group: 'vue', id: 'controlled-time', title: 'Controlled time (playCurrentTime)', anchor: 'controlled-time-playcurrentprogress--playcurrenttime',
+    summary: 'A slider drives playCurrentTime (ms); the component renders that exact frame.' },
   { group: 'vue', id: 'declarative',     title: 'Declarative play / pause', anchor: 'declarative-play--pause',
     summary: 'Boolean play and pause props.' },
   { group: 'vue', id: 'imperative',      title: 'Imperative API (template ref)', anchor: 'imperative-api-template-ref',
@@ -59,9 +59,9 @@ export const CASES = [
 
   // -- Playback settings & triggers ---------------------------------------------
   { group: 'playback', id: 'override-web',   title: 'Overriding from the web player', anchor: 'overriding-from-a-player',
-    summary: 'A `timeline` patch on createSvgAnimationPlayer: infinite iterations, programmatic trigger.' },
+    summary: 'A `timeline` merge on createSvgAnimationPlayer: infinite iterations; no playOnTrigger, so only play() starts it.' },
   { group: 'playback', id: 'override-react', title: 'Overriding from component props', anchor: 'overriding-from-a-player',
-    summary: 'The `timeline` prop plus the `iterations` shortcut replace the document\'s values.' },
+    summary: 'The `timeline` prop merges over the document\'s block: infinite iterations, alternate direction, the js engine.' },
 
   // -- Pre-rendered SVG ----------------------------------------------------------
   { group: 'prerendered', id: 'inline-css', title: 'Flavor 1 inlined — SVG + CSS animation', anchor: 'flavor-1--svg--css-animation',

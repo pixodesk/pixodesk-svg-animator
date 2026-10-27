@@ -280,7 +280,7 @@ page shows the new animation; refresh if it does not.
   To change them for one place in your app without touching the file, pass them to the player:
   [Playback settings & triggers](./playback-and-triggers.md).
 - **Play, pause, jump to a time from your code** — the handle every player gives you:
-  [React](./react.md#imperative-api-apiref) · [Vue](./vue.md) ·
+  [React](./react.md#imperative-api-playerref) · [Vue](./vue.md) ·
   [Web player](./web-player.md#the-playback-api).
 - **No JavaScript at all** — save a pre-rendered SVG instead of JSON and drop the file into any
   page or CMS: [Pre-rendered SVG](https://pixodesk.com/docs/svga/prerendered-svg).

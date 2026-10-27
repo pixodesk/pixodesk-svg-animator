@@ -378,3 +378,35 @@ button:disabled {
 .trigger-fields input[type='number'] {
   width: 64px;
 }
+
+/* The four trigger lists — one checkbox group per list, over the same events. */
+.trigger-lists {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.trigger-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.trigger-list legend {
+  font-size: 12px;
+  color: var(--muted);
+  padding: 0 4px;
+}
+.trigger-list label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.trigger-list input:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}

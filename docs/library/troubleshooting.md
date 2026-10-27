@@ -12,16 +12,18 @@ is not here, go to [Still stuck?](#still-stuck) at the end.
 
 ## Nothing plays
 
-**The trigger is not "on load".** Check `animator.timeline.trigger.start` in the file (or the *Start*
-setting in the editor). `click` and `hover` wait for the user; `manual` waits for you to call
-`play()`. Even `load` waits until enough of the animation is on screen, and pauses while it is
-scrolled out of view (`outOfView: 'pause'`, the default). In React/Vue/React Native, remember that
-`playOnTrigger` is the only mode that uses the document's trigger — with `play`, `pause`, `progress`
-or `time` the trigger is ignored. Passing `apiRef` does **not** change the mode.
+**The trigger does not list `load`.** Check `animator.timeline.trigger.playOn` in the file (or *Plays
+on* in the editor). `click`, `hoverIn` and `hoverOut` wait for the user; an empty trigger (`{}`) waits
+for you to call `play()`. Even `load` waits until enough of the animation is on screen, and pauses
+while it is scrolled out of view (`outOfViewAction: 'pause'`, the default) — see
+[Triggers](./playback-and-triggers.md#triggers--when-it-plays). In React/Vue/React Native, remember
+that `playOnTrigger` is the only mode that uses the document's trigger — with `play`, `pause`,
+`playCurrentProgress` or `playCurrentTime` the trigger is ignored. Passing `playerRef` does **not**
+change the mode.
 
 **React / Vue component with no control prop.** With none of `playOnTrigger` / `play` / `pause` /
-`progress` / `time` set, the component deliberately renders the first frame and does
-nothing. Add `playOnTrigger`. `apiRef` on its own is such a case: the ref is a handle, not an
+`playCurrentProgress` / `playCurrentTime` set, the component deliberately renders the first frame and does
+nothing. Add `playOnTrigger`. `playerRef` on its own is such a case: the ref is a handle, not an
 instruction, so nothing moves until you call `play()` on it.
 
 **`createSvgAnimationPlayersFromPage()` ran before the elements existed.** Call it after the DOM is ready (end of
@@ -75,23 +77,22 @@ there and replaced by `fallback` (nothing by default).
 works around on device; if you hit it, keep `startOffset` at 0 on closed paths or use an open
 path. Details in [React Native → Feature support](./react-native.md#motion-timing-references).
 
-**Hover does nothing.** `hover` has no touch equivalent; use `click` or drive `play`
+**Hover does nothing.** `hoverIn` / `hoverOut` have no touch equivalent; use `click` or drive `play`
 yourself.
 
 ## Playback behavior
 
-**It holds the last frame — I want it to reset.** Set `timeline.finish: "reset"` — the
-animation CANCELS at its natural end and snaps back to the start state. Its sibling
-`timeline.fillMode` answers a different question: what shows AT REST around a run —
-`fillMode: 'none'` also ends on the static SVG, but only because nothing is held; during a
-`delay` it shows the raw attributes too, and it never actively resets. Rule of thumb:
-want a snap-back at the end → `finish: 'reset'`; want the end pose held → leave `finish`
-alone and let `fillMode` (default `forwards`) hold it
-(see [Playback settings](./playback-and-triggers.md#timing)).
-For one mount only, pass the same thing as an override: `timeline={{ finish: 'reset' }}`.
+**It holds the last frame — I want it to reset.** Set `timeline.playEndAction: "reset"` — at its
+natural end the animation jumps back to the start state (`"rewind"` plays back to it instead; the
+default `"hold"` keeps the last frame). The start state is the SVG as authored; a hand-authored
+file whose static attributes differ from its first keyframe can show the first frame instead with
+`showFirstFrameBeforePlayOn: true`
+(see [Play on, play off, play end](./playback-and-triggers.md#play-on-play-off-play-end--how-a-transition-looks)).
+For one mount only, pass the same thing as an override: `timeline={{ playEndAction: 'reset' }}`.
 
-**How do I play backwards?** `player.setPlaybackRate(-1); player.play();` — also as a
-trigger out action (`hoverEnd: 'reverse'`).
+**How do I play backwards?** `player.setPlaybackRate(-1); player.play();` — or let a play-off play
+back by itself: `playOffAction: 'rewind'` in the timeline, with the event that stops it listed in
+the trigger (`playOff: 'hoverOut'`); `stop()` and `play={false}` rewind the same way.
 
 **Jumping to a time while playing.** `setCurrentTime(ms)` works while playing (the animation
 continues from the new point) and while paused (it shows that frame and stays there).

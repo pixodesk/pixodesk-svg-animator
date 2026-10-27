@@ -942,7 +942,7 @@ export interface _PxTimeTimeline {
 }
 
 /** The time-driven member of {@link PxTimelineSchema} — what an absent `type` selects. Exported
- *  so a reader can ask it what an omitted field means (`PxTimeTimelineSchema.defaults.duration`).
+ *  so a reader can ask it what an omitted field means (`PxTimeTimelineSchema.defaults.playEndAction`).
  *  @public @advanced */
 export const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.object({
     type: px.literal('time').optional(),
@@ -1137,7 +1137,7 @@ export interface _PxAnimatorConfig {
      *
      * The wire spells this as `timeline.type` ('time' — or absent — vs 'scroll'/'view');
      * `resolveAnimatorTimeline` folds it into this field for the engines.
-     * Distinct from `trigger.start`, which says what STARTS the animation: one
+     * Distinct from `trigger.playOn`, which says what STARTS the animation: one
      * names the beginning, this one names what moves the playhead afterwards.
      * Design: app `svgeditor/animation/scroll-timeline.design.md`.
      */
@@ -2498,7 +2498,6 @@ export interface PxPlayExecutor {
     cancel(): void;
     /** Silent end pose (a one-shot's mount with `play`). */
     showEnd(): void;
-    /** Drops a deferred move (an iteration completion, a loop's rewind). */
     /** Play BACK to the start from where it is and rest there (a loop: to the start of its iteration). */
     rewind(): void;
     /** The engine announced a natural end: performs `playEndAction` (hold / reset / rewind); the end of a

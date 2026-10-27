@@ -7,7 +7,7 @@
   </head>
   <body>
     <h1>Overriding from the web player</h1>
-    <p class="summary">The player reads <code>animator</code> once, at creation — so edit the object before handing it over. Here: infinite iterations, and a programmatic trigger so nothing happens until <code>play()</code>.</p>
+    <p class="summary">The <code>timeline</code> option is merged over the document's own block, key by key — the document is untouched. Here: infinite iterations, and no <code>playOnTrigger</code>, so nothing happens until <code>play()</code>.</p>
     <div class="controls"><button id="play">play()</button></div>
     <div id="box" class="stage"></div>
     <script type="module" src="./main.ts"></script>

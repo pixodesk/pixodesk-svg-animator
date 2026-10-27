@@ -94,10 +94,10 @@ export const elemTextSpacing: SvgaCaseJson = {
             "mode": "auto",
             "outTime": 1000,
             "trigger": {
-                "start": "load",
-                "outOfView": "continue"
+                "playOn": "load"
             },
-            "direction": "normal"
+            "outOfViewAction": "continue",
+            "iterationDirection": "normal"
         }
     },
     "children": [

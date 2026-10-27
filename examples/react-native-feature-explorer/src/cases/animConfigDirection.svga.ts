@@ -14,10 +14,10 @@ export const animConfigDirection: SvgaCaseJson = {
             "mode": "auto",
             "outTime": 1000,
             "trigger": {
-                "start": "load",
-                "outOfView": "continue"
+                "playOn": "load"
             },
-            "direction": "alternate"
+            "outOfViewAction": "continue",
+            "iterationDirection": "alternate"
         }
     },
     "children": [

@@ -72,28 +72,15 @@ a number when it differs — the note with that number, under the table, says ho
 | `container` | ✓ | 3 | — | — | — | — |
 | **Playback override** | | | | | | |
 | `timeline` | ✓ | — | — | ✓ | ✓ | 4 |
-| `resetTimeline` | ✓ | — | — | ✓ | ✓ | ✓ |
-| `inTime` | ✓ | — | — | ✓ | ✓ | ✓ |
-| `outTime` | ✓ | — | — | ✓ | ✓ | ✓ |
-| `playDuration` | ✓ | — | — | ✓ | ✓ | ✓ |
-| `delay` | ✓ | — | — | ✓ | ✓ | ✓ |
-| `iterations` | ✓ | — | — | ✓ | ✓ | ✓ |
-| `start` | ✓ | — | — | ✓ | ✓ | 5 |
-| `outOfView` | ✓ | — | — | ✓ | ✓ | ✓ |
-| `hoverEnd` | ✓ | — | — | ✓ | ✓ | ✓ |
-| `inViewThreshold` | ✓ | — | — | ✓ | ✓ | ✓ |
-| `inViewDebounce` | ✓ | — | — | ✓ | ✓ | ✓ |
 | **Play on trigger** | | | | | | |
-| `playOnTrigger` | ✓ | 10 | ✓ | ✓ | ✓ | ✓ |
+| `playOnTrigger` | ✓ | 10 | 11 | ✓ | ✓ | 5 |
 | **Declarative control** | | | | | | |
 | `play` | — | — | — | ✓ | ✓ | ✓ |
 | `pause` | — | — | — | ✓ | ✓ | ✓ |
-| `playMode` | — | — | — | ✓ | ✓ | ✓ |
-| `completeIteration` | — | — | — | ✓ | ✓ | ✓ |
-| `progress` | — | — | — | ✓ | ✓ | ✓ |
-| `time` | — | — | — | ✓ | ✓ | ✓ |
+| `playCurrentProgress` | — | — | — | ✓ | ✓ | ✓ |
+| `playCurrentTime` | — | — | — | ✓ | ✓ | ✓ |
 | **Imperative control** | | | | | | |
-| `apiRef` | 6 | 7 | 6 | ✓ | 8 | ✓ | <!-- px web=~ tag=~ prerendered=~ vue=~ -->
+| `playerRef` | 6 | 7 | 6 | ✓ | 8 | ✓ | <!-- px web=~ tag=~ prerendered=~ vue=~ -->
 | **Callbacks** | | | | | | |
 | `onPlay` | ✓ | — | ✓ | ✓ | `@play` | ✓ |
 | `onPause` | ✓ | — | ✓ | ✓ | `@pause` | ✓ |
@@ -118,14 +105,15 @@ a number when it differs — the note with that number, under the table, says ho
    already in the page.
 3. The tag is the container: the player renders into the element that carries the attribute.
 4. React Native ignores `timeline.engine`.
-5. Every player takes every `PxTriggerStart` value; React Native ignores `'hover'`, which
-   has no touch equivalent.
+5. `true`, or the whole trigger to use instead of the file's (a `PxTrigger`); React Native ignores
+   `hoverIn` / `hoverOut`, which have no touch equivalent.
 6. The handle is what `createSvgAnimationPlayer` returns, a `PxAnimationPlayerApi`.
 7. `createSvgAnimationPlayersFromPage` returns the handles it created; `getSvgAnimationPlayer(element)` finds one later.
 8. The handle is the component's template ref, a `PxAnimationPlayerHandle`.
 9. Written `class`; like `style`, it falls through to the root `<svg>`.
 10. The tag always plays on the file's own trigger — embedding a finished file IS choosing its behaviour — so it
     takes no `playOnTrigger` option.
+11. `true` only: a pre-rendered file plays on its own trigger, or on the returned api.
 
 What some of the names mean:
 
@@ -137,15 +125,21 @@ What some of the names mean:
   is also part of the export format: every SVG + JS file the editor exports calls
   `createSvgAnimationPlayer({"doc": …})` (`PX_ANIMATOR_DOC_KEY`), so it is never renamed by a minifier.
 - **`container`** left out means: animate an SVG that is already in the page.
+- **`timeline`** merges corrections over the file's timing block — `{ iterations: 'infinite' }`,
+  `{ playOffAction: 'rewind' }` — never a replacement; `null` at a key deletes it. See
+  [Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
 - **`playOnTrigger`** means "play the way the document says". The HTML tag always works this way;
   the web player takes it as an option (`createSvgAnimationPlayer({ …, playOnTrigger: true })`) — without
-  it, nothing starts and the returned api drives playback.
-- **`play`** set to `false` holds the current frame; **`pause`** holds it too, and setting it
-  back to `false` resumes.
-- **`progress`** shows the frame at a point between 0 and 1 of the whole run (of one iteration
-  when `iterations` is `'infinite'`); **`time`** shows the frame at that many ms from the start.
-- **`apiRef`** is the handle for calling `play()`, `pause()` and the rest from your code. Having
-  it never changes how the component is controlled.
+  it, nothing starts and the returned api drives playback. An **object** instead of `true` is the whole
+  trigger to use in place of the file's (`{ playOn: 'hoverIn', playOff: 'hoverOut' }`).
+- **`play`** is the on/off switch: `true` is a play-on, `false` a play-off, each done the way the
+  timeline says (`playOnAction`, `playOffAction`, `completeIterationOnPlayOff` —
+  [Play on, play off, play end](./playback-and-triggers.md#play-on-play-off-play-end--how-a-transition-looks));
+  **`pause`** freezes the current frame, and setting it back to `false` resumes.
+- **`playCurrentProgress`** shows the frame at a point between 0 and 1 of the whole run (of one iteration
+  when `iterations` is `'infinite'`); **`playCurrentTime`** shows the frame at that many ms from the start.
+- **`playerRef`** is the handle for calling `play()`, `pause()`, `stop()` and the rest from your code.
+  Having it never changes how the component is controlled.
 - **`onDestroy`** fires when the player is thrown away: `destroy()`, an unmount, or a new `doc`.
   **`onStop`** fires after any of pause, cancel, finish or remove.
 - **`onError`** means this player will not play: the document failed to load, parse or build,
@@ -163,17 +157,22 @@ The pre-rendered SVG + CSS wrappers toggle class names instead of creating a pla
 | Name | React `SvgCssAnimationPlayer` | Vue `SvgCssAnimationPlayer` |
 |---|---|---|
 | the SVG | `children` | default slot | <!-- px name=children vue=~ -->
-| `start` | ✓ default `'load'` | ✓ same |
-| `outOfView` | ✓ default `'pause'` | ✓ same |
-| `hoverEnd` | ✓ default `'pause'` | ✓ same |
+| `trigger` | ✓ the file's trigger block; absent = plays on load | ✓ same |
+| `outOfViewAction` | ✓ default `'pause'` | ✓ same |
 | `inViewThreshold` | ✓ default `0.5` | ✓ same |
 | `inViewDebounce` | ✓ default `150` ms | ✓ same |
 | `className` | ✓ on the wrapper div | `class`, on the wrapper div | <!-- px vue=~ -->
 | `style` | ✓ on the wrapper div | ✓ on the wrapper div | <!-- px vue=~ -->
 
-- `start: 'manual'` does nothing here: a wrapper has no `play()` to call.
-- `outOfView: 'pause'` means an animation nobody can see does not run, whatever started it.
-- `hoverEnd: 'reverse'` acts like `'continue'`: a class toggle cannot run keyframes backwards.
+- `trigger` is the JSON player's — `playOn`, `playOff`, `pauseOn`, `pauseOff`, each one event or a
+  list of them, read by the same state rule
+  ([Triggers](./playback-and-triggers.md#triggers--when-it-plays)): `pauseOn: 'hoverOut'` pauses,
+  `playOff: 'hoverOut'` stops. An **empty** trigger does nothing here: a wrapper has no `play()` to call.
+- Accepted limits of a class toggle: a play-on acts as `playOnAction: 'resume'` and a play-off as
+  `playOffAction: 'reset'` — a class cannot restart keyframes, jump to their end or play them
+  backwards — and `completeIterationOnPlayOff`, `showFirstFrameBeforePlayOn` and `playEndAction`
+  are the file's own CSS. None of them is a prop here.
+- `outOfViewAction: 'pause'` means an animation nobody can see does not run, whatever started it.
 - `inViewThreshold` is how much of the SVG (0 to 1) must be on screen before it may run;
   `inViewDebounce` is how long it must stay that way first, so scrolling straight past starts
   nothing. The defaults are the same as the JSON player's.
@@ -188,13 +187,13 @@ core (`resolveControlMode`), so they always pick the same winner:
 <!-- px-check off the mode-priority rule, prose -->
 | Priority | Mode | Chosen when | The document's trigger |
 |---|---|---|---|
-| 1 | controlled time | `progress` or `time` | switched off; the player seeks and holds |
-| 2 | play / pause | `play` or `pause` | switched off; `play` plays, `pause` holds, `play={false}` holds too |
+| 1 | controlled time | `playCurrentProgress` or `playCurrentTime` | switched off; the player seeks and holds |
+| 2 | play / pause | `play` or `pause` | switched off; `play={true}` is a play-on, `play={false}` a play-off — per the timeline's play keys — and `pause` freezes |
 | 3 | playOnTrigger | `playOnTrigger` | used, after the override |
 | 4 | static | none of the above | switched off; the first frame renders and nothing plays |
 
-`apiRef` is not in the table: the handle is filled in **every** mode and never changes it, so
-`<SvgAnimationPlayer doc={doc} playOnTrigger apiRef={playerRef} />` autoplays and gives you the handle.
+`playerRef` is not in the table: the handle is filled in **every** mode and never changes it, so
+`<SvgAnimationPlayer doc={doc} playOnTrigger playerRef={playerRef} />` autoplays and gives you the handle.
 `playOnTrigger: false` is not a control prop and claims nothing; `play: false` is one, and holds.
 The HTML tag is always in playOnTrigger mode; the web player's `playOnTrigger: true` option is the same mode.
 
@@ -279,7 +278,7 @@ and implemented once in core:
   `getCurrentTime()` never jumps back when the animation repeats;
 - a seek **clamps to `[0, duration × iterations]`**, unbounded when `iterations` is `'infinite'`;
 - a rate of `0` is **rejected everywhere**, with a warning — `pause()` is how you stop;
-- `progress` and `getCurrentProgress()` are the same position as 0–1 of the whole run — of ONE
+- `playCurrentProgress` and `getCurrentProgress()` are the same position as 0–1 of the whole run — of ONE
   iteration when endless, since an endless run has no whole to be a fraction of.
 
 ## See also

@@ -1,5 +1,4 @@
-import { applyAnimatorConfig } from '@pixodesk/svg-animator-core';
-import type { PxDocument, PxTrigger } from '@pixodesk/svg-animator-web';
+import type { PxDocument, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
 
 /**
  * A framework-agnostic handle over a mounted animation player.
@@ -41,52 +40,35 @@ export type PlayerKind = 'web' | 'react' | 'vue';
  */
 export type LoopMode = 'auto' | 'loop' | 'no-loop';
 
-/** Per-mount options applied as overrides on top of the document. */
+/** Per-mount options applied as overrides on top of the document — the same two every player takes. */
 export interface PlayerOptions {
   /**
-   * Overrides the document's `iterations`. When omitted (`auto`), the value
-   * declared in the document is used unchanged.
+   * A merge over the document's `animator.timeline`: the Loop picker's `iterations`, and the
+   * visibility gate (`outOfViewAction`, `inViewThreshold`, `inViewDebounce`) of a custom trigger.
+   * When omitted, the values declared in the document are used unchanged.
    */
-  iterations?: number | 'infinite';
+  timeline?: PxTimelinePatch;
   /**
    * Trigger handling:
-   *  - `undefined` → force `programmatic` (the UI transport owns start; default);
+   *  - `undefined` → programmatic (the UI transport owns start; default);
    *  - `'file'`    → use the document's own `animator.timeline.trigger` unchanged;
-   *  - `PxTrigger` → override the trigger with this custom config.
+   *  - `PxTrigger` → this trigger instead of the document's — the WHOLE block.
    */
   trigger?: 'file' | PxTrigger;
 }
 
 /**
- * Whether a component player must be told to `playOnTrigger`.
- *
- * The components take the document's trigger OVER unless `playOnTrigger` is set — with no control
- * props, `<SvgAnimationPlayer doc />` renders the first frame and waits (core's
- * `controlModeTakesOverTrigger`). So "Use trigger" has to pass `playOnTrigger`, or the trigger that
- * `applyTriggerOverride` just wrote into the document is replaced by `start: 'manual'` and the
- * React / Vue players sit still while the web player — which has no such rule — runs.
+ * The `playOnTrigger` option / prop every player takes, from the {@link PlayerOptions.trigger}
+ * choice. Shared by all three player adapters so "Use trigger" behaves identically everywhere:
+ *  - default (no `trigger`)  → absent: the player builds STILL and the transport buttons own
+ *    start — the document's own trigger is replaced by an empty one, so nothing starts it by
+ *    itself (the web player's rule for a missing `playOnTrigger`, and the components' static mode);
+ *  - `'file'`                → `true`: the document's own trigger drives;
+ *  - a config object         → that trigger, as a whole, instead of the document's.
  */
-export function shouldAutoplayForTrigger(opts?: PlayerOptions): boolean {
-  return opts?.trigger !== undefined;
-}
-
-/**
- * Applies the {@link PlayerOptions.trigger} choice to a copy of `doc`. Shared by all
- * three player adapters so "Use trigger" behaves identically everywhere:
- *  - default (no `trigger`)  → force `programmatic` so the transport buttons own start;
- *  - `'file'`                → leave the document's own trigger in place;
- *  - a config object         → replace the trigger with the user's custom config.
- */
-export function applyTriggerOverride(
-  doc: PxDocument,
-  opts?: PlayerOptions,
-): PxDocument {
+export function playOnTriggerFor(opts?: PlayerOptions): boolean | PxTrigger | undefined {
   const t = opts?.trigger;
-  if (t === 'file') return doc;                       // leave the document's own trigger alone
-  // Through the shared merge, so this reaches the WIRE spelling (`animator.timeline.trigger`).
-  // Writing `animator.trigger` directly used to be discarded on any modern document.
-  const trigger = t && typeof t === 'object' ? t : { start: 'manual' };
-  return applyAnimatorConfig(doc, { timeline: { trigger } }).doc;
+  return t === undefined ? undefined : t === 'file' ? true : t;
 }
 
 /** Translates a {@link LoopMode} into an `iterations` override (or `undefined` for `auto`). */

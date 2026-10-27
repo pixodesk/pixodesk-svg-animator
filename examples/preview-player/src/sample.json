@@ -8,11 +8,11 @@
     "timeline": {
       "outTime": 1500,
       "trigger": {
-        "start": "load",
-        "outOfView": "continue"
+        "playOn": "load"
       },
+      "outOfViewAction": "continue",
       "iterations": "infinite",
-      "direction": "alternate"
+      "iterationDirection": "alternate"
     }
   },
   "children": [

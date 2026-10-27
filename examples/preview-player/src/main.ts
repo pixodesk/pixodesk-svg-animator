@@ -1,6 +1,15 @@
 import './style.css';
-import { type PxDocument, type PxTrigger } from '@pixodesk/svg-animator-web';
-import { getAnimatorConfig, isPxDocument, PxOutOfViewAction, PxTriggerStart } from '@pixodesk/svg-animator-core';
+import { type PxDocument, type PxTimelinePatch, type PxTrigger } from '@pixodesk/svg-animator-web';
+import {
+  getAnimatorConfig,
+  isPxDocument,
+  PxOutOfViewAction,
+  PxTriggerEvent,
+  type PxInfer,
+  type PxTimeTimelineSchema,
+  type PxTriggerEvents,
+} from '@pixodesk/svg-animator-core';
+import { resolveTrigger } from '@pixodesk/svg-animator-core/engine';
 
 import { createWebPlayer } from './players/web';
 import { createReactPlayer } from './players/react';
@@ -54,16 +63,76 @@ const btnTheme = $<HTMLButtonElement>('btn-theme');
 const chkUseTrigger = $<HTMLInputElement>('chk-use-trigger');
 const triggerConfigEl = $('trigger-config');
 const chkFileConfig = $<HTMLInputElement>('chk-file-config');
-const selStartOn = $<HTMLSelectElement>('sel-start-on');
-const selHoverEnd = $<HTMLSelectElement>('sel-hover-end');
+const triggerListsEl = $('trigger-lists');
 const selOutOfView = $<HTMLSelectElement>('sel-out-of-view');
 const inpThreshold = $<HTMLInputElement>('inp-threshold');
 const inpDebounce = $<HTMLInputElement>('inp-debounce');
-const hoverEndField = $('hover-end-field');
 const thresholdField = $('threshold-field');
 const debounceField = $('debounce-field');
 
 const transportButtons = [btnPlay, btnPause, btnStop, btnRestart, btnFinish];
+
+// -- Trigger panel: the four lists × the events, from the player's own vocabulary --------
+
+/** The time timeline as the file spells it; the gate keys and `iterations` are picked from it. */
+type TimeTimeline = PxInfer<typeof PxTimeTimelineSchema>;
+
+/** The trigger's four lists, with the editor's labels — typed by the trigger's own keys. */
+const TRIGGER_LISTS: Array<{ key: keyof PxTrigger; label: string }> = [
+  { key: 'playOn', label: 'Plays on' },
+  { key: 'playOff', label: 'Stops on' },
+  { key: 'pauseOn', label: 'Pauses on' },
+  { key: 'pauseOff', label: 'Resumes on' },
+];
+const TRIGGER_EVENTS = Object.values(PxTriggerEvent);
+const OUT_OF_VIEW_ACTIONS = Object.values(PxOutOfViewAction);
+
+interface EventCheckbox {
+  event: PxTriggerEvent;
+  input: HTMLInputElement;
+}
+
+/** One checkbox per list × event, built from the enum so a new event shows up by itself. */
+const listCheckboxes = new Map<keyof PxTrigger, Array<EventCheckbox>>();
+for (const { key, label } of TRIGGER_LISTS) {
+  const group = document.createElement('fieldset');
+  group.className = 'trigger-list';
+  const legend = document.createElement('legend');
+  legend.textContent = label;
+  group.append(legend);
+  const boxes: Array<EventCheckbox> = [];
+  for (const event of TRIGGER_EVENTS) {
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.value = event;
+    const l = document.createElement('label');
+    l.append(input, ` ${event}`);
+    group.append(l);
+    boxes.push({ event, input });
+  }
+  listCheckboxes.set(key, boxes);
+  triggerListsEl.append(group);
+}
+const allListInputs = [...listCheckboxes.values()].flat().map((b) => b.input);
+
+for (const action of OUT_OF_VIEW_ACTIONS) {
+  const option = document.createElement('option');
+  option.value = action;
+  option.textContent = action;
+  selOutOfView.append(option);
+}
+
+/** The option the select shows, as the enum member (the options were built from it). */
+function selectedOutOfViewAction(): PxOutOfViewAction {
+  return OUT_OF_VIEW_ACTIONS.find((a) => a === selOutOfView.value) ?? PxOutOfViewAction.pause;
+}
+
+/** The events ticked under one list — one as the string, several as the array, none = absent:
+ *  the file's own spelling. */
+function tickedEvents(key: keyof PxTrigger): PxTriggerEvents | undefined {
+  const on = (listCheckboxes.get(key) ?? []).filter((b) => b.input.checked).map((b) => b.event);
+  return on.length === 0 ? undefined : on.length === 1 ? on[0] : on;
+}
 
 // -- Theme (persisted in localStorage) ---------------------------------------
 
@@ -123,7 +192,8 @@ function readCanvasSize(doc: PxDocument): { w: number; h: number } {
   if (vb && vb.length === 4 && vb[2] > 0 && vb[3] > 0 && vb.every((n) => Number.isFinite(n))) {
     return { w: vb[2], h: vb[3] };
   }
-  if (doc.width && doc.height && doc.width > 0 && doc.height > 0) {
+  // `width` / `height` are a number or a CSS length string in the format; only numbers size the box.
+  if (typeof doc.width === 'number' && typeof doc.height === 'number' && doc.width > 0 && doc.height > 0) {
     return { w: doc.width, h: doc.height };
   }
   return { w: 400, h: 400 };
@@ -181,51 +251,68 @@ function setControlsEnabled(enabled: boolean): void {
 }
 
 /** The trigger option handed to the player: `undefined` = programmatic (transport owns
- *  start); `'file'` = the document's own trigger; a config = the user's custom trigger. */
+ *  start); `'file'` = the document's own trigger; a config = the user's custom trigger —
+ *  the WHOLE block, from the four lists of checkboxes. */
 function currentTriggerOption(): PlayerOptions['trigger'] {
   if (!useTrigger) return undefined;
   if (useFileConfig) return 'file';
-  // TWO AXES: what STARTS it, and whether it may RUN.
-  const start = selStartOn.value as PxTrigger['start'];
-  const outOfView = selOutOfView.value as PxTrigger['outOfView'];
-  const trigger: PxTrigger = { start, outOfView };
-  if (start === 'hover') trigger.hoverEnd = selHoverEnd.value as PxTrigger['hoverEnd'];
-  if (outOfView !== 'continue') {
-    trigger.inViewThreshold = Number(inpThreshold.value);
-    trigger.inViewDebounce = Number(inpDebounce.value);
+  // WHEN: the four lists say which events play, stop, pause and resume it.
+  const trigger: PxTrigger = {};
+  for (const { key } of TRIGGER_LISTS) {
+    const events = tickedEvents(key);
+    if (events !== undefined) trigger[key] = events;
   }
   return trigger;
 }
 
+/** The timeline merge for this mount: the Loop picker's `iterations`, and — with a custom
+ *  trigger — the visibility gate (timeline keys, beside the trigger). The two numbers only
+ *  while there IS a gate. `undefined` = the document's own values. */
+function currentTimelineOverride(): PxTimelinePatch | undefined {
+  const override: Pick<TimeTimeline, 'iterations' | 'outOfViewAction' | 'inViewThreshold' | 'inViewDebounce'> = {};
+  const iterations = loopModeToIterations(currentLoop);
+  if (iterations !== undefined) override.iterations = iterations;
+  if (useTrigger && !useFileConfig) {
+    const outOfViewAction = selectedOutOfViewAction();
+    override.outOfViewAction = outOfViewAction;
+    if (outOfViewAction !== PxOutOfViewAction.continue) {
+      override.inViewThreshold = Number(inpThreshold.value);
+      override.inViewDebounce = Number(inpDebounce.value);
+    }
+  }
+  return Object.keys(override).length ? override : undefined;
+}
+
 /** Sync the trigger config panel — visibility, disabled state, and (when reading from the
- *  file) reflect the document's own trigger into the fields. */
+ *  file) reflect the document's own trigger and gate into the fields. */
 function syncTriggerUi(): void {
   chkUseTrigger.checked = useTrigger;
   chkFileConfig.checked = useFileConfig;
   triggerConfigEl.hidden = !useTrigger;
 
   if (useFileConfig) {
-    // Show the file's config, read-only.
-    const fileTrigger = currentDoc ? getAnimatorConfig(currentDoc)?.trigger : undefined;
-    selStartOn.value =
-      fileTrigger?.start && fileTrigger.start !== 'manual' ? fileTrigger.start : 'load';
-    selOutOfView.value = fileTrigger?.outOfView ?? 'pause';
-    selHoverEnd.value = fileTrigger?.hoverEnd ?? 'continue';
-    if (fileTrigger?.inViewThreshold != null) {
-      inpThreshold.value = String(fileTrigger.inViewThreshold);
+    // Show the file's config, read-only. `resolveTrigger` spells out what the file means:
+    // every list an array, an absent block = play on load, `pauseOff` a copy of `playOn`.
+    const cfg = currentDoc ? getAnimatorConfig(currentDoc) : undefined;
+    const lists = resolveTrigger(cfg?.trigger);
+    for (const { key } of TRIGGER_LISTS) {
+      for (const { event, input } of listCheckboxes.get(key) ?? []) input.checked = lists[key].includes(event);
     }
-    if (fileTrigger?.inViewDebounce != null) {
-      inpDebounce.value = String(fileTrigger.inViewDebounce);
+    selOutOfView.value = cfg?.outOfViewAction ?? PxOutOfViewAction.pause;
+    if (cfg?.inViewThreshold != null) {
+      inpThreshold.value = String(cfg.inViewThreshold);
+    }
+    if (cfg?.inViewDebounce != null) {
+      inpDebounce.value = String(cfg.inViewDebounce);
     }
   }
   // "From file" → fields are read-only; custom → editable.
-  for (const el of [selStartOn, selOutOfView, selHoverEnd, inpThreshold, inpDebounce]) {
+  for (const el of [...allListInputs, selOutOfView, inpThreshold, inpDebounce]) {
     el.disabled = useFileConfig;
   }
 
-  // `hoverEnd` is read only for a hover start; the visibility pair only while there IS a gate.
-  hoverEndField.hidden = selStartOn.value !== 'hover';
-  const gated = selOutOfView.value !== 'continue';
+  // The visibility pair only while there IS a gate.
+  const gated = selectedOutOfViewAction() !== PxOutOfViewAction.continue;
   thresholdField.hidden = !gated;
   debounceField.hidden = !gated;
 }
@@ -234,7 +321,7 @@ function syncTriggerUi(): void {
 
 /**
  * What the viewer has to do before the animation moves, when the document's trigger — not the
- * transport — is what starts it. `start: 'load'` behind the default visibility gate IS
+ * transport — is what starts it. `playOn: 'load'` behind the default visibility gate IS
  * "scroll into view" (see docs/library/playback-and-triggers.md); `undefined` means it starts by
  * itself as soon as it is shown.
  */
@@ -247,26 +334,33 @@ const USER_ACTION_HINTS = {
 
 type UserAction = keyof typeof USER_ACTION_HINTS;
 
-function userActionForTrigger(trigger: PxTrigger | undefined): UserAction | undefined {
-  switch (trigger?.start ?? PxTriggerStart.load) {
-    case PxTriggerStart.hover: return 'hover';
-    case PxTriggerStart.click: return 'click';
-    case PxTriggerStart.manual: return 'play';
-    case PxTriggerStart.load: return trigger?.outOfView === PxOutOfViewAction.continue ? undefined : 'scrollIntoView';
-  }
+function userActionForTrigger(
+  trigger: PxTrigger | undefined,
+  outOfViewAction: PxOutOfViewAction | undefined,
+): UserAction | undefined {
+  const { playOn } = resolveTrigger(trigger);
+  if (playOn.includes(PxTriggerEvent.hoverIn)) return 'hover';
+  if (playOn.includes(PxTriggerEvent.click)) return 'click';
+  if (playOn.length === 0) return 'play';
+  // `load` — behind a visibility gate it waits to be seen; `continue` starts right away.
+  return outOfViewAction === PxOutOfViewAction.continue ? undefined : 'scrollIntoView';
 }
 
-/** The trigger actually driving the mounted player — the file's, or the custom config. */
-function effectiveTrigger(): PxTrigger | undefined {
+/** The trigger and gate actually driving the mounted player — the file's, or the custom config. */
+function effectiveTriggerAndGate(): { trigger: PxTrigger | undefined; outOfViewAction: PxOutOfViewAction | undefined } {
   const option = currentTriggerOption();
-  if (option === 'file') return currentDoc ? getAnimatorConfig(currentDoc)?.trigger : undefined;
-  return option;
+  if (option === 'file') {
+    const cfg = currentDoc ? getAnimatorConfig(currentDoc) : undefined;
+    return { trigger: cfg?.trigger, outOfViewAction: cfg?.outOfViewAction };
+  }
+  return { trigger: option, outOfViewAction: option ? selectedOutOfViewAction() : undefined };
 }
 
 /** Shown while a trigger-driven animation sits still — not over a running one, and not after a
  *  play-once run has ended. With the transport in charge there is nothing to say. */
 function syncHint(): void {
-  const action = useTrigger && handle ? userActionForTrigger(effectiveTrigger()) : undefined;
+  const { trigger, outOfViewAction } = effectiveTriggerAndGate();
+  const action = useTrigger && handle ? userActionForTrigger(trigger, outOfViewAction) : undefined;
   const t = handle?.getCurrentTime() ?? 0;
   const finished = currentLoop === 'no-loop' || (currentLoop === 'auto' && !documentLoops()) ? t >= duration : false;
   const show = !!action && !!handle && !handle.isPlaying() && !finished;
@@ -322,7 +416,7 @@ function remount(): void {
 
   try {
     handle = factories[currentKind](mount, currentDoc, {
-      iterations: loopModeToIterations(currentLoop),
+      timeline: currentTimelineOverride(),
       trigger: currentTriggerOption(),
     });
   } catch (err) {
@@ -330,7 +424,7 @@ function remount(): void {
     return;
   }
 
-  // With a trigger driving start, DON'T auto-play — the `load` trigger (or the user's
+  // With a trigger driving start, DON'T auto-play — the `load` event (or the user's
   // hover/click/scroll for the others) starts it. Otherwise auto-play as before.
   // React/Vue populate their imperative API after the first commit, so play next frame.
   if (!useTrigger) requestAnimationFrame(() => handle?.play());
@@ -340,11 +434,12 @@ function remount(): void {
 function loadDocument(doc: PxDocument, sourceLabel: string): void {
   currentDoc = doc;
   filenameEl.textContent = sourceLabel;
-  // Auto-detect the trigger mode from the loaded file: a REAL trigger turns "Use trigger" ON
-  // and reads its config from the file; `manual` (or no trigger at all) leaves it OFF so the
-  // transport buttons drive playback.
-  const fileStart = getAnimatorConfig(doc)?.trigger?.start;
-  useTrigger = !!fileStart && fileStart !== 'manual';
+  // Auto-detect the trigger mode from the loaded file: a trigger block that lists an event
+  // turns "Use trigger" ON and reads its config from the file; an EMPTY block (or no trigger
+  // at all) leaves it OFF so the transport buttons drive playback.
+  const fileTrigger = getAnimatorConfig(doc)?.trigger;
+  const lists = resolveTrigger(fileTrigger);
+  useTrigger = !!fileTrigger && TRIGGER_LISTS.some(({ key }) => lists[key].length > 0);
   useFileConfig = true;
   remount();
 }
@@ -401,7 +496,7 @@ chkFileConfig.addEventListener('change', () => {
   remount();
 });
 // Editing a custom trigger config re-creates the animator with it.
-for (const el of [selStartOn, selHoverEnd, inpThreshold]) {
+for (const el of [...allListInputs, selOutOfView, inpThreshold, inpDebounce]) {
   el.addEventListener('change', () => {
     if (useTrigger && !useFileConfig) remount();
   });

@@ -22,15 +22,19 @@ const animation: PxDocument = _animation;
 
 ### Autoplay
 
-Uses triggers defined in the animation document (load, click, hover, scroll):
+Uses the trigger defined in the animation document (load, hover, click — behind the visibility
+gate), or the trigger object you pass instead of `true`:
 
 ```tsx
 <SvgAnimationPlayer doc={animation} playOnTrigger />
+<SvgAnimationPlayer doc={animation} playOnTrigger={{ playOn: 'hoverIn', pauseOn: 'hoverOut' }} />
 ```
 
 ### Declarative play/pause
 
-Control playback with boolean props:
+Control playback with boolean props — `play` is the state (`true` a play-on, `false` a play-off);
+how each looks is the timeline's `playOnAction` / `playOffAction` / `completeIterationOnPlayOff`,
+adjusted through `timeline`:
 
 ```tsx
 const [play, setPlay] = useState(false);
@@ -55,15 +59,15 @@ import type { PxAnimationPlayerHandle } from '@pixodesk/svg-animator-react';
 
 const playerRef = useRef<PxAnimationPlayerHandle>(null);
 
-<SvgAnimationPlayer doc={animation} apiRef={playerRef} />
+<SvgAnimationPlayer doc={animation} playerRef={playerRef} />
 <button onClick={() => playerRef.current?.play()}>Play</button>
 <button onClick={() => playerRef.current?.pause()}>Pause</button>
-<button onClick={() => playerRef.current?.cancel()}>Cancel</button>
+<button onClick={() => playerRef.current?.stop()}>Stop</button>
 <button onClick={() => playerRef.current?.finish()}>Finish</button>
 ```
 
 <!-- px-check members PxAnimationPlayerHandle pkg=react -->
-`PxAnimationPlayerHandle` methods: `getDuration()` (one pass, ms — the slider maximum), `play()`, `pause()`, `cancel()`, `finish()`, `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
+`PxAnimationPlayerHandle` methods: `getDuration()` (one pass, ms — the slider maximum), `play()` (paused → resume, otherwise the configured play-on), `pause()`, `stop()` (the configured play-off — after the current iteration when the timeline asks for that), `cancel()` (reset now, unconditionally), `finish()`, `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
 
 ### Controlled time
 
@@ -72,7 +76,7 @@ Move through the animation with a slider, or show one fixed frame:
 ```tsx
 const [time, setTime] = useState(0);
 
-<SvgAnimationPlayer doc={animation} time={time} />
+<SvgAnimationPlayer doc={animation} playCurrentTime={time} />
 <input
   type="range"
   min={0}
@@ -89,25 +93,13 @@ const [time, setTime] = useState(0);
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxDocumentInput` | The animation document to render (required); a `.json` import passes as-is |
-| `playOnTrigger` | `boolean` | Use triggers from the document |
-| `play` | `boolean` | Start playback, ignoring document triggers |
-| `pause` | `boolean` | Pause current playback |
-| `playMode` | `'none' \| 'forwards' \| 'backwards' \| 'both'` | One-shot documents: which pose changes PLAY vs snap (default `forwards` — plays there, snaps back) |
-| `completeIteration` | `boolean` | Looping documents: `play={false}` finishes the current iteration, then rests |
-| `apiRef` | `RefObject<PxAnimationPlayerHandle>` | Ref for imperative control |
-| `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
-| `time` | `number` | show the frame at that time, in milliseconds from the start |
-| `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
-| `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
-| `inTime` / `outTime` | `number` | Shortcuts for the content window, `timeline.inTime` / `.outTime` (ms) | <!-- px names=inTime,outTime -->
-| `playDuration` | `number` | Shortcut for `timeline.playDuration` — the window in wall ms |
-| `delay` | `number` | Shortcut for `timeline.delay` (ms) |
-| `iterations` | `number \| 'infinite'` | Shortcut for `timeline.iterations` |
-| `start` | `'load' \| 'hover' \| 'click' \| 'manual'` | Shortcut for `timeline.trigger.start` |
-| `outOfView` | `PxOutOfViewAction` | Shortcut for `timeline.trigger.outOfView` |
-| `hoverEnd` | `PxHoverEndAction` | Shortcut for `timeline.trigger.hoverEnd` |
-| `inViewThreshold` | `number` | Shortcut for `timeline.trigger.inViewThreshold` |
-| `inViewDebounce` | `number` | Shortcut for `timeline.trigger.inViewDebounce` |
+| `playOnTrigger` | `boolean \| PxTrigger` | `true`: play on the document's own trigger; an object: this trigger instead — `{ playOn, playOff, pauseOn, pauseOff }`, each one event or a list of `'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
+| `play` | `boolean` | The state: `true` a play-on, `false` a play-off. How each looks is the timeline's `playOnAction` / `playOffAction` / `completeIterationOnPlayOff` — see [Play on, play off, play end](../../docs/library/playback-and-triggers.md#play-on-play-off-play-end--how-a-transition-looks) |
+| `pause` | `boolean` | Freeze the current frame / resume; only while `play` is true |
+| `playerRef` | `RefObject<PxAnimationPlayerHandle \| null>` | Ref for imperative control; filled in every mode |
+| `playCurrentProgress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
+| `playCurrentTime` | `number` | show the frame at that time, in milliseconds from the start |
+| `timeline` | `PxTimelinePatch` | per-instance override of the document's `timeline` block, minus its `trigger`, deep-merged over it — same shape as the file; `null` at any slot deletes that key. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `onReady` | `() => void` | The player exists and the SVG is rendered — once, async |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
@@ -122,6 +114,6 @@ const [time, setTime] = useState(0);
 | `className` | `string` | CSS class applied to the rendered root `<svg>` |
 | `style` | `CSSProperties` | Inline styles applied to the rendered root `<svg>` |
 
-With none of `playOnTrigger` / `play` / `pause` / `apiRef` / `progress` / `time` set, the component renders the animation statically (initial state, no playback).
+With none of `playOnTrigger` / `play` / `pause` / `playCurrentProgress` / `playCurrentTime` set, the component renders the animation statically (initial state, no playback); `playerRef` on its own is such a case.
 
-Note: passing a different `doc` (or unmounting) throws the old player away and builds a new one; the old instance emits `onCancel`, `onDestroy`, and `onStop` on its way out. Changing `progress` / `time` does **not** recreate the animator — it just jumps the existing one to the new time.
+Note: passing a different `doc` (or unmounting) throws the old player away and builds a new one; the old instance emits `onCancel`, `onDestroy`, and `onStop` on its way out. Changing `playCurrentProgress` / `playCurrentTime` does **not** recreate the animator — it just jumps the existing one to the new position.

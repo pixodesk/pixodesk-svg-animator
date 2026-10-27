@@ -109,7 +109,7 @@ Other types you may want by name:
 
 - `PxPageAnimationPlayerOptions` — the options `createSvgAnimationPlayersFromPage` takes.
 - `PxPrerenderedAnimationPlayerOptions` — the options the pre-rendered builds take.
-- `PxAnimationPlayerHandle` — the handle the components give you through `apiRef` (every framework
+- `PxAnimationPlayerHandle` — the handle the components give you through `playerRef` (every framework
   package exports this one name).
 - `PxPlaybackOverride` — the playback override every player accepts.
 

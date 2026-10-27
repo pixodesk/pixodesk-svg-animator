@@ -16,7 +16,7 @@ stable; the lists and actions go through ONE executor in core.
 | 3 right panel: Playback Triggers / Playback Behaviour | ✅ 2026-10-27 | `SvgTriggerFields.tsx`: `TriggerListField` × 4 (multi-choice, test ids `animation.<list>.<list>.<event>`), `PlayActionField` × 3, out-of-view + gate numbers in the Behaviour section (`animationBehaviour`); welcome screen shares `SvgPlaybackFields`; `showFirstFrameBeforePlayOn` has no UI (owner) |
 | 4 exporters + export dialog on the shared attr | ✅ 2026-10-27 | SVG + JS/CSS writer: ONE generic trigger script (`createTriggerScript`) = lists + state rule + play actions + gate; pure CSS keeps `:hover` (pause or `animation: none`); `effectiveWire(noJs)` drops what CSS cannot listen for; export dialog lists on `TExportConfig.playOn…` (space-separated words); preview players take `trigger` + `outOfViewAction` |
 | 5 trigger explorer + tests | ✅ 2026-10-27 (visual matrix not re-run) | `triggerRows.ts` on the lists (`TriggerOutAction`, click × out actions = 41 rows); typecheck clean (7 known); targeted specs green (serialisation 191, defaults parity, animator config, wire guard, preview user action, round-trip, window export…); atest + video DSL ids converted (`checkbox("…playOn.playOn.hoverIn.setOn", true)`); `trigger-explorer.flaky.spec.ts` still to run (heavy) |
-| 6 docs, examples, videos, website (with T3b) | ⏳ | |
+| 6 docs, examples, videos, website (with T3b) | ✅ 2026-10-27 (recording + publish pending) | player docs rewritten to D4/D5 (`playback-and-triggers.md` is the vocabulary; every guide, README, the format reference, troubleshooting, diagnostics regenerated), `pnpm check:docs` GREEN (152 tests); examples converted (docs-examples incl. the editor-generated payloads' `data-px-meta` / `timeline`, preview-player's trigger UI = four checkbox lists, RN samples + the 122 explorer cases); kf: learn assets converted to 1.9 with the player's converter (`convert-assets.mjs`; unstamped files stamped 1.8 first), `balls.generate.mjs` / `real-ui.prepare.mjs` write 1.9, the generator + 26 learn scripts regenerated on `playOnTrigger={…}` / `playCurrentProgress` / `playerRef` (narration revised; `learn-triggers-ball` restructured to the lists), every React video project typechecks against the local packages; `VscPreviewApp` takes `data-px-trigger`; website: player docs synced, real-ui cards regenerated, editor pages (playback settings, animation, quick start, save, loop) and the gallery rewritten |
 
 ## Decisions made while implementing
 - **The executor owns the natural end.** `playEndAction` (hold / reset / rewind) is performed by `executor.onNaturalEnd()`, called from
@@ -57,14 +57,25 @@ stable; the lists and actions go through ONE executor in core.
   play actions and the gate (`resolveGate`), so the exported file behaves exactly as the library player.
 - **Explorer rows are the lists** — `TriggerRow.trigger` is a `PxTrigger`; out-actions = `playOffAction` / `playEndAction` / `outOfViewAction`;
   the driver derives the expected state through the same rule table.
+- **An UNSTAMPED document is not converted on read** (`PxWireVersion.ts`: nothing is assumed) — so an old unstamped trigger block reads
+  as an EMPTY trigger and the animation never starts, silently on the bind path (not validated). Every unstamped learn asset, example
+  payload and RN explorer case was therefore stamped `1.8.0` (the last version its spelling belongs to) and converted with the player's
+  own `convertWireDocument` (kf `tests/video/learn-assets/convert-assets.mjs`); the asset generators now stamp `WIRE_VERSION` from the
+  local core (`pxWire.mjs`). Open for the owner: should the reader WARN when an unstamped document carries keys it does not know?
 - **Stamped corpora** other than the lifecycle fixtures (visual lightweight-json 1.8.1, format-atest data 1.2.1, video `.data` 1.2.1) are left
   as they are — they convert on read through the wire steps; rewriting them is a separate decision. The format atest's hand-written
   documentation samples (`_a.ts`, `_b.js`, `meta-element-effect.ts`, `file-format.md`) carry the D5 spelling for the trigger block only —
   the rest of those docs predates the `timeline` object and was stale before D5.
 
 ## Handoff notes
-- Step 6 open items: `pnpm check:docs` RED (30 drifts: web-player.md, playback-and-triggers.md, react.md, vue.md, react-native.md,
-  format/README.md, library/README.md, package READMEs); `docs-examples` css-svgr / override-*; videos — `generate-learn-videos.mjs`
-  (17 sites), `learn-assets/balls.generate.mjs`, `real-ui.prepare.mjs` + regenerate the learn-assets JSON, the three demo `App.tsx`;
-  website editor pages + T3b leftovers (code samples, ~31 videos to re-record after the UI change).
+- **Videos to re-record** (needs the kf dev server on :8080, which the owner runs): `yarn website:videos` for every learn video whose
+  screen changed — `learn-react-autoplay`, `learn-react-props`, `learn-react-apiref`, `learn-triggers-ball`, `learn-triggers-practice`,
+  `learn-ui-loader`, `learn-ui-icons`, `learn-ui-payment`, `learn-ui-hover`, `learn-editor-export` (the export dialog's trigger fields)
+  and the ten quick starts that show the editor's document panel. The learn gallery's other videos only changed their JSON assets
+  (not on screen). The editor screenshot `animation-settings.png` (website `140-animation.mdx`, provenance updated) also needs a retake.
+- **Publish** the player packages: the kf video projects install from npm (`yarn test:video-examples` is red until 1.9 is published —
+  its React projects were typechecked against the local packages instead, all 23 green); Electron compiles against npm too.
+- `yarn test:video-examples` also asked to drop the `copy-player-library` stand-in (1.0.50 ships it) — done.
 - The old out-of-gallery `learn-triggers-editor.svga.js` keeps valid ids only; its narration still describes the `Start` dropdown.
+- Adjacent fixes made on the way (flagging): preview-player's `readCanvasSize` narrowed `doc.width` with `typeof` (a pre-existing TS
+  error); the format README's versioning prose said schema 1.6 (now 1.9).

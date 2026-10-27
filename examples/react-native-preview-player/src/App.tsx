@@ -7,7 +7,7 @@
  * web version's drag-and-drop, the documents are embedded (see `samples.ts`).
  */
 import { SvgAnimationPlayer, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-rn';
-import { getAnimatorConfig } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, type PxTimelinePatch } from '@pixodesk/svg-animator-core';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -19,9 +19,9 @@ import { SeekBar } from './SeekBar';
 type LoopMode = 'auto' | 'loop' | 'no-loop';
 const RATES = [0.25, 0.5, 1, 2, 4];
 
-/** The loop override, as the component's `iterations` shortcut. `undefined` = leave the file alone. */
-const loopIterations = (mode: LoopMode): number | 'infinite' | undefined =>
-    mode === 'loop' ? 'infinite' : mode === 'no-loop' ? 1 : undefined;
+/** The loop override, as a `timeline` merge over the file's timing. `undefined` = leave the file alone. */
+const loopTimeline = (mode: LoopMode): PxTimelinePatch | undefined =>
+    mode === 'loop' ? { iterations: 'infinite' } : mode === 'no-loop' ? { iterations: 1 } : undefined;
 
 export default function App() {
     const scheme = useColorScheme();
@@ -102,9 +102,9 @@ export default function App() {
                     <SvgAnimationPlayer
                         key={sampleIdx + '|' + loopMode}
                         doc={doc}
-                        iterations={loopIterations(loopMode)}
+                        timeline={loopTimeline(loopMode)}
                         playOnTrigger
-                        apiRef={api}
+                        playerRef={api}
                     />
                 </View>
 

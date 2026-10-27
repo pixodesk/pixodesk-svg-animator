@@ -27,7 +27,7 @@ const bouncingBall: PxDocument = {
     animator: {
         timeline: {
             outTime: 1400, iterations: 'infinite',
-            trigger: { start: 'load', outOfView: 'continue' },
+            trigger: { playOn: 'load' }, outOfViewAction: 'continue',
         },
     },
     children: [
@@ -169,7 +169,7 @@ const textAlongPath: PxDocument = {
     animator: {
         timeline: {
             outTime: TEXT_DURATION, iterations: 'infinite',
-            trigger: { start: 'load', outOfView: 'continue' },
+            trigger: { playOn: 'load' }, outOfViewAction: 'continue',
         },
     },
     children: [
@@ -198,7 +198,7 @@ const strokeTrim: PxDocument = {
     animator: {
         timeline: {
             outTime: 2600, iterations: 'infinite',
-            trigger: { start: 'load', outOfView: 'continue' },
+            trigger: { playOn: 'load' }, outOfViewAction: 'continue',
         },
     },
     children: [
@@ -248,8 +248,8 @@ const repeater: PxDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         timeline: {
-            outTime: 2000, iterations: 'infinite', direction: 'alternate',
-            trigger: { start: 'load', outOfView: 'continue' },
+            outTime: 2000, iterations: 'infinite', iterationDirection: 'alternate',
+            trigger: { playOn: 'load' }, outOfViewAction: 'continue',
         },
     },
     children: [
@@ -293,8 +293,8 @@ const gradient: PxDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         timeline: {
-            outTime: 3000, iterations: 'infinite', direction: 'alternate',
-            trigger: { start: 'load', outOfView: 'continue' },
+            outTime: 3000, iterations: 'infinite', iterationDirection: 'alternate',
+            trigger: { playOn: 'load' }, outOfViewAction: 'continue',
         },
     },
     children: [
@@ -335,8 +335,8 @@ const morph: PxDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
         timeline: {
-            outTime: 2400, iterations: 'infinite', direction: 'alternate',
-            trigger: { start: 'load', outOfView: 'continue' },
+            outTime: 2400, iterations: 'infinite', iterationDirection: 'alternate',
+            trigger: { playOn: 'load' }, outOfViewAction: 'continue',
         },
     },
     children: [

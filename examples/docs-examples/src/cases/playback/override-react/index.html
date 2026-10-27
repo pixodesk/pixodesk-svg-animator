@@ -7,7 +7,7 @@
   </head>
   <body>
     <h1>Overriding from component props</h1>
-    <p class="summary">Props with the same names as the <code>animator</code> fields replace the document's values. Here: <code>iterations="infinite"</code>, <code>direction="alternate"</code>, <code>mode="frames"</code>.</p>
+    <p class="summary">The <code>timeline</code> prop is merged over the document's own block, key by key. Here: <code>iterations: 'infinite'</code>, <code>iterationDirection: 'alternate'</code>, <code>engine: 'js'</code>.</p>
     <div id="root"></div>
     <script type="module" src="./main.tsx"></script>
   </body>

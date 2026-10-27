@@ -13,7 +13,7 @@ createApp({
           ' ', h('span', { id: 'ms' }, String(time.value)), ' ms']),
       ]),
       h('div', { class: 'stage' }, [
-        h(SvgAnimationPlayer as any, { doc: animation, time: time.value }),
+        h(SvgAnimationPlayer as any, { doc: animation, playCurrentTime: time.value }),
       ]),
     ];
   },

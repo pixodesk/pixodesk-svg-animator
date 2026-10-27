@@ -14,10 +14,10 @@ export const complexFirework: SvgaCaseJson = {
             "mode": "auto",
             "outTime": 6250,
             "trigger": {
-                "start": "load",
-                "outOfView": "continue"
+                "playOn": "load"
             },
-            "direction": "normal"
+            "outOfViewAction": "continue",
+            "iterationDirection": "normal"
         }
     },
     "meta": {

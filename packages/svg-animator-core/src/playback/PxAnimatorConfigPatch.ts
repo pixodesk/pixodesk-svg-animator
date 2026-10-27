@@ -13,7 +13,7 @@
  * Base semantics are JSON Merge Patch (RFC 7386): objects merge per level, primitives and
  * arrays REPLACE, and `null` DELETES. `null` is the right sentinel because it is not a legal
  * value anywhere in the schema, and deleting is the only way to restore a meaningful ABSENCE
- * (`timeline.type` absent = time, `mode` absent = auto, `fillMode` absent = forwards).
+ * (`timeline.type` absent = time, `engine` absent = auto, `playEndAction` absent = hold).
  *
  * Six places need more than that — see the RULE comments below.
  *
@@ -132,8 +132,8 @@ function mergeTimeline(base: unknown, patch: JsonRecord, warn: (m: string) => vo
     return merged;
 }
 
-/** `PxTimeline` without its `trigger` block — the timing. On the props the two are separate blocks
- *  (the file nests them): `timeline` / `mergeTimeline` take this, `trigger` / `mergeTrigger` the trigger. @public */
+/** `PxTimeline` without its `trigger` block — the timing. On the props the two are separate (the file
+ *  nests them): `timeline` patches this, `playOnTrigger` carries the trigger (D4). @public */
 export type PxTimelineWithoutTrigger = PxDistributiveOmit<PxTimeline, 'trigger'>;
 
 /** A deep-partial of the WIRE timing block, typed from the schema; `null` at any slot deletes it,

@@ -21,17 +21,21 @@ import animationDoc from './animation.json';
 
 ### Autoplay
 
-Uses triggers defined in the animation document (load, click, hover, scroll):
+Uses the trigger defined in the animation document (load, hover, click — behind the visibility
+gate), or the trigger object you bind instead of `true`:
 
 ```vue
 <template>
   <SvgAnimationPlayer :doc="animationDoc" playOnTrigger />
+  <SvgAnimationPlayer :doc="animationDoc" :playOnTrigger="{ playOn: 'hoverIn', pauseOn: 'hoverOut' }" />
 </template>
 ```
 
 ### Declarative play/pause
 
-Control playback with boolean props:
+Control playback with boolean props — `play` is the state (`true` a play-on, `false` a play-off);
+how each looks is the timeline's `playOnAction` / `playOffAction` / `completeIterationOnPlayOff`,
+adjusted through `timeline`:
 
 ```vue
 <script setup lang="ts">
@@ -61,11 +65,12 @@ const player = ref<PxAnimationPlayerHandle | null>(null);
   <SvgAnimationPlayer :doc="animationDoc" ref="player" />
   <button @click="player?.play()">Play</button>
   <button @click="player?.pause()">Pause</button>
+  <button @click="player?.stop()">Stop</button>
 </template>
 ```
 
 <!-- px-check members PxAnimationPlayerHandle pkg=vue -->
-`PxAnimationPlayerHandle` methods: `getDuration()` (one pass, ms — the slider maximum), `play()`, `pause()`, `cancel()`, `finish()`, `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
+`PxAnimationPlayerHandle` methods: `getDuration()` (one pass, ms — the slider maximum), `play()` (paused → resume, otherwise the configured play-on), `pause()`, `stop()` (the configured play-off — after the current iteration when the timeline asks for that), `cancel()` (reset now, unconditionally), `finish()`, `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
 
 ### Controlled time
 
@@ -73,8 +78,8 @@ Render a single frame — by time in milliseconds, or by fraction of the whole t
 
 ```vue
 <template>
-  <SvgAnimationPlayer :doc="animationDoc" :time="500" />      <!-- 500 ms in -->
-  <SvgAnimationPlayer :doc="animationDoc" :progress="0.5" />  <!-- halfway through -->
+  <SvgAnimationPlayer :doc="animationDoc" :playCurrentTime="500" />      <!-- 500 ms in -->
+  <SvgAnimationPlayer :doc="animationDoc" :playCurrentProgress="0.5" />  <!-- halfway through -->
 </template>
 ```
 
@@ -84,32 +89,20 @@ Render a single frame — by time in milliseconds, or by fraction of the whole t
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxDocumentInput` | The animation document to render (required); a `.json` import passes as-is |
-| `playOnTrigger` | `boolean` | Use triggers from the document |
-| `play` | `boolean` | Start playback, ignoring document triggers |
-| `pause` | `boolean` | Pause current playback |
-| `playMode` | `'none' \| 'forwards' \| 'backwards' \| 'both'` | One-shot documents: which pose changes PLAY vs snap (default `forwards`) |
-| `completeIteration` | `boolean` | Looping documents: `:play="false"` finishes the current iteration, then rests |
-| `progress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
-| `time` | `number` | show the frame at that time, in milliseconds from the start |
-| `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
-| `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
-| `inTime` / `outTime` | `number` | Shortcuts for the content window, `timeline.inTime` / `.outTime` (ms) | <!-- px names=inTime,outTime -->
-| `playDuration` | `number` | Shortcut for `timeline.playDuration` — the window in wall ms |
-| `delay` | `number` | Shortcut for `timeline.delay` (ms) |
-| `iterations` | `number \| 'infinite'` | Shortcut for `timeline.iterations` |
-| `start` | `'load' \| 'hover' \| 'click' \| 'manual'` | Shortcut for `timeline.trigger.start` |
-| `outOfView` | `PxOutOfViewAction` | Shortcut for `timeline.trigger.outOfView` |
-| `hoverEnd` | `PxHoverEndAction` | Shortcut for `timeline.trigger.hoverEnd` |
-| `inViewThreshold` | `number` | Shortcut for `timeline.trigger.inViewThreshold` |
-| `inViewDebounce` | `number` | Shortcut for `timeline.trigger.inViewDebounce` |
+| `playOnTrigger` | `boolean \| PxTrigger` | `true`: play on the document's own trigger; an object: this trigger instead — `{ playOn, playOff, pauseOn, pauseOff }`, each one event or a list of `'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
+| `play` | `boolean` | The state: `true` a play-on, `false` a play-off. How each looks is the timeline's `playOnAction` / `playOffAction` / `completeIterationOnPlayOff` — see [Play on, play off, play end](../../docs/library/playback-and-triggers.md#play-on-play-off-play-end--how-a-transition-looks) |
+| `pause` | `boolean` | Freeze the current frame / resume; only while `play` is true |
+| `playCurrentProgress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
+| `playCurrentTime` | `number` | show the frame at that time, in milliseconds from the start |
+| `timeline` | `PxTimelinePatch` | per-instance override of the document's `timeline` block, minus its `trigger`, deep-merged over it — same shape as the file; `null` at any slot deletes that key. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `onWarn` | `(diagnostic) => void` | it plays, but something was ignored, degraded or misspelled; without it → `console.warn` (a prop, not an event — see below) |
 | `onError` | `(diagnostic) => void` | this instance will not play — failed to load, parse or build, or the render threw; without it → `console.error` |
 | `muteWarn` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarn`, if you gave it, still fires: mute is about the console, not about you |
 | `muteError` | `boolean` | the same switch for `console.error` |
 
-With none of `playOnTrigger` / `play` / `pause` / `progress` / `time` set, the component renders the animation statically (initial state, no playback); use the template ref for imperative control.
+With none of `playOnTrigger` / `play` / `pause` / `playCurrentProgress` / `playCurrentTime` set, the component renders the animation statically (initial state, no playback); use the template ref for imperative control.
 
-Note: passing a different `doc` (or unmounting) throws the old player away and builds a new one; the old instance emits `cancel`, `destroy`, and `stop` on its way out. Changing `progress` / `time` does **not** recreate the animator — it just jumps the existing one to the new time.
+Note: passing a different `doc` (or unmounting) throws the old player away and builds a new one; the old instance emits `cancel`, `destroy`, and `stop` on its way out. Changing `playCurrentProgress` / `playCurrentTime` does **not** recreate the animator — it just jumps the existing one to the new position.
 
 ## Events
 

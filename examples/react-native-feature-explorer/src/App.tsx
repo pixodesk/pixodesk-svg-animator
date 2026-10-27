@@ -99,8 +99,8 @@ const CaseRow = memo(function CaseRow({
                     // The fixtures are authored one-shot (1s, no iterations), which
                     // is right for the editor's frame-by-frame inspection but means
                     // a row would be finished before you scrolled to it.
-                    iterations={loop ? 'infinite' : undefined}
-                    apiRef={api}
+                    timeline={loop ? { iterations: 'infinite' } : undefined}
+                    playerRef={api}
                     // A case that fails is reported in place — the surrounding
                     // list, and the other 117 cases, keep working.
                     onError={d => { const e = d.error ?? new Error(d.message); setError(e); onError(item.id, e); }}

@@ -57,29 +57,12 @@
           <label><input type="checkbox" id="chk-use-trigger" /> Use trigger</label>
           <div id="trigger-config" class="trigger-config" hidden>
             <label><input type="checkbox" id="chk-file-config" checked /> Use trigger config from file</label>
+            <!-- The four event lists (Plays on / Stops on / Pauses on / Resumes on) — one checkbox
+                 group per list, built from the player's own event vocabulary (see main.ts). -->
+            <div id="trigger-lists" class="trigger-lists"></div>
             <div class="trigger-fields">
-              <label>Start
-                <select id="sel-start-on">
-                  <option value="load">load</option>
-                  <option value="hover">hover</option>
-                  <option value="click">click</option>
-                  <option value="manual">manual</option>
-                </select>
-              </label>
               <label id="out-of-view-field">Out of view
-                <select id="sel-out-of-view">
-                  <option value="pause">pause</option>
-                  <option value="continue">continue</option>
-                  <option value="reset">reset</option>
-                </select>
-              </label>
-              <label id="hover-end-field">Hover end
-                <select id="sel-hover-end">
-                  <option value="continue">continue</option>
-                  <option value="pause">pause</option>
-                  <option value="reset">reset</option>
-                  <option value="reverse">reverse</option>
-                </select>
+                <select id="sel-out-of-view"></select>
               </label>
               <label id="threshold-field">Visible threshold
                 <input id="inp-threshold" type="number" min="0" max="1" step="0.05" value="0.5" />

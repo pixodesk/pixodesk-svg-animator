@@ -157,9 +157,9 @@ The editor never writes that key: in its files the two are the same picture.
 
 A **one-shot document** driven by a component's `play` prop reads these keys too: `play={true}`
 is a play-on (the default `resume` plays to the end and holds there, per `playEndAction: hold`),
-`play={false}` a play-off (`reset` snaps back, `rewind` plays back). The old `playMode` spellings
-map onto them — `'both'` is `playOffAction: 'rewind'`, `'backwards'` is `playOnAction: 'jumpToEnd'`
-+ `playOffAction: 'rewind'`, `'none'` is `playOnAction: 'jumpToEnd'`.
+`play={false}` a play-off (`reset` snaps back, `rewind` plays back). The trash-can lid that closes
+animated is `timeline={{ playOffAction: 'rewind' }}`; overlay art that appears at once and retreats
+animated is `timeline={{ playOnAction: 'jumpToEnd', playOffAction: 'rewind' }}`.
 
 ## Triggers — WHEN it plays
 
@@ -355,8 +355,8 @@ true for every mode except `playOnTrigger`.
 Everything above is decided by functions in `@pixodesk/svg-animator-core`, so a player you
 write yourself cannot drift from the four shipped ones:
 
-- **Defaults.** `PX_PLAYBACK_DEFAULTS` is the one table of what an absent key means (`playOn:
-  'load'`, `resume`, `reset`, `hold`, `pause`, 0.5, 150 ms). `resolveTrigger(trigger)` returns a
+- **Defaults.** `PX_PLAYBACK_DEFAULTS` is the one table of what an absent key means
+  (`playOn: 'load'`, `resume`, `reset`, `hold`, `pause`, 0.5, 150 ms). `resolveTrigger(trigger)` returns a
   `PxResolvedTrigger` — every list an array (`triggerEventList` normalises one), `pauseOff`
   defaulted to a copy of `playOn`, an absent block `{ playOn: ['load'] }`, an empty block nothing.
   `resolveGate(view)` returns the three gate keys defaulted, a `PxResolvedGate`.

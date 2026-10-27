@@ -14,10 +14,10 @@ export const complexTrimLoader: SvgaCaseJson = {
             "mode": "auto",
             "outTime": 3750,
             "trigger": {
-                "start": "load",
-                "outOfView": "continue"
+                "playOn": "load"
             },
-            "direction": "normal"
+            "outOfViewAction": "continue",
+            "iterationDirection": "normal"
         }
     },
     "meta": {

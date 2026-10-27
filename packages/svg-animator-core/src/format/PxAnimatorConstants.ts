@@ -314,12 +314,13 @@ export function mayUseNativeScrollTimeline(engine: PxTimelineEngineSetting | und
 }
 
 /**
- * THE TRIGGER DEFAULTS — what a missing `trigger` field means. One table, declared by
- * `PxTriggerSchema` and applied by {@link resolveTrigger}, which every player calls (the web's
- * `setupAnimationTriggers`, the React Native component) — so a file behaves the same everywhere:
- *   - `start` 'load' — a document is designed to play
- *   - `outOfView` 'pause' — an animation nobody can see does not run
- *   - `hoverEnd` 'pause' — ending the hover pauses what hovering started
+ * THE PLAYBACK DEFAULTS (D5) — what an absent trigger block and absent play / gate keys mean. One table,
+ * stated by the schema and applied by {@link resolveTrigger} / {@link resolveGate}, which every player
+ * calls (the web's `setupAnimationTriggers`, the React Native component) — so a file behaves the same everywhere:
+ *   - `playOn` 'load' — an absent trigger block plays on load: a document is designed to play
+ *   - `playOnAction` resume · `playOffAction` reset · `playEndAction` hold — the three moments' defaults
+ *   - `completeIterationOnPlayOff` false · `showFirstFrameBeforePlayOn` false
+ *   - `outOfViewAction` 'pause' — an animation nobody can see does not run
  *   - `inViewThreshold` 0.5 — half of it must be on screen before it may run
  *   - `inViewDebounce` 150 — and stay that way this long, so a fast scroll past starts nothing
  * @public @advanced
@@ -338,7 +339,7 @@ export const PX_PLAYBACK_DEFAULTS = {
 } as const;
 
 /**
- * What an absent `timeline.duration` means — the number the SCHEMA states (`PxTimeTimelineSchema.defaults.duration`), kept here as a constant for the runtime's arithmetic. @internal
+ * What an absent content window means for the runtime view's `duration` — one pass of 1000 ms when the document has neither `outTime` nor keyframes, kept here as a constant for the runtime's arithmetic. @internal
  */
 export const PX_DEFAULT_DURATION_MS = 1000;
 /** What an absent `timeline.iterations` means — see `PX_DEFAULT_DURATION_MS`. @internal */
@@ -357,14 +358,14 @@ export interface PxResolvedTrigger {
 
 // ── CONTROL MODE (API review §1 / §7; `autoplay` renamed `playOnTrigger`: first-use review §1+2) ──
 // Which set of props drives playback. Every component picked its own order, so
-// `playOnTrigger` + `progress={0.5}` played on React and Vue but seeked on React Native, and
-// React let a REF choose the mode — `<SvgAnimationPlayer playOnTrigger apiRef={api} />` never
-// started, because the imperative branch forced `start: 'manual'`.
+// `playOnTrigger` + `playCurrentProgress={0.5}` played on React and Vue but seeked on React Native, and
+// React let a REF choose the mode — `<SvgAnimationPlayer playOnTrigger playerRef={api} />` never
+// started, because the imperative branch replaced the trigger with an empty one.
 //
 // One order, decided once, used by react / vue / rn. This module owns the LOGIC and the
 // WARNING TEXT only; each component keeps its own `console.warn` wiring.
 
-/** Which props drive playback. `apiRef` is deliberately NOT a mode: the handle is filled in
+/** Which props drive playback. `playerRef` is deliberately NOT a mode: the handle is filled in
  *  every mode, so passing it alone leaves the document's own trigger in charge. * @public
  */
 export const PxControlMode = {
@@ -397,19 +398,18 @@ export interface PxControlProps {
     /** Show the frame at this time, ms from the start of the whole run. Wins like `playCurrentProgress`;
      *  the read twin is `getCurrentTime()`. */
     playCurrentTime?: number;
-    /** The STATE switch (§10). One-shot document (a single pass): which pose — `false` the
-     *  start, `true` the finish; a change moves there per `playMode`, always from the current
-     *  frame, and a mount renders the pose without animating. Looping document (effective
-     *  iterations > 1): running or not — `false` snaps to rest. */
+    /** The STATE switch (§10): `true` is a play-on, `false` a play-off, performed by the timeline's
+     *  `playOnAction` / `playOffAction` / `completeIterationOnPlayOff` (D5) — always from the current
+     *  frame; a mount renders the pose without animating. */
     play?: boolean;
     /** Freeze the current frame NOW / resume toward the current target. Only meaningful while
      *  `play` is true — `play: false` forcibly unfreezes. Never deferred. */
     pause?: boolean;
     /**
      * Play on a trigger. `true` — the way the editor saved it: the document's own `trigger` block
-     * decides. An OBJECT — that trigger instead, as a WHOLE (a trigger's keys belong together: `hover`
-     * → `click` makes `hoverEnd` meaningless and usually wants another `outOfView`); keys left out take
-     * the wire defaults (`load`, `pause`, `pause`, 0.5, 150 ms), not the file's values.
+     * decides. An OBJECT — that trigger instead, as a WHOLE (a trigger's lists belong together: switching
+     * `hoverIn` → `click` wants other `pauseOn` / `playOff` lists too); lists left out are simply not
+     * listed (`pauseOff` copies `playOn`), never the file's values.
      */
     playOnTrigger?: boolean | PxTrigger;
     // TODO (dev-docs/plans/component-api.md D4): `playOnScrollTimeline?: PxScrollTimeline` — the scroll driver,
@@ -434,8 +434,8 @@ export interface PxResolvedControlMode {
  *   3. `playOnTrigger`        — defer to the document's trigger
  *   4. otherwise `static`   — nothing plays; the trigger is taken over
  *
- * `apiRef` is absent on purpose. A ref is a handle, not an instruction: it is populated in
- * every mode, so `playOnTrigger` + `apiRef` autostarts AND gives you the handle.
+ * `playerRef` is absent on purpose. A ref is a handle, not an instruction: it is populated in
+ * every mode, so `playOnTrigger` + `playerRef` autostarts AND gives you the handle.
  *
  * A warning is produced only when props from two different tiers are set together — the
  * lower tier is then ignored, and silence about that is what made this hard to debug.
@@ -465,8 +465,8 @@ export function resolveControlMode(props: PxControlProps): PxResolvedControlMode
 
 // @px-area control
 /**
- * True when the component must take the document's trigger over, by forcing
- * `start: 'manual'` into its config patch.
+ * True when the component must take the document's trigger over — the trigger replaced by an
+ * EMPTY one (`withoutTriggerDriver`), so nothing starts the animation by itself.
  *
  * Every mode except `playOnTrigger` — INCLUDING `static`. A component given no control props at
  * all must not start on its own: `<SvgAnimationPlayer doc={…} />` renders the first frame and waits.

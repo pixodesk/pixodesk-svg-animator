@@ -93,10 +93,10 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
   },
 
   'web/triggers': async page => {
-    await expectFrozen(page);                       // start: 'click' — nothing until clicked
+    await expectFrozen(page);                       // playOn: 'click' — nothing until clicked
     await page.click('#box svg');
-    await expectAnimating(page);
-    await page.click('#box svg');                   // hoverEnd: 'pause'
+    await expectAnimating(page);                    // stopped + click → plays (the state rule)
+    await page.click('#box svg');                   // pauseOn: 'click' — playing + click → pauses
     await expectFrozen(page);
   },
 
@@ -117,7 +117,7 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
   },
 
   'react/imperative': async page => {
-    await expectFrozen(page);                       // apiRef alone = programmatic
+    await expectFrozen(page);                       // playerRef alone = programmatic
     await page.click('text=play()');
     await expectAnimating(page);
     await page.click('text=pause()');
@@ -145,14 +145,14 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
   'vue/declarative': async page => CHECKS['react/declarative'](page),
 
   'react/css-svgr': async page => {
-    await expectFrozen(page);                       // start: 'click'
+    await expectFrozen(page);                       // playOn: 'click'
     await page.click('svg');
     await expectAnimating(page);
   },
   'vue/css-loader': async page => CHECKS['react/css-svgr'](page),
 
   'playback/override-web': async page => {
-    await expectFrozen(page);                       // trigger overridden to programmatic
+    await expectFrozen(page);                       // no playOnTrigger — nothing starts it but play()
     await page.click('#play');
     await expectAnimating(page);
   },

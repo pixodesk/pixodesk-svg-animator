@@ -14,7 +14,7 @@ function App() {
         <button onClick={() => api.current?.finish()}>finish()</button>
       </div>
       <div className="stage">
-        <SvgAnimationPlayer doc={animation as any} apiRef={api} />
+        <SvgAnimationPlayer doc={animation as any} playerRef={api} />
       </div>
     </>
   );

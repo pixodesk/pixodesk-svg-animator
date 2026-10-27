@@ -72,11 +72,11 @@ Common variations. Each line is the `<SvgAnimationPlayer>` element inside a comp
 `Logo` above; `isPlaying`, `scrollProgress` and `setDone` stand for your own state:
 
 ```tsx
-// Play once when a screen opens, then hold the last frame
-<SvgAnimationPlayer doc={doc} playOnTrigger iterations={1} timeline={{ fillMode: 'forwards' }} />
+// Play once when a screen opens, then hold the last frame (one pass; `playEndAction: 'hold'` is the default)
+<SvgAnimationPlayer doc={doc} playOnTrigger timeline={{ iterations: 1 }} />
 
 // Loop forever regardless of what the document says
-<SvgAnimationPlayer doc={doc} playOnTrigger iterations="infinite" />
+<SvgAnimationPlayer doc={doc} playOnTrigger timeline={{ iterations: 'infinite' }} />
 
 // Static — first frame only
 <SvgAnimationPlayer doc={doc} />
@@ -84,11 +84,11 @@ Common variations. Each line is the `<SvgAnimationPlayer>` element inside a comp
 // Toggle from your own state
 <SvgAnimationPlayer doc={doc} play={isPlaying} />
 
-// Tie progress to a gesture / slider (no playback, just a frame)
-<SvgAnimationPlayer doc={doc} time={scrollProgress} />
+// Tie the position to a gesture / slider (no playback, just a frame)
+<SvgAnimationPlayer doc={doc} playCurrentProgress={scrollProgress} />
 
 // Override the document's timing
-<SvgAnimationPlayer doc={doc} playOnTrigger outTime={4000} delay={500} />
+<SvgAnimationPlayer doc={doc} playOnTrigger timeline={{ outTime: 4000, delay: 500 }} />
 
 // Do something when it finishes
 <SvgAnimationPlayer doc={doc} playOnTrigger onFinish={() => setDone(true)} />
@@ -100,14 +100,22 @@ TypeScript: `doc` accepts `import animation from './animation.json'` as-is (it i
 
 ## Control modes
 
-Several control modes, plus a handle that is not one. Set more than one control prop and the
-highest-priority one wins — `progress` / `time` → `play` / `pause` → `playOnTrigger` — and the
+Every way to make it play starts with `play`: `playOnTrigger` (the document's trigger, or one
+you pass), `play` / `pause` (your state), `playCurrentProgress` / `playCurrentTime` (your
+position). Set props from more than one group and the highest-priority one wins —
+`playCurrentProgress` / `playCurrentTime` → `play` / `pause` → `playOnTrigger` — and the
 component warns, naming both props and the winner; set none of them and the first frame renders
-statically. `apiRef` is filled in every mode and never changes which one you are in. React, Vue
-and React Native all resolve this the same way, from one rule in core.
+statically. `playerRef` is filled in every mode and never changes which one you are in. React,
+Vue and React Native all resolve this the same way, from one rule in core. In every mode but
+`playOnTrigger` the file's own trigger is switched off
+([a note on the control props](./playback-and-triggers.md#a-note-on-the-components-control-props)).
 
-**Autoplay** — honors the document's trigger (`load` plays once enough of it is visible in the
-window; `click` wraps the animation in a `Pressable`):
+**Play on trigger** — honors the document's trigger, or an object you pass instead of `true`
+([Triggers — WHEN it plays](./playback-and-triggers.md#triggers--when-it-plays)): `load` plays
+once enough of it is visible in the window; `click` is a tap — the component wraps the animation
+in a `Pressable` — read by the same state rule as on the web, so `{ playOn: 'click', pauseOn: 'click' }`
+taps to play and taps again to pause. There is no hover on a touch screen, so `hoverIn` /
+`hoverOut` never fire.
 
 ```tsx
 import { SvgAnimationPlayer } from '@pixodesk/svg-animator-rn';
@@ -119,12 +127,15 @@ export function Intro() {
 ```
 
 **Declarative playback** — `play` names a STATE, the same shared rule as the React and Vue
-components (`resolveDeclarativePlayback` in core). One-shot document: `play` is a POSE switch
-(`false` the start pose, `true` the finish pose; changes move per `playMode` — `'forwards'`
-default plays there and snaps back, `'both'` plays both ways — always from the current frame,
-and a mount renders the pose without animating). Looping document: `play` is a RUN switch —
-`false` snaps to rest, or finishes the current iteration first with `completeIteration`.
-`pause` freezes the current frame immediately, while `play` is true.
+components (`resolveDeclarativePlayback` in core): `true` is a play-on, `false` a play-off, and
+how each looks is the timeline's — `playOnAction`, `playOffAction`, `completeIterationOnPlayOff`,
+`playEndAction`, adjusted through `timeline`
+([Play on, play off, play end](./playback-and-triggers.md#play-on-play-off-play-end--how-a-transition-looks)).
+With the defaults a one-shot document plays to the end on `true` and holds, and snaps back on
+`false`; a looping document runs on `true` and snaps to rest on `false`, or finishes the current
+iteration first with `completeIterationOnPlayOff: true`. A change always moves from the current
+frame, and a mount renders the pose without animating. `pause` freezes the current frame
+immediately, while `play` is true.
 
 ```tsx
 import { useState } from 'react';
@@ -137,7 +148,8 @@ export function Controlled() {
   const [frozen, setFrozen] = useState(false);
   return (
     <View>
-      <SvgAnimationPlayer doc={doc} play={on} playMode="both" pause={frozen} />
+      {/* the lid: plays to the end on `on`, plays BACK on `off` */}
+      <SvgAnimationPlayer doc={doc} play={on} pause={frozen} timeline={{ playOffAction: 'rewind' }} />
       <Button title={on ? 'Back to start' : 'Play'} onPress={() => setOn(!on)} />
       <Button title={frozen ? 'Resume' : 'Freeze'} onPress={() => setFrozen(!frozen)} />
     </View>
@@ -157,19 +169,23 @@ export function Imperative() {
   const playerRef = useRef<PxAnimationPlayerHandle>(null);
   return (
     <View>
-      <SvgAnimationPlayer doc={doc} apiRef={playerRef} />
+      <SvgAnimationPlayer doc={doc} playerRef={playerRef} />
       <Button title="Play" onPress={() => playerRef.current?.play()} />
       <Button title="Pause" onPress={() => playerRef.current?.pause()} />
+      <Button title="Stop" onPress={() => playerRef.current?.stop()} />
     </View>
   );
 }
 ```
 
-`PxAnimationPlayerHandle`: `play()`, `pause()`, `cancel()`, `finish()`, `playOnce()` (ONE fresh pass
-from the start, whatever `iterations` say — the "plays once on click" verb), `isPlaying()`,
-`setPlaybackRate(rate)` (negative = reverse; `0` is rejected with a warning — use `pause()`),
-`getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)` —
-jumping to a time while playing continues from there.
+`PxAnimationPlayerHandle`: `play()` (paused → resume, otherwise the configured play-on),
+`pause()`, `stop()` (the configured play-off — after the current iteration when
+`completeIterationOnPlayOff`), `cancel()` (reset now, unconditionally), `finish()`, `playOnce()`
+(ONE fresh pass from the start, whatever `iterations` say — the "plays once on click" verb),
+`isPlaying()`, `setPlaybackRate(rate)` (negative = reverse; `0` is rejected with a warning — use
+`pause()`), `getDuration()`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`,
+`setCurrentProgress(p)` — jumping to a time while playing continues from there. The three
+verbs take no arguments: how a play-on or play-off looks is the timeline's, the same as on the web.
 
 `getCurrentTime()` is ms from the start of the whole run, every iteration included — the same
 as the web players, so a slider built on it does not jump back to zero each time the animation
@@ -188,7 +204,7 @@ export function Scrubber() {
   const [time, setTime] = useState(0);
   return (
     <View>
-      <SvgAnimationPlayer doc={doc} time={time} />
+      <SvgAnimationPlayer doc={doc} playCurrentTime={time} />
       <Slider minimumValue={0} maximumValue={2000} value={time} onValueChange={setTime} />
     </View>
   );
@@ -198,7 +214,7 @@ export function Scrubber() {
 ## Props
 
 Only `doc` is required. The file already carries the timing and the trigger you set in the
-editor; every other prop is optional and, when passed, replaces the file's value for this one
+editor; every other prop is optional and, when passed, adjusts the file's value for this one
 component.
 
 Works like the React component, drawn with `react-native-svg` and animated with `reanimated`:
@@ -214,35 +230,22 @@ function SvgAnimationPlayer(props: SvgAnimationPlayerProps): ReactElement | null
 interface SvgAnimationPlayerProps {
     doc: PxDocumentInput;                 // required — the animation; a .json import passes as-is
 
-    // Playback override — the same object as React (Playback overrides below). `timeline.engine`
-    // is accepted but ignored: React Native always uses the `native` materialization.
-    timeline?: PxTimelinePatch | string;
-    resetTimeline?: boolean;              // start from the player's defaults, `timeline` on top
-
-    inTime?: number;                      // ▸ timeline.inTime — the content window's start, ms
-    outTime?: number;                     // ▸ timeline.outTime — …and its end (one pass plays the window)
-    playDuration?: number;                // ▸ timeline.playDuration — the window in wall ms (slower / faster)
-    delay?: number;                       // ▸ timeline.delay — the wait before the first pass, ms
-    iterations?: number | 'infinite';     // 'infinite' never stops
-    start?: PxTriggerStart;                  // 'hover' has no touch equivalent and is ignored;
-                                          //   'click' = tap (a second tap applies hoverEnd);
-                                          //   visibility is measured every 200 ms
-    outOfView?: PxOutOfViewAction;        // ▸ timeline.trigger.outOfView — while none of it is on screen
-    hoverEnd?: PxHoverEndAction;          // ▸ timeline.trigger.hoverEnd — for start: 'hover'
-    inViewThreshold?: number;         // ▸ timeline.trigger.inViewThreshold — 0–1 on screen
-    inViewDebounce?: number;          // ▸ timeline.trigger.inViewDebounce — ms it must hold
+    // Playback override — the same object as React (Playback overrides below): the file's `timeline`
+    // block minus `trigger`, deep-merged; `null` at a slot deletes the key. `timeline.engine` and
+    // `timeline.frameRate` are accepted but ignored: React Native always plays natively.
+    timeline?: PxTimelinePatch;
 
     // Control — the highest-priority one that is set picks the mode (Control modes above)
-    playOnTrigger?: boolean;                   // honor the document trigger — the same defaults as the
-                                          //   web: start 'load', outOfView 'pause'
-    play?: boolean; pause?: boolean;      // the STATE (one-shot: which pose; loop: running) / freeze now
-    playMode?: 'forwards' | 'backwards' | 'both' | 'none' | PxPlayMode; // one-shot: which pose changes PLAY vs snap —
-                                          //   'forwards' (default) | 'backwards' | 'both' | 'none'
-    completeIteration?: boolean;          // loop: play=false finishes the CURRENT iteration, then rests
-    progress?: number;                    // 0–1 of duration × iterations (one iteration when 'infinite')
-    time?: number;                        // ms from the start
+    playOnTrigger?: boolean | PxTrigger;  // true: the document's trigger; an object: this trigger instead —
+                                          //   { playOn, playOff, pauseOn, pauseOff }. `click` = a tap;
+                                          //   `hoverIn` / `hoverOut` never fire (no hover on a touch screen);
+                                          //   visibility is measured every 200 ms
+    play?: boolean; pause?: boolean;      // the STATE (true = a play-on, false = a play-off — how each looks
+                                          //   is the timeline's play keys) / freeze now
+    playCurrentProgress?: number;         // 0–1 of duration × iterations (one iteration when 'infinite')
+    playCurrentTime?: number;             // ms from the start
 
-    apiRef?: React.RefObject<PxAnimationPlayerHandle | null>;   // the same methods as on the web components, and the
+    playerRef?: React.RefObject<PxAnimationPlayerHandle | null>;   // the same methods as on the web components, and the
                                           //   same meanings: whole-run time, clamped seeks, rate 0 rejected
 
     // Lifecycle — no arguments; the same meanings as on the web
@@ -262,40 +265,45 @@ interface SvgAnimationPlayerProps {
 }
 ```
 
-The package exports the component, its props (`SvgAnimationPlayerProps`), its handle
-(`PxAnimationPlayerHandle`) and the document types `PxDocumentInput` / `PxDocument` (a JSON import —
-[TypeScript](./installation.md#typescript)); nothing else.
+The package exports the component (`SvgAnimationPlayer`, also its default export), its props
+(`SvgAnimationPlayerProps`), its handle (`PxAnimationPlayerHandle`) and the document type
+`PxDocument` (a JSON import — [TypeScript](./installation.md#typescript)); nothing else.
 
-With none of `playOnTrigger` / `play` / `pause` / `progress` / `time` set, the first frame renders
-statically.
+With none of `playOnTrigger` / `play` / `pause` / `playCurrentProgress` / `playCurrentTime` set,
+the first frame renders statically.
 
 ### Playback overrides
 
-The same document can play differently on each screen. `timeline` takes an object shaped exactly
-like the file's own `animator.timeline` block and deep-merges it over what the file says — the document
-you passed is never modified.
+The same document can play differently on each screen. Two props, the same on every player
+([Overriding from a player](./playback-and-triggers.md#overriding-from-a-player)), and the
+document you passed is never modified: `timeline` is a **merge** over the file's
+`animator.timeline` block minus its `trigger` — an object shaped like the file, deep-merged key
+by key; `playOnTrigger` is `true` for the file's trigger, or the whole trigger to use instead.
 
 ```tsx
-// The file loops twice and starts on mount; here it loops forever and holds the last frame.
+// The file loops twice and plays on load; here it loops forever and finishes the beat before stopping.
 <SvgAnimationPlayer
   doc={doc}
   playOnTrigger
-  timeline={{ iterations: 'infinite', fillMode: 'forwards' }}
+  timeline={{ iterations: 'infinite', completeIterationOnPlayOff: true }}
 />
+
+// This trigger instead of the file's: a tap plays, a second tap pauses
+<SvgAnimationPlayer doc={doc} playOnTrigger={{ playOn: 'click', pauseOn: 'click' }} />
 ```
 
 Objects merge key by key, values replace, and `null` **deletes** a key so the default its
-absence means comes back. `inTime`, `outTime`, `playDuration`, `delay`, `iterations` and `start` are also plain props,
-and win over the same key inside `timeline`. To ignore the file's playback settings entirely,
-add `resetTimeline`.
+absence means comes back (`timeline={{ delay: null }}`).
 
-**To repeat the whole animation**, pass `iterations="infinite"` — there is no `loop` prop. A `loop` inside a
-file means something narrower: it repeats part of one property's keyframes
-([per-property loops](../format/README.md#per-property-loops)).
+**To repeat the whole animation**, pass `timeline={{ iterations: 'infinite' }}` — there is no
+`loop` prop. A `loop` inside a file means something narrower: it repeats part of one property's
+keyframes ([per-property loops](../format/README.md#per-property-loops)).
 
-Other playback settings go inside `timeline` —
-`{ timeline: { fillMode, finish, direction, trigger: { hoverEnd } } }`. Full merge rules
-are in [Playback & triggers → Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
+Every other playback setting is a timeline key and goes inside `timeline` — `iterationDirection`,
+the play keys (`playOnAction`, `playOffAction`, `completeIterationOnPlayOff`, `playEndAction`) and
+the gate keys (`outOfViewAction`, `inViewThreshold`, `inViewDebounce`); the trigger is
+`playOnTrigger`'s alone. Full merge rules are in
+[Playback & triggers → How the merge works](./playback-and-triggers.md#how-the-merge-works).
 
 ### Differences from the React package
 
@@ -304,7 +312,7 @@ are in [Playback & triggers → Overriding from a player](./playback-and-trigger
 |---|---|
 | `timeline.engine` | accepted inside `timeline` but ignored — there is no Web Animations API on React Native; playback is always native-driven |
 | `timeline.frameRate` | ignored — the screen's own refresh rate is used. On React Native the player does not compute values frame by frame; when the document loads it works out the animated values in advance, as a list of snapshots — 60 per second of animation — and while playing, each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, which the player fixes at 60 |
-| `start: 'hover'` | has no touch equivalent, so it is not honored. The other values (`load`, `click`, `manual`) work as they do on the web, from the file or from the prop |
+| `hoverIn` / `hoverOut` | have no touch equivalent, so they never fire. `load` and `click` (a tap) work as they do on the web, from the file or from `playOnTrigger` |
 | `className` / `style` | not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height` (see [Quick start](#quick-start)). Styling *inside* the document — `style` on an element in the JSON — is supported |
 
 ### Failure handling
@@ -430,12 +438,14 @@ not supported.
 | Feature | Supported | Notes |
 |---|---|---|
 | `inTime` / `outTime` / `playDuration`, `delay`, `iterations` (incl. infinite) | ✅ | |
-| All four `direction` values, all `fillMode` values, `finish` | ✅ | through `timeline` — see [Playback overrides](#playback-overrides) |
-| play / pause / cancel / finish | ✅ | |
+| `iterationDirection` — all four values | ✅ | through `timeline` — see [Playback overrides](#playback-overrides) |
+| The play keys: `playOnAction`, `playOffAction`, `completeIterationOnPlayOff`, `playEndAction` | ✅ | `rewind` plays back natively; the run clock behind `getCurrentTime()` is approximate while it rewinds |
+| play / pause / stop / cancel / finish | ✅ | |
 | Jumping to any time, also while playing | ✅ | |
 | Playback rate: faster, slower, reverse | ✅ | |
-| Triggers `load`, `click`, `manual` | ✅ | incl. `outOfView`, `inViewThreshold` and `hoverEnd` |
-| Trigger `hover` | ❌ | no touch equivalent; will not be added |
+| Trigger events `load` and `click` (a tap) in any of the four lists | ✅ | |
+| The gate keys: `outOfViewAction`, `inViewThreshold`, `inViewDebounce` | ✅ | visibility measured against the window every 200 ms — React Native has no `IntersectionObserver` |
+| Trigger events `hoverIn` / `hoverOut` | ❌ | no touch equivalent; will not be added |
 | `timeline.frameRate`, `timeline.engine` | ❌ | see [Differences from the React package](#differences-from-the-react-package) |
 | Scroll-driven playback (`timeline.type: 'scroll' / 'view'`) | ❌ | |
 

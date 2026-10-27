@@ -10,7 +10,7 @@
 // attribute beside its `animate` entry. Both engines build on it — AT REST THEY SHOW THE STATIC
 // DOCUMENT. The WAAPI engine creates its animations idle and `cancel()` returns them to idle,
 // dropping every effect; the frame loop writes nothing until it is played. So "not yet played"
-// and "cancelled" (`hoverEnd: 'reset'`) both mean: whatever the static attributes say.
+// and "cancelled" (a `playOff` event with `playOffAction: 'reset'`) both mean: whatever the static attributes say.
 //
 // The editor keeps the contract for authored nodes. The effect materializers did not: the
 // wrapper `<g>`s they generate (`transformBy`, the inverse chain under a `<mask>`, glyphs on a
