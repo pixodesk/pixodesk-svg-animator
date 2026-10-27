@@ -79,10 +79,10 @@ type TimeTimeline = PxInfer<typeof PxTimeTimelineSchema>;
 
 /** The trigger's four lists, with the editor's labels — typed by the trigger's own keys. */
 const TRIGGER_LISTS: Array<{ key: keyof PxTrigger; label: string }> = [
-  { key: 'playOn', label: 'Plays on' },
-  { key: 'playOff', label: 'Stops on' },
-  { key: 'pauseOn', label: 'Pauses on' },
-  { key: 'pauseOff', label: 'Resumes on' },
+  { key: 'playStart', label: 'Plays on' },
+  { key: 'playStop', label: 'Stops on' },
+  { key: 'pauseStart', label: 'Pauses on' },
+  { key: 'pauseStop', label: 'Resumes on' },
 ];
 const TRIGGER_EVENTS = Object.values(PxTriggerEvent);
 const OUT_OF_VIEW_ACTIONS = Object.values(PxOutOfViewAction);
@@ -292,7 +292,7 @@ function syncTriggerUi(): void {
 
   if (useFileConfig) {
     // Show the file's config, read-only. `resolveTrigger` spells out what the file means:
-    // every list an array, an absent block = play on load, `pauseOff` a copy of `playOn`.
+    // every list an array, an absent block = play on load, `pauseStop` a copy of `playStart`.
     const cfg = currentDoc ? getAnimatorConfig(currentDoc) : undefined;
     const lists = resolveTrigger(cfg?.trigger);
     for (const { key } of TRIGGER_LISTS) {
@@ -321,7 +321,7 @@ function syncTriggerUi(): void {
 
 /**
  * What the viewer has to do before the animation moves, when the document's trigger — not the
- * transport — is what starts it. `playOn: 'load'` behind the default visibility gate IS
+ * transport — is what starts it. `playStart: 'load'` behind the default visibility gate IS
  * "scroll into view" (see docs/library/playback-and-triggers.md); `undefined` means it starts by
  * itself as soon as it is shown.
  */
@@ -338,10 +338,10 @@ function userActionForTrigger(
   trigger: PxTrigger | undefined,
   outOfViewAction: PxOutOfViewAction | undefined,
 ): UserAction | undefined {
-  const { playOn } = resolveTrigger(trigger);
-  if (playOn.includes(PxTriggerEvent.hoverIn)) return 'hover';
-  if (playOn.includes(PxTriggerEvent.click)) return 'click';
-  if (playOn.length === 0) return 'play';
+  const { playStart } = resolveTrigger(trigger);
+  if (playStart.includes(PxTriggerEvent.hoverIn)) return 'hover';
+  if (playStart.includes(PxTriggerEvent.click)) return 'click';
+  if (playStart.length === 0) return 'play';
   // `load` — behind a visibility gate it waits to be seen; `continue` starts right away.
   return outOfViewAction === PxOutOfViewAction.continue ? undefined : 'scrollIntoView';
 }

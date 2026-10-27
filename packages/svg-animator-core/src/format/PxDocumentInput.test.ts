@@ -14,7 +14,7 @@ import { getAnimatorConfig, toPxDocument } from '../index';
  *  an anonymous object TYPE (a JSON module is never an interface). */
 type AsJsonImport = {
     type: string;
-    animator: { timeline: { outTime: number; engine: string; trigger: { playOn: string } } };
+    animator: { timeline: { outTime: number; engine: string; trigger: { playStart: string } } };
     children: Array<{
         type: string; width: number;
         animate: { opacity: { keyframes: Array<{ time: number; value: number; easing: Array<number> }> } };
@@ -22,7 +22,7 @@ type AsJsonImport = {
 };
 const fromJsonImport: AsJsonImport = {
     type: 'svg',
-    animator: { timeline: { outTime: 1200, engine: 'auto', trigger: { playOn: 'click' } } },
+    animator: { timeline: { outTime: 1200, engine: 'auto', trigger: { playStart: 'click' } } },
     children: [{
         type: 'rect', width: 50,
         animate: { opacity: { keyframes: [{ time: 0, value: 0, easing: [0.4, 0, 0.2, 1] }] } },

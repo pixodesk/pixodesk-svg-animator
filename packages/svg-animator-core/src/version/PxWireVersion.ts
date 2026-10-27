@@ -288,10 +288,10 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         from: '1.8',
         to: '1.9',
         reason: 'The trigger says only WHEN (dev-docs/plans/component-api.md D5): `start` / `hoverEnd` become the '
-            + 'event lists `playOn` / `playOff` / `pauseOn` / `pauseOff`; HOW is the timeline\'s own — `fillMode` + '
-            + '`finish` become `playEndAction` (+ `showFirstFrameBeforePlayOn`), `direction` becomes `iterationDirection`, '
-            + 'the gate keys move up (`outOfView` → `outOfViewAction`), and `playOnAction` / `playOffAction` / '
-            + '`completeIterationOnPlayOff` are new.',
+            + 'event lists `playStart` / `playStop` / `pauseStart` / `pauseStop`; HOW is the timeline\'s own — `fillMode` + '
+            + '`finish` become `playFinishAction` (+ `showFirstFrameBeforePlayStart`), `direction` becomes `iterationDirection`, '
+            + 'the gate keys move up (`outOfView` → `outOfViewAction`), and `playStartAction` / `playStopAction` / '
+            + '`completeIterationOnPlayStop` are new.',
         kind: PxWireStepKind.converted,
         up: upPlaybackKeys,
         // No `down`: 1.9 can say what 1.8 could not (a click that restarts, a stop that rewinds, …).
@@ -312,8 +312,8 @@ function upPlaybackKeys(doc: Record<string, unknown>): void {
     if (fillMode !== undefined || finish !== undefined) {
         const firstFrameBefore = fillMode === 'backwards' || fillMode === 'both';
         const holdAfter = (fillMode === undefined || fillMode === 'forwards' || fillMode === 'both') && finish !== 'reset';
-        if (firstFrameBefore) timeline['showFirstFrameBeforePlayOn'] = true;
-        if (!holdAfter) timeline['playEndAction'] = 'reset';
+        if (firstFrameBefore) timeline['showFirstFrameBeforePlayStart'] = true;
+        if (!holdAfter) timeline['playFinishAction'] = 'reset';
         delete timeline['fillMode'];
         delete timeline['finish'];
     }
@@ -327,21 +327,21 @@ function upPlaybackKeys(doc: Record<string, unknown>): void {
     for (const key of Object.keys(trigger)) delete trigger[key];
     switch (start) {
         case 'hover':
-            trigger['playOn'] = 'hoverIn';
-            if (hoverEnd === 'pause') trigger['pauseOn'] = 'hoverOut';
+            trigger['playStart'] = 'hoverIn';
+            if (hoverEnd === 'pause') trigger['pauseStart'] = 'hoverOut';
             else if (hoverEnd === 'reset' || hoverEnd === 'reverse') {
-                trigger['playOff'] = 'hoverOut';
-                if (hoverEnd === 'reverse') timeline['playOffAction'] = 'rewind';
+                trigger['playStop'] = 'hoverOut';
+                if (hoverEnd === 'reverse') timeline['playStopAction'] = 'rewind';
             }
             break;                                   // `continue`: the leave does nothing — not listed
         case 'click':
-            trigger['playOn'] = 'click';
-            trigger['pauseOn'] = 'click';            // the old toggle
+            trigger['playStart'] = 'click';
+            trigger['pauseStart'] = 'click';            // the old toggle
             break;
         case 'manual':
             break;                                   // an empty block: nothing starts it
         default:
-            trigger['playOn'] = 'load';              // `load`, or the old absent-start default
+            trigger['playStart'] = 'load';              // `load`, or the old absent-start default
     }
 }
 

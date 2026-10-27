@@ -43,7 +43,7 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 | <a id="px1105"></a>**1105** | A bind-by-id document carries no `animator.bindings`, so nothing is animated. | — |
 | <a id="px1107"></a>**1107** | A transform part is animated as its own `animate` channel (`animate.translate`, …) — the deprecated spelling: several on one node are last-write-wins. Spell it `animate.transform` (record keyframes), or `effects.transformBy` for independently-timed parts. | the channel(s) and the node |
 | <a id="px1108"></a>**1108** | A document value did not match the schema and was repaired before playing — replaced by the schema's default, or dropped when nothing could be kept. The document plays; the value is not what was written. | the problem, with its path |
-| <a id="px1109"></a>**1109** | The trigger lists one event under BOTH `playOff` and `pauseOn` — two off-actions for one event. `pauseOn` wins; the file should name one. | the events |
+| <a id="px1109"></a>**1109** | The trigger lists one event under BOTH `playStop` and `pauseStart` — two off-actions for one event. `pauseStart` wins; the file should name one. | the events |
 | <a id="px1106"></a>**1106** | A binding names no element, or names animations that `definitions.animations` does not have. | the binding |
 
 ## The mount: elements the player could not find
@@ -82,7 +82,7 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 | Code | What it means | Data |
 |---|---|---|
 | <a id="px1501"></a>**1501** | Props from more than one control mode were set at once. The higher-priority mode wins and the other props are ignored — see the control-mode rule. | which props conflicted, and which won |
-| <a id="px1502"></a>**1502** | A declarative playback modifier was set where it cannot apply — `pause` without `play`. Ignored. (How a `play` change looks is the timeline's: `playOnAction`, `playOffAction`, `completeIterationOnPlayOff`.) | the explanation |
+| <a id="px1502"></a>**1502** | A declarative playback modifier was set where it cannot apply — `pause` without `play`. Ignored. (How a `play` change looks is the timeline's: `playStartAction`, `playStopAction`, `completeIterationOnPlayStop`.) | the explanation |
 | <a id="px1503"></a>**1503** | An imperative write call (`play()`, `pause()`, `playOnce()`, …) landed while a declarative driver (`play`/`pause` or `playCurrentProgress`/`playCurrentTime` props) owns playback. The call is applied, and the next prop change reasserts the props. | the call |
 
 ## React Native

@@ -7,7 +7,7 @@
 import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTrigger } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, getAnimatorConfig, PxDiagnosticCode, PxPlayEndAction, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, getAnimatorConfig, PxDiagnosticCode, PxPlayFinishAction, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
 import { applyDeclarativeAction, applyPlaybackOverride, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import type { CSSProperties, FC, ReactElement } from 'react';
@@ -327,9 +327,9 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
         : passMs * (typeof animatorView.iterations === 'number' && animatorView.iterations >= 1 ? animatorView.iterations : 1);
     if (compMode === PxControlMode.play && world === PxPlaybackWorld.oneShot) {
         // The pose contract beats the file's rest poses (§10, D5): while `play` names a pose, the held
-        // poses must be the same on every file — a `playEndAction: 'reset'` document would revert to its
+        // poses must be the same on every file — a `playFinishAction: 'reset'` document would revert to its
         // static attrs after the run. Pin both sides: the first frame before, the last frame after.
-        doc = applyAnimatorConfig(doc, { timeline: { showFirstFrameBeforePlayOn: true, playEndAction: PxPlayEndAction.hold } }).doc;
+        doc = applyAnimatorConfig(doc, { timeline: { showFirstFrameBeforePlayStart: true, playFinishAction: PxPlayFinishAction.hold } }).doc;
     }
 
     // Controlled-time mode: compute the absolute seek target. `playCurrentProgress` is a
@@ -412,8 +412,8 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
                 const diag = makeDiag();
                 for (const w of warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.playModifierIgnored, w);
             }
-            // HOW each step moves is the timeline's (`playOnAction`, `playOffAction`,
-            // `completeIterationOnPlayOff`, D5) — the player's executor behind `play()` / `stop()`.
+            // HOW each step moves is the timeline's (`playStartAction`, `playStopAction`,
+            // `completeIterationOnPlayStop`, D5) — the player's executor behind `play()` / `stop()`.
             if (api) for (const action of actions) applyDeclarativeAction(api, action, totalMs);
         }
         prevPlaybackRef.current = { key, props: { play, pause } };

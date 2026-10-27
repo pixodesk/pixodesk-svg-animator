@@ -30,7 +30,7 @@ import type { PxResolvedGate } from '@pixodesk/svg-animator-core/engine';
 
 /** What the gate drives. A trigger let through goes to the executor's state-rule play; the gate's
  *  own hold and release are the ENGINE's pause and play — a gate hold is not a user pause, so the
- *  executor's paused state stays untouched and a later `playOn` event still applies. @internal */
+ *  executor's paused state stays untouched and a later `playStart` event still applies. @internal */
 export interface PxGateHost {
     isPlaying(): boolean;
     /** A trigger fired and the gate lets it through. */

@@ -25,7 +25,7 @@ export const CASES = [
   { group: 'web', id: 'callbacks',     title: 'Callbacks', anchor: 'callbacks',
     summary: 'onPlay / onPause / onCancel / onFinish / onRemove, logged as they fire.' },
   { group: 'web', id: 'triggers',      title: 'Triggers — play on click', anchor: 'triggers',
-    summary: 'The document lists click under playOn and pauseOn; the player wires the event for you.' },
+    summary: 'The document lists click under playStart and pauseStart; the player wires the event for you.' },
   { group: 'web', id: 'engine-modes',  title: 'Playback modes — native vs player', anchor: 'playback-modes',
     summary: 'The same document driven by each engine, side by side.' },
   { group: 'web', id: 'several',       title: 'Loading several animations', anchor: 'loading-several-animations',

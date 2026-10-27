@@ -109,9 +109,9 @@ It returns a `PxAnimationPlayerApi`:
 <!-- px-check props PxAnimationPlayerApi pkg=web -->
 | Method                  | Description                                                       |
 | ----------------------- | ----------------------------------------------------------------- |
-| `play()`                | The play-on: resume when paused, else per the timeline's `playOnAction` |
+| `play()`                | The play-start: resume when paused, else per the timeline's `playStartAction` |
 | `pause()`               | Pause at the current time                                         |
-| `stop()`                | The play-off per the timeline: `playOffAction` (reset / rewind), after the iteration when `completeIterationOnPlayOff` |
+| `stop()`                | The play-stop per the timeline: `playStopAction` (reset / rewind), after the iteration when `completeIterationOnPlayStop` |
 | `cancel()`              | The unconditional reset-now: stop and show the start state        |
 | `finish()`              | Jump to the end                                                   |
 | `playOnce()`            | One fresh pass from the start, whatever `iterations` say          |

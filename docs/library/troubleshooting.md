@@ -12,7 +12,7 @@ is not here, go to [Still stuck?](#still-stuck) at the end.
 
 ## Nothing plays
 
-**The trigger does not list `load`.** Check `animator.timeline.trigger.playOn` in the file (or *Plays
+**The trigger does not list `load`.** Check `animator.timeline.trigger.playStart` in the file (or *Plays
 on* in the editor). `click`, `hoverIn` and `hoverOut` wait for the user; an empty trigger (`{}`) waits
 for you to call `play()`. Even `load` waits until enough of the animation is on screen, and pauses
 while it is scrolled out of view (`outOfViewAction: 'pause'`, the default) — see
@@ -82,17 +82,17 @@ yourself.
 
 ## Playback behavior
 
-**It holds the last frame — I want it to reset.** Set `timeline.playEndAction: "reset"` — at its
+**It holds the last frame — I want it to reset.** Set `timeline.playFinishAction: "reset"` — at its
 natural end the animation jumps back to the start state (`"rewind"` plays back to it instead; the
 default `"hold"` keeps the last frame). The start state is the SVG as authored; a hand-authored
 file whose static attributes differ from its first keyframe can show the first frame instead with
-`showFirstFrameBeforePlayOn: true`
-(see [Play on, play off, play end](./playback-and-triggers.md#play-on-play-off-play-end--how-a-transition-looks)).
-For one mount only, pass the same thing as an override: `timeline={{ playEndAction: 'reset' }}`.
+`showFirstFrameBeforePlayStart: true`
+(see [Play start, play stop, play finish](./playback-and-triggers.md#play-start-play-stop-play-finish--how-a-transition-looks)).
+For one mount only, pass the same thing as an override: `timeline={{ playFinishAction: 'reset' }}`.
 
-**How do I play backwards?** `player.setPlaybackRate(-1); player.play();` — or let a play-off play
-back by itself: `playOffAction: 'rewind'` in the timeline, with the event that stops it listed in
-the trigger (`playOff: 'hoverOut'`); `stop()` and `play={false}` rewind the same way.
+**How do I play backwards?** `player.setPlaybackRate(-1); player.play();` — or let a play-stop play
+back by itself: `playStopAction: 'rewind'` in the timeline, with the event that stops it listed in
+the trigger (`playStop: 'hoverOut'`); `stop()` and `play={false}` rewind the same way.
 
 **Jumping to a time while playing.** `setCurrentTime(ms)` works while playing (the animation
 continues from the new point) and while paused (it shows that frame and stays there).

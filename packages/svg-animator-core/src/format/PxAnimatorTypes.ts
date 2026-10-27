@@ -11,7 +11,7 @@ import { implementsInterface, px, PxValidationFindingKind, reportValidationError
 export * from './PxAnimatorConstants';
 import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_TRANSFORM_PART_KEYS, PX_PLAYBACK_DEFAULTS, PxTimelineEngineSetting, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits,
     // Wire enums named in review §2.7 — used as VALUES by the schemas below.
-    PxAlongPathMode, PxFillMode, PxPlayOnAction, PxPlayOffAction, PxPlayEndAction, PxOutOfViewAction, PxPinAlign, PxPlaybackDirection,
+    PxAlongPathMode, PxFillMode, PxPlayStartAction, PxPlayStopAction, PxPlayFinishAction, PxOutOfViewAction, PxPinAlign, PxPlaybackDirection,
     PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxTriggerEvent, PxValueKind } from './PxAnimatorConstants';
 import type { PxPlayState, PxTimelineEngine, PxTransformPartKey, PxTriggerEvents } from './PxAnimatorConstants';
 // Version stamps are parsed by the reader's own parser (review §2.10) so the validator and the
@@ -582,20 +582,20 @@ export type PxElementAnimation = PxInfer<typeof PxElementAnimationSchema>;
 /**
  * WHEN — which interactions call play / pause (dev-docs/plans/component-api.md D5). Four lists of events
  * from the OPEN vocabulary {@link PxTriggerEvent}; each a single event or several, like `animate`'s
- * references. The state rule, over stopped · playing · paused: `playOn` acts when stopped, `pauseOn` when
- * playing, `pauseOff` when paused, `playOff` when playing or paused — so `click` in `playOn` and `pauseOn`
+ * references. The state rule, over stopped · playing · paused: `playStart` acts when stopped, `pauseStart` when
+ * playing, `pauseStop` when paused, `playStop` when playing or paused — so `click` in `playStart` and `pauseStart`
  * toggles through all three with no toggle word. HOW a play / stop is performed, and the visibility gate,
- * are the timeline's own keys (`playOnAction`, `playOffAction`, …): the trigger says only WHEN.
+ * are the timeline's own keys (`playStartAction`, `playStopAction`, …): the trigger says only WHEN.
  */
 export interface _PxTrigger {
     /** Starts it (when stopped). An ABSENT trigger block means `'load'`; an empty block means nothing starts it. */
-    playOn?: PxTriggerEvents;
-    /** Stops it (when playing or paused) — per `playOffAction`, after the iteration when `completeIterationOnPlayOff`. */
-    playOff?: PxTriggerEvents;
+    playStart?: PxTriggerEvents;
+    /** Stops it (when playing or paused) — per `playStopAction`, after the iteration when `completeIterationOnPlayStop`. */
+    playStop?: PxTriggerEvents;
     /** Freezes it where it is (when playing). */
-    pauseOn?: PxTriggerEvents;
-    /** Resumes it (when paused). Absent = a copy of `playOn`. */
-    pauseOff?: PxTriggerEvents;
+    pauseStart?: PxTriggerEvents;
+    /** Resumes it (when paused). Absent = a copy of `playStart`. */
+    pauseStop?: PxTriggerEvents;
 }
 
 const PxTriggerEventSchema = px.enum([PxTriggerEvent.load, PxTriggerEvent.hoverIn, PxTriggerEvent.hoverOut, PxTriggerEvent.click] as const, PxTriggerEvent.load);
@@ -604,10 +604,10 @@ export const PxTriggerEventsSchema = px.union([PxTriggerEventSchema, px.array(Px
 
 /** @public @advanced */
 export const PxTriggerSchema = implementsInterface<_PxTrigger>()(px.object({
-    playOn: PxTriggerEventsSchema.optional(),
-    playOff: PxTriggerEventsSchema.optional(),
-    pauseOn: PxTriggerEventsSchema.optional(),
-    pauseOff: PxTriggerEventsSchema.optional(),
+    playStart: PxTriggerEventsSchema.optional(),
+    playStop: PxTriggerEventsSchema.optional(),
+    pauseStart: PxTriggerEventsSchema.optional(),
+    pauseStop: PxTriggerEventsSchema.optional(),
 }));
 
 /** WHEN an animation plays and pauses — see {@link _PxTrigger}. @public */
@@ -917,20 +917,20 @@ export interface _PxTimeTimeline {
     iterations?: number | 'infinite';
     /** Each iteration's direction (`reverse` applies to a single pass too — still one iteration). */
     iterationDirection?: PxPlaybackDirection;
-    /** What a play-on does: `resume` (default), `restart`, `jumpToEnd`. */
-    playOnAction?: PxPlayOnAction;
-    /** What a play-off does: `reset` (default) or `rewind`. */
-    playOffAction?: PxPlayOffAction;
-    /** WHEN a play-off takes effect: now (default), or after the current iteration — a one-shot runs to its
-     *  end. Orthogonal to `playOffAction`: `rewind` after completion plays back from there. */
-    completeIterationOnPlayOff?: boolean;
+    /** What a play-start does: `resume` (default), `restart`, `jumpToEnd`. */
+    playStartAction?: PxPlayStartAction;
+    /** What a play-stop does: `reset` (default) or `rewind`. */
+    playStopAction?: PxPlayStopAction;
+    /** WHEN a play-stop takes effect: now (default), or after the current iteration — a one-shot runs to its
+     *  end. Orthogonal to `playStopAction`: `rewind` after completion plays back from there. */
+    completeIterationOnPlayStop?: boolean;
     /** When it ends by itself: `hold` the last frame (default), `reset`, or `rewind`. Replaces the old
      *  `finish` and the after-half of CSS `fillMode`; the runtime view derives `fill` / `resetOnFinish`. */
-    playEndAction?: PxPlayEndAction;
+    playFinishAction?: PxPlayFinishAction;
     /** The before-half of CSS `fillMode`, for hand-authored files only: `true` applies the first frame's
-     *  values before the first play-on (and after a reset). The Editor never writes it — by the format's
+     *  values before the first play-start (and after a reset). The Editor never writes it — by the format's
      *  contract the static attributes ARE the first frame (`PxRestPose`). */
-    showFirstFrameBeforePlayOn?: boolean;
+    showFirstFrameBeforePlayStart?: boolean;
     /** The visibility GATE — a condition on every driver, not an event: what happens while none of it is on
      *  screen. On return it runs again only if it was meant to run — from the paused position after `pause`,
      *  from the start after `reset`; `continue` never stopped. */
@@ -942,7 +942,7 @@ export interface _PxTimeTimeline {
 }
 
 /** The time-driven member of {@link PxTimelineSchema} — what an absent `type` selects. Exported
- *  so a reader can ask it what an omitted field means (`PxTimeTimelineSchema.defaults.playEndAction`).
+ *  so a reader can ask it what an omitted field means (`PxTimeTimelineSchema.defaults.playFinishAction`).
  *  @public @advanced */
 export const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.object({
     type: px.literal('time').optional(),
@@ -959,11 +959,11 @@ export const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.ob
     delay: px.number(0).optional(),
     iterations: px.union([px.number(PX_DEFAULT_ITERATIONS), px.literal('infinite')], PX_DEFAULT_ITERATIONS).optional(),
     iterationDirection: px.enum([PxPlaybackDirection.normal, PxPlaybackDirection.reverse, PxPlaybackDirection.alternate, PxPlaybackDirection.alternateReverse] as const, PxPlaybackDirection.normal).optional(),
-    playOnAction: px.enum([PxPlayOnAction.resume, PxPlayOnAction.restart, PxPlayOnAction.jumpToEnd] as const, PX_PLAYBACK_DEFAULTS.playOnAction).optional(),
-    playOffAction: px.enum([PxPlayOffAction.reset, PxPlayOffAction.rewind] as const, PX_PLAYBACK_DEFAULTS.playOffAction).optional(),
-    completeIterationOnPlayOff: px.boolean(PX_PLAYBACK_DEFAULTS.completeIterationOnPlayOff).optional(),
-    playEndAction: px.enum([PxPlayEndAction.hold, PxPlayEndAction.reset, PxPlayEndAction.rewind] as const, PX_PLAYBACK_DEFAULTS.playEndAction).optional(),
-    showFirstFrameBeforePlayOn: px.boolean(PX_PLAYBACK_DEFAULTS.showFirstFrameBeforePlayOn).optional(),
+    playStartAction: px.enum([PxPlayStartAction.resume, PxPlayStartAction.restart, PxPlayStartAction.jumpToEnd] as const, PX_PLAYBACK_DEFAULTS.playStartAction).optional(),
+    playStopAction: px.enum([PxPlayStopAction.reset, PxPlayStopAction.rewind] as const, PX_PLAYBACK_DEFAULTS.playStopAction).optional(),
+    completeIterationOnPlayStop: px.boolean(PX_PLAYBACK_DEFAULTS.completeIterationOnPlayStop).optional(),
+    playFinishAction: px.enum([PxPlayFinishAction.hold, PxPlayFinishAction.reset, PxPlayFinishAction.rewind] as const, PX_PLAYBACK_DEFAULTS.playFinishAction).optional(),
+    showFirstFrameBeforePlayStart: px.boolean(PX_PLAYBACK_DEFAULTS.showFirstFrameBeforePlayStart).optional(),
     outOfViewAction: px.enum([PxOutOfViewAction.pause, PxOutOfViewAction.continue, PxOutOfViewAction.reset] as const, PX_PLAYBACK_DEFAULTS.outOfViewAction).optional(),
     inViewThreshold: px.number(PX_PLAYBACK_DEFAULTS.inViewThreshold).optional(),
     inViewDebounce: px.number(PX_PLAYBACK_DEFAULTS.inViewDebounce).optional(),
@@ -1107,12 +1107,12 @@ export interface _PxAnimatorConfig {
     /** Trigger configuration for when animation should start */
     trigger?: PxTrigger;
     /** D5 — the play keys, copied from the wire (`fill` / `resetOnFinish` / `direction` above are derived). */
-    playOnAction?: PxPlayOnAction;
-    playOffAction?: PxPlayOffAction;
-    completeIterationOnPlayOff?: boolean;
-    playEndAction?: PxPlayEndAction;
+    playStartAction?: PxPlayStartAction;
+    playStopAction?: PxPlayStopAction;
+    completeIterationOnPlayStop?: boolean;
+    playFinishAction?: PxPlayFinishAction;
     /** The wire's first-frame flag, carried through so a WRITER round-trips it; the engines read `fill`. */
-    showFirstFrameBeforePlayOn?: boolean;
+    showFirstFrameBeforePlayStart?: boolean;
     outOfViewAction?: PxOutOfViewAction;
     inViewThreshold?: number;
     inViewDebounce?: number;
@@ -1137,7 +1137,7 @@ export interface _PxAnimatorConfig {
      *
      * The wire spells this as `timeline.type` ('time' — or absent — vs 'scroll'/'view');
      * `resolveAnimatorTimeline` folds it into this field for the engines.
-     * Distinct from `trigger.playOn`, which says what STARTS the animation: one
+     * Distinct from `trigger.playStart`, which says what STARTS the animation: one
      * names the beginning, this one names what moves the playhead afterwards.
      * Design: app `svgeditor/animation/scroll-timeline.design.md`.
      */
@@ -2413,8 +2413,8 @@ export interface PxAnimationPlayerApi<TRoot = unknown> {
 
     /** Stops the animation and resets it to its initial state. */
     cancel(): void;
-    /** The configured off-edge: `playOffAction` (reset / rewind), after the iteration when `completeIterationOnPlayOff`
-     *  — what a `playOff` event does. `cancel()` is the unconditional reset-now. */
+    /** The configured stop-edge: `playStopAction` (reset / rewind), after the iteration when `completeIterationOnPlayStop`
+     *  — what a `playStop` event does. `cancel()` is the unconditional reset-now. */
     stop(): void;
 
     /** Jumps to the end of the animation and holds the final state. */
@@ -2478,21 +2478,21 @@ export type PxAnimationPlayerHandle = Omit<PxAnimationPlayerApi, 'isReady' | 'ge
 /**
  * The player's ONE executor of "on" and "off" (dev-docs/plans/component-api.md D5) — what the trigger's
  * event lists, the `play` / `pause` props and the api's `play()` / `stop()` all call. It performs the
- * timeline's `playOnAction` / `playOffAction` / `completeIterationOnPlayOff` on the engine, and owns the one
+ * timeline's `playStartAction` / `playStopAction` / `completeIterationOnPlayStop` on the engine, and owns the one
  * state the engines cannot report: paused (resumable) versus stopped.
  * @public @advanced
  */
 export interface PxPlayExecutor {
     state(): PxPlayState;
-    /** The configured play-on (`resume` / `restart` / `jumpToEnd`). */
-    on(): void;
-    /** The configured play-off (`reset` / `rewind`), after the iteration when `completeIterationOnPlayOff`. */
-    off(): void;
+    /** The configured play-start (`resume` / `restart` / `jumpToEnd`). */
+    start(): void;
+    /** The configured play-stop (`reset` / `rewind`), after the iteration when `completeIterationOnPlayStop`. */
+    stop(): void;
     /** Freeze where it is (only while playing). */
     pause(): void;
     /** Continue from the paused position (only while paused). */
     resume(): void;
-    /** The state-rule play: paused → resume, otherwise `on()`. */
+    /** The state-rule play: paused → resume, otherwise `start()`. */
     play(): void;
     /** The unconditional reset-now. */
     cancel(): void;
@@ -2500,9 +2500,9 @@ export interface PxPlayExecutor {
     showEnd(): void;
     /** Play BACK to the start from where it is and rest there (a loop: to the start of its iteration). */
     rewind(): void;
-    /** The engine announced a natural end: performs `playEndAction` (hold / reset / rewind); the end of a
+    /** The engine announced a natural end: performs `playFinishAction` (hold / reset / rewind); the end of a
      *  rewind rests at the start. The engines' `onFinish` hook calls this. */
-    onNaturalEnd(): void;
+    onNaturalFinish(): void;
     dispose(): void;
 }
 

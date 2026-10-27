@@ -49,7 +49,7 @@ export type { PxDocument, PxDocumentInput, PxAnimationDefinition, PxAnimationPla
 // VALUE exports, not `export type`: each wire enum is a const namespace AND the string type
 // derived from it under the same name (review §2.7), so a consumer gets both `PxTriggerEvent.click`
 // and `start?: PxTriggerEvent` from one import.
-export { PxFillMode, PxPlayOnAction, PxPlayOffAction, PxPlayEndAction, PxOutOfViewAction, PxPlaybackDirection, PxTriggerEvent } from './format/PxAnimatorConstants';
+export { PxFillMode, PxPlayStartAction, PxPlayStopAction, PxPlayFinishAction, PxOutOfViewAction, PxPlaybackDirection, PxTriggerEvent } from './format/PxAnimatorConstants';
 
 export { getBindings, getChildren, getDefinitions } from './format/PxAnimatorConstants';
 export { getAnimatorConfig, isPxDocument, nestAnimatorTimeline } from './format/PxAnimatorConstants';
@@ -114,7 +114,7 @@ export type { PxPlayExecutor } from './format/PxAnimatorTypes';
 export { PxPlayState, PxTriggerAction } from './format/PxAnimatorConstants';
 export type { PxPatch, PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxTimelinePatch } from './playback/PxAnimatorConfigPatch';
 export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxUnits, PxMaskType, PxPathOverflow, PxLengthAdjust, PxTextPathMethod, PxTextPathSpacing } from './format/PxAnimatorConstants';
-// The remaining wire enums (review §2.7). `PxFillMode` / `PxOutOfViewAction` / `PxPlayOnAction, PxPlayOffAction, PxPlayEndAction` /
+// The remaining wire enums (review §2.7). `PxFillMode` / `PxOutOfViewAction` / `PxPlayStartAction, PxPlayStopAction, PxPlayFinishAction` /
 // `PxPlaybackDirection` / `PxTriggerEvent` are exported above and must NOT be repeated here —
 // one export per identifier.
 export {

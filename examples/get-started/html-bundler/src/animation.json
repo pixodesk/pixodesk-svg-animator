@@ -5,7 +5,7 @@
     "timeline": {
       "outTime": 1000,
       "trigger": {
-        "playOn": "load"
+        "playStart": "load"
       },
       "outOfViewAction": "continue",
       "iterations": "infinite",

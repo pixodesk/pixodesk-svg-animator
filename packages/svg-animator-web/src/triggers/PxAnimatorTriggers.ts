@@ -21,15 +21,15 @@ import { createVisibilityGate } from './PxVisibilityGate';
 /**
  * Wires a document's trigger to its root element (dev-docs/plans/component-api.md D5).
  *
- * The trigger says only WHEN: four event lists — `playOn`, `playOff`, `pauseOn`, `pauseOff` — over
+ * The trigger says only WHEN: four event lists — `playStart`, `playStop`, `pauseStart`, `pauseStop` — over
  * the events `load`, `hoverIn`, `hoverOut`, `click`. Which list an event is read from is the STATE
- * RULE: `playOn` acts when stopped, `pauseOn` when playing, `pauseOff` when paused (an omitted
- * `pauseOff` is a copy of `playOn`), `playOff` when playing or paused. An event in both `playOff`
- * and `pauseOn` is a contradiction that is reported; `pauseOn` wins. An absent trigger block plays
+ * RULE: `playStart` acts when stopped, `pauseStart` when playing, `pauseStop` when paused (an omitted
+ * `pauseStop` is a copy of `playStart`), `playStop` when playing or paused. An event in both `playStop`
+ * and `pauseStart` is a contradiction that is reported; `pauseStart` wins. An absent trigger block plays
  * on load; an EMPTY one lists nothing — only the api drives it.
  *
- * HOW is the timeline's own and performed by the player's one executor (`playOnAction`,
- * `playOffAction`, `completeIterationOnPlayOff`), shared with the api's `play()` / `stop()`, so a
+ * HOW is the timeline's own and performed by the player's one executor (`playStartAction`,
+ * `playStopAction`, `completeIterationOnPlayStop`), shared with the api's `play()` / `stop()`, so a
  * click and a `player.play()` do exactly the same thing. The visibility gate (`outOfViewAction`,
  * `inViewThreshold`, `inViewDebounce`, timeline keys too) decides whether it may RUN, whatever
  * started it; only `load` waits for it — a hover or a click is aimed at something the reader sees.
@@ -83,7 +83,7 @@ export function setupAnimationTriggers(
         switch (triggerActionFor(trigger, executor.state(), event)) {
             case PxTriggerAction.play: gate.requestStart(direct); break;
             case PxTriggerAction.pause: executor.pause(); break;
-            case PxTriggerAction.off: executor.off(); break;
+            case PxTriggerAction.stop: executor.stop(); break;
         }
     };
 
@@ -102,8 +102,8 @@ export function setupAnimationTriggers(
     const usesHoverOut = listed(PxTriggerEvent.hoverOut);
     if (listed(PxTriggerEvent.hoverIn) || usesHoverOut) {
         // An OUT may only follow an IN. A `mouseleave` with no preceding `mouseenter` happens when the
-        // pointer is already over the element at load and then moves away — and a `playOff: 'hoverOut'`
-        // with `playOffAction: 'rewind'` would start the animation running backwards.
+        // pointer is already over the element at load and then moves away — and a `playStop: 'hoverOut'`
+        // with `playStopAction: 'rewind'` would start the animation running backwards.
         let enteredOnce = false;
         const onEnter = (): void => { enteredOnce = true; fire(PxTriggerEvent.hoverIn, true); };
         root.addEventListener('mouseenter', onEnter);

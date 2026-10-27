@@ -27,14 +27,14 @@ gate), or the trigger object you bind instead of `true`:
 ```vue
 <template>
   <SvgAnimationPlayer :doc="animationDoc" playOnTrigger />
-  <SvgAnimationPlayer :doc="animationDoc" :playOnTrigger="{ playOn: 'hoverIn', pauseOn: 'hoverOut' }" />
+  <SvgAnimationPlayer :doc="animationDoc" :playOnTrigger="{ playStart: 'hoverIn', pauseStart: 'hoverOut' }" />
 </template>
 ```
 
 ### Declarative play/pause
 
-Control playback with boolean props — `play` is the state (`true` a play-on, `false` a play-off);
-how each looks is the timeline's `playOnAction` / `playOffAction` / `completeIterationOnPlayOff`,
+Control playback with boolean props — `play` is the state (`true` a play-start, `false` a play-stop);
+how each looks is the timeline's `playStartAction` / `playStopAction` / `completeIterationOnPlayStop`,
 adjusted through `timeline`:
 
 ```vue
@@ -70,7 +70,7 @@ const player = ref<PxAnimationPlayerHandle | null>(null);
 ```
 
 <!-- px-check members PxAnimationPlayerHandle pkg=vue -->
-`PxAnimationPlayerHandle` methods: `getDuration()` (one pass, ms — the slider maximum), `play()` (paused → resume, otherwise the configured play-on), `pause()`, `stop()` (the configured play-off — after the current iteration when the timeline asks for that), `cancel()` (reset now, unconditionally), `finish()`, `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
+`PxAnimationPlayerHandle` methods: `getDuration()` (one pass, ms — the slider maximum), `play()` (paused → resume, otherwise the configured play-start), `pause()`, `stop()` (the configured play-stop — after the current iteration when the timeline asks for that), `cancel()` (reset now, unconditionally), `finish()`, `playOnce()` (one fresh pass from the start, whatever the file's iterations say), `isPlaying()`, `setPlaybackRate(rate)`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`, `setCurrentProgress(p)`.
 
 ### Controlled time
 
@@ -89,8 +89,8 @@ Render a single frame — by time in milliseconds, or by fraction of the whole t
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxDocumentInput` | The animation document to render (required); a `.json` import passes as-is |
-| `playOnTrigger` | `boolean \| PxTrigger` | `true`: play on the document's own trigger; an object: this trigger instead — `{ playOn, playOff, pauseOn, pauseOff }`, each one event or a list of `'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
-| `play` | `boolean` | The state: `true` a play-on, `false` a play-off. How each looks is the timeline's `playOnAction` / `playOffAction` / `completeIterationOnPlayOff` — see [Play on, play off, play end](../../docs/library/playback-and-triggers.md#play-on-play-off-play-end--how-a-transition-looks) |
+| `playOnTrigger` | `boolean \| PxTrigger` | `true`: play on the document's own trigger; an object: this trigger instead — `{ playStart, playStop, pauseStart, pauseStop }`, each one event or a list of `'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
+| `play` | `boolean` | The state: `true` a play-start, `false` a play-stop. How each looks is the timeline's `playStartAction` / `playStopAction` / `completeIterationOnPlayStop` — see [Play on, play off, play end](../../docs/library/playback-and-triggers.md#play-start-play-stop-play-finish--how-a-transition-looks) |
 | `pause` | `boolean` | Freeze the current frame / resume; only while `play` is true |
 | `playCurrentProgress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `playCurrentTime` | `number` | show the frame at that time, in milliseconds from the start |

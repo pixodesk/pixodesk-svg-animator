@@ -20,7 +20,7 @@ import { CSSProperties, FC, ReactNode, useEffect, useRef, useState } from "react
  * ```tsx
  * import AnimationSvg from './animation.svg?react'; // SVGR
  *
- * <SvgCssAnimationPlayer trigger={{ playOn: 'hoverIn', pauseOn: 'hoverOut' }}>
+ * <SvgCssAnimationPlayer trigger={{ playStart: 'hoverIn', pauseStart: 'hoverOut' }}>
  *   <AnimationSvg />
  * </SvgCssAnimationPlayer>
  * ```
@@ -30,19 +30,19 @@ import { CSSProperties, FC, ReactNode, useEffect, useRef, useState } from "react
  * - `px-anim-enabled`                   — paused
  * - `px-anim-enabled px-anim-playing`   — playing
  *
- * The trigger is the JSON player's (dev-docs/plans/component-api.md D5): four event lists — `playOn`,
- * `playOff`, `pauseOn`, `pauseOff` — over the events `load`, `hoverIn`, `hoverOut`, `click`, read by the
+ * The trigger is the JSON player's (dev-docs/plans/component-api.md D5): four event lists — `playStart`,
+ * `playStop`, `pauseStart`, `pauseStop` — over the events `load`, `hoverIn`, `hoverOut`, `click`, read by the
  * same state rule (core's `triggerActionFor`) and gated by the same visibility gate
  * (`createVisibilityGate`), so the two players cannot drift. An absent `trigger` plays on load; an
  * empty one lists nothing.
  *
  * ACCEPTED LIMITS of a class toggle (the editor shows them next to the choices):
- * - `playOnAction` is always `resume` — a class cannot restart keyframes or jump to their end
- * - `playOffAction` is always `reset` — a class cannot play keyframes backwards
- * - `completeIterationOnPlayOff`, `showFirstFrameBeforePlayOn` and `playEndAction` are the file's own CSS
+ * - `playStartAction` is always `resume` — a class cannot restart keyframes or jump to their end
+ * - `playStopAction` is always `reset` — a class cannot play keyframes backwards
+ * - `completeIterationOnPlayStop`, `showFirstFrameBeforePlayStart` and `playFinishAction` are the file's own CSS
  *
  * @param children  - The SVGR-imported SVG component to animate.
- * @param trigger   - WHEN: the file's own `timeline.trigger` block — `playOn`, `playOff`, `pauseOn`, `pauseOff`,
+ * @param trigger   - WHEN: the file's own `timeline.trigger` block — `playStart`, `playStop`, `pauseStart`, `pauseStop`,
  *   each one event or a list of them.
  * @param outOfViewAction - What happens while none of it is on screen (the timeline's key; default `'pause'`):
  *   `'pause'` pauses at the current frame and resumes when it comes back, `'continue'` keeps playing and starts
@@ -66,7 +66,7 @@ const SvgCssAnimationPlayer: FC<{
     // one rule with the JSON player: the lists normalised, the gate keys defaulted
     const resolved = resolveTrigger(trigger);
     const gateConfig = resolveGate({ outOfViewAction, inViewThreshold, inViewDebounce });
-    const playsOnLoad = resolved.playOn.includes(PxTriggerEvent.load);
+    const playsOnLoad = resolved.playStart.includes(PxTriggerEvent.load);
 
     const [state, setState] = useState<PxPlayState>(PxPlayState.stopped);
 
@@ -105,7 +105,7 @@ const SvgCssAnimationPlayer: FC<{
                 else setState(PxPlayState.playing);
                 break;
             case PxTriggerAction.pause: setState(PxPlayState.paused); break;
-            case PxTriggerAction.off: setState(PxPlayState.stopped); break;
+            case PxTriggerAction.stop: setState(PxPlayState.stopped); break;
         }
     };
 

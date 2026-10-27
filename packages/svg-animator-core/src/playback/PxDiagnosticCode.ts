@@ -120,8 +120,8 @@ export enum PxDiagnosticCode {
     documentRepaired = 1108,
 
     /**
-     * The trigger lists one event under BOTH `playOff` and `pauseOn` — two off-actions for one event.
-     * `pauseOn` wins; the file should name one.
+     * The trigger lists one event under BOTH `playStop` and `pauseStart` — two off-actions for one event.
+     * `pauseStart` wins; the file should name one.
      * @data the events
      */
     triggerEventConflict = 1109,
@@ -200,7 +200,7 @@ export enum PxDiagnosticCode {
 
     /**
      * A declarative playback modifier was set where it cannot apply — `pause` without `play`. Ignored.
-     * (How a `play` change looks is the timeline's: `playOnAction`, `playOffAction`, `completeIterationOnPlayOff`.)
+     * (How a `play` change looks is the timeline's: `playStartAction`, `playStopAction`, `completeIterationOnPlayStop`.)
      * @data the explanation
      */
     playModifierIgnored = 1502,

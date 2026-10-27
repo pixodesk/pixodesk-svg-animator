@@ -50,7 +50,7 @@ document says so.
 ### Typical cases
 
 ```tsx
-// Play once when a screen opens, then hold the last frame (one pass; `playEndAction: 'hold'` is the default)
+// Play once when a screen opens, then hold the last frame (one pass; `playFinishAction: 'hold'` is the default)
 <SvgAnimationPlayer doc={doc} playOnTrigger timeline={{ iterations: 1 }} />
 
 // Loop forever regardless of what the document says
@@ -111,19 +111,19 @@ every one of them.
 
 ### Autoplay
 
-Uses the trigger defined in the animation document (`playOn: 'load'` plays once enough of it is
+Uses the trigger defined in the animation document (`playStart: 'load'` plays once enough of it is
 on screen; `click` is a tap; `hoverIn` / `hoverOut` never fire — there is no hover on a touch
 screen), or the trigger object you pass instead of `true`:
 
 ```tsx
 <SvgAnimationPlayer doc={doc} playOnTrigger />
-<SvgAnimationPlayer doc={doc} playOnTrigger={{ playOn: 'click', pauseOn: 'click' }} />
+<SvgAnimationPlayer doc={doc} playOnTrigger={{ playStart: 'click', pauseStart: 'click' }} />
 ```
 
 ### Declarative play/pause
 
-Control playback with boolean props — `play` is the state (`true` a play-on, `false` a play-off);
-how each looks is the timeline's `playOnAction` / `playOffAction` / `completeIterationOnPlayOff`,
+Control playback with boolean props — `play` is the state (`true` a play-start, `false` a play-stop);
+how each looks is the timeline's `playStartAction` / `playStopAction` / `completeIterationOnPlayStop`,
 adjusted through `timeline`:
 
 ```tsx
@@ -152,9 +152,9 @@ const playerRef = useRef<PxAnimationPlayerHandle>(null);
 <Button title="Finish" onPress={() => playerRef.current?.finish()} />
 ```
 
-`PxAnimationPlayerHandle` methods: `play()` (paused → resume, otherwise the configured play-on),
-`pause()`, `stop()` (the configured play-off — after the current iteration when
-`completeIterationOnPlayOff`), `cancel()` (reset now, unconditionally), `finish()`, `playOnce()`,
+`PxAnimationPlayerHandle` methods: `play()` (paused → resume, otherwise the configured play-start),
+`pause()`, `stop()` (the configured play-stop — after the current iteration when
+`completeIterationOnPlayStop`), `cancel()` (reset now, unconditionally), `finish()`, `playOnce()`,
 `isPlaying()`, `setPlaybackRate(rate)`, `getDuration()`, `getCurrentTime()`, `setCurrentTime(ms)`,
 `getCurrentProgress()`, `setCurrentProgress(p)`.
 
@@ -175,8 +175,8 @@ const [time, setTime] = useState(0);
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxDocumentInput` | The animation document to render (required); a `.json` import passes as-is |
-| `playOnTrigger` | `boolean \| PxTrigger` | `true`: play on the document's own trigger; an object: this trigger instead — `{ playOn, playOff, pauseOn, pauseOff }`, each one event or a list of `'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`. `click` is a tap; `hoverIn` / `hoverOut` never fire. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
-| `play` | `boolean` | The state: `true` a play-on, `false` a play-off. How each looks is the timeline's `playOnAction` / `playOffAction` / `completeIterationOnPlayOff` — see [Play on, play off, play end](../../docs/library/playback-and-triggers.md#play-on-play-off-play-end--how-a-transition-looks) |
+| `playOnTrigger` | `boolean \| PxTrigger` | `true`: play on the document's own trigger; an object: this trigger instead — `{ playStart, playStop, pauseStart, pauseStop }`, each one event or a list of `'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`. `click` is a tap; `hoverIn` / `hoverOut` never fire. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
+| `play` | `boolean` | The state: `true` a play-start, `false` a play-stop. How each looks is the timeline's `playStartAction` / `playStopAction` / `completeIterationOnPlayStop` — see [Play on, play off, play end](../../docs/library/playback-and-triggers.md#play-start-play-stop-play-finish--how-a-transition-looks) |
 | `pause` | `boolean` | Freeze the current frame / resume; only while `play` is true |
 | `playerRef` | `RefObject<PxAnimationPlayerHandle \| null>` | Ref for imperative control; filled in every mode |
 | `playCurrentProgress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
@@ -326,12 +326,12 @@ player sees plain nodes. **All are supported:**
 |---|---|---|
 | `inTime` / `outTime` / `playDuration`, `delay`, `iterations` (incl. `'infinite'`) | ✅ | |
 | `iterationDirection` — all four values | ✅ | |
-| The play keys — `playOnAction`, `playOffAction`, `completeIterationOnPlayOff`, `playEndAction` | ✅ | `rewind` plays back natively; the run clock behind `getCurrentTime()` is approximate while it rewinds |
+| The play keys — `playStartAction`, `playStopAction`, `completeIterationOnPlayStop`, `playFinishAction` | ✅ | `rewind` plays back natively; the run clock behind `getCurrentTime()` is approximate while it rewinds |
 | `play` / `pause` / `stop` / `cancel` / `finish` | ✅ | |
 | `setCurrentTime` — jump to a time, including **while playing** | ✅ | playback continues from the new point |
 | `setPlaybackRate` — faster, slower and **reverse** (negative) | ✅ | composes with `iterationDirection` |
 | Trigger event `load` | ✅ | |
-| Trigger event `click` | ✅ | a tap — the animation is wrapped in a `Pressable`; listed in `pauseOn` too, a second tap pauses |
+| Trigger event `click` | ✅ | a tap — the animation is wrapped in a `Pressable`; listed in `pauseStart` too, a second tap pauses |
 | The gate keys — `outOfViewAction`, `inViewThreshold`, `inViewDebounce` | ✅ | visibility sampled by measuring against the window (React Native has no `IntersectionObserver`) |
 | Trigger events `hoverIn` / `hoverOut` | ❌ | no touch equivalent — use `click`, or drive `play` yourself |
 | `timeline.frameRate` | n/a | reanimated runs at the display refresh rate; the player prepares 60 snapshots per second of animation |

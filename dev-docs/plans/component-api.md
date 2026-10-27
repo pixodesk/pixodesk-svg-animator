@@ -135,7 +135,7 @@ Analysis (Claude, 2026-10-26) — for the owner:
 | 5 | `timeline` as merge only, trigger excluded from its type (only `playOnTrigger` carries a trigger) — no key reachable two ways; `null` deletes a key (needed for `outTime` / `playDuration`, whose absence means "the content's end" / "natural speed"); the string form stays for mangled builds | ✅ (the string form on the components is still open question 2) |
 | 6 | The ref's name | ✅ owner, 2026-10-26: `playerRef` — under the `play*` rule, the React `…Ref` convention, and the guide's variable is already `playerRef` |
 | 7 | `progress` / `time` → `playCurrentProgress` / `playCurrentTime` | ✅ owner, 2026-10-26: unambiguous (no duration misread), and the prop names rhyme with the handle's `getCurrentProgress` / `setCurrentTime`. RN's `progress: progressProp` alias (a name clash with its SharedValue) goes away with it |
-| 8 | The future scroll driver | ✅ owner: `playOnScrollTimeline={…}` — `playOn<Driver>`, and the word "timeline" kept on purpose |
+| 8 | The future scroll driver | ✅ owner: `playOnScrollTimeline={…}` — `playStart<Driver>`, and the word "timeline" kept on purpose |
 | 9 | CSS components (`SvgCssAnimationPlayer`): `trigger` today; `playOnTrigger={{…}}` would make them read like the JSON player | ⏸ pre-rendered logic stays untouched (owner); a later rename for symmetry |
 | 10 | What goes: D3's pair, `PxTimelineOverride` / `PxTriggerOverride` / `PxPlaybackOverrideFields`, the exclusivity test, PX1504 (unpublished — safe to delete); `applyPlaybackOverride` shrinks to `{ timeline, playOnTrigger }` | go with the change |
 | 11 | Prop count: 34 → 22 | ✅ |
@@ -168,14 +168,14 @@ definition — not in a new container.
   "type": "time", "engine": "auto", "frameRate": 60,                           // ── the kind, the engine
   "inTime": 0, "outTime": 1200, "playDuration": 1200, "delay": 0,               // ── the content window and its timing
   "iterations": "infinite", "iterationDirection": "normal",                     // ── the run
-  "playOnAction": "resume",                                                     // ── play: on, off, end
-  "playOffAction": "reset", "completeIterationOnPlayOff": true,
-  "playEndAction": "hold",
+  "playStartAction": "resume",                                                     // ── play: on, off, end
+  "playStopAction": "reset", "completeIterationOnPlayStop": true,
+  "playFinishAction": "hold",
   "outOfViewAction": "pause", "inViewThreshold": 0.5, "inViewDebounce": 150,    // ── the visibility gate
-  "trigger": { "playOn": ["hoverIn", "click"], "playOff": "hoverOut", "pauseOn": "click" }   // ── when
+  "trigger": { "playStart": ["hoverIn", "click"], "playStop": "hoverOut", "pauseStart": "click" }   // ── when
 }
 ```
-Read cold: play-on resumes, play-off resets after completing the iteration, play-end holds, out-of-view pauses; play on
+Read cold: play-start resumes, play-stop resets after completing the iteration, play-finish holds, out-of-view pauses; play on
 hover-in or click, off on hover-out.
 
 | key | values (default first) | meaning |
@@ -188,36 +188,36 @@ hover-in or click, off on hover-out.
 | `delay` | ms, 0; negative skips ahead | waited whenever a run starts from the beginning — the first play, a `restart`, a `resume` after a reset or an end — never on a resume from a paused position |
 | `iterations` | 1 · n · `infinite` | how many passes |
 | `iterationDirection` (was `direction`) | `normal` · `reverse` · `alternate` · `alternateReverse` | each iteration's direction (`reverse` applies to a single pass too — still one iteration) |
-| `playOnAction` | `resume` · `restart` · `jumpToEnd` | what a play-on does: continue from the current position (at the start or the end, that is a fresh run from the beginning); from the beginning always; or show the end with no motion |
-| `playOffAction` | `reset` · `rewind` | what a play-off does: jump back to the state as before it started, or play back to it (`rewind` — the VCR word, never confused with `iterationDirection: reverse`) |
-| `completeIterationOnPlayOff` | false · true | WHEN the play-off takes effect: now, or after the current iteration (a one-shot runs to its end). Orthogonal to the action: `rewind` after completion plays back from there — finish the motion, then undo it smoothly |
-| `playEndAction` (absorbs `finish` and the after-half of `fillMode`) | `hold` · `reset` · `rewind` | when it ends by itself: keep the last frame, jump back, or play back |
-| `showFirstFrameBeforePlayOn` (the before-half of `fillMode`) | false · true | false: the SVG as authored shows before the first play-on and after a reset — this format's contract (`PxRestPose.ts`: the initial value IS the static attribute, so in Editor files the two are the same picture and the key is never written). true: the first frame's values are applied instead — hand-authored files; a checkbox later |
+| `playStartAction` | `resume` · `restart` · `jumpToEnd` | what a play-start does: continue from the current position (at the start or the end, that is a fresh run from the beginning); from the beginning always; or show the end with no motion |
+| `playStopAction` | `reset` · `rewind` | what a play-stop does: jump back to the state as before it started, or play back to it (`rewind` — the VCR word, never confused with `iterationDirection: reverse`) |
+| `completeIterationOnPlayStop` | false · true | WHEN the play-stop takes effect: now, or after the current iteration (a one-shot runs to its end). Orthogonal to the action: `rewind` after completion plays back from there — finish the motion, then undo it smoothly |
+| `playFinishAction` (absorbs `finish` and the after-half of `fillMode`) | `hold` · `reset` · `rewind` | when it ends by itself: keep the last frame, jump back, or play back |
+| `showFirstFrameBeforePlayStart` (the before-half of `fillMode`) | false · true | false: the SVG as authored shows before the first play-start and after a reset — this format's contract (`PxRestPose.ts`: the initial value IS the static attribute, so in Editor files the two are the same picture and the key is never written). true: the first frame's values are applied instead — hand-authored files; a checkbox later |
 | `outOfViewAction` (was `trigger.outOfView`) | `pause` · `continue` · `reset` | while none of it is on screen. The return needs no key: if it was meant to run, it runs again — from the paused position after `pause`, from the start after `reset`; `continue` never stopped |
 | `inViewThreshold` / `inViewDebounce` | 0.5 (0 = any pixel) / 150 ms | the gate's measure |
-| `trigger` | absent = `{ playOn: ['load'] }` (today's "a missing trigger starts on load"); `{}` = nothing starts it | WHEN — `playOn`, `playOff`, `pauseOn`, `pauseOff?` (absent = a copy of `playOn`), each a single event or a list of them (`'hoverIn'` or `['hoverIn', 'click']` — the house style of `animate`'s references; the reader normalises, the Editor writes the shortest exact spelling) from an OPEN vocabulary: `load`, `hoverIn`, `hoverOut`, `click`; later keyboard, focus, app events — a new interaction is a new string, never a new key. Pause and resume need no action |
+| `trigger` | absent = `{ playStart: ['load'] }` (today's "a missing trigger starts on load"); `{}` = nothing starts it | WHEN — `playStart`, `playStop`, `pauseStart`, `pauseStop?` (absent = a copy of `playStart`), each a single event or a list of them (`'hoverIn'` or `['hoverIn', 'click']` — the house style of `animate`'s references; the reader normalises, the Editor writes the shortest exact spelling) from an OPEN vocabulary: `load`, `hoverIn`, `hoverOut`, `click`; later keyboard, focus, app events — a new interaction is a new string, never a new key. Pause and resume need no action |
 
-`reset` means ONE thing wherever it appears (`playOffAction`, `playEndAction`, `outOfViewAction`): the state as before it
-started — the SVG as authored, or the first frame when `showFirstFrameBeforePlayOn` is set. The CSS export maps
-(`showFirstFrameBeforePlayOn`, `playEndAction`) to `animation-fill-mode`: (false, hold) → forwards, (true, hold) → both,
+`reset` means ONE thing wherever it appears (`playStopAction`, `playFinishAction`, `outOfViewAction`): the state as before it
+started — the SVG as authored, or the first frame when `showFirstFrameBeforePlayStart` is set. The CSS export maps
+(`showFirstFrameBeforePlayStart`, `playFinishAction`) to `animation-fill-mode`: (false, hold) → forwards, (true, hold) → both,
 (false, reset) → none, (true, reset) → backwards — all four expressible.
 
 **Rules.**
-- The state rule over stopped · playing · paused: `playOn` acts when stopped, `pauseOn` when playing, `pauseOff` when
-  paused, `playOff` when playing or paused. So `click` in `playOn` and `pauseOn` toggles through all three with no toggle
-  word; with `playOnAction: restart`, a click while stopped restarts and a click while paused resumes (`pauseOff`). An
+- The state rule over stopped · playing · paused: `playStart` acts when stopped, `pauseStart` when playing, `pauseStop` when
+  paused, `playStop` when playing or paused. So `click` in `playStart` and `pauseStart` toggles through all three with no toggle
+  word; with `playStartAction: restart`, a click while stopped restarts and a click while paused resumes (`pauseStop`). An
   event in two lists of the same kind is a validation error.
 - The gate is a condition on every driver, not an event — it remembers INTENT (above), and applies in `play` mode and to
   the api alike. `inView` / `outOfView` are therefore not events; `load` is.
-- WHEN × WHAT compose: `completeIterationOnPlayOff` decides when, `playOffAction` what; no combination is special.
-- Booleans only for boolean facts (`completeIterationOnPlayOff`, `showFirstFrameBeforePlayOn`); exclusive choices are enums.
-  `continue` and `pause` are not play actions: the lists say them (do not list `hoverOut`; use `pauseOn`).
+- WHEN × WHAT compose: `completeIterationOnPlayStop` decides when, `playStopAction` what; no combination is special.
+- Booleans only for boolean facts (`completeIterationOnPlayStop`, `showFirstFrameBeforePlayStart`); exclusive choices are enums.
+  `continue` and `pause` are not play actions: the lists say them (do not list `hoverOut`; use `pauseStart`).
 - The api: `play()`, `pause()`, `stop()` take NO per-call config — they follow the effective timeline; a runtime change, if
   ever wanted, is `updateTimeline(patch)`. `finish()` stays (a seek to the end); `playOnce()` stays (one pass whatever
   `iterations` say).
 - ONE executor in core (`applyOn` / `applyOff`, the generalised `applyDeclarativeAction`) serves the declarative resolver,
   the web triggers and the api — `rewind` and the iteration completion exist once.
-- Editor note (T3b): a new hover trigger puts `hoverOut` in `pauseOn`, so the default feel stays "pause on leave".
+- Editor note (T3b): a new hover trigger puts `hoverOut` in `pauseStart`, so the default feel stays "pause on leave".
 
 **On the surfaces.**
 
@@ -225,28 +225,28 @@ started — the SVG as authored, or the first frame when `showFirstFrameBeforePl
 |---|---|
 | component | `playOnTrigger?: boolean \| PxTrigger` (an object REPLACES the file's trigger — its keys are coupled); `timeline?: PxTimelinePatch` (MERGES: timing, the play keys and the gate are independent knobs with defaults); beside `play` / `pause` / `playerRef` / `playCurrentProgress` / `playCurrentTime`. `playMode` and `completeIteration` are gone — they are timeline keys now |
 | web | `createSvgAnimationPlayer({ playOnTrigger?, timeline? })`; the handle `play()`, `pause()`, `stop()` |
-| core | the one executor; the enums `PxPlayOnAction`, `PxPlayOffAction`, `PxPlayEndAction` beside the existing `PxOutOfViewAction` |
+| core | the one executor; the enums `PxPlayStartAction`, `PxPlayStopAction`, `PxPlayFinishAction` beside the existing `PxOutOfViewAction` |
 | CSS components | keep their per-event props; `rewind` and the iteration completion act as `continue` there (a class toggle cannot run keyframes backwards or count iterations) — the precedent `reverse` already has |
 
 **What replaces what.**
 
 | today | D5 |
 |---|---|
-| `playMode: 'forwards'` (default) | the defaults (`playOnAction: 'resume'`, `playOffAction: 'reset'`) |
-| `playMode: 'backwards'` | `timeline={{ playOnAction: 'jumpToEnd', playOffAction: 'rewind' }}` |
-| `playMode: 'both'` | `timeline={{ playOffAction: 'rewind' }}` |
-| `playMode: 'none'` | `timeline={{ playOnAction: 'jumpToEnd' }}` |
-| `completeIteration` | `timeline={{ completeIterationOnPlayOff: true }}` |
+| `playMode: 'forwards'` (default) | the defaults (`playStartAction: 'resume'`, `playStopAction: 'reset'`) |
+| `playMode: 'backwards'` | `timeline={{ playStartAction: 'jumpToEnd', playStopAction: 'rewind' }}` |
+| `playMode: 'both'` | `timeline={{ playStopAction: 'rewind' }}` |
+| `playMode: 'none'` | `timeline={{ playStartAction: 'jumpToEnd' }}` |
+| `completeIteration` | `timeline={{ completeIterationOnPlayStop: true }}` |
 | `direction` | `iterationDirection`, same values |
-| `fillMode: 'forwards'` + `finish: 'hold'` | `playEndAction: 'hold'` (the defaults) |
-| `fillMode: 'both'` | + `showFirstFrameBeforePlayOn: true` |
-| `fillMode: 'none'`, `finish: 'reset'` | `playEndAction: 'reset'` |
-| `fillMode: 'backwards'` | `showFirstFrameBeforePlayOn: true` + `playEndAction: 'reset'` |
-| `trigger.start: 'load'` / `'hover'` / `'click'` / `'manual'` | `playOn: ['load']` / `['hoverIn']` / `['click']` + `pauseOn: ['click']` / `trigger: {}` |
-| `hoverEnd: 'pause'` / `'reset'` / `'reverse'` / `'continue'` | `pauseOn: ['hoverOut']` / `playOff: ['hoverOut']` (+ `playOffAction: 'reset'`) / … + `playOffAction: 'rewind'` / `hoverOut` not listed |
+| `fillMode: 'forwards'` + `finish: 'hold'` | `playFinishAction: 'hold'` (the defaults) |
+| `fillMode: 'both'` | + `showFirstFrameBeforePlayStart: true` |
+| `fillMode: 'none'`, `finish: 'reset'` | `playFinishAction: 'reset'` |
+| `fillMode: 'backwards'` | `showFirstFrameBeforePlayStart: true` + `playFinishAction: 'reset'` |
+| `trigger.start: 'load'` / `'hover'` / `'click'` / `'manual'` | `playStart: ['load']` / `['hoverIn']` / `['click']` + `pauseStart: ['click']` / `trigger: {}` |
+| `hoverEnd: 'pause'` / `'reset'` / `'reverse'` / `'continue'` | `pauseStart: ['hoverOut']` / `playStop: ['hoverOut']` (+ `playStopAction: 'reset'`) / … + `playStopAction: 'rewind'` / `hoverOut` not listed |
 | `trigger.outOfView`, `inViewThreshold`, `inViewDebounce` | `outOfViewAction` + the two, one level up in `timeline` |
 | `cancel()` | `stop()` per the timeline — or kept as the unconditional reset-now (open) |
-| — | new: `playOnAction: 'restart'` (replay on every click — hands-on B9); `playEndAction: 'rewind'`; the iteration completion reachable from a trigger (the case that started this) |
+| — | new: `playStartAction: 'restart'` (replay on every click — hands-on B9); `playFinishAction: 'rewind'`; the iteration completion reachable from a trigger (the case that started this) |
 
 **The types** (the TS view; the schema spells the same with stated defaults):
 ```ts
@@ -256,15 +256,15 @@ enum PxTriggerEvent { load = 'load', hoverIn = 'hoverIn', hoverOut = 'hoverOut',
 /** `timeline.trigger` in the file, and the object form of `playOnTrigger` — WHEN. */
 type PxTriggerEvents = PxTriggerEvent | Array<PxTriggerEvent>;   // one, or several — like `animate`'s references
 interface PxTrigger {
-    playOn?: PxTriggerEvents;               // acts when stopped
-    playOff?: PxTriggerEvents;              // acts when playing or paused
-    pauseOn?: PxTriggerEvents;              // acts when playing
-    pauseOff?: PxTriggerEvents;             // acts when paused; absent = a copy of `playOn`
+    playStart?: PxTriggerEvents;               // acts when stopped
+    playStop?: PxTriggerEvents;              // acts when playing or paused
+    pauseStart?: PxTriggerEvents;              // acts when playing
+    pauseStop?: PxTriggerEvents;             // acts when paused; absent = a copy of `playStart`
 }
 
-enum PxPlayOnAction    { resume = 'resume', restart = 'restart', jumpToEnd = 'jumpToEnd' }
-enum PxPlayOffAction   { reset = 'reset', rewind = 'rewind' }
-enum PxPlayEndAction   { hold = 'hold', reset = 'reset', rewind = 'rewind' }
+enum PxPlayStartAction    { resume = 'resume', restart = 'restart', jumpToEnd = 'jumpToEnd' }
+enum PxPlayStopAction   { reset = 'reset', rewind = 'rewind' }
+enum PxPlayFinishAction   { hold = 'hold', reset = 'reset', rewind = 'rewind' }
 enum PxOutOfViewAction { pause = 'pause', continue = 'continue', reset = 'reset' }      // as today
 
 /** The time timeline (every key with a stated default). */
@@ -272,15 +272,15 @@ interface PxTimeTimeline {
     type?: 'time'; engine?: PxTimelineEngineSetting; frameRate?: number;
     inTime?: number; outTime?: number; playDuration?: number; delay?: number;
     iterations?: number | 'infinite'; iterationDirection?: PxPlaybackDirection;
-    playOnAction?: PxPlayOnAction;              // default resume
-    playOffAction?: PxPlayOffAction;            // default reset
-    completeIterationOnPlayOff?: boolean;       // default false
-    playEndAction?: PxPlayEndAction;            // default hold
-    showFirstFrameBeforePlayOn?: boolean;       // default false; never written by the Editor
+    playStartAction?: PxPlayStartAction;              // default resume
+    playStopAction?: PxPlayStopAction;            // default reset
+    completeIterationOnPlayStop?: boolean;       // default false
+    playFinishAction?: PxPlayFinishAction;            // default hold
+    showFirstFrameBeforePlayStart?: boolean;       // default false; never written by the Editor
     outOfViewAction?: PxOutOfViewAction;        // default pause
     inViewThreshold?: number;                   // default 0.5
     inViewDebounce?: number;                    // default 150
-    trigger?: PxTrigger;                        // default { playOn: ['load'] }
+    trigger?: PxTrigger;                        // default { playStart: ['load'] }
 }
 // component:  playOnTrigger?: boolean | PxTrigger;  timeline?: PxTimelinePatch (= PxPatch of the timeline minus `trigger`)
 // web:        createSvgAnimationPlayer({ playOnTrigger?, timeline? });  play(); pause(); stop()
@@ -295,9 +295,9 @@ it, the gate pauses it while scrolled away:
   "animator": {
     "timeline": {
       "outTime": 1200, "iterations": "infinite",
-      "completeIterationOnPlayOff": true,
+      "completeIterationOnPlayStop": true,
       "outOfViewAction": "pause", "inViewThreshold": 0.5, "inViewDebounce": 150,
-      "trigger": { "playOn": ["hoverIn", "click"], "playOff": "hoverOut", "pauseOn": "click" }
+      "trigger": { "playStart": ["hoverIn", "click"], "playStop": "hoverOut", "pauseStart": "click" }
     }
   },
   "children": []
@@ -307,39 +307,39 @@ it, the gate pauses it while scrolled away:
 A one-shot icon in a file — the trash-can lid: opens on hover, closes (plays back) when the pointer leaves:
 
 ```json
-{ "timeline": { "outTime": 400, "playOffAction": "rewind", "trigger": { "playOn": "hoverIn", "playOff": "hoverOut" } } }
+{ "timeline": { "outTime": 400, "playStopAction": "rewind", "trigger": { "playStart": "hoverIn", "playStop": "hoverOut" } } }
 ```
 
 The component, driven by state — the same words for the same transitions:
 
 ```tsx
 // a spinner: runs while busy; when busy ends it finishes the current turn, then rests
-<SvgAnimationPlayer doc={spinner} play={busy} timeline={{ completeIterationOnPlayOff: true }} />
+<SvgAnimationPlayer doc={spinner} play={busy} timeline={{ completeIterationOnPlayStop: true }} />
 
 // the lid from React state: plays to the end on enter, plays BACK on leave   (today: playMode="both")
-<SvgAnimationPlayer doc={lid} play={hovered} timeline={{ playOffAction: 'rewind' }} />
+<SvgAnimationPlayer doc={lid} play={hovered} timeline={{ playStopAction: 'rewind' }} />
 
 // overlay art: appears instantly, retreats animated                            (today: playMode="backwards")
-<SvgAnimationPlayer doc={art} play={open} timeline={{ playOnAction: 'jumpToEnd', playOffAction: 'rewind' }} />
+<SvgAnimationPlayer doc={art} play={open} timeline={{ playStartAction: 'jumpToEnd', playStopAction: 'rewind' }} />
 
 // a heartbeat with two buttons: Pause freezes it (the freeze axis), Stop lets the beat finish first
-<SvgAnimationPlayer doc={beat} play={running} pause={paused} timeline={{ completeIterationOnPlayOff: true }} />
+<SvgAnimationPlayer doc={beat} play={running} pause={paused} timeline={{ completeIterationOnPlayStop: true }} />
 
-// a splash that must replay on every click — the on-edge restarts instead of resuming
-<SvgAnimationPlayer doc={splash} play={splashing} timeline={{ playOnAction: 'restart' }} onFinish={() => setSplashing(false)} />
+// a splash that must replay on every click — the start-edge restarts instead of resuming
+<SvgAnimationPlayer doc={splash} play={splashing} timeline={{ playStartAction: 'restart' }} onFinish={() => setSplashing(false)} />
 
 // the trigger driver with the file's trigger replaced, the play keys adjusted
-<SvgAnimationPlayer doc={icon} playOnTrigger={{ playOn: 'hoverIn', playOff: 'hoverOut' }} timeline={{ completeIterationOnPlayOff: true }} />
+<SvgAnimationPlayer doc={icon} playOnTrigger={{ playStart: 'hoverIn', playStop: 'hoverOut' }} timeline={{ completeIterationOnPlayStop: true }} />
 ```
 
 ```vue
-<SvgAnimationPlayer :doc="spinner" :play="busy" :timeline="{ completeIterationOnPlayOff: true }" />
+<SvgAnimationPlayer :doc="spinner" :play="busy" :timeline="{ completeIterationOnPlayStop: true }" />
 ```
 
 The web player — the timeline is given once; the calls follow it:
 
 ```ts
-const player = createSvgAnimationPlayer({ doc, container, timeline: { completeIterationOnPlayOff: true, playOnAction: 'restart' } });
+const player = createSvgAnimationPlayer({ doc, container, timeline: { completeIterationOnPlayStop: true, playStartAction: 'restart' } });
 player.play();      // from the start
 player.stop();      // finishes the current iteration, then rests
 player.stop();      // already stopping — nothing more to do
@@ -350,10 +350,10 @@ player.play();      // from the start again
 
 | layer | what is there today | what D5 changes |
 |---|---|---|
-| **model** — `svgeditor/animation/Types.ts` (25), `TSvgSvgAnimationAttr.tsx` (37) | the choice tables `AnimTriggerStart`, `animationHoverEndAction`, `animationOutOfViewAction`, `animationDirection`, `animationFillMode` (built with `createSchemaChoices` from the player's schema defaults); `TSvgSvgAnimationTriggerAttr` with `start` / `outOfView` / `hoverEnd` (`TStrValue`) and `inViewThreshold` / `inViewDebounce` (`TNumValue`, `writeWhenDefault`), the write-time pruning rule (hoverEnd only for hover; thresholds only while gated), `getStartOn()` / `setStartOn()` / `unsetStartOn()` used by exporters, previews and the export config; `isNoJsCssOutActionSupported` / `isNoJsCssOutOfViewSupported` (what pure-CSS export can do); the timeline attr with `iterations`, `direction`, `fillMode` (and Reset on Finish) | new choice tables for `PxTriggerEvent`, `PxPlayOnAction`, `PxPlayOffAction`, `PxPlayEndAction`; the trigger attr becomes four event-list attrs (a new value type: one event or several — `TStrValue` cannot hold a list) with the gate attrs moved to the timeline attr; the pruning rule becomes "thresholds only while `outOfViewAction` ≠ continue"; `getStartOn()` and friends replaced by list queries (`hasEvent(playOn, hoverIn)`); the no-JS capability check per ACTION (`rewind`, the iteration completion unsupported in pure CSS); `direction` → `iterationDirection`, `fillMode` + Reset on Finish → `playEndAction` (+ `showFirstFrameBeforePlayOn` read-only, never written) |
+| **model** — `svgeditor/animation/Types.ts` (25), `TSvgSvgAnimationAttr.tsx` (37) | the choice tables `AnimTriggerStart`, `animationHoverEndAction`, `animationOutOfViewAction`, `animationDirection`, `animationFillMode` (built with `createSchemaChoices` from the player's schema defaults); `TSvgSvgAnimationTriggerAttr` with `start` / `outOfView` / `hoverEnd` (`TStrValue`) and `inViewThreshold` / `inViewDebounce` (`TNumValue`, `writeWhenDefault`), the write-time pruning rule (hoverEnd only for hover; thresholds only while gated), `getStartOn()` / `setStartOn()` / `unsetStartOn()` used by exporters, previews and the export config; `isNoJsCssOutActionSupported` / `isNoJsCssOutOfViewSupported` (what pure-CSS export can do); the timeline attr with `iterations`, `direction`, `fillMode` (and Reset on Finish) | new choice tables for `PxTriggerEvent`, `PxPlayStartAction`, `PxPlayStopAction`, `PxPlayFinishAction`; the trigger attr becomes four event-list attrs (a new value type: one event or several — `TStrValue` cannot hold a list) with the gate attrs moved to the timeline attr; the pruning rule becomes "thresholds only while `outOfViewAction` ≠ continue"; `getStartOn()` and friends replaced by list queries (`hasEvent(playStart, hoverIn)`); the no-JS capability check per ACTION (`rewind`, the iteration completion unsupported in pure CSS); `direction` → `iterationDirection`, `fillMode` + Reset on Finish → `playFinishAction` (+ `showFirstFrameBeforePlayStart` read-only, never written) |
 | **serialization** — `schema/PxSchemaUtil.ts`, `coverage/PxSchemaFullCoverageDoc.ts`, `schemaexplorer/brokenExamples.ts`, fixtures (`effect.retime.nested.fixtures.ts`, the atest `01-app-lifecycle/.data`) | key constants derived from the schema (`PxTriggerSchemaKeys`, `PxTimeTimelineSchemaKeys`); the full-coverage round-trip fixture; the catalogue of broken examples (trigger values); stamped fixtures | the constants follow the player's schema by themselves; the writer emits the new keys (the string / array rule); OLD files convert on open through the player's wire step — nothing to do in the reader; restamp the fixtures `a.b.1`, regenerate the field universe (`PxSchemaFieldUniverse.gen.spec.ts`), re-settle the feature-explorer cases, re-migrate the test corpora (`tools/migrate-px-current.mjs`; 268 fixture JSONs carry trigger keys — most convert on read, the expected-output ones regenerate) |
-| **right panel** — `kf/app/right/svg/animation/SvgTriggerFields.tsx` (9), `SvgSvgAnimationAttrs.tsx` (5), `SvgTimelineFields.tsx` | Start (choices suffixed "(CSS)" / "(JS)" by no-JS support), Hover End (only for hover), Out of view, Threshold, Debounce, Reset on Finish; Loop / iterations, Direction, Fill mode; the section's summary line ("loop 2×, reverse, fill both"); test ids `animation.start.start.*` | four multi-selects (Play on · Play off · Pause on · Pause off, each event marked CSS / JS); Play-on action, Play-off action, Complete iteration on play-off, Play-end action (replaces Reset on Finish AND Fill mode), Out-of-view action + the two numbers; Iteration direction; new summary words; the editor's default for a new hover trigger puts `hoverOut` in `pauseOn`; new test ids → the e2e DSL (3 atests drive `animation.start.start.*` today; the trigger dropdowns have no option ids for `hoverEnd` / `outOfView` — a chance to give the new fields ids) |
-| **pre-rendered exporters** — `serialization/players/SvgJsCssPlayerSerialisationUtil.tsx` (32), `SvgCssAnimationBuilder.ts` (8), `kf/export/ExportSvgContent.tsx` (11), `TExportConfig.tsx` (6), `preview/players/exportedSvgTrigger.ts`, `ExportPreviewContent.tsx`, `savePreviewDemoHtml.ts`, `DevAppIframePreviewPanel.tsx`, `export/video/FrameSvgSource.ts` | the SVG+JS / SVG+CSS trigger snippets (hover / click / scroll restart, `hoverEnd` / `outOfView` handling, `resetOnFinish`); `fillMode` → `animation-fill-mode`; the export dialog's OWN copy of the trigger (`stOn`, `outOfView`, `resetOnTrigger`, `useJsTriggers`, `fillMode`); the preview's cue ("hover to play") derived from `start`; `data-px-meta` carrying the timeline | snippets generated from the lists × actions — `rewind` is already feasible there (the hover-`reverse` snippet drives `playbackRate: -1` through `getAnimations()`), the iteration completion is new (`animationiteration`); fill-mode from (`showFirstFrameBeforePlayOn`, `playEndAction`); the export config mirrors the new keys (or stops duplicating the model — a chance to simplify); the cue from the `playOn` list; `data-px-meta` carries the new keys by itself |
+| **right panel** — `kf/app/right/svg/animation/SvgTriggerFields.tsx` (9), `SvgSvgAnimationAttrs.tsx` (5), `SvgTimelineFields.tsx` | Start (choices suffixed "(CSS)" / "(JS)" by no-JS support), Hover End (only for hover), Out of view, Threshold, Debounce, Reset on Finish; Loop / iterations, Direction, Fill mode; the section's summary line ("loop 2×, reverse, fill both"); test ids `animation.start.start.*` | four multi-selects (Play on · Play off · Pause on · Pause off, each event marked CSS / JS); Play-on action, Play-off action, Complete iteration on play-stop, Play-end action (replaces Reset on Finish AND Fill mode), Out-of-view action + the two numbers; Iteration direction; new summary words; the editor's default for a new hover trigger puts `hoverOut` in `pauseStart`; new test ids → the e2e DSL (3 atests drive `animation.start.start.*` today; the trigger dropdowns have no option ids for `hoverEnd` / `outOfView` — a chance to give the new fields ids) |
+| **pre-rendered exporters** — `serialization/players/SvgJsCssPlayerSerialisationUtil.tsx` (32), `SvgCssAnimationBuilder.ts` (8), `kf/export/ExportSvgContent.tsx` (11), `TExportConfig.tsx` (6), `preview/players/exportedSvgTrigger.ts`, `ExportPreviewContent.tsx`, `savePreviewDemoHtml.ts`, `DevAppIframePreviewPanel.tsx`, `export/video/FrameSvgSource.ts` | the SVG+JS / SVG+CSS trigger snippets (hover / click / scroll restart, `hoverEnd` / `outOfView` handling, `resetOnFinish`); `fillMode` → `animation-fill-mode`; the export dialog's OWN copy of the trigger (`stOn`, `outOfView`, `resetOnTrigger`, `useJsTriggers`, `fillMode`); the preview's cue ("hover to play") derived from `start`; `data-px-meta` carrying the timeline | snippets generated from the lists × actions — `rewind` is already feasible there (the hover-`reverse` snippet drives `playbackRate: -1` through `getAnimations()`), the iteration completion is new (`animationiteration`); fill-mode from (`showFirstFrameBeforePlayStart`, `playFinishAction`); the export config mirrors the new keys (or stops duplicating the model — a chance to simplify); the cue from the `playStart` list; `data-px-meta` carries the new keys by itself |
 | **dev tools & tests** — `kf/common/development/triggerexplorer/*` (`triggerRows.ts` 46, `TriggerCell.tsx`, `triggerIframe.ts`, `triggerCheck.ts`, `DevTriggerExplorer.tsx`), `specs/visual/TriggerCellDriver.ts` (22), `trigger-explorer.flaky.spec.ts` (61 rows), `karma/TestSvgaAnimationTrigger.karma.tsx`, `demo/SvgAnimationPlayerDemo.tsx`, `googscript/animation-json-example.ts`, `DevHelpView.tsx` | the trigger CONTRACT matrix: rows = start × `hoverEnd` × `outOfView`, driven by a cell driver that mirrors the player's two-axis rule | rows regenerated for lists × actions (a larger space — pick representative rows: each event in each list, each action, the gate's three values, the toggle, complete-then-rewind); the driver's rule becomes the state rule; the karma test and the demo follow |
 | **converters** — `svgeditor/convertor` | Lottie ↔ SVGA maps neither triggers nor the timeline's direction | unaffected |
 | **e2e & videos** — `tests/atest` (3 scripts + 268 fixture JSONs), `tests/video` (10 scripts / generator files, the narration "Start, set to mouse over…", the annotate chips) | | the 3 scripts follow the new ids; fixtures as above; the trigger and React learn videos re-recorded (narration names the new fields) |
@@ -364,12 +364,12 @@ Order that keeps the Editor shippable at each step: player wire step + core enum
 convert on read meanwhile) → right panel → exporters → trigger explorer and tests → videos and docs.
 
 **Costs.** A wire step (1.9) with a conversion step in `PX_WIRE_STEPS`: the trigger block restructured into the lists
-(`start: hover` + `hoverEnd: X` → `playOn: ['hoverIn']` + (`X` = pause → `pauseOn: ['hoverOut']`; reset / reverse →
-`playOff: ['hoverOut']` + `playOffAction`; continue → nothing), `start: load` → `playOn: 'load'`, `start: click` →
-`click` in `playOn` and `pauseOn`, `start: manual` → `trigger: {}`; a single event is written as the string, several as the array); the gate keys moved up (`outOfView` → `outOfViewAction`);
-`direction` → `iterationDirection`; `fillMode` + `finish` → `playEndAction` (+ `showFirstFrameBeforePlayOn`); the three new
+(`start: hover` + `hoverEnd: X` → `playStart: ['hoverIn']` + (`X` = pause → `pauseStart: ['hoverOut']`; reset / reverse →
+`playStop: ['hoverOut']` + `playStopAction`; continue → nothing), `start: load` → `playStart: 'load'`, `start: click` →
+`click` in `playStart` and `pauseStart`, `start: manual` → `trigger: {}`; a single event is written as the string, several as the array); the gate keys moved up (`outOfView` → `outOfViewAction`);
+`direction` → `iterationDirection`; `fillMode` + `finish` → `playFinishAction` (+ `showFirstFrameBeforePlayStart`); the three new
 play keys. The editor: the trigger panel (one multi-select per list), the timeline panel (the play keys, the gate), the
-default `hoverOut` → `pauseOn`. The CSS export's fill-mode mapping. The executor refactor in the web triggers and the
+default `hoverOut` → `pauseStart`. The CSS export's fill-mode mapping. The executor refactor in the web triggers and the
 visibility gate; the handle (`stop`); docs. Props: `playMode` + `completeIteration` go (22 → 20).
 
 **Decided 2026-10-26 (owner):** reuse, never duplicate — the export dialog builds on the model's trigger attr and the same
@@ -384,15 +384,15 @@ fields; a CLEAN cut everywhere — no aliases, no deprecated props, nothing that
 4. Sections: the attribute panel is flat, so two sections — **Playback Triggers** (the four lists, Out of view + the two numbers) and
    **Playback Behaviour** (the three actions, Complete iteration, Iteration direction, Loop) — no nesting.
 5. Editing defaults as today: ticking "hover in" under Plays on auto-adds "hover out" under Pauses on, editable; a new document is
-   `playOn: 'load'` + the gate defaults.
+   `playStart: 'load'` + the gate defaults.
 6. The "(CSS)" / "(JS)" marks keep their mechanism, applied to events and actions: works in both → marked so; JS only → marked so.
-7. `showFirstFrameBeforePlayOn`: no UI at all — the editor cannot author that state.
+7. `showFirstFrameBeforePlayStart`: no UI at all — the editor cannot author that state.
 8. Export dialog: the export-time trigger override stays, built from the model's trigger attr and the same fields — one implementation.
 9. CSS components: the same trigger shape as the file; `rewind` and Complete iteration act as `continue` there, and the editor's UI shows the limit.
 10. `cancel()` stays — the unconditional hard reset (navigation).
 
 **Later:** `inView` as an INTENTIONAL event ("replay every time it scrolls in"); a per-event action (`{ on: 'hoverOut',
-playOffAction: 'rewind' }` entries) if the shared one proves too coarse.
+playStopAction: 'rewind' }` entries) if the shared one proves too coarse.
 
 **Precedent** (for the record): the shared action vocabulary between trigger and api is GSAP ScrollTrigger's practice
 ([`toggleActions`](https://gsap.com/docs/v3/Plugins/ScrollTrigger/) uses the tween's own method names); Rive

@@ -28,7 +28,7 @@ comments, so a real file has none.)
       "iterationDirection": "alternate",
       // Plays as soon as half of it is on screen; pauses while it is scrolled away
       "outOfViewAction": "pause", "inViewThreshold": 0.5,
-      "trigger": { "playOn": "load" }
+      "trigger": { "playStart": "load" }
     }
   },
   "children": [
@@ -63,14 +63,14 @@ honour it:
 <!-- px-check off the one-idea overview — each key and list is checked in its own table below -->
 | moment | the key that says what happens | its events (the trigger) |
 |---|---|---|
-| **play on** — stopped → playing | `playOnAction`: `resume` · `restart` · `jumpToEnd` | `trigger.playOn` |
-| **play off** — playing or paused → stopped | `playOffAction`: `reset` · `rewind`, `completeIterationOnPlayOff` | `trigger.playOff` |
-| **pause on / off** — freeze and continue | nothing to configure | `trigger.pauseOn` / `trigger.pauseOff` |
-| **play end** — it stops by itself | `playEndAction`: `hold` · `reset` · `rewind` | — |
+| **play start** — stopped → playing | `playStartAction`: `resume` · `restart` · `jumpToEnd` | `trigger.playStart` |
+| **play stop** — playing or paused → stopped | `playStopAction`: `reset` · `rewind`, `completeIterationOnPlayStop` | `trigger.playStop` |
+| **pause start / stop** — freeze and continue | nothing to configure | `trigger.pauseStart` / `trigger.pauseStop` |
+| **play finish** — it stops by itself | `playFinishAction`: `hold` · `reset` · `rewind` | — |
 | **out of view** — nobody can see it | `outOfViewAction`: `pause` · `continue` · `reset` | — (a condition, not an event) |
 
-So `player.stop()` on a looping heartbeat with `completeIterationOnPlayOff: true` finishes the
-beat and then rests — and so does a `hoverOut` listed in `trigger.playOff`, and so does
+So `player.stop()` on a looping heartbeat with `completeIterationOnPlayStop: true` finishes the
+beat and then rests — and so does a `hoverOut` listed in `trigger.playStop`, and so does
 `play={false}` on the React component. One vocabulary, learnt once.
 
 ## The `timeline` — what advances the playhead
@@ -117,49 +117,49 @@ applied first, when the document is prepared; `iterations` then repeats the resu
 can be used at once, and one runs inside the other: a wheel whose rotation loops, inside a
 document set to infinite iterations, keeps spinning during every iteration.
 
-## Play on, play off, play end — how a transition looks
+## Play start, play stop, play finish — how a transition looks
 
 Three keys, each named after the moment it describes. Every one has a stated default, so a
-document that says nothing plays the way it always did: a play-on resumes, a play-off resets,
+document that says nothing plays the way it always did: a play-start resumes, a play-stop resets,
 the end holds.
 
-<!-- px-check values PxPlayOnAction pkg=core -->
-| `playOnAction` | A play-on (a `playOn` event, `play={true}`, `play()`)… |
+<!-- px-check values PxPlayStartAction pkg=core -->
+| `playStartAction` | A play-start (a `playStart` event, `play={true}`, `play()`)… |
 |---|---|
 | `resume` (default) | continues from the current position. At the start or the end, that is a fresh run from the beginning |
 | `restart` | starts from the beginning every time — a splash that must replay on every click |
 | `jumpToEnd` | shows the end pose with no motion — overlay art that appears instantly and retreats animated |
 
-<!-- px-check values PxPlayOffAction pkg=core -->
-| `playOffAction` | A play-off (a `playOff` event, `play={false}`, `stop()`)… |
+<!-- px-check values PxPlayStopAction pkg=core -->
+| `playStopAction` | A play-stop (a `playStop` event, `play={false}`, `stop()`)… |
 |---|---|
 | `reset` (default) | jumps back to the state as before it started |
 | `rewind` | plays BACK to it — the VCR word, never confused with `iterationDirection: reverse`. The trash-can lid: opens on hover-in, closes animated on hover-out |
 
 <!-- px-check off one boolean, not a value list -->
-| `completeIterationOnPlayOff` | WHEN the play-off takes effect |
+| `completeIterationOnPlayStop` | WHEN the play-stop takes effect |
 |---|---|
 | `false` (default) | now |
 | `true` | after the current iteration — a heartbeat should not die mid-beat; a one-shot runs to its end first. Orthogonal to the action: `rewind` after completion plays back from there — finish the motion, then undo it smoothly |
 
-<!-- px-check values PxPlayEndAction pkg=core -->
-| `playEndAction` | When it ends by itself (every iteration played)… |
+<!-- px-check values PxPlayFinishAction pkg=core -->
+| `playFinishAction` | When it ends by itself (every iteration played)… |
 |---|---|
 | `hold` (default) | keeps the last frame showing |
 | `reset` | jumps back to the start state |
 | `rewind` | plays back to the start state |
 
-`reset` means ONE thing wherever it appears (`playOffAction`, `playEndAction`,
+`reset` means ONE thing wherever it appears (`playStopAction`, `playFinishAction`,
 `outOfViewAction`): the state as before it started — the SVG as authored. A hand-authored file
 whose static attributes differ from its first keyframe can ask for the **first frame** instead
-with `showFirstFrameBeforePlayOn: true` (shown before the first play-on and after every reset).
+with `showFirstFrameBeforePlayStart: true` (shown before the first play-start and after every reset).
 The editor never writes that key: in its files the two are the same picture.
 
 A **one-shot document** driven by a component's `play` prop reads these keys too: `play={true}`
-is a play-on (the default `resume` plays to the end and holds there, per `playEndAction: hold`),
-`play={false}` a play-off (`reset` snaps back, `rewind` plays back). The trash-can lid that closes
-animated is `timeline={{ playOffAction: 'rewind' }}`; overlay art that appears at once and retreats
-animated is `timeline={{ playOnAction: 'jumpToEnd', playOffAction: 'rewind' }}`.
+is a play-start (the default `resume` plays to the end and holds there, per `playFinishAction: hold`),
+`play={false}` a play-stop (`reset` snaps back, `rewind` plays back). The trash-can lid that closes
+animated is `timeline={{ playStopAction: 'rewind' }}`; overlay art that appears at once and retreats
+animated is `timeline={{ playStartAction: 'jumpToEnd', playStopAction: 'rewind' }}`.
 
 ## Triggers — WHEN it plays
 
@@ -169,8 +169,8 @@ events:
 
 ```json
 "timeline": {
-  "completeIterationOnPlayOff": true,
-  "trigger": { "playOn": ["hoverIn", "click"], "playOff": "hoverOut", "pauseOn": "click" }
+  "completeIterationOnPlayStop": true,
+  "trigger": { "playStart": ["hoverIn", "click"], "playStop": "hoverOut", "pauseStart": "click" }
 }
 ```
 
@@ -181,10 +181,10 @@ references — and the editor writes the shortest exact spelling.
 <!-- px-check schema PxTriggerSchema -->
 | List | Acts while the player is… | Editor label |
 |---|---|---|
-| `playOn` | **stopped** — a play-on per `playOnAction` | *Plays on* |
-| `playOff` | **playing or paused** — a play-off per `playOffAction` | *Stops on* |
-| `pauseOn` | **playing** — freezes the current frame | *Pauses on* |
-| `pauseOff` | **paused** — continues from there. Absent = a copy of `playOn` | *Resumes on* |
+| `playStart` | **stopped** — a play-start per `playStartAction` | *Plays on* |
+| `playStop` | **playing or paused** — a play-stop per `playStopAction` | *Stops on* |
+| `pauseStart` | **playing** — freezes the current frame | *Pauses on* |
+| `pauseStop` | **paused** — continues from there. Absent = a copy of `playStart` | *Resumes on* |
 
 <!-- px-check values PxTriggerEvent pkg=core -->
 | Event | Fires when… |
@@ -197,21 +197,21 @@ references — and the editor writes the shortest exact spelling.
 The vocabulary is open: a later interaction (keyboard, focus, an app event) is a new word in
 the same lists, never a new key.
 
-**The state rule.** The player's state picks the list an event is read from: `playOn` acts when
-stopped, `pauseOn` when playing, `pauseOff` when paused, `playOff` when playing or paused. So
-`click` in both `playOn` and `pauseOn` toggles through stopped → playing → paused → playing with
-no toggle word; add `playOnAction: 'restart'` and a click while stopped restarts while a click
-while paused still resumes. The same event in `playOff` *and* `pauseOn` asks for two different
-things while playing — the players report it ([PX1109](../diagnostics.md)) and `pauseOn`
+**The state rule.** The player's state picks the list an event is read from: `playStart` acts when
+stopped, `pauseStart` when playing, `pauseStop` when paused, `playStop` when playing or paused. So
+`click` in both `playStart` and `pauseStart` toggles through stopped → playing → paused → playing with
+no toggle word; add `playStartAction: 'restart'` and a click while stopped restarts while a click
+while paused still resumes. The same event in `playStop` *and* `pauseStart` asks for two different
+things while playing — the players report it ([PX1109](../diagnostics.md)) and `pauseStart`
 wins.
 
 **Absent, or empty.** A document with no `trigger` block plays on load — a document is designed
 to play. An **empty** block, `"trigger": {}`, lists nothing: nothing starts it until your code
-calls `play()`. A list that is absent is simply not listed (`pauseOff` excepted — it copies
-`playOn`).
+calls `play()`. A list that is absent is simply not listed (`pauseStop` excepted — it copies
+`playStart`).
 
 **Pause and continue need no action.** Where an older file said "pause when the pointer leaves",
-the trigger now lists `hoverOut` under `pauseOn`; "keep playing" is `hoverOut` not listed at all.
+the trigger now lists `hoverOut` under `pauseStart`; "keep playing" is `hoverOut` not listed at all.
 That is what the editor does for you: ticking *Hover in* under *Plays on* adds *Hover out* under
 *Pauses on*, editable.
 
@@ -242,7 +242,7 @@ so a threshold of `0.5` or `1` can always be met. Where nothing can measure visi
 render, a test environment without `IntersectionObserver` — the animation plays as if fully
 visible, rather than silently never playing.
 
-**To play an animation when it scrolls into view**, nothing has to be set: `playOn: load`
+**To play an animation when it scrolls into view**, nothing has to be set: `playStart: load`
 behind the default gate IS that behaviour — it waits on its first frame until half of it is on
 screen for 150 ms, plays, pauses when scrolled away, and carries on when it comes back.
 
@@ -275,7 +275,7 @@ player takes the **same two overrides**, and the file on disk is never modified:
 <!-- px-check off the two override props, prose — their types are checked in each player's signature block -->
 | | prop / option | what it does |
 |---|---|---|
-| the timing | `timeline` | a **merge** over the file's `timeline` block, minus its `trigger`: an object shaped like the file, deep-merged key by key. Corrections — `iterations`, `delay`, `playOffAction` — never a replacement; whoever needs more edits the document |
+| the timing | `timeline` | a **merge** over the file's `timeline` block, minus its `trigger`: an object shaped like the file, deep-merged key by key. Corrections — `iterations`, `delay`, `playStopAction` — never a replacement; whoever needs more edits the document |
 | the trigger | `playOnTrigger` | `true` plays on the file's own trigger; an **object** is the whole trigger to use **instead** (a replacement — a trigger's lists belong together, so switching hover → click would otherwise carry the hover-era lists along). Keys left out take the format's defaults, not the file's values |
 
 **Web player**
@@ -290,7 +290,7 @@ import { createSvgAnimationPlayer } from '@pixodesk/svg-animator-web';
 const a = createSvgAnimationPlayer({
   src: '/bouncing-ball.json',
   container: '#box',
-  timeline: { iterations: 'infinite', completeIterationOnPlayOff: true },   // no `playOnTrigger`: nothing starts until a.play()
+  timeline: { iterations: 'infinite', completeIterationOnPlayStop: true },   // no `playOnTrigger`: nothing starts until a.play()
 });
 a.play();
 a.stop();      // finishes the current iteration, then rests — the timeline said so
@@ -303,11 +303,11 @@ a.stop();      // finishes the current iteration, then rests — the timeline sa
 <SvgAnimationPlayer doc={doc} playOnTrigger timeline={{ iterations: 'infinite' }} />
 
 // this trigger instead of the file's: plays on hover-in, plays back on hover-out
-<SvgAnimationPlayer doc={doc} playOnTrigger={{ playOn: 'hoverIn', playOff: 'hoverOut' }}
-  timeline={{ playOffAction: 'rewind' }} />
+<SvgAnimationPlayer doc={doc} playOnTrigger={{ playStart: 'hoverIn', playStop: 'hoverOut' }}
+  timeline={{ playStopAction: 'rewind' }} />
 
 // driven by your state — the same words for the same transitions
-<SvgAnimationPlayer doc={spinner} play={busy} timeline={{ completeIterationOnPlayOff: true }} />
+<SvgAnimationPlayer doc={spinner} play={busy} timeline={{ completeIterationOnPlayStop: true }} />
 ```
 
 ### How the merge works
@@ -356,18 +356,18 @@ Everything above is decided by functions in `@pixodesk/svg-animator-core`, so a 
 write yourself cannot drift from the four shipped ones:
 
 - **Defaults.** `PX_PLAYBACK_DEFAULTS` is the one table of what an absent key means
-  (`playOn: 'load'`, `resume`, `reset`, `hold`, `pause`, 0.5, 150 ms). `resolveTrigger(trigger)` returns a
-  `PxResolvedTrigger` — every list an array (`triggerEventList` normalises one), `pauseOff`
-  defaulted to a copy of `playOn`, an absent block `{ playOn: ['load'] }`, an empty block nothing.
+  (`playStart: 'load'`, `resume`, `reset`, `hold`, `pause`, 0.5, 150 ms). `resolveTrigger(trigger)` returns a
+  `PxResolvedTrigger` — every list an array (`triggerEventList` normalises one), `pauseStop`
+  defaulted to a copy of `playStart`, an absent block `{ playStart: ['load'] }`, an empty block nothing.
   `resolveGate(view)` returns the three gate keys defaulted, a `PxResolvedGate`.
 - **The state rule.** `triggerActionFor(trigger, state, event)` — the player's state (`PxPlayState`:
   stopped · playing · paused) picks the list, and the answer is a `PxTriggerAction`: `play`,
   `pause` or `off`. `triggerListsEvent` says which listeners to attach at all; `triggerConflicts`
-  names the events listed in both `playOff` and `pauseOn`.
-- **The executor.** One `PxPlayExecutor` per player performs every on and off — `on()` per
-  `playOnAction`, `off()` per `playOffAction` and `completeIterationOnPlayOff`, `pause()` /
+  names the events listed in both `playStop` and `pauseStart`.
+- **The executor.** One `PxPlayExecutor` per player performs every on and off — `start()` per
+  `playStartAction`, `stop()` per `playStopAction` and `completeIterationOnPlayStop`, `pause()` /
   `resume()`, the state-rule `play()`, `cancel()` (the unconditional reset-now), `rewind()`, and
-  `onNaturalEnd()`, which performs `playEndAction` when the engine reports the end. It owns the one
+  `onNaturalFinish()`, which performs `playFinishAction` when the engine reports the end. It owns the one
   state engines cannot report: paused versus stopped. `createPlayExecutor(api, config, raf)` builds
   one over any `PxPlayTarget` (the slice of the API it drives) from a `PxPlayExecutorConfig` (the
   run's geometry and the play keys — `executorConfigOf(view)` reads them from the runtime view, a
@@ -376,7 +376,7 @@ write yourself cannot drift from the four shipped ones:
   `stop()`, `cancel()`, `playOnce()`, `getDuration()` — as `PxApiExtras`. `applyDeclarativeAction`
   drives a `PxDeclarativeTarget` (the public api, or a component's proxy to it) from the
   declarative resolver's actions.
-- **CSS.** `fillModeOf(showFirstFrameBeforePlayOn, playEndAction)` is the `animation-fill-mode`
+- **CSS.** `fillModeOf(showFirstFrameBeforePlayStart, playFinishAction)` is the `animation-fill-mode`
   the two keys spell — (false, hold) `forwards`, (true, hold) `both`, (false, reset) `none`,
   (true, reset) `backwards` — what the CSS export and the WAAPI engine hand to the browser.
 

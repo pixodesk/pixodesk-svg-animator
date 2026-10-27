@@ -72,7 +72,7 @@ Common variations. Each line is the `<SvgAnimationPlayer>` element inside a comp
 `Logo` above; `isPlaying`, `scrollProgress` and `setDone` stand for your own state:
 
 ```tsx
-// Play once when a screen opens, then hold the last frame (one pass; `playEndAction: 'hold'` is the default)
+// Play once when a screen opens, then hold the last frame (one pass; `playFinishAction: 'hold'` is the default)
 <SvgAnimationPlayer doc={doc} playOnTrigger timeline={{ iterations: 1 }} />
 
 // Loop forever regardless of what the document says
@@ -113,7 +113,7 @@ Vue and React Native all resolve this the same way, from one rule in core. In ev
 **Play on trigger** — honors the document's trigger, or an object you pass instead of `true`
 ([Triggers — WHEN it plays](./playback-and-triggers.md#triggers--when-it-plays)): `load` plays
 once enough of it is visible in the window; `click` is a tap — the component wraps the animation
-in a `Pressable` — read by the same state rule as on the web, so `{ playOn: 'click', pauseOn: 'click' }`
+in a `Pressable` — read by the same state rule as on the web, so `{ playStart: 'click', pauseStart: 'click' }`
 taps to play and taps again to pause. There is no hover on a touch screen, so `hoverIn` /
 `hoverOut` never fire.
 
@@ -127,13 +127,13 @@ export function Intro() {
 ```
 
 **Declarative playback** — `play` names a STATE, the same shared rule as the React and Vue
-components (`resolveDeclarativePlayback` in core): `true` is a play-on, `false` a play-off, and
-how each looks is the timeline's — `playOnAction`, `playOffAction`, `completeIterationOnPlayOff`,
-`playEndAction`, adjusted through `timeline`
-([Play on, play off, play end](./playback-and-triggers.md#play-on-play-off-play-end--how-a-transition-looks)).
+components (`resolveDeclarativePlayback` in core): `true` is a play-start, `false` a play-stop, and
+how each looks is the timeline's — `playStartAction`, `playStopAction`, `completeIterationOnPlayStop`,
+`playFinishAction`, adjusted through `timeline`
+([Play start, play stop, play finish](./playback-and-triggers.md#play-start-play-stop-play-finish--how-a-transition-looks)).
 With the defaults a one-shot document plays to the end on `true` and holds, and snaps back on
 `false`; a looping document runs on `true` and snaps to rest on `false`, or finishes the current
-iteration first with `completeIterationOnPlayOff: true`. A change always moves from the current
+iteration first with `completeIterationOnPlayStop: true`. A change always moves from the current
 frame, and a mount renders the pose without animating. `pause` freezes the current frame
 immediately, while `play` is true.
 
@@ -149,7 +149,7 @@ export function Controlled() {
   return (
     <View>
       {/* the lid: plays to the end on `on`, plays BACK on `off` */}
-      <SvgAnimationPlayer doc={doc} play={on} pause={frozen} timeline={{ playOffAction: 'rewind' }} />
+      <SvgAnimationPlayer doc={doc} play={on} pause={frozen} timeline={{ playStopAction: 'rewind' }} />
       <Button title={on ? 'Back to start' : 'Play'} onPress={() => setOn(!on)} />
       <Button title={frozen ? 'Resume' : 'Freeze'} onPress={() => setFrozen(!frozen)} />
     </View>
@@ -178,14 +178,14 @@ export function Imperative() {
 }
 ```
 
-`PxAnimationPlayerHandle`: `play()` (paused → resume, otherwise the configured play-on),
-`pause()`, `stop()` (the configured play-off — after the current iteration when
-`completeIterationOnPlayOff`), `cancel()` (reset now, unconditionally), `finish()`, `playOnce()`
+`PxAnimationPlayerHandle`: `play()` (paused → resume, otherwise the configured play-start),
+`pause()`, `stop()` (the configured play-stop — after the current iteration when
+`completeIterationOnPlayStop`), `cancel()` (reset now, unconditionally), `finish()`, `playOnce()`
 (ONE fresh pass from the start, whatever `iterations` say — the "plays once on click" verb),
 `isPlaying()`, `setPlaybackRate(rate)` (negative = reverse; `0` is rejected with a warning — use
 `pause()`), `getDuration()`, `getCurrentTime()`, `setCurrentTime(ms)`, `getCurrentProgress()`,
 `setCurrentProgress(p)` — jumping to a time while playing continues from there. The three
-verbs take no arguments: how a play-on or play-off looks is the timeline's, the same as on the web.
+verbs take no arguments: how a play-start or play-stop looks is the timeline's, the same as on the web.
 
 `getCurrentTime()` is ms from the start of the whole run, every iteration included — the same
 as the web players, so a slider built on it does not jump back to zero each time the animation
@@ -237,10 +237,10 @@ interface SvgAnimationPlayerProps {
 
     // Control — the highest-priority one that is set picks the mode (Control modes above)
     playOnTrigger?: boolean | PxTrigger;  // true: the document's trigger; an object: this trigger instead —
-                                          //   { playOn, playOff, pauseOn, pauseOff }. `click` = a tap;
+                                          //   { playStart, playStop, pauseStart, pauseStop }. `click` = a tap;
                                           //   `hoverIn` / `hoverOut` never fire (no hover on a touch screen);
                                           //   visibility is measured every 200 ms
-    play?: boolean; pause?: boolean;      // the STATE (true = a play-on, false = a play-off — how each looks
+    play?: boolean; pause?: boolean;      // the STATE (true = a play-start, false = a play-stop — how each looks
                                           //   is the timeline's play keys) / freeze now
     playCurrentProgress?: number;         // 0–1 of duration × iterations (one iteration when 'infinite')
     playCurrentTime?: number;             // ms from the start
@@ -285,11 +285,11 @@ by key; `playOnTrigger` is `true` for the file's trigger, or the whole trigger t
 <SvgAnimationPlayer
   doc={doc}
   playOnTrigger
-  timeline={{ iterations: 'infinite', completeIterationOnPlayOff: true }}
+  timeline={{ iterations: 'infinite', completeIterationOnPlayStop: true }}
 />
 
 // This trigger instead of the file's: a tap plays, a second tap pauses
-<SvgAnimationPlayer doc={doc} playOnTrigger={{ playOn: 'click', pauseOn: 'click' }} />
+<SvgAnimationPlayer doc={doc} playOnTrigger={{ playStart: 'click', pauseStart: 'click' }} />
 ```
 
 Objects merge key by key, values replace, and `null` **deletes** a key so the default its
@@ -300,7 +300,7 @@ absence means comes back (`timeline={{ delay: null }}`).
 keyframes ([per-property loops](../format/README.md#per-property-loops)).
 
 Every other playback setting is a timeline key and goes inside `timeline` — `iterationDirection`,
-the play keys (`playOnAction`, `playOffAction`, `completeIterationOnPlayOff`, `playEndAction`) and
+the play keys (`playStartAction`, `playStopAction`, `completeIterationOnPlayStop`, `playFinishAction`) and
 the gate keys (`outOfViewAction`, `inViewThreshold`, `inViewDebounce`); the trigger is
 `playOnTrigger`'s alone. Full merge rules are in
 [Playback & triggers → How the merge works](./playback-and-triggers.md#how-the-merge-works).
@@ -439,7 +439,7 @@ not supported.
 |---|---|---|
 | `inTime` / `outTime` / `playDuration`, `delay`, `iterations` (incl. infinite) | ✅ | |
 | `iterationDirection` — all four values | ✅ | through `timeline` — see [Playback overrides](#playback-overrides) |
-| The play keys: `playOnAction`, `playOffAction`, `completeIterationOnPlayOff`, `playEndAction` | ✅ | `rewind` plays back natively; the run clock behind `getCurrentTime()` is approximate while it rewinds |
+| The play keys: `playStartAction`, `playStopAction`, `completeIterationOnPlayStop`, `playFinishAction` | ✅ | `rewind` plays back natively; the run clock behind `getCurrentTime()` is approximate while it rewinds |
 | play / pause / stop / cancel / finish | ✅ | |
 | Jumping to any time, also while playing | ✅ | |
 | Playback rate: faster, slower, reverse | ✅ | |

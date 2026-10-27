@@ -14,7 +14,7 @@ export const effectRepeaterRadial: SvgaCaseJson = {
             "mode": "auto",
             "outTime": 1000,
             "trigger": {
-                "playOn": "load"
+                "playStart": "load"
             },
             "outOfViewAction": "continue",
             "iterationDirection": "normal"

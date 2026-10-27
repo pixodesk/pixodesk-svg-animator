@@ -13,7 +13,7 @@
  * Base semantics are JSON Merge Patch (RFC 7386): objects merge per level, primitives and
  * arrays REPLACE, and `null` DELETES. `null` is the right sentinel because it is not a legal
  * value anywhere in the schema, and deleting is the only way to restore a meaningful ABSENCE
- * (`timeline.type` absent = time, `engine` absent = auto, `playEndAction` absent = hold).
+ * (`timeline.type` absent = time, `engine` absent = auto, `playFinishAction` absent = hold).
  *
  * Six places need more than that — see the RULE comments below.
  *

@@ -7,10 +7,10 @@
 // ============================================================================
 // THE PLAY EXECUTOR — one implementation of "on" and "off" for every driver
 // (dev-docs/plans/component-api.md D5): the `play` / `pause` props, the trigger's event lists and
-// the imperative api all end up here. The timeline says HOW (`playOnAction`, `playOffAction`,
-// `completeIterationOnPlayOff`); the executor performs it on any engine api, and owns the one state
+// the imperative api all end up here. The timeline says HOW (`playStartAction`, `playStopAction`,
+// `completeIterationOnPlayStop`); the executor performs it on any engine api, and owns the one state
 // the engines cannot tell apart — PAUSED versus STOPPED — so the state rule can be applied:
-// `playOn` acts when stopped, `pauseOn` when playing, `pauseOff` when paused, `playOff` when playing
+// `playStart` acts when stopped, `pauseStart` when playing, `pauseStop` when paused, `playStop` when playing
 // or paused.
 //
 // The declarative half (`play` as a STATE, review §10) is a thin resolver on top: a one-shot
@@ -19,7 +19,7 @@
 // ============================================================================
 
 import type { PxAnimationPlayerApi, PxPlayExecutor } from '../format/PxAnimatorTypes';
-import { PX_PLAYBACK_DEFAULTS, PxPlayEndAction, PxPlayOffAction, PxPlayOnAction, PxPlayState } from '../format/PxAnimatorConstants';
+import { PX_PLAYBACK_DEFAULTS, PxPlayFinishAction, PxPlayStopAction, PxPlayStartAction, PxPlayState } from '../format/PxAnimatorConstants';
 
 /** What the declarative `play` drives: a POSE (one-shot) or a RUN (loop). @public @advanced */
 export enum PxPlaybackWorld {
@@ -45,10 +45,10 @@ export interface PxPlayExecutorConfig {
     passMs: number;
     /** The whole run, ms — `passMs × iterations`; `Infinity` when endless. */
     totalMs: number;
-    playOnAction?: PxPlayOnAction;
-    playOffAction?: PxPlayOffAction;
-    completeIterationOnPlayOff?: boolean;
-    playEndAction?: PxPlayEndAction;
+    playStartAction?: PxPlayStartAction;
+    playStopAction?: PxPlayStopAction;
+    completeIterationOnPlayStop?: boolean;
+    playFinishAction?: PxPlayFinishAction;
 }
 
 const SNAP_EPSILON_MS = 1;
@@ -66,10 +66,10 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
     const raw = { play: api.play.bind(api), pause: api.pause.bind(api), cancel: api.cancel.bind(api) };
     const world = resolvePlaybackWorld(cfg.totalMs === Infinity ? 'infinite' : cfg.passMs > 0 ? cfg.totalMs / cfg.passMs : 1);
     const passMs = Math.max(cfg.passMs, 1);
-    const playOnAction = cfg.playOnAction ?? PX_PLAYBACK_DEFAULTS.playOnAction;
-    const playOffAction = cfg.playOffAction ?? PX_PLAYBACK_DEFAULTS.playOffAction;
-    const completeIteration = cfg.completeIterationOnPlayOff ?? PX_PLAYBACK_DEFAULTS.completeIterationOnPlayOff;
-    const playEndAction = cfg.playEndAction ?? PX_PLAYBACK_DEFAULTS.playEndAction;
+    const playStartAction = cfg.playStartAction ?? PX_PLAYBACK_DEFAULTS.playStartAction;
+    const playStopAction = cfg.playStopAction ?? PX_PLAYBACK_DEFAULTS.playStopAction;
+    const completeIteration = cfg.completeIterationOnPlayStop ?? PX_PLAYBACK_DEFAULTS.completeIterationOnPlayStop;
+    const playFinishAction = cfg.playFinishAction ?? PX_PLAYBACK_DEFAULTS.playFinishAction;
 
     /** The one fact the engines cannot report: a pause is resumable, a stop is not. */
     let paused = false;
@@ -84,7 +84,7 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
     const atStart = (): boolean => { const t = api.getCurrentTime(); return t !== null && t <= SNAP_EPSILON_MS; };
 
     /** An off in flight — rewinding, or completing its iteration — reads as STOPPED: it is heading there,
-     *  and a `playOn` event turns it around (the hover-in during a hover-out rewind). */
+     *  and a `playStart` event turns it around (the hover-in during a hover-out rewind). */
     const state = (): PxPlayState => {
         if (reversed || pending) return PxPlayState.stopped;
         return api.isPlaying() ? PxPlayState.playing : paused ? PxPlayState.paused : PxPlayState.stopped;
@@ -96,20 +96,20 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
     /** A fresh run from the beginning (the delay applies again — a restart is a new run). */
     const restart = (): void => { paused = false; rest(); raw.play(); };
 
-    const on = (): void => {
+    const start = (): void => {
         cancelPending();
         paused = false;
-        switch (playOnAction) {
-            case PxPlayOnAction.restart:
+        switch (playStartAction) {
+            case PxPlayStartAction.restart:
                 restart();
                 break;
-            case PxPlayOnAction.jumpToEnd:
+            case PxPlayStartAction.jumpToEnd:
                 // the end pose with no motion; a loop has no end — its first pass's end stands in
                 forward();
                 if (world === PxPlaybackWorld.oneShot) api.finish();
                 else { raw.pause(); api.setCurrentTime(passMs); }
                 break;
-            case PxPlayOnAction.resume:
+            case PxPlayStartAction.resume:
             default:
                 // continue from where it is; at the end of a one-shot that is a fresh run from the beginning
                 if (atEnd() && !api.isPlaying()) { restart(); break; }
@@ -150,11 +150,11 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
     /** The off-action itself, from the current position. */
     const performOff = (): void => {
         paused = false;
-        if (playOffAction === PxPlayOffAction.rewind) rewind();
+        if (playStopAction === PxPlayStopAction.rewind) rewind();
         else rest();
     };
 
-    const off = (): void => {
+    const stop = (): void => {
         // already stopping, or already at rest; a STOPPED player elsewhere (the end pose, a held frame) still goes to rest
         if (reversed || (state() === PxPlayState.stopped && !pending && atStart())) return;
         if (completeIteration && api.isPlaying()) {
@@ -169,8 +169,8 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
 
     return {
         state,
-        on,
-        off,
+        start,
+        stop,
         pause: () => {
             // the engine's pause always runs (it announces `onPause`); only a RUN becomes resumable
             const wasPlaying = api.isPlaying();
@@ -179,16 +179,16 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
             if (wasPlaying) paused = true;
         },
         resume: () => { if (!paused) return; paused = false; raw.play(); },
-        play: () => { if (paused) { paused = false; forward(); raw.play(); } else on(); },
+        play: () => { if (paused) { paused = false; forward(); raw.play(); } else start(); },
         cancel: () => { cancelPending(); paused = false; rest(); },
         showEnd: () => { cancelPending(); paused = false; api.setCurrentTime(cfg.totalMs); },
         rewind,
-        onNaturalEnd: () => {
+        onNaturalFinish: () => {
             if (pending) return;                       // a deferred move owns the end (an off completing its iteration)
             paused = false;
             if (reversed) { rest(); return; }          // the end of a rewind: rest at the start
-            if (playEndAction === PxPlayEndAction.reset) rest();
-            else if (playEndAction === PxPlayEndAction.rewind) rewind();
+            if (playFinishAction === PxPlayFinishAction.reset) rest();
+            else if (playFinishAction === PxPlayFinishAction.rewind) rewind();
         },
         dispose: cancelPending,
     };
@@ -200,10 +200,10 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
 export enum PxDeclarativeAction {
     /** Silent mount pose: the FINISH pose with no motion (a seek, no lifecycle events). */
     showEnd = 'showEnd',
-    /** The configured play-on. */
-    on = 'on',
-    /** The configured play-off. */
-    off = 'off',
+    /** The configured play-start. */
+    start = 'start',
+    /** The configured play-stop. */
+    stop = 'stop',
     /** Freeze the clock at the current frame. */
     pause = 'pause',
     /** Unfreeze: continue toward the current target. */
@@ -252,17 +252,17 @@ export function resolveDeclarativePlayback(args: PxDeclarativeArgs): {
     if (mount) {
         // a loop with `play` runs (running IS the named state); a one-shot shows its pose without motion
         if (next.play) {
-            if (world === PxPlaybackWorld.loop) { if (!next.pause) actions.push(PxDeclarativeAction.on); }
+            if (world === PxPlaybackWorld.loop) { if (!next.pause) actions.push(PxDeclarativeAction.start); }
             else actions.push(PxDeclarativeAction.showEnd);
         }
         return { actions, warnings };
     }
     if (playChanged) {
         if (next.play) {
-            actions.push(PxDeclarativeAction.on);
+            actions.push(PxDeclarativeAction.start);
             if (next.pause) actions.push(PxDeclarativeAction.pause);   // the freeze axis still holds
         } else {
-            actions.push(PxDeclarativeAction.off);                      // `play: false` forcibly unfreezes
+            actions.push(PxDeclarativeAction.stop);                      // `play: false` forcibly unfreezes
         }
         return { actions, warnings };
     }
@@ -281,8 +281,8 @@ export type PxDeclarativeTarget = Pick<PxAnimationPlayerApi, 'play' | 'pause' | 
 export function applyDeclarativeAction(api: PxDeclarativeTarget, action: PxDeclarativeAction, totalMs: number): void {
     switch (action) {
         case PxDeclarativeAction.showEnd: api.setCurrentTime(totalMs); break;
-        case PxDeclarativeAction.on: api.play(); break;
-        case PxDeclarativeAction.off: api.stop(); break;
+        case PxDeclarativeAction.start: api.play(); break;
+        case PxDeclarativeAction.stop: api.stop(); break;
         case PxDeclarativeAction.pause: api.pause(); break;
         case PxDeclarativeAction.resume: api.play(); break;
     }
@@ -291,7 +291,7 @@ export function applyDeclarativeAction(api: PxDeclarativeTarget, action: PxDecla
 // ── the composed api ───────────────────────────────────────────────────────────────────────
 
 /** The slice of the runtime view {@link composeApiExtras} reads. @public @advanced */
-export interface PxApiExtrasConfig extends Pick<PxPlayExecutorConfig, 'playOnAction' | 'playOffAction' | 'completeIterationOnPlayOff' | 'playEndAction'> {
+export interface PxApiExtrasConfig extends Pick<PxPlayExecutorConfig, 'playStartAction' | 'playStopAction' | 'completeIterationOnPlayStop' | 'playFinishAction'> {
     /** One pass of the content window, ms. */
     duration?: number;
     iterations?: number | 'infinite';
@@ -303,8 +303,8 @@ export function executorConfigOf(cfg: PxApiExtrasConfig): PxPlayExecutorConfig {
     const iterations = cfg.iterations === 'infinite' ? Infinity : (typeof cfg.iterations === 'number' && cfg.iterations >= 1 ? cfg.iterations : 1);
     return {
         passMs, totalMs: passMs * iterations,
-        playOnAction: cfg.playOnAction, playOffAction: cfg.playOffAction,
-        completeIterationOnPlayOff: cfg.completeIterationOnPlayOff, playEndAction: cfg.playEndAction,
+        playStartAction: cfg.playStartAction, playStopAction: cfg.playStopAction,
+        completeIterationOnPlayStop: cfg.completeIterationOnPlayStop, playFinishAction: cfg.playFinishAction,
     };
 }
 
@@ -323,10 +323,10 @@ export type PxApiExtrasTarget = PxPlayTarget & { destroy?: () => void; playExecu
 
 /** What `composeApiExtras` adds. @public @advanced */
 export interface PxApiExtras {
-    /** The state-rule `play()`: paused → resume, otherwise the configured play-on. */
+    /** The state-rule `play()`: paused → resume, otherwise the configured play-start. */
     play: () => void;
     pause: () => void;
-    /** The configured play-off. */
+    /** The configured play-stop. */
     stop: () => void;
     /** The unconditional reset-now. */
     cancel: () => void;
@@ -358,7 +358,7 @@ export function composeApiExtras<T extends PxApiExtrasTarget>(api: T, cfg: PxApi
     full.playExecutor = executor;
     full.play = () => executor.play();
     full.pause = () => executor.pause();
-    full.stop = () => executor.off();
+    full.stop = () => executor.stop();
     full.cancel = () => executor.cancel();
     full.getDuration = () => cfg.duration ?? null;
     let token = 0;
@@ -377,7 +377,7 @@ export function composeApiExtras<T extends PxApiExtrasTarget>(api: T, cfg: PxApi
             if (mine !== token) return;                 // a later playOnce took over
             const t = raw.getCurrentTime();
             if (t !== null && t >= passMs) {
-                if (cfg.playEndAction === PxPlayEndAction.reset) raw.cancel();
+                if (cfg.playFinishAction === PxPlayFinishAction.reset) raw.cancel();
                 else { raw.pause(); raw.setCurrentTime(passMs); }
                 return;
             }

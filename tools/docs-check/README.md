@@ -36,7 +36,7 @@ the repository alone ([`src/links.ts`](./src/links.ts)):
 
 | Link | Checked |
 |---|---|
-| relative (`./react.md#play-on-trigger-playontrigger`, `../../examples/…`) | the file or folder exists; an `#anchor` is a heading of the markdown file (GitHub's slug rules; `#readme` on a README counts) |
+| relative (`./react.md#play-start-trigger-playontrigger`, `../../examples/…`) | the file or folder exists; an `#anchor` is a heading of the markdown file (GitHub's slug rules; `#readme` on a README counts) |
 | `https://github.com/pixodesk/pixodesk-svg-animator/tree\|blob/main/<path>` | the path exists in this checkout, anchors as above; other branches are refused |
 | `https://stackblitz.com/github/pixodesk/pixodesk-svg-animator/tree/main/<path>` | the folder exists and has a `package.json`; `startScript=` names one of its scripts |
 | `#anchor` | a heading of the same file |

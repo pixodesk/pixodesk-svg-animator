@@ -38,8 +38,8 @@ function createMockApi(overrides: Partial<PxEngineAnimationPlayerApi> = {}) {
 const setup = (api: PxEngineAnimationPlayerApi, config: PxAnimatorRuntimeConfig = {}, diag?: PxDiagnostics) =>
     setupAnimationTriggers(api, { duration: 1000, ...config }, diag);
 
-const CLICK_TOGGLE: PxAnimatorRuntimeConfig = { trigger: { playOn: 'click', pauseOn: 'click' } };
-const HOVER_PAUSES: PxAnimatorRuntimeConfig = { trigger: { playOn: 'hoverIn', pauseOn: 'hoverOut' } };
+const CLICK_TOGGLE: PxAnimatorRuntimeConfig = { trigger: { playStart: 'click', pauseStart: 'click' } };
+const HOVER_PAUSES: PxAnimatorRuntimeConfig = { trigger: { playStart: 'hoverIn', pauseStart: 'hoverOut' } };
 
 // the entry fields the gate reads; the heights only matter for a target taller than the viewport
 type IOEntry = { isIntersecting: boolean; intersectionRatio: number; boundingClientRect?: { height: number }; intersectionRect?: { height: number }; rootBounds?: { height: number } };
@@ -79,11 +79,11 @@ describe('setupAnimationTriggers', () => {
     // jsdom has no IntersectionObserver, so unless a test stubs one the gate FAILS OPEN
     // and these behave exactly as they did before the gate existed.
 
-    it("playOn 'load': plays immediately when document.readyState is complete", () => {
+    it("playStart 'load': plays immediately when document.readyState is complete", () => {
         expect(document.readyState).toBe('complete'); // jsdom precondition
         const { api } = createMockApi();
 
-        setup(api, { trigger: { playOn: 'load' } });
+        setup(api, { trigger: { playStart: 'load' } });
 
         expect(api.play).toHaveBeenCalledTimes(1);
     });
@@ -96,7 +96,7 @@ describe('setupAnimationTriggers', () => {
         expect(api.play).toHaveBeenCalledTimes(1);
     });
 
-    it('a second click always pauses — the click toggle lists click in playOn and pauseOn', () => {
+    it('a second click always pauses — the click toggle lists click in playStart and pauseStart', () => {
         const { api, root } = createMockApi({ isPlaying: vi.fn(() => true) });
         setup(api, CLICK_TOGGLE);
 
@@ -107,9 +107,9 @@ describe('setupAnimationTriggers', () => {
         expect(api.setPlaybackRate).not.toHaveBeenCalled();
     });
 
-    it("playOn 'hoverIn': mouseenter plays", () => {
+    it("playStart 'hoverIn': mouseenter plays", () => {
         const { api, root } = createMockApi();
-        setup(api, { trigger: { playOn: 'hoverIn' } });
+        setup(api, { trigger: { playStart: 'hoverIn' } });
 
         expect(api.play).not.toHaveBeenCalled();
         root.dispatchEvent(new Event('mouseenter'));
@@ -117,10 +117,10 @@ describe('setupAnimationTriggers', () => {
     });
 
     it.each([
-        { name: 'pauseOn hoverOut (pause)', config: HOVER_PAUSES, expected: { pause: 1, cancel: 0, setPlaybackRate: 0, play: 1 } },
-        { name: 'playOff hoverOut (reset)', config: { trigger: { playOn: 'hoverIn', playOff: 'hoverOut' } }, expected: { pause: 0, cancel: 1, setPlaybackRate: 0, play: 1 } },
-        { name: 'playOff hoverOut + playOffAction rewind', config: { trigger: { playOn: 'hoverIn', playOff: 'hoverOut' }, playOffAction: 'rewind' }, expected: { pause: 0, cancel: 0, setPlaybackRate: 1, play: 2 } },
-        { name: 'hoverOut not listed (continue)', config: { trigger: { playOn: 'hoverIn' } }, expected: { pause: 0, cancel: 0, setPlaybackRate: 0, play: 1 } },
+        { name: 'pauseStart hoverOut (pause)', config: HOVER_PAUSES, expected: { pause: 1, cancel: 0, setPlaybackRate: 0, play: 1 } },
+        { name: 'playStop hoverOut (reset)', config: { trigger: { playStart: 'hoverIn', playStop: 'hoverOut' } }, expected: { pause: 0, cancel: 1, setPlaybackRate: 0, play: 1 } },
+        { name: 'playStop hoverOut + playStopAction rewind', config: { trigger: { playStart: 'hoverIn', playStop: 'hoverOut' }, playStopAction: 'rewind' }, expected: { pause: 0, cancel: 0, setPlaybackRate: 1, play: 2 } },
+        { name: 'hoverOut not listed (continue)', config: { trigger: { playStart: 'hoverIn' } }, expected: { pause: 0, cancel: 0, setPlaybackRate: 0, play: 1 } },
     ] satisfies Array<{ name: string; config: PxAnimatorRuntimeConfig; expected: Record<string, number> }>)("hoverIn plays; mouseleave with $name", ({ config, expected }) => {
         const { api, root } = createMockApi();
         setup(api, config);
@@ -132,7 +132,7 @@ describe('setupAnimationTriggers', () => {
         expect(api.cancel).toHaveBeenCalledTimes(expected.cancel);
         expect(api.setPlaybackRate).toHaveBeenCalledTimes(expected.setPlaybackRate);
         expect(api.play).toHaveBeenCalledTimes(expected.play);
-        if (config.playOffAction === 'rewind') {
+        if (config.playStopAction === 'rewind') {
             expect(api.setPlaybackRate).toHaveBeenCalledWith(-1);
         }
     });
@@ -151,7 +151,7 @@ describe('setupAnimationTriggers', () => {
     });
 
     it("the click toggle: a resume after the toggle's pause plays forward, never at a stale rate", () => {
-        // `pauseOff` is a copy of `playOn` when omitted: the third click RESUMES, and the rate is
+        // `pauseStop` is a copy of `playStart` when omitted: the third click RESUMES, and the rate is
         // never touched by any of the three.
         const order: Array<string> = [];
         let playing = false;
@@ -184,37 +184,37 @@ describe('setupAnimationTriggers', () => {
 
     it('a list holds one event or several: a click and a hover both play; hover out pauses, either resumes', () => {
         const { api, root } = createMockApi();
-        setup(api, { trigger: { playOn: ['click', 'hoverIn'], pauseOn: 'hoverOut' } });
+        setup(api, { trigger: { playStart: ['click', 'hoverIn'], pauseStart: 'hoverOut' } });
 
         root.dispatchEvent(new Event('click'));
         expect(api.play).toHaveBeenCalledTimes(1);
         root.dispatchEvent(new Event('mouseenter'));
-        expect(api.play).toHaveBeenCalledTimes(1);          // already playing: hoverIn is not in pauseOn / playOff
+        expect(api.play).toHaveBeenCalledTimes(1);          // already playing: hoverIn is not in pauseStart / playStop
         root.dispatchEvent(new Event('mouseleave'));
         expect(api.pause).toHaveBeenCalledTimes(1);
-        root.dispatchEvent(new Event('click'));             // paused: pauseOff = playOn, so a click resumes
+        root.dispatchEvent(new Event('click'));             // paused: pauseStop = playStart, so a click resumes
         expect(api.play).toHaveBeenCalledTimes(2);
     });
 
-    it('the state rule: playOff acts while PAUSED too; a hover out while STOPPED does nothing', () => {
+    it('the state rule: playStop acts while PAUSED too; a hover out while STOPPED does nothing', () => {
         const { api, root } = createMockApi();
-        setup(api, { trigger: { playOn: 'click', pauseOn: 'click', playOff: 'hoverOut' } });
+        setup(api, { trigger: { playStart: 'click', pauseStart: 'click', playStop: 'hoverOut' } });
 
         root.dispatchEvent(new Event('mouseenter'));
-        root.dispatchEvent(new Event('mouseleave'));        // stopped: not in playOn → nothing
+        root.dispatchEvent(new Event('mouseleave'));        // stopped: not in playStart → nothing
         expect(api.cancel).not.toHaveBeenCalled();
 
         root.dispatchEvent(new Event('click'));             // play
         root.dispatchEvent(new Event('click'));             // pause
-        root.dispatchEvent(new Event('mouseleave'));        // paused: playOff → the off
+        root.dispatchEvent(new Event('mouseleave'));        // paused: playStop → the off
         expect(api.cancel).toHaveBeenCalledTimes(1);
     });
 
-    it('an event in both playOff and pauseOn is reported (PX1109), and pauseOn wins', () => {
+    it('an event in both playStop and pauseStart is reported (PX1109), and pauseStart wins', () => {
         const warn = vi.fn();
         const diag: PxDiagnostics = { warn, error: vi.fn() };
         const { api, root } = createMockApi();
-        setup(api, { trigger: { playOn: 'hoverIn', playOff: 'hoverOut', pauseOn: 'hoverOut' } }, diag);
+        setup(api, { trigger: { playStart: 'hoverIn', playStop: 'hoverOut', pauseStart: 'hoverOut' } }, diag);
 
         expect(warn).toHaveBeenCalledTimes(1);
         expect(warn.mock.calls[0]).toContain(PxDiagnosticCode.triggerEventConflict);
@@ -224,14 +224,14 @@ describe('setupAnimationTriggers', () => {
         expect(api.cancel).not.toHaveBeenCalled();
     });
 
-    it("playOnAction 'restart': a play-on while stopped midway begins a fresh run", () => {
+    it("playStartAction 'restart': a play-start while stopped midway begins a fresh run", () => {
         const order: Array<string> = [];
         const { api, root } = createMockApi({
             getCurrentTime: vi.fn(() => 300),
             play: vi.fn(() => order.push('play')),
             cancel: vi.fn(() => order.push('cancel')),
         });
-        setup(api, { trigger: { playOn: 'click' }, playOnAction: 'restart' });
+        setup(api, { trigger: { playStart: 'click' }, playStartAction: 'restart' });
 
         root.dispatchEvent(new Event('click'));
 
@@ -403,7 +403,7 @@ describe('setupAnimationTriggers', () => {
             vi.stubGlobal('IntersectionObserver', undefined);
             const { api } = createMockApi();
 
-            setup(api, { trigger: { playOn: 'load' } });
+            setup(api, { trigger: { playStart: 'load' } });
 
             // Never "silently never plays": a page that cannot measure animates.
             expect(api.play).toHaveBeenCalledTimes(1);
@@ -524,7 +524,7 @@ describe('setupAnimationTriggers', () => {
             cancel: vi.fn(() => { playing = false; order.push('cancel'); }),
             setPlaybackRate: vi.fn((rate: number) => order.push('rate:' + rate)),
         });
-        setup(api, { trigger: { playOn: 'hoverIn', playOff: 'hoverOut' }, playOffAction: 'rewind' });
+        setup(api, { trigger: { playStart: 'hoverIn', playStop: 'hoverOut' }, playStopAction: 'rewind' });
 
         root.dispatchEvent(new Event('mouseenter'));   // start (forward, no rate call)
         root.dispatchEvent(new Event('mouseleave'));   // rewind: rate -1, play
@@ -560,10 +560,10 @@ describe('setupAnimationTriggers', () => {
         expect(api.play).toHaveBeenCalledTimes(2);
     });
 
-    it("playOn 'load' before the document finishes loading: plays on the window 'load' event", () => {
+    it("playStart 'load' before the document finishes loading: plays on the window 'load' event", () => {
         const readyStateSpy = vi.spyOn(document, 'readyState', 'get').mockReturnValue('loading');
         const { api } = createMockApi();
-        setup(api, { trigger: { playOn: 'load' } });
+        setup(api, { trigger: { playStart: 'load' } });
 
         expect(api.play).not.toHaveBeenCalled();
         window.dispatchEvent(new Event('load'));
@@ -577,7 +577,7 @@ describe('setupAnimationTriggers', () => {
 
         // Used to return the api "for chaining" (review §14). A disposer is what a caller can
         // actually use — and with nothing attached, it must simply be safe to call.
-        const dispose = setup(api, { trigger: { playOn: 'load' } });
+        const dispose = setup(api, { trigger: { playStart: 'load' } });
 
         expect(typeof dispose).toBe('function');
         expect(() => dispose()).not.toThrow();
@@ -588,7 +588,7 @@ describe('setupAnimationTriggers', () => {
 
     it('the disposer detaches every listener it attached (review §14)', () => {
         const { api, root } = createMockApi();
-        const dispose = setup(api, { trigger: { playOn: 'hoverIn' } });
+        const dispose = setup(api, { trigger: { playStart: 'hoverIn' } });
 
         root.dispatchEvent(new Event('mouseenter'));
         expect(api.play).toHaveBeenCalledTimes(1);
@@ -601,7 +601,7 @@ describe('setupAnimationTriggers', () => {
     it('the disposer also disconnects the visibility observer', () => {
         const io = stubIntersectionObserver();
         const { api } = createMockApi();
-        const dispose = setup(api, { trigger: { playOn: 'load' } });
+        const dispose = setup(api, { trigger: { playStart: 'load' } });
 
         dispose();
         expect(io.disconnected).toBe(1);

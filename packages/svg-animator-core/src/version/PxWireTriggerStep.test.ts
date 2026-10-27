@@ -122,39 +122,39 @@ describe('wire step 1.8 → 1.9 — WHEN in the trigger, HOW on the timeline (co
         ({ type: 'svg', animator: { version: '1.8.0', timeline: { outTime: 1000, ...timeline } }, children: [] });
     const up = (timeline: Record<string, unknown>) => timelineOf(convertWireDocument(doc18(timeline)).doc);
 
-    it('hover: the leave action becomes the list it belongs to — pause → pauseOn, reset → playOff, reverse → playOff + rewind, continue → nothing', () => {
-        expect(up({ trigger: { start: 'hover', hoverEnd: 'pause' } })).toEqual({ outTime: 1000, trigger: { playOn: 'hoverIn', pauseOn: 'hoverOut' } });
-        expect(up({ trigger: { start: 'hover', hoverEnd: 'reset' } })).toEqual({ outTime: 1000, trigger: { playOn: 'hoverIn', playOff: 'hoverOut' } });
+    it('hover: the leave action becomes the list it belongs to — pause → pauseStart, reset → playStop, reverse → playStop + rewind, continue → nothing', () => {
+        expect(up({ trigger: { start: 'hover', hoverEnd: 'pause' } })).toEqual({ outTime: 1000, trigger: { playStart: 'hoverIn', pauseStart: 'hoverOut' } });
+        expect(up({ trigger: { start: 'hover', hoverEnd: 'reset' } })).toEqual({ outTime: 1000, trigger: { playStart: 'hoverIn', playStop: 'hoverOut' } });
         expect(up({ trigger: { start: 'hover', hoverEnd: 'reverse' } }))
-            .toEqual({ outTime: 1000, playOffAction: 'rewind', trigger: { playOn: 'hoverIn', playOff: 'hoverOut' } });
-        expect(up({ trigger: { start: 'hover', hoverEnd: 'continue' } })).toEqual({ outTime: 1000, trigger: { playOn: 'hoverIn' } });
+            .toEqual({ outTime: 1000, playStopAction: 'rewind', trigger: { playStart: 'hoverIn', playStop: 'hoverOut' } });
+        expect(up({ trigger: { start: 'hover', hoverEnd: 'continue' } })).toEqual({ outTime: 1000, trigger: { playStart: 'hoverIn' } });
         // an omitted hoverEnd meant pause
-        expect(up({ trigger: { start: 'hover' } })).toEqual({ outTime: 1000, trigger: { playOn: 'hoverIn', pauseOn: 'hoverOut' } });
+        expect(up({ trigger: { start: 'hover' } })).toEqual({ outTime: 1000, trigger: { playStart: 'hoverIn', pauseStart: 'hoverOut' } });
     });
 
     it('click was a toggle: it plays AND pauses', () => {
-        expect(up({ trigger: { start: 'click' } })).toEqual({ outTime: 1000, trigger: { playOn: 'click', pauseOn: 'click' } });
+        expect(up({ trigger: { start: 'click' } })).toEqual({ outTime: 1000, trigger: { playStart: 'click', pauseStart: 'click' } });
     });
 
-    it("manual becomes the EMPTY block — nothing starts it; load and an absent start become playOn: 'load'", () => {
+    it("manual becomes the EMPTY block — nothing starts it; load and an absent start become playStart: 'load'", () => {
         expect(up({ trigger: { start: 'manual' } }).trigger).toEqual({});
-        expect(up({ trigger: { start: 'load' } }).trigger).toEqual({ playOn: 'load' });
-        expect(up({ trigger: { outOfView: 'continue' } })).toEqual({ outTime: 1000, outOfViewAction: 'continue', trigger: { playOn: 'load' } });
+        expect(up({ trigger: { start: 'load' } }).trigger).toEqual({ playStart: 'load' });
+        expect(up({ trigger: { outOfView: 'continue' } })).toEqual({ outTime: 1000, outOfViewAction: 'continue', trigger: { playStart: 'load' } });
     });
 
     it('the gate keys move up to the timeline', () => {
         expect(up({ trigger: { start: 'load', outOfView: 'reset', inViewThreshold: 0.2, inViewDebounce: 80 } }))
-            .toEqual({ outTime: 1000, outOfViewAction: 'reset', inViewThreshold: 0.2, inViewDebounce: 80, trigger: { playOn: 'load' } });
+            .toEqual({ outTime: 1000, outOfViewAction: 'reset', inViewThreshold: 0.2, inViewDebounce: 80, trigger: { playStart: 'load' } });
     });
 
     it('fillMode + finish become the end action and the first-frame flag', () => {
-        expect(up({ fillMode: 'both' })).toEqual({ outTime: 1000, showFirstFrameBeforePlayOn: true });
-        expect(up({ fillMode: 'backwards' })).toEqual({ outTime: 1000, showFirstFrameBeforePlayOn: true, playEndAction: 'reset' });
-        expect(up({ fillMode: 'none' })).toEqual({ outTime: 1000, playEndAction: 'reset' });
+        expect(up({ fillMode: 'both' })).toEqual({ outTime: 1000, showFirstFrameBeforePlayStart: true });
+        expect(up({ fillMode: 'backwards' })).toEqual({ outTime: 1000, showFirstFrameBeforePlayStart: true, playFinishAction: 'reset' });
+        expect(up({ fillMode: 'none' })).toEqual({ outTime: 1000, playFinishAction: 'reset' });
         expect(up({ fillMode: 'forwards' })).toEqual({ outTime: 1000 });
-        expect(up({ finish: 'reset' })).toEqual({ outTime: 1000, playEndAction: 'reset' });
+        expect(up({ finish: 'reset' })).toEqual({ outTime: 1000, playFinishAction: 'reset' });
         expect(up({ finish: 'hold' })).toEqual({ outTime: 1000 });
-        expect(up({ fillMode: 'both', finish: 'reset' })).toEqual({ outTime: 1000, showFirstFrameBeforePlayOn: true, playEndAction: 'reset' });
+        expect(up({ fillMode: 'both', finish: 'reset' })).toEqual({ outTime: 1000, showFirstFrameBeforePlayStart: true, playFinishAction: 'reset' });
     });
 
     it('direction becomes iterationDirection', () => {

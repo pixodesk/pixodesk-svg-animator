@@ -126,15 +126,15 @@ What some of the names mean:
   `createSvgAnimationPlayer({"doc": …})` (`PX_ANIMATOR_DOC_KEY`), so it is never renamed by a minifier.
 - **`container`** left out means: animate an SVG that is already in the page.
 - **`timeline`** merges corrections over the file's timing block — `{ iterations: 'infinite' }`,
-  `{ playOffAction: 'rewind' }` — never a replacement; `null` at a key deletes it. See
+  `{ playStopAction: 'rewind' }` — never a replacement; `null` at a key deletes it. See
   [Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
 - **`playOnTrigger`** means "play the way the document says". The HTML tag always works this way;
   the web player takes it as an option (`createSvgAnimationPlayer({ …, playOnTrigger: true })`) — without
   it, nothing starts and the returned api drives playback. An **object** instead of `true` is the whole
-  trigger to use in place of the file's (`{ playOn: 'hoverIn', playOff: 'hoverOut' }`).
-- **`play`** is the on/off switch: `true` is a play-on, `false` a play-off, each done the way the
-  timeline says (`playOnAction`, `playOffAction`, `completeIterationOnPlayOff` —
-  [Play on, play off, play end](./playback-and-triggers.md#play-on-play-off-play-end--how-a-transition-looks));
+  trigger to use in place of the file's (`{ playStart: 'hoverIn', playStop: 'hoverOut' }`).
+- **`play`** is the on/off switch: `true` is a play-start, `false` a play-stop, each done the way the
+  timeline says (`playStartAction`, `playStopAction`, `completeIterationOnPlayStop` —
+  [Play start, play stop, play finish](./playback-and-triggers.md#play-start-play-stop-play-finish--how-a-transition-looks));
   **`pause`** freezes the current frame, and setting it back to `false` resumes.
 - **`playCurrentProgress`** shows the frame at a point between 0 and 1 of the whole run (of one iteration
   when `iterations` is `'infinite'`); **`playCurrentTime`** shows the frame at that many ms from the start.
@@ -164,13 +164,13 @@ The pre-rendered SVG + CSS wrappers toggle class names instead of creating a pla
 | `className` | ✓ on the wrapper div | `class`, on the wrapper div | <!-- px vue=~ -->
 | `style` | ✓ on the wrapper div | ✓ on the wrapper div | <!-- px vue=~ -->
 
-- `trigger` is the JSON player's — `playOn`, `playOff`, `pauseOn`, `pauseOff`, each one event or a
+- `trigger` is the JSON player's — `playStart`, `playStop`, `pauseStart`, `pauseStop`, each one event or a
   list of them, read by the same state rule
-  ([Triggers](./playback-and-triggers.md#triggers--when-it-plays)): `pauseOn: 'hoverOut'` pauses,
-  `playOff: 'hoverOut'` stops. An **empty** trigger does nothing here: a wrapper has no `play()` to call.
-- Accepted limits of a class toggle: a play-on acts as `playOnAction: 'resume'` and a play-off as
-  `playOffAction: 'reset'` — a class cannot restart keyframes, jump to their end or play them
-  backwards — and `completeIterationOnPlayOff`, `showFirstFrameBeforePlayOn` and `playEndAction`
+  ([Triggers](./playback-and-triggers.md#triggers--when-it-plays)): `pauseStart: 'hoverOut'` pauses,
+  `playStop: 'hoverOut'` stops. An **empty** trigger does nothing here: a wrapper has no `play()` to call.
+- Accepted limits of a class toggle: a play-start acts as `playStartAction: 'resume'` and a play-stop as
+  `playStopAction: 'reset'` — a class cannot restart keyframes, jump to their end or play them
+  backwards — and `completeIterationOnPlayStop`, `showFirstFrameBeforePlayStart` and `playFinishAction`
   are the file's own CSS. None of them is a prop here.
 - `outOfViewAction: 'pause'` means an animation nobody can see does not run, whatever started it.
 - `inViewThreshold` is how much of the SVG (0 to 1) must be on screen before it may run;
@@ -188,7 +188,7 @@ core (`resolveControlMode`), so they always pick the same winner:
 | Priority | Mode | Chosen when | The document's trigger |
 |---|---|---|---|
 | 1 | controlled time | `playCurrentProgress` or `playCurrentTime` | switched off; the player seeks and holds |
-| 2 | play / pause | `play` or `pause` | switched off; `play={true}` is a play-on, `play={false}` a play-off — per the timeline's play keys — and `pause` freezes |
+| 2 | play / pause | `play` or `pause` | switched off; `play={true}` is a play-start, `play={false}` a play-stop — per the timeline's play keys — and `pause` freezes |
 | 3 | playOnTrigger | `playOnTrigger` | used, after the override |
 | 4 | static | none of the above | switched off; the first frame renders and nothing plays |
 

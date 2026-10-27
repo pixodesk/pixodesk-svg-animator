@@ -563,9 +563,9 @@ function getTestJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                playEndAction: "hold",
+                playFinishAction: "hold",
                 iterationDirection: "normal",
-                trigger: { playOn: "load" },
+                trigger: { playStart: "load" },
             },
         },
 
@@ -604,9 +604,9 @@ function getTestJson1000(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 1000,
-                playEndAction: "hold",
+                playFinishAction: "hold",
                 iterationDirection: "normal",
-                trigger: { playOn: "load" },
+                trigger: { playStart: "load" },
             },
         },
 
@@ -671,9 +671,9 @@ function getTreeJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                playEndAction: "hold",
+                playFinishAction: "hold",
                 iterationDirection: "normal",
-                trigger: { playOn: "load" },
+                trigger: { playStart: "load" },
             },
         },
 
@@ -727,9 +727,9 @@ function getRectJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                playEndAction: "hold",
+                playFinishAction: "hold",
                 iterationDirection: "normal",
-                trigger: { playOn: "load" },
+                trigger: { playStart: "load" },
             },
         },
 
@@ -753,7 +753,7 @@ describe('SvgAnimationPlayer (Vue) — timeline override', () => {
     /** A WIRE-format document; the flat props this replaced were discarded on this shape. */
     const wireJson = (): PxDocument => ({
         type: 'svg', id: '_px_wire', viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'js', outTime: 1000, trigger: { playOn: 'load' } } },
+        animator: { timeline: { engine: 'js', outTime: 1000, trigger: { playStart: 'load' } } },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
@@ -776,7 +776,7 @@ describe('SvgAnimationPlayer (Vue) — timeline override', () => {
 
     it('a `playOnTrigger` object beside `playCurrentProgress`: the position wins (PX1501), the frame is right', () => {
         const onWarn = vi.fn();
-        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), playCurrentProgress: 0.5, timeline: { outTime: 4000 }, playOnTrigger: { playOn: 'click' }, onWarn } });
+        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), playCurrentProgress: 0.5, timeline: { outTime: 4000 }, playOnTrigger: { playStart: 'click' }, onWarn } });
         expect(opacityIn(container)).toBe(1);
         expect(onWarn.mock.calls.map(c => c[0].code)).toContain(PxDiagnosticCode.controlPropsConflict);
     });
@@ -800,7 +800,7 @@ function getEffectsOnlyJson(): PxDocument {
         animator: {
             timeline: {
                 outTime: 1000,
-                trigger: { playOn: "hoverIn", pauseOn: "hoverOut" }, outOfViewAction: "pause", inViewThreshold: 0.5, inViewDebounce: 150,
+                trigger: { playStart: "hoverIn", pauseStart: "hoverOut" }, outOfViewAction: "pause", inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
             },
             version: "1.9.1",
@@ -864,7 +864,7 @@ function getMaskedLoadJson(): PxDocument {
         animator: {
             timeline: {
                 outTime: 1000,
-                trigger: { playOn: "load" }, outOfViewAction: "pause", inViewThreshold: 0.5, inViewDebounce: 150,
+                trigger: { playStart: "load" }, outOfViewAction: "pause", inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
             },
             version: "1.9.1",

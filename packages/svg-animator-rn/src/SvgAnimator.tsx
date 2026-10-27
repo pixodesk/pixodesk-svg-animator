@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { toPxDocument, type PxDocumentInput, PxDiagnosticCode, PxDiagnosticKind, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, PxTimelineEngine, PxPlayEndAction, PxOutOfViewAction, PxTriggerAction, PxTriggerEvent, PxPlaybackDirection, type PxDocument, type PxNode, type PxPlayExecutor, applyAnimatorConfig, type PxPlaybackOverrideInput } from '@pixodesk/svg-animator-core';
+import { toPxDocument, type PxDocumentInput, PxDiagnosticCode, PxDiagnosticKind, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, PxTimelineEngine, PxPlayFinishAction, PxOutOfViewAction, PxTriggerAction, PxTriggerEvent, PxPlaybackDirection, type PxDocument, type PxNode, type PxPlayExecutor, applyAnimatorConfig, type PxPlaybackOverrideInput } from '@pixodesk/svg-animator-core';
 import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, seekCeilingMs, timeToProgress, type PxControlProps, resolveGate, resolveTrigger, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride } from '@pixodesk/svg-animator-core/engine';
 import { carryPrep, deepEquals, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
@@ -259,9 +259,9 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
 
     // §10 / D5: in the play tier's ONE-SHOT world the pose contract beats the file's rest poses — pin
     // both sides (the first frame before, the last frame after), so the held poses are the same on
-    // every file (a `playEndAction: 'reset'` document would otherwise revert to its static attrs).
+    // every file (a `playFinishAction: 'reset'` document would otherwise revert to its static attrs).
     if (pinPoseFill && resolvePlaybackWorld((getAnimatorConfig(doc) || {}).iterations) === PxPlaybackWorld.oneShot) {
-        doc = applyAnimatorConfig(doc, { timeline: { showFirstFrameBeforePlayOn: true, playEndAction: PxPlayEndAction.hold } }).doc;
+        doc = applyAnimatorConfig(doc, { timeline: { showFirstFrameBeforePlayStart: true, playFinishAction: PxPlayFinishAction.hold } }).doc;
     }
 
     // `native` = the FULLY-FLATTENED materialization: effects + loops +
@@ -400,7 +400,7 @@ export function SvgAnimationPlayer({
         progress.value = restingPosition();
         latest.current.onFinish?.();
         latest.current.onStop?.();
-        executor?.onNaturalEnd();              // `playEndAction`: hold / reset / rewind
+        executor?.onNaturalFinish();              // `playFinishAction`: hold / reset / rewind
     };
 
     const startFrom = (fromMs: number) => {
@@ -566,7 +566,7 @@ export function SvgAnimationPlayer({
     // The EFFECTIVE trigger and gate, read back off the COMPILED document's runtime view — so they
     // already reflect the `timeline` override and a `playOnTrigger` object, both merged in before
     // compilation. Resolved through core's one table, so a document means the same here as on the
-    // web (D5): no trigger block = `playOn: 'load'`, no `outOfViewAction` = 'pause'.
+    // web (D5): no trigger block = `playStart: 'load'`, no `outOfViewAction` = 'pause'.
     const trigger = resolveTrigger(view?.trigger);
     const gate = resolveGate(view);
     /** Whether visibility governs this document. `continue` means "run wherever it is". */
@@ -606,7 +606,7 @@ export function SvgAnimationPlayer({
         }
         // a listed `click` starts from its own handler below, and a GATED document starts from the
         // visibility poll — calling play() here as well would defeat the gate.
-        if (compMode === PxControlMode.playOnTrigger && trigger.playOn.includes(PxTriggerEvent.load) && !gated) {
+        if (compMode === PxControlMode.playOnTrigger && trigger.playStart.includes(PxTriggerEvent.load) && !gated) {
             player.play();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -624,7 +624,7 @@ export function SvgAnimationPlayer({
         inViewRef.current = false;
         /** The gate held (or reset) a run, so it owes a release; a `load` start is owed until the first entry. */
         let pausedByGate = false;
-        let startPending = trigger.playOn.includes(PxTriggerEvent.load);
+        let startPending = trigger.playStart.includes(PxTriggerEvent.load);
 
         const check = () => {
             const node = scrollRef.current;
@@ -760,7 +760,7 @@ export function SvgAnimationPlayer({
                     switch (triggerActionFor(trigger, player.playExecutor.state(), PxTriggerEvent.click)) {
                         case PxTriggerAction.play: player.play(); break;
                         case PxTriggerAction.pause: player.pause(); break;
-                        case PxTriggerAction.off: player.stop(); break;
+                        case PxTriggerAction.stop: player.stop(); break;
                     }
                 }}
             >

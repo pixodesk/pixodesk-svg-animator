@@ -2273,7 +2273,7 @@
     "Trigger": {
       "type": "object",
       "properties": {
-        "playOn": {
+        "playStart": {
           "anyOf": [
             {
               "enum": [
@@ -2296,7 +2296,7 @@
             }
           ]
         },
-        "playOff": {
+        "playStop": {
           "anyOf": [
             {
               "enum": [
@@ -2319,7 +2319,7 @@
             }
           ]
         },
-        "pauseOn": {
+        "pauseStart": {
           "anyOf": [
             {
               "enum": [
@@ -2342,7 +2342,7 @@
             }
           ]
         },
-        "pauseOff": {
+        "pauseStop": {
           "anyOf": [
             {
               "enum": [
@@ -2419,30 +2419,30 @@
                 "alternateReverse"
               ]
             },
-            "playOnAction": {
+            "playStartAction": {
               "enum": [
                 "resume",
                 "restart",
                 "jumpToEnd"
               ]
             },
-            "playOffAction": {
+            "playStopAction": {
               "enum": [
                 "reset",
                 "rewind"
               ]
             },
-            "completeIterationOnPlayOff": {
+            "completeIterationOnPlayStop": {
               "type": "boolean"
             },
-            "playEndAction": {
+            "playFinishAction": {
               "enum": [
                 "hold",
                 "reset",
                 "rewind"
               ]
             },
-            "showFirstFrameBeforePlayOn": {
+            "showFirstFrameBeforePlayStart": {
               "type": "boolean"
             },
             "outOfViewAction": {

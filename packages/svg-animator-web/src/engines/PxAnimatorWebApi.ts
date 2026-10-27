@@ -437,7 +437,7 @@ export function createWebApiAnimator(
 
     // D3 (scroll-timeline.design.md): triggers are inert on a scroll-driven document —
     // writers must not emit them; a doc that carries them anyway gets a warning.
-    // Every time-driven document IS wired: no `trigger` means the defaults (`playOn: 'load'` behind
+    // Every time-driven document IS wired: no `trigger` means the defaults (`playStart: 'load'` behind
     // the gate's `outOfViewAction: 'pause'` — so an unseen animation does not run).
     if (config.timelineSource === 'scroll') {
         if (config.trigger) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);

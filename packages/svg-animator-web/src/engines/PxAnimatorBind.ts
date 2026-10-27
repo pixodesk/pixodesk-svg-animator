@@ -28,7 +28,7 @@ import { applyScrollPin, createNativeScrollTimeline, createScrollDriver } from '
  * Applies the two `animator` config behaviors that are engine-independent, then hands
  * off to `make` for the actual engine.
  *
- * `playEndAction` is composed here so BOTH engines get it: after a NATURAL finish the player's
+ * `playFinishAction` is composed here so BOTH engines get it: after a NATURAL finish the player's
  * executor holds, resets or rewinds (D5). The caller's own `onFinish` still fires first. The
  * executor is taken right after creation — a finish always happens asynchronously later.
  */
@@ -43,7 +43,7 @@ export function finaliseAnimator(
         ...callbacks,
         onFinish: () => {
             callbacks?.onFinish?.();
-            executor?.onNaturalEnd();
+            executor?.onNaturalFinish();
         },
     };
 
