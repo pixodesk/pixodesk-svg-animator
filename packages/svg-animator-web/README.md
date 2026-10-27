@@ -84,20 +84,12 @@ player.destroy();             // cleanup
 <!-- px-check props PxAnimationPlayerOptions pkg=web -->
 | Option | Type | Description |
 | ----------- | ------------------------- | -------------------------------------------------- |
-| `playOnTrigger` | `boolean`               | play the way the editor saved it — the document's own trigger starts it; without it nothing starts and the returned api drives playback |
+| `playOnTrigger` | `boolean \| PxTrigger` | `true`: play the way the editor saved it — the document's own trigger plays, pauses and stops it; an object: that trigger instead of the file's (the whole block). Without it nothing starts and the returned api drives playback |
 | `src`       | `string`                  | URL to fetch the animation document from (provide either `src` or `doc`) |
 | `doc`       | `PxDocumentInput`         | Inline animation document object (a `.json` import passes as-is) |
 | `container` | `string \| Element`       | CSS selector or element to render the SVG into      |
 | `onReady` · `onPlay` · `onPause` · `onCancel` · `onFinish` · `onDestroy` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take (`onReady` fires once, async: the push twin of `isReady()`); plus `onWarn`, `onError`, `muteWarn`, `muteError` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onReady,onPlay,onPause,onCancel,onFinish,onDestroy,onStop,onWarn,onError,muteWarn,muteError -->
-| `timeline` | `object \| string` | per-instance override of the document's `timeline` block, deep-merged over it — same shape as the file; `null` at any slot deletes that key. A JSON string is accepted too. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
-| `resetTimeline` | `boolean` | ignore the document's own timeline and start from the player's default timeline, with `timeline` on top |
-| `inTime` · `outTime` · `playDuration` · `delay` | `number`        | Shortcuts for the content window (`timeline.inTime` / `.outTime`), its wall-time remap and the start delay (ms) | <!-- px names=inTime,outTime,playDuration,delay -->
-| `iterations` | `number \| 'infinite'`   | Shortcut for `timeline.iterations` |
-| `start`     | `PxTriggerStart`          | Shortcut for `timeline.trigger.start` |
-| `outOfView` | `PxOutOfViewAction`       | Shortcut for `timeline.trigger.outOfView` |
-| `hoverEnd`  | `PxHoverEndAction`        | Shortcut for `timeline.trigger.hoverEnd` |
-| `inViewThreshold` | `number`       | Shortcut for `timeline.trigger.inViewThreshold` |
-| `inViewDebounce` | `number`        | Shortcut for `timeline.trigger.inViewDebounce` |
+| `timeline` | `PxTimelinePatch` | per-instance override of the document's `timeline` block (minus its `trigger`), deep-merged over it — same shape as the file; `null` at any slot deletes that key. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 
 The document plays the way it was designed with no configuration at all; `timeline` is for when
 one page needs it to play differently — the same file mounted twice at two speeds, or a file
@@ -107,7 +99,7 @@ that autostarts everywhere except inside your own transport UI:
 const player = createSvgAnimationPlayer({
   src: '/animation.json',
   container: '#box',
-  timeline: { iterations: 'infinite', trigger: { start: 'manual' } },
+  timeline: { iterations: 'infinite' },   // no `playOnTrigger`: nothing starts until play()
 });
 player.play();
 ```
@@ -117,9 +109,10 @@ It returns a `PxAnimationPlayerApi`:
 <!-- px-check props PxAnimationPlayerApi pkg=web -->
 | Method                  | Description                                                       |
 | ----------------------- | ----------------------------------------------------------------- |
-| `play()`                | Start or resume playback                                          |
+| `play()`                | The play-on: resume when paused, else per the timeline's `playOnAction` |
 | `pause()`               | Pause at the current time                                         |
-| `cancel()`              | Stop and reset to the start                                       |
+| `stop()`                | The play-off per the timeline: `playOffAction` (reset / rewind), after the iteration when `completeIterationOnPlayOff` |
+| `cancel()`              | The unconditional reset-now: stop and show the start state        |
 | `finish()`              | Jump to the end                                                   |
 | `playOnce()`            | One fresh pass from the start, whatever `iterations` say          |
 | `getDuration()`         | One pass of the content window, ms — the slider maximum (`null` before a `src` loads) |

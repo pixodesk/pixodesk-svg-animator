@@ -28,5 +28,3 @@ export const PX_ANIMATOR_DOC_KEY = 'doc';
 /** Key under which `createSvgAnimationPlayer` options carry the per-instance `timeline` override. */
 export const PX_ANIMATOR_TIMELINE_KEY = 'timeline';
 
-/** Key that makes the override start from the player's default timeline instead of the document's. */
-export const PX_ANIMATOR_RESET_KEY = 'resetTimeline';

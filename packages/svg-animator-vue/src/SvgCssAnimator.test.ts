@@ -63,9 +63,9 @@ describe("SvgCssAnimationPlayer (Vue)", () => {
         expect(div.style.width).toBe("123px");
     });
 
-    it("toggles classes for start='hover' + hoverEnd='pause'", async () => {
+    it("toggles classes for playOn 'hoverIn' + pauseOn 'hoverOut'", async () => {
         const { container } = render(SvgCssAnimationPlayer, {
-            props: { start: 'hover', hoverEnd: 'pause' },
+            props: { trigger: { playOn: 'hoverIn', pauseOn: 'hoverOut' } },
             slots: { default: '<svg></svg>' },
         });
         const div = container.firstElementChild as HTMLElement;
@@ -82,9 +82,9 @@ describe("SvgCssAnimationPlayer (Vue)", () => {
         expect(div.className).toBe("px-anim-enabled");
     });
 
-    it("resets to idle on mouse-out when hoverEnd='reset'", async () => {
+    it("resets to idle on mouse-out when hoverOut is a playOff", async () => {
         const { container } = render(SvgCssAnimationPlayer, {
-            props: { start: 'hover', hoverEnd: 'reset' },
+            props: { trigger: { playOn: 'hoverIn', playOff: 'hoverOut' } },
             slots: { default: '<svg></svg>' },
         });
         const div = container.firstElementChild as HTMLElement;

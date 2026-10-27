@@ -84,7 +84,7 @@ describe('materializeRestPosesInTree — the static document IS the first frame'
         for (const direction of ['reverse', 'alternateReverse']) {
             const out = materializeRestPosesInTree(docOf([
                 { type: 'rect', id: 'r', animate: { opacity: { keyframes: [kf(0, 0.1), kf(1000, 0.9)] } } },
-            ], { direction }), JS);
+            ], { iterationDirection: direction }), JS);
             expect(Number(first(out).opacity), direction).toBe(0.9);
             expect(staticAttr(first(out), 'opacity'), direction).toBe(engineFirstFrame(out).get('r')?.get('opacity'));
         }
@@ -131,7 +131,7 @@ describe('materializeRestPosesInTree — the static document IS the first frame'
         const out = materializeRestPosesInTree(docOf([
             { type: 'ellipse', id: 'e', rx: 64, ry: 64,
               animate: { translate: { keyframes: [kf(0, [139, 163]), kf(1000, [139, 310])] } } },
-        ], { trigger: { start: 'manual' } }), JS);
+        ], { trigger: {} }), JS);   // the empty block: nothing starts it (D5)
         // The pose is the canonical static form the editor writes, rendered like it.
         expect(first(out).transform).toEqual({ translate: [139, 163] });
         expect(staticAttr(first(out), 'transform')).toBe('translate(139,163)');

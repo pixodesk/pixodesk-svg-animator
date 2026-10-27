@@ -4,8 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, type PxTimelineEngine, type PxDocument, type PxEngineCallbacks, type PxAnimatorConfigPatch, type PxAnimationPlayerCallbacks, type PxPlaybackOverride } from '@pixodesk/svg-animator-core';
-import { suppressTriggerStart, foldTimelineOverride, resolveTimelineEngine, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
+import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, type PxTimelineEngine, type PxDocument, type PxEngineCallbacks, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxTrigger } from '@pixodesk/svg-animator-core';
+import { withoutTriggerDriver, applyPlaybackOverride, resolveTimelineEngine, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { reportDocumentDiagnostics, createDiagnostics, isScrollTimeline, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
@@ -56,10 +56,9 @@ function createAnimatorImpl(
     adapter?: PxPlatformAdapter,
     callbacks?: PxEngineCallbacks,
     containerElement?: string | Element,
-    patch?: PxAnimatorConfigPatch,
-    resetTimeline?: boolean,
+    override?: PxPlaybackOverrideInput,
     providedRoot?: Element,
-    playOnTrigger?: boolean
+    playOnTrigger?: boolean | PxTrigger
 ): PxAnimationPlayerApi {
 
     // Everything this player has to say goes through one channel (API review §5): the caller's
@@ -85,19 +84,19 @@ function createAnimatorImpl(
     // depends on the final values: `timeline.engine` picks the engine, the content window drives loop
     // expansion and motion-path sampling in `materializeAllInTree`, and `generateNewIds`
     // rewrites binding targets — a late patch would be read by none of them.
-    if (patch !== undefined || resetTimeline) {
-        const patched = applyAnimatorConfig(doc, patch ?? {}, { resetTimeline: !!resetTimeline });
-        for (const w of patched.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
-        doc = patched.doc;
+    if (override !== undefined) {
+        const overridden = applyPlaybackOverride(doc, override);
+        for (const w of overridden.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
+        doc = overridden.doc;
     }
 
     // The no-driver rule (first-use review §1+2): without `playOnTrigger` the document must not
-    // start itself — `start: 'manual'` goes on AFTER the caller's own override, so nothing re-arms
+    // start itself — the EMPTY trigger goes on AFTER the caller's own override, so nothing re-arms
     // it; the same rule the components' control modes apply. Scroll-driven documents are exempt:
     // scroll IS their named driver, and a clock trigger pushed into a scroll timeline would only
     // be reported as an ignored override.
     if (!playOnTrigger && !isScrollTimeline(getAnimatorConfig(doc))) {
-        doc = applyAnimatorConfig(doc, suppressTriggerStart()).doc;
+        doc = withoutTriggerDriver(doc);
     }
 
     // Lower once through the staged pipeline (`prepareDocument`) — the patched doc above is a new,
@@ -160,20 +159,21 @@ function createAnimatorImpl(
 export { PX_ANIMATOR_DOC_KEY } from '../shared/PxAnimatorKeys';
 
 /**
- * Everything `createSvgAnimationPlayer` takes. The playback override (`timeline`, `resetTimeline` and the
- * four shortcuts) and the callbacks are core's shared shapes — the SAME names, inline, as the
+ * Everything `createSvgAnimationPlayer` takes. The playback override (`timeline`, and the object form of
+ * `playOnTrigger`) and the callbacks are core's shared shapes — the SAME names, inline, as the
  * React, Vue and React Native components take (review §9) — so only what is web-specific is
  * declared here.
  * @public
  */
-export interface PxAnimationPlayerOptions extends PxPlaybackOverride, PxAnimationPlayerCallbacks {
+export type PxAnimationPlayerOptions = PxPlaybackOverride & PxAnimationPlayerCallbacks & {
     /**
-     * Play the way the editor saved it: the document's own `timeline.trigger` starts (and gates)
-     * playback. WITHOUT it the player builds still — the first frame is shown, `trigger.start`
-     * is forced to `'manual'` — and the returned api (`play()`, `setCurrentTime()`) drives it
-     * (first-use review §1+2: nothing plays until a line names the driver).
+     * Play on a trigger. `true` — the way the editor saved it: the document's own `timeline.trigger`
+     * starts (and gates) playback. An OBJECT — that trigger instead, as a WHOLE (keys left out take the
+     * wire defaults, not the file's values). WITHOUT it the player builds still — the first frame is
+     * shown, the trigger is replaced by the EMPTY one — and the returned api (`play()`, `setCurrentTime()`)
+     * drives it (first-use review §1+2: nothing plays until a line names the driver).
      */
-    playOnTrigger?: boolean;
+    playOnTrigger?: boolean | PxTrigger;
     /** URL to fetch the animation document from. Provide either this or `doc`, not both. */
     src?: string;
     /** The animation document, inline (see docs/format/README.md) — typed as a JSON import
@@ -182,7 +182,7 @@ export interface PxAnimationPlayerOptions extends PxPlaybackOverride, PxAnimatio
     doc?: PxDocumentInput;
     /** CSS selector or element to render the SVG into. */
     container?: string | Element;
-}
+};
 
 /**
  * What the framework COMPONENTS build the player with: the public options plus the `adapter`
@@ -194,7 +194,7 @@ export interface PxAnimationPlayerOptions extends PxPlaybackOverride, PxAnimatio
  * type so those packages can name it; never documented as an option.
  * @internal
  */
-export interface PxInternalAnimationPlayerOptions extends PxAnimationPlayerOptions {
+export type PxInternalAnimationPlayerOptions = PxAnimationPlayerOptions & {
     /** A custom render target for the frame-loop engine (`PxPlatformAdapter`). */
     adapter?: PxPlatformAdapter;
 
@@ -208,22 +208,13 @@ export interface PxInternalAnimationPlayerOptions extends PxAnimationPlayerOptio
      * the element, so it hands it over rather than have it guessed.
      */
     rootElement?: Element;
-}
+};
 
 /** The one place `createSvgAnimationPlayer` reads past its public signature — see `PxInternalAnimationPlayerOptions`. */
 function isInternalOptions(options: PxAnimationPlayerOptions): options is PxInternalAnimationPlayerOptions {
     // EITHER internal key. Testing `adapter` alone meant a caller passing only `rootElement` —
     // what the React and Vue components do — had it silently ignored.
     return 'adapter' in options || 'rootElement' in options;
-}
-
-/**
- * The `createSvgAnimationPlayer` spelling of the shared timeline fold (core owns the logic so the three
- * component packages and the plain-JS entry cannot drift).
- */
-export function resolveTimelineOption(options: PxAnimationPlayerOptions): PxAnimatorConfigPatch | undefined {
-    const { timeline, inTime, outTime, playDuration, delay, iterations, start, outOfView, hoverEnd, inViewThreshold, inViewDebounce } = options;
-    return foldTimelineOverride(timeline, { inTime, outTime, playDuration, delay, iterations, start, outOfView, hoverEnd, inViewThreshold, inViewDebounce });
 }
 
 /**
@@ -237,10 +228,9 @@ export function resolveTimelineOption(options: PxAnimationPlayerOptions): PxAnim
  */
 export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxAnimationPlayerApi {
 
-    const { src, doc, container, resetTimeline } = options;
+    const { src, doc, container } = options;
     const adapter = isInternalOptions(options) ? options.adapter : undefined;
     const providedRoot = isInternalOptions(options) ? options.rootElement : undefined;
-    const patch = resolveTimelineOption(options);
     // The registry hears play / pause / … through the engine callbacks, and names the PROXY
     // below — the object the caller holds — never the engine API behind it.
     let proxy: PxAnimationPlayerApi | undefined;
@@ -293,7 +283,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     // throw at the caller, which would land inside a fetch callback where no one can catch it.
     const build = (document: PxDocument): void => {
         try {
-            ready(createAnimatorImpl(document, adapter, callbacks, container, patch, resetTimeline, providedRoot, options.playOnTrigger));
+            ready(createAnimatorImpl(document, adapter, callbacks, container, options, providedRoot, options.playOnTrigger));
         } catch (e) {
             const err = asThrownError(e);
             failed(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, err);
@@ -309,6 +299,7 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
         "isPlaying": () => animator?.isPlaying() || false,
         "play": () => { enqueue(api => api.play()); },
         "pause": () => { enqueue(api => api.pause()); },
+        "stop": () => { enqueue(api => api.stop()); },
         "cancel": () => { enqueue(api => api.cancel()); },
         "finish": () => { enqueue(api => api.finish()); },
         "playOnce": () => { enqueue(api => api.playOnce()); },
@@ -345,10 +336,13 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
 
 /**
  * Everything `createSvgAnimationPlayer` takes except the three the tag supplies (`src`, `container`) or
- * forbids (`data`): callbacks, the diagnostics channel, a playback override and its shortcuts.
+ * forbids (`data`): callbacks, the diagnostics channel, the playback override.
  * @public
  */
-export type PxPageAnimationPlayerOptions = Omit<PxAnimationPlayerOptions, 'src' | 'doc' | 'container' | 'playOnTrigger'>;
+export type PxPageAnimationPlayerOptions = PxPlaybackOverride & PxAnimationPlayerCallbacks & {
+    /** One trigger for EVERY player this call creates, instead of each file's own — the whole block. Absent: each file's. */
+    playOnTrigger?: PxTrigger;
+};
 
 /**
  * Scan the page for `<div data-px-animation-src="animation.json">` and create one player per
@@ -367,8 +361,8 @@ export function createSvgAnimationPlayersFromPage(options?: PxPageAnimationPlaye
         if (!element[PX_ANIM_ATTR_NAME]) {
             const src = element.getAttribute(PX_ANIM_SRC_ATTR_NAME);
             if (src) {
-                // A tag embeds a finished file: the file IS the driver, so `playOnTrigger` is not an option here.
-                const api = createSvgAnimationPlayer({ ...options, src, container: element, playOnTrigger: true });
+                // A tag embeds a finished file: the file IS the driver — unless the call names one trigger for every player.
+                const api = createSvgAnimationPlayer({ ...options, src, container: element, playOnTrigger: options?.playOnTrigger ?? true });
                 element[PX_ANIM_ATTR_NAME] = api;
                 created.push(api);
             }

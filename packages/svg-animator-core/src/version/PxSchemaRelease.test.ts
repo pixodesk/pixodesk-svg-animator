@@ -30,7 +30,7 @@ describe('the release log (5.4)', () => {
 
     it('MUTATION SELF-TEST: a bump with no changelog entry is named', () => {
         // One version PAST the log, whatever the log ends at today.
-        const problems = releaseLogProblems(releases, [step('1.9', PxWireStepKind.additive)], '1.9', PX_WIRE_BASELINE_VERSION);
+        const problems = releaseLogProblems(releases, [step('1.10', PxWireStepKind.additive)], '1.10', PX_WIRE_BASELINE_VERSION);
         expect(problems.join(' ')).toContain('last release record is ' + LATEST_RELEASED);
     });
 

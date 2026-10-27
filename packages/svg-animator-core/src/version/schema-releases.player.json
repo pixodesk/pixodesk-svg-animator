@@ -160,5 +160,35 @@
   "added": [],
   "removed": [],
   "note": "Every value the format defines is camelCase (first-use review §25): `timeline.direction: 'alternate-reverse'` becomes `'alternateReverse'`, and the scroll range phases `'entry-crossing'` / `'exit-crossing'` become `'entryCrossing'` / `'exitCrossing'`. The players spell them the CSS way only where they hand them to the browser."
+ },
+ {
+  "version": "1.9",
+  "date": "2026-10-27",
+  "added": [
+   "animator.timeline|time.completeIterationOnPlayOff",
+   "animator.timeline|time.inViewDebounce",
+   "animator.timeline|time.inViewThreshold",
+   "animator.timeline|time.iterationDirection",
+   "animator.timeline|time.outOfViewAction",
+   "animator.timeline|time.playEndAction",
+   "animator.timeline|time.playOffAction",
+   "animator.timeline|time.playOnAction",
+   "animator.timeline|time.showFirstFrameBeforePlayOn",
+   "animator.timeline|time.trigger.pauseOff",
+   "animator.timeline|time.trigger.pauseOn",
+   "animator.timeline|time.trigger.playOff",
+   "animator.timeline|time.trigger.playOn"
+  ],
+  "removed": [
+   "animator.timeline|time.direction",
+   "animator.timeline|time.fillMode",
+   "animator.timeline|time.finish",
+   "animator.timeline|time.trigger.hoverEnd",
+   "animator.timeline|time.trigger.inViewDebounce",
+   "animator.timeline|time.trigger.inViewThreshold",
+   "animator.timeline|time.trigger.outOfView",
+   "animator.timeline|time.trigger.start"
+  ],
+  "note": "The trigger says only WHEN (dev-docs/plans/component-api.md D5): `start` / `hoverEnd` become the event lists `playOn` / `playOff` / `pauseOn` / `pauseOff`; HOW is the timeline's own — `fillMode` + `finish` become `playEndAction` (+ `showFirstFrameBeforePlayOn`), `direction` becomes `iterationDirection`, the gate keys move up (`outOfView` → `outOfViewAction`), and `playOnAction` / `playOffAction` / `completeIterationOnPlayOff` are new."
  }
 ]

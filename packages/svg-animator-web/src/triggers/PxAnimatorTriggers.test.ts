@@ -4,22 +4,25 @@
  *---------------------------------------------------------------------------------------*/
 
 import { afterEach, assert, beforeEach, describe, expect, it, vi } from 'vitest';
+import { PxDiagnosticCode, type PxAnimatorRuntimeConfig, type PxDiagnostics } from '@pixodesk/svg-animator-core';
 import { setupAnimationTriggers } from './PxAnimatorTriggers';
 import type { PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
 
 
-/** Mock PxAnimationPlayerApi backed by a real jsdom element as the root. */
+/** Mock engine api backed by a real jsdom element as the root. STATEFUL by default: `play` / `pause` /
+ *  `cancel` move `isPlaying`, as the state rule reads it; an override replaces any member. */
 function createMockApi(overrides: Partial<PxEngineAnimationPlayerApi> = {}) {
     const root = document.createElement('div');
     document.body.appendChild(root);
+    let playing = false;
     const api: PxEngineAnimationPlayerApi = {
         isReady: vi.fn(() => true),
         getRootElement: vi.fn(() => root),
-        isPlaying: vi.fn(() => false),
-        play: vi.fn(),
-        pause: vi.fn(),
-        cancel: vi.fn(),
-        finish: vi.fn(),
+        isPlaying: vi.fn(() => playing),
+        play: vi.fn(() => { playing = true; }),
+        pause: vi.fn(() => { playing = false; }),
+        cancel: vi.fn(() => { playing = false; }),
+        finish: vi.fn(() => { playing = false; }),
         setPlaybackRate: vi.fn(),
         getCurrentTime: vi.fn(() => 0),
         setCurrentTime: vi.fn(),
@@ -30,6 +33,13 @@ function createMockApi(overrides: Partial<PxEngineAnimationPlayerApi> = {}) {
     };
     return { api, root };
 }
+
+/** The runtime view the engines pass: a one-second one-shot unless the case says otherwise. */
+const setup = (api: PxEngineAnimationPlayerApi, config: PxAnimatorRuntimeConfig = {}, diag?: PxDiagnostics) =>
+    setupAnimationTriggers(api, { duration: 1000, ...config }, diag);
+
+const CLICK_TOGGLE: PxAnimatorRuntimeConfig = { trigger: { playOn: 'click', pauseOn: 'click' } };
+const HOVER_PAUSES: PxAnimatorRuntimeConfig = { trigger: { playOn: 'hoverIn', pauseOn: 'hoverOut' } };
 
 // the entry fields the gate reads; the heights only matter for a target taller than the viewport
 type IOEntry = { isIntersecting: boolean; intersectionRatio: number; boundingClientRect?: { height: number }; intersectionRect?: { height: number }; rootBounds?: { height: number } };
@@ -65,43 +75,41 @@ describe('setupAnimationTriggers', () => {
         vi.unstubAllGlobals();
     });
 
-    // ── what STARTS it ──────────────────────────────────────────────────────────────
+    // ── what STARTS it: the event lists and the state rule (D5) ────────────────────────
     // jsdom has no IntersectionObserver, so unless a test stubs one the gate FAILS OPEN
     // and these behave exactly as they did before the gate existed.
 
-    it("start 'load': plays immediately when document.readyState is complete", () => {
+    it("playOn 'load': plays immediately when document.readyState is complete", () => {
         expect(document.readyState).toBe('complete'); // jsdom precondition
         const { api } = createMockApi();
 
-        setupAnimationTriggers(api, { start: 'load' });
+        setup(api, { trigger: { playOn: 'load' } });
 
         expect(api.play).toHaveBeenCalledTimes(1);
     });
 
-    it('no start: starts on load — the default every player applies', () => {
+    it('no trigger block: plays on load — the default every player applies', () => {
         const { api } = createMockApi();
 
-        setupAnimationTriggers(api, {});
+        setup(api, {});
 
         expect(api.play).toHaveBeenCalledTimes(1);
     });
 
-    it('a second click always pauses — click is a plain toggle with nothing to configure', () => {
+    it('a second click always pauses — the click toggle lists click in playOn and pauseOn', () => {
         const { api, root } = createMockApi({ isPlaying: vi.fn(() => true) });
-        setupAnimationTriggers(api, { start: 'click' });
+        setup(api, CLICK_TOGGLE);
 
         root.dispatchEvent(new Event('click'));
 
-        // `outAction` used to make this configurable per document; a toggle that sometimes did
-        // not toggle was a trap, and `reverse`/`reset` on a click had no readable meaning.
         expect(api.pause).toHaveBeenCalledTimes(1);
         expect(api.cancel).not.toHaveBeenCalled();
         expect(api.setPlaybackRate).not.toHaveBeenCalled();
     });
 
-    it("start 'hover': mouseenter plays", () => {
+    it("playOn 'hoverIn': mouseenter plays", () => {
         const { api, root } = createMockApi();
-        setupAnimationTriggers(api, { start: 'hover' });
+        setup(api, { trigger: { playOn: 'hoverIn' } });
 
         expect(api.play).not.toHaveBeenCalled();
         root.dispatchEvent(new Event('mouseenter'));
@@ -109,13 +117,13 @@ describe('setupAnimationTriggers', () => {
     });
 
     it.each([
-        { hoverEnd: 'pause' as const, expected: { pause: 1, cancel: 0, setPlaybackRate: 0, play: 1 } },
-        { hoverEnd: 'reset' as const, expected: { pause: 0, cancel: 1, setPlaybackRate: 0, play: 1 } },
-        { hoverEnd: 'reverse' as const, expected: { pause: 0, cancel: 0, setPlaybackRate: 1, play: 2 } },
-        { hoverEnd: 'continue' as const, expected: { pause: 0, cancel: 0, setPlaybackRate: 0, play: 1 } },
-    ])("start 'hover': mouseleave with hoverEnd '$hoverEnd'", ({ hoverEnd, expected }) => {
+        { name: 'pauseOn hoverOut (pause)', config: HOVER_PAUSES, expected: { pause: 1, cancel: 0, setPlaybackRate: 0, play: 1 } },
+        { name: 'playOff hoverOut (reset)', config: { trigger: { playOn: 'hoverIn', playOff: 'hoverOut' } }, expected: { pause: 0, cancel: 1, setPlaybackRate: 0, play: 1 } },
+        { name: 'playOff hoverOut + playOffAction rewind', config: { trigger: { playOn: 'hoverIn', playOff: 'hoverOut' }, playOffAction: 'rewind' }, expected: { pause: 0, cancel: 0, setPlaybackRate: 1, play: 2 } },
+        { name: 'hoverOut not listed (continue)', config: { trigger: { playOn: 'hoverIn' } }, expected: { pause: 0, cancel: 0, setPlaybackRate: 0, play: 1 } },
+    ] satisfies Array<{ name: string; config: PxAnimatorRuntimeConfig; expected: Record<string, number> }>)("hoverIn plays; mouseleave with $name", ({ config, expected }) => {
         const { api, root } = createMockApi();
-        setupAnimationTriggers(api, { start: 'hover', hoverEnd });
+        setup(api, config);
 
         root.dispatchEvent(new Event('mouseenter'));
         root.dispatchEvent(new Event('mouseleave'));
@@ -124,18 +132,14 @@ describe('setupAnimationTriggers', () => {
         expect(api.cancel).toHaveBeenCalledTimes(expected.cancel);
         expect(api.setPlaybackRate).toHaveBeenCalledTimes(expected.setPlaybackRate);
         expect(api.play).toHaveBeenCalledTimes(expected.play);
-        if (hoverEnd === 'reverse') {
+        if (config.playOffAction === 'rewind') {
             expect(api.setPlaybackRate).toHaveBeenCalledWith(-1);
         }
     });
 
-    it("start 'click': toggles — plays when stopped, pauses when playing", () => {
-        const { api, root } = createMockApi({
-            isPlaying: vi.fn()
-                .mockReturnValueOnce(false)
-                .mockReturnValueOnce(true),
-        });
-        setupAnimationTriggers(api, { start: 'click' });
+    it('the click toggle: plays when stopped, pauses when playing', () => {
+        const { api, root } = createMockApi();
+        setup(api, CLICK_TOGGLE);
 
         root.dispatchEvent(new Event('click'));
         expect(api.play).toHaveBeenCalledTimes(1);
@@ -146,20 +150,18 @@ describe('setupAnimationTriggers', () => {
         expect(api.pause).toHaveBeenCalledTimes(1);
     });
 
-    it("start 'click': a resume after the toggle's pause plays forward, never at a stale rate", () => {
-        // Was "click with outAction 'reverse'": a click can no longer reverse, so the rate is
-        // never touched by the toggle — which is exactly what this now pins.
+    it("the click toggle: a resume after the toggle's pause plays forward, never at a stale rate", () => {
+        // `pauseOff` is a copy of `playOn` when omitted: the third click RESUMES, and the rate is
+        // never touched by any of the three.
         const order: Array<string> = [];
+        let playing = false;
         const { api, root } = createMockApi({
-            isPlaying: vi.fn()
-                .mockReturnValueOnce(false)  // 1st click: stopped → play
-                .mockReturnValueOnce(true)   // 2nd click: playing → pause
-                .mockReturnValueOnce(false), // 3rd click: stopped → play again
-            play: vi.fn(() => order.push('play')),
-            pause: vi.fn(() => order.push('pause')),
+            isPlaying: vi.fn(() => playing),
+            play: vi.fn(() => { playing = true; order.push('play'); }),
+            pause: vi.fn(() => { playing = false; order.push('pause'); }),
             setPlaybackRate: vi.fn((rate: number) => order.push('rate:' + rate)),
         });
-        setupAnimationTriggers(api, { start: 'click' });
+        setup(api, CLICK_TOGGLE);
 
         root.dispatchEvent(new Event('click'));
         root.dispatchEvent(new Event('click'));
@@ -168,9 +170,9 @@ describe('setupAnimationTriggers', () => {
         expect(order).toEqual(['play', 'pause', 'play']);
     });
 
-    it("start 'manual': nothing auto-starts and no listeners react", () => {
+    it('the EMPTY trigger: nothing auto-starts and no listeners react', () => {
         const { api, root } = createMockApi();
-        setupAnimationTriggers(api, { start: 'manual' });
+        setup(api, { trigger: {} });
 
         root.dispatchEvent(new Event('click'));
         root.dispatchEvent(new Event('mouseenter'));
@@ -178,6 +180,70 @@ describe('setupAnimationTriggers', () => {
         expect(api.play).not.toHaveBeenCalled();
         expect(api.pause).not.toHaveBeenCalled();
         expect(api.cancel).not.toHaveBeenCalled();
+    });
+
+    it('a list holds one event or several: a click and a hover both play; hover out pauses, either resumes', () => {
+        const { api, root } = createMockApi();
+        setup(api, { trigger: { playOn: ['click', 'hoverIn'], pauseOn: 'hoverOut' } });
+
+        root.dispatchEvent(new Event('click'));
+        expect(api.play).toHaveBeenCalledTimes(1);
+        root.dispatchEvent(new Event('mouseenter'));
+        expect(api.play).toHaveBeenCalledTimes(1);          // already playing: hoverIn is not in pauseOn / playOff
+        root.dispatchEvent(new Event('mouseleave'));
+        expect(api.pause).toHaveBeenCalledTimes(1);
+        root.dispatchEvent(new Event('click'));             // paused: pauseOff = playOn, so a click resumes
+        expect(api.play).toHaveBeenCalledTimes(2);
+    });
+
+    it('the state rule: playOff acts while PAUSED too; a hover out while STOPPED does nothing', () => {
+        const { api, root } = createMockApi();
+        setup(api, { trigger: { playOn: 'click', pauseOn: 'click', playOff: 'hoverOut' } });
+
+        root.dispatchEvent(new Event('mouseenter'));
+        root.dispatchEvent(new Event('mouseleave'));        // stopped: not in playOn → nothing
+        expect(api.cancel).not.toHaveBeenCalled();
+
+        root.dispatchEvent(new Event('click'));             // play
+        root.dispatchEvent(new Event('click'));             // pause
+        root.dispatchEvent(new Event('mouseleave'));        // paused: playOff → the off
+        expect(api.cancel).toHaveBeenCalledTimes(1);
+    });
+
+    it('an event in both playOff and pauseOn is reported (PX1109), and pauseOn wins', () => {
+        const warn = vi.fn();
+        const diag: PxDiagnostics = { warn, error: vi.fn() };
+        const { api, root } = createMockApi();
+        setup(api, { trigger: { playOn: 'hoverIn', playOff: 'hoverOut', pauseOn: 'hoverOut' } }, diag);
+
+        expect(warn).toHaveBeenCalledTimes(1);
+        expect(warn.mock.calls[0]).toContain(PxDiagnosticCode.triggerEventConflict);
+        root.dispatchEvent(new Event('mouseenter'));
+        root.dispatchEvent(new Event('mouseleave'));
+        expect(api.pause).toHaveBeenCalledTimes(1);
+        expect(api.cancel).not.toHaveBeenCalled();
+    });
+
+    it("playOnAction 'restart': a play-on while stopped midway begins a fresh run", () => {
+        const order: Array<string> = [];
+        const { api, root } = createMockApi({
+            getCurrentTime: vi.fn(() => 300),
+            play: vi.fn(() => order.push('play')),
+            cancel: vi.fn(() => order.push('cancel')),
+        });
+        setup(api, { trigger: { playOn: 'click' }, playOnAction: 'restart' });
+
+        root.dispatchEvent(new Event('click'));
+
+        expect(order).toEqual(['cancel', 'play']);
+    });
+
+    it('attaches the executor to the api, so the composed api and the triggers share ONE state', () => {
+        const { api } = createMockApi();
+        setup(api, { trigger: {} });
+
+        expect(api.playExecutor).toBeDefined();
+        expect(api.playExecutor?.state()).toBe('stopped');
     });
 
     // ── whether it may RUN: the visibility gate ─────────────────────────────────────
@@ -187,7 +253,7 @@ describe('setupAnimationTriggers', () => {
         it('observes the root; the DEFAULT threshold is 0.5 — a barely-visible element waits', () => {
             const io = stubIntersectionObserver();
             const { api, root } = createMockApi();
-            setupAnimationTriggers(api, { inViewDebounce: 0 });
+            setup(api, { inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             expect(io.observed).toBe(root);
@@ -207,10 +273,10 @@ describe('setupAnimationTriggers', () => {
             expect(api.play).toHaveBeenCalledTimes(1);
         });
 
-        it('leaving the viewport runs the outOfView action', () => {
+        it('leaving the viewport runs the outOfViewAction', () => {
             const io = stubIntersectionObserver();
-            const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
-            setupAnimationTriggers(api, { outOfView: 'pause', inViewDebounce: 0 });
+            const { api } = createMockApi();
+            setup(api, { outOfViewAction: 'pause', inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -223,7 +289,7 @@ describe('setupAnimationTriggers', () => {
         it('honors inViewThreshold: intersecting below the threshold does not play', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setupAnimationTriggers(api, { inViewThreshold: 0.8, inViewDebounce: 0 });
+            setup(api, { inViewThreshold: 0.8, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             // See the note above: the registration is a granular list; the 0.8 gate is applied to
@@ -240,7 +306,7 @@ describe('setupAnimationTriggers', () => {
         it('inViewThreshold 0 means ANY visible pixel — zero visibility still keeps it shut', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setupAnimationTriggers(api, { inViewThreshold: 0, inViewDebounce: 0 });
+            setup(api, { inViewThreshold: 0, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             // Not intersecting at all: a threshold of 0 is "any pixel", not "no pixels".
@@ -254,8 +320,8 @@ describe('setupAnimationTriggers', () => {
 
         it('HYSTERESIS: once open it stays open until zero, so a graphic on the boundary cannot flap', () => {
             const io = stubIntersectionObserver();
-            const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
-            setupAnimationTriggers(api, { inViewThreshold: 0.5, inViewDebounce: 0 });
+            const { api } = createMockApi();
+            setup(api, { inViewThreshold: 0.5, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 0.6 }]);   // opens
@@ -269,10 +335,10 @@ describe('setupAnimationTriggers', () => {
             expect(api.pause).toHaveBeenCalledTimes(1);
         });
 
-        it("outOfView 'reset' replays from the start on the next entry", () => {
+        it("outOfViewAction 'reset' replays from the start on the next entry", () => {
             const io = stubIntersectionObserver();
-            const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
-            setupAnimationTriggers(api, { outOfView: 'reset', inViewDebounce: 0 });
+            const { api } = createMockApi();
+            setup(api, { outOfViewAction: 'reset', inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -284,10 +350,10 @@ describe('setupAnimationTriggers', () => {
             expect(api.play).toHaveBeenCalledTimes(2);   // the replay
         });
 
-        it("outOfView 'continue' observes nothing at all and starts unseen", () => {
+        it("outOfViewAction 'continue' observes nothing at all and starts unseen", () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setupAnimationTriggers(api, { outOfView: 'continue' });
+            setup(api, { outOfViewAction: 'continue' });
 
             // "Run wherever it is" also means "do not wait to be seen before starting".
             expect(io.observed).toBeNull();
@@ -297,7 +363,7 @@ describe('setupAnimationTriggers', () => {
         it('a target TALLER than the viewport is normalized, so a 0.5 threshold is reachable', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setupAnimationTriggers(api, { inViewThreshold: 0.5, inViewDebounce: 0 });
+            setup(api, { inViewThreshold: 0.5, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             // 2000px graphic, 800px viewport: the raw ratio can never exceed 0.4, so an
@@ -316,8 +382,8 @@ describe('setupAnimationTriggers', () => {
 
         it('a hidden TAB counts as off screen', () => {
             const io = stubIntersectionObserver();
-            const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
-            setupAnimationTriggers(api, { inViewDebounce: 0 });
+            const { api } = createMockApi();
+            setup(api, { inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -337,20 +403,20 @@ describe('setupAnimationTriggers', () => {
             vi.stubGlobal('IntersectionObserver', undefined);
             const { api } = createMockApi();
 
-            setupAnimationTriggers(api, { start: 'load' });
+            setup(api, { trigger: { playOn: 'load' } });
 
             // Never "silently never plays": a page that cannot measure animates.
             expect(api.play).toHaveBeenCalledTimes(1);
         });
 
-        it("start 'manual' is gated too, so an API-started animation pauses off screen", () => {
+        it('the EMPTY trigger is gated too, so an API-started animation pauses off screen', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
-            setupAnimationTriggers(api, { start: 'manual', inViewDebounce: 0 });
+            setup(api, { trigger: {}, inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
-            // Was "creates NO IntersectionObserver": the gate is about permission to RUN, which
-            // applies however playback started — including a bare `play()` from the host.
+            // The gate is about permission to RUN, which applies however playback started —
+            // including a bare `play()` from the host.
             expect(io.observed).not.toBeNull();
             io.callback([{ isIntersecting: false, intersectionRatio: 0 }]);
             expect(api.pause).toHaveBeenCalledTimes(1);
@@ -367,7 +433,7 @@ describe('setupAnimationTriggers', () => {
         it('a graphic scrolled straight past never plays a frame', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setupAnimationTriggers(api, {});   // default 150ms
+            setup(api, {});   // default 150ms
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -382,7 +448,7 @@ describe('setupAnimationTriggers', () => {
         it('one that stays plays when the dwell has elapsed, and not before', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setupAnimationTriggers(api, {});
+            setup(api, {});
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -396,7 +462,7 @@ describe('setupAnimationTriggers', () => {
         it('falling back BELOW the threshold abandons a pending start', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setupAnimationTriggers(api, { inViewThreshold: 0.5 });
+            setup(api, { inViewThreshold: 0.5 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 0.9 }]);
@@ -409,7 +475,7 @@ describe('setupAnimationTriggers', () => {
         it('0 plays the moment the threshold is met', () => {
             const io = stubIntersectionObserver();
             const { api } = createMockApi();
-            setupAnimationTriggers(api, { inViewDebounce: 0 });
+            setup(api, { inViewDebounce: 0 });
             assert(io.callback, 'the gate created no IntersectionObserver');
 
             io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -419,7 +485,7 @@ describe('setupAnimationTriggers', () => {
         it('a click plays immediately rather than waiting out a timer nobody can see', () => {
             stubIntersectionObserver();
             const { api, root } = createMockApi();
-            setupAnimationTriggers(api, { start: 'click' });
+            setup(api, CLICK_TOGGLE);
 
             root.dispatchEvent(new Event('click'));
 
@@ -431,53 +497,58 @@ describe('setupAnimationTriggers', () => {
     //    mirrored here so the LIB's own suite (this file) also guards them ─────────────
 
     it('repeated clicks keep toggling, and the toggle always reads the live playing state', () => {
+        let playing = false;
         const { api, root } = createMockApi({
-            isPlaying: vi.fn()
-                .mockReturnValueOnce(false)  // 1st click: stopped → play
-                .mockReturnValueOnce(true)   // 2nd click: playing → pause
-                .mockReturnValueOnce(true),  // 3rd click: still reported playing → pause again
+            isPlaying: vi.fn(() => playing),
+            play: vi.fn(() => { playing = true; }),
+            pause: vi.fn(() => { playing = false; }),
         });
-        setupAnimationTriggers(api, { start: 'click' });
+        setup(api, CLICK_TOGGLE);
 
-        root.dispatchEvent(new Event('click'));
-        root.dispatchEvent(new Event('click'));
-        root.dispatchEvent(new Event('click'));
+        root.dispatchEvent(new Event('click'));   // stopped → play
+        root.dispatchEvent(new Event('click'));   // playing → pause
+        playing = true;                           // the host played it again through the api
+        root.dispatchEvent(new Event('click'));   // reported playing → pause again
 
         expect(api.play).toHaveBeenCalledTimes(1);
         expect(api.pause).toHaveBeenCalledTimes(2);
         expect(api.setPlaybackRate).not.toHaveBeenCalled();
     });
 
-    it("hover·reverse: re-enter during reverse playback restores FORWARD playback before play", () => {
+    it('hover-out rewind: a hover-in during the rewind turns it around — FORWARD before play', () => {
         const order: Array<string> = [];
+        let playing = false;
         const { api, root } = createMockApi({
-            play: vi.fn(() => order.push('play')),
+            isPlaying: vi.fn(() => playing),
+            play: vi.fn(() => { playing = true; order.push('play'); }),
+            cancel: vi.fn(() => { playing = false; order.push('cancel'); }),
             setPlaybackRate: vi.fn((rate: number) => order.push('rate:' + rate)),
         });
-        setupAnimationTriggers(api, { start: 'hover', hoverEnd: 'reverse' });
+        setup(api, { trigger: { playOn: 'hoverIn', playOff: 'hoverOut' }, playOffAction: 'rewind' });
 
         root.dispatchEvent(new Event('mouseenter'));   // start (forward, no rate call)
-        root.dispatchEvent(new Event('mouseleave'));   // reverse: rate -1, play
+        root.dispatchEvent(new Event('mouseleave'));   // rewind: rate -1, play
         root.dispatchEvent(new Event('mouseenter'));   // re-enter: rate 1 BEFORE play
 
         expect(order).toEqual(['play', 'rate:-1', 'play', 'rate:1', 'play']);
     });
 
-    it('a plain (never-reversed) restart never touches the playback rate — custom API rates survive', () => {
+    it('a plain (never-rewound) resume never touches the playback rate — custom API rates survive', () => {
         const { api, root } = createMockApi();
-        setupAnimationTriggers(api, { start: 'hover', hoverEnd: 'pause' });
+        setup(api, HOVER_PAUSES);
 
         root.dispatchEvent(new Event('mouseenter'));
         root.dispatchEvent(new Event('mouseleave'));
         root.dispatchEvent(new Event('mouseenter'));
 
         expect(api.setPlaybackRate).not.toHaveBeenCalled();
+        expect(api.play).toHaveBeenCalledTimes(2);
     });
 
-    it("outOfView 'pause' then returning resumes from where it paused", () => {
+    it("outOfViewAction 'pause' then returning resumes from where it paused", () => {
         const io = stubIntersectionObserver();
-        const { api } = createMockApi({ isPlaying: vi.fn(() => true) });
-        setupAnimationTriggers(api, { outOfView: 'pause', inViewDebounce: 0 });
+        const { api } = createMockApi();
+        setup(api, { outOfViewAction: 'pause', inViewDebounce: 0 });
         assert(io.callback, 'the gate created no IntersectionObserver');
 
         io.callback([{ isIntersecting: true, intersectionRatio: 1 }]);
@@ -489,10 +560,10 @@ describe('setupAnimationTriggers', () => {
         expect(api.play).toHaveBeenCalledTimes(2);
     });
 
-    it("start 'load' before the document finishes loading: plays on the window 'load' event", () => {
+    it("playOn 'load' before the document finishes loading: plays on the window 'load' event", () => {
         const readyStateSpy = vi.spyOn(document, 'readyState', 'get').mockReturnValue('loading');
         const { api } = createMockApi();
-        setupAnimationTriggers(api, { start: 'load' });
+        setup(api, { trigger: { playOn: 'load' } });
 
         expect(api.play).not.toHaveBeenCalled();
         window.dispatchEvent(new Event('load'));
@@ -506,7 +577,7 @@ describe('setupAnimationTriggers', () => {
 
         // Used to return the api "for chaining" (review §14). A disposer is what a caller can
         // actually use — and with nothing attached, it must simply be safe to call.
-        const dispose = setupAnimationTriggers(api, { start: 'load' });
+        const dispose = setup(api, { trigger: { playOn: 'load' } });
 
         expect(typeof dispose).toBe('function');
         expect(() => dispose()).not.toThrow();
@@ -517,7 +588,7 @@ describe('setupAnimationTriggers', () => {
 
     it('the disposer detaches every listener it attached (review §14)', () => {
         const { api, root } = createMockApi();
-        const dispose = setupAnimationTriggers(api, { start: 'hover' });
+        const dispose = setup(api, { trigger: { playOn: 'hoverIn' } });
 
         root.dispatchEvent(new Event('mouseenter'));
         expect(api.play).toHaveBeenCalledTimes(1);
@@ -530,7 +601,7 @@ describe('setupAnimationTriggers', () => {
     it('the disposer also disconnects the visibility observer', () => {
         const io = stubIntersectionObserver();
         const { api } = createMockApi();
-        const dispose = setupAnimationTriggers(api, { start: 'load' });
+        const dispose = setup(api, { trigger: { playOn: 'load' } });
 
         dispose();
         expect(io.disconnected).toBe(1);

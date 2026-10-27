@@ -12,7 +12,7 @@ function makeDoc(): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 200 200',
-        animator: { timeline: { engine: 'js', outTime: 1000, iterations: 2, direction: 'alternate' } },
+        animator: { timeline: { engine: 'js', outTime: 1000, iterations: 2, iterationDirection: 'alternate' } },
         children: [
             {
                 type: 'rect',

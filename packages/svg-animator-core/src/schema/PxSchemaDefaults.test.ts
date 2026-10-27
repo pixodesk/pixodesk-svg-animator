@@ -10,7 +10,7 @@
 // `pause` to the Editor), (3) that the runtime's own fallbacks are the schema's.
 
 import { describe, expect, it } from 'vitest';
-import { resolveAnimatorTimeline, getAnimatorConfig, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_TRIGGER_DEFAULTS, PxFinishAction, PxTriggerStart, resolveTrigger } from '../format/PxAnimatorConstants';
+import { resolveAnimatorTimeline, getAnimatorConfig, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_PLAYBACK_DEFAULTS, PxPlayEndAction, PxTriggerEvent, resolveTrigger } from '../format/PxAnimatorConstants';
 import {
     PxDocumentSchema, PxAnimatorConfigSchema, PxCloneEffectSchema, PxFillGradientEffectSchema, PxGlyphFontSchema, PxLoopSchema, PxMaskedByEffectSchema,
     PxPropertyAnimationSchema, PxScrollRangePointSchema, PxScrollSchema, PxStrokeTrimEffectSchema, PxTextPathEffectSchema, PxTimelineSchema,
@@ -81,18 +81,20 @@ describe('schema.defaults — what an absent field means', () => {
         expect(unstated, 'optional choices whose schema does not say what absent means').toEqual([]);
     });
 
-    it('the trigger resolver fills exactly the schema\'s stated defaults', () => {
-        // The schema states exactly the constants the runtime is built from. `finish` is no
-        // longer a trigger key — it moved next to `fillMode` (review §13, wire 1.4).
-        expect(PxTriggerSchema.defaults).toEqual(PX_TRIGGER_DEFAULTS);
-        expect(resolveTrigger(undefined)).toEqual(PX_TRIGGER_DEFAULTS);
-        // `timeline.finish` reaches the engines as the runtime view's `resetOnFinish`,
+    it('the play keys\' stated defaults are exactly the constants the runtime is built from', () => {
+        // The timeline states every play / gate default (D5); the one that is not a timeline key —
+        // what an ABSENT trigger block plays on — is the resolver's.
+        const { playOn, ...timelineDefaults } = PX_PLAYBACK_DEFAULTS;
+        expect(PxTimeTimelineSchema.defaults).toMatchObject(timelineDefaults);
+        expect(PxTriggerSchema.defaults).toEqual({});
+        expect(resolveTrigger(undefined).playOn).toEqual([playOn]);
+        // `timeline.playEndAction` reaches the engines as the runtime view's `resetOnFinish`,
         // where absent = hold = not set. The PRE-1.4 `trigger.finish` spelling is no longer read.
-        expect(PxTimeTimelineSchema.defaults.finish).toBe(PxFinishAction.hold);
-        const flat = resolveAnimatorTimeline({ timeline: { trigger: { start: PxTriggerStart.load } } });
+        expect(PxTimeTimelineSchema.defaults.playEndAction).toBe(PxPlayEndAction.hold);
+        const flat = resolveAnimatorTimeline({ timeline: { trigger: { playOn: PxTriggerEvent.load } } });
         expect(flat.resetOnFinish).toBeFalsy();
-        expect(resolveAnimatorTimeline({ timeline: { finish: PxFinishAction.reset } }).resetOnFinish).toBe(true);
-        expect(resolveAnimatorTimeline({ timeline: { trigger: untyped<PxTrigger>({ finish: PxFinishAction.reset }) } }).resetOnFinish).toBeUndefined();
+        expect(resolveAnimatorTimeline({ timeline: { playEndAction: PxPlayEndAction.reset } }).resetOnFinish).toBe(true);
+        expect(resolveAnimatorTimeline({ timeline: { trigger: untyped<PxTrigger>({ finish: 'reset' }) } }).resetOnFinish).toBeUndefined();
     });
 
     it('the timeline numbers the runtime falls back to are the schema\'s', () => {
@@ -113,14 +115,13 @@ describe('schema.defaults — what an absent field means', () => {
         expect(PxGlyphFontSchema.isValid({ ...font, unitsPerEm: 2048 })).toBe(true);
     });
 
-    it('the reported document: an omitted hoverEnd means `pause`, on hover', () => {
+    it('the reported document: an omitted pauseOff is the playOn list — hovering in resumes what hovering out paused', () => {
         const doc: PxDocument = {
             type: 'svg', viewBox: '0 0 400 400',
-            animator: { timeline: { outTime: 1000, iterations: 1, trigger: { start: 'hover' } } },
+            animator: { timeline: { outTime: 1000, iterations: 1, trigger: { playOn: 'hoverIn', pauseOn: 'hoverOut' } } },
             children: [],
         };
-        expect(resolveTrigger(getAnimatorConfig(doc)?.trigger).hoverEnd).toBe(PxTriggerSchema.defaults.hoverEnd);
-        expect(PxTriggerSchema.defaults.hoverEnd).toBe('pause');
+        expect(resolveTrigger(getAnimatorConfig(doc)?.trigger).pauseOff).toEqual(['hoverIn']);
     });
 
     it('the document and config roots state no scalar defaults of their own (nothing to drift)', () => {

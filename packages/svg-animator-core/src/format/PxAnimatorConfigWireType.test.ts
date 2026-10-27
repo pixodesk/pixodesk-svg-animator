@@ -24,8 +24,8 @@ describe('the animator type is the written shape', () => {
     });
 
     it('the runtime view goes back to the written shape through nestAnimatorTimeline', () => {
-        const flat: PxAnimatorRuntimeConfig = { duration: 2000, trigger: { start: 'click' } };
+        const flat: PxAnimatorRuntimeConfig = { duration: 2000, trigger: { playOn: 'click' } };
         const written: PxAnimatorConfig = nestAnimatorTimeline(flat);
-        expect(written).toEqual({ timeline: { outTime: 2000, trigger: { start: 'click' } } });
+        expect(written).toEqual({ timeline: { outTime: 2000, trigger: { playOn: 'click' } } });
     });
 });

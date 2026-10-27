@@ -25,13 +25,13 @@ export {
 } from './playback/PxPlaybackTime';
 
 // A mount's timeline override folded into the file's; a component taking over the start
-export { foldTimelineOverride, suppressTriggerStart } from './playback/PxAnimatorConfigPatch';
+export { applyPlaybackOverride, withTrigger, withoutTriggerDriver } from './playback/PxAnimatorConfigPatch';
 
 // ONE control-mode rule for react / vue / rn (API review §1, §7) — logic + warning text
 export { PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from './format/PxAnimatorConstants';
 export type { PxControlProps } from './format/PxAnimatorConstants';
-export { PxPlaybackWorld, PxDeclarativeAction, resolvePlaybackWorld, resolveDeclarativePlayback, applyDeclarativeAction, createIterationStopWatcher, composeApiExtras } from './playback/PxDeclarativePlayback';
-export type { PxDeclarativeProps, PxDeclarativeArgs, PxDeclarativeRunContext, PxDeclarativeTarget, PxPlayOnceConfig, PxPlayOnceTarget } from './playback/PxDeclarativePlayback';
+export { PxPlaybackWorld, PxDeclarativeAction, resolvePlaybackWorld, resolveDeclarativePlayback, applyDeclarativeAction, createPlayExecutor, ensurePlayExecutor, executorConfigOf, composeApiExtras } from './playback/PxDeclarativePlayback';
+export type { PxDeclarativeProps, PxDeclarativeArgs, PxDeclarativeTarget, PxPlayTarget, PxPlayExecutorConfig, PxApiExtrasConfig, PxApiExtrasTarget, PxApiExtras } from './playback/PxDeclarativePlayback';
 
 // The engine's runtime form — one typed channel per animated property
 export { calcAnimationValues, normalizeBindings } from './animation/PxDefinitions';
@@ -39,10 +39,12 @@ export { PxValueKind } from './format/PxAnimatorConstants';
 export type { PxNormalizedBinding, PxRuntimeAnimation } from './animation/PxRuntimeChannel';
 
 // Which trigger, which engine
-export { resolveTrigger, resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline } from './format/PxAnimatorConstants';
+export { resolveTrigger, resolveGate, triggerEventList, triggerConflicts, triggerListsEvent, triggerActionFor, fillModeOf, resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline } from './format/PxAnimatorConstants';
 
 // Adapter-driven frame-loop engine (platform-neutral playback) + the node props every renderer shares
 export { createAdapterSvgAnimationPlayer } from './playback/PxFrameLoop';
 export type { PxPlatformAdapter } from './playback/PxFrameLoop';
 export type { PxEngineAnimationPlayerApi } from './format/PxAnimatorTypes';
 export { toDomProps } from './util/PxNodeProps';
+
+export type { PxResolvedTrigger, PxResolvedGate } from './format/PxAnimatorConstants';

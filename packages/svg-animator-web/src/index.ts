@@ -50,7 +50,13 @@ export type {
     PxNode,
     PxSvgNode,
     PxTrigger,
-    PxTriggerStart,
+    PxTriggerEvent,
+    PxTriggerEvents,
+    PxPlayOnAction,
+    PxPlayOffAction,
+    PxPlayEndAction,
+    PxOutOfViewAction,
+    PxPlayExecutor,
 } from '@pixodesk/svg-animator-core';
 
 // DOM specializations — on the web `getRootElement()` returns a DOM Element.
@@ -64,7 +70,7 @@ export { PxDiagnosticKind } from '@pixodesk/svg-animator-core';
 export type { PxDiagnostic, PxDiagnostics, PxDiagnosticsConfig } from '@pixodesk/svg-animator-core';
 
 // The shapes every framework component shares (review §9) — one definition, three aliases.
-export type { PxAnimationPlayerCallbacks, PxPlaybackOverride } from '@pixodesk/svg-animator-core';
+export type { PxAnimationPlayerCallbacks, PxPlaybackOverride, PxPlaybackOverrideInput, PxTimelineWithoutTrigger } from '@pixodesk/svg-animator-core';
 
 // The time contract (review §3) and the trigger defaults, so the components map `progress` and
 // thresholds with core's rule instead of re-deriving it.
@@ -117,7 +123,7 @@ export type { PxAnimationPlayerRegistry, PxAnimationPlayersEvent, PxAnimationPla
 // explicitly (Editor's test harnesses do).
 export {
     // One `Px*` const per wire enum (review §2.7) — forwarded so React/Vue can name values.
-    // The four that are also re-exported as TYPES above (PxFillMode, PxOutOfViewAction,
-    // PxPlaybackDirection, PxTriggerStart) must not be repeated here: same identifier, one export.
+    // The ones that are also re-exported as TYPES above (PxFillMode, PxOutOfViewAction, PxPlaybackDirection,
+    // PxTriggerEvent, PxPlayOnAction, PxPlayOffAction, PxPlayEndAction) must not be repeated here: same identifier, one export.
     validateDocument,
 } from '@pixodesk/svg-animator-core';

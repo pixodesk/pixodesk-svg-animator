@@ -43,6 +43,7 @@ export function createInertAnimator(): PxAnimationPlayerApi {
         isPlaying: () => false,
         play: () => {},
         pause: () => {},
+        stop: () => {},
         cancel: () => {},
         finish: () => {},
         playOnce: () => {},

@@ -10,7 +10,7 @@ import { cssPlaybackDirection, PX_DEFAULT_ITERATIONS, mapChannelKeyframes, type 
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformParts, cubicBezier, kebabToCamelCaseWord, splitEasing, toRGBA, createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import { getSelector } from './PxAnimatorFrameLoop';
 import { setupAnimationTriggers } from '../triggers/PxAnimatorTriggers';
-import type { PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
+import type { PxEngineAnimationPlayerApi, PxNativeRangeOffset } from '../shared/PxAnimatorWebTypes';
 
 
 /** One WAAPI keyframe's CSS: the property it writes and the value, before the `offset` / `easing`. */
@@ -179,8 +179,8 @@ export function convertToWebApiKeyframes(
  *  browser-native timeline every Animation attaches to, plus optional range offsets. */
 export interface PxWebApiScrollTimeline {
     timeline: AnimationTimeline;
-    rangeStart?: Record<string, unknown>;
-    rangeEnd?: Record<string, unknown>;
+    rangeStart?: PxNativeRangeOffset;
+    rangeEnd?: PxNativeRangeOffset;
 }
 
 // @px-importance important
@@ -437,13 +437,13 @@ export function createWebApiAnimator(
 
     // D3 (scroll-timeline.design.md): triggers are inert on a scroll-driven document —
     // writers must not emit them; a doc that carries them anyway gets a warning.
-    // Every time-driven document IS wired: no `trigger` means the defaults (`start` 'load',
-    // `outOfView` 'pause' — so an unseen animation does not run).
+    // Every time-driven document IS wired: no `trigger` means the defaults (`playOn: 'load'` behind
+    // the gate's `outOfViewAction: 'pause'` — so an unseen animation does not run).
     if (config.timelineSource === 'scroll') {
         if (config.trigger) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);
     } else {
         // The disposer rides on destroy(), so the listeners go when the animator does (§14).
-        const detachTriggers = setupAnimationTriggers(api, config.trigger ?? {}, diag);
+        const detachTriggers = setupAnimationTriggers(api, config, diag);
         const destroyEngine = api.destroy.bind(api);
         api.destroy = () => { detachTriggers(); destroyEngine(); };
     }

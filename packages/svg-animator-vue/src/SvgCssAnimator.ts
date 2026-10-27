@@ -4,12 +4,11 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PX_TRIGGER_DEFAULTS, PxHoverEndAction, PxOutOfViewAction, PxTriggerStart } from '@pixodesk/svg-animator-core';
+import { PxPlayState, PxTriggerAction, PxTriggerEvent, type PxOutOfViewAction, type PxTrigger } from '@pixodesk/svg-animator-core';
+import { resolveGate, resolveTrigger, triggerActionFor, triggerListsEvent } from '@pixodesk/svg-animator-core/engine';
 import { createVisibilityGate, type PxVisibilityGate } from '@pixodesk/svg-animator-web/internal';
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch, type PropType } from 'vue';
 
-
-type AnimState = 'idle' | 'paused' | 'playing';
 
 /**
  * Controls playback of SVG+CSS animated files by toggling class names on a wrapper div.
@@ -24,44 +23,35 @@ type AnimState = 'idle' | 'paused' | 'playing';
  * </script>
  *
  * <template>
- *   <SvgCssAnimationPlayer start="hover" hoverEnd="pause">
+ *   <SvgCssAnimationPlayer :trigger="{ playOn: 'hoverIn', pauseOn: 'hoverOut' }">
  *     <AnimationSvg />
  *   </SvgCssAnimationPlayer>
  * </template>
  * ```
  *
- * The wrapper div carries one of three animation states via CSS class names:
- * - *(no class)*           — idle, animation not started
- * - `px-anim-enabled`      — started but paused
- * - `px-anim-enabled px-anim-playing` — actively playing
+ * The wrapper div carries one of three states via CSS class names:
+ * - *(no class)*                        — stopped
+ * - `px-anim-enabled`                   — paused
+ * - `px-anim-enabled px-anim-playing`   — playing
  *
- * TWO AXES, the same two the JSON player has: `start` says what STARTS it, `outOfView` says
- * whether it may RUN. The gate itself is the player's (`createVisibilityGate`), so the threshold,
- * the dwell, the hysteresis and the hidden-tab rule cannot drift between the two.
+ * The trigger is the JSON player's (dev-docs/plans/component-api.md D5): four event lists — `playOn`,
+ * `playOff`, `pauseOn`, `pauseOff` — over the events `load`, `hoverIn`, `hoverOut`, `click`, read by the
+ * same state rule (core's `triggerActionFor`) and gated by the same visibility gate
+ * (`createVisibilityGate`), so the two players cannot drift. An absent `trigger` plays on load; an
+ * empty one lists nothing.
  *
- * @prop start     - What starts the animation:
- *   - `'load'`      — plays as soon as it is visible enough (default)
- *   - `'hover'` — plays on hover
- *   - `'click'`     — plays on click, toggles on second click
- *   - `'manual'`      — **not supported here.** This wrapper exposes no `play()`, so there is
- *                     nothing to wait for and the animation never starts. The prop keeps the
- *                     shared `PxTriggerStart` type (one enum per wire key), so the value
- *                     type-checks — it simply has no effect. Use `SvgAnimationPlayer` (the JSON
- *                     player) when you need to start an animation from code.
- * @prop outOfView - What happens while none of it is on screen:
- *   - `'pause'`    — pauses at the current frame (default); resumes when it comes back
- *   - `'continue'` — keeps playing, and starts without waiting to be seen
- *   - `'reset'`    — back to the beginning, so it replays on the next entry
- * @prop hoverEnd  - What happens when the pointer leaves, for `start: 'hover'`:
- *   - `'pause'`    — pauses at the current frame (default)
- *   - `'continue'` — keeps playing
- *   - `'reset'`    — resets to the beginning
- *   - `'reverse'`  — **acts as `'continue'` here.** A CSS class toggle cannot run keyframes
- *                    backwards. Accepted so the prop keeps the shared `PxHoverEndAction` type.
- * @prop inViewThreshold - How much of the element must be on screen (0–1) before it may run.
- *   Defaults to the wire default (`0.5`), the same as the JSON player.
- * @prop inViewDebounce  - How long that must hold, in ms, before it starts. Defaults to the
- *   wire default (`150`).
+ * ACCEPTED LIMITS of a class toggle (the editor shows them next to the choices):
+ * - `playOnAction` is always `resume` — a class cannot restart keyframes or jump to their end
+ * - `playOffAction` is always `reset` — a class cannot play keyframes backwards
+ * - `completeIterationOnPlayOff`, `showFirstFrameBeforePlayOn` and `playEndAction` are the file's own CSS
+ *
+ * @prop trigger   - WHEN: the file's own `timeline.trigger` block — `playOn`, `playOff`, `pauseOn`, `pauseOff`,
+ *   each one event or a list of them.
+ * @prop outOfViewAction - What happens while none of it is on screen (the timeline's key; default `'pause'`):
+ *   `'pause'` pauses at the current frame and resumes when it comes back, `'continue'` keeps playing and starts
+ *   without waiting to be seen, `'reset'` goes back to the beginning so it replays on the next entry.
+ * @prop inViewThreshold - How much of the element must be on screen (0–1) before it may run (default `0.5`).
+ * @prop inViewDebounce  - How long that must hold, in ms, before it starts (default `150`).
  * @public
  */
 const SvgCssAnimationPlayer = defineComponent({
@@ -70,65 +60,67 @@ const SvgCssAnimationPlayer = defineComponent({
     // apply them — otherwise a host class lands on the div twice.
     inheritAttrs: false,
     props: {
-        start:     { type: String as PropType<PxTriggerStart>,    default: PX_TRIGGER_DEFAULTS.start },
-        outOfView: { type: String as PropType<PxOutOfViewAction>, default: PX_TRIGGER_DEFAULTS.outOfView },
-        hoverEnd:  { type: String as PropType<PxHoverEndAction>,  default: PX_TRIGGER_DEFAULTS.hoverEnd },
-        inViewThreshold: { type: Number, default: PX_TRIGGER_DEFAULTS.inViewThreshold },
-        inViewDebounce:  { type: Number, default: PX_TRIGGER_DEFAULTS.inViewDebounce },
+        trigger: { type: Object as PropType<PxTrigger> },
+        outOfViewAction: { type: String as PropType<PxOutOfViewAction> },
+        inViewThreshold: { type: Number },
+        inViewDebounce: { type: Number },
     },
     setup(props, { slots, attrs }) {
-        const state = ref<AnimState>('idle');
+        // one rule with the JSON player: the lists normalised, the gate keys defaulted
+        const resolved = computed(() => resolveTrigger(props.trigger));
+        const gateConfig = computed(() => resolveGate({
+            outOfViewAction: props.outOfViewAction, inViewThreshold: props.inViewThreshold, inViewDebounce: props.inViewDebounce,
+        }));
+        const playsOnLoad = computed(() => resolved.value.playOn.includes(PxTriggerEvent.load));
+        const state = ref<PxPlayState>(PxPlayState.stopped);
         const el = ref<HTMLDivElement | null>(null);
         let gate: PxVisibilityGate | null = null;
-
-        const goOut = (): void => {
-            state.value =
-                props.hoverEnd === PxHoverEndAction.reset ? 'idle' :
-                props.hoverEnd === PxHoverEndAction.pause ? 'paused' : 'playing';
-        };
 
         const attach = (): void => {
             gate?.dispose();
             gate = null;
             const node = el.value;
             if (!node) return;
-            gate = createVisibilityGate(node, {
-                start: props.start,
-                outOfView: props.outOfView,
-                hoverEnd: props.hoverEnd,
-                inViewThreshold: props.inViewThreshold,
-                inViewDebounce: props.inViewDebounce,
-            }, {
-                isPlaying: () => state.value === 'playing',
-                play: () => { state.value = 'playing'; },
-                pause: () => { state.value = 'paused'; },
-                cancel: () => { state.value = 'idle'; },
+            gate = createVisibilityGate(node, gateConfig.value, {
+                isPlaying: () => state.value === PxPlayState.playing,
+                start: () => { state.value = PxPlayState.playing; },
+                hold: () => { state.value = PxPlayState.paused; },
+                release: () => { state.value = PxPlayState.playing; },
+                reset: () => { state.value = PxPlayState.stopped; },
             });
             // Only `load` is held by the gate; a hover or a click is aimed at something seen.
-            if (props.start === PxTriggerStart.load) gate.requestStart(false);
+            if (playsOnLoad.value) gate.requestStart(false);
         };
 
         onMounted(attach);
-        watch(() => [props.start, props.outOfView, props.hoverEnd, props.inViewThreshold, props.inViewDebounce], attach);
+        watch([gateConfig, playsOnLoad], attach);
         onBeforeUnmount(() => { gate?.dispose(); gate = null; });
 
-        const requestStart = (): void => {
-            if (gate) gate.requestStart(true);
-            else state.value = 'playing';
+        /** The state rule — the player's own, on the class state. */
+        const fire = (event: PxTriggerEvent): void => {
+            switch (triggerActionFor(resolved.value, state.value, event)) {
+                case PxTriggerAction.play:
+                    if (gate) gate.requestStart(true);
+                    else state.value = PxPlayState.playing;
+                    break;
+                case PxTriggerAction.pause: state.value = PxPlayState.paused; break;
+                case PxTriggerAction.off: state.value = PxPlayState.stopped; break;
+            }
         };
 
         const cssClass = computed(() =>
-            state.value === 'playing' ? 'px-anim-enabled px-anim-playing' :
-            state.value === 'paused' ? 'px-anim-enabled' : ''
+            state.value === PxPlayState.playing ? 'px-anim-enabled px-anim-playing' :
+            state.value === PxPlayState.paused ? 'px-anim-enabled' : ''
         );
 
-        const handlers = computed(() =>
-            props.start === PxTriggerStart.hover
-                ? { onMouseenter: requestStart, onMouseleave: goOut }
-                : props.start === PxTriggerStart.click
-                    ? { onClick: () => { if (state.value === 'playing') state.value = 'paused'; else requestStart(); } }
-                    : {}
-        );
+        const handlers = computed(() => {
+            const t = resolved.value;
+            const hovers = triggerListsEvent(t, PxTriggerEvent.hoverIn) || triggerListsEvent(t, PxTriggerEvent.hoverOut);
+            return {
+                ...(hovers ? { onMouseenter: () => fire(PxTriggerEvent.hoverIn), onMouseleave: () => fire(PxTriggerEvent.hoverOut) } : {}),
+                ...(triggerListsEvent(t, PxTriggerEvent.click) ? { onClick: () => fire(PxTriggerEvent.click) } : {}),
+            };
+        });
 
         return () => h('div', {
             ref: el,

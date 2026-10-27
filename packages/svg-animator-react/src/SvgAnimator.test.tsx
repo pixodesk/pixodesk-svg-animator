@@ -156,7 +156,7 @@ describe("SvgAnimationPlayer (React)", () => {
             // The §1 bug: passing `apiRef` forced start:'manual', so this
             // never moved on its own and `playOnTrigger` was silently dead.
             const apiRef = createRef<PxAnimationPlayerHandle>();
-            render(<SvgAnimationPlayer doc={getTestJson()} playOnTrigger apiRef={apiRef} />);
+            render(<SvgAnimationPlayer doc={getTestJson()} playOnTrigger playerRef={apiRef} />);
 
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,100)");
@@ -173,11 +173,11 @@ describe("SvgAnimationPlayer (React)", () => {
 
         it("warns when two control tiers are set, naming both and the winner", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
-            render(<SvgAnimationPlayer doc={getTestJson()} progress={0.5} playOnTrigger />);
+            render(<SvgAnimationPlayer doc={getTestJson()} playCurrentProgress={0.5} playOnTrigger />);
 
             const said = warn.mock.calls.map(c => c.map(String).join(" ")).join("\n");
             expect(said).toContain("PX" + PxDiagnosticCode.controlPropsConflict);
-            expect(said).toContain("progress/time");
+            expect(said).toContain("playCurrentProgress/playCurrentTime");
             expect(said).toContain("playOnTrigger");
             expect(said).toContain("ignored");
             warn.mockRestore();
@@ -194,7 +194,7 @@ describe("SvgAnimationPlayer (React)", () => {
 
     // -- 2b′. Declarative play / pause (API review §8) -------------------------
 
-    describe("declarative playback (§10) — play is a STATE, playMode says what travels", () => {
+    describe("declarative playback (§10, D5) — play is a STATE; HOW it moves is the timeline's play keys", () => {
         // ONE document object across renders in each test: a fresh one would change the `doc`
         // identity, remount the animator, and let a remount satisfy these by accident.
 
@@ -208,31 +208,32 @@ describe("SvgAnimationPlayer (React)", () => {
 
             rerender(<SvgAnimationPlayer doc={doc} play={false} onCancel={onCancel} onFinish={onFinish} />);
 
-            expect(onCancel).toHaveBeenCalled();       // default playMode 'forwards': snap back
+            expect(onCancel).toHaveBeenCalled();       // default playOffAction 'reset': snap back
             expect(onFinish).not.toHaveBeenCalled();   // this used to be finish()
         });
 
         it("a mount never animates — play={true} renders the FINISH pose silently", () => {
             const onPlay = vi.fn();
             const apiRef = createRef<PxAnimationPlayerHandle>();
-            render(<SvgAnimationPlayer doc={getTestJson1000()} play apiRef={apiRef} onPlay={onPlay} />);
+            render(<SvgAnimationPlayer doc={getTestJson1000()} play playerRef={apiRef} onPlay={onPlay} />);
             vi.advanceTimersByTime(32);
             expect(onPlay).not.toHaveBeenCalled();
             expect(apiRef.current?.isPlaying()).toBe(false);
             expect(apiRef.current?.getCurrentTime()).toBe(1000);
         });
 
-        it("playMode='both': the off TRAVELS back from the current frame (the hover toggle)", () => {
+        it("the timeline's playOffAction 'rewind': the off TRAVELS back from the current frame (the hover toggle)", () => {
             const onCancel = vi.fn();
             const onPlay = vi.fn();
             const apiRef = createRef<PxAnimationPlayerHandle>();
             const doc = getTestJson1000();
+            const rewind = { playOffAction: 'rewind' } as const;
             const { rerender } = render(
-                <SvgAnimationPlayer doc={doc} play={false} playMode="both" apiRef={apiRef} onCancel={onCancel} onPlay={onPlay} />);
-            rerender(<SvgAnimationPlayer doc={doc} play playMode="both" apiRef={apiRef} onCancel={onCancel} onPlay={onPlay} />);
+                <SvgAnimationPlayer doc={doc} play={false} timeline={rewind} playerRef={apiRef} onCancel={onCancel} onPlay={onPlay} />);
+            rerender(<SvgAnimationPlayer doc={doc} play timeline={rewind} playerRef={apiRef} onCancel={onCancel} onPlay={onPlay} />);
             vi.advanceTimersByTime(400);
 
-            rerender(<SvgAnimationPlayer doc={doc} play={false} playMode="both" apiRef={apiRef} onCancel={onCancel} onPlay={onPlay} />);
+            rerender(<SvgAnimationPlayer doc={doc} play={false} timeline={rewind} playerRef={apiRef} onCancel={onCancel} onPlay={onPlay} />);
             vi.advanceTimersByTime(32);
 
             expect(onCancel).not.toHaveBeenCalled();           // no reset — it turns around
@@ -246,31 +247,32 @@ describe("SvgAnimationPlayer (React)", () => {
             const apiRef = createRef<PxAnimationPlayerHandle>();
             const doc = getTestJson1000();
             const { rerender } = render(
-                <SvgAnimationPlayer doc={doc} play={false} apiRef={apiRef} onCancel={onCancel} />);
-            rerender(<SvgAnimationPlayer doc={doc} play apiRef={apiRef} onCancel={onCancel} />);
+                <SvgAnimationPlayer doc={doc} play={false} playerRef={apiRef} onCancel={onCancel} />);
+            rerender(<SvgAnimationPlayer doc={doc} play playerRef={apiRef} onCancel={onCancel} />);
             vi.advanceTimersByTime(300);
 
-            rerender(<SvgAnimationPlayer doc={doc} play pause apiRef={apiRef} onCancel={onCancel} />);
+            rerender(<SvgAnimationPlayer doc={doc} play pause playerRef={apiRef} onCancel={onCancel} />);
             const frozenAt = apiRef.current?.getCurrentTime() ?? 0;
             vi.advanceTimersByTime(300);
             expect(apiRef.current?.getCurrentTime()).toBe(frozenAt);
 
-            rerender(<SvgAnimationPlayer doc={doc} play pause={false} apiRef={apiRef} onCancel={onCancel} />);
+            rerender(<SvgAnimationPlayer doc={doc} play pause={false} playerRef={apiRef} onCancel={onCancel} />);
             vi.advanceTimersByTime(100);
             expect((apiRef.current?.getCurrentTime() ?? 0)).toBeGreaterThan(frozenAt);
             expect(onCancel).not.toHaveBeenCalled();
         });
 
-        it("loop world: play runs, off snaps to rest; completeIteration finishes the pass first", () => {
+        it("loop world: play runs, off snaps to rest; the timeline's completeIterationOnPlayOff finishes the pass first", () => {
             const apiRef = createRef<PxAnimationPlayerHandle>();
             const doc = getTestJson1000();
+            const loop = { iterations: 'infinite', completeIterationOnPlayOff: true } as const;
             const { rerender } = render(
-                <SvgAnimationPlayer doc={doc} iterations="infinite" play={false} completeIteration apiRef={apiRef} />);
-            rerender(<SvgAnimationPlayer doc={doc} iterations="infinite" play completeIteration apiRef={apiRef} />);
+                <SvgAnimationPlayer doc={doc} timeline={loop} play={false} playerRef={apiRef} />);
+            rerender(<SvgAnimationPlayer doc={doc} timeline={loop} play playerRef={apiRef} />);
             vi.advanceTimersByTime(300);
             expect(apiRef.current?.isPlaying()).toBe(true);
 
-            rerender(<SvgAnimationPlayer doc={doc} iterations="infinite" play={false} completeIteration apiRef={apiRef} />);
+            rerender(<SvgAnimationPlayer doc={doc} timeline={loop} play={false} playerRef={apiRef} />);
             vi.advanceTimersByTime(100);
             expect(apiRef.current?.isPlaying()).toBe(true);    // still finishing the iteration
             vi.advanceTimersByTime(1200);                      // past the boundary — the watcher landed it
@@ -281,7 +283,7 @@ describe("SvgAnimationPlayer (React)", () => {
         it("playOnce() on the ref plays one fresh pass — and warns (PX1503) only under a declarative driver", () => {
             const onWarn = vi.fn();
             const apiRef = createRef<PxAnimationPlayerHandle>();
-            render(<SvgAnimationPlayer doc={getTestJson1000()} apiRef={apiRef} onWarn={onWarn} />);
+            render(<SvgAnimationPlayer doc={getTestJson1000()} playerRef={apiRef} onWarn={onWarn} />);
             apiRef.current?.playOnce();                        // the blessed doorbell — no warning
             vi.advanceTimersByTime(100);
             expect(apiRef.current?.isPlaying()).toBe(true);
@@ -289,17 +291,16 @@ describe("SvgAnimationPlayer (React)", () => {
 
             const onWarn2 = vi.fn();
             const apiRef2 = createRef<PxAnimationPlayerHandle>();
-            render(<SvgAnimationPlayer doc={getTestJson1000()} play apiRef={apiRef2} onWarn={onWarn2} />);
+            render(<SvgAnimationPlayer doc={getTestJson1000()} play playerRef={apiRef2} onWarn={onWarn2} />);
             apiRef2.current?.playOnce();                       // a write call under the play driver
             expect(onWarn2).toHaveBeenCalled();
             expect(onWarn2.mock.calls[0][0].code).toBe(PxDiagnosticCode.imperativeOverDeclarative);
         });
 
-        it("misplaced modifiers warn once and change nothing (PX1502)", () => {
+        it("no misplaced modifiers remain: the play keys live on the timeline and warn nothing on a loop", () => {
             const onWarn = vi.fn();
-            render(<SvgAnimationPlayer doc={getTestJson1000()} iterations="infinite" play playMode="both" onWarn={onWarn} />);
-            expect(onWarn).toHaveBeenCalled();
-            expect(onWarn.mock.calls[0][0].code).toBe(PxDiagnosticCode.playModifierIgnored);
+            render(<SvgAnimationPlayer doc={getTestJson1000()} timeline={{ iterations: 'infinite', playOffAction: 'rewind' }} play onWarn={onWarn} />);
+            expect(onWarn).not.toHaveBeenCalled();
         });
     });
 
@@ -310,12 +311,12 @@ describe("SvgAnimationPlayer (React)", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
             const onWarn = vi.fn();
 
-            render(<SvgAnimationPlayer doc={getTestJson()} progress={0.5} playOnTrigger onWarn={onWarn} />);
+            render(<SvgAnimationPlayer doc={getTestJson()} playCurrentProgress={0.5} playOnTrigger onWarn={onWarn} />);
 
             expect(onWarn).toHaveBeenCalled();
             const d = onWarn.mock.calls[0][0];
             expect(d.code).toBe(PxDiagnosticCode.controlPropsConflict);
-            expect(String(d.data)).toContain("progress/time");
+            expect(String(d.data)).toContain("playCurrentProgress/playCurrentTime");
             // A conflict between two control props is the CALLER's to fix, not the file's.
             expect(d.kind).toBe("usage");
             // ...and the console said nothing, so nothing is reported twice.
@@ -326,7 +327,7 @@ describe("SvgAnimationPlayer (React)", () => {
         it("falls back to the console when no handler is given", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
-            render(<SvgAnimationPlayer doc={getTestJson()} progress={0.5} playOnTrigger />);
+            render(<SvgAnimationPlayer doc={getTestJson()} playCurrentProgress={0.5} playOnTrigger />);
 
             expect(warn).toHaveBeenCalled();
             warn.mockRestore();
@@ -335,7 +336,7 @@ describe("SvgAnimationPlayer (React)", () => {
         it("muteWarn switches the console fallback off", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
-            render(<SvgAnimationPlayer doc={getTestJson()} progress={0.5} playOnTrigger muteWarn />);
+            render(<SvgAnimationPlayer doc={getTestJson()} playCurrentProgress={0.5} playOnTrigger muteWarn />);
 
             expect(warn).not.toHaveBeenCalled();
             warn.mockRestore();
@@ -345,7 +346,7 @@ describe("SvgAnimationPlayer (React)", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
 
             // The control-mode conflict is a WARNING; muting errors leaves it audible.
-            render(<SvgAnimationPlayer doc={getTestJson()} progress={0.5} playOnTrigger muteError />);
+            render(<SvgAnimationPlayer doc={getTestJson()} playCurrentProgress={0.5} playOnTrigger muteError />);
             expect(warn).toHaveBeenCalled();
             warn.mockRestore();
         });
@@ -354,7 +355,7 @@ describe("SvgAnimationPlayer (React)", () => {
             const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
             const onWarn = vi.fn();
 
-            render(<SvgAnimationPlayer doc={getTestJson()} progress={0.5} playOnTrigger muteWarn onWarn={onWarn} />);
+            render(<SvgAnimationPlayer doc={getTestJson()} playCurrentProgress={0.5} playOnTrigger muteWarn onWarn={onWarn} />);
 
             expect(onWarn).toHaveBeenCalled();
             expect(warn).not.toHaveBeenCalled();
@@ -367,7 +368,7 @@ describe("SvgAnimationPlayer (React)", () => {
     describe("imperative API (apiRef)", () => {
         it("exposes play/pause/setCurrentTime/getCurrentTime/setPlaybackRate/isPlaying", () => {
             const apiRef = createRef<PxAnimationPlayerHandle>();
-            render(<SvgAnimationPlayer doc={getTestJson()} apiRef={apiRef} />);
+            render(<SvgAnimationPlayer doc={getTestJson()} playerRef={apiRef} />);
 
             const api = apiRef.current;
             expect(api).not.toBeNull();
@@ -409,7 +410,7 @@ describe("SvgAnimationPlayer (React)", () => {
                 onPlay: vi.fn(), onPause: vi.fn(), onCancel: vi.fn(),
                 onFinish: vi.fn(), onDestroy: vi.fn(), onStop: vi.fn(),
             };
-            const utils = render(<SvgAnimationPlayer doc={getTestJson()} apiRef={apiRef} {...spies} />);
+            const utils = render(<SvgAnimationPlayer doc={getTestJson()} playerRef={apiRef} {...spies} />);
             return { apiRef, spies, ...utils };
         }
 
@@ -465,19 +466,19 @@ describe("SvgAnimationPlayer (React)", () => {
 
     describe("controlled time", () => {
         it("renders mid-animation state with time (absolute milliseconds)", () => {
-            render(<SvgAnimationPlayer doc={getTestJson1000()} time={500} />);
+            render(<SvgAnimationPlayer doc={getTestJson1000()} playCurrentTime={500} />);
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
         });
 
         it("treats `progress` as a fraction of duration (progress=0.5, duration=1000 → 500ms)", () => {
-            render(<SvgAnimationPlayer doc={getTestJson1000()} progress={0.5} />);
+            render(<SvgAnimationPlayer doc={getTestJson1000()} playCurrentProgress={0.5} />);
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
         });
 
         it("does not advance on its own in fixed-time mode", () => {
-            render(<SvgAnimationPlayer doc={getTestJson1000()} time={500} />);
+            render(<SvgAnimationPlayer doc={getTestJson1000()} playCurrentTime={500} />);
             const ellipse = document.querySelector("ellipse");
             vi.advanceTimersByTime(1000);
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
@@ -563,7 +564,7 @@ describe("SvgAnimationPlayer (React)", () => {
             return {
                 type: "svg", id: "_px_wire", viewBox: "0 0 100 100",
                 animator: {
-                    timeline: { engine: "js", outTime: 1000, trigger: { start: "load" } },
+                    timeline: { engine: "js", outTime: 1000, trigger: { playOn: "load" } },
                 },
                 children: [{
                     type: "rect", id: "r1", opacity: 0,
@@ -583,23 +584,26 @@ describe("SvgAnimationPlayer (React)", () => {
         const opacityNow = () => Number(document.querySelector("rect")?.getAttribute("opacity"));
 
         it("baseline: progress=0.5 of the document's own 1000ms lands mid-animation", () => {
-            render(<SvgAnimationPlayer doc={wireJson()} progress={0.5} />);
+            render(<SvgAnimationPlayer doc={wireJson()} playCurrentProgress={0.5} />);
             expect(opacityNow()).toBeCloseTo(0.5, 1);
         });
 
-        it("timeline overrides duration ON A WIRE DOCUMENT (the flat props never did)", () => {
-            render(<SvgAnimationPlayer doc={wireJson()} progress={0.5} timeline={{ outTime: 4000 }} />);
+        it("`timeline` adjusts the duration ON A WIRE DOCUMENT (the flat props never did)", () => {
+            render(<SvgAnimationPlayer doc={wireJson()} playCurrentProgress={0.5} timeline={{ outTime: 4000 }} />);
             expect(opacityNow()).toBe(1);
         });
 
-        it("the outTime SHORTCUT does the same thing", () => {
-            render(<SvgAnimationPlayer doc={wireJson()} progress={0.5} outTime={4000} />);
+        it("a `playOnTrigger` object beside `playCurrentProgress`: the position wins (PX1501), the frame is right", () => {
+            const onWarn = vi.fn();
+            render(<SvgAnimationPlayer doc={wireJson()} playCurrentProgress={0.5} timeline={{ outTime: 4000 }} playOnTrigger={{ playOn: 'click' }} onWarn={onWarn} />);
             expect(opacityNow()).toBe(1);
+            expect(onWarn.mock.calls.map(c => c[0].code)).toContain(PxDiagnosticCode.controlPropsConflict);
         });
 
-        it("accepts the JSON-string form of timeline", () => {
-            render(<SvgAnimationPlayer doc={wireJson()} progress={0.5} timeline={'{"outTime":4000}'} />);
-            expect(opacityNow()).toBe(1);
+        it("takes no JSON-string form of timeline any more — a type error, and the document stays as it is", () => {
+            // @ts-expect-error — `timeline` is the patch object, not a string
+            render(<SvgAnimationPlayer doc={wireJson()} playCurrentProgress={0.5} timeline={'{"outTime":4000}'} />);
+            expect(opacityNow()).toBeCloseTo(0.5, 1);   // the document's own 1000 ms, untouched
         });
 
         it("does not mutate the document the caller passed", () => {
@@ -672,7 +676,7 @@ describe("SvgAnimationPlayer (React)", () => {
                 // Frames engine: the document sets none, so it would resolve to native (WAAPI),
                 // which needs `CSS.supports` — jsdom has none, and the build would fail before
                 // anything bound. Every other test in this file pins `js` for the same reason.
-                const svg = renderSvg(<SvgAnimationPlayer doc={getEffectsOnlyJson()} time={time} onWarn={onWarn} timeline={{ engine: "js" }} />);
+                const svg = renderSvg(<SvgAnimationPlayer doc={getEffectsOnlyJson()} playCurrentTime={time} onWarn={onWarn} timeline={{ engine: "js" }} />);
                 const transforms = Array.from(svg.querySelectorAll("[transform]"))
                     .map(el => el.getAttribute("transform")).join(" | ");
                 const missed = onWarn.mock.calls.filter(([d]) => d.code === PxDiagnosticCode.setAttributeNoElement);
@@ -884,9 +888,9 @@ function getTestJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                fillMode: "forwards",
-                direction: "normal",
-                trigger: { start: "load" },
+                playEndAction: "hold",
+                iterationDirection: "normal",
+                trigger: { playOn: "load" },
             },
         },
 
@@ -925,9 +929,9 @@ function getTestJson1000(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 1000,
-                fillMode: "forwards",
-                direction: "normal",
-                trigger: { start: "load" },
+                playEndAction: "hold",
+                iterationDirection: "normal",
+                trigger: { playOn: "load" },
             },
         },
 
@@ -992,9 +996,9 @@ function getTreeJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                fillMode: "forwards",
-                direction: "normal",
-                trigger: { start: "load" },
+                playEndAction: "hold",
+                iterationDirection: "normal",
+                trigger: { playOn: "load" },
             },
         },
 
@@ -1048,9 +1052,9 @@ function getRectJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                fillMode: "forwards",
-                direction: "normal",
-                trigger: { start: "load" },
+                playEndAction: "hold",
+                iterationDirection: "normal",
+                trigger: { playOn: "load" },
             },
         },
 
@@ -1081,10 +1085,10 @@ function getEffectsOnlyJson(): PxDocument {
         animator: {
             timeline: {
                 outTime: 1000,
-                trigger: { start: "hover", outOfView: "pause", hoverEnd: "pause", inViewThreshold: 0.5, inViewDebounce: 150 },
-                iterations: "infinite", direction: "normal",
+                trigger: { playOn: "hoverIn", pauseOn: "hoverOut" }, outOfViewAction: "pause", inViewThreshold: 0.5, inViewDebounce: 150,
+                iterations: "infinite", iterationDirection: "normal",
             },
-            version: "1.2.1",
+            version: "1.9.1",
         },
         children: [
             {
@@ -1146,10 +1150,10 @@ function getMaskedLoadJson(): PxDocument {
         animator: {
             timeline: {
                 outTime: 1000,
-                trigger: { start: "load", outOfView: "pause", inViewThreshold: 0.5, inViewDebounce: 150 },
-                iterations: "infinite", direction: "normal",
+                trigger: { playOn: "load" }, outOfViewAction: "pause", inViewThreshold: 0.5, inViewDebounce: 150,
+                iterations: "infinite", iterationDirection: "normal",
             },
-            version: "1.2.1",
+            version: "1.9.1",
         },
         children: [
             {

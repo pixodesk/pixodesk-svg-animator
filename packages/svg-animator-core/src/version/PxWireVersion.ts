@@ -284,7 +284,66 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         // an exact rename: every 1.8 value has a 1.7 spelling
         down: downCamelCaseValues,
     },
+    {
+        from: '1.8',
+        to: '1.9',
+        reason: 'The trigger says only WHEN (dev-docs/plans/component-api.md D5): `start` / `hoverEnd` become the '
+            + 'event lists `playOn` / `playOff` / `pauseOn` / `pauseOff`; HOW is the timeline\'s own — `fillMode` + '
+            + '`finish` become `playEndAction` (+ `showFirstFrameBeforePlayOn`), `direction` becomes `iterationDirection`, '
+            + 'the gate keys move up (`outOfView` → `outOfViewAction`), and `playOnAction` / `playOffAction` / '
+            + '`completeIterationOnPlayOff` are new.',
+        kind: PxWireStepKind.converted,
+        up: upPlaybackKeys,
+        // No `down`: 1.9 can say what 1.8 could not (a click that restarts, a stop that rewinds, …).
+    },
 ];
+
+/** 1.8 → 1.9: the trigger's event lists, the play keys on the timeline (see the step's `reason`). */
+function upPlaybackKeys(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    if (!timeline) return;
+    if (timeline['direction'] !== undefined) {
+        timeline['iterationDirection'] = timeline['direction'];
+        delete timeline['direction'];
+    }
+    const fillMode = timeline['fillMode'];
+    const finish = timeline['finish'];
+    if (fillMode !== undefined || finish !== undefined) {
+        const firstFrameBefore = fillMode === 'backwards' || fillMode === 'both';
+        const holdAfter = (fillMode === undefined || fillMode === 'forwards' || fillMode === 'both') && finish !== 'reset';
+        if (firstFrameBefore) timeline['showFirstFrameBeforePlayOn'] = true;
+        if (!holdAfter) timeline['playEndAction'] = 'reset';
+        delete timeline['fillMode'];
+        delete timeline['finish'];
+    }
+    const trigger = readObjectProp(timeline, 'trigger');
+    if (!trigger) return;
+    if (trigger['outOfView'] !== undefined) { timeline['outOfViewAction'] = trigger['outOfView']; }
+    if (trigger['inViewThreshold'] !== undefined) { timeline['inViewThreshold'] = trigger['inViewThreshold']; }
+    if (trigger['inViewDebounce'] !== undefined) { timeline['inViewDebounce'] = trigger['inViewDebounce']; }
+    const start = trigger['start'];
+    const hoverEnd = trigger['hoverEnd'] ?? 'pause';
+    for (const key of Object.keys(trigger)) delete trigger[key];
+    switch (start) {
+        case 'hover':
+            trigger['playOn'] = 'hoverIn';
+            if (hoverEnd === 'pause') trigger['pauseOn'] = 'hoverOut';
+            else if (hoverEnd === 'reset' || hoverEnd === 'reverse') {
+                trigger['playOff'] = 'hoverOut';
+                if (hoverEnd === 'reverse') timeline['playOffAction'] = 'rewind';
+            }
+            break;                                   // `continue`: the leave does nothing — not listed
+        case 'click':
+            trigger['playOn'] = 'click';
+            trigger['pauseOn'] = 'click';            // the old toggle
+            break;
+        case 'manual':
+            break;                                   // an empty block: nothing starts it
+        default:
+            trigger['playOn'] = 'load';              // `load`, or the old absent-start default
+    }
+}
 
 /** 1.4 → 1.5: `animator.debugGlobalName` dropped, at either animator address. */
 function upDropDebugGlobalName(doc: Record<string, unknown>): void {

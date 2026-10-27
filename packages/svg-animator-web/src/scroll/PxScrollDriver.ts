@@ -17,14 +17,17 @@
 // gate to park the listeners entirely while the subject is far outside its range.
 
 import { PxDiagnosticCode, PxDiagnosticKind, PxScrollPhase, type PxAnimatorRuntimeConfig, type PxDiagnostics, type PxScroll, type PxScrollRangePoint } from '@pixodesk/svg-animator-core';
-import { createDiagnostics, cssScrollPhase, isScrollTimeline, type PxCssScrollPhase, scrollOffsetProgress, scrollResolveAxis, scrollViewProgress } from '@pixodesk/svg-animator-core/internal';
+import type { PxNativeRangeOffset } from '../shared/PxAnimatorWebTypes';
+import { createDiagnostics, cssScrollPhase, isScrollTimeline, scrollOffsetProgress, scrollResolveAxis, scrollViewProgress } from '@pixodesk/svg-animator-core/internal';
 
 
 // ── Native timeline support (`timeline.engine: 'native'`, tried first by `auto`) ────────────────────────────────────────
 // `ScrollTimeline`/`ViewTimeline` aren't in TS's dom lib yet — minimal local declarations,
 // resolved from globalThis so absence is an ordinary feature-detect, never a crash.
 
-interface NativeTimelineCtor { new(options: Record<string, unknown>): AnimationTimeline }
+/** The constructor options of the browser's `ScrollTimeline` (`source`) / `ViewTimeline` (`subject`), plus the axis — not in the DOM typings. */
+interface PxNativeTimelineOptions { source?: Element | null; subject?: Element | null; axis?: string }
+interface NativeTimelineCtor { new(options: PxNativeTimelineOptions): AnimationTimeline }
 
 /** A browser timeline constructor (`ScrollTimeline` / `ViewTimeline`) — absent where unsupported, and not in the DOM typings. */
 function isTimelineCtor(value: unknown): value is NativeTimelineCtor {
@@ -33,19 +36,19 @@ function isTimelineCtor(value: unknown): value is NativeTimelineCtor {
 
 interface PxNativeScrollTimeline {
     timeline: AnimationTimeline;
-    /** WAAPI `Animation.rangeStart/rangeEnd` values (TimelineRangeOffset-shaped). */
-    rangeStart?: Record<string, unknown>;
-    rangeEnd?: Record<string, unknown>;
+    /** WAAPI `Animation.rangeStart/rangeEnd` values. */
+    rangeStart?: PxNativeRangeOffset;
+    rangeEnd?: PxNativeRangeOffset;
 }
 
-function nativeRangeOffset(point: PxScrollRangePoint | undefined, defaultFraction: number, view: boolean): Record<string, unknown> | undefined {
+function nativeRangeOffset(point: PxScrollRangePoint | undefined, defaultFraction: number, view: boolean): PxNativeRangeOffset | undefined {
     const fraction = typeof point?.fraction === 'number' ? point.fraction : defaultFraction;
-    const pct = (globalThis as { CSS?: { percent?: (n: number) => unknown } }).CSS?.percent?.(fraction * 100);
+    // `CSS.percent` is feature-detected: the Typed OM is absent in some browsers
+    const pct = (globalThis as { CSS?: { percent?: (n: number) => CSSNumericValue } }).CSS?.percent?.(fraction * 100);
     if (pct === undefined) return undefined;
     // Named phases exist only on VIEW timelines (the CSS range name); a scroll timeline takes a bare offset.
     if (!view) return { offset: pct };
-    const named: { rangeName: PxCssScrollPhase; offset: unknown } = { rangeName: cssScrollPhase(point?.phase ?? PxScrollPhase.cover), offset: pct };
-    return named;
+    return { rangeName: cssScrollPhase(point?.phase ?? PxScrollPhase.cover), offset: pct };
 }
 
 // @px-importance important

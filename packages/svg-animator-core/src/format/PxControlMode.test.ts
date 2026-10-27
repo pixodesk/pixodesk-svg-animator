@@ -5,8 +5,8 @@
 
 // ONE control-mode rule for react / vue / rn (API review §1 and §7).
 //
-// Each component used to pick its own order: React `apiRef → playOnTrigger → progress/time →
-// play/pause`, Vue `playOnTrigger → progress/time → play/pause`, React Native `progress/time →
+// Each component used to pick its own order: React `apiRef → playOnTrigger → playCurrentProgress/playCurrentTime →
+// play/pause`, Vue `playOnTrigger → playCurrentProgress/playCurrentTime → play/pause`, React Native `playCurrentProgress/playCurrentTime →
 // play/pause → playOnTrigger`. So `playOnTrigger` + `progress={0.5}` played on two and seeked on the
 // third, and React let a REF decide the mode — which silently disabled `playOnTrigger`.
 
@@ -20,9 +20,9 @@ describe('resolveControlMode — precedence', () => {
     });
 
     it('progress / time win over everything', () => {
-        expect(resolveControlMode({ progress: 0.5 }).mode).toBe(PxControlMode.fixedTime);
-        expect(resolveControlMode({ time: 250 }).mode).toBe(PxControlMode.fixedTime);
-        expect(resolveControlMode({ progress: 0.5, play: true, playOnTrigger: true }).mode).toBe(PxControlMode.fixedTime);
+        expect(resolveControlMode({ playCurrentProgress: 0.5 }).mode).toBe(PxControlMode.fixedTime);
+        expect(resolveControlMode({ playCurrentTime: 250 }).mode).toBe(PxControlMode.fixedTime);
+        expect(resolveControlMode({ playCurrentProgress: 0.5, play: true, playOnTrigger: true }).mode).toBe(PxControlMode.fixedTime);
     });
 
     it('play / pause win over playOnTrigger', () => {
@@ -47,21 +47,21 @@ describe('resolveControlMode — precedence', () => {
 describe('resolveControlMode — conflict warnings', () => {
 
     it('says nothing when only one tier is used', () => {
-        expect(resolveControlMode({ progress: 0.5 }).warnings).toEqual([]);
+        expect(resolveControlMode({ playCurrentProgress: 0.5 }).warnings).toEqual([]);
         expect(resolveControlMode({ play: true }).warnings).toEqual([]);
         expect(resolveControlMode({ playOnTrigger: true }).warnings).toEqual([]);
     });
 
     it('names both props and which one won', () => {
-        const { warnings } = resolveControlMode({ progress: 0.5, playOnTrigger: true });
+        const { warnings } = resolveControlMode({ playCurrentProgress: 0.5, playOnTrigger: true });
         expect(warnings).toHaveLength(1);
-        expect(warnings[0]).toContain('progress/time');
+        expect(warnings[0]).toContain('playCurrentProgress/playCurrentTime');
         expect(warnings[0]).toContain('playOnTrigger');
         expect(warnings[0]).toContain('ignored');
     });
 
     it('reports EVERY losing tier, not just the first', () => {
-        const { warnings } = resolveControlMode({ progress: 0.5, play: true, playOnTrigger: true });
+        const { warnings } = resolveControlMode({ playCurrentProgress: 0.5, play: true, playOnTrigger: true });
         expect(warnings).toHaveLength(2);
         expect(warnings.join('\n')).toContain('play/pause');
         expect(warnings.join('\n')).toContain('playOnTrigger');

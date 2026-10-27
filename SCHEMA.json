@@ -2273,34 +2273,97 @@
     "Trigger": {
       "type": "object",
       "properties": {
-        "start": {
-          "enum": [
-            "load",
-            "hover",
-            "click",
-            "manual"
+        "playOn": {
+          "anyOf": [
+            {
+              "enum": [
+                "load",
+                "hoverIn",
+                "hoverOut",
+                "click"
+              ]
+            },
+            {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "load",
+                  "hoverIn",
+                  "hoverOut",
+                  "click"
+                ]
+              }
+            }
           ]
         },
-        "outOfView": {
-          "enum": [
-            "pause",
-            "continue",
-            "reset"
+        "playOff": {
+          "anyOf": [
+            {
+              "enum": [
+                "load",
+                "hoverIn",
+                "hoverOut",
+                "click"
+              ]
+            },
+            {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "load",
+                  "hoverIn",
+                  "hoverOut",
+                  "click"
+                ]
+              }
+            }
           ]
         },
-        "hoverEnd": {
-          "enum": [
-            "continue",
-            "pause",
-            "reset",
-            "reverse"
+        "pauseOn": {
+          "anyOf": [
+            {
+              "enum": [
+                "load",
+                "hoverIn",
+                "hoverOut",
+                "click"
+              ]
+            },
+            {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "load",
+                  "hoverIn",
+                  "hoverOut",
+                  "click"
+                ]
+              }
+            }
           ]
         },
-        "inViewThreshold": {
-          "type": "number"
-        },
-        "inViewDebounce": {
-          "type": "number"
+        "pauseOff": {
+          "anyOf": [
+            {
+              "enum": [
+                "load",
+                "hoverIn",
+                "hoverOut",
+                "click"
+              ]
+            },
+            {
+              "type": "array",
+              "items": {
+                "enum": [
+                  "load",
+                  "hoverIn",
+                  "hoverOut",
+                  "click"
+                ]
+              }
+            }
+          ]
         }
       },
       "additionalProperties": false
@@ -2348,27 +2411,52 @@
                 }
               ]
             },
-            "fillMode": {
-              "enum": [
-                "forwards",
-                "backwards",
-                "both",
-                "none"
-              ]
-            },
-            "finish": {
-              "enum": [
-                "hold",
-                "reset"
-              ]
-            },
-            "direction": {
+            "iterationDirection": {
               "enum": [
                 "normal",
                 "reverse",
                 "alternate",
                 "alternateReverse"
               ]
+            },
+            "playOnAction": {
+              "enum": [
+                "resume",
+                "restart",
+                "jumpToEnd"
+              ]
+            },
+            "playOffAction": {
+              "enum": [
+                "reset",
+                "rewind"
+              ]
+            },
+            "completeIterationOnPlayOff": {
+              "type": "boolean"
+            },
+            "playEndAction": {
+              "enum": [
+                "hold",
+                "reset",
+                "rewind"
+              ]
+            },
+            "showFirstFrameBeforePlayOn": {
+              "type": "boolean"
+            },
+            "outOfViewAction": {
+              "enum": [
+                "pause",
+                "continue",
+                "reset"
+              ]
+            },
+            "inViewThreshold": {
+              "type": "number"
+            },
+            "inViewDebounce": {
+              "type": "number"
             }
           },
           "additionalProperties": false

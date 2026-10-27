@@ -111,7 +111,7 @@ describe('createSvgAnimationPlayer', () => {
     it('takes the callbacks INLINE, and fires onStop after pause / finish (the same names as the components)', () => {
         const onPlay = vi.fn(), onPause = vi.fn(), onFinish = vi.fn(), onStop = vi.fn();
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', outTime: DUR, trigger: { start: 'manual' } } };
+        doc.animator = { timeline: { engine: 'js', outTime: DUR, trigger: {} } };
         const api = createSvgAnimationPlayer({ doc, container: '#svg-container', onPlay, onPause, onFinish, onStop });
 
         api.play();
@@ -142,7 +142,7 @@ describe('createSvgAnimationPlayer', () => {
 
     it('an explicit programmatic trigger still waits for play()', () => {
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', outTime: DUR, trigger: { start: 'manual' } } };
+        doc.animator = { timeline: { engine: 'js', outTime: DUR, trigger: {} } };
         const api = createSvgAnimationPlayer({ doc: doc, container: '#svg-container' });
         expect(api.isPlaying()).toBe(false);
     });
@@ -152,7 +152,7 @@ describe('createSvgAnimationPlayer', () => {
         // load, which would fire `onPlay` a second time and hide this test's subject — that a
         // control call made before the fetch resolves is queued and replayed exactly once.
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', outTime: DUR, trigger: { start: 'manual' } } };
+        doc.animator = { timeline: { engine: 'js', outTime: DUR, trigger: {} } };
         const fetchMock = stubFetch(doc);
         const onPlay = vi.fn();
 
@@ -391,9 +391,9 @@ describe('createSvgAnimationPlayersFromPage', () => {
         stubFetch(makeDoc());   // a document that would playOnTrigger on load
         const onPlay = vi.fn();
 
-        // A timeline override that cancels the playOnTrigger, plus an inline callback — both must reach
-        // both players. The zero-config path (no argument at all) is unchanged.
-        createSvgAnimationPlayersFromPage({ timeline: { trigger: { start: 'manual' } }, onPlay });
+        // One trigger for every player that cancels the autostart, plus an inline callback — both must
+        // reach both players. The zero-config path (no argument at all) is unchanged.
+        createSvgAnimationPlayersFromPage({ playOnTrigger: {}, onPlay });
         await flushMicrotasks();
 
         const instances = Array.from(document.querySelectorAll('[data-px-animation-src]'))

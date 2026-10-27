@@ -265,7 +265,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
     describe("controlled time", () => {
         it("renders mid-animation state with time (absolute milliseconds)", () => {
             render(SvgAnimationPlayer, {
-                props: { doc: getTestJson1000(), time: 500 },
+                props: { doc: getTestJson1000(), playCurrentTime: 500 },
             });
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
@@ -273,7 +273,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
 
         it("treats `progress` as a fraction of duration (progress=0.5, duration=1000 → 500ms)", () => {
             render(SvgAnimationPlayer, {
-                props: { doc: getTestJson1000(), progress: 0.5 },
+                props: { doc: getTestJson1000(), playCurrentProgress: 0.5 },
             });
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
@@ -281,7 +281,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
 
         it("does not advance on its own in fixed-time mode", () => {
             render(SvgAnimationPlayer, {
-                props: { doc: getTestJson1000(), time: 500 },
+                props: { doc: getTestJson1000(), playCurrentTime: 500 },
             });
             const ellipse = document.querySelector("ellipse");
             vi.advanceTimersByTime(1000);
@@ -563,9 +563,9 @@ function getTestJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                fillMode: "forwards",
-                direction: "normal",
-                trigger: { start: "load" },
+                playEndAction: "hold",
+                iterationDirection: "normal",
+                trigger: { playOn: "load" },
             },
         },
 
@@ -604,9 +604,9 @@ function getTestJson1000(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 1000,
-                fillMode: "forwards",
-                direction: "normal",
-                trigger: { start: "load" },
+                playEndAction: "hold",
+                iterationDirection: "normal",
+                trigger: { playOn: "load" },
             },
         },
 
@@ -671,9 +671,9 @@ function getTreeJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                fillMode: "forwards",
-                direction: "normal",
-                trigger: { start: "load" },
+                playEndAction: "hold",
+                iterationDirection: "normal",
+                trigger: { playOn: "load" },
             },
         },
 
@@ -727,9 +727,9 @@ function getRectJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                fillMode: "forwards",
-                direction: "normal",
-                trigger: { start: "load" },
+                playEndAction: "hold",
+                iterationDirection: "normal",
+                trigger: { playOn: "load" },
             },
         },
 
@@ -753,7 +753,7 @@ describe('SvgAnimationPlayer (Vue) — timeline override', () => {
     /** A WIRE-format document; the flat props this replaced were discarded on this shape. */
     const wireJson = (): PxDocument => ({
         type: 'svg', id: '_px_wire', viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'js', outTime: 1000, trigger: { start: 'load' } } },
+        animator: { timeline: { engine: 'js', outTime: 1000, trigger: { playOn: 'load' } } },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
@@ -765,23 +765,25 @@ describe('SvgAnimationPlayer (Vue) — timeline override', () => {
     const opacityIn = (container: Element) => Number(container.querySelector('rect')?.getAttribute('opacity'));
 
     it("baseline: progress=0.5 of the document's own 1000ms lands mid-animation", () => {
-        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), progress: 0.5 } });
+        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), playCurrentProgress: 0.5 } });
         expect(opacityIn(container)).toBeCloseTo(0.5, 1);
     });
 
-    it('timeline overrides duration ON A WIRE DOCUMENT (the flat props never did)', () => {
-        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), progress: 0.5, timeline: { outTime: 4000 } } });
+    it('mergeTimeline overrides duration ON A WIRE DOCUMENT (the flat props never did)', () => {
+        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), playCurrentProgress: 0.5, timeline: { outTime: 4000 } } });
         expect(opacityIn(container)).toBe(1);
     });
 
-    it('the outTime SHORTCUT does the same thing', () => {
-        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), progress: 0.5, outTime: 4000 } });
+    it('a `playOnTrigger` object beside `playCurrentProgress`: the position wins (PX1501), the frame is right', () => {
+        const onWarn = vi.fn();
+        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), playCurrentProgress: 0.5, timeline: { outTime: 4000 }, playOnTrigger: { playOn: 'click' }, onWarn } });
         expect(opacityIn(container)).toBe(1);
+        expect(onWarn.mock.calls.map(c => c[0].code)).toContain(PxDiagnosticCode.controlPropsConflict);
     });
 
-    it('accepts the JSON-string form of timeline', () => {
-        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), progress: 0.5, timeline: '{"outTime":4000}' } });
-        expect(opacityIn(container)).toBe(1);
+    it('takes no JSON-string form of timeline any more — a string is ignored, the document stays as it is', () => {
+        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), playCurrentProgress: 0.5, timeline: '{"outTime":4000}' } });
+        expect(opacityIn(container)).toBeCloseTo(0.5, 1);   // the document's own 1000 ms, untouched
     });
 });
 
@@ -798,10 +800,10 @@ function getEffectsOnlyJson(): PxDocument {
         animator: {
             timeline: {
                 outTime: 1000,
-                trigger: { start: "hover", outOfView: "pause", hoverEnd: "pause", inViewThreshold: 0.5, inViewDebounce: 150 },
-                iterations: "infinite", direction: "normal",
+                trigger: { playOn: "hoverIn", pauseOn: "hoverOut" }, outOfViewAction: "pause", inViewThreshold: 0.5, inViewDebounce: 150,
+                iterations: "infinite", iterationDirection: "normal",
             },
-            version: "1.2.1",
+            version: "1.9.1",
         },
         children: [
             {
@@ -862,10 +864,10 @@ function getMaskedLoadJson(): PxDocument {
         animator: {
             timeline: {
                 outTime: 1000,
-                trigger: { start: "load", outOfView: "pause", inViewThreshold: 0.5, inViewDebounce: 150 },
-                iterations: "infinite", direction: "normal",
+                trigger: { playOn: "load" }, outOfViewAction: "pause", inViewThreshold: 0.5, inViewDebounce: 150,
+                iterations: "infinite", iterationDirection: "normal",
             },
-            version: "1.2.1",
+            version: "1.9.1",
         },
         children: [
             {

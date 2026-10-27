@@ -120,6 +120,13 @@ export enum PxDiagnosticCode {
     documentRepaired = 1108,
 
     /**
+     * The trigger lists one event under BOTH `playOff` and `pauseOn` — two off-actions for one event.
+     * `pauseOn` wins; the file should name one.
+     * @data the events
+     */
+    triggerEventConflict = 1109,
+
+    /**
      * A binding names no element, or names animations that `definitions.animations` does not have.
      * @data the binding
      */
@@ -192,15 +199,15 @@ export enum PxDiagnosticCode {
     controlPropsConflict = 1501,
 
     /**
-     * A declarative playback modifier was set where it cannot apply — `pause` without `play`,
-     * `playMode` on a looping document, `completeIteration` on a single-pass one. Ignored.
+     * A declarative playback modifier was set where it cannot apply — `pause` without `play`. Ignored.
+     * (How a `play` change looks is the timeline's: `playOnAction`, `playOffAction`, `completeIterationOnPlayOff`.)
      * @data the explanation
      */
     playModifierIgnored = 1502,
 
     /**
      * An imperative write call (`play()`, `pause()`, `playOnce()`, …) landed while a declarative
-     * driver (`play`/`pause` or `progress`/`time` props) owns playback. The call is applied, and
+     * driver (`play`/`pause` or `playCurrentProgress`/`playCurrentTime` props) owns playback. The call is applied, and
      * the next prop change reasserts the props.
      * @data the call
      */

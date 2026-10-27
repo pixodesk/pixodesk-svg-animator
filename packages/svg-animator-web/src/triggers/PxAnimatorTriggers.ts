@@ -7,39 +7,35 @@
 import {
     PxDiagnosticCode,
     PxDiagnosticKind,
-    PxHoverEndAction,
-    PxTriggerStart,
+    PxTriggerAction,
+    PxTriggerEvent,
+    type PxAnimatorRuntimeConfig,
     type PxDiagnostics,
-    type PxTrigger,
 } from '@pixodesk/svg-animator-core';
-import {
-    resolveTrigger,
-} from '@pixodesk/svg-animator-core/engine';
+import { ensurePlayExecutor, resolveGate, resolveTrigger, triggerActionFor, triggerConflicts, triggerListsEvent } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import type { PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
+import { webRaf } from '../shared/PxWebRaf';
 import { createVisibilityGate } from './PxVisibilityGate';
 
-
 /**
- * Wires a document's trigger block to its root element.
+ * Wires a document's trigger to its root element (dev-docs/plans/component-api.md D5).
  *
- * TWO INDEPENDENT AXES, which is why there is no `scrollIntoView` here:
- *  - `start` — what STARTS the animation: 'load' (default), 'hover', 'click', or 'manual'
- *    (nothing but the API does).
- *  - `outOfView` + `inViewThreshold` + `inViewDebounce` — whether it may RUN, whatever
- *    started it. Owned by {@link createVisibilityGate}, wired for every document.
+ * The trigger says only WHEN: four event lists — `playOn`, `playOff`, `pauseOn`, `pauseOff` — over
+ * the events `load`, `hoverIn`, `hoverOut`, `click`. Which list an event is read from is the STATE
+ * RULE: `playOn` acts when stopped, `pauseOn` when playing, `pauseOff` when paused (an omitted
+ * `pauseOff` is a copy of `playOn`), `playOff` when playing or paused. An event in both `playOff`
+ * and `pauseOn` is a contradiction that is reported; `pauseOn` wins. An absent trigger block plays
+ * on load; an EMPTY one lists nothing — only the api drives it.
  *
- * `start: 'load'` behind the default gate is what `startOn: 'scrollIntoView'` used to mean: hold
- * at frame 0 until enough is on screen, play, pause when it leaves, resume when it returns. The
- * difference is that the same gate now also applies to a document started by a click or a hover.
+ * HOW is the timeline's own and performed by the player's one executor (`playOnAction`,
+ * `playOffAction`, `completeIterationOnPlayOff`), shared with the api's `play()` / `stop()`, so a
+ * click and a `player.play()` do exactly the same thing. The visibility gate (`outOfViewAction`,
+ * `inViewThreshold`, `inViewDebounce`, timeline keys too) decides whether it may RUN, whatever
+ * started it; only `load` waits for it — a hover or a click is aimed at something the reader sees.
  *
- * `hoverEnd` is what happens when the pointer LEAVES ('pause' by default, or continue / reset /
- * reverse); it is read only for `start: 'hover'`. A `click` document is a plain play/pause
- * toggle with nothing to configure.
- *
- * @param api The player API to wire the trigger to.
- * @param trigger The trigger configuration. `finish` now LIVES on the timeline next to `fillMode` (review §13) — it was never this wiring's (what happens after a
- *   natural end), not to the trigger wiring, and is not read here.
+ * @param api The engine api to wire; the executor is attached to it as `playExecutor`.
+ * @param config The document's runtime view (`getAnimatorConfig(doc)`): the trigger, the gate and the play keys.
  * @returns A disposer that detaches every listener, observer and timer this call attached
  *   (review §14). `createSvgAnimationPlayer` ties it to `destroy()`. Call it yourself before re-arming an
  *   element you wired by hand — otherwise the old listeners stay live next to the new ones.
@@ -47,7 +43,7 @@ import { createVisibilityGate } from './PxVisibilityGate';
  */
 export function setupAnimationTriggers(
     api: PxEngineAnimationPlayerApi,
-    trigger: PxTrigger,
+    config: PxAnimatorRuntimeConfig,
     diag?: PxDiagnostics
 ): () => void {
     // Public export, so the channel is optional and falls back to the console (review §5).
@@ -56,112 +52,73 @@ export function setupAnimationTriggers(
     // Everything attached below registers its own undo here, so one call detaches it all.
     const cleanups: Array<() => void> = [];
     const dispose = (): void => { for (const undo of cleanups.splice(0)) undo(); };
-    // The defaults come from core's one table, shared with every player (`PX_TRIGGER_DEFAULTS`):
-    // no `start` = 'load', no `outOfView` = 'pause', no `hoverEnd` = 'pause', no threshold
-    // = 0.5, no debounce = 150ms. The threshold default must match the editor model's
-    // (TSvgSvgAnimationAttr.inViewThreshold), which OMITS the value on the wire when it equals it.
-    const resolved = resolveTrigger(trigger);
+
+    const trigger = resolveTrigger(config.trigger);
+    for (const event of triggerConflicts(trigger)) report.warn(PxDiagnosticKind.usage, PxDiagnosticCode.triggerEventConflict, event);
 
     const root = api.getRootElement();
-
     if (!root) {
         report.warn(PxDiagnosticKind.host, PxDiagnosticCode.triggersNoRoot);
         return dispose;
     }
 
-    // Tracks whether the LAST mouse-out action put the animation into reverse, so the next start
-    // can restore forward playback without clobbering a custom playback rate set through the API.
-    let reversed = false;
+    const executor = ensurePlayExecutor(api, config, webRaf);
 
-    /** Ensures forward playback and starts or resumes the animation. */
-    const start = (): void => {
-        if (reversed) {
-            reversed = false;
-            api.setPlaybackRate(1);
-        }
-        api.play();
-    };
-
-    // Permission to run, for every document and whatever starts it.
-    const gate = createVisibilityGate(root, resolved, {
+    // Permission to run, for every document and whatever starts it. The gate's own hold and
+    // release are the ENGINE's — a hold is not a user pause.
+    const gate = createVisibilityGate(root, resolveGate(config), {
         isPlaying: () => api.isPlaying(),
-        play: start,
-        pause: () => api.pause(),
-        cancel: () => api.cancel(),
+        start: () => executor.play(),
+        hold: () => api.pause(),
+        release: () => api.play(),
+        reset: () => executor.cancel(),
     });
     cleanups.push(() => gate.dispose());
 
-    /** What to do when the pointer leaves — `start: 'hover'` only. */
-    const handleHoverEnd = (): void => {
-        switch (resolved.hoverEnd) {
-            case PxHoverEndAction.pause:
-                api.pause();
-                break;
-            case PxHoverEndAction.reset:
-                api.cancel();
-                break;
-            case PxHoverEndAction.reverse:
-                // Play the animation backwards from its current position.
-                reversed = true;
-                api.setPlaybackRate(-1);
-                api.play();
-                break;
-            case PxHoverEndAction.continue:
-            default:
-                // Do nothing
-                break;
+    const listed = (event: PxTriggerEvent): boolean => triggerListsEvent(trigger, event);
+
+    /** The state rule (core's `triggerActionFor`): the player's state picks the list an event is read
+     *  from. `direct` is a pointer interaction — it never waits out the gate. */
+    const fire = (event: PxTriggerEvent, direct: boolean): void => {
+        switch (triggerActionFor(trigger, executor.state(), event)) {
+            case PxTriggerAction.play: gate.requestStart(direct); break;
+            case PxTriggerAction.pause: executor.pause(); break;
+            case PxTriggerAction.off: executor.off(); break;
         }
     };
 
-    // ---- What starts it ----
-    switch (resolved.start) {
-        case PxTriggerStart.load: {
-            // The only start that the gate may hold: nobody interacted, so there is nothing to
-            // honour immediately. `requestStart(false)` plays now if enough is already on screen
-            // (after the debounce), and otherwise waits for it to be.
-            const startHandler = () => gate.requestStart(false);
-            if (document.readyState === 'complete') {
-                startHandler();
-            } else {
-                window.addEventListener('load', startHandler, { once: true });
-                cleanups.push(() => window.removeEventListener('load', startHandler));
-            }
-            break;
+    if (listed(PxTriggerEvent.load)) {
+        // The document being ready. The only event the gate may hold: nobody interacted, so there is
+        // nothing to honour at once — the gate plays when enough is on screen (after the debounce).
+        const onLoad = (): void => fire(PxTriggerEvent.load, false);
+        if (document.readyState === 'complete') {
+            onLoad();
+        } else {
+            window.addEventListener('load', onLoad, { once: true });
+            cleanups.push(() => window.removeEventListener('load', onLoad));
         }
+    }
 
-        case PxTriggerStart.hover: {
-            // An OUT may only follow an IN. A `mouseleave` with no preceding `mouseenter` happens
-            // when the pointer is already over the element at load and then moves away — and for
-            // `hoverEnd: 'reverse'` the out action PLAYS (`setPlaybackRate(-1); play()`), so an
-            // untriggered leave would start the animation running backwards.
-            let enteredOnce = false;
-            const hoverHandler = () => { enteredOnce = true; gate.requestStart(true); };
-            const hoverEndHandler = () => { if (enteredOnce) handleHoverEnd(); };
-
-            root.addEventListener('mouseenter', hoverHandler);
-            root.addEventListener('mouseleave', hoverEndHandler);
-            cleanups.push(() => {
-                root.removeEventListener('mouseenter', hoverHandler);
-                root.removeEventListener('mouseleave', hoverEndHandler);
-            });
-            break;
+    const usesHoverOut = listed(PxTriggerEvent.hoverOut);
+    if (listed(PxTriggerEvent.hoverIn) || usesHoverOut) {
+        // An OUT may only follow an IN. A `mouseleave` with no preceding `mouseenter` happens when the
+        // pointer is already over the element at load and then moves away — and a `playOff: 'hoverOut'`
+        // with `playOffAction: 'rewind'` would start the animation running backwards.
+        let enteredOnce = false;
+        const onEnter = (): void => { enteredOnce = true; fire(PxTriggerEvent.hoverIn, true); };
+        root.addEventListener('mouseenter', onEnter);
+        cleanups.push(() => root.removeEventListener('mouseenter', onEnter));
+        if (usesHoverOut) {
+            const onLeave = (): void => { if (enteredOnce) fire(PxTriggerEvent.hoverOut, true); };
+            root.addEventListener('mouseleave', onLeave);
+            cleanups.push(() => root.removeEventListener('mouseleave', onLeave));
         }
+    }
 
-        case PxTriggerStart.click: {
-            // A plain toggle. The reader is pointing at it, so a start never waits for the gate.
-            const clickHandler = () => {
-                if (api.isPlaying()) api.pause();
-                else gate.requestStart(true);
-            };
-            root.addEventListener('click', clickHandler);
-            cleanups.push(() => root.removeEventListener('click', clickHandler));
-            break;
-        }
-
-        case PxTriggerStart.manual:
-            // No auto-start; external code must call play(). The gate still applies afterwards,
-            // so an API-started animation pauses when it scrolls out of view.
-            break;
+    if (listed(PxTriggerEvent.click)) {
+        const onClick = (): void => fire(PxTriggerEvent.click, true);
+        root.addEventListener('click', onClick);
+        cleanups.push(() => root.removeEventListener('click', onClick));
     }
 
     return dispose;

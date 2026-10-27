@@ -22,13 +22,28 @@
  * scroll branch, `pin:false`, and an empty time block emitting no `timeline` at all). Merging
  * on the nested form is the only place those values mean what they say.
  */
-import { PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS, PxTriggerStart } from '../format/PxAnimatorConstants';
-import type { PxHoverEndAction, PxOutOfViewAction } from '../format/PxAnimatorConstants';
-import type { PxDocument, PxAnimatorConfig } from '../format/PxAnimatorTypes';
+import { PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS } from '../format/PxAnimatorConstants';
+import type { PxDocument, PxAnimatorConfig, PxTimeline, PxTrigger } from '../format/PxAnimatorTypes';
 import { legacyAnimatorOf } from '../format/PxDocStage';
 
-/** A deep-partial of the WIRE animator config; `null` at any slot deletes it. @public */
-export type PxAnimatorConfigPatch = Record<string, unknown> | null;
+/**
+ * A JSON merge patch over a wire type `T`, the way {@link mergeAnimatorConfig} applies one (RFC 7386):
+ * every key optional at every depth, `null` at a key deletes it, arrays and primitives replace.
+ * Distributes over a union, so a patch of `PxTimeline` is a patch of the time OR the scroll member —
+ * and TypeScript names a misspelled key or a wrong value where a plain record said nothing.
+ * @public
+ */
+export type PxPatch<T> =
+    T extends ReadonlyArray<unknown> ? T :
+    T extends object ? { [K in keyof T]?: PxPatch<T[K]> | null } :
+    T;
+
+/** `Omit` applied to each member of a union, so a discriminated union keeps its members. */
+type PxDistributiveOmit<T, K extends PropertyKey> = T extends object ? Omit<T, K> : never;
+
+/** A deep-partial of the WIRE animator config (`timeline` — its `trigger` included at this level —,
+ *  `definitions`, `bindings`, `version`), typed from the schema; `null` at any slot deletes it. @public */
+export type PxAnimatorConfigPatch = PxPatch<PxAnimatorConfig> | null;
 
 /** @public */
 export interface PxAnimatorConfigMergeResult {
@@ -117,126 +132,102 @@ function mergeTimeline(base: unknown, patch: JsonRecord, warn: (m: string) => vo
     return merged;
 }
 
-/** A deep-partial of the WIRE `timeline` block; `null` at any slot deletes it. @public */
-export type PxTimelinePatch = Record<string, unknown> | null;
+/** `PxTimeline` without its `trigger` block — the timing. On the props the two are separate blocks
+ *  (the file nests them): `timeline` / `mergeTimeline` take this, `trigger` / `mergeTrigger` the trigger. @public */
+export type PxTimelineWithoutTrigger = PxDistributiveOmit<PxTimeline, 'trigger'>;
 
-/** The flat shortcuts every surface offers for the keys people reach for most. @public */
-export interface PxTimelineShortcuts {
-    /** Shortcut for `timeline.inTime` — where the content window begins, ms. Wins over the same key in `timeline`. */
-    inTime?: number;
-    /** Shortcut for `timeline.outTime` — where the content window ends, ms. */
-    outTime?: number;
-    /** Shortcut for `timeline.playDuration` — wall ms one pass of the window takes. */
-    playDuration?: number;
-    /** Shortcut for `timeline.delay` — the wait before the first iteration, ms. */
-    delay?: number;
-    /** Shortcut for `timeline.iterations`; `'infinite'` never stops. */
-    iterations?: number | 'infinite';
-    /**
-     * Shortcut for `timeline.trigger.start`. Typed from the WIRE, so it includes
-     * `'manual'` — "nothing starts this but a `play()` call".
-     */
-    start?: PxTriggerStart;
-    /** Shortcut for `timeline.trigger.outOfView` — what happens while none of it is on screen. */
-    outOfView?: PxOutOfViewAction;
-    /** Shortcut for `timeline.trigger.hoverEnd` — what the pointer leaving does, for `start: 'hover'`. */
-    hoverEnd?: PxHoverEndAction;
-    /** Shortcut for `timeline.trigger.inViewThreshold` — how much must be on screen (0–1). */
-    inViewThreshold?: number;
-    /** Shortcut for `timeline.trigger.inViewDebounce` — ms the visibility must hold. */
-    inViewDebounce?: number;
-}
+/** A deep-partial of the WIRE timing block, typed from the schema; `null` at any slot deletes it,
+ *  `null` for the whole block deletes the block. No `trigger` here — that is the trigger pair's. @public */
+export type PxTimelinePatch = PxPatch<PxTimelineWithoutTrigger> | null;
 
 /**
- * The playback-override props every surface takes — `createSvgAnimationPlayer` and the three components:
- * the document's `timeline` as a patch, the reset flag, and the four shortcuts above.
- *
- * ONE definition (review §9): React and React Native extend it, Vue derives its internal shape
- * from it, `createSvgAnimationPlayer`'s options extend it.
+ * The playback-override props every surface takes — `createSvgAnimationPlayer` and the three components
+ * (dev-docs/plans/component-api.md D4): `timeline`, a MERGE over the file's timing block. Corrections —
+ * `iterations`, `delay` — never a replacement; whoever needs more edits the document. The trigger is not
+ * here: it travels with its driver, `playOnTrigger` ({@link PxControlProps}). ONE definition (review §9).
  * @public
  */
-export interface PxPlaybackOverride extends PxTimelineShortcuts {
+export interface PxPlaybackOverride {
     /**
-     * Per-instance override of the document's `animator.timeline` — the same shape as `timeline`
-     * in docs/format/README.md, deep-merged over what the document says, so one file can play twice on a page
-     * with different timing. `null` at any slot DELETES that key, restoring the default its
-     * absence means. Also accepts a JSON STRING, which survives a build that mangles object keys.
-     *
-     * `timeline` is the whole useful override surface: the rest of the `animator` block is
-     * content (`definitions`, `bindings`), a version stamp and a debug handle — none of which
-     * a per-instance override should touch. That is why this is not a wrapper object.
+     * Per-instance adjustment of the document's `animator.timeline` — the same shape as `timeline` in
+     * docs/format/README.md minus `trigger`, deep-merged over what the document says, so one file can play
+     * twice on a page with different timing. `null` at a slot DELETES that key, restoring the default its
+     * absence means (an absent `outTime` is the content's end, an absent `playDuration` natural speed).
      */
-    timeline?: PxTimelinePatch | string;
-    /**
-     * Ignore the document's own timeline and start from the player's DEFAULT timeline, with
-     * `timeline` on top. `definitions` and `bindings` are content and are kept either way.
-     */
-    resetTimeline?: boolean;
+    timeline?: PxTimelinePatch;
 }
 
-/**
- * Folds the four shortcuts into the `timeline` patch, accepts the JSON-STRING form of the patch
- * (immune to property mangling — see docs/library/minification.md), and returns it in the shape
- * `applyAnimatorConfig` takes: an animator-level patch `{ timeline: … }`.
- *
- * A shortcut WINS over the same key inside the object: more specific beats more general, the
- * way an inline style beats a stylesheet. One implementation so every surface agrees.
- * @public
- */
-export function foldTimelineOverride(
-    timeline: PxTimelinePatch | string | undefined,
-    shortcuts: PxTimelineShortcuts,
-): PxAnimatorConfigPatch | undefined {
-    let base: PxTimelinePatch | undefined;
-    if (typeof timeline === 'string') {
-        try {
-            const parsed: unknown = JSON.parse(timeline);
-            base = isPlainObject(parsed) || parsed === null ? parsed : undefined;
-            if (base === undefined) console.warn('timeline override: not a JSON object — ignored');
-        } catch (e) {
-            console.warn('timeline override: not valid JSON — ignored', e);
-            base = undefined;
-        }
-    } else {
-        base = timeline ?? undefined;
-    }
-
-    const { inTime, outTime, playDuration, delay, iterations, start, outOfView, hoverEnd, inViewThreshold, inViewDebounce } = shortcuts;
-    if (inTime === undefined && outTime === undefined && playDuration === undefined
-        && delay === undefined && iterations === undefined && start === undefined
-        && outOfView === undefined && hoverEnd === undefined
-        && inViewThreshold === undefined && inViewDebounce === undefined) {
-        return base === undefined ? undefined : { timeline: base };
-    }
-
-    const out: JsonRecord = isPlainObject(base) ? { ...base } : {};
-    if (inTime !== undefined) out.inTime = inTime;
-    if (outTime !== undefined) out.outTime = outTime;
-    if (playDuration !== undefined) out.playDuration = playDuration;
-    if (delay !== undefined) out.delay = delay;
-    if (iterations !== undefined) out.iterations = iterations;
-    // the trigger shortcuts — the SAME flat names the CSS component takes (review §12)
-    const trigger: JsonRecord = isPlainObject(out.trigger) ? { ...out.trigger } : {};
-    if (start !== undefined) trigger.start = start;
-    if (outOfView !== undefined) trigger.outOfView = outOfView;
-    if (hoverEnd !== undefined) trigger.hoverEnd = hoverEnd;
-    if (inViewThreshold !== undefined) trigger.inViewThreshold = inViewThreshold;
-    if (inViewDebounce !== undefined) trigger.inViewDebounce = inViewDebounce;
-    if (Object.keys(trigger).length) out.trigger = trigger;
-    return { timeline: out };
+/** What {@link applyPlaybackOverride} reads: the timing patch, and the trigger driver's object form. @public @advanced */
+export interface PxPlaybackOverrideInput extends PxPlaybackOverride {
+    /** `true` — the document's trigger drives; an object — the WHOLE trigger to use instead (see {@link PxControlProps}). */
+    playOnTrigger?: boolean | PxTrigger;
 }
 
+/** What {@link applyPlaybackOverride} reports beside the document. @public @advanced */
+export interface PxPlaybackOverrideResult {
+    doc: PxDocument;
+    /** The merge's complaints — a key with no slot, a type change — to report as `timelineOverrideIgnored`. */
+    warnings: Array<string>;
+}
+
+// @px-area config
 /**
- * The "nobody named a driver" patch (first-use review §1+2): forces `trigger.start: 'manual'` ON TOP
- * of the caller's own override, so the document cannot start itself. One spelling for the web
- * player's missing `playOnTrigger` option and the components' non-`playOnTrigger` control modes.
+ * Applies the playback override to a document — ONE implementation for the web player and the three
+ * components (D4): `timeline` merged with the timeline rules (`mergeAnimatorConfig`); then, when
+ * `playOnTrigger` is an object, the trigger block SET to it — a REPLACEMENT, because a trigger's keys belong
+ * together (hover → click changes the other lists too). PURE: the document is
+ * never mutated, untouched subtrees are shared. The caller reports `warnings` through its diagnostics.
  * @public @advanced
  */
-export function suppressTriggerStart(patch?: PxAnimatorConfigPatch): PxAnimatorConfigPatch {
-    const base = patch ?? {};
-    const timeline = isPlainObject(base.timeline) ? base.timeline : {};
-    const trigger = isPlainObject(timeline.trigger) ? timeline.trigger : {};
-    return { ...base, timeline: { ...timeline, trigger: { ...trigger, start: PxTriggerStart.manual } } };
+export function applyPlaybackOverride(doc: PxDocument, override: PxPlaybackOverrideInput): PxPlaybackOverrideResult {
+    const { timeline, playOnTrigger } = override;
+    const warnings: Array<string> = [];
+    const apply = (patch: PxAnimatorConfigPatch): void => {
+        const applied = applyAnimatorConfig(doc, patch);
+        warnings.push(...applied.warnings);
+        doc = applied.doc;
+    };
+    if (timeline !== undefined) {
+        // a JS caller can still hand over the old JSON string — reported, never written into the document
+        if (timeline === null || isPlainObject(timeline)) apply({ timeline });
+        else warnings.push('timeline: not an object — ignored');
+    }
+    if (typeof playOnTrigger === 'object' && playOnTrigger !== null) doc = withTrigger(doc, playOnTrigger);   // a SET, not a merge
+    return { doc, warnings };
+}
+
+/** A patch assembled from parsed JSON (a record spread) — UNCHECKED like `uncheckedConfig`: the merge validates
+ *  nothing, the document's `checked` stage repairs and reports what does not fit. */
+const uncheckedPatch = (p: JsonRecord): PxAnimatorConfigPatch => p as PxAnimatorConfigPatch;
+
+/**
+ * The document with its `timeline.trigger` SET to `trigger` — not merged: an empty block (`{}`, "nothing starts
+ * it") and a replacement that drops keys both need a set, which a merge patch cannot say. Returns a new
+ * document sharing every untouched subtree; the animator lives at either of its two addresses.
+ * @public @advanced
+ */
+export function withTrigger(doc: PxDocument, trigger: PxTrigger): PxDocument {
+    const legacy = legacyAnimatorOf(doc);
+    const atRoot = isPlainObject(doc.animator);
+    const current: unknown = atRoot ? doc.animator : legacy;
+    const base: JsonRecord = isPlainObject(current) ? current : {};
+    const timeline: JsonRecord = isPlainObject(base.timeline) ? base.timeline : {};
+    const animator: JsonRecord = { ...base, timeline: { ...timeline, trigger: { ...trigger } } };
+    if (!atRoot && legacy !== undefined) {
+        const meta = isPlainObject(doc.meta) ? doc.meta : {};
+        return { ...doc, meta: { ...meta, animator } };
+    }
+    return { ...doc, animator: uncheckedConfig(animator) };
+}
+
+/**
+ * The "nobody named a driver" rule (first-use review §1+2): the document's trigger is replaced by an EMPTY one —
+ * no event starts it — on top of the caller's override, so the document cannot start itself. One spelling for
+ * the web player's missing `playOnTrigger` option and the components' non-`playOnTrigger` control modes.
+ * @public @advanced
+ */
+export function withoutTriggerDriver(doc: PxDocument): PxDocument {
+    return withTrigger(doc, {});
 }
 
 /**
@@ -289,19 +280,15 @@ function mergeConfigRecord(base: unknown, patch: JsonRecord, warn: (m: string) =
  * Document level: resolves the two canonical addresses of the animator config and returns a NEW
  * document that shares every untouched subtree by reference.
  *
- * `resetTimeline` starts from the player's own defaults instead of the document's playback
- * settings — "play this file as if it said nothing about timing". The lookup tables are kept
- * either way: resetting `definitions`/`bindings` would leave an animation with nothing to
- * animate, which is never what a caller means.
+ * (To play a file "as if it said nothing about timing", REPLACE its timing block: the `timeline`
+ * prop, `applyPlaybackOverride`.)
  * @public
  */
 export function applyAnimatorConfig(
     doc: PxDocument,
     patch: PxAnimatorConfigPatch,
-    options?: { resetTimeline?: boolean },
 ): { doc: PxDocument; warnings: Array<string> } {
-    const reset = !!options?.resetTimeline;
-    if (!doc || (patch === undefined || (!reset && (patch === null || !isPlainObject(patch) || !Object.keys(patch).length)))) {
+    if (!doc || patch === undefined || patch === null || !isPlainObject(patch) || !Object.keys(patch).length) {
         return { doc, warnings: [] };
     }
 
@@ -315,18 +302,9 @@ export function applyAnimatorConfig(
         warnings.push('animator: doc.meta.animator is shadowed by doc.animator and was not patched');
     }
 
-    let base: JsonRecord | undefined = isPlainObject(current) ? current : undefined;
-    if (reset) {
-        // Keep only the content — the lookup tables and the bindings, never reset; everything else starts from the player's defaults.
-        const kept: JsonRecord = {};
-        if (base?.definitions !== undefined) kept.definitions = base.definitions;
-        if (base?.bindings !== undefined) kept.bindings = base.bindings;
-        base = kept;
-    }
-
-    const p = patch ?? {};
-    const merged = isPlainObject(p) && Object.keys(p).length ? mergeConfigRecord(base, p, m => warnings.push(m)) : base;
-    if (merged === current || !merged) return { doc, warnings };
+    const base: JsonRecord | undefined = isPlainObject(current) ? current : undefined;
+    const merged = mergeConfigRecord(base, patch, m => warnings.push(m));
+    if (merged === current) return { doc, warnings };
 
     if (atMeta) {
         const meta = isPlainObject(doc.meta) ? doc.meta : {};

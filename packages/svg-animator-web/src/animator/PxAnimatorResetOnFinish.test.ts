@@ -3,9 +3,9 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-// `animator.resetOnFinish`: after a NATURAL finish the document must snap back to its
-// start state (same mechanics as the trigger `reset` out-action — `api.cancel()`),
-// instead of holding the end state. Wired centrally in `createAnimatorFromConfig` so
+// `timeline.playEndAction` (D5): after a NATURAL finish the document holds its end state (the
+// default), snaps back to its start state (`reset`, the runtime view's `resetOnFinish`) or plays
+// back to it (`rewind`). Wired centrally in `finaliseAnimator` through the player's executor so
 // both engines get it; tested here through the public `createSvgAnimationPlayer` (frames mode —
 // jsdom has no WAAPI).
 
@@ -45,7 +45,7 @@ function renderedOpacity(): string | null {
     return document.querySelector('#svg-container rect')?.getAttribute('opacity') ?? null;
 }
 
-describe('animator.resetOnFinish', () => {
+describe('timeline.playEndAction', () => {
     beforeEach(() => {
         document.body.innerHTML = '<div id="svg-container"></div>';
         // 'performance' must be faked alongside requestAnimationFrame (see
@@ -59,7 +59,7 @@ describe('animator.resetOnFinish', () => {
         vi.useRealTimers();
     });
 
-    it('WITHOUT the flag the animation holds its end state (baseline)', () => {
+    it('WITHOUT the key the animation holds its end state (baseline)', () => {
         const api = createSvgAnimationPlayer({ doc: makeDoc(), container: '#svg-container' });
         api.play();
         vi.advanceTimersByTime(DUR + 32);
@@ -67,8 +67,8 @@ describe('animator.resetOnFinish', () => {
         api.destroy();
     });
 
-    it('WITH the flag the document snaps back to frame 0 on natural finish', () => {
-        const api = createSvgAnimationPlayer({ doc: makeDoc({ finish: 'reset' }), container: '#svg-container' });
+    it("'reset': the document snaps back to frame 0 on natural finish", () => {
+        const api = createSvgAnimationPlayer({ doc: makeDoc({ playEndAction: 'reset' }), container: '#svg-container' });
         api.play();
         vi.advanceTimersByTime(DUR / 2);
         expect(parseFloat(renderedOpacity() ?? 'NaN')).toBeGreaterThan(0);   // mid-flight
@@ -79,7 +79,7 @@ describe('animator.resetOnFinish', () => {
 
     it('the caller’s own onFinish still fires (before the reset)', () => {
         const onFinish = vi.fn();
-        const api = createSvgAnimationPlayer({ doc: makeDoc({ finish: 'reset' }), container: '#svg-container', onFinish });
+        const api = createSvgAnimationPlayer({ doc: makeDoc({ playEndAction: 'reset' }), container: '#svg-container', onFinish });
         api.play();
         vi.advanceTimersByTime(DUR + 32);
         expect(onFinish).toHaveBeenCalledTimes(1);
@@ -87,8 +87,22 @@ describe('animator.resetOnFinish', () => {
         api.destroy();
     });
 
+    it("'rewind': the document plays BACK to its start after a natural finish and rests there", () => {
+        const api = createSvgAnimationPlayer({ doc: makeDoc({ playEndAction: 'rewind' }), container: '#svg-container' });
+        api.play();
+        vi.advanceTimersByTime(DUR + DUR / 2);
+        expect(api.isPlaying()).toBe(true);                                   // on its way back
+        const midway = parseFloat(renderedOpacity() ?? 'NaN');
+        expect(midway).toBeGreaterThan(0);
+        expect(midway).toBeLessThan(1);
+        vi.advanceTimersByTime(DUR);
+        expect(api.isPlaying()).toBe(false);                                  // at rest, at the start
+        expect(renderedOpacity()).toBe('0');
+        api.destroy();
+    });
+
     it('reset re-arms the animation — play() after finish runs again from the start', () => {
-        const api = createSvgAnimationPlayer({ doc: makeDoc({ finish: 'reset' }), container: '#svg-container' });
+        const api = createSvgAnimationPlayer({ doc: makeDoc({ playEndAction: 'reset' }), container: '#svg-container' });
         api.play();
         vi.advanceTimersByTime(DUR + 32);
         expect(renderedOpacity()).toBe('0');

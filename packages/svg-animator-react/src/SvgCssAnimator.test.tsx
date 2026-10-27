@@ -65,9 +65,9 @@ describe("SvgCssAnimationPlayer (React)", () => {
         expect(div.style.width).toBe("123px");
     });
 
-    it("toggles classes for start='hover' + hoverEnd='pause'", () => {
+    it("toggles classes for playOn 'hoverIn' + pauseOn 'hoverOut'", () => {
         const { container } = render(
-            <SvgCssAnimationPlayer start="hover" hoverEnd="pause">
+            <SvgCssAnimationPlayer trigger={{ playOn: 'hoverIn', pauseOn: 'hoverOut' }}>
                 <svg />
             </SvgCssAnimationPlayer>
         );
@@ -85,9 +85,9 @@ describe("SvgCssAnimationPlayer (React)", () => {
         expect(div.className).toBe("px-anim-enabled");
     });
 
-    it("resets to idle on mouse-out when hoverEnd='reset'", () => {
+    it("resets to idle on mouse-out when hoverOut is a playOff", () => {
         const { container } = render(
-            <SvgCssAnimationPlayer start="hover" hoverEnd="reset">
+            <SvgCssAnimationPlayer trigger={{ playOn: 'hoverIn', playOff: 'hoverOut' }}>
                 <svg />
             </SvgCssAnimationPlayer>
         );

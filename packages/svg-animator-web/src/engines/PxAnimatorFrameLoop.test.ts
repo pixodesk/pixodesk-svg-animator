@@ -119,7 +119,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("positive delay with fill 'backwards': first frame is rendered during the delay", () => {
-        const { api, calls, opacity } = setup({ delay: 160, fillMode: 'backwards' });
+        const { api, calls, opacity } = setup({ delay: 160, showFirstFrameBeforePlayOn: true, playEndAction: 'reset' });
 
         // The first frame is rendered already at construction time.
         expect(calls.length).toBeGreaterThan(0);
@@ -158,7 +158,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("fill 'none' reverts to frame 0 at the natural end", () => {
-        const { api, calls } = setup({ fillMode: 'none' });
+        const { api, calls } = setup({ playEndAction: 'reset' });
 
         api.play();
         vi.advanceTimersByTime(DUR + 64);
@@ -168,7 +168,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("fill 'both' holds the first frame during the delay AND the final frame after the end", () => {
-        const { api, calls, opacity } = setup({ delay: 160, fillMode: 'both' });
+        const { api, calls, opacity } = setup({ delay: 160, showFirstFrameBeforePlayOn: true });
 
         // Backwards side: frame 0 rendered at construction and throughout the delay window.
         expect(opacity()).toBe(0);
@@ -208,10 +208,10 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it.each<{ name: string; timeline: PxTimeTimeline; at: number; expected: number }>([
-        { name: "direction 'reverse' mirrors progress", timeline: { direction: 'reverse' }, at: 80, expected: 0.75 },
-        { name: "direction 'alternate' plays iteration 0 forward", timeline: { direction: 'alternate', iterations: 2 }, at: 80, expected: 0.25 },
-        { name: "direction 'alternate' mirrors iteration 1", timeline: { direction: 'alternate', iterations: 2 }, at: DUR + 80, expected: 0.75 },
-        { name: "direction 'alternateReverse' mirrors iteration 0", timeline: { direction: 'alternateReverse', iterations: 2 }, at: 80, expected: 0.75 },
+        { name: "direction 'reverse' mirrors progress", timeline: { iterationDirection: 'reverse' }, at: 80, expected: 0.75 },
+        { name: "direction 'alternate' plays iteration 0 forward", timeline: { iterationDirection: 'alternate', iterations: 2 }, at: 80, expected: 0.25 },
+        { name: "direction 'alternate' mirrors iteration 1", timeline: { iterationDirection: 'alternate', iterations: 2 }, at: DUR + 80, expected: 0.75 },
+        { name: "direction 'alternateReverse' mirrors iteration 0", timeline: { iterationDirection: 'alternateReverse', iterations: 2 }, at: 80, expected: 0.75 },
     ])('$name', ({ timeline, at, expected }) => {
         const { api, opacity } = setup(timeline);
         api.play();
@@ -335,7 +335,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
 
     it('onFinish fires on every replay of a hover/reverse trigger cycle (finish re-arms on play)', () => {
         // Mirrors what setupAnimationTriggers produces for
-        // start:'hover' + hoverEnd:'reverse':
+        // `playOn: 'hoverIn'` + `playOff: 'hoverOut'` with `playOffAction: 'rewind'`:
         // hover → play to end, leave → reverse to 0, hover → forward to end.
         const onFinish = vi.fn();
         const { api } = setup({}, { onFinish });
@@ -387,7 +387,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("finish() honors fill:'none' (reverts to frame 0, same as the natural end)", () => {
-        const { api, calls } = setup({ fillMode: 'none' });
+        const { api, calls } = setup({ playEndAction: 'reset' });
 
         api.play();
         vi.advanceTimersByTime(64);

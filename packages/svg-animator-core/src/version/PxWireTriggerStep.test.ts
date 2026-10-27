@@ -91,6 +91,10 @@ describe('wire step 1.1 → 1.2 — the trigger block', () => {
     });
 });
 
+/** Converts to 1.8 — the trigger block these cases name was replaced by the 1.8 → 1.9 step. */
+const STEPS_TO_1_8 = PX_WIRE_STEPS.slice(0, PX_WIRE_STEPS.findIndex(s => s.to === '1.9'));
+const convertTo18 = (doc: unknown) => applyWireSteps(doc, { steps: STEPS_TO_1_8, target: { a: 1, b: 8, c: 0 }, readerReadsEditorPart: false });
+
 describe('wire step 1.6 → 1.7 — the trigger words', () => {
     const doc16 = (trigger: Record<string, unknown>) =>
         ({ type: 'svg', animator: { version: '1.6.0', timeline: { outTime: 1000, trigger } }, children: [] });
@@ -98,17 +102,74 @@ describe('wire step 1.6 → 1.7 — the trigger words', () => {
     const NEW_HOVER = { start: 'hover', hoverEnd: 'reverse', outOfView: 'reset', inViewThreshold: 0.2, inViewDebounce: 80 };
 
     it('renames every trigger key and the hover start', () => {
-        expect(triggerOf(convertWireDocument(doc16(OLD_HOVER)).doc)).toEqual(NEW_HOVER);
+        expect(triggerOf(convertTo18(doc16(OLD_HOVER)).doc)).toEqual(NEW_HOVER);
     });
 
     it("start 'none' becomes 'manual'; load and click stay", () => {
-        expect(triggerOf(convertWireDocument(doc16({ start: 'none' })).doc)).toEqual({ start: 'manual' });
-        expect(triggerOf(convertWireDocument(doc16({ start: 'click' })).doc)).toEqual({ start: 'click' });
+        expect(triggerOf(convertTo18(doc16({ start: 'none' })).doc)).toEqual({ start: 'manual' });
+        expect(triggerOf(convertTo18(doc16({ start: 'click' })).doc)).toEqual({ start: 'click' });
     });
 
     it('goes back down exactly', () => {
-        const at17 = convertWireDocument(doc16(OLD_HOVER)).doc;
-        const down = applyWireStepsDown(at17, { steps: PX_WIRE_STEPS, target: { a: 1, b: 6, c: 0 }, readerReadsEditorPart: false });
+        const at18 = convertTo18(doc16(OLD_HOVER)).doc;
+        const down = applyWireStepsDown(at18, { steps: STEPS_TO_1_8, target: { a: 1, b: 6, c: 0 }, readerReadsEditorPart: false });
         expect(down.ok && triggerOf(down.doc)).toEqual(OLD_HOVER);
+    });
+});
+
+describe('wire step 1.8 → 1.9 — WHEN in the trigger, HOW on the timeline (component-api plan D5)', () => {
+    const doc18 = (timeline: Record<string, unknown>) =>
+        ({ type: 'svg', animator: { version: '1.8.0', timeline: { outTime: 1000, ...timeline } }, children: [] });
+    const up = (timeline: Record<string, unknown>) => timelineOf(convertWireDocument(doc18(timeline)).doc);
+
+    it('hover: the leave action becomes the list it belongs to — pause → pauseOn, reset → playOff, reverse → playOff + rewind, continue → nothing', () => {
+        expect(up({ trigger: { start: 'hover', hoverEnd: 'pause' } })).toEqual({ outTime: 1000, trigger: { playOn: 'hoverIn', pauseOn: 'hoverOut' } });
+        expect(up({ trigger: { start: 'hover', hoverEnd: 'reset' } })).toEqual({ outTime: 1000, trigger: { playOn: 'hoverIn', playOff: 'hoverOut' } });
+        expect(up({ trigger: { start: 'hover', hoverEnd: 'reverse' } }))
+            .toEqual({ outTime: 1000, playOffAction: 'rewind', trigger: { playOn: 'hoverIn', playOff: 'hoverOut' } });
+        expect(up({ trigger: { start: 'hover', hoverEnd: 'continue' } })).toEqual({ outTime: 1000, trigger: { playOn: 'hoverIn' } });
+        // an omitted hoverEnd meant pause
+        expect(up({ trigger: { start: 'hover' } })).toEqual({ outTime: 1000, trigger: { playOn: 'hoverIn', pauseOn: 'hoverOut' } });
+    });
+
+    it('click was a toggle: it plays AND pauses', () => {
+        expect(up({ trigger: { start: 'click' } })).toEqual({ outTime: 1000, trigger: { playOn: 'click', pauseOn: 'click' } });
+    });
+
+    it("manual becomes the EMPTY block — nothing starts it; load and an absent start become playOn: 'load'", () => {
+        expect(up({ trigger: { start: 'manual' } }).trigger).toEqual({});
+        expect(up({ trigger: { start: 'load' } }).trigger).toEqual({ playOn: 'load' });
+        expect(up({ trigger: { outOfView: 'continue' } })).toEqual({ outTime: 1000, outOfViewAction: 'continue', trigger: { playOn: 'load' } });
+    });
+
+    it('the gate keys move up to the timeline', () => {
+        expect(up({ trigger: { start: 'load', outOfView: 'reset', inViewThreshold: 0.2, inViewDebounce: 80 } }))
+            .toEqual({ outTime: 1000, outOfViewAction: 'reset', inViewThreshold: 0.2, inViewDebounce: 80, trigger: { playOn: 'load' } });
+    });
+
+    it('fillMode + finish become the end action and the first-frame flag', () => {
+        expect(up({ fillMode: 'both' })).toEqual({ outTime: 1000, showFirstFrameBeforePlayOn: true });
+        expect(up({ fillMode: 'backwards' })).toEqual({ outTime: 1000, showFirstFrameBeforePlayOn: true, playEndAction: 'reset' });
+        expect(up({ fillMode: 'none' })).toEqual({ outTime: 1000, playEndAction: 'reset' });
+        expect(up({ fillMode: 'forwards' })).toEqual({ outTime: 1000 });
+        expect(up({ finish: 'reset' })).toEqual({ outTime: 1000, playEndAction: 'reset' });
+        expect(up({ finish: 'hold' })).toEqual({ outTime: 1000 });
+        expect(up({ fillMode: 'both', finish: 'reset' })).toEqual({ outTime: 1000, showFirstFrameBeforePlayOn: true, playEndAction: 'reset' });
+    });
+
+    it('direction becomes iterationDirection', () => {
+        expect(up({ direction: 'alternate' })).toEqual({ outTime: 1000, iterationDirection: 'alternate' });
+    });
+
+    it('a timeline without the old keys is left alone, and so is a document without a timeline', () => {
+        expect(up({ delay: 5 })).toEqual({ outTime: 1000, delay: 5 });
+        const bare = { type: 'svg', animator: { version: '1.8.0' }, children: [] };
+        expect(convertWireDocument(bare).doc).toMatchObject({ type: 'svg', children: [] });
+    });
+
+    it('never mutates the caller’s document', () => {
+        const original = doc18({ fillMode: 'both', trigger: { start: 'hover', hoverEnd: 'reverse' } });
+        convertWireDocument(original);
+        expect(timelineOf(original)).toEqual({ outTime: 1000, fillMode: 'both', trigger: { start: 'hover', hoverEnd: 'reverse' } });
     });
 });

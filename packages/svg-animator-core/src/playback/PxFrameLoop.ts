@@ -6,7 +6,7 @@
 
 import { type PxDocument, type PxAnimationPlayerApi, type PxEngineAnimationPlayerApi, type PxEngineCallbacks } from '../format/PxAnimatorTypes';
 import { composeApiExtras } from './PxDeclarativePlayback';
-import { getAnimatorConfig, PX_DEFAULT_ITERATIONS, PxPlaybackDirection, PxTimelineEngine } from '../format/PxAnimatorConstants';
+import { getAnimatorConfig, PX_DEFAULT_ITERATIONS, PxPlaybackDirection, PxTimelineEngine , fillModeOf } from '../format/PxAnimatorConstants';
 import { PxTimeTimelineSchema } from '../format/PxAnimatorTypes';
 import { camelCaseToKebabWordIfNeeded, clamp, PX_DEFAULT_DURATION_MS, PX_STYLE_ATTR_NAMES } from '../util/PxAnimatorUtil';
 import { calcAnimationValues, normalizeBindings } from '../animation/PxDefinitions';
@@ -86,12 +86,12 @@ export function createAdapterSvgAnimationPlayer(
 
     // direction handling
     // What an omitted field means is the SCHEMA's statement — read, not restated here.
-    const direction = config.direction || PxTimeTimelineSchema.defaults.direction; // a PxPlaybackDirection
+    const direction = config.direction || PxTimeTimelineSchema.defaults.iterationDirection; // a PxPlaybackDirection
 
     // fill handling — mirrors the Web Animations API `fill` semantics as closely
     // as a frame-writer can. Default 'forwards' (hold final state) matches the
     // waapi engine and the config doc.
-    const fill = config.fill ?? PxTimeTimelineSchema.defaults.fillMode;
+    const fill = config.fill ?? fillModeOf(undefined, undefined);
     const fillsForwards = fill === 'forwards' || fill === 'both';
     const fillsBackwards = fill === 'backwards' || fill === 'both';
 
