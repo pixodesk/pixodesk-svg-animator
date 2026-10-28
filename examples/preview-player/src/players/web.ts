@@ -16,6 +16,8 @@ export function createWebPlayer(
     // `undefined` keeps the document's values — the same option the React and Vue
     // components take.
     timeline: opts?.timeline,
+    // The gate's `suspend` transition, merged over the document's own actions.
+    actions: opts?.actions,
   });
 
   return {

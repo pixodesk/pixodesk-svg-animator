@@ -5,11 +5,15 @@
     "timeline": {
       "mode": "player",
       "outTime": 1000,
-      "trigger": {
-        "start": "load",
-        "outOfView": "continue"
+      "triggers": {
+        "start": "load"
       },
-      "direction": "normal"
+      "iterationDirection": "normal",
+      "actions": {
+        "suspend": {
+          "transition": "continue"
+        }
+      }
     }
   },
   "viewBox": "0 0 600 600",

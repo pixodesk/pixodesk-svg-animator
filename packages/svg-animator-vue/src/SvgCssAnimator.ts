@@ -4,8 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxPlayState, PxTriggerAction, PxTriggerEvent, type PxOutOfViewAction, type PxTrigger } from '@pixodesk/svg-animator-core';
-import { resolveGate, resolveTrigger, triggerActionFor, triggerListsEvent } from '@pixodesk/svg-animator-core/engine';
+import { PxPlayState, PxTriggerAction, PxTriggerEvent, type PxActions, type PxTriggers } from '@pixodesk/svg-animator-core';
+import { resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent } from '@pixodesk/svg-animator-core/engine';
 import { createVisibilityGate, type PxVisibilityGate } from '@pixodesk/svg-animator-web/internal';
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch, type PropType } from 'vue';
 
@@ -23,7 +23,7 @@ import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch, t
  * </script>
  *
  * <template>
- *   <SvgCssAnimationPlayer :trigger="{ playStart: 'hoverIn', pauseStart: 'hoverOut' }">
+ *   <SvgCssAnimationPlayer :triggers="{ start: 'hoverIn', pause: 'hoverOut' }">
  *     <AnimationSvg />
  *   </SvgCssAnimationPlayer>
  * </template>
@@ -34,20 +34,20 @@ import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch, t
  * - `px-anim-enabled`                   — paused
  * - `px-anim-enabled px-anim-playing`   — playing
  *
- * The trigger is the JSON player's (dev-docs/plans/component-api.md D5): four event lists — `playStart`,
- * `playStop`, `pauseStart`, `pauseStop` — over the events `load`, `hoverIn`, `hoverOut`, `click`, read by the
- * same state rule (core's `triggerActionFor`) and gated by the same visibility gate
- * (`createVisibilityGate`), so the two players cannot drift. An absent `trigger` plays on load; an
+ * The triggers are the JSON player's (dev-docs/plans/playback-layers.md): event lists — `start`, `stop`,
+ * `pause`, `resume`, plus `togglePlay` / `togglePause` — over the events `load`, `hoverIn`, `hoverOut`, `click`,
+ * read by the same state rule (core's `triggerActionFor`) and gated by the same visibility gate
+ * (`createVisibilityGate`), so the two players cannot drift. An absent `triggers` block plays on load; an
  * empty one lists nothing.
  *
  * ACCEPTED LIMITS of a class toggle (the editor shows them next to the choices):
- * - `playStartAction` is always `resume` — a class cannot restart keyframes or jump to their end
- * - `playStopAction` is always `reset` — a class cannot play keyframes backwards
- * - `completeIterationOnPlayStop`, `showFirstFrameBeforePlayStart` and `playFinishAction` are the file's own CSS
+ * - the start transition is always `continue` — a class cannot restart keyframes or jump to their end
+ * - the stop transition is always `reset` — a class cannot play keyframes backwards
+ * - completing the iteration, `beforeStart` and the finish transition are the file's own CSS
  *
- * @prop trigger   - WHEN: the file's own `timeline.trigger` block — `playStart`, `playStop`, `pauseStart`, `pauseStop`,
- *   each one event or a list of them.
- * @prop outOfViewAction - What happens while none of it is on screen (the timeline's key; default `'pause'`):
+ * @prop triggers  - WHEN: the file's own `timeline.triggers` block — `start`, `stop`, `pause`, `resume`,
+ *   `togglePlay`, `togglePause`, each one event or a list of them.
+ * @prop actions - Only `suspend` applies — what happens while none of it is on screen (default `'pause'`):
  *   `'pause'` pauses at the current frame and resumes when it comes back, `'continue'` keeps playing and starts
  *   without waiting to be seen, `'reset'` goes back to the beginning so it replays on the next entry.
  * @prop inViewThreshold - How much of the element must be on screen (0–1) before it may run (default `0.5`).
@@ -60,18 +60,18 @@ const SvgCssAnimationPlayer = defineComponent({
     // apply them — otherwise a host class lands on the div twice.
     inheritAttrs: false,
     props: {
-        trigger: { type: Object as PropType<PxTrigger> },
-        outOfViewAction: { type: String as PropType<PxOutOfViewAction> },
+        triggers: { type: Object as PropType<PxTriggers> },
+        actions: { type: Object as PropType<Pick<PxActions, 'suspend'>> },
         inViewThreshold: { type: Number },
         inViewDebounce: { type: Number },
     },
     setup(props, { slots, attrs }) {
-        // one rule with the JSON player: the lists normalised, the gate keys defaulted
-        const resolved = computed(() => resolveTrigger(props.trigger));
+        // one rule with the JSON player: the lists normalised, the gate defaulted
+        const resolved = computed(() => resolveTriggers(props.triggers));
         const gateConfig = computed(() => resolveGate({
-            outOfViewAction: props.outOfViewAction, inViewThreshold: props.inViewThreshold, inViewDebounce: props.inViewDebounce,
+            actions: props.actions, inViewThreshold: props.inViewThreshold, inViewDebounce: props.inViewDebounce,
         }));
-        const playsOnLoad = computed(() => resolved.value.playStart.includes(PxTriggerEvent.load));
+        const playsOnLoad = computed(() => resolved.value.start.includes(PxTriggerEvent.load));
         const state = ref<PxPlayState>(PxPlayState.stopped);
         const el = ref<HTMLDivElement | null>(null);
         let gate: PxVisibilityGate | null = null;

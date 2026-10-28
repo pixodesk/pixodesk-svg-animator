@@ -1,4 +1,4 @@
-import type { PxDocument, PxTimelinePatch, PxTrigger } from '@pixodesk/svg-animator-web';
+import type { PxActionsPatch, PxDocument, PxTimelinePatch, PxTriggers } from '@pixodesk/svg-animator-web';
 
 /**
  * A framework-agnostic handle over a mounted animation player.
@@ -40,34 +40,39 @@ export type PlayerKind = 'web' | 'react' | 'vue';
  */
 export type LoopMode = 'auto' | 'loop' | 'no-loop';
 
-/** Per-mount options applied as overrides on top of the document — the same two every player takes. */
+/** Per-mount options applied as overrides on top of the document — the same three every player takes. */
 export interface PlayerOptions {
   /**
    * A merge over the document's `animator.timeline`: the Loop picker's `iterations`, and the
-   * visibility gate (`outOfViewAction`, `inViewThreshold`, `inViewDebounce`) of a custom trigger.
+   * visibility numbers (`inViewThreshold`, `inViewDebounce`) of custom triggers.
    * When omitted, the values declared in the document are used unchanged.
    */
   timeline?: PxTimelinePatch;
   /**
-   * Trigger handling:
-   *  - `undefined` → programmatic (the UI transport owns start; default);
-   *  - `'file'`    → use the document's own `animator.timeline.trigger` unchanged;
-   *  - `PxTrigger` → this trigger instead of the document's — the WHOLE block.
+   * A merge over the document's `animator.timeline.actions`: the gate's `suspend` transition of
+   * custom triggers. When omitted, the document's own actions are used unchanged.
    */
-  trigger?: 'file' | PxTrigger;
+  actions?: PxActionsPatch;
+  /**
+   * Trigger handling:
+   *  - `undefined`  → programmatic (the UI transport owns start; default);
+   *  - `'file'`     → use the document's own `animator.timeline.triggers` unchanged;
+   *  - `PxTriggers` → these triggers instead of the document's — the WHOLE block.
+   */
+  triggers?: 'file' | PxTriggers;
 }
 
 /**
- * The `playOnTrigger` option / prop every player takes, from the {@link PlayerOptions.trigger}
+ * The `playOnTrigger` option / prop every player takes, from the {@link PlayerOptions.triggers}
  * choice. Shared by all three player adapters so "Use trigger" behaves identically everywhere:
- *  - default (no `trigger`)  → absent: the player builds STILL and the transport buttons own
- *    start — the document's own trigger is replaced by an empty one, so nothing starts it by
+ *  - default (no `triggers`) → absent: the player builds STILL and the transport buttons own
+ *    start — the document's own triggers are replaced by an empty block, so nothing starts it by
  *    itself (the web player's rule for a missing `playOnTrigger`, and the components' static mode);
- *  - `'file'`                → `true`: the document's own trigger drives;
- *  - a config object         → that trigger, as a whole, instead of the document's.
+ *  - `'file'`                → `true`: the document's own triggers drive;
+ *  - a config object         → those triggers, as a whole, instead of the document's.
  */
-export function playOnTriggerFor(opts?: PlayerOptions): boolean | PxTrigger | undefined {
-  const t = opts?.trigger;
+export function playOnTriggerFor(opts?: PlayerOptions): boolean | PxTriggers | undefined {
+  const t = opts?.triggers;
   return t === undefined ? undefined : t === 'file' ? true : t;
 }
 

@@ -1,10 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" id="_px_1" data-px-meta="runtime:{externalJs:true},animator:{timeline:{outTime:1000,iterations:'infinite',iterationDirection:'alternate',outOfViewAction:'continue',trigger:{playStart:'load'}}}">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" id="_px_1" data-px-meta="runtime:{externalJs:true},animator:{timeline:{outTime:1000,iterations:'infinite',iterationDirection:'alternate',actions:{suspend:{transition:'continue'}},triggers:{start:'load'}}}">
   <ellipse id="ball" fill="#0087ff" transform="translate(200,60)" rx="40" ry="40" data-px-meta="animate:{transform:{keyframes:[{time:0,value:{translate:[200,60]},easing:[0.33,0,0.67,0.33]},{time:1000,value:{translate:[200,340]}}]}}"/>
 <script data-px-script="true">
 //<![CDATA[
 (function() {
 var a = Pixodesk.SvgAnimator.bind({"playOnTrigger": true, "doc": 
-{"id":"_px_1","type":"svg","animator":{"definitions":{"animations":{"a0":{"transform":{"keyframes":[{"time":0,"value":{"translate":[200,60]},"easing":[0.33,0,0.67,0.33]},{"time":1000,"value":{"translate":[200,340]}}]}}}},"bindings":[{"target":"#ball","animateWith":["a0"]}],"timeline":{"outTime":1000,"iterations":"infinite","iterationDirection":"alternate","trigger":{"playStart":"load"},"outOfViewAction":"continue"}}}
+{"id":"_px_1","type":"svg","animator":{"definitions":{"animations":{"a0":{"transform":{"keyframes":[{"time":0,"value":{"translate":[200,60]},"easing":[0.33,0,0.67,0.33]},{"time":1000,"value":{"translate":[200,340]}}]}}}},"bindings":[{"target":"#ball","animateWith":["a0"]}],"timeline":{"outTime":1000,"iterations":"infinite","iterationDirection":"alternate","triggers":{"start":"load"},"actions":{"suspend":{"transition":"continue"}}}}}
 });
 })();
 //]]>

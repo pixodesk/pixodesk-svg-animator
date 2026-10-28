@@ -10,11 +10,11 @@
 // `pause` to the Editor), (3) that the runtime's own fallbacks are the schema's.
 
 import { describe, expect, it } from 'vitest';
-import { resolveAnimatorTimeline, getAnimatorConfig, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_PLAYBACK_DEFAULTS, PxPlayFinishAction, PxTriggerEvent, resolveTrigger } from '../format/PxAnimatorConstants';
+import { resolveAnimatorTimeline, getAnimatorConfig, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_PLAYBACK_DEFAULTS, PxFinishTransition, PxTriggerEvent, resolveTriggers } from '../format/PxAnimatorConstants';
 import {
     PxDocumentSchema, PxAnimatorConfigSchema, PxCloneEffectSchema, PxFillGradientEffectSchema, PxGlyphFontSchema, PxLoopSchema, PxMaskedByEffectSchema,
     PxPropertyAnimationSchema, PxScrollRangePointSchema, PxScrollSchema, PxStrokeTrimEffectSchema, PxTextPathEffectSchema, PxTimelineSchema,
-    PxTimeTimelineSchema, PxTriggerSchema, type PxDocument, type PxTrigger,
+    PxTimeTimelineSchema, PxTriggersSchema, PxStartActionSchema, PxStopActionSchema, PxFinishActionSchema, PxSuspendActionSchema, type PxDocument, type PxTriggers,
 } from '../format/PxAnimatorTypes';
 import { describeSchema, px, schemaKeys, type PxAnySchema } from './PxSchema';
 import { untyped } from '../effects/effectTestKit';
@@ -64,7 +64,11 @@ describe('schema.defaults — what an absent field means', () => {
         const visitCounting = (name: string, schema: PxAnySchema) => { visited++; visit(name, schema); };
         visitCounting('loop', PxLoopSchema);
         visitCounting('propertyAnimation', PxPropertyAnimationSchema);
-        visitCounting('trigger', PxTriggerSchema);
+        visitCounting('triggers', PxTriggersSchema);
+        visitCounting('actions.start', PxStartActionSchema);
+        visitCounting('actions.stop', PxStopActionSchema);
+        visitCounting('actions.finish', PxFinishActionSchema);
+        visitCounting('actions.suspend', PxSuspendActionSchema);
         // Every member of the timeline union — time, scroll and view have fields of their own.
         const timeline = describeSchema(PxTimelineSchema);
         for (const member of timeline.kind === 'discriminatedUnion' ? timeline.members : []) visitCounting('timeline', member);
@@ -75,26 +79,30 @@ describe('schema.defaults — what an absent field means', () => {
         visitCounting('clone', PxCloneEffectSchema);
         visitCounting('fillGradient', PxFillGradientEffectSchema);
         visitCounting('textPath', PxTextPathEffectSchema);
-        expect(visited).toBeGreaterThanOrEqual(13);
+        expect(visited).toBeGreaterThanOrEqual(17);
         // The rule has teeth: the one deliberate flag is the only optional choice without a stated default.
         expect(PxCloneEffectSchema._shape.without.absentDefault()).toBeUndefined();
         expect(unstated, 'optional choices whose schema does not say what absent means').toEqual([]);
     });
 
     it('the play keys\' stated defaults are exactly the constants the runtime is built from', () => {
-        // The timeline states every play / gate default (D5); the one that is not a timeline key —
-        // what an ABSENT trigger block plays on — is the resolver's.
-        const { playStart, ...timelineDefaults } = PX_PLAYBACK_DEFAULTS;
-        expect(PxTimeTimelineSchema.defaults).toMatchObject(timelineDefaults);
-        expect(PxTriggerSchema.defaults).toEqual({});
-        expect(resolveTrigger(undefined).playStart).toEqual([playStart]);
-        // `timeline.playFinishAction` reaches the engines as the runtime view's `resetOnFinish`,
+        // The timeline and the action blocks state every play / gate default; the one that is no key —
+        // what an ABSENT triggers block plays on — is the resolver's.
+        const d = PX_PLAYBACK_DEFAULTS;
+        expect(PxTimeTimelineSchema.defaults).toMatchObject({ beforeStart: d.beforeStart, inViewThreshold: d.inViewThreshold, inViewDebounce: d.inViewDebounce });
+        expect(PxStartActionSchema.defaults).toEqual({ transition: d.startTransition });
+        expect(PxStopActionSchema.defaults).toEqual({ transition: d.stopTransition, completeIteration: d.stopCompleteIteration });
+        expect(PxFinishActionSchema.defaults).toEqual({ transition: d.finishTransition });
+        expect(PxSuspendActionSchema.defaults).toEqual({ transition: d.suspendTransition });
+        expect(PxTriggersSchema.defaults).toEqual({});
+        expect(resolveTriggers(undefined).start).toEqual([d.start]);
+        // `actions.finish.transition` reaches the engines as the runtime view's `resetOnFinish`,
         // where absent = hold = not set. The PRE-1.4 `trigger.finish` spelling is no longer read.
-        expect(PxTimeTimelineSchema.defaults.playFinishAction).toBe(PxPlayFinishAction.hold);
-        const flat = resolveAnimatorTimeline({ timeline: { trigger: { playStart: PxTriggerEvent.load } } });
+        expect(PxFinishActionSchema.defaults.transition).toBe(PxFinishTransition.hold);
+        const flat = resolveAnimatorTimeline({ timeline: { triggers: { start: PxTriggerEvent.load } } });
         expect(flat.resetOnFinish).toBeFalsy();
-        expect(resolveAnimatorTimeline({ timeline: { playFinishAction: PxPlayFinishAction.reset } }).resetOnFinish).toBe(true);
-        expect(resolveAnimatorTimeline({ timeline: { trigger: untyped<PxTrigger>({ finish: 'reset' }) } }).resetOnFinish).toBeUndefined();
+        expect(resolveAnimatorTimeline({ timeline: { actions: { finish: { transition: PxFinishTransition.reset } } } }).resetOnFinish).toBe(true);
+        expect(resolveAnimatorTimeline({ timeline: { triggers: untyped<PxTriggers>({ finish: 'reset' }) } }).resetOnFinish).toBeUndefined();
     });
 
     it('the timeline numbers the runtime falls back to are the schema\'s', () => {
@@ -115,13 +123,13 @@ describe('schema.defaults — what an absent field means', () => {
         expect(PxGlyphFontSchema.isValid({ ...font, unitsPerEm: 2048 })).toBe(true);
     });
 
-    it('the reported document: an omitted pauseStop is the playStart list — hovering in resumes what hovering out paused', () => {
+    it('the reported document: an omitted resume is the start list — hovering in resumes what hovering out paused', () => {
         const doc: PxDocument = {
             type: 'svg', viewBox: '0 0 400 400',
-            animator: { timeline: { outTime: 1000, iterations: 1, trigger: { playStart: 'hoverIn', pauseStart: 'hoverOut' } } },
+            animator: { timeline: { outTime: 1000, iterations: 1, triggers: { start: 'hoverIn', pause: 'hoverOut' } } },
             children: [],
         };
-        expect(resolveTrigger(getAnimatorConfig(doc)?.trigger).pauseStop).toEqual(['hoverIn']);
+        expect(resolveTriggers(getAnimatorConfig(doc)?.triggers).resume).toEqual(['hoverIn']);
     });
 
     it('the document and config roots state no scalar defaults of their own (nothing to drift)', () => {

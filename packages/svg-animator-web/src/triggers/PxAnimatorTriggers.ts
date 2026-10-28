@@ -12,30 +12,29 @@ import {
     type PxAnimatorRuntimeConfig,
     type PxDiagnostics,
 } from '@pixodesk/svg-animator-core';
-import { ensurePlayExecutor, resolveGate, resolveTrigger, triggerActionFor, triggerConflicts, triggerListsEvent } from '@pixodesk/svg-animator-core/engine';
+import { ensurePlayExecutor, resolveGate, resolveTriggers, triggerActionFor, triggerConflicts, triggerListsEvent } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import type { PxEngineAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
 import { webRaf } from '../shared/PxWebRaf';
 import { createVisibilityGate } from './PxVisibilityGate';
 
 /**
- * Wires a document's trigger to its root element (dev-docs/plans/component-api.md D5).
+ * Wires a document's triggers to its root element (dev-docs/plans/playback-layers.md, layer 0).
  *
- * The trigger says only WHEN: four event lists — `playStart`, `playStop`, `pauseStart`, `pauseStop` — over
- * the events `load`, `hoverIn`, `hoverOut`, `click`. Which list an event is read from is the STATE
- * RULE: `playStart` acts when stopped, `pauseStart` when playing, `pauseStop` when paused (an omitted
- * `pauseStop` is a copy of `playStart`), `playStop` when playing or paused. An event in both `playStop`
- * and `pauseStart` is a contradiction that is reported; `pauseStart` wins. An absent trigger block plays
- * on load; an EMPTY one lists nothing — only the api drives it.
+ * The triggers say only WHEN: event lists — `start`, `stop`, `pause`, `resume`, plus the `togglePlay` /
+ * `togglePause` sugar — over the events `load`, `hoverIn`, `hoverOut`, `click`. Which list an event is read
+ * from is the STATE RULE: `start` acts when stopped, `pause` when playing, `resume` when paused (an omitted
+ * `resume` is a copy of `start`), `stop` when playing or paused. An event in both `stop` and `pause` is a
+ * contradiction that is reported; `pause` wins. An absent triggers block plays on load; an EMPTY one lists
+ * nothing — only the api drives it.
  *
- * HOW is the timeline's own and performed by the player's one executor (`playStartAction`,
- * `playStopAction`, `completeIterationOnPlayStop`), shared with the api's `play()` / `stop()`, so a
- * click and a `player.play()` do exactly the same thing. The visibility gate (`outOfViewAction`,
- * `inViewThreshold`, `inViewDebounce`, timeline keys too) decides whether it may RUN, whatever
+ * HOW is the timeline's `actions` block, performed by the player's one executor, shared with the api's
+ * `play()` / `stop()`, so a click and a `player.play()` do exactly the same thing. The visibility gate
+ * (`actions.suspend`, `inViewThreshold`, `inViewDebounce`) decides whether it may RUN, whatever
  * started it; only `load` waits for it — a hover or a click is aimed at something the reader sees.
  *
  * @param api The engine api to wire; the executor is attached to it as `playExecutor`.
- * @param config The document's runtime view (`getAnimatorConfig(doc)`): the trigger, the gate and the play keys.
+ * @param config The document's runtime view (`getAnimatorConfig(doc)`): the triggers, the actions and the gate numbers.
  * @returns A disposer that detaches every listener, observer and timer this call attached
  *   (review §14). `createSvgAnimationPlayer` ties it to `destroy()`. Call it yourself before re-arming an
  *   element you wired by hand — otherwise the old listeners stay live next to the new ones.
@@ -53,7 +52,7 @@ export function setupAnimationTriggers(
     const cleanups: Array<() => void> = [];
     const dispose = (): void => { for (const undo of cleanups.splice(0)) undo(); };
 
-    const trigger = resolveTrigger(config.trigger);
+    const trigger = resolveTriggers(config.triggers);
     for (const event of triggerConflicts(trigger)) report.warn(PxDiagnosticKind.usage, PxDiagnosticCode.triggerEventConflict, event);
 
     const root = api.getRootElement();
@@ -102,8 +101,8 @@ export function setupAnimationTriggers(
     const usesHoverOut = listed(PxTriggerEvent.hoverOut);
     if (listed(PxTriggerEvent.hoverIn) || usesHoverOut) {
         // An OUT may only follow an IN. A `mouseleave` with no preceding `mouseenter` happens when the
-        // pointer is already over the element at load and then moves away — and a `playStop: 'hoverOut'`
-        // with `playStopAction: 'rewind'` would start the animation running backwards.
+        // pointer is already over the element at load and then moves away — and a `stop: 'hoverOut'`
+        // with a rewinding stop would start the animation running backwards.
         let enteredOnce = false;
         const onEnter = (): void => { enteredOnce = true; fire(PxTriggerEvent.hoverIn, true); };
         root.addEventListener('mouseenter', onEnter);

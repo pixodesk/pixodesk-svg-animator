@@ -4,10 +4,10 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTrigger } from '@pixodesk/svg-animator-web';
+import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTriggers } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, getAnimatorConfig, PxDiagnosticCode, PxPlayFinishAction, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, getAnimatorConfig, PxDiagnosticCode, PxFinishTransition, PxBeforeStart, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
 import { applyDeclarativeAction, applyPlaybackOverride, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import type { CSSProperties, FC, ReactElement } from 'react';
@@ -243,7 +243,7 @@ const SvgAnimatorImplOnce = React.memo(
  *
  * Supports four mutually-exclusive control modes:
  *
- * 1. **Play on trigger** – the document's own trigger, or an object with the trigger to use instead.
+ * 1. **Play on trigger** – the document's own triggers, or an object with the triggers to use instead.
  *    ```tsx
  *    <SvgAnimationPlayer doc={animation} playOnTrigger />
  *    ```
@@ -271,8 +271,8 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     className, style,
     doc: docInput, playOnTrigger, play, pause, playCurrentProgress, playCurrentTime, playerRef,
 
-    // Override — the file's timing, adjusted (dev-docs/plans/component-api.md D4); the trigger travels with `playOnTrigger`
-    timeline,
+    // Override — the file's timing and actions, adjusted (D4, playback-layers.md); the triggers travel with `playOnTrigger`
+    timeline, actions,
 
     onReady, onPlay, onStop, onPause, onCancel, onFinish, onDestroy,
 
@@ -307,10 +307,10 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [modeWarnings.join('|')]);
 
-    // The override, applied ONCE through core's one rule (D4: the timing merged, a `playOnTrigger`
-    // object replacing the file's trigger), and then the component's own need to take the trigger over
-    // in the non-playOnTrigger control modes — the EMPTY trigger goes on AFTER the caller's override.
-    const overridden = applyPlaybackOverride(doc, { timeline, playOnTrigger });
+    // The override, applied ONCE through core's one rule (D4: the timing and actions merged, a `playOnTrigger`
+    // object replacing the file's triggers), and then the component's own need to take the triggers over
+    // in the non-playOnTrigger control modes — the EMPTY block goes on AFTER the caller's override.
+    const overridden = applyPlaybackOverride(doc, { timeline, actions, playOnTrigger });
     if (overridden.warnings.length) {
         const diag = makeDiag();
         for (const w of overridden.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
@@ -327,9 +327,9 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
         : passMs * (typeof animatorView.iterations === 'number' && animatorView.iterations >= 1 ? animatorView.iterations : 1);
     if (compMode === PxControlMode.play && world === PxPlaybackWorld.oneShot) {
         // The pose contract beats the file's rest poses (§10, D5): while `play` names a pose, the held
-        // poses must be the same on every file — a `playFinishAction: 'reset'` document would revert to its
+        // poses must be the same on every file — a `finish: reset` document would revert to its
         // static attrs after the run. Pin both sides: the first frame before, the last frame after.
-        doc = applyAnimatorConfig(doc, { timeline: { showFirstFrameBeforePlayStart: true, playFinishAction: PxPlayFinishAction.hold } }).doc;
+        doc = applyAnimatorConfig(doc, { timeline: { beforeStart: PxBeforeStart.firstFrame, actions: { finish: { transition: PxFinishTransition.hold } } } }).doc;
     }
 
     // Controlled-time mode: compute the absolute seek target. `playCurrentProgress` is a
@@ -407,14 +407,14 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
         if (compMode === PxControlMode.play) {
             const api = apiHolderRef.current;
             const prev = prevPlaybackRef.current?.key === key ? prevPlaybackRef.current.props : undefined;
-            const { actions, warnings } = resolveDeclarativePlayback({ world, prev, next: { play, pause } });
+            const { actions: steps, warnings } = resolveDeclarativePlayback({ world, prev, next: { play, pause } });
             if (warnings.length) {
                 const diag = makeDiag();
                 for (const w of warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.playModifierIgnored, w);
             }
-            // HOW each step moves is the timeline's (`playStartAction`, `playStopAction`,
-            // `completeIterationOnPlayStop`, D5) — the player's executor behind `play()` / `stop()`.
-            if (api) for (const action of actions) applyDeclarativeAction(api, action, totalMs);
+            // HOW each step moves is the timeline's `actions` (start / stop) — the player's executor
+            // behind `play()` / `stop()`.
+            if (api) for (const action of steps) applyDeclarativeAction(api, action, totalMs);
         }
         prevPlaybackRef.current = { key, props: { play, pause } };
         // eslint-disable-next-line react-hooks/exhaustive-deps

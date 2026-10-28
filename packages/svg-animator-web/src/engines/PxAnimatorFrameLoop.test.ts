@@ -119,7 +119,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("positive delay with fill 'backwards': first frame is rendered during the delay", () => {
-        const { api, calls, opacity } = setup({ delay: 160, showFirstFrameBeforePlayStart: true, playFinishAction: 'reset' });
+        const { api, calls, opacity } = setup({ delay: 160, beforeStart: 'firstFrame', actions: { finish: { transition: 'reset' } } });
 
         // The first frame is rendered already at construction time.
         expect(calls.length).toBeGreaterThan(0);
@@ -158,7 +158,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("fill 'none' reverts to frame 0 at the natural end", () => {
-        const { api, calls } = setup({ playFinishAction: 'reset' });
+        const { api, calls } = setup({ actions: { finish: { transition: 'reset' } } });
 
         api.play();
         vi.advanceTimersByTime(DUR + 64);
@@ -168,7 +168,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("fill 'both' holds the first frame during the delay AND the final frame after the end", () => {
-        const { api, calls, opacity } = setup({ delay: 160, showFirstFrameBeforePlayStart: true });
+        const { api, calls, opacity } = setup({ delay: 160, beforeStart: 'firstFrame' });
 
         // Backwards side: frame 0 rendered at construction and throughout the delay window.
         expect(opacity()).toBe(0);
@@ -335,7 +335,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
 
     it('onFinish fires on every replay of a hover/reverse trigger cycle (finish re-arms on play)', () => {
         // Mirrors what setupAnimationTriggers produces for
-        // `playStart: 'hoverIn'` + `playStop: 'hoverOut'` with `playStopAction: 'rewind'`:
+        // `start: 'hoverIn'` + `stop: 'hoverOut'` with `actions: { stop: { transition: 'rewind' } }`:
         // hover → play to end, leave → reverse to 0, hover → forward to end.
         const onFinish = vi.fn();
         const { api } = setup({}, { onFinish });
@@ -387,7 +387,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("finish() honors fill:'none' (reverts to frame 0, same as the natural end)", () => {
-        const { api, calls } = setup({ playFinishAction: 'reset' });
+        const { api, calls } = setup({ actions: { finish: { transition: 'reset' } } });
 
         api.play();
         vi.advanceTimersByTime(64);

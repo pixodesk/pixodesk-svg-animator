@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, type PxTimelineEngine, type PxDocument, type PxEngineCallbacks, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxTrigger } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, type PxTimelineEngine, type PxDocument, type PxEngineCallbacks, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxTriggers } from '@pixodesk/svg-animator-core';
 import { withoutTriggerDriver, applyPlaybackOverride, resolveTimelineEngine, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { reportDocumentDiagnostics, createDiagnostics, isScrollTimeline, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
@@ -58,7 +58,7 @@ function createAnimatorImpl(
     containerElement?: string | Element,
     override?: PxPlaybackOverrideInput,
     providedRoot?: Element,
-    playOnTrigger?: boolean | PxTrigger
+    playOnTrigger?: boolean | PxTriggers
 ): PxAnimationPlayerApi {
 
     // Everything this player has to say goes through one channel (API review §5): the caller's
@@ -159,21 +159,21 @@ function createAnimatorImpl(
 export { PX_ANIMATOR_DOC_KEY } from '../shared/PxAnimatorKeys';
 
 /**
- * Everything `createSvgAnimationPlayer` takes. The playback override (`timeline`, and the object form of
- * `playOnTrigger`) and the callbacks are core's shared shapes — the SAME names, inline, as the
+ * Everything `createSvgAnimationPlayer` takes. The playback override (`timeline`, `actions`, and the object
+ * form of `playOnTrigger`) and the callbacks are core's shared shapes — the SAME names, inline, as the
  * React, Vue and React Native components take (review §9) — so only what is web-specific is
  * declared here.
  * @public
  */
 export type PxAnimationPlayerOptions = PxPlaybackOverride & PxAnimationPlayerCallbacks & {
     /**
-     * Play on a trigger. `true` — the way the editor saved it: the document's own `timeline.trigger`
-     * starts (and gates) playback. An OBJECT — that trigger instead, as a WHOLE (keys left out take the
-     * wire defaults, not the file's values). WITHOUT it the player builds still — the first frame is
-     * shown, the trigger is replaced by the EMPTY one — and the returned api (`play()`, `setCurrentTime()`)
+     * Play on a trigger. `true` — the way the editor saved it: the document's own `timeline.triggers`
+     * start (and gate) playback. An OBJECT — those triggers instead, as a WHOLE (lists left out are not
+     * listed, never the file's values). WITHOUT it the player builds still — the first frame is
+     * shown, the triggers are replaced by the EMPTY block — and the returned api (`play()`, `setCurrentTime()`)
      * drives it (first-use review §1+2: nothing plays until a line names the driver).
      */
-    playOnTrigger?: boolean | PxTrigger;
+    playOnTrigger?: boolean | PxTriggers;
     /** URL to fetch the animation document from. Provide either this or `doc`, not both. */
     src?: string;
     /** The animation document, inline (see docs/format/README.md) — typed as a JSON import
@@ -340,8 +340,8 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
  * @public
  */
 export type PxPageAnimationPlayerOptions = PxPlaybackOverride & PxAnimationPlayerCallbacks & {
-    /** One trigger for EVERY player this call creates, instead of each file's own — the whole block. Absent: each file's. */
-    playOnTrigger?: PxTrigger;
+    /** One triggers block for EVERY player this call creates, instead of each file's own — the whole block. Absent: each file's. */
+    playOnTrigger?: PxTriggers;
 };
 
 /**

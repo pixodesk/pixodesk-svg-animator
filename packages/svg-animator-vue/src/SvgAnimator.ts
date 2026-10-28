@@ -4,10 +4,10 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelinePatch, PxTrigger, PxPlaybackOverrideInput } from '@pixodesk/svg-animator-web';
+import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelinePatch, PxActionsPatch, PxTriggers, PxPlaybackOverrideInput } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, getAnimatorConfig, PxDiagnosticCode, PxPlayFinishAction, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, getAnimatorConfig, PxDiagnosticCode, PxFinishTransition, PxBeforeStart, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
 import { applyDeclarativeAction, applyPlaybackOverride, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
@@ -55,8 +55,8 @@ function applyDocOverrides(
 ): PxDocument {
 
     // The override, applied ONCE through core's one rule (D3: per block, the replacement, then the
-    // merge), and then the component's own need to take the trigger over in the non-playOnTrigger
-    // control modes — the EMPTY trigger goes on AFTER the caller's override, so nothing re-arms it.
+    // merge), and then the component's own need to take the triggers over in the non-playOnTrigger
+    // control modes — the EMPTY block goes on AFTER the caller's override, so nothing re-arms it.
     const overridden = applyPlaybackOverride(doc, props);
     for (const w of overridden.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
     doc = overridden.doc;
@@ -64,10 +64,10 @@ function applyDocOverrides(
 
     // §10 / D5: in the play tier's ONE-SHOT world the pose contract beats the file's rest poses — pin
     // both sides (the first frame before, the last frame after), so the held poses are the same on
-    // every file (a `playFinishAction: 'reset'` document would otherwise revert to its static attrs).
+    // every file (a `finish: reset` document would otherwise revert to its static attrs).
     if (compMode === PxControlMode.play
         && resolvePlaybackWorld((getAnimatorConfig(doc) || {}).iterations) === PxPlaybackWorld.oneShot) {
-        doc = applyAnimatorConfig(doc, { timeline: { showFirstFrameBeforePlayStart: true, playFinishAction: PxPlayFinishAction.hold } }).doc;
+        doc = applyAnimatorConfig(doc, { timeline: { beforeStart: PxBeforeStart.firstFrame, actions: { finish: { transition: PxFinishTransition.hold } } } }).doc;
     }
 
     return doc;
@@ -136,12 +136,13 @@ const SvgAnimationPlayer = defineComponent({
         // -- Source
         doc: { type: Object as PropType<PxDocumentInput>, required: true },
 
-        // -- Playback override: the file's timing, adjusted (dev-docs/plans/component-api.md D4) — a merge
-        //    patch, `null` deletes a key. The trigger travels with its driver, `playOnTrigger`. Same names as React / RN.
+        // -- Playback override: the file's timing and actions, adjusted (D4, playback-layers.md) — merge
+        //    patches, `null` deletes a key. The triggers travel with their driver, `playOnTrigger`. Same names as React / RN.
         timeline: { type: Object as PropType<PxTimelinePatch> },
+        actions: { type: Object as PropType<PxActionsPatch> },
 
         // -- Declarative control
-        playOnTrigger: { type: [Boolean, Object] as PropType<boolean | PxTrigger>, default: undefined },   // true = the file's trigger; an object = the whole trigger instead
+        playOnTrigger: { type: [Boolean, Object] as PropType<boolean | PxTriggers>, default: undefined },   // true = the file's triggers; an object = the whole block instead
         play: { type: Boolean, default: undefined },
         pause: { type: Boolean, default: undefined },
 
@@ -291,7 +292,7 @@ const SvgAnimationPlayer = defineComponent({
         /** Declarative props → animator calls — ONE shared rule (§10, `resolveDeclarativePlayback`
          *  in core, same as React and React Native): `play` is a pose switch on a one-shot
          *  document and a run switch on a looping one; `pause` freezes the clock. HOW each step
-         *  moves is the timeline's play keys (D5), performed by the executor behind `play()` / `stop()`. */
+         *  moves is the timeline's `actions`, performed by the executor behind `play()` / `stop()`. */
         function syncPlayState() {
             if (compMode.value !== PxControlMode.play) return;
             const api = apiRef.value;

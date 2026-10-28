@@ -14,15 +14,15 @@
  */
 import { describe, expect, it } from 'vitest';
 import { createSvgAnimationPlayer } from './PxAnimator';
-import type { PxDocument, PxTrigger } from '@pixodesk/svg-animator-core';
+import type { PxDocument, PxTriggers } from '@pixodesk/svg-animator-core';
 
 /** A WIRE-format document (nested `timeline`) — the spelling every writer emits. */
-function wireDoc(trigger: PxTrigger = { playStart: 'load' }): PxDocument {
+function wireDoc(triggers: PxTriggers = { start: 'load' }): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
         animator: {
-            timeline: { engine: 'js', outTime: 1000, iterations: 2, trigger },
+            timeline: { engine: 'js', outTime: 1000, iterations: 2, triggers },
         },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
@@ -39,7 +39,7 @@ const stage = () => {
 
 describe('createSvgAnimationPlayer — the override reaches the running animation', () => {
 
-    // The observable: a document whose trigger is `playStart: 'load'` plays at once; one whose trigger is
+    // The observable: a document whose trigger is `start: 'load'` plays at once; one whose trigger is
     // the EMPTY block does not. Unambiguous — keyframe times are absolute, so a timing override changes
     // when playback ENDS, not the value at a given instant, which makes opacity a poor witness.
 
@@ -55,8 +55,8 @@ describe('createSvgAnimationPlayer — the override reaches the running animatio
         api.destroy();
     });
 
-    it('…as a WHOLE: a list the object leaves out is gone — the file\'s `playStart: load` does not survive an object that lists only `pauseStart`', () => {
-        const api = createSvgAnimationPlayer({ playOnTrigger: { pauseStart: 'click' }, doc: wireDoc({ playStart: 'load' }), container: stage() });
+    it('…as a WHOLE: a list the object leaves out is gone — the file\'s `start: load` does not survive an object that lists only `pause`', () => {
+        const api = createSvgAnimationPlayer({ playOnTrigger: { pause: 'click' }, doc: wireDoc({ start: 'load' }), container: stage() });
         expect(api.isPlaying()).toBe(false);
         api.destroy();
     });

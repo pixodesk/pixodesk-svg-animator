@@ -13,7 +13,7 @@
  * Base semantics are JSON Merge Patch (RFC 7386): objects merge per level, primitives and
  * arrays REPLACE, and `null` DELETES. `null` is the right sentinel because it is not a legal
  * value anywhere in the schema, and deleting is the only way to restore a meaningful ABSENCE
- * (`timeline.type` absent = time, `engine` absent = auto, `playFinishAction` absent = hold).
+ * (`timeline.type` absent = time, `engine` absent = auto, `actions.finish` absent = hold).
  *
  * Six places need more than that — see the RULE comments below.
  *
@@ -23,7 +23,7 @@
  * on the nested form is the only place those values mean what they say.
  */
 import { PX_TIMELINE_SHARED_KEYS, PX_TIME_ONLY_TIMELINE_KEYS } from '../format/PxAnimatorConstants';
-import type { PxDocument, PxAnimatorConfig, PxTimeline, PxTrigger } from '../format/PxAnimatorTypes';
+import type { PxDocument, PxAnimatorConfig, PxTimeline, PxTriggers, PxActions } from '../format/PxAnimatorTypes';
 import { legacyAnimatorOf } from '../format/PxDocStage';
 
 /**
@@ -41,7 +41,7 @@ export type PxPatch<T> =
 /** `Omit` applied to each member of a union, so a discriminated union keeps its members. */
 type PxDistributiveOmit<T, K extends PropertyKey> = T extends object ? Omit<T, K> : never;
 
-/** A deep-partial of the WIRE animator config (`timeline` — its `trigger` included at this level —,
+/** A deep-partial of the WIRE animator config (`timeline` — its `triggers` and `actions` included at this level —,
  *  `definitions`, `bindings`, `version`), typed from the schema; `null` at any slot deletes it. @public */
 export type PxAnimatorConfigPatch = PxPatch<PxAnimatorConfig> | null;
 
@@ -55,7 +55,7 @@ export interface PxAnimatorConfigMergeResult {
 
 /** Keys that live only on the flat RUNTIME view and have no slot on the wire. */
 const FLAT_ONLY_KEYS = [
-    'timelineSource', 'scroll', 'trigger', 'delay', 'iterations',
+    'timelineSource', 'scroll', 'triggers', 'actions', 'beforeStart', 'delay', 'iterations',
     'direction', 'fill', 'resetOnFinish', 'duration', 'mode', 'frameRate',
 ];
 
@@ -132,35 +132,44 @@ function mergeTimeline(base: unknown, patch: JsonRecord, warn: (m: string) => vo
     return merged;
 }
 
-/** `PxTimeline` without its `trigger` block — the timing. On the props the two are separate (the file
- *  nests them): `timeline` patches this, `playOnTrigger` carries the trigger (D4). @public */
-export type PxTimelineWithoutTrigger = PxDistributiveOmit<PxTimeline, 'trigger'>;
+/** `PxTimeline` without its `triggers` and `actions` blocks — the timing. On the props the three are separate
+ *  (the file nests them): `timeline` patches this, `playOnTrigger` carries the triggers, `actions` the actions. @public */
+export type PxTimelineTiming = PxDistributiveOmit<PxTimeline, 'triggers' | 'actions'>;
 
 /** A deep-partial of the WIRE timing block, typed from the schema; `null` at any slot deletes it,
- *  `null` for the whole block deletes the block. No `trigger` here — that is the trigger pair's. @public */
-export type PxTimelinePatch = PxPatch<PxTimelineWithoutTrigger> | null;
+ *  `null` for the whole block deletes the block. No `triggers` / `actions` here — those are their props'. @public */
+export type PxTimelinePatch = PxPatch<PxTimelineTiming> | null;
+
+/** A deep-partial of the timeline's `actions` block — merged over the file's, `null` at a slot deletes it. @public */
+export type PxActionsPatch = PxPatch<PxActions> | null;
 
 /**
  * The playback-override props every surface takes — `createSvgAnimationPlayer` and the three components
- * (dev-docs/plans/component-api.md D4): `timeline`, a MERGE over the file's timing block. Corrections —
- * `iterations`, `delay` — never a replacement; whoever needs more edits the document. The trigger is not
- * here: it travels with its driver, `playOnTrigger` ({@link PxControlProps}). ONE definition (review §9).
+ * (dev-docs/plans/component-api.md D4, playback-layers.md): `timeline`, a MERGE over the file's timing block,
+ * and `actions`, a MERGE over its actions. Corrections — `iterations`, `delay`, a rewinding stop — never a
+ * replacement; whoever needs more edits the document. The triggers are not here: they travel with their
+ * driver, `playOnTrigger` ({@link PxControlProps}). ONE definition (review §9).
  * @public
  */
 export interface PxPlaybackOverride {
     /**
      * Per-instance adjustment of the document's `animator.timeline` — the same shape as `timeline` in
-     * docs/format/README.md minus `trigger`, deep-merged over what the document says, so one file can play
+     * docs/format/README.md minus `triggers` and `actions`, deep-merged over what the document says, so one file can play
      * twice on a page with different timing. `null` at a slot DELETES that key, restoring the default its
      * absence means (an absent `outTime` is the content's end, an absent `playDuration` natural speed).
      */
     timeline?: PxTimelinePatch;
+    /**
+     * Per-instance adjustment of HOW the built-in actions look — `{ stop: { transition: 'rewind' } }` —
+     * deep-merged over the document's `timeline.actions`; `null` at a slot deletes it.
+     */
+    actions?: PxActionsPatch;
 }
 
-/** What {@link applyPlaybackOverride} reads: the timing patch, and the trigger driver's object form. @public @advanced */
+/** What {@link applyPlaybackOverride} reads: the patches, and the trigger driver's object form. @public @advanced */
 export interface PxPlaybackOverrideInput extends PxPlaybackOverride {
-    /** `true` — the document's trigger drives; an object — the WHOLE trigger to use instead (see {@link PxControlProps}). */
-    playOnTrigger?: boolean | PxTrigger;
+    /** `true` — the document's triggers drive; an object — the WHOLE triggers block to use instead (see {@link PxControlProps}). */
+    playOnTrigger?: boolean | PxTriggers;
 }
 
 /** What {@link applyPlaybackOverride} reports beside the document. @public @advanced */
@@ -173,14 +182,14 @@ export interface PxPlaybackOverrideResult {
 // @px-area config
 /**
  * Applies the playback override to a document — ONE implementation for the web player and the three
- * components (D4): `timeline` merged with the timeline rules (`mergeAnimatorConfig`); then, when
- * `playOnTrigger` is an object, the trigger block SET to it — a REPLACEMENT, because a trigger's keys belong
+ * components (D4): `timeline` and `actions` merged with the timeline rules (`mergeAnimatorConfig`); then, when
+ * `playOnTrigger` is an object, the triggers block SET to it — a REPLACEMENT, because the lists belong
  * together (hover → click changes the other lists too). PURE: the document is
  * never mutated, untouched subtrees are shared. The caller reports `warnings` through its diagnostics.
  * @public @advanced
  */
 export function applyPlaybackOverride(doc: PxDocument, override: PxPlaybackOverrideInput): PxPlaybackOverrideResult {
-    const { timeline, playOnTrigger } = override;
+    const { timeline, actions, playOnTrigger } = override;
     const warnings: Array<string> = [];
     const apply = (patch: PxAnimatorConfigPatch): void => {
         const applied = applyAnimatorConfig(doc, patch);
@@ -192,7 +201,11 @@ export function applyPlaybackOverride(doc: PxDocument, override: PxPlaybackOverr
         if (timeline === null || isPlainObject(timeline)) apply({ timeline });
         else warnings.push('timeline: not an object — ignored');
     }
-    if (typeof playOnTrigger === 'object' && playOnTrigger !== null) doc = withTrigger(doc, playOnTrigger);   // a SET, not a merge
+    if (actions !== undefined) {
+        if (actions === null || isPlainObject(actions)) apply({ timeline: { actions } });
+        else warnings.push('actions: not an object — ignored');
+    }
+    if (typeof playOnTrigger === 'object' && playOnTrigger !== null) doc = withTriggers(doc, playOnTrigger);   // a SET, not a merge
     return { doc, warnings };
 }
 
@@ -201,18 +214,18 @@ export function applyPlaybackOverride(doc: PxDocument, override: PxPlaybackOverr
 const uncheckedPatch = (p: JsonRecord): PxAnimatorConfigPatch => p as PxAnimatorConfigPatch;
 
 /**
- * The document with its `timeline.trigger` SET to `trigger` — not merged: an empty block (`{}`, "nothing starts
+ * The document with its `timeline.triggers` SET to `triggers` — not merged: an empty block (`{}`, "nothing starts
  * it") and a replacement that drops keys both need a set, which a merge patch cannot say. Returns a new
  * document sharing every untouched subtree; the animator lives at either of its two addresses.
  * @public @advanced
  */
-export function withTrigger(doc: PxDocument, trigger: PxTrigger): PxDocument {
+export function withTriggers(doc: PxDocument, triggers: PxTriggers): PxDocument {
     const legacy = legacyAnimatorOf(doc);
     const atRoot = isPlainObject(doc.animator);
     const current: unknown = atRoot ? doc.animator : legacy;
     const base: JsonRecord = isPlainObject(current) ? current : {};
     const timeline: JsonRecord = isPlainObject(base.timeline) ? base.timeline : {};
-    const animator: JsonRecord = { ...base, timeline: { ...timeline, trigger: { ...trigger } } };
+    const animator: JsonRecord = { ...base, timeline: { ...timeline, triggers: { ...triggers } } };
     if (!atRoot && legacy !== undefined) {
         const meta = isPlainObject(doc.meta) ? doc.meta : {};
         return { ...doc, meta: { ...meta, animator } };
@@ -221,13 +234,13 @@ export function withTrigger(doc: PxDocument, trigger: PxTrigger): PxDocument {
 }
 
 /**
- * The "nobody named a driver" rule (first-use review §1+2): the document's trigger is replaced by an EMPTY one —
+ * The "nobody named a driver" rule (first-use review §1+2): the document's triggers are replaced by an EMPTY block —
  * no event starts it — on top of the caller's override, so the document cannot start itself. One spelling for
  * the web player's missing `playOnTrigger` option and the components' non-`playOnTrigger` control modes.
  * @public @advanced
  */
 export function withoutTriggerDriver(doc: PxDocument): PxDocument {
-    return withTrigger(doc, {});
+    return withTriggers(doc, {});
 }
 
 /**

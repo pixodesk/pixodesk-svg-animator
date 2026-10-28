@@ -296,7 +296,57 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         up: upPlaybackKeys,
         // No `down`: 1.9 can say what 1.8 could not (a click that restarts, a stop that rewinds, …).
     },
+    {
+        from: '1.9',
+        to: '1.10',
+        reason: 'Triggers and actions (dev-docs/plans/playback-layers.md, layers 0–1): `trigger` becomes `triggers` with the '
+            + 'lists `start` / `stop` / `pause` / `resume` (+ the new `togglePlay` / `togglePause`); the play keys become one '
+            + '`actions` block — `start` / `stop` / `finish` / `suspend`, each `{ transition }` (`resume` → `continue`, '
+            + '`jumpToEnd` → `jumpToFinished`, `outOfViewAction` → `suspend`, `completeIterationOnPlayStop` → '
+            + '`stop.completeIteration`) — and `showFirstFrameBeforePlayStart: true` becomes `beforeStart: \'firstFrame\'`.',
+        kind: PxWireStepKind.converted,
+        up: upTriggersAndActions,
+        // No `down`: 1.10 can say what 1.9 could not (`togglePlay`, `togglePause`).
+    },
 ];
+
+/** 1.9 → 1.10 trigger list keys, `[1.9, 1.10]`. */
+const TRIGGER_LISTS_1_10: ReadonlyArray<readonly [string, string]> = [
+    ['playStart', 'start'], ['playStop', 'stop'], ['pauseStart', 'pause'], ['pauseStop', 'resume'],
+];
+/** 1.9 play keys → the 1.10 `actions` block they move into, `[1.9 key, action, field]`. */
+const ACTION_KEYS_1_10: ReadonlyArray<readonly [string, string, string]> = [
+    ['playStartAction', 'start', 'transition'], ['playStopAction', 'stop', 'transition'],
+    ['completeIterationOnPlayStop', 'stop', 'completeIteration'], ['playFinishAction', 'finish', 'transition'],
+    ['outOfViewAction', 'suspend', 'transition'],
+];
+/** 1.9 → 1.10 transition values that changed spelling. */
+const TRANSITION_VALUES_1_10: ReadonlyArray<readonly [string, string]> = [['resume', 'continue'], ['jumpToEnd', 'jumpToFinished']];
+
+/** 1.9 → 1.10: `triggers`, `actions`, `beforeStart` (see the step's `reason`). */
+function upTriggersAndActions(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    if (!timeline) return;
+    const trigger = readObjectProp(timeline, 'trigger');
+    if (trigger) {
+        const triggers: Record<string, unknown> = {};
+        for (const [from, to] of TRIGGER_LISTS_1_10) if (trigger[from] !== undefined) triggers[to] = trigger[from];
+        timeline['triggers'] = triggers;
+        delete timeline['trigger'];
+    }
+    const actions: Record<string, Record<string, unknown>> = {};
+    for (const [key, action, field] of ACTION_KEYS_1_10) {
+        const value = timeline[key];
+        if (value === undefined) continue;
+        const renamed = TRANSITION_VALUES_1_10.find(([from]) => from === value);
+        (actions[action] ??= {})[field] = renamed ? renamed[1] : value;
+        delete timeline[key];
+    }
+    if (Object.keys(actions).length > 0) timeline['actions'] = actions;
+    if (timeline['showFirstFrameBeforePlayStart'] === true) timeline['beforeStart'] = 'firstFrame';
+    delete timeline['showFirstFrameBeforePlayStart'];
+}
 
 /** 1.8 → 1.9: the trigger's event lists, the play keys on the timeline (see the step's `reason`). */
 function upPlaybackKeys(doc: Record<string, unknown>): void {

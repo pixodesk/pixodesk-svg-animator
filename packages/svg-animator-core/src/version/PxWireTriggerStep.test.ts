@@ -117,10 +117,14 @@ describe('wire step 1.6 → 1.7 — the trigger words', () => {
     });
 });
 
+/** Converts to 1.9 — the spelling these cases name was renamed again by the 1.9 → 1.10 step. */
+const STEPS_TO_1_9 = PX_WIRE_STEPS.slice(0, PX_WIRE_STEPS.findIndex(s => s.to === '1.10'));
+const convertTo19 = (doc: unknown) => applyWireSteps(doc, { steps: STEPS_TO_1_9, target: { a: 1, b: 9, c: 0 }, readerReadsEditorPart: false });
+
 describe('wire step 1.8 → 1.9 — WHEN in the trigger, HOW on the timeline (component-api plan D5)', () => {
     const doc18 = (timeline: Record<string, unknown>) =>
         ({ type: 'svg', animator: { version: '1.8.0', timeline: { outTime: 1000, ...timeline } }, children: [] });
-    const up = (timeline: Record<string, unknown>) => timelineOf(convertWireDocument(doc18(timeline)).doc);
+    const up = (timeline: Record<string, unknown>) => timelineOf(convertTo19(doc18(timeline)).doc);
 
     it('hover: the leave action becomes the list it belongs to — pause → pauseStart, reset → playStop, reverse → playStop + rewind, continue → nothing', () => {
         expect(up({ trigger: { start: 'hover', hoverEnd: 'pause' } })).toEqual({ outTime: 1000, trigger: { playStart: 'hoverIn', pauseStart: 'hoverOut' } });
@@ -164,12 +168,45 @@ describe('wire step 1.8 → 1.9 — WHEN in the trigger, HOW on the timeline (co
     it('a timeline without the old keys is left alone, and so is a document without a timeline', () => {
         expect(up({ delay: 5 })).toEqual({ outTime: 1000, delay: 5 });
         const bare = { type: 'svg', animator: { version: '1.8.0' }, children: [] };
-        expect(convertWireDocument(bare).doc).toMatchObject({ type: 'svg', children: [] });
+        expect(convertTo19(bare).doc).toMatchObject({ type: 'svg', children: [] });
     });
 
     it('never mutates the caller’s document', () => {
         const original = doc18({ fillMode: 'both', trigger: { start: 'hover', hoverEnd: 'reverse' } });
-        convertWireDocument(original);
+        convertTo19(original);
         expect(timelineOf(original)).toEqual({ outTime: 1000, fillMode: 'both', trigger: { start: 'hover', hoverEnd: 'reverse' } });
+    });
+});
+
+describe('wire step 1.9 → 1.10 — triggers and actions (playback-layers.md, layers 0–1)', () => {
+    const doc19 = (timeline: Record<string, unknown>) =>
+        ({ type: 'svg', animator: { version: '1.9.0', timeline: { outTime: 1000, ...timeline } }, children: [] });
+    const up = (timeline: Record<string, unknown>) => timelineOf(convertWireDocument(doc19(timeline)).doc);
+
+    it('the trigger lists become triggers — playStart → start, playStop → stop, pauseStart → pause, pauseStop → resume', () => {
+        expect(up({ trigger: { playStart: ['hoverIn', 'click'], playStop: 'hoverOut', pauseStart: 'click', pauseStop: [] } }))
+            .toEqual({ outTime: 1000, triggers: { start: ['hoverIn', 'click'], stop: 'hoverOut', pause: 'click', resume: [] } });
+        // the empty block stays empty — nothing starts it
+        expect(up({ trigger: {} })).toEqual({ outTime: 1000, triggers: {} });
+    });
+
+    it('the play keys become the actions block; resume → continue, jumpToEnd → jumpToFinished', () => {
+        expect(up({ playStartAction: 'resume', playStopAction: 'rewind', completeIterationOnPlayStop: true, playFinishAction: 'reset', outOfViewAction: 'continue' }))
+            .toEqual({ outTime: 1000, actions: {
+                start: { transition: 'continue' }, stop: { transition: 'rewind', completeIteration: true },
+                finish: { transition: 'reset' }, suspend: { transition: 'continue' },
+            } });
+        expect(up({ playStartAction: 'jumpToEnd' })).toEqual({ outTime: 1000, actions: { start: { transition: 'jumpToFinished' } } });
+        expect(up({ playStartAction: 'restart' })).toEqual({ outTime: 1000, actions: { start: { transition: 'restart' } } });
+    });
+
+    it('the first-frame flag becomes beforeStart: firstFrame; false is the default and is dropped', () => {
+        expect(up({ showFirstFrameBeforePlayStart: true })).toEqual({ outTime: 1000, beforeStart: 'firstFrame' });
+        expect(up({ showFirstFrameBeforePlayStart: false })).toEqual({ outTime: 1000 });
+    });
+
+    it('a timeline without the old keys is left alone; the converted document is current', () => {
+        expect(up({ delay: 5, inViewThreshold: 0.2 })).toEqual({ outTime: 1000, delay: 5, inViewThreshold: 0.2 });
+        expect(convertWireDocument(doc19({ trigger: { playStart: 'click' } })).applied.map(s => s.to)).toEqual(['1.10']);
     });
 });

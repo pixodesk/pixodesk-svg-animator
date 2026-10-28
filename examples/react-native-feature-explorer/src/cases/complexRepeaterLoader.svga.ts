@@ -13,10 +13,14 @@ export const complexRepeaterLoader: SvgaCaseJson = {
         "timeline": {
             "mode": "auto",
             "outTime": 3750,
-            "trigger": {
-                "playStart": "load"
+            "triggers": {
+                "start": "load"
             },
-            "outOfViewAction": "continue",
+            "actions": {
+                "suspend": {
+                    "transition": "continue"
+                }
+            },
             "iterationDirection": "normal"
         }
     },

@@ -9,12 +9,17 @@
     "timeline": {
       "mode": "player",
       "outTime": 1000,
-      "trigger": {
+      "triggers": {
         "start": "click",
-        "outOfView": "continue"
+        "pause": "click"
       },
       "iterations": 1,
-      "direction": "normal"
+      "iterationDirection": "normal",
+      "actions": {
+        "suspend": {
+          "transition": "continue"
+        }
+      }
     }
   },
   "children": [

@@ -94,7 +94,7 @@ describe('convertWireDocument — the playerFixer half', () => {
     });
 
     it('a NEWER file is still returned, with advice naming the remedy — never refused', () => {
-        const r = convertWireDocument(doc('1.10.0'));
+        const r = convertWireDocument(doc('1.11.0'));
         expect(r.relation).toBe(PxWireVersionRelation.newer);
         expect(r.advice).toContain('Update the player');
         expect(r.doc).toBeDefined();          // the document survives; the player renders what it can

@@ -4,10 +4,14 @@
   "animator": {
     "timeline": {
       "outTime": 1000,
-      "trigger": {
-        "playStart": "load"
+      "triggers": {
+        "start": "load"
       },
-      "outOfViewAction": "continue",
+      "actions": {
+        "suspend": {
+          "transition": "continue"
+        }
+      },
       "iterations": "infinite",
       "iterationDirection": "alternate"
     }

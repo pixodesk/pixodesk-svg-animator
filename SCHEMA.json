@@ -2270,104 +2270,6 @@
         }
       ]
     },
-    "Trigger": {
-      "type": "object",
-      "properties": {
-        "playStart": {
-          "anyOf": [
-            {
-              "enum": [
-                "load",
-                "hoverIn",
-                "hoverOut",
-                "click"
-              ]
-            },
-            {
-              "type": "array",
-              "items": {
-                "enum": [
-                  "load",
-                  "hoverIn",
-                  "hoverOut",
-                  "click"
-                ]
-              }
-            }
-          ]
-        },
-        "playStop": {
-          "anyOf": [
-            {
-              "enum": [
-                "load",
-                "hoverIn",
-                "hoverOut",
-                "click"
-              ]
-            },
-            {
-              "type": "array",
-              "items": {
-                "enum": [
-                  "load",
-                  "hoverIn",
-                  "hoverOut",
-                  "click"
-                ]
-              }
-            }
-          ]
-        },
-        "pauseStart": {
-          "anyOf": [
-            {
-              "enum": [
-                "load",
-                "hoverIn",
-                "hoverOut",
-                "click"
-              ]
-            },
-            {
-              "type": "array",
-              "items": {
-                "enum": [
-                  "load",
-                  "hoverIn",
-                  "hoverOut",
-                  "click"
-                ]
-              }
-            }
-          ]
-        },
-        "pauseStop": {
-          "anyOf": [
-            {
-              "enum": [
-                "load",
-                "hoverIn",
-                "hoverOut",
-                "click"
-              ]
-            },
-            {
-              "type": "array",
-              "items": {
-                "enum": [
-                  "load",
-                  "hoverIn",
-                  "hoverOut",
-                  "click"
-                ]
-              }
-            }
-          ]
-        }
-      },
-      "additionalProperties": false
-    },
     "Timeline": {
       "oneOf": [
         {
@@ -2395,8 +2297,149 @@
             "playDuration": {
               "type": "number"
             },
-            "trigger": {
-              "$ref": "#/$defs/Trigger"
+            "triggers": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "load",
+                        "hoverIn",
+                        "hoverOut",
+                        "click"
+                      ]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "load",
+                          "hoverIn",
+                          "hoverOut",
+                          "click"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "stop": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "load",
+                        "hoverIn",
+                        "hoverOut",
+                        "click"
+                      ]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "load",
+                          "hoverIn",
+                          "hoverOut",
+                          "click"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "pause": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "load",
+                        "hoverIn",
+                        "hoverOut",
+                        "click"
+                      ]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "load",
+                          "hoverIn",
+                          "hoverOut",
+                          "click"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "resume": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "load",
+                        "hoverIn",
+                        "hoverOut",
+                        "click"
+                      ]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "load",
+                          "hoverIn",
+                          "hoverOut",
+                          "click"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "togglePlay": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "load",
+                        "hoverIn",
+                        "hoverOut",
+                        "click"
+                      ]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "load",
+                          "hoverIn",
+                          "hoverOut",
+                          "click"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                "togglePause": {
+                  "anyOf": [
+                    {
+                      "enum": [
+                        "load",
+                        "hoverIn",
+                        "hoverOut",
+                        "click"
+                      ]
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "enum": [
+                          "load",
+                          "hoverIn",
+                          "hoverOut",
+                          "click"
+                        ]
+                      }
+                    }
+                  ]
+                }
+              },
+              "additionalProperties": false
             },
             "delay": {
               "type": "number"
@@ -2419,37 +2462,70 @@
                 "alternateReverse"
               ]
             },
-            "playStartAction": {
+            "actions": {
+              "type": "object",
+              "properties": {
+                "start": {
+                  "type": "object",
+                  "properties": {
+                    "transition": {
+                      "enum": [
+                        "continue",
+                        "restart",
+                        "jumpToFinished"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "stop": {
+                  "type": "object",
+                  "properties": {
+                    "transition": {
+                      "enum": [
+                        "reset",
+                        "rewind"
+                      ]
+                    },
+                    "completeIteration": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "finish": {
+                  "type": "object",
+                  "properties": {
+                    "transition": {
+                      "enum": [
+                        "hold",
+                        "reset",
+                        "rewind"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "suspend": {
+                  "type": "object",
+                  "properties": {
+                    "transition": {
+                      "enum": [
+                        "pause",
+                        "continue",
+                        "reset"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "additionalProperties": false
+            },
+            "beforeStart": {
               "enum": [
-                "resume",
-                "restart",
-                "jumpToEnd"
-              ]
-            },
-            "playStopAction": {
-              "enum": [
-                "reset",
-                "rewind"
-              ]
-            },
-            "completeIterationOnPlayStop": {
-              "type": "boolean"
-            },
-            "playFinishAction": {
-              "enum": [
-                "hold",
-                "reset",
-                "rewind"
-              ]
-            },
-            "showFirstFrameBeforePlayStart": {
-              "type": "boolean"
-            },
-            "outOfViewAction": {
-              "enum": [
-                "pause",
-                "continue",
-                "reset"
+                "static",
+                "firstFrame"
               ]
             },
             "inViewThreshold": {

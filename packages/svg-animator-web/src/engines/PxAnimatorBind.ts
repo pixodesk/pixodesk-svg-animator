@@ -28,8 +28,8 @@ import { applyScrollPin, createNativeScrollTimeline, createScrollDriver } from '
  * Applies the two `animator` config behaviors that are engine-independent, then hands
  * off to `make` for the actual engine.
  *
- * `playFinishAction` is composed here so BOTH engines get it: after a NATURAL finish the player's
- * executor holds, resets or rewinds (D5). The caller's own `onFinish` still fires first. The
+ * `actions.finish` is composed here so BOTH engines get it: after a NATURAL finish the player's
+ * executor holds, resets or rewinds. The caller's own `onFinish` still fires first. The
  * executor is taken right after creation — a finish always happens asynchronously later.
  */
 export function finaliseAnimator(
@@ -176,8 +176,8 @@ export interface PxPrerenderedAnimationPlayerOptions extends PxAnimationPlayerCa
      */
     doc: PxDocumentInput;
     /**
-     * Play the way the editor saved it — the document's own `timeline.trigger` decides (the
-     * Editor's SVG + JS export passes it). WITHOUT it the binding is still: the trigger is
+     * Play the way the editor saved it — the document's own `timeline.triggers` decide (the
+     * Editor's SVG + JS export passes it). WITHOUT it the binding is still: the triggers are
      * replaced by the EMPTY one (nothing starts it) and the returned api drives it (first-use review §1+2).
      */
     playOnTrigger?: boolean;

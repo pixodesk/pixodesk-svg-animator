@@ -117,9 +117,9 @@ describe('animateBackground', () => {
                     timeline: {
                         engine: 'js',
                         outTime: 128,
-                        playFinishAction: 'hold',
+                        actions: { finish: { transition: 'hold' } },
                         iterationDirection: 'normal',
-                        trigger: { playStart: 'load' },
+                        triggers: { start: 'load' },
                     },
                 },
                 children: [
@@ -167,8 +167,8 @@ describe('animateBackground', () => {
                         outTime: 128,
                         // single play — no looping; animation finishes and holds the last frame
                         iterations: 1,
-                        playFinishAction: 'hold',
-                        trigger: { playStart: 'load' },
+                        actions: { finish: { transition: 'hold' } },
+                        triggers: { start: 'load' },
                     },
                 },
                 children: [
@@ -214,7 +214,7 @@ describe('animateBackground', () => {
             doc: {
                 type: 'svg',
                 viewBox: '0 0 400 400',
-                animator: { timeline: { engine: 'js', outTime: 100, playFinishAction: 'hold', trigger: { playStart: 'load' } } },
+                animator: { timeline: { engine: 'js', outTime: 100, actions: { finish: { transition: 'hold' } }, triggers: { start: 'load' } } },
                 children: [
                     {
                         type: 'path', id: '_px_d_bare', d: 'M0,0L10,0L10,10',
@@ -981,9 +981,9 @@ function getTestJson(): PxDocument {
             timeline: {
                 engine: 'js',
                 outTime: 128,
-                playFinishAction: 'hold',
+                actions: { finish: { transition: 'hold' } },
                 iterationDirection: 'normal',
-                trigger: { playStart: 'load' },
+                triggers: { start: 'load' },
             },
         },
 

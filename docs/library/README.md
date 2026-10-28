@@ -72,6 +72,7 @@ a number when it differs — the note with that number, under the table, says ho
 | `container` | ✓ | 3 | — | — | — | — |
 | **Playback override** | | | | | | |
 | `timeline` | ✓ | — | — | ✓ | ✓ | 4 |
+| `actions` | ✓ | — | — | ✓ | ✓ | ✓ |
 | **Play on trigger** | | | | | | |
 | `playOnTrigger` | ✓ | 10 | 11 | ✓ | ✓ | 5 |
 | **Declarative control** | | | | | | |
@@ -105,15 +106,15 @@ a number when it differs — the note with that number, under the table, says ho
    already in the page.
 3. The tag is the container: the player renders into the element that carries the attribute.
 4. React Native ignores `timeline.engine`.
-5. `true`, or the whole trigger to use instead of the file's (a `PxTrigger`); React Native ignores
+5. `true`, or the whole `triggers` block to use instead of the file's (a `PxTriggers`); React Native ignores
    `hoverIn` / `hoverOut`, which have no touch equivalent.
 6. The handle is what `createSvgAnimationPlayer` returns, a `PxAnimationPlayerApi`.
 7. `createSvgAnimationPlayersFromPage` returns the handles it created; `getSvgAnimationPlayer(element)` finds one later.
 8. The handle is the component's template ref, a `PxAnimationPlayerHandle`.
 9. Written `class`; like `style`, it falls through to the root `<svg>`.
-10. The tag always plays on the file's own trigger — embedding a finished file IS choosing its behaviour — so it
+10. The tag always plays on the file's own triggers — embedding a finished file IS choosing its behaviour — so it
     takes no `playOnTrigger` option.
-11. `true` only: a pre-rendered file plays on its own trigger, or on the returned api.
+11. `true` only: a pre-rendered file plays on its own triggers, or on the returned api.
 
 What some of the names mean:
 
@@ -126,15 +127,17 @@ What some of the names mean:
   `createSvgAnimationPlayer({"doc": …})` (`PX_ANIMATOR_DOC_KEY`), so it is never renamed by a minifier.
 - **`container`** left out means: animate an SVG that is already in the page.
 - **`timeline`** merges corrections over the file's timing block — `{ iterations: 'infinite' }`,
-  `{ playStopAction: 'rewind' }` — never a replacement; `null` at a key deletes it. See
+  `{ playDuration: 500 }` — never a replacement; `null` at a key deletes it. See
   [Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
+- **`actions`** merges over the file's `timeline.actions` — how start, stop, finish and suspend
+  look: `{ stop: { transition: 'rewind' } }`. The same rules as `timeline`.
 - **`playOnTrigger`** means "play the way the document says". The HTML tag always works this way;
   the web player takes it as an option (`createSvgAnimationPlayer({ …, playOnTrigger: true })`) — without
   it, nothing starts and the returned api drives playback. An **object** instead of `true` is the whole
-  trigger to use in place of the file's (`{ playStart: 'hoverIn', playStop: 'hoverOut' }`).
-- **`play`** is the on/off switch: `true` is a play-start, `false` a play-stop, each done the way the
-  timeline says (`playStartAction`, `playStopAction`, `completeIterationOnPlayStop` —
-  [Play start, play stop, play finish](./playback-and-triggers.md#play-start-play-stop-play-finish--how-a-transition-looks));
+  `triggers` block to use in place of the file's (`{ start: 'hoverIn', stop: 'hoverOut' }`).
+- **`play`** is the on/off switch: `true` calls the built-in `start`, `false` the built-in `stop`, each
+  done the way the file's `actions` say (the transitions, the stop's `completeIteration` —
+  [Actions](./playback-and-triggers.md#actions--how-start-stop-and-finish-look));
   **`pause`** freezes the current frame, and setting it back to `false` resumes.
 - **`playCurrentProgress`** shows the frame at a point between 0 and 1 of the whole run (of one iteration
   when `iterations` is `'infinite'`); **`playCurrentTime`** shows the frame at that many ms from the start.
@@ -157,22 +160,23 @@ The pre-rendered SVG + CSS wrappers toggle class names instead of creating a pla
 | Name | React `SvgCssAnimationPlayer` | Vue `SvgCssAnimationPlayer` |
 |---|---|---|
 | the SVG | `children` | default slot | <!-- px name=children vue=~ -->
-| `trigger` | ✓ the file's trigger block; absent = plays on load | ✓ same |
-| `outOfViewAction` | ✓ default `'pause'` | ✓ same |
+| `triggers` | ✓ the file's `triggers` block; absent = plays on load | ✓ same |
+| `actions` | ✓ `suspend` only; default `'pause'` | ✓ same |
 | `inViewThreshold` | ✓ default `0.5` | ✓ same |
 | `inViewDebounce` | ✓ default `150` ms | ✓ same |
 | `className` | ✓ on the wrapper div | `class`, on the wrapper div | <!-- px vue=~ -->
 | `style` | ✓ on the wrapper div | ✓ on the wrapper div | <!-- px vue=~ -->
 
-- `trigger` is the JSON player's — `playStart`, `playStop`, `pauseStart`, `pauseStop`, each one event or a
-  list of them, read by the same state rule
-  ([Triggers](./playback-and-triggers.md#triggers--when-it-plays)): `pauseStart: 'hoverOut'` pauses,
-  `playStop: 'hoverOut'` stops. An **empty** trigger does nothing here: a wrapper has no `play()` to call.
-- Accepted limits of a class toggle: a play-start acts as `playStartAction: 'resume'` and a play-stop as
-  `playStopAction: 'reset'` — a class cannot restart keyframes, jump to their end or play them
-  backwards — and `completeIterationOnPlayStop`, `showFirstFrameBeforePlayStart` and `playFinishAction`
-  are the file's own CSS. None of them is a prop here.
-- `outOfViewAction: 'pause'` means an animation nobody can see does not run, whatever started it.
+- `triggers` is the JSON player's block — `start`, `stop`, `pause`, `resume`, `togglePlay`,
+  `togglePause`, each one event or a list of them, read by the same rules
+  ([Triggers](./playback-and-triggers.md#triggers--when-it-plays)): `pause: 'hoverOut'` pauses,
+  `stop: 'hoverOut'` stops. An **empty** block does nothing here: a wrapper has no `play()` to call.
+- `actions` takes only `suspend` (`{ suspend: { transition: 'pause' } }`): an animation nobody can
+  see does not run, whatever started it.
+- Accepted limits of a class toggle: a start acts as the `continue` transition and a stop as
+  `reset` — a class cannot restart keyframes, jump to their end or play them backwards — and the
+  stop's `completeIteration`, `beforeStart` and the finish transition are the file's own CSS.
+  None of them is a prop here.
 - `inViewThreshold` is how much of the SVG (0 to 1) must be on screen before it may run;
   `inViewDebounce` is how long it must stay that way first, so scrolling straight past starts
   nothing. The defaults are the same as the JSON player's.
@@ -185,10 +189,10 @@ once, naming the props and the winner. React, Vue and React Native all use the s
 core (`resolveControlMode`), so they always pick the same winner:
 
 <!-- px-check off the mode-priority rule, prose -->
-| Priority | Mode | Chosen when | The document's trigger |
+| Priority | Mode | Chosen when | The document's triggers |
 |---|---|---|---|
 | 1 | controlled time | `playCurrentProgress` or `playCurrentTime` | switched off; the player seeks and holds |
-| 2 | play / pause | `play` or `pause` | switched off; `play={true}` is a play-start, `play={false}` a play-stop — per the timeline's play keys — and `pause` freezes |
+| 2 | play / pause | `play` or `pause` | switched off; `play={true}` calls `start`, `play={false}` calls `stop` — per the file's `actions` — and `pause` freezes |
 | 3 | playOnTrigger | `playOnTrigger` | used, after the override |
 | 4 | static | none of the above | switched off; the first frame renders and nothing plays |
 
@@ -262,7 +266,7 @@ severity (`onError`, `onWarn`) and read `kind` inside it to decide what to do:
 | `document` | regenerate or repair the file | effects shape, unknown keys, an invalid document, no or unresolved bindings, a `scroll.subject` that is not a valid selector, a blocked SVG tag |
 | `host` | fix the page or app | no root element, a selector that matched nothing, `setAttribute` finding no element, a failed fetch |
 | `platform` | nothing — the player degraded | unsupported CSS attrs, `smoothing` needing the built-in driver, native scroll-timeline construction failing, `react-native-svg` prop limits |
-| `usage` | fix the options or props you passed | props from more than one control mode at once, an override that could not apply, a rate of 0, `trigger` on a scroll timeline |
+| `usage` | fix the options or props you passed | props from more than one control mode at once, an override that could not apply, a rate of 0, `triggers` on a scroll timeline |
 | `internal` | report it to us | could not build, compile or render the document; a render that threw |
 
 For example: fail a CI check on `document`, ignore `platform`, and send `internal` to your error

@@ -401,6 +401,13 @@ playStopAction: 'rewind' }` entries) if the shared one proves too coarse.
 events to actions; a restart waits the delay again in CSS and WAAPI (GSAP's [`restart(includeDelay = false)`](https://gsap.com/docs/v3/GSAP/Tween/restart()) is the outlier).
 The action-keyed lists, "no new container" and the moment-named keys are the owner's calls.
 
+### D6 — superseded 2026-10-28: see [playback-layers.md](./playback-layers.md)
+
+The `actions` + `trigger` proposal written here on 2026-10-27 was refined into layers 0 and 1 of
+[playback-layers.md](./playback-layers.md) ("improved D6": `triggers` plural, `beforeStart` a timeline
+key, `jumpToFinished`, `suspend` / `wake` for the gate, `togglePlay` / `togglePause`, element targets).
+That document is the one to implement; it also lists the 1.9 → layers mapping and the Editor model.
+
 ## TODO
 
 | # | What | Notes |

@@ -4,13 +4,13 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxOutOfViewAction } from '@pixodesk/svg-animator-core';
+import { PxSuspendTransition } from '@pixodesk/svg-animator-core';
 import type { PxResolvedGate } from '@pixodesk/svg-animator-core/engine';
 
 /**
  * THE VISIBILITY GATE — permission to run, separate from whatever starts the animation.
  *
- * The trigger's event lists say what STARTS an animation; the timeline's `outOfViewAction` /
+ * The triggers' event lists say what STARTS an animation; the timeline's `actions.suspend` /
  * `inViewThreshold` / `inViewDebounce` say whether it may RUN (D5). The two are independent, so
  * "start on click, but pause while scrolled away" is sayable, and the common document says
  * neither and gets both defaults: start on load, pause off screen.
@@ -30,7 +30,7 @@ import type { PxResolvedGate } from '@pixodesk/svg-animator-core/engine';
 
 /** What the gate drives. A trigger let through goes to the executor's state-rule play; the gate's
  *  own hold and release are the ENGINE's pause and play — a gate hold is not a user pause, so the
- *  executor's paused state stays untouched and a later `playStart` event still applies. @internal */
+ *  executor's paused state stays untouched and a later `start` event still applies. @internal */
 export interface PxGateHost {
     isPlaying(): boolean;
     /** A trigger fired and the gate lets it through. */
@@ -39,7 +39,7 @@ export interface PxGateHost {
     hold(): void;
     /** Back on screen after a hold: continue from there. */
     release(): void;
-    /** Off screen with `outOfViewAction: 'reset'`: back to the start pose; `release` replays. */
+    /** Off screen with a `reset` suspend: back to the start pose; `release` replays. */
     reset(): void;
 }
 
@@ -80,7 +80,7 @@ function effectiveRatio(entry: IntersectionObserverEntry): number {
     return denom > 0 ? visible.height / denom : entry.intersectionRatio;
 }
 
-/** A gate that is always open and observes nothing — `outOfViewAction: 'continue'`, or no way to measure. */
+/** A gate that is always open and observes nothing — a `continue` suspend, or no way to measure. */
 function openGate(host: PxGateHost): PxVisibilityGate {
     return {
         requestStart: () => host.start(),
@@ -90,15 +90,15 @@ function openGate(host: PxGateHost): PxVisibilityGate {
 
 /** Whether visibility governs this document at all. `continue` means "run wherever it is",
  *  which also means it must not WAIT to be seen before starting (review: plan §4 example G). */
-function isGated(outOfViewAction: PxOutOfViewAction): boolean {
-    return outOfViewAction !== PxOutOfViewAction.continue;
+function isGated(suspend: PxSuspendTransition): boolean {
+    return suspend !== PxSuspendTransition.continue;
 }
 
 // @px-importance important
 /** Builds the gate for one document. Returns an always-open one when visibility does not govern
  *  it, or when nothing can measure. @internal */
 export function createVisibilityGate(root: Element, gate: PxResolvedGate, host: PxGateHost): PxVisibilityGate {
-    if (!isGated(gate.outOfViewAction)) return openGate(host);
+    if (!isGated(gate.suspend)) return openGate(host);
     if (typeof IntersectionObserver === 'undefined') return openGate(host);
 
     const threshold = gate.inViewThreshold;
@@ -146,7 +146,7 @@ export function createVisibilityGate(root: Element, gate: PxResolvedGate, host: 
         // Only act on something that is actually running — including an animation the HOST
         // started through the API, which is why this asks rather than tracking its own flag.
         if (!host.isPlaying()) return;
-        if (gate.outOfViewAction === PxOutOfViewAction.reset) {
+        if (gate.suspend === PxSuspendTransition.reset) {
             host.reset();    // progress back to 0; the next open replays from the start
         } else {
             host.hold();

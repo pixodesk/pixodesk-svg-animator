@@ -77,10 +77,14 @@ export const effectCloneText: SvgaCaseJson = {
         "timeline": {
             "mode": "auto",
             "outTime": 1000,
-            "trigger": {
-                "playStart": "load"
+            "triggers": {
+                "start": "load"
             },
-            "outOfViewAction": "continue",
+            "actions": {
+                "suspend": {
+                    "transition": "continue"
+                }
+            },
             "iterationDirection": "normal"
         }
     },

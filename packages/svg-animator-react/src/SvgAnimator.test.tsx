@@ -208,7 +208,7 @@ describe("SvgAnimationPlayer (React)", () => {
 
             rerender(<SvgAnimationPlayer doc={doc} play={false} onCancel={onCancel} onFinish={onFinish} />);
 
-            expect(onCancel).toHaveBeenCalled();       // default playStopAction 'reset': snap back
+            expect(onCancel).toHaveBeenCalled();       // default stop transition 'reset': snap back
             expect(onFinish).not.toHaveBeenCalled();   // this used to be finish()
         });
 
@@ -222,18 +222,18 @@ describe("SvgAnimationPlayer (React)", () => {
             expect(apiRef.current?.getCurrentTime()).toBe(1000);
         });
 
-        it("the timeline's playStopAction 'rewind': the off TRAVELS back from the current frame (the hover toggle)", () => {
+        it("a rewinding stop (the actions prop): the off TRAVELS back from the current frame (the hover toggle)", () => {
             const onCancel = vi.fn();
             const onPlay = vi.fn();
             const apiRef = createRef<PxAnimationPlayerHandle>();
             const doc = getTestJson1000();
-            const rewind = { playStopAction: 'rewind' } as const;
+            const rewind = { stop: { transition: 'rewind' } } as const;
             const { rerender } = render(
-                <SvgAnimationPlayer doc={doc} play={false} timeline={rewind} playerRef={apiRef} onCancel={onCancel} onPlay={onPlay} />);
-            rerender(<SvgAnimationPlayer doc={doc} play timeline={rewind} playerRef={apiRef} onCancel={onCancel} onPlay={onPlay} />);
+                <SvgAnimationPlayer doc={doc} play={false} actions={rewind} playerRef={apiRef} onCancel={onCancel} onPlay={onPlay} />);
+            rerender(<SvgAnimationPlayer doc={doc} play actions={rewind} playerRef={apiRef} onCancel={onCancel} onPlay={onPlay} />);
             vi.advanceTimersByTime(400);
 
-            rerender(<SvgAnimationPlayer doc={doc} play={false} timeline={rewind} playerRef={apiRef} onCancel={onCancel} onPlay={onPlay} />);
+            rerender(<SvgAnimationPlayer doc={doc} play={false} actions={rewind} playerRef={apiRef} onCancel={onCancel} onPlay={onPlay} />);
             vi.advanceTimersByTime(32);
 
             expect(onCancel).not.toHaveBeenCalled();           // no reset — it turns around
@@ -262,17 +262,18 @@ describe("SvgAnimationPlayer (React)", () => {
             expect(onCancel).not.toHaveBeenCalled();
         });
 
-        it("loop world: play runs, off snaps to rest; the timeline's completeIterationOnPlayStop finishes the pass first", () => {
+        it("loop world: play runs, off snaps to rest; a stop with completeIteration finishes the pass first", () => {
             const apiRef = createRef<PxAnimationPlayerHandle>();
             const doc = getTestJson1000();
-            const loop = { iterations: 'infinite', completeIterationOnPlayStop: true } as const;
+            const loop = { iterations: 'infinite' } as const;
+            const completing = { stop: { completeIteration: true } } as const;
             const { rerender } = render(
-                <SvgAnimationPlayer doc={doc} timeline={loop} play={false} playerRef={apiRef} />);
-            rerender(<SvgAnimationPlayer doc={doc} timeline={loop} play playerRef={apiRef} />);
+                <SvgAnimationPlayer doc={doc} timeline={loop} actions={completing} play={false} playerRef={apiRef} />);
+            rerender(<SvgAnimationPlayer doc={doc} timeline={loop} actions={completing} play playerRef={apiRef} />);
             vi.advanceTimersByTime(300);
             expect(apiRef.current?.isPlaying()).toBe(true);
 
-            rerender(<SvgAnimationPlayer doc={doc} timeline={loop} play={false} playerRef={apiRef} />);
+            rerender(<SvgAnimationPlayer doc={doc} timeline={loop} actions={completing} play={false} playerRef={apiRef} />);
             vi.advanceTimersByTime(100);
             expect(apiRef.current?.isPlaying()).toBe(true);    // still finishing the iteration
             vi.advanceTimersByTime(1200);                      // past the boundary — the watcher landed it
@@ -297,9 +298,9 @@ describe("SvgAnimationPlayer (React)", () => {
             expect(onWarn2.mock.calls[0][0].code).toBe(PxDiagnosticCode.imperativeOverDeclarative);
         });
 
-        it("no misplaced modifiers remain: the play keys live on the timeline and warn nothing on a loop", () => {
+        it("no misplaced modifiers remain: the actions prop warns nothing on a loop", () => {
             const onWarn = vi.fn();
-            render(<SvgAnimationPlayer doc={getTestJson1000()} timeline={{ iterations: 'infinite', playStopAction: 'rewind' }} play onWarn={onWarn} />);
+            render(<SvgAnimationPlayer doc={getTestJson1000()} timeline={{ iterations: 'infinite' }} actions={{ stop: { transition: 'rewind' } }} play onWarn={onWarn} />);
             expect(onWarn).not.toHaveBeenCalled();
         });
     });
@@ -564,7 +565,7 @@ describe("SvgAnimationPlayer (React)", () => {
             return {
                 type: "svg", id: "_px_wire", viewBox: "0 0 100 100",
                 animator: {
-                    timeline: { engine: "js", outTime: 1000, trigger: { playStart: "load" } },
+                    timeline: { engine: "js", outTime: 1000, triggers: { start: "load" } },
                 },
                 children: [{
                     type: "rect", id: "r1", opacity: 0,
@@ -595,7 +596,7 @@ describe("SvgAnimationPlayer (React)", () => {
 
         it("a `playOnTrigger` object beside `playCurrentProgress`: the position wins (PX1501), the frame is right", () => {
             const onWarn = vi.fn();
-            render(<SvgAnimationPlayer doc={wireJson()} playCurrentProgress={0.5} timeline={{ outTime: 4000 }} playOnTrigger={{ playStart: 'click' }} onWarn={onWarn} />);
+            render(<SvgAnimationPlayer doc={wireJson()} playCurrentProgress={0.5} timeline={{ outTime: 4000 }} playOnTrigger={{ start: 'click' }} onWarn={onWarn} />);
             expect(opacityNow()).toBe(1);
             expect(onWarn.mock.calls.map(c => c[0].code)).toContain(PxDiagnosticCode.controlPropsConflict);
         });
@@ -888,9 +889,9 @@ function getTestJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                playFinishAction: "hold",
+                actions: { finish: { transition: "hold" } },
                 iterationDirection: "normal",
-                trigger: { playStart: "load" },
+                triggers: { start: "load" },
             },
         },
 
@@ -929,9 +930,9 @@ function getTestJson1000(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 1000,
-                playFinishAction: "hold",
+                actions: { finish: { transition: "hold" } },
                 iterationDirection: "normal",
-                trigger: { playStart: "load" },
+                triggers: { start: "load" },
             },
         },
 
@@ -996,9 +997,9 @@ function getTreeJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                playFinishAction: "hold",
+                actions: { finish: { transition: "hold" } },
                 iterationDirection: "normal",
-                trigger: { playStart: "load" },
+                triggers: { start: "load" },
             },
         },
 
@@ -1052,9 +1053,9 @@ function getRectJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                playFinishAction: "hold",
+                actions: { finish: { transition: "hold" } },
                 iterationDirection: "normal",
-                trigger: { playStart: "load" },
+                triggers: { start: "load" },
             },
         },
 
@@ -1085,7 +1086,7 @@ function getEffectsOnlyJson(): PxDocument {
         animator: {
             timeline: {
                 outTime: 1000,
-                trigger: { playStart: "hoverIn", pauseStart: "hoverOut" }, outOfViewAction: "pause", inViewThreshold: 0.5, inViewDebounce: 150,
+                triggers: { start: "hoverIn", pause: "hoverOut" }, actions: { suspend: { transition: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
             },
             version: "1.9.1",
@@ -1150,7 +1151,7 @@ function getMaskedLoadJson(): PxDocument {
         animator: {
             timeline: {
                 outTime: 1000,
-                trigger: { playStart: "load" }, outOfViewAction: "pause", inViewThreshold: 0.5, inViewDebounce: 150,
+                triggers: { start: "load" }, actions: { suspend: { transition: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
             },
             version: "1.9.1",

@@ -120,8 +120,8 @@ export enum PxDiagnosticCode {
     documentRepaired = 1108,
 
     /**
-     * The trigger lists one event under BOTH `playStop` and `pauseStart` — two off-actions for one event.
-     * `pauseStart` wins; the file should name one.
+     * The triggers list one event under BOTH `stop` and `pause` — two reactions to one event while playing.
+     * `pause` wins; the file should name one.
      * @data the events
      */
     triggerEventConflict = 1109,
@@ -181,7 +181,7 @@ export enum PxDiagnosticCode {
     /** There is no root element to observe, so a scroll-driven animation stays on its first frame. */
     scrollNoRootToObserve = 1305,
 
-    /** `timeline.trigger` does not apply to a scroll timeline — the scrollbar is the playhead. */
+    /** `timeline.triggers` does not apply to a scroll timeline — the scrollbar is the playhead. */
     scrollTriggerIgnored = 1306,
 
     // ── 1400 · playback control ──────────────────────────────────────────────────────────────
@@ -200,7 +200,7 @@ export enum PxDiagnosticCode {
 
     /**
      * A declarative playback modifier was set where it cannot apply — `pause` without `play`. Ignored.
-     * (How a `play` change looks is the timeline's: `playStartAction`, `playStopAction`, `completeIterationOnPlayStop`.)
+     * (How a `play` change looks is the timeline's `actions`: `start`, `stop` and its `completeIteration`.)
      * @data the explanation
      */
     playModifierIgnored = 1502,

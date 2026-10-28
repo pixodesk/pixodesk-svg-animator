@@ -20,7 +20,7 @@ function makeDoc(): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'js', outTime: DUR, trigger: { playStart: 'load' } } },
+        animator: { timeline: { engine: 'js', outTime: DUR, triggers: { start: 'load' } } },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: DUR, value: 1 }] } },

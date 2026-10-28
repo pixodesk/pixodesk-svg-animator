@@ -25,7 +25,7 @@ export {
 } from './playback/PxPlaybackTime';
 
 // A mount's timeline override folded into the file's; a component taking over the start
-export { applyPlaybackOverride, withTrigger, withoutTriggerDriver } from './playback/PxAnimatorConfigPatch';
+export { applyPlaybackOverride, withTriggers, withoutTriggerDriver } from './playback/PxAnimatorConfigPatch';
 
 // ONE control-mode rule for react / vue / rn (API review §1, §7) — logic + warning text
 export { PxControlMode, resolveControlMode, controlModeTakesOverTrigger } from './format/PxAnimatorConstants';
@@ -39,7 +39,7 @@ export { PxValueKind } from './format/PxAnimatorConstants';
 export type { PxNormalizedBinding, PxRuntimeAnimation } from './animation/PxRuntimeChannel';
 
 // Which trigger, which engine
-export { resolveTrigger, resolveGate, triggerEventList, triggerConflicts, triggerListsEvent, triggerActionFor, fillModeOf, resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline } from './format/PxAnimatorConstants';
+export { resolveTriggers, resolveActions, resolveGate, triggerEventList, triggerConflicts, triggerListsEvent, triggerActionFor, fillModeOf, resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline } from './format/PxAnimatorConstants';
 
 // Adapter-driven frame-loop engine (platform-neutral playback) + the node props every renderer shares
 export { createAdapterSvgAnimationPlayer } from './playback/PxFrameLoop';
@@ -47,4 +47,4 @@ export type { PxPlatformAdapter } from './playback/PxFrameLoop';
 export type { PxEngineAnimationPlayerApi } from './format/PxAnimatorTypes';
 export { toDomProps } from './util/PxNodeProps';
 
-export type { PxResolvedTrigger, PxResolvedGate } from './format/PxAnimatorConstants';
+export type { PxResolvedTriggers, PxResolvedActions, PxResolvedGate } from './format/PxAnimatorConstants';

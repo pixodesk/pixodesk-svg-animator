@@ -12,13 +12,13 @@ is not here, go to [Still stuck?](#still-stuck) at the end.
 
 ## Nothing plays
 
-**The trigger does not list `load`.** Check `animator.timeline.trigger.playStart` in the file (or *Plays
-on* in the editor). `click`, `hoverIn` and `hoverOut` wait for the user; an empty trigger (`{}`) waits
+**The triggers do not list `load`.** Check `animator.timeline.triggers.start` in the file (or *Plays
+on* in the editor). `click`, `hoverIn` and `hoverOut` wait for the user; an empty block (`{}`) waits
 for you to call `play()`. Even `load` waits until enough of the animation is on screen, and pauses
-while it is scrolled out of view (`outOfViewAction: 'pause'`, the default) — see
+while it is scrolled out of view (`actions.suspend.transition: 'pause'`, the default) — see
 [Triggers](./playback-and-triggers.md#triggers--when-it-plays). In React/Vue/React Native, remember
-that `playOnTrigger` is the only mode that uses the document's trigger — with `play`, `pause`,
-`playCurrentProgress` or `playCurrentTime` the trigger is ignored. Passing `playerRef` does **not**
+that `playOnTrigger` is the only mode that uses the document's triggers — with `play`, `pause`,
+`playCurrentProgress` or `playCurrentTime` the triggers are ignored. Passing `playerRef` does **not**
 change the mode.
 
 **React / Vue component with no control prop.** With none of `playOnTrigger` / `play` / `pause` /
@@ -82,17 +82,17 @@ yourself.
 
 ## Playback behavior
 
-**It holds the last frame — I want it to reset.** Set `timeline.playFinishAction: "reset"` — at its
+**It holds the last frame — I want it to reset.** Set `timeline.actions.finish.transition: "reset"` — at its
 natural end the animation jumps back to the start state (`"rewind"` plays back to it instead; the
 default `"hold"` keeps the last frame). The start state is the SVG as authored; a hand-authored
 file whose static attributes differ from its first keyframe can show the first frame instead with
-`showFirstFrameBeforePlayStart: true`
-(see [Play start, play stop, play finish](./playback-and-triggers.md#play-start-play-stop-play-finish--how-a-transition-looks)).
-For one mount only, pass the same thing as an override: `timeline={{ playFinishAction: 'reset' }}`.
+`timeline.beforeStart: "firstFrame"`
+(see [Actions](./playback-and-triggers.md#actions--how-start-stop-and-finish-look)).
+For one mount only, pass the same thing as an override: `actions={{ finish: { transition: 'reset' } }}`.
 
-**How do I play backwards?** `player.setPlaybackRate(-1); player.play();` — or let a play-stop play
-back by itself: `playStopAction: 'rewind'` in the timeline, with the event that stops it listed in
-the trigger (`playStop: 'hoverOut'`); `stop()` and `play={false}` rewind the same way.
+**How do I play backwards?** `player.setPlaybackRate(-1); player.play();` — or let a stop play
+back by itself: `actions: { stop: { transition: 'rewind' } }` in the timeline, with the event that
+stops it listed in the triggers (`stop: 'hoverOut'`); `stop()` and `play={false}` rewind the same way.
 
 **Jumping to a time while playing.** `setCurrentTime(ms)` works while playing (the animation
 continues from the new point) and while paused (it shows that frame and stays there).

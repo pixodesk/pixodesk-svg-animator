@@ -41,15 +41,15 @@ export type { PxValidationResult } from './format/PxAnimatorTypes';
 export { PxValidationFindingKind } from './schema/PxSchema';
 
 // Wire-format schemas
-export { toPxDocument, isCompiledAnimation, PxDocumentSchema, PxAnimatorConfigSchema, PxAnyPropertyAnimationSchema, PxAttrValueSchema, PxBezierPathSchema, PxCompiledAnimationSchema, PxCubicBezierSchema, PxRgbaSchema, PxDefinitionsSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBaseSchema, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeRootSchema, PxTransformPartsSchema, PxTriggerSchema, PxTimelineSchema, PxTimeTimelineSchema, PxTransformValueSchema } from './format/PxAnimatorTypes';
+export { toPxDocument, isCompiledAnimation, PxDocumentSchema, PxAnimatorConfigSchema, PxAnyPropertyAnimationSchema, PxAttrValueSchema, PxBezierPathSchema, PxCompiledAnimationSchema, PxCubicBezierSchema, PxRgbaSchema, PxDefinitionsSchema, PxElementAnimationSchema, PxKeyframeSchema, PxKeyframeValueSchema, PxLoopSchema, PxNodeBaseSchema, PxNodeSchema, PxPropertyAnimationSchema, PxSvgNodeRootSchema, PxTransformPartsSchema, PxTriggersSchema, PxActionsSchema, PxStartActionSchema, PxStopActionSchema, PxFinishActionSchema, PxSuspendActionSchema, PxTimelineSchema, PxTimeTimelineSchema, PxTransformValueSchema } from './format/PxAnimatorTypes';
 export { PxTimelineEngine, PxCloneWithout, PxTimelineEngineSetting, PX_PLAYBACK_DEFAULTS, PX_TRANSFORM_PART_KEYS } from './format/PxAnimatorConstants';
 
 // Document / model types
-export type { PxDocument, PxDocumentInput, PxAnimationDefinition, PxAnimationPlayerApi, PxEngineCallbacks, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBezierPath, PxBinding, PxDefinitions, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxAnyPropertyAnimation, PxCompiledAnimation, PxCompiledKeyframe, PxCubicBezier, PxPathValue, PxRgba, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTransformParts, PxTrigger, PxTransformValue } from './format/PxAnimatorTypes';
+export type { PxDocument, PxDocumentInput, PxAnimationDefinition, PxAnimationPlayerApi, PxEngineCallbacks, PxAnimatorConfig, PxAnimatorRuntimeConfig, PxBezierPath, PxBinding, PxDefinitions, PxElementAnimation, PxGlyph, PxGlyphFont, PxKeyframe, PxLoop, PxNode, PxPropertyAnimation, PxAnyPropertyAnimation, PxCompiledAnimation, PxCompiledKeyframe, PxCubicBezier, PxPathValue, PxRgba, PxScroll, PxScrollRangePoint, PxSvgNode, PxTimeline, PxTransformParts, PxTriggers, PxActions, PxTransformValue } from './format/PxAnimatorTypes';
 // VALUE exports, not `export type`: each wire enum is a const namespace AND the string type
 // derived from it under the same name (review §2.7), so a consumer gets both `PxTriggerEvent.click`
 // and `start?: PxTriggerEvent` from one import.
-export { PxFillMode, PxPlayStartAction, PxPlayStopAction, PxPlayFinishAction, PxOutOfViewAction, PxPlaybackDirection, PxTriggerEvent } from './format/PxAnimatorConstants';
+export { PxFillMode, PxStartTransition, PxStopTransition, PxFinishTransition, PxSuspendTransition, PxBeforeStart, PxPlaybackDirection, PxTriggerEvent } from './format/PxAnimatorConstants';
 
 export { getBindings, getChildren, getDefinitions } from './format/PxAnimatorConstants';
 export { getAnimatorConfig, isPxDocument, nestAnimatorTimeline } from './format/PxAnimatorConstants';
@@ -82,7 +82,7 @@ export type { PxDiagnostic, PxDiagnostics, PxDiagnosticsConfig } from './playbac
 
 // The shapes every framework component shares (review §9) — one definition, three aliases.
 export type { PxAnimationPlayerHandle, PxAnimationPlayerCallbacks } from './format/PxAnimatorTypes';
-export type { PxPlaybackOverride, PxPlaybackOverrideInput, PxTimelineWithoutTrigger, PxPlaybackOverrideResult } from './playback/PxAnimatorConfigPatch';
+export type { PxPlaybackOverride, PxPlaybackOverrideInput, PxTimelineTiming, PxPlaybackOverrideResult } from './playback/PxAnimatorConfigPatch';
 
 // Element-creation factory + glyph-text materializer
 
@@ -112,9 +112,9 @@ export { applyAnimatorConfig, mergeAnimatorConfig } from './playback/PxAnimatorC
 export type { PxTriggerEvents } from './format/PxAnimatorConstants';
 export type { PxPlayExecutor } from './format/PxAnimatorTypes';
 export { PxPlayState, PxTriggerAction } from './format/PxAnimatorConstants';
-export type { PxPatch, PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxTimelinePatch } from './playback/PxAnimatorConfigPatch';
+export type { PxPatch, PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxTimelinePatch, PxActionsPatch } from './playback/PxAnimatorConfigPatch';
 export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxUnits, PxMaskType, PxPathOverflow, PxLengthAdjust, PxTextPathMethod, PxTextPathSpacing } from './format/PxAnimatorConstants';
-// The remaining wire enums (review §2.7). `PxFillMode` / `PxOutOfViewAction` / `PxPlayStartAction, PxPlayStopAction, PxPlayFinishAction` /
+// The remaining wire enums (review §2.7). `PxFillMode` / the five transition enums (`PxStartTransition` … `PxBeforeStart`) /
 // `PxPlaybackDirection` / `PxTriggerEvent` are exported above and must NOT be repeated here —
 // one export per identifier.
 export {
