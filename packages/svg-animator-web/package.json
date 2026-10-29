@@ -87,7 +87,7 @@
     "tsx": "^4.7.0",
     "typescript": "^5.0.0",
     "@types/node": "^22.0.0",
-    "@playwright/test": "^1.48.0",
+    "@playwright/test": "^1.64.0",
     "jsdom": "^25.0.0",
     "serve": "^14.2.0",
     "vitest": "^2.0.0"

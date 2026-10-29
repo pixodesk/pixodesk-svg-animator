@@ -50,7 +50,7 @@
   },
   "devDependencies": {
     "@playwright/experimental-ct-react": "^1.48.0",
-    "@playwright/test": "^1.48.0",
+    "@playwright/test": "^1.64.0",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.3.0",
     "@types/node": "^22.0.0",
