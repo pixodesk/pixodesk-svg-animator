@@ -967,6 +967,37 @@ class Arr<T> extends Base<Array<T>> {
 
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Words — one word or several from a closed vocabulary; an unknown word is DROPPED
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** `"a"` or `["a", "b"]` over a closed vocabulary — described as the union of the two forms, but repaired word
+ *  by word: an unknown word is dropped (a lone unknown word drops the optional field), never swapped for a default. */
+class Words<T extends string> extends Union<T | Array<T>, false> {
+    constructor(private readonly vocabulary: readonly T[]) {
+        const word = new Enum<T, false>(vocabulary, undefined, false);
+        super([word, new Arr(word)], undefined, false);
+    }
+    private keep(raw: unknown): raw is T { return this.vocabulary.includes(raw as T); }
+    override sanitize(raw: unknown): T | Array<T> {
+        if (Array.isArray(raw)) return raw.filter((w): w is T => this.keep(w));
+        return this.keep(raw) ? raw : [];
+    }
+    override _fix(raw: unknown, run: PxFixRun): T | Array<T> {
+        if (isStampedFor(raw, this)) return raw as Array<T>;   // already checked — reuse, never rebuild
+        if (!Array.isArray(raw)) {
+            if (this.keep(raw)) return raw;
+            run.repairs++;
+            return this._seal([], false);
+        }
+        const out = raw.filter((w): w is T => this.keep(w));
+        if (out.length !== raw.length) run.repairs++;
+        return this._seal(out, out.length === raw.length);
+    }
+    /** A lone unknown word cannot be kept — an optional field holding it is dropped. */
+    override _canSanitize(raw: unknown): boolean { return Array.isArray(raw) || this.keep(raw); }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Record — invalid values are dropped; default is {}
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1330,6 +1361,11 @@ export const px = {
     /** Array whose unrecoverable items are filtered out. Default: []. */
     array: <T>(item: PxSchema<T>): PxSchema<Array<T>> =>
         new Arr(item),
+
+    /** One word or several (`"a"` / `["a", "b"]`) from a closed vocabulary. Repair DROPS an unknown word — a lone
+     *  unknown word drops the optional field — where a plain union would put its default in place of the whole value. */
+    words: <T extends string>(values: readonly T[]): PxSchema<T | Array<T>, false, false> =>
+        new Words(values),
 
     /** String-keyed record whose unrecoverable values are dropped. Default: {}. */
     record: <T>(value: PxSchema<T>): PxSchema<Record<string, T>> =>

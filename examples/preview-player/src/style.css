@@ -379,7 +379,7 @@ button:disabled {
   width: 64px;
 }
 
-/* The four trigger lists — one checkbox group per list, over the same events. */
+/* The trigger lists — one checkbox group per list, over the events it may name. */
 .trigger-lists {
   display: flex;
   flex-wrap: wrap;

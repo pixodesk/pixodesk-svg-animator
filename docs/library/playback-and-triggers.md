@@ -65,7 +65,7 @@ Three things make an animation go: the **triggers** (the user hovers or clicks),
 |---|---|---|---|
 | **start** | stopped or finished → playing | `start.transition`: `continue` · `restart` · `jumpToFinished` | `start` (or `togglePlay`) |
 | **stop** | playing or paused → stopped | `stop.transition`: `reset` · `rewind`, `stop.completeIteration` | `stop` (or `togglePlay`) |
-| **pause** / **resume** | freeze, and carry on | nothing to configure | `pause` / `resume` (or `togglePause`) |
+| **pause** / **resume** | freeze, and carry on | nothing to configure | `pause`; what resumes is derived from it |
 | **finish** | the run ends by itself | `finish.transition`: `hold` · `reset` · `rewind` | — (the player) |
 | **suspend** / **wake** | nobody can see it / seen again | `suspend.transition`: `pause` · `continue` · `reset` | — (the view sensor: a condition, not an event) |
 
@@ -120,7 +120,8 @@ document set to infinite iterations, keeps spinning during every iteration.
 ## Triggers — WHEN it plays
 
 The `triggers` block — inside the time timeline — names the user interactions that call the
-built-in actions. Four lists, one per action, and two toggles, over one open vocabulary of events:
+built-in actions. One list per action, plus the `togglePlay` shorthand, over one open vocabulary
+of events:
 
 ```json
 "timeline": {
@@ -130,18 +131,17 @@ built-in actions. Four lists, one per action, and two toggles, over one open voc
 ```
 
 Read cold: start on hover-in or click, stop (after the beat) on hover-out, a click while playing
-pauses. Each list is a single event or an array of them — the house style of `animate`'s
-references — and the editor writes the shortest exact spelling.
+pauses and the next click carries on. Each list is a single event or an array of them — the house
+style of `animate`'s references — and the editor writes the shortest exact spelling.
 
 <!-- px-check schema PxTriggersSchema -->
 | List | Calls | Acts while the player is… | Editor label |
 |---|---|---|---|
-| `start` | `start`, per `actions.start` | **stopped** (or finished) | *Plays on* |
-| `stop` | `stop`, per `actions.stop` | **playing or paused** | *Stops on* |
-| `pause` | `pause` — freezes the current frame | **playing** | *Pauses on* |
-| `resume` | `resume` — carries on from there. Absent = a copy of `start`; `[]` = never | **paused** | *Resumes on* |
-| `togglePlay` | `start` when stopped, otherwise `stop` | any state | — (read into *Plays on* + *Stops on*) |
-| `togglePause` | `pause` when playing, `resume` when paused | playing or paused | — (read into *Pauses on* + *Resumes on*) |
+| `start` | `start`, per `actions.start` | **stopped** (or finished) | *Play on* |
+| `stop` | `stop`, per `actions.stop` | **playing or paused** | *Stop on* |
+| `pause` | `pause` — freezes the current frame | **playing** | *Pause on* |
+| `resume` | `resume` — carries on from there. **Derived** from the other lists ([below](#what-resumes-a-pause--derived)); the key is reserved for element targets | **paused** | *Resume on* (shown, not edited) |
+| `togglePlay` | `start` when stopped, otherwise `stop` — `"togglePlay": "click"` is `"start": "click", "stop": "click"` | any state | — (read into *Play on* + *Stop on*) |
 
 <!-- px-check values PxTriggerEvent pkg=core -->
 | Event | Fires when… |
@@ -154,45 +154,85 @@ references — and the editor writes the shortest exact spelling.
 The vocabulary is open: a later interaction (keyboard, focus, an app event) is a new word in
 the same lists, never a new key.
 
-**The toggles.** `togglePlay` and `togglePause` are sugar: their events go into two lists at once.
+### Which events each list may name
 
-```json
-"triggers": { "togglePlay": "click" }
-```
+Each list names only the events that make sense for it; any other event is ignored, with a
+warning ([PX1110](../diagnostics.md#what-the-document-says)).
 
-One click starts it, the next stops it — also while paused. `togglePlay` puts its events under
-`start` and `stop`; they are not copied into `resume` (only an explicit `start` list is), so a
-click while paused stops, as the word says.
+<!-- px-check values PxTriggerList pkg=core -->
+| List | `load` | `hoverIn` | `hoverOut` | `click` | Why |
+|---|---|---|---|---|---|
+| `start` | ✓ | ✓ | — | ✓ | starting when the pointer *leaves* makes no sense |
+| `stop` | — | — | ✓ | ✓ | stopping on load, or when the pointer *arrives*, makes no sense |
+| `pause` | — | ✓ | ✓ | ✓ | a marquee pauses on hover-in, a hover animation on hover-out |
+| `resume` | — | ✓ | ✓ | ✓ | derived for these four — see below |
+| `togglePlay` | — | — | — | ✓ | the only event that both starts and stops |
 
-```json
-"triggers": { "start": "load", "togglePause": "click" }
-```
+### What resumes a pause — derived
 
-Plays on load; a click pauses, the next click resumes. `togglePause` puts its events under `pause`
-and `resume`. Both toggles call the actions they stand for, so those actions' settings apply.
+`resume` is not configured for the built-in events: the player derives it from `start`, `stop`
+and `pause`. A paused animation resumes on
 
-**One event, several actions.** An event may be listed under several actions —
-`{ "start": "click", "pause": "click" }` is the usual click toggle (`{ "start": "click",
-"togglePause": "click" }` says the same). The rule: every action listed for the event **whose
-condition holds** runs, and all of them check the state **as it was when the event arrived**.
+1. the **counterpart** of each `pause` event — `hoverIn` ↔ `hoverOut`, `click` → `click`
+   (`load` has none), and
+2. the `start` events that do not also stop it — so a click that starts *and* stops
+   (`togglePlay`) stops a paused animation, as the word says.
 
-- A click while stopped: `start` holds, `pause` does not (it needs playing) → it starts. A click
-  while playing: only `pause` holds → it pauses. A click while paused: `resume` (a copy of `start`)
-  → it carries on.
+<!-- px-check off worked examples of the derived resume — the lists are checked in the tables above -->
+| `triggers` | Resume on | Plays as… |
+|---|---|---|
+| `{ "start": "load", "pause": "hoverIn" }` | `hoverOut` (and `load`, which has fired by then) | a marquee: runs on load, holds while the pointer is over it, carries on when it leaves |
+| `{ "start": "hoverIn", "pause": "hoverOut" }` | `hoverIn` | a hover animation that holds where it is when the pointer leaves |
+| `{ "start": "click", "pause": "click" }` | `click` | the usual click toggle: start → pause → resume → pause … |
+| `{ "togglePlay": "click" }` | — | one click starts it, the next stops it — also while paused |
+
+A built-in event listed under `resume` that the derivation does not produce is ignored, with a
+warning ([PX1111](../diagnostics.md#what-the-document-says)), and `"resume": []` says nothing —
+it does not keep a pause from resuming. The key stays in the format for element targets — a
+custom pause / resume button, still to come.
+
+### One event, several lists
+
+An event may be listed under several lists. The player's **state** picks the list it is read
+from — `start` when stopped, `pause` when playing, the derived resume when paused, `stop` when
+playing or paused — and every action checks the state **as it was when the event arrived**.
+
+- `{ "start": "click", "pause": "click" }`: a click while stopped starts, while playing pauses,
+  while paused resumes.
 - Add `actions: { start: { transition: 'restart' } }` and a click while stopped restarts, while a
   click while paused still resumes.
-- The one real clash: the same event in `stop` *and* `pause` asks for two different things while
-  playing — the players report it ([PX1109](../diagnostics.md)) and `pause` wins (and `resume`
-  wins over `stop` while paused).
 
-**Absent, or empty.** A document with no `triggers` block starts on load — a document is designed
-to play. An **empty** block, `"triggers": {}`, lists nothing: nothing starts it until your code
-calls `play()`. A list that is absent is simply not listed (`resume` excepted — it copies
-`start`; `"resume": []` never resumes).
+Two lists that react to the same event **in the same state** are a **collision**: the players
+report it ([PX1109](../diagnostics.md#what-the-document-says)) and one of them wins.
+
+<!-- px-check off collision cases — the lists are checked in the tables above -->
+| `triggers` | Collision? | What happens |
+|---|---|---|
+| `{ "stop": "click", "pause": "click" }` | **yes** — `stop` with `pause` | while playing, `pause` wins |
+| `{ "start": "load", "pause": "hoverIn", "stop": "hoverOut" }` | **yes** — `stop` with the counterpart of a `pause` event | while paused, `hoverOut` resumes rather than stops |
+| `{ "start": "click", "pause": "click" }` | no | the normal play / pause toggle — each list acts in another state |
+| `{ "start": "click", "stop": "click" }` | no | `togglePlay`, spelt out |
+| `{ "start": "hoverIn", "stop": "hoverOut" }` | no | start on hover-in, stop on hover-out |
+
+Every warning the players give about a triggers block, by kind:
+
+<!-- px-check values PxTriggerIssueKind pkg=core -->
+| Kind | Example | The player… | Code |
+|---|---|---|---|
+| `eventNotAllowed` | `"stop": "load"` | ignores the event (in a file, the document repair drops it from the list first — [PX1108](../diagnostics.md#what-the-document-says)) | [PX1110](../diagnostics.md#what-the-document-says) |
+| `collision` | `"stop": "click", "pause": "click"` | lets `pause` win while playing, the resume while paused | [PX1109](../diagnostics.md#what-the-document-says) |
+| `resumeIgnored` | `"start": "load", "resume": "click"` | ignores the entry | [PX1111](../diagnostics.md#what-the-document-says) |
+
+### Absent, or empty
+
+A document with no `triggers` block starts on load — a document is designed to play. An
+**empty** block, `"triggers": {}`, lists nothing: nothing starts it until your code calls
+`play()`. A list that is absent is simply not listed.
 
 **Pause and carry on need no setting.** "Pause when the pointer leaves" is `hoverOut` listed under
-`pause`; "keep playing" is `hoverOut` not listed at all. That is what the editor does for you:
-ticking *Hover in* under *Plays on* adds *Hover out* under *Pauses on*, editable.
+`pause` (hover-in resumes it — derived); "keep playing" is `hoverOut` not listed at all. That is
+what the editor does for you: ticking *Hover in* under *Play on* adds *Hover out* under *Pause
+on*, editable.
 
 ## Actions — how start, stop and finish look
 
@@ -210,8 +250,8 @@ says nothing plays the way it always did: a start continues, a stop resets, the 
 | `finish.transition` | `hold` · `reset` · `rewind` | `hold` |
 | `suspend.transition` | `pause` · `continue` · `reset` | `pause` — [the visibility gate](#whether-it-may-run--the-visibility-gate) |
 
-`pause`, `resume` and `wake` have nothing to configure; the toggles use the settings of the actions
-they call.
+`pause`, `resume` and `wake` have nothing to configure; `togglePlay` uses the settings of the actions
+it calls.
 
 <!-- px-check values PxStartTransition pkg=core -->
 | `actions.start.transition` | A start (a `start` event, `play={true}`, `play()`)… |
@@ -319,7 +359,7 @@ player takes the **same three overrides**, and the file on disk is never modifie
 |---|---|---|
 | the timing | `timeline` | a **merge** over the file's `timeline` block, minus its `triggers` and `actions`: an object shaped like the file, deep-merged key by key. Corrections — `iterations`, `delay`, `playDuration` — never a replacement; whoever needs more edits the document |
 | the actions | `actions` | a **merge** over the file's `timeline.actions`, setting by setting — `{ stop: { transition: 'rewind' } }` changes how a stop looks and leaves the rest as the file has it |
-| the triggers | `playOnTrigger` | `true` plays on the file's own triggers; an **object** is the whole `triggers` block to use **instead** (a replacement — the lists belong together, so switching hover → click would otherwise carry the hover-era lists along). Lists left out are simply not listed (`resume` copies `start`), never the file's values |
+| the triggers | `playOnTrigger` | `true` plays on the file's own triggers; an **object** is the whole `triggers` block to use **instead** (a replacement — the lists belong together, so switching hover → click would otherwise carry the hover-era lists along). Lists left out are simply not listed, never the file's values |
 
 **Web player**
 
@@ -407,18 +447,28 @@ write yourself cannot drift from the four shipped ones:
 - **Defaults.** `PX_PLAYBACK_DEFAULTS` is the one table of what an absent key means
   (`start: 'load'`, the presets `continue` · `reset` · `hold` · `pause`, no iteration completion,
   `beforeStart: 'static'`, 0.5, 150 ms). `resolveTriggers(triggers)` returns a `PxResolvedTriggers` —
-  every list an array (`triggerEventList` normalises one), the toggles expanded into the lists they
-  stand for, `resume` defaulted to a copy of the explicit `start`, an absent block
-  `{ start: ['load'] }`, an empty block nothing. `resolveActions(actions)` returns a
+  every list an array of the events it may name (`triggerEventList` normalises one), `togglePlay`
+  expanded into `start` and `stop`, `resume` derived, an absent block `{ start: ['load'] }`, an
+  empty block nothing. `resolveActions(actions)` returns a
   `PxResolvedActions` — every setting defaulted. `resolveGate(view)` returns a `PxResolvedGate`:
   the `suspend` transition and the two sensor numbers, defaulted.
-- **Schemas.** `PxTriggersSchema` (fixed lists) and `PxActionsSchema`, one fixed sub-schema per
+- **The lists.** `PxTriggerList` names them (`start` · `stop` · `pause` · `resume` · `togglePlay`);
+  `allowedTriggerEvents(list)` is the table of events each may name (the schema is built from it);
+  `counterpartTriggerEvent(event)` is the event that undoes another (`hoverIn` ↔ `hoverOut`,
+  `click` → `click`, none for `load`); `derivedResume(start, stop, pause)` is the derived resume.
+- **Schemas.** `PxTriggersSchema` (fixed lists, each limited to its events) and `PxActionsSchema`, one fixed sub-schema per
   action — `PxStartActionSchema`, `PxStopActionSchema`, `PxFinishActionSchema`,
   `PxSuspendActionSchema` — each stating its defaults.
 - **The event rule.** `triggerActionFor(triggers, state, event)` — the player's state (`PxPlayState`:
   stopped · playing · paused) picks the list, and the answer is a `PxTriggerAction`: `play`,
-  `pause` or `stop`. `triggerListsEvent` says which listeners to attach at all; `triggerConflicts`
-  names the events listed in both `stop` and `pause`.
+  `pause` or `stop`. `triggerListsEvent` says which listeners to attach at all.
+- **The warnings.** `triggerIssues(triggers)` returns every problem with a block as a
+  `PxTriggerIssue` — `{ kind, list, event, otherList? }`, its `kind` a `PxTriggerIssueKind`
+  (`eventNotAllowed` · `collision` · `resumeIgnored`); an empty array is a clean block. The web
+  player reports them as PX1110, PX1109 and PX1111.
+- **Where they live.** The trigger functions (`resolveTriggers` … `triggerIssues`) and their types
+  (`PxResolvedTriggers`, `PxTriggerIssue`) come from `@pixodesk/svg-animator-core/engine`; the
+  consts `PxTriggerList`, `PxTriggerIssueKind`, `PxPlayState` and `PxTriggerAction` from the main entry.
 - **The executor.** One `PxPlayExecutor` per player performs every built-in action — `start()` per
   `actions.start`, `stop()` per `actions.stop` (transition and iteration completion), `pause()` /
   `resume()`, the state-rule `play()`, `cancel()` (the unconditional reset-now), `rewind()`, and

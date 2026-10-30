@@ -211,7 +211,6 @@
    "animator.timeline|time.triggers.resume",
    "animator.timeline|time.triggers.start",
    "animator.timeline|time.triggers.stop",
-   "animator.timeline|time.triggers.togglePause",
    "animator.timeline|time.triggers.togglePlay"
   ],
   "removed": [
@@ -227,6 +226,6 @@
    "animator.timeline|time.trigger.playStart",
    "animator.timeline|time.trigger.playStop"
   ],
-  "note": "Triggers and actions (dev-docs/plans/playback-layers.md, layers 0–1): `trigger` becomes `triggers` with the lists `start` / `stop` / `pause` / `resume` (+ the new `togglePlay` / `togglePause`); the play keys become one `actions` block — `start` / `stop` / `finish` / `suspend`, each `{ transition }` (`resume` → `continue`, `jumpToEnd` → `jumpToFinished`, `outOfViewAction` → `suspend`, `completeIterationOnPlayStop` → `stop.completeIteration`) — and `showFirstFrameBeforePlayStart: true` becomes `beforeStart: 'firstFrame'`."
+  "note": "Triggers and actions (dev-docs/plans/playback-layers.md, layers 0–1): `trigger` becomes `triggers` with the lists `start` / `stop` / `pause` / `resume` (+ the new `togglePlay`; each list names only the events it can use, and `resume` is derived for the built-in events); the play keys become one `actions` block — `start` / `stop` / `finish` / `suspend`, each `{ transition }` (`resume` → `continue`, `jumpToEnd` → `jumpToFinished`, `outOfViewAction` → `suspend`, `completeIterationOnPlayStop` → `stop.completeIteration`) — and `showFirstFrameBeforePlayStart: true` becomes `beforeStart: 'firstFrame'`."
  }
 ]

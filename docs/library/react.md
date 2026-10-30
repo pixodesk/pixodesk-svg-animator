@@ -128,7 +128,7 @@ see [Playback overrides](#playback-overrides).
   actions={{ stop: { completeIteration: true } }} />
 
 // a click toggles stopped → playing → paused → playing (the state rule picks the list)
-<SvgAnimationPlayer doc={animation} playOnTrigger={{ start: 'click', togglePause: 'click' }} />
+<SvgAnimationPlayer doc={animation} playOnTrigger={{ start: 'click', pause: 'click' }} />
 
 // a click starts it, the next click stops it
 <SvgAnimationPlayer doc={animation} playOnTrigger={{ togglePlay: 'click' }} />
@@ -297,8 +297,9 @@ interface SvgAnimationPlayerProps {
     // Control — the HIGHEST-priority one that is set picks the mode (Control modes, above)
     playerRef?: React.RefObject<PxAnimationPlayerHandle | null>;   // never a mode: filled in every mode
     playOnTrigger?: boolean | PxTriggers; // true: the document's own triggers; an object: these triggers
-                                          //   instead — { start, stop, pause, resume, togglePlay, togglePause },
-                                          //   each one event or a list of 'load' | 'hoverIn' | 'hoverOut' | 'click'
+                                          //   instead — { start, stop, pause, resume, togglePlay }, each one
+                                          //   event or a list of the events that list may name ('load' |
+                                          //   'hoverIn' | 'hoverOut' | 'click'); resume is derived
     playCurrentProgress?: number;         // controlled: 0–1 of duration × iterations
                                           //   (one iteration when iterations is 'infinite')
     playCurrentTime?: number;             // controlled: ms from the start
@@ -362,7 +363,7 @@ export function HoverLogo() {
 }
 ```
 
-`triggers` is the JSON player's block — the same lists and toggles over the same events, read by
+`triggers` is the JSON player's block — the same lists and `togglePlay` over the same events, read by
 the same rules ([Triggers — WHEN it plays](./playback-and-triggers.md#triggers--when-it-plays)) —
 and the gate is the same gate. Absent `triggers` play on load; an empty block lists nothing.
 
@@ -372,8 +373,9 @@ and the gate is the same gate. Absent `triggers` play on load; an empty block li
 // started (paused), plus `px-anim-playing` while running.
 const SvgCssAnimationPlayer: FC<{
     children: ReactNode;                  // the SVGR-imported SVG component
-    triggers?: PxTriggers;                // WHEN: { start, stop, pause, resume, togglePlay, togglePause },
-                                          //   each one event or a list of 'load' | 'hoverIn' | 'hoverOut' | 'click'
+    triggers?: PxTriggers;                // WHEN: { start, stop, pause, resume, togglePlay }, each one
+                                          //   event or a list of the events that list may name ('load' |
+                                          //   'hoverIn' | 'hoverOut' | 'click'); resume is derived
     actions?: Pick<PxActions, 'suspend'>; // only `suspend` applies: { suspend: { transition } } — 'pause'
                                           //   (default) | 'continue' | 'reset' while nobody can see it
     inViewThreshold?: number;             // 0–1 of the SVG on screen before it may run; default 0.5; 0 = any visible pixel

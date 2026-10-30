@@ -553,8 +553,8 @@ No reorganisation: the two sections already ARE layers 0 and 1.
 
 | section | fields | layer |
 |---|---|---|
-| Playback Triggers | Use JS Triggers · Plays on · Stops on · Pauses on · Resumes on | `triggers` (0) |
-| Playback Behaviour | When played · When stopped · Complete iteration on stop · When it ends · Out of View · In-View Threshold · In-View Delay | `actions` and the sensor numbers (1) |
+| Playback Triggers | Use JS Triggers · Play on · Stop on · Pause on · Resume on | `triggers` (0) |
+| Playback Behaviour | Play Action · Stop Action (+ Complete Iteration checkbox) · End Action · Out-of-View Action · In-View Threshold · In-View Delay | `actions` and the sensor numbers (1) |
 
 Labels unchanged. Only the test ids follow the new keys — the lists by their key (`start`, `stop`,
 `pause`, `resume`), the behaviour fields as `startTransition`, `stopTransition`, `stopCompleteIteration`,
@@ -572,6 +572,17 @@ change their ids once more. Optional: "Out of View" → "When out of view", in l
 
 Mostly mechanical, like the start / stop rename. The one structural change is the play keys moving into
 `actions` blocks, which the runtime view then carries as a block.
+
+### Trigger rules (2026-10-29, folded into the unpublished 1.10)
+
+| rule | detail |
+|---|---|
+| Each list names only the events that make sense | `start` load·hoverIn·click · `stop` hoverOut·click · `pause` hoverIn·hoverOut·click · `togglePlay` click; `allowedTriggerEvents(list)` is the one table, the schema is built from it (`px.words` — repair DROPS an unknown word, never puts a default in place of the list) |
+| `togglePause` removed | `pause: 'click'` says the same now that resume is derived |
+| `resume` derived for the built-in events | `derivedResume`: the counterpart of each pause event (hoverIn ↔ hoverOut, click → click) + the `start` events that do not also stop; an explicit built-in entry is ignored (PX1111); the key stays for element targets / custom pause-resume buttons |
+| Collisions | `stop` + `pause` on one event (playing — pause wins), `stop` + a pause counterpart (paused — resume wins); allowed, warned (PX1109), marked red in the Editor; start+pause and start+stop on click are NOT collisions |
+| One helper for players and Editor | `triggerIssues(triggers)` → structured `{ kind, list, event, otherList? }` (eventNotAllowed PX1110 · collision PX1109 · resumeIgnored PX1111) |
+| Editor | `Play on` inline + "None (manual)"; `Stop on` / `Pause on` multi-select dropdowns + [x]; `Resume on` shown, disabled; the model no longer stores `resume` |
 
 ### Implementation log (2026-10-28)
 

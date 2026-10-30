@@ -73,7 +73,7 @@ How each action looks stays in the file's `actions`, which the `actions` prop ad
     :actions="{ stop: { completeIteration: true } }" />
 
   <!-- a click toggles stopped → playing → paused → playing (the state rule picks the list) -->
-  <SvgAnimationPlayer :doc="animation" :playOnTrigger="{ start: 'click', togglePause: 'click' }" />
+  <SvgAnimationPlayer :doc="animation" :playOnTrigger="{ start: 'click', pause: 'click' }" />
 
   <!-- a click starts it, the next click stops it -->
   <SvgAnimationPlayer :doc="animation" :playOnTrigger="{ togglePlay: 'click' }" />
@@ -269,8 +269,9 @@ const SvgAnimationPlayer: DefineComponent<{
 
     // Control — the highest-priority one that is set picks the mode (Control modes above)
     playOnTrigger?: boolean | PxTriggers; // true: the file's own triggers; an object: these triggers instead —
-                                          //   { start, stop, pause, resume, togglePlay, togglePause }, each one
-                                          //   event or a list of 'load' | 'hoverIn' | 'hoverOut' | 'click'
+                                          //   { start, stop, pause, resume, togglePlay }, each one event or a
+                                          //   list of the events that list may name ('load' | 'hoverIn' |
+                                          //   'hoverOut' | 'click'); resume is derived
     play?: boolean; pause?: boolean;      // the STATE (true calls `start`, false calls `stop` — how each looks
                                           //   is the file's `actions`) / freeze now
     playCurrentProgress?: number;         // a frame at 0–1 of the whole run
@@ -352,7 +353,7 @@ import AnimationSvg from './animation.svg';   // vite-svg-loader
 </template>
 ```
 
-`triggers` is the JSON player's block — the same lists and toggles over the same events, read by
+`triggers` is the JSON player's block — the same lists and `togglePlay` over the same events, read by
 the same rules ([Triggers — WHEN it plays](./playback-and-triggers.md#triggers--when-it-plays)) —
 and the gate is the same gate. Absent `triggers` play on load; an empty block lists nothing.
 
@@ -360,8 +361,9 @@ and the gate is the same gate. Absent `triggers` play on load; an empty block li
 ```typescript
 // The SVG goes in the default slot; every other attribute (class, style, …) lands on the wrapper div.
 const SvgCssAnimationPlayer: DefineComponent<{
-    triggers?: PxTriggers;                // WHEN: { start, stop, pause, resume, togglePlay, togglePause },
-                                          //   each one event or a list of 'load' | 'hoverIn' | 'hoverOut' | 'click'
+    triggers?: PxTriggers;                // WHEN: { start, stop, pause, resume, togglePlay }, each one
+                                          //   event or a list of the events that list may name ('load' |
+                                          //   'hoverIn' | 'hoverOut' | 'click'); resume is derived
     actions?: Pick<PxActions, 'suspend'>; // only `suspend` applies: { suspend: { transition } } — 'pause'
                                           //   (default) | 'continue' | 'reset' while nobody can see it
     inViewThreshold?: number;             // 0–1 of the SVG on screen before it may run; default 0.5; 0 = any visible pixel

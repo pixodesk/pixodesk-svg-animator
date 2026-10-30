@@ -2306,7 +2306,6 @@
                       "enum": [
                         "load",
                         "hoverIn",
-                        "hoverOut",
                         "click"
                       ]
                     },
@@ -2316,7 +2315,6 @@
                         "enum": [
                           "load",
                           "hoverIn",
-                          "hoverOut",
                           "click"
                         ]
                       }
@@ -2327,8 +2325,6 @@
                   "anyOf": [
                     {
                       "enum": [
-                        "load",
-                        "hoverIn",
                         "hoverOut",
                         "click"
                       ]
@@ -2337,8 +2333,6 @@
                       "type": "array",
                       "items": {
                         "enum": [
-                          "load",
-                          "hoverIn",
                           "hoverOut",
                           "click"
                         ]
@@ -2350,7 +2344,6 @@
                   "anyOf": [
                     {
                       "enum": [
-                        "load",
                         "hoverIn",
                         "hoverOut",
                         "click"
@@ -2360,7 +2353,6 @@
                       "type": "array",
                       "items": {
                         "enum": [
-                          "load",
                           "hoverIn",
                           "hoverOut",
                           "click"
@@ -2373,7 +2365,6 @@
                   "anyOf": [
                     {
                       "enum": [
-                        "load",
                         "hoverIn",
                         "hoverOut",
                         "click"
@@ -2383,7 +2374,6 @@
                       "type": "array",
                       "items": {
                         "enum": [
-                          "load",
                           "hoverIn",
                           "hoverOut",
                           "click"
@@ -2396,9 +2386,6 @@
                   "anyOf": [
                     {
                       "enum": [
-                        "load",
-                        "hoverIn",
-                        "hoverOut",
                         "click"
                       ]
                     },
@@ -2406,32 +2393,6 @@
                       "type": "array",
                       "items": {
                         "enum": [
-                          "load",
-                          "hoverIn",
-                          "hoverOut",
-                          "click"
-                        ]
-                      }
-                    }
-                  ]
-                },
-                "togglePause": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "load",
-                        "hoverIn",
-                        "hoverOut",
-                        "click"
-                      ]
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "enum": [
-                          "load",
-                          "hoverIn",
-                          "hoverOut",
                           "click"
                         ]
                       }

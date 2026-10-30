@@ -167,8 +167,8 @@ The pre-rendered SVG + CSS wrappers toggle class names instead of creating a pla
 | `className` | ✓ on the wrapper div | `class`, on the wrapper div | <!-- px vue=~ -->
 | `style` | ✓ on the wrapper div | ✓ on the wrapper div | <!-- px vue=~ -->
 
-- `triggers` is the JSON player's block — `start`, `stop`, `pause`, `resume`, `togglePlay`,
-  `togglePause`, each one event or a list of them, read by the same rules
+- `triggers` is the JSON player's block — `start`, `stop`, `pause`, `resume` (derived),
+  `togglePlay`, each one event or a list of them, read by the same rules
   ([Triggers](./playback-and-triggers.md#triggers--when-it-plays)): `pause: 'hoverOut'` pauses,
   `stop: 'hoverOut'` stops. An **empty** block does nothing here: a wrapper has no `play()` to call.
 - `actions` takes only `suspend` (`{ suspend: { transition: 'pause' } }`): an animation nobody can

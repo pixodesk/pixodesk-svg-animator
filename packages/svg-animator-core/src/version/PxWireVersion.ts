@@ -300,13 +300,14 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         from: '1.9',
         to: '1.10',
         reason: 'Triggers and actions (dev-docs/plans/playback-layers.md, layers 0–1): `trigger` becomes `triggers` with the '
-            + 'lists `start` / `stop` / `pause` / `resume` (+ the new `togglePlay` / `togglePause`); the play keys become one '
+            + 'lists `start` / `stop` / `pause` / `resume` (+ the new `togglePlay`; each list names only the events it can use, and '
+            + '`resume` is derived for the built-in events); the play keys become one '
             + '`actions` block — `start` / `stop` / `finish` / `suspend`, each `{ transition }` (`resume` → `continue`, '
             + '`jumpToEnd` → `jumpToFinished`, `outOfViewAction` → `suspend`, `completeIterationOnPlayStop` → '
             + '`stop.completeIteration`) — and `showFirstFrameBeforePlayStart: true` becomes `beforeStart: \'firstFrame\'`.',
         kind: PxWireStepKind.converted,
         up: upTriggersAndActions,
-        // No `down`: 1.10 can say what 1.9 could not (`togglePlay`, `togglePause`).
+        // No `down`: 1.10 can say what 1.9 could not (`togglePlay`).
     },
 ];
 

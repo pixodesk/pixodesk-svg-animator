@@ -94,7 +94,7 @@ const [time, setTime] = useState(0);
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxDocumentInput` | The animation document to render (required); a `.json` import passes as-is |
-| `playOnTrigger` | `boolean \| PxTriggers` | `true`: play on the document's own triggers; an object: these triggers instead — `{ start, stop, pause, resume, togglePlay, togglePause }`, each one event or a list of `'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
+| `playOnTrigger` | `boolean \| PxTriggers` | `true`: play on the document's own triggers; an object: these triggers instead — `{ start, stop, pause, resume, togglePlay }`, each one event or a list of the events that list may name (`'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`; `resume` is derived, `togglePlay` takes only `'click'`). See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
 | `play` | `boolean` | The state: `true` calls the built-in `start`, `false` the built-in `stop`. How each looks is the file's `actions` (and the `actions` prop) — see [Actions](../../docs/library/playback-and-triggers.md#actions--how-start-stop-and-finish-look) |
 | `pause` | `boolean` | Freeze the current frame / resume; only while `play` is true |
 | `playerRef` | `RefObject<PxAnimationPlayerHandle \| null>` | Ref for imperative control; filled in every mode |

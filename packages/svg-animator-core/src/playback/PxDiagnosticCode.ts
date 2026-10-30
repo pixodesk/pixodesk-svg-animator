@@ -120,11 +120,25 @@ export enum PxDiagnosticCode {
     documentRepaired = 1108,
 
     /**
-     * The triggers list one event under BOTH `stop` and `pause` — two reactions to one event while playing.
-     * `pause` wins; the file should name one.
-     * @data the events
+     * Two trigger lists react to one event in the same state: `stop` and `pause` (playing — `pause` wins), or
+     * `stop` and the counterpart of a `pause` event (paused — the resume wins). The file should name one.
+     * @data the event and the two lists
      */
     triggerEventConflict = 1109,
+
+    /**
+     * A trigger list names an event it cannot use — `start` on `hoverOut`, `stop` on `load` or `hoverIn`, `pause`
+     * on `load`, `togglePlay` on anything but `click`. The event is ignored.
+     * @data the list and the event
+     */
+    triggerEventNotAllowed = 1110,
+
+    /**
+     * `resume` names a built-in event the player derives otherwise — resume is the counterpart of each `pause`
+     * event plus the `start` events that do not stop it. The listed event is ignored.
+     * @data the event
+     */
+    triggerResumeIgnored = 1111,
 
     /**
      * A binding names no element, or names animations that `definitions.animations` does not have.

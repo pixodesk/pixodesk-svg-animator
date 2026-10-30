@@ -379,11 +379,11 @@ fields; a CLEAN cut everywhere — no aliases, no deprecated props, nothing that
 1. Files: the version bump WITH a `PX_WIRE_STEPS` conversion (the repo's policy; it opens the owner's development files and the
    fixtures) — the one place a conversion exists; everything else is a clean cut.
 2. Right panel: each of the four lists is its own field with its own choice control (no matrix).
-3. Labels: designer words in the UI — "Plays on / Stops on / Pauses on / Resumes on" for the lists; "When played / When stopped /
-   When it ends" for the actions; code words in the file.
+3. Labels: designer words in the UI — "Play on / Stop on / Pause on / Resume on" for the lists; "Play Action / Stop Action /
+   End Action" for the actions; code words in the file.
 4. Sections: the attribute panel is flat, so two sections — **Playback Triggers** (the four lists, Out of view + the two numbers) and
    **Playback Behaviour** (the three actions, Complete iteration, Iteration direction, Loop) — no nesting.
-5. Editing defaults as today: ticking "hover in" under Plays on auto-adds "hover out" under Pauses on, editable; a new document is
+5. Editing defaults as today: ticking "hover in" under Play on auto-adds "hover out" under Pause on, editable; a new document is
    `playStart: 'load'` + the gate defaults.
 6. The "(CSS)" / "(JS)" marks keep their mechanism, applied to events and actions: works in both → marked so; JS only → marked so.
 7. `showFirstFrameBeforePlayStart`: no UI at all — the editor cannot author that state.

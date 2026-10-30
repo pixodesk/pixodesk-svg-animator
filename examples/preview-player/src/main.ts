@@ -9,7 +9,7 @@ import {
   type PxTimeTimelineSchema,
   type PxTriggerEvents,
 } from '@pixodesk/svg-animator-core';
-import { resolveTriggers, type PxResolvedTriggers } from '@pixodesk/svg-animator-core/engine';
+import { allowedTriggerEvents, resolveTriggers, type PxResolvedTriggers } from '@pixodesk/svg-animator-core/engine';
 
 import { createWebPlayer } from './players/web';
 import { createReactPlayer } from './players/react';
@@ -72,20 +72,18 @@ const debounceField = $('debounce-field');
 
 const transportButtons = [btnPlay, btnPause, btnStop, btnRestart, btnFinish];
 
-// -- Trigger panel: the four lists × the events, from the player's own vocabulary --------
+// -- Trigger panel: the three lists × the events each may name, from the player's own vocabulary --------
 
 /** The time timeline as the file spells it; the gate keys and `iterations` are picked from it. */
 type TimeTimeline = PxInfer<typeof PxTimeTimelineSchema>;
 
-/** The four trigger lists, with the editor's labels — typed by the resolved lists' own keys
- *  (the `togglePlay` / `togglePause` sugar resolves into them). */
+/** The trigger lists, with the editor's labels — typed by the resolved lists' own keys (the
+ *  `togglePlay` sugar resolves into them). No `resume`: the player derives it from these three. */
 const TRIGGER_LISTS: Array<{ key: keyof PxResolvedTriggers; label: string }> = [
-  { key: 'start', label: 'Plays on' },
-  { key: 'stop', label: 'Stops on' },
-  { key: 'pause', label: 'Pauses on' },
-  { key: 'resume', label: 'Resumes on' },
+  { key: 'start', label: 'Play on' },
+  { key: 'stop', label: 'Stop on' },
+  { key: 'pause', label: 'Pause on' },
 ];
-const TRIGGER_EVENTS = Object.values(PxTriggerEvent);
 const SUSPEND_TRANSITIONS = Object.values(PxSuspendTransition);
 
 interface EventCheckbox {
@@ -93,7 +91,7 @@ interface EventCheckbox {
   input: HTMLInputElement;
 }
 
-/** One checkbox per list × event, built from the enum so a new event shows up by itself. */
+/** One checkbox per list × event the list may name, from the player's own table so a new event shows up by itself. */
 const listCheckboxes = new Map<keyof PxResolvedTriggers, Array<EventCheckbox>>();
 for (const { key, label } of TRIGGER_LISTS) {
   const group = document.createElement('fieldset');
@@ -102,7 +100,7 @@ for (const { key, label } of TRIGGER_LISTS) {
   legend.textContent = label;
   group.append(legend);
   const boxes: Array<EventCheckbox> = [];
-  for (const event of TRIGGER_EVENTS) {
+  for (const event of allowedTriggerEvents(key)) {
     const input = document.createElement('input');
     input.type = 'checkbox';
     input.value = event;
@@ -253,11 +251,11 @@ function setControlsEnabled(enabled: boolean): void {
 
 /** The triggers option handed to the player: `undefined` = programmatic (transport owns
  *  start); `'file'` = the document's own triggers; a config = the user's custom triggers —
- *  the WHOLE block, from the four lists of checkboxes. */
+ *  the WHOLE block, from the three lists of checkboxes. */
 function currentTriggerOption(): PlayerOptions['triggers'] {
   if (!useTrigger) return undefined;
   if (useFileConfig) return 'file';
-  // WHEN: the four lists say which events start, stop, pause and resume it.
+  // WHEN: the three lists say which events start, stop and pause it; the player derives what resumes it.
   const triggers: PxTriggers = {};
   for (const { key } of TRIGGER_LISTS) {
     const events = tickedEvents(key);
@@ -296,7 +294,7 @@ function syncTriggerUi(): void {
 
   if (useFileConfig) {
     // Show the file's config, read-only. `resolveTriggers` spells out what the file means:
-    // every list an array, an absent block = play on load, `resume` a copy of `start`.
+    // every list an array of the events it may name, an absent block = play on load.
     const cfg = currentDoc ? getAnimatorConfig(currentDoc) : undefined;
     const lists = resolveTriggers(cfg?.triggers);
     for (const { key } of TRIGGER_LISTS) {

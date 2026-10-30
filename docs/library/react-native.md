@@ -238,7 +238,7 @@ interface SvgAnimationPlayerProps {
 
     // Control — the highest-priority one that is set picks the mode (Control modes above)
     playOnTrigger?: boolean | PxTriggers; // true: the document's triggers; an object: these triggers instead —
-                                          //   { start, stop, pause, resume, togglePlay, togglePause }. `click` = a tap;
+                                          //   { start, stop, pause, resume, togglePlay }. `click` = a tap;
                                           //   `hoverIn` / `hoverOut` never fire (no hover on a touch screen);
                                           //   visibility is measured every 200 ms
     play?: boolean; pause?: boolean;      // the STATE (true calls `start`, false calls `stop` — how each looks
@@ -446,7 +446,7 @@ not supported.
 | play / pause / stop / cancel / finish | ✅ | |
 | Jumping to any time, also while playing | ✅ | |
 | Playback rate: faster, slower, reverse | ✅ | |
-| Trigger events `load` and `click` (a tap) in any list, the toggles included | ✅ | |
+| Trigger events `load` and `click` (a tap), in the lists that may name them, `togglePlay` included | ✅ | |
 | The gate: `actions.suspend`, `inViewThreshold`, `inViewDebounce` | ✅ | visibility measured against the window every 200 ms — React Native has no `IntersectionObserver` |
 | Trigger events `hoverIn` / `hoverOut` | ❌ | no touch equivalent; will not be added |
 | `timeline.frameRate`, `timeline.engine` | ❌ | see [Differences from the React package](#differences-from-the-react-package) |

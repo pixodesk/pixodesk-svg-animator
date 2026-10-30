@@ -89,6 +89,46 @@ export type PxTriggerEvent = typeof PxTriggerEvent[keyof typeof PxTriggerEvent];
 /** One event, or several — the house style of `animate`'s references. @public */
 export type PxTriggerEvents = PxTriggerEvent | Array<PxTriggerEvent>;
 
+/** The trigger lists, by their `timeline.triggers` key (playback-layers.md, layer 0). @public @advanced */
+export const PxTriggerList = {
+    start:      'start',
+    stop:       'stop',
+    pause:      'pause',
+    resume:     'resume',
+    togglePlay: 'togglePlay',
+} as const;
+
+export type PxTriggerList = typeof PxTriggerList[keyof typeof PxTriggerList];
+
+// @px-area control
+/** The events a list may name — the schema is built from it, and an event outside it is dropped and warned:
+ *   - `start`: load · hoverIn · click (starting when the pointer LEAVES makes no sense)
+ *   - `stop`: hoverOut · click (stopping on load or when the pointer ARRIVES makes no sense)
+ *   - `pause` / `resume`: hoverIn · hoverOut · click (a marquee pauses on hover in, a hover animation on hover out)
+ *   - `togglePlay`: click (the only event that both starts and stops)
+ *  @public @advanced */
+export function allowedTriggerEvents(list: PxTriggerList): ReadonlyArray<PxTriggerEvent> {
+    switch (list) {
+        case PxTriggerList.start: return [PxTriggerEvent.load, PxTriggerEvent.hoverIn, PxTriggerEvent.click];
+        case PxTriggerList.stop: return [PxTriggerEvent.hoverOut, PxTriggerEvent.click];
+        case PxTriggerList.pause:
+        case PxTriggerList.resume: return [PxTriggerEvent.hoverIn, PxTriggerEvent.hoverOut, PxTriggerEvent.click];
+        case PxTriggerList.togglePlay: return [PxTriggerEvent.click];
+    }
+}
+
+// @px-area control
+/** The event that undoes another — what resumes a pause: hoverIn ↔ hoverOut, click → click; `load` has none.
+ *  @public @advanced */
+export function counterpartTriggerEvent(event: PxTriggerEvent): PxTriggerEvent | undefined {
+    switch (event) {
+        case PxTriggerEvent.hoverIn: return PxTriggerEvent.hoverOut;
+        case PxTriggerEvent.hoverOut: return PxTriggerEvent.hoverIn;
+        case PxTriggerEvent.click: return PxTriggerEvent.click;
+        case PxTriggerEvent.load: return undefined;
+    }
+}
+
 /** `actions.start.transition` — a transition PRESET (playback-layers.md, layer 1): where a start ends and the
  *  path there. `continue` plays on from the current position (from the beginning when it rests at the start
  *  or the end), `restart` always from the beginning, `jumpToFinished` shows the end pose with no motion. @public */
@@ -357,9 +397,9 @@ export const PX_DEFAULT_ITERATIONS = 1;
 /** What an absent `unitsPerEm` of a glyph font means — see `PX_DEFAULT_DURATION_MS`. @internal */
 export const PX_DEFAULT_UNITS_PER_EM = 1000;
 
-/** The triggers with their lists normalised: every list an array, `resume` defaulted to a copy of `start`,
- *  `togglePlay` / `togglePause` expanded into the lists they stand for, an absent block = `{ start: ['load'] }`,
- *  an empty block = nothing starts it. @public @advanced */
+/** The triggers with their lists normalised: every list an array of ALLOWED events, `togglePlay` expanded into
+ *  `start` and `stop`, `resume` DERIVED ({@link derivedResume}), an absent block = `{ start: ['load'] }`, an empty
+ *  block = nothing starts it. @public @advanced */
 export interface PxResolvedTriggers {
     readonly start: ReadonlyArray<PxTriggerEvent>;
     readonly stop: ReadonlyArray<PxTriggerEvent>;
@@ -505,26 +545,96 @@ export function triggerEventList(events: PxTriggerEvents | undefined): ReadonlyA
 }
 
 // @px-area control
-/** A document's triggers with the lists normalised — see {@link PxResolvedTriggers}. The toggles are sugar:
- *  `togglePlay` = the same events under `start` and `stop`, `togglePause` = under `pause` and `resume`; an absent
- *  `resume` copies the EXPLICIT `start` list, so a `togglePlay` click while paused stops, as it says. @public @advanced */
+/** A list's events that the list may name ({@link allowedTriggerEvents}) — the others are dropped. */
+function allowedEventsOf(list: PxTriggerList, events: PxTriggerEvents | undefined): ReadonlyArray<PxTriggerEvent> {
+    const allowed = allowedTriggerEvents(list);
+    return triggerEventList(events).filter(e => allowed.includes(e));
+}
+
+/** `list` plus the events of `more` it does not name yet. */
+function unionEvents(list: ReadonlyArray<PxTriggerEvent>, more: ReadonlyArray<PxTriggerEvent>): ReadonlyArray<PxTriggerEvent> {
+    return more.length === 0 ? list : [...list, ...more.filter(e => !list.includes(e))];
+}
+
+// @px-area control
+/** What resumes a paused animation — derived, never configured for the built-in events: the counterpart of
+ *  each `pause` event (hoverIn ↔ hoverOut, click → click), plus the `start` events that do not also STOP it
+ *  (so a click that starts and stops — `togglePlay` — stops a paused one, as it says). @public @advanced */
+export function derivedResume(start: ReadonlyArray<PxTriggerEvent>, stop: ReadonlyArray<PxTriggerEvent>,
+    pause: ReadonlyArray<PxTriggerEvent>): ReadonlyArray<PxTriggerEvent> {
+    const counterparts: Array<PxTriggerEvent> = [];
+    for (const event of pause) {
+        const counterpart = counterpartTriggerEvent(event);
+        if (counterpart !== undefined && !counterparts.includes(counterpart)) counterparts.push(counterpart);
+    }
+    return unionEvents(counterparts, start.filter(e => !stop.includes(e)));
+}
+
+// @px-area control
+/** A document's triggers with the lists normalised — see {@link PxResolvedTriggers}. Events a list may not
+ *  name are dropped ({@link triggerIssues} says which); an explicit `resume` naming a built-in event is ignored
+ *  — resume is {@link derivedResume} (the key is kept for element targets, still to come). @public @advanced */
 export function resolveTriggers(triggers: PxTriggers | undefined): PxResolvedTriggers {
     if (triggers === undefined) {
         const start: ReadonlyArray<PxTriggerEvent> = [PX_PLAYBACK_DEFAULTS.start];
         return { start, stop: [], pause: [], resume: start };
     }
-    const start = triggerEventList(triggers.start);
-    const togglePlay = triggerEventList(triggers.togglePlay);
-    const togglePause = triggerEventList(triggers.togglePause);
-    const resume = triggers.resume === undefined ? start : triggerEventList(triggers.resume);
-    const union = (list: ReadonlyArray<PxTriggerEvent>, more: ReadonlyArray<PxTriggerEvent>): ReadonlyArray<PxTriggerEvent> =>
-        more.length === 0 ? list : [...list, ...more.filter(e => !list.includes(e))];
-    return {
-        start: union(start, togglePlay),
-        stop: union(triggerEventList(triggers.stop), togglePlay),
-        pause: union(triggerEventList(triggers.pause), togglePause),
-        resume: union(resume, togglePause),
-    };
+    const togglePlay = allowedEventsOf(PxTriggerList.togglePlay, triggers.togglePlay);
+    const start = unionEvents(allowedEventsOf(PxTriggerList.start, triggers.start), togglePlay);
+    const stop = unionEvents(allowedEventsOf(PxTriggerList.stop, triggers.stop), togglePlay);
+    const pause = allowedEventsOf(PxTriggerList.pause, triggers.pause);
+    return { start, stop, pause, resume: derivedResume(start, stop, pause) };
+}
+
+/** What {@link triggerIssues} reports. @public @advanced */
+export const PxTriggerIssueKind = {
+    /** The list may not name the event ({@link allowedTriggerEvents}) — it is dropped. */
+    eventNotAllowed: 'eventNotAllowed',
+    /** Two lists react to the event in the same state: `stop` with `pause` (playing — pause wins), or `stop`
+     *  with a pause's counterpart (paused — resume wins). The file should name one. */
+    collision:       'collision',
+    /** An explicit `resume` names a built-in event the derived resume does not — ignored. */
+    resumeIgnored:   'resumeIgnored',
+} as const;
+
+export type PxTriggerIssueKind = typeof PxTriggerIssueKind[keyof typeof PxTriggerIssueKind];
+
+/** One problem with a triggers block — structured, so a caller decides on `kind`, never on text. @public @advanced */
+export interface PxTriggerIssue {
+    readonly kind: PxTriggerIssueKind;
+    /** The list that names the event (`stop` for a collision). */
+    readonly list: PxTriggerList;
+    readonly event: PxTriggerEvent;
+    /** A collision's other list — `pause` or `resume`. */
+    readonly otherList?: PxTriggerList;
+}
+
+// @px-area control
+/** Every problem with a triggers block, for the players to warn about and the Editor to show — see
+ *  {@link PxTriggerIssueKind}. An empty array is a clean block. @public @advanced */
+export function triggerIssues(triggers: PxTriggers | undefined): Array<PxTriggerIssue> {
+    if (triggers === undefined) return [];
+    const issues: Array<PxTriggerIssue> = [];
+    const lists: ReadonlyArray<[PxTriggerList, PxTriggerEvents | undefined]> = [
+        [PxTriggerList.start, triggers.start], [PxTriggerList.stop, triggers.stop],
+        [PxTriggerList.pause, triggers.pause], [PxTriggerList.togglePlay, triggers.togglePlay],
+    ];
+    for (const [list, events] of lists) {
+        const allowed = allowedTriggerEvents(list);
+        for (const event of triggerEventList(events)) {
+            if (!allowed.includes(event)) issues.push({ kind: PxTriggerIssueKind.eventNotAllowed, list, event });
+        }
+    }
+    const resolved = resolveTriggers(triggers);
+    for (const event of triggerEventList(triggers.resume)) {
+        if (!resolved.resume.includes(event)) issues.push({ kind: PxTriggerIssueKind.resumeIgnored, list: PxTriggerList.resume, event });
+    }
+    const counterparts = derivedResume([], [], resolved.pause);
+    for (const event of resolved.stop) {
+        if (resolved.pause.includes(event)) issues.push({ kind: PxTriggerIssueKind.collision, list: PxTriggerList.stop, event, otherList: PxTriggerList.pause });
+        if (counterparts.includes(event)) issues.push({ kind: PxTriggerIssueKind.collision, list: PxTriggerList.stop, event, otherList: PxTriggerList.resume });
+    }
+    return issues;
 }
 
 // @px-area control
@@ -585,8 +695,8 @@ export function triggerListsEvent(triggers: PxResolvedTriggers, event: PxTrigger
 
 // @px-area control
 /** THE STATE RULE, decided once for every wiring — the web triggers, the CSS components, React Native: the
- *  player's state picks the list an event is read from. `pause` wins over `stop` while playing (the reported
- *  conflict); `resume` wins over `stop` while paused. @public @advanced */
+ *  player's state picks the list an event is read from. `pause` wins over `stop` while playing, `resume` wins
+ *  over `stop` while paused (both reported as collisions, {@link triggerIssues}). @public @advanced */
 export function triggerActionFor(triggers: PxResolvedTriggers, state: PxPlayState, event: PxTriggerEvent): PxTriggerAction | undefined {
     switch (state) {
         case PxPlayState.stopped:
@@ -598,14 +708,6 @@ export function triggerActionFor(triggers: PxResolvedTriggers, state: PxPlayStat
             if (triggers.pause.includes(event)) return PxTriggerAction.pause;
             return triggers.stop.includes(event) ? PxTriggerAction.stop : undefined;
     }
-}
-
-// @px-area control
-/** The events the resolved triggers list under BOTH `stop` and `pause` — two reactions to one event while
- *  playing, a contradiction the players report; `pause` wins. (`start` beside `resume` is the normal case —
- *  the state rule keeps them apart.) @public @advanced */
-export function triggerConflicts(triggers: PxResolvedTriggers): Array<PxTriggerEvent> {
-    return triggers.stop.filter(e => triggers.pause.includes(e));
 }
 
 // V3 — every closed value list is a NAMED const + a strict `px.enum` slot, so a

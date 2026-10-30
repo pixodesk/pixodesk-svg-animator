@@ -111,7 +111,7 @@ export {
 export { applyAnimatorConfig, mergeAnimatorConfig } from './playback/PxAnimatorConfigPatch';
 export type { PxTriggerEvents } from './format/PxAnimatorConstants';
 export type { PxPlayExecutor } from './format/PxAnimatorTypes';
-export { PxPlayState, PxTriggerAction } from './format/PxAnimatorConstants';
+export { PxPlayState, PxTriggerAction, PxTriggerList, PxTriggerIssueKind } from './format/PxAnimatorConstants';
 export type { PxPatch, PxAnimatorConfigPatch, PxAnimatorConfigMergeResult, PxTimelinePatch, PxActionsPatch } from './playback/PxAnimatorConfigPatch';
 export { PxGradientSpreadMethod, PxGradientType, PxLoopDirection, PxLoopRepeatAt, PxStrokeTrimSubPaths, PxUnits, PxMaskType, PxPathOverflow, PxLengthAdjust, PxTextPathMethod, PxTextPathSpacing } from './format/PxAnimatorConstants';
 // The remaining wire enums (review §2.7). `PxFillMode` / the five transition enums (`PxStartTransition` … `PxBeforeStart`) /

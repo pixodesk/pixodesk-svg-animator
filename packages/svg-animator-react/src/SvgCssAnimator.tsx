@@ -31,7 +31,7 @@ import { CSSProperties, FC, ReactNode, useEffect, useRef, useState } from "react
  * - `px-anim-enabled px-anim-playing`   — playing
  *
  * The triggers are the JSON player's (dev-docs/plans/playback-layers.md): event lists — `start`, `stop`,
- * `pause`, `resume`, plus `togglePlay` / `togglePause` — over the events `load`, `hoverIn`, `hoverOut`, `click`,
+ * `pause` (resume is derived), plus `togglePlay` — over the events `load`, `hoverIn`, `hoverOut`, `click`,
  * read by the same state rule (core's `triggerActionFor`) and gated by the same visibility gate
  * (`createVisibilityGate`), so the two players cannot drift. An absent `triggers` block plays on load; an
  * empty one lists nothing.
@@ -43,7 +43,7 @@ import { CSSProperties, FC, ReactNode, useEffect, useRef, useState } from "react
  *
  * @param children  - The SVGR-imported SVG component to animate.
  * @param triggers  - WHEN: the file's own `timeline.triggers` block — `start`, `stop`, `pause`, `resume`,
- *   `togglePlay`, `togglePause`, each one event or a list of them.
+ *   `togglePlay`, each one event or a list of them (only the events each list can use).
  * @param actions - Only `suspend` applies — what happens while none of it is on screen (default `'pause'`):
  *   `'pause'` pauses at the current frame and resumes when it comes back, `'continue'` keeps playing and starts
  *   without waiting to be seen, `'reset'` goes back to the beginning so it replays on the next entry.

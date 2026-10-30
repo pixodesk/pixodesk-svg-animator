@@ -224,6 +224,19 @@ describe('setupAnimationTriggers', () => {
         expect(api.cancel).not.toHaveBeenCalled();
     });
 
+    it('a disallowed event (PX1110) and an ignored resume entry (PX1111) are reported; the disallowed event is not listened for', () => {
+        const warn = vi.fn();
+        const diag: PxDiagnostics = { warn, error: vi.fn() };
+        const { api, root } = createMockApi();
+        // a raw config (no document repair in between): `start` cannot use `hoverOut`, `resume` is derived
+        setup(api, { triggers: { start: 'hoverOut', pause: 'click', resume: 'hoverIn' } }, diag);
+
+        expect(warn.mock.calls.map(c => c[1])).toEqual([PxDiagnosticCode.triggerEventNotAllowed, PxDiagnosticCode.triggerResumeIgnored]);
+        root.dispatchEvent(new Event('mouseenter'));
+        root.dispatchEvent(new Event('mouseleave'));
+        expect(api.play).not.toHaveBeenCalled();
+    });
+
     it("start transition 'restart': a start while stopped midway begins a fresh run", () => {
         const order: Array<string> = [];
         const { api, root } = createMockApi({

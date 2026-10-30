@@ -293,10 +293,14 @@ createSvgAnimationPlayer({
 With `playOnTrigger`, the player listens on the rendered SVG for every event the document's
 `timeline.triggers` lists — `hoverIn` / `hoverOut` (`mouseenter` / `mouseleave`), `click` — and
 calls the built-in actions by the state rule: a `start` event acts while stopped, `pause` while
-playing, `resume` while paused, `stop` while playing or paused (`togglePlay` / `togglePause` feed
-two lists at once). HOW each action looks is the timeline's `actions` block. A `load` listing
-starts it as soon as enough of it is on screen (`inViewThreshold`), and with the default suspend
-transition `pause` it pauses while scrolled out of view. An empty block (`{}`) lists
+playing, the derived resume while paused (the counterpart of each `pause` event, plus the `start`
+events that do not also stop it), `stop` while playing or paused (`togglePlay: 'click'` feeds
+`start` and `stop` at once). Each list names only the events it can use; the player warns about
+any other event, an ignored `resume` entry and two lists colliding on one event (PX1109 – PX1111 on
+[the codes page](../diagnostics.md#what-the-document-says)). HOW each action looks is the
+timeline's `actions` block. A `load` listing starts it as soon as enough of it is on screen
+(`inViewThreshold`), and with the default suspend transition `pause` it pauses while scrolled out
+of view. An empty block (`{}`) lists
 nothing: nothing happens until you call `play()`. The lists, the events and the rule are on
 [Playback settings & triggers → Triggers](./playback-and-triggers.md#triggers--when-it-plays).
 
@@ -457,14 +461,15 @@ function setupAnimationTriggers(api: PxEngineAnimationPlayerApi, config: PxAnima
                                 diag?: PxDiagnostics): () => void;
 
 interface PxTriggers {                     // also a wire type — the JSON format page. WHEN only;
-                                           //   each list is one event or an array of
-                                           //   'load' | 'hoverIn' | 'hoverOut' | 'click'
-    start?: PxTriggerEvents;               // acts while stopped — `start`; absent block = 'load'
-    stop?: PxTriggerEvents;                // acts while playing or paused — `stop`
-    pause?: PxTriggerEvents;               // acts while playing — freeze
-    resume?: PxTriggerEvents;              // acts while paused — carry on; absent = a copy of `start`, [] = never
-    togglePlay?: PxTriggerEvents;          // sugar: `start` when stopped, otherwise `stop`
-    togglePause?: PxTriggerEvents;         // sugar: `pause` when playing, `resume` when paused
+                                           //   each list is one event or an array of the events
+                                           //   it may name; any other event is ignored (PX1110)
+    start?: PxTriggerEvents;               // acts while stopped — `start`; load · hoverIn · click; absent block = 'load'
+    stop?: PxTriggerEvents;                // acts while playing or paused — `stop`; hoverOut · click
+    pause?: PxTriggerEvents;               // acts while playing — freeze; hoverIn · hoverOut · click
+    resume?: PxTriggerEvents;              // acts while paused — carry on; DERIVED for the built-in events
+                                           //   (each pause event's counterpart + the start events that do
+                                           //   not stop); a built-in event listed here is ignored (PX1111)
+    togglePlay?: PxTriggerEvents;          // 'click' only — sugar for `start: 'click', stop: 'click'`
 }
 ```
 

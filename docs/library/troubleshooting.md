@@ -12,7 +12,7 @@ is not here, go to [Still stuck?](#still-stuck) at the end.
 
 ## Nothing plays
 
-**The triggers do not list `load`.** Check `animator.timeline.triggers.start` in the file (or *Plays
+**The triggers do not list `load`.** Check `animator.timeline.triggers.start` in the file (or *Play
 on* in the editor). `click`, `hoverIn` and `hoverOut` wait for the user; an empty block (`{}`) waits
 for you to call `play()`. Even `load` waits until enough of the animation is on screen, and pauses
 while it is scrolled out of view (`actions.suspend.transition: 'pause'`, the default) — see
@@ -93,6 +93,15 @@ For one mount only, pass the same thing as an override: `actions={{ finish: { tr
 **How do I play backwards?** `player.setPlaybackRate(-1); player.play();` — or let a stop play
 back by itself: `actions: { stop: { transition: 'rewind' } }` in the timeline, with the event that
 stops it listed in the triggers (`stop: 'hoverOut'`); `stop()` and `play={false}` rewind the same way.
+
+**A trigger event does nothing, or the console warns about the triggers.** Each list names only
+the events that make sense for it — `start` never `hoverOut`, `stop` never `load` or `hoverIn`,
+`pause` never `load`, `togglePlay` only `click` — and any other event is ignored (PX1110). What
+resumes a pause is derived (the counterpart of the `pause` event, plus the `start` events that do
+not stop it), so a `resume` entry the player derives otherwise is ignored (PX1111); `stop` on the
+same event as `pause`, or on its counterpart, collides (PX1109) — all three on
+[the codes page](../diagnostics.md#what-the-document-says). See
+[Which events each list may name](./playback-and-triggers.md#which-events-each-list-may-name).
 
 **Jumping to a time while playing.** `setCurrentTime(ms)` works while playing (the animation
 continues from the new point) and while paused (it shows that frame and stays there).

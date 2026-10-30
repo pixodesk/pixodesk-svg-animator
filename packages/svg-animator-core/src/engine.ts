@@ -39,7 +39,7 @@ export { PxValueKind } from './format/PxAnimatorConstants';
 export type { PxNormalizedBinding, PxRuntimeAnimation } from './animation/PxRuntimeChannel';
 
 // Which trigger, which engine
-export { resolveTriggers, resolveActions, resolveGate, triggerEventList, triggerConflicts, triggerListsEvent, triggerActionFor, fillModeOf, resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline } from './format/PxAnimatorConstants';
+export { resolveTriggers, resolveActions, resolveGate, triggerEventList, triggerIssues, derivedResume, allowedTriggerEvents, counterpartTriggerEvent, triggerListsEvent, triggerActionFor, fillModeOf, resolveTimelineEngine, isNativeForced, mayUseNativeScrollTimeline } from './format/PxAnimatorConstants';
 
 // Adapter-driven frame-loop engine (platform-neutral playback) + the node props every renderer shares
 export { createAdapterSvgAnimationPlayer } from './playback/PxFrameLoop';
@@ -47,4 +47,4 @@ export type { PxPlatformAdapter } from './playback/PxFrameLoop';
 export type { PxEngineAnimationPlayerApi } from './format/PxAnimatorTypes';
 export { toDomProps } from './util/PxNodeProps';
 
-export type { PxResolvedTriggers, PxResolvedActions, PxResolvedGate } from './format/PxAnimatorConstants';
+export type { PxResolvedTriggers, PxResolvedActions, PxResolvedGate, PxTriggerIssue } from './format/PxAnimatorConstants';

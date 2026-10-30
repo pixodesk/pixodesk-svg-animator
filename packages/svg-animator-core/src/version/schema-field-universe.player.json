@@ -139,7 +139,6 @@
  "animator.timeline|time.triggers.resume",
  "animator.timeline|time.triggers.start",
  "animator.timeline|time.triggers.stop",
- "animator.timeline|time.triggers.togglePause",
  "animator.timeline|time.triggers.togglePlay",
  "animator.timeline|time.type",
  "animator.timeline|view.axis",

@@ -12,7 +12,7 @@ export * from './PxAnimatorConstants';
 import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_TRANSFORM_PART_KEYS, PX_PLAYBACK_DEFAULTS, PxTimelineEngineSetting, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits,
     // Wire enums named in review §2.7 — used as VALUES by the schemas below.
     PxAlongPathMode, PxFillMode, PxStartTransition, PxStopTransition, PxFinishTransition, PxSuspendTransition, PxBeforeStart, PxPinAlign, PxPlaybackDirection,
-    PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxTriggerEvent, PxValueKind } from './PxAnimatorConstants';
+    PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxTriggerEvent, PxTriggerList, allowedTriggerEvents, PxValueKind } from './PxAnimatorConstants';
 import type { PxPlayState, PxTimelineEngine, PxTransformPartKey, PxTriggerEvents } from './PxAnimatorConstants';
 // Version stamps are parsed by the reader's own parser (review §2.10) so the validator and the
 // reader can never disagree on what counts as a stamp. `PxWireVersion` imports only
@@ -584,8 +584,9 @@ export type PxElementAnimation = PxInfer<typeof PxElementAnimationSchema>;
  * events from the OPEN vocabulary {@link PxTriggerEvent}; each a single event or several, like `animate`'s
  * references. The state rule, over stopped · playing · paused: `start` acts when stopped, `pause` when playing,
  * `resume` when paused, `stop` when playing or paused — so `click` in `start` and `pause` toggles through all
- * three. `togglePlay` / `togglePause` are sugar for the same events in two lists. HOW each action looks is the
- * timeline's `actions` block: the triggers say only WHEN.
+ * three. Each list names only the events that make sense for it ({@link allowedTriggerEvents}); `resume` is
+ * DERIVED for the built-in events ({@link derivedResume}). HOW each action looks is the timeline's `actions`
+ * block: the triggers say only WHEN.
  */
 export interface _PxTriggers {
     /** Starts it (when stopped). An ABSENT triggers block means `'load'`; an empty block means nothing starts it. */
@@ -594,26 +595,30 @@ export interface _PxTriggers {
     stop?: PxTriggerEvents;
     /** Freezes it where it is (when playing). */
     pause?: PxTriggerEvents;
-    /** Resumes it (when paused). Absent = a copy of `start`; `[]` = never resumes. */
+    /** Resumes it (when paused). DERIVED for the built-in events — the counterpart of each `pause` event plus the
+     *  `start` events that do not stop it; a built-in event listed here is ignored (kept for element targets). */
     resume?: PxTriggerEvents;
-    /** Starts it when stopped, stops it otherwise — the events listed under `start` and `stop`. */
+    /** Starts it when stopped, stops it otherwise — `click` listed under `start` and `stop`. */
     togglePlay?: PxTriggerEvents;
-    /** Pauses it when playing, resumes it when paused — the events listed under `pause` and `resume`. */
-    togglePause?: PxTriggerEvents;
 }
 
 const PxTriggerEventSchema = px.enum([PxTriggerEvent.load, PxTriggerEvent.hoverIn, PxTriggerEvent.hoverOut, PxTriggerEvent.click] as const, PxTriggerEvent.load);
 /** One event or several — `"hoverIn"` or `["hoverIn", "click"]`. @public @advanced */
 export const PxTriggerEventsSchema = px.union([PxTriggerEventSchema, px.array(PxTriggerEventSchema)]);
 
+/** One event or several, from the events `list` may name — anything else fails the schema, and the document
+ *  repair drops that event (never the whole list). */
+function triggerListSchema(list: PxTriggerList) {
+    return px.words(allowedTriggerEvents(list));
+}
+
 /** @public @advanced */
 export const PxTriggersSchema = implementsInterface<_PxTriggers>()(px.object({
-    start: PxTriggerEventsSchema.optional(),
-    stop: PxTriggerEventsSchema.optional(),
-    pause: PxTriggerEventsSchema.optional(),
-    resume: PxTriggerEventsSchema.optional(),
-    togglePlay: PxTriggerEventsSchema.optional(),
-    togglePause: PxTriggerEventsSchema.optional(),
+    start: triggerListSchema(PxTriggerList.start).optional(),
+    stop: triggerListSchema(PxTriggerList.stop).optional(),
+    pause: triggerListSchema(PxTriggerList.pause).optional(),
+    resume: triggerListSchema(PxTriggerList.resume).optional(),
+    togglePlay: triggerListSchema(PxTriggerList.togglePlay).optional(),
 }));
 
 /** WHEN an animation starts, stops, pauses and resumes — see {@link _PxTriggers}. @public */
