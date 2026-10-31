@@ -144,9 +144,9 @@ describe("SvgAnimationPlayer (Vue)", () => {
     // -- 2. Animation smoke ----------------------------------------------------
 
     describe("animation", () => {
-        it("renders and animates with playOnTrigger", () => {
+        it("renders and animates with playUsingActionTriggers", () => {
             render(SvgAnimationPlayer, {
-                props: { doc: getTestJson(), playOnTrigger: true },
+                props: { doc: getTestJson(), playUsingActionTriggers: true },
             });
 
             const ellipse = document.querySelector("ellipse");
@@ -194,9 +194,9 @@ describe("SvgAnimationPlayer (Vue)", () => {
             expect(typeof handle.setPlaybackRate).toBe("function");
             expect(() => handle.setPlaybackRate(2)).not.toThrow();
 
-            // cancel / finish are also exposed
-            expect(typeof handle.cancel).toBe("function");
-            expect(typeof handle.finish).toBe("function");
+            // reset / jumpToFinished are also exposed
+            expect(typeof handle.reset).toBe("function");
+            expect(typeof handle.jumpToFinished).toBe("function");
         });
     });
 
@@ -221,42 +221,51 @@ describe("SvgAnimationPlayer (Vue)", () => {
             expect(spies.onStop).not.toHaveBeenCalled();
         });
 
-        it("emits 'pause' and 'stop' when paused", () => {
+        it("emits 'pause' when paused — not 'stop'", () => {
             const { api, spies } = renderWithListeners();
             const handle = api.value;
             assert(handle, "template ref is set after render");
             handle.play();
             handle.pause();
             expect(spies.onPause).toHaveBeenCalledTimes(1);
-            expect(spies.onStop).toHaveBeenCalledTimes(1);
+            expect(spies.onStop).not.toHaveBeenCalled();
         });
 
-        it("emits 'cancel' and 'stop' when canceled", () => {
+        it("emits 'cancel' on reset() — not 'stop'", () => {
             const { api, spies } = renderWithListeners();
             const handle = api.value;
             assert(handle, "template ref is set after render");
             handle.play();
-            handle.cancel();
+            handle.reset();
             expect(spies.onCancel).toHaveBeenCalledTimes(1);
-            expect(spies.onStop).toHaveBeenCalledTimes(1);
+            expect(spies.onStop).not.toHaveBeenCalled();
         });
 
-        it("emits 'finish' and 'stop' when finished", () => {
+        it("emits 'finish' on the end pose — not 'stop'", () => {
             const { api, spies } = renderWithListeners();
             const handle = api.value;
             assert(handle, "template ref is set after render");
             handle.play();
-            handle.finish();
+            handle.jumpToFinished();
             expect(spies.onFinish).toHaveBeenCalledTimes(1);
+            expect(spies.onStop).not.toHaveBeenCalled();
+        });
+
+        it("emits 'stop' on stop() — the built-in stop action, and only that", () => {
+            const { api, spies } = renderWithListeners();
+            const handle = api.value;
+            assert(handle, "template ref is set after render");
+            handle.play();
+            handle.stop();
             expect(spies.onStop).toHaveBeenCalledTimes(1);
         });
 
-        it("emits 'destroy' and 'stop' on unmount", () => {
+        it("emits 'destroy' on unmount — not 'stop'", () => {
             const { spies, unmount } = renderWithListeners();
             expect(spies.onDestroy).not.toHaveBeenCalled();
             unmount();
             expect(spies.onDestroy).toHaveBeenCalledTimes(1);
-            expect(spies.onStop).toHaveBeenCalled();
+            expect(spies.onStop).not.toHaveBeenCalled();
         });
     });
 
@@ -265,7 +274,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
     describe("controlled time", () => {
         it("renders mid-animation state with time (absolute milliseconds)", () => {
             render(SvgAnimationPlayer, {
-                props: { doc: getTestJson1000(), playCurrentTime: 500 },
+                props: { doc: getTestJson1000(), showAtTime: 500 },
             });
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
@@ -273,7 +282,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
 
         it("treats `progress` as a fraction of duration (progress=0.5, duration=1000 → 500ms)", () => {
             render(SvgAnimationPlayer, {
-                props: { doc: getTestJson1000(), playCurrentProgress: 0.5 },
+                props: { doc: getTestJson1000(), showAtProgress: 0.5 },
             });
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
@@ -281,7 +290,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
 
         it("does not advance on its own in fixed-time mode", () => {
             render(SvgAnimationPlayer, {
-                props: { doc: getTestJson1000(), playCurrentTime: 500 },
+                props: { doc: getTestJson1000(), showAtTime: 500 },
             });
             const ellipse = document.querySelector("ellipse");
             vi.advanceTimersByTime(1000);
@@ -422,7 +431,7 @@ describe("SvgAnimationPlayer (Vue) — root element", () => {
     it("a `load` trigger plays when the document's root has no id", () => {
         const onWarn = vi.fn();
         const { container } = render(SvgAnimationPlayer, {
-            props: { doc: getMaskedLoadJson(), playOnTrigger: true, onWarn, timeline: { engine: "js" } },
+            props: { doc: getMaskedLoadJson(), playUsingActionTriggers: true, onWarn, timeline: { engine: "js" } },
         });
 
         const moving = container.querySelector("mask ellipse");
@@ -563,9 +572,9 @@ function getTestJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                actions: { finish: { transition: "hold" } },
+                actions: { finish: { do: "hold" } },
                 iterationDirection: "normal",
-                triggers: { start: "load" },
+                actionTriggers: { start: "load" },
             },
         },
 
@@ -604,9 +613,9 @@ function getTestJson1000(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 1000,
-                actions: { finish: { transition: "hold" } },
+                actions: { finish: { do: "hold" } },
                 iterationDirection: "normal",
-                triggers: { start: "load" },
+                actionTriggers: { start: "load" },
             },
         },
 
@@ -671,9 +680,9 @@ function getTreeJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                actions: { finish: { transition: "hold" } },
+                actions: { finish: { do: "hold" } },
                 iterationDirection: "normal",
-                triggers: { start: "load" },
+                actionTriggers: { start: "load" },
             },
         },
 
@@ -727,9 +736,9 @@ function getRectJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                actions: { finish: { transition: "hold" } },
+                actions: { finish: { do: "hold" } },
                 iterationDirection: "normal",
-                triggers: { start: "load" },
+                actionTriggers: { start: "load" },
             },
         },
 
@@ -753,7 +762,7 @@ describe('SvgAnimationPlayer (Vue) — timeline override', () => {
     /** A WIRE-format document; the flat props this replaced were discarded on this shape. */
     const wireJson = (): PxDocument => ({
         type: 'svg', id: '_px_wire', viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'js', outTime: 1000, triggers: { start: 'load' } } },
+        animator: { timeline: { engine: 'js', outTime: 1000, actionTriggers: { start: 'load' } } },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
@@ -765,24 +774,24 @@ describe('SvgAnimationPlayer (Vue) — timeline override', () => {
     const opacityIn = (container: Element) => Number(container.querySelector('rect')?.getAttribute('opacity'));
 
     it("baseline: progress=0.5 of the document's own 1000ms lands mid-animation", () => {
-        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), playCurrentProgress: 0.5 } });
+        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), showAtProgress: 0.5 } });
         expect(opacityIn(container)).toBeCloseTo(0.5, 1);
     });
 
     it('mergeTimeline overrides duration ON A WIRE DOCUMENT (the flat props never did)', () => {
-        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), playCurrentProgress: 0.5, timeline: { outTime: 4000 } } });
+        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), showAtProgress: 0.5, timeline: { outTime: 4000 } } });
         expect(opacityIn(container)).toBe(1);
     });
 
-    it('a `playOnTrigger` object beside `playCurrentProgress`: the position wins (PX1501), the frame is right', () => {
+    it('a `playUsingActionTriggers` object beside `showAtProgress`: the position wins (PX1501), the frame is right', () => {
         const onWarn = vi.fn();
-        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), playCurrentProgress: 0.5, timeline: { outTime: 4000 }, playOnTrigger: { start: 'click' }, onWarn } });
+        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), showAtProgress: 0.5, timeline: { outTime: 4000 }, playUsingActionTriggers: { start: 'click' }, onWarn } });
         expect(opacityIn(container)).toBe(1);
         expect(onWarn.mock.calls.map(c => c[0].code)).toContain(PxDiagnosticCode.controlPropsConflict);
     });
 
     it('takes no JSON-string form of timeline any more — a string is ignored, the document stays as it is', () => {
-        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), playCurrentProgress: 0.5, timeline: '{"outTime":4000}' } });
+        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), showAtProgress: 0.5, timeline: '{"outTime":4000}' } });
         expect(opacityIn(container)).toBeCloseTo(0.5, 1);   // the document's own 1000 ms, untouched
     });
 });
@@ -800,7 +809,7 @@ function getEffectsOnlyJson(): PxDocument {
         animator: {
             timeline: {
                 outTime: 1000,
-                triggers: { start: "hoverIn", pause: "hoverOut" }, actions: { suspend: { transition: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
+                actionTriggers: { start: "hoverIn", pause: "hoverOut" }, actions: { suspend: { do: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
             },
             version: "1.9.1",
@@ -864,7 +873,7 @@ function getMaskedLoadJson(): PxDocument {
         animator: {
             timeline: {
                 outTime: 1000,
-                triggers: { start: "load" }, actions: { suspend: { transition: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
+                actionTriggers: { start: "load" }, actions: { suspend: { do: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
             },
             version: "1.9.1",

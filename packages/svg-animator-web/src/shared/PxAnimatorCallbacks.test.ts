@@ -19,23 +19,13 @@ describe('toEngineCallbacks', () => {
         for (const fn of [onPlay, onPause, onCancel, onFinish, onDestroy]) expect(fn).toHaveBeenCalledTimes(1);
     });
 
-    it('fires onStop after pause / cancel / finish / remove — and never after play', () => {
+    it('onStop is carried through untouched — it is the executor\'s to fire (the built-in stop), never a pause, finish or removal', () => {
         const onStop = vi.fn();
-        const out = toEngineCallbacks({ onStop });
-
-        out.onPlay?.();
-        expect(onStop).not.toHaveBeenCalled();
+        const out = toEngineCallbacks({ onStop, onPause: () => {} });
+        expect(out.onStop).toBe(onStop);
 
         out.onPause?.(); out.onCancel?.(); out.onFinish?.(); out.onDestroy?.();
-        expect(onStop).toHaveBeenCalledTimes(4);
-    });
-
-    it('calls the specific callback BEFORE onStop', () => {
-        const order: Array<string> = [];
-        const out = toEngineCallbacks({ onFinish: () => order.push('finish'), onStop: () => order.push('stop') });
-
-        out.onFinish?.();
-        expect(order).toEqual(['finish', 'stop']);
+        expect(onStop).not.toHaveBeenCalled();
     });
 
     it('makes NO wrapper when neither the callback nor onStop is given', () => {

@@ -15,7 +15,7 @@ function App() {
         </label>
       </div>
       <div className="stage">
-        <SvgAnimationPlayer doc={animation as any} playCurrentTime={time} />
+        <SvgAnimationPlayer doc={animation as any} showAtTime={time} />
       </div>
     </>
   );

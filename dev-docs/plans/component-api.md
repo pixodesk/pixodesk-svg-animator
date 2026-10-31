@@ -24,33 +24,33 @@ per mount, and the ONLY override a CSS component has (no timeline). To keep ever
 exactly one way, the `timeline` prop's type **omits** `trigger`.
 
 ```tsx
-<SvgAnimationPlayer className="player" doc={animation} playOnTrigger
+<SvgAnimationPlayer className="player" doc={animation} playUsingActionTriggers
     timeline={{ iterations: 'infinite' }}
     trigger={{ start: 'hover' }} />
 
-<SvgAnimationPlayer doc={animation} playOnTrigger trigger={{ strat: 'hover' }} />   // compile error, with autocomplete
+<SvgAnimationPlayer doc={animation} playUsingActionTriggers trigger={{ strat: 'hover' }} />   // compile error, with autocomplete
 ```
 
 The same in Vue — the names are identical by design (the Vue component already declares React's
 prop names); only the template syntax differs:
 
 ```vue
-<SvgAnimationPlayer class="player" :doc="animation" playOnTrigger
+<SvgAnimationPlayer class="player" :doc="animation" playUsingActionTriggers
     :timeline="{ iterations: 'infinite' }"
     :trigger="{ start: 'hover' }" />
 
-<SvgAnimationPlayer :doc="animation" playOnTrigger :trigger="{ strat: 'hover' }" />   <!-- compile error under vue-tsc -->
+<SvgAnimationPlayer :doc="animation" playUsingActionTriggers :trigger="{ strat: 'hover' }" />   <!-- compile error under vue-tsc -->
 ```
 
 | | React | Vue |
 |---|---|---|
 | an object prop | `timeline={{ … }}` | `:timeline="{ … }"` |
-| the mode switch | `playOnTrigger` | `playOnTrigger` — bare works, the prop is declared `Boolean` |
+| the mode switch | `playUsingActionTriggers` | `playUsingActionTriggers` — bare works, the prop is declared `Boolean` |
 | the element class | `className` | `class` |
 | the typo is caught | by `tsc` — always | only by `vue-tsc` (hello-vue's `npm run build` runs it; `vite` alone and `npm run dev` do not check templates) |
 | the prop's type | `PxTriggerPatch` | `Object as PropType<PxTriggerPatch>` — the same type, so T1 serves both |
 
-Kept as they are, for now: `playOnTrigger` (the mode switch), `apiRef`, the control props, the callbacks.
+Kept as they are, for now: `playUsingActionTriggers` (the mode switch), `apiRef`, the control props, the callbacks.
 
 ### D3 — IMPLEMENTED 2026-10-25 in the player packages (T3c): a replace / merge pair per block — `timeline` / `mergeTimeline`, `trigger` / `mergeTrigger`
 `resetTimeline` is a flag that changes what another prop means (merge vs replace) — gone. Instead the
@@ -64,9 +64,9 @@ choice is in the prop's NAME, for both blocks:
 | `mergeTrigger` | MERGE over the file's trigger | `PxTriggerPatch` |
 
 ```tsx
-<SvgAnimationPlayer doc={d} timeline={{ iterations: 'infinite' }} playOnTrigger />                      // the file's trigger
-<SvgAnimationPlayer doc={d} timeline={{ iterations: 'infinite' }} mergeTrigger={{ hoverEnd: 'reset' }} playOnTrigger />   // file's trigger + hoverEnd
-<SvgAnimationPlayer doc={d} timeline={{ iterations: 'infinite' }} trigger={{ start: 'hover' }} playOnTrigger />           // only this trigger; the file's ignored
+<SvgAnimationPlayer doc={d} timeline={{ iterations: 'infinite' }} playUsingActionTriggers />                      // the file's trigger
+<SvgAnimationPlayer doc={d} timeline={{ iterations: 'infinite' }} mergeTrigger={{ hoverEnd: 'reset' }} playUsingActionTriggers />   // file's trigger + hoverEnd
+<SvgAnimationPlayer doc={d} timeline={{ iterations: 'infinite' }} trigger={{ start: 'hover' }} playUsingActionTriggers />           // only this trigger; the file's ignored
 ```
 
 Analysis (Claude, 2026-10-25) — for the owner to confirm or reject:
@@ -78,9 +78,9 @@ Analysis (Claude, 2026-10-25) — for the owner to confirm or reject:
 | 3 | `timeline` on the props = timing WITHOUT the trigger (the file nests it; the props lift it). All three examples follow this; it must be said once, where `timeline` is documented | ✅ consistent, given the one definition |
 | 4 | Both of a pair set (`timeline` + the merge prop) | ✅ owner: exclusive by TYPE (a union of prop sets) + a usage WARNING at runtime (Vue templates and JS have no TS); if both still arrive, apply replace THEN merge — deterministic, nothing dropped silently |
 | 5 | Naming the merge prop | ✅ owner, 2026-10-25: `mergeTimeline` / `mergeTrigger` — the one candidate with option-key precedent (evidence below) |
-| 6 | `trigger` / its merge prop without `playOnTrigger` still plays nothing, silently (hands-on B3) | ✅ owner: KEEP the behaviour; a warning, or any trigger prop implying `playOnTrigger`, stays open question 1 — nothing auto-set for now |
+| 6 | `trigger` / its merge prop without `playUsingActionTriggers` still plays nothing, silently (hands-on B3) | ✅ owner: KEEP the behaviour; a warning, or any trigger prop implying `playUsingActionTriggers`, stays open question 1 — nothing auto-set for now |
 | 7 | ~~The web `data-px-timeline` attribute~~ — **correction:** the web player reads only `data-px-animation-src`, `data-px-id`, `data-px-pin`; `data-px-timeline` / `data-px-reset` exist in ONE file, kf's video-preview harness (`VscPreviewApp.ts`), and were wrongly presented as a player feature. The `\| string` form exists for mangled builds (minification.md) | the string form is open question 2, unchanged |
-| 8 | CSS components / pre-rendered SVG | ✅ owner: change NOTHING there beyond T3a (`trigger?: PxTrigger` as already landed); no merge prop on them; the `playOnTrigger` questions wait |
+| 8 | CSS components / pre-rendered SVG | ✅ owner: change NOTHING there beyond T3a (`trigger?: PxTrigger` as already landed); no merge prop on them; the `playUsingActionTriggers` questions wait |
 | 9 | A replace can change the timeline's KIND (time → scroll) with no carried keys; the merge's RULE 2 stays merge-only | ✅ simpler |
 | 10 | `applyAnimatorConfig`'s `{ resetTimeline }` option, `PX_ANIMATOR_RESET_KEY`, the two specs, 6 doc sites, kf's unused `data-px-reset` | go with the change |
 
@@ -117,27 +117,27 @@ Remove `timeline` / `mergeTimeline` / `trigger` / `mergeTrigger`. Then:
 | Prop | Meaning |
 |---|---|
 | *(no `play*` prop)* | static — the first frame |
-| `playOnTrigger` | `true` = the document's own trigger drives; **an object** = the WHOLE trigger to use instead (a replacement — switching `hover` → `click` changes the other settings with it; absent keys take the wire defaults). No separate trigger prop |
+| `playUsingActionTriggers` *(→ `playUsingActionTriggers`, D7)* | `true` = the document's own trigger drives; **an object** = the WHOLE trigger to use instead (a replacement — switching `hover` → `click` changes the other settings with it; absent keys take the wire defaults). No separate trigger prop |
 | `play` | declarative state (with `pause`, `playMode`, `completeIteration` as today) |
 | `playerRef` *(renamed from `apiRef`)* | imperative control — the ref the component fills; starts with `play` like every driver. Vue keeps its template `ref` (its own mechanism, not a prop) |
 | `timeline` | a MERGE over the file's timing — corrections (`iterations`, `delay`), never a replacement; whoever needs more edits the document |
-| `playCurrentProgress` / `playCurrentTime` *(renamed from `progress` / `time`)* | controlled position — the host holds the frame; the names rhyme with `getCurrentProgress` / `setCurrentTime` |
+| `showAtProgress` / `showAtTime` *(renamed from `progress` / `time`; → `showAtProgress` / `showAtTime`, D7)* | controlled position — the host holds the frame; the names rhyme with `getCurrentProgress` / `setCurrentTime` |
 | later: `playOnScrollTimeline` | a full scroll-driven timeline config — the scroll driver. Listed now as a TODO line in the shared props TSDoc (`PxControlProps`), so the family is visible where the props are read |
 
 Analysis (Claude, 2026-10-26) — for the owner:
 
 | # | Point | Verdict |
 |---|---|---|
-| 1 | One stem for every way to make it play: `playOnTrigger`, `play`, `play…` — autocomplete on `play` lists the drivers; "how do I make it move?" has one answer-space | ✅ the strongest naming idea so far |
+| 1 | One stem for every way to make it play: `playUsingActionTriggers`, `play`, `play…` — autocomplete on `play` lists the drivers; "how do I make it move?" has one answer-space | ✅ the strongest naming idea so far |
 | 2 | The trigger lives INSIDE the driver prop, so a trigger cannot be given without choosing the trigger driver — hands-on B3 (`start="hover"` alone, silently nothing) becomes impossible; open question 1 closes by construction | ✅ |
-| 3 | `true \| object` on one prop | ✅ an established config idiom: antd `pagination={false \| {…}}`, Vite `server.hmr: boolean \| {…}`, webpack `optimization.splitChunks: false \| {…}`. Type it `boolean \| …` (not `true \| …`) so `playOnTrigger={flag}` works; Vue `type: [Boolean, Object]` keeps the bare-attribute form |
+| 3 | `true \| object` on one prop | ✅ an established config idiom: antd `pagination={false \| {…}}`, Vite `server.hmr: boolean \| {…}`, webpack `optimization.splitChunks: false \| {…}`. Type it `boolean \| …` (not `true \| …`) so `playUsingActionTriggers={flag}` works; Vue `type: [Boolean, Object]` keeps the bare-attribute form |
 | 4 | Replace or merge for the object? | ✅ owner: REPLACE — a trigger's keys belong together: switching `hover` → `click` makes `hoverEnd` meaningless and usually wants a different `outOfView` too, so a merge would carry the hover-era settings into the click trigger. Type: `boolean \| PxTrigger` (the schema type; absent keys = wire defaults) |
-| 5 | `timeline` as merge only, trigger excluded from its type (only `playOnTrigger` carries a trigger) — no key reachable two ways; `null` deletes a key (needed for `outTime` / `playDuration`, whose absence means "the content's end" / "natural speed"); the string form stays for mangled builds | ✅ (the string form on the components is still open question 2) |
+| 5 | `timeline` as merge only, trigger excluded from its type (only `playUsingActionTriggers` carries a trigger) — no key reachable two ways; `null` deletes a key (needed for `outTime` / `playDuration`, whose absence means "the content's end" / "natural speed"); the string form stays for mangled builds | ✅ (the string form on the components is still open question 2) |
 | 6 | The ref's name | ✅ owner, 2026-10-26: `playerRef` — under the `play*` rule, the React `…Ref` convention, and the guide's variable is already `playerRef` |
-| 7 | `progress` / `time` → `playCurrentProgress` / `playCurrentTime` | ✅ owner, 2026-10-26: unambiguous (no duration misread), and the prop names rhyme with the handle's `getCurrentProgress` / `setCurrentTime`. RN's `progress: progressProp` alias (a name clash with its SharedValue) goes away with it |
+| 7 | `progress` / `time` → `showAtProgress` / `showAtTime` | ✅ owner, 2026-10-26: unambiguous (no duration misread), and the prop names rhyme with the handle's `getCurrentProgress` / `setCurrentTime`. RN's `progress: progressProp` alias (a name clash with its SharedValue) goes away with it |
 | 8 | The future scroll driver | ✅ owner: `playOnScrollTimeline={…}` — `playStart<Driver>`, and the word "timeline" kept on purpose |
-| 9 | CSS components (`SvgCssAnimationPlayer`): `trigger` today; `playOnTrigger={{…}}` would make them read like the JSON player | ⏸ pre-rendered logic stays untouched (owner); a later rename for symmetry |
-| 10 | What goes: D3's pair, `PxTimelineOverride` / `PxTriggerOverride` / `PxPlaybackOverrideFields`, the exclusivity test, PX1504 (unpublished — safe to delete); `applyPlaybackOverride` shrinks to `{ timeline, playOnTrigger }` | go with the change |
+| 9 | CSS components (`SvgCssAnimationPlayer`): `trigger` today; `playUsingActionTriggers={{…}}` would make them read like the JSON player | ⏸ pre-rendered logic stays untouched (owner); a later rename for symmetry |
+| 10 | What goes: D3's pair, `PxTimelineOverride` / `PxTriggerOverride` / `PxPlaybackOverrideFields`, the exclusivity test, PX1504 (unpublished — safe to delete); `applyPlaybackOverride` shrinks to `{ timeline, playUsingActionTriggers }` | go with the change |
 | 11 | Prop count: 34 → 22 | ✅ |
 | 12 | The `play` driver's modifiers — `pause`, `playMode`, `completeIteration` — do not all start with `play` | ✅ left as they are: they are modifiers of ONE driver, not drivers; the rule is about how the animation is driven |
 
@@ -223,8 +223,8 @@ started — the SVG as authored, or the first frame when `showFirstFrameBeforePl
 
 | | spelling |
 |---|---|
-| component | `playOnTrigger?: boolean \| PxTrigger` (an object REPLACES the file's trigger — its keys are coupled); `timeline?: PxTimelinePatch` (MERGES: timing, the play keys and the gate are independent knobs with defaults); beside `play` / `pause` / `playerRef` / `playCurrentProgress` / `playCurrentTime`. `playMode` and `completeIteration` are gone — they are timeline keys now |
-| web | `createSvgAnimationPlayer({ playOnTrigger?, timeline? })`; the handle `play()`, `pause()`, `stop()` |
+| component | `playUsingActionTriggers?: boolean \| PxTrigger` (an object REPLACES the file's trigger — its keys are coupled); `timeline?: PxTimelinePatch` (MERGES: timing, the play keys and the gate are independent knobs with defaults); beside `play` / `pause` / `playerRef` / `showAtProgress` / `showAtTime`. `playMode` and `completeIteration` are gone — they are timeline keys now |
+| web | `createSvgAnimationPlayer({ playUsingActionTriggers?, timeline? })`; the handle `play()`, `pause()`, `stop()` |
 | core | the one executor; the enums `PxPlayStartAction`, `PxPlayStopAction`, `PxPlayFinishAction` beside the existing `PxOutOfViewAction` |
 | CSS components | keep their per-event props; `rewind` and the iteration completion act as `continue` there (a class toggle cannot run keyframes backwards or count iterations) — the precedent `reverse` already has |
 
@@ -253,7 +253,7 @@ started — the SVG as authored, or the first frame when `showFirstFrameBeforePl
 /** An interaction the trigger listens for — an OPEN list: a new interaction is a new member, never a new key. */
 enum PxTriggerEvent { load = 'load', hoverIn = 'hoverIn', hoverOut = 'hoverOut', click = 'click' /* later: keyboard, focus, app events */ }
 
-/** `timeline.trigger` in the file, and the object form of `playOnTrigger` — WHEN. */
+/** `timeline.trigger` in the file, and the object form of `playUsingActionTriggers` — WHEN. */
 type PxTriggerEvents = PxTriggerEvent | Array<PxTriggerEvent>;   // one, or several — like `animate`'s references
 interface PxTrigger {
     playStart?: PxTriggerEvents;               // acts when stopped
@@ -282,8 +282,8 @@ interface PxTimeTimeline {
     inViewDebounce?: number;                    // default 150
     trigger?: PxTrigger;                        // default { playStart: ['load'] }
 }
-// component:  playOnTrigger?: boolean | PxTrigger;  timeline?: PxTimelinePatch (= PxPatch of the timeline minus `trigger`)
-// web:        createSvgAnimationPlayer({ playOnTrigger?, timeline? });  play(); pause(); stop()
+// component:  playUsingActionTriggers?: boolean | PxTrigger;  timeline?: PxTimelinePatch (= PxPatch of the timeline minus `trigger`)
+// web:        createSvgAnimationPlayer({ playUsingActionTriggers?, timeline? });  play(); pause(); stop()
 ```
 
 **Examples.** A looping icon in a FILE — plays while hovered, finishes its beat when the pointer leaves, a click toggles
@@ -329,7 +329,7 @@ The component, driven by state — the same words for the same transitions:
 <SvgAnimationPlayer doc={splash} play={splashing} timeline={{ playStartAction: 'restart' }} onFinish={() => setSplashing(false)} />
 
 // the trigger driver with the file's trigger replaced, the play keys adjusted
-<SvgAnimationPlayer doc={icon} playOnTrigger={{ playStart: 'hoverIn', playStop: 'hoverOut' }} timeline={{ completeIterationOnPlayStop: true }} />
+<SvgAnimationPlayer doc={icon} playUsingActionTriggers={{ playStart: 'hoverIn', playStop: 'hoverOut' }} timeline={{ completeIterationOnPlayStop: true }} />
 ```
 
 ```vue
@@ -403,6 +403,26 @@ The action-keyed lists, "no new container" and the moment-named keys are the own
 
 ### D6 — superseded 2026-10-28: see [playback-layers.md](./playback-layers.md)
 
+### D7 — IMPLEMENTED 2026-10-31: the names say the link (schema 1.11) — [reviews/react-props-review.md](../reviews/react-props-review.md)
+
+Every prop read by its name alone, with the owner; the decisions and their reasons are in the review (§2), the
+examples in §3. What changed:
+
+| | Was | Now |
+|---|---|---|
+| file | `timeline.triggers` · `actions.*.transition` | `timeline.actionTriggers` · `actions.*.do`, written as the word itself when it is the only setting (`stop: 'rewind'` ≡ `{ do: 'rewind' }`; the merging prop keeps the file's `completeIteration`) |
+| driver prop | `playUsingActionTriggers` | `playUsingActionTriggers` — `true` = the file's block, an object = this block as a whole (type `PxActionTriggersInput`: no `resume`, which is derived) |
+| controlled position | `showAtProgress` / `showAtTime` | `showAtProgress` / `showAtTime` |
+| `play` on a one-shot at mount | the end pose, no motion | plays; the pose without motion is `showAtProgress={1}` |
+| `onStop` | after any halt | the built-in `stop` action only (told by the executor, `setOnStop`) |
+| state rule | stopped · playing · paused | + `finished` — `stop` acts on it (and wins over `start` there: a click toggle undoes a finished one-shot), `start` restarts |
+| handle | `cancel()` · `finish()` | `reset()` · `jumpToFinished()` |
+
+**D4's rule, amended:** a driver is named by its verb — `play…` when it plays (`play`, `playUsingActionTriggers`,
+`playerRef`, later `playUsingScrollTimeline`), `show…` when it only shows a frame. Rejected on the way, with the
+recorded reasons: `autoplay`, `triggers` as the switch, flat `playOn=` props, `start` → `play` in the lists,
+`startAction` keys, a `playback` stem.
+
 The `actions` + `trigger` proposal written here on 2026-10-27 was refined into layers 0 and 1 of
 [playback-layers.md](./playback-layers.md) ("improved D6": `triggers` plural, `beforeStart` a timeline
 key, `jumpToFinished`, `suspend` / `wake` for the gate, `togglePlay` / `togglePause`, element targets).
@@ -416,7 +436,7 @@ That document is the one to implement; it also lists the 1.9 → layers mapping 
 | T2 ✅ | `PxAnimatorConfigPatch` typed — done 2026-10-25 | `PxPatch<PxAnimatorConfig> \| null`: `timeline` (trigger included at this level), `definitions`, `bindings`, `version` — the tests that patch definitions and bindings compile as they are |
 | T3a ✅ | **Player packages — done 2026-10-25.** `trigger` on every surface, the ten shortcuts gone | core: `PxTriggerPatch` (typed from `PxTrigger`), `PxPlaybackOverride` = `timeline` + `trigger` + `resetTimeline`, `foldTimelineOverride(timeline, trigger)` — a `trigger` key wins over one inside the string form; `PxTimelineShortcuts` deleted. Web options; React / Vue / RN components; both CSS components take `trigger?: PxTrigger` (defaults filled). Tests rewritten with the API: typecheck clean on all five packages, core 426 · web 216 · react 68 · vue 49 · rn 42 |
 | T3c ✅ | **D3 in the player packages — done 2026-10-25.** `timeline` / `mergeTimeline`, `trigger` / `mergeTrigger`; `resetTimeline` gone | core: `PxTimelineOverride` and `PxTriggerOverride` (each pair exclusive by type), `PxPlaybackOverride` = both, `PxPlaybackOverrideFields` (the plain all-optional view a runtime props object is), `PxTimelineWithoutTrigger`; `applyPlaybackOverride(doc, fields)` → `{ doc, warnings, conflicts }` — per block the replacement first (delete, then set; a timing replace carries the file's trigger over), then the merge through the existing rules; the string form parsed, bad JSON reported, never thrown. Deleted: `foldTimelineOverride`, `resetTimeline`, `applyAnimatorConfig`'s reset option, web `PX_ANIMATOR_RESET_KEY`. New diagnostic PX1504 `overrideConflict` (both of a pair set → both applied, warned). Web options / page options, React, Vue and RN props are now intersections of the shared types (`interface extends` cannot take a union). Verified: typecheck clean on all five packages; core 735 · web 211 · react 68 · vue 49 · rn 42; exclusivity as `@ts-expect-error`s, the runtime conflict through a JS-style caller (web) |
-| T3d ✅ | **D4 in the player packages — done 2026-10-26.** `playOnTrigger: boolean \| PxTrigger`, `playerRef`, `playCurrentProgress` / `playCurrentTime`, `timeline` merge-only; D3's pair gone | core: `PxPlaybackOverride` = `{ timeline?: PxTimelinePatch }` (no string form — a JS caller's string is reported as `timelineOverrideIgnored`, never written), `PxPlaybackOverrideInput` adds `playOnTrigger`; `applyPlaybackOverride` = the timing merged, then a trigger object deleted-and-set as a WHOLE; `PxControlProps` renamed the position props and carries the `playOnScrollTimeline` TODO line; deleted `PxTimelineOverride` / `PxTriggerOverride` / `PxPlaybackOverrideFields` / `PxTriggerPatch` and PX1504 (unpublished). Web: options and the page scan take the object form (`createSvgAnimationPlayersFromPage({ playOnTrigger: {…} })` = one trigger for every player). React / Vue / RN: `playerRef`, the two renames, the object form (`[Boolean, Object]` in Vue), one content key in RN. Verified: typecheck clean on five packages; core 735 · web 209 · react 68 · vue 49 · rn 42 — type guards: no trigger and no unknown key inside `timeline`, no unknown key in the trigger object; the control-mode warnings name the new props |
+| T3d ✅ | **D4 in the player packages — done 2026-10-26.** `playUsingActionTriggers: boolean \| PxTrigger`, `playerRef`, `showAtProgress` / `showAtTime`, `timeline` merge-only; D3's pair gone | core: `PxPlaybackOverride` = `{ timeline?: PxTimelinePatch }` (no string form — a JS caller's string is reported as `timelineOverrideIgnored`, never written), `PxPlaybackOverrideInput` adds `playUsingActionTriggers`; `applyPlaybackOverride` = the timing merged, then a trigger object deleted-and-set as a WHOLE; `PxControlProps` renamed the position props and carries the `playOnScrollTimeline` TODO line; deleted `PxTimelineOverride` / `PxTriggerOverride` / `PxPlaybackOverrideFields` / `PxTriggerPatch` and PX1504 (unpublished). Web: options and the page scan take the object form (`createSvgAnimationPlayersFromPage({ playUsingActionTriggers: {…} })` = one trigger for every player). React / Vue / RN: `playerRef`, the two renames, the object form (`[Boolean, Object]` in Vue), one content key in RN. Verified: typecheck clean on five packages; core 735 · web 209 · react 68 · vue 49 · rn 42 — type guards: no trigger and no unknown key inside `timeline`, no unknown key in the trigger object; the control-mode warnings name the new props |
 | T3b ⏳ | The rest — **waiting until the API settles** (owner, 2026-10-25: more changes may come) | docs (`playback-and-triggers.md` has a `px-check props PxTimelineShortcuts` marker; the props blocks and guides), docs-examples (`css-svgr`, `override-*`), the full `pnpm build` (docs-check is red until the docs follow; `mangle-reserved.json` regenerates then), kf (6 sites), the videos (16), the website (13). Until then hello-react runs the local source and is the test bench |
 | T4 | Guard: a type test next to `PxDocumentInput.test.ts` | `trigger={{ start: 'hover' }}` compiles; `trigger={{ strat: 'hover' }}` and `timeline={{ trigger: … }}` are `@ts-expect-error`; `timeline={{ iterations: 'forever' }}` too. Seen failing before the fix |
 | T5 | Remove `animation as any` from the docs-examples React / override cases (hands-on F1) | six files; the cast hides exactly the kind of type error T4 wants |
@@ -456,8 +476,8 @@ opposite of what the shapes deserve.
 
 ## Open questions
 
-1. **`trigger` without `playOnTrigger`** — today `start="hover"` alone does nothing, silently
-   (hands-on B3). Does `trigger={…}` imply `playOnTrigger`, warn without it, or stay a plain
+1. **`trigger` without `playUsingActionTriggers`** — today `start="hover"` alone does nothing, silently
+   (hands-on B3). Does `trigger={…}` imply `playUsingActionTriggers`, warn without it, or stay a plain
    override? The D2 example keeps both.
 2. **The JSON-string form** of `timeline` (`PxTimelinePatch | string`) — facts, 2026-10-26: added 2026-09-12
    with the override as a *property-mangling* workaround (a consumer's build that renames object keys would

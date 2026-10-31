@@ -9,8 +9,8 @@ createApp({
       h('div', { class: 'controls' }, [
         h('button', { onClick: () => api.value?.play() }, 'play()'),
         h('button', { onClick: () => api.value?.pause() }, 'pause()'),
-        h('button', { onClick: () => api.value?.cancel() }, 'cancel()'),
-        h('button', { onClick: () => api.value?.finish() }, 'finish()'),
+        h('button', { onClick: () => api.value?.reset() }, 'reset()'),
+        h('button', { onClick: () => api.value?.jumpToFinished() }, 'finish()'),
       ]),
       h('div', { class: 'stage' }, [
         h(SvgAnimationPlayer as any, { doc: animation, ref: api }),

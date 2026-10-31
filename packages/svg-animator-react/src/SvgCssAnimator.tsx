@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxPlayState, PxTriggerAction, PxTriggerEvent, type PxActions, type PxTriggers } from '@pixodesk/svg-animator-core';
+import { PxPlayState, PxTriggerAction, PxTriggerEvent, type PxActions, type PxActionTriggersInput } from '@pixodesk/svg-animator-core';
 import { resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent } from '@pixodesk/svg-animator-core/engine';
 import { createVisibilityGate, type PxVisibilityGate } from '@pixodesk/svg-animator-web/internal';
 import { CSSProperties, FC, ReactNode, useEffect, useRef, useState } from "react";
@@ -20,7 +20,7 @@ import { CSSProperties, FC, ReactNode, useEffect, useRef, useState } from "react
  * ```tsx
  * import AnimationSvg from './animation.svg?react'; // SVGR
  *
- * <SvgCssAnimationPlayer triggers={{ start: 'hoverIn', pause: 'hoverOut' }}>
+ * <SvgCssAnimationPlayer actionTriggers={{ start: 'hoverIn', pause: 'hoverOut' }}>
  *   <AnimationSvg />
  * </SvgCssAnimationPlayer>
  * ```
@@ -33,7 +33,7 @@ import { CSSProperties, FC, ReactNode, useEffect, useRef, useState } from "react
  * The triggers are the JSON player's (dev-docs/plans/playback-layers.md): event lists — `start`, `stop`,
  * `pause` (resume is derived), plus `togglePlay` — over the events `load`, `hoverIn`, `hoverOut`, `click`,
  * read by the same state rule (core's `triggerActionFor`) and gated by the same visibility gate
- * (`createVisibilityGate`), so the two players cannot drift. An absent `triggers` block plays on load; an
+ * (`createVisibilityGate`), so the two players cannot drift. An absent `actionTriggers` block plays on load; an
  * empty one lists nothing.
  *
  * ACCEPTED LIMITS of a class toggle (the editor shows them next to the choices):
@@ -42,7 +42,7 @@ import { CSSProperties, FC, ReactNode, useEffect, useRef, useState } from "react
  * - completing the iteration, `beforeStart` and the finish transition are the file's own CSS
  *
  * @param children  - The SVGR-imported SVG component to animate.
- * @param triggers  - WHEN: the file's own `timeline.triggers` block — `start`, `stop`, `pause`, `resume`,
+ * @param triggers  - WHEN: the file's own `timeline.actionTriggers` block — `start`, `stop`, `pause`, `resume`,
  *   `togglePlay`, each one event or a list of them (only the events each list can use).
  * @param actions - Only `suspend` applies — what happens while none of it is on screen (default `'pause'`):
  *   `'pause'` pauses at the current frame and resumes when it comes back, `'continue'` keeps playing and starts
@@ -58,13 +58,13 @@ const SvgCssAnimationPlayer: FC<{
     className?: string;
     style?: CSSProperties;
     children: ReactNode;
-    triggers?: PxTriggers;
+    actionTriggers?: PxActionTriggersInput;
     actions?: Pick<PxActions, 'suspend'>;
     inViewThreshold?: number;
     inViewDebounce?: number;
-}> = ({ className, style, children, triggers, actions, inViewThreshold, inViewDebounce }) => {
+}> = ({ className, style, children, actionTriggers, actions, inViewThreshold, inViewDebounce }) => {
     // one rule with the JSON player: the lists normalised, the gate defaulted
-    const resolved = resolveTriggers(triggers);
+    const resolved = resolveTriggers(actionTriggers);
     const gateConfig = resolveGate({ actions, inViewThreshold, inViewDebounce });
     const playsOnLoad = resolved.start.includes(PxTriggerEvent.load);
 

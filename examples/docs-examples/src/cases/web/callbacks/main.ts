@@ -4,7 +4,7 @@ const log = document.getElementById('log')!;
 const say = (line: string) => { log.textContent += line + '\n'; };
 
 const animator = createSvgAnimationPlayer({
-    playOnTrigger: true,
+    playUsingActionTriggers: true,
   src: '../../../../animation.json',
   container: '#box',
   onPlay:   () => say('onPlay'),    // started or resumed
@@ -17,6 +17,6 @@ const animator = createSvgAnimationPlayer({
 const $ = (id: string) => document.getElementById(id)!;
 $('play').onclick = () => animator.play();
 $('pause').onclick = () => animator.pause();
-$('cancel').onclick = () => animator.cancel();
-$('finish').onclick = () => animator.finish();
+$('cancel').onclick = () => animator.reset();
+$('finish').onclick = () => animator.jumpToFinished();
 $('destroy').onclick = () => animator.destroy();

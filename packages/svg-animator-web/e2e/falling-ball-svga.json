@@ -9,16 +9,14 @@
     "timeline": {
       "mode": "player",
       "outTime": 1000,
-      "triggers": {
+      "actionTriggers": {
         "start": "click",
         "pause": "click"
       },
       "iterations": 1,
       "iterationDirection": "normal",
       "actions": {
-        "suspend": {
-          "transition": "continue"
-        }
+        "suspend": "continue"
       }
     }
   },

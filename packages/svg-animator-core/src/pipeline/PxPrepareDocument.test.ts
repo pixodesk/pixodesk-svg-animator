@@ -17,7 +17,7 @@ function makeDoc(): PxDocument {
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
             effects: { fillGradient: { type: 'linear', stops: [{ offset: 0, color: '#000' }, { offset: 1, color: '#fff' }] } },
         }],
-        animator: { version: '1.10.0', timeline: { outTime: 800 } },
+        animator: { version: '1.11.0', timeline: { outTime: 800 } },
     })) as PxDocument;
 }
 const prep = (doc: PxDocument, options?: PxPrepareOptions) => prepareDocument(doc, options);
@@ -133,13 +133,13 @@ describe('prepareDocument — the checked stage', () => {
 
     it('repairs what does not match the schema, reports it, and plays the rest', () => {
         const doc = makeDoc();
-        (doc.animator as { timeline: Record<string, unknown> }).timeline.triggers = { start: 'onLoad' };
+        (doc.animator as { timeline: Record<string, unknown> }).timeline.actionTriggers = { start: 'onLoad' };
         const seen: Array<string> = [];
         const out = prep(doc, { stage: PxDocStage.checked, onProblems: ps => ps.forEach(p => seen.push(p.message)) });
         expect(seen.length).toBe(1);
-        expect(seen[0]).toContain('triggers.start');
-        expect((out.animator as { timeline: { triggers: Record<string, unknown> } }).timeline.triggers).toEqual({});   // the bad value is gone
-        expect((doc.animator as { timeline: { triggers: { start: string } } }).timeline.triggers.start).toBe('onLoad');   // input untouched
+        expect(seen[0]).toContain('actionTriggers.start');
+        expect((out.animator as { timeline: { actionTriggers: Record<string, unknown> } }).timeline.actionTriggers).toEqual({});   // the bad value is gone
+        expect((doc.animator as { timeline: { actionTriggers: { start: string } } }).timeline.actionTriggers.start).toBe('onLoad');   // input untouched
     });
 
     it('a valid document reports nothing and comes out type-stamped', () => {

@@ -8,7 +8,7 @@
 // Web Animations API, so the two classes the engine constructs are stubbed with the bare minimum.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimationPlayer } from '../animator/PxAnimator';
-import type { PxDocument, PxTriggers } from '@pixodesk/svg-animator-core';
+import type { PxDocument, PxActionTriggers } from '@pixodesk/svg-animator-core';
 
 class StubKeyframeEffect {
     constructor(readonly target: Element, readonly keyframes: unknown, private readonly timing: EffectTiming) {}
@@ -29,11 +29,11 @@ class StubAnimation {
     finish(): void { this.playState = 'finished'; }
 }
 
-function doc(triggers?: PxTriggers): PxDocument {
+function doc(actionTriggers?: PxActionTriggers): PxDocument {
     return {
         type: 'svg',
         viewBox: '0 0 100 100',
-        animator: { timeline: { engine: 'native', outTime: 1000, ...(triggers ? { triggers } : {}) } },
+        animator: { timeline: { engine: 'native', outTime: 1000, ...(actionTriggers ? { actionTriggers } : {}) } },
         children: [{
             type: 'rect', id: 'r1', opacity: 0,
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
@@ -55,12 +55,12 @@ afterEach(() => {
 describe('WAAPI engine — trigger wiring', () => {
 
     it('a document with no trigger starts on load', () => {
-        const api = createSvgAnimationPlayer({ playOnTrigger: true, doc: doc(), container: '#stage' });
+        const api = createSvgAnimationPlayer({ playUsingActionTriggers: true, doc: doc(), container: '#stage' });
         expect(api.isPlaying()).toBe(true);
     });
 
     it('the EMPTY trigger (nothing starts it) still waits for play()', () => {
-        const api = createSvgAnimationPlayer({ playOnTrigger: true, doc: doc({}), container: '#stage' });
+        const api = createSvgAnimationPlayer({ playUsingActionTriggers: true, doc: doc({}), container: '#stage' });
         expect(api.isPlaying()).toBe(false);
         api.play();
         expect(api.isPlaying()).toBe(true);

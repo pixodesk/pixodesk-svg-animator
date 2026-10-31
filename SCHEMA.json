@@ -2297,7 +2297,7 @@
             "playDuration": {
               "type": "number"
             },
-            "triggers": {
+            "actionTriggers": {
               "type": "object",
               "properties": {
                 "start": {
@@ -2427,58 +2427,101 @@
               "type": "object",
               "properties": {
                 "start": {
-                  "type": "object",
-                  "properties": {
-                    "transition": {
+                  "anyOf": [
+                    {
                       "enum": [
                         "continue",
                         "restart",
                         "jumpToFinished"
                       ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "do": {
+                          "enum": [
+                            "continue",
+                            "restart",
+                            "jumpToFinished"
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
                     }
-                  },
-                  "additionalProperties": false
+                  ]
                 },
                 "stop": {
-                  "type": "object",
-                  "properties": {
-                    "transition": {
+                  "anyOf": [
+                    {
                       "enum": [
                         "reset",
                         "rewind"
                       ]
                     },
-                    "completeIteration": {
-                      "type": "boolean"
+                    {
+                      "type": "object",
+                      "properties": {
+                        "do": {
+                          "enum": [
+                            "reset",
+                            "rewind"
+                          ]
+                        },
+                        "completeIteration": {
+                          "type": "boolean"
+                        }
+                      },
+                      "additionalProperties": false
                     }
-                  },
-                  "additionalProperties": false
+                  ]
                 },
                 "finish": {
-                  "type": "object",
-                  "properties": {
-                    "transition": {
+                  "anyOf": [
+                    {
                       "enum": [
                         "hold",
                         "reset",
                         "rewind"
                       ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "do": {
+                          "enum": [
+                            "hold",
+                            "reset",
+                            "rewind"
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
                     }
-                  },
-                  "additionalProperties": false
+                  ]
                 },
                 "suspend": {
-                  "type": "object",
-                  "properties": {
-                    "transition": {
+                  "anyOf": [
+                    {
                       "enum": [
                         "pause",
                         "continue",
                         "reset"
                       ]
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "do": {
+                          "enum": [
+                            "pause",
+                            "continue",
+                            "reset"
+                          ]
+                        }
+                      },
+                      "additionalProperties": false
                     }
-                  },
-                  "additionalProperties": false
+                  ]
                 }
               },
               "additionalProperties": false

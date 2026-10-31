@@ -29,7 +29,7 @@ const staticDoc: PxDocument = {
 const animatedDoc: PxDocument = {
     type: 'svg', viewBox: '0 0 300 300',
     animator: {
-        timeline: { outTime: 2000, iterations: 'infinite', iterationDirection: 'alternate', actions: { suspend: { transition: 'continue' } }, triggers: { start: 'load' } },
+        timeline: { outTime: 2000, iterations: 'infinite', iterationDirection: 'alternate', actions: { suspend: 'continue' }, actionTriggers: { start: 'load' } },
     },
     children: [
         {
@@ -65,7 +65,7 @@ const animatedDoc: PxDocument = {
 /** Motion along a curved path with auto-orient — materialized by core sampling. */
 const motionPathDoc: PxDocument = {
     type: 'svg', viewBox: '0 0 300 200',
-    animator: { timeline: { outTime: 3000, iterations: 'infinite', actions: { suspend: { transition: 'continue' } }, triggers: { start: 'load' } } },
+    animator: { timeline: { outTime: 3000, iterations: 'infinite', actions: { suspend: 'continue' }, actionTriggers: { start: 'load' } } },
     children: [
         { type: 'path', d: 'M 30 150 C 100 30 200 30 270 150', stroke: '#0087ff44', 'stroke-width': 2, fill: 'none' },
         {
@@ -84,10 +84,10 @@ const motionPathDoc: PxDocument = {
     ],
 };
 
-const DEMOS: Array<{ name: string; doc: PxDocument; playOnTrigger: boolean }> = [
-    { name: 'Animated', doc: animatedDoc, playOnTrigger: true },
-    { name: 'Motion path', doc: motionPathDoc, playOnTrigger: true },
-    { name: 'Static', doc: staticDoc, playOnTrigger: false },
+const DEMOS: Array<{ name: string; doc: PxDocument; playUsingActionTriggers: boolean }> = [
+    { name: 'Animated', doc: animatedDoc, playUsingActionTriggers: true },
+    { name: 'Motion path', doc: motionPathDoc, playUsingActionTriggers: true },
+    { name: 'Static', doc: staticDoc, playUsingActionTriggers: false },
 ];
 
 export default function AppPlayer() {
@@ -112,7 +112,7 @@ export default function AppPlayer() {
                 <SvgAnimationPlayer
                     key={demo}
                     doc={current.doc}
-                    playOnTrigger={current.playOnTrigger}
+                    playUsingActionTriggers={current.playUsingActionTriggers}
                     playerRef={api}
                 />
             </View>
@@ -124,7 +124,7 @@ export default function AppPlayer() {
                 <Pressable style={styles.button} onPress={() => api.current?.pause()}>
                     <Text style={styles.buttonText}>Pause</Text>
                 </Pressable>
-                <Pressable style={styles.button} onPress={() => api.current?.cancel()}>
+                <Pressable style={styles.button} onPress={() => api.current?.reset()}>
                     <Text style={styles.buttonText}>Reset</Text>
                 </Pressable>
                 <Pressable style={styles.button} onPress={() => api.current?.setCurrentTime(1000)}>

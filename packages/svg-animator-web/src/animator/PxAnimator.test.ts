@@ -108,32 +108,37 @@ describe('createSvgAnimationPlayer', () => {
         expect(api.getCurrentTime()).toBe(DUR / 2);
     });
 
-    it('takes the callbacks INLINE, and fires onStop after pause / finish (the same names as the components)', () => {
+    it('takes the callbacks INLINE; onStop fires on the built-in stop only — a pause is onPause, the end pose onFinish', () => {
         const onPlay = vi.fn(), onPause = vi.fn(), onFinish = vi.fn(), onStop = vi.fn();
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', outTime: DUR, triggers: {} } };
+        doc.animator = { timeline: { engine: 'js', outTime: DUR, actionTriggers: {} } };
         const api = createSvgAnimationPlayer({ doc, container: '#svg-container', onPlay, onPause, onFinish, onStop });
 
         api.play();
         expect(onPlay).toHaveBeenCalledTimes(1);
-        expect(onStop).not.toHaveBeenCalled();     // play is the one thing that is NOT a stop
+        expect(onStop).not.toHaveBeenCalled();
 
         api.pause();
         expect(onPause).toHaveBeenCalledTimes(1);
-        expect(onStop).toHaveBeenCalledTimes(1);   // ...after pause
+        expect(onStop).not.toHaveBeenCalled();     // a pause is not a stop
 
-        api.finish();
+        api.jumpToFinished();
         expect(onFinish).toHaveBeenCalledTimes(1);
-        expect(onStop).toHaveBeenCalledTimes(2);   // ...and after finish
+        expect(onStop).not.toHaveBeenCalled();     // nor is the end pose
+
+        api.stop();
+        expect(onStop).toHaveBeenCalledTimes(1);   // the configured stop — this one
+        api.reset();
+        expect(onStop).toHaveBeenCalledTimes(1);   // reset-now bypasses the stop action
     });
 
-    it('playOnTrigger: a document with no trigger starts on load — start defaults to load', () => {
-        const api = createSvgAnimationPlayer({ doc: makeDoc(), container: '#svg-container', playOnTrigger: true });
+    it('playUsingActionTriggers: a document with no trigger starts on load — start defaults to load', () => {
+        const api = createSvgAnimationPlayer({ doc: makeDoc(), container: '#svg-container', playUsingActionTriggers: true });
         expect(api.isPlaying()).toBe(true);
     });
 
     // The no-driver rule (first-use review §1+2): nothing plays until a line names the driver.
-    it('without playOnTrigger the same document builds still, and the api drives it', () => {
+    it('without playUsingActionTriggers the same document builds still, and the api drives it', () => {
         const api = createSvgAnimationPlayer({ doc: makeDoc(), container: '#svg-container' });
         expect(api.isPlaying()).toBe(false);
         api.play();
@@ -142,7 +147,7 @@ describe('createSvgAnimationPlayer', () => {
 
     it('an explicit programmatic trigger still waits for play()', () => {
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', outTime: DUR, triggers: {} } };
+        doc.animator = { timeline: { engine: 'js', outTime: DUR, actionTriggers: {} } };
         const api = createSvgAnimationPlayer({ doc: doc, container: '#svg-container' });
         expect(api.isPlaying()).toBe(false);
     });
@@ -152,7 +157,7 @@ describe('createSvgAnimationPlayer', () => {
         // load, which would fire `onPlay` a second time and hide this test's subject — that a
         // control call made before the fetch resolves is queued and replayed exactly once.
         const doc = makeDoc();
-        doc.animator = { timeline: { engine: 'js', outTime: DUR, triggers: {} } };
+        doc.animator = { timeline: { engine: 'js', outTime: DUR, actionTriggers: {} } };
         const fetchMock = stubFetch(doc);
         const onPlay = vi.fn();
 
@@ -388,12 +393,12 @@ describe('createSvgAnimationPlayersFromPage', () => {
     it('passes the same options createSvgAnimationPlayer takes to EVERY player it creates (review §15)', async () => {
         document.body.innerHTML =
             '<div data-px-animation-src="a.json"></div><div data-px-animation-src="b.json"></div>';
-        stubFetch(makeDoc());   // a document that would playOnTrigger on load
+        stubFetch(makeDoc());   // a document that would playUsingActionTriggers on load
         const onPlay = vi.fn();
 
         // One trigger for every player that cancels the autostart, plus an inline callback — both must
         // reach both players. The zero-config path (no argument at all) is unchanged.
-        createSvgAnimationPlayersFromPage({ playOnTrigger: {}, onPlay });
+        createSvgAnimationPlayersFromPage({ playUsingActionTriggers: {}, onPlay });
         await flushMicrotasks();
 
         const instances = Array.from(document.querySelectorAll('[data-px-animation-src]'))

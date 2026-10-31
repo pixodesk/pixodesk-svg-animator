@@ -1,5 +1,5 @@
 import './style.css';
-import { type PxActionsPatch, type PxDocument, type PxTimelinePatch, type PxTriggers } from '@pixodesk/svg-animator-web';
+import { type PxActionsPatch, type PxDocument, type PxTimelinePatch, type PxActionTriggers } from '@pixodesk/svg-animator-web';
 import {
   getAnimatorConfig,
   isPxDocument,
@@ -256,7 +256,7 @@ function currentTriggerOption(): PlayerOptions['triggers'] {
   if (!useTrigger) return undefined;
   if (useFileConfig) return 'file';
   // WHEN: the three lists say which events start, stop and pause it; the player derives what resumes it.
-  const triggers: PxTriggers = {};
+  const actionTriggers: PxActionTriggers = {};
   for (const { key } of TRIGGER_LISTS) {
     const events = tickedEvents(key);
     if (events !== undefined) triggers[key] = events;
@@ -296,11 +296,11 @@ function syncTriggerUi(): void {
     // Show the file's config, read-only. `resolveTriggers` spells out what the file means:
     // every list an array of the events it may name, an absent block = play on load.
     const cfg = currentDoc ? getAnimatorConfig(currentDoc) : undefined;
-    const lists = resolveTriggers(cfg?.triggers);
+    const lists = resolveTriggers(cfg?.actionTriggers);
     for (const { key } of TRIGGER_LISTS) {
       for (const { event, input } of listCheckboxes.get(key) ?? []) input.checked = lists[key].includes(event);
     }
-    selOutOfView.value = cfg?.actions?.suspend?.transition ?? PxSuspendTransition.pause;
+    selOutOfView.value = cfg?.actions?.suspend?.do ?? PxSuspendTransition.pause;
     if (cfg?.inViewThreshold != null) {
       inpThreshold.value = String(cfg.inViewThreshold);
     }
@@ -337,7 +337,7 @@ const USER_ACTION_HINTS = {
 type UserAction = keyof typeof USER_ACTION_HINTS;
 
 function userActionForTrigger(
-  triggers: PxTriggers | undefined,
+  actionTriggers: PxActionTriggers | undefined,
   suspend: PxSuspendTransition | undefined,
 ): UserAction | undefined {
   const { start } = resolveTriggers(triggers);
@@ -349,13 +349,13 @@ function userActionForTrigger(
 }
 
 /** The triggers and gate actually driving the mounted player — the file's, or the custom config. */
-function effectiveTriggerAndGate(): { triggers: PxTriggers | undefined; suspend: PxSuspendTransition | undefined } {
+function effectiveTriggerAndGate(): { actionTriggers: PxActionTriggers | undefined; suspend: PxSuspendTransition | undefined } {
   const option = currentTriggerOption();
   if (option === 'file') {
     const cfg = currentDoc ? getAnimatorConfig(currentDoc) : undefined;
-    return { triggers: cfg?.triggers, suspend: cfg?.actions?.suspend?.transition };
+    return { actionTriggers: cfg?.actionTriggers, suspend: cfg?.actions?.suspend?.do };
   }
-  return { triggers: option, suspend: option ? selectedSuspendTransition() : undefined };
+  return { actionTriggers: option, suspend: option ? selectedSuspendTransition() : undefined };
 }
 
 /** Shown while a trigger-driven animation sits still — not over a running one, and not after a
@@ -420,7 +420,7 @@ function remount(): void {
     handle = factories[currentKind](mount, currentDoc, {
       timeline: currentTimelineOverride(),
       actions: currentActionsOverride(),
-      triggers: currentTriggerOption(),
+      actionTriggers: currentTriggerOption(),
     });
   } catch (err) {
     showError(`Failed to mount ${currentKind} player: ${String(err)}`);
@@ -440,7 +440,7 @@ function loadDocument(doc: PxDocument, sourceLabel: string): void {
   // Auto-detect the trigger mode from the loaded file: a triggers block that lists an event
   // turns "Use trigger" ON and reads its config from the file; an EMPTY block (or no triggers
   // at all) leaves it OFF so the transport buttons drive playback.
-  const fileTriggers = getAnimatorConfig(doc)?.triggers;
+  const fileTriggers = getAnimatorConfig(doc)?.actionTriggers;
   const lists = resolveTriggers(fileTriggers);
   useTrigger = !!fileTriggers && TRIGGER_LISTS.some(({ key }) => lists[key].length > 0);
   useFileConfig = true;
@@ -452,14 +452,14 @@ function loadDocument(doc: PxDocument, sourceLabel: string): void {
 btnPlay.addEventListener('click', () => handle?.play());
 btnPause.addEventListener('click', () => handle?.pause());
 btnStop.addEventListener('click', () => {
-  handle?.cancel();
+  handle?.reset();
   seek.value = '0';
 });
 btnRestart.addEventListener('click', () => {
   handle?.setCurrentTime(0);
   handle?.play();
 });
-btnFinish.addEventListener('click', () => handle?.finish());
+btnFinish.addEventListener('click', () => handle?.jumpToFinished());
 
 // Load the built-in demo — handled through the same path as a dropped file.
 btnDemo.addEventListener('click', () => loadDocument(demoDoc, 'demo (built-in)'));

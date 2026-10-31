@@ -20,7 +20,7 @@ describe("ReactAnimator", () => {
     });
 
     it("renders and animates", async () => {
-        render(<SvgAnimationPlayer doc={getTestJson()} playOnTrigger />);
+        render(<SvgAnimationPlayer doc={getTestJson()} playUsingActionTriggers />);
 
         const ellipse = document.querySelector("ellipse");
         expect(ellipse).not.toBeNull();
@@ -61,9 +61,9 @@ function getTestJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                actions: { finish: { transition: "hold" } },
+                actions: { finish: { do: "hold" } },
                 iterationDirection: "normal",
-                triggers: { start: "load" },
+                actionTriggers: { start: "load" },
             },
         },
 

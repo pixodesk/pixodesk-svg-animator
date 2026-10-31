@@ -35,8 +35,8 @@ class FakeEngine implements PxPlayTarget {
     constructor(readonly totalMs: number) {}
     play(): void { this.playing = true; this.log.push('play'); }
     pause(): void { this.playing = false; this.log.push('pause'); }
-    cancel(): void { this.playing = false; this.time = 0; this.log.push('cancel'); }
-    finish(): void { this.playing = false; this.time = this.totalMs; this.log.push('finish'); }
+    reset(): void { this.playing = false; this.time = 0; this.log.push('reset'); }
+    jumpToFinished(): void { this.playing = false; this.time = this.totalMs; this.log.push('jumpToFinished'); }
     setPlaybackRate(rate: number): void { this.rate = rate; }
     getCurrentTime(): number | null { return this.time; }
     setCurrentTime(ms: number): void { this.time = ms; this.log.push(`seek:${ms}`); }
@@ -66,9 +66,10 @@ describe('the playback world', () => {
     });
 });
 
-describe('one-shot: play is a POSE switch', () => {
-    it('mount shows the pose, never animates', () => {
-        expect(oneShot({ play: true }).actions).toEqual([PxDeclarativeAction.showEnd]);
+describe('one-shot: play plays it', () => {
+    it('a mount with play STARTS — a one-shot plays to its end (the pose without motion is showAtProgress)', () => {
+        expect(oneShot({ play: true }).actions).toEqual([PxDeclarativeAction.start]);
+        expect(oneShot({ play: true, pause: true }).actions).toEqual([PxDeclarativeAction.start, PxDeclarativeAction.pause]);
         expect(oneShot({ play: false }).actions).toEqual([]);
         expect(oneShot({}).actions).toEqual([]);
     });
@@ -104,8 +105,8 @@ describe('loop: play is a RUN switch', () => {
         expect(loop({ play: false }, { play: true }).actions).toEqual([PxDeclarativeAction.stop]);
     });
 
-    it('a mount with play and pause rests frozen; unpausing runs', () => {
-        expect(loop({ play: true, pause: true }).actions).toEqual([]);
+    it('a mount with play and pause starts and freezes at once; unpausing runs', () => {
+        expect(loop({ play: true, pause: true }).actions).toEqual([PxDeclarativeAction.start, PxDeclarativeAction.pause]);
         expect(loop({ play: true, pause: false }, { play: true, pause: true }).actions).toEqual([PxDeclarativeAction.resume]);
     });
 });
@@ -128,10 +129,10 @@ describe("the executor performs the timeline's play keys on any engine", () => {
         const atEnd = new FakeEngine(1000);
         atEnd.time = 1000;
         executorOf(atEnd).stop();
-        expect(atEnd.log).toEqual(['cancel']);
+        expect(atEnd.log).toEqual(['reset']);
         const rewound = new FakeEngine(1000);
         rewound.time = 1000;
-        executorOf(rewound, { actions: { stop: { transition: PxStopTransition.rewind } } }).stop();
+        executorOf(rewound, { actions: { stop: { do: PxStopTransition.rewind } } }).stop();
         expect(rewound.rate).toBe(-1);                   // travels back from the end pose
         expect(rewound.playing).toBe(true);
         const resting = new FakeEngine(1000);
@@ -141,15 +142,15 @@ describe("the executor performs the timeline's play keys on any engine", () => {
 
     it('start transition restart begins a fresh run; the default continue at the END of a one-shot is a fresh run too', () => {
         const restart = new FakeEngine(1000);
-        executorOf(restart, { actions: { start: { transition: PxStartTransition.restart } } }).start();
+        executorOf(restart, { actions: { start: { do: PxStartTransition.restart } } }).start();
         restart.frames(30);
         restart.log.length = 0;
-        executorOf(restart, { actions: { start: { transition: PxStartTransition.restart } } }).start();
-        expect(restart.log).toEqual(['cancel', 'play']);
+        executorOf(restart, { actions: { start: { do: PxStartTransition.restart } } }).start();
+        expect(restart.log).toEqual(['reset', 'play']);
         const ended = new FakeEngine(1000);
         ended.time = 1000;
         executorOf(ended).start();
-        expect(ended.log).toEqual(['cancel', 'play']);
+        expect(ended.log).toEqual(['reset', 'play']);
         const midway = new FakeEngine(1000);
         midway.time = 300;
         executorOf(midway).start();
@@ -158,17 +159,17 @@ describe("the executor performs the timeline's play keys on any engine", () => {
 
     it('start transition jumpToFinished shows the end pose without motion; a loop shows the end of its first pass', () => {
         const one = new FakeEngine(1000);
-        executorOf(one, { actions: { start: { transition: PxStartTransition.jumpToFinished } } }).start();
-        expect(one.log).toEqual(['finish']);
+        executorOf(one, { actions: { start: { do: PxStartTransition.jumpToFinished } } }).start();
+        expect(one.log).toEqual(['jumpToFinished']);
         expect(one.time).toBe(1000);
         const endless = new FakeEngine(Infinity);
-        executorOf(endless, { actions: { start: { transition: PxStartTransition.jumpToFinished } } }).start();
+        executorOf(endless, { actions: { start: { do: PxStartTransition.jumpToFinished } } }).start();
         expect(endless.log).toEqual(['pause', 'seek:1000']);
     });
 
     it('stop transition rewind plays back to the start; a loop rewinds the iteration it is in, then rests', () => {
         const one = new FakeEngine(1000);
-        const x = executorOf(one, { actions: { stop: { transition: PxStopTransition.rewind } } });
+        const x = executorOf(one, { actions: { stop: { do: PxStopTransition.rewind } } });
         x.start();
         one.frames(30);
         x.stop();
@@ -179,7 +180,7 @@ describe("the executor performs the timeline's play keys on any engine", () => {
         expect(one.playing).toBe(false);
 
         const endless = new FakeEngine(Infinity);
-        const y = executorOf(endless, { actions: { stop: { transition: PxStopTransition.rewind } } });
+        const y = executorOf(endless, { actions: { stop: { do: PxStopTransition.rewind } } });
         y.start();
         endless.frames(130);
         expect(endless.time).toBe(1300);
@@ -187,7 +188,7 @@ describe("the executor performs the timeline's play keys on any engine", () => {
         endless.frames(25);
         expect(endless.playing).toBe(true);                // still on its way back to 1000
         endless.frames(10);
-        expect(endless.log.at(-1)).toBe('cancel');         // rested at the iteration's start
+        expect(endless.log.at(-1)).toBe('reset');         // rested at the iteration's start
         expect(endless.playing).toBe(false);
         expect(endless.rate).toBe(1);
     });
@@ -216,7 +217,7 @@ describe("the executor performs the timeline's play keys on any engine", () => {
 
     it('stop completeIteration on a one-shot completes the run, THEN performs the off — rewind included', () => {
         const e = new FakeEngine(1000);
-        const x = executorOf(e, { actions: { stop: { completeIteration: true, transition: PxStopTransition.rewind } } });
+        const x = executorOf(e, { actions: { stop: { completeIteration: true, do: PxStopTransition.rewind } } });
         x.start();
         e.frames(30);
         x.stop();
@@ -245,7 +246,7 @@ describe("the executor performs the timeline's play keys on any engine", () => {
         x.play();
         expect(e.log).toEqual(['play']);                   // a resume, not a restart
         expect(e.time).toBe(300);
-        x.cancel();
+        x.reset();
         expect(x.state()).toBe('stopped');
         expect(e.time).toBe(0);
     });
@@ -257,11 +258,11 @@ describe("the executor performs the timeline's play keys on any engine", () => {
         expect(hold.log).toEqual([]);
         const reset = new FakeEngine(1000);
         reset.time = 1000;
-        executorOf(reset, { actions: { finish: { transition: PxFinishTransition.reset } } }).onNaturalFinish();
-        expect(reset.log).toEqual(['cancel']);
+        executorOf(reset, { actions: { finish: { do: PxFinishTransition.reset } } }).onNaturalFinish();
+        expect(reset.log).toEqual(['reset']);
         const rewind = new FakeEngine(1000);
         rewind.time = 1000;
-        const x = executorOf(rewind, { actions: { finish: { transition: PxFinishTransition.rewind } } });
+        const x = executorOf(rewind, { actions: { finish: { do: PxFinishTransition.rewind } } });
         x.onNaturalFinish();
         expect(rewind.rate).toBe(-1);
         expect(rewind.playing).toBe(true);
@@ -269,26 +270,48 @@ describe("the executor performs the timeline's play keys on any engine", () => {
         expect(rewind.time).toBe(0);                     // the engine announces this end too…
         x.onNaturalFinish();
         expect(rewind.rate).toBe(1);                     // …which rests it, forward again
-        expect(rewind.log.at(-1)).toBe('cancel');
+        expect(rewind.log.at(-1)).toBe('reset');
     });
 
-    it('applyDeclarativeAction maps the five verbs onto the public api — play / pause / stop / a seek for the mount pose', () => {
+    it('applyDeclarativeAction maps the four verbs onto the public api — play / pause / stop', () => {
         const calls: Array<string> = [];
-        const api = {
-            play: () => calls.push('play'), pause: () => calls.push('pause'), stop: () => calls.push('stop'),
-            setCurrentTime: (ms: number) => calls.push(`seek:${ms}`),
-        };
-        for (const action of [PxDeclarativeAction.showEnd, PxDeclarativeAction.start, PxDeclarativeAction.pause, PxDeclarativeAction.resume, PxDeclarativeAction.stop]) {
-            applyDeclarativeAction(api, action, 1000);
+        const api = { play: () => calls.push('play'), pause: () => calls.push('pause'), stop: () => calls.push('stop') };
+        for (const action of [PxDeclarativeAction.start, PxDeclarativeAction.pause, PxDeclarativeAction.resume, PxDeclarativeAction.stop]) {
+            applyDeclarativeAction(api, action);
         }
-        expect(calls).toEqual(['seek:1000', 'play', 'pause', 'play', 'stop']);
+        expect(calls).toEqual(['play', 'pause', 'play', 'stop']);
+    });
+
+    it('a finished one-shot is FINISHED, not stopped: a stop still acts on it (rewind from the end), a start is a fresh run', () => {
+        const e = new FakeEngine(1000);
+        const x = executorOf(e, { actions: { stop: 'rewind' } });
+        const stops: Array<string> = [];
+        x.setOnStop(() => stops.push('stop'));
+        x.start();
+        e.frames(110);
+        expect(e.time).toBe(1000);
+        expect(x.state()).toBe('finished');
+        x.stop();                                          // the lid: hover out after it opened fully
+        expect(stops).toEqual(['stop']);
+        expect(e.rate).toBe(-1);
+        e.frames(110);
+        expect(e.time).toBe(0);
+        expect(x.state()).toBe('stopped');
+        x.start();
+        e.frames(110);
+        expect(x.state()).toBe('finished');
+        x.pause();                                         // not a stop: onStop is not told
+        expect(stops).toEqual(['stop']);
+        x.start();                                         // from finished: a fresh run from the beginning
+        expect(e.log.at(-2)).toBe('reset');
+        expect(e.playing).toBe(true);
     });
 });
 
 describe('composeApiExtras — the public api on top of the same executor', () => {
     it('play() / pause() / stop() / cancel() go through ONE executor, reused by every later composition', () => {
         const e = new FakeEngine(2000);
-        const api = composeApiExtras(e, { duration: 1000, iterations: 2, actions: { stop: { transition: PxStopTransition.rewind } } }, e.raf);
+        const api = composeApiExtras(e, { duration: 1000, iterations: 2, actions: { stop: { do: PxStopTransition.rewind } } }, e.raf);
         api.play();
         e.frames(30);
         api.pause();
@@ -300,7 +323,7 @@ describe('composeApiExtras — the public api on top of the same executor', () =
         expect(e.rate).toBe(-1);                           // the configured off
         e.frames(40);
         expect(e.time).toBe(0);
-        api.cancel();
+        api.reset();
         expect(api.playExecutor.state()).toBe('stopped');
         expect(api.getDuration()).toBe(1000);
         expect(composeApiExtras(e, { duration: 1000 }, e.raf).playExecutor).toBe(api.playExecutor);
@@ -313,7 +336,7 @@ describe('composeApiExtras — the public api on top of the same executor', () =
         expect(hold.time).toBe(1000);
         expect(hold.playing).toBe(false);
         const reset = new FakeEngine(Infinity);
-        composeApiExtras(reset, { duration: 1000, iterations: 'infinite', actions: { finish: { transition: PxFinishTransition.reset } } }, reset.raf).playOnce();
+        composeApiExtras(reset, { duration: 1000, iterations: 'infinite', actions: { finish: { do: PxFinishTransition.reset } } }, reset.raf).playOnce();
         reset.frames(105);
         expect(reset.time).toBe(0);
         expect(reset.playing).toBe(false);

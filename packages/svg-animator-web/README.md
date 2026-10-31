@@ -84,13 +84,13 @@ player.destroy();             // cleanup
 <!-- px-check props PxAnimationPlayerOptions pkg=web -->
 | Option | Type | Description |
 | ----------- | ------------------------- | -------------------------------------------------- |
-| `playOnTrigger` | `boolean \| PxTriggers` | `true`: play the way the editor saved it — the document's own triggers start, pause and stop it; an object: those triggers instead of the file's (the whole block). Without it nothing starts and the returned api drives playback |
+| `playUsingActionTriggers` | `boolean \| PxActionTriggersInput` | `true`: play the way the editor saved it — the document's own triggers start, pause and stop it; an object: those triggers instead of the file's (the whole block). Without it nothing starts and the returned api drives playback |
 | `src`       | `string`                  | URL to fetch the animation document from (provide either `src` or `doc`) |
 | `doc`       | `PxDocumentInput`         | Inline animation document object (a `.json` import passes as-is) |
 | `container` | `string \| Element`       | CSS selector or element to render the SVG into      |
 | `onReady` · `onPlay` · `onPause` · `onCancel` · `onFinish` · `onDestroy` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take (`onReady` fires once, async: the push twin of `isReady()`); plus `onWarn`, `onError`, `muteWarn`, `muteError` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onReady,onPlay,onPause,onCancel,onFinish,onDestroy,onStop,onWarn,onError,muteWarn,muteError -->
-| `timeline` | `PxTimelinePatch` | per-instance override of the document's `timeline` block (minus its `triggers` and `actions`), deep-merged over it — same shape as the file; `null` at any slot deletes that key. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
-| `actions` | `PxActionsPatch` | per-instance override of how the built-in actions look — `{ stop: { transition: 'rewind' } }` — deep-merged over the document's `timeline.actions`; `null` at any slot deletes it. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `timeline` | `PxTimelinePatch` | per-instance override of the document's `timeline` block (minus its `actionTriggers` and `actions`), deep-merged over it — same shape as the file; `null` at any slot deletes that key. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `actions` | `PxActionsPatch` | per-instance override of how the built-in actions look — `{ stop: 'rewind' }` — deep-merged over the document's `timeline.actions`; `null` at any slot deletes it. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 
 The document plays the way it was designed with no configuration at all; `timeline` and `actions` are for when
 one page needs it to play differently — the same file mounted twice at two speeds, or a file
@@ -100,7 +100,7 @@ that autostarts everywhere except inside your own transport UI:
 const player = createSvgAnimationPlayer({
   src: '/animation.json',
   container: '#box',
-  timeline: { iterations: 'infinite' },   // no `playOnTrigger`: nothing starts until play()
+  timeline: { iterations: 'infinite' },   // no `playUsingActionTriggers`: nothing starts until play()
 });
 player.play();
 ```
@@ -112,9 +112,9 @@ It returns a `PxAnimationPlayerApi`:
 | ----------------------- | ----------------------------------------------------------------- |
 | `play()`                | Resume when paused, else the built-in `start`, per `actions.start` |
 | `pause()`               | Pause at the current time                                         |
-| `stop()`                | The built-in `stop`, per `actions.stop`: its transition (reset / rewind), after the iteration when `completeIteration` |
-| `cancel()`              | The unconditional reset-now: stop and show the start state        |
-| `finish()`              | Jump to the end                                                   |
+| `stop()`                | The built-in `stop`, per `actions.stop`: its `do` (reset / rewind), after the iteration when `completeIteration` |
+| `reset()`              | The unconditional reset-now: stop and show the start state        |
+| `jumpToFinished()`              | Jump to the end                                                   |
 | `playOnce()`            | One fresh pass from the start, whatever `iterations` say          |
 | `getDuration()`         | One pass of the content window, ms — the slider maximum (`null` before a `src` loads) |
 | `setPlaybackRate(rate)` | Change speed (1 = normal, 2 = double, -1 = reverse)               |

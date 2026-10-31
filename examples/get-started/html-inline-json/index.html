@@ -14,12 +14,12 @@
         "animator": {
           "timeline": {
             "outTime": 1000,
-            "triggers": {
+            "actionTriggers": {
               "start": "load"
             },
             "actions": {
               "suspend": {
-                "transition": "continue"
+                "do": "continue"
               }
             },
             "iterations": "infinite",
@@ -72,7 +72,7 @@
     <script src="js/pixodesk-svg-animator.umd.min.js"></script>
     <script>
       const doc = JSON.parse(document.getElementById('hero-animation').textContent);
-      Pixodesk.SvgAnimator.create({ doc, container: '#hero', playOnTrigger: true });
+      Pixodesk.SvgAnimator.create({ doc, container: '#hero', playUsingActionTriggers: true });
     </script>
   </body>
 </html>

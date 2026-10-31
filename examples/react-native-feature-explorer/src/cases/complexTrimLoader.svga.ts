@@ -13,12 +13,12 @@ export const complexTrimLoader: SvgaCaseJson = {
         "timeline": {
             "mode": "auto",
             "outTime": 3750,
-            "triggers": {
+            "actionTriggers": {
                 "start": "load"
             },
             "actions": {
                 "suspend": {
-                    "transition": "continue"
+                    "do": "continue"
                 }
             },
             "iterationDirection": "normal"

@@ -119,7 +119,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("positive delay with fill 'backwards': first frame is rendered during the delay", () => {
-        const { api, calls, opacity } = setup({ delay: 160, beforeStart: 'firstFrame', actions: { finish: { transition: 'reset' } } });
+        const { api, calls, opacity } = setup({ delay: 160, beforeStart: 'firstFrame', actions: { finish: { do: 'reset' } } });
 
         // The first frame is rendered already at construction time.
         expect(calls.length).toBeGreaterThan(0);
@@ -158,7 +158,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("fill 'none' reverts to frame 0 at the natural end", () => {
-        const { api, calls } = setup({ actions: { finish: { transition: 'reset' } } });
+        const { api, calls } = setup({ actions: { finish: { do: 'reset' } } });
 
         api.play();
         vi.advanceTimersByTime(DUR + 64);
@@ -284,7 +284,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
         vi.advanceTimersByTime(160);
         expect(callbacks.onFinish).toHaveBeenCalledTimes(1); // not re-fired
 
-        api.cancel();
+        api.reset();
         expect(callbacks.onCancel).toHaveBeenCalledTimes(1);
 
         api.destroy();
@@ -335,7 +335,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
 
     it('onFinish fires on every replay of a hover/reverse trigger cycle (finish re-arms on play)', () => {
         // Mirrors what setupAnimationTriggers produces for
-        // `start: 'hoverIn'` + `stop: 'hoverOut'` with `actions: { stop: { transition: 'rewind' } }`:
+        // `start: 'hoverIn'` + `stop: 'hoverOut'` with `actions: { stop: { do: 'rewind' } }`:
         // hover → play to end, leave → reverse to 0, hover → forward to end.
         const onFinish = vi.fn();
         const { api } = setup({}, { onFinish });
@@ -387,11 +387,11 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("finish() honors fill:'none' (reverts to frame 0, same as the natural end)", () => {
-        const { api, calls } = setup({ actions: { finish: { transition: 'reset' } } });
+        const { api, calls } = setup({ actions: { finish: { do: 'reset' } } });
 
         api.play();
         vi.advanceTimersByTime(64);
-        api.finish();
+        api.jumpToFinished();
 
         expect(calls[calls.length - 1].value).toBe('0');
     });

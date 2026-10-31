@@ -1,7 +1,7 @@
 import { createApp, h, onMounted, ref } from 'vue';
 import { SvgAnimationPlayer, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-vue';
 import type { PxDocument } from '@pixodesk/svg-animator-web';
-import { playOnTriggerFor, type PlayerHandle, type PlayerOptions } from './types';
+import { playUsingActionTriggersFor, type PlayerHandle, type PlayerOptions } from './types';
 
 /** Mounts the Vue `<SvgAnimationPlayer/>` component into `container`. */
 export function createVuePlayer(
@@ -28,7 +28,7 @@ export function createVuePlayer(
           // The gate's `suspend` transition, merged over the document's own actions.
           actions: opts?.actions,
           // Trigger handling (programmatic / from-file / custom).
-          playOnTrigger: playOnTriggerFor(opts),
+          playUsingActionTriggers: playUsingActionTriggersFor(opts),
           style: { width: '100%', height: '100%' },
         });
     },
@@ -38,8 +38,8 @@ export function createVuePlayer(
   return {
     play: () => api?.play(),
     pause: () => api?.pause(),
-    cancel: () => api?.cancel(),
-    finish: () => api?.finish(),
+    cancel: () => api?.reset(),
+    finish: () => api?.jumpToFinished(),
     isPlaying: () => api?.isPlaying() ?? false,
     getCurrentTime: () => api?.getCurrentTime() ?? null,
     setCurrentTime: (ms) => api?.setCurrentTime(ms),

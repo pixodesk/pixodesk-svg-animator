@@ -23,7 +23,7 @@ describe("VueAnimator", () => {
         render(SvgAnimationPlayer, {
             props: {
                 doc: getTestJson(),
-                playOnTrigger: true,
+                playUsingActionTriggers: true,
             },
         });
 
@@ -66,9 +66,9 @@ function getTestJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                actions: { finish: { transition: "hold" } },
+                actions: { finish: { do: "hold" } },
                 iterationDirection: "normal",
-                triggers: { start: "load" },
+                actionTriggers: { start: "load" },
             },
         },
 

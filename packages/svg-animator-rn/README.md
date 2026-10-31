@@ -22,8 +22,8 @@ native SVG, driven on the UI thread.
 
 - **One prop to render:** put the `.json` next to your component, import it, pass
   it as `doc`.
-- **Playback control:** declarative props (`playOnTrigger`, `play`, `pause`,
-  `playCurrentTime`) or an imperative ref (`play()`, `pause()`, `stop()`, `setCurrentTime()`, …).
+- **Playback control:** declarative props (`playUsingActionTriggers`, `play`, `pause`,
+  `showAtTime`) or an imperative ref (`play()`, `pause()`, `stop()`, `setCurrentTime()`, …).
 - **No size of its own:** it fills whatever `View` you put it in — give that `View` a `width` and `height`.
 
 ## Quick start
@@ -38,7 +38,7 @@ import animation from './animation.json';
 export function Logo() {
     return (
         <View style={{ width: 200, height: 200 }}>
-            <SvgAnimationPlayer doc={animation} playOnTrigger />
+            <SvgAnimationPlayer doc={animation} playUsingActionTriggers />
         </View>
     );
 }
@@ -51,10 +51,10 @@ document says so.
 
 ```tsx
 // Play once when a screen opens, then hold the last frame (one pass; the finish transition `hold` is the default)
-<SvgAnimationPlayer doc={doc} playOnTrigger timeline={{ iterations: 1 }} />
+<SvgAnimationPlayer doc={doc} playUsingActionTriggers timeline={{ iterations: 1 }} />
 
 // Loop forever regardless of what the document says
-<SvgAnimationPlayer doc={doc} playOnTrigger timeline={{ iterations: 'infinite' }} />
+<SvgAnimationPlayer doc={doc} playUsingActionTriggers timeline={{ iterations: 'infinite' }} />
 
 // Static — first frame only, no playback
 <SvgAnimationPlayer doc={doc} />
@@ -63,13 +63,13 @@ document says so.
 <SvgAnimationPlayer doc={doc} play={isPlaying} />
 
 // Tie the position to a gesture / slider (no playback, just a frame)
-<SvgAnimationPlayer doc={doc} playCurrentProgress={scrollProgress} />
+<SvgAnimationPlayer doc={doc} showAtProgress={scrollProgress} />
 
 // Override the document's timing (window end in ms, delay before start)
-<SvgAnimationPlayer doc={doc} playOnTrigger timeline={{ outTime: 4000, delay: 500 }} />
+<SvgAnimationPlayer doc={doc} playUsingActionTriggers timeline={{ outTime: 4000, delay: 500 }} />
 
 // Do something when it finishes
-<SvgAnimationPlayer doc={doc} playOnTrigger onFinish={() => setDone(true)} />
+<SvgAnimationPlayer doc={doc} playUsingActionTriggers onFinish={() => setDone(true)} />
 ```
 
 TypeScript: `doc` accepts `import animation from './animation.json'` as-is (it is typed
@@ -116,9 +116,9 @@ on screen; `click` is a tap; `hoverIn` / `hoverOut` never fire — there is no h
 screen), or the triggers object you pass instead of `true`:
 
 ```tsx
-<SvgAnimationPlayer doc={doc} playOnTrigger />
-<SvgAnimationPlayer doc={doc} playOnTrigger={{ start: 'click', pause: 'click' }} />   {/* tap plays, tap again pauses */}
-<SvgAnimationPlayer doc={doc} playOnTrigger={{ togglePlay: 'click' }} />              {/* tap plays, tap again stops */}
+<SvgAnimationPlayer doc={doc} playUsingActionTriggers />
+<SvgAnimationPlayer doc={doc} playUsingActionTriggers={{ start: 'click', pause: 'click' }} />   {/* tap plays, tap again pauses */}
+<SvgAnimationPlayer doc={doc} playUsingActionTriggers={{ togglePlay: 'click' }} />              {/* tap plays, tap again stops */}
 ```
 
 ### Declarative play/pause
@@ -155,7 +155,7 @@ const playerRef = useRef<PxAnimationPlayerHandle>(null);
 
 `PxAnimationPlayerHandle` methods: `play()` (paused → resume, otherwise the configured start),
 `pause()`, `stop()` (the configured stop — after the current iteration when the stop's
-`completeIteration` is true), `cancel()` (reset now, unconditionally), `finish()`, `playOnce()`,
+`completeIteration` is true), `reset()` (reset now, unconditionally), `jumpToFinished()`, `playOnce()`,
 `isPlaying()`, `setPlaybackRate(rate)`, `getDuration()`, `getCurrentTime()`, `setCurrentTime(ms)`,
 `getCurrentProgress()`, `setCurrentProgress(p)`.
 
@@ -166,7 +166,7 @@ Move through the animation with a slider, or show one fixed frame:
 ```tsx
 const [time, setTime] = useState(0);
 
-<SvgAnimationPlayer doc={doc} playCurrentTime={time} />
+<SvgAnimationPlayer doc={doc} showAtTime={time} />
 <Slider minimumValue={0} maximumValue={2000} value={time} onValueChange={setTime} />
 ```
 
@@ -176,18 +176,18 @@ const [time, setTime] = useState(0);
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxDocumentInput` | The animation document to render (required); a `.json` import passes as-is |
-| `playOnTrigger` | `boolean \| PxTriggers` | `true`: play on the document's own triggers; an object: these triggers instead — `{ start, stop, pause, resume, togglePlay }`, each one event or a list of the events that list may name (`'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`; `resume` is derived, `togglePlay` takes only `'click'`). `click` is a tap; `hoverIn` / `hoverOut` never fire. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
+| `playUsingActionTriggers` | `boolean \| PxActionTriggersInput` | `true`: play on the document's own triggers; an object: these triggers instead — `{ start, stop, pause, togglePlay }`, each one event or a list of the events that list may name (`'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`; `resume` is derived, `togglePlay` takes only `'click'`). `click` is a tap; `hoverIn` / `hoverOut` never fire. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
 | `play` | `boolean` | The state: `true` calls the built-in `start`, `false` the built-in `stop`. How each looks is the file's `actions` (and the `actions` prop) — see [Actions](../../docs/library/playback-and-triggers.md#actions--how-start-stop-and-finish-look) |
 | `pause` | `boolean` | Freeze the current frame / resume; only while `play` is true |
 | `playerRef` | `RefObject<PxAnimationPlayerHandle \| null>` | Ref for imperative control; filled in every mode |
-| `playCurrentProgress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
-| `playCurrentTime` | `number` | show the frame at that time, in milliseconds from the start |
-| `timeline` | `PxTimelinePatch` | per-instance override of the document's `timeline` block, minus its `triggers` and `actions`, deep-merged over it — same shape as the file; `null` at any slot deletes that key. `engine` and `frameRate` are ignored here. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
-| `actions` | `PxActionsPatch` | per-instance override of how the built-in actions look — `{ stop: { transition: 'rewind' } }` — deep-merged over the document's `timeline.actions`; `null` at any slot deletes it. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `showAtProgress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
+| `showAtTime` | `number` | show the frame at that time, in milliseconds from the start |
+| `timeline` | `PxTimelinePatch` | per-instance override of the document's `timeline` block, minus its `actionTriggers` and `actions`, deep-merged over it — same shape as the file; `null` at any slot deletes that key. `engine` and `frameRate` are ignored here. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `actions` | `PxActionsPatch` | per-instance override of how the built-in actions look — `{ stop: 'rewind' }` — deep-merged over the document's `timeline.actions`; `null` at any slot deletes it. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `onReady` | `() => void` | The player exists and the tree is rendered — once, async |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
-| `onFinish` | `() => void` | Called when the animation reaches its end — every iteration played, or `finish()` was called |
+| `onFinish` | `() => void` | Called when the animation reaches its end — every iteration played, or `jumpToFinished()` was called |
 | `onCancel` | `() => void` | Called on cancel |
 | `onDestroy` | `() => void` | Called when the player is thrown away — the component unmounted, or a new `doc` replaced it |
 | `onStop` | `() => void` | "No longer playing, whatever the reason" — fires after any of pause / cancel / finish / destroy |
@@ -197,7 +197,7 @@ const [time, setTime] = useState(0);
 | `muteError` | `boolean` | the same switch for `console.error` |
 | `fallback` | `(error) => ReactElement \| null` | Rendered in place of a failed animation (default: nothing) |
 
-With none of `playOnTrigger` / `play` / `pause` / `playCurrentProgress` / `playCurrentTime` set, the component
+With none of `playUsingActionTriggers` / `play` / `pause` / `showAtProgress` / `showAtTime` set, the component
 renders the animation statically (initial state, no playback).
 
 ### Failure handling
@@ -210,7 +210,7 @@ Error), exactly as on the web — and shows `fallback` while the surrounding scr
 ```tsx
 <SvgAnimationPlayer
     doc={doc}
-    playOnTrigger
+    playUsingActionTriggers
     onError={d => console.warn('animation failed:', d.message)}
     fallback={() => <Text>could not play this animation</Text>}
 />
@@ -227,7 +227,7 @@ renderer never reaches JavaScript and cannot be caught — see
 |---|---|
 | `timeline.engine` | Accepted inside `timeline` but ignored. There is no Web Animations API on React Native; playback is always native-driven. |
 | `timeline.frameRate` | Ignored. The screen's own refresh rate is used. The player does not compute values frame by frame: when the document loads it works out the animated values in advance, as a list of snapshots (60 per second of animation), and each screen refresh shows the nearest one. The closest thing to a frame rate is how many snapshots per second are prepared, which the player fixes at 60. |
-| `hoverIn` / `hoverOut` | Have no touch equivalent, so they never fire. `load` and `click` (a tap) work as they do on the web, from the file or from `playOnTrigger`. |
+| `hoverIn` / `hoverOut` | Have no touch equivalent, so they never fire. `load` and `click` (a tap) work as they do on the web, from the file or from `playUsingActionTriggers`. |
 | `className` / `style` | Not accepted — you cannot style the component itself. It fills whatever `View` you put it in, so to set its size, give that `View` a `width` and `height`. Styling *inside* the document (`style` on an element in the JSON) is supported. |
 | `onDestroy` | Never called. On the web it tells you the player was thrown away; here there is nothing to tell — when the component leaves the screen, React removes it and everything it created. To run code at that moment, use a `useEffect` cleanup function in your own component. |
 

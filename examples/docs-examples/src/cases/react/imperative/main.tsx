@@ -10,8 +10,8 @@ function App() {
       <div className="controls">
         <button onClick={() => api.current?.play()}>play()</button>
         <button onClick={() => api.current?.pause()}>pause()</button>
-        <button onClick={() => api.current?.cancel()}>cancel()</button>
-        <button onClick={() => api.current?.finish()}>finish()</button>
+        <button onClick={() => api.current?.reset()}>reset()</button>
+        <button onClick={() => api.current?.jumpToFinished()}>finish()</button>
       </div>
       <div className="stage">
         <SvgAnimationPlayer doc={animation as any} playerRef={api} />

@@ -365,12 +365,12 @@ export function createWebApiAnimator(
             animations.forEach(a => a.pause());
             callbacks?.onPause?.();
         },
-        "cancel": () => {
+        "reset": () => {
             finishNotified = false; // re-arm finish notification
             animations.forEach(a => a.cancel());
             callbacks?.onCancel?.();
         },
-        "finish": () => {
+        "jumpToFinished": () => {
             for (const a of animations) {
                 try {
                     if (a.effect?.getTiming().iterations === Infinity) {
@@ -424,7 +424,7 @@ export function createWebApiAnimator(
         },
 
         "destroy": () => {
-            api.cancel();
+            api.reset();
             animations.splice(0, animations.length);
             if (!removeCalled) {
                 removeCalled = true;
@@ -440,7 +440,7 @@ export function createWebApiAnimator(
     // Every time-driven document IS wired: no `triggers` means the defaults (`start: 'load'` behind
     // the gate's `pause` suspend — so an unseen animation does not run).
     if (config.timelineSource === 'scroll') {
-        if (config.triggers) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);
+        if (config.actionTriggers) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);
     } else {
         // The disposer rides on destroy(), so the listeners go when the animator does (§14).
         const detachTriggers = setupAnimationTriggers(api, config, diag);

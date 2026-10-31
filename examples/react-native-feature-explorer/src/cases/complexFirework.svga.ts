@@ -13,12 +13,12 @@ export const complexFirework: SvgaCaseJson = {
         "timeline": {
             "mode": "auto",
             "outTime": 6250,
-            "triggers": {
+            "actionTriggers": {
                 "start": "load"
             },
             "actions": {
                 "suspend": {
-                    "transition": "continue"
+                    "do": "continue"
                 }
             },
             "iterationDirection": "normal"

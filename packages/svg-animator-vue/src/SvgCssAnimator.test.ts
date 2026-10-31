@@ -65,7 +65,7 @@ describe("SvgCssAnimationPlayer (Vue)", () => {
 
     it("toggles classes for start 'hoverIn' + pause 'hoverOut'", async () => {
         const { container } = render(SvgCssAnimationPlayer, {
-            props: { triggers: { start: 'hoverIn', pause: 'hoverOut' } },
+            props: { actionTriggers: { start: 'hoverIn', pause: 'hoverOut' } },
             slots: { default: '<svg></svg>' },
         });
         const div = container.firstElementChild as HTMLElement;
@@ -84,7 +84,7 @@ describe("SvgCssAnimationPlayer (Vue)", () => {
 
     it("resets to idle on mouse-out when hoverOut is a stop", async () => {
         const { container } = render(SvgCssAnimationPlayer, {
-            props: { triggers: { start: 'hoverIn', stop: 'hoverOut' } },
+            props: { actionTriggers: { start: 'hoverIn', stop: 'hoverOut' } },
             slots: { default: '<svg></svg>' },
         });
         const div = container.firstElementChild as HTMLElement;

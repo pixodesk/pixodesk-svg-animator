@@ -5,30 +5,24 @@
  *---------------------------------------------------------------------------------------*/
 
 import type { PxEngineCallbacks, PxAnimationPlayerCallbacks } from '@pixodesk/svg-animator-core';
+
+/** The engine's callbacks plus `onStop`, carried along to the player's executor (it is not the engine's to fire). */
+export type PxPlayerCallbacks = PxEngineCallbacks & Pick<PxAnimationPlayerCallbacks, 'onStop'>;
 import type { PxAnimationPlayerApi } from './PxAnimatorWebTypes';
 
 /**
  * The engines take ONE callbacks object; every public surface takes the callbacks INLINE —
  * `createSvgAnimationPlayer({ onFinish })`, `createSvgAnimationPlayersFromPage({ onFinish })`, `<SvgAnimationPlayer
- * onFinish />`. This builds the one from the other, and adds `onStop`: it fires after any of
- * pause / cancel / finish / remove, for callers who only care that playback is no longer
- * running. Defined HERE, once, so the web player and the components cannot disagree on when.
+ * onFinish />`. This builds the one from the other. `onStop` is NOT an engine callback: it is the built-in
+ * `stop` action's, told by the player's executor (`composeApiExtras`' `onStop`) — a pause is `onPause`, the
+ * natural end `onFinish`. Defined HERE, once, so the web player and the components cannot disagree.
  *
  * A wrapper is only made when there is something to call — an engine tests
  * `callbacks?.onFinish` for presence, so an always-present function would change its behaviour.
  */
-export function toEngineCallbacks(inline: PxAnimationPlayerCallbacks | undefined): PxEngineCallbacks {
+export function toEngineCallbacks(inline: PxAnimationPlayerCallbacks | undefined): PxPlayerCallbacks {
     const { onPlay, onPause, onCancel, onFinish, onDestroy, onStop, onWarn, onError, muteWarn, muteError } = inline ?? {};
-    const withStop = (own: (() => void) | undefined): (() => void) | undefined =>
-        own || onStop ? () => { own?.(); onStop?.(); } : undefined;
-    return {
-        onPlay,
-        onPause:  withStop(onPause),
-        onCancel: withStop(onCancel),
-        onFinish: withStop(onFinish),
-        onDestroy: withStop(onDestroy),
-        onWarn, onError, muteWarn, muteError,
-    };
+    return { onPlay, onPause, onCancel, onFinish, onDestroy, onStop, onWarn, onError, muteWarn, muteError };
 }
 
 /**
@@ -44,8 +38,8 @@ export function createInertAnimator(): PxAnimationPlayerApi {
         play: () => {},
         pause: () => {},
         stop: () => {},
-        cancel: () => {},
-        finish: () => {},
+        reset: () => {},
+        jumpToFinished: () => {},
         playOnce: () => {},
         getDuration: () => null,
         setPlaybackRate: () => {},

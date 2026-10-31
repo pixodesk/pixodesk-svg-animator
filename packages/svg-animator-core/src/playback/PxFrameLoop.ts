@@ -451,11 +451,11 @@ export function createAdapterSvgAnimationPlayer(
             pauseAnim();
             callbacks?.onPause?.();
         },
-        "cancel": () => {
+        "reset": () => {
             cancelAnim();
             // onCancel already called in cancelAnim
         },
-        "finish": () => {
+        "jumpToFinished": () => {
             finishAnim(true);
         },
 
@@ -497,7 +497,7 @@ export function createAdapterSvgAnimationPlayer(
         },
 
         "destroy": () => {
-            api.cancel();
+            api.reset();
             callbacks?.onDestroy?.();
         }
     };

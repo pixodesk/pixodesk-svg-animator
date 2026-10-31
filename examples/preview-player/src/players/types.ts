@@ -1,4 +1,4 @@
-import type { PxActionsPatch, PxDocument, PxTimelinePatch, PxTriggers } from '@pixodesk/svg-animator-web';
+import type { PxActionsPatch, PxDocument, PxTimelinePatch, PxActionTriggers } from '@pixodesk/svg-animator-web';
 
 /**
  * A framework-agnostic handle over a mounted animation player.
@@ -15,7 +15,7 @@ export interface PlayerHandle {
   /** Pauses at the current frame. */
   pause(): void;
   /** Stops and resets to the initial state. */
-  cancel(): void;
+  reset(): void;
   /** Jumps to the end and holds the final frame. */
   finish(): void;
   /** Whether the animation is currently running. */
@@ -56,23 +56,23 @@ export interface PlayerOptions {
   /**
    * Trigger handling:
    *  - `undefined`  → programmatic (the UI transport owns start; default);
-   *  - `'file'`     → use the document's own `animator.timeline.triggers` unchanged;
-   *  - `PxTriggers` → these triggers instead of the document's — the WHOLE block.
+   *  - `'file'`     → use the document's own `animator.timeline.actionTriggers` unchanged;
+   *  - `PxActionTriggers` → these triggers instead of the document's — the WHOLE block.
    */
-  triggers?: 'file' | PxTriggers;
+  triggers?: 'file' | PxActionTriggers;
 }
 
 /**
- * The `playOnTrigger` option / prop every player takes, from the {@link PlayerOptions.triggers}
+ * The `playUsingActionTriggers` option / prop every player takes, from the {@link PlayerOptions.actionTriggers}
  * choice. Shared by all three player adapters so "Use trigger" behaves identically everywhere:
- *  - default (no `triggers`) → absent: the player builds STILL and the transport buttons own
+ *  - default (no `actionTriggers`) → absent: the player builds STILL and the transport buttons own
  *    start — the document's own triggers are replaced by an empty block, so nothing starts it by
- *    itself (the web player's rule for a missing `playOnTrigger`, and the components' static mode);
+ *    itself (the web player's rule for a missing `playUsingActionTriggers`, and the components' static mode);
  *  - `'file'`                → `true`: the document's own triggers drive;
  *  - a config object         → those triggers, as a whole, instead of the document's.
  */
-export function playOnTriggerFor(opts?: PlayerOptions): boolean | PxTriggers | undefined {
-  const t = opts?.triggers;
+export function playUsingActionTriggersFor(opts?: PlayerOptions): boolean | PxActionTriggers | undefined {
+  const t = opts?.actionTriggers;
   return t === undefined ? undefined : t === 'file' ? true : t;
 }
 

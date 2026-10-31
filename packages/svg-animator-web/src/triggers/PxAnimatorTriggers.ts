@@ -33,9 +33,9 @@ function triggerIssueCode(kind: PxTriggerIssueKind): PxDiagnosticCode {
  *
  * The triggers say only WHEN: event lists — `start`, `stop`, `pause`, plus the `togglePlay` sugar — over the
  * events `load`, `hoverIn`, `hoverOut`, `click`, each list naming only the events it can use. Which list an
- * event is read from is the STATE RULE: `start` acts when stopped, `pause` when playing, the DERIVED resume
- * when paused (the counterpart of each `pause` event, plus the `start` events that do not stop), `stop` when
- * playing or paused. Every problem `triggerIssues` finds is reported — a disallowed event (ignored), an ignored
+ * event is read from is the STATE RULE: `start` acts when stopped or finished, `pause` when playing, the DERIVED
+ * resume when paused (the counterpart of each `pause` event, plus the `start` events that do not stop), `stop` when
+ * playing, paused or finished. Every problem `triggerIssues` finds is reported — a disallowed event (ignored), an ignored
  * `resume` entry, two lists reacting to one event in the same state (pause or resume wins). An absent triggers
  * block plays on load; an EMPTY one lists nothing — only the api drives it.
  *
@@ -45,7 +45,7 @@ function triggerIssueCode(kind: PxTriggerIssueKind): PxDiagnosticCode {
  * started it; only `load` waits for it — a hover or a click is aimed at something the reader sees.
  *
  * @param api The engine api to wire; the executor is attached to it as `playExecutor`.
- * @param config The document's runtime view (`getAnimatorConfig(doc)`): the triggers, the actions and the gate numbers.
+ * @param config The document's runtime view (`getAnimatorConfig(doc)`): the action triggers, the actions and the gate numbers.
  * @returns A disposer that detaches every listener, observer and timer this call attached
  *   (review §14). `createSvgAnimationPlayer` ties it to `destroy()`. Call it yourself before re-arming an
  *   element you wired by hand — otherwise the old listeners stay live next to the new ones.
@@ -63,8 +63,8 @@ export function setupAnimationTriggers(
     const cleanups: Array<() => void> = [];
     const dispose = (): void => { for (const undo of cleanups.splice(0)) undo(); };
 
-    const trigger = resolveTriggers(config.triggers);
-    for (const issue of triggerIssues(config.triggers)) report.warn(PxDiagnosticKind.usage, triggerIssueCode(issue.kind), issue);
+    const trigger = resolveTriggers(config.actionTriggers);
+    for (const issue of triggerIssues(config.actionTriggers)) report.warn(PxDiagnosticKind.usage, triggerIssueCode(issue.kind), issue);
 
     const root = api.getRootElement();
     if (!root) {
@@ -81,14 +81,14 @@ export function setupAnimationTriggers(
         start: () => executor.play(),
         hold: () => api.pause(),
         release: () => api.play(),
-        reset: () => executor.cancel(),
+        reset: () => executor.reset(),
     });
     cleanups.push(() => gate.dispose());
 
     const listed = (event: PxTriggerEvent): boolean => triggerListsEvent(trigger, event);
 
     /** The state rule (core's `triggerActionFor`): the player's state picks the list an event is read
-     *  from. `direct` is a pointer interaction — it never waits out the gate. */
+     *  from — stopped · playing · paused · finished. `direct` is a pointer interaction — it never waits out the gate. */
     const fire = (event: PxTriggerEvent, direct: boolean): void => {
         switch (triggerActionFor(trigger, executor.state(), event)) {
             case PxTriggerAction.play: gate.requestStart(direct); break;

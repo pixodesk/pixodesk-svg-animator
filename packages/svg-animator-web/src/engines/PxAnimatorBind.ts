@@ -4,10 +4,11 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, toPxDocument, type PxDocumentInput, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, type PxDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxPlayExecutor } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, toPxDocument, type PxDocumentInput, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, type PxDocument, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxPlayExecutor } from '@pixodesk/svg-animator-core';
 import { composeApiExtras, isNativeForced, mayUseNativeScrollTimeline, withoutTriggerDriver, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
+import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import { registerAnimator, withRegistryEvents } from '../registry/PxAnimatorRegistry';
 import { createFrameLoopAnimator } from './PxAnimatorFrameLoop';
 import { webRaf } from '../shared/PxWebRaf';
@@ -34,12 +35,12 @@ import { applyScrollPin, createNativeScrollTimeline, createScrollDriver } from '
  */
 export function finaliseAnimator(
     animatorConfig: PxAnimatorRuntimeConfig,
-    callbacks: PxEngineCallbacks | undefined,
-    make: (effectiveCallbacks?: PxEngineCallbacks) => PxEngineAnimationPlayerApi<Element>
+    callbacks: PxPlayerCallbacks | undefined,
+    make: (effectiveCallbacks?: PxPlayerCallbacks) => PxEngineAnimationPlayerApi<Element>
 ): PxAnimationPlayerApi {
 
     let executor: PxPlayExecutor | undefined;
-    const effectiveCallbacks: PxEngineCallbacks = {
+    const effectiveCallbacks: PxPlayerCallbacks = {
         ...callbacks,
         onFinish: () => {
             callbacks?.onFinish?.();
@@ -47,8 +48,9 @@ export function finaliseAnimator(
         },
     };
 
-    // `play()` / `stop()` / `playOnce()` are composed ON TOP of the engine — the one shared rule (review §10, D5)
-    const res = composeApiExtras(make(effectiveCallbacks), animatorConfig, webRaf);
+    // `play()` / `stop()` / `playOnce()` are composed ON TOP of the engine — the one shared rule (review §10, D5);
+    // `onStop` is the executor's to tell (the built-in stop), never the engine's
+    const res = composeApiExtras(make(effectiveCallbacks), { ...animatorConfig, onStop: callbacks?.onStop }, webRaf);
     executor = res.playExecutor;
 
     // `playDuration` (§4): the window remapped to wall ms, implemented as an initial rate factor.
@@ -74,7 +76,7 @@ export function finaliseAnimator(
 export function bindWithEngineChoice(
     doc: PxDocument,
     adapter?: PxPlatformAdapter,
-    callbacks?: PxEngineCallbacks,
+    callbacks?: PxPlayerCallbacks,
     rootElement?: Element | null
 ): PxAnimationPlayerApi {
     const animatorConfig = getAnimatorConfig(doc) || {};
@@ -176,18 +178,18 @@ export interface PxPrerenderedAnimationPlayerOptions extends PxAnimationPlayerCa
      */
     doc: PxDocumentInput;
     /**
-     * Play the way the editor saved it — the document's own `timeline.triggers` decide (the
+     * Play the way the editor saved it — the document's own `timeline.actionTriggers` decide (the
      * Editor's SVG + JS export passes it). WITHOUT it the binding is still: the triggers are
      * replaced by the EMPTY one (nothing starts it) and the returned api drives it (first-use review §1+2).
      */
-    playOnTrigger?: boolean;
+    playUsingActionTriggers?: boolean;
 }
 
-/** The no-driver rule, on the bind path: nothing starts itself unless `playOnTrigger` says so.
+/** The no-driver rule, on the bind path: nothing starts itself unless `playUsingActionTriggers` says so.
  *  Scroll-driven documents are exempt — scroll IS their named driver (same rule as `createSvgAnimationPlayer`). */
 function docToPlay(options: PxPrerenderedAnimationPlayerOptions): PxDocument {
     const doc = requireDoc(options);
-    if (options.playOnTrigger || isScrollTimeline(getAnimatorConfig(doc))) return doc;
+    if (options.playUsingActionTriggers || isScrollTimeline(getAnimatorConfig(doc))) return doc;
     return withoutTriggerDriver(doc);
 }
 
@@ -231,7 +233,7 @@ export function createPrerenderedAnimator(options: PxPrerenderedAnimationPlayerO
  * API is enrolled — a build that failed (the inert API, `isReady()` false) is not — and hears
  * play / pause / cancel / finish through the callbacks the engine is given.
  */
-function registered(options: PxPrerenderedAnimationPlayerOptions, build: (callbacks: PxEngineCallbacks) => PxAnimationPlayerApi): PxAnimationPlayerApi {
+function registered(options: PxPrerenderedAnimationPlayerOptions, build: (callbacks: PxPlayerCallbacks) => PxAnimationPlayerApi): PxAnimationPlayerApi {
     let apiRef: PxAnimationPlayerApi | undefined;
     const api = build(withRegistryEvents(toEngineCallbacks(options), () => apiRef));
     if (api.isReady()) {

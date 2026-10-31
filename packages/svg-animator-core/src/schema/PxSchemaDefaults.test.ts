@@ -14,7 +14,7 @@ import { resolveAnimatorTimeline, getAnimatorConfig, PX_DEFAULT_DURATION_MS, PX_
 import {
     PxDocumentSchema, PxAnimatorConfigSchema, PxCloneEffectSchema, PxFillGradientEffectSchema, PxGlyphFontSchema, PxLoopSchema, PxMaskedByEffectSchema,
     PxPropertyAnimationSchema, PxScrollRangePointSchema, PxScrollSchema, PxStrokeTrimEffectSchema, PxTextPathEffectSchema, PxTimelineSchema,
-    PxTimeTimelineSchema, PxTriggersSchema, PxStartActionSchema, PxStopActionSchema, PxFinishActionSchema, PxSuspendActionSchema, type PxDocument, type PxTriggers,
+    PxTimeTimelineSchema, PxActionTriggersSchema, PxStartActionSchema, PxStopActionSchema, PxFinishActionSchema, PxSuspendActionSchema, type PxDocument, type PxActionTriggers,
 } from '../format/PxAnimatorTypes';
 import { describeSchema, px, schemaKeys, type PxAnySchema } from './PxSchema';
 import { untyped } from '../effects/effectTestKit';
@@ -64,7 +64,7 @@ describe('schema.defaults — what an absent field means', () => {
         const visitCounting = (name: string, schema: PxAnySchema) => { visited++; visit(name, schema); };
         visitCounting('loop', PxLoopSchema);
         visitCounting('propertyAnimation', PxPropertyAnimationSchema);
-        visitCounting('triggers', PxTriggersSchema);
+        visitCounting('actionTriggers', PxActionTriggersSchema);
         visitCounting('actions.start', PxStartActionSchema);
         visitCounting('actions.stop', PxStopActionSchema);
         visitCounting('actions.finish', PxFinishActionSchema);
@@ -90,19 +90,19 @@ describe('schema.defaults — what an absent field means', () => {
         // what an ABSENT triggers block plays on — is the resolver's.
         const d = PX_PLAYBACK_DEFAULTS;
         expect(PxTimeTimelineSchema.defaults).toMatchObject({ beforeStart: d.beforeStart, inViewThreshold: d.inViewThreshold, inViewDebounce: d.inViewDebounce });
-        expect(PxStartActionSchema.defaults).toEqual({ transition: d.startTransition });
-        expect(PxStopActionSchema.defaults).toEqual({ transition: d.stopTransition, completeIteration: d.stopCompleteIteration });
-        expect(PxFinishActionSchema.defaults).toEqual({ transition: d.finishTransition });
-        expect(PxSuspendActionSchema.defaults).toEqual({ transition: d.suspendTransition });
-        expect(PxTriggersSchema.defaults).toEqual({});
+        expect(PxStartActionSchema.defaults).toEqual({ do: d.startTransition });
+        expect(PxStopActionSchema.defaults).toEqual({ do: d.stopTransition, completeIteration: d.stopCompleteIteration });
+        expect(PxFinishActionSchema.defaults).toEqual({ do: d.finishTransition });
+        expect(PxSuspendActionSchema.defaults).toEqual({ do: d.suspendTransition });
+        expect(PxActionTriggersSchema.defaults).toEqual({});
         expect(resolveTriggers(undefined).start).toEqual([d.start]);
-        // `actions.finish.transition` reaches the engines as the runtime view's `resetOnFinish`,
+        // `actions.finish.do` reaches the engines as the runtime view's `resetOnFinish`,
         // where absent = hold = not set. The PRE-1.4 `trigger.finish` spelling is no longer read.
-        expect(PxFinishActionSchema.defaults.transition).toBe(PxFinishTransition.hold);
-        const flat = resolveAnimatorTimeline({ timeline: { triggers: { start: PxTriggerEvent.load } } });
+        expect(PxFinishActionSchema.defaults.do).toBe(PxFinishTransition.hold);
+        const flat = resolveAnimatorTimeline({ timeline: { actionTriggers: { start: PxTriggerEvent.load } } });
         expect(flat.resetOnFinish).toBeFalsy();
-        expect(resolveAnimatorTimeline({ timeline: { actions: { finish: { transition: PxFinishTransition.reset } } } }).resetOnFinish).toBe(true);
-        expect(resolveAnimatorTimeline({ timeline: { triggers: untyped<PxTriggers>({ finish: 'reset' }) } }).resetOnFinish).toBeUndefined();
+        expect(resolveAnimatorTimeline({ timeline: { actions: { finish: { do: PxFinishTransition.reset } } } }).resetOnFinish).toBe(true);
+        expect(resolveAnimatorTimeline({ timeline: { actionTriggers: untyped<PxActionTriggers>({ finish: 'reset' }) } }).resetOnFinish).toBeUndefined();
     });
 
     it('the timeline numbers the runtime falls back to are the schema\'s', () => {
@@ -126,10 +126,10 @@ describe('schema.defaults — what an absent field means', () => {
     it('the reported document: an omitted resume is the start list — hovering in resumes what hovering out paused', () => {
         const doc: PxDocument = {
             type: 'svg', viewBox: '0 0 400 400',
-            animator: { timeline: { outTime: 1000, iterations: 1, triggers: { start: 'hoverIn', pause: 'hoverOut' } } },
+            animator: { timeline: { outTime: 1000, iterations: 1, actionTriggers: { start: 'hoverIn', pause: 'hoverOut' } } },
             children: [],
         };
-        expect(resolveTriggers(getAnimatorConfig(doc)?.triggers).resume).toEqual(['hoverIn']);
+        expect(resolveTriggers(getAnimatorConfig(doc)?.actionTriggers).resume).toEqual(['hoverIn']);
     });
 
     it('the document and config roots state no scalar defaults of their own (nothing to drift)', () => {

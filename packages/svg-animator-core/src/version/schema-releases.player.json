@@ -227,5 +227,36 @@
    "animator.timeline|time.trigger.playStop"
   ],
   "note": "Triggers and actions (dev-docs/plans/playback-layers.md, layers 0–1): `trigger` becomes `triggers` with the lists `start` / `stop` / `pause` / `resume` (+ the new `togglePlay`; each list names only the events it can use, and `resume` is derived for the built-in events); the play keys become one `actions` block — `start` / `stop` / `finish` / `suspend`, each `{ transition }` (`resume` → `continue`, `jumpToEnd` → `jumpToFinished`, `outOfViewAction` → `suspend`, `completeIterationOnPlayStop` → `stop.completeIteration`) — and `showFirstFrameBeforePlayStart: true` becomes `beforeStart: 'firstFrame'`."
+ },
+ {
+  "version": "1.11",
+  "date": "2026-10-31",
+  "added": [
+   "animator.timeline|time.actionTriggers",
+   "animator.timeline|time.actionTriggers.pause",
+   "animator.timeline|time.actionTriggers.resume",
+   "animator.timeline|time.actionTriggers.start",
+   "animator.timeline|time.actionTriggers.stop",
+   "animator.timeline|time.actionTriggers.togglePlay",
+   "animator.timeline|time.actions.finish|1.do",
+   "animator.timeline|time.actions.start|1.do",
+   "animator.timeline|time.actions.stop|1.completeIteration",
+   "animator.timeline|time.actions.stop|1.do",
+   "animator.timeline|time.actions.suspend|1.do"
+  ],
+  "removed": [
+   "animator.timeline|time.actions.finish.transition",
+   "animator.timeline|time.actions.start.transition",
+   "animator.timeline|time.actions.stop.completeIteration",
+   "animator.timeline|time.actions.stop.transition",
+   "animator.timeline|time.actions.suspend.transition",
+   "animator.timeline|time.triggers",
+   "animator.timeline|time.triggers.pause",
+   "animator.timeline|time.triggers.resume",
+   "animator.timeline|time.triggers.start",
+   "animator.timeline|time.triggers.stop",
+   "animator.timeline|time.triggers.togglePlay"
+  ],
+  "note": "The names say the link (dev-docs/reviews/react-props-review.md): `timeline.triggers` becomes `actionTriggers` — a key names the action it fires, the same key in `actions` says how that action looks — and an action's `transition` becomes `do`, written as the word itself when it is the only setting (`stop: 'rewind'`)."
  }
 ]

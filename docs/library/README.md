@@ -73,13 +73,13 @@ a number when it differs — the note with that number, under the table, says ho
 | **Playback override** | | | | | | |
 | `timeline` | ✓ | — | — | ✓ | ✓ | 4 |
 | `actions` | ✓ | — | — | ✓ | ✓ | ✓ |
-| **Play on trigger** | | | | | | |
-| `playOnTrigger` | ✓ | 10 | 11 | ✓ | ✓ | 5 |
+| **Play using action triggers** | | | | | | |
+| `playUsingActionTriggers` | ✓ | 10 | 11 | ✓ | ✓ | 5 |
 | **Declarative control** | | | | | | |
 | `play` | — | — | — | ✓ | ✓ | ✓ |
 | `pause` | — | — | — | ✓ | ✓ | ✓ |
-| `playCurrentProgress` | — | — | — | ✓ | ✓ | ✓ |
-| `playCurrentTime` | — | — | — | ✓ | ✓ | ✓ |
+| `showAtProgress` | — | — | — | ✓ | ✓ | ✓ |
+| `showAtTime` | — | — | — | ✓ | ✓ | ✓ |
 | **Imperative control** | | | | | | |
 | `playerRef` | 6 | 7 | 6 | ✓ | 8 | ✓ | <!-- px web=~ tag=~ prerendered=~ vue=~ -->
 | **Callbacks** | | | | | | |
@@ -106,14 +106,14 @@ a number when it differs — the note with that number, under the table, says ho
    already in the page.
 3. The tag is the container: the player renders into the element that carries the attribute.
 4. React Native ignores `timeline.engine`.
-5. `true`, or the whole `triggers` block to use instead of the file's (a `PxTriggers`); React Native ignores
+5. `true`, or the whole `actionTriggers` block to use instead of the file's (a `PxActionTriggers`); React Native ignores
    `hoverIn` / `hoverOut`, which have no touch equivalent.
 6. The handle is what `createSvgAnimationPlayer` returns, a `PxAnimationPlayerApi`.
 7. `createSvgAnimationPlayersFromPage` returns the handles it created; `getSvgAnimationPlayer(element)` finds one later.
 8. The handle is the component's template ref, a `PxAnimationPlayerHandle`.
 9. Written `class`; like `style`, it falls through to the root `<svg>`.
 10. The tag always plays on the file's own triggers — embedding a finished file IS choosing its behaviour — so it
-    takes no `playOnTrigger` option.
+    takes no `playUsingActionTriggers` option.
 11. `true` only: a pre-rendered file plays on its own triggers, or on the returned api.
 
 What some of the names mean:
@@ -130,21 +130,21 @@ What some of the names mean:
   `{ playDuration: 500 }` — never a replacement; `null` at a key deletes it. See
   [Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
 - **`actions`** merges over the file's `timeline.actions` — how start, stop, finish and suspend
-  look: `{ stop: { transition: 'rewind' } }`. The same rules as `timeline`.
-- **`playOnTrigger`** means "play the way the document says". The HTML tag always works this way;
-  the web player takes it as an option (`createSvgAnimationPlayer({ …, playOnTrigger: true })`) — without
+  look: `{ stop: 'rewind' }`. The same rules as `timeline`.
+- **`playUsingActionTriggers`** means "play the way the document says". The HTML tag always works this way;
+  the web player takes it as an option (`createSvgAnimationPlayer({ …, playUsingActionTriggers: true })`) — without
   it, nothing starts and the returned api drives playback. An **object** instead of `true` is the whole
-  `triggers` block to use in place of the file's (`{ start: 'hoverIn', stop: 'hoverOut' }`).
+  `actionTriggers` block to use in place of the file's (`{ start: 'hoverIn', stop: 'hoverOut' }`).
 - **`play`** is the on/off switch: `true` calls the built-in `start`, `false` the built-in `stop`, each
-  done the way the file's `actions` say (the transitions, the stop's `completeIteration` —
+  done the way the file's `actions` say (the presets, the stop's `completeIteration` —
   [Actions](./playback-and-triggers.md#actions--how-start-stop-and-finish-look));
   **`pause`** freezes the current frame, and setting it back to `false` resumes.
-- **`playCurrentProgress`** shows the frame at a point between 0 and 1 of the whole run (of one iteration
-  when `iterations` is `'infinite'`); **`playCurrentTime`** shows the frame at that many ms from the start.
+- **`showAtProgress`** shows the frame at a point between 0 and 1 of the whole run (of one iteration
+  when `iterations` is `'infinite'`); **`showAtTime`** shows the frame at that many ms from the start.
 - **`playerRef`** is the handle for calling `play()`, `pause()`, `stop()` and the rest from your code.
   Having it never changes how the component is controlled.
 - **`onDestroy`** fires when the player is thrown away: `destroy()`, an unmount, or a new `doc`.
-  **`onStop`** fires after any of pause, cancel, finish or remove.
+  **`onStop`** fires when the built-in `stop` action is performed — not on a pause (`onPause`), the end (`onFinish`) or a removal (`onDestroy`).
 - **`onError`** means this player will not play: the document failed to load, parse or build,
   or drawing it threw. Nothing is rendered, `isReady()` is `false`, and React Native shows
   `fallback` instead. Without a handler the message goes to `console.error`.
@@ -160,22 +160,22 @@ The pre-rendered SVG + CSS wrappers toggle class names instead of creating a pla
 | Name | React `SvgCssAnimationPlayer` | Vue `SvgCssAnimationPlayer` |
 |---|---|---|
 | the SVG | `children` | default slot | <!-- px name=children vue=~ -->
-| `triggers` | ✓ the file's `triggers` block; absent = plays on load | ✓ same |
+| `actionTriggers` | ✓ the file's `actionTriggers` block; absent = plays on load | ✓ same |
 | `actions` | ✓ `suspend` only; default `'pause'` | ✓ same |
 | `inViewThreshold` | ✓ default `0.5` | ✓ same |
 | `inViewDebounce` | ✓ default `150` ms | ✓ same |
 | `className` | ✓ on the wrapper div | `class`, on the wrapper div | <!-- px vue=~ -->
 | `style` | ✓ on the wrapper div | ✓ on the wrapper div | <!-- px vue=~ -->
 
-- `triggers` is the JSON player's block — `start`, `stop`, `pause`, `resume` (derived),
+- `actionTriggers` is the JSON player's block — `start`, `stop`, `pause`, `resume` (derived),
   `togglePlay`, each one event or a list of them, read by the same rules
   ([Triggers](./playback-and-triggers.md#triggers--when-it-plays)): `pause: 'hoverOut'` pauses,
   `stop: 'hoverOut'` stops. An **empty** block does nothing here: a wrapper has no `play()` to call.
-- `actions` takes only `suspend` (`{ suspend: { transition: 'pause' } }`): an animation nobody can
+- `actions` takes only `suspend` (`{ suspend: 'pause' }`): an animation nobody can
   see does not run, whatever started it.
-- Accepted limits of a class toggle: a start acts as the `continue` transition and a stop as
+- Accepted limits of a class toggle: a start acts as the `continue` preset and a stop as
   `reset` — a class cannot restart keyframes, jump to their end or play them backwards — and the
-  stop's `completeIteration`, `beforeStart` and the finish transition are the file's own CSS.
+  stop's `completeIteration`, `beforeStart` and the finish preset are the file's own CSS.
   None of them is a prop here.
 - `inViewThreshold` is how much of the SVG (0 to 1) must be on screen before it may run;
   `inViewDebounce` is how long it must stay that way first, so scrolling straight past starts
@@ -191,15 +191,15 @@ core (`resolveControlMode`), so they always pick the same winner:
 <!-- px-check off the mode-priority rule, prose -->
 | Priority | Mode | Chosen when | The document's triggers |
 |---|---|---|---|
-| 1 | controlled time | `playCurrentProgress` or `playCurrentTime` | switched off; the player seeks and holds |
+| 1 | controlled time | `showAtProgress` or `showAtTime` | switched off; the player seeks and holds |
 | 2 | play / pause | `play` or `pause` | switched off; `play={true}` calls `start`, `play={false}` calls `stop` — per the file's `actions` — and `pause` freezes |
-| 3 | playOnTrigger | `playOnTrigger` | used, after the override |
+| 3 | playUsingActionTriggers | `playUsingActionTriggers` | used, after the override |
 | 4 | static | none of the above | switched off; the first frame renders and nothing plays |
 
 `playerRef` is not in the table: the handle is filled in **every** mode and never changes it, so
-`<SvgAnimationPlayer doc={doc} playOnTrigger playerRef={playerRef} />` autoplays and gives you the handle.
-`playOnTrigger: false` is not a control prop and claims nothing; `play: false` is one, and holds.
-The HTML tag is always in playOnTrigger mode; the web player's `playOnTrigger: true` option is the same mode.
+`<SvgAnimationPlayer doc={doc} playUsingActionTriggers playerRef={playerRef} />` autoplays and gives you the handle.
+`playUsingActionTriggers: false` is not a control prop and claims nothing; `play: false` is one, and holds.
+The HTML tag is always in playUsingActionTriggers mode; the web player's `playUsingActionTriggers: true` option is the same mode.
 
 ### Callbacks and diagnostics — one shape
 
@@ -223,7 +223,7 @@ interface PxAnimationPlayerCallbacks {
     onCancel?: () => void;
     onFinish?: () => void;  // reached the end, or finish() was called — not when stopped early
     onDestroy?: () => void;  // destroy() was called, the component unmounted, or a new `doc` arrived
-    onStop?: () => void;    // after any of pause / cancel / finish / remove
+    onStop?: () => void;    // the built-in stop was performed (now, or after the iteration it waited for)
 
     // Diagnostics — two severities, one meaning each, on every player. Neither ever throws at
     // the caller. Give a handler and it takes over from the console; give none and the console
@@ -266,7 +266,7 @@ severity (`onError`, `onWarn`) and read `kind` inside it to decide what to do:
 | `document` | regenerate or repair the file | effects shape, unknown keys, an invalid document, no or unresolved bindings, a `scroll.subject` that is not a valid selector, a blocked SVG tag |
 | `host` | fix the page or app | no root element, a selector that matched nothing, `setAttribute` finding no element, a failed fetch |
 | `platform` | nothing — the player degraded | unsupported CSS attrs, `smoothing` needing the built-in driver, native scroll-timeline construction failing, `react-native-svg` prop limits |
-| `usage` | fix the options or props you passed | props from more than one control mode at once, an override that could not apply, a rate of 0, `triggers` on a scroll timeline |
+| `usage` | fix the options or props you passed | props from more than one control mode at once, an override that could not apply, a rate of 0, `actionTriggers` on a scroll timeline |
 | `internal` | report it to us | could not build, compile or render the document; a render that threw |
 
 For example: fail a CI check on `document`, ignore `platform`, and send `internal` to your error
@@ -282,7 +282,7 @@ and implemented once in core:
   `getCurrentTime()` never jumps back when the animation repeats;
 - a seek **clamps to `[0, duration × iterations]`**, unbounded when `iterations` is `'infinite'`;
 - a rate of `0` is **rejected everywhere**, with a warning — `pause()` is how you stop;
-- `playCurrentProgress` and `getCurrentProgress()` are the same position as 0–1 of the whole run — of ONE
+- `showAtProgress` and `getCurrentProgress()` are the same position as 0–1 of the whole run — of ONE
   iteration when endless, since an endless run has no whole to be a fraction of.
 
 ## See also

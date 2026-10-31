@@ -9,15 +9,13 @@
     "timeline": {
       "mode": "player",
       "outTime": 1000,
-      "triggers": {
+      "actionTriggers": {
         "start": "load"
       },
       "iterations": "infinite",
       "iterationDirection": "normal",
       "actions": {
-        "suspend": {
-          "transition": "continue"
-        }
+        "suspend": "continue"
       }
     }
   },

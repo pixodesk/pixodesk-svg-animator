@@ -8,13 +8,13 @@
 // THE PLAY EXECUTOR — one implementation of "on" and "off" for every driver
 // (dev-docs/plans/playback-layers.md): the `play` / `pause` props, the triggers' event lists and
 // the imperative api all end up here. The timeline's `actions` say HOW (start / stop / finish); the
-// executor performs them on any engine api, and owns the one state the engines cannot tell apart —
-// PAUSED versus STOPPED — so the state rule can be applied: `start` acts when stopped, `pause` when
-// playing, `resume` when paused, `stop` when playing or paused.
+// executor performs them on any engine api, and owns the states the engines cannot tell apart —
+// PAUSED versus STOPPED versus FINISHED — so the state rule can be applied: `start` acts when stopped or
+// finished, `pause` when playing, `resume` when paused, `stop` when playing, paused or finished.
 //
-// The declarative half (`play` as a STATE, review §10) is a thin resolver on top: a one-shot
-// document treats `play` as a POSE switch (false = the start pose, true = the end pose) and a
-// looping one as a RUN switch; both are spelled with the executor's five verbs.
+// The declarative half (`play` / `pause` as props, review §10) is a thin resolver on top: `play` true
+// starts (a mount included — a one-shot plays to its end and rests there), false stops; spelled with
+// the executor's verbs.
 // ============================================================================
 
 import type { PxActions, PxAnimationPlayerApi, PxPlayExecutor } from '../format/PxAnimatorTypes';
@@ -36,7 +36,7 @@ export function resolvePlaybackWorld(iterations: number | 'infinite' | undefined
 /** The slice of the api the executor drives — structural, so the components' HANDLE qualifies as
  *  well as a full engine api. @public @advanced */
 export type PxPlayTarget = Pick<PxAnimationPlayerApi,
-    'play' | 'pause' | 'cancel' | 'finish' | 'setPlaybackRate' | 'getCurrentTime' | 'setCurrentTime' | 'isPlaying'>;
+    'play' | 'pause' | 'reset' | 'jumpToFinished' | 'setPlaybackRate' | 'getCurrentTime' | 'setCurrentTime' | 'isPlaying'>;
 
 /** What the executor needs beside the api: the run's geometry and the timeline's `actions`. @public @advanced */
 export interface PxPlayExecutorConfig {
@@ -53,20 +53,22 @@ const SNAP_EPSILON_MS = 1;
 /**
  * Builds the executor for one player. `raf` is injected (the web passes requestAnimationFrame) for
  * the deferred moves — completing the iteration before an off, and stopping a loop's rewind at the
- * iteration's start. `play` / `pause` / `cancel` are bound at creation: `composeApiExtras` replaces
+ * iteration's start. `play` / `pause` / `reset` are bound at creation: `composeApiExtras` replaces
  * them on the api with executor-calling versions. Everything else is read live, so a wrapper added
  * later (the `playDuration` rate factor) is honoured.
  * @public @advanced
  */
 export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig, raf: (cb: () => void) => void): PxPlayExecutor {
-    const raw = { play: api.play.bind(api), pause: api.pause.bind(api), cancel: api.cancel.bind(api) };
+    const raw = { play: api.play.bind(api), pause: api.pause.bind(api), reset: api.reset.bind(api) };
     const world = resolvePlaybackWorld(cfg.totalMs === Infinity ? 'infinite' : cfg.passMs > 0 ? cfg.totalMs / cfg.passMs : 1);
     const passMs = Math.max(cfg.passMs, 1);
     const actions = resolveActions(cfg.actions);
-    const startTransition = actions.start.transition;
-    const stopTransition = actions.stop.transition;
+    const startTransition = actions.start.do;
+    const stopTransition = actions.stop.do;
     const completeIteration = actions.stop.completeIteration;
-    const finishTransition = actions.finish.transition;
+    const finishTransition = actions.finish.do;
+    /** The player's `onStop` — told whenever the configured stop is performed. */
+    let onStop: (() => void) | undefined;
 
     /** The one fact the engines cannot report: a pause is resumable, a stop is not. */
     let paused = false;
@@ -81,15 +83,18 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
     const atStart = (): boolean => { const t = api.getCurrentTime(); return t !== null && t <= SNAP_EPSILON_MS; };
 
     /** An off in flight — rewinding, or completing its iteration — reads as STOPPED: it is heading there,
-     *  and a `start` event turns it around (the hover-in during a hover-out rewind). */
+     *  and a `start` event turns it around (the hover-in during a hover-out rewind). A run that reached its
+     *  end and rests there is FINISHED — a `stop` still acts on it, a `start` is a fresh run. */
     const state = (): PxPlayState => {
         if (reversed || pending) return PxPlayState.stopped;
-        return api.isPlaying() ? PxPlayState.playing : paused ? PxPlayState.paused : PxPlayState.stopped;
+        if (api.isPlaying()) return PxPlayState.playing;
+        if (paused) return PxPlayState.paused;
+        return atEnd() ? PxPlayState.finished : PxPlayState.stopped;
     };
 
     const forward = (): void => { if (reversed) { reversed = false; api.setPlaybackRate(1); } };
     /** The start pose, at rest. */
-    const rest = (): void => { forward(); raw.cancel(); };
+    const rest = (): void => { forward(); raw.reset(); };
     /** A fresh run from the beginning (the delay applies again — a restart is a new run). */
     const restart = (): void => { paused = false; rest(); raw.play(); };
 
@@ -103,7 +108,7 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
             case PxStartTransition.jumpToFinished:
                 // the end pose with no motion; a loop has no end — its first pass's end stands in
                 forward();
-                if (world === PxPlaybackWorld.oneShot) api.finish();
+                if (world === PxPlaybackWorld.oneShot) api.jumpToFinished();
                 else { raw.pause(); api.setCurrentTime(passMs); }
                 break;
             case PxStartTransition.continue:
@@ -144,11 +149,12 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
         }
     };
 
-    /** The off-action itself, from the current position. */
+    /** The off-action itself, from the current position — the moment `onStop` is told. */
     const performOff = (): void => {
         paused = false;
         if (stopTransition === PxStopTransition.rewind) rewind();
         else rest();
+        onStop?.();
     };
 
     const stop = (): void => {
@@ -177,9 +183,9 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
         },
         resume: () => { if (!paused) return; paused = false; raw.play(); },
         play: () => { if (paused) { paused = false; forward(); raw.play(); } else start(); },
-        cancel: () => { cancelPending(); paused = false; rest(); },
-        showEnd: () => { cancelPending(); paused = false; api.setCurrentTime(cfg.totalMs); },
+        reset: () => { cancelPending(); paused = false; rest(); },
         rewind,
+        setOnStop: (listener) => { onStop = listener; },
         onNaturalFinish: () => {
             if (pending) return;                       // a deferred move owns the end (an off completing its iteration)
             paused = false;
@@ -195,8 +201,6 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
 
 /** One step the declarative resolver asks the executor for. @public @advanced */
 export enum PxDeclarativeAction {
-    /** Silent mount pose: the FINISH pose with no motion (a seek, no lifecycle events). */
-    showEnd = 'showEnd',
     /** The configured play-start. */
     start = 'start',
     /** The configured play-stop. */
@@ -223,9 +227,9 @@ export interface PxDeclarativeArgs {
 
 /**
  * ONE rule for the declarative playback props (review §10, D5). Pure: returns the ordered actions
- * to ask the executor for, plus the usage warnings to emit. `play` names a STATE: a one-shot's
- * finish pose (a mount never animates — it shows the pose) or a loop's running. A contract breach
- * (`pause` without `play`) warns and changes nothing.
+ * to ask the executor for, plus the usage warnings to emit. `play` true means "play it": a mount
+ * with `play` starts the run (a one-shot plays to its end and rests there; the pose without motion is
+ * `showAtProgress={1}`), false stops it. A contract breach (`pause` without `play`) warns and changes nothing.
  * @public @advanced
  */
 export function resolveDeclarativePlayback(args: PxDeclarativeArgs): {
@@ -247,10 +251,10 @@ export function resolveDeclarativePlayback(args: PxDeclarativeArgs): {
     }
 
     if (mount) {
-        // a loop with `play` runs (running IS the named state); a one-shot shows its pose without motion
+        // a mount with `play` plays — a loop runs, a one-shot plays to its end; `pause` beside it freezes the start
         if (next.play) {
-            if (world === PxPlaybackWorld.loop) { if (!next.pause) actions.push(PxDeclarativeAction.start); }
-            else actions.push(PxDeclarativeAction.showEnd);
+            actions.push(PxDeclarativeAction.start);
+            if (next.pause) actions.push(PxDeclarativeAction.pause);
         }
         return { actions, warnings };
     }
@@ -272,12 +276,11 @@ export function resolveDeclarativePlayback(args: PxDeclarativeArgs): {
 /** The slice of the api the declarative resolver drives — the PUBLIC api, whose `play()` / `pause()` /
  *  `stop()` already go through the player's one executor (a component's proxy qualifies, and queues
  *  the calls until the player exists). @public @advanced */
-export type PxDeclarativeTarget = Pick<PxAnimationPlayerApi, 'play' | 'pause' | 'stop' | 'setCurrentTime'>;
+export type PxDeclarativeTarget = Pick<PxAnimationPlayerApi, 'play' | 'pause' | 'stop'>;
 
-/** Executes one {@link PxDeclarativeAction} on the api; `totalMs` is the whole run, for the mount pose. @public @advanced */
-export function applyDeclarativeAction(api: PxDeclarativeTarget, action: PxDeclarativeAction, totalMs: number): void {
+/** Executes one {@link PxDeclarativeAction} on the api. @public @advanced */
+export function applyDeclarativeAction(api: PxDeclarativeTarget, action: PxDeclarativeAction): void {
     switch (action) {
-        case PxDeclarativeAction.showEnd: api.setCurrentTime(totalMs); break;
         case PxDeclarativeAction.start: api.play(); break;
         case PxDeclarativeAction.stop: api.stop(); break;
         case PxDeclarativeAction.pause: api.pause(); break;
@@ -292,6 +295,8 @@ export interface PxApiExtrasConfig extends Pick<PxPlayExecutorConfig, 'actions'>
     /** One pass of the content window, ms. */
     duration?: number;
     iterations?: number | 'infinite';
+    /** The player's `onStop`, handed to the executor: told whenever the configured stop is performed. */
+    onStop?: () => void;
 }
 
 /** The executor's geometry and `actions` from the runtime view. @public @advanced */
@@ -324,7 +329,7 @@ export interface PxApiExtras {
     /** The configured stop. */
     stop: () => void;
     /** The unconditional reset-now. */
-    cancel: () => void;
+    reset: () => void;
     /** ONE fresh pass from the start, whatever `iterations` say. */
     playOnce: () => void;
     getDuration: () => number | null;
@@ -334,7 +339,7 @@ export interface PxApiExtras {
 
 /**
  * Completes an engine api with the COMPOSED members — ONE implementation on top of any engine, so
- * none can drift: `play()` / `pause()` / `stop()` / `cancel()` through the player's one executor
+ * none can drift: `play()` / `pause()` / `stop()` / `reset()` through the player's one executor
  * (review §10, D5), `playOnce()` (always a fresh pass from the start; a multi-pass document gets a
  * boundary watcher that settles at the end of pass ONE — `'reset'` snaps to rest, the default holds
  * the pass-end pose; re-entrant) and `getDuration()` (one pass of the content window, ms; review §14).
@@ -343,18 +348,19 @@ export interface PxApiExtras {
  * @public @advanced
  */
 export function composeApiExtras<T extends PxApiExtrasTarget>(api: T, cfg: PxApiExtrasConfig, raf: (cb: () => void) => void): T & PxApiExtras {
-    const raw = { play: api.play.bind(api), pause: api.pause.bind(api), cancel: api.cancel.bind(api),
+    const raw = { play: api.play.bind(api), pause: api.pause.bind(api), reset: api.reset.bind(api),
         getCurrentTime: api.getCurrentTime.bind(api), setCurrentTime: api.setCurrentTime.bind(api) };
     const { passMs, totalMs } = executorConfigOf(cfg);
     const iterations = passMs > 0 ? totalMs / passMs : 1;
     const executor = ensurePlayExecutor(api, cfg, raf);
+    if (cfg.onStop) executor.setOnStop(cfg.onStop);
     // ONE type-level widening: every member is assigned right below, completing the api.
     const full = api as T & PxApiExtras;
     full.playExecutor = executor;
     full.play = () => executor.play();
     full.pause = () => executor.pause();
     full.stop = () => executor.stop();
-    full.cancel = () => executor.cancel();
+    full.reset = () => executor.reset();
     full.getDuration = () => cfg.duration ?? null;
     let token = 0;
     // destroy() invalidates a pending pass watcher — otherwise it rAF-loops forever on a dead animator
@@ -364,7 +370,7 @@ export function composeApiExtras<T extends PxApiExtrasTarget>(api: T, cfg: PxApi
     }
     full.playOnce = () => {
         const mine = ++token;
-        executor.cancel();
+        executor.reset();
         raw.play();
         const multiPass = iterations > 1;
         if (!multiPass || !passMs) return;
@@ -372,7 +378,7 @@ export function composeApiExtras<T extends PxApiExtrasTarget>(api: T, cfg: PxApi
             if (mine !== token) return;                 // a later playOnce took over
             const t = raw.getCurrentTime();
             if (t !== null && t >= passMs) {
-                if (resolveActions(cfg.actions).finish.transition === PxFinishTransition.reset) raw.cancel();
+                if (resolveActions(cfg.actions).finish.do === PxFinishTransition.reset) raw.reset();
                 else { raw.pause(); raw.setCurrentTime(passMs); }
                 return;
             }

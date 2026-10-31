@@ -221,7 +221,7 @@ export enum PxDiagnosticCode {
 
     /**
      * An imperative write call (`play()`, `pause()`, `playOnce()`, …) landed while a declarative
-     * driver (`play`/`pause` or `playCurrentProgress`/`playCurrentTime` props) owns playback. The call is applied, and
+     * driver (`play`/`pause` or `showAtProgress`/`showAtTime` props) owns playback. The call is applied, and
      * the next prop change reasserts the props.
      * @data the call
      */

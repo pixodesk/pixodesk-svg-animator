@@ -152,7 +152,7 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
   'vue/css-loader': async page => CHECKS['react/css-svgr'](page),
 
   'playback/override-web': async page => {
-    await expectFrozen(page);                       // no playOnTrigger — nothing starts it but play()
+    await expectFrozen(page);                       // no playUsingActionTriggers — nothing starts it but play()
     await page.click('#play');
     await expectAnimating(page);
   },

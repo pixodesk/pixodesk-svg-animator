@@ -4,7 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxEngineCallbacks } from '@pixodesk/svg-animator-core';
+import type { } from '@pixodesk/svg-animator-core';
+import type { PxPlayerCallbacks } from '../shared/PxAnimatorCallbacks';
 import type { PxAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
 
 /**
@@ -116,7 +117,7 @@ export function registerAnimator(animator: PxAnimationPlayerApi): void {
  * handlers still runs first. `api()` resolves the animator lazily — the callbacks are built
  * before it exists.
  */
-export function withRegistryEvents(callbacks: PxEngineCallbacks | undefined, api: () => PxAnimationPlayerApi | undefined): PxEngineCallbacks {
+export function withRegistryEvents(callbacks: PxPlayerCallbacks | undefined, api: () => PxAnimationPlayerApi | undefined): PxPlayerCallbacks {
     const fire = (event: PxAnimationPlayersEvent): void => { const a = api(); if (a) notify(event, a); };
     return {
         ...callbacks,

@@ -309,7 +309,37 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         up: upTriggersAndActions,
         // No `down`: 1.10 can say what 1.9 could not (`togglePlay`).
     },
+    {
+        from: '1.10',
+        to: '1.11',
+        reason: 'The names say the link (dev-docs/reviews/react-props-review.md): `timeline.triggers` becomes `actionTriggers` — '
+            + 'a key names the action it fires, the same key in `actions` says how that action looks — and an action\'s '
+            + '`transition` becomes `do`, written as the word itself when it is the only setting (`stop: \'rewind\'`).',
+        kind: PxWireStepKind.converted,
+        up: upActionTriggersAndDo,
+        // No `down`: the shorthand and the names are 1.11's; 1.10 readers do not know them.
+    },
 ];
+
+/** 1.10 → 1.11: `triggers` → `actionTriggers`; in every action slot `transition` → `do`, collapsed to the word when alone. */
+function upActionTriggersAndDo(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    if (!timeline) return;
+    if (timeline['triggers'] !== undefined) {
+        timeline['actionTriggers'] = timeline['triggers'];
+        delete timeline['triggers'];
+    }
+    const actions = readObjectProp(timeline, 'actions');
+    if (!actions) return;
+    for (const key of Object.keys(actions)) {
+        const slot = readObjectProp(actions, key);
+        if (!slot) continue;
+        if (slot['transition'] !== undefined) { slot['do'] = slot['transition']; delete slot['transition']; }
+        const keys = Object.keys(slot);
+        if (keys.length === 1 && keys[0] === 'do') actions[key] = slot['do'];
+    }
+}
 
 /** 1.9 → 1.10 trigger list keys, `[1.9, 1.10]`. */
 const TRIGGER_LISTS_1_10: ReadonlyArray<readonly [string, string]> = [

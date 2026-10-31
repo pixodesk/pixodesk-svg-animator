@@ -147,12 +147,18 @@ interface Timeline1 extends Timeline0 {
     beforeStart?: 'static' | 'firstFrame';          // the rest pose before the first start and after a reset; default static (niche)
     inViewThreshold?: number;                       // when the view sensor counts it as seen: 0–1 of it on screen, default 0.5
     inViewDebounce?: number;                        //   …for this long, ms, default 150
-    actions?: {                                     // HOW each built-in action looks — settings only; no custom names
-        start?:   { transition?: 'continue' | 'restart' | 'jumpToFinished' };                // default continue
-        stop?:    { transition?: 'reset' | 'rewind'; completeIteration?: boolean };          // reset, false
-        finish?:  { transition?: 'hold' | 'reset' | 'rewind' };                              // hold
-        suspend?: { transition?: 'pause' | 'continue' | 'reset' };                           // pause
+    actions?: {                                     // HOW each built-in action looks — settings only; no custom names (1.11: `do`,
+        start?:   StartDo | { do?: StartDo };                                               //   and the word itself when `do` is all)
+        stop?:    StopDo | { do?: StopDo; completeIteration?: boolean };                    // reset, false
+        finish?:  FinishDo | { do?: FinishDo };                                             // hold
+        suspend?: SuspendDo | { do?: SuspendDo };                                           // pause
     };                                              // pause, resume, wake: nothing to configure; the toggles use the settings above
+}
+type StartDo = 'continue' | 'restart' | 'jumpToFinished';   // default continue
+type StopDo = 'reset' | 'rewind';
+type FinishDo = 'hold' | 'reset' | 'rewind';
+type SuspendDo = 'pause' | 'continue' | 'reset';
+interface _ {
 }
 ```
 
@@ -176,10 +182,10 @@ interface Timeline1 extends Timeline0 {
       "outTime": 400,
       "inViewThreshold": 0.25,
       "actions": {
-        "stop":    { "transition": "rewind", "completeIteration": true },
-        "suspend": { "transition": "reset" }
+        "stop":    { "do": "rewind", "completeIteration": true },
+        "suspend": "reset"
       },
-      "triggers": { "start": "hoverIn", "stop": "hoverOut" }
+      "actionTriggers": { "start": "hoverIn", "stop": "hoverOut" }
     }
   },
   "children": [
@@ -187,6 +193,9 @@ interface Timeline1 extends Timeline0 {
   ]
 }
 ```
+
+(Schema 1.11, D7: the block is `actionTriggers` — a key names the action it fires, the same key in `actions` says
+how it looks — and a slot's preset is `do`, written as the word when it is the only setting.)
 
 The lid: hover in opens it; hover out lets it finish opening, then plays it back closed. Scrolled
 away, it goes back to the start; it counts as seen once a quarter of it is on screen.
@@ -196,7 +205,7 @@ away, it goes back to the start; it counts as seen once a quarter of it is on sc
 — gets the same settings:
 
 ```tsx
-<SvgAnimationPlayer doc={lid} play={hovered} actions={{ stop: { transition: 'rewind' } }} />
+<SvgAnimationPlayer doc={lid} play={hovered} actions={{ stop: 'rewind' }} />
 ```
 
 The CSS components (`SvgCssAnimationPlayer`, React and Vue) take `triggers`, `actions` limited to
@@ -213,6 +222,10 @@ The CSS components (`SvgCssAnimationPlayer`, React and Vue) take `triggers`, `ac
 | triggers are event words | a trigger may also target an element: `{ "on": "click", "target": "#id" }` |
 
 ## Layer 2 — states and rules
+
+> **Implemented early (2026-10-31, D7):** the four-state rule — `finished` is a state of its own in `PxPlayState`; `start`
+> acts on stopped or finished, `stop` on playing, paused or finished (and wins over `start` there, so a click toggle undoes
+> a finished one-shot). The rest of this layer is still design.
 
 The states become visible. `state.playback` is built in (`stopped` initial, `playing`, `paused`,
 `finished`) and needs no declaration; a file may add its own variables. An action becomes a RULE:

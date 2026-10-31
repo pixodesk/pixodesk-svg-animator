@@ -12,18 +12,18 @@ is not here, go to [Still stuck?](#still-stuck) at the end.
 
 ## Nothing plays
 
-**The triggers do not list `load`.** Check `animator.timeline.triggers.start` in the file (or *Play
+**The triggers do not list `load`.** Check `animator.timeline.actionTriggers.start` in the file (or *Play
 on* in the editor). `click`, `hoverIn` and `hoverOut` wait for the user; an empty block (`{}`) waits
 for you to call `play()`. Even `load` waits until enough of the animation is on screen, and pauses
-while it is scrolled out of view (`actions.suspend.transition: 'pause'`, the default) — see
+while it is scrolled out of view (`actions.suspend.do: 'pause'`, the default) — see
 [Triggers](./playback-and-triggers.md#triggers--when-it-plays). In React/Vue/React Native, remember
-that `playOnTrigger` is the only mode that uses the document's triggers — with `play`, `pause`,
-`playCurrentProgress` or `playCurrentTime` the triggers are ignored. Passing `playerRef` does **not**
+that `playUsingActionTriggers` is the only mode that uses the document's triggers — with `play`, `pause`,
+`showAtProgress` or `showAtTime` the triggers are ignored. Passing `playerRef` does **not**
 change the mode.
 
-**React / Vue component with no control prop.** With none of `playOnTrigger` / `play` / `pause` /
-`playCurrentProgress` / `playCurrentTime` set, the component deliberately renders the first frame and does
-nothing. Add `playOnTrigger`. `playerRef` on its own is such a case: the ref is a handle, not an
+**React / Vue component with no control prop.** With none of `playUsingActionTriggers` / `play` / `pause` /
+`showAtProgress` / `showAtTime` set, the component deliberately renders the first frame and does
+nothing. Add `playUsingActionTriggers`. `playerRef` on its own is such a case: the ref is a handle, not an
 instruction, so nothing moves until you call `play()` on it.
 
 **`createSvgAnimationPlayersFromPage()` ran before the elements existed.** Call it after the DOM is ready (end of
@@ -82,16 +82,16 @@ yourself.
 
 ## Playback behavior
 
-**It holds the last frame — I want it to reset.** Set `timeline.actions.finish.transition: "reset"` — at its
+**It holds the last frame — I want it to reset.** Set `timeline.actions.finish.do: "reset"` — at its
 natural end the animation jumps back to the start state (`"rewind"` plays back to it instead; the
 default `"hold"` keeps the last frame). The start state is the SVG as authored; a hand-authored
 file whose static attributes differ from its first keyframe can show the first frame instead with
 `timeline.beforeStart: "firstFrame"`
 (see [Actions](./playback-and-triggers.md#actions--how-start-stop-and-finish-look)).
-For one mount only, pass the same thing as an override: `actions={{ finish: { transition: 'reset' } }}`.
+For one mount only, pass the same thing as an override: `actions={{ finish: 'reset' }}`.
 
 **How do I play backwards?** `player.setPlaybackRate(-1); player.play();` — or let a stop play
-back by itself: `actions: { stop: { transition: 'rewind' } }` in the timeline, with the event that
+back by itself: `actions: { stop: 'rewind' }` in the timeline, with the event that
 stops it listed in the triggers (`stop: 'hoverOut'`); `stop()` and `play={false}` rewind the same way.
 
 **A trigger event does nothing, or the console warns about the triggers.** Each list names only

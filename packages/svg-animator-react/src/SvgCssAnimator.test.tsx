@@ -67,7 +67,7 @@ describe("SvgCssAnimationPlayer (React)", () => {
 
     it("toggles classes for start 'hoverIn' + pause 'hoverOut'", () => {
         const { container } = render(
-            <SvgCssAnimationPlayer triggers={{ start: 'hoverIn', pause: 'hoverOut' }}>
+            <SvgCssAnimationPlayer actionTriggers={{ start: 'hoverIn', pause: 'hoverOut' }}>
                 <svg />
             </SvgCssAnimationPlayer>
         );
@@ -87,7 +87,7 @@ describe("SvgCssAnimationPlayer (React)", () => {
 
     it("resets to idle on mouse-out when hoverOut is a stop", () => {
         const { container } = render(
-            <SvgCssAnimationPlayer triggers={{ start: 'hoverIn', stop: 'hoverOut' }}>
+            <SvgCssAnimationPlayer actionTriggers={{ start: 'hoverIn', stop: 'hoverOut' }}>
                 <svg />
             </SvgCssAnimationPlayer>
         );

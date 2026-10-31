@@ -52,8 +52,8 @@ function animator(engine: PxTimelineEngineSetting): PxAnimatorConfig {
         timeline: {
             outTime: 1000,
             engine,
-            triggers: programmatic ? {} : { start: 'load' },
-            actions: { finish: { transition: 'hold' }, suspend: { transition: 'continue' } },
+            actionTriggers: programmatic ? {} : { start: 'load' },
+            actions: { finish: 'hold', suspend: 'continue' },
         },
     };
 }

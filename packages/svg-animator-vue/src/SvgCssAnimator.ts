@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { PxPlayState, PxTriggerAction, PxTriggerEvent, type PxActions, type PxTriggers } from '@pixodesk/svg-animator-core';
+import { PxPlayState, PxTriggerAction, PxTriggerEvent, type PxActions, type PxActionTriggersInput } from '@pixodesk/svg-animator-core';
 import { resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent } from '@pixodesk/svg-animator-core/engine';
 import { createVisibilityGate, type PxVisibilityGate } from '@pixodesk/svg-animator-web/internal';
 import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch, type PropType } from 'vue';
@@ -23,7 +23,7 @@ import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch, t
  * </script>
  *
  * <template>
- *   <SvgCssAnimationPlayer :triggers="{ start: 'hoverIn', pause: 'hoverOut' }">
+ *   <SvgCssAnimationPlayer :actionTriggers="{ start: 'hoverIn', pause: 'hoverOut' }">
  *     <AnimationSvg />
  *   </SvgCssAnimationPlayer>
  * </template>
@@ -37,7 +37,7 @@ import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch, t
  * The triggers are the JSON player's (dev-docs/plans/playback-layers.md): event lists — `start`, `stop`,
  * `pause` (resume is derived), plus `togglePlay` — over the events `load`, `hoverIn`, `hoverOut`, `click`,
  * read by the same state rule (core's `triggerActionFor`) and gated by the same visibility gate
- * (`createVisibilityGate`), so the two players cannot drift. An absent `triggers` block plays on load; an
+ * (`createVisibilityGate`), so the two players cannot drift. An absent `actionTriggers` block plays on load; an
  * empty one lists nothing.
  *
  * ACCEPTED LIMITS of a class toggle (the editor shows them next to the choices):
@@ -45,7 +45,7 @@ import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch, t
  * - the stop transition is always `reset` — a class cannot play keyframes backwards
  * - completing the iteration, `beforeStart` and the finish transition are the file's own CSS
  *
- * @prop triggers  - WHEN: the file's own `timeline.triggers` block — `start`, `stop`, `pause`, `resume`,
+ * @prop triggers  - WHEN: the file's own `timeline.actionTriggers` block — `start`, `stop`, `pause`, `resume`,
  *   `togglePlay`, each one event or a list of them (only the events each list can use).
  * @prop actions - Only `suspend` applies — what happens while none of it is on screen (default `'pause'`):
  *   `'pause'` pauses at the current frame and resumes when it comes back, `'continue'` keeps playing and starts
@@ -60,14 +60,14 @@ const SvgCssAnimationPlayer = defineComponent({
     // apply them — otherwise a host class lands on the div twice.
     inheritAttrs: false,
     props: {
-        triggers: { type: Object as PropType<PxTriggers> },
+        actionTriggers: { type: Object as PropType<PxActionTriggersInput> },
         actions: { type: Object as PropType<Pick<PxActions, 'suspend'>> },
         inViewThreshold: { type: Number },
         inViewDebounce: { type: Number },
     },
     setup(props, { slots, attrs }) {
         // one rule with the JSON player: the lists normalised, the gate defaulted
-        const resolved = computed(() => resolveTriggers(props.triggers));
+        const resolved = computed(() => resolveTriggers(props.actionTriggers));
         const gateConfig = computed(() => resolveGate({
             actions: props.actions, inViewThreshold: props.inViewThreshold, inViewDebounce: props.inViewDebounce,
         }));

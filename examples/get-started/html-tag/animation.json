@@ -4,16 +4,14 @@
   "animator": {
     "timeline": {
       "outTime": 1000,
-      "triggers": {
-        "start": "load"
-      },
       "actions": {
-        "suspend": {
-          "transition": "continue"
-        }
+        "suspend": "continue"
       },
       "iterations": "infinite",
-      "iterationDirection": "alternate"
+      "iterationDirection": "alternate",
+      "actionTriggers": {
+        "start": "load"
+      }
     }
   },
   "children": [

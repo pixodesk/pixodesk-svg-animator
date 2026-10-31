@@ -36,20 +36,20 @@ export const CASES = [
   // -- React ------------------------------------------------------------------
   { group: 'react', id: 'imperative',      title: 'Imperative API (playerRef)', anchor: 'imperative-api-playerref',
     summary: 'play / pause / cancel / finish through a ref.' },
-  { group: 'react', id: 'play-on-trigger', title: 'Play on trigger', anchor: 'autoplay',
+  { group: 'react', id: 'play-using-action-triggers', title: 'Play using action triggers', anchor: 'autoplay',
     summary: 'The component honors the document\'s own trigger.' },
-  { group: 'react', id: 'controlled-time', title: 'Controlled time (playCurrentTime)', anchor: 'controlled-time-playcurrentprogress--playcurrenttime',
-    summary: 'A slider drives playCurrentTime (ms); the component renders that exact frame.' },
+  { group: 'react', id: 'controlled-time', title: 'Controlled time (showAtTime)', anchor: 'controlled-time-playcurrentprogress--playcurrenttime',
+    summary: 'A slider drives showAtTime (ms); the component renders that exact frame.' },
   { group: 'react', id: 'declarative',     title: 'Declarative play / pause', anchor: 'declarative-play--pause',
     summary: 'Boolean play and pause props.' },
   { group: 'react', id: 'css-svgr',        title: 'CSS-flavor SVG — SvgCssAnimationPlayer + SVGR', anchor: 'css-flavor-svgs--svgcssanimationplayer',
     summary: 'A pre-rendered SVG imported as a component, with a click trigger added by the wrapper.' },
 
   // -- Vue --------------------------------------------------------------------
-  { group: 'vue', id: 'play-on-trigger', title: 'Play on trigger', anchor: 'autoplay',
+  { group: 'vue', id: 'play-using-action-triggers', title: 'Play using action triggers', anchor: 'autoplay',
     summary: 'The component honors the document\'s own trigger.' },
-  { group: 'vue', id: 'controlled-time', title: 'Controlled time (playCurrentTime)', anchor: 'controlled-time-playcurrentprogress--playcurrenttime',
-    summary: 'A slider drives playCurrentTime (ms); the component renders that exact frame.' },
+  { group: 'vue', id: 'controlled-time', title: 'Controlled time (showAtTime)', anchor: 'controlled-time-playcurrentprogress--playcurrenttime',
+    summary: 'A slider drives showAtTime (ms); the component renders that exact frame.' },
   { group: 'vue', id: 'declarative',     title: 'Declarative play / pause', anchor: 'declarative-play--pause',
     summary: 'Boolean play and pause props.' },
   { group: 'vue', id: 'imperative',      title: 'Imperative API (template ref)', anchor: 'imperative-api-template-ref',
@@ -59,7 +59,7 @@ export const CASES = [
 
   // -- Playback settings & triggers ---------------------------------------------
   { group: 'playback', id: 'override-web',   title: 'Overriding from the web player', anchor: 'overriding-from-a-player',
-    summary: 'A `timeline` merge on createSvgAnimationPlayer: infinite iterations; no playOnTrigger, so only play() starts it.' },
+    summary: 'A `timeline` merge on createSvgAnimationPlayer: infinite iterations; no playUsingActionTriggers, so only play() starts it.' },
   { group: 'playback', id: 'override-react', title: 'Overriding from component props', anchor: 'overriding-from-a-player',
     summary: 'The `timeline` prop merges over the document\'s block: infinite iterations, alternate direction, the js engine.' },
 

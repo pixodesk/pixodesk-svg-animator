@@ -103,7 +103,7 @@ export default function App() {
                         key={sampleIdx + '|' + loopMode}
                         doc={doc}
                         timeline={loopTimeline(loopMode)}
-                        playOnTrigger
+                        playUsingActionTriggers
                         playerRef={api}
                     />
                 </View>
@@ -113,9 +113,9 @@ export default function App() {
                     {([
                         ['▶ Play', call(a => a.play())],
                         ['❚❚ Pause', call(a => a.pause())],
-                        ['◼ Stop', call(a => a.cancel())],
-                        ['↺ Restart', call(a => { a.cancel(); a.play(); })],
-                        ['⤓ Finish', call(a => a.finish())],
+                        ['◼ Stop', call(a => a.reset())],
+                        ['↺ Restart', call(a => { a.reset(); a.play(); })],
+                        ['⤓ Finish', call(a => a.jumpToFinished())],
                     ] as Array<[string, () => void]>).map(([label, onPress]) => (
                         <Pressable
                             key={label}

@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelinePatch, PxActionsPatch, PxTriggers, PxPlaybackOverrideInput } from '@pixodesk/svg-animator-web';
+import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelinePatch, PxActionsPatch, PxActionTriggersInput, PxPlaybackOverrideInput } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
 import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, getAnimatorConfig, PxDiagnosticCode, PxFinishTransition, PxBeforeStart, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
@@ -44,7 +44,7 @@ const VUE_PROP = { ref: 'ref', style: 'style' } as const;
  * copy (review §9). The runtime `props: {…}` block below stays Vue's own, because Vue needs
  * runtime prop declarations; this is only the TypeScript view of the same members.
  */
-type DocOverrideProps = PxPlaybackOverrideInput & Pick<PxControlProps, 'playCurrentProgress' | 'playCurrentTime'>;
+type DocOverrideProps = PxPlaybackOverrideInput & Pick<PxControlProps, 'showAtProgress' | 'showAtTime'>;
 
 // @px-importance important
 function applyDocOverrides(
@@ -55,7 +55,7 @@ function applyDocOverrides(
 ): PxDocument {
 
     // The override, applied ONCE through core's one rule (D3: per block, the replacement, then the
-    // merge), and then the component's own need to take the triggers over in the non-playOnTrigger
+    // merge), and then the component's own need to take the triggers over in the non-playUsingActionTriggers
     // control modes — the EMPTY block goes on AFTER the caller's override, so nothing re-arms it.
     const overridden = applyPlaybackOverride(doc, props);
     for (const w of overridden.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
@@ -67,16 +67,16 @@ function applyDocOverrides(
     // every file (a `finish: reset` document would otherwise revert to its static attrs).
     if (compMode === PxControlMode.play
         && resolvePlaybackWorld((getAnimatorConfig(doc) || {}).iterations) === PxPlaybackWorld.oneShot) {
-        doc = applyAnimatorConfig(doc, { timeline: { beforeStart: PxBeforeStart.firstFrame, actions: { finish: { transition: PxFinishTransition.hold } } } }).doc;
+        doc = applyAnimatorConfig(doc, { timeline: { beforeStart: PxBeforeStart.firstFrame, actions: { finish: { do: PxFinishTransition.hold } } } }).doc;
     }
 
     return doc;
 }
 
 /**
- * Controlled-time mode: absolute seek target in ms. `playCurrentProgress` is a fraction
+ * Controlled-time mode: absolute seek target in ms. `showAtProgress` is a fraction
  * (0–1) of the WHOLE timeline (duration × iterations — ONE iteration when
- * endless); `playCurrentTime` is absolute. Applied through the player API
+ * endless); `showAtTime` is absolute. Applied through the player API
  * (setCurrentTime) so scrubbing does NOT recreate the player.
  */
 function calcSeekMs(doc: PxDocument, props: DocOverrideProps): number | undefined {
@@ -84,7 +84,7 @@ function calcSeekMs(doc: PxDocument, props: DocOverrideProps): number | undefine
     // The FLAT runtime view, so this works on a wire-format document too — reading
     // `doc.animator.duration` directly finds nothing there.
     const animator = getAnimatorConfig(doc) || {};
-    if (props.playCurrentProgress !== undefined) {
+    if (props.showAtProgress !== undefined) {
         // ONE rule for progress → time (core's `progressToTimeMs`): the same mapping
         // `getCurrentProgress` reads back, so a prop of 0.5 and a read of 0.5 agree.
         const iterationsValue = animator.iterations;        // the override is already folded into the patched doc
@@ -92,9 +92,9 @@ function calcSeekMs(doc: PxDocument, props: DocOverrideProps): number | undefine
             : (typeof iterationsValue === 'number' && iterationsValue >= 1 ? iterationsValue : 1);
         // the window length — the shortcuts are already folded into the patched doc
         const singleDuration = animator.duration ?? PX_DEFAULT_DURATION_MS;
-        seekMs = progressToTimeMs(props.playCurrentProgress, singleDuration, iterationsCount);
+        seekMs = progressToTimeMs(props.showAtProgress, singleDuration, iterationsCount);
     }
-    if (props.playCurrentTime !== undefined) seekMs = props.playCurrentTime;
+    if (props.showAtTime !== undefined) seekMs = props.showAtTime;
     return seekMs;
 }
 
@@ -108,7 +108,7 @@ function calcSeekMs(doc: PxDocument, props: DocOverrideProps): number | undefine
  *
  * 1. **Autoplay** – uses triggers from the animation document.
  *    ```vue
- *    <SvgAnimationPlayer :doc="animation" playOnTrigger />
+ *    <SvgAnimationPlayer :doc="animation" playUsingActionTriggers />
  *    ```
  *
  * 2. **Declarative play/pause** – controlled via boolean props.
@@ -124,8 +124,8 @@ function calcSeekMs(doc: PxDocument, props: DocOverrideProps): number | undefine
  *
  * 4. **Controlled time** – renders a single frame at a given time.
  *    ```vue
- *    <SvgAnimationPlayer :doc="animation" :playCurrentProgress="0.5" />
- *    <SvgAnimationPlayer :doc="animation" :playCurrentTime="500" />
+ *    <SvgAnimationPlayer :doc="animation" :showAtProgress="0.5" />
+ *    <SvgAnimationPlayer :doc="animation" :showAtTime="500" />
  *    ```
  * @public
  */
@@ -137,18 +137,18 @@ const SvgAnimationPlayer = defineComponent({
         doc: { type: Object as PropType<PxDocumentInput>, required: true },
 
         // -- Playback override: the file's timing and actions, adjusted (D4, playback-layers.md) — merge
-        //    patches, `null` deletes a key. The triggers travel with their driver, `playOnTrigger`. Same names as React / RN.
+        //    patches, `null` deletes a key. The triggers travel with their driver, `playUsingActionTriggers`. Same names as React / RN.
         timeline: { type: Object as PropType<PxTimelinePatch> },
         actions: { type: Object as PropType<PxActionsPatch> },
 
         // -- Declarative control
-        playOnTrigger: { type: [Boolean, Object] as PropType<boolean | PxTriggers>, default: undefined },   // true = the file's triggers; an object = the whole block instead
+        playUsingActionTriggers: { type: [Boolean, Object] as PropType<boolean | PxActionTriggersInput>, default: undefined },   // true = the file's triggers; an object = the whole block instead
         play: { type: Boolean, default: undefined },
         pause: { type: Boolean, default: undefined },
 
         // -- Controlled time
-        playCurrentProgress: { type: Number },
-        playCurrentTime: { type: Number },
+        showAtProgress: { type: Number },
+        showAtTime: { type: Number },
 
         // -- Diagnostics (API review §5).
         //    Function PROPS, not emits, on purpose: an emit handler always exists, so wiring
@@ -187,8 +187,8 @@ const SvgAnimationPlayer = defineComponent({
         // ONE control-mode rule, decided in core (API review §1/§7). The template ref is not an
         // input: it is exposed in every mode and never changes which one is chosen.
         const resolvedMode = computed(() => resolveControlMode({
-            playCurrentProgress: props.playCurrentProgress, playCurrentTime: props.playCurrentTime,
-            play: props.play, pause: props.pause, playOnTrigger: props.playOnTrigger,
+            showAtProgress: props.showAtProgress, showAtTime: props.showAtTime,
+            play: props.play, pause: props.pause, playUsingActionTriggers: props.playUsingActionTriggers,
         }));
         const compMode = computed<PxControlMode>(() => resolvedMode.value.mode);
 
@@ -246,7 +246,7 @@ const SvgAnimationPlayer = defineComponent({
                 doc,
                 // The component resolved its control mode and patched `doc` above — the web player
                 // must not add its own no-driver suppression on top (first-use review §1+2).
-                playOnTrigger: true,
+                playUsingActionTriggers: true,
                 // Mounted (or `flush: 'post'`) by the time this runs, so the root exists.
                 rootElement: rootElement ?? undefined,
                 onReady:  () => emit('ready'),
@@ -307,7 +307,7 @@ const SvgAnimationPlayer = defineComponent({
                 const diag = makeDiag();
                 for (const w of warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.playModifierIgnored, w);
             }
-            if (api) for (const action of actions) applyDeclarativeAction(api, action, totalMs);
+            if (api) for (const action of actions) applyDeclarativeAction(api, action);
         }
 
         /** Controlled-time mode: seek through the animator API (no recreate). */
@@ -328,14 +328,14 @@ const SvgAnimationPlayer = defineComponent({
         // Recreate the animator when the resolved doc changes.
         // `flush: 'post'` — the animator must be created AFTER the DOM is
         // patched, otherwise the new root element isn't in the document yet
-        // and trigger setup fails (playOnTrigger would never resume after a doc swap).
+        // and trigger setup fails (playUsingActionTriggers would never resume after a doc swap).
         watch(resolvedDoc, () => createApi(), { flush: 'post' });
 
         // Sync declarative play/pause props with the animator.
         watch([compMode, () => props.play, () => props.pause], () => syncPlayState());
 
         // Scrubbing progress/time only seeks — the animator is NOT recreated.
-        watch([compMode, () => props.playCurrentProgress, () => props.playCurrentTime], () => applySeek());
+        watch([compMode, () => props.showAtProgress, () => props.showAtTime], () => applySeek());
 
         onUnmounted(() => {
             destroyApi();
@@ -356,8 +356,8 @@ const SvgAnimationPlayer = defineComponent({
             play: () => { guardWrite('play()'); apiRef.value?.play(); },
             pause: () => { guardWrite('pause()'); apiRef.value?.pause(); },
             stop: () => { guardWrite('stop()'); apiRef.value?.stop(); },
-            cancel: () => { guardWrite('cancel()'); apiRef.value?.cancel(); },
-            finish: () => { guardWrite('finish()'); apiRef.value?.finish(); },
+            reset: () => { guardWrite('reset()'); apiRef.value?.reset(); },
+            jumpToFinished: () => { guardWrite('jumpToFinished()'); apiRef.value?.jumpToFinished(); },
             playOnce: () => { guardWrite('playOnce()'); apiRef.value?.playOnce(); },
             setPlaybackRate: (rate: number) => { guardWrite('setPlaybackRate()'); apiRef.value?.setPlaybackRate(rate); },
             getDuration: () => apiRef.value?.getDuration() ?? null,
