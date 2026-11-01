@@ -396,9 +396,9 @@ describe('createSvgAnimationPlayersFromPage', () => {
         stubFetch(makeDoc());   // a document that would playUsingActionTriggers on load
         const onPlay = vi.fn();
 
-        // One trigger for every player that cancels the autostart, plus an inline callback — both must
+        // One trigger block for every player — start on click, not on load — plus an inline callback: both must
         // reach both players. The zero-config path (no argument at all) is unchanged.
-        createSvgAnimationPlayersFromPage({ playUsingActionTriggers: {}, onPlay });
+        createSvgAnimationPlayersFromPage({ playUsingActionTriggers: { start: 'click' }, onPlay });
         await flushMicrotasks();
 
         const instances = Array.from(document.querySelectorAll('[data-px-animation-src]'))

@@ -471,7 +471,8 @@ export interface PxControlProps {
      * Play using action triggers — when each built-in action fires. `true`: the document's own `actionTriggers`
      * block decides (the way the editor saved it). An OBJECT: that block instead, as a WHOLE (the lists belong
      * together: switching `hoverIn` → `click` wants other `pause` / `stop` lists too); lists left out are simply
-     * not listed, never the file's values. `{}` = no event starts it — your code does.
+     * not listed, never the file's values. Two spellings only: `true`, or the block — to have your code drive, pass
+     * no control prop at all (the handle is the driver).
      */
     playUsingActionTriggers?: boolean | PxActionTriggersInput;
     // TODO (dev-docs/plans/component-api.md D4): `playUsingScrollTimeline?: PxScrollTimeline` — the scroll driver, a

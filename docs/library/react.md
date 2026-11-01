@@ -238,8 +238,9 @@ the document you passed is never modified:
 - `actions` — a **merge** over the file's `timeline.actions`: `{ stop: 'rewind' }`
   changes how a stop looks and leaves every other setting as the file has it.
 - `playUsingActionTriggers` — `true` plays on the file's triggers; an object is the whole `actionTriggers` block
-  to use instead ([Play using action triggers](#play-using-action-triggers-playusingactiontriggers)); `{}` lists no
-  event, so nothing starts it — your code does, through `playerRef`.
+  to use instead ([Play using action triggers](#play-using-action-triggers-playusingactiontriggers)). To have your
+  code drive instead, pass no control prop at all — the file's triggers are then switched off and `playerRef` is
+  the driver.
 
 ```tsx
 // The file loops twice and plays on load; here it loops forever and waits for play() —

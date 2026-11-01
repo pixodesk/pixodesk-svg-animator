@@ -50,7 +50,8 @@ describe('createSvgAnimationPlayer — the override reaches the running animatio
     });
 
     it('a `playUsingActionTriggers` OBJECT is the trigger instead of the file\'s', () => {
-        const api = createSvgAnimationPlayer({ playUsingActionTriggers: {}, doc: wireDoc(), container: stage() });
+        // the file starts on load; the block says click — so nothing plays until a click
+        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { start: 'click' }, doc: wireDoc(), container: stage() });
         expect(api.isPlaying()).toBe(false);
         api.destroy();
     });
@@ -68,7 +69,7 @@ describe('createSvgAnimationPlayer — the override reaches the running animatio
     });
 
     it('`timeline` and a `playUsingActionTriggers` object together: the timing adjusted, the trigger replaced', () => {
-        const api = createSvgAnimationPlayer({ playUsingActionTriggers: {}, doc: wireDoc(), container: stage(), timeline: { iterations: 1 } });
+        const api = createSvgAnimationPlayer({ playUsingActionTriggers: { start: 'click' }, doc: wireDoc(), container: stage(), timeline: { iterations: 1 } });
         expect(api.isPlaying()).toBe(false);
         api.destroy();
     });

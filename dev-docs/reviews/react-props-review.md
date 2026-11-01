@@ -62,7 +62,7 @@ container says "action" already; `togglePlayAction` buries the clearest key); a 
 | Handle: reset now | `cancel()` | `reset()` | It resets at once, ignoring every setting — and `reset` is already the vocabulary (`do: 'reset'`), so the handle speaks the actions' words. `cancel` only ever came from the Web Animations API. |
 | Handle: jump to the end | `finish()` | `jumpToFinished()` | It does exactly the `jumpToFinished` preset; "finish()" can be read as "let it play to the end". |
 | `resume` in the trigger type | offered by autocomplete, ignored at runtime (PX1111) | omitted from the prop, the web option and `bind` (an `Omit` over the schema type) | A key you may type but must not is a trap; the type refuses it at compile time. The schema keeps the key for layer 2 (element targets). |
-| Docs only | — | `load` says it still waits for the gate; ms on `inTime` / `outTime` / `playDuration` / `delay`; `playUsingActionTriggers={{}}` = nothing starts it, your code does | Three first-read traps that need no rename. |
+| Docs only | — | `load` says it still waits for the gate; ms on `inTime` / `outTime` / `playDuration` / `delay`; ~~`playUsingActionTriggers={{}}` = nothing starts it, your code does~~ (withdrawn 2026-11-01, owner: the prop has two spellings — `true` or an override block; "your code drives" is no control prop at all, so `{}` is not documented) | Three first-read traps that need no rename. |
 
 ## 3. Examples
 
@@ -199,7 +199,7 @@ before the next; every behaviour change gets a test seen failing first.
 - Guides: `react.md`, `vue.md`, `react-native.md`, `web-player.md`, `playback-and-triggers.md` (the actions table with
   the string form; "`onStop` = the stop action"; the handle's `reset()` / `jumpToFinished()`), `format/README.md`,
   `troubleshooting.md`, `diagnostics.md` (`pnpm gen:diagnostics`), the package READMEs. One line in each component guide:
-  `playUsingActionTriggers={{}}` = nothing starts it, your code does. Every `px-check` block re-checked.
+  ~~`playUsingActionTriggers={{}}` = nothing starts it, your code does~~ (removed again 2026-11-01 — see §2). Every `px-check` block re-checked.
 - Examples: `docs-examples` cases (`play-on-trigger` → `play-using-action-triggers`, `declarative`, triggers),
   `preview-player` (labels + the lists), `get-started` samples; `pnpm check:get-started --local`.
 - Plans: `component-api.md` — a D7 entry recording §2 and the amended D4 rule ("a driver is named by its verb");
