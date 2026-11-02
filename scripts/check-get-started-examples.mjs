@@ -82,6 +82,24 @@ if (!LOCAL) {
         console.log(`Publish ${local}, or check the release about to ship with:  pnpm check:get-started --local`);
         process.exit(0);
     }
+    // Same version string is not the same code: after a release the tree keeps that version while
+    // commits land on top, and the examples follow the workspace API. The release tag says whether
+    // this tree IS that release. No tag reachable (shallow clone, no git) — run the check.
+    if (published === local) {
+        let tagged, head;
+        try {
+            const git = c => execSync(c, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+            tagged = git(`git rev-parse -q --verify "refs/tags/v${local}^{commit}"`);
+            head = git('git rev-parse HEAD');
+        } catch { /* fall through: cannot tell, so check */ }
+        if (tagged && head && tagged !== head) {
+            console.log(`\nSKIPPED — v${local} is published, but this tree is not that release`);
+            console.log(`(HEAD ${head.slice(0, 7)} is not the v${local} tag ${tagged.slice(0, 7)}).`);
+            console.log('The examples follow the workspace API, so they can only be checked against a published version.');
+            console.log('Bump the version for the next release, or check what is about to ship with:  pnpm check:get-started --local');
+            process.exit(0);
+        }
+    }
 }
 
 // ---- --local: pack the workspace packages ---------------------------------------------------

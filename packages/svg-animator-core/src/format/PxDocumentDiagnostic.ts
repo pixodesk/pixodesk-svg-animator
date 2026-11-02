@@ -50,30 +50,42 @@ export function diagnoseDocument(doc: unknown): PxDocumentDiagnosis {
     }
 }
 
+/** Why unrecognized keys usually appear — said with every schema-mismatch report, on either road. */
+const MANGLING_HINT = 'If you did not author these keys, the usual cause is a build that MANGLES PROPERTY '
+    + 'NAMES. An animation document is data loaded at runtime, so renaming the property reads '
+    + 'inside the player stops them matching the keys in the JSON, and the animation silently '
+    + 'does nothing. Feed the published reserved-name list to your minifier — '
+    + '@pixodesk/svg-animator-web/mangle-reserved.json — see docs/library/minification.md.';
+
 // @px-importance important
 /**
- * Runs the diagnosis and reports it on the console, naming property mangling as the likely cause
- * — a bare "unexpected extra key" leaves the reader no wiser, which is the whole point.
+ * Runs the diagnosis and reports it, naming property mangling as the likely cause — a bare "unexpected extra
+ * key" leaves the reader no wiser, which is the whole point.
  *
- * `where` names the entry the document came in through, so the message says which call to look at.
+ * Through `diag` when a player hands its channel over: ONE `documentSchemaMismatch` warning (kind `document`)
+ * carrying the problems and the hint, so `onWarn` receives it and `suppressWarnings` silences the console like
+ * every other diagnostic. Without a channel (a tool, a test) it prints to the console itself.
+ *
+ * `where` names the entry the document came in through, so the console message says which call to look at.
  * @internal
  */
-export function reportDocumentDiagnostics(doc: unknown, where: string): void {
+export function reportDocumentDiagnostics(doc: unknown, where: string, diag?: PxDiagnostics): void {
     const { problems } = diagnoseDocument(doc);
     if (!problems.length) return;
 
     const shown = problems.slice(0, MAX_REPORTED);
     const more = problems.length - shown.length;
+    if (diag) {
+        diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.documentSchemaMismatch,
+            more > 0 ? [...shown, '… and ' + more + ' more'] : shown, MANGLING_HINT);
+        return;
+    }
     console.warn(
         where + ': this document does not match the animation schema in '
         + problems.length + ' place' + (problems.length === 1 ? '' : 's') + '.\n'
         + shown.map(p => '  - ' + p).join('\n')
         + (more > 0 ? '\n  … and ' + more + ' more' : '')
-        + '\n\nIf you did not author these keys, the usual cause is a build that MANGLES PROPERTY '
-        + 'NAMES. An animation document is data loaded at runtime, so renaming the property reads '
-        + 'inside the player stops them matching the keys in the JSON, and the animation silently '
-        + 'does nothing. Feed the published reserved-name list to your minifier — '
-        + '@pixodesk/svg-animator-web/mangle-reserved.json — see docs/library/minification.md.');
+        + '\n\n' + MANGLING_HINT);
 }
 
 /** The node key whose findings keep the effects code (an effect ignored or degraded). */

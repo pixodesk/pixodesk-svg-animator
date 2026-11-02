@@ -142,6 +142,18 @@ export enum PxDiagnosticCode {
     triggerResumeDiffers = 1111,
 
     /**
+     * The document has keys or shapes this build's schema does not know — unrecognized keys above all. It plays,
+     * with those parts ignored. If you did not author them, the usual cause is a build that MANGLES PROPERTY
+     * NAMES: an animation document is data loaded at runtime, so renaming the property reads inside the player
+     * stops them matching the keys in the JSON, and the animation silently does nothing. Feed the published
+     * reserved-name list to your minifier — `@pixodesk/svg-animator-web/mangle-reserved.json`, see
+     * docs/library/minification.md. Reaches `onWarn` like every other diagnostic; `suppressWarnings` silences
+     * the console fallback (until 1.15 this report went to the console on its own).
+     * @data the problems (path: finding), the first twelve, then the mangling hint
+     */
+    documentSchemaMismatch = 1112,
+
+    /**
      * A binding names no element, or names animations that `definitions.animations` does not have.
      * @data the binding
      */

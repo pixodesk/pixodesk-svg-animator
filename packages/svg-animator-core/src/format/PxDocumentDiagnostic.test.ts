@@ -12,6 +12,8 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { diagnoseDocument, reportDocumentDiagnostics } from './PxDocumentDiagnostic';
+import { PxDiagnosticCode } from '../playback/PxDiagnosticCode';
+import { createDiagnostics, PxDiagnosticKind } from '../playback/PxDiagnostics';
 
 /** The current wire spelling — nothing to report. */
 const sound = {
@@ -70,6 +72,22 @@ describe('reportDocumentDiagnostics', () => {
     it('is SILENT on a sound document, and speaks up on the flat spelling', () => {
         expect(captured(sound)).toBe('');
         expect(captured(flatSpelling)).toContain('animator.duration');
+    });
+
+    it('given a diagnostics channel it reports THROUGH it — kind document, code documentSchemaMismatch, the problems in data — and prints nothing itself', () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const onWarn = vi.fn();
+        reportDocumentDiagnostics(mangled, '[test]', createDiagnostics({ onWarn }));
+        expect(warn).not.toHaveBeenCalled();
+        expect(onWarn).toHaveBeenCalledTimes(1);
+        const d = onWarn.mock.calls[0][0];
+        expect(d.kind).toBe(PxDiagnosticKind.document);
+        expect(d.code).toBe(PxDiagnosticCode.documentSchemaMismatch);
+        expect(JSON.stringify(d.data)).toContain('MANGLES PROPERTY NAMES');
+        // a sound document says nothing on either road
+        reportDocumentDiagnostics(sound, '[test]', createDiagnostics({ onWarn }));
+        expect(onWarn).toHaveBeenCalledTimes(1);
+        warn.mockRestore();
     });
 
     it('names property mangling and points at the reserved list — a bare "extra key" helps nobody', () => {

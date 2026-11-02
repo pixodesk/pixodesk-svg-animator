@@ -78,8 +78,8 @@ function createAnimatorImpl(
     // reaching us are unrecognizable and this says so, instead of the animation silently rendering
     // nothing (dev-docs/plans/minification-boundary.md §3). On the checked copy, which keeps unknown
     // keys and has its invalid values already repaired and reported above — so it names exactly the
-    // keys this build does not know.
-    reportDocumentDiagnostics(doc, '[PxAnimator] createSvgAnimationPlayer');
+    // keys this build does not know. Through the player's channel: `onWarn` gets it, `suppressWarnings` mutes it.
+    reportDocumentDiagnostics(doc, '[PxAnimator] createSvgAnimationPlayer', diag);
 
     // The per-instance override, applied BEFORE anything reads the config. Everything below
     // depends on the final values: `timeline.engine` picks the engine, the content window drives loop

@@ -45,7 +45,11 @@ jobs:
   get-started-examples:
     runs-on: ubuntu-latest
     steps:
+      # Tags, so the check can tell whether this tree IS the published release: same version
+      # string, different commit means the examples may already follow a newer API.
       - uses: actions/checkout@v4
+        with:
+          fetch-tags: true
 
       - uses: pnpm/action-setup@v4
 

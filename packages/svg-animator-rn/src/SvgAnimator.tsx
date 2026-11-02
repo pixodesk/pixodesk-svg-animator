@@ -247,8 +247,8 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
     doc = prepareDocument(doc, { stage: PxDocStage.checked, onProblems });
     // §6: per-key transform channels still play (old migrated files), but are named as deprecated
     for (const w of validateDeprecatedTransformChannels(doc)) diag.warn(PxDiagnosticKind.document, PxDiagnosticCode.deprecatedTransformChannel, w);
-    // The whole-document boundary diagnostic — see the note in the web player's entry.
-    reportDocumentDiagnostics(doc, '[SvgAnimationPlayer]');
+    // The whole-document boundary diagnostic — see the note in the web player's entry; through the channel.
+    reportDocumentDiagnostics(doc, '[SvgAnimationPlayer]', diag);
 
     // The per-instance override, applied to the WIRE document BEFORE anything reads the
     // config — `materializeAllInTree` samples motion paths against `duration`, so a later
