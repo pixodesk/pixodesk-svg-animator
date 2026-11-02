@@ -102,7 +102,7 @@ export default function App() {
                     <SvgAnimationPlayer
                         key={sampleIdx + '|' + loopMode}
                         doc={doc}
-                        timeline={loopTimeline(loopMode)}
+                        timelineOptions={loopTimeline(loopMode)}
                         playUsingActionTriggers
                         playerRef={api}
                     />
