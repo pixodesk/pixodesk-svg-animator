@@ -48,7 +48,7 @@ describe('playOnce (§10)', () => {
     });
 
     it("a loop document with finish 'reset' snaps to rest after the pass", () => {
-        const api = createSvgAnimationPlayer({ doc: doc({ iterations: 'infinite', actionTriggers: {}, actions: { finish: { do: 'reset' } } }), container: '#box' });
+        const api = createSvgAnimationPlayer({ doc: doc({ iterations: 'infinite', actionTriggers: {}, actions: { finish: { behavior: 'reset' } } }), container: '#box' });
         api.playOnce();
         vi.advanceTimersByTime(1600);
         expect(api.isPlaying()).toBe(false);

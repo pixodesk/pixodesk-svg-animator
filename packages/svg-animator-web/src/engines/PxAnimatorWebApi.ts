@@ -368,7 +368,7 @@ export function createWebApiAnimator(
         "reset": () => {
             finishNotified = false; // re-arm finish notification
             animations.forEach(a => a.cancel());
-            callbacks?.onCancel?.();
+            callbacks?.onReset?.();
         },
         "jumpToFinished": () => {
             for (const a of animations) {
@@ -438,7 +438,7 @@ export function createWebApiAnimator(
     // D3 (scroll-timeline.design.md): triggers are inert on a scroll-driven document —
     // writers must not emit them; a doc that carries them anyway gets a warning.
     // Every time-driven document IS wired: no `triggers` means the defaults (`start: 'load'` behind
-    // the gate's `pause` suspend — so an unseen animation does not run).
+    // the gate's `pause` out-of-view behavior — so an unseen animation does not run).
     if (config.timelineSource === 'scroll') {
         if (config.actionTriggers) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);
     } else {

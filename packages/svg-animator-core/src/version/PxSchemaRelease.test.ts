@@ -16,6 +16,8 @@ import { PX_WIRE_BASELINE_VERSION, PX_WIRE_STEPS, PxWireStepKind, type PxWireVer
 const releases: Array<SchemaReleaseRecord> = JSON.parse(readFileSync(resolve(__dirname, 'schema-releases.player.json'), 'utf8'));
 
 const LATEST_RELEASED = releases[releases.length - 1].version;
+/** One `b` past the log, whatever it ends at today. */
+const PAST_THE_LOG = ((): string => { const [a, b] = LATEST_RELEASED.split('.').map(Number); return a + '.' + (b + 1); })();
 
 const step = (to: string, kind: PxWireStepKind, from: string = LATEST_RELEASED): PxWireVersionStep => ({
     from, to, kind, reason: 'spec only — a fabricated step',
@@ -30,7 +32,7 @@ describe('the release log (5.4)', () => {
 
     it('MUTATION SELF-TEST: a bump with no changelog entry is named', () => {
         // One version PAST the log, whatever the log ends at today.
-        const problems = releaseLogProblems(releases, [step('1.12', PxWireStepKind.additive)], '1.12', PX_WIRE_BASELINE_VERSION);
+        const problems = releaseLogProblems(releases, [step(PAST_THE_LOG, PxWireStepKind.additive)], PAST_THE_LOG, PX_WIRE_BASELINE_VERSION);
         expect(problems.join(' ')).toContain('last release record is ' + LATEST_RELEASED);
     });
 

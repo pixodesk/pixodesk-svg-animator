@@ -63,7 +63,7 @@ function createAnimatorImpl(
 ): PxAnimationPlayerApi {
 
     // Everything this player has to say goes through one channel (API review §5): the caller's
-    // `onWarn` / `onError` if given, the console otherwise — unless `muteWarn` / `muteError` switch it off.
+    // `onWarn` / `onError` if given, the console otherwise — unless `suppressWarnings` / `suppressErrors` switch it off.
     const diag = createDiagnostics(callbacks, '[PxAnimator]');
     const onProblems = (problems: Parameters<typeof reportDocumentProblems>[0]) => reportDocumentProblems(problems, diag);
 
@@ -160,7 +160,7 @@ function createAnimatorImpl(
 export { PX_ANIMATOR_DOC_KEY } from '../shared/PxAnimatorKeys';
 
 /**
- * Everything `createSvgAnimationPlayer` takes. The playback override (`timeline`, `actions`, and the object
+ * Everything `createSvgAnimationPlayer` takes. The playback override (`timelineOptions`, `actions`, and the object
  * form of `playUsingActionTriggers`) and the callbacks are core's shared shapes — the SAME names, inline, as the
  * React, Vue and React Native components take (review §9) — so only what is web-specific is
  * declared here.

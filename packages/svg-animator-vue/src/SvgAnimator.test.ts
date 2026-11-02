@@ -205,7 +205,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
     describe("events", () => {
         function renderWithListeners() {
             const spies = {
-                onPlay: vi.fn(), onPause: vi.fn(), onCancel: vi.fn(),
+                onPlay: vi.fn(), onPause: vi.fn(), onReset: vi.fn(),
                 onFinish: vi.fn(), onDestroy: vi.fn(), onStop: vi.fn(),
             };
             const utils = renderWithApi(getTestJson(), spies);
@@ -231,13 +231,13 @@ describe("SvgAnimationPlayer (Vue)", () => {
             expect(spies.onStop).not.toHaveBeenCalled();
         });
 
-        it("emits 'cancel' on reset() — not 'stop'", () => {
+        it("emits 'reset' on reset() — not 'stop'", () => {
             const { api, spies } = renderWithListeners();
             const handle = api.value;
             assert(handle, "template ref is set after render");
             handle.play();
             handle.reset();
-            expect(spies.onCancel).toHaveBeenCalledTimes(1);
+            expect(spies.onReset).toHaveBeenCalledTimes(1);
             expect(spies.onStop).not.toHaveBeenCalled();
         });
 
@@ -431,7 +431,7 @@ describe("SvgAnimationPlayer (Vue) — root element", () => {
     it("a `load` trigger plays when the document's root has no id", () => {
         const onWarn = vi.fn();
         const { container } = render(SvgAnimationPlayer, {
-            props: { doc: getMaskedLoadJson(), playUsingActionTriggers: true, onWarn, timeline: { engine: "js" } },
+            props: { doc: getMaskedLoadJson(), playUsingActionTriggers: true, onWarn, timelineOptions: { engine: "js" } },
         });
 
         const moving = container.querySelector("mask ellipse");
@@ -572,7 +572,7 @@ function getTestJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                actions: { finish: { do: "hold" } },
+                actions: { finish: { behavior: "hold" } },
                 iterationDirection: "normal",
                 actionTriggers: { start: "load" },
             },
@@ -613,7 +613,7 @@ function getTestJson1000(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 1000,
-                actions: { finish: { do: "hold" } },
+                actions: { finish: { behavior: "hold" } },
                 iterationDirection: "normal",
                 actionTriggers: { start: "load" },
             },
@@ -680,7 +680,7 @@ function getTreeJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                actions: { finish: { do: "hold" } },
+                actions: { finish: { behavior: "hold" } },
                 iterationDirection: "normal",
                 actionTriggers: { start: "load" },
             },
@@ -736,7 +736,7 @@ function getRectJson(): PxDocument {
             timeline: {
                 engine: "js",
                 outTime: 128,
-                actions: { finish: { do: "hold" } },
+                actions: { finish: { behavior: "hold" } },
                 iterationDirection: "normal",
                 actionTriggers: { start: "load" },
             },
@@ -757,7 +757,7 @@ function getRectJson(): PxDocument {
     };
 }
 
-describe('SvgAnimationPlayer (Vue) — timeline override', () => {
+describe('SvgAnimationPlayer (Vue) — timelineOptions override', () => {
 
     /** A WIRE-format document; the flat props this replaced were discarded on this shape. */
     const wireJson = (): PxDocument => ({
@@ -779,19 +779,19 @@ describe('SvgAnimationPlayer (Vue) — timeline override', () => {
     });
 
     it('mergeTimeline overrides duration ON A WIRE DOCUMENT (the flat props never did)', () => {
-        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), showAtProgress: 0.5, timeline: { outTime: 4000 } } });
+        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), showAtProgress: 0.5, timelineOptions: { outTime: 4000 } } });
         expect(opacityIn(container)).toBe(1);
     });
 
     it('a `playUsingActionTriggers` object beside `showAtProgress`: the position wins (PX1501), the frame is right', () => {
         const onWarn = vi.fn();
-        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), showAtProgress: 0.5, timeline: { outTime: 4000 }, playUsingActionTriggers: { start: 'click' }, onWarn } });
+        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), showAtProgress: 0.5, timelineOptions: { outTime: 4000 }, playUsingActionTriggers: { start: 'click' }, onWarn } });
         expect(opacityIn(container)).toBe(1);
         expect(onWarn.mock.calls.map(c => c[0].code)).toContain(PxDiagnosticCode.controlPropsConflict);
     });
 
-    it('takes no JSON-string form of timeline any more — a string is ignored, the document stays as it is', () => {
-        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), showAtProgress: 0.5, timeline: '{"outTime":4000}' } });
+    it('takes no JSON-string form of timelineOptions any more — a string is ignored, the document stays as it is', () => {
+        const { container } = render(SvgAnimationPlayer, { props: { doc: wireJson(), showAtProgress: 0.5, timelineOptions: '{"outTime":4000}' } });
         expect(opacityIn(container)).toBeCloseTo(0.5, 1);   // the document's own 1000 ms, untouched
     });
 });
@@ -809,7 +809,7 @@ function getEffectsOnlyJson(): PxDocument {
         animator: {
             timeline: {
                 outTime: 1000,
-                actionTriggers: { start: "hoverIn", pause: "hoverOut" }, actions: { suspend: { do: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
+                actionTriggers: { start: "hoverIn", pause: "hoverOut" }, actions: { outOfView: { behavior: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
             },
             version: "1.9.1",
@@ -873,7 +873,7 @@ function getMaskedLoadJson(): PxDocument {
         animator: {
             timeline: {
                 outTime: 1000,
-                actionTriggers: { start: "load" }, actions: { suspend: { do: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
+                actionTriggers: { start: "load" }, actions: { outOfView: { behavior: "pause" } }, inViewThreshold: 0.5, inViewDebounce: 150,
                 iterations: "infinite", iterationDirection: "normal",
             },
             version: "1.9.1",

@@ -71,7 +71,7 @@ a number when it differs — the note with that number, under the table, says ho
 | `doc` | ✓ | — | 2 | ✓ | ✓ | ✓ |
 | `container` | ✓ | 3 | — | — | — | — |
 | **Playback override** | | | | | | |
-| `timeline` | ✓ | — | — | ✓ | ✓ | 4 |
+| `timelineOptions` | ✓ | — | — | ✓ | ✓ | 4 |
 | `actions` | ✓ | — | — | ✓ | ✓ | ✓ |
 | **Play using action triggers** | | | | | | |
 | `playUsingActionTriggers` | ✓ | 10 | 11 | ✓ | ✓ | 5 |
@@ -85,15 +85,15 @@ a number when it differs — the note with that number, under the table, says ho
 | **Callbacks** | | | | | | |
 | `onPlay` | ✓ | — | ✓ | ✓ | `@play` | ✓ |
 | `onPause` | ✓ | — | ✓ | ✓ | `@pause` | ✓ |
-| `onCancel` | ✓ | — | ✓ | ✓ | `@cancel` | ✓ |
+| `onReset` | ✓ | — | ✓ | ✓ | `@reset` | ✓ |
 | `onFinish` | ✓ | — | ✓ | ✓ | `@finish` | ✓ |
 | `onReady` | ✓ | — | ✓ | ✓ | `@ready` | ✓ |
 | `onDestroy` | ✓ | — | ✓ | ✓ | `@destroy` | ✓ |
 | `onStop` | ✓ | — | ✓ | ✓ | `@stop` | ✓ |
 | `onError` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
 | `onWarn` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
-| `muteWarn` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
-| `muteError` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
+| `suppressWarnings` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
+| `suppressErrors` | ✓ | — | ✓ | ✓ | ✓ | ✓ |
 | `fallback` | — | — | — | — | — | ✓ |
 | **Styling** | | | | | | |
 | `className` | — | — | — | ✓ | 9 | — | <!-- px vue=~ -->
@@ -105,7 +105,7 @@ a number when it differs — the note with that number, under the table, says ho
 2. Required. Only `animator.definitions` and `animator.bindings` are needed: the SVG itself is
    already in the page.
 3. The tag is the container: the player renders into the element that carries the attribute.
-4. React Native ignores `timeline.engine`.
+4. React Native ignores `engine` and `frameRate` inside `timelineOptions`.
 5. `true`, or the whole `actionTriggers` block to use instead of the file's (a `PxActionTriggers`); React Native ignores
    `hoverIn` / `hoverOut`, which have no touch equivalent.
 6. The handle is what `createSvgAnimationPlayer` returns, a `PxAnimationPlayerApi`.
@@ -126,19 +126,20 @@ What some of the names mean:
   is also part of the export format: every SVG + JS file the editor exports calls
   `createSvgAnimationPlayer({"doc": …})` (`PX_ANIMATOR_DOC_KEY`), so it is never renamed by a minifier.
 - **`container`** left out means: animate an SVG that is already in the page.
-- **`timeline`** merges corrections over the file's timing block — `{ iterations: 'infinite' }`,
+- **`timelineOptions`** merges corrections over the file's timing block — `{ iterations: 'infinite' }`,
   `{ playDuration: 500 }` — never a replacement; `null` at a key deletes it. See
   [Overriding from a player](./playback-and-triggers.md#overriding-from-a-player).
-- **`actions`** merges over the file's `timeline.actions` — how start, stop, finish and suspend
-  look: `{ stop: 'rewind' }`. The same rules as `timeline`.
+- **`actions`** merges over the file's `timeline.actions` — how start, stop, finish and out-of-view
+  look: `{ stop: 'rewind' }`. The same rules as `timelineOptions`.
 - **`playUsingActionTriggers`** means "play the way the document says". The HTML tag always works this way;
   the web player takes it as an option (`createSvgAnimationPlayer({ …, playUsingActionTriggers: true })`) — without
   it, nothing starts and the returned api drives playback. An **object** instead of `true` is the whole
   `actionTriggers` block to use in place of the file's (`{ start: 'hoverIn', stop: 'hoverOut' }`).
 - **`play`** is the on/off switch: `true` calls the built-in `start`, `false` the built-in `stop`, each
   done the way the file's `actions` say (the presets, the stop's `completeIteration` —
-  [Actions](./playback-and-triggers.md#actions--how-start-stop-and-finish-look));
-  **`pause`** freezes the current frame, and setting it back to `false` resumes.
+  [Actions](./playback-and-triggers.md#actions--how-start-stop-and-finish-look)). `play={false}`
+  performs the stop action (`actions.stop`: reset or rewind) — it does not pause; freeze with
+  **`pause`**, which holds the current frame until it is set back to `false`.
 - **`showAtProgress`** shows the frame at a point between 0 and 1 of the whole run (of one iteration
   when `iterations` is `'infinite'`); **`showAtTime`** shows the frame at that many ms from the start.
 - **`playerRef`** is the handle for calling `play()`, `pause()`, `stop()` and the rest from your code.
@@ -150,7 +151,7 @@ What some of the names mean:
   `fallback` instead. Without a handler the message goes to `console.error`.
 - **`onWarn`** means it plays, but something was ignored, simplified or misspelled. Without a
   handler the message goes to `console.warn`.
-- **`muteWarn`** / **`muteError`** turn off those console messages, for an app that already
+- **`suppressWarnings`** / **`suppressErrors`** turn off those console messages, for an app that already
   knows about them. A handler you passed still gets called.
 - **`className`** and **`style`** style the root `<svg>`. On the web, style the container instead.
 
@@ -161,21 +162,21 @@ The pre-rendered SVG + CSS wrappers toggle class names instead of creating a pla
 |---|---|---|
 | the SVG | `children` | default slot | <!-- px name=children vue=~ -->
 | `actionTriggers` | ✓ the file's `actionTriggers` block; absent = plays on load | ✓ same |
-| `actions` | ✓ `suspend` only; default `'pause'` | ✓ same |
+| `actions` | ✓ `outOfView` only; default `'pause'` | ✓ same |
 | `inViewThreshold` | ✓ default `0.5` | ✓ same |
 | `inViewDebounce` | ✓ default `150` ms | ✓ same |
 | `className` | ✓ on the wrapper div | `class`, on the wrapper div | <!-- px vue=~ -->
 | `style` | ✓ on the wrapper div | ✓ on the wrapper div | <!-- px vue=~ -->
 
-- `actionTriggers` is the JSON player's block — `start`, `stop`, `pause`, `resume` (derived),
-  `togglePlay`, each one event or a list of them, read by the same rules
+- `actionTriggers` is the JSON player's block — `start`, `stop`, `pause` (the derived `resume`
+  follows), each one event or a list of them, read by the same rules
   ([Triggers](./playback-and-triggers.md#triggers--when-it-plays)): `pause: 'hoverOut'` pauses,
   `stop: 'hoverOut'` stops. An **empty** block does nothing here: a wrapper has no `play()` to call.
-- `actions` takes only `suspend` (`{ suspend: 'pause' }`): an animation nobody can
+- `actions` takes only `outOfView` (`{ outOfView: 'pause' }`): an animation nobody can
   see does not run, whatever started it.
 - Accepted limits of a class toggle: a start acts as the `continue` preset and a stop as
   `reset` — a class cannot restart keyframes, jump to their end or play them backwards — and the
-  stop's `completeIteration`, `beforeStart` and the finish preset are the file's own CSS.
+  stop's `completeIteration`, `showWhenStopped` and the finish preset are the file's own CSS.
   None of them is a prop here.
 - `inViewThreshold` is how much of the SVG (0 to 1) must be on screen before it may run;
   `inViewDebounce` is how long it must stay that way first, so scrolling straight past starts
@@ -192,7 +193,7 @@ core (`resolveControlMode`), so they always pick the same winner:
 | Priority | Mode | Chosen when | The document's triggers |
 |---|---|---|---|
 | 1 | controlled time | `showAtProgress` or `showAtTime` | switched off; the player seeks and holds |
-| 2 | play / pause | `play` or `pause` | switched off; `play={true}` calls `start`, `play={false}` calls `stop` — per the file's `actions` — and `pause` freezes |
+| 2 | play / pause | `play` or `pause` | switched off; `play={true}` calls `start`, `play={false}` performs the stop action (`actions.stop`: reset or rewind) — it does not pause — and `pause` freezes |
 | 3 | playUsingActionTriggers | `playUsingActionTriggers` | used, after the override |
 | 4 | static | none of the above | switched off; the first frame renders and nothing plays |
 
@@ -220,7 +221,7 @@ interface PxAnimationPlayerCallbacks {
                             //   the push twin of isReady()
     onPlay?: () => void;    // started or resumed
     onPause?: () => void;
-    onCancel?: () => void;
+    onReset?: () => void;
     onFinish?: () => void;  // reached the end, or finish() was called — not when stopped early
     onDestroy?: () => void;  // destroy() was called, the component unmounted, or a new `doc` arrived
     onStop?: () => void;    // the built-in stop was performed (now, or after the iteration it waited for)
@@ -234,11 +235,11 @@ interface PxAnimationPlayerCallbacks {
                                          //   build, or the render threw — nothing rendered,
                                          //   isReady() false, a component shows its fallback;
                                          //   d.error is the Error; else console.error
-    muteWarn?: boolean;                  // switch the console.warn fallback off — for a host that
+    suppressWarnings?: boolean;          // switch the console.warn fallback off — for a host that
                                          //   knows the player has something to say about this
                                          //   document and tolerates it. A handler you passed
-                                         //   still fires: mute is about the console, not you
-    muteError?: boolean;                 // the same switch for console.error
+                                         //   still fires: this is about the console, not you
+    suppressErrors?: boolean;            // the same switch for console.error
 }
 
 // Every diagnostic says WHAT happened as a NUMBER and WHO can act on it, so a host can switch
@@ -284,6 +285,25 @@ and implemented once in core:
 - a rate of `0` is **rejected everywhere**, with a warning — `pause()` is how you stop;
 - `showAtProgress` and `getCurrentProgress()` are the same position as 0–1 of the whole run — of ONE
   iteration when endless, since an endless run has no whole to be a fraction of.
+
+### Why these names
+
+The file's own keys are explained on the [JSON format page](../format/README.md#why-these-names);
+these are the props and calls of the players:
+
+<!-- px-check off naming rationale, prose -->
+| Name | Why |
+|---|---|
+| `doc` | not `document`: `document` shadows `window.document` in exactly the files that also query it, and the type is `PxDocument` |
+| `playerRef` | not React's `ref`: the handle is not a control mode — the drivers are the `play…` / `show…` props — and Vue and React Native carry the same name, so one word reads the same in all three |
+| `playUsingActionTriggers` | a driver prop starts with its verb and says what drives — here the action triggers; `autoplay` lied for a click file (it waited), `triggers` alone did not say that it plays |
+| `play` / `pause` | two booleans, not a state word: `play` is on / off and `pause` a freeze on top — the CSS model (`animation-name` applied × `animation-play-state`), so `play={hovered}` and `pause={!inView}` compose |
+| `showAtProgress` / `showAtTime` | `show…` because they show a frame and never play; ms as every time on this API (WAAPI's unit), so not `showAtMs` |
+| `timelineOptions` | not `timeline`: it is not the file's `timeline` object — two of its keys live on other props — and a prop sharing a file key's name would promise the same shape; `actions` keeps the file's name because it is a partial of that block |
+| `suppressWarnings` / `suppressErrors` | React's own `suppressHydrationWarning` / `suppressContentEditableWarning` set the word; `muteWarn` / `muteError` until 1.15 |
+| `onFinish` | WAAPI's word (`finish()`, `onfinish`, `playState: 'finished'`), one trio with the `finish` moment in `actions` and the `finished` state; `ended` is `<video>`'s, `complete` Lottie's |
+| `onReset` / `onStop` | a state against an action: `onReset` says "back at the start pose", whatever caused it; `onStop` says "the stop action was performed" |
+| `getDuration()` | one iteration, as WAAPI's `duration`, CSS `animation-duration` and lottie-web's `getDuration()` are; × `iterations` for the whole run |
 
 ## See also
 

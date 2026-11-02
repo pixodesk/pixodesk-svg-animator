@@ -11,7 +11,7 @@ import { implementsInterface, px, PxValidationFindingKind, reportValidationError
 export * from './PxAnimatorConstants';
 import { getAnimatorConfig, INTERNAL_ATTRS, isPxDocument, PX_DEFAULT_DURATION_MS, PX_DEFAULT_ITERATIONS, PX_DEFAULT_UNITS_PER_EM, PX_TRANSFORM_PART_KEYS, PX_PLAYBACK_DEFAULTS, PxTimelineEngineSetting, PxCloneWithout, PxPathOverflow, PxGradientSpreadMethod, PxGradientType, PxLengthAdjust, PxLoopRepeatAt, PxLoopDirection, PxMaskType, PxTextPathMethod, PxTextPathSpacing, PxStrokeTrimSubPaths, PxUnits,
     // Wire enums named in review §2.7 — used as VALUES by the schemas below.
-    PxAlongPathMode, PxFillMode, PxStartTransition, PxStopTransition, PxFinishTransition, PxSuspendTransition, PxBeforeStart, PxPinAlign, PxPlaybackDirection,
+    PxAlongPathMode, PxFillMode, PxStartBehavior, PxStopBehavior, PxFinishBehavior, PxOutOfViewBehavior, PxShowWhenStopped, PxPinAlign, PxPlaybackDirection,
     PxScrollAxis, PxScrollKind, PxScrollPhase, PxScrollSource, PxTriggerEvent, PxTriggerList, allowedTriggerEvents, PxValueKind } from './PxAnimatorConstants';
 import type { PxPlayState, PxTimelineEngine, PxTransformPartKey, PxTriggerEvents } from './PxAnimatorConstants';
 // Version stamps are parsed by the reader's own parser (review §2.10) so the validator and the
@@ -585,8 +585,14 @@ export type PxElementAnimation = PxInfer<typeof PxElementAnimationSchema>;
  * references. The state rule, over stopped · playing · paused: `start` acts when stopped, `pause` when playing,
  * `resume` when paused, `stop` when playing or paused — so `click` in `start` and `pause` toggles through all
  * three. Each list names only the events that make sense for it ({@link allowedTriggerEvents}); `resume` is
- * DERIVED for the built-in events ({@link derivedResume}). HOW each action looks is the timeline's `actions`
+ * DERIVED when the file does not name it ({@link derivedResume}). HOW each action looks is the timeline's `actions`
  * block: the triggers say only WHEN.
+ *
+ * WHY THESE NAMES (outside reviews, 2026-10/11): `actionTriggers`, not `triggers` — the word *action* is the link to
+ * the `actions` block: a key here is a REQUEST a page event can make, the same key there is the MOMENT whose outcome
+ * is configurable. `start` / `stop` / `pause` are the handle's own verbs (`play()` / `stop()` / `pause()`). The two
+ * blocks are not symmetrical and do not claim to be: `pause` has one possible behavior (freeze), so there is no
+ * `actions.pause`; `finish` and `outOfView` are not page events, so they have no list here.
  */
 export interface _PxActionTriggers {
     /** Starts it (when stopped). An ABSENT triggers block means `'load'`; an empty block means nothing starts it. */
@@ -595,11 +601,10 @@ export interface _PxActionTriggers {
     stop?: PxTriggerEvents;
     /** Freezes it where it is (when playing). */
     pause?: PxTriggerEvents;
-    /** Resumes it (when paused). DERIVED for the built-in events — the counterpart of each `pause` event plus the
-     *  `start` events that do not stop it; a built-in event listed here is ignored (kept for element targets). */
+    /** Resumes it (when paused). Absent, it is DERIVED — the counterpart of each `pause` event (hover out resumes
+     *  what hover in paused, a click what a click paused) plus the `start` events that do not stop it. Named, the
+     *  list is used as written; the players note where it differs from the derivation ({@link triggerIssues}). */
     resume?: PxTriggerEvents;
-    /** Starts it when stopped, stops it otherwise — `click` listed under `start` and `stop`. */
-    togglePlay?: PxTriggerEvents;
 }
 
 const PxTriggerEventSchema = px.enum([PxTriggerEvent.load, PxTriggerEvent.hoverIn, PxTriggerEvent.hoverOut, PxTriggerEvent.click] as const, PxTriggerEvent.load);
@@ -618,7 +623,6 @@ export const PxActionTriggersSchema = implementsInterface<_PxActionTriggers>()(p
     stop: triggerListSchema(PxTriggerList.stop).optional(),
     pause: triggerListSchema(PxTriggerList.pause).optional(),
     resume: triggerListSchema(PxTriggerList.resume).optional(),
-    togglePlay: triggerListSchema(PxTriggerList.togglePlay).optional(),
 }));
 
 /** WHEN each built-in action fires — the `actionTriggers` block; see {@link _PxActionTriggers}. A key names the
@@ -626,54 +630,59 @@ export const PxActionTriggersSchema = implementsInterface<_PxActionTriggers>()(p
 export type PxActionTriggers = PxInfer<typeof PxActionTriggersSchema>;
 const _ck_PxActionTriggers: KeysMatch<PxActionTriggers, _PxActionTriggers> = true; // the key sets are identical
 
-/** The block a DRIVER takes — `playUsingActionTriggers`, the web option, `bind` — without `resume`: it is derived for
- *  the built-in events, so the type refuses what the runtime would only ignore (the schema keeps the key for
- *  element targets, playback-layers.md layer 2). @public @advanced */
+/** The block a DRIVER takes — `playUsingActionTriggers`, the web option, `bind` — without `resume`: a driver's
+ *  block says what the page does, and the resume follows from it; the FILE may still name one ({@link _PxActionTriggers}).
+ *  @public @advanced */
 export type PxActionTriggersInput = Omit<PxActionTriggers, 'resume'>;
 
 /**
- * HOW the built-in actions look (playback-layers.md, layer 1) — one slot per action: `do` names a PRESET (where the
- * action ends and the path there), and a slot that says only `do` is written as the word itself — `stop: 'rewind'`
- * is exactly `stop: { do: 'rewind' }`. Nothing to configure on pause / resume / wake / the toggles. A key here names
+ * HOW the built-in actions look (playback-layers.md, layer 1) — one slot per action: `behavior` names a PRESET (where the
+ * action ends and the path there), and a slot that says only `behavior` is written as the word itself — `stop: 'rewind'`
+ * is exactly `stop: { behavior: 'rewind' }`. Nothing to configure on pause / resume / wake. A key here names
  * the action; the same key in `actionTriggers` says when it fires.
+ *
+ * WHY `behavior` (1.14): "stop behavior: rewind" says what kind of thing the value is; `do` (1.11) and `transition`
+ * (1.10, read as CSS) did not. WHY the keys are MOMENTS: `start` and `stop` are also requests, `finish` is the
+ * natural end, `outOfView` the visibility gate closing — "what happens at this moment" is the one reading that fits
+ * all four.
  */
 export interface _PxActions {
-    /** `do`: `continue` (default), `restart`, `jumpToFinished`. */
-    start?: PxStartTransition | { do?: PxStartTransition };
-    /** `do`: `reset` (default) or `rewind`; `completeIteration`: after the current iteration (a one-shot runs to
-     *  its end) instead of now — orthogonal to `do` (`rewind` then plays back from there). */
-    stop?: PxStopTransition | { do?: PxStopTransition; completeIteration?: boolean };
-    /** The natural end — `do`: `hold` the last frame (default), `reset`, or `rewind`; the runtime view derives
+    /** `behavior`: `continue` (default), `restart`, `jumpToFinished`. */
+    start?: PxStartBehavior | { behavior?: PxStartBehavior };
+    /** `behavior`: `reset` (default) or `rewind`; `completeIteration`: after the current iteration (a one-shot runs to
+     *  its end) instead of now — orthogonal to `behavior` (`rewind` then plays back from there). */
+    stop?: PxStopBehavior | { behavior?: PxStopBehavior; completeIteration?: boolean };
+    /** The natural end — `behavior`: `hold` the last frame (default), `reset`, or `rewind`; the runtime view derives
      *  `fill` / `resetOnFinish` from it. */
-    finish?: PxFinishTransition | { do?: PxFinishTransition };
-    /** None of it on screen (the visibility gate's closing edge) — `do`: `pause` (default), `continue`, `reset`.
+    finish?: PxFinishBehavior | { behavior?: PxFinishBehavior };
+    /** None of it on screen (the visibility gate's closing edge) — `behavior`: `pause` (default), `continue`, `reset`.
      *  On return (`wake`) it runs again only if it was meant to run. */
-    suspend?: PxSuspendTransition | { do?: PxSuspendTransition };
+    outOfView?: PxOutOfViewBehavior | { behavior?: PxOutOfViewBehavior };
 }
 
-const PxStartPresetSchema = px.enum([PxStartTransition.continue, PxStartTransition.restart, PxStartTransition.jumpToFinished] as const, PX_PLAYBACK_DEFAULTS.startTransition);
-const PxStopPresetSchema = px.enum([PxStopTransition.reset, PxStopTransition.rewind] as const, PX_PLAYBACK_DEFAULTS.stopTransition);
-const PxFinishPresetSchema = px.enum([PxFinishTransition.hold, PxFinishTransition.reset, PxFinishTransition.rewind] as const, PX_PLAYBACK_DEFAULTS.finishTransition);
-const PxSuspendPresetSchema = px.enum([PxSuspendTransition.pause, PxSuspendTransition.continue, PxSuspendTransition.reset] as const, PX_PLAYBACK_DEFAULTS.suspendTransition);
+const PxStartPresetSchema = px.enum([PxStartBehavior.continue, PxStartBehavior.restart, PxStartBehavior.jumpToFinished] as const, PX_PLAYBACK_DEFAULTS.startBehavior);
+const PxStopPresetSchema = px.enum([PxStopBehavior.reset, PxStopBehavior.rewind] as const, PX_PLAYBACK_DEFAULTS.stopBehavior);
+const PxFinishPresetSchema = px.enum([PxFinishBehavior.hold, PxFinishBehavior.reset, PxFinishBehavior.rewind] as const, PX_PLAYBACK_DEFAULTS.finishBehavior);
+const PxOutOfViewPresetSchema = px.enum([PxOutOfViewBehavior.pause, PxOutOfViewBehavior.continue, PxOutOfViewBehavior.reset] as const, PX_PLAYBACK_DEFAULTS.outOfViewBehavior);
 
 /** `actions.start`, the settings form. @public @advanced */
-export const PxStartActionSchema = px.object({ do: PxStartPresetSchema.optional() });
+export const PxStartActionSchema = px.object({ behavior: PxStartPresetSchema.optional() });
 /** `actions.stop`, the settings form. @public @advanced */
 export const PxStopActionSchema = px.object({
-    do: PxStopPresetSchema.optional(),
+    behavior: PxStopPresetSchema.optional(),
     completeIteration: px.boolean(PX_PLAYBACK_DEFAULTS.stopCompleteIteration).optional(),
 });
 /** `actions.finish`, the settings form. @public @advanced */
-export const PxFinishActionSchema = px.object({ do: PxFinishPresetSchema.optional() });
-/** `actions.suspend`, the settings form. @public @advanced */
-export const PxSuspendActionSchema = px.object({ do: PxSuspendPresetSchema.optional() });
+export const PxFinishActionSchema = px.object({ behavior: PxFinishPresetSchema.optional() });
+/** `actions.outOfView`, the settings form. @public @advanced */
+export const PxOutOfViewActionSchema = px.object({ behavior: PxOutOfViewPresetSchema.optional() });
 
 /** Each slot: the preset word, or the settings. @public @advanced */
 export const PxActionsSchema = implementsInterface<_PxActions>()(px.object({
     start: px.union([PxStartPresetSchema, PxStartActionSchema]).optional(),
     stop: px.union([PxStopPresetSchema, PxStopActionSchema]).optional(),
     finish: px.union([PxFinishPresetSchema, PxFinishActionSchema]).optional(),
-    suspend: px.union([PxSuspendPresetSchema, PxSuspendActionSchema]).optional(),
+    outOfView: px.union([PxOutOfViewPresetSchema, PxOutOfViewActionSchema]).optional(),
 }));
 
 /** HOW the built-in actions look — see {@link _PxActions}. @public */
@@ -961,42 +970,52 @@ const PxTimelineEngineSchema = px.enum([PxTimelineEngineSetting.auto, PxTimeline
 export interface _PxTimeTimeline {
     /** Optional: an absent `type` (or an absent `timeline`) already means this member. */
     type?: 'time';
-    /** How the animated attributes get updated. Default `auto`. */
+    /** How the animated attributes get updated. Default `auto`. WHY `engine`, not `mode`: it picks HOW attributes
+     *  are driven (an implementation preference), not WHAT you see; see {@link PxTimelineEngineSetting} for `native`. */
     engine?: PxTimelineEngineSetting;
     /** Target fps for the player's frame loop — a parameter of the `engine` chosen above, so it
      *  sits beside it. Uncapped when absent; ignored by every engine except the frame loop. */
     frameRate?: number;
-    /** CONTENT ms where the window begins (first-use review §4). Default 0. */
+    /** CONTENT ms where the window begins (first-use review §4). Default 0. WHY `inTime` / `outTime`, not
+     *  `startTime` / `endTime`: they are the editor's in and out points — positions in the CONTENT, not in the run
+     *  (a run with `iterations: 3` has one `outTime` and three passes). */
     inTime?: number;
     /** CONTENT ms where the window ends. The editor always writes it; absent, the player derives
      *  it — the max raw keyframe time across all animations, else the old default length. */
     outTime?: number;
     /** WALL ms one pass of the window takes. Default `outTime − inTime` (play time = content
-     *  time). The remap is implemented as an initial playback-rate factor. */
+     *  time). The remap is implemented as an initial playback-rate factor. WHY `playDuration`: it is the one
+     *  wall-clock number on the timeline — a bare `duration` would not say which of the three time axes it is on
+     *  (content ms: `inTime` / `outTime`; wall ms of one pass: this; ms into the whole run: `delay`, the handle's
+     *  `getCurrentTime()`, the components' `showAtTime`). */
     playDuration?: number;
     /** WHEN each built-in action fires — the lists of events; absent = starts on load, `{}` = nothing starts it. */
     actionTriggers?: _PxActionTriggers;
     /** Wait before the first iteration, ms. Negative skips ahead. Waited whenever a run starts from the
      *  beginning — the first start, a `restart`, a `continue` after a reset or an end — never on a resume from a pause. */
     delay?: number;
-    /** Repeat count, or `'infinite'`. */
+    /** Repeat count, or `'infinite'` — WAAPI's word and values. */
     iterations?: number | 'infinite';
-    /** Each iteration's direction (`reverse` applies to a single pass too — still one iteration). */
+    /** Each iteration's direction (`reverse` applies to a single pass too — still one iteration). WAAPI's
+     *  `direction`, with `iteration` in front because it is per iteration — a scroll timeline has an axis direction of
+     *  its own; `alternateReverse` is `alternate-reverse` in the format's camelCase, like every value. */
     iterationDirection?: PxPlaybackDirection;
-    /** HOW the built-in actions look — `start` / `stop` / `finish` / `suspend`, each a preset word or its settings. */
+    /** HOW the built-in actions look — `start` / `stop` / `finish` / `outOfView`, each a preset word or its settings. */
     actions?: _PxActions;
-    /** The rest pose before the first start (and after a reset): `static` (default) = the SVG as authored,
-     *  `firstFrame` = the first frame's values — hand-authored files only; the Editor never writes it (by the
-     *  format's contract the static attributes ARE the first frame, `PxRestPose`). */
-    beforeStart?: PxBeforeStart;
+    /** What is shown while STOPPED — before the first start, after a reset or a rewind: `static` (default) = the SVG
+     *  as it is in the file, no animation applied; `firstFrame` = the first frame's values — hand-authored files only;
+     *  the Editor never writes it (by the format's contract the static attributes ARE the first frame, `PxRestPose`).
+     *  Named after the state it governs and the components' `show…` verb; see {@link PxShowWhenStopped}. */
+    showWhenStopped?: PxShowWhenStopped;
     /** How much must be on screen to count as in view (0–1, default 0.5; 0 = any visible pixel). */
     inViewThreshold?: number;
-    /** How long that must hold, ms (default 150). */
+    /** How long that must hold, ms (default 150). WHY `debounce`, not `delay`: a pending open is CANCELLED when
+     *  visibility drops below the threshold before the time is up — scrolling straight past starts nothing. */
     inViewDebounce?: number;
 }
 
 /** The time-driven member of {@link PxTimelineSchema} — what an absent `type` selects. Exported
- *  so a reader can ask it what an omitted field means (`PxTimeTimelineSchema.defaults.beforeStart`).
+ *  so a reader can ask it what an omitted field means (`PxTimeTimelineSchema.defaults.showWhenStopped`).
  *  @public @advanced */
 export const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.object({
     type: px.literal('time').optional(),
@@ -1014,7 +1033,7 @@ export const PxTimeTimelineSchema = implementsInterface<_PxTimeTimeline>()(px.ob
     iterations: px.union([px.number(PX_DEFAULT_ITERATIONS), px.literal('infinite')], PX_DEFAULT_ITERATIONS).optional(),
     iterationDirection: px.enum([PxPlaybackDirection.normal, PxPlaybackDirection.reverse, PxPlaybackDirection.alternate, PxPlaybackDirection.alternateReverse] as const, PxPlaybackDirection.normal).optional(),
     actions: PxActionsSchema.optional(),
-    beforeStart: px.enum([PxBeforeStart.static, PxBeforeStart.firstFrame] as const, PX_PLAYBACK_DEFAULTS.beforeStart).optional(),
+    showWhenStopped: px.enum([PxShowWhenStopped.static, PxShowWhenStopped.firstFrame] as const, PX_PLAYBACK_DEFAULTS.showWhenStopped).optional(),
     inViewThreshold: px.number(PX_PLAYBACK_DEFAULTS.inViewThreshold).optional(),
     inViewDebounce: px.number(PX_PLAYBACK_DEFAULTS.inViewDebounce).optional(),
 }));
@@ -1159,7 +1178,7 @@ export interface _PxAnimatorConfig {
     /** HOW the built-in actions look — copied from the wire (`fill` / `resetOnFinish` / `direction` above are derived). */
     actions?: PxActions;
     /** The wire's rest pose, carried through so a WRITER round-trips it; the engines read `fill`. */
-    beforeStart?: PxBeforeStart;
+    showWhenStopped?: PxShowWhenStopped;
     inViewThreshold?: number;
     inViewDebounce?: number;
 
@@ -1212,6 +1231,9 @@ export interface _PxAnimatorConfig {
      * "something is wrong" into "written for 1.5, this build reads 1.1; update the player".
      *
      * ABSENT means unknown, never "oldest": no version is assumed and no migration is guessed.
+     *
+     * WHY `version`, not `schemaVersion`: inside `animator` the word already says whose version it is, and the
+     * three-part number is this format's own (above), not semver — a longer name would promise the wrong thing.
      */
     version?: string;
 }
@@ -1233,7 +1255,8 @@ export interface _PxAnimatorConfig {
  * key that refers to a definition by name spells it the same way.
  */
 export interface _PxBinding {
-    /** The element to animate — `'#id'`. */
+    /** The element to animate — its id, written `'#id'`; NOT a CSS selector (no `.class`, no `svg > g`). WHY
+     *  `target`: WAAPI's `KeyframeEffect.target`; `selector` would promise what no player resolves. */
     target: string;
     /** Names into `definitions.animations`, applied in order. */
     animateWith: Array<string>;
@@ -2309,8 +2332,8 @@ export function toPxDocument(doc: PxDocumentInput): PxDocument {
 
 // -- Callbacks: one chain, three levels (API review §9, §5; dev-docs/reviews/api-surface-review.md §26.1) ----------------------------
 //
-//   PxDiagnosticsConfig   onWarn / onError / muteWarn / muteError   — what `createDiagnostics` reads
-//   PxEngineCallbacks     + onPlay / onPause / onCancel / onFinish / onDestroy — what an ENGINE takes
+//   PxDiagnosticsConfig   onWarn / onError / suppressWarnings / suppressErrors   — what `createDiagnostics` reads
+//   PxEngineCallbacks     + onPlay / onPause / onReset / onFinish / onDestroy — what an ENGINE takes
 //   PxAnimationPlayerCallbacks   + onStop                                  — what every PUBLIC surface takes
 //
 // Each level extends the one above, so a field is spelled once and the surfaces cannot drift.
@@ -2331,12 +2354,17 @@ export interface PxEngineCallbacks extends PxDiagnosticsConfig {
     /** Callback executed when the animation is paused. */
     onPause?: () => void;
 
-    /** Callback executed when the animation is canceled. */
-    onCancel?: () => void;
+    /** Back at the start pose — a `reset()`, a stop or finish whose preset is `reset`, the end of a `rewind`, the
+     *  gate's `outOfView: reset`, and a `destroy()` on its way out. A STATE callback, the twin of `onFinish` (the end
+     *  reached); `onStop` reports the stop ACTION. Was `onCancel` until 1.11 — the handle's `cancel()` became `reset()`
+     *  and the callback follows the preset's word. */
+    onReset?: () => void;
 
     /**
      * Callback executed when the animation reaches its end — it played every iteration, or
-     * `finish()` was called. Not fired when playback is stopped early (pause / cancel / destroy).
+     * `jumpToFinished()` was called. Not fired when playback is stopped early (pause / reset / destroy).
+     * WHY `finish`, not `ended`: one trio with the `finish` moment in `actions` and the `finished` state — WAAPI's
+     * word (`finish()`, `onfinish`, `playState: 'finished'`); `ended` is `<video>`'s, `complete` Lottie's.
      */
     onFinish?: () => void;
 
@@ -2349,9 +2377,8 @@ export interface PxEngineCallbacks extends PxDiagnosticsConfig {
 /**
  * What every PUBLIC surface takes, inline and under the same names — `createSvgAnimationPlayer({ onFinish })`,
  * `createSvgAnimationPlayersFromPage`, the pre-rendered entries, and `<SvgAnimationPlayer onFinish />` on React,
- * Vue and React Native (review §9, §24): the engine's callbacks plus `onStop`, which fires after
- * any of `onPause` / `onCancel` / `onFinish` / `onDestroy` — for callers who only care that
- * playback is no longer running, whatever the reason.
+ * Vue and React Native (review §9, §24): the engine's callbacks plus `onStop`, the stop ACTION's own
+ * callback (a catch-all before 1.11).
  *
  * ONE definition: the components derive their props from it instead of each spelling the same
  * names, which is how their comments had already started to drift.
@@ -2362,9 +2389,9 @@ export interface PxAnimationPlayerCallbacks extends PxEngineCallbacks {
      *  Fires ONCE, always asynchronously (so the create call has returned): with `doc`
      *  effectively immediately, with `src` after the fetch. */
     onReady?: () => void;
-    /** The built-in `stop` action was performed — by a `stop` trigger, `play: false`, `stop()` or `reset()`
-     *  — now, or once the iteration it was waiting for completed. A pause is `onPause`, the natural end
-     *  `onFinish`, a removal `onDestroy`: each fires its own, never this one. */
+    /** The built-in `stop` action was performed — by a `stop` trigger, `play: false` or `stop()` — now, or once
+     *  the iteration it was waiting for completed. A pause is `onPause`, the natural end `onFinish`, a removal
+     *  `onDestroy`, a `reset()` only `onReset`: each fires its own, never this one. */
     onStop?: () => void;
 }
 
@@ -2462,7 +2489,8 @@ export interface PxAnimationPlayerApi<TRoot = unknown> {
      *  — what a `stop` trigger does. `reset()` is the unconditional reset-now. */
     stop(): void;
 
-    /** The end pose, no motion — the `jumpToFinished` preset, as a call. Holds there (the `finished` state). */
+    /** The end pose, no motion — the `jumpToFinished` preset, as a call. Holds there (the `finished` state). WHY
+     *  `finished`, not `end`: named after the state it lands in — the `finish` / `finished` / `onFinish` trio. */
     jumpToFinished(): void;
 
     /**
@@ -2480,9 +2508,10 @@ export interface PxAnimationPlayerApi<TRoot = unknown> {
      */
     setPlaybackRate(rate: number): void;
 
-    /** ONE pass of the content window, ms (one iteration — multiply by `iterations` for the
-     *  whole run). The slider maximum nobody has to hard-code (review §14). `null` before a
-     *  `src` document has loaded. */
+    /** CONTENT ms of ONE pass of the content window (`outTime − inTime`) — one iteration, as WAAPI's `duration`,
+     *  CSS `animation-duration` and lottie-web's `getDuration()` are; multiply by `iterations` for the whole run
+     *  (nothing to multiply for `'infinite'` — then this is the slider maximum, as `getCurrentProgress()` already
+     *  treats it). `null` before a `src` document has loaded (review §14). */
     getDuration(): number | null;
 
     /** Current playback time, ms from the start of the whole run. `null` before ready. */

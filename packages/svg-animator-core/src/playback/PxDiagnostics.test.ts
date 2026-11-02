@@ -77,26 +77,26 @@ describe('createDiagnostics — warnings', () => {
         expect(warn.mock.calls[0].slice(1)).toEqual(['#missing', { tried: 3 }]);
     });
 
-    it('muteWarn switches the console fallback off — for a host that tolerates the chatter', () => {
+    it('suppressWarnings switches the console fallback off — for a host that tolerates the chatter', () => {
         const warn = warnSpy();
-        createDiagnostics({ muteWarn: true }).warn(PxDiagnosticKind.platform, PxDiagnosticCode.rnUnsupported);
+        createDiagnostics({ suppressWarnings: true }).warn(PxDiagnosticKind.platform, PxDiagnosticCode.rnUnsupported);
 
         expect(warn).not.toHaveBeenCalled();
     });
 
-    it('muteWarn is about the console, not about you — a handler you passed still fires', () => {
+    it('suppressWarnings is about the console, not about you — a handler you passed still fires', () => {
         const warn = warnSpy();
         const onWarn = vi.fn();
-        createDiagnostics({ onWarn, muteWarn: true }).warn(PxDiagnosticKind.platform, PxDiagnosticCode.rnUnsupported);
+        createDiagnostics({ onWarn, suppressWarnings: true }).warn(PxDiagnosticKind.platform, PxDiagnosticCode.rnUnsupported);
 
         expect(onWarn).toHaveBeenCalledTimes(1);
         expect(warn).not.toHaveBeenCalled();
     });
 
-    it('muteWarn leaves errors audible — the two switches are independent', () => {
+    it('suppressWarnings leaves errors audible — the two switches are independent', () => {
         const warn = warnSpy();
         const error = errorSpy();
-        const diag = createDiagnostics({ muteWarn: true });
+        const diag = createDiagnostics({ suppressWarnings: true });
 
         diag.warn(PxDiagnosticKind.platform, PxDiagnosticCode.rnUnsupported);
         diag.error(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, new Error('still heard'));
@@ -187,20 +187,20 @@ describe('createDiagnostics — errors', () => {
         expect(d.data).toEqual(['/logo.json']);
     });
 
-    it('muteError switches the console fallback off but not the handler', () => {
+    it('suppressErrors switches the console fallback off but not the handler', () => {
         const error = errorSpy();
         const onError = vi.fn();
-        createDiagnostics({ onError, muteError: true }).error(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed);
-        createDiagnostics({ muteError: true }).error(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed);
+        createDiagnostics({ onError, suppressErrors: true }).error(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed);
+        createDiagnostics({ suppressErrors: true }).error(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed);
 
         expect(onError).toHaveBeenCalledTimes(1);
         expect(error).not.toHaveBeenCalled();
     });
 
-    it('muteError leaves warnings audible — the two switches are independent', () => {
+    it('suppressErrors leaves warnings audible — the two switches are independent', () => {
         const warn = warnSpy();
         const error = errorSpy();
-        const diag = createDiagnostics({ muteError: true });
+        const diag = createDiagnostics({ suppressErrors: true });
 
         diag.error(PxDiagnosticKind.internal, PxDiagnosticCode.buildFailed, new Error('muted'));
         diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.rateRejected);

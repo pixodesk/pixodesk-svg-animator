@@ -9,7 +9,7 @@ const animator = createSvgAnimationPlayer({
 const $ = (id: string) => document.getElementById(id)!;
 $('play').onclick = () => animator.play();
 $('pause').onclick = () => animator.pause();
-$('cancel').onclick = () => animator.reset();
+$('reset').onclick = () => animator.reset();
 $('finish').onclick = () => animator.jumpToFinished();
 $('reverse').onclick = () => { animator.setPlaybackRate(-1); animator.play(); };
 $('normal').onclick = () => { animator.setPlaybackRate(1); animator.play(); };

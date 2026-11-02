@@ -21,8 +21,8 @@ import type { PxAnimationPlayerApi } from './PxAnimatorWebTypes';
  * `callbacks?.onFinish` for presence, so an always-present function would change its behaviour.
  */
 export function toEngineCallbacks(inline: PxAnimationPlayerCallbacks | undefined): PxPlayerCallbacks {
-    const { onPlay, onPause, onCancel, onFinish, onDestroy, onStop, onWarn, onError, muteWarn, muteError } = inline ?? {};
-    return { onPlay, onPause, onCancel, onFinish, onDestroy, onStop, onWarn, onError, muteWarn, muteError };
+    const { onPlay, onPause, onReset, onFinish, onDestroy, onStop, onWarn, onError, suppressWarnings, suppressErrors } = inline ?? {};
+    return { onPlay, onPause, onReset, onFinish, onDestroy, onStop, onWarn, onError, suppressWarnings, suppressErrors };
 }
 
 /**

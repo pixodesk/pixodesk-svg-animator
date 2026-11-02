@@ -18,7 +18,7 @@
 // ============================================================================
 
 import type { PxActions, PxAnimationPlayerApi, PxPlayExecutor } from '../format/PxAnimatorTypes';
-import { PxFinishTransition, PxStopTransition, PxStartTransition, PxPlayState, resolveActions } from '../format/PxAnimatorConstants';
+import { PxFinishBehavior, PxStopBehavior, PxStartBehavior, PxPlayState, resolveActions } from '../format/PxAnimatorConstants';
 
 /** What the declarative `play` drives: a POSE (one-shot) or a RUN (loop). @public @advanced */
 export enum PxPlaybackWorld {
@@ -63,10 +63,10 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
     const world = resolvePlaybackWorld(cfg.totalMs === Infinity ? 'infinite' : cfg.passMs > 0 ? cfg.totalMs / cfg.passMs : 1);
     const passMs = Math.max(cfg.passMs, 1);
     const actions = resolveActions(cfg.actions);
-    const startTransition = actions.start.do;
-    const stopTransition = actions.stop.do;
+    const startBehavior = actions.start.behavior;
+    const stopBehavior = actions.stop.behavior;
     const completeIteration = actions.stop.completeIteration;
-    const finishTransition = actions.finish.do;
+    const finishBehavior = actions.finish.behavior;
     /** The player's `onStop` — told whenever the configured stop is performed. */
     let onStop: (() => void) | undefined;
 
@@ -101,17 +101,17 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
     const start = (): void => {
         cancelPending();
         paused = false;
-        switch (startTransition) {
-            case PxStartTransition.restart:
+        switch (startBehavior) {
+            case PxStartBehavior.restart:
                 restart();
                 break;
-            case PxStartTransition.jumpToFinished:
+            case PxStartBehavior.jumpToFinished:
                 // the end pose with no motion; a loop has no end — its first pass's end stands in
                 forward();
                 if (world === PxPlaybackWorld.oneShot) api.jumpToFinished();
                 else { raw.pause(); api.setCurrentTime(passMs); }
                 break;
-            case PxStartTransition.continue:
+            case PxStartBehavior.continue:
             default:
                 // continue from where it is; at the end of a one-shot that is a fresh run from the beginning
                 if (atEnd() && !api.isPlaying()) { restart(); break; }
@@ -152,7 +152,7 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
     /** The off-action itself, from the current position — the moment `onStop` is told. */
     const performOff = (): void => {
         paused = false;
-        if (stopTransition === PxStopTransition.rewind) rewind();
+        if (stopBehavior === PxStopBehavior.rewind) rewind();
         else rest();
         onStop?.();
     };
@@ -190,8 +190,8 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
             if (pending) return;                       // a deferred move owns the end (an off completing its iteration)
             paused = false;
             if (reversed) { rest(); return; }          // the end of a rewind: rest at the start
-            if (finishTransition === PxFinishTransition.reset) rest();
-            else if (finishTransition === PxFinishTransition.rewind) rewind();
+            if (finishBehavior === PxFinishBehavior.reset) rest();
+            else if (finishBehavior === PxFinishBehavior.rewind) rewind();
         },
         dispose: cancelPending,
     };
@@ -378,7 +378,7 @@ export function composeApiExtras<T extends PxApiExtrasTarget>(api: T, cfg: PxApi
             if (mine !== token) return;                 // a later playOnce took over
             const t = raw.getCurrentTime();
             if (t !== null && t >= passMs) {
-                if (resolveActions(cfg.actions).finish.do === PxFinishTransition.reset) raw.reset();
+                if (resolveActions(cfg.actions).finish.behavior === PxFinishBehavior.reset) raw.reset();
                 else { raw.pause(); raw.setCurrentTime(passMs); }
                 return;
             }

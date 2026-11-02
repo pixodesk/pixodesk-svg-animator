@@ -223,8 +223,8 @@ started — the SVG as authored, or the first frame when `showFirstFrameBeforePl
 
 | | spelling |
 |---|---|
-| component | `playUsingActionTriggers?: boolean \| PxTrigger` (an object REPLACES the file's trigger — its keys are coupled); `timeline?: PxTimelinePatch` (MERGES: timing, the play keys and the gate are independent knobs with defaults); beside `play` / `pause` / `playerRef` / `showAtProgress` / `showAtTime`. `playMode` and `completeIteration` are gone — they are timeline keys now |
-| web | `createSvgAnimationPlayer({ playUsingActionTriggers?, timeline? })`; the handle `play()`, `pause()`, `stop()` |
+| component | `playUsingActionTriggers?: boolean \| PxTrigger` (an object REPLACES the file's trigger — its keys are coupled); `timelineOptions?: PxTimelinePatch` (MERGES: timing, the play keys and the gate are independent knobs with defaults); beside `play` / `pause` / `playerRef` / `showAtProgress` / `showAtTime`. `playMode` and `completeIteration` are gone — they are timeline keys now |
+| web | `createSvgAnimationPlayer({ playUsingActionTriggers?, timelineOptions? })`; the handle `play()`, `pause()`, `stop()` |
 | core | the one executor; the enums `PxPlayStartAction`, `PxPlayStopAction`, `PxPlayFinishAction` beside the existing `PxOutOfViewAction` |
 | CSS components | keep their per-event props; `rewind` and the iteration completion act as `continue` there (a class toggle cannot run keyframes backwards or count iterations) — the precedent `reverse` already has |
 
@@ -282,8 +282,8 @@ interface PxTimeTimeline {
     inViewDebounce?: number;                    // default 150
     trigger?: PxTrigger;                        // default { playStart: ['load'] }
 }
-// component:  playUsingActionTriggers?: boolean | PxTrigger;  timeline?: PxTimelinePatch (= PxPatch of the timeline minus `trigger`)
-// web:        createSvgAnimationPlayer({ playUsingActionTriggers?, timeline? });  play(); pause(); stop()
+// component:  playUsingActionTriggers?: boolean | PxTrigger;  timelineOptions?: PxTimelinePatch (= PxPatch of the timeline minus `trigger`)
+// web:        createSvgAnimationPlayer({ playUsingActionTriggers?, timelineOptions? });  play(); pause(); stop()
 ```
 
 **Examples.** A looping icon in a FILE — plays while hovered, finishes its beat when the pointer leaves, a click toggles
@@ -410,7 +410,7 @@ examples in §3. What changed:
 
 | | Was | Now |
 |---|---|---|
-| file | `timeline.triggers` · `actions.*.transition` | `timeline.actionTriggers` · `actions.*.do`, written as the word itself when it is the only setting (`stop: 'rewind'` ≡ `{ do: 'rewind' }`; the merging prop keeps the file's `completeIteration`) |
+| file | `timeline.triggers` · `actions.*.transition` | `timeline.actionTriggers` · `actions.*.behavior` (`do` in 1.11), written as the word itself when it is the only setting (`stop: 'rewind'` ≡ `{ behavior: 'rewind' }`; the merging prop keeps the file's `completeIteration`) |
 | driver prop | `playUsingActionTriggers` | `playUsingActionTriggers` — `true` = the file's block, an object = this block as a whole (type `PxActionTriggersInput`: no `resume`, which is derived) |
 | controlled position | `showAtProgress` / `showAtTime` | `showAtProgress` / `showAtTime` |
 | `play` on a one-shot at mount | the end pose, no motion | plays; the pose without motion is `showAtProgress={1}` |

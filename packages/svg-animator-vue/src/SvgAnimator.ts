@@ -7,7 +7,7 @@
 import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelinePatch, PxActionsPatch, PxActionTriggersInput, PxPlaybackOverrideInput } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, getAnimatorConfig, PxDiagnosticCode, PxFinishTransition, PxBeforeStart, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, getAnimatorConfig, PxDiagnosticCode, PxFinishBehavior, PxShowWhenStopped, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
 import { applyDeclarativeAction, applyPlaybackOverride, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
@@ -67,7 +67,7 @@ function applyDocOverrides(
     // every file (a `finish: reset` document would otherwise revert to its static attrs).
     if (compMode === PxControlMode.play
         && resolvePlaybackWorld((getAnimatorConfig(doc) || {}).iterations) === PxPlaybackWorld.oneShot) {
-        doc = applyAnimatorConfig(doc, { timeline: { beforeStart: PxBeforeStart.firstFrame, actions: { finish: { do: PxFinishTransition.hold } } } }).doc;
+        doc = applyAnimatorConfig(doc, { timeline: { showWhenStopped: PxShowWhenStopped.firstFrame, actions: { finish: { behavior: PxFinishBehavior.hold } } } }).doc;
     }
 
     return doc;
@@ -138,7 +138,7 @@ const SvgAnimationPlayer = defineComponent({
 
         // -- Playback override: the file's timing and actions, adjusted (D4, playback-layers.md) — merge
         //    patches, `null` deletes a key. The triggers travel with their driver, `playUsingActionTriggers`. Same names as React / RN.
-        timeline: { type: Object as PropType<PxTimelinePatch> },
+        timelineOptions: { type: Object as PropType<PxTimelinePatch> },
         actions: { type: Object as PropType<PxActionsPatch> },
 
         // -- Declarative control
@@ -157,13 +157,13 @@ const SvgAnimationPlayer = defineComponent({
         //    speaks by default — the same contract as React and React Native.
         onWarn: { type: Function as PropType<(diagnostic: PxDiagnostic) => void> },
         onError: { type: Function as PropType<(diagnostic: PxDiagnostic) => void> },
-        //    `muteWarn` / `muteError` switch the console fallback off — for a host that knows
+        //    `suppressWarnings` / `suppressErrors` switch the console fallback off — for a host that knows
         //    about the warnings and tolerates them; a handler you passed still fires.
-        muteWarn: { type: Boolean, default: undefined },
-        muteError: { type: Boolean, default: undefined },
+        suppressWarnings: { type: Boolean, default: undefined },
+        suppressErrors: { type: Boolean, default: undefined },
     },
 
-    emits: ['ready', 'play', 'stop', 'pause', 'cancel', 'finish', 'destroy'],
+    emits: ['ready', 'play', 'stop', 'pause', 'reset', 'finish', 'destroy'],
 
     setup(props, { expose, emit }) {
         // The `<svg>` this component rendered — handed to the player, which attaches its
@@ -178,7 +178,7 @@ const SvgAnimationPlayer = defineComponent({
          * would never fire for anyone who passed nothing.
          */
         const makeDiag = (): PxDiagnostics => createDiagnostics(
-            { onWarn: props.onWarn, onError: props.onError, muteWarn: props.muteWarn, muteError: props.muteError },
+            { onWarn: props.onWarn, onError: props.onError, suppressWarnings: props.suppressWarnings, suppressErrors: props.suppressErrors },
             '[SvgAnimationPlayer]',
         );
 
@@ -252,15 +252,15 @@ const SvgAnimationPlayer = defineComponent({
                 onReady:  () => emit('ready'),
                 onPlay:   () => emit('play'),
                 onPause:  () => emit('pause'),
-                onCancel: () => emit('cancel'),
+                onReset: () => emit('reset'),
                 onFinish: () => emit('finish'),
                 onDestroy: () => emit('destroy'),
                 onStop:   () => emit('stop'),
                 // The player's own diagnostics reach the same handlers as the component's.
                 onWarn:   props.onWarn,
                 onError:  props.onError,
-                muteWarn:  props.muteWarn,
-                muteError: props.muteError,
+                suppressWarnings:  props.suppressWarnings,
+                suppressErrors: props.suppressErrors,
             };
             apiRef.value = createSvgAnimationPlayer(options);
 

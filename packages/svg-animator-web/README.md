@@ -88,8 +88,8 @@ player.destroy();             // cleanup
 | `src`       | `string`                  | URL to fetch the animation document from (provide either `src` or `doc`) |
 | `doc`       | `PxDocumentInput`         | Inline animation document object (a `.json` import passes as-is) |
 | `container` | `string \| Element`       | CSS selector or element to render the SVG into      |
-| `onReady` · `onPlay` · `onPause` · `onCancel` · `onFinish` · `onDestroy` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take (`onReady` fires once, async: the push twin of `isReady()`); plus `onWarn`, `onError`, `muteWarn`, `muteError` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onReady,onPlay,onPause,onCancel,onFinish,onDestroy,onStop,onWarn,onError,muteWarn,muteError -->
-| `timeline` | `PxTimelinePatch` | per-instance override of the document's `timeline` block (minus its `actionTriggers` and `actions`), deep-merged over it — same shape as the file; `null` at any slot deletes that key. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `onReady` · `onPlay` · `onPause` · `onReset` · `onFinish` · `onDestroy` · `onStop` | `() => void` | the lifecycle callbacks, inline — the same names the components take (`onReady` fires once, async: the push twin of `isReady()`); plus `onWarn`, `onError`, `suppressWarnings`, `suppressErrors` for diagnostics. See [Callbacks](#callbacks) | <!-- px names=onReady,onPlay,onPause,onReset,onFinish,onDestroy,onStop,onWarn,onError,suppressWarnings,suppressErrors -->
+| `timelineOptions` | `PxTimelinePatch` | per-instance override of the document's `timeline` block (minus its `actionTriggers` and `actions`), deep-merged over it — same shape as the file; `null` at any slot deletes that key. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `actions` | `PxActionsPatch` | per-instance override of how the built-in actions look — `{ stop: 'rewind' }` — deep-merged over the document's `timeline.actions`; `null` at any slot deletes it. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 
 The document plays the way it was designed with no configuration at all; `timeline` and `actions` are for when
@@ -100,7 +100,7 @@ that autostarts everywhere except inside your own transport UI:
 const player = createSvgAnimationPlayer({
   src: '/animation.json',
   container: '#box',
-  timeline: { iterations: 'infinite' },   // no `playUsingActionTriggers`: nothing starts until play()
+  timelineOptions: { iterations: 'infinite' },   // no `playUsingActionTriggers`: nothing starts until play()
 });
 player.play();
 ```
@@ -135,7 +135,7 @@ createSvgAnimationPlayer({
   container: '#container',
   onPlay:   () => { /* started/resumed */ },
   onPause:  () => { /* paused */ },
-  onCancel: () => { /* canceled */ },
+  onReset:  () => { /* back at the start pose */ },
   onFinish: () => { /* finished naturally (or via finish()) */ },
   onDestroy: () => { /* destroyed / cleaned up */ },
 });

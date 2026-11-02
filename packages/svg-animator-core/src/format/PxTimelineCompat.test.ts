@@ -7,7 +7,7 @@
 // between them: `animator.timeline` (written) ⇄ flat runtime view (consumed).
 // On the wire the time-driven timeline carries NO `type` (absent = 'time'); the runtime view
 // keeps the engines' `fill` / `resetOnFinish` / `direction`, DERIVED from the wire's
-// `beforeStart` / `actions.finish` / `iterationDirection` (playback-layers.md).
+// `showWhenStopped` / `actions.finish` / `iterationDirection` (playback-layers.md).
 
 import { describe, expect, it } from 'vitest';
 import { resolveAnimatorTimeline, getAnimatorConfig, nestAnimatorTimeline } from './PxAnimatorConstants';
@@ -47,13 +47,13 @@ describe('animator.timeline spelling compat', () => {
 
     it('flattens a time timeline to the flat runtime keys (actions.finish → resetOnFinish + fill, iterationDirection → direction)', () => {
         const actions = {
-            start: { do: 'restart' }, stop: { do: 'rewind', completeIteration: true },
-            finish: { do: 'reset' }, suspend: { do: 'continue' },
+            start: { behavior: 'restart' }, stop: { behavior: 'rewind', completeIteration: true },
+            finish: { behavior: 'reset' }, outOfView: { behavior: 'continue' },
         } as const;
         const flat = resolveAnimatorTimeline({
             timeline: {
                 type: 'time', outTime: 4000,
-                actionTriggers: { start: 'click', pause: 'click' }, beforeStart: 'firstFrame',
+                actionTriggers: { start: 'click', pause: 'click' }, showWhenStopped: 'firstFrame',
                 delay: 250, iterations: 'infinite', iterationDirection: 'alternate',
                 actions, inViewThreshold: 0.2, inViewDebounce: 80,
             }
@@ -61,7 +61,7 @@ describe('animator.timeline spelling compat', () => {
         expect(flat.timeline).toBeUndefined();
         expect(flat).toMatchObject({
             duration: 4000, delay: 250, iterations: 'infinite', direction: 'alternate',
-            fill: 'backwards', resetOnFinish: true, beforeStart: 'firstFrame',
+            fill: 'backwards', resetOnFinish: true, showWhenStopped: 'firstFrame',
             actions, inViewThreshold: 0.2, inViewDebounce: 80,
             actionTriggers: { start: 'click', pause: 'click' }
         });
@@ -175,10 +175,10 @@ describe('animator.timeline spelling compat', () => {
                 delay: 250, iterations: 3, iterationDirection: 'reverse'
             }
         });
-        // the rest pose comes from `beforeStart`, or from `fill` alone; a held end writes no `actions.finish`
-        expect(nestAnimatorTimeline({ beforeStart: 'static', fill: 'both' })).toEqual({ timeline: { beforeStart: 'static' } });
-        expect(nestAnimatorTimeline({ fill: 'both' })).toEqual({ timeline: { beforeStart: 'firstFrame' } });
-        expect(nestAnimatorTimeline({ fill: 'backwards' })).toEqual({ timeline: { actions: { finish: 'reset' }, beforeStart: 'firstFrame' } });
+        // the rest pose comes from `showWhenStopped`, or from `fill` alone; a held end writes no `actions.finish`
+        expect(nestAnimatorTimeline({ showWhenStopped: 'static', fill: 'both' })).toEqual({ timeline: { showWhenStopped: 'static' } });
+        expect(nestAnimatorTimeline({ fill: 'both' })).toEqual({ timeline: { showWhenStopped: 'firstFrame' } });
+        expect(nestAnimatorTimeline({ fill: 'backwards' })).toEqual({ timeline: { actions: { finish: 'reset' }, showWhenStopped: 'firstFrame' } });
         expect(nestAnimatorTimeline({ fill: 'forwards' })).toEqual({});
     });
 
@@ -238,10 +238,10 @@ describe('animator.timeline spelling compat', () => {
             actionTriggers: { start: 'click', pause: 'click' }, delay: 250,
             iterations: 'infinite', direction: 'alternate',
             // the derived rest-pose view and its wire source, consistent with each other
-            fill: 'backwards', resetOnFinish: true, beforeStart: 'firstFrame',
+            fill: 'backwards', resetOnFinish: true, showWhenStopped: 'firstFrame',
             actions: {
-                start: { do: 'restart' }, stop: { do: 'rewind', completeIteration: true },
-                finish: { do: 'reset' }, suspend: { do: 'continue' },
+                start: { behavior: 'restart' }, stop: { behavior: 'rewind', completeIteration: true },
+                finish: { behavior: 'reset' }, outOfView: { behavior: 'continue' },
             },
             inViewThreshold: 0.2, inViewDebounce: 80,
         };
@@ -265,7 +265,7 @@ describe('animator.timeline spelling compat', () => {
     });
 
     it("time timeline: `type: 'time'` and an absent type both validate; the retired 'clock' does not", () => {
-        for (const timeline of [{ type: 'time', outTime: 10 }, { outTime: 10, beforeStart: 'firstFrame', actions: { finish: { do: 'rewind' } } }]) {
+        for (const timeline of [{ type: 'time', outTime: 10 }, { outTime: 10, showWhenStopped: 'firstFrame', actions: { finish: { behavior: 'rewind' } } }]) {
             const ctx: PxValidationContext = { errors: [], warnings: [], strict: true };
             expect(PxAnimatorConfigSchema.isValid({ timeline }, ctx)).toBe(true);
             expect(ctx.errors).toEqual([]);

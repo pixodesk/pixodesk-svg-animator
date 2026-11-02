@@ -7,7 +7,7 @@
 import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxActionTriggersInput } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, type PxDiagnosticsConfig } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, getAnimatorConfig, PxDiagnosticCode, PxFinishTransition, PxBeforeStart, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, getAnimatorConfig, PxDiagnosticCode, PxFinishBehavior, PxShowWhenStopped, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
 import { applyDeclarativeAction, applyPlaybackOverride, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import type { CSSProperties, FC, ReactElement } from 'react';
@@ -86,7 +86,7 @@ export interface SvgAnimatorImplProps {
     /**
      * Latest diagnostics props (API review §5). Kept OUT of
      * {@link SvgAnimationPlayerCallbacks} on purpose: that type is indexed with `keyof` and
-     * every member invoked as a function, so a `muteWarn: boolean` in there would not type.
+     * every member invoked as a function, so a `suppressWarnings: boolean` in there would not type.
      */
     diagRef: React.RefObject<PxDiagnosticsConfig>;
 }
@@ -98,7 +98,7 @@ export interface SvgAnimatorImplProps {
  * @public
  */
 export type SvgAnimationPlayerCallbacks =
-    Pick<PxAnimationPlayerCallbacks, 'onReady' | 'onPlay' | 'onStop' | 'onPause' | 'onCancel' | 'onFinish' | 'onDestroy'>;
+    Pick<PxAnimationPlayerCallbacks, 'onReady' | 'onPlay' | 'onStop' | 'onPause' | 'onReset' | 'onFinish' | 'onDestroy'>;
 
 /**
  * The component's props. The playback override, the control props and every callback are
@@ -120,6 +120,8 @@ export type SvgAnimationPlayerProps = PxPlaybackOverride & PxControlProps & PxAn
     /**
      * The animation document to render. No URL form by design (review §16): in a component
      * tree the app already owns loading — import the JSON or fetch it, then pass it down.
+     * WHY `doc`, not `document`: `document` shadows `window.document` in exactly the files that also query it,
+     * and the type is `PxDocument`.
      */
     doc: PxDocumentInput;
 
@@ -128,6 +130,8 @@ export type SvgAnimationPlayerProps = PxPlaybackOverride & PxControlProps & PxAn
     /**
      * Ref the component fills with the imperative playback API — your code as the driver. Filled in
      * EVERY mode and never picks one (review §1): `playUsingActionTriggers` next to it still autoplays.
+     * WHY not React's `ref`: the handle is not a control mode — the drivers are the `play…` / `show…` props — and
+     * Vue and React Native carry the same name, so one word reads the same in all three.
      */
     playerRef?: React.RefObject<PxAnimationPlayerHandle | null>;
 };
@@ -208,14 +212,14 @@ const SvgAnimatorImpl: FC<SvgAnimatorImplProps> = ({
             onReady:  cb('onReady'),
             onPlay:   cb('onPlay'),
             onPause:  cb('onPause'),
-            onCancel: cb('onCancel'),
+            onReset: cb('onReset'),
             onFinish: cb('onFinish'),
             onDestroy: cb('onDestroy'),
             onStop:   cb('onStop'),
             onWarn:   diagRef.current?.onWarn,
             onError:  diagRef.current?.onError,
-            muteWarn:  diagRef.current?.muteWarn,
-            muteError: diagRef.current?.muteError,
+            suppressWarnings:  diagRef.current?.suppressWarnings,
+            suppressErrors: diagRef.current?.suppressErrors,
         };
         let api: PxAnimationPlayerApi | undefined = createSvgAnimationPlayer(options);
         apiHolderRef.current = api;
@@ -272,12 +276,12 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     doc: docInput, playUsingActionTriggers, play, pause, showAtProgress, showAtTime, playerRef,
 
     // Override — the file's timing and actions, adjusted (D4, playback-layers.md); the triggers travel with `playUsingActionTriggers`
-    timeline, actions,
+    timelineOptions, actions,
 
-    onReady, onPlay, onStop, onPause, onCancel, onFinish, onDestroy,
+    onReady, onPlay, onStop, onPause, onReset, onFinish, onDestroy,
 
     // Diagnostics (API review §5)
-    onWarn, onError, muteWarn, muteError
+    onWarn, onError, suppressWarnings, suppressErrors
 }) => {
     // ONE type-level narrowing from the JSON-import shape (§5); the runtime validates values.
     // `let`: the timeline overrides below replace it with the patched copy.
@@ -297,7 +301,7 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
      * would never fire for anyone who passed nothing.
      */
     const makeDiag = (): PxDiagnostics =>
-        createDiagnostics({ onWarn, onError, muteWarn, muteError }, '[SvgAnimationPlayer]');
+        createDiagnostics({ onWarn, onError, suppressWarnings, suppressErrors }, '[SvgAnimationPlayer]');
 
     // Warn once per distinct conflict, not once per render — a parent re-rendering on unrelated
     // state must not repeat the sentence. React Native guards it the same way.
@@ -310,7 +314,7 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
     // The override, applied ONCE through core's one rule (D4: the timing and actions merged, a `playUsingActionTriggers`
     // object replacing the file's triggers), and then the component's own need to take the triggers over
     // in the non-playUsingActionTriggers control modes — the EMPTY block goes on AFTER the caller's override.
-    const overridden = applyPlaybackOverride(doc, { timeline, actions, playUsingActionTriggers });
+    const overridden = applyPlaybackOverride(doc, { timelineOptions, actions, playUsingActionTriggers });
     if (overridden.warnings.length) {
         const diag = makeDiag();
         for (const w of overridden.warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.timelineOverrideIgnored, w);
@@ -329,7 +333,7 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
         // The pose contract beats the file's rest poses (§10, D5): while `play` names a pose, the held
         // poses must be the same on every file — a `finish: reset` document would revert to its
         // static attrs after the run. Pin both sides: the first frame before, the last frame after.
-        doc = applyAnimatorConfig(doc, { timeline: { beforeStart: PxBeforeStart.firstFrame, actions: { finish: { do: PxFinishTransition.hold } } } }).doc;
+        doc = applyAnimatorConfig(doc, { timeline: { showWhenStopped: PxShowWhenStopped.firstFrame, actions: { finish: { behavior: PxFinishBehavior.hold } } } }).doc;
     }
 
     // Controlled-time mode: compute the absolute seek target. `showAtProgress` is a
@@ -359,12 +363,12 @@ const SvgAnimationPlayer: FC<SvgAnimationPlayerProps> = ({
 
     // Keep the latest callback props readable by the memoised inner component.
     const callbacksRef = useRef<SvgAnimationPlayerCallbacks>({});
-    callbacksRef.current = { onReady, onPlay, onStop, onPause, onCancel, onFinish, onDestroy };
+    callbacksRef.current = { onReady, onPlay, onStop, onPause, onReset, onFinish, onDestroy };
 
     // Same idea for the diagnostics props, so the player and the adapter report where the
     // component does (§5).
     const diagRef = useRef<PxDiagnosticsConfig>({});
-    diagRef.current = { onWarn, onError, muteWarn, muteError };
+    diagRef.current = { onWarn, onError, suppressWarnings, suppressErrors };
 
     // Expose the imperative API via the consumer-provided ref. The ref is an ambient
     // CAPABILITY, never a mode (§10) — but a WRITE call landing while a declarative driver

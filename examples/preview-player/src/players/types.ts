@@ -5,7 +5,7 @@ import type { PxActionsPatch, PxDocument, PxTimelinePatch, PxActionTriggers } fr
  *
  * The Web (`@pixodesk/svg-animator-web`), React (`@pixodesk/svg-animator-react`)
  * and Vue (`@pixodesk/svg-animator-vue`) packages all expose the same imperative
- * surface (`play` / `pause` / `cancel` / `finish` / `getCurrentTime` /
+ * surface (`play` / `pause` / `reset` / `jumpToFinished` / `getCurrentTime` /
  * `setCurrentTime`). Each adapter wraps one of them behind this interface so the
  * UI can drive any of them uniformly.
  */
@@ -47,9 +47,9 @@ export interface PlayerOptions {
    * visibility numbers (`inViewThreshold`, `inViewDebounce`) of custom triggers.
    * When omitted, the values declared in the document are used unchanged.
    */
-  timeline?: PxTimelinePatch;
+  timelineOptions?: PxTimelinePatch;
   /**
-   * A merge over the document's `animator.timeline.actions`: the gate's `suspend` transition of
+   * A merge over the document's `animator.timeline.actions`: the gate's `outOfView` behavior of
    * custom triggers. When omitted, the document's own actions are used unchanged.
    */
   actions?: PxActionsPatch;
@@ -59,7 +59,7 @@ export interface PlayerOptions {
    *  - `'file'`     → use the document's own `animator.timeline.actionTriggers` unchanged;
    *  - `PxActionTriggers` → these triggers instead of the document's — the WHOLE block.
    */
-  triggers?: 'file' | PxActionTriggers;
+  actionTriggers?: 'file' | PxActionTriggers;
 }
 
 /**

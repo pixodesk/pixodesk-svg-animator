@@ -40,7 +40,7 @@ const BOUNDARY_NAMES: Array<{ name: string; why: string; createOnly?: boolean }>
     { name: 'adapter',        why: 'createSvgAnimationPlayer option — custom render targets are ignored', createOnly: true },
     { name: 'onPlay',         why: 'documented lifecycle callback' },
     { name: 'onPause',        why: 'documented lifecycle callback' },
-    { name: 'onCancel',       why: 'documented lifecycle callback' },
+    { name: 'onReset',       why: 'documented lifecycle callback' },
     { name: 'onDestroy',       why: 'documented lifecycle callback' },
     { name: 'domType',        why: 'wire key: <feTurbulence domType="fractalNoise"> loses its type attribute' },
     { name: 'rangeName',      why: 'WAAPI TimelineRangeOffset key — a native view timeline scrubs the wrong range' },
@@ -117,12 +117,12 @@ describe('shipped bundles: behavior is identical minified and unminified', () =>
                     container: stageOf(win),
                     onPlay: () => fired.push('onPlay'),
                     onPause: () => fired.push('onPause'),
-                    onCancel: () => fired.push('onCancel'),
+                    onReset: () => fired.push('onReset'),
                 };
                 const api = enter(px)(options);
                 api.play();
                 api.pause();
-                api.cancel();
+                api.reset();
                 return fired.join(',');
             };
             const { unmin, min } = ab(pair, scenario);

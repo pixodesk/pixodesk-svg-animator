@@ -55,7 +55,7 @@ export interface PxAnimatorConfigMergeResult {
 
 /** Keys that live only on the flat RUNTIME view and have no slot on the wire. */
 const FLAT_ONLY_KEYS = [
-    'timelineSource', 'scroll', 'actionTriggers', 'actions', 'beforeStart', 'delay', 'iterations',
+    'timelineSource', 'scroll', 'actionTriggers', 'actions', 'showWhenStopped', 'delay', 'iterations',
     'direction', 'fill', 'resetOnFinish', 'duration', 'mode', 'frameRate',
 ];
 
@@ -100,23 +100,23 @@ function mergePlain(base: unknown, patch: JsonRecord): JsonRecord {
  *          same way the wire has no slot for them.
  * RULE 4 — `iterations: 'infinite'` cannot map onto a scroll range.
  */
-/** An `actions` block with every string slot expanded to its settings — `'rewind'` is exactly `{ do: 'rewind' }`
+/** An `actions` block with every string slot expanded to its settings — `'rewind'` is exactly `{ behavior: 'rewind' }`
  *  (RULE 5), so a merge over it keeps the other settings (`completeIteration`). */
 function expandActionSlots(actions: unknown): unknown {
     if (!isPlainObject(actions)) return actions;
     const out: JsonRecord = {};
-    for (const key of Object.keys(actions)) out[key] = typeof actions[key] === 'string' ? { do: actions[key] } : actions[key];
+    for (const key of Object.keys(actions)) out[key] = typeof actions[key] === 'string' ? { behavior: actions[key] } : actions[key];
     return out;
 }
 
-/** The canonical spelling back: a slot that says only `do` is the word itself. */
+/** The canonical spelling back: a slot that says only `behavior` is the word itself. */
 function compactActionSlots(actions: unknown): unknown {
     if (!isPlainObject(actions)) return actions;
     const out: JsonRecord = {};
     for (const key of Object.keys(actions)) {
         const slot = actions[key];
         const keys = isPlainObject(slot) ? Object.keys(slot) : [];
-        out[key] = keys.length === 1 && keys[0] === 'do' && isPlainObject(slot) ? slot.do : slot;
+        out[key] = keys.length === 1 && keys[0] === 'behavior' && isPlainObject(slot) ? slot.behavior : slot;
     }
     return out;
 }
@@ -164,7 +164,7 @@ function mergeTimeline(base: unknown, patch: JsonRecord, warn: (m: string) => vo
 }
 
 /** `PxTimeline` without its `actionTriggers` and `actions` blocks — the timing. On the props the three are separate
- *  (the file nests them): `timeline` patches this, `playUsingActionTriggers` carries the triggers, `actions` the actions. @public */
+ *  (the file nests them): `timelineOptions` patches this, `playUsingActionTriggers` carries the triggers, `actions` the actions. @public */
 export type PxTimelineTiming = PxDistributiveOmit<PxTimeline, 'actionTriggers' | 'actions'>;
 
 /** A deep-partial of the WIRE timing block, typed from the schema; `null` at any slot deletes it,
@@ -172,13 +172,13 @@ export type PxTimelineTiming = PxDistributiveOmit<PxTimeline, 'actionTriggers' |
 export type PxTimelinePatch = PxPatch<PxTimelineTiming> | null;
 
 /** A deep-partial of the timeline's `actions` block — merged over the file's, `null` at a slot deletes it. A slot
- *  may be the preset word (`stop: 'rewind'`): it is exactly `{ do: 'rewind' }`, so the file's other settings of
+ *  may be the preset word (`stop: 'rewind'`): it is exactly `{ behavior: 'rewind' }`, so the file's other settings of
  *  that action (`completeIteration`) survive the merge. @public */
 export type PxActionsPatch = PxPatch<PxActions> | null;
 
 /**
  * The playback-override props every surface takes — `createSvgAnimationPlayer` and the three components
- * (dev-docs/plans/component-api.md D4, playback-layers.md): `timeline`, a MERGE over the file's timing block,
+ * (dev-docs/plans/component-api.md D4, playback-layers.md): `timelineOptions`, a MERGE over the file's timing block,
  * and `actions`, a MERGE over its actions. Corrections — `iterations`, `delay`, a rewinding stop — never a
  * replacement; whoever needs more edits the document. The triggers are not here: they travel with their
  * driver, `playUsingActionTriggers` ({@link PxControlProps}). ONE definition (review §9).
@@ -186,15 +186,23 @@ export type PxActionsPatch = PxPatch<PxActions> | null;
  */
 export interface PxPlaybackOverride {
     /**
-     * Per-instance adjustment of the document's `animator.timeline` — the same shape as `timeline` in
-     * docs/format/README.md minus `actionTriggers` and `actions`, deep-merged over what the document says, so one file can play
-     * twice on a page with different timing. `null` at a slot DELETES that key, restoring the default its
-     * absence means (an absent `outTime` is the content's end, an absent `playDuration` natural speed).
+     * Per-instance adjustment of the document's `animator.timeline` — its shape minus `actionTriggers` and
+     * `actions` (docs/format/README.md), deep-merged over what the document says, so one file can play twice on a
+     * page with different timing. `null` at a slot DELETES that key, restoring the default its absence means (an
+     * absent `outTime` is the content's end, an absent `playDuration` natural speed).
+     *
+     * WHY `timelineOptions`, not `timeline`: it is NOT the file's `timeline` object — two of its keys live on other
+     * props — and a prop that shares a file key's name promises the same shape (outside review 2026-11-01, §2.5).
+     * `actions` keeps the file's name because it IS a partial of that block.
+     *
+     * MERGE vs REPLACE, the one rule for the three override props: `timelineOptions` and `actions` are patches
+     * (objects merge, values replace, `null` deletes); a `playUsingActionTriggers` block REPLACES the file's
+     * `actionTriggers` as a whole — its lists belong together.
      */
-    timeline?: PxTimelinePatch;
+    timelineOptions?: PxTimelinePatch;
     /**
      * Per-instance adjustment of HOW the built-in actions look — `{ stop: 'rewind' }`, or
-     * `{ stop: { do: 'rewind', completeIteration: true } }` — deep-merged over the document's `timeline.actions`;
+     * `{ stop: { behavior: 'rewind', completeIteration: true } }` — deep-merged over the document's `timeline.actions`;
      * `null` at a slot deletes it.
      */
     actions?: PxActionsPatch;
@@ -216,14 +224,14 @@ export interface PxPlaybackOverrideResult {
 // @px-area config
 /**
  * Applies the playback override to a document — ONE implementation for the web player and the three
- * components (D4): `timeline` and `actions` merged with the timeline rules (`mergeAnimatorConfig`); then, when
+ * components (D4): `timelineOptions` and `actions` merged with the timeline rules (`mergeAnimatorConfig`); then, when
  * `playUsingActionTriggers` is an object, the `actionTriggers` block SET to it — a REPLACEMENT, because the lists belong
  * together (hover → click changes the other lists too). PURE: the document is
  * never mutated, untouched subtrees are shared. The caller reports `warnings` through its diagnostics.
  * @public @advanced
  */
 export function applyPlaybackOverride(doc: PxDocument, override: PxPlaybackOverrideInput): PxPlaybackOverrideResult {
-    const { timeline, actions, playUsingActionTriggers } = override;
+    const { timelineOptions: timeline, actions, playUsingActionTriggers } = override;
     const warnings: Array<string> = [];
     const apply = (patch: PxAnimatorConfigPatch): void => {
         const applied = applyAnimatorConfig(doc, patch);
@@ -233,7 +241,7 @@ export function applyPlaybackOverride(doc: PxDocument, override: PxPlaybackOverr
     if (timeline !== undefined) {
         // a JS caller can still hand over the old JSON string — reported, never written into the document
         if (timeline === null || isPlainObject(timeline)) apply({ timeline });
-        else warnings.push('timeline: not an object — ignored');
+        else warnings.push('timelineOptions: not an object — ignored');
     }
     if (actions !== undefined) {
         if (actions === null || isPlainObject(actions)) apply({ timeline: { actions } });

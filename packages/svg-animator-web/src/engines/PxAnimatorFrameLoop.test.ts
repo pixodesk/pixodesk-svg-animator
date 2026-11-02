@@ -119,7 +119,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("positive delay with fill 'backwards': first frame is rendered during the delay", () => {
-        const { api, calls, opacity } = setup({ delay: 160, beforeStart: 'firstFrame', actions: { finish: { do: 'reset' } } });
+        const { api, calls, opacity } = setup({ delay: 160, showWhenStopped: 'firstFrame', actions: { finish: { behavior: 'reset' } } });
 
         // The first frame is rendered already at construction time.
         expect(calls.length).toBeGreaterThan(0);
@@ -158,7 +158,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("fill 'none' reverts to frame 0 at the natural end", () => {
-        const { api, calls } = setup({ actions: { finish: { do: 'reset' } } });
+        const { api, calls } = setup({ actions: { finish: { behavior: 'reset' } } });
 
         api.play();
         vi.advanceTimersByTime(DUR + 64);
@@ -168,7 +168,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("fill 'both' holds the first frame during the delay AND the final frame after the end", () => {
-        const { api, calls, opacity } = setup({ delay: 160, beforeStart: 'firstFrame' });
+        const { api, calls, opacity } = setup({ delay: 160, showWhenStopped: 'firstFrame' });
 
         // Backwards side: frame 0 rendered at construction and throughout the delay window.
         expect(opacity()).toBe(0);
@@ -264,9 +264,9 @@ describe('createAdapterSvgAnimationPlayer', () => {
         expect(opacity()).toBeCloseTo(0.5, 5);
     });
 
-    it('callbacks: onPlay / onPause / onCancel fire; onFinish fires exactly once; onDestroy on destroy()', () => {
+    it('callbacks: onPlay / onPause / onReset fire; onFinish fires exactly once; onDestroy on destroy()', () => {
         const callbacks = {
-            onPlay: vi.fn(), onPause: vi.fn(), onCancel: vi.fn(),
+            onPlay: vi.fn(), onPause: vi.fn(), onReset: vi.fn(),
             onFinish: vi.fn(), onDestroy: vi.fn(),
         };
         const { api } = setup({}, callbacks);
@@ -285,7 +285,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
         expect(callbacks.onFinish).toHaveBeenCalledTimes(1); // not re-fired
 
         api.reset();
-        expect(callbacks.onCancel).toHaveBeenCalledTimes(1);
+        expect(callbacks.onReset).toHaveBeenCalledTimes(1);
 
         api.destroy();
         expect(callbacks.onDestroy).toHaveBeenCalledTimes(1);
@@ -335,7 +335,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
 
     it('onFinish fires on every replay of a hover/reverse trigger cycle (finish re-arms on play)', () => {
         // Mirrors what setupAnimationTriggers produces for
-        // `start: 'hoverIn'` + `stop: 'hoverOut'` with `actions: { stop: { do: 'rewind' } }`:
+        // `start: 'hoverIn'` + `stop: 'hoverOut'` with `actions: { stop: { behavior: 'rewind' } }`:
         // hover → play to end, leave → reverse to 0, hover → forward to end.
         const onFinish = vi.fn();
         const { api } = setup({}, { onFinish });
@@ -387,7 +387,7 @@ describe('createAdapterSvgAnimationPlayer', () => {
     });
 
     it("finish() honors fill:'none' (reverts to frame 0, same as the natural end)", () => {
-        const { api, calls } = setup({ actions: { finish: { do: 'reset' } } });
+        const { api, calls } = setup({ actions: { finish: { behavior: 'reset' } } });
 
         api.play();
         vi.advanceTimersByTime(64);

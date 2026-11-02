@@ -15,7 +15,7 @@ is not here, go to [Still stuck?](#still-stuck) at the end.
 **The triggers do not list `load`.** Check `animator.timeline.actionTriggers.start` in the file (or *Play
 on* in the editor). `click`, `hoverIn` and `hoverOut` wait for the user; an empty block (`{}`) waits
 for you to call `play()`. Even `load` waits until enough of the animation is on screen, and pauses
-while it is scrolled out of view (`actions.suspend.do: 'pause'`, the default) — see
+while it is scrolled out of view (`actions.outOfView.behavior: 'pause'`, the default) — see
 [Triggers](./playback-and-triggers.md#triggers--when-it-plays). In React/Vue/React Native, remember
 that `playUsingActionTriggers` is the only mode that uses the document's triggers — with `play`, `pause`,
 `showAtProgress` or `showAtTime` the triggers are ignored. Passing `playerRef` does **not**
@@ -51,7 +51,7 @@ inline with a changing value. Build the document once (module level or `useMemo`
 **Console: `setAttribute: No elements found for selector "#…"` on unmount.** Cosmetic — a
 late frame after teardown. Safe to ignore.
 
-**`onCancel` / `onDestroy` / `onStop` fire when I pass a different `doc`.** Expected: a new
+**`onReset` / `onDestroy` / `onStop` fire when I pass a different `doc`.** Expected: a new
 document means a new player; the old one is thrown away and reports it on its way out.
 
 **Next.js: "useRef is not a function" / hooks error.** The component must be used from a client
@@ -82,11 +82,11 @@ yourself.
 
 ## Playback behavior
 
-**It holds the last frame — I want it to reset.** Set `timeline.actions.finish.do: "reset"` — at its
+**It holds the last frame — I want it to reset.** Set `timeline.actions.finish.behavior: "reset"` — at its
 natural end the animation jumps back to the start state (`"rewind"` plays back to it instead; the
 default `"hold"` keeps the last frame). The start state is the SVG as authored; a hand-authored
 file whose static attributes differ from its first keyframe can show the first frame instead with
-`timeline.beforeStart: "firstFrame"`
+`timeline.showWhenStopped: "firstFrame"`
 (see [Actions](./playback-and-triggers.md#actions--how-start-stop-and-finish-look)).
 For one mount only, pass the same thing as an override: `actions={{ finish: 'reset' }}`.
 
@@ -96,9 +96,10 @@ stops it listed in the triggers (`stop: 'hoverOut'`); `stop()` and `play={false}
 
 **A trigger event does nothing, or the console warns about the triggers.** Each list names only
 the events that make sense for it — `start` never `hoverOut`, `stop` never `load` or `hoverIn`,
-`pause` never `load`, `togglePlay` only `click` — and any other event is ignored (PX1110). What
-resumes a pause is derived (the counterpart of the `pause` event, plus the `start` events that do
-not stop it), so a `resume` entry the player derives otherwise is ignored (PX1111); `stop` on the
+`pause` and `resume` never `load` — and any other event is ignored (PX1110). What resumes a
+pause is derived unless the file names it (the counterpart of the `pause` event, plus the `start`
+events that do not stop it); a named `resume` list is honoured as written, and the player notes
+where it differs from that derivation (PX1111); `stop` on the
 same event as `pause`, or on its counterpart, collides (PX1109) — all three on
 [the codes page](../diagnostics.md#what-the-document-says). See
 [Which events each list may name](./playback-and-triggers.md#which-events-each-list-may-name).

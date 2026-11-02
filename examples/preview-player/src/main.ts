@@ -3,13 +3,13 @@ import { type PxActionsPatch, type PxDocument, type PxTimelinePatch, type PxActi
 import {
   getAnimatorConfig,
   isPxDocument,
-  PxSuspendTransition,
+  PxOutOfViewBehavior,
   PxTriggerEvent,
   type PxInfer,
   type PxTimeTimelineSchema,
   type PxTriggerEvents,
 } from '@pixodesk/svg-animator-core';
-import { allowedTriggerEvents, resolveTriggers, type PxResolvedTriggers } from '@pixodesk/svg-animator-core/engine';
+import { allowedTriggerEvents, resolveGate, resolveTriggers, type PxResolvedTriggers } from '@pixodesk/svg-animator-core/engine';
 
 import { createWebPlayer } from './players/web';
 import { createReactPlayer } from './players/react';
@@ -77,14 +77,14 @@ const transportButtons = [btnPlay, btnPause, btnStop, btnRestart, btnFinish];
 /** The time timeline as the file spells it; the gate keys and `iterations` are picked from it. */
 type TimeTimeline = PxInfer<typeof PxTimeTimelineSchema>;
 
-/** The trigger lists, with the editor's labels — typed by the resolved lists' own keys (the
- *  `togglePlay` sugar resolves into them). No `resume`: the player derives it from these three. */
+/** The trigger lists, with the editor's labels — typed by the resolved lists' own keys.
+ *  No `resume`: the player derives it from these three. */
 const TRIGGER_LISTS: Array<{ key: keyof PxResolvedTriggers; label: string }> = [
   { key: 'start', label: 'Play on' },
   { key: 'stop', label: 'Stop on' },
   { key: 'pause', label: 'Pause on' },
 ];
-const SUSPEND_TRANSITIONS = Object.values(PxSuspendTransition);
+const OUT_OF_VIEW_BEHAVIORS = Object.values(PxOutOfViewBehavior);
 
 interface EventCheckbox {
   event: PxTriggerEvent;
@@ -114,16 +114,16 @@ for (const { key, label } of TRIGGER_LISTS) {
 }
 const allListInputs = [...listCheckboxes.values()].flat().map((b) => b.input);
 
-for (const transition of SUSPEND_TRANSITIONS) {
+for (const behavior of OUT_OF_VIEW_BEHAVIORS) {
   const option = document.createElement('option');
-  option.value = transition;
-  option.textContent = transition;
+  option.value = behavior;
+  option.textContent = behavior;
   selOutOfView.append(option);
 }
 
 /** The option the select shows, as the enum member (the options were built from it). */
-function selectedSuspendTransition(): PxSuspendTransition {
-  return SUSPEND_TRANSITIONS.find((a) => a === selOutOfView.value) ?? PxSuspendTransition.pause;
+function selectedOutOfViewBehavior(): PxOutOfViewBehavior {
+  return OUT_OF_VIEW_BEHAVIORS.find((a) => a === selOutOfView.value) ?? PxOutOfViewBehavior.pause;
 }
 
 /** The events ticked under one list — one as the string, several as the array, none = absent:
@@ -252,16 +252,16 @@ function setControlsEnabled(enabled: boolean): void {
 /** The triggers option handed to the player: `undefined` = programmatic (transport owns
  *  start); `'file'` = the document's own triggers; a config = the user's custom triggers —
  *  the WHOLE block, from the three lists of checkboxes. */
-function currentTriggerOption(): PlayerOptions['triggers'] {
+function currentTriggerOption(): PlayerOptions['actionTriggers'] {
   if (!useTrigger) return undefined;
   if (useFileConfig) return 'file';
-  // WHEN: the three lists say which events start, stop and pause it; the player derives what resumes it.
+  // The three lists say which events start, stop and pause it; the player derives what resumes it.
   const actionTriggers: PxActionTriggers = {};
   for (const { key } of TRIGGER_LISTS) {
     const events = tickedEvents(key);
-    if (events !== undefined) triggers[key] = events;
+    if (events !== undefined) actionTriggers[key] = events;
   }
-  return triggers;
+  return actionTriggers;
 }
 
 /** The timeline merge for this mount: the Loop picker's `iterations`, and — with custom
@@ -271,18 +271,18 @@ function currentTimelineOverride(): PxTimelinePatch | undefined {
   const override: Pick<TimeTimeline, 'iterations' | 'inViewThreshold' | 'inViewDebounce'> = {};
   const iterations = loopModeToIterations(currentLoop);
   if (iterations !== undefined) override.iterations = iterations;
-  if (useTrigger && !useFileConfig && selectedSuspendTransition() !== PxSuspendTransition.continue) {
+  if (useTrigger && !useFileConfig && selectedOutOfViewBehavior() !== PxOutOfViewBehavior.continue) {
     override.inViewThreshold = Number(inpThreshold.value);
     override.inViewDebounce = Number(inpDebounce.value);
   }
   return Object.keys(override).length ? override : undefined;
 }
 
-/** The actions merge for this mount: with custom triggers, the gate's `suspend` transition.
+/** The actions merge for this mount: with custom triggers, the gate's `outOfView` behavior.
  *  `undefined` = the document's own actions. */
 function currentActionsOverride(): PxActionsPatch | undefined {
   if (!useTrigger || useFileConfig) return undefined;
-  return { suspend: { transition: selectedSuspendTransition() } };
+  return { outOfView: { behavior: selectedOutOfViewBehavior() } };
 }
 
 /** Sync the trigger config panel — visibility, disabled state, and (when reading from the
@@ -300,7 +300,7 @@ function syncTriggerUi(): void {
     for (const { key } of TRIGGER_LISTS) {
       for (const { event, input } of listCheckboxes.get(key) ?? []) input.checked = lists[key].includes(event);
     }
-    selOutOfView.value = cfg?.actions?.suspend?.do ?? PxSuspendTransition.pause;
+    selOutOfView.value = resolveGate(cfg).outOfView;
     if (cfg?.inViewThreshold != null) {
       inpThreshold.value = String(cfg.inViewThreshold);
     }
@@ -314,7 +314,7 @@ function syncTriggerUi(): void {
   }
 
   // The visibility pair only while there IS a gate.
-  const gated = selectedSuspendTransition() !== PxSuspendTransition.continue;
+  const gated = selectedOutOfViewBehavior() !== PxOutOfViewBehavior.continue;
   thresholdField.hidden = !gated;
   debounceField.hidden = !gated;
 }
@@ -338,31 +338,31 @@ type UserAction = keyof typeof USER_ACTION_HINTS;
 
 function userActionForTrigger(
   actionTriggers: PxActionTriggers | undefined,
-  suspend: PxSuspendTransition | undefined,
+  outOfView: PxOutOfViewBehavior | undefined,
 ): UserAction | undefined {
-  const { start } = resolveTriggers(triggers);
+  const { start } = resolveTriggers(actionTriggers);
   if (start.includes(PxTriggerEvent.hoverIn)) return 'hover';
   if (start.includes(PxTriggerEvent.click)) return 'click';
   if (start.length === 0) return 'play';
   // `load` — behind a visibility gate it waits to be seen; `continue` starts right away.
-  return suspend === PxSuspendTransition.continue ? undefined : 'scrollIntoView';
+  return outOfView === PxOutOfViewBehavior.continue ? undefined : 'scrollIntoView';
 }
 
 /** The triggers and gate actually driving the mounted player — the file's, or the custom config. */
-function effectiveTriggerAndGate(): { actionTriggers: PxActionTriggers | undefined; suspend: PxSuspendTransition | undefined } {
+function effectiveTriggerAndGate(): { actionTriggers: PxActionTriggers | undefined; outOfView: PxOutOfViewBehavior | undefined } {
   const option = currentTriggerOption();
   if (option === 'file') {
     const cfg = currentDoc ? getAnimatorConfig(currentDoc) : undefined;
-    return { actionTriggers: cfg?.actionTriggers, suspend: cfg?.actions?.suspend?.do };
+    return { actionTriggers: cfg?.actionTriggers, outOfView: resolveGate(cfg).outOfView };
   }
-  return { actionTriggers: option, suspend: option ? selectedSuspendTransition() : undefined };
+  return { actionTriggers: option, outOfView: option ? selectedOutOfViewBehavior() : undefined };
 }
 
 /** Shown while a trigger-driven animation sits still — not over a running one, and not after a
  *  play-once run has ended. With the transport in charge there is nothing to say. */
 function syncHint(): void {
-  const { triggers, suspend } = effectiveTriggerAndGate();
-  const action = useTrigger && handle ? userActionForTrigger(triggers, suspend) : undefined;
+  const { actionTriggers, outOfView } = effectiveTriggerAndGate();
+  const action = useTrigger && handle ? userActionForTrigger(actionTriggers, outOfView) : undefined;
   const t = handle?.getCurrentTime() ?? 0;
   const finished = currentLoop === 'no-loop' || (currentLoop === 'auto' && !documentLoops()) ? t >= duration : false;
   const show = !!action && !!handle && !handle.isPlaying() && !finished;
@@ -418,7 +418,7 @@ function remount(): void {
 
   try {
     handle = factories[currentKind](mount, currentDoc, {
-      timeline: currentTimelineOverride(),
+      timelineOptions: currentTimelineOverride(),
       actions: currentActionsOverride(),
       actionTriggers: currentTriggerOption(),
     });

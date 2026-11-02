@@ -35,7 +35,7 @@ import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch, t
  * - `px-anim-enabled px-anim-playing`   — playing
  *
  * The triggers are the JSON player's (dev-docs/plans/playback-layers.md): event lists — `start`, `stop`,
- * `pause` (resume is derived), plus `togglePlay` — over the events `load`, `hoverIn`, `hoverOut`, `click`,
+ * `pause` (resume is derived unless the file names it) — over the events `load`, `hoverIn`, `hoverOut`, `click`,
  * read by the same state rule (core's `triggerActionFor`) and gated by the same visibility gate
  * (`createVisibilityGate`), so the two players cannot drift. An absent `actionTriggers` block plays on load; an
  * empty one lists nothing.
@@ -43,11 +43,11 @@ import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch, t
  * ACCEPTED LIMITS of a class toggle (the editor shows them next to the choices):
  * - the start transition is always `continue` — a class cannot restart keyframes or jump to their end
  * - the stop transition is always `reset` — a class cannot play keyframes backwards
- * - completing the iteration, `beforeStart` and the finish transition are the file's own CSS
+ * - completing the iteration, `showWhenStopped` and the finish transition are the file's own CSS
  *
- * @prop triggers  - WHEN: the file's own `timeline.actionTriggers` block — `start`, `stop`, `pause`, `resume`,
- *   `togglePlay`, each one event or a list of them (only the events each list can use).
- * @prop actions - Only `suspend` applies — what happens while none of it is on screen (default `'pause'`):
+ * @prop actionTriggers - WHEN: the file's own `timeline.actionTriggers` block — `start`, `stop`, `pause`, `resume`,
+ *   each one event or a list of them (only the events each list can use).
+ * @prop actions - Only `outOfView` applies — what happens while none of it is on screen (default `'pause'`):
  *   `'pause'` pauses at the current frame and resumes when it comes back, `'continue'` keeps playing and starts
  *   without waiting to be seen, `'reset'` goes back to the beginning so it replays on the next entry.
  * @prop inViewThreshold - How much of the element must be on screen (0–1) before it may run (default `0.5`).
@@ -61,7 +61,7 @@ const SvgCssAnimationPlayer = defineComponent({
     inheritAttrs: false,
     props: {
         actionTriggers: { type: Object as PropType<PxActionTriggersInput> },
-        actions: { type: Object as PropType<Pick<PxActions, 'suspend'>> },
+        actions: { type: Object as PropType<Pick<PxActions, 'outOfView'>> },
         inViewThreshold: { type: Number },
         inViewDebounce: { type: Number },
     },

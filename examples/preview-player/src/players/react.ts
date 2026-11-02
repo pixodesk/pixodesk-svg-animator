@@ -21,8 +21,8 @@ export function createReactPlayer(
       playerRef,
       // The Loop picker and the visibility gate, merged over the document's own timeline;
       // leaving it `undefined` (auto) keeps the document's own values.
-      timeline: opts?.timeline,
-      // The gate's `suspend` transition, merged over the document's own actions.
+      timelineOptions: opts?.timelineOptions,
+      // The gate's `outOfView` behavior, merged over the document's own actions.
       actions: opts?.actions,
       // Trigger handling (programmatic / from-file / custom).
       playUsingActionTriggers: playUsingActionTriggersFor(opts),
@@ -34,7 +34,7 @@ export function createReactPlayer(
   return {
     play: () => api()?.play(),
     pause: () => api()?.pause(),
-    cancel: () => api()?.reset(),
+    reset: () => api()?.reset(),
     finish: () => api()?.jumpToFinished(),
     isPlaying: () => api()?.isPlaying() ?? false,
     getCurrentTime: () => api()?.getCurrentTime() ?? null,

@@ -10,7 +10,7 @@
 import { describe, expect, it } from 'vitest';
 import { describeSchema } from '../schema/PxSchema';
 import { allowedTriggerEvents, counterpartTriggerEvent, derivedResume, PX_PLAYBACK_DEFAULTS, PxPlayState, PxTriggerAction, PxTriggerIssueKind, PxTriggerList, resolveActions, resolveGate, resolveTriggers, triggerActionFor, triggerEventList, triggerIssues, triggerListsEvent } from './PxAnimatorConstants';
-import { PxActionsSchema, PxSuspendActionSchema, PxTimeTimelineSchema, PxActionTriggersSchema, type PxActionTriggers } from './PxAnimatorTypes';
+import { PxActionsSchema, PxOutOfViewActionSchema, PxTimeTimelineSchema, PxActionTriggersSchema, type PxActionTriggers } from './PxAnimatorTypes';
 
 describe('trigger defaults', () => {
 
@@ -19,13 +19,16 @@ describe('trigger defaults', () => {
         expect(resolveTriggers({})).toEqual({ start: [], stop: [], pause: [], resume: [] });
     });
 
-    it('resume is derived: the counterpart of each pause event plus the start events that do not stop; an explicit built-in resume is ignored', () => {
+    it('resume is derived when the file does not name it: the counterpart of each pause event plus the start events that do not stop; a named list is used as written', () => {
         expect(resolveTriggers({ start: 'hoverIn', pause: 'hoverOut' }))
             .toEqual({ start: ['hoverIn'], stop: [], pause: ['hoverOut'], resume: ['hoverIn'] });
+        // the file names the list: used as written — an empty list resumes on nothing (that pause waits for start or stop)
         expect(resolveTriggers({ start: 'click', pause: 'click', resume: [] }))
-            .toEqual({ start: ['click'], stop: [], pause: ['click'], resume: ['click'] });
-        // a marquee: plays on load, pauses while the pointer is over it, resumes when it leaves
-        expect(resolveTriggers({ start: 'load', pause: 'hoverIn', resume: 'click' }).resume).toEqual(['hoverOut', 'load']);
+            .toEqual({ start: ['click'], stop: [], pause: ['click'], resume: [] });
+        // a marquee: plays on load, pauses while the pointer is over it — derived, it resumes when the pointer leaves
+        expect(resolveTriggers({ start: 'load', pause: 'hoverIn' }).resume).toEqual(['hoverOut', 'load']);
+        // named, a click resumes it instead (and `triggerIssues` notes the difference)
+        expect(resolveTriggers({ start: 'load', pause: 'hoverIn', resume: 'click' }).resume).toEqual(['click']);
         expect(counterpartTriggerEvent('hoverIn')).toBe('hoverOut');
         expect(counterpartTriggerEvent('load')).toBeUndefined();
         expect(derivedResume(['click'], ['click'], [])).toEqual([]);   // a start that also stops does not resume
@@ -39,15 +42,14 @@ describe('trigger defaults', () => {
         expect(resolveTriggers(stated)).toEqual({ ...stated, resume: ['click', 'load'] });
     });
 
-    it('togglePlay lists click under start and stop — and names nothing but click', () => {
-        expect(resolveTriggers({ togglePlay: 'click' })).toEqual({ start: ['click'], stop: ['click'], pause: [], resume: [] });
-        expect(resolveTriggers({ togglePlay: 'hoverIn' })).toEqual({ start: [], stop: [], pause: [], resume: [] });
-        // an event already listed is not listed twice
-        expect(resolveTriggers({ start: 'click', togglePlay: 'click' }).start).toEqual(['click']);
+    it('click under both start and stop is the start/stop toggle (what `togglePlay` spelled until 1.11) — it resumes nothing', () => {
+        expect(resolveTriggers({ start: 'click', stop: 'click' })).toEqual({ start: ['click'], stop: ['click'], pause: [], resume: [] });
+        // the play/pause toggle is the other pair — start and pause on the same event
+        expect(resolveTriggers({ start: 'click', pause: 'click' })).toEqual({ start: ['click'], stop: [], pause: ['click'], resume: ['click'] });
     });
 
-    it('a togglePlay click while paused STOPS — a start event that also stops does not resume', () => {
-        const t = resolveTriggers({ start: 'load', pause: 'hoverOut', togglePlay: 'click' });
+    it('a click under both start and stop STOPS while paused — a start event that also stops does not resume', () => {
+        const t = resolveTriggers({ start: ['load', 'click'], stop: 'click', pause: 'hoverOut' });
         expect(t.resume).toEqual(['hoverIn', 'load']);
         expect(triggerActionFor(t, PxPlayState.stopped, 'click')).toBe(PxTriggerAction.play);
         expect(triggerActionFor(t, PxPlayState.playing, 'click')).toBe(PxTriggerAction.stop);
@@ -92,7 +94,7 @@ describe('trigger defaults', () => {
         expect(allowedTriggerEvents(PxTriggerList.start)).toEqual(['load', 'hoverIn', 'click']);
         expect(allowedTriggerEvents(PxTriggerList.stop)).toEqual(['hoverOut', 'click']);
         expect(allowedTriggerEvents(PxTriggerList.pause)).toEqual(['hoverIn', 'hoverOut', 'click']);
-        expect(allowedTriggerEvents(PxTriggerList.togglePlay)).toEqual(['click']);
+        expect(allowedTriggerEvents(PxTriggerList.resume)).toEqual(['hoverIn', 'hoverOut', 'click']);
         const odd: PxActionTriggers = { start: ['hoverOut', 'click'], stop: 'load', pause: 'load' };
         expect(resolveTriggers(odd)).toEqual({ start: ['click'], stop: [], pause: [], resume: ['click'] });
         expect(triggerIssues(odd)).toEqual([
@@ -102,9 +104,13 @@ describe('trigger defaults', () => {
         ]);
     });
 
-    it('an explicit resume naming a built-in event the derivation does not is reported as ignored', () => {
-        expect(triggerIssues({ start: 'load', pause: 'hoverIn', resume: ['hoverOut', 'click'] }))
-            .toEqual([{ kind: PxTriggerIssueKind.resumeIgnored, list: PxTriggerList.resume, event: 'click' }]);
+    it('a named resume list is honoured; where it differs from the derivation the players are told — an extra event, a pause left without its resume', () => {
+        expect(triggerIssues({ start: 'load', pause: 'hoverIn', resume: 'click' })).toEqual([
+            { kind: PxTriggerIssueKind.resumeExtra, list: PxTriggerList.resume, event: 'click' },
+            { kind: PxTriggerIssueKind.resumeMissing, list: PxTriggerList.resume, event: 'hoverOut' },
+        ]);
+        // the derivation's own answer, spelled out, says nothing (`load` is derived but no resume event — not missed)
+        expect(triggerIssues({ start: 'load', pause: 'hoverIn', resume: 'hoverOut' })).toEqual([]);
         expect(triggerIssues(undefined)).toEqual([]);
     });
 
@@ -112,7 +118,7 @@ describe('trigger defaults', () => {
         expect(PxActionTriggersSchema.castOrFix({ start: ['hoverOut', 'click'] }).value).toEqual({ start: ['click'] });
         // a lone disallowed event drops the list — absent inside a present block = not listed
         expect(PxActionTriggersSchema.castOrFix({ start: 'click', stop: 'load' }).value).toEqual({ start: 'click' });
-        expect(PxActionTriggersSchema.castOrFix({ togglePlay: 'hoverIn' }).value).toEqual({});
+        expect(PxActionTriggersSchema.castOrFix({ resume: 'load' }).value).toEqual({});
         const clean = PxActionTriggersSchema.castOrFix({ start: ['hoverIn', 'click'], pause: 'hoverOut' });
         expect(clean.value).toEqual({ start: ['hoverIn', 'click'], pause: 'hoverOut' });
         expect(clean.problems).toEqual([]);
@@ -123,7 +129,7 @@ describe('trigger defaults', () => {
         expect(PxActionTriggersSchema.isValid({ start: 'click', stop: ['hoverOut', 'click'], pause: 'hoverIn' })).toBe(true);
         expect(PxActionTriggersSchema.isValid({ start: 'hoverOut' })).toBe(false);
         expect(PxActionTriggersSchema.isValid({ stop: ['click', 'load'] })).toBe(false);
-        expect(PxActionTriggersSchema.isValid({ togglePlay: 'hoverIn' })).toBe(false);
+        expect(PxActionTriggersSchema.isValid({ resume: 'load' })).toBe(false);
     });
 
     it('the state rule: the state picks the list an event is read from; pause and resume win over stop', () => {
@@ -141,17 +147,17 @@ describe('trigger defaults', () => {
     });
 
     it('the gate defaults from the one table, read off the runtime view', () => {
-        expect(resolveGate(undefined)).toEqual({ suspend: 'pause', inViewThreshold: 0.5, inViewDebounce: 150 });
-        expect(resolveGate({ actions: { suspend: { do: 'reset' } }, inViewThreshold: 0 })).toEqual({ suspend: 'reset', inViewThreshold: 0, inViewDebounce: 150 });
+        expect(resolveGate(undefined)).toEqual({ outOfView: 'pause', inViewThreshold: 0.5, inViewDebounce: 150 });
+        expect(resolveGate({ actions: { outOfView: { behavior: 'reset' } }, inViewThreshold: 0 })).toEqual({ outOfView: 'reset', inViewThreshold: 0, inViewDebounce: 150 });
     });
 
     it('the actions default from the one table, each field on its own', () => {
         expect(resolveActions(undefined)).toEqual({
-            start: { do: 'continue' }, stop: { do: 'reset', completeIteration: false },
-            finish: { do: 'hold' }, suspend: { do: 'pause' },
+            start: { behavior: 'continue' }, stop: { behavior: 'reset', completeIteration: false },
+            finish: { behavior: 'hold' }, outOfView: { behavior: 'pause' },
         });
-        expect(resolveActions({ stop: { completeIteration: true } }).stop).toEqual({ do: 'reset', completeIteration: true });
-        expect(resolveActions({ start: { do: 'jumpToFinished' } }).start.do).toBe('jumpToFinished');
+        expect(resolveActions({ stop: { completeIteration: true } }).stop).toEqual({ behavior: 'reset', completeIteration: true });
+        expect(resolveActions({ start: { behavior: 'jumpToFinished' } }).start.behavior).toBe('jumpToFinished');
     });
 
     it("the schema states NO default for a list — absent inside a block means 'not listed'; the absent BLOCK is the resolver's rule", () => {
@@ -159,14 +165,14 @@ describe('trigger defaults', () => {
         expect(resolveTriggers(undefined).start).toEqual([PX_PLAYBACK_DEFAULTS.start]);
     });
 
-    it('the schema declares the same suspend default the players apply — the one that makes `load` safe', () => {
-        const suspend = describeSchema(PxSuspendActionSchema);
-        if (suspend.kind !== 'shape') throw new Error('PxSuspendActionSchema is not an object schema');
-        const transition = describeSchema(suspend.shape.do);
-        if (transition.kind !== 'optional') throw new Error('actions.suspend.do is not optional');
-        expect(transition.inner._default).toBe(PX_PLAYBACK_DEFAULTS.suspendTransition);
-        expect(PxSuspendActionSchema.defaults.do).toBe('pause');
+    it('the schema declares the same outOfView default the players apply — the one that makes `load` safe', () => {
+        const outOfView = describeSchema(PxOutOfViewActionSchema);
+        if (outOfView.kind !== 'shape') throw new Error('PxOutOfViewActionSchema is not an object schema');
+        const transition = describeSchema(outOfView.shape.behavior);
+        if (transition.kind !== 'optional') throw new Error('actions.outOfView.behavior is not optional');
+        expect(transition.inner._default).toBe(PX_PLAYBACK_DEFAULTS.outOfViewBehavior);
+        expect(PxOutOfViewActionSchema.defaults.behavior).toBe('pause');
         expect(PxActionsSchema.defaults).toEqual({});
-        expect(PxTimeTimelineSchema.defaults.beforeStart).toBe('static');
+        expect(PxTimeTimelineSchema.defaults.showWhenStopped).toBe('static');
     });
 });

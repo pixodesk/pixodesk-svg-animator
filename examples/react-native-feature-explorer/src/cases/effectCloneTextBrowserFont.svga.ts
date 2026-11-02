@@ -65,8 +65,8 @@ export const effectCloneTextBrowserFont: SvgaCaseJson = {
                 "start": "load"
             },
             "actions": {
-                "suspend": {
-                    "do": "continue"
+                "outOfView": {
+                    "behavior": "continue"
                 }
             },
             "iterationDirection": "normal"

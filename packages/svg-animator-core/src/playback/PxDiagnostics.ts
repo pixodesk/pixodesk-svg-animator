@@ -25,7 +25,7 @@
 //
 //   - a handler takes over from the console: give `onWarn` / `onError` and the console stays
 //     out of it; give none and the console is the fallback, so nothing is lost by default;
-//   - `muteWarn` / `muteError` switch that console fallback off — for a host that knows
+//   - `suppressWarnings` / `suppressErrors` switch that console fallback off — for a host that knows
 //     about the warnings and is prepared to tolerate them. A handler you passed still fires.
 //
 // Severity (warn vs error) and SOURCE (`kind`) are separate axes on purpose: an invalid document
@@ -126,13 +126,14 @@ export interface PxDiagnosticsConfig {
     /**
      * Switch the `console.warn` fallback off. For a host that knows the player has something
      * to say about this document and is prepared to tolerate it — a chatty player is not what
-     * an end user's console is for. A handler you passed (`onWarn`) still fires: mute is
-     * about the console, not about you.
+     * an end user's console is for. A handler you passed (`onWarn`) still fires: this is
+     * about the console, not about you. WHY `suppressWarnings`: React's own `suppressHydrationWarning` /
+     * `suppressContentEditableWarning` set the word; it was `muteWarn` until 1.15 (a verb muted reads oddly).
      */
-    muteWarn?: boolean;
+    suppressWarnings?: boolean;
 
-    /** The same switch for the `console.error` fallback. `onError` still fires. */
-    muteError?: boolean;
+    /** The same switch for the `console.error` fallback. `onError` still fires — nothing is swallowed. */
+    suppressErrors?: boolean;
 }
 
 /** The reporting channel a player writes to. @public */
@@ -166,14 +167,14 @@ export function createDiagnostics(config?: PxDiagnosticsConfig, prefix?: string)
         warn: (kind: PxDiagnosticKind, code: PxDiagnosticCode, ...data: Array<unknown>): void => {
             const message = codeLine(code);
             if (config?.onWarn) { config.onWarn({ code, kind, data, message }); return; }
-            if (config?.muteWarn) return;
+            if (config?.suppressWarnings) return;
             console.warn(tag + kind + ' ' + message, ...data);
         },
         error: (kind: PxDiagnosticKind, code: PxDiagnosticCode, ...data: Array<unknown>): void => {
             const message = codeLine(code);
             const error = errorIn(data);
             if (config?.onError) { config.onError({ code, kind, data, message, error }); return; }
-            if (config?.muteError) return;
+            if (config?.suppressErrors) return;
             console.error(tag + kind + ' ' + message, ...data);
         },
     };

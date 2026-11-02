@@ -403,7 +403,7 @@ export function createAdapterSvgAnimationPlayer(
 
         renderFrame(timeBeforeLastStartMs);
 
-        callbacks?.onCancel?.();
+        callbacks?.onReset?.();
     };
 
     const finishAnim = (callOnFinish = true) => {
@@ -453,7 +453,7 @@ export function createAdapterSvgAnimationPlayer(
         },
         "reset": () => {
             cancelAnim();
-            // onCancel already called in cancelAnim
+            // onReset already called in cancelAnim
         },
         "jumpToFinished": () => {
             finishAnim(true);

@@ -128,17 +128,18 @@ export enum PxDiagnosticCode {
 
     /**
      * A trigger list names an event it cannot use — `start` on `hoverOut`, `stop` on `load` or `hoverIn`, `pause`
-     * on `load`, `togglePlay` on anything but `click`. The event is ignored.
+     * or `resume` on `load`. The event is ignored.
      * @data the list and the event
      */
     triggerEventNotAllowed = 1110,
 
     /**
-     * `resume` names a built-in event the player derives otherwise — resume is the counterpart of each `pause`
-     * event plus the `start` events that do not stop it. The listed event is ignored.
-     * @data the event
+     * The file's `resume` list differs from what the player would derive — the counterpart of each `pause` event
+     * plus the `start` events that do not stop it: it names an event the derivation would not, or leaves out one it
+     * would (that pause then waits for `start` or `stop`). The list is honoured as written.
+     * @data the list and the event
      */
-    triggerResumeIgnored = 1111,
+    triggerResumeDiffers = 1111,
 
     /**
      * A binding names no element, or names animations that `definitions.animations` does not have.

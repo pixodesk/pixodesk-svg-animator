@@ -23,7 +23,7 @@ export const CASES = [
   { group: 'web', id: 'programmatic',  title: 'Programmatic — createSvgAnimationPlayer + playback API', anchor: 'programmatic--createsvganimationplayeroptions',
     summary: 'createSvgAnimationPlayer({ src, container }) and every method of the returned API.' },
   { group: 'web', id: 'callbacks',     title: 'Callbacks', anchor: 'callbacks',
-    summary: 'onPlay / onPause / onCancel / onFinish / onRemove, logged as they fire.' },
+    summary: 'onPlay / onPause / onReset / onFinish / onRemove, logged as they fire.' },
   { group: 'web', id: 'triggers',      title: 'Triggers — play on click', anchor: 'triggers',
     summary: 'The document lists click under start and pause; the player wires the event for you.' },
   { group: 'web', id: 'engine-modes',  title: 'Playback modes — native vs player', anchor: 'playback-modes',
@@ -35,7 +35,7 @@ export const CASES = [
 
   // -- React ------------------------------------------------------------------
   { group: 'react', id: 'imperative',      title: 'Imperative API (playerRef)', anchor: 'imperative-api-playerref',
-    summary: 'play / pause / cancel / finish through a ref.' },
+    summary: 'play / pause / reset / jumpToFinished through a ref.' },
   { group: 'react', id: 'play-using-action-triggers', title: 'Play using action triggers', anchor: 'autoplay',
     summary: 'The component honors the document\'s own trigger.' },
   { group: 'react', id: 'controlled-time', title: 'Controlled time (showAtTime)', anchor: 'controlled-time-playcurrentprogress--playcurrenttime',
@@ -53,7 +53,7 @@ export const CASES = [
   { group: 'vue', id: 'declarative',     title: 'Declarative play / pause', anchor: 'declarative-play--pause',
     summary: 'Boolean play and pause props.' },
   { group: 'vue', id: 'imperative',      title: 'Imperative API (template ref)', anchor: 'imperative-api-template-ref',
-    summary: 'play / pause / cancel / finish through a template ref.' },
+    summary: 'play / pause / reset / jumpToFinished through a template ref.' },
   { group: 'vue', id: 'css-loader',      title: 'CSS-flavor SVG — SvgCssAnimationPlayer + vite-svg-loader', anchor: 'css-flavor-svgs--svgcssanimationplayer',
     summary: 'A pre-rendered SVG imported as a component, with a click trigger added by the wrapper.' },
 

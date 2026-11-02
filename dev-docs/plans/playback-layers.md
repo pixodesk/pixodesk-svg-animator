@@ -48,8 +48,8 @@ interface Timing {                                                           // 
 }
 interface Timeline0 extends Timing {
     triggers?: {                         // WHO calls each built-in action; block absent = { start: 'load' }; {} = nothing starts it
-        start?: Triggers; stop?: Triggers; pause?: Triggers; resume?: Triggers;      // resume absent = the triggers of start; [] = never
-        togglePlay?: Triggers; togglePause?: Triggers;
+        start?: Triggers; stop?: Triggers; pause?: Triggers; resume?: Triggers;      // resume absent = derived; named = honoured (the 1.15 release)
+                                         // no toggle keys (1.12): the two click toggles are start + stop and start + pause on 'click'
     };
 }
 ```
@@ -62,14 +62,12 @@ The built-in actions, at their defaults:
 | `stop` | playing, paused or finished → stopped: jumps back to the start | `triggers.stop` |
 | `pause` | playing → paused: freezes the current frame | `triggers.pause` |
 | `resume` | paused → playing: carries on where it froze | `triggers.resume` (absent: the triggers of `start`) |
-| `togglePlay` | `start` when stopped or finished, otherwise `stop` | `triggers.togglePlay` |
-| `togglePause` | `pause` when playing, `resume` when paused | `triggers.togglePause` |
+| the click toggles | start / stop: `start` + `stop` on `click`; play / pause: `start` + `pause` on `click` — the lists themselves (the `togglePlay` sugar of 1.10 was removed in 1.12; `togglePause` already in 1.10) | `triggers.start` + `triggers.stop` / `triggers.pause` |
 | `finish` | the natural end: holds the last frame (→ finished) | the player, when the run ends |
-| `suspend` | out of view: freezes the clock, keeps what was meant to run | the player's view sensor |
-| `wake` | back in view: carries on what `suspend` froze | the player's view sensor |
+| `outOfView` | out of view: freezes the clock, keeps what was meant to run (`suspend` until 1.12) | the player's view sensor |
+| `wake` | back in view: carries on what `outOfView` froze | the player's view sensor |
 
-The toggles forward to `start` / `stop` / `pause` / `resume`, so those actions' settings (layer 1)
-apply to them too.
+A click toggle is its two lists, so those actions' settings (layer 1) apply to it as they are.
 
 ```json
 {
@@ -99,8 +97,9 @@ Two buttons inside the SVG — each trigger targets an element:
     "timeline": {
       "outTime": 600, "iterations": "infinite",
       "triggers": {
-        "togglePlay":  { "on": "click", "target": "#btn-play" },
-        "togglePause": { "on": "click", "target": "#btn-pause" }
+        "start": { "on": "click", "target": "#btn-play" },
+        "stop":  { "on": "click", "target": "#btn-play" },
+        "pause": { "on": "click", "target": "#btn-pause" }
       }
     }
   },
@@ -113,8 +112,7 @@ Two buttons inside the SVG — each trigger targets an element:
 ```
 
 **One event, several actions.** An event may be listed under several actions —
-`{ "start": "click", "pause": "click" }` is the usual click toggle (`{ "start": "click", "togglePause":
-"click" }` says the same). The rule: every action listed for the event WHOSE CONDITION HOLDS runs, and
+`{ "start": "click", "pause": "click" }` is the usual click toggle. The rule: every action listed for the event WHOSE CONDITION HOLDS runs, and
 all of them check the state AS IT WAS when the event arrived.
 
 - A click while stopped: `start` holds (it acts when stopped), `pause` does not (it needs playing) →
@@ -138,26 +136,26 @@ all of them check the state AS IT WAS when the event arrived.
 
 ## Layer 1 — how each built-in action looks (improved D6)
 
-Layers 0 and 1 together are improved D6. `actions` gives the built-in actions settings. A `transition` is a PRESET: one word that packs WHERE
+Layers 0 and 1 together are improved D6. `actions` gives the built-in actions settings. A `behavior` (1.14; `transition` in 1.10, `do` in 1.11) is a PRESET: one word that packs WHERE
 the move ends and the PATH it takes there (an instant jump, playing on, playing back).
 `completeIteration` is a third decision: WHEN the move starts — now, or after the current iteration.
 
 ```ts
 interface Timeline1 extends Timeline0 {
-    beforeStart?: 'static' | 'firstFrame';          // the rest pose before the first start and after a reset; default static (niche)
+    showWhenStopped?: 'static' | 'firstFrame';      // what shows while STOPPED — before the first start, after a reset, where a rewind lands; default static (niche; `beforeStart` until 1.14)
     inViewThreshold?: number;                       // when the view sensor counts it as seen: 0–1 of it on screen, default 0.5
     inViewDebounce?: number;                        //   …for this long, ms, default 150
-    actions?: {                                     // HOW each built-in action looks — settings only; no custom names (1.11: `do`,
-        start?:   StartDo | { do?: StartDo };                                               //   and the word itself when `do` is all)
-        stop?:    StopDo | { do?: StopDo; completeIteration?: boolean };                    // reset, false
-        finish?:  FinishDo | { do?: FinishDo };                                             // hold
-        suspend?: SuspendDo | { do?: SuspendDo };                                           // pause
-    };                                              // pause, resume, wake: nothing to configure; the toggles use the settings above
+    actions?: {                                     // HOW each built-in action looks — settings only; no custom names (1.14: `behavior`,
+        start?:     StartBehavior | { behavior?: StartBehavior };                                 //   and the word itself when `behavior` is all)
+        stop?:      StopBehavior | { behavior?: StopBehavior; completeIteration?: boolean };      // reset, false
+        finish?:    FinishBehavior | { behavior?: FinishBehavior };                               // hold
+        outOfView?: OutOfViewBehavior | { behavior?: OutOfViewBehavior };                         // pause (`suspend` until 1.12)
+    };                                              // pause, resume, wake: nothing to configure
 }
-type StartDo = 'continue' | 'restart' | 'jumpToFinished';   // default continue
-type StopDo = 'reset' | 'rewind';
-type FinishDo = 'hold' | 'reset' | 'rewind';
-type SuspendDo = 'pause' | 'continue' | 'reset';
+type StartBehavior = 'continue' | 'restart' | 'jumpToFinished';   // default continue
+type StopBehavior = 'reset' | 'rewind';
+type FinishBehavior = 'hold' | 'reset' | 'rewind';
+type OutOfViewBehavior = 'pause' | 'continue' | 'reset';
 interface _ {
 }
 ```
@@ -171,7 +169,7 @@ interface _ {
 | `stop` | `rewind` | stopped | plays backwards to the start |
 | `finish` | `hold` | finished | stays on the last frame |
 | `finish` | `reset` / `rewind` | stopped | jumps back / plays back |
-| `suspend` | `pause` / `continue` / `reset` | — (the clock, not a state) | freezes / keeps playing while unseen / jumps to the start and replays when seen |
+| `outOfView` | `pause` / `continue` / `reset` | — (the clock, not a state) | freezes / keeps playing while unseen / jumps to the start and replays when seen |
 
 ```json
 {
@@ -182,8 +180,8 @@ interface _ {
       "outTime": 400,
       "inViewThreshold": 0.25,
       "actions": {
-        "stop":    { "do": "rewind", "completeIteration": true },
-        "suspend": "reset"
+        "stop":      { "behavior": "rewind", "completeIteration": true },
+        "outOfView": "reset"
       },
       "actionTriggers": { "start": "hoverIn", "stop": "hoverOut" }
     }
@@ -194,31 +192,32 @@ interface _ {
 }
 ```
 
-(Schema 1.11, D7: the block is `actionTriggers` — a key names the action it fires, the same key in `actions` says
-how it looks — and a slot's preset is `do`, written as the word when it is the only setting.)
+(Schema 1.11, D7: the block is `actionTriggers`, and a slot's preset is written as the word when it is the only
+setting. 1.12 dropped the toggle sugar — the lists spell the toggles; 1.13 renamed `suspend` → `outOfView`;
+1.14 named the preset key `behavior`; 1.15 renamed `beforeStart` → `showWhenStopped`.)
 
 The lid: hover in opens it; hover out lets it finish opening, then plays it back closed. Scrolled
 away, it goes back to the start; it counts as seen once a quarter of it is on screen.
 
 **From the app:** the `actions` prop MERGES over the file's `actions` (`null` deletes a key); the
-`timeline` prop merges over the timing. Whoever calls an action — a trigger, the `play` prop, `stop()`
+`timelineOptions` prop merges over the timing. Whoever calls an action — a trigger, the `play` prop, `stop()`
 — gets the same settings:
 
 ```tsx
 <SvgAnimationPlayer doc={lid} play={hovered} actions={{ stop: 'rewind' }} />
 ```
 
-The CSS components (`SvgCssAnimationPlayer`, React and Vue) take `triggers`, `actions` limited to
-`suspend` (the only setting a class toggle can honour), `inViewThreshold` and `inViewDebounce`.
+The CSS components (`SvgCssAnimationPlayer`, React and Vue) take `actionTriggers`, `actions` limited to
+`outOfView` (the only setting a class toggle can honour), `inViewThreshold` and `inViewDebounce`.
 
 **Improved D6 against D6** (in `component-api.md`):
 
 | D6 | improved D6 |
 |---|---|
-| `actions.outOfView: { transition, threshold, debounce }` | `actions.suspend: { transition }`, with `wake` as its pair; `inViewThreshold` / `inViewDebounce` stay timeline keys — they say when the sensor fires, not how a move looks |
-| `actions.start.beforeStart` | `timeline.beforeStart` |
+| `actions.outOfView: { transition, threshold, debounce }` | `actions.outOfView: { behavior }` (`suspend: { transition }` until 1.12), with `wake` as its pair; `inViewThreshold` / `inViewDebounce` stay timeline keys — they say when the sensor fires, not how a move looks |
+| `actions.start.beforeStart` | `timeline.showWhenStopped` (`beforeStart` until 1.14) |
 | start's `jumpToEnd` | `jumpToFinished` — named after the state it lands in |
-| — | `togglePlay`, `togglePause` |
+| — | the click toggles, spelt with the lists (`togglePlay` existed 1.10–1.11, `togglePause` only in drafts of 1.10) |
 | triggers are event words | a trigger may also target an element: `{ "on": "click", "target": "#id" }` |
 
 ## Layer 2 — states and rules
@@ -226,6 +225,11 @@ The CSS components (`SvgCssAnimationPlayer`, React and Vue) take `triggers`, `ac
 > **Implemented early (2026-10-31, D7):** the four-state rule — `finished` is a state of its own in `PxPlayState`; `start`
 > acts on stopped or finished, `stop` on playing, paused or finished (and wins over `start` there, so a click toggle undoes
 > a finished one-shot). The rest of this layer is still design.
+
+**The key grammar.** A custom action is ONE name used in both blocks the same way:
+`actionTriggers.<name>` says when the page asks for it, `actions.<name>` says what it does — both
+optional. The built-ins already follow it: `start` and `stop` have both, `pause` has only a trigger
+list (one behavior: freeze), `finish` and `outOfView` have only a behavior (they are not page events).
 
 The states become visible. `state.playback` is built in (`stopped` initial, `playing`, `paused`,
 `finished`) and needs no declaration; a file may add its own variables. An action becomes a RULE:
@@ -263,10 +267,9 @@ interface Rule {
 //   stop        { when: { playback: ['playing', 'paused', 'finished'] }, set: { playback: 'stopped'  }, path: 'jump' }
 //   pause       { when: { playback: 'playing' },                         set: { playback: 'paused'   } }
 //   resume      { when: { playback: 'paused' },                          set: { playback: 'playing'  }, path: 'continue' }
-//   togglePlay  [ { when: { playback: ['stopped', 'finished'] }, run: 'start' }, { run: 'stop' } ]
-//   togglePause [ { when: { playback: 'playing' }, run: 'pause' }, { when: { playback: 'paused' }, run: 'resume' } ]
+//   (the click toggles are the lists themselves — start + stop, start + pause — and need no rule)
 //   finish      { set: { playback: 'finished' } }                       ← 'ended'
-//   suspend / wake act on the CLOCK and never set playback: playback keeps the intent, so wake carries on only
+//   outOfView / wake act on the CLOCK and never set playback: playback keeps the intent, so wake carries on only
 //   what was running — they keep their layer-1 form
 ```
 
@@ -291,7 +294,7 @@ The layer-1 lid, written out (the same document as the layer-1 example):
         "pause":   { "when": { "playback": "playing" }, "set": { "playback": "paused" } },
         "resume":  { "when": { "playback": "paused" },  "set": { "playback": "playing" }, "path": "continue" },
         "finish":  { "set": { "playback": "finished" } },
-        "suspend": { "transition": "reset" }
+        "outOfView": { "behavior": "reset" }
       },
       "triggers": { "start": "hoverIn", "stop": "hoverOut", "resume": "hoverIn", "finish": "ended" }
     }
@@ -493,6 +496,11 @@ pointer still over it: it lands on walk, and no event comes to bring it to jump.
 
 ## Implementing layers 0–1
 
+> **Names as of 1.15.** This section was written for 1.10 and keeps its words: `transition` became `do` (1.11)
+> and `behavior` (1.14); the `togglePlay` sugar was removed (1.12) — the lists themselves spell the two click
+> toggles; `suspend` → `outOfView` (1.13); `beforeStart` → `showWhenStopped` (1.15); a named `resume` list is
+> honoured since the 1.15 release (PX1111 notes where it differs from the derivation).
+
 **Verdict.** Layers 0–1 describe EXACTLY what schema 1.9 does today: every key has one place (the table
 in [Where it came from](#where-it-came-from)), every value keeps its meaning, every rule keeps its
 behaviour. It is a rename and a regroup, plus two additions in layer 0:
@@ -629,7 +637,7 @@ packages, commit the website.
 
 ### Where it came from
 
-Schema 1.9 (implemented) has the same lifecycle with flat keys; layers 0–1 regroup them:
+Schema 1.9 (implemented) has the same lifecycle with flat keys; layers 0–1 regroup them (names as first designed — see the 1.15 note above):
 
 | schema 1.9 | layers 0–1 |
 |---|---|
@@ -654,10 +662,10 @@ Schema 1.9 (implemented) has the same lifecycle with flat keys; layers 0–1 reg
 - **Moves on actions, being on values.** How you get somewhere belongs to the move — Rive and dotLottie
   also put duration and "exit time" on transitions. A value says what the timeline is while held (a
   segment's window).
-- **The gate is not a pause.** `suspend` / `wake` act on the clock and leave `playback` alone, so `wake`
+- **The gate is not a pause.** `outOfView` / `wake` act on the clock and leave `playback` alone, so `wake`
   carries on only what was running. Setting `paused` instead would turn every scroll-away into a user
   pause that nothing resumes.
-- **`beforeStart` is not in the state.** The rest pose applies to every rest, whatever caused it — a
+- **`showWhenStopped` is not in the state.** The rest pose applies to every rest, whatever caused it — a
   rendering setting of the timeline (the CSS analogue is `animation-fill-mode`) — and is rarely needed:
   in Editor files the static SVG and the first frame are the same picture.
 - **The initial value** carries `initial: true`; without a marker, the first value is initial. That
@@ -684,11 +692,11 @@ why:
 | `range: [1001, 3500]` | `inTime: 1000, outTime: 3500` | adjacent segments share their boundary — no 1 ms gaps — and reuse the timeline's own words |
 | a segment's `transition: hold \| continue` | the rule's `path` + `completeIteration` | a segment switch needs WHEN it happens and HOW the playhead gets there, not playback words |
 | nothing moved the intro on to the loop | `ended` + `finish` rules | the natural end of a segment is an event like any other |
-| `beforeStart` on `playing` | `timeline.beforeStart` | it is what shows while NOT playing, and it applies to every rest |
+| `beforeStart` on `playing` | `timeline.showWhenStopped` (`beforeStart` until 1.14) | it is what shows while NOT playing, and it applies to every rest |
 
 ### Naming notes
 
-- **`suspend` / `wake`** — the browser's and the OS's words for a page or device going inactive and back.
+- **`outOfView` / `wake`** — `outOfView` (1.13) names the condition in the words `inViewThreshold` / `inViewDebounce` already use. `suspend` (until 1.12) was the browser's and the OS's word for a page or device going inactive and back, and asked "suspended by what?".
   Considered: `sleep` / `wake`; `freeze` / `unfreeze` (the Page Lifecycle API's `freeze`, whose partner
   is `resume` — taken); `deactivate` / `activate`; `hidden` / `visible` (the Page Visibility API — but
   those are states, not moves).
@@ -814,7 +822,7 @@ time (`show` is invented here):
 - **Built-in names**: written with settings they merge, with a rule they replace — confirm; may `start` /
   `stop` be replaced at all, when the app's `play` / `stop()` rely on them?
 - **Default bindings once a `triggers` block is written**: `start` then fires only on what is listed (no
-  implicit `load`), while `resume` ← the triggers of `start`, `finish` ← `ended` and `suspend` / `wake` ←
+  implicit `load`), while `resume` ← the triggers of `start`, `finish` ← `ended` and `outOfView` / `wake` ←
   the view sensor stay. Confirm.
 - **Engine event names**: `ended`, `viewIn` / `viewOut`, `pointerDown` / `pointerUp`, an `iteration` event —
   and which of them may be rebound.

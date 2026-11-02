@@ -60,6 +60,14 @@ container says "action" already; `togglePlayAction` buries the clearest key); a 
 | State rule | stopped · playing · paused; finished = stopped | + `finished` | Layer 0 and 2 designed four states; the implementation lagged. With finished = stopped a stop trigger could not act on a finished one-shot, so "forward on hover, back on leave" and like-toggles were inexpressible — and `onStop` vs `onFinish` needs the distinction. `start` acts on stopped or finished, `stop` on playing, paused or finished. |
 | Editor labels | "Play on" / "Play Action" / "End Action" / "Out-of-View Action" | unchanged | The panel speaks to designers, the file to developers; the mapping is one-to-one. Panel test ids follow the keys, which do not change. |
 | Handle: reset now | `cancel()` | `reset()` | It resets at once, ignoring every setting — and `reset` is already the vocabulary (`do: 'reset'`), so the handle speaks the actions' words. `cancel` only ever came from the Web Animations API. |
+| Callback for the reset (2026-11-01) | `onCancel` | `onReset` | The handle's `cancel()` became `reset()` and `reset` is the vocabulary's one word for the start pose, so the callback follows. It is the STATE callback — back at the start pose by a `reset()`, a reset / rewind stop or finish, the gate's reset, a destroy — the twin of `onFinish`; `onStop` is the ACTION callback, and `reset()` does not report it (the TSDoc said it did; corrected). Vue emits `reset`, the registry event is `'reset'`. |
+| Click toggle shortcut (2026-11-02) | `actionTriggers.togglePlay` | removed (wire 1.12; the step folds it into `start` + `stop`) | Both outside reviewers read it as play/pause; it meant start/stop, and the two lists already say either toggle. |
+| The visibility gate's slot (2026-11-02) | `actions.suspend` | `actions.outOfView` (wire 1.13) | Names the condition in the words `inViewThreshold` / `inViewDebounce` use; the editor's label was already "Out-of-View Action". |
+| An action's setting (2026-11-02) | `actions.*.do` | `actions.*.behavior` (wire 1.14); the word form unchanged | "stop behavior: rewind" says what kind of thing the value is. Types `Px*Transition` → `Px*Behavior`. |
+| The rest pose (2026-11-02) | `timeline.beforeStart` | `timeline.showWhenStopped` (wire 1.15); values `static` / `firstFrame` kept | It governs the whole STOPPED state, not only before the first start; the `show…` verb of `showAtProgress`. |
+| A named resume (2026-11-02) | accepted, ignored, warned | honoured as written; `resumeExtra` / `resumeMissing` (code 1111) where it differs from the derivation | A key that type-checks and does nothing was the objection; the owner kept the key and made it live. The prop type still omits it. |
+| The timing override (2026-11-02) | `timeline` prop / option | `timelineOptions` | Not the file's `timeline` object — two keys live on other props; `actions` keeps its name (it IS a partial of that block). |
+| The console switches (2026-11-02) | `muteWarn` / `muteError` | `suppressWarnings` / `suppressErrors` | React's `suppress…Warning` precedent; a verb muted read oddly. Handlers still fire. |
 | Handle: jump to the end | `finish()` | `jumpToFinished()` | It does exactly the `jumpToFinished` preset; "finish()" can be read as "let it play to the end". |
 | `resume` in the trigger type | offered by autocomplete, ignored at runtime (PX1111) | omitted from the prop, the web option and `bind` (an `Omit` over the schema type) | A key you may type but must not is a trap; the type refuses it at compile time. The schema keeps the key for layer 2 (element targets). |
 | Docs only | — | `load` says it still waits for the gate; ms on `inTime` / `outTime` / `playDuration` / `delay`; ~~`playUsingActionTriggers={{}}` = nothing starts it, your code does~~ (withdrawn 2026-11-01, owner: the prop has two spellings — `true` or an override block; "your code drives" is no control prop at all, so `{}` is not documented) | Three first-read traps that need no rename. |
@@ -249,3 +257,12 @@ an enum would cost every such line), `onFinish` (one trio with the `finish` acti
 | `timeline` prop and its words | `inTime` / `outTime` / `playDuration`, video words | keep (mirrors the file; ms in the TSDoc — step 2) · `timing` for the prop |
 | `suspend`, `jumpToFinished` as words | design-justified (`suspend` / `wake`; named after the state) | keep · `outOfView`, `jumpToEnd` |
 | `completeIteration` | a flag beside `do` | keep |
+
+## 6. Settled by the two outside reviews (2026-11-02)
+
+The reviews (`schema-and-props-review-feedback.md`, `…feedback2.md`) and the owner's decisions are worked through in
+[schema-and-props-review-fix-plan.md](schema-and-props-review-fix-plan.md). Of §5's open rows: the play / pause
+booleans STAY (the CSS model; the TSDoc now warns that `play={false}` stops); `onFinish` STAYS; `onIdle` is not
+added; `suspend` → `outOfView`; `jumpToFinished` STAYS; `timeline` prop → `timelineOptions`; `completeIteration`
+STAYS; `load` STAYS. Rejected on the way: the file's block as the default driver with a `false` spelling (the owner:
+"explicitly say what you want — a bare component is a still"), `asAuthored` for `static`, `getTotalDuration()`.

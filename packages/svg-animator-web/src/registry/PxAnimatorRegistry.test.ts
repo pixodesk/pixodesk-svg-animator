@@ -69,7 +69,7 @@ describe('the page-wide animator registry', () => {
         const off = onSvgAnimationPlayersChange((event: PxAnimationPlayersEvent, a: PxAnimationPlayerApi) => { events.push(event); subjects.add(a); });
         const api = createSvgAnimationPlayer({
             doc: makeDoc(), container,
-            onPlay: () => own.push('play'), onPause: () => own.push('pause'), onCancel: () => own.push('cancel'),
+            onPlay: () => own.push('play'), onPause: () => own.push('pause'), onReset: () => own.push('reset'),
         });
         made.push(api);
         api.play();
@@ -81,12 +81,12 @@ describe('the page-wide animator registry', () => {
         expect(events[0]).toBe('add');
         expect(events[events.length - 1]).toBe('remove');
         // … and in between the registry mirrors the caller's own callbacks exactly, in order
-        // (the `load` trigger plays once at creation, `destroy()` cancels once more on its way
+        // (the `load` trigger plays once at creation, `destroy()` resets once more on its way
         // out — both reach the caller and the registry alike).
         expect(events.slice(1, -1)).toEqual(own);
         expect(own).toContain('play');
         expect(own).toContain('pause');
-        expect(own).toContain('cancel');
+        expect(own).toContain('reset');
         // Every event named the proxy `createSvgAnimationPlayer` returned — never the engine behind it.
         expect([...subjects]).toEqual([api]);
     });

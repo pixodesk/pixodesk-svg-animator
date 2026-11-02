@@ -15,15 +15,15 @@ export function createWebPlayer(
     // The Loop picker and the visibility gate, merged over the document's own timeline;
     // `undefined` keeps the document's values — the same option the React and Vue
     // components take.
-    timeline: opts?.timeline,
-    // The gate's `suspend` transition, merged over the document's own actions.
+    timelineOptions: opts?.timelineOptions,
+    // The gate's `outOfView` behavior, merged over the document's own actions.
     actions: opts?.actions,
   });
 
   return {
     play: () => api.play(),
     pause: () => api.pause(),
-    cancel: () => api.reset(),
+    reset: () => api.reset(),
     finish: () => api.jumpToFinished(),
     isPlaying: () => api.isPlaying(),
     getCurrentTime: () => api.getCurrentTime(),

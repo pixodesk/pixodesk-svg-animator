@@ -24,24 +24,26 @@ function triggerIssueCode(kind: PxTriggerIssueKind): PxDiagnosticCode {
     switch (kind) {
         case PxTriggerIssueKind.collision: return PxDiagnosticCode.triggerEventConflict;
         case PxTriggerIssueKind.eventNotAllowed: return PxDiagnosticCode.triggerEventNotAllowed;
-        case PxTriggerIssueKind.resumeIgnored: return PxDiagnosticCode.triggerResumeIgnored;
+        case PxTriggerIssueKind.resumeExtra:
+        case PxTriggerIssueKind.resumeMissing: return PxDiagnosticCode.triggerResumeDiffers;
     }
 }
 
 /**
  * Wires a document's triggers to its root element (dev-docs/plans/playback-layers.md, layer 0).
  *
- * The triggers say only WHEN: event lists — `start`, `stop`, `pause`, plus the `togglePlay` sugar — over the
- * events `load`, `hoverIn`, `hoverOut`, `click`, each list naming only the events it can use. Which list an
- * event is read from is the STATE RULE: `start` acts when stopped or finished, `pause` when playing, the DERIVED
- * resume when paused (the counterpart of each `pause` event, plus the `start` events that do not stop), `stop` when
- * playing, paused or finished. Every problem `triggerIssues` finds is reported — a disallowed event (ignored), an ignored
- * `resume` entry, two lists reacting to one event in the same state (pause or resume wins). An absent triggers
+ * The triggers say only WHEN: event lists — `start`, `stop`, `pause`, and `resume` (derived unless the file names
+ * it) — over the events `load`, `hoverIn`, `hoverOut`, `click`, each list naming only the events it can use. Which
+ * list an event is read from is the STATE RULE: `start` acts when stopped or finished, `pause` when playing, `resume`
+ * when paused (derived: the counterpart of each `pause` event, plus the `start` events that do not stop), `stop` when
+ * playing, paused or finished. Every problem `triggerIssues` finds is reported — a disallowed event (ignored), a named
+ * `resume` list that differs from the derivation (honoured), two lists reacting to one event in the same state (pause
+ * or resume wins). An absent triggers
  * block plays on load; an EMPTY one lists nothing — only the api drives it.
  *
  * HOW is the timeline's `actions` block, performed by the player's one executor, shared with the api's
  * `play()` / `stop()`, so a click and a `player.play()` do exactly the same thing. The visibility gate
- * (`actions.suspend`, `inViewThreshold`, `inViewDebounce`) decides whether it may RUN, whatever
+ * (`actions.outOfView`, `inViewThreshold`, `inViewDebounce`) decides whether it may RUN, whatever
  * started it; only `load` waits for it — a hover or a click is aimed at something the reader sees.
  *
  * @param api The engine api to wire; the executor is attached to it as `playExecutor`.

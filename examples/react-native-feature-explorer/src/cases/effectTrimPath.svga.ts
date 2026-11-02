@@ -17,8 +17,8 @@ export const effectTrimPath: SvgaCaseJson = {
                 "start": "load"
             },
             "actions": {
-                "suspend": {
-                    "do": "continue"
+                "outOfView": {
+                    "behavior": "continue"
                 }
             },
             "iterationDirection": "normal"

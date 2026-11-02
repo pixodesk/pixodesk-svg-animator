@@ -257,14 +257,14 @@ describe('createSvgAnimationPlayer', () => {
         expect(() => api.play()).not.toThrow();   // inert, not broken
     });
 
-    it('muteError switches the console fallback off for such a failure', () => {
+    it('suppressErrors switches the console fallback off for such a failure', () => {
         const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => { /* silence */ });
         const broken = untyped<Element>({ replaceChildren: () => { throw new Error('boom'); } });   // an Element stub with one throwing method, on purpose
 
         createSvgAnimationPlayer({ doc: makeDoc(), container: broken });
         expect(errorSpy).toHaveBeenCalledTimes(1);             // the console is the fallback…
 
-        createSvgAnimationPlayer({ doc: makeDoc(), container: broken, muteError: true });
+        createSvgAnimationPlayer({ doc: makeDoc(), container: broken, suppressErrors: true });
         expect(errorSpy).toHaveBeenCalledTimes(1);             // …unless muted
     });
 });

@@ -79,7 +79,9 @@ export const PX_ANIM_ATTR_NAME = '_px_animator';
  *  still decides whether it may run). @public */
 export const PxTriggerEvent = {
     /** The document being ready — NOT "when the page loads": with the default gate it still waits until enough of it is
-     *  on screen (`inViewThreshold`, half by default) and pauses while scrolled away (`actions.suspend`). */
+     *  on screen (`inViewThreshold`, half by default) and pauses while scrolled away (`actions.outOfView`). WHY `load`,
+     *  not `ready`: the gate is a condition on EVERY driver, so `load` is the event as it is; `ready` would read as the
+     *  gate's answer. */
     load:     'load',
     hoverIn:  'hoverIn',
     hoverOut: 'hoverOut',
@@ -97,7 +99,6 @@ export const PxTriggerList = {
     stop:       'stop',
     pause:      'pause',
     resume:     'resume',
-    togglePlay: 'togglePlay',
 } as const;
 
 export type PxTriggerList = typeof PxTriggerList[keyof typeof PxTriggerList];
@@ -107,7 +108,6 @@ export type PxTriggerList = typeof PxTriggerList[keyof typeof PxTriggerList];
  *   - `start`: load · hoverIn · click (starting when the pointer LEAVES makes no sense)
  *   - `stop`: hoverOut · click (stopping on load or when the pointer ARRIVES makes no sense)
  *   - `pause` / `resume`: hoverIn · hoverOut · click (a marquee pauses on hover in, a hover animation on hover out)
- *   - `togglePlay`: click (the only event that both starts and stops)
  *  @public @advanced */
 export function allowedTriggerEvents(list: PxTriggerList): ReadonlyArray<PxTriggerEvent> {
     switch (list) {
@@ -115,7 +115,6 @@ export function allowedTriggerEvents(list: PxTriggerList): ReadonlyArray<PxTrigg
         case PxTriggerList.stop: return [PxTriggerEvent.hoverOut, PxTriggerEvent.click];
         case PxTriggerList.pause:
         case PxTriggerList.resume: return [PxTriggerEvent.hoverIn, PxTriggerEvent.hoverOut, PxTriggerEvent.click];
-        case PxTriggerList.togglePlay: return [PxTriggerEvent.click];
     }
 }
 
@@ -131,56 +130,62 @@ export function counterpartTriggerEvent(event: PxTriggerEvent): PxTriggerEvent |
     }
 }
 
-/** `actions.start` (`do`) — a PRESET (playback-layers.md, layer 1): where a start ends and the
+/** `actions.start` (`behavior`) — a PRESET (playback-layers.md, layer 1): where a start ends and the
  *  path there. `continue` plays on from the current position (from the beginning when it rests at the start
  *  or the end), `restart` always from the beginning, `jumpToFinished` shows the end pose with no motion. @public */
-export const PxStartTransition = {
+export const PxStartBehavior = {
     continue:       'continue',
     restart:        'restart',
     jumpToFinished: 'jumpToFinished',
 } as const;
 
-export type PxStartTransition = typeof PxStartTransition[keyof typeof PxStartTransition];
+export type PxStartBehavior = typeof PxStartBehavior[keyof typeof PxStartBehavior];
 
-/** `actions.stop` (`do`) — a stop jumps back to the state as before it started (`reset`), or plays
+/** `actions.stop` (`behavior`) — a stop jumps back to the state as before it started (`reset`), or plays
  *  back to it (`rewind` — the VCR word). @public */
-export const PxStopTransition = {
+export const PxStopBehavior = {
     reset:  'reset',
     rewind: 'rewind',
 } as const;
 
-export type PxStopTransition = typeof PxStopTransition[keyof typeof PxStopTransition];
+export type PxStopBehavior = typeof PxStopBehavior[keyof typeof PxStopBehavior];
 
-/** `actions.finish` (`do`) — the natural end keeps the last frame (`hold`), jumps back (`reset`), or
+/** `actions.finish` (`behavior`) — the natural end keeps the last frame (`hold`), jumps back (`reset`), or
  *  plays back (`rewind`). @public */
-export const PxFinishTransition = {
+export const PxFinishBehavior = {
     hold:   'hold',
     reset:  'reset',
     rewind: 'rewind',
 } as const;
 
-export type PxFinishTransition = typeof PxFinishTransition[keyof typeof PxFinishTransition];
+export type PxFinishBehavior = typeof PxFinishBehavior[keyof typeof PxFinishBehavior];
 
-/** `actions.suspend` (`do`) — what happens once none of the graphic is on screen (the gate's closing
- *  edge; `wake` is its partner): freeze where it is (`pause`), keep playing (`continue`), or go back to the
- *  start and replay when seen (`reset`). The CLOCK is held, never the playback state, so `wake` carries on
- *  only what was running. @public */
-export const PxSuspendTransition = {
+/** `actions.outOfView` (`behavior`) — what happens once none of the graphic is on screen (the visibility gate's closing
+ *  edge; coming back into view is its partner): freeze where it is (`pause`), keep playing (`continue` — here "keep
+ *  running", where `actions.start`'s `continue` is "from where it rests"), or go back to the start and replay when
+ *  seen (`reset`). The CLOCK is held, never the playback state, so coming back carries on only what was running.
+ *  WHY `outOfView`: it names the condition in the words `inViewThreshold` / `inViewDebounce` already use; the earlier
+ *  `suspend` made readers ask "suspended by what?". @public */
+export const PxOutOfViewBehavior = {
     pause:    'pause',
     continue: 'continue',
     reset:    'reset',
 } as const;
 
-export type PxSuspendTransition = typeof PxSuspendTransition[keyof typeof PxSuspendTransition];
+export type PxOutOfViewBehavior = typeof PxOutOfViewBehavior[keyof typeof PxOutOfViewBehavior];
 
-/** `timeline.beforeStart` — the rest pose, before the first start and after a reset: the SVG as authored
- *  (`static`), or the first frame's values (`firstFrame`, hand-authored files; the Editor never writes it). @public */
-export const PxBeforeStart = {
+/** `timeline.showWhenStopped` — what is shown while STOPPED: before the first start, after `reset()`, after a stop or
+ *  finish whose behavior is `reset`, after a `rewind` lands. `static` (default) = the SVG as it is in the file, no
+ *  animation applied; `firstFrame` = the first frame's values (hand-authored files; the Editor never writes it).
+ *  WHY `showWhenStopped`: it names the one state it governs (`stopped`, {@link PxPlayState} — a paused animation shows
+ *  its paused frame, a finished one its held frame) with the `show…` verb of the components' `showAtProgress` /
+ *  `showAtTime` (a frame, no motion). Was `beforeStart` until 1.14, which read as "the first start only". @public */
+export const PxShowWhenStopped = {
     static:     'static',
     firstFrame: 'firstFrame',
 } as const;
 
-export type PxBeforeStart = typeof PxBeforeStart[keyof typeof PxBeforeStart];
+export type PxShowWhenStopped = typeof PxShowWhenStopped[keyof typeof PxShowWhenStopped];
 
 
 /** `scroll.kind` — which scroll-driven timeline member this is: the subject's journey
@@ -295,7 +300,7 @@ export const PX_TIMELINE_SHARED_KEYS = ['inTime', 'outTime', 'iterations', 'engi
 
 /** Timeline keys that exist ONLY on the time-driven member — a scroll/view timeline is
  *  scrubbed by position, so nothing starts it, nothing delays it, and nothing remaps its pace. */
-export const PX_TIME_ONLY_TIMELINE_KEYS = ['actionTriggers', 'actions', 'delay', 'playDuration', 'iterationDirection', 'beforeStart',
+export const PX_TIME_ONLY_TIMELINE_KEYS = ['actionTriggers', 'actions', 'delay', 'playDuration', 'iterationDirection', 'showWhenStopped',
     'inViewThreshold', 'inViewDebounce'] as const;
 
 /**
@@ -332,6 +337,9 @@ export type PxTimelineEngine = typeof PxTimelineEngine[keyof typeof PxTimelineEn
  *
  * Built by ADDING to the core set rather than subtracting from a wider one, so the two cannot
  * drift: every engine is automatically an accepted value, and `auto` is visibly the one extra.
+ *
+ * WHY `native`, not `waapi`: the word is platform-neutral — the browser's Web Animations API on the web, the
+ * platform's own driver elsewhere; React Native accepts the key and ignores it (it always compiles for its driver).
  * @public
  */
 export const PxTimelineEngineSetting = {
@@ -372,20 +380,20 @@ export function mayUseNativeScrollTimeline(engine: PxTimelineEngineSetting | und
  * {@link resolveActions} / {@link resolveGate}, which every player calls — so a file behaves the same everywhere:
  *   - `start` 'load' — an absent `triggers` block plays on load: a document is designed to play
  *   - start `continue` · stop `reset` (now) · finish `hold` — the three moves' presets
- *   - suspend `pause` — an animation nobody can see does not run
- *   - `beforeStart` 'static' — the rest pose is the SVG as authored
+ *   - outOfView `pause` — an animation nobody can see does not run
+ *   - `showWhenStopped` 'static' — stopped, it shows the SVG as it is in the file
  *   - `inViewThreshold` 0.5 / `inViewDebounce` 150 — half of it on screen, that long, before it counts as seen
  * @public @advanced
  */
 export const PX_PLAYBACK_DEFAULTS = {
     /** an absent `triggers` block starts on load — a document is designed to play */
     start: 'load',
-    startTransition: 'continue',
-    stopTransition: 'reset',
+    startBehavior: 'continue',
+    stopBehavior: 'reset',
     stopCompleteIteration: false,
-    finishTransition: 'hold',
-    suspendTransition: 'pause',
-    beforeStart: 'static',
+    finishBehavior: 'hold',
+    outOfViewBehavior: 'pause',
+    showWhenStopped: 'static',
     inViewThreshold: 0.5,
     inViewDebounce: 150,
 } as const;
@@ -399,9 +407,9 @@ export const PX_DEFAULT_ITERATIONS = 1;
 /** What an absent `unitsPerEm` of a glyph font means — see `PX_DEFAULT_DURATION_MS`. @internal */
 export const PX_DEFAULT_UNITS_PER_EM = 1000;
 
-/** The triggers with their lists normalised: every list an array of ALLOWED events, `togglePlay` expanded into
- *  `start` and `stop`, `resume` DERIVED ({@link derivedResume}), an absent block = `{ start: ['load'] }`, an empty
- *  block = nothing starts it. @public @advanced */
+/** The triggers with their lists normalised: every list an array of ALLOWED events, `resume` DERIVED unless the
+ *  file names it ({@link derivedResume}), an absent block = `{ start: ['load'] }`, an empty block = nothing starts
+ *  it. @public @advanced */
 export interface PxResolvedTriggers {
     readonly start: ReadonlyArray<PxTriggerEvent>;
     readonly stop: ReadonlyArray<PxTriggerEvent>;
@@ -411,10 +419,10 @@ export interface PxResolvedTriggers {
 
 /** The four built-in actions' settings with every default applied — see {@link resolveActions}. @public @advanced */
 export interface PxResolvedActions {
-    readonly start:   { readonly do: PxStartTransition };
-    readonly stop:    { readonly do: PxStopTransition; readonly completeIteration: boolean };
-    readonly finish:  { readonly do: PxFinishTransition };
-    readonly suspend: { readonly do: PxSuspendTransition };
+    readonly start:   { readonly behavior: PxStartBehavior };
+    readonly stop:    { readonly behavior: PxStopBehavior; readonly completeIteration: boolean };
+    readonly finish:  { readonly behavior: PxFinishBehavior };
+    readonly outOfView: { readonly behavior: PxOutOfViewBehavior };
 }
 
 // ── CONTROL MODE (API review §1 / §7; `autoplay` → `playUsingActionTriggers` (first-use §1+2) → `playUsingActionTriggers`
@@ -458,11 +466,15 @@ export interface PxControlProps {
      */
     showAtProgress?: number;
     /** SHOW the frame at this time, ms from the start of the whole run. Wins like `showAtProgress`; the read
-     *  twin is `getCurrentTime()`. */
+     *  twin is `getCurrentTime()`. Ms like every time on this API (WAAPI's unit), so not `showAtMs`; `show…` because
+     *  a driver is named by its verb — it shows a frame, it never plays. */
     showAtTime?: number;
     /** `true` plays it — the built-in `start` (or `resume` when paused), a mount included: a one-shot plays to its
-     *  end and rests there (the pose without motion is `showAtProgress={1}`); `false` calls `stop`. Each performed
-     *  per `actions`, always from the current frame. */
+     *  end and rests there (the pose without motion is `showAtProgress={1}`); `false` performs the STOP action
+     *  (`actions.stop`: reset, or rewind) — it does NOT pause; freeze with `pause`. Each performed per `actions`,
+     *  always from the current frame. WHY two booleans, not a state word: `play` is on / off and `pause` a freeze on
+     *  top — the CSS model (`animation-name` applied × `animation-play-state`), so `play={hovered}` and
+     *  `pause={!inView}` compose; `play` is the driver's verb (`play…` props drive). */
     play?: boolean;
     /** Freeze the current frame NOW / resume toward the current target. Only meaningful while
      *  `play` is true — `play: false` forcibly unfreezes. Never deferred. */
@@ -472,7 +484,9 @@ export interface PxControlProps {
      * block decides (the way the editor saved it). An OBJECT: that block instead, as a WHOLE (the lists belong
      * together: switching `hoverIn` → `click` wants other `pause` / `stop` lists too); lists left out are simply
      * not listed, never the file's values. Two spellings only: `true`, or the block — to have your code drive, pass
-     * no control prop at all (the handle is the driver).
+     * no control prop at all (the handle is the driver). WHY the long name: a driver prop starts with its verb
+     * (`play…` plays, `show…` shows a frame) and says what drives — here the action triggers; `autoplay` lied for a
+     * click file (it waited), `triggers` alone did not say that it plays.
      */
     playUsingActionTriggers?: boolean | PxActionTriggersInput;
     // TODO (dev-docs/plans/component-api.md D4): `playUsingScrollTimeline?: PxScrollTimeline` — the scroll driver, a
@@ -563,7 +577,7 @@ function unionEvents(list: ReadonlyArray<PxTriggerEvent>, more: ReadonlyArray<Px
 // @px-area control
 /** What resumes a paused animation — derived, never configured for the built-in events: the counterpart of
  *  each `pause` event (hoverIn ↔ hoverOut, click → click), plus the `start` events that do not also STOP it
- *  (so a click that starts and stops — `togglePlay` — stops a paused one, as it says). @public @advanced */
+ *  (so a click listed under both `start` and `stop` stops a paused one, as it says). @public @advanced */
 export function derivedResume(start: ReadonlyArray<PxTriggerEvent>, stop: ReadonlyArray<PxTriggerEvent>,
     pause: ReadonlyArray<PxTriggerEvent>): ReadonlyArray<PxTriggerEvent> {
     const counterparts: Array<PxTriggerEvent> = [];
@@ -576,18 +590,18 @@ export function derivedResume(start: ReadonlyArray<PxTriggerEvent>, stop: Readon
 
 // @px-area control
 /** A document's triggers with the lists normalised — see {@link PxResolvedTriggers}. Events a list may not
- *  name are dropped ({@link triggerIssues} says which); an explicit `resume` naming a built-in event is ignored
- *  — resume is {@link derivedResume} (the key is kept for element targets, still to come). @public @advanced */
+ *  name are dropped ({@link triggerIssues} says which). `resume` is {@link derivedResume} unless the file names
+ *  the list — then the file's list is used as written ({@link triggerIssues} notes where it differs). @public @advanced */
 export function resolveTriggers(triggers: PxActionTriggers | undefined): PxResolvedTriggers {
     if (triggers === undefined) {
         const start: ReadonlyArray<PxTriggerEvent> = [PX_PLAYBACK_DEFAULTS.start];
         return { start, stop: [], pause: [], resume: start };
     }
-    const togglePlay = allowedEventsOf(PxTriggerList.togglePlay, triggers.togglePlay);
-    const start = unionEvents(allowedEventsOf(PxTriggerList.start, triggers.start), togglePlay);
-    const stop = unionEvents(allowedEventsOf(PxTriggerList.stop, triggers.stop), togglePlay);
+    const start = allowedEventsOf(PxTriggerList.start, triggers.start);
+    const stop = allowedEventsOf(PxTriggerList.stop, triggers.stop);
     const pause = allowedEventsOf(PxTriggerList.pause, triggers.pause);
-    return { start, stop, pause, resume: derivedResume(start, stop, pause) };
+    const resume = triggers.resume !== undefined ? allowedEventsOf(PxTriggerList.resume, triggers.resume) : derivedResume(start, stop, pause);
+    return { start, stop, pause, resume };
 }
 
 /** What {@link triggerIssues} reports. @public @advanced */
@@ -597,8 +611,12 @@ export const PxTriggerIssueKind = {
     /** Two lists react to the event in the same state: `stop` with `pause` (playing — pause wins), or `stop`
      *  with a pause's counterpart (paused — resume wins). The file should name one. */
     collision:       'collision',
-    /** An explicit `resume` names a built-in event the derived resume does not — ignored. */
-    resumeIgnored:   'resumeIgnored',
+    /** The file's `resume` list names an event the derivation would not (no `pause` event's counterpart, no `start`
+     *  event that does not stop) — honoured as written, noted so a surprising resume is no mystery. */
+    resumeExtra:     'resumeExtra',
+    /** The file's `resume` list leaves out an event the derivation would name — a `pause` event whose counterpart no
+     *  longer resumes it (that pause then waits for `start` or `stop`). Honoured as written. */
+    resumeMissing:   'resumeMissing',
 } as const;
 
 export type PxTriggerIssueKind = typeof PxTriggerIssueKind[keyof typeof PxTriggerIssueKind];
@@ -621,7 +639,7 @@ export function triggerIssues(triggers: PxActionTriggers | undefined): Array<PxT
     const issues: Array<PxTriggerIssue> = [];
     const lists: ReadonlyArray<[PxTriggerList, PxTriggerEvents | undefined]> = [
         [PxTriggerList.start, triggers.start], [PxTriggerList.stop, triggers.stop],
-        [PxTriggerList.pause, triggers.pause], [PxTriggerList.togglePlay, triggers.togglePlay],
+        [PxTriggerList.pause, triggers.pause], [PxTriggerList.resume, triggers.resume],
     ];
     for (const [list, events] of lists) {
         const allowed = allowedTriggerEvents(list);
@@ -630,8 +648,15 @@ export function triggerIssues(triggers: PxActionTriggers | undefined): Array<PxT
         }
     }
     const resolved = resolveTriggers(triggers);
-    for (const event of triggerEventList(triggers.resume)) {
-        if (!resolved.resume.includes(event)) issues.push({ kind: PxTriggerIssueKind.resumeIgnored, list: PxTriggerList.resume, event });
+    if (triggers.resume !== undefined) {
+        // only the events a resume list may name count — `load` is derived (a start that does not stop) but never listable
+        const derived = derivedResume(resolved.start, resolved.stop, resolved.pause).filter(e => allowedTriggerEvents(PxTriggerList.resume).includes(e));
+        for (const event of resolved.resume) {
+            if (!derived.includes(event)) issues.push({ kind: PxTriggerIssueKind.resumeExtra, list: PxTriggerList.resume, event });
+        }
+        for (const event of derived) {
+            if (!resolved.resume.includes(event)) issues.push({ kind: PxTriggerIssueKind.resumeMissing, list: PxTriggerList.resume, event });
+        }
     }
     const counterparts = derivedResume([], [], resolved.pause);
     for (const event of resolved.stop) {
@@ -642,14 +667,14 @@ export function triggerIssues(triggers: PxActionTriggers | undefined): Array<PxT
 }
 
 // @px-area control
-/** An action slot's settings: the word form (`'rewind'`) is exactly `{ do: 'rewind' }`; an absent slot stays absent.
+/** An action slot's settings: the word form (`'rewind'`) is exactly `{ behavior: 'rewind' }`; an absent slot stays absent.
  *  The one reader of the shorthand — every consumer goes through it (or {@link resolveActions}). @public @advanced */
-export function actionSettingsOf(slot: PxActions['start']): { do?: PxStartTransition } | undefined;
-export function actionSettingsOf(slot: PxActions['stop']): { do?: PxStopTransition; completeIteration?: boolean } | undefined;
-export function actionSettingsOf(slot: PxActions['finish']): { do?: PxFinishTransition } | undefined;
-export function actionSettingsOf(slot: PxActions['suspend']): { do?: PxSuspendTransition } | undefined;
-export function actionSettingsOf(slot: string | { do?: string; completeIteration?: boolean } | undefined): { do?: string; completeIteration?: boolean } | undefined {
-    return typeof slot === 'string' ? { do: slot } : slot;
+export function actionSettingsOf(slot: PxActions['start']): { behavior?: PxStartBehavior } | undefined;
+export function actionSettingsOf(slot: PxActions['stop']): { behavior?: PxStopBehavior; completeIteration?: boolean } | undefined;
+export function actionSettingsOf(slot: PxActions['finish']): { behavior?: PxFinishBehavior } | undefined;
+export function actionSettingsOf(slot: PxActions['outOfView']): { behavior?: PxOutOfViewBehavior } | undefined;
+export function actionSettingsOf(slot: string | { behavior?: string; completeIteration?: boolean } | undefined): { behavior?: string; completeIteration?: boolean } | undefined {
+    return typeof slot === 'string' ? { behavior: slot } : slot;
 }
 
 // @px-area control
@@ -658,21 +683,21 @@ export function resolveActions(actions: PxActions | undefined): PxResolvedAction
     const start = actionSettingsOf(actions?.start);
     const stop = actionSettingsOf(actions?.stop);
     const finish = actionSettingsOf(actions?.finish);
-    const suspend = actionSettingsOf(actions?.suspend);
+    const outOfView = actionSettingsOf(actions?.outOfView);
     return {
-        start:   { do: start?.do ?? PX_PLAYBACK_DEFAULTS.startTransition },
-        stop:    { do: stop?.do ?? PX_PLAYBACK_DEFAULTS.stopTransition,
+        start:   { behavior: start?.behavior ?? PX_PLAYBACK_DEFAULTS.startBehavior },
+        stop:    { behavior: stop?.behavior ?? PX_PLAYBACK_DEFAULTS.stopBehavior,
                    completeIteration: stop?.completeIteration ?? PX_PLAYBACK_DEFAULTS.stopCompleteIteration },
-        finish:  { do: finish?.do ?? PX_PLAYBACK_DEFAULTS.finishTransition },
-        suspend: { do: suspend?.do ?? PX_PLAYBACK_DEFAULTS.suspendTransition },
+        finish:  { behavior: finish?.behavior ?? PX_PLAYBACK_DEFAULTS.finishBehavior },
+        outOfView: { behavior: outOfView?.behavior ?? PX_PLAYBACK_DEFAULTS.outOfViewBehavior },
     };
 }
 
-/** The visibility gate with its defaults applied: how `suspend` reacts (`actions.suspend`) and when
+/** The visibility gate with its defaults applied: how `outOfView` reacts (`actions.outOfView`) and when
  *  the view sensor counts the graphic as seen (the two timeline numbers). Read from the runtime view by every
  *  player. @public @advanced */
 export interface PxResolvedGate {
-    readonly suspend: PxSuspendTransition;
+    readonly outOfView: PxOutOfViewBehavior;
     readonly inViewThreshold: number;
     readonly inViewDebounce: number;
 }
@@ -681,7 +706,7 @@ export interface PxResolvedGate {
 /** The gate of a runtime view, defaulted — see {@link PxResolvedGate}. @public @advanced */
 export function resolveGate(cfg: Pick<PxAnimatorRuntimeConfig, 'actions' | 'inViewThreshold' | 'inViewDebounce'> | undefined): PxResolvedGate {
     return {
-        suspend: actionSettingsOf(cfg?.actions?.suspend)?.do ?? PX_PLAYBACK_DEFAULTS.suspendTransition,
+        outOfView: actionSettingsOf(cfg?.actions?.outOfView)?.behavior ?? PX_PLAYBACK_DEFAULTS.outOfViewBehavior,
         inViewThreshold: cfg?.inViewThreshold ?? PX_PLAYBACK_DEFAULTS.inViewThreshold,
         inViewDebounce: cfg?.inViewDebounce ?? PX_PLAYBACK_DEFAULTS.inViewDebounce,
     };
@@ -1134,10 +1159,10 @@ export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
         // two of them: `fill` (CSS animation-fill-mode) and `resetOnFinish`
         const actions = timeline.actions !== undefined ? expandedActions(timeline.actions) : undefined;
         if (actions !== undefined && Object.keys(actions).length > 0) flat.actions = actions;
-        const finishTransition = actionSettingsOf(timeline.actions?.finish)?.do;
-        if (finishTransition !== undefined) flat.resetOnFinish = finishTransition === PxFinishTransition.reset;
-        if (timeline.beforeStart !== undefined) flat.beforeStart = timeline.beforeStart;
-        if (timeline.beforeStart !== undefined || finishTransition !== undefined) flat.fill = fillModeOf(timeline.beforeStart, finishTransition);
+        const finishBehavior = actionSettingsOf(timeline.actions?.finish)?.behavior;
+        if (finishBehavior !== undefined) flat.resetOnFinish = finishBehavior === PxFinishBehavior.reset;
+        if (timeline.showWhenStopped !== undefined) flat.showWhenStopped = timeline.showWhenStopped;
+        if (timeline.showWhenStopped !== undefined || finishBehavior !== undefined) flat.fill = fillModeOf(timeline.showWhenStopped, finishBehavior);
         if (timeline.inViewThreshold !== undefined) flat.inViewThreshold = timeline.inViewThreshold;
         if (timeline.inViewDebounce !== undefined) flat.inViewDebounce = timeline.inViewDebounce;
     }
@@ -1146,11 +1171,11 @@ export function resolveAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimato
 }
 
 /** The engines' CSS-style fill mode from the two settings that say it: the first frame before play
- *  (`beforeStart: firstFrame` → `backwards` / `both`) and the last frame after a natural end (finish `hold` →
+ *  (`showWhenStopped: firstFrame` → `backwards` / `both`) and the last frame after a natural end (finish `hold` →
  *  `forwards` / `both`). @public @advanced */
-export function fillModeOf(beforeStart: PxBeforeStart | undefined, finishTransition: PxFinishTransition | undefined): PxFillMode {
-    const before = (beforeStart ?? PX_PLAYBACK_DEFAULTS.beforeStart) === PxBeforeStart.firstFrame;
-    const after = (finishTransition ?? PX_PLAYBACK_DEFAULTS.finishTransition) === PxFinishTransition.hold;
+export function fillModeOf(showWhenStopped: PxShowWhenStopped | undefined, finishBehavior: PxFinishBehavior | undefined): PxFillMode {
+    const before = (showWhenStopped ?? PX_PLAYBACK_DEFAULTS.showWhenStopped) === PxShowWhenStopped.firstFrame;
+    const after = (finishBehavior ?? PX_PLAYBACK_DEFAULTS.finishBehavior) === PxFinishBehavior.hold;
     return before ? (after ? PxFillMode.both : PxFillMode.backwards) : (after ? PxFillMode.forwards : PxFillMode.none);
 }
 
@@ -1158,7 +1183,7 @@ export function fillModeOf(beforeStart: PxBeforeStart | undefined, finishTransit
 export type PxActionsSettings = { [K in keyof PxActions]?: Exclude<NonNullable<PxActions[K]>, string> };
 
 /** A copy of an `actions` block in its settings form: every slot through {@link actionSettingsOf} (the word
- *  `'rewind'` is exactly `{ do: 'rewind' }`); an EMPTY settings block says nothing (every field its default),
+ *  `'rewind'` is exactly `{ behavior: 'rewind' }`); an EMPTY settings block says nothing (every field its default),
  *  so it is dropped. What `resolveAnimatorTimeline` hands the engines, so no reader meets the word form. */
 function expandedActions(actions: PxActions): PxActionsSettings {
     const copy: PxActionsSettings = {};
@@ -1166,20 +1191,20 @@ function expandedActions(actions: PxActions): PxActionsSettings {
     const start = actionSettingsOf(actions.start); if (said(start)) copy.start = { ...start };
     const stop = actionSettingsOf(actions.stop); if (said(stop)) copy.stop = { ...stop };
     const finish = actionSettingsOf(actions.finish); if (said(finish)) copy.finish = { ...finish };
-    const suspend = actionSettingsOf(actions.suspend); if (said(suspend)) copy.suspend = { ...suspend };
+    const outOfView = actionSettingsOf(actions.outOfView); if (said(outOfView)) copy.outOfView = { ...outOfView };
     return copy;
 }
 
-/** The wire's canonical form — the SHORTEST exact spelling: a slot that says only `do` is the word itself
+/** The wire's canonical form — the SHORTEST exact spelling: a slot that says only `behavior` is the word itself
  *  (the rule `mergeTimeline` applies to a merged block as RULE 5). What `nestAnimatorTimeline` writes. */
 function compactedActions(actions: PxActions): PxActions {
     const settings = expandedActions(actions);
-    const onlyDo = (slot: { do?: string; completeIteration?: boolean }): boolean => slot.do !== undefined && Object.keys(slot).length === 1;
+    const onlyBehavior = (slot: { behavior?: string; completeIteration?: boolean }): boolean => slot.behavior !== undefined && Object.keys(slot).length === 1;
     const copy: PxActions = {};
-    if (settings.start !== undefined) copy.start = onlyDo(settings.start) ? settings.start.do : settings.start;
-    if (settings.stop !== undefined) copy.stop = onlyDo(settings.stop) ? settings.stop.do : settings.stop;
-    if (settings.finish !== undefined) copy.finish = onlyDo(settings.finish) ? settings.finish.do : settings.finish;
-    if (settings.suspend !== undefined) copy.suspend = onlyDo(settings.suspend) ? settings.suspend.do : settings.suspend;
+    if (settings.start !== undefined) copy.start = onlyBehavior(settings.start) ? settings.start.behavior : settings.start;
+    if (settings.stop !== undefined) copy.stop = onlyBehavior(settings.stop) ? settings.stop.behavior : settings.stop;
+    if (settings.finish !== undefined) copy.finish = onlyBehavior(settings.finish) ? settings.finish.behavior : settings.finish;
+    if (settings.outOfView !== undefined) copy.outOfView = onlyBehavior(settings.outOfView) ? settings.outOfView.behavior : settings.outOfView;
     return copy;
 }
 
@@ -1206,7 +1231,7 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
     if (!cfg || cfg.timeline !== undefined) return cfg;
 
     const { timelineSource, scroll, actionTriggers, actions, delay, iterations, direction, fill, resetOnFinish,
-            beforeStart, inViewThreshold, inViewDebounce,
+            showWhenStopped, inViewThreshold, inViewDebounce,
             duration, inTime, playDuration, engine, frameRate, ...shared } = cfg;
     // flat `duration` is the WINDOW LENGTH; on the wire the window is written as its two points
     const writeWindow = (timeline: { inTime?: number; outTime?: number }) => {
@@ -1255,12 +1280,12 @@ export function nestAnimatorTimeline(cfg: PxAnimatorRuntimeConfig): PxAnimatorCo
     // the actions block; the rest-pose view back to its two settings: `fill` / `resetOnFinish` → the finish
     // transition and the rest pose
     const nested: PxActions = actions !== undefined ? compactedActions(actions) : {};
-    if (actionSettingsOf(nested.finish)?.do === undefined && (resetOnFinish || fill === PxFillMode.none || fill === PxFillMode.backwards)) {
-        nested.finish = PxFinishTransition.reset;
+    if (actionSettingsOf(nested.finish)?.behavior === undefined && (resetOnFinish || fill === PxFillMode.none || fill === PxFillMode.backwards)) {
+        nested.finish = PxFinishBehavior.reset;
     }
     if (Object.keys(nested).length > 0) timeline.actions = nested;
-    if (beforeStart !== undefined) timeline.beforeStart = beforeStart;
-    else if (fill === PxFillMode.backwards || fill === PxFillMode.both) timeline.beforeStart = PxBeforeStart.firstFrame;
+    if (showWhenStopped !== undefined) timeline.showWhenStopped = showWhenStopped;
+    else if (fill === PxFillMode.backwards || fill === PxFillMode.both) timeline.showWhenStopped = PxShowWhenStopped.firstFrame;
     if (inViewThreshold !== undefined) timeline.inViewThreshold = inViewThreshold;
     if (inViewDebounce !== undefined) timeline.inViewDebounce = inViewDebounce;
 

@@ -10,7 +10,7 @@ createApp({
         h('button', { onClick: () => api.value?.play() }, 'play()'),
         h('button', { onClick: () => api.value?.pause() }, 'pause()'),
         h('button', { onClick: () => api.value?.reset() }, 'reset()'),
-        h('button', { onClick: () => api.value?.jumpToFinished() }, 'finish()'),
+        h('button', { onClick: () => api.value?.jumpToFinished() }, 'jumpToFinished()'),
       ]),
       h('div', { class: 'stage' }, [
         h(SvgAnimationPlayer as any, { doc: animation, ref: api }),

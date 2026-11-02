@@ -17,8 +17,8 @@ export const elemRect: SvgaCaseJson = {
                 "start": "load"
             },
             "actions": {
-                "suspend": {
-                    "do": "continue"
+                "outOfView": {
+                    "behavior": "continue"
                 }
             },
             "iterationDirection": "normal"

@@ -258,5 +258,55 @@
    "animator.timeline|time.triggers.togglePlay"
   ],
   "note": "The names say the link (dev-docs/reviews/react-props-review.md): `timeline.triggers` becomes `actionTriggers` — a key names the action it fires, the same key in `actions` says how that action looks — and an action's `transition` becomes `do`, written as the word itself when it is the only setting (`stop: 'rewind'`)."
+ },
+ {
+  "version": "1.12",
+  "date": "2026-11-01",
+  "added": [],
+  "removed": [
+   "animator.timeline|time.actionTriggers.togglePlay"
+  ],
+  "note": "`actionTriggers.togglePlay` is gone (dev-docs/reviews/schema-and-props-review-fix-plan.md §2.3): it only ever meant `click` under both `start` and `stop`, and read as a play/pause toggle to everyone — the two lists say it as it is."
+ },
+ {
+  "version": "1.13",
+  "date": "2026-11-01",
+  "added": [
+   "animator.timeline|time.actions.outOfView",
+   "animator.timeline|time.actions.outOfView|1.do"
+  ],
+  "removed": [
+   "animator.timeline|time.actions.suspend",
+   "animator.timeline|time.actions.suspend|1.do"
+  ],
+  "note": "`actions.suspend` becomes `actions.outOfView` (dev-docs/reviews/schema-and-props-review-fix-plan.md §2.4): the key names the condition — none of it on screen — in the words `inViewThreshold` / `inViewDebounce` already use; `suspend` made readers ask \"suspended by what?\"."
+ },
+ {
+  "version": "1.14",
+  "date": "2026-11-01",
+  "added": [
+   "animator.timeline|time.actions.finish|1.behavior",
+   "animator.timeline|time.actions.outOfView|1.behavior",
+   "animator.timeline|time.actions.start|1.behavior",
+   "animator.timeline|time.actions.stop|1.behavior"
+  ],
+  "removed": [
+   "animator.timeline|time.actions.finish|1.do",
+   "animator.timeline|time.actions.outOfView|1.do",
+   "animator.timeline|time.actions.start|1.do",
+   "animator.timeline|time.actions.stop|1.do"
+  ],
+  "note": "An action's `do` becomes `behavior` (dev-docs/reviews/schema-and-props-review-fix-plan.md §2.6): \"stop behavior: rewind\" says what kind of thing the value is, `do` did not. The word form (`stop: 'rewind'`) is unchanged."
+ },
+ {
+  "version": "1.15",
+  "date": "2026-11-01",
+  "added": [
+   "animator.timeline|time.showWhenStopped"
+  ],
+  "removed": [
+   "animator.timeline|time.beforeStart"
+  ],
+  "note": "`timeline.beforeStart` becomes `timeline.showWhenStopped` (dev-docs/reviews/schema-and-props-review-fix-plan.md §3.1): the key governs the whole STOPPED state — after a reset or a rewind too, not only before the first start — and takes the `show…` verb of the components' `showAtProgress` / `showAtTime`. The values `static` / `firstFrame` are unchanged."
  }
 ]

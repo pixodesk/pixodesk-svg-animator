@@ -8,7 +8,7 @@
     "timeline": {
       "outTime": 1000,
       "actions": {
-        "suspend": "continue"
+        "outOfView": "continue"
       },
       "iterations": 2,
       "iterationDirection": "normal",

@@ -319,7 +319,105 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         up: upActionTriggersAndDo,
         // No `down`: the shorthand and the names are 1.11's; 1.10 readers do not know them.
     },
+    {
+        from: '1.11',
+        to: '1.12',
+        reason: '`actionTriggers.togglePlay` is gone (dev-docs/reviews/schema-and-props-review-fix-plan.md §2.3): it only ever '
+            + 'meant `click` under both `start` and `stop`, and read as a play/pause toggle to everyone — the two lists say it as it is.',
+        kind: PxWireStepKind.converted,
+        up: upTogglePlay,
+        // No `down`: the two lists are 1.11 spelling already; the shortcut is not recovered.
+    },
+    {
+        from: '1.12',
+        to: '1.13',
+        reason: '`actions.suspend` becomes `actions.outOfView` (dev-docs/reviews/schema-and-props-review-fix-plan.md §2.4): the key '
+            + 'names the condition — none of it on screen — in the words `inViewThreshold` / `inViewDebounce` already use; '
+            + '`suspend` made readers ask "suspended by what?".',
+        kind: PxWireStepKind.converted,
+        up: upOutOfView,
+        down: downOutOfView,   // exactly invertible: a key rename
+    },
+    {
+        from: '1.13',
+        to: '1.14',
+        reason: 'An action\'s `do` becomes `behavior` (dev-docs/reviews/schema-and-props-review-fix-plan.md §2.6): "stop behavior: rewind" '
+            + 'says what kind of thing the value is, `do` did not. The word form (`stop: \'rewind\'`) is unchanged.',
+        kind: PxWireStepKind.converted,
+        up: (doc) => renameActionField(doc, 'do', 'behavior'),
+        down: (doc) => renameActionField(doc, 'behavior', 'do'),   // exactly invertible: a key rename
+    },
+    {
+        from: '1.14',
+        to: '1.15',
+        reason: '`timeline.beforeStart` becomes `timeline.showWhenStopped` (dev-docs/reviews/schema-and-props-review-fix-plan.md §3.1): '
+            + 'the key governs the whole STOPPED state — after a reset or a rewind too, not only before the first start — and takes '
+            + 'the `show…` verb of the components\' `showAtProgress` / `showAtTime`. The values `static` / `firstFrame` are unchanged.',
+        kind: PxWireStepKind.converted,
+        up: (doc) => renameTimelineKey(doc, 'beforeStart', 'showWhenStopped'),
+        down: (doc) => renameTimelineKey(doc, 'showWhenStopped', 'beforeStart'),   // exactly invertible: a key rename
+    },
 ];
+
+/** Renames one `animator.timeline` key, value untouched; nothing to do when it is absent. */
+function renameTimelineKey(doc: Record<string, unknown>, from: string, to: string): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    if (!timeline || timeline[from] === undefined) return;
+    timeline[to] = timeline[from];
+    delete timeline[from];
+}
+
+/** Renames a field inside every `animator.timeline.actions` slot that is in its settings (object) form. */
+function renameActionField(doc: Record<string, unknown>, from: string, to: string): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    const actions = timeline ? readObjectProp(timeline, 'actions') : undefined;
+    if (!actions) return;
+    for (const key of Object.keys(actions)) {
+        const slot = readObjectProp(actions, key);
+        if (!slot || slot[from] === undefined) continue;
+        slot[to] = slot[from];
+        delete slot[from];
+    }
+}
+
+/** 1.12 → 1.13: `actions.suspend` → `actions.outOfView`, the slot's content untouched. */
+function upOutOfView(doc: Record<string, unknown>): void { renameActionSlot(doc, 'suspend', 'outOfView'); }
+/** 1.13 → 1.12: the key back. */
+function downOutOfView(doc: Record<string, unknown>): void { renameActionSlot(doc, 'outOfView', 'suspend'); }
+
+/** Renames one `animator.timeline.actions` slot, content untouched; nothing to do when the slot is absent. */
+function renameActionSlot(doc: Record<string, unknown>, from: string, to: string): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    const actions = timeline ? readObjectProp(timeline, 'actions') : undefined;
+    if (!actions || actions[from] === undefined) return;
+    actions[to] = actions[from];
+    delete actions[from];
+}
+
+/** 1.11 → 1.12: `actionTriggers.togglePlay` folded into `start` and `stop` — the two lists it always stood for. */
+function upTogglePlay(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    const triggers = timeline ? readObjectProp(timeline, 'actionTriggers') : undefined;
+    if (!triggers || triggers['togglePlay'] === undefined) return;
+    const toggle = wireEventList(triggers['togglePlay']);
+    for (const list of ['start', 'stop']) {
+        const merged = wireEventList(triggers[list]);
+        for (const event of toggle) if (!merged.includes(event)) merged.push(event);
+        // the shortest spelling: one event is the word; an empty toggle leaves the list as it was
+        if (merged.length > 0) triggers[list] = merged.length === 1 ? merged[0] : merged;
+    }
+    delete triggers['togglePlay'];
+}
+
+/** A wire event list — one event or several — as an array of its strings (anything else reads as empty). */
+function wireEventList(value: unknown): Array<string> {
+    if (typeof value === 'string') return [value];
+    return Array.isArray(value) ? value.filter((v): v is string => typeof v === 'string') : [];
+}
 
 /** 1.10 → 1.11: `triggers` → `actionTriggers`; in every action slot `transition` → `do`, collapsed to the word when alone. */
 function upActionTriggersAndDo(doc: Record<string, unknown>): void {

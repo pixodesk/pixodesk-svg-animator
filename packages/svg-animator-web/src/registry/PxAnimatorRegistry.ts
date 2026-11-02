@@ -28,7 +28,7 @@ import type { PxAnimationPlayerApi } from '../shared/PxAnimatorWebTypes';
  */
 
 /** What changed for a player in the page-wide registry. Experimental — may change. @public */
-export type PxAnimationPlayersEvent = 'add' | 'remove' | 'play' | 'pause' | 'cancel' | 'finish';
+export type PxAnimationPlayersEvent = 'add' | 'remove' | 'play' | 'pause' | 'reset' | 'finish';
 
 /** Called for every {@link PxAnimationPlayersEvent} of every player in the window. Experimental — may change. @public */
 export type PxAnimationPlayersListener = (event: PxAnimationPlayersEvent, animator: PxAnimationPlayerApi) => void;
@@ -123,7 +123,7 @@ export function withRegistryEvents(callbacks: PxPlayerCallbacks | undefined, api
         ...callbacks,
         onPlay: () => { callbacks?.onPlay?.(); fire('play'); },
         onPause: () => { callbacks?.onPause?.(); fire('pause'); },
-        onCancel: () => { callbacks?.onCancel?.(); fire('cancel'); },
+        onReset: () => { callbacks?.onReset?.(); fire('reset'); },
         onFinish: () => { callbacks?.onFinish?.(); fire('finish'); },
     };
 }

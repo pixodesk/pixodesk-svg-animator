@@ -94,7 +94,7 @@ export function createFrameLoopAnimator(
     // scroll-driven — writers must not emit them, and a document that carries them
     // anyway gets a warning, not behavior.
     // Every time-driven document IS wired: no `triggers` means the defaults (`start: 'load'` behind
-    // the gate's `pause` suspend — so an unseen animation does not run).
+    // the gate's `pause` out-of-view behavior — so an unseen animation does not run).
     if (isScrollTimeline(config)) {
         if (config.actionTriggers) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.scrollTriggerIgnored);
     } else {

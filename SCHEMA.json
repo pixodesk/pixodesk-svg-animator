@@ -2381,23 +2381,6 @@
                       }
                     }
                   ]
-                },
-                "togglePlay": {
-                  "anyOf": [
-                    {
-                      "enum": [
-                        "click"
-                      ]
-                    },
-                    {
-                      "type": "array",
-                      "items": {
-                        "enum": [
-                          "click"
-                        ]
-                      }
-                    }
-                  ]
                 }
               },
               "additionalProperties": false
@@ -2438,7 +2421,7 @@
                     {
                       "type": "object",
                       "properties": {
-                        "do": {
+                        "behavior": {
                           "enum": [
                             "continue",
                             "restart",
@@ -2461,7 +2444,7 @@
                     {
                       "type": "object",
                       "properties": {
-                        "do": {
+                        "behavior": {
                           "enum": [
                             "reset",
                             "rewind"
@@ -2487,7 +2470,7 @@
                     {
                       "type": "object",
                       "properties": {
-                        "do": {
+                        "behavior": {
                           "enum": [
                             "hold",
                             "reset",
@@ -2499,7 +2482,7 @@
                     }
                   ]
                 },
-                "suspend": {
+                "outOfView": {
                   "anyOf": [
                     {
                       "enum": [
@@ -2511,7 +2494,7 @@
                     {
                       "type": "object",
                       "properties": {
-                        "do": {
+                        "behavior": {
                           "enum": [
                             "pause",
                             "continue",
@@ -2526,7 +2509,7 @@
               },
               "additionalProperties": false
             },
-            "beforeStart": {
+            "showWhenStopped": {
               "enum": [
                 "static",
                 "firstFrame"

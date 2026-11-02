@@ -9,6 +9,7 @@
 
 import { describe, expect, it } from 'vitest';
 import { applyWireSteps, applyWireStepsDown, convertWireDocument, PX_WIRE_STEPS } from './PxWireVersion';
+import { PX_WIRE_SCHEMA_VERSION } from './PxSchemaVersion';
 import { isRecord } from '../schema/PxSchema';
 
 /** A 1.1 document carrying `trigger`, stamped so the step is due. */
@@ -178,10 +179,16 @@ describe('wire step 1.8 → 1.9 — WHEN in the trigger, HOW on the timeline (co
     });
 });
 
+/** Converts to 1.11 — the 1.12+ steps rename again what these cases name. */
+const STEPS_TO_1_11 = PX_WIRE_STEPS.slice(0, PX_WIRE_STEPS.findIndex(s => s.to === '1.12'));
+const convertTo111 = (doc: unknown) => applyWireSteps(doc, { steps: STEPS_TO_1_11, target: { a: 1, b: 11, c: 0 }, readerReadsEditorPart: false });
+/** Every step from `from` on, by its `to` — what a document stamped `from` goes through to reach the current version. */
+const stepsFrom = (from: string): Array<string> => PX_WIRE_STEPS.slice(PX_WIRE_STEPS.findIndex(s => s.from === from)).map(s => s.to);
+
 describe('wire step 1.9 → 1.10 — triggers and actions (playback-layers.md, layers 0–1); read through 1.11', () => {
     const doc19 = (timeline: Record<string, unknown>) =>
         ({ type: 'svg', animator: { version: '1.9.0', timeline: { outTime: 1000, ...timeline } }, children: [] });
-    const up = (timeline: Record<string, unknown>) => timelineOf(convertWireDocument(doc19(timeline)).doc);
+    const up = (timeline: Record<string, unknown>) => timelineOf(convertTo111(doc19(timeline)).doc);
 
     it('the trigger lists become triggers — playStart → start, playStop → stop, pauseStart → pause, pauseStop → resume', () => {
         expect(up({ trigger: { playStart: ['hoverIn', 'click'], playStop: 'hoverOut', pauseStart: 'click', pauseStop: [] } }))
@@ -207,14 +214,14 @@ describe('wire step 1.9 → 1.10 — triggers and actions (playback-layers.md, l
 
     it('a timeline without the old keys is left alone; the converted document is current', () => {
         expect(up({ delay: 5, inViewThreshold: 0.2 })).toEqual({ outTime: 1000, delay: 5, inViewThreshold: 0.2 });
-        expect(convertWireDocument(doc19({ trigger: { playStart: 'click' } })).applied.map(s => s.to)).toEqual(['1.10', '1.11']);
+        expect(convertWireDocument(doc19({ trigger: { playStart: 'click' } })).applied.map(s => s.to)).toEqual(stepsFrom('1.9'));
     });
 });
 
 describe('wire step 1.10 → 1.11 — actionTriggers, and `do` written as the word when alone (react-props-review.md)', () => {
     const doc110 = (timeline: Record<string, unknown>) =>
         ({ type: 'svg', animator: { version: '1.10.0', timeline: { outTime: 1000, ...timeline } }, children: [] });
-    const up = (timeline: Record<string, unknown>) => timelineOf(convertWireDocument(doc110(timeline)).doc);
+    const up = (timeline: Record<string, unknown>) => timelineOf(convertTo111(doc110(timeline)).doc);
 
     it('triggers → actionTriggers, the lists untouched', () => {
         expect(up({ triggers: { start: ['hoverIn', 'click'], stop: 'hoverOut', togglePlay: 'click' } }))
@@ -228,8 +235,107 @@ describe('wire step 1.10 → 1.11 — actionTriggers, and `do` written as the wo
         expect(up({ actions: { stop: { completeIteration: true } } })).toEqual({ outTime: 1000, actions: { stop: { completeIteration: true } } });
     });
 
-    it('a 1.11 document is left alone', () => {
-        const current = { type: 'svg', animator: { version: '1.11.0', timeline: { outTime: 1000, actionTriggers: { start: 'load' }, actions: { stop: 'rewind' } } }, children: [] };
+    it('a 1.11 document goes through the later steps only', () => {
+        const doc = { type: 'svg', animator: { version: '1.11.0', timeline: { outTime: 1000, actionTriggers: { start: 'load' }, actions: { stop: 'rewind' } } }, children: [] };
+        expect(convertWireDocument(doc).applied.map(s => s.to)).toEqual(stepsFrom('1.11'));
+    });
+});
+
+describe('wire step 1.11 → 1.12 — `togglePlay` folded into `start` and `stop` (schema-and-props-review-fix-plan.md §2.3)', () => {
+    const STEPS_TO_1_12 = PX_WIRE_STEPS.slice(0, PX_WIRE_STEPS.findIndex(s => s.to === '1.12') + 1);
+    const doc111 = (triggers: Record<string, unknown>) =>
+        ({ type: 'svg', animator: { version: '1.11.0', timeline: { outTime: 1000, actionTriggers: triggers } }, children: [] });
+    const up = (triggers: Record<string, unknown>) =>
+        timelineOf(applyWireSteps(doc111(triggers), { steps: STEPS_TO_1_12, target: { a: 1, b: 12, c: 0 }, readerReadsEditorPart: false }).doc).actionTriggers;
+
+    it('alone, togglePlay becomes click under start and stop — one event is written as the word', () => {
+        expect(up({ togglePlay: 'click' })).toEqual({ start: 'click', stop: 'click' });
+    });
+
+    it('merged into existing lists without doubling an event; a list that gains a second event becomes an array', () => {
+        expect(up({ start: ['hoverIn', 'click'], stop: 'hoverOut', togglePlay: 'click' })).toEqual({ start: ['hoverIn', 'click'], stop: ['hoverOut', 'click'] });
+        expect(up({ start: 'click', togglePlay: ['click'] })).toEqual({ start: 'click', stop: 'click' });
+    });
+
+    it('an empty togglePlay list only disappears; a block without it is untouched', () => {
+        expect(up({ togglePlay: [], pause: 'click' })).toEqual({ pause: 'click' });
+        expect(up({ start: 'load' })).toEqual({ start: 'load' });
+    });
+
+});
+
+describe('wire step 1.12 → 1.13 — `actions.suspend` → `actions.outOfView` (schema-and-props-review-fix-plan.md §2.4)', () => {
+    const STEPS_TO_1_13 = PX_WIRE_STEPS.slice(0, PX_WIRE_STEPS.findIndex(s => s.to === '1.13') + 1);
+    const doc112 = (actions: Record<string, unknown>) =>
+        ({ type: 'svg', animator: { version: '1.12.0', timeline: { outTime: 1000, actions } }, children: [] });
+    const up = (actions: Record<string, unknown>) =>
+        timelineOf(applyWireSteps(doc112(actions), { steps: STEPS_TO_1_13, target: { a: 1, b: 13, c: 0 }, readerReadsEditorPart: false }).doc).actions;
+
+    it('the key is renamed, the slot kept as written — the word form and the settings form alike', () => {
+        expect(up({ suspend: 'continue', stop: 'rewind' })).toEqual({ outOfView: 'continue', stop: 'rewind' });
+        expect(up({ suspend: { do: 'reset' } })).toEqual({ outOfView: { do: 'reset' } });
+        expect(up({ stop: 'rewind' })).toEqual({ stop: 'rewind' });
+    });
+
+    it('down-converts exactly — a key rename', () => {
+        const current = { type: 'svg', animator: { version: '1.13.0', timeline: { outTime: 1000, actions: { outOfView: 'reset' } } }, children: [] };
+        const down = applyWireStepsDown(current, { steps: PX_WIRE_STEPS, target: { a: 1, b: 12, c: 0 }, readerReadsEditorPart: false });
+        if (!down.ok) throw new Error(down.reason);
+        expect(timelineOf(down.doc).actions).toEqual({ suspend: 'reset' });
+    });
+
+});
+
+describe('wire step 1.13 → 1.14 — an action\'s `do` → `behavior` (schema-and-props-review-fix-plan.md §2.6)', () => {
+    const STEPS_TO_1_14 = PX_WIRE_STEPS.slice(0, PX_WIRE_STEPS.findIndex(s => s.to === '1.14') + 1);
+    const doc113 = (actions: Record<string, unknown>) =>
+        ({ type: 'svg', animator: { version: '1.13.0', timeline: { outTime: 1000, actions } }, children: [] });
+    const up = (actions: Record<string, unknown>) =>
+        timelineOf(applyWireSteps(doc113(actions), { steps: STEPS_TO_1_14, target: { a: 1, b: 14, c: 0 }, readerReadsEditorPart: false }).doc).actions;
+
+    it('every settings-form slot is renamed; the word form and a slot without `do` are untouched', () => {
+        expect(up({ start: { do: 'restart' }, stop: { do: 'rewind', completeIteration: true }, finish: 'hold', outOfView: { do: 'reset' } }))
+            .toEqual({ start: { behavior: 'restart' }, stop: { behavior: 'rewind', completeIteration: true }, finish: 'hold', outOfView: { behavior: 'reset' } });
+        expect(up({ stop: { completeIteration: true } })).toEqual({ stop: { completeIteration: true } });
+    });
+
+    it('down-converts exactly', () => {
+        const current = { type: 'svg', animator: { version: '1.14.0', timeline: { outTime: 1000, actions: { stop: { behavior: 'rewind', completeIteration: true } } } }, children: [] };
+        const down = applyWireStepsDown(current, { steps: PX_WIRE_STEPS, target: { a: 1, b: 13, c: 0 }, readerReadsEditorPart: false });
+        if (!down.ok) throw new Error(down.reason);
+        expect(timelineOf(down.doc).actions).toEqual({ stop: { do: 'rewind', completeIteration: true } });
+    });
+
+});
+
+describe('wire step 1.14 → 1.15 — `timeline.beforeStart` → `showWhenStopped` (schema-and-props-review-fix-plan.md §3.1)', () => {
+    const STEPS_TO_1_15 = PX_WIRE_STEPS.slice(0, PX_WIRE_STEPS.findIndex(s => s.to === '1.15') + 1);
+    const doc114 = (timeline: Record<string, unknown>) =>
+        ({ type: 'svg', animator: { version: '1.14.0', timeline: { outTime: 1000, ...timeline } }, children: [] });
+    const up = (timeline: Record<string, unknown>) =>
+        timelineOf(applyWireSteps(doc114(timeline), { steps: STEPS_TO_1_15, target: { a: 1, b: 15, c: 0 }, readerReadsEditorPart: false }).doc);
+
+    it('the key is renamed, the value kept; a timeline without it is untouched', () => {
+        expect(up({ beforeStart: 'firstFrame' })).toEqual({ outTime: 1000, showWhenStopped: 'firstFrame' });
+        expect(up({ delay: 5 })).toEqual({ outTime: 1000, delay: 5 });
+    });
+
+    it('down-converts exactly', () => {
+        const current = { type: 'svg', animator: { version: '1.15.0', timeline: { outTime: 1000, showWhenStopped: 'static' } }, children: [] };
+        const down = applyWireStepsDown(current, { steps: PX_WIRE_STEPS, target: { a: 1, b: 14, c: 0 }, readerReadsEditorPart: false });
+        if (!down.ok) throw new Error(down.reason);
+        expect(timelineOf(down.doc)).toEqual({ outTime: 1000, beforeStart: 'static' });
+    });
+
+    it('a 1.9 document converts through every step to the current version: the whole chain in one read', () => {
+        const old = { type: 'svg', animator: { version: '1.9.0', timeline: { outTime: 1000, trigger: { playStart: 'click', playStop: 'click' }, playStopAction: 'rewind', outOfViewAction: 'reset', showFirstFrameBeforePlayStart: true } }, children: [] };
+        expect(timelineOf(convertWireDocument(old).doc)).toEqual({
+            outTime: 1000, actionTriggers: { start: 'click', stop: 'click' }, actions: { stop: 'rewind', outOfView: 'reset' }, showWhenStopped: 'firstFrame',
+        });
+    });
+
+    it('a current document is left alone', () => {
+        const current = { type: 'svg', animator: { version: PX_WIRE_SCHEMA_VERSION + '.0', timeline: { outTime: 1000, actionTriggers: { start: 'load' } } }, children: [] };
         expect(convertWireDocument(current).applied).toEqual([]);
     });
 });

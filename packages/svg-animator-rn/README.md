@@ -50,11 +50,11 @@ document says so.
 ### Typical cases
 
 ```tsx
-// Play once when a screen opens, then hold the last frame (one pass; the finish transition `hold` is the default)
-<SvgAnimationPlayer doc={doc} playUsingActionTriggers timeline={{ iterations: 1 }} />
+// Play once when a screen opens, then hold the last frame (one pass; the finish behavior `hold` is the default)
+<SvgAnimationPlayer doc={doc} playUsingActionTriggers timelineOptions={{ iterations: 1 }} />
 
 // Loop forever regardless of what the document says
-<SvgAnimationPlayer doc={doc} playUsingActionTriggers timeline={{ iterations: 'infinite' }} />
+<SvgAnimationPlayer doc={doc} playUsingActionTriggers timelineOptions={{ iterations: 'infinite' }} />
 
 // Static — first frame only, no playback
 <SvgAnimationPlayer doc={doc} />
@@ -66,7 +66,7 @@ document says so.
 <SvgAnimationPlayer doc={doc} showAtProgress={scrollProgress} />
 
 // Override the document's timing (window end in ms, delay before start)
-<SvgAnimationPlayer doc={doc} playUsingActionTriggers timeline={{ outTime: 4000, delay: 500 }} />
+<SvgAnimationPlayer doc={doc} playUsingActionTriggers timelineOptions={{ outTime: 4000, delay: 500 }} />
 
 // Do something when it finishes
 <SvgAnimationPlayer doc={doc} playUsingActionTriggers onFinish={() => setDone(true)} />
@@ -118,7 +118,7 @@ screen), or the triggers object you pass instead of `true`:
 ```tsx
 <SvgAnimationPlayer doc={doc} playUsingActionTriggers />
 <SvgAnimationPlayer doc={doc} playUsingActionTriggers={{ start: 'click', pause: 'click' }} />   {/* tap plays, tap again pauses */}
-<SvgAnimationPlayer doc={doc} playUsingActionTriggers={{ togglePlay: 'click' }} />              {/* tap plays, tap again stops */}
+<SvgAnimationPlayer doc={doc} playUsingActionTriggers={{ start: 'click', stop: 'click' }} />  {/* tap plays, tap again stops */}
 ```
 
 ### Declarative play/pause
@@ -176,25 +176,25 @@ const [time, setTime] = useState(0);
 | Prop | Type | Description |
 |---|---|---|
 | `doc` | `PxDocumentInput` | The animation document to render (required); a `.json` import passes as-is |
-| `playUsingActionTriggers` | `boolean \| PxActionTriggersInput` | `true`: play on the document's own triggers; an object: these triggers instead — `{ start, stop, pause, togglePlay }`, each one event or a list of the events that list may name (`'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`; `resume` is derived, `togglePlay` takes only `'click'`). `click` is a tap; `hoverIn` / `hoverOut` never fire. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
+| `playUsingActionTriggers` | `boolean \| PxActionTriggersInput` | `true`: play on the document's own triggers; an object: these triggers instead — `{ start, stop, pause }`, each one event or a list of the events that list may name (`'load' \| 'hoverIn' \| 'hoverOut' \| 'click'`; `resume` is derived from them). `click` is a tap; `hoverIn` / `hoverOut` never fire. See [Triggers](../../docs/library/playback-and-triggers.md#triggers--when-it-plays) |
 | `play` | `boolean` | The state: `true` calls the built-in `start`, `false` the built-in `stop`. How each looks is the file's `actions` (and the `actions` prop) — see [Actions](../../docs/library/playback-and-triggers.md#actions--how-start-stop-and-finish-look) |
 | `pause` | `boolean` | Freeze the current frame / resume; only while `play` is true |
 | `playerRef` | `RefObject<PxAnimationPlayerHandle \| null>` | Ref for imperative control; filled in every mode |
 | `showAtProgress` | `number` | show the frame at this position in the whole timeline (duration × iterations): `0` is the first frame, `0.5` the middle, `1` the last |
 | `showAtTime` | `number` | show the frame at that time, in milliseconds from the start |
-| `timeline` | `PxTimelinePatch` | per-instance override of the document's `timeline` block, minus its `actionTriggers` and `actions`, deep-merged over it — same shape as the file; `null` at any slot deletes that key. `engine` and `frameRate` are ignored here. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
+| `timelineOptions` | `PxTimelinePatch` | per-instance override of the document's `timeline` block, minus its `actionTriggers` and `actions`, deep-merged over it — same shape as the file; `null` at any slot deletes that key. `engine` and `frameRate` are ignored here. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `actions` | `PxActionsPatch` | per-instance override of how the built-in actions look — `{ stop: 'rewind' }` — deep-merged over the document's `timeline.actions`; `null` at any slot deletes it. See [Overriding from a player](../../docs/library/playback-and-triggers.md#overriding-from-a-player) |
 | `onReady` | `() => void` | The player exists and the tree is rendered — once, async |
 | `onPlay` | `() => void` | Called on play/resume |
 | `onPause` | `() => void` | Called on pause |
 | `onFinish` | `() => void` | Called when the animation reaches its end — every iteration played, or `jumpToFinished()` was called |
-| `onCancel` | `() => void` | Called on cancel |
+| `onReset` | `() => void` | Back at the start pose — `reset()`, a stop or finish whose preset is `reset`, the end of a rewind |
 | `onDestroy` | `() => void` | Called when the player is thrown away — the component unmounted, or a new `doc` replaced it |
-| `onStop` | `() => void` | "No longer playing, whatever the reason" — fires after any of pause / cancel / finish / destroy |
+| `onStop` | `() => void` | The built-in `stop` action was performed — a `stop` trigger, `play` false or `stop()`; a pause, the end, a `reset()` and a destroy each fire their own |
 | `onError` | `(diagnostic) => void` | this instance will not play — the document could not be compiled or rendered; `fallback` shows instead. `diagnostic.error` is the Error, `diagnostic.detail.componentStack` when the error boundary caught it |
 | `onWarn` | `(diagnostic) => void` | it plays, but something was ignored, degraded or misspelled; without it → `console.warn` |
-| `muteWarn` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarn`, if you gave it, still fires: mute is about the console, not about you |
-| `muteError` | `boolean` | the same switch for `console.error` |
+| `suppressWarnings` | `boolean` | switch the `console.warn` fallback off — for when you know the player has something to say about this document and are prepared to tolerate it. `onWarn`, if you gave it, still fires: this is about the console, not about you |
+| `suppressErrors` | `boolean` | the same switch for `console.error` |
 | `fallback` | `(error) => ReactElement \| null` | Rendered in place of a failed animation (default: nothing) |
 
 With none of `playUsingActionTriggers` / `play` / `pause` / `showAtProgress` / `showAtTime` set, the component
@@ -329,12 +329,12 @@ player sees plain nodes. **All are supported:**
 | `inTime` / `outTime` / `playDuration`, `delay`, `iterations` (incl. `'infinite'`) | ✅ | |
 | `iterationDirection` — all four values | ✅ | |
 | `actions` — the start, stop and finish transitions and the stop's `completeIteration` | ✅ | `rewind` plays back natively; the run clock behind `getCurrentTime()` is approximate while it rewinds |
-| `play` / `pause` / `stop` / `cancel` / `finish` | ✅ | |
+| `play` / `pause` / `stop` / `reset` / `jumpToFinished` | ✅ | |
 | `setCurrentTime` — jump to a time, including **while playing** | ✅ | playback continues from the new point |
 | `setPlaybackRate` — faster, slower and **reverse** (negative) | ✅ | composes with `iterationDirection` |
 | Trigger event `load` | ✅ | |
 | Trigger event `click` | ✅ | a tap — the animation is wrapped in a `Pressable`; listed in `pause` too, a second tap pauses |
-| The gate — `actions.suspend`, `inViewThreshold`, `inViewDebounce` | ✅ | visibility sampled by measuring against the window (React Native has no `IntersectionObserver`) |
+| The gate — `actions.outOfView`, `inViewThreshold`, `inViewDebounce` | ✅ | visibility sampled by measuring against the window (React Native has no `IntersectionObserver`) |
 | Trigger events `hoverIn` / `hoverOut` | ❌ | no touch equivalent — use `click`, or drive `play` yourself |
 | `timeline.frameRate` | n/a | reanimated runs at the display refresh rate; the player prepares 60 snapshots per second of animation |
 | `timeline.engine` (`auto` / `native` / `js`) | n/a | there is no Web Animations API on React Native — playback is always native-driven |

@@ -17,8 +17,8 @@ export const attrAppearanceMixBlendMode: SvgaCaseJson = {
                 "start": "load"
             },
             "actions": {
-                "suspend": {
-                    "do": "continue"
+                "outOfView": {
+                    "behavior": "continue"
                 }
             },
             "iterationDirection": "normal"

@@ -9,7 +9,7 @@ createRoot(document.getElementById('root')!).render(
     <SvgAnimationPlayer
       doc={animation as any}
       playUsingActionTriggers
-      timeline={{ iterations: 'infinite', engine: 'js', iterationDirection: 'alternate' }}
+      timelineOptions={{ iterations: 'infinite', engine: 'js', iterationDirection: 'alternate' }}
     />
   </div>
 );
