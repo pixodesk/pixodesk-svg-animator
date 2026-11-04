@@ -73,7 +73,7 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
     await page.click('#pause');
     await expectFrozen(page);
     await slide(page, '#time-slider', 700);
-    const t = await page.evaluate(() => (window as any).animator.getCurrentTime());
+    const t = await page.evaluate(() => (window as any).animator.getCurrentTime());   // ms inside the current iteration
     expect(t).toBeCloseTo(700, -1);
     await page.click('#play');
     await expectAnimating(page);
@@ -95,7 +95,7 @@ const CHECKS: Record<string, (page: Page) => Promise<void>> = {
   'web/triggers': async page => {
     await expectFrozen(page);                       // start: 'click' — nothing until clicked
     await page.click('#box svg');
-    await expectAnimating(page);                    // stopped + click → plays (the state rule)
+    await expectAnimating(page);                    // idle + click → plays (the state rule)
     await page.click('#box svg');                   // pause: 'click' — playing + click → pauses
     await expectFrozen(page);
   },

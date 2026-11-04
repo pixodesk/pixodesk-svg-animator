@@ -7,8 +7,8 @@
 import type { PxDocument, PxAnimationPlayerApi, PxTimelineEngineSetting, PxTimelinePatch, PxActionsPatch, PxActionTriggersInput, PxPlaybackOverrideInput } from '@pixodesk/svg-animator-web';
 import type { PxInternalAnimationPlayerOptions } from '@pixodesk/svg-animator-web/internal';
 import { createSvgAnimationPlayer, PxDiagnosticKind, type PxDiagnostic, type PxDiagnostics } from '@pixodesk/svg-animator-web';
-import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, getAnimatorConfig, PxDiagnosticCode, PxFinishBehavior, PxShowWhenStopped, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
-import { applyDeclarativeAction, applyPlaybackOverride, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, progressToTimeMs, withoutTriggerDriver, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
+import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, getAnimatorConfig, PxDiagnosticCode, PxFinishBehavior, PxPlayState, PxWhenIdle, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-core';
+import { applyDeclarativeAction, applyPlaybackOverride, type PxDeclarativeProps, PxControlMode, PxPlaybackWorld, resolveControlMode, resolveDeclarativePlayback, resolvePlaybackWorld, controlModeTakesOverTrigger, playLevelsOf, withoutTriggerDriver, type PxPlayStateRequest, type PxControlProps } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, deepEquals, PX_DEFAULT_DURATION_MS, prepareDocumentForRender, renderPxTree, reportDocumentProblems, type PxElementFactory } from '@pixodesk/svg-animator-core/internal';
 import {
     computed, defineComponent, h, onMounted, onUnmounted, ref, shallowRef, type PropType, type VNode,
@@ -67,17 +67,16 @@ function applyDocOverrides(
     // every file (a `finish: reset` document would otherwise revert to its static attrs).
     if (compMode === PxControlMode.play
         && resolvePlaybackWorld((getAnimatorConfig(doc) || {}).iterations) === PxPlaybackWorld.oneShot) {
-        doc = applyAnimatorConfig(doc, { timeline: { showWhenStopped: PxShowWhenStopped.firstFrame, actions: { finish: { behavior: PxFinishBehavior.hold } } } }).doc;
+        doc = applyAnimatorConfig(doc, { timeline: { whenIdle: PxWhenIdle.firstFrame, actions: { finish: { behavior: PxFinishBehavior.hold } } } }).doc;
     }
 
     return doc;
 }
 
 /**
- * Controlled-time mode: absolute seek target in ms. `showAtProgress` is a fraction
- * (0–1) of the WHOLE timeline (duration × iterations — ONE iteration when
- * endless); `showAtTime` is absolute. Applied through the player API
- * (setCurrentTime) so scrubbing does NOT recreate the player.
+ * Controlled-time mode: the frame to show, content ms INSIDE the iteration (the handle's `getCurrentTime` axis):
+ * `showAtProgress` is 0–1 of one pass, `showAtTime` its ms. Applied through the player API (setCurrentTime) so
+ * scrubbing does NOT recreate the player.
  */
 function calcSeekMs(doc: PxDocument, props: DocOverrideProps): number | undefined {
     let seekMs: number | undefined;
@@ -85,14 +84,8 @@ function calcSeekMs(doc: PxDocument, props: DocOverrideProps): number | undefine
     // `doc.animator.duration` directly finds nothing there.
     const animator = getAnimatorConfig(doc) || {};
     if (props.showAtProgress !== undefined) {
-        // ONE rule for progress → time (core's `progressToTimeMs`): the same mapping
-        // `getCurrentProgress` reads back, so a prop of 0.5 and a read of 0.5 agree.
-        const iterationsValue = animator.iterations;        // the override is already folded into the patched doc
-        const iterationsCount = iterationsValue === 'infinite' ? Infinity
-            : (typeof iterationsValue === 'number' && iterationsValue >= 1 ? iterationsValue : 1);
-        // the window length — the shortcuts are already folded into the patched doc
-        const singleDuration = animator.duration ?? PX_DEFAULT_DURATION_MS;
-        seekMs = progressToTimeMs(props.showAtProgress, singleDuration, iterationsCount);
+        const singleDuration = animator.duration ?? PX_DEFAULT_DURATION_MS;   // the window length, overrides folded in
+        seekMs = (Number.isFinite(props.showAtProgress) ? Math.min(1, Math.max(0, props.showAtProgress)) : 0) * singleDuration;
     }
     if (props.showAtTime !== undefined) seekMs = props.showAtTime;
     return seekMs;
@@ -111,7 +104,7 @@ function calcSeekMs(doc: PxDocument, props: DocOverrideProps): number | undefine
  *    <SvgAnimationPlayer :doc="animation" playUsingActionTriggers />
  *    ```
  *
- * 2. **Declarative play/pause** – controlled via boolean props.
+ * 2. **Declarative playWhile/pauseWhile** (or one `playState`) – controlled props.
  *    ```vue
  *    <SvgAnimationPlayer :doc="animation" play :pause="false" />
  *    ```
@@ -134,7 +127,7 @@ const SvgAnimationPlayer = defineComponent({
 
     props: {
         // -- Source
-        doc: { type: Object as PropType<PxDocumentInput>, required: true },
+        doc: { type: Object as PropType<PxDocumentJson>, required: true },
 
         // -- Playback override: the file's timing and actions, adjusted (D4, playback-layers.md) — merge
         //    patches, `null` deletes a key. The triggers travel with their driver, `playUsingActionTriggers`. Same names as React / RN.
@@ -143,8 +136,9 @@ const SvgAnimationPlayer = defineComponent({
 
         // -- Declarative control
         playUsingActionTriggers: { type: [Boolean, Object] as PropType<boolean | PxActionTriggersInput>, default: undefined },   // true = the file's triggers; an object = the whole block instead
-        play: { type: Boolean, default: undefined },
-        pause: { type: Boolean, default: undefined },
+        playWhile: { type: Boolean, default: undefined },     // a level: plays while true, the file's stop action when false
+        pauseWhile: { type: Boolean, default: undefined },    // a level on top: frozen while true
+        playState: { type: String as PropType<PxPlayStateRequest>, default: undefined },   // the same control as one word: idle · playing · paused
 
         // -- Controlled time
         showAtProgress: { type: Number },
@@ -188,7 +182,7 @@ const SvgAnimationPlayer = defineComponent({
         // input: it is exposed in every mode and never changes which one is chosen.
         const resolvedMode = computed(() => resolveControlMode({
             showAtProgress: props.showAtProgress, showAtTime: props.showAtTime,
-            play: props.play, pause: props.pause, playUsingActionTriggers: props.playUsingActionTriggers,
+            playWhile: props.playWhile, pauseWhile: props.pauseWhile, playState: props.playState, playUsingActionTriggers: props.playUsingActionTriggers,
         }));
         const compMode = computed<PxControlMode>(() => resolvedMode.value.mode);
 
@@ -290,19 +284,20 @@ const SvgAnimationPlayer = defineComponent({
         }
 
         /** Declarative props → animator calls — ONE shared rule (§10, `resolveDeclarativePlayback`
-         *  in core, same as React and React Native): `play` is a pose switch on a one-shot
-         *  document and a run switch on a looping one; `pause` freezes the clock. HOW each step
+         *  in core, same as React and React Native): `playWhile` is a pose switch on a one-shot
+         *  document and a run switch on a looping one; `pauseWhile` freezes the clock. HOW each step
          *  moves is the timeline's `actions`, performed by the executor behind `play()` / `stop()`. */
         function syncPlayState() {
             if (compMode.value !== PxControlMode.play) return;
             const api = apiRef.value;
             const { world, totalMs } = playbackGeometry();
+            const levels = playLevelsOf({ playWhile: props.playWhile, pauseWhile: props.pauseWhile, playState: props.playState });
             const { actions, warnings } = resolveDeclarativePlayback({
                 world,
                 prev: prevPlayback ?? undefined,
-                next: { play: props.play, pause: props.pause },
+                next: levels,
             });
-            prevPlayback = { play: props.play, pause: props.pause };
+            prevPlayback = levels;
             if (warnings.length) {
                 const diag = makeDiag();
                 for (const w of warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.playModifierIgnored, w);
@@ -331,8 +326,8 @@ const SvgAnimationPlayer = defineComponent({
         // and trigger setup fails (playUsingActionTriggers would never resume after a doc swap).
         watch(resolvedDoc, () => createApi(), { flush: 'post' });
 
-        // Sync declarative play/pause props with the animator.
-        watch([compMode, () => props.play, () => props.pause], () => syncPlayState());
+        // Sync the declarative playback props with the animator.
+        watch([compMode, () => props.playWhile, () => props.pauseWhile, () => props.playState], () => syncPlayState());
 
         // Scrubbing progress/time only seeks — the animator is NOT recreated.
         watch([compMode, () => props.showAtProgress, () => props.showAtTime], () => applySeek());
@@ -357,14 +352,24 @@ const SvgAnimationPlayer = defineComponent({
             pause: () => { guardWrite('pause()'); apiRef.value?.pause(); },
             stop: () => { guardWrite('stop()'); apiRef.value?.stop(); },
             reset: () => { guardWrite('reset()'); apiRef.value?.reset(); },
-            jumpToFinished: () => { guardWrite('jumpToFinished()'); apiRef.value?.jumpToFinished(); },
+            jumpToEnd: () => { guardWrite('jumpToEnd()'); apiRef.value?.jumpToEnd(); },
             playOnce: () => { guardWrite('playOnce()'); apiRef.value?.playOnce(); },
-            setPlaybackRate: (rate: number) => { guardWrite('setPlaybackRate()'); apiRef.value?.setPlaybackRate(rate); },
+            getPlayState: () => apiRef.value?.getPlayState() ?? PxPlayState.idle,
+            getPlaySpeed: () => apiRef.value?.getPlaySpeed() ?? 1,
+            setPlaySpeed: (speed: number) => {{ guardWrite('setPlaySpeed()'); apiRef.value?.setPlaySpeed(speed); }},
+            getPlayDuration: () => apiRef.value?.getPlayDuration() ?? null,
+            setPlayDuration: (ms: number) => {{ guardWrite('setPlayDuration()'); apiRef.value?.setPlayDuration(ms); }},
+            getTotalPlayDuration: () => apiRef.value?.getTotalPlayDuration() ?? null,
+            getCurrentPlayTime: () => apiRef.value?.getCurrentPlayTime() ?? null,
             getDuration: () => apiRef.value?.getDuration() ?? null,
+            getTotalDuration: () => apiRef.value?.getTotalDuration() ?? null,
             getCurrentTime: () => apiRef.value?.getCurrentTime() ?? null,
-            setCurrentTime: (time: number) => { guardWrite('setCurrentTime()'); apiRef.value?.setCurrentTime(time); },
+            setCurrentTime: (time: number) => {{ guardWrite('setCurrentTime()'); apiRef.value?.setCurrentTime(time); }},
             getCurrentProgress: () => apiRef.value?.getCurrentProgress() ?? null,
-            setCurrentProgress: (progress: number) => { guardWrite('setCurrentProgress()'); apiRef.value?.setCurrentProgress(progress); },
+            setCurrentProgress: (progress: number) => {{ guardWrite('setCurrentProgress()'); apiRef.value?.setCurrentProgress(progress); }},
+            getCurrentIteration: () => apiRef.value?.getCurrentIteration() ?? 0,
+            getTotalTime: () => apiRef.value?.getTotalTime() ?? null,
+            setTotalTime: (time: number) => {{ guardWrite('setTotalTime()'); apiRef.value?.setTotalTime(time); }},
         };
 
         expose(publicApi);

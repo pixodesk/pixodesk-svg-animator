@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { getAnimatorConfig, toPxDocument, type PxDocumentInput, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, type PxDocument, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxPlayExecutor } from '@pixodesk/svg-animator-core';
+import { getAnimatorConfig, toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, PxTimelineEngineSetting, type PxDocument, type PxAnimatorRuntimeConfig, type PxAnimationPlayerCallbacks, type PxPlayExecutor } from '@pixodesk/svg-animator-core';
 import { composeApiExtras, isNativeForced, mayUseNativeScrollTimeline, withoutTriggerDriver, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { createDiagnostics, isScrollTimeline, scrollTotalDurationMs } from '@pixodesk/svg-animator-core/internal';
 import { asThrownError, createInertAnimator, toEngineCallbacks } from '../shared/PxAnimatorCallbacks';
@@ -53,17 +53,7 @@ export function finaliseAnimator(
     const res = composeApiExtras(make(effectiveCallbacks), { ...animatorConfig, onStop: callbacks?.onStop }, webRaf);
     executor = res.playExecutor;
 
-    // `playDuration` (§4): the window remapped to wall ms, implemented as an initial rate factor.
-    // The caller's `setPlaybackRate` stays in its own units — the factor composes underneath —
-    // and `getCurrentTime` stays CONTENT ms untouched. Scroll owns its pace: no factor there.
-    const { duration, playDuration } = animatorConfig;
-    if (playDuration !== undefined && playDuration > 0 && duration && animatorConfig.timelineSource !== 'scroll') {
-        const factor = duration / playDuration;
-        const setEngineRate = res.setPlaybackRate.bind(res);
-        res.setPlaybackRate = (rate: number) => setEngineRate(rate * factor);
-        setEngineRate(factor);
-    }
-
+    // the file's `playSpeed` is set on the engine inside `composeApiExtras`; scroll owns its pace (no speed there)
     return res;
 }
 
@@ -135,7 +125,7 @@ export function bindWithEngineChoice(
                 unpin = applyScrollPin(subject, animatorConfig.scroll);
                 const totalMs = scrollTotalDurationMs(animatorConfig);
                 const driver = createScrollDriver(subject, animatorConfig,
-                    progress => api.setCurrentTime(progress * totalMs), diag);
+                    progress => api.setTotalTime(progress * totalMs), diag);
                 if (driver) {
                     // Tie the driver's (and the pin's) lifetime to the animator's.
                     const destroy = api.destroy.bind(api);
@@ -176,7 +166,7 @@ export interface PxPrerenderedAnimationPlayerOptions extends PxAnimationPlayerCa
      * and `animator.bindings` only — no `children`, because the elements are already
      * in the DOM.
      */
-    doc: PxDocumentInput;
+    doc: PxDocumentJson;
     /**
      * Play the way the editor saved it — the document's own `timeline.actionTriggers` decide (the
      * Editor's SVG + JS export passes it). WITHOUT it the binding is still: the triggers are

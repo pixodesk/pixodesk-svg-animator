@@ -121,7 +121,7 @@ export const effectCloneTextBrowserFont: SvgaCaseJson = {
             "transform": "translate(110,46.8658)",
             "effects": {
                 "clone": {
-                    "without": "translate",
+                    "omit": "translate",
                     "source": "_px_38gjtr8l"
                 }
             }

@@ -29,6 +29,7 @@
 // ============================================================================
 
 import { PX_WIRE_SCHEMA_VERSION } from './PxSchemaVersion';
+import { isPxDocument, maxKeyframeTimeOf, PX_DEFAULT_DURATION_MS } from '../format/PxAnimatorConstants';
 
 /** The wire key, under the animator config block. @public @advanced */
 export const PX_WIRE_VERSION_KEY = 'version';
@@ -357,7 +358,193 @@ export const PX_WIRE_STEPS: ReadonlyArray<PxWireVersionStep> = [
         up: (doc) => renameTimelineKey(doc, 'beforeStart', 'showWhenStopped'),
         down: (doc) => renameTimelineKey(doc, 'showWhenStopped', 'beforeStart'),   // exactly invertible: a key rename
     },
+    {
+        from: '1.15',
+        to: '1.16',
+        reason: '`timeline.playDuration` (wall ms of one pass) becomes `timeline.playSpeed` (a factor, 1 = content ms '
+            + 'pass as real ms; dev-docs/reviews/schema-and-props--manual-review.md A2): every player spells speed as a '
+            + 'factor, a factor needs no knowledge of the content\'s length, and with it no key on the API is wall time. '
+            + '`playSpeed = (outTime − inTime) / playDuration`; a file without `outTime` gets it written (the derived '
+            + 'max keyframe time) so the conversion is exact.',
+        kind: PxWireStepKind.converted,
+        up: upPlaySpeed,
+        down: downPlaySpeed,   // exactly invertible once `outTime` is written
+    },
+    {
+        from: '1.16',
+        to: '1.17',
+        reason: 'An absent `actionTriggers` block no longer means `start: \'load\'` — absent and `{}` are the same, nothing '
+            + 'starts it (dev-docs/reviews/schema-and-props--manual-review.md B2): a default nobody wrote is a guess, '
+            + 'and two spellings with two meanings trapped merge patches and hand edits. A time timeline without the '
+            + 'block gets `{ start: \'load\' }` written, so every file keeps playing as it did.',
+        kind: PxWireStepKind.converted,
+        up: upExplicitLoad,
+        down: downExplicitLoad,   // the block 1.17 wrote is what 1.16 read into an absent one
+    },
+    {
+        from: '1.17',
+        to: '1.18',
+        reason: '`actions.start: \'jumpToFinished\'` becomes `\'jumpToEnd\'` (dev-docs/reviews/schema-and-props--manual-review.md A4): '
+            + 'its siblings name positions and motion (`restart`, `rewind`, `reset`), while `finished` is a state.',
+        kind: PxWireStepKind.converted,
+        up: (doc) => renameActionValue(doc, 'start', 'jumpToFinished', 'jumpToEnd'),
+        down: (doc) => renameActionValue(doc, 'start', 'jumpToEnd', 'jumpToFinished'),   // exactly invertible: a value rename
+    },
+    {
+        from: '1.18',
+        to: '1.19',
+        reason: '`timeline.showWhenStopped` becomes `timeline.whenIdle` (dev-docs/reviews/schema-and-props--manual-review.md B3): '
+            + '`idle` is WAAPI\'s word for the state it governs and carries no VCR reading — "stopped" read as '
+            + 'played-then-stopped. The values `static` / `firstFrame` are unchanged.',
+        kind: PxWireStepKind.converted,
+        up: (doc) => renameTimelineKey(doc, 'showWhenStopped', 'whenIdle'),
+        down: (doc) => renameTimelineKey(doc, 'whenIdle', 'showWhenStopped'),   // exactly invertible: a key rename
+    },
+    {
+        from: '1.19',
+        to: '1.20',
+        reason: '`effects.clone.without` becomes `effects.clone.omit` (dev-docs/reviews/schema-and-props--manual-review.md B4): '
+            + 'TypeScript\'s `Omit<T, K>` and lodash\'s `_.omit` mean exactly this, a copy without these keys. The value '
+            + '`translate` is unchanged.',
+        kind: PxWireStepKind.converted,
+        up: (doc) => forEachRawNode(doc, node => renameEffectKey(node, 'clone', 'without', 'omit')),
+        down: (doc) => forEachRawNode(doc, node => renameEffectKey(node, 'clone', 'omit', 'without')),   // exactly invertible: a key rename
+    },
+    {
+        from: '1.20',
+        to: '1.21',
+        reason: '`effects.clone.retime` spells its window like the timeline does (dev-docs/reviews/schema-and-props--manual-review.md B5): '
+            + '`timeCrop: [a, b]` becomes `inTime: a, outTime: b` (Lottie\'s own `ip` / `op`; tuples are for vectors and '
+            + 'points, a window is two named points everywhere else), and `start` becomes `offset` (`start` is a trigger '
+            + 'list and an action elsewhere). `stretch` is unchanged.',
+        kind: PxWireStepKind.converted,
+        up: (doc) => forEachRawNode(doc, upRetimeWindow),
+        down: (doc) => forEachRawNode(doc, downRetimeWindow),   // exactly invertible for a complete window
+    },
 ];
+
+/** The content window's length, ms, of a time timeline — `outTime − inTime`; an absent `outTime` is WRITTEN first
+ *  (the max keyframe time the player derives, else the 1000 ms default), so a conversion through the length stays
+ *  exact on the way back. `undefined` when the window is degenerate. */
+function writtenWindowLengthOf(doc: Record<string, unknown>, timeline: Record<string, unknown>): number | undefined {
+    const inTime = typeof timeline['inTime'] === 'number' ? timeline['inTime'] : 0;
+    if (typeof timeline['outTime'] !== 'number') timeline['outTime'] = (isPxDocument(doc) ? maxKeyframeTimeOf(doc) : undefined) ?? PX_DEFAULT_DURATION_MS;
+    const length = (timeline['outTime'] as number) - inTime;
+    return length > 0 ? length : undefined;
+}
+
+/** 1.15 → 1.16: `playDuration` (wall ms of one pass) → `playSpeed` (window length / playDuration); a non-positive
+ *  `playDuration` was ignored by every reader, so it is dropped without a speed. */
+function upPlaySpeed(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    if (!timeline || timeline['playDuration'] === undefined) return;
+    const playDuration = timeline['playDuration'];
+    delete timeline['playDuration'];
+    if (typeof playDuration !== 'number' || !(playDuration > 0)) return;
+    const length = writtenWindowLengthOf(doc, timeline);
+    if (length !== undefined) timeline['playSpeed'] = length / playDuration;
+}
+
+/** 1.16 → 1.15: `playSpeed` → `playDuration` (window length / playSpeed). */
+function downPlaySpeed(doc: Record<string, unknown>): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    if (!timeline || timeline['playSpeed'] === undefined) return;
+    const playSpeed = timeline['playSpeed'];
+    delete timeline['playSpeed'];
+    if (typeof playSpeed !== 'number' || !(playSpeed > 0) || !Number.isFinite(playSpeed)) return;
+    const length = writtenWindowLengthOf(doc, timeline);
+    if (length !== undefined) timeline['playDuration'] = length / playSpeed;
+}
+
+/** The `animator.timeline` block of a TIME timeline (type absent or `'time'`), created when the stamped document has none;
+ *  `undefined` for a scroll / view timeline, which has no triggers. */
+function timeTimelineOf(doc: Record<string, unknown>): Record<string, unknown> | undefined {
+    const animator = getAnimatorBlock(doc);
+    if (!animator) return undefined;
+    const timeline = readObjectProp(animator, 'timeline');
+    if (timeline === undefined) { const created: Record<string, unknown> = {}; animator['timeline'] = created; return created; }
+    const type = timeline['type'];
+    return type === undefined || type === 'time' ? timeline : undefined;
+}
+
+/** 1.16 → 1.17: a time timeline without an `actionTriggers` block gets the `{ start: 'load' }` that 1.16 read into it. */
+function upExplicitLoad(doc: Record<string, unknown>): void {
+    const timeline = timeTimelineOf(doc);
+    if (timeline && timeline['actionTriggers'] === undefined) timeline['actionTriggers'] = { start: 'load' };
+}
+
+/** 1.17 → 1.16: the block that says exactly `{ start: 'load' }` is what 1.16 reads into an absent one — dropped. */
+function downExplicitLoad(doc: Record<string, unknown>): void {
+    const timeline = timeTimelineOf(doc);
+    const triggers = timeline ? readObjectProp(timeline, 'actionTriggers') : undefined;
+    if (!timeline || !triggers) return;
+    if (Object.keys(triggers).length === 1 && triggers['start'] === 'load') delete timeline['actionTriggers'];
+}
+
+/** Visits the document and every node under it, raw — `children` arrays all the way down (defs are children too). */
+function forEachRawNode(doc: Record<string, unknown>, visit: (node: Record<string, unknown>) => void): void {
+    const walk = (node: Record<string, unknown>): void => {
+        visit(node);
+        const children = node['children'];
+        if (!Array.isArray(children)) return;
+        for (const child of children) if (child && typeof child === 'object' && !Array.isArray(child)) walk(child as Record<string, unknown>);
+    };
+    walk(doc);
+}
+
+/** Renames one key inside a node's `effects.<effect>` bucket, value untouched; nothing to do when it is absent. */
+function renameEffectKey(node: Record<string, unknown>, effect: string, from: string, to: string): void {
+    const effects = readObjectProp(node, 'effects');
+    const bucket = effects ? readObjectProp(effects, effect) : undefined;
+    if (!bucket || bucket[from] === undefined) return;
+    bucket[to] = bucket[from];
+    delete bucket[from];
+}
+
+/** A node's `effects.clone.retime` block, when it has one. */
+function retimeOf(node: Record<string, unknown>): Record<string, unknown> | undefined {
+    const effects = readObjectProp(node, 'effects');
+    const clone = effects ? readObjectProp(effects, 'clone') : undefined;
+    return clone ? readObjectProp(clone, 'retime') : undefined;
+}
+
+/** 1.20 → 1.21, one node: `start` → `offset`; `timeCrop: [a, b]` → `inTime: a, outTime: b` (a malformed tuple is dropped). */
+function upRetimeWindow(node: Record<string, unknown>): void {
+    const retime = retimeOf(node);
+    if (!retime) return;
+    if (retime['start'] !== undefined) { retime['offset'] = retime['start']; delete retime['start']; }
+    const crop = retime['timeCrop'];
+    if (crop === undefined) return;
+    delete retime['timeCrop'];
+    if (Array.isArray(crop) && typeof crop[0] === 'number' && typeof crop[1] === 'number') {
+        retime['inTime'] = crop[0];
+        retime['outTime'] = crop[1];
+    }
+}
+
+/** 1.21 → 1.20, one node: `offset` → `start`; a complete `inTime` / `outTime` pair → `timeCrop` (one alone was ignored). */
+function downRetimeWindow(node: Record<string, unknown>): void {
+    const retime = retimeOf(node);
+    if (!retime) return;
+    if (retime['offset'] !== undefined) { retime['start'] = retime['offset']; delete retime['offset']; }
+    const inTime = retime['inTime'], outTime = retime['outTime'];
+    delete retime['inTime'];
+    delete retime['outTime'];
+    if (typeof inTime === 'number' && typeof outTime === 'number') retime['timeCrop'] = [inTime, outTime];
+}
+
+/** Renames one preset VALUE of an `animator.timeline.actions` slot — in its word form or its settings' `behavior`. */
+function renameActionValue(doc: Record<string, unknown>, slotKey: string, from: string, to: string): void {
+    const animator = getAnimatorBlock(doc);
+    const timeline = animator ? readObjectProp(animator, 'timeline') : undefined;
+    const actions = timeline ? readObjectProp(timeline, 'actions') : undefined;
+    if (!actions) return;
+    if (actions[slotKey] === from) { actions[slotKey] = to; return; }
+    const slot = readObjectProp(actions, slotKey);
+    if (slot && slot['behavior'] === from) slot['behavior'] = to;
+}
 
 /** Renames one `animator.timeline` key, value untouched; nothing to do when it is absent. */
 function renameTimelineKey(doc: Record<string, unknown>, from: string, to: string): void {

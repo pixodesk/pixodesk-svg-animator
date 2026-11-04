@@ -4,10 +4,10 @@
  *---------------------------------------------------------------------------------------*/
 // §5 (dev-docs/reviews/first-use-review.md): `import animation from './animation.json'` types
 // every literal as `string` and every tuple as an array, so the STRICT wire type rejects the
-// get-started snippet. The `doc` inputs take `PxDocumentInput` (the widened shape) instead and
+// get-started snippet. The `doc` inputs take `PxDocumentJson` (the widened shape) instead and
 // the runtime validates values as always. The type half runs in `pnpm typecheck`.
 import { describe, expect, it } from 'vitest';
-import type { PxDocument, PxDocumentInput } from '../index';
+import type { PxDocument, PxDocumentJson } from '../index';
 import { getAnimatorConfig, toPxDocument } from '../index';
 
 /** Exactly how TypeScript types a JSON import of this document: literals widened, tuples → arrays —
@@ -40,8 +40,8 @@ const mixedJsonImport = {
 };
 
 describe('the doc inputs take what a JSON import produces (§5)', () => {
-    it('a JSON import is a PxDocumentInput with no cast; the strict type stays for authors in code', () => {
-        const input: PxDocumentInput = fromJsonImport;    // the get-started line — no cast
+    it('a JSON import is a PxDocumentJson with no cast; the strict type stays for authors in code', () => {
+        const input: PxDocumentJson = fromJsonImport;    // the get-started line — no cast
         // @ts-expect-error — the strict wire type still rejects widened strings (that was §5's trap)
         const strict: PxDocument = fromJsonImport;
         expect(strict).toBe(fromJsonImport);
@@ -50,7 +50,7 @@ describe('the doc inputs take what a JSON import produces (§5)', () => {
     });
 
     it('elements animating different properties fit too — the `?: undefined` keys are accepted', () => {
-        const input: PxDocumentInput = mixedJsonImport;    // no cast
+        const input: PxDocumentJson = mixedJsonImport;    // no cast
         expect(toPxDocument(input).children).toHaveLength(2);
     });
 });

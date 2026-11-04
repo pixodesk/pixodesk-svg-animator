@@ -294,7 +294,7 @@ function syncTriggerUi(): void {
 
   if (useFileConfig) {
     // Show the file's config, read-only. `resolveTriggers` spells out what the file means:
-    // every list an array of the events it may name, an absent block = play on load.
+    // every list an array of the events it may name; an absent block, like an empty one, lists nothing.
     const cfg = currentDoc ? getAnimatorConfig(currentDoc) : undefined;
     const lists = resolveTriggers(cfg?.actionTriggers);
     for (const { key } of TRIGGER_LISTS) {
@@ -459,13 +459,13 @@ btnRestart.addEventListener('click', () => {
   handle?.setCurrentTime(0);
   handle?.play();
 });
-btnFinish.addEventListener('click', () => handle?.jumpToFinished());
+btnFinish.addEventListener('click', () => handle?.finish());   // PlayerHandle.finish → the player's jumpToEnd()
 
 // Load the built-in demo — handled through the same path as a dropped file.
 btnDemo.addEventListener('click', () => loadDocument(demoDoc, 'demo (built-in)'));
 
 rateSel.addEventListener('change', () => {
-  handle?.setPlaybackRate?.(Number(rateSel.value));
+  handle?.setPlaySpeed?.(Number(rateSel.value));
 });
 
 // Player picker
@@ -579,6 +579,8 @@ function tick(): void {
     syncHint();
 
     if (!scrubbing) {
+      // `getCurrentTime()` is the frame inside the current iteration (0..duration) on every player;
+      // the modulo only guards the edge where a pass ends exactly at `duration`.
       const t = handle.getCurrentTime();
       if (t != null && duration > 0) {
         const pos = ((t % duration) + duration) % duration;

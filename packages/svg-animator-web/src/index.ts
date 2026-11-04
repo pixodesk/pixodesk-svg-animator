@@ -59,7 +59,7 @@ export type {
     PxStopBehavior,
     PxFinishBehavior,
     PxOutOfViewBehavior,
-    PxShowWhenStopped,
+    PxWhenIdle,
     PxPlayExecutor,
 } from '@pixodesk/svg-animator-core';
 
@@ -128,6 +128,6 @@ export type { PxAnimationPlayerRegistry, PxAnimationPlayersEvent, PxAnimationPla
 export {
     // One `Px*` const per wire enum (review §2.7) — forwarded so React/Vue can name values.
     // The ones that are also re-exported as TYPES above (PxFillMode, PxPlaybackDirection, PxTriggerEvent and the
-    // five transition enums PxStartBehavior … PxShowWhenStopped) must not be repeated here: same identifier, one export.
+    // five transition enums PxStartBehavior … PxWhenIdle) must not be repeated here: same identifier, one export.
     validateDocument,
 } from '@pixodesk/svg-animator-core';

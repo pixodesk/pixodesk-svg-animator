@@ -31,9 +31,9 @@ export const effectRetimeStart: SvgaCaseJson = {
             "transform": "translate(0,110)",
             "effects": {
                 "clone": {
-                    "without": "translate",
+                    "omit": "translate",
                     "retime": {
-                        "start": 250
+                        "offset": 250
                     },
                     "source": "_px_38bqgqqn"
                 }
@@ -101,9 +101,9 @@ export const effectRetimeStart: SvgaCaseJson = {
                     "transform": "translate(0,25)",
                     "effects": {
                         "clone": {
-                            "without": "translate",
+                            "omit": "translate",
                             "retime": {
-                                "start": 250
+                                "offset": 250
                             },
                             "source": "_px_38bqgqqp"
                         }

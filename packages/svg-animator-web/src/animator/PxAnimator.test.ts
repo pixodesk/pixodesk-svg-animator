@@ -122,7 +122,7 @@ describe('createSvgAnimationPlayer', () => {
         expect(onPause).toHaveBeenCalledTimes(1);
         expect(onStop).not.toHaveBeenCalled();     // a pause is not a stop
 
-        api.jumpToFinished();
+        api.jumpToEnd();
         expect(onFinish).toHaveBeenCalledTimes(1);
         expect(onStop).not.toHaveBeenCalled();     // nor is the end pose
 
@@ -132,9 +132,9 @@ describe('createSvgAnimationPlayer', () => {
         expect(onStop).toHaveBeenCalledTimes(1);   // reset-now bypasses the stop action
     });
 
-    it('playUsingActionTriggers: a document with no trigger starts on load — start defaults to load', () => {
+    it('playUsingActionTriggers: a document with no trigger block waits — absent ≡ {} ≡ manual (1.17)', () => {
         const api = createSvgAnimationPlayer({ doc: makeDoc(), container: '#svg-container', playUsingActionTriggers: true });
-        expect(api.isPlaying()).toBe(true);
+        expect(api.isPlaying()).toBe(false);
     });
 
     // The no-driver rule (first-use review §1+2): nothing plays until a line names the driver.

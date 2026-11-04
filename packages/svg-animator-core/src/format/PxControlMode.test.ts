@@ -22,13 +22,13 @@ describe('resolveControlMode — precedence', () => {
     it('progress / time win over everything', () => {
         expect(resolveControlMode({ showAtProgress: 0.5 }).mode).toBe(PxControlMode.fixedTime);
         expect(resolveControlMode({ showAtTime: 250 }).mode).toBe(PxControlMode.fixedTime);
-        expect(resolveControlMode({ showAtProgress: 0.5, play: true, playUsingActionTriggers: true }).mode).toBe(PxControlMode.fixedTime);
+        expect(resolveControlMode({ showAtProgress: 0.5, playWhile: true, playUsingActionTriggers: true }).mode).toBe(PxControlMode.fixedTime);
     });
 
     it('play / pause win over playUsingActionTriggers', () => {
-        expect(resolveControlMode({ play: true }).mode).toBe(PxControlMode.play);
-        expect(resolveControlMode({ pause: true }).mode).toBe(PxControlMode.play);
-        expect(resolveControlMode({ play: false, playUsingActionTriggers: true }).mode).toBe(PxControlMode.play);
+        expect(resolveControlMode({ playWhile: true }).mode).toBe(PxControlMode.play);
+        expect(resolveControlMode({ pauseWhile: true }).mode).toBe(PxControlMode.play);
+        expect(resolveControlMode({ playWhile: false, playUsingActionTriggers: true }).mode).toBe(PxControlMode.play);
     });
 
     it('playUsingActionTriggers alone is playUsingActionTriggers', () => {
@@ -40,7 +40,7 @@ describe('resolveControlMode — precedence', () => {
     });
 
     it('a FALSE play still claims the mode — it is an explicit instruction', () => {
-        expect(resolveControlMode({ play: false }).mode).toBe(PxControlMode.play);
+        expect(resolveControlMode({ playWhile: false }).mode).toBe(PxControlMode.play);
     });
 });
 
@@ -48,7 +48,7 @@ describe('resolveControlMode — conflict warnings', () => {
 
     it('says nothing when only one tier is used', () => {
         expect(resolveControlMode({ showAtProgress: 0.5 }).warnings).toEqual([]);
-        expect(resolveControlMode({ play: true }).warnings).toEqual([]);
+        expect(resolveControlMode({ playWhile: true }).warnings).toEqual([]);
         expect(resolveControlMode({ playUsingActionTriggers: true }).warnings).toEqual([]);
     });
 
@@ -61,14 +61,14 @@ describe('resolveControlMode — conflict warnings', () => {
     });
 
     it('reports EVERY losing tier, not just the first', () => {
-        const { warnings } = resolveControlMode({ showAtProgress: 0.5, play: true, playUsingActionTriggers: true });
+        const { warnings } = resolveControlMode({ showAtProgress: 0.5, playWhile: true, playUsingActionTriggers: true });
         expect(warnings).toHaveLength(2);
-        expect(warnings.join('\n')).toContain('play/pause');
+        expect(warnings.join('\n')).toContain('playWhile/pauseWhile');
         expect(warnings.join('\n')).toContain('playUsingActionTriggers');
     });
 
     it('play/pause over playUsingActionTriggers warns once', () => {
-        expect(resolveControlMode({ pause: true, playUsingActionTriggers: true }).warnings).toHaveLength(1);
+        expect(resolveControlMode({ pauseWhile: true, playUsingActionTriggers: true }).warnings).toHaveLength(1);
     });
 });
 

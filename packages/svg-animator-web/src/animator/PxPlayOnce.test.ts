@@ -7,9 +7,9 @@
 // PxAnimatorWindow.test.ts.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimationPlayer } from '../index';
-import type { PxDocumentInput } from '@pixodesk/svg-animator-core';
+import type { PxDocumentJson } from '@pixodesk/svg-animator-core';
 
-function doc(extra: Record<string, unknown> = {}): PxDocumentInput {
+function doc(extra: Record<string, unknown> = {}): PxDocumentJson {
     return {
         type: 'svg', viewBox: '0 0 10 10',
         animator: { timeline: { engine: 'js', outTime: 1000, ...extra } },

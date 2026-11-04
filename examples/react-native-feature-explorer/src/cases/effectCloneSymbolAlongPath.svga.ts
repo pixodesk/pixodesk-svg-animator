@@ -121,7 +121,7 @@ export const effectCloneSymbolAlongPath: SvgaCaseJson = {
             "effects": {
                 "clone": {
                     "retime": {
-                        "start": 250
+                        "offset": 250
                     }
                 }
             },

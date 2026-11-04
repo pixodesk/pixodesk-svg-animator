@@ -226,19 +226,25 @@ export enum PxDiagnosticCode {
     controlPropsConflict = 1501,
 
     /**
-     * A declarative playback modifier was set where it cannot apply — `pause` without `play`. Ignored.
-     * (How a `play` change looks is the timeline's `actions`: `start`, `stop` and its `completeIteration`.)
+     * A declarative playback modifier was set where it cannot apply — `pauseWhile` without `playWhile`. Ignored.
+     * (How a `playWhile` change looks is the timeline's `actions`: `start`, `stop` and its `completeIteration`.)
      * @data the explanation
      */
     playModifierIgnored = 1502,
 
     /**
      * An imperative write call (`play()`, `pause()`, `playOnce()`, …) landed while a declarative
-     * driver (`play`/`pause` or `showAtProgress`/`showAtTime` props) owns playback. The call is applied, and
+     * driver (`playWhile`/`pauseWhile`/`playState` or `showAtProgress`/`showAtTime` props) owns playback. The call is applied, and
      * the next prop change reasserts the props.
      * @data the call
      */
     imperativeOverDeclarative = 1503,
+
+    /**
+     * A call on a destroyed player — ignored; `getPlayState()` says `destroyed`.
+     * @data the call
+     */
+    callAfterDestroy = 1504,
 
     // ── 1600 · React Native ──────────────────────────────────────────────────────────────────
 

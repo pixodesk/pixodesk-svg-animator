@@ -13,17 +13,19 @@ is not here, go to [Still stuck?](#still-stuck) at the end.
 ## Nothing plays
 
 **The triggers do not list `load`.** Check `animator.timeline.actionTriggers.start` in the file (or *Play
-on* in the editor). `click`, `hoverIn` and `hoverOut` wait for the user; an empty block (`{}`) waits
-for you to call `play()`. Even `load` waits until enough of the animation is on screen, and pauses
+on* in the editor). `click`, `hoverIn` and `hoverOut` wait for the user; an absent or empty block (`{}`)
+waits for you to call `play()` — since schema 1.17 a file that plays by itself says `start: 'load'`,
+an absent block no longer means load (stamped files were migrated; a hand-written file without a
+version stamp has to say it). Even `load` waits until enough of the animation is on screen, and pauses
 while it is scrolled out of view (`actions.outOfView.behavior: 'pause'`, the default) — see
 [Triggers](./playback-and-triggers.md#triggers--when-it-plays). In React/Vue/React Native, remember
-that `playUsingActionTriggers` is the only mode that uses the document's triggers — with `play`, `pause`,
-`showAtProgress` or `showAtTime` the triggers are ignored. Passing `playerRef` does **not**
+that `playUsingActionTriggers` is the only mode that uses the document's triggers — with `playWhile`,
+`pauseWhile`, `playState`, `showAtProgress` or `showAtTime` the triggers are ignored. Passing `playerRef` does **not**
 change the mode.
 
-**React / Vue component with no control prop.** With none of `playUsingActionTriggers` / `play` / `pause` /
-`showAtProgress` / `showAtTime` set, the component deliberately renders the first frame and does
-nothing. Add `playUsingActionTriggers`. `playerRef` on its own is such a case: the ref is a handle, not an
+**React / Vue component with no control prop.** With none of `playUsingActionTriggers` / `playWhile` /
+`pauseWhile` / `playState` / `showAtProgress` / `showAtTime` set, the component deliberately renders the
+first frame and does nothing. Add `playUsingActionTriggers`. `playerRef` on its own is such a case: the ref is a handle, not an
 instruction, so nothing moves until you call `play()` on it.
 
 **`createSvgAnimationPlayersFromPage()` ran before the elements existed.** Call it after the DOM is ready (end of
@@ -59,7 +61,14 @@ component — add `'use client'` at the top of the file that renders it.
 
 ## TypeScript
 
-**A JSON import is flagged on `doc`.** It shouldn't be: `doc` is typed `PxDocumentInput`,
+**`setPlaybackRate` / `jumpToFinished` is not a function; `play` is not a prop.** Renamed in 1.21:
+`setPlaySpeed(s)` (with `getPlaySpeed()`), `jumpToEnd()`; the component props `play` / `pause` are
+`playWhile` / `pauseWhile` (or one `playState`); `timelineOptions.playDuration` is `playSpeed`
+(`playSpeed = (outTime − inTime) / playDuration`); the type `PxDocumentInput` is `PxDocumentJson`.
+`getCurrentTime()` / `setCurrentTime()` and `getCurrentProgress()` now mean the position INSIDE the
+current iteration — the run is `getTotalTime()` / `getTotalDuration()`.
+
+**A JSON import is flagged on `doc`.** It shouldn't be: `doc` is typed `PxDocumentJson`,
 which is exactly the shape a JSON import produces — so first enable `"resolveJsonModule"` in
 `tsconfig.json` and update the player packages. Only `PxDocument` (the strict type,
 for documents built in code) rejects a JSON import's widened strings.
@@ -77,7 +86,7 @@ there and replaced by `fallback` (nothing by default).
 works around on device; if you hit it, keep `startOffset` at 0 on closed paths or use an open
 path. Details in [React Native → Feature support](./react-native.md#motion-timing-references).
 
-**Hover does nothing.** `hoverIn` / `hoverOut` have no touch equivalent; use `click` or drive `play`
+**Hover does nothing.** `hoverIn` / `hoverOut` have no touch equivalent; use `click` or drive `playWhile`
 yourself.
 
 ## Playback behavior
@@ -86,13 +95,17 @@ yourself.
 natural end the animation jumps back to the start state (`"rewind"` plays back to it instead; the
 default `"hold"` keeps the last frame). The start state is the SVG as authored; a hand-authored
 file whose static attributes differ from its first keyframe can show the first frame instead with
-`timeline.showWhenStopped: "firstFrame"`
+`timeline.whenIdle: "firstFrame"`
 (see [Actions](./playback-and-triggers.md#actions--how-start-stop-and-finish-look)).
 For one mount only, pass the same thing as an override: `actions={{ finish: 'reset' }}`.
 
-**How do I play backwards?** `player.setPlaybackRate(-1); player.play();` — or let a stop play
+**How do I play backwards?** `player.setPlaySpeed(-1); player.play();` — or let a stop play
 back by itself: `actions: { stop: 'rewind' }` in the timeline, with the event that
-stops it listed in the triggers (`stop: 'hoverOut'`); `stop()` and `play={false}` rewind the same way.
+stops it listed in the triggers (`stop: 'hoverOut'`); `stop()` and `playWhile={false}` rewind the same way.
+
+**How do I play faster or slower?** `timeline.playSpeed` in the file (`2` = twice as fast), the same
+key in `timelineOptions`, or `setPlaySpeed(2)` on the handle — `setPlayDuration(ms)` asks for the same
+thing as a length. A speed of `0` is rejected: `pause()` is how you stop.
 
 **A trigger event does nothing, or the console warns about the triggers.** Each list names only
 the events that make sense for it — `start` never `hoverOut`, `stop` never `load` or `hoverIn`,
@@ -105,7 +118,13 @@ same event as `pause`, or on its counterpart, collides (PX1109) — all three on
 [Which events each list may name](./playback-and-triggers.md#which-events-each-list-may-name).
 
 **Jumping to a time while playing.** `setCurrentTime(ms)` works while playing (the animation
-continues from the new point) and while paused (it shows that frame and stays there).
+continues from the new point) and while paused (it shows that frame and stays there). It seeks inside
+the current iteration, `0..getDuration()`; `setTotalTime(ms)` seeks on the whole run.
+
+**My slider wraps on every iteration.** `getCurrentTime()` is the frame inside the current iteration
+(since 1.21, on every player) — the slider every animation player shows for a loop. For a slider
+across a finite run use `getTotalTime()` with `getTotalDuration()` as the maximum (`null` when
+`iterations` is `'infinite'`).
 
 **Frame rate.** `timeline.frameRate` applies only to the player's own frame loop (`engine: 'js'`,
 or `'auto'` after falling back to it); WAAPI runs at the display rate.

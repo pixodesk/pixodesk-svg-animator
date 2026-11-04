@@ -3,7 +3,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 // The content window (first-use review §4): `inTime`/`outTime` play a slice of the content and
-// `playDuration` remaps it to wall time as an initial rate factor. Frame-loop engine under fake
+// `playSpeed` is the initial speed. Frame-loop engine under fake
 // timers, like index.test.ts.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimationPlayer } from '../index';
@@ -46,14 +46,16 @@ describe('the content window (§4)', () => {
         expect(opacity()).toBe(1);
     });
 
-    it('playDuration: the window remapped to wall ms — rate factor under the api, time space unchanged', () => {
-        // window 1000 ms played over 2000 wall ms → factor 0.5: after 500 wall ms, content time 250
-        const api = createSvgAnimationPlayer({ doc: windowDoc({ playDuration: 2000 }), container: '#box', playUsingActionTriggers: true });
+    it('playSpeed: the file sets the initial speed; the handle REPLACES it (no hidden product)', () => {
+        // window 1000 ms at speed 0.5: after 500 real ms, content time 250
+        const api = createSvgAnimationPlayer({ doc: windowDoc({ playSpeed: 0.5, actionTriggers: { start: 'load' } }), container: '#box', playUsingActionTriggers: true });
         vi.advanceTimersByTime(500);
-        expect(api.getCurrentTime()).toBeCloseTo(250, -1);   // CONTENT ms of the window, not wall
-        // the caller's own rate stays in its own units: 2 means 2 × the file's pacing
-        api.setPlaybackRate(2);
-        vi.advanceTimersByTime(500);                          // 500 wall ms at effective rate 1
-        expect(api.getCurrentTime()).toBeCloseTo(750, -1);
+        expect(api.getPlaySpeed()).toBe(0.5);
+        expect(api.getCurrentTime()).toBeCloseTo(250, -1);   // CONTENT ms of the window, not real
+        expect(api.getPlayDuration()).toBeCloseTo(2000, 5);  // one pass in real ms at this speed
+        api.setPlaySpeed(2);                                  // replaces the file's 0.5
+        vi.advanceTimersByTime(500);                          // 500 real ms at speed 2 = 1000 content ms → clamped at the end
+        expect(api.getPlaySpeed()).toBe(2);
+        expect(api.getCurrentTime()).toBeCloseTo(1000, -1);
     });
 });

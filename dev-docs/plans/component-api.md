@@ -1,7 +1,15 @@
 # Component API — the plan after the hands-on review
 
 Status **2026-10-25 — planning.** Decisions land here; the trying and the findings stay in
-[../reviews/react-api-hands-on.md](../reviews/react-api-hands-on.md). Scope: the shapes the four
+[../reviews/react-api-hands-on.md](../reviews/react-api-hands-on.md).
+
+> **Since 1.21 (2026-11-04)** — the shipped names differ from this plan's where the manual review
+> (`../reviews/schema-and-props--manual-review.md`) decided otherwise: `playDuration` → `playSpeed` (a factor, 1.16);
+> an absent `actionTriggers` block ≡ `{}` — nothing starts it, autoplay is written `start: 'load'` (1.17);
+> `jumpToFinished` → `jumpToEnd` (1.18); `showWhenStopped` → `whenIdle`, `PxPlayState.stopped` → `idle` (1.19); the
+> `play` / `pause` props → `playWhile` / `pauseWhile` + a `playState` word; `showAtTime` / `showAtProgress` are of ONE
+> iteration; `PxDocumentInput` → `PxDocumentJson`; the handle gained the `play…` (real time) and `total…` (whole run)
+> families. The "Was / Now" table and the TODO rows below are history as written. Scope: the shapes the four
 surfaces share — React, Vue, React Native, the web `createSvgAnimationPlayer` — and the CSS
 components; kf consumes all of them. Nothing here is implemented.
 

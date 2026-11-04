@@ -85,8 +85,9 @@ A code is permanent: numbers are never reused, and a retired one stays listed.
 | Code | What it means | Data |
 |---|---|---|
 | <a id="px1501"></a>**1501** | Props from more than one control mode were set at once. The higher-priority mode wins and the other props are ignored — see the control-mode rule. | which props conflicted, and which won |
-| <a id="px1502"></a>**1502** | A declarative playback modifier was set where it cannot apply — `pause` without `play`. Ignored. (How a `play` change looks is the timeline's `actions`: `start`, `stop` and its `completeIteration`.) | the explanation |
-| <a id="px1503"></a>**1503** | An imperative write call (`play()`, `pause()`, `playOnce()`, …) landed while a declarative driver (`play`/`pause` or `showAtProgress`/`showAtTime` props) owns playback. The call is applied, and the next prop change reasserts the props. | the call |
+| <a id="px1502"></a>**1502** | A declarative playback modifier was set where it cannot apply — `pauseWhile` without `playWhile`. Ignored. (How a `playWhile` change looks is the timeline's `actions`: `start`, `stop` and its `completeIteration`.) | the explanation |
+| <a id="px1503"></a>**1503** | An imperative write call (`play()`, `pause()`, `playOnce()`, …) landed while a declarative driver (`playWhile`/`pauseWhile`/`playState` or `showAtProgress`/`showAtTime` props) owns playback. The call is applied, and the next prop change reasserts the props. | the call |
+| <a id="px1504"></a>**1504** | A call on a destroyed player — ignored; `getPlayState()` says `destroyed`. | the call |
 
 ## React Native
 

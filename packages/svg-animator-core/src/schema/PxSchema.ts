@@ -131,7 +131,7 @@ export interface PxSchema<T, IsOptional extends boolean = false, StatesDefault e
      * What the field means when a document LEAVES IT OUT — the value every reader must fall back
      * to (the player normalises to it, the Editor's model defaults to it). `undefined` when the
      * schema states none: absent then simply means unset. Readers ask the OBJECT schema instead:
-     * `PxTimeTimelineSchema.defaults.showWhenStopped` is typed, and only stated fields are keys of it.
+     * `PxTimeTimelineSchema.defaults.whenIdle` is typed, and only stated fields are keys of it.
      */
     absentDefault(): T | undefined;
     /** Returns a new schema that marks this field as optional (?: in object shapes). */
@@ -690,7 +690,7 @@ type StatedKeys<S extends AnyShape> = { [K in keyof S]: S[K] extends PxSchema<un
 /**
  * WHAT EACH FIELD MEANS WHEN A DOCUMENT LEAVES IT OUT — one entry per field whose schema states it
  * (`px.enum([...], x)`, `px.number(x)`, a literal), typed without `undefined`. A field that states
- * none (absent = unset, e.g. `clone.without`) is not a key, so asking for it does not compile — and
+ * none (absent = unset, e.g. `clone.omit`) is not a key, so asking for it does not compile — and
  * neither does a key the schema has since renamed. The ONE source every reader shares: the player
  * normalises an absent field to it, the Editor's model defaults to it.
  */

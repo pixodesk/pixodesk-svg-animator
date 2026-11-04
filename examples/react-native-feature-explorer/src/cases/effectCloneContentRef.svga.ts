@@ -31,7 +31,7 @@ export const effectCloneContentRef: SvgaCaseJson = {
             "transform": "translate(150,100)",
             "effects": {
                 "clone": {
-                    "without": "translate",
+                    "omit": "translate",
                     "source": "_px_38bqgqon"
                 }
             },

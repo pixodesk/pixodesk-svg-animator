@@ -28,8 +28,8 @@ function nestedContentRefWire(): PxNode {
     return {
         type: 'svg', viewBox: '0 0 400 400',
         children: [
-            { type: 'use', href: '#use1', y: '100', effects: { clone: { without: 'translate', source: 'use1', retime: { start: 250 } } } },
-            { type: 'use', id: 'use1', href: '#ell1', y: '100', effects: { clone: { without: 'translate', source: 'ell1', retime: { start: 250 } } } },
+            { type: 'use', href: '#use1', y: '100', effects: { clone: { omit: 'translate', source: 'use1', retime: { offset: 250 } } } },
+            { type: 'use', id: 'use1', href: '#ell1', y: '100', effects: { clone: { omit: 'translate', source: 'ell1', retime: { offset: 250 } } } },
             { type: 'g', id: 'ell1', children: [animatedBall('ball')] },
         ],
     };
@@ -85,7 +85,7 @@ function materialize(input: PxNode): PxNode {
 describe('retimeEffect — keyframe time-shift & composition', () => {
 
     it('the dangling-retime guard counts an unconsumed `clone.retime`', () => {
-        expect(danglingRetimeCount({ type: 'svg', children: [{ type: 'use', href: '#src', effects: { clone: { retime: { start: 250 } } } }] })).toBe(1);
+        expect(danglingRetimeCount({ type: 'svg', children: [{ type: 'use', href: '#src', effects: { clone: { retime: { offset: 250 } } } }] })).toBe(1);
     });
 
     it('case 1 — single retime via bare href (start only) shifts the clone +250', () => {
@@ -93,7 +93,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             type: 'svg', viewBox: '0 0 400 400',
             children: [
                 { type: 'g', id: 'src', children: [animatedBall('ball')] },
-                { type: 'use', href: '#src', effects: { clone: { retime: { start: 250 } } } },
+                { type: 'use', href: '#src', effects: { clone: { retime: { offset: 250 } } } },
             ],
         };
 
@@ -153,7 +153,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             type: 'svg', viewBox: '0 0 400 400',
             children: [
                 { type: 'g', id: 'src', children: [animatedBall('ball')] },
-                { type: 'use', href: '#src', effects: { clone: { retime: { start: 250, stretch: 0.5 } } } },
+                { type: 'use', href: '#src', effects: { clone: { retime: { offset: 250, stretch: 0.5 } } } },
             ],
         };
 
@@ -213,8 +213,8 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             type: 'svg', viewBox: '0 0 400 400',
             children: [
                 { type: 'g', id: 'src', children: [animatedBall('ball')] },
-                { type: 'use', id: 'u1', href: '#src', effects: { clone: { retime: { start: 250 } } } },
-                { type: 'use', href: '#u1', effects: { clone: { retime: { start: 250 } } } },
+                { type: 'use', id: 'u1', href: '#src', effects: { clone: { retime: { offset: 250 } } } },
+                { type: 'use', href: '#u1', effects: { clone: { retime: { offset: 250 } } } },
             ],
         };
 
@@ -301,11 +301,11 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             children: [
                 {
                     type: 'use', href: '#use1', y: '100',
-                    effects: { clone: { without: 'translate', source: 'use1', retime: { start: 250 } } },
+                    effects: { clone: { omit: 'translate', source: 'use1', retime: { offset: 250 } } },
                 },
                 {
                     type: 'use', id: 'use1', href: '#ell1', y: '100',
-                    effects: { clone: { without: 'translate', source: 'ell1', retime: { start: 250 } } },
+                    effects: { clone: { omit: 'translate', source: 'ell1', retime: { offset: 250 } } },
                 },
                 { type: 'g', id: 'ell1', children: [animatedBall('ball')] },
             ],
@@ -688,11 +688,11 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
             children: [
                 // the template (with its retimed inner use) comes FIRST in document order
                 { type: 'g', id: 'tpl1', children: [
-                    { type: 'use', href: '#tpl0', effects: { clone: { without: 'translate', source: 'tpl0', retime: { start: 250 } } } },
+                    { type: 'use', href: '#tpl0', effects: { clone: { omit: 'translate', source: 'tpl0', retime: { offset: 250 } } } },
                 ] },
                 { type: 'g', id: 'tpl0', children: [animatedBall('ball')] },
                 // the OUTER site references the template
-                { type: 'use', href: '#tpl1', effects: { clone: { without: 'translate', source: 'tpl1', retime: { start: 250 } } } },
+                { type: 'use', href: '#tpl1', effects: { clone: { omit: 'translate', source: 'tpl1', retime: { offset: 250 } } } },
             ],
         };
         const { root } = materializeNodeEffects(wire);
@@ -704,7 +704,7 @@ describe('retimeEffect — keyframe time-shift & composition', () => {
 });
 
 
-// `retime.timeCrop: [start, end]` (ms, document time) — a VISIBILITY WINDOW on the
+// `retime.inTime: start, outTime: end` (ms, document time) — a VISIBILITY WINDOW on the
 // instance. Materialized as an opacity animation on a wrapper `<g>`: the target's own
 // animation must keep running (a layer inside its window appears mid-motion, not
 // restarted), and a wrapper keeps an authored opacity on the `<use>` intact. The wrapper
@@ -721,7 +721,7 @@ describe('retime is PURE TIMING — no own source ref (review §4.3)', () => {
             children: [
                 { type: 'g', id: 'src', children: [{ type: 'rect', width: 10, height: 10,
                     animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } } }] },
-                { type: 'use', href: '#src', effects: { clone: { retime: { start: 250 } } } },
+                { type: 'use', href: '#src', effects: { clone: { retime: { offset: 250 } } } },
             ],
         });
         const rects: Array<PxNode> = collectByType(out, 'rect');
@@ -747,7 +747,7 @@ describe('retime is PURE TIMING — no own source ref (review §4.3)', () => {
     it('the schema gives the removed key no slot — strict validation flags it', () => {
         const ok: PxValidationContext = { errors: [], warnings: [], strict: true };
         expect(PxCloneEffectSchema.isValid(
-            { source: '#src', retime: { start: 250, stretch: 1.5, timeCrop: [0, 100] } }, ok)).toBe(true);
+            { source: '#src', retime: { offset: 250, stretch: 1.5, inTime: 0, outTime: 100 } }, ok)).toBe(true);
         expect(ok.errors).toEqual([]);
 
         const bad: PxValidationContext = { errors: [], warnings: [], strict: true };
@@ -757,19 +757,19 @@ describe('retime is PURE TIMING — no own source ref (review §4.3)', () => {
     });
 
     it('sanitize strips the removed key and keeps the timing fields', () => {
-        expect(PxCloneEffectSchema.sanitize({ source: '#src', retime: { source: '#src', start: 250, stretch: 2 } }))
-            .toEqual({ source: '#src', retime: { start: 250, stretch: 2 } });
+        expect(PxCloneEffectSchema.sanitize({ source: '#src', retime: { source: '#src', offset: 250, stretch: 2 } }))
+            .toEqual({ source: '#src', retime: { offset: 250, stretch: 2 } });
     });
 });
 
-describe('retime.timeCrop — visibility window', () => {
+describe('retime.inTime / outTime — visibility window', () => {
 
-    const cropDoc = (timeCrop: [number, number], useExtra: Partial<PxNode> = {}): PxNode => ({
+    const cropDoc = (inTime: number, outTime: number, useExtra: Partial<PxNode> = {}): PxNode => ({
         type: 'svg', animator: { timeline: { outTime: 2000 } },
         children: [
             { type: 'rect', id: 'src', width: 10, height: 10,
               animate: { opacity: { keyframes: [{ time: 0, value: 1 }, { time: 2000, value: 0 }] } } },
-            { type: 'use', href: '#src', ...useExtra, effects: { clone: { retime: { start: 0, timeCrop } } } },
+            { type: 'use', href: '#src', ...useExtra, effects: { clone: { retime: { offset: 0, inTime, outTime } } } },
         ],
     });
 
@@ -778,7 +778,7 @@ describe('retime.timeCrop — visibility window', () => {
         collectByType(out, 'g').find(g => entryOf(g, 'opacity'));
 
     it('wraps the <use> in a <g> whose opacity gates the window', () => {
-        const out = materializeEngine(cropDoc([500, 1500]), PxTimelineEngine.js);
+        const out = materializeEngine(cropDoc(500, 1500), PxTimelineEngine.js);
         const g = cropWrapper(out);
         expect(g, 'a crop wrapper was generated').toBeDefined();
         expect(compiledEntry(g, 'opacity').keyframes).toEqual([
@@ -792,18 +792,18 @@ describe('retime.timeCrop — visibility window', () => {
     });
 
     it('a window starting at 0 emits no leading hidden keyframe', () => {
-        const g = cropWrapper(materializeEngine(cropDoc([0, 800]), PxTimelineEngine.js));
+        const g = cropWrapper(materializeEngine(cropDoc(0, 800), PxTimelineEngine.js));
         expect(compiledEntry(g, 'opacity').keyframes[0]).toEqual({ time: 0, value: 1 });
     });
 
     it('an EMPTY window (end <= start) hides the instance outright', () => {
         // Lottie layers with ip >= op are exactly this — they must never show.
-        const g = cropWrapper(materializeEngine(cropDoc([900, 900]), PxTimelineEngine.js));
+        const g = cropWrapper(materializeEngine(cropDoc(900, 900), PxTimelineEngine.js));
         expect(compiledEntry(g, 'opacity').keyframes).toEqual([{ time: 0, value: 0 }]);
     });
 
     it('an authored opacity on the <use> survives — the crop rides on the wrapper', () => {
-        const out = materializeEngine(cropDoc([100, 200], { opacity: 0.25 }), PxTimelineEngine.js);
+        const out = materializeEngine(cropDoc(100, 200, { opacity: 0.25 }), PxTimelineEngine.js);
         const g = cropWrapper(out);
         // The wrapper's only opacity is the CROP's own — its rest pose, the first frame: hidden,
         // since the window opens at 100ms. The authored 0.25 must never land on it.
@@ -811,12 +811,12 @@ describe('retime.timeCrop — visibility window', () => {
         expect(g?.children?.[0].opacity, 'the instance keeps its own opacity').toBe(0.25);
     });
 
-    it('no timeCrop → no wrapper at all', () => {
+    it('no window → no wrapper at all', () => {
         const out = materializeEngine({
             type: 'svg', animator: { timeline: { outTime: 2000 } },
             children: [
                 { type: 'rect', id: 'src', width: 10, height: 10 },
-                { type: 'use', href: '#src', effects: { clone: { retime: { start: 250 } } } },
+                { type: 'use', href: '#src', effects: { clone: { retime: { offset: 250 } } } },
             ],
         }, PxTimelineEngine.js);
         expect(cropWrapper(out)).toBeUndefined();

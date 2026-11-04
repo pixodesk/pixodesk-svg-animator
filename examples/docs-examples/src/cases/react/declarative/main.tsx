@@ -4,16 +4,17 @@ import { SvgAnimationPlayer } from '@pixodesk/svg-animator-react';
 import animation from '../../../fixtures/animation.json';
 
 function App() {
-  const [play, setPlay] = useState(false);
-  const [pause, setPause] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [paused, setPaused] = useState(false);
   return (
     <>
       <div className="controls">
-        <button id="play" onClick={() => setPlay(p => !p)}>play = {String(play)}</button>
-        <button id="pause" onClick={() => setPause(p => !p)}>pause = {String(pause)}</button>
+        <button id="play" onClick={() => setPlaying(p => !p)}>playWhile = {String(playing)}</button>
+        <button id="pause" onClick={() => setPaused(p => !p)}>pauseWhile = {String(paused)}</button>
       </div>
       <div className="stage">
-        <SvgAnimationPlayer doc={animation as any} play={play} pause={pause} />
+        {/* two LEVELS: plays while `playWhile` holds, frozen while `pauseWhile` holds — or one word: playState={paused ? 'paused' : playing ? 'playing' : 'idle'} */}
+        <SvgAnimationPlayer doc={animation as any} playWhile={playing} pauseWhile={paused} />
       </div>
     </>
   );

@@ -57,7 +57,7 @@ A plain page without a bundler keeps it next to the HTML file instead (see
 [Plain HTML](#plain-html)).
 
 **TypeScript:** `doc` accepts a `.json` import as-is — no cast needed (the input type,
-`PxDocumentInput`, is the shape a JSON import produces; values are validated at runtime).
+`PxDocumentJson`, is the shape a JSON import produces; values are validated at runtime).
 Just make sure `"resolveJsonModule": true` is in your `tsconfig.json` — see
 [Installing the players › TypeScript](./installation.md#typescript).
 

@@ -198,15 +198,15 @@ describe("SvgAnimationPlayer (React)", () => {
         // ONE document object across renders in each test: a fresh one would change the `doc`
         // identity, remount the animator, and let a remount satisfy these by accident.
 
-        it("play={false} returns to the START pose — never to the end (review §8 held)", () => {
+        it("playWhile={false} returns to the START pose — never to the end (review §8 held)", () => {
             const onReset = vi.fn();
             const onFinish = vi.fn();
             const doc = getTestJson1000();
             const { rerender } = render(
-                <SvgAnimationPlayer doc={doc} play onReset={onReset} onFinish={onFinish} />);
+                <SvgAnimationPlayer doc={doc} playWhile onReset={onReset} onFinish={onFinish} />);
             vi.advanceTimersByTime(200);
 
-            rerender(<SvgAnimationPlayer doc={doc} play={false} onReset={onReset} onFinish={onFinish} />);
+            rerender(<SvgAnimationPlayer doc={doc} playWhile={false} onReset={onReset} onFinish={onFinish} />);
 
             expect(onReset).toHaveBeenCalled();       // default stop behavior 'reset': snap back
             expect(onFinish).not.toHaveBeenCalled();   // this used to be finish()
@@ -215,7 +215,7 @@ describe("SvgAnimationPlayer (React)", () => {
         it("a mount with play PLAYS — a one-shot runs to its end and rests there (the pose without motion is showAtProgress)", () => {
             const onPlay = vi.fn();
             const apiRef = createRef<PxAnimationPlayerHandle>();
-            render(<SvgAnimationPlayer doc={getTestJson1000()} play playerRef={apiRef} onPlay={onPlay} />);
+            render(<SvgAnimationPlayer doc={getTestJson1000()} playWhile playerRef={apiRef} onPlay={onPlay} />);
             vi.advanceTimersByTime(32);
             expect(onPlay).toHaveBeenCalledTimes(1);
             expect(apiRef.current?.isPlaying()).toBe(true);
@@ -231,11 +231,11 @@ describe("SvgAnimationPlayer (React)", () => {
             const doc = getTestJson1000();
             const rewind = { stop: { behavior: 'rewind' } } as const;
             const { rerender } = render(
-                <SvgAnimationPlayer doc={doc} play={false} actions={rewind} playerRef={apiRef} onReset={onReset} onPlay={onPlay} />);
-            rerender(<SvgAnimationPlayer doc={doc} play actions={rewind} playerRef={apiRef} onReset={onReset} onPlay={onPlay} />);
+                <SvgAnimationPlayer doc={doc} playWhile={false} actions={rewind} playerRef={apiRef} onReset={onReset} onPlay={onPlay} />);
+            rerender(<SvgAnimationPlayer doc={doc} playWhile actions={rewind} playerRef={apiRef} onReset={onReset} onPlay={onPlay} />);
             vi.advanceTimersByTime(400);
 
-            rerender(<SvgAnimationPlayer doc={doc} play={false} actions={rewind} playerRef={apiRef} onReset={onReset} onPlay={onPlay} />);
+            rerender(<SvgAnimationPlayer doc={doc} playWhile={false} actions={rewind} playerRef={apiRef} onReset={onReset} onPlay={onPlay} />);
             vi.advanceTimersByTime(32);
 
             expect(onReset).not.toHaveBeenCalled();           // no reset — it turns around
@@ -249,16 +249,16 @@ describe("SvgAnimationPlayer (React)", () => {
             const apiRef = createRef<PxAnimationPlayerHandle>();
             const doc = getTestJson1000();
             const { rerender } = render(
-                <SvgAnimationPlayer doc={doc} play={false} playerRef={apiRef} onReset={onReset} />);
-            rerender(<SvgAnimationPlayer doc={doc} play playerRef={apiRef} onReset={onReset} />);
+                <SvgAnimationPlayer doc={doc} playWhile={false} playerRef={apiRef} onReset={onReset} />);
+            rerender(<SvgAnimationPlayer doc={doc} playWhile playerRef={apiRef} onReset={onReset} />);
             vi.advanceTimersByTime(300);
 
-            rerender(<SvgAnimationPlayer doc={doc} play pause playerRef={apiRef} onReset={onReset} />);
+            rerender(<SvgAnimationPlayer doc={doc} playWhile pauseWhile playerRef={apiRef} onReset={onReset} />);
             const frozenAt = apiRef.current?.getCurrentTime() ?? 0;
             vi.advanceTimersByTime(300);
             expect(apiRef.current?.getCurrentTime()).toBe(frozenAt);
 
-            rerender(<SvgAnimationPlayer doc={doc} play pause={false} playerRef={apiRef} onReset={onReset} />);
+            rerender(<SvgAnimationPlayer doc={doc} playWhile pauseWhile={false} playerRef={apiRef} onReset={onReset} />);
             vi.advanceTimersByTime(100);
             expect((apiRef.current?.getCurrentTime() ?? 0)).toBeGreaterThan(frozenAt);
             expect(onReset).not.toHaveBeenCalled();
@@ -270,12 +270,12 @@ describe("SvgAnimationPlayer (React)", () => {
             const loop = { iterations: 'infinite' } as const;
             const completing = { stop: { completeIteration: true } } as const;
             const { rerender } = render(
-                <SvgAnimationPlayer doc={doc} timelineOptions={loop} actions={completing} play={false} playerRef={apiRef} />);
-            rerender(<SvgAnimationPlayer doc={doc} timelineOptions={loop} actions={completing} play playerRef={apiRef} />);
+                <SvgAnimationPlayer doc={doc} timelineOptions={loop} actions={completing} playWhile={false} playerRef={apiRef} />);
+            rerender(<SvgAnimationPlayer doc={doc} timelineOptions={loop} actions={completing} playWhile playerRef={apiRef} />);
             vi.advanceTimersByTime(300);
             expect(apiRef.current?.isPlaying()).toBe(true);
 
-            rerender(<SvgAnimationPlayer doc={doc} timelineOptions={loop} actions={completing} play={false} playerRef={apiRef} />);
+            rerender(<SvgAnimationPlayer doc={doc} timelineOptions={loop} actions={completing} playWhile={false} playerRef={apiRef} />);
             vi.advanceTimersByTime(100);
             expect(apiRef.current?.isPlaying()).toBe(true);    // still finishing the iteration
             vi.advanceTimersByTime(1200);                      // past the boundary — the watcher landed it
@@ -294,7 +294,7 @@ describe("SvgAnimationPlayer (React)", () => {
 
             const onWarn2 = vi.fn();
             const apiRef2 = createRef<PxAnimationPlayerHandle>();
-            render(<SvgAnimationPlayer doc={getTestJson1000()} play playerRef={apiRef2} onWarn={onWarn2} />);
+            render(<SvgAnimationPlayer doc={getTestJson1000()} playWhile playerRef={apiRef2} onWarn={onWarn2} />);
             apiRef2.current?.playOnce();                       // a write call under the play driver
             expect(onWarn2).toHaveBeenCalled();
             expect(onWarn2.mock.calls[0][0].code).toBe(PxDiagnosticCode.imperativeOverDeclarative);
@@ -302,7 +302,7 @@ describe("SvgAnimationPlayer (React)", () => {
 
         it("no misplaced modifiers remain: the actions prop warns nothing on a loop", () => {
             const onWarn = vi.fn();
-            render(<SvgAnimationPlayer doc={getTestJson1000()} timelineOptions={{ iterations: 'infinite' }} actions={{ stop: { behavior: 'rewind' } }} play onWarn={onWarn} />);
+            render(<SvgAnimationPlayer doc={getTestJson1000()} timelineOptions={{ iterations: 'infinite' }} actions={{ stop: { behavior: 'rewind' } }} playWhile onWarn={onWarn} />);
             expect(onWarn).not.toHaveBeenCalled();
         });
     });
@@ -369,7 +369,7 @@ describe("SvgAnimationPlayer (React)", () => {
     // -- 3. Imperative API -----------------------------------------------------
 
     describe("imperative API (apiRef)", () => {
-        it("exposes play/pause/setCurrentTime/getCurrentTime/setPlaybackRate/isPlaying", () => {
+        it("exposes play/pause/setCurrentTime/getCurrentTime/setPlaySpeed/isPlaying", () => {
             const apiRef = createRef<PxAnimationPlayerHandle>();
             render(<SvgAnimationPlayer doc={getTestJson()} playerRef={apiRef} />);
 
@@ -394,13 +394,13 @@ describe("SvgAnimationPlayer (React)", () => {
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
 
-            // setPlaybackRate exists and is callable
-            expect(typeof api.setPlaybackRate).toBe("function");
-            expect(() => api.setPlaybackRate(2)).not.toThrow();
+            // setPlaySpeed exists and is callable
+            expect(typeof api.setPlaySpeed).toBe("function");
+            expect(() => api.setPlaySpeed(2)).not.toThrow();
 
-            // reset / jumpToFinished are also exposed
+            // reset / jumpToEnd are also exposed
             expect(typeof api.reset).toBe("function");
-            expect(typeof api.jumpToFinished).toBe("function");
+            expect(typeof api.jumpToEnd).toBe("function");
         });
     });
 
@@ -451,7 +451,7 @@ describe("SvgAnimationPlayer (React)", () => {
             const api = apiRef.current;
             assert(api, "apiRef.current is set after render");
             api.play();
-            api.jumpToFinished();
+            api.jumpToEnd();
             expect(spies.onFinish).toHaveBeenCalledTimes(1);
             expect(spies.onStop).not.toHaveBeenCalled();
         });

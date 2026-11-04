@@ -7,9 +7,9 @@
 // window, ms.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createSvgAnimationPlayer } from '../index';
-import type { PxDocumentInput } from '@pixodesk/svg-animator-core';
+import type { PxDocumentJson } from '@pixodesk/svg-animator-core';
 
-const DOC: PxDocumentInput = {
+const DOC: PxDocumentJson = {
     type: 'svg', viewBox: '0 0 10 10',
     animator: { timeline: { engine: 'js', inTime: 200, outTime: 1200 } },
     children: [{

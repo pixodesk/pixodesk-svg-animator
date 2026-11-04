@@ -3,7 +3,7 @@
  *
  * Mirrors the web preview player (`examples/preview-player`): sample picker,
  * transport (play / pause / stop / restart / finish), a scrubbable timeline,
- * loop override, playback rate and a light/dark theme toggle. Instead of the
+ * loop override, play speed and a light/dark theme toggle. Instead of the
  * web version's drag-and-drop, the documents are embedded (see `samples.ts`).
  */
 import { SvgAnimationPlayer, type PxAnimationPlayerHandle } from '@pixodesk/svg-animator-rn';
@@ -38,8 +38,8 @@ export default function App() {
     const sample = SAMPLES[sampleIdx];
     const doc = sample.doc;
 
-    // The animator's duration drives the timeline. `iterations` is expressed by
-    // the driver (withRepeat), so the scrubbable range is one iteration.
+    // The animator's duration drives the timeline: `getCurrentTime()` / `setCurrentTime()` are the
+    // frame inside the current iteration on every player, so the scrubbable range is one pass.
     // Read through `getAnimatorConfig`, which resolves both animator addresses and
     // the nested `timeline` — a raw `doc.animator.duration` misses every modern file.
     const duration = useMemo(() => getAnimatorConfig(doc)?.duration ?? 1000, [doc]);
@@ -57,8 +57,8 @@ export default function App() {
         return () => clearInterval(id);
     }, []);
 
-    // Re-apply the rate whenever it changes or the document is rebuilt.
-    useEffect(() => { api.current?.setPlaybackRate(rate); }, [rate, doc]);
+    // Re-apply the speed whenever it changes or the document is rebuilt (the file's `playSpeed` is the initial value).
+    useEffect(() => { api.current?.setPlaySpeed(rate); }, [rate, doc]);
 
     const call = (fn: (a: PxAnimationPlayerHandle) => void) => () => { if (api.current) fn(api.current); };
 
@@ -115,7 +115,7 @@ export default function App() {
                         ['❚❚ Pause', call(a => a.pause())],
                         ['◼ Stop', call(a => a.reset())],
                         ['↺ Restart', call(a => { a.reset(); a.play(); })],
-                        ['⤓ Finish', call(a => a.jumpToFinished())],
+                        ['⤓ Finish', call(a => a.jumpToEnd())],
                     ] as Array<[string, () => void]>).map(([label, onPress]) => (
                         <Pressable
                             key={label}

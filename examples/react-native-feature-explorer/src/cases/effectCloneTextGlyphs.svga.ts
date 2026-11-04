@@ -161,7 +161,7 @@ export const effectCloneTextGlyphs: SvgaCaseJson = {
             "transform": "translate(110,97.1409)",
             "effects": {
                 "clone": {
-                    "without": "translate",
+                    "omit": "translate",
                     "source": "_px_38gjtr8j"
                 }
             }
@@ -172,7 +172,7 @@ export const effectCloneTextGlyphs: SvgaCaseJson = {
             "transform": "translate(110,150)",
             "effects": {
                 "clone": {
-                    "without": "translate",
+                    "omit": "translate",
                     "source": "_px_38gjtr8h"
                 }
             }

@@ -4,6 +4,7 @@
 import { describe, expect, it } from 'vitest';
 import { prepareDocument, type PxPrepareOptions } from './PxPrepareDocument';
 import { PxDocStage, documentStage } from '../format/PxDocStage';
+import { PX_WIRE_SCHEMA_VERSION } from '../version/PxSchemaVersion';
 import { getAnimatorConfig, materializeAllInTree, PxTimelineEngine, validateDocument, convertWireDocument, type PxDocument } from '../index';
 import { PxAnimationDefinitionSchema, PxKeyframeSchema } from '../format/PxAnimatorTypes';
 
@@ -17,7 +18,7 @@ function makeDoc(): PxDocument {
             animate: { opacity: { keyframes: [{ time: 0, value: 0 }, { time: 1000, value: 1 }] } },
             effects: { fillGradient: { type: 'linear', stops: [{ offset: 0, color: '#000' }, { offset: 1, color: '#fff' }] } },
         }],
-        animator: { version: '1.15.0', timeline: { outTime: 800 } },
+        animator: { version: PX_WIRE_SCHEMA_VERSION + '.0', timeline: { outTime: 800 } },
     })) as PxDocument;
 }
 const prep = (doc: PxDocument, options?: PxPrepareOptions) => prepareDocument(doc, options);

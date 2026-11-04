@@ -57,7 +57,7 @@ export interface ApplyContext {
      */
     engine: PxTimelineEngine;
     /**
-     * For every element id referenced by a `<use>` with `clone:{without:'translate'}`,
+     * For every element id referenced by a `<use>` with `clone:{omit:'translate'}`,
      * the fresh id of the INNER (no-translate) wrapper produced by
      * `splitForContentRef`. The use's `href` is rewritten to point at this
      * inner id — the source is split into outer-translate + inner-content layers

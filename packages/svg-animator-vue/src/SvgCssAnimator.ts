@@ -43,7 +43,7 @@ import { computed, defineComponent, h, onBeforeUnmount, onMounted, ref, watch, t
  * ACCEPTED LIMITS of a class toggle (the editor shows them next to the choices):
  * - the start transition is always `continue` — a class cannot restart keyframes or jump to their end
  * - the stop transition is always `reset` — a class cannot play keyframes backwards
- * - completing the iteration, `showWhenStopped` and the finish transition are the file's own CSS
+ * - completing the iteration, `whenIdle` and the finish transition are the file's own CSS
  *
  * @prop actionTriggers - WHEN: the file's own `timeline.actionTriggers` block — `start`, `stop`, `pause`, `resume`,
  *   each one event or a list of them (only the events each list can use).
@@ -72,7 +72,7 @@ const SvgCssAnimationPlayer = defineComponent({
             actions: props.actions, inViewThreshold: props.inViewThreshold, inViewDebounce: props.inViewDebounce,
         }));
         const playsOnLoad = computed(() => resolved.value.start.includes(PxTriggerEvent.load));
-        const state = ref<PxPlayState>(PxPlayState.stopped);
+        const state = ref<PxPlayState>(PxPlayState.idle);
         const el = ref<HTMLDivElement | null>(null);
         let gate: PxVisibilityGate | null = null;
 
@@ -86,7 +86,7 @@ const SvgCssAnimationPlayer = defineComponent({
                 start: () => { state.value = PxPlayState.playing; },
                 hold: () => { state.value = PxPlayState.paused; },
                 release: () => { state.value = PxPlayState.playing; },
-                reset: () => { state.value = PxPlayState.stopped; },
+                reset: () => { state.value = PxPlayState.idle; },
             });
             // Only `load` is held by the gate; a hover or a click is aimed at something seen.
             if (playsOnLoad.value) gate.requestStart(false);
@@ -104,7 +104,7 @@ const SvgCssAnimationPlayer = defineComponent({
                     else state.value = PxPlayState.playing;
                     break;
                 case PxTriggerAction.pause: state.value = PxPlayState.paused; break;
-                case PxTriggerAction.stop: state.value = PxPlayState.stopped; break;
+                case PxTriggerAction.stop: state.value = PxPlayState.idle; break;
             }
         };
 

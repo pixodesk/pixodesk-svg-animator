@@ -1,4 +1,5 @@
 // @px-area engine
+import { PxPlaybackDirection } from '../format/PxAnimatorConstants';
 /*---------------------------------------------------------------------------------------
  * Copyright (c) Pixodesk LTD.
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
@@ -7,7 +8,7 @@
 // ONE time contract for every engine (API review §3). The same three calls used to mean three
 // different things:
 //
-//   | engine          | getCurrentTime()        | setCurrentTime(t) | setPlaybackRate(0) |
+//   | engine          | getCurrentTime()        | setCurrentTime(t) | speed 0 (now setPlaySpeed) |
 //   |-----------------|-------------------------|-------------------|--------------------|
 //   | web, WAAPI      | ms across the whole run | NOT clamped       | accepted           |
 //   | web, frame loop | ms across the whole run | clamped           | rejected + warn    |
@@ -17,12 +18,14 @@
 // `timeline.engine: 'auto'` meant two documents on one page could answer the same call
 // differently. The contract every player now implements:
 //
-//   - time is ms from the start of the WHOLE run, iterations included — never per-iteration;
+//   - the engines keep ONE clock, run ms from the start of the whole run (`getTotalTime`), and the
+//     per-iteration reads every player exposes (`getCurrentTime`, the frame on screen) are derived
+//     from it here, once (dev-docs/reviews/schema-and-props--manual-review.md A5);
 //   - a seek clamps to [0, seekCeilingMs];
-//   - a rate of 0 is rejected everywhere, with this one message.
+//   - a speed of 0 is rejected everywhere, with this one message.
 
-/** The one message every engine prints for a rejected rate. @public @advanced */
-export const PX_RATE_REJECTED = 'setPlaybackRate: rate must be finite and non-zero';
+/** The one message every engine prints for a rejected speed. @public @advanced */
+export const PX_RATE_REJECTED = 'setPlaySpeed: speed must be finite and non-zero';
 
 /**
  * A playback rate is usable when it is finite and non-zero.
@@ -157,4 +160,68 @@ export function createRunClock(ceilingMs: number, nowFn: () => number = Date.now
             if (running) startedAt = nowFn();
         },
     };
+}
+
+// ── the two axes (schema-and-props--manual-review.md A1 / A5) ─────────────────────────────────────
+//
+// The engines keep RUN ms (`getTotalTime`). Everything a page reads off the playhead is derived
+// here, once: which iteration it is in, the frame on screen inside that iteration (running
+// backwards during a reversed pass of `alternate`), and the run's length.
+
+/** The geometry the per-iteration reads need: one pass, how many, and each pass's direction. @public @advanced */
+export interface PxRunGeometry {
+    /** One pass of the content window, ms. */
+    durationMs: number;
+    /** Pass count; `Infinity` when endless. */
+    iterations: number;
+    /** Each pass's direction (`timeline.iterationDirection`); absent = normal. */
+    direction?: PxPlaybackDirection;
+}
+
+/** The run's length, ms — one pass × iterations; `null` when endless (the honest slider maximum, no division to
+ *  guard). @public @advanced */
+export function totalDurationMs(durationMs: number, iterations: number): number | null {
+    if (!(durationMs > 0)) return 0;
+    return iterations === Infinity ? null : durationMs * (iterations > 0 ? iterations : 1);
+}
+
+/** Which pass a run position is in, 0-based. The first pass is `[0, duration]`, every later one `(…, duration]` —
+ *  the end of a pass belongs to it, so a finite run's last instant is its last iteration. @public @advanced */
+export function iterationIndexOf(runMs: number, durationMs: number, iterations: number): number {
+    if (!(durationMs > 0) || !(runMs > 0)) return 0;
+    const index = Math.max(0, Math.ceil(runMs / durationMs) - 1);
+    return iterations === Infinity ? index : Math.min(index, Math.max(0, iterations - 1));
+}
+
+/** Whether pass `iteration` plays backwards under `direction`. @public @advanced */
+export function isReversedIteration(iteration: number, direction: PxPlaybackDirection | undefined): boolean {
+    switch (direction) {
+        case PxPlaybackDirection.reverse: return true;
+        case PxPlaybackDirection.alternate: return iteration % 2 === 1;
+        case PxPlaybackDirection.alternateReverse: return iteration % 2 === 0;
+        default: return false;
+    }
+}
+
+/** The frame on screen at a run position: content ms inside its pass, `0..duration`, counted the way the pass plays —
+ *  a reversed pass reads from `duration` down. @public @advanced */
+export function iterationTimeOf(runMs: number, geometry: PxRunGeometry): number {
+    const { durationMs, iterations, direction } = geometry;
+    if (!(durationMs > 0)) return 0;
+    const ceiling = seekCeilingMs(durationMs, iterations);
+    const t = clampSeekMs(runMs, ceiling);
+    const iteration = iterationIndexOf(t, durationMs, iterations);
+    const local = Math.min(durationMs, Math.max(0, t - iteration * durationMs));
+    return isReversedIteration(iteration, direction) ? durationMs - local : local;
+}
+
+/** The run position that shows `frameMs` of pass `iteration` — the inverse of {@link iterationTimeOf}; the frame is
+ *  clamped into the pass. @public @advanced */
+export function runMsOf(iteration: number, frameMs: number, geometry: PxRunGeometry): number {
+    const { durationMs, iterations, direction } = geometry;
+    if (!(durationMs > 0)) return 0;
+    const pass = iterations === Infinity ? Math.max(0, iteration) : Math.min(Math.max(0, iteration), Math.max(0, iterations - 1));
+    const frame = Number.isFinite(frameMs) ? Math.min(durationMs, Math.max(0, frameMs)) : 0;
+    const local = isReversedIteration(pass, direction) ? durationMs - frame : frame;
+    return pass * durationMs + local;
 }

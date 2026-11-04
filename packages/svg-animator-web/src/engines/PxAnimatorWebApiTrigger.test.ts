@@ -54,8 +54,10 @@ afterEach(() => {
 
 describe('WAAPI engine — trigger wiring', () => {
 
-    it('a document with no trigger starts on load', () => {
-        const api = createSvgAnimationPlayer({ playUsingActionTriggers: true, doc: doc(), container: '#stage' });
+    it('a document with no trigger block waits for play() — absent ≡ {} ≡ manual (1.17); `start: load` plays', () => {
+        const manual = createSvgAnimationPlayer({ playUsingActionTriggers: true, doc: doc(), container: '#stage' });
+        expect(manual.isPlaying()).toBe(false);
+        const api = createSvgAnimationPlayer({ playUsingActionTriggers: true, doc: doc({ start: 'load' }), container: '#stage' });
         expect(api.isPlaying()).toBe(true);
     });
 

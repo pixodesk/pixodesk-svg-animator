@@ -244,7 +244,7 @@ export const effectCloneText: SvgaCaseJson = {
             "transform": "translate(110,46.8658)",
             "effects": {
                 "clone": {
-                    "without": "translate",
+                    "omit": "translate",
                     "source": "_px_38gjtr8l"
                 }
             }
@@ -255,7 +255,7 @@ export const effectCloneText: SvgaCaseJson = {
             "transform": "translate(110,97.1409)",
             "effects": {
                 "clone": {
-                    "without": "translate",
+                    "omit": "translate",
                     "source": "_px_38gjtr8j"
                 }
             }
@@ -266,7 +266,7 @@ export const effectCloneText: SvgaCaseJson = {
             "transform": "translate(110,150)",
             "effects": {
                 "clone": {
-                    "without": "translate",
+                    "omit": "translate",
                     "source": "_px_38gjtr8h"
                 }
             }
@@ -328,7 +328,7 @@ export const effectCloneText: SvgaCaseJson = {
             "transform": "translate(110.5242,190.3235)",
             "effects": {
                 "clone": {
-                    "without": "translate",
+                    "omit": "translate",
                     "source": "_px_38obig9l"
                 }
             }

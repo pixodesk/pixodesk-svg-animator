@@ -6,21 +6,22 @@
 
 // ============================================================================
 // THE PLAY EXECUTOR — one implementation of "on" and "off" for every driver
-// (dev-docs/plans/playback-layers.md): the `play` / `pause` props, the triggers' event lists and
+// (dev-docs/plans/playback-layers.md): the `playWhile` / `pauseWhile` / `playState` props, the triggers' event lists and
 // the imperative api all end up here. The timeline's `actions` say HOW (start / stop / finish); the
 // executor performs them on any engine api, and owns the states the engines cannot tell apart —
 // PAUSED versus STOPPED versus FINISHED — so the state rule can be applied: `start` acts when stopped or
 // finished, `pause` when playing, `resume` when paused, `stop` when playing, paused or finished.
 //
-// The declarative half (`play` / `pause` as props, review §10) is a thin resolver on top: `play` true
-// starts (a mount included — a one-shot plays to its end and rests there), false stops; spelled with
-// the executor's verbs.
+// The declarative half (`playWhile` / `pauseWhile` as props, review §10; `playState` folds into them) is a thin
+// resolver on top: `playWhile` true starts (a mount included — a one-shot plays to its end and rests there), false
+// stops; spelled with the executor's verbs.
 // ============================================================================
 
 import type { PxActions, PxAnimationPlayerApi, PxPlayExecutor } from '../format/PxAnimatorTypes';
-import { PxFinishBehavior, PxStopBehavior, PxStartBehavior, PxPlayState, resolveActions } from '../format/PxAnimatorConstants';
+import { PxFinishBehavior, PxStopBehavior, PxStartBehavior, PxPlayState, type PxPlaybackDirection, resolveActions } from '../format/PxAnimatorConstants';
+import { iterationIndexOf, iterationTimeOf, runMsOf, totalDurationMs, type PxRunGeometry } from './PxPlaybackTime';
 
-/** What the declarative `play` drives: a POSE (one-shot) or a RUN (loop). @public @advanced */
+/** What the declarative `playWhile` drives: a POSE (one-shot) or a RUN (loop). @public @advanced */
 export enum PxPlaybackWorld {
     oneShot = 'oneShot',
     loop = 'loop',
@@ -36,7 +37,7 @@ export function resolvePlaybackWorld(iterations: number | 'infinite' | undefined
 /** The slice of the api the executor drives — structural, so the components' HANDLE qualifies as
  *  well as a full engine api. @public @advanced */
 export type PxPlayTarget = Pick<PxAnimationPlayerApi,
-    'play' | 'pause' | 'reset' | 'jumpToFinished' | 'setPlaybackRate' | 'getCurrentTime' | 'setCurrentTime' | 'isPlaying'>;
+    'play' | 'pause' | 'reset' | 'jumpToEnd' | 'getPlaySpeed' | 'setPlaySpeed' | 'getTotalTime' | 'setTotalTime' | 'isPlaying'>;
 
 /** What the executor needs beside the api: the run's geometry and the timeline's `actions`. @public @advanced */
 export interface PxPlayExecutorConfig {
@@ -54,8 +55,8 @@ const SNAP_EPSILON_MS = 1;
  * Builds the executor for one player. `raf` is injected (the web passes requestAnimationFrame) for
  * the deferred moves — completing the iteration before an off, and stopping a loop's rewind at the
  * iteration's start. `play` / `pause` / `reset` are bound at creation: `composeApiExtras` replaces
- * them on the api with executor-calling versions. Everything else is read live, so a wrapper added
- * later (the `playDuration` rate factor) is honoured.
+ * them on the api with executor-calling versions. Everything else is read live. A rewind turns the speed
+ * negative and restores the speed it found (the file's `playSpeed`, or what the page set) when it ends.
  * @public @advanced
  */
 export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig, raf: (cb: () => void) => void): PxPlayExecutor {
@@ -79,20 +80,22 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
     let pending: (() => void) | null = null;
     const cancelPending = (): void => { pending?.(); pending = null; };
 
-    const atEnd = (): boolean => { const t = api.getCurrentTime(); return t !== null && t >= cfg.totalMs - SNAP_EPSILON_MS; };
-    const atStart = (): boolean => { const t = api.getCurrentTime(); return t !== null && t <= SNAP_EPSILON_MS; };
+    const atEnd = (): boolean => { const t = api.getTotalTime(); return t !== null && t >= cfg.totalMs - SNAP_EPSILON_MS; };
+    const atStart = (): boolean => { const t = api.getTotalTime(); return t !== null && t <= SNAP_EPSILON_MS; };
+    /** The forward speed a rewind found, restored when it ends — a custom speed survives every on / off. */
+    let forwardSpeed = 1;
 
     /** An off in flight — rewinding, or completing its iteration — reads as STOPPED: it is heading there,
      *  and a `start` event turns it around (the hover-in during a hover-out rewind). A run that reached its
      *  end and rests there is FINISHED — a `stop` still acts on it, a `start` is a fresh run. */
     const state = (): PxPlayState => {
-        if (reversed || pending) return PxPlayState.stopped;
+        if (reversed || pending) return PxPlayState.idle;
         if (api.isPlaying()) return PxPlayState.playing;
         if (paused) return PxPlayState.paused;
-        return atEnd() ? PxPlayState.finished : PxPlayState.stopped;
+        return atEnd() ? PxPlayState.finished : PxPlayState.idle;
     };
 
-    const forward = (): void => { if (reversed) { reversed = false; api.setPlaybackRate(1); } };
+    const forward = (): void => { if (reversed) { reversed = false; api.setPlaySpeed(forwardSpeed); } };
     /** The start pose, at rest. */
     const rest = (): void => { forward(); raw.reset(); };
     /** A fresh run from the beginning (the delay applies again — a restart is a new run). */
@@ -105,11 +108,11 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
             case PxStartBehavior.restart:
                 restart();
                 break;
-            case PxStartBehavior.jumpToFinished:
+            case PxStartBehavior.jumpToEnd:
                 // the end pose with no motion; a loop has no end — its first pass's end stands in
                 forward();
-                if (world === PxPlaybackWorld.oneShot) api.jumpToFinished();
-                else { raw.pause(); api.setCurrentTime(passMs); }
+                if (world === PxPlaybackWorld.oneShot) api.jumpToEnd();
+                else { raw.pause(); api.setTotalTime(passMs); }
                 break;
             case PxStartBehavior.continue:
             default:
@@ -140,12 +143,13 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
         paused = false;
         if (atStart() && !api.isPlaying()) { rest(); return; }
         reversed = true;
-        api.setPlaybackRate(-1);
+        forwardSpeed = Math.abs(api.getPlaySpeed()) || 1;
+        api.setPlaySpeed(-forwardSpeed);
         raw.play();
         if (world === PxPlaybackWorld.loop) {
-            const t0 = api.getCurrentTime() ?? 0;
+            const t0 = api.getTotalTime() ?? 0;
             const target = Math.floor(Math.max(t0 - SNAP_EPSILON_MS, 0) / passMs) * passMs;
-            watch(() => { const t = api.getCurrentTime(); return t === null || t <= target + SNAP_EPSILON_MS; }, rest);
+            watch(() => { const t = api.getTotalTime(); return t === null || t <= target + SNAP_EPSILON_MS; }, rest);
         }
     };
 
@@ -159,11 +163,11 @@ export function createPlayExecutor(api: PxPlayTarget, cfg: PxPlayExecutorConfig,
 
     const stop = (): void => {
         // already stopping, or already at rest; a STOPPED player elsewhere (the end pose, a held frame) still goes to rest
-        if (reversed || (state() === PxPlayState.stopped && !pending && atStart())) return;
+        if (reversed || (state() === PxPlayState.idle && !pending && atStart())) return;
         if (completeIteration && api.isPlaying()) {
             // the off lands on the iteration boundary, not mid-beat (a one-shot: at its end)
-            const startIteration = Math.floor((api.getCurrentTime() ?? 0) / passMs);
-            watch(() => { const t = api.getCurrentTime(); return t !== null && Math.floor(t / passMs) > startIteration; }, performOff);
+            const startIteration = Math.floor((api.getTotalTime() ?? 0) / passMs);
+            watch(() => { const t = api.getTotalTime(); return t !== null && Math.floor(t / passMs) > startIteration; }, performOff);
             return;
         }
         cancelPending();
@@ -211,10 +215,10 @@ export enum PxDeclarativeAction {
     resume = 'resume',
 }
 
-/** The declarative props a change is judged by. @public @advanced */
+/** The declarative props a change is judged by — the two levels (`playState` folds into them, `playLevelsOf`). @public @advanced */
 export interface PxDeclarativeProps {
-    play?: boolean;
-    pause?: boolean;
+    playWhile?: boolean;
+    pauseWhile?: boolean;
 }
 
 /** What {@link resolveDeclarativePlayback} is given. @public @advanced */
@@ -227,9 +231,9 @@ export interface PxDeclarativeArgs {
 
 /**
  * ONE rule for the declarative playback props (review §10, D5). Pure: returns the ordered actions
- * to ask the executor for, plus the usage warnings to emit. `play` true means "play it": a mount
- * with `play` starts the run (a one-shot plays to its end and rests there; the pose without motion is
- * `showAtProgress={1}`), false stops it. A contract breach (`pause` without `play`) warns and changes nothing.
+ * to ask the executor for, plus the usage warnings to emit. `playWhile` true means "it plays": a mount
+ * with it starts the run (a one-shot plays to its end and rests there; the pose without motion is
+ * `showAtProgress={1}`), false stops it. A contract breach (`pauseWhile` without `playWhile`) warns and changes nothing.
  * @public @advanced
  */
 export function resolveDeclarativePlayback(args: PxDeclarativeArgs): {
@@ -240,35 +244,35 @@ export function resolveDeclarativePlayback(args: PxDeclarativeArgs): {
     const actions: Array<PxDeclarativeAction> = [];
     const warnings: Array<string> = [];
     const mount = prev === undefined;
-    const playChanged = mount || prev.play !== next.play;
-    const pauseChanged = mount ? next.pause !== undefined : prev.pause !== next.pause;
+    const playChanged = mount || prev.playWhile !== next.playWhile;
+    const pauseChanged = mount ? next.pauseWhile !== undefined : prev.pauseWhile !== next.pauseWhile;
 
-    if (next.play === undefined) {
-        if (next.pause !== undefined && pauseChanged) {
-            warnings.push('`pause` does nothing without `play` — it freezes a run that `play` owns.');
+    if (next.playWhile === undefined) {
+        if (next.pauseWhile !== undefined && pauseChanged) {
+            warnings.push('`pauseWhile` does nothing without `playWhile` — it freezes a run that `playWhile` owns.');
         }
         return { actions, warnings };
     }
 
     if (mount) {
-        // a mount with `play` plays — a loop runs, a one-shot plays to its end; `pause` beside it freezes the start
-        if (next.play) {
+        // a mount with `playWhile` plays — a loop runs, a one-shot plays to its end; `pauseWhile` beside it freezes the start
+        if (next.playWhile) {
             actions.push(PxDeclarativeAction.start);
-            if (next.pause) actions.push(PxDeclarativeAction.pause);
+            if (next.pauseWhile) actions.push(PxDeclarativeAction.pause);
         }
         return { actions, warnings };
     }
     if (playChanged) {
-        if (next.play) {
+        if (next.playWhile) {
             actions.push(PxDeclarativeAction.start);
-            if (next.pause) actions.push(PxDeclarativeAction.pause);   // the freeze axis still holds
+            if (next.pauseWhile) actions.push(PxDeclarativeAction.pause);   // the freeze axis still holds
         } else {
-            actions.push(PxDeclarativeAction.stop);                      // `play: false` forcibly unfreezes
+            actions.push(PxDeclarativeAction.stop);                      // `playWhile: false` forcibly unfreezes
         }
         return { actions, warnings };
     }
-    if (pauseChanged && next.play) {
-        actions.push(next.pause ? PxDeclarativeAction.pause : PxDeclarativeAction.resume);
+    if (pauseChanged && next.playWhile) {
+        actions.push(next.pauseWhile ? PxDeclarativeAction.pause : PxDeclarativeAction.resume);
     }
     return { actions, warnings };
 }
@@ -295,6 +299,10 @@ export interface PxApiExtrasConfig extends Pick<PxPlayExecutorConfig, 'actions'>
     /** One pass of the content window, ms. */
     duration?: number;
     iterations?: number | 'infinite';
+    /** Each pass's direction — the per-iteration reads count a reversed pass down. */
+    direction?: PxPlaybackDirection;
+    /** The file's `timeline.playSpeed` — set on the engine once at composition; the handle's `setPlaySpeed` replaces it. */
+    playSpeed?: number;
     /** The player's `onStop`, handed to the executor: told whenever the configured stop is performed. */
     onStop?: () => void;
 }
@@ -333,6 +341,18 @@ export interface PxApiExtras {
     /** ONE fresh pass from the start, whatever `iterations` say. */
     playOnce: () => void;
     getDuration: () => number | null;
+    getPlayState: () => PxPlayState;
+    // the per-iteration and real-time reads, derived from the engine's run clock and speed (PxPlaybackTime.ts)
+    getTotalDuration: () => number | null;
+    getCurrentIteration: () => number;
+    getCurrentTime: () => number | null;
+    setCurrentTime: (ms: number) => void;
+    getCurrentProgress: () => number | null;
+    setCurrentProgress: (progress: number) => void;
+    getPlayDuration: () => number | null;
+    setPlayDuration: (ms: number) => void;
+    getTotalPlayDuration: () => number | null;
+    getCurrentPlayTime: () => number | null;
     /** The executor every driver shares — the triggers and the components use it, never a second one. */
     playExecutor: PxPlayExecutor;
 }
@@ -342,18 +362,22 @@ export interface PxApiExtras {
  * none can drift: `play()` / `pause()` / `stop()` / `reset()` through the player's one executor
  * (review §10, D5), `playOnce()` (always a fresh pass from the start; a multi-pass document gets a
  * boundary watcher that settles at the end of pass ONE — `'reset'` snaps to rest, the default holds
- * the pass-end pose; re-entrant) and `getDuration()` (one pass of the content window, ms; review §14).
- * Reuses an executor the engine already attached (`playExecutor`), so triggers wired inside the
- * engine and the public api share one state. Mutates and returns the same object.
+ * the pass-end pose; re-entrant), `getDuration()` (one pass of the content window, ms; review §14), the state read,
+ * and every per-iteration and real-time read off the engine's run clock and speed (the time contract on
+ * `PxAnimationPlayerApi`). Reuses an executor the engine already attached (`playExecutor`), so triggers wired inside
+ * the engine and the public api share one state. Mutates and returns the same object.
  * @public @advanced
  */
 export function composeApiExtras<T extends PxApiExtrasTarget>(api: T, cfg: PxApiExtrasConfig, raf: (cb: () => void) => void): T & PxApiExtras {
     const raw = { play: api.play.bind(api), pause: api.pause.bind(api), reset: api.reset.bind(api),
-        getCurrentTime: api.getCurrentTime.bind(api), setCurrentTime: api.setCurrentTime.bind(api) };
+        getTotalTime: api.getTotalTime.bind(api), setTotalTime: api.setTotalTime.bind(api) };
     const { passMs, totalMs } = executorConfigOf(cfg);
     const iterations = passMs > 0 ? totalMs / passMs : 1;
+    const geometry: PxRunGeometry = { durationMs: passMs, iterations, direction: cfg.direction };
     const executor = ensurePlayExecutor(api, cfg, raf);
     if (cfg.onStop) executor.setOnStop(cfg.onStop);
+    // the file's speed is the initial one; the handle's `setPlaySpeed` replaces it
+    if (cfg.playSpeed !== undefined && Number.isFinite(cfg.playSpeed) && cfg.playSpeed > 0) api.setPlaySpeed(cfg.playSpeed);
     // ONE type-level widening: every member is assigned right below, completing the api.
     const full = api as T & PxApiExtras;
     full.playExecutor = executor;
@@ -362,11 +386,27 @@ export function composeApiExtras<T extends PxApiExtrasTarget>(api: T, cfg: PxApi
     full.stop = () => executor.stop();
     full.reset = () => executor.reset();
     full.getDuration = () => cfg.duration ?? null;
+    let destroyed = false;
+    full.getPlayState = () => destroyed ? PxPlayState.destroyed : executor.state();
+    // the two axes, derived from the engine's run clock (PxPlaybackTime.ts)
+    const ready = (): boolean => cfg.duration !== undefined;
+    const speedAbs = (): number => Math.abs(api.getPlaySpeed()) || 1;
+    full.getTotalDuration = () => ready() ? totalDurationMs(passMs, iterations) : null;
+    full.getCurrentIteration = () => iterationIndexOf(raw.getTotalTime() ?? 0, passMs, iterations);
+    full.getCurrentTime = () => { const t = raw.getTotalTime(); return t === null ? null : iterationTimeOf(t, geometry); };
+    full.setCurrentTime = (ms) => raw.setTotalTime(runMsOf(full.getCurrentIteration(), ms, geometry));
+    full.getCurrentProgress = () => { const t = full.getCurrentTime(); return t === null ? null : (passMs > 0 ? t / passMs : 0); };
+    full.setCurrentProgress = (p) => full.setCurrentTime((Number.isFinite(p) ? Math.min(1, Math.max(0, p)) : 0) * passMs);
+    // the real-time family: every value the position or the length divided by the speed; the setter the speed itself
+    full.getPlayDuration = () => ready() ? passMs / speedAbs() : null;
+    full.setPlayDuration = (ms) => { const sign = api.getPlaySpeed() < 0 ? -1 : 1; api.setPlaySpeed(sign * passMs / ms); };
+    full.getTotalPlayDuration = () => { const total = full.getTotalDuration(); return total === null ? null : total / speedAbs(); };
+    full.getCurrentPlayTime = () => { const t = full.getCurrentTime(); return t === null ? null : t / speedAbs(); };
     let token = 0;
     // destroy() invalidates a pending pass watcher — otherwise it rAF-loops forever on a dead animator
     if (full.destroy) {
         const destroyEngine = full.destroy.bind(full);
-        full.destroy = () => { token++; executor.dispose(); destroyEngine(); };
+        full.destroy = () => { token++; destroyed = true; executor.dispose(); destroyEngine(); };
     }
     full.playOnce = () => {
         const mine = ++token;
@@ -376,10 +416,10 @@ export function composeApiExtras<T extends PxApiExtrasTarget>(api: T, cfg: PxApi
         if (!multiPass || !passMs) return;
         const tick = (): void => {
             if (mine !== token) return;                 // a later playOnce took over
-            const t = raw.getCurrentTime();
+            const t = raw.getTotalTime();
             if (t !== null && t >= passMs) {
                 if (resolveActions(cfg.actions).finish.behavior === PxFinishBehavior.reset) raw.reset();
-                else { raw.pause(); raw.setCurrentTime(passMs); }
+                else { raw.pause(); raw.setTotalTime(passMs); }
                 return;
             }
             raf(tick);

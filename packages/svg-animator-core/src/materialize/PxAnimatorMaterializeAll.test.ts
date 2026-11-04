@@ -78,7 +78,7 @@ describe('materializeAllInTree', () => {
                     type: 'use',
                     id: 'retimed',
                     href: '#src',
-                    effects: { clone: { retime: { start: 0, stretch: 0.5 } } },
+                    effects: { clone: { retime: { offset: 0, stretch: 0.5 } } },
                 } as PxNode,
             ],
         } as PxDocument;

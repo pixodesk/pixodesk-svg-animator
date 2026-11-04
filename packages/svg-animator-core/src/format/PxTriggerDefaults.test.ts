@@ -14,9 +14,10 @@ import { PxActionsSchema, PxOutOfViewActionSchema, PxTimeTimelineSchema, PxActio
 
 describe('trigger defaults', () => {
 
-    it('a missing triggers block plays on load; an EMPTY block lists nothing — the manual document', () => {
-        expect(resolveTriggers(undefined)).toEqual({ start: ['load'], stop: [], pause: [], resume: ['load'] });
+    it('a missing triggers block and an EMPTY one are the same thing — nothing starts it, the manual document (1.17)', () => {
+        expect(resolveTriggers(undefined)).toEqual({ start: [], stop: [], pause: [], resume: [] });
         expect(resolveTriggers({})).toEqual({ start: [], stop: [], pause: [], resume: [] });
+        expect(resolveTriggers({ start: 'load' })).toEqual({ start: ['load'], stop: [], pause: [], resume: ['load'] });
     });
 
     it('resume is derived when the file does not name it: the counterpart of each pause event plus the start events that do not stop; a named list is used as written', () => {
@@ -51,7 +52,7 @@ describe('trigger defaults', () => {
     it('a click under both start and stop STOPS while paused — a start event that also stops does not resume', () => {
         const t = resolveTriggers({ start: ['load', 'click'], stop: 'click', pause: 'hoverOut' });
         expect(t.resume).toEqual(['hoverIn', 'load']);
-        expect(triggerActionFor(t, PxPlayState.stopped, 'click')).toBe(PxTriggerAction.play);
+        expect(triggerActionFor(t, PxPlayState.idle, 'click')).toBe(PxTriggerAction.play);
         expect(triggerActionFor(t, PxPlayState.playing, 'click')).toBe(PxTriggerAction.stop);
         expect(triggerActionFor(t, PxPlayState.paused, 'click')).toBe(PxTriggerAction.stop);
         // FINISHED: stop wins over start — a toggle undoes a finished one-shot rather than replaying it
@@ -69,7 +70,7 @@ describe('trigger defaults', () => {
 
     it('a pause click pauses while playing and resumes while paused (its counterpart); nothing when stopped', () => {
         const t = resolveTriggers({ start: [], pause: 'click' });
-        expect(triggerActionFor(t, PxPlayState.stopped, 'click')).toBeUndefined();
+        expect(triggerActionFor(t, PxPlayState.idle, 'click')).toBeUndefined();
         expect(triggerActionFor(t, PxPlayState.playing, 'click')).toBe(PxTriggerAction.pause);
         expect(triggerActionFor(t, PxPlayState.paused, 'click')).toBe(PxTriggerAction.play);
     });
@@ -134,10 +135,10 @@ describe('trigger defaults', () => {
 
     it('the state rule: the state picks the list an event is read from; pause and resume win over stop', () => {
         const t = resolveTriggers({ start: 'click', pause: 'click', stop: 'hoverOut' });
-        expect(triggerActionFor(t, PxPlayState.stopped, 'click')).toBe(PxTriggerAction.play);
+        expect(triggerActionFor(t, PxPlayState.idle, 'click')).toBe(PxTriggerAction.play);
         expect(triggerActionFor(t, PxPlayState.playing, 'click')).toBe(PxTriggerAction.pause);
         expect(triggerActionFor(t, PxPlayState.paused, 'click')).toBe(PxTriggerAction.play);     // resume = start
-        expect(triggerActionFor(t, PxPlayState.stopped, 'hoverOut')).toBeUndefined();            // nothing to stop
+        expect(triggerActionFor(t, PxPlayState.idle, 'hoverOut')).toBeUndefined();            // nothing to stop
         expect(triggerActionFor(t, PxPlayState.playing, 'hoverOut')).toBe(PxTriggerAction.stop);
         expect(triggerActionFor(t, PxPlayState.paused, 'hoverOut')).toBe(PxTriggerAction.stop);
         const conflict = resolveTriggers({ start: 'hoverIn', stop: 'hoverOut', pause: 'hoverOut' });
@@ -157,12 +158,12 @@ describe('trigger defaults', () => {
             finish: { behavior: 'hold' }, outOfView: { behavior: 'pause' },
         });
         expect(resolveActions({ stop: { completeIteration: true } }).stop).toEqual({ behavior: 'reset', completeIteration: true });
-        expect(resolveActions({ start: { behavior: 'jumpToFinished' } }).start.behavior).toBe('jumpToFinished');
+        expect(resolveActions({ start: { behavior: 'jumpToEnd' } }).start.behavior).toBe('jumpToEnd');
     });
 
-    it("the schema states NO default for a list — absent inside a block means 'not listed'; the absent BLOCK is the resolver's rule", () => {
+    it("the schema states NO default for a list — absent inside a block means 'not listed', and so does the absent BLOCK", () => {
         expect(PxActionTriggersSchema.defaults).toEqual({});
-        expect(resolveTriggers(undefined).start).toEqual([PX_PLAYBACK_DEFAULTS.start]);
+        expect(resolveTriggers(undefined).start).toEqual([]);
     });
 
     it('the schema declares the same outOfView default the players apply — the one that makes `load` safe', () => {
@@ -173,6 +174,6 @@ describe('trigger defaults', () => {
         expect(transition.inner._default).toBe(PX_PLAYBACK_DEFAULTS.outOfViewBehavior);
         expect(PxOutOfViewActionSchema.defaults.behavior).toBe('pause');
         expect(PxActionsSchema.defaults).toEqual({});
-        expect(PxTimeTimelineSchema.defaults.showWhenStopped).toBe('static');
+        expect(PxTimeTimelineSchema.defaults.whenIdle).toBe('static');
     });
 });

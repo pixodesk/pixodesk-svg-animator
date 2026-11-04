@@ -15,7 +15,7 @@ describe("SvgCssAnimationPlayer (React)", () => {
 
     it("renders children inside the wrapper div", () => {
         const { container } = render(
-            <SvgCssAnimationPlayer>
+            <SvgCssAnimationPlayer actionTriggers={{ start: 'load' }}>
                 <svg data-testid="inner-svg" />
             </SvgCssAnimationPlayer>
         );
@@ -24,9 +24,9 @@ describe("SvgCssAnimationPlayer (React)", () => {
         expect(div.querySelector("svg[data-testid='inner-svg']")).not.toBeNull();
     });
 
-    it("plays immediately with the default start='load'", () => {
+    it("plays immediately with start='load' (an absent block is manual since 1.17)", () => {
         const { container } = render(
-            <SvgCssAnimationPlayer>
+            <SvgCssAnimationPlayer actionTriggers={{ start: 'load' }}>
                 <svg />
             </SvgCssAnimationPlayer>
         );
@@ -36,7 +36,7 @@ describe("SvgCssAnimationPlayer (React)", () => {
 
     it("joins className correctly ('foo px-anim-enabled px-anim-playing')", () => {
         const { container } = render(
-            <SvgCssAnimationPlayer className="foo">
+            <SvgCssAnimationPlayer className="foo" actionTriggers={{ start: 'load' }}>
                 <svg />
             </SvgCssAnimationPlayer>
         );
@@ -46,7 +46,7 @@ describe("SvgCssAnimationPlayer (React)", () => {
 
     it("has no 'undefined' prefix when className is absent", () => {
         const { container } = render(
-            <SvgCssAnimationPlayer>
+            <SvgCssAnimationPlayer actionTriggers={{ start: 'load' }}>
                 <svg />
             </SvgCssAnimationPlayer>
         );

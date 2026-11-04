@@ -4,8 +4,8 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { toPxDocument, type PxDocumentInput, PxDiagnosticCode, PxDiagnosticKind, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, PxTimelineEngine, PxFinishBehavior, PxShowWhenStopped, PxOutOfViewBehavior, PxTriggerAction, PxTriggerEvent, PxPlaybackDirection, type PxDocument, type PxNode, type PxPlayExecutor, applyAnimatorConfig, type PxPlaybackOverrideInput } from '@pixodesk/svg-animator-core';
-import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, progressToTimeMs, seekCeilingMs, timeToProgress, type PxControlProps, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride } from '@pixodesk/svg-animator-core/engine';
+import { toPxDocument, type PxDocumentJson, PxDiagnosticCode, PxDiagnosticKind, type PxAnimationPlayerHandle, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxDiagnostics, getAnimatorConfig, getDefinitions, prepareDocument, PxDocStage, PxTimelineEngine, PxFinishBehavior, PxWhenIdle, PxOutOfViewBehavior, PxTriggerAction, PxTriggerEvent, PxPlaybackDirection, type PxDocument, type PxNode, type PxPlayExecutor, applyAnimatorConfig, type PxPlaybackOverrideInput } from '@pixodesk/svg-animator-core';
+import { applyDeclarativeAction, clampSeekMs, composeApiExtras, createRunClock, isValidPlaybackRate, type PxDeclarativeProps, PxPlaybackWorld, playLevelsOf, resolveDeclarativePlayback, resolvePlaybackWorld, progressSpanMs, seekCeilingMs, type PxControlProps, resolveGate, resolveTriggers, triggerActionFor, triggerListsEvent, PxControlMode, resolveControlMode, applyPlaybackOverride } from '@pixodesk/svg-animator-core/engine';
 import { carryPrep, deepEquals, reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { createDiagnostics, reportDocumentDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import React, { createElement, useEffect, useImperativeHandle, useMemo, useRef, useState, type ComponentType, type ReactElement, type ReactNode } from 'react';
@@ -51,7 +51,7 @@ export type SvgAnimationPlayerProps = PxPlaybackOverride & PxControlProps & PxAn
     // -- Source ---------------------------------------------------------------
 
     /** The animation document to render. */
-    doc: PxDocumentInput;
+    doc: PxDocumentJson;
 
     // (`timeline.engine` is accepted but ignored here: React Native always uses the `native`, fully
     // flattened materialization, because react-native-svg has no `<use>` shadow-tree propagation.)
@@ -261,7 +261,7 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
     // both sides (the first frame before, the last frame after), so the held poses are the same on
     // every file (a `finish: reset` document would otherwise revert to its static attrs).
     if (pinPoseFill && resolvePlaybackWorld((getAnimatorConfig(doc) || {}).iterations) === PxPlaybackWorld.oneShot) {
-        doc = applyAnimatorConfig(doc, { timeline: { showWhenStopped: PxShowWhenStopped.firstFrame, actions: { finish: { behavior: PxFinishBehavior.hold } } } }).doc;
+        doc = applyAnimatorConfig(doc, { timeline: { whenIdle: PxWhenIdle.firstFrame, actions: { finish: { behavior: PxFinishBehavior.hold } } } }).doc;
     }
 
     // `native` = the FULLY-FLATTENED materialization: effects + loops +
@@ -304,7 +304,7 @@ function compileDocument(doc: PxDocument, overrides: ConfigOverrides, pinPoseFil
  */
 export function SvgAnimationPlayer({
     doc, timelineOptions, actions,
-    playUsingActionTriggers, play, pause, playerRef, showAtProgress, showAtTime,
+    playUsingActionTriggers, playWhile, pauseWhile, playState, playerRef, showAtProgress, showAtTime,
     onReady, onPlay, onStop, onPause, onReset, onFinish, onDestroy, onError, fallback, onWarn, suppressWarnings, suppressErrors,
 }: SvgAnimationPlayerProps): ReactElement | null {
 
@@ -338,7 +338,7 @@ export function SvgAnimationPlayer({
     // ONE control-mode rule, decided in core and shared with React and Vue (API review §1/§7) —
     // resolved BEFORE compilation, because the play tier's pose contract pins `fillMode` there.
     const { mode: compMode, warnings: modeWarnings } =
-        resolveControlMode({ showAtProgress, showAtTime, play, pause, playUsingActionTriggers });
+        resolveControlMode({ showAtProgress, showAtTime, playWhile, pauseWhile, playState, playUsingActionTriggers });
 
     const compiled = useMemo((): Compiled => {
         try {
@@ -468,7 +468,7 @@ export function SvgAnimationPlayer({
             runClock.stop();
             latest.current.onReset?.();
         },
-        jumpToFinished: () => {
+        jumpToEnd: () => {
             cancelAnimation(progress);
             playingRef.current = false;
             runClock.seek(Number.isFinite(seekCeiling) ? seekCeiling : tracks.duration);
@@ -476,7 +476,8 @@ export function SvgAnimationPlayer({
             progress.value = restingPosition();
             latest.current.onFinish?.();
         },
-        setPlaybackRate: (rate: number) => {
+        getPlaySpeed: () => rateRef.current,
+        setPlaySpeed: (rate: number) => {
             if (!isValidPlaybackRate(rate)) {
                 makeDiag().warn(PxDiagnosticKind.usage, PxDiagnosticCode.rateRejected);
                 return;
@@ -488,12 +489,11 @@ export function SvgAnimationPlayer({
             }
         },
 
-        // Ms from the start of the WHOLE run, like every other engine (review §3). This used
-        // to return `progress.value`, which is ms within the current iteration — so a slider
-        // built on it jumped back to 0 every time the animation repeated.
-        getCurrentTime: () => runClock.now(),
+        // The engine's one clock: ms from the start of the WHOLE run (review §3); the per-iteration reads are
+        // composed on top (`composeApiExtras`).
+        getTotalTime: () => runClock.now(),
 
-        setCurrentTime: (t: number) => {
+        setTotalTime: (t: number) => {
             const wasPlaying = playingRef.current;
             cancelAnimation(progress);
             playingRef.current = false;
@@ -511,11 +511,6 @@ export function SvgAnimationPlayer({
             else runClock.stop();
         },
 
-        getCurrentProgress: () => timeToProgress(runClock.now(), tracks.duration, tracks.iterations),
-
-        setCurrentProgress: (p: number) => {
-            api.setCurrentTime(progressToTimeMs(p, tracks.duration, tracks.iterations));
-        },
     } as PxAnimationPlayerHandle;
     // The engine's own play / pause before the executor's versions replace them — the gate's hold and release.
     const engine = { play: api.play, pause: api.pause };
@@ -548,11 +543,13 @@ export function SvgAnimationPlayer({
             pause: () => { guardWrite('pause()'); api.pause(); },
             stop: () => { guardWrite('stop()'); api.stop(); },
             reset: () => { guardWrite('reset()'); api.reset(); },
-            jumpToFinished: () => { guardWrite('jumpToFinished()'); api.jumpToFinished(); },
+            jumpToEnd: () => { guardWrite('jumpToEnd()'); api.jumpToEnd(); },
             playOnce: () => { guardWrite('playOnce()'); api.playOnce(); },
-            setPlaybackRate: (rate: number) => { guardWrite('setPlaybackRate()'); api.setPlaybackRate(rate); },
+            setPlaySpeed: (speed: number) => { guardWrite('setPlaySpeed()'); api.setPlaySpeed(speed); },
+            setPlayDuration: (ms: number) => { guardWrite('setPlayDuration()'); api.setPlayDuration(ms); },
             setCurrentTime: (t: number) => { guardWrite('setCurrentTime()'); api.setCurrentTime(t); },
             setCurrentProgress: (p: number) => { guardWrite('setCurrentProgress()'); api.setCurrentProgress(p); },
+            setTotalTime: (t: number) => { guardWrite('setTotalTime()'); api.setTotalTime(t); },
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- `api` / `makeDiag` read callbacks and diagnostics through `latest`; the rest changes only with `compiled`
     }, [compiled, compMode]);
@@ -576,9 +573,10 @@ export function SvgAnimationPlayer({
 
     useEffect(() => {
         if (compMode === PxControlMode.fixedTime) {
+            // the frame to show, content ms INSIDE the iteration — the handle's `getCurrentTime` axis
             const seekMs = showAtTime !== undefined
                 ? showAtTime
-                : progressToTimeMs(showAtProgress ?? 0, tracks.duration, tracks.iterations);
+                : (Number.isFinite(showAtProgress ?? 0) ? Math.min(1, Math.max(0, showAtProgress ?? 0)) : 0) * tracks.duration;
             api.setCurrentTime(seekMs);
             return;
         }
@@ -591,8 +589,9 @@ export function SvgAnimationPlayer({
             const world = resolvePlaybackWorld(tracks.iterations === Infinity ? 'infinite' : tracks.iterations);
             const totalMs = tracks.iterations === Infinity ? Infinity : tracks.duration * Math.max(1, tracks.iterations);
             const prev = prevPlaybackRef.current?.compiled === compiled ? prevPlaybackRef.current.props : undefined;
-            const { actions, warnings } = resolveDeclarativePlayback({ world, prev, next: { play, pause } });
-            prevPlaybackRef.current = { compiled, props: { play, pause } };
+            const levels = playLevelsOf({ playWhile, pauseWhile, playState });
+            const { actions, warnings } = resolveDeclarativePlayback({ world, prev, next: levels });
+            prevPlaybackRef.current = { compiled, props: levels };
             if (warnings.length) {
                 const diag = makeDiag();
                 for (const w of warnings) diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.playModifierIgnored, w);
@@ -606,7 +605,7 @@ export function SvgAnimationPlayer({
             player.play();
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [compiled, compMode, playUsingActionTriggers, play, pause, showAtProgress, showAtTime]);
+    }, [compiled, compMode, playUsingActionTriggers, playWhile, pauseWhile, playState, showAtProgress, showAtTime]);
 
     // THE VISIBILITY GATE — permission to run, whatever started the animation, exactly as on the
     // web (`PxVisibilityGate`). React Native has no IntersectionObserver, so visibility is sampled

@@ -8,7 +8,7 @@
 /**
  * CONTENT-REF SOURCE SPLIT.
  *
- * When a `<use>` references another element with `clone:{without:'translate'}` it wants
+ * When a `<use>` references another element with `clone:{omit:'translate'}` it wants
  * to render the source EXCLUDING the source's own translate (and along-path
  * positioning for auto-orient). The heavy form achieves this by materializing the
  * source as a wrapper tree
@@ -51,9 +51,9 @@ import type { ApplyContext } from '../shared/types';
 import { stripHash } from '../shared/util';
 
 
-/** Walks the tree and collects every id referenced by a `<use>` with `clone:{without:'translate'}`. */
+/** Walks the tree and collects every id referenced by a `<use>` with `clone:{omit:'translate'}`. */
 export function identifyContentRefTargets(node: PxNode, ctx: ApplyContext, allocator: (key: string) => string): void {
-    if (node.type === 'use' && node.effects?.clone?.without === 'translate') {
+    if (node.type === 'use' && node.effects?.clone?.omit === 'translate') {
         const sourceId = stripHash(node.effects.clone.source);  // `#id` canonical, bare legacy (E-5)
         if (typeof sourceId === 'string' && sourceId && !ctx.contentRefInnerIds.has(sourceId)) {
             ctx.contentRefInnerIds.set(sourceId, allocator(sourceId));

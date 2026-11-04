@@ -23,8 +23,9 @@ describe("SvgCssAnimationPlayer (Vue)", () => {
         expect(div.querySelector("svg.inner-svg")).not.toBeNull();
     });
 
-    it("plays with the default start='load' once the gate has measured", async () => {
+    it("plays with start='load' once the gate has measured (an absent block is manual since 1.17)", async () => {
         const { container } = render(SvgCssAnimationPlayer, {
+            props: { actionTriggers: { start: 'load' } },
             slots: { default: '<svg></svg>' },
         });
         // The visibility gate decides after mount — it has to measure before it can allow
@@ -36,6 +37,7 @@ describe("SvgCssAnimationPlayer (Vue)", () => {
 
     it("joins a fallthrough class correctly ('foo px-anim-enabled px-anim-playing')", async () => {
         const { container } = render(SvgCssAnimationPlayer, {
+            props: { actionTriggers: { start: 'load' } },
             attrs: { class: 'foo' },
             slots: { default: '<svg></svg>' },
         });
@@ -46,6 +48,7 @@ describe("SvgCssAnimationPlayer (Vue)", () => {
 
     it("has no 'undefined' prefix when no class is passed", async () => {
         const { container } = render(SvgCssAnimationPlayer, {
+            props: { actionTriggers: { start: 'load' } },
             slots: { default: '<svg></svg>' },
         });
         await nextTick();

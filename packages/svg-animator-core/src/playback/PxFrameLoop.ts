@@ -11,7 +11,7 @@ import { PxTimeTimelineSchema } from '../format/PxAnimatorTypes';
 import { camelCaseToKebabWordIfNeeded, clamp, PX_DEFAULT_DURATION_MS, PX_STYLE_ATTR_NAMES } from '../util/PxAnimatorUtil';
 import { calcAnimationValues, normalizeBindings } from '../animation/PxDefinitions';
 import { createMotionPathSegments } from '../materialize/PxMotionPath';
-import { clampSeekMs, isValidPlaybackRate, progressToTimeMs, PX_RATE_REJECTED, timeToProgress } from './PxPlaybackTime';
+import { clampSeekMs, isValidPlaybackRate, PX_RATE_REJECTED } from './PxPlaybackTime';
 
 
 /** The scheduling a host offers on `globalThis`. Core compiles without the DOM types (platform-neutral), so a
@@ -455,11 +455,13 @@ export function createAdapterSvgAnimationPlayer(
             cancelAnim();
             // onReset already called in cancelAnim
         },
-        "jumpToFinished": () => {
+        "jumpToEnd": () => {
             finishAnim(true);
         },
 
-        "setPlaybackRate": (rate: number) => {
+        "getPlaySpeed": (): number => playbackRate,
+
+        "setPlaySpeed": (rate: number) => {
             if (!isValidPlaybackRate(rate)) {
                 console.warn(PX_RATE_REJECTED);
                 return;
@@ -476,9 +478,9 @@ export function createAdapterSvgAnimationPlayer(
             if (playing) lastStartedTs = Date.now();
         },
 
-        "getCurrentTime": (): number | null => { return getAnimCurrentTime(); },
+        "getTotalTime": (): number | null => { return getAnimCurrentTime(); },
 
-        "setCurrentTime": (newTime: number) => {
+        "setTotalTime": (newTime: number) => {
             // One clamp rule for every engine (review §3).
             newTime = clampSeekMs(newTime, totalDuration as number);
 
@@ -488,12 +490,6 @@ export function createAdapterSvgAnimationPlayer(
             if (!Number.isFinite(totalDuration) || newTime < (totalDuration as number)) finishCalled = false;
             // render immediately to reflect the change
             renderFrame(getAnimCurrentTime());
-        },
-
-        "getCurrentProgress": (): number | null => timeToProgress(getAnimCurrentTime(), duration, iterations),
-
-        "setCurrentProgress": (progress: number) => {
-            api.setCurrentTime(progressToTimeMs(progress, duration, iterations));
         },
 
         "destroy": () => {

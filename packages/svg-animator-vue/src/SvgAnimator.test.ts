@@ -166,7 +166,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
     // -- 3. Imperative API (template ref / expose) ------------------------------
 
     describe("imperative API (template ref)", () => {
-        it("exposes play/pause/setCurrentTime/getCurrentTime/setPlaybackRate/isPlaying", () => {
+        it("exposes play/pause/setCurrentTime/getCurrentTime/setPlaySpeed/isPlaying", () => {
             const { api } = renderWithApi(getTestJson());
 
             expect(api.value).not.toBeNull();
@@ -190,13 +190,13 @@ describe("SvgAnimationPlayer (Vue)", () => {
             const ellipse = document.querySelector("ellipse");
             expect(ellipse?.getAttribute("transform")).toMatch("translate(200,150)");
 
-            // setPlaybackRate exists and is callable
-            expect(typeof handle.setPlaybackRate).toBe("function");
-            expect(() => handle.setPlaybackRate(2)).not.toThrow();
+            // setPlaySpeed exists and is callable
+            expect(typeof handle.setPlaySpeed).toBe("function");
+            expect(() => handle.setPlaySpeed(2)).not.toThrow();
 
-            // reset / jumpToFinished are also exposed
+            // reset / jumpToEnd are also exposed
             expect(typeof handle.reset).toBe("function");
-            expect(typeof handle.jumpToFinished).toBe("function");
+            expect(typeof handle.jumpToEnd).toBe("function");
         });
     });
 
@@ -246,7 +246,7 @@ describe("SvgAnimationPlayer (Vue)", () => {
             const handle = api.value;
             assert(handle, "template ref is set after render");
             handle.play();
-            handle.jumpToFinished();
+            handle.jumpToEnd();
             expect(spies.onFinish).toHaveBeenCalledTimes(1);
             expect(spies.onStop).not.toHaveBeenCalled();
         });

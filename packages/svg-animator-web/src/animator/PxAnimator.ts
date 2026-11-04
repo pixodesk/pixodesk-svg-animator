@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import { applyAnimatorConfig, toPxDocument, type PxDocumentInput, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxActionTriggersInput } from '@pixodesk/svg-animator-core';
+import { applyAnimatorConfig, toPxDocument, type PxDocumentJson, generateNewIds, getAnimatorConfig, isPxDocument, prepareDocument, PxDocStage, PxDiagnosticCode, PxDiagnosticKind, PxPlayState, type PxTimelineEngine, type PxDocument, type PxAnimationPlayerCallbacks, type PxPlaybackOverride, type PxPlaybackOverrideInput, type PxActionTriggersInput } from '@pixodesk/svg-animator-core';
 import { withoutTriggerDriver, applyPlaybackOverride, resolveTimelineEngine, type PxPlatformAdapter } from '@pixodesk/svg-animator-core/engine';
 import { reportDocumentProblems, validateDeprecatedTransformChannels } from '@pixodesk/svg-animator-core/internal';
 import { reportDocumentDiagnostics, createDiagnostics, isScrollTimeline, PX_ANIM_ATTR_NAME, PX_ANIM_SRC_ATTR_NAME } from '@pixodesk/svg-animator-core/internal';
@@ -178,9 +178,9 @@ export type PxAnimationPlayerOptions = PxPlaybackOverride & PxAnimationPlayerCal
     /** URL to fetch the animation document from. Provide either this or `doc`, not both. */
     src?: string;
     /** The animation document, inline (see docs/format/README.md) — typed as a JSON import
-     *  produces it ({@link PxDocumentInput}), so `import animation from './animation.json'`
+     *  produces it ({@link PxDocumentJson}), so `import animation from './animation.json'`
      *  passes with no cast. Provide either this or `src`, not both. */
-    doc?: PxDocumentInput;
+    doc?: PxDocumentJson;
     /** CSS selector or element to render the SVG into. */
     container?: string | Element;
 };
@@ -257,7 +257,10 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
     let destroyed = false;
 
     const enqueue = (call: (api: PxAnimationPlayerApi) => void) => {
-        if (animator) {
+        if (destroyed) {
+            // a call on a destroyed player is a no-op, said once per call — `getPlayState()` reads `destroyed`
+            diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.callAfterDestroy, call.name || 'call');
+        } else if (animator) {
             call(animator);
         } else if (pending) {
             pending.push(call);
@@ -302,14 +305,24 @@ export function createSvgAnimationPlayer(options: PxAnimationPlayerOptions): PxA
         "pause": () => { enqueue(api => api.pause()); },
         "stop": () => { enqueue(api => api.stop()); },
         "reset": () => { enqueue(api => api.reset()); },
-        "jumpToFinished": () => { enqueue(api => api.jumpToFinished()); },
+        "jumpToEnd": () => { enqueue(api => api.jumpToEnd()); },
         "playOnce": () => { enqueue(api => api.playOnce()); },
+        "getPlayState": () => destroyed ? PxPlayState.destroyed : (animator ? animator.getPlayState() : PxPlayState.idle),
+        "getPlaySpeed": () => animator ? animator.getPlaySpeed() : 1,
+        "setPlaySpeed": (speed: number) => { enqueue(api => api.setPlaySpeed(speed)); },
+        "getPlayDuration": () => animator ? animator.getPlayDuration() : null,
+        "setPlayDuration": (ms: number) => { enqueue(api => api.setPlayDuration(ms)); },
+        "getTotalPlayDuration": () => animator ? animator.getTotalPlayDuration() : null,
+        "getCurrentPlayTime": () => animator ? animator.getCurrentPlayTime() : null,
         "getDuration": () => animator ? animator.getDuration() : null,
-        "setPlaybackRate": (rate: number) => { enqueue(api => api.setPlaybackRate(rate)); },
+        "getTotalDuration": () => animator ? animator.getTotalDuration() : null,
         "getCurrentTime": () => animator ? animator.getCurrentTime() : null,
         "setCurrentTime": (time: number) => { enqueue(api => api.setCurrentTime(time)); },
         "getCurrentProgress": () => animator ? animator.getCurrentProgress() : null,
         "setCurrentProgress": (progress: number) => { enqueue(api => api.setCurrentProgress(progress)); },
+        "getCurrentIteration": () => animator ? animator.getCurrentIteration() : 0,
+        "getTotalTime": () => animator ? animator.getTotalTime() : null,
+        "setTotalTime": (time: number) => { enqueue(api => api.setTotalTime(time)); },
         "destroy": () => {
             destroyed = true;
             pending = null; // drop any queued calls

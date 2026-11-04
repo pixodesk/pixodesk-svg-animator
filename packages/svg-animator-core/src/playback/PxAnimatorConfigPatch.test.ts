@@ -17,7 +17,7 @@ const timeBase = untyped<PxAnimatorConfig>({
     timeline: {
         outTime: 1000,
         iterations: 2,
-        showWhenStopped: 'firstFrame',
+        whenIdle: 'firstFrame',
         iterationDirection: 'normal',
         actionTriggers: { start: 'load' },
         actions: { outOfView: { behavior: 'pause' } },
@@ -66,7 +66,7 @@ describe('mergeAnimatorConfig — RFC 7386 base semantics', () => {
     it('merges objects per level, leaving untouched siblings alone', () => {
         const { config } = merge(timeBase, { timeline: { outTime: 5000 } });
         assert(config, 'the merge yields a config');
-        expect(config.timeline).toMatchObject({ outTime: 5000, iterations: 2, showWhenStopped: 'firstFrame' });
+        expect(config.timeline).toMatchObject({ outTime: 5000, iterations: 2, whenIdle: 'firstFrame' });
         expect(config && 'frameRate' in config ? config.frameRate : undefined).toBe(60);
     });
 
@@ -82,8 +82,8 @@ describe('mergeAnimatorConfig — RFC 7386 base semantics', () => {
     });
 
     it('RULE 7: null DELETES a key, restoring the default that absence means', () => {
-        const { config } = merge(timeBase, { timeline: { showWhenStopped: null } });
-        expect('showWhenStopped' in timelineOf(config)).toBe(false);
+        const { config } = merge(timeBase, { timeline: { whenIdle: null } });
+        expect('whenIdle' in timelineOf(config)).toBe(false);
     });
 
     it('an empty patch returns the base by identity — no needless copy', () => {
@@ -130,7 +130,7 @@ describe('mergeAnimatorConfig — the timeline union', () => {
         const tl = timelineOf(config);
         expect(tl).toEqual({ outTime: 1000, iterations: 2, type: 'view', subject: 'parent' });
         expect('actionTriggers' in tl).toBe(false);   // the clock keys do not strand on a scroll timeline
-        expect('showWhenStopped' in tl).toBe(false);
+        expect('whenIdle' in tl).toBe(false);
         expect('actions' in tl).toBe(false);   // the gate's outOfView is a clock key too
     });
 

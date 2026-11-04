@@ -35,13 +35,13 @@ export const CASES = [
 
   // -- React ------------------------------------------------------------------
   { group: 'react', id: 'imperative',      title: 'Imperative API (playerRef)', anchor: 'imperative-api-playerref',
-    summary: 'play / pause / reset / jumpToFinished through a ref.' },
+    summary: 'play / pause / reset / jumpToEnd through a ref.' },
   { group: 'react', id: 'play-using-action-triggers', title: 'Play using action triggers', anchor: 'autoplay',
     summary: 'The component honors the document\'s own trigger.' },
   { group: 'react', id: 'controlled-time', title: 'Controlled time (showAtTime)', anchor: 'controlled-time-playcurrentprogress--playcurrenttime',
     summary: 'A slider drives showAtTime (ms); the component renders that exact frame.' },
-  { group: 'react', id: 'declarative',     title: 'Declarative play / pause', anchor: 'declarative-play--pause',
-    summary: 'Boolean play and pause props.' },
+  { group: 'react', id: 'declarative',     title: 'Declarative playback — playWhile / pauseWhile', anchor: 'declarative-playback--playwhile-pausewhile-playstate',
+    summary: 'Two levels: playWhile plays while true, pauseWhile freezes on top (or one playState word).' },
   { group: 'react', id: 'css-svgr',        title: 'CSS-flavor SVG — SvgCssAnimationPlayer + SVGR', anchor: 'css-flavor-svgs--svgcssanimationplayer',
     summary: 'A pre-rendered SVG imported as a component, with a click trigger added by the wrapper.' },
 
@@ -50,10 +50,10 @@ export const CASES = [
     summary: 'The component honors the document\'s own trigger.' },
   { group: 'vue', id: 'controlled-time', title: 'Controlled time (showAtTime)', anchor: 'controlled-time-playcurrentprogress--playcurrenttime',
     summary: 'A slider drives showAtTime (ms); the component renders that exact frame.' },
-  { group: 'vue', id: 'declarative',     title: 'Declarative play / pause', anchor: 'declarative-play--pause',
-    summary: 'Boolean play and pause props.' },
+  { group: 'vue', id: 'declarative',     title: 'Declarative playback — playWhile / pauseWhile', anchor: 'declarative-playback--playwhile-pausewhile-playstate',
+    summary: 'Two levels: playWhile plays while true, pauseWhile freezes on top (or one playState word).' },
   { group: 'vue', id: 'imperative',      title: 'Imperative API (template ref)', anchor: 'imperative-api-template-ref',
-    summary: 'play / pause / reset / jumpToFinished through a template ref.' },
+    summary: 'play / pause / reset / jumpToEnd through a template ref.' },
   { group: 'vue', id: 'css-loader',      title: 'CSS-flavor SVG — SvgCssAnimationPlayer + vite-svg-loader', anchor: 'css-flavor-svgs--svgcssanimationplayer',
     summary: 'A pre-rendered SVG imported as a component, with a click trigger added by the wrapper.' },
 

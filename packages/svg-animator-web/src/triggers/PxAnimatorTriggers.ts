@@ -90,7 +90,7 @@ export function setupAnimationTriggers(
     const listed = (event: PxTriggerEvent): boolean => triggerListsEvent(trigger, event);
 
     /** The state rule (core's `triggerActionFor`): the player's state picks the list an event is read
-     *  from — stopped · playing · paused · finished. `direct` is a pointer interaction — it never waits out the gate. */
+     *  from — idle · playing · paused · finished. `direct` is a pointer interaction — it never waits out the gate. */
     const fire = (event: PxTriggerEvent, direct: boolean): void => {
         switch (triggerActionFor(trigger, executor.state(), event)) {
             case PxTriggerAction.play: gate.requestStart(direct); break;

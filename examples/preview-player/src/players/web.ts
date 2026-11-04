@@ -24,11 +24,11 @@ export function createWebPlayer(
     play: () => api.play(),
     pause: () => api.pause(),
     reset: () => api.reset(),
-    finish: () => api.jumpToFinished(),
+    finish: () => api.jumpToEnd(),
     isPlaying: () => api.isPlaying(),
     getCurrentTime: () => api.getCurrentTime(),
     setCurrentTime: (ms) => api.setCurrentTime(ms),
-    setPlaybackRate: (rate) => api.setPlaybackRate(rate),
+    setPlaySpeed: (speed) => api.setPlaySpeed(speed),
     destroy: () => api.destroy(),
   };
 }

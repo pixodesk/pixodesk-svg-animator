@@ -10,11 +10,12 @@ const $ = (id: string) => document.getElementById(id)!;
 $('play').onclick = () => animator.play();
 $('pause').onclick = () => animator.pause();
 $('reset').onclick = () => animator.reset();
-$('finish').onclick = () => animator.jumpToFinished();
-$('reverse').onclick = () => { animator.setPlaybackRate(-1); animator.play(); };
-$('normal').onclick = () => { animator.setPlaybackRate(1); animator.play(); };
+$('finish').onclick = () => animator.jumpToEnd();
+$('reverse').onclick = () => { animator.setPlaySpeed(-1); animator.play(); };
+$('normal').onclick = () => { animator.setPlaySpeed(1); animator.play(); };
 
-// Slider: pause, then jump to the slider's time.
+// Slider: pause, then jump to the slider's time — inside the current iteration (0..getDuration()).
+// A slider over the WHOLE run of a finite file would use setTotalTime() with getTotalDuration() as max.
 const slider = $('time-slider') as HTMLInputElement;
 slider.oninput = () => {
   animator.pause();

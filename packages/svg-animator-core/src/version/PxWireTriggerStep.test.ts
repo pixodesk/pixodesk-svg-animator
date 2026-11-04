@@ -197,7 +197,7 @@ describe('wire step 1.9 → 1.10 — triggers and actions (playback-layers.md, l
         expect(up({ trigger: {} })).toEqual({ outTime: 1000, actionTriggers: {} });
     });
 
-    it('the play keys become the actions block; resume → continue, jumpToEnd → jumpToFinished', () => {
+    it('the play keys become the actions block; resume → continue, jumpToEnd → jumpToFinished (the 1.10 word; 1.18 turns it back)', () => {
         expect(up({ playStartAction: 'resume', playStopAction: 'rewind', completeIterationOnPlayStop: true, playFinishAction: 'reset', outOfViewAction: 'continue' }))
             .toEqual({ outTime: 1000, actions: {
                 start: 'continue', stop: { do: 'rewind', completeIteration: true },
@@ -330,7 +330,7 @@ describe('wire step 1.14 → 1.15 — `timeline.beforeStart` → `showWhenStoppe
     it('a 1.9 document converts through every step to the current version: the whole chain in one read', () => {
         const old = { type: 'svg', animator: { version: '1.9.0', timeline: { outTime: 1000, trigger: { playStart: 'click', playStop: 'click' }, playStopAction: 'rewind', outOfViewAction: 'reset', showFirstFrameBeforePlayStart: true } }, children: [] };
         expect(timelineOf(convertWireDocument(old).doc)).toEqual({
-            outTime: 1000, actionTriggers: { start: 'click', stop: 'click' }, actions: { stop: 'rewind', outOfView: 'reset' }, showWhenStopped: 'firstFrame',
+            outTime: 1000, actionTriggers: { start: 'click', stop: 'click' }, actions: { stop: 'rewind', outOfView: 'reset' }, whenIdle: 'firstFrame',
         });
     });
 

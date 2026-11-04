@@ -39,7 +39,7 @@ import { CSSProperties, FC, ReactNode, useEffect, useRef, useState } from "react
  * ACCEPTED LIMITS of a class toggle (the editor shows them next to the choices):
  * - the start transition is always `continue` — a class cannot restart keyframes or jump to their end
  * - the stop transition is always `reset` — a class cannot play keyframes backwards
- * - completing the iteration, `showWhenStopped` and the finish transition are the file's own CSS
+ * - completing the iteration, `whenIdle` and the finish transition are the file's own CSS
  *
  * @param children  - The SVGR-imported SVG component to animate.
  * @param actionTriggers - WHEN: the file's own `timeline.actionTriggers` block — `start`, `stop`, `pause`, `resume`,
@@ -68,7 +68,7 @@ const SvgCssAnimationPlayer: FC<{
     const gateConfig = resolveGate({ actions, inViewThreshold, inViewDebounce });
     const playsOnLoad = resolved.start.includes(PxTriggerEvent.load);
 
-    const [state, setState] = useState<PxPlayState>(PxPlayState.stopped);
+    const [state, setState] = useState<PxPlayState>(PxPlayState.idle);
 
     const ref = useRef<HTMLDivElement>(null);
     // The gate is built once per configuration and asks for the CURRENT state, which a closure
@@ -85,7 +85,7 @@ const SvgCssAnimationPlayer: FC<{
             start: () => setState(PxPlayState.playing),
             hold: () => setState(PxPlayState.paused),
             release: () => setState(PxPlayState.playing),
-            reset: () => setState(PxPlayState.stopped),
+            reset: () => setState(PxPlayState.idle),
         });
         gateRef.current = gate;
         // Only `load` is held by the gate; a hover or a click is aimed at something already seen.
@@ -105,7 +105,7 @@ const SvgCssAnimationPlayer: FC<{
                 else setState(PxPlayState.playing);
                 break;
             case PxTriggerAction.pause: setState(PxPlayState.paused); break;
-            case PxTriggerAction.stop: setState(PxPlayState.stopped); break;
+            case PxTriggerAction.stop: setState(PxPlayState.idle); break;
         }
     };
 

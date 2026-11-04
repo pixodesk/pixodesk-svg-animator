@@ -184,7 +184,7 @@ describe('animated <use> flattening (waapi materialization)', () => {
                     animate: { cy: { keyframes: [{ time: 0, value: 40 }, { time: 2000, value: 160 }] } },
                 }] }] },
                 { type: 'use', id: 'u1', href: '#sym' },
-                { type: 'use', id: 'u2', href: '#sym', x: 80, effects: { clone: { source: '#sym', retime: { start: -600 } } } },
+                { type: 'use', id: 'u2', href: '#sym', x: 80, effects: { clone: { source: '#sym', retime: { offset: -600 } } } },
             ],
         };
         const materialized = generateNewIds(materializeAllInTree(doc, PxTimelineEngine.native));

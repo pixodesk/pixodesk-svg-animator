@@ -871,7 +871,7 @@
         "clone": {
           "type": "object",
           "properties": {
-            "without": {
+            "omit": {
               "enum": [
                 "translate"
               ]
@@ -882,24 +882,17 @@
             "retime": {
               "type": "object",
               "properties": {
-                "start": {
+                "offset": {
                   "type": "number"
                 },
                 "stretch": {
                   "type": "number"
                 },
-                "timeCrop": {
-                  "type": "array",
-                  "prefixItems": [
-                    {
-                      "type": "number"
-                    },
-                    {
-                      "type": "number"
-                    }
-                  ],
-                  "minItems": 2,
-                  "maxItems": 2
+                "inTime": {
+                  "type": "number"
+                },
+                "outTime": {
+                  "type": "number"
                 }
               },
               "additionalProperties": false
@@ -2294,7 +2287,7 @@
             "outTime": {
               "type": "number"
             },
-            "playDuration": {
+            "playSpeed": {
               "type": "number"
             },
             "actionTriggers": {
@@ -2415,7 +2408,7 @@
                       "enum": [
                         "continue",
                         "restart",
-                        "jumpToFinished"
+                        "jumpToEnd"
                       ]
                     },
                     {
@@ -2425,7 +2418,7 @@
                           "enum": [
                             "continue",
                             "restart",
-                            "jumpToFinished"
+                            "jumpToEnd"
                           ]
                         }
                       },
@@ -2509,7 +2502,7 @@
               },
               "additionalProperties": false
             },
-            "showWhenStopped": {
+            "whenIdle": {
               "enum": [
                 "static",
                 "firstFrame"

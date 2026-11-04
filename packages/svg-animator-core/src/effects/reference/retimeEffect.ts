@@ -47,11 +47,21 @@ const RETIME_MATERIALIZATION_MODE_INLINE_G = false;
 interface Retime { start: number; stretch: number; }
 
 function asRetime(r: PxRetimeEffect): Retime {
-    return { start: r.start ?? 0, stretch: r.stretch ?? 1 };
+    return { start: r.offset ?? 0, stretch: r.stretch ?? 1 };
+}
+
+/** The visibility window `[inTime, outTime]` when the retime names both; one alone is reported and ignored. */
+function cropWindowOf(r: PxRetimeEffect, ctx: ApplyContext): [number, number] | undefined {
+    if (r.inTime === undefined && r.outTime === undefined) return undefined;
+    if (r.inTime === undefined || r.outTime === undefined) {
+        ctx.warnings.push('retime: inTime and outTime are a pair — one alone is ignored');
+        return undefined;
+    }
+    return [r.inTime, r.outTime];
 }
 
 /**
- * `timeCrop: [start, end]` (ms, DOCUMENT time) — a VISIBILITY WINDOW on this
+ * `inTime` / `outTime` (ms, DOCUMENT time) — a VISIBILITY WINDOW on this
  * instance: the `<use>` shows only inside it. Independent of the retime remap,
  * which shifts/stretches the target's own timeline; the crop is about when this
  * instance exists on stage.
@@ -74,7 +84,7 @@ const CROP_EDGE_MS = 1;
 function applyTimeCrop(useNode: PxNode, crop: [number, number], ctx: ApplyContext): void {
     const [start, end] = crop;
     if (!Number.isFinite(start) || !Number.isFinite(end)) {
-        ctx.warnings.push('retime: timeCrop is not a pair of finite numbers — ignored');
+        ctx.warnings.push('retime: inTime / outTime are not finite numbers — ignored');
         return;
     }
 
@@ -173,7 +183,7 @@ export function applyAllRetimeEffects(root: PxNode, ctx: ApplyContext): void {
         // (buildChainClone reads `target`'s clone.retime). Deleting it here makes
         // that read return undefined → no double-count. Moving cleanup to a single
         // end-of-pipeline strip regresses nested retime to +750 instead of +500.
-        const crop = retime.timeCrop;
+        const crop = cropWindowOf(retime, ctx);
         clearCloneRetime(useNode);
         materializeRetime(useNode, asRetime(retime), ctx);
         // AFTER materialization: `materializeRetime` may rewrite `useNode` in place

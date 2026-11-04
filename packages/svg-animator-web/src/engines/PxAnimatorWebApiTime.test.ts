@@ -7,7 +7,7 @@
 //
 // This engine was the odd one out: `setCurrentTime` passed the value straight to
 // `Animation.currentTime`, which accepts anything and would park the playhead past the end,
-// and `setPlaybackRate(0)` was accepted where the other two engines rejected it.
+// and `setPlaySpeed(0)` was accepted where the other two engines rejected it.
 //
 // jsdom has no Web Animations API, so the two classes the engine constructs are stubbed with
 // the bare minimum — the same approach as PxAnimatorWebApiTrigger.test.ts.
@@ -82,25 +82,32 @@ describe('WAAPI engine — the shared time contract', () => {
         expect(api.getCurrentTime()).toBe(0);
     });
 
-    it('clamps to duration × iterations, not to one iteration', () => {
+    it('the run axis clamps to duration × iterations; the plain axis stays inside the pass', () => {
         const api = createSvgAnimationPlayer({ doc: doc({ iterations: 3 }), container: '#stage' });
 
-        api.setCurrentTime(99_999);
-        expect(api.getCurrentTime()).toBe(DUR * 3);
+        api.setTotalTime(99_999);
+        expect(api.getTotalTime()).toBe(DUR * 3);
+        expect(api.getTotalDuration()).toBe(DUR * 3);
+        expect(api.getCurrentIteration()).toBe(2);
+        expect(api.getCurrentTime()).toBe(DUR);          // the last pass's end
+        api.setCurrentTime(99_999);                      // a plain seek stays in the current pass
+        expect(api.getTotalTime()).toBe(DUR * 3);
     });
 
-    it('leaves an endless timeline unbounded — there is no end to clamp to', () => {
+    it('leaves an endless run unbounded — there is no end to clamp to; its total duration is null', () => {
         const api = createSvgAnimationPlayer({ doc: doc({ iterations: 'infinite' }), container: '#stage' });
 
-        api.setCurrentTime(DUR * 10);
-        expect(api.getCurrentTime()).toBe(DUR * 10);
+        api.setTotalTime(DUR * 10);
+        expect(api.getTotalTime()).toBe(DUR * 10);
+        expect(api.getTotalDuration()).toBeNull();
+        expect(api.getTotalPlayDuration()).toBeNull();
     });
 
     it('rejects a rate of 0 with a warning and leaves the rate alone', () => {
         const warn = vi.spyOn(console, 'warn').mockImplementation(() => { });
         const api = createSvgAnimationPlayer({ doc: doc(), container: '#stage' });
 
-        api.setPlaybackRate(0);
+        api.setPlaySpeed(0);
 
         expect(warn).toHaveBeenCalled();
         expect(created.every(a => a.playbackRate === 1)).toBe(true);
@@ -110,20 +117,38 @@ describe('WAAPI engine — the shared time contract', () => {
     it('still accepts ordinary rates, forwards and backwards', () => {
         const api = createSvgAnimationPlayer({ doc: doc(), container: '#stage' });
 
-        api.setPlaybackRate(2);
+        api.setPlaySpeed(2);
         expect(created.every(a => a.playbackRate === 2)).toBe(true);
 
-        api.setPlaybackRate(-1);
+        api.setPlaySpeed(-1);
         expect(created.every(a => a.playbackRate === -1)).toBe(true);
     });
 
-    it('reports progress as 0–1 of the whole run', () => {
+    it('reports progress as 0–1 of the ITERATION; the run has its own axis', () => {
         const api = createSvgAnimationPlayer({ doc: doc({ iterations: 2 }), container: '#stage' });
 
-        api.setCurrentTime(DUR);            // end of iteration 1 = half the run
+        api.setTotalTime(DUR);              // end of iteration 1 = half the run
+        expect(api.getCurrentProgress()).toBe(1);
+        expect(api.getCurrentIteration()).toBe(0);
+        api.setTotalTime(DUR + DUR / 2);    // halfway through the second pass
+        expect(api.getCurrentIteration()).toBe(1);
         expect(api.getCurrentProgress()).toBeCloseTo(0.5, 5);
+        expect(api.getCurrentTime()).toBeCloseTo(DUR / 2, 5);
 
-        api.setCurrentProgress(1);
-        expect(api.getCurrentTime()).toBe(DUR * 2);
+        api.setCurrentProgress(1);          // the end of the CURRENT pass
+        expect(api.getTotalTime()).toBe(DUR * 2);
+        expect(api.getCurrentTime()).toBe(DUR);
+    });
+
+    it('the play family is the position and the lengths divided by the speed', () => {
+        const api = createSvgAnimationPlayer({ doc: doc({ iterations: 2 }), container: '#stage' });
+        api.setTotalTime(DUR / 2);
+        api.setPlaySpeed(2);
+        expect(api.getPlaySpeed()).toBe(2);
+        expect(api.getPlayDuration()).toBe(DUR / 2);
+        expect(api.getTotalPlayDuration()).toBe(DUR);
+        expect(api.getCurrentPlayTime()).toBeCloseTo(DUR / 4, 5);
+        api.setPlayDuration(DUR * 4);        // one pass over four times its length = a quarter speed
+        expect(api.getPlaySpeed()).toBe(0.25);
     });
 });

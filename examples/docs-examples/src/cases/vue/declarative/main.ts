@@ -4,15 +4,16 @@ import animation from '../../../fixtures/animation.json';
 
 createApp({
   setup() {
-    const play = ref(false);
-    const pause = ref(false);
+    const playing = ref(false);
+    const paused = ref(false);
     return () => [
       h('div', { class: 'controls' }, [
-        h('button', { id: 'play', onClick: () => { play.value = !play.value; } }, `play = ${play.value}`),
-        h('button', { id: 'pause', onClick: () => { pause.value = !pause.value; } }, `pause = ${pause.value}`),
+        h('button', { id: 'play', onClick: () => { playing.value = !playing.value; } }, `playWhile = ${playing.value}`),
+        h('button', { id: 'pause', onClick: () => { paused.value = !paused.value; } }, `pauseWhile = ${paused.value}`),
       ]),
       h('div', { class: 'stage' }, [
-        h(SvgAnimationPlayer as any, { doc: animation, play: play.value, pause: pause.value }),
+        // two LEVELS: plays while `playWhile` holds, frozen while `pauseWhile` holds — or one word: playState
+        h(SvgAnimationPlayer as any, { doc: animation, playWhile: playing.value, pauseWhile: paused.value }),
       ]),
     ];
   },

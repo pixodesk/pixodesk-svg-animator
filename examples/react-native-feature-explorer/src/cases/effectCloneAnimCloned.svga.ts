@@ -272,7 +272,7 @@ export const effectCloneAnimCloned: SvgaCaseJson = {
             "transform": "translate(110,40.9547)",
             "effects": {
                 "clone": {
-                    "without": "translate",
+                    "omit": "translate",
                     "source": "_px_38bqgqqp"
                 }
             }
@@ -288,7 +288,7 @@ export const effectCloneAnimCloned: SvgaCaseJson = {
             "transform": "translate(95,60.5664)",
             "effects": {
                 "clone": {
-                    "without": "translate",
+                    "omit": "translate",
                     "source": "_px_38nb5h1q"
                 }
             }
@@ -304,7 +304,7 @@ export const effectCloneAnimCloned: SvgaCaseJson = {
             "transform": "translate(110,99.1461)",
             "effects": {
                 "clone": {
-                    "without": "translate",
+                    "omit": "translate",
                     "source": "_px_38nb5h1o"
                 }
             }
@@ -320,7 +320,7 @@ export const effectCloneAnimCloned: SvgaCaseJson = {
             "transform": "translate(90,138.0706)",
             "effects": {
                 "clone": {
-                    "without": "translate",
+                    "omit": "translate",
                     "source": "_px_38nb5h1m"
                 }
             }
@@ -336,7 +336,7 @@ export const effectCloneAnimCloned: SvgaCaseJson = {
             "transform": "translate(105,160.9547)",
             "effects": {
                 "clone": {
-                    "without": "translate",
+                    "omit": "translate",
                     "source": "_px_38nb5h1k"
                 }
             }

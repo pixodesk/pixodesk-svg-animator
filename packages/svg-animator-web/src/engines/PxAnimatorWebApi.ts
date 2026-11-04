@@ -5,7 +5,7 @@
  *---------------------------------------------------------------------------------------*/
 
 import { getAnimatorConfig, PxTimelineEngine, type PxDocument, type PxEngineCallbacks, type PxAnimatorRuntimeConfig, type PxCompiledAnimation, type PxCompiledKeyframe, PxDiagnosticCode, PxDiagnosticKind } from '@pixodesk/svg-animator-core';
-import { normalizeBindings, PxValueKind, type PxRuntimeAnimation, clampSeekMs, isValidPlaybackRate, progressToTimeMs, seekCeilingMs, timeToProgress } from '@pixodesk/svg-animator-core/engine';
+import { normalizeBindings, PxValueKind, type PxRuntimeAnimation, clampSeekMs, isValidPlaybackRate, seekCeilingMs } from '@pixodesk/svg-animator-core/engine';
 import { cssPlaybackDirection, PX_DEFAULT_ITERATIONS, mapChannelKeyframes, type PxChannelLerp } from '@pixodesk/svg-animator-core/internal';
 import { bezierToSvgPath, camelCaseToKebabWordIfNeeded, clamp, composeTransformParts, cubicBezier, kebabToCamelCaseWord, splitEasing, toRGBA, createDiagnostics } from '@pixodesk/svg-animator-core/internal';
 import { getSelector } from './PxAnimatorFrameLoop';
@@ -370,7 +370,7 @@ export function createWebApiAnimator(
             animations.forEach(a => a.cancel());
             callbacks?.onReset?.();
         },
-        "jumpToFinished": () => {
+        "jumpToEnd": () => {
             for (const a of animations) {
                 try {
                     if (a.effect?.getTiming().iterations === Infinity) {
@@ -388,21 +388,21 @@ export function createWebApiAnimator(
             // handler wired at construction time.
         },
 
-        "setPlaybackRate": (rate: number) => {
+        "getPlaySpeed": (): number => animations[0]?.playbackRate ?? 1,
+        "setPlaySpeed": (rate: number) => {
             // WAAPI itself accepts 0 and silently freezes; the other two engines reject it.
             // One answer everywhere (review §3) — `pause()` is how you stop.
             if (!isValidPlaybackRate(rate)) {
                 diag.warn(PxDiagnosticKind.usage, PxDiagnosticCode.rateRejected);
-                return api;
+                return;
             }
             animations.forEach(a => (a.playbackRate = rate));
-            return api;
         },
-        "getCurrentTime": (): number | null => {
+        "getTotalTime": (): number | null => {
             const res = animations[0]?.currentTime ?? null;
             return res !== null ? +res : null;
         },
-        "setCurrentTime": (time: number) => {
+        "setTotalTime": (time: number) => {
             // Clamp like every other engine (review §3). A duration is not always declared,
             // and a ceiling of 0 would pin every seek to the first frame — so clamp only when
             // the timeline length is actually known, and otherwise just floor at 0.
@@ -412,15 +412,6 @@ export function createWebApiAnimator(
             animations.forEach(a => {
                 a.currentTime = seek;
             });
-        },
-
-        "getCurrentProgress": (): number | null => {
-            const t = api.getCurrentTime();
-            return t === null ? null : timeToProgress(t, config.duration ?? 0, iterations ?? PX_DEFAULT_ITERATIONS);
-        },
-
-        "setCurrentProgress": (progress: number) => {
-            api.setCurrentTime(progressToTimeMs(progress, config.duration ?? 0, iterations ?? PX_DEFAULT_ITERATIONS));
         },
 
         "destroy": () => {

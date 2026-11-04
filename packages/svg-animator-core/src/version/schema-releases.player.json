@@ -308,5 +308,66 @@
    "animator.timeline|time.beforeStart"
   ],
   "note": "`timeline.beforeStart` becomes `timeline.showWhenStopped` (dev-docs/reviews/schema-and-props-review-fix-plan.md §3.1): the key governs the whole STOPPED state — after a reset or a rewind too, not only before the first start — and takes the `show…` verb of the components' `showAtProgress` / `showAtTime`. The values `static` / `firstFrame` are unchanged."
+ },
+ {
+  "version": "1.16",
+  "date": "2026-11-04",
+  "added": [
+   "animator.timeline|time.playSpeed"
+  ],
+  "removed": [
+   "animator.timeline|time.playDuration"
+  ],
+  "note": "`timeline.playDuration` (wall ms of one pass) becomes `timeline.playSpeed` (a factor, 1 = content ms pass as real ms; dev-docs/reviews/schema-and-props--manual-review.md A2): every player spells speed as a factor, a factor needs no knowledge of the content's length, and with it no key on the API is wall time. `playSpeed = (outTime − inTime) / playDuration`; a file without `outTime` gets it written (the derived max keyframe time) so the conversion is exact."
+ },
+ {
+  "version": "1.17",
+  "date": "2026-11-04",
+  "added": [],
+  "removed": [],
+  "note": "An absent `actionTriggers` block no longer means `start: 'load'` — absent and `{}` are the same, nothing starts it (dev-docs/reviews/schema-and-props--manual-review.md B2): a default nobody wrote is a guess, and two spellings with two meanings trapped merge patches and hand edits. A time timeline without the block gets `{ start: 'load' }` written, so every file keeps playing as it did."
+ },
+ {
+  "version": "1.18",
+  "date": "2026-11-04",
+  "added": [],
+  "removed": [],
+  "note": "`actions.start: 'jumpToFinished'` becomes `'jumpToEnd'` (dev-docs/reviews/schema-and-props--manual-review.md A4): its siblings name positions and motion (`restart`, `rewind`, `reset`), while `finished` is a state."
+ },
+ {
+  "version": "1.19",
+  "date": "2026-11-04",
+  "added": [
+   "animator.timeline|time.whenIdle"
+  ],
+  "removed": [
+   "animator.timeline|time.showWhenStopped"
+  ],
+  "note": "`timeline.showWhenStopped` becomes `timeline.whenIdle` (dev-docs/reviews/schema-and-props--manual-review.md B3): `idle` is WAAPI's word for the state it governs and carries no VCR reading — \"stopped\" read as played-then-stopped. The values `static` / `firstFrame` are unchanged."
+ },
+ {
+  "version": "1.20",
+  "date": "2026-11-04",
+  "added": [
+   "effects.clone.omit"
+  ],
+  "removed": [
+   "effects.clone.without"
+  ],
+  "note": "`effects.clone.without` becomes `effects.clone.omit` (dev-docs/reviews/schema-and-props--manual-review.md B4): TypeScript's `Omit<T, K>` and lodash's `_.omit` mean exactly this, a copy without these keys. The value `translate` is unchanged."
+ },
+ {
+  "version": "1.21",
+  "date": "2026-11-04",
+  "added": [
+   "effects.clone.retime.inTime",
+   "effects.clone.retime.offset",
+   "effects.clone.retime.outTime"
+  ],
+  "removed": [
+   "effects.clone.retime.start",
+   "effects.clone.retime.timeCrop"
+  ],
+  "note": "`effects.clone.retime` spells its window like the timeline does (dev-docs/reviews/schema-and-props--manual-review.md B5): `timeCrop: [a, b]` becomes `inTime: a, outTime: b` (Lottie's own `ip` / `op`; tuples are for vectors and points, a window is two named points everywhere else), and `start` becomes `offset` (`start` is a trigger list and an action elsewhere). `stretch` is unchanged."
  }
 ]

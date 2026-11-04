@@ -94,12 +94,14 @@ Every package ships types, and `doc` accepts a `.json` import as-is:
 
 ```ts
 import animation from './animation.json';
-// <SvgAnimationPlayer doc={animation} /> — no cast: `doc` is typed `PxDocumentInput`,
+// <SvgAnimationPlayer doc={animation} /> — no cast: `doc` is typed `PxDocumentJson`,
 // the shape a JSON import produces; values are validated at runtime.
 ```
 
 Importing a `.json` file at all requires `"resolveJsonModule": true` in your `tsconfig.json`,
-under `compilerOptions`. Every package also exports the strict `PxDocument` — the
+under `compilerOptions`. `PxDocumentJson` names what the type is — the shape a JSON import has,
+literals widened to `string`, tuples to arrays (`PxDocumentInput` until 1.21, which said nothing
+about JSON). Every package also exports the strict `PxDocument` — the
 type to use when you BUILD a document in code (literal unions, autocomplete) — and
 `toPxDocument(animation)`, which names the one narrowing from a JSON import to that
 strict type when an advanced API asks for it (values are validated at runtime); import it
@@ -112,6 +114,8 @@ Other types you may want by name:
 - `PxAnimationPlayerHandle` — the handle the components give you through `playerRef` (every framework
   package exports this one name).
 - `PxPlaybackOverride` — the playback override every player accepts.
+- `PxPlayStateRequest` — what the components' `playState` prop accepts: `'idle' | 'playing' | 'paused'`,
+  the `PxPlayState` values a host can ask for (`finished` and `destroyed` are reached by the player alone).
 
 Hearing back from it: `PxAnimationPlayerCallbacks` is the single callback shape — the playback lifecycle
 plus `onWarn` / `onError` — and `PxDiagnosticsConfig` is the diagnostics half of it on its own. A

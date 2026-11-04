@@ -55,7 +55,7 @@ export interface PxAnimatorConfigMergeResult {
 
 /** Keys that live only on the flat RUNTIME view and have no slot on the wire. */
 const FLAT_ONLY_KEYS = [
-    'timelineSource', 'scroll', 'actionTriggers', 'actions', 'showWhenStopped', 'delay', 'iterations',
+    'timelineSource', 'scroll', 'actionTriggers', 'actions', 'whenIdle', 'delay', 'iterations',
     'direction', 'fill', 'resetOnFinish', 'duration', 'mode', 'frameRate',
 ];
 
@@ -189,7 +189,7 @@ export interface PxPlaybackOverride {
      * Per-instance adjustment of the document's `animator.timeline` — its shape minus `actionTriggers` and
      * `actions` (docs/format/README.md), deep-merged over what the document says, so one file can play twice on a
      * page with different timing. `null` at a slot DELETES that key, restoring the default its absence means (an
-     * absent `outTime` is the content's end, an absent `playDuration` natural speed).
+     * absent `outTime` is the content's end, an absent `playSpeed` speed 1).
      *
      * WHY `timelineOptions`, not `timeline`: it is NOT the file's `timeline` object — two of its keys live on other
      * props — and a prop that shares a file key's name promises the same shape (outside review 2026-11-01, §2.5).

@@ -4,7 +4,7 @@
  *---------------------------------------------------------------------------------------*/
 // §10 (dev-docs/reviews/first-use-review.md) + D5 (dev-docs/plans/component-api.md): `play` names a
 // STATE — a pose for a one-shot document, running-or-not for a looping one; `pause` freezes the clock
-// only and is forcibly lifted by `play: false`. HOW an on / off is performed is the timeline's own
+// only and is forcibly lifted by `playWhile: false`. HOW an on / off is performed is the timeline's own
 // (`actions.start`, `actions.stop` and its `completeIteration`) and lives in ONE executor that the
 // props, the trigger's event lists and the imperative api share.
 import { describe, expect, it } from 'vitest';
@@ -21,7 +21,7 @@ import {
     type PxPlayTarget,
 } from '../engine';
 
-type Props = { play?: boolean; pause?: boolean };
+type Props = { playWhile?: boolean; pauseWhile?: boolean };
 const oneShot = (next: Props, prev?: Props) => resolveDeclarativePlayback({ world: PxPlaybackWorld.oneShot, prev, next });
 const loop = (next: Props, prev?: Props) => resolveDeclarativePlayback({ world: PxPlaybackWorld.loop, prev, next });
 
@@ -36,10 +36,11 @@ class FakeEngine implements PxPlayTarget {
     play(): void { this.playing = true; this.log.push('play'); }
     pause(): void { this.playing = false; this.log.push('pause'); }
     reset(): void { this.playing = false; this.time = 0; this.log.push('reset'); }
-    jumpToFinished(): void { this.playing = false; this.time = this.totalMs; this.log.push('jumpToFinished'); }
-    setPlaybackRate(rate: number): void { this.rate = rate; }
-    getCurrentTime(): number | null { return this.time; }
-    setCurrentTime(ms: number): void { this.time = ms; this.log.push(`seek:${ms}`); }
+    jumpToEnd(): void { this.playing = false; this.time = this.totalMs; this.log.push('jumpToEnd'); }
+    setPlaySpeed(rate: number): void { this.rate = rate; }
+    getPlaySpeed(): number { return this.rate; }
+    getTotalTime(): number | null { return this.time; }
+    setTotalTime(ms: number): void { this.time = ms; this.log.push(`seek:${ms}`); }
     isPlaying(): boolean { return this.playing; }
     readonly raf = (cb: () => void): void => { this.rafQueue.push(cb); };
     /** One frame of `ms`: the clock moves, then the queued rAF callbacks run (a re-queued one waits for the next frame). */
@@ -68,31 +69,31 @@ describe('the playback world', () => {
 
 describe('one-shot: play plays it', () => {
     it('a mount with play STARTS — a one-shot plays to its end (the pose without motion is showAtProgress)', () => {
-        expect(oneShot({ play: true }).actions).toEqual([PxDeclarativeAction.start]);
-        expect(oneShot({ play: true, pause: true }).actions).toEqual([PxDeclarativeAction.start, PxDeclarativeAction.pause]);
-        expect(oneShot({ play: false }).actions).toEqual([]);
+        expect(oneShot({ playWhile: true }).actions).toEqual([PxDeclarativeAction.start]);
+        expect(oneShot({ playWhile: true, pauseWhile: true }).actions).toEqual([PxDeclarativeAction.start, PxDeclarativeAction.pause]);
+        expect(oneShot({ playWhile: false }).actions).toEqual([]);
         expect(oneShot({}).actions).toEqual([]);
     });
 
     it("a change asks for the configured on and off — HOW is the timeline's, never the prop's", () => {
-        expect(oneShot({ play: true }, { play: false }).actions).toEqual([PxDeclarativeAction.start]);
-        expect(oneShot({ play: false }, { play: true }).actions).toEqual([PxDeclarativeAction.stop]);
+        expect(oneShot({ playWhile: true }, { playWhile: false }).actions).toEqual([PxDeclarativeAction.start]);
+        expect(oneShot({ playWhile: false }, { playWhile: true }).actions).toEqual([PxDeclarativeAction.stop]);
     });
 
     it('pause freezes the clock while play is true, and resumes toward the current target', () => {
-        expect(oneShot({ play: true, pause: true }, { play: true }).actions).toEqual([PxDeclarativeAction.pause]);
-        expect(oneShot({ play: true, pause: false }, { play: true, pause: true }).actions).toEqual([PxDeclarativeAction.resume]);
+        expect(oneShot({ playWhile: true, pauseWhile: true }, { playWhile: true }).actions).toEqual([PxDeclarativeAction.pause]);
+        expect(oneShot({ playWhile: true, pauseWhile: false }, { playWhile: true, pauseWhile: true }).actions).toEqual([PxDeclarativeAction.resume]);
         // a retarget while frozen: the on starts, then freezes again — the clock stays held
-        expect(oneShot({ play: true, pause: true }, { play: false, pause: true }).actions)
+        expect(oneShot({ playWhile: true, pauseWhile: true }, { playWhile: false, pauseWhile: true }).actions)
             .toEqual([PxDeclarativeAction.start, PxDeclarativeAction.pause]);
     });
 
-    it('play: false forcibly unfreezes — the off happens as if nothing had been frozen', () => {
-        expect(oneShot({ play: false, pause: true }, { play: true, pause: true }).actions).toEqual([PxDeclarativeAction.stop]);
+    it('playWhile: false forcibly unfreezes — the off happens as if nothing had been frozen', () => {
+        expect(oneShot({ playWhile: false, pauseWhile: true }, { playWhile: true, pauseWhile: true }).actions).toEqual([PxDeclarativeAction.stop]);
     });
 
     it('pause without play warns and does nothing', () => {
-        const r = oneShot({ pause: true }, {});
+        const r = oneShot({ pauseWhile: true }, {});
         expect(r.actions).toEqual([]);
         expect(r.warnings.join(' ')).toContain('pause');
     });
@@ -100,14 +101,14 @@ describe('one-shot: play plays it', () => {
 
 describe('loop: play is a RUN switch', () => {
     it('on runs, off stops; mount with play runs (running IS the named state)', () => {
-        expect(loop({ play: true }).actions).toEqual([PxDeclarativeAction.start]);
-        expect(loop({ play: true }, { play: false }).actions).toEqual([PxDeclarativeAction.start]);
-        expect(loop({ play: false }, { play: true }).actions).toEqual([PxDeclarativeAction.stop]);
+        expect(loop({ playWhile: true }).actions).toEqual([PxDeclarativeAction.start]);
+        expect(loop({ playWhile: true }, { playWhile: false }).actions).toEqual([PxDeclarativeAction.start]);
+        expect(loop({ playWhile: false }, { playWhile: true }).actions).toEqual([PxDeclarativeAction.stop]);
     });
 
     it('a mount with play and pause starts and freezes at once; unpausing runs', () => {
-        expect(loop({ play: true, pause: true }).actions).toEqual([PxDeclarativeAction.start, PxDeclarativeAction.pause]);
-        expect(loop({ play: true, pause: false }, { play: true, pause: true }).actions).toEqual([PxDeclarativeAction.resume]);
+        expect(loop({ playWhile: true, pauseWhile: true }).actions).toEqual([PxDeclarativeAction.start, PxDeclarativeAction.pause]);
+        expect(loop({ playWhile: true, pauseWhile: false }, { playWhile: true, pauseWhile: true }).actions).toEqual([PxDeclarativeAction.resume]);
     });
 });
 
@@ -122,7 +123,7 @@ describe("the executor performs the timeline's play keys on any engine", () => {
         x.stop();
         expect(e.playing).toBe(false);
         expect(e.time).toBe(0);
-        expect(x.state()).toBe('stopped');
+        expect(x.state()).toBe('idle');
     });
 
     it('off on a STOPPED player elsewhere than the start (the end pose) still rests it; at the start it is a no-op', () => {
@@ -157,13 +158,13 @@ describe("the executor performs the timeline's play keys on any engine", () => {
         expect(midway.log).toEqual(['play']);              // resume: no reset
     });
 
-    it('start behavior jumpToFinished shows the end pose without motion; a loop shows the end of its first pass', () => {
+    it('start behavior jumpToEnd shows the end pose without motion; a loop shows the end of its first pass', () => {
         const one = new FakeEngine(1000);
-        executorOf(one, { actions: { start: { behavior: PxStartBehavior.jumpToFinished } } }).start();
-        expect(one.log).toEqual(['jumpToFinished']);
+        executorOf(one, { actions: { start: { behavior: PxStartBehavior.jumpToEnd } } }).start();
+        expect(one.log).toEqual(['jumpToEnd']);
         expect(one.time).toBe(1000);
         const endless = new FakeEngine(Infinity);
-        executorOf(endless, { actions: { start: { behavior: PxStartBehavior.jumpToFinished } } }).start();
+        executorOf(endless, { actions: { start: { behavior: PxStartBehavior.jumpToEnd } } }).start();
         expect(endless.log).toEqual(['pause', 'seek:1000']);
     });
 
@@ -247,7 +248,7 @@ describe("the executor performs the timeline's play keys on any engine", () => {
         expect(e.log).toEqual(['play']);                   // a resume, not a restart
         expect(e.time).toBe(300);
         x.reset();
-        expect(x.state()).toBe('stopped');
+        expect(x.state()).toBe('idle');
         expect(e.time).toBe(0);
     });
 
@@ -296,7 +297,7 @@ describe("the executor performs the timeline's play keys on any engine", () => {
         expect(e.rate).toBe(-1);
         e.frames(110);
         expect(e.time).toBe(0);
-        expect(x.state()).toBe('stopped');
+        expect(x.state()).toBe('idle');
         x.start();
         e.frames(110);
         expect(x.state()).toBe('finished');
@@ -324,7 +325,7 @@ describe('composeApiExtras — the public api on top of the same executor', () =
         e.frames(40);
         expect(e.time).toBe(0);
         api.reset();
-        expect(api.playExecutor.state()).toBe('stopped');
+        expect(api.playExecutor.state()).toBe('idle');
         expect(api.getDuration()).toBe(1000);
         expect(composeApiExtras(e, { duration: 1000 }, e.raf).playExecutor).toBe(api.playExecutor);
     });

@@ -43,7 +43,7 @@ describe('schema.defaults — what an absent field means', () => {
     });
 
     /** Optional fields whose absence deliberately means NOTHING (a flag that is simply not set). */
-    const ABSENT_MEANS_UNSET = new Set(['clone.without']);
+    const ABSENT_MEANS_UNSET = new Set(['clone.omit']);
 
     it('every optional choice in the wire format states what absent means', () => {
         const unstated: Array<string> = [];
@@ -81,21 +81,21 @@ describe('schema.defaults — what an absent field means', () => {
         visitCounting('textPath', PxTextPathEffectSchema);
         expect(visited).toBeGreaterThanOrEqual(17);
         // The rule has teeth: the one deliberate flag is the only optional choice without a stated default.
-        expect(PxCloneEffectSchema._shape.without.absentDefault()).toBeUndefined();
+        expect(PxCloneEffectSchema._shape.omit.absentDefault()).toBeUndefined();
         expect(unstated, 'optional choices whose schema does not say what absent means').toEqual([]);
     });
 
     it('the play keys\' stated defaults are exactly the constants the runtime is built from', () => {
-        // The timeline and the action blocks state every play / gate default; the one that is no key —
-        // what an ABSENT triggers block plays on — is the resolver's.
+        // The timeline and the action blocks state every play / gate default; an ABSENT triggers block, like an
+        // empty one, names no event (1.17) — there is no `start` constant any more.
         const d = PX_PLAYBACK_DEFAULTS;
-        expect(PxTimeTimelineSchema.defaults).toMatchObject({ showWhenStopped: d.showWhenStopped, inViewThreshold: d.inViewThreshold, inViewDebounce: d.inViewDebounce });
+        expect(PxTimeTimelineSchema.defaults).toMatchObject({ whenIdle: d.whenIdle, inViewThreshold: d.inViewThreshold, inViewDebounce: d.inViewDebounce });
         expect(PxStartActionSchema.defaults).toEqual({ behavior: d.startBehavior });
         expect(PxStopActionSchema.defaults).toEqual({ behavior: d.stopBehavior, completeIteration: d.stopCompleteIteration });
         expect(PxFinishActionSchema.defaults).toEqual({ behavior: d.finishBehavior });
         expect(PxOutOfViewActionSchema.defaults).toEqual({ behavior: d.outOfViewBehavior });
         expect(PxActionTriggersSchema.defaults).toEqual({});
-        expect(resolveTriggers(undefined).start).toEqual([d.start]);
+        expect(resolveTriggers(undefined).start).toEqual([]);
         // `actions.finish.behavior` reaches the engines as the runtime view's `resetOnFinish`,
         // where absent = hold = not set. The PRE-1.4 `trigger.finish` spelling is no longer read.
         expect(PxFinishActionSchema.defaults.behavior).toBe(PxFinishBehavior.hold);
@@ -106,12 +106,12 @@ describe('schema.defaults — what an absent field means', () => {
     });
 
     it('the timeline numbers the runtime falls back to are the schema\'s', () => {
-        // §4: the window replaced `duration`. `inTime` has the stated default; `outTime` and
-        // `playDuration` have DERIVED defaults (max keyframe time; window length), so the schema
-        // deliberately states none — `PX_DEFAULT_DURATION_MS` survives only as the scan fallback.
+        // §4: the window replaced `duration`. `inTime` has the stated default; `outTime` has a DERIVED default
+        // (max keyframe time), so the schema deliberately states none — `PX_DEFAULT_DURATION_MS` survives only as
+        // the scan fallback; `playSpeed` (1.16) states 1.
         expect(PxTimeTimelineSchema.defaults.inTime).toBe(0);
         expect('outTime' in PxTimeTimelineSchema.defaults).toBe(false);
-        expect('playDuration' in PxTimeTimelineSchema.defaults).toBe(false);
+        expect(PxTimeTimelineSchema.defaults.playSpeed).toBe(1);
         expect(PxTimeTimelineSchema.defaults.iterations).toBe(PX_DEFAULT_ITERATIONS);
         expect(PxTimeTimelineSchema.defaults.delay).toBe(0);
     });

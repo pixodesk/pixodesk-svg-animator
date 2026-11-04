@@ -4,7 +4,7 @@
  * Licensed under the MIT License. See the LICENSE file in the project root for details.
  *---------------------------------------------------------------------------------------*/
 
-import type { PxEngineCallbacks, PxAnimationPlayerCallbacks } from '@pixodesk/svg-animator-core';
+import { PxPlayState, type PxEngineCallbacks, type PxAnimationPlayerCallbacks } from '@pixodesk/svg-animator-core';
 
 /** The engine's callbacks plus `onStop`, carried along to the player's executor (it is not the engine's to fire). */
 export type PxPlayerCallbacks = PxEngineCallbacks & Pick<PxAnimationPlayerCallbacks, 'onStop'>;
@@ -39,14 +39,24 @@ export function createInertAnimator(): PxAnimationPlayerApi {
         pause: () => {},
         stop: () => {},
         reset: () => {},
-        jumpToFinished: () => {},
+        jumpToEnd: () => {},
         playOnce: () => {},
+        getPlayState: () => PxPlayState.idle,
+        getPlaySpeed: () => 1,
+        setPlaySpeed: () => {},
+        getPlayDuration: () => null,
+        setPlayDuration: () => {},
+        getTotalPlayDuration: () => null,
+        getCurrentPlayTime: () => null,
         getDuration: () => null,
-        setPlaybackRate: () => {},
+        getTotalDuration: () => null,
         getCurrentTime: () => null,
         setCurrentTime: () => {},
         getCurrentProgress: () => null,
         setCurrentProgress: () => {},
+        getCurrentIteration: () => 0,
+        getTotalTime: () => null,
+        setTotalTime: () => {},
         destroy: () => {},
     };
 }

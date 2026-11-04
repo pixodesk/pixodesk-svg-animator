@@ -1,6 +1,15 @@
 # Playback layers — the lifecycle config, layer by layer
 
 Status **2026-10-28 — layers 0–1 implemented** (schema 1.10; see [Implementation log](#implementation-log-2026-10-28)).
+
+> **Since 1.21 (2026-11-04)** — this document keeps the words of the version it was written for; the current contract
+> differs in these points (`dev-docs/reviews/schema-and-props--manual-review.md` has the reasoning): an absent
+> `actionTriggers` block ≡ `{}` ≡ nothing starts it — autoplay is always written `start: 'load'` (1.17; the "block
+> absent = load" lines below are history); `jumpToFinished` → `jumpToEnd` (1.18); `showWhenStopped` → `whenIdle` and
+> `PxPlayState` is `idle · playing · paused · finished · destroyed` (1.19); `timeline.playDuration` → `playSpeed`
+> (1.16); the component props `play` / `pause` → `playWhile` / `pauseWhile`, plus a `playState` word; the handle's
+> `cancel()` / `finish()` are `reset()` / `jumpToEnd()`, `setPlaybackRate` → `setPlaySpeed`, and plain time reads are
+> INSIDE the iteration (`total…` for the run).
 Layers 0 and 1 REPLACE D6 in
 [component-api.md](./component-api.md) ("improved D6" = layers 0 and 1 together; layer 1 lists the
 differences) and describe exactly today's schema 1.9, renamed and regrouped — see

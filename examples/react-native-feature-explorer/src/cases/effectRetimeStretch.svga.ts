@@ -31,7 +31,7 @@ export const effectRetimeStretch: SvgaCaseJson = {
             "transform": "translate(0,110)",
             "effects": {
                 "clone": {
-                    "without": "translate",
+                    "omit": "translate",
                     "retime": {
                         "stretch": 2
                     },
@@ -101,7 +101,7 @@ export const effectRetimeStretch: SvgaCaseJson = {
                     "transform": "translate(0,25)",
                     "effects": {
                         "clone": {
-                            "without": "translate",
+                            "omit": "translate",
                             "retime": {
                                 "stretch": 2
                             },

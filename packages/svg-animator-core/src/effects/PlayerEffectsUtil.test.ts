@@ -168,7 +168,7 @@ describe('materializeNodeEffects — materialization etalons', () => {
                 {
                     type: 'use',
                     transform: 'translate(40,200)',
-                    effects: { clone: { source: 'src', without: 'translate' } },
+                    effects: { clone: { source: 'src', omit: 'translate' } },
                 },
             ],
         };
@@ -477,7 +477,7 @@ describe('materializeNodeEffects — materialization etalons', () => {
                 {
                     type: 'use',
                     href: '#sym',
-                    effects: { clone: { retime: { start: 100, stretch: 0.5 } } },
+                    effects: { clone: { retime: { offset: 100, stretch: 0.5 } } },
                 },
             ],
         };
